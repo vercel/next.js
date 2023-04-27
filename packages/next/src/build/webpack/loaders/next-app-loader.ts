@@ -591,6 +591,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
     export { renderToReadableStream, decodeReply } from 'next/dist/compiled/react-server-dom-webpack/server.edge'
     export const __next_app_webpack_require__ = __webpack_require__
+    export { preloadStyle } from 'next/dist/server/app-render/rsc/preloads'
   `
 
   return result
