@@ -1,7 +1,6 @@
 import { isMetadataRoute, isMetadataRouteFile } from './is-metadata-route'
 import path from '../../shared/lib/isomorphic/path'
 import { djb2Hash } from '../../shared/lib/hash'
-import { isDynamicRoute } from '../../shared/lib/router/utils'
 
 /*
  * If there's special convention like (...) or @ in the page path,

@@ -45,7 +45,7 @@ export function isMetadataRouteFile(
         withExtension
           ? `\\.${getExtensionRegexString(pageExtensions.concat('txt'))}`
           : ''
-      }`
+      }$`
     ),
     new RegExp(
       `^[\\\\/]manifest${
@@ -54,7 +54,7 @@ export function isMetadataRouteFile(
               pageExtensions.concat('webmanifest', 'json')
             )}`
           : ''
-      }`
+      }$`
     ),
     new RegExp(`^[\\\\/]favicon\\.ico$`),
     new RegExp(
@@ -62,7 +62,7 @@ export function isMetadataRouteFile(
         withExtension
           ? `\\.${getExtensionRegexString(pageExtensions.concat('xml'))}`
           : ''
-      }`
+      }$`
     ),
     new RegExp(
       `[\\\\/]${STATIC_METADATA_IMAGES.icon.filename}${
@@ -71,7 +71,7 @@ export function isMetadataRouteFile(
               pageExtensions.concat(STATIC_METADATA_IMAGES.icon.extensions)
             )}`
           : ''
-      }`
+      }$`
     ),
     new RegExp(
       `[\\\\/]${STATIC_METADATA_IMAGES.apple.filename}${
@@ -80,7 +80,7 @@ export function isMetadataRouteFile(
               pageExtensions.concat(STATIC_METADATA_IMAGES.apple.extensions)
             )}`
           : ''
-      }`
+      }$`
     ),
     new RegExp(
       `[\\\\/]${STATIC_METADATA_IMAGES.openGraph.filename}${
@@ -89,7 +89,7 @@ export function isMetadataRouteFile(
               pageExtensions.concat(STATIC_METADATA_IMAGES.openGraph.extensions)
             )}`
           : ''
-      }`
+      }$`
     ),
     new RegExp(
       `[\\\\/]${STATIC_METADATA_IMAGES.twitter.filename}${
@@ -98,7 +98,7 @@ export function isMetadataRouteFile(
               pageExtensions.concat(STATIC_METADATA_IMAGES.twitter.extensions)
             )}`
           : ''
-      }`
+      }$`
     ),
   ]
 
