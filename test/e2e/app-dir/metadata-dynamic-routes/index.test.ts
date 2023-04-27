@@ -326,16 +326,24 @@ createNextDescribe(
     it('should use localhost for local prod and fallback to deployment url when metadataBase is falsy', async () => {
       const $ = await next.render$('/metadata-base/unset')
       const twitterImage = $('meta[name="twitter:image"]').attr('content')
+      const ogImages = $('meta[property="og:image"]')
 
-      if (isNextDeploy) {
-        expect(twitterImage).toMatch(
-          /https:\/\/[\w-]+.vercel.app\/metadata-base\/unset\/twitter-image\.png/
+      ogImages.each((_, ogImage) => {
+        const ogImageUrl = $(ogImage).attr('content')
+        expect(ogImageUrl).toMatch(
+          isNextDeploy
+            ? /https:\/\/[\w-]+.vercel.app/
+            : /http:\/\/localhost:\d+/
         )
-      } else {
-        expect(twitterImage).toMatch(
-          /http:\/\/localhost:\d+\/metadata-base\/unset\/twitter-image\.png/
+        expect(ogImageUrl).toMatch(
+          /\/metadata-base\/unset\/opengraph-image\/10\d/
         )
-      }
+      })
+
+      expect(twitterImage).toMatch(
+        isNextDeploy ? /https:\/\/[\w-]+.vercel.app/ : /http:\/\/localhost:\d+/
+      )
+      expect(twitterImage).toMatch(/\/metadata-base\/unset\/twitter-image\.png/)
     })
 
     if (isNextStart) {

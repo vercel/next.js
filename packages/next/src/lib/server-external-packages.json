@@ -31,5 +31,6 @@
   "ts-node",
   "typescript",
   "vscode-oniguruma",
-  "webpack"
+  "webpack",
+  "@vercel/og"
 ]
