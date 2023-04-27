@@ -1,8 +1,8 @@
-mod modularize_imports;
-mod next_dynamic;
-mod next_font;
-mod next_strip_page_exports;
-mod relay;
+pub(crate) mod modularize_imports;
+pub(crate) mod next_dynamic;
+pub(crate) mod next_font;
+pub(crate) mod next_strip_page_exports;
+pub(crate) mod relay;
 
 pub use modularize_imports::{get_next_modularize_imports_rule, ModularizeImportPackageConfig};
 pub use next_dynamic::get_next_dynamic_transform_rule;

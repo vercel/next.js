@@ -6,7 +6,8 @@ use swc_core::{
     common::{util::take::Take, FileName},
     ecma::{
         ast::{Module, Program},
-        visit::FoldWith,
+        transforms::base::resolver,
+        visit::{FoldWith, VisitMutWith},
     },
 };
 use swc_relay::RelayLanguageConfig;
@@ -53,7 +54,6 @@ impl CustomTransformer for RelayTransformer {
         program: &mut Program,
         ctx: &TransformContext<'_>,
     ) -> Option<Program> {
-        let p = std::mem::replace(program, Program::Module(Module::dummy()));
         let root = if let Ok(file_path) = ctx.file_path.await {
             file_path
                 .fs
@@ -64,13 +64,25 @@ impl CustomTransformer for RelayTransformer {
             PathBuf::new()
         };
 
+        let (root, config) = if self.config.artifact_directory.is_some() {
+            (root, None)
+        } else {
+            let config = swc_relay::Config {
+                artifact_directory: Some(PathBuf::from("__generated__")),
+                ..self.config
+            };
+            (PathBuf::from("."), Some(config))
+        };
+
+        let p = std::mem::replace(program, Program::Module(Module::dummy()));
         *program = p.fold_with(&mut swc_relay::relay(
-            &self.config,
+            config.as_ref().unwrap_or_else(|| &self.config),
             FileName::Real(PathBuf::from(ctx.file_name_str)),
             root,
             // [TODO]: pages_dir comes through next-swc-loader
             // https://github.com/vercel/next.js/blob/ea472e8058faea8ebdab2ef6d3aab257a1f0d11c/packages/next/src/build/webpack-config.ts#L792
             None,
+            Some(ctx.unresolved_mark),
         ));
 
         None
