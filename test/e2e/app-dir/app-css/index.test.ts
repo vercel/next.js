@@ -270,10 +270,10 @@ createNextDescribe(
             const initialHtml = await next.render('/css/css-duplicate-2/server')
 
             // Even if it's deduped by Float, it should still only be included once in the payload.
-            // There are two matches, one for the rendered <link> and one for the flight data.
+            // There are 3 matches, one for the rendered <link>, one for float preload and one for the <link> inside flight payload.
             expect(
               initialHtml.match(/css-duplicate-2\/layout\.css/g).length
-            ).toBe(2)
+            ).toBe(3)
           })
 
           it('should only load chunks for the css module that is used by the specific entrypoint', async () => {

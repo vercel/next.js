@@ -8,7 +8,7 @@ use napi::{
 };
 use next_core::app_structure::{
     find_app_dir, get_entrypoints as get_entrypoints_impl, Components, ComponentsVc, Entrypoint,
-    EntrypointsVc, LoaderTree, LoaderTreeVc,
+    EntrypointsVc, LoaderTree, LoaderTreeVc, MetadataWithAltItem,
 };
 use serde::{Deserialize, Serialize};
 use turbo_binding::{
@@ -41,7 +41,8 @@ async fn project_fs(project_dir: &str, watching: bool) -> Result<FileSystemVc> {
 struct LoaderTreeForJs {
     segment: String,
     parallel_routes: HashMap<String, LoaderTreeForJsReadRef>,
-    components: serde_json::Value,
+    #[turbo_tasks(trace_ignore)]
+    components: ComponentsForJs,
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, ValueDebugFormat, TraceRawVcs)]
@@ -69,10 +70,57 @@ async fn fs_path_to_path(project_path: FileSystemPathVc, path: FileSystemPathVc)
     }
 }
 
+#[derive(Default, Deserialize, Serialize, PartialEq, Eq, ValueDebugFormat)]
+#[serde(rename_all = "camelCase")]
+struct ComponentsForJs {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    page: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    layout: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    loading: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    template: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    default: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    route: Option<String>,
+    metadata: MetadataForJs,
+}
+
+#[derive(Default, Deserialize, Serialize, PartialEq, Eq, ValueDebugFormat)]
+#[serde(rename_all = "camelCase")]
+struct MetadataForJs {
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    icon: Vec<MetadataForJsItem>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    apple: Vec<MetadataForJsItem>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    twitter: Vec<MetadataForJsItem>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    open_graph: Vec<MetadataForJsItem>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    favicon: Vec<MetadataForJsItem>,
+}
+
+#[derive(Deserialize, Serialize, PartialEq, Eq, ValueDebugFormat)]
+#[serde(tag = "type", rename_all = "camelCase")]
+enum MetadataForJsItem {
+    Static {
+        path: String,
+        alt_path: Option<String>,
+    },
+    Dynamic {
+        path: String,
+    },
+}
+
 async fn prepare_components_for_js(
     project_path: FileSystemPathVc,
     components: ComponentsVc,
-) -> Result<serde_json::Value> {
+) -> Result<ComponentsForJs> {
     let Components {
         page,
         layout,
@@ -83,59 +131,66 @@ async fn prepare_components_for_js(
         route,
         metadata,
     } = &*components.await?;
-    let mut map = serde_json::value::Map::new();
+    let mut result = ComponentsForJs::default();
     async fn add(
-        map: &mut serde_json::value::Map<String, serde_json::Value>,
+        result: &mut Option<String>,
         project_path: FileSystemPathVc,
-        key: &str,
         value: &Option<FileSystemPathVc>,
     ) -> Result<()> {
         if let Some(value) = value {
-            map.insert(
-                key.to_string(),
-                fs_path_to_path(project_path, *value).await?.into(),
-            );
+            *result = Some(fs_path_to_path(project_path, *value).await?);
         }
         Ok::<_, anyhow::Error>(())
     }
-    add(&mut map, project_path, "page", page).await?;
-    add(&mut map, project_path, "layout", layout).await?;
-    add(&mut map, project_path, "error", error).await?;
-    add(&mut map, project_path, "loading", loading).await?;
-    add(&mut map, project_path, "template", template).await?;
-    add(&mut map, project_path, "default", default).await?;
-    add(&mut map, project_path, "route", route).await?;
-    let mut meta = serde_json::value::Map::new();
-    async fn add_meta(
-        meta: &mut serde_json::value::Map<String, serde_json::Value>,
+    add(&mut result.page, project_path, page).await?;
+    add(&mut result.layout, project_path, layout).await?;
+    add(&mut result.error, project_path, error).await?;
+    add(&mut result.loading, project_path, loading).await?;
+    add(&mut result.template, project_path, template).await?;
+    add(&mut result.default, project_path, default).await?;
+    add(&mut result.route, project_path, route).await?;
+    async fn add_meta<'a>(
+        meta: &mut Vec<MetadataForJsItem>,
         project_path: FileSystemPathVc,
-        key: &str,
-        value: &Vec<FileSystemPathVc>,
+        value: impl Iterator<Item = &'a MetadataWithAltItem>,
     ) -> Result<()> {
-        if !value.is_empty() {
-            meta.insert(
-                key.to_string(),
-                value
-                    .iter()
-                    .map(|value| async move {
-                        Ok(serde_json::Value::from(
-                            fs_path_to_path(project_path, *value).await?,
-                        ))
+        let mut value = value.peekable();
+        if value.peek().is_some() {
+            *meta = value
+                .map(|value| async move {
+                    Ok(match value {
+                        MetadataWithAltItem::Static { path, alt_path } => {
+                            let path = fs_path_to_path(project_path, *path).await?;
+                            let alt_path = if let Some(alt_path) = alt_path {
+                                Some(fs_path_to_path(project_path, *alt_path).await?)
+                            } else {
+                                None
+                            };
+                            MetadataForJsItem::Static { path, alt_path }
+                        }
+                        MetadataWithAltItem::Dynamic { path } => {
+                            let path = fs_path_to_path(project_path, *path).await?;
+                            MetadataForJsItem::Dynamic { path }
+                        }
                     })
-                    .try_join()
-                    .await?
-                    .into(),
-            );
+                })
+                .try_join()
+                .await?;
         }
         Ok::<_, anyhow::Error>(())
     }
-    add_meta(&mut meta, project_path, "icon", &metadata.icon).await?;
-    add_meta(&mut meta, project_path, "apple", &metadata.apple).await?;
-    add_meta(&mut meta, project_path, "twitter", &metadata.twitter).await?;
-    add_meta(&mut meta, project_path, "openGraph", &metadata.open_graph).await?;
-    add_meta(&mut meta, project_path, "favicon", &metadata.favicon).await?;
-    map.insert("metadata".to_string(), meta.into());
-    Ok(map.into())
+    let meta = &mut result.metadata;
+    add_meta(&mut meta.icon, project_path, metadata.icon.iter()).await?;
+    add_meta(&mut meta.apple, project_path, metadata.apple.iter()).await?;
+    add_meta(&mut meta.twitter, project_path, metadata.twitter.iter()).await?;
+    add_meta(
+        &mut meta.open_graph,
+        project_path,
+        metadata.open_graph.iter(),
+    )
+    .await?;
+    add_meta(&mut meta.favicon, project_path, metadata.favicon.iter()).await?;
+    Ok(result)
 }
 
 #[tasks::function]

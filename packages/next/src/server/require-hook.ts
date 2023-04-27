@@ -57,6 +57,10 @@ function overrideReact() {
         'react-dom/server.browser',
         require.resolve(`next/dist/compiled/react-dom/server.browser`),
       ],
+      [
+        'react-dom/server.edge',
+        require.resolve(`next/dist/compiled/react-dom/server.edge`),
+      ],
     ])
   } else {
     addHookAliases([

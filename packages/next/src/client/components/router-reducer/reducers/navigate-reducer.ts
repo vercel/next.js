@@ -318,11 +318,14 @@ export function navigateReducer(
       currentTree = newTree
 
       for (const subSegment of generateSegmentsFromPatch(treePatch)) {
-        scrollableSegments.push(
-          [...flightSegmentPath, ...subSegment].filter(
-            (segment) => !segment.startsWith('__PAGE__')
-          )
-        )
+        const scrollableSegmentPath = [...flightSegmentPath, ...subSegment]
+        // Filter out the __DEFAULT__ paths as they shouldn't be scrolled to in this case.
+        if (
+          scrollableSegmentPath[scrollableSegmentPath.length - 1] !==
+          '__DEFAULT__'
+        ) {
+          scrollableSegments.push(scrollableSegmentPath)
+        }
       }
     }
   }
