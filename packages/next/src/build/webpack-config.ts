@@ -1290,7 +1290,9 @@ export default async function getBaseWebpackConfig(
       // so that the DefinePlugin can inject process.env values.
 
       // Treat next internals as non-external for server layer
-      if (layer === WEBPACK_LAYERS.server) return
+      if (layer === WEBPACK_LAYERS.server) {
+        return
+      }
 
       const isNextExternal =
         /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic|app-dynamic|lazy-dynamic|head[^-]))/.test(
@@ -1334,6 +1336,15 @@ export default async function getBaseWebpackConfig(
     // since `resolveExternal` cannot find the styled-jsx dep with pnpm
     if (request === 'styled-jsx/style') {
       resolveResult.res = require.resolve(request)
+    }
+
+    // Don't bundle @vercel/og nodejs bundle for nodejs runtime
+    // TODO-APP: bundle route.js with different layer that externals common node_module deps
+    if (
+      layer === WEBPACK_LAYERS.server &&
+      request === 'next/dist/compiled/@vercel/og/index.node.js'
+    ) {
+      return `module ${request}`
     }
 
     const { res, isEsm } = resolveResult
@@ -1417,6 +1428,7 @@ export default async function getBaseWebpackConfig(
       if (layer === WEBPACK_LAYERS.server) {
         // All packages should be bundled for the server layer if they're not opted out.
         // This option takes priority over the transpilePackages option.
+
         if (optOutBundlingPackageRegex.test(res)) {
           return `${externalType} ${request}`
         }
