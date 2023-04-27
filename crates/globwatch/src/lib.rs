@@ -36,7 +36,7 @@ pub use notify::{Error, Event, Watcher};
 pub use stop_token::{stream::StreamExt, StopSource, StopToken, TimedOutError};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio_stream::wrappers::UnboundedReceiverStream;
-use tracing::{event, span, trace, warn, Id, Level, Span};
+use tracing::{event, span, trace, warn, Id, Level};
 
 /// A wrapper around notify that allows for glob-based watching.
 #[derive(Debug)]
