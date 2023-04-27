@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sections": [
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/css/absolute-uri-import/input/withduplicateurl.css"],"sourcesContent":["/* This should not be duplicated */\n@import \"https://example.com/stylesheet1.css\";\n\n.bar {\n  background-color:green;\n}\n"],"names":[],"mappings":"AAGA,CAAC,GAAG,CAAC,CAAC;EACJ,gBAAgB,EAAC,KAAK;AACxB,CAAC"}},
+    {"offset": {"line": 3, "column": 1}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}

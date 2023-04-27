@@ -28,6 +28,7 @@ export type ChunkData =
       path: ChunkPath;
       included: ModuleId[];
       excluded: ModuleId[];
+      moduleChunks: ChunkPath[];
     };
 export type ChunkList = {
   path: ChunkPath;

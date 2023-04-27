@@ -133,6 +133,10 @@ pub trait Chunk: Asset {
 pub struct OutputChunkRuntimeInfo {
     pub included_ids: Option<ModuleIdsVc>,
     pub excluded_ids: Option<ModuleIdsVc>,
+    /// List of paths of chunks containing individual modules that are part of
+    /// this chunk. This is useful for selectively loading modules from a chunk
+    /// without loading the whole chunk.
+    pub module_chunks: Option<AssetsVc>,
     pub placeholder_for_future_extensions: (),
 }
 
