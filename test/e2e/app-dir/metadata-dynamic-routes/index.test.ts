@@ -159,12 +159,10 @@ createNextDescribe(
       })
 
       it('should support generate multi sitemaps with generateSitemaps', async () => {
-        const ids = [0, 1, 2]
+        const ids = [0, 1, 2, 3]
         function fetchSitemap(id) {
           return next
-            .fetch(
-              isNextDev ? `/gsp/sitemap.xml/${id}` : `/gsp/sitemap/${id}.xml`
-            )
+            .fetch(`/dynamic/small/sitemap.xml/${id}`)
             .then((res) => res.text())
         }
 
