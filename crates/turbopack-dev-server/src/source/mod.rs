@@ -505,9 +505,9 @@ impl ContentSource for NoContentSource {
 
 /// A rewrite returned from a [ContentSource]. This tells the dev server to
 /// update its parsed url, path, and queries with this new information, and any
-/// later [NeededData] will receive data out of t these new values.
-#[derive(Debug)]
+/// later [NeededData] will receive data out of these new values.
 #[turbo_tasks::value(shared)]
+#[derive(Debug)]
 pub struct Rewrite {
     /// The new path and query used to lookup content. This _does not_ need to
     /// be the original path or query.

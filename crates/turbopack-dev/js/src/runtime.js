@@ -21,6 +21,7 @@
 /** @typedef {import('../types').RequireContextMap} RequireContextMap */
 
 /** @typedef {import('../types').RefreshHelpers} RefreshHelpers */
+/** @typedef {import('../types').RefreshContext} RefreshContext */
 /** @typedef {import('../types/hot').Hot} Hot */
 /** @typedef {import('../types/hot').HotData} HotData */
 /** @typedef {import('../types/hot').AcceptCallback} AcceptCallback */
@@ -447,7 +448,7 @@ function instantiateModule(id, source) {
       break;
   }
 
-  runModuleExecutionHooks(module, () => {
+  runModuleExecutionHooks(module, (refresh) => {
     try {
       moduleFactory.call(module.exports, {
         e: module.exports,
@@ -462,6 +463,7 @@ function instantiateModule(id, source) {
         c: moduleCache,
         l: loadChunk.bind(null, { type: SourceTypeParent, parentId: id }),
         g: globalThis,
+        k: refresh,
         __dirname: module.id.replace(/(^|\/)[\/]+$/, ""),
       });
     } catch (error) {
@@ -485,7 +487,7 @@ function instantiateModule(id, source) {
  * refresh registry.
  *
  * @param {Module} module
- * @param {() => void} executeModule
+ * @param {(ctx: RefreshContext) => void} executeModule
  */
 function runModuleExecutionHooks(module, executeModule) {
   const cleanupReactRefreshIntercept =
@@ -493,7 +495,10 @@ function runModuleExecutionHooks(module, executeModule) {
       ? globalThis.$RefreshInterceptModuleExecution$(module.id)
       : () => {};
 
-  executeModule();
+  executeModule({
+    register: globalThis.$RefreshReg$,
+    signature: globalThis.$RefreshSig$,
+  });
 
   if ("$RefreshHelpers$" in globalThis) {
     // This pattern can also be used to register the exports of
@@ -506,14 +511,6 @@ function runModuleExecutionHooks(module, executeModule) {
 
   cleanupReactRefreshIntercept();
 }
-
-// noop fns to prevent refresh runtime errors when trying to access the runtime outside of the initial module execution.
-globalThis.$RefreshReg$ = function () {};
-globalThis.$RefreshSig$ = function () {
-  return function (type) {
-    return type;
-  };
-};
 
 /**
  * Retrieves a module from the cache, or instantiate it if it is not cached.
