@@ -65,7 +65,7 @@ export function isMetadataRouteFile(
       }`
     ),
     new RegExp(
-      `[\\\\/]${STATIC_METADATA_IMAGES.icon.filename}${
+      `[\\\\/]${STATIC_METADATA_IMAGES.icon.filename}\\d?${
         withExtension
           ? `\\.${getExtensionRegexString(
               pageExtensions.concat(STATIC_METADATA_IMAGES.icon.extensions)
@@ -74,7 +74,7 @@ export function isMetadataRouteFile(
       }`
     ),
     new RegExp(
-      `[\\\\/]${STATIC_METADATA_IMAGES.apple.filename}${
+      `[\\\\/]${STATIC_METADATA_IMAGES.apple.filename}\\d?${
         withExtension
           ? `\\.${getExtensionRegexString(
               pageExtensions.concat(STATIC_METADATA_IMAGES.apple.extensions)
@@ -83,7 +83,7 @@ export function isMetadataRouteFile(
       }`
     ),
     new RegExp(
-      `[\\\\/]${STATIC_METADATA_IMAGES.openGraph.filename}${
+      `[\\\\/]${STATIC_METADATA_IMAGES.openGraph.filename}\\d?${
         withExtension
           ? `\\.${getExtensionRegexString(
               pageExtensions.concat(STATIC_METADATA_IMAGES.openGraph.extensions)
@@ -92,7 +92,7 @@ export function isMetadataRouteFile(
       }`
     ),
     new RegExp(
-      `[\\\\/]${STATIC_METADATA_IMAGES.twitter.filename}${
+      `[\\\\/]${STATIC_METADATA_IMAGES.twitter.filename}\\d?${
         withExtension
           ? `\\.${getExtensionRegexString(
               pageExtensions.concat(STATIC_METADATA_IMAGES.twitter.extensions)

@@ -48,7 +48,7 @@ export function normalizeMetadataRoute(page: string) {
   // Support both /<metadata-route.ext> and custom routes /<metadata-route>/route.ts.
   // If it's a metadata file route, we need to append /[id]/route to the page.
   if (!route.endsWith('/route')) {
-    const isStaticMetadataFile = isMetadataRouteFile(route, [], true)
+    const isStaticMetadataFile = isMetadataRouteFile(page, [], true)
     const { dir, name: baseName, ext } = path.parse(route)
 
     const isStaticRoute =

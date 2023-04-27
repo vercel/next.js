@@ -336,7 +336,7 @@ createNextDescribe(
             : /http:\/\/localhost:\d+/
         )
         expect(ogImageUrl).toMatch(
-          /\/metadata-base\/unset\/opengraph-image\/10\d/
+          /\/metadata-base\/unset\/opengraph-image2\/10\d/
         )
       })
 
