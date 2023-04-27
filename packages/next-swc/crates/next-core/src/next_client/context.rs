@@ -46,6 +46,7 @@ use crate::{
         get_next_client_fallback_import_map, get_next_client_import_map,
         get_next_client_resolved_map,
     },
+    next_shared::resolve::UnsupportedModulesResolvePluginVc,
     transform_options::{
         get_decorators_transform_options, get_emotion_compiler_config, get_jsx_transform_options,
         get_styled_components_compiler_config, get_typescript_transform_options,
@@ -135,6 +136,7 @@ pub async fn get_client_resolve_options_context(
         resolved_map: Some(next_client_resolved_map),
         browser: true,
         module: true,
+        plugins: vec![UnsupportedModulesResolvePluginVc::new(project_path).into()],
         ..Default::default()
     };
     Ok(ResolveOptionsContext {
