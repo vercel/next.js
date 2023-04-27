@@ -43,62 +43,62 @@ export function isMetadataRouteFile(
     new RegExp(
       `^[\\\\/]robots${
         withExtension
-          ? `\\.${getExtensionRegexString(pageExtensions.concat('txt'))}`
+          ? `\\.${getExtensionRegexString(pageExtensions.concat('txt'))}$`
           : ''
-      }$`
+      }`
     ),
     new RegExp(
       `^[\\\\/]manifest${
         withExtension
           ? `\\.${getExtensionRegexString(
               pageExtensions.concat('webmanifest', 'json')
-            )}`
+            )}$`
           : ''
-      }$`
+      }`
     ),
     new RegExp(`^[\\\\/]favicon\\.ico$`),
     new RegExp(
       `[\\\\/]sitemap${
         withExtension
-          ? `\\.${getExtensionRegexString(pageExtensions.concat('xml'))}`
+          ? `\\.${getExtensionRegexString(pageExtensions.concat('xml'))}$`
           : ''
-      }$`
+      }`
     ),
     new RegExp(
       `[\\\\/]${STATIC_METADATA_IMAGES.icon.filename}${
         withExtension
           ? `\\.${getExtensionRegexString(
               pageExtensions.concat(STATIC_METADATA_IMAGES.icon.extensions)
-            )}`
+            )}$`
           : ''
-      }$`
+      }`
     ),
     new RegExp(
       `[\\\\/]${STATIC_METADATA_IMAGES.apple.filename}${
         withExtension
           ? `\\.${getExtensionRegexString(
               pageExtensions.concat(STATIC_METADATA_IMAGES.apple.extensions)
-            )}`
+            )}$`
           : ''
-      }$`
+      }`
     ),
     new RegExp(
       `[\\\\/]${STATIC_METADATA_IMAGES.openGraph.filename}${
         withExtension
           ? `\\.${getExtensionRegexString(
               pageExtensions.concat(STATIC_METADATA_IMAGES.openGraph.extensions)
-            )}`
+            )}$`
           : ''
-      }$`
+      }`
     ),
     new RegExp(
       `[\\\\/]${STATIC_METADATA_IMAGES.twitter.filename}${
         withExtension
           ? `\\.${getExtensionRegexString(
               pageExtensions.concat(STATIC_METADATA_IMAGES.twitter.extensions)
-            )}`
+            )}$`
           : ''
-      }$`
+      }`
     ),
   ]
 
