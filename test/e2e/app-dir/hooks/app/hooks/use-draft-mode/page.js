@@ -6,6 +6,7 @@ export default function Page() {
   return (
     <>
       <h1>hello from /hooks/use-draft-mode</h1>
+      <p>Rand: {Math.random()}</p>
       {enabled ? (
         <h2 id="draft-mode-enabled">ENABLED</h2>
       ) : (

@@ -23,6 +23,8 @@ import { isDynamicRoute } from '../shared/lib/router/utils'
 import { interpolateDynamicPath, normalizeVercelUrl } from './server-utils'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { IncrementalCache } from './lib/incremental-cache'
+import { PrerenderManifest } from '../build'
+
 interface WebServerOptions extends Options {
   webServerConfig: {
     page: string
@@ -35,6 +37,7 @@ interface WebServerOptions extends Options {
     pagesRenderToHTML?: typeof import('./render').renderToHTML
     appRenderToHTML?: typeof import('./app-render/app-render').renderToHTMLOrFlight
     incrementalCacheHandler?: any
+    prerenderManifest: PrerenderManifest | undefined
   }
 }
 
@@ -73,21 +76,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       flushToDisk: false,
       CurCacheHandler:
         this.serverOptions.webServerConfig.incrementalCacheHandler,
-      getPrerenderManifest: () => {
-        if (dev) {
-          return {
-            version: -1 as any, // letting us know this doesn't conform to spec
-            routes: {},
-            dynamicRoutes: {},
-            notFoundRoutes: [],
-            preview: {
-              previewModeId: 'development-id',
-            } as any, // `preview` is special case read in next-dev-server
-          }
-        } else {
-          return this.getPrerenderManifest()
-        }
-      },
+      getPrerenderManifest: () => this.getPrerenderManifest(),
     })
   }
   protected getResponseCache() {
@@ -157,17 +146,19 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
   }
   protected getPrerenderManifest() {
-    return {
-      version: 4 as const,
-      routes: {},
-      dynamicRoutes: {},
-      notFoundRoutes: [],
-      preview: {
-        previewModeId: '',
-        previewModeSigningKey: '',
-        previewModeEncryptionKey: '',
-      },
+    const { prerenderManifest } = this.serverOptions.webServerConfig
+    if (this.renderOpts.dev || !prerenderManifest) {
+      return {
+        version: -1 as any, // letting us know this doesn't conform to spec
+        routes: {},
+        dynamicRoutes: {},
+        notFoundRoutes: [],
+        preview: {
+          previewModeId: 'development-id',
+        } as any, // `preview` is special case read in next-dev-server
+      }
     }
+    return prerenderManifest
   }
   protected getServerComponentManifest() {
     return this.serverOptions.webServerConfig.extendRenderOpts

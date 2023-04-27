@@ -403,21 +403,7 @@ export default class NextNodeServer extends BaseServer {
       maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
       flushToDisk:
         !this.minimalMode && this.nextConfig.experimental.isrFlushToDisk,
-      getPrerenderManifest: () => {
-        if (dev) {
-          return {
-            version: -1 as any, // letting us know this doesn't conform to spec
-            routes: {},
-            dynamicRoutes: {},
-            notFoundRoutes: [],
-            preview: {
-              previewModeId: 'development-id',
-            } as any, // `preview` is special case read in next-dev-server
-          }
-        } else {
-          return this.getPrerenderManifest()
-        }
-      },
+      getPrerenderManifest: () => this.getPrerenderManifest(),
       CurCacheHandler: CacheHandler,
     })
   }
@@ -2550,6 +2536,28 @@ export default class NextNodeServer extends BaseServer {
   private _cachedPreviewManifest: PrerenderManifest | undefined
   protected getPrerenderManifest(): PrerenderManifest {
     if (this._cachedPreviewManifest) {
+      return this._cachedPreviewManifest
+    }
+    if (
+      this.renderOpts?.dev ||
+      this.serverOptions?.dev ||
+      this.renderWorkerOpts?.dev
+    ) {
+      this._cachedPreviewManifest = {
+        version: 4,
+        routes: {},
+        dynamicRoutes: {},
+        notFoundRoutes: [],
+        preview: {
+          previewModeId: require('crypto').randomBytes(16).toString('hex'),
+          previewModeSigningKey: require('crypto')
+            .randomBytes(32)
+            .toString('hex'),
+          previewModeEncryptionKey: require('crypto')
+            .randomBytes(32)
+            .toString('hex'),
+        },
+      }
       return this._cachedPreviewManifest
     }
     const manifest = require(join(this.distDir, PRERENDER_MANIFEST))

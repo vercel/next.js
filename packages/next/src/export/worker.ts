@@ -391,6 +391,17 @@ export default async function exportPage({
           // the route and the context for the request.
           const context: AppRouteRouteHandlerContext = {
             params,
+            prerenderManifest: {
+              version: 4,
+              routes: {},
+              dynamicRoutes: {},
+              preview: {
+                previewModeEncryptionKey: '',
+                previewModeId: '',
+                previewModeSigningKey: '',
+              },
+              notFoundRoutes: [],
+            },
             staticGenerationContext: {
               nextExport: true,
               supportsDynamicHTML: false,

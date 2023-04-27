@@ -147,12 +147,18 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
             cookieValue === previewProps.previewModeId
         )
 
+        const value = previewProps?.previewModeId
+
+        if (!value) {
+          throw new Error('invariant: previewProps missing previewModeId')
+        }
+
         return {
           enabled,
           enable: () => {
             this.mutableCookies.set({
               name: COOKIE_NAME_PRERENDER_BYPASS,
-              value: previewProps?.previewModeId || 'no value found',
+              value,
               httpOnly: true,
               sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
               secure: process.env.NODE_ENV !== 'development',

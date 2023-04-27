@@ -67,5 +67,24 @@ export function draftMode(): DraftMode {
       `Invariant: Method expects to have requestAsyncStorage, none available`
     )
   }
-  return requestStore.draftMode
+  return {
+    get enabled() {
+      if (staticGenerationBailout('draftMode().enabled', { soft: true })) {
+        return false
+      }
+      return requestStore.draftMode.enabled
+    },
+    enable() {
+      if (staticGenerationBailout('draftMode().enable()')) {
+        return
+      }
+      return requestStore.draftMode.enable()
+    },
+    disable() {
+      if (staticGenerationBailout('draftMode().disable()')) {
+        return
+      }
+      return requestStore.draftMode.disable()
+    },
+  }
 }
