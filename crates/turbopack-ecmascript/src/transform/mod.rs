@@ -169,6 +169,8 @@ impl EcmascriptInputTransform {
                     import_source: import_source.await?.clone_value(),
                     refresh: if *refresh {
                         Some(swc_core::ecma::transforms::react::RefreshOptions {
+                            refresh_reg: "__turbopack_refresh__.register".to_string(),
+                            refresh_sig: "__turbopack_refresh__.signature".to_string(),
                             ..Default::default()
                         })
                     } else {

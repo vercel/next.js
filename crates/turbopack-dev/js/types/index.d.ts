@@ -5,6 +5,11 @@ import { DevRuntimeParams } from "./runtime";
 
 export type RefreshHelpers = RefreshRuntimeGlobals["$RefreshHelpers$"];
 
+export type RefreshContext = {
+  register: RefreshRuntimeGlobals["$RefreshReg$"];
+  signature: RefreshRuntimeGlobals["$RefreshSig$"];
+};
+
 type ChunkPath = string;
 type ModuleId = string;
 
@@ -122,6 +127,7 @@ interface TurbopackContext {
   c: ModuleCache;
   l: LoadChunk;
   g: globalThis;
+  k: RefreshContext;
   __dirname: string;
 }
 
