@@ -1,5 +1,5 @@
 {
-  "name": "scheduler-builtin",
+  "name": "scheduler",
   "main": "index.js",
   "dependencies": {
     "loose-envify": "^1.1.0"

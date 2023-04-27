@@ -1,5 +1,5 @@
 {
-  "name": "react-dom-builtin",
+  "name": "react-dom",
   "main": "index.js",
   "exports": {
     ".": "./index.js",

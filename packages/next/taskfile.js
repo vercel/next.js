@@ -1629,7 +1629,7 @@ export async function copy_vendor_react(task_) {
     // TODO-APP: remove unused fields from package.json and unused files
     function overridePackageName(source) {
       const json = JSON.parse(source)
-      json.name = json.name + '-' + channel
+      json.name = json.name + packageSuffix
       return JSON.stringify(
         {
           name: json.name,
@@ -1774,6 +1774,10 @@ export async function copy_vendor_react(task_) {
         file.data = source
           .replace(/__webpack_chunk_load__/g, 'globalThis.__next_chunk_load__')
           .replace(/__webpack_require__/g, 'globalThis.__next_require__')
+
+        if (file.base === 'package.json') {
+          file.data = overridePackageName(file.data)
+        }
       })
       .target(`src/compiled/react-server-dom-webpack${packageSuffix}`)
   }

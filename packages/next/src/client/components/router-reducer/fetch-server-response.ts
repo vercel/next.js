@@ -1,6 +1,7 @@
 'use client'
 
 // @ts-ignore
+// eslint-disable-next-line import/no-extraneous-dependencies
 import { createFromFetch } from 'react-server-dom-webpack/client'
 import type {
   FlightRouterState,
