@@ -3170,6 +3170,18 @@ function getActiveElement(doc) {
   }
 }
 
+// When passing user input into querySelector(All) the embedded string must not alter
+// the semantics of the query. This escape function is safe to use when we know the
+// provided value is going to be wrapped in double quotes as part of an attribute selector
+// Do not use it anywhere else
+// we escape double quotes and backslashes
+var escapeSelectorAttributeValueInsideDoubleQuotesRegex = /[\n\"\\]/g;
+function escapeSelectorAttributeValueInsideDoubleQuotes(value) {
+  return value.replace(escapeSelectorAttributeValueInsideDoubleQuotesRegex, function (ch) {
+    return '\\' + ch.charCodeAt(0).toString(16) + ' ';
+  });
+}
+
 var didWarnValueDefaultValue$1 = false;
 var didWarnCheckedDefaultChecked = false;
 /**
@@ -3240,7 +3252,6 @@ function updateInput(element, value, defaultValue, lastDefaultValue, checked, de
     // Submit/reset inputs need the attribute removed completely to avoid
     // blank-text buttons.
     node.removeAttribute('value');
-    return;
   }
 
   {
@@ -3275,7 +3286,7 @@ function updateInput(element, value, defaultValue, lastDefaultValue, checked, de
       checkAttributeStringCoercion(name, 'name');
     }
 
-    node.name = name;
+    node.name = toString(getToStringValue(name));
   } else {
     node.removeAttribute('name');
   }
@@ -3386,7 +3397,7 @@ function restoreControlledInputState(element, props) {
       checkAttributeStringCoercion(name, 'name');
     }
 
-    var group = queryRoot.querySelectorAll('input[name=' + JSON.stringify('' + name) + '][type="radio"]');
+    var group = queryRoot.querySelectorAll('input[name="' + escapeSelectorAttributeValueInsideDoubleQuotes('' + name) + '"][type="radio"]');
 
     for (var i = 0; i < group.length; i++) {
       var otherNode = group[i];
@@ -4071,36 +4082,8 @@ function validateTextNesting(childText, parentTag) {
   }
 }
 
-var HTML_NAMESPACE = 'http://www.w3.org/1999/xhtml';
 var MATH_NAMESPACE = 'http://www.w3.org/1998/Math/MathML';
-var SVG_NAMESPACE = 'http://www.w3.org/2000/svg'; // Assumes there is no parent namespace.
-
-function getIntrinsicNamespace(type) {
-  switch (type) {
-    case 'svg':
-      return SVG_NAMESPACE;
-
-    case 'math':
-      return MATH_NAMESPACE;
-
-    default:
-      return HTML_NAMESPACE;
-  }
-}
-function getChildNamespace(parentNamespace, type) {
-  if (parentNamespace == null || parentNamespace === HTML_NAMESPACE) {
-    // No (or default) parent namespace: potential entry point.
-    return getIntrinsicNamespace(type);
-  }
-
-  if (parentNamespace === SVG_NAMESPACE && type === 'foreignObject') {
-    // We're leaving SVG.
-    return HTML_NAMESPACE;
-  } // By default, pass namespace below.
-
-
-  return parentNamespace;
-}
+var SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 
 var reusableSVGContainer;
 
@@ -10335,84 +10318,146 @@ function requestTransitionLane() {
   return currentEventTransitionLane;
 }
 
-var currentAsyncAction = null;
-function requestAsyncActionContext(actionReturnValue) {
+// transition updates that occur while the async action is still in progress
+// are treated as part of the action.
+//
+// The ideal behavior would be to treat each async function as an independent
+// action. However, without a mechanism like AsyncContext, we can't tell which
+// action an update corresponds to. So instead, we entangle them all into one.
+// The listeners to notify once the entangled scope completes.
+
+var currentEntangledListeners = null; // The number of pending async actions in the entangled scope.
+
+var currentEntangledPendingCount = 0; // The transition lane shared by all updates in the entangled scope.
+
+var currentEntangledLane = NoLane;
+function requestAsyncActionContext(actionReturnValue, finishedState) {
   if (actionReturnValue !== null && typeof actionReturnValue === 'object' && typeof actionReturnValue.then === 'function') {
     // This is an async action.
     //
     // Return a thenable that resolves once the action scope (i.e. the async
-    // function passed to startTransition) has finished running. The fulfilled
-    // value is `false` to represent that the action is not pending.
+    // function passed to startTransition) has finished running.
     var thenable = actionReturnValue;
+    var entangledListeners;
 
-    if (currentAsyncAction === null) {
+    if (currentEntangledListeners === null) {
       // There's no outer async action scope. Create a new one.
-      var asyncAction = {
-        lane: requestTransitionLane(),
-        listeners: [],
-        count: 0,
-        status: 'pending',
-        value: false,
-        reason: undefined,
-        then: function (resolve) {
-          asyncAction.listeners.push(resolve);
-        }
-      };
-      attachPingListeners(thenable, asyncAction);
-      currentAsyncAction = asyncAction;
-      return asyncAction;
+      entangledListeners = currentEntangledListeners = [];
+      currentEntangledPendingCount = 0;
+      currentEntangledLane = requestTransitionLane();
     } else {
-      // Inherit the outer scope.
-      var _asyncAction = currentAsyncAction;
-      attachPingListeners(thenable, _asyncAction);
-      return _asyncAction;
+      entangledListeners = currentEntangledListeners;
     }
+
+    currentEntangledPendingCount++;
+    var resultStatus = 'pending';
+    var rejectedReason;
+    thenable.then(function () {
+      resultStatus = 'fulfilled';
+      pingEngtangledActionScope();
+    }, function (error) {
+      resultStatus = 'rejected';
+      rejectedReason = error;
+      pingEngtangledActionScope();
+    }); // Create a thenable that represents the result of this action, but doesn't
+    // resolve until the entire entangled scope has finished.
+    //
+    // Expressed using promises:
+    //   const [thisResult] = await Promise.all([thisAction, entangledAction]);
+    //   return thisResult;
+
+    var resultThenable = createResultThenable(entangledListeners); // Attach a listener to fill in the result.
+
+    entangledListeners.push(function () {
+      switch (resultStatus) {
+        case 'fulfilled':
+          {
+            var fulfilledThenable = resultThenable;
+            fulfilledThenable.status = 'fulfilled';
+            fulfilledThenable.value = finishedState;
+            break;
+          }
+
+        case 'rejected':
+          {
+            var rejectedThenable = resultThenable;
+            rejectedThenable.status = 'rejected';
+            rejectedThenable.reason = rejectedReason;
+            break;
+          }
+
+        case 'pending':
+        default:
+          {
+            // The listener above should have been called first, so `resultStatus`
+            // should already be set to the correct value.
+            throw new Error('Thenable should have already resolved. This ' + 'is a bug in React.');
+          }
+      }
+    });
+    return resultThenable;
   } else {
     // This is not an async action, but it may be part of an outer async action.
-    if (currentAsyncAction === null) {
-      // There's no outer async action scope.
-      return false;
+    if (currentEntangledListeners === null) {
+      return finishedState;
     } else {
-      // Inherit the outer scope.
-      return currentAsyncAction;
+      // Return a thenable that does not resolve until the entangled actions
+      // have finished.
+      var _entangledListeners = currentEntangledListeners;
+
+      var _resultThenable = createResultThenable(_entangledListeners);
+
+      _entangledListeners.push(function () {
+        var fulfilledThenable = _resultThenable;
+        fulfilledThenable.status = 'fulfilled';
+        fulfilledThenable.value = finishedState;
+      });
+
+      return _resultThenable;
     }
   }
 }
-function peekAsyncActionContext() {
-  return currentAsyncAction;
+
+function pingEngtangledActionScope() {
+  if (currentEntangledListeners !== null && --currentEntangledPendingCount === 0) {
+    // All the actions have finished. Close the entangled async action scope
+    // and notify all the listeners.
+    var listeners = currentEntangledListeners;
+    currentEntangledListeners = null;
+    currentEntangledLane = NoLane;
+
+    for (var i = 0; i < listeners.length; i++) {
+      var listener = listeners[i];
+      listener();
+    }
+  }
 }
 
-function attachPingListeners(thenable, asyncAction) {
-  asyncAction.count++;
-  thenable.then(function () {
-    if (--asyncAction.count === 0) {
-      var fulfilledAsyncAction = asyncAction;
-      fulfilledAsyncAction.status = 'fulfilled';
-      completeAsyncActionScope(asyncAction);
+function createResultThenable(entangledListeners) {
+  // Waits for the entangled async action to complete, then resolves to the
+  // result of an individual action.
+  var resultThenable = {
+    status: 'pending',
+    value: null,
+    reason: null,
+    then: function (resolve) {
+      // This is a bit of a cheat. `resolve` expects a value of type `S` to be
+      // passed, but because we're instrumenting the `status` field ourselves,
+      // and we know this thenable will only be used by React, we also know
+      // the value isn't actually needed. So we add the resolve function
+      // directly to the entangled listeners.
+      //
+      // This is also why we don't need to check if the thenable is still
+      // pending; the Suspense implementation already performs that check.
+      var ping = resolve;
+      entangledListeners.push(ping);
     }
-  }, function (error) {
-    if (--asyncAction.count === 0) {
-      var rejectedAsyncAction = asyncAction;
-      rejectedAsyncAction.status = 'rejected';
-      rejectedAsyncAction.reason = error;
-      completeAsyncActionScope(asyncAction);
-    }
-  });
-  return asyncAction;
+  };
+  return resultThenable;
 }
 
-function completeAsyncActionScope(action) {
-  if (currentAsyncAction === action) {
-    currentAsyncAction = null;
-  }
-
-  var listeners = action.listeners;
-  action.listeners = [];
-
-  for (var i = 0; i < listeners.length; i++) {
-    var listener = listeners[i];
-    listener(false);
-  }
+function peekEntangledActionLane() {
+  return currentEntangledLane;
 }
 
 var ReactCurrentDispatcher$1 = ReactSharedInternals.ReactCurrentDispatcher,
@@ -10815,7 +10860,6 @@ function renderWithHooksAgain(workInProgress, Component, props, secondArg) {
 
   return children;
 }
-
 function checkDidRenderIdHook() {
   // This should be called immediately after every renderWithHooks call.
   // Conceptually, it's part of the return value of renderWithHooks; it's only a
@@ -11809,12 +11853,12 @@ function updateDeferredValueImpl(hook, prevValue, value) {
   }
 }
 
-function startTransition(setPending, callback, options) {
+function startTransition(pendingState, finishedState, setPending, callback, options) {
   var previousPriority = getCurrentUpdatePriority();
   setCurrentUpdatePriority(higherEventPriority(previousPriority, ContinuousEventPriority));
   var prevTransition = ReactCurrentBatchConfig$3.transition;
   ReactCurrentBatchConfig$3.transition = null;
-  setPending(true);
+  setPending(pendingState);
   var currentTransition = ReactCurrentBatchConfig$3.transition = {};
 
   {
@@ -11822,9 +11866,9 @@ function startTransition(setPending, callback, options) {
   }
 
   try {
-    var returnValue, isPending; if (enableAsyncActions) ; else {
+    var returnValue, maybeThenable; if (enableAsyncActions) ; else {
       // Async actions are not enabled.
-      setPending(false);
+      setPending(finishedState);
       callback();
     }
   } catch (error) {
@@ -11856,7 +11900,7 @@ function mountTransition() {
       setPending = _mountState[1]; // The `start` method never changes.
 
 
-  var start = startTransition.bind(null, setPending);
+  var start = startTransition.bind(null, true, false, setPending);
   var hook = mountWorkInProgressHook();
   hook.memoizedState = start;
   return [false, start];
@@ -12140,6 +12184,7 @@ function markUpdateInDevTools(fiber, lane, action) {
 
 var ContextOnlyDispatcher = {
   readContext: readContext,
+  use: use,
   useCallback: throwInvalidHookError,
   useContext: throwInvalidHookError,
   useEffect: throwInvalidHookError,
@@ -12160,10 +12205,6 @@ var ContextOnlyDispatcher = {
 
 {
   ContextOnlyDispatcher.useCacheRefresh = throwInvalidHookError;
-}
-
-{
-  ContextOnlyDispatcher.use = throwInvalidHookError;
 }
 
 var HooksDispatcherOnMountInDEV = null;
@@ -12187,6 +12228,7 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
     readContext: function (context) {
       return readContext(context);
     },
+    use: use,
     useCallback: function (callback, deps) {
       currentHookNameInDev = 'useCallback';
       mountHookTypesDev();
@@ -12304,14 +12346,11 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
     };
   }
 
-  {
-    HooksDispatcherOnMountInDEV.use = use;
-  }
-
   HooksDispatcherOnMountWithHookTypesInDEV = {
     readContext: function (context) {
       return readContext(context);
     },
+    use: use,
     useCallback: function (callback, deps) {
       currentHookNameInDev = 'useCallback';
       updateHookTypesDev();
@@ -12423,14 +12462,11 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
     };
   }
 
-  {
-    HooksDispatcherOnMountWithHookTypesInDEV.use = use;
-  }
-
   HooksDispatcherOnUpdateInDEV = {
     readContext: function (context) {
       return readContext(context);
     },
+    use: use,
     useCallback: function (callback, deps) {
       currentHookNameInDev = 'useCallback';
       updateHookTypesDev();
@@ -12542,14 +12578,11 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
     };
   }
 
-  {
-    HooksDispatcherOnUpdateInDEV.use = use;
-  }
-
   HooksDispatcherOnRerenderInDEV = {
     readContext: function (context) {
       return readContext(context);
     },
+    use: use,
     useCallback: function (callback, deps) {
       currentHookNameInDev = 'useCallback';
       updateHookTypesDev();
@@ -12661,14 +12694,14 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
     };
   }
 
-  {
-    HooksDispatcherOnRerenderInDEV.use = use;
-  }
-
   InvalidNestedHooksDispatcherOnMountInDEV = {
     readContext: function (context) {
       warnInvalidContextAccess();
       return readContext(context);
+    },
+    use: function (usable) {
+      warnInvalidHookAccess();
+      return use(usable);
     },
     useCallback: function (callback, deps) {
       currentHookNameInDev = 'useCallback';
@@ -12797,17 +12830,14 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
     };
   }
 
-  {
-    InvalidNestedHooksDispatcherOnMountInDEV.use = function (usable) {
-      warnInvalidHookAccess();
-      return use(usable);
-    };
-  }
-
   InvalidNestedHooksDispatcherOnUpdateInDEV = {
     readContext: function (context) {
       warnInvalidContextAccess();
       return readContext(context);
+    },
+    use: function (usable) {
+      warnInvalidHookAccess();
+      return use(usable);
     },
     useCallback: function (callback, deps) {
       currentHookNameInDev = 'useCallback';
@@ -12936,17 +12966,14 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
     };
   }
 
-  {
-    InvalidNestedHooksDispatcherOnUpdateInDEV.use = function (usable) {
-      warnInvalidHookAccess();
-      return use(usable);
-    };
-  }
-
   InvalidNestedHooksDispatcherOnRerenderInDEV = {
     readContext: function (context) {
       warnInvalidContextAccess();
       return readContext(context);
+    },
+    use: function (usable) {
+      warnInvalidHookAccess();
+      return use(usable);
     },
     useCallback: function (callback, deps) {
       currentHookNameInDev = 'useCallback';
@@ -13072,13 +13099,6 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       currentHookNameInDev = 'useCacheRefresh';
       updateHookTypesDev();
       return updateRefresh();
-    };
-  }
-
-  {
-    InvalidNestedHooksDispatcherOnRerenderInDEV.use = function (usable) {
-      warnInvalidHookAccess();
-      return use(usable);
     };
   }
 }
@@ -23151,9 +23171,9 @@ function requestUpdateLane(fiber) {
       transition._updatedFibers.add(fiber);
     }
 
-    var asyncAction = peekAsyncActionContext();
-    return asyncAction !== null ? // We're inside an async action scope. Reuse the same lane.
-    asyncAction.lane : // We may or may not be inside an async action scope. If we are, this
+    var actionScopeLane = peekEntangledActionLane();
+    return actionScopeLane !== NoLane ? // We're inside an async action scope. Reuse the same lane.
+    actionScopeLane : // We may or may not be inside an async action scope. If we are, this
     // is the first update in that scope. Either way, we need to get a
     // fresh transition lane.
     requestTransitionLane();
@@ -24592,6 +24612,17 @@ function replaySuspendedUnitOfWork(unitOfWork) {
 
         next = replayFunctionComponent(current, unitOfWork, _resolvedProps, _Component, unitOfWork.ref, workInProgressRootRenderLanes);
         break;
+      }
+
+    case HostComponent:
+      {
+        // Some host components are stateful (that's how we implement form
+        // actions) but we don't bother to reuse the memoized state because it's
+        // not worth the extra code. The main reason to reuse the previous hooks
+        // is to reuse uncached promises, but we happen to know that the only
+        // promises that a host component might suspend on are definitely cached
+        // because they are controlled by us. So don't bother.
+        resetHooksOnUnwind(); // Fallthrough to the next branch.
       }
 
     default:
@@ -26947,7 +26978,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks) {
   return root;
 }
 
-var ReactVersion = '18.3.0-next-c8369527e-20230420';
+var ReactVersion = '18.3.0-next-6eadbe0c4-20230425';
 
 function createPortal$1(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {
@@ -27650,701 +27681,6 @@ if (canUseDOM) {
   }
 }
 
-// has this definition built-in.
-
-var hasScheduledReplayAttempt = false; // The last of each continuous event type. We only need to replay the last one
-// if the last target was dehydrated.
-
-var queuedFocus = null;
-var queuedDrag = null;
-var queuedMouse = null; // For pointer events there can be one latest event per pointerId.
-
-var queuedPointers = new Map();
-var queuedPointerCaptures = new Map(); // We could consider replaying selectionchange and touchmoves too.
-
-var queuedExplicitHydrationTargets = [];
-var discreteReplayableEvents = ['mousedown', 'mouseup', 'touchcancel', 'touchend', 'touchstart', 'auxclick', 'dblclick', 'pointercancel', 'pointerdown', 'pointerup', 'dragend', 'dragstart', 'drop', 'compositionend', 'compositionstart', 'keydown', 'keypress', 'keyup', 'input', 'textInput', // Intentionally camelCase
-'copy', 'cut', 'paste', 'click', 'change', 'contextmenu', 'reset', 'submit'];
-function isDiscreteEventThatRequiresHydration(eventType) {
-  return discreteReplayableEvents.indexOf(eventType) > -1;
-}
-
-function createQueuedReplayableEvent(blockedOn, domEventName, eventSystemFlags, targetContainer, nativeEvent) {
-  return {
-    blockedOn: blockedOn,
-    domEventName: domEventName,
-    eventSystemFlags: eventSystemFlags,
-    nativeEvent: nativeEvent,
-    targetContainers: [targetContainer]
-  };
-} // Resets the replaying for this type of continuous event to no event.
-
-
-function clearIfContinuousEvent(domEventName, nativeEvent) {
-  switch (domEventName) {
-    case 'focusin':
-    case 'focusout':
-      queuedFocus = null;
-      break;
-
-    case 'dragenter':
-    case 'dragleave':
-      queuedDrag = null;
-      break;
-
-    case 'mouseover':
-    case 'mouseout':
-      queuedMouse = null;
-      break;
-
-    case 'pointerover':
-    case 'pointerout':
-      {
-        var pointerId = nativeEvent.pointerId;
-        queuedPointers.delete(pointerId);
-        break;
-      }
-
-    case 'gotpointercapture':
-    case 'lostpointercapture':
-      {
-        var _pointerId = nativeEvent.pointerId;
-        queuedPointerCaptures.delete(_pointerId);
-        break;
-      }
-  }
-}
-
-function accumulateOrCreateContinuousQueuedReplayableEvent(existingQueuedEvent, blockedOn, domEventName, eventSystemFlags, targetContainer, nativeEvent) {
-  if (existingQueuedEvent === null || existingQueuedEvent.nativeEvent !== nativeEvent) {
-    var queuedEvent = createQueuedReplayableEvent(blockedOn, domEventName, eventSystemFlags, targetContainer, nativeEvent);
-
-    if (blockedOn !== null) {
-      var fiber = getInstanceFromNode(blockedOn);
-
-      if (fiber !== null) {
-        // Attempt to increase the priority of this target.
-        attemptContinuousHydration(fiber);
-      }
-    }
-
-    return queuedEvent;
-  } // If we have already queued this exact event, then it's because
-  // the different event systems have different DOM event listeners.
-  // We can accumulate the flags, and the targetContainers, and
-  // store a single event to be replayed.
-
-
-  existingQueuedEvent.eventSystemFlags |= eventSystemFlags;
-  var targetContainers = existingQueuedEvent.targetContainers;
-
-  if (targetContainer !== null && targetContainers.indexOf(targetContainer) === -1) {
-    targetContainers.push(targetContainer);
-  }
-
-  return existingQueuedEvent;
-}
-
-function queueIfContinuousEvent(blockedOn, domEventName, eventSystemFlags, targetContainer, nativeEvent) {
-  // These set relatedTarget to null because the replayed event will be treated as if we
-  // moved from outside the window (no target) onto the target once it hydrates.
-  // Instead of mutating we could clone the event.
-  switch (domEventName) {
-    case 'focusin':
-      {
-        var focusEvent = nativeEvent;
-        queuedFocus = accumulateOrCreateContinuousQueuedReplayableEvent(queuedFocus, blockedOn, domEventName, eventSystemFlags, targetContainer, focusEvent);
-        return true;
-      }
-
-    case 'dragenter':
-      {
-        var dragEvent = nativeEvent;
-        queuedDrag = accumulateOrCreateContinuousQueuedReplayableEvent(queuedDrag, blockedOn, domEventName, eventSystemFlags, targetContainer, dragEvent);
-        return true;
-      }
-
-    case 'mouseover':
-      {
-        var mouseEvent = nativeEvent;
-        queuedMouse = accumulateOrCreateContinuousQueuedReplayableEvent(queuedMouse, blockedOn, domEventName, eventSystemFlags, targetContainer, mouseEvent);
-        return true;
-      }
-
-    case 'pointerover':
-      {
-        var pointerEvent = nativeEvent;
-        var pointerId = pointerEvent.pointerId;
-        queuedPointers.set(pointerId, accumulateOrCreateContinuousQueuedReplayableEvent(queuedPointers.get(pointerId) || null, blockedOn, domEventName, eventSystemFlags, targetContainer, pointerEvent));
-        return true;
-      }
-
-    case 'gotpointercapture':
-      {
-        var _pointerEvent = nativeEvent;
-        var _pointerId2 = _pointerEvent.pointerId;
-        queuedPointerCaptures.set(_pointerId2, accumulateOrCreateContinuousQueuedReplayableEvent(queuedPointerCaptures.get(_pointerId2) || null, blockedOn, domEventName, eventSystemFlags, targetContainer, _pointerEvent));
-        return true;
-      }
-  }
-
-  return false;
-} // Check if this target is unblocked. Returns true if it's unblocked.
-
-function attemptExplicitHydrationTarget(queuedTarget) {
-  // TODO: This function shares a lot of logic with findInstanceBlockingEvent.
-  // Try to unify them. It's a bit tricky since it would require two return
-  // values.
-  var targetInst = getClosestInstanceFromNode(queuedTarget.target);
-
-  if (targetInst !== null) {
-    var nearestMounted = getNearestMountedFiber(targetInst);
-
-    if (nearestMounted !== null) {
-      var tag = nearestMounted.tag;
-
-      if (tag === SuspenseComponent) {
-        var instance = getSuspenseInstanceFromFiber(nearestMounted);
-
-        if (instance !== null) {
-          // We're blocked on hydrating this boundary.
-          // Increase its priority.
-          queuedTarget.blockedOn = instance;
-          runWithPriority(queuedTarget.priority, function () {
-            attemptHydrationAtCurrentPriority(nearestMounted);
-          });
-          return;
-        }
-      } else if (tag === HostRoot) {
-        var root = nearestMounted.stateNode;
-
-        if (isRootDehydrated(root)) {
-          queuedTarget.blockedOn = getContainerFromFiber(nearestMounted); // We don't currently have a way to increase the priority of
-          // a root other than sync.
-
-          return;
-        }
-      }
-    }
-  }
-
-  queuedTarget.blockedOn = null;
-}
-
-function queueExplicitHydrationTarget(target) {
-  // TODO: This will read the priority if it's dispatched by the React
-  // event system but not native events. Should read window.event.type, like
-  // we do for updates (getCurrentEventPriority).
-  var updatePriority = getCurrentUpdatePriority();
-  var queuedTarget = {
-    blockedOn: null,
-    target: target,
-    priority: updatePriority
-  };
-  var i = 0;
-
-  for (; i < queuedExplicitHydrationTargets.length; i++) {
-    // Stop once we hit the first target with lower priority than
-    if (!isHigherEventPriority(updatePriority, queuedExplicitHydrationTargets[i].priority)) {
-      break;
-    }
-  }
-
-  queuedExplicitHydrationTargets.splice(i, 0, queuedTarget);
-
-  if (i === 0) {
-    attemptExplicitHydrationTarget(queuedTarget);
-  }
-}
-
-function attemptReplayContinuousQueuedEvent(queuedEvent) {
-  if (queuedEvent.blockedOn !== null) {
-    return false;
-  }
-
-  var targetContainers = queuedEvent.targetContainers;
-
-  while (targetContainers.length > 0) {
-    var nextBlockedOn = findInstanceBlockingEvent(queuedEvent.nativeEvent);
-
-    if (nextBlockedOn === null) {
-      var nativeEvent = queuedEvent.nativeEvent;
-      var nativeEventClone = new nativeEvent.constructor(nativeEvent.type, nativeEvent);
-      setReplayingEvent(nativeEventClone);
-      nativeEvent.target.dispatchEvent(nativeEventClone);
-      resetReplayingEvent();
-    } else {
-      // We're still blocked. Try again later.
-      var fiber = getInstanceFromNode(nextBlockedOn);
-
-      if (fiber !== null) {
-        attemptContinuousHydration(fiber);
-      }
-
-      queuedEvent.blockedOn = nextBlockedOn;
-      return false;
-    } // This target container was successfully dispatched. Try the next.
-
-
-    targetContainers.shift();
-  }
-
-  return true;
-}
-
-function attemptReplayContinuousQueuedEventInMap(queuedEvent, key, map) {
-  if (attemptReplayContinuousQueuedEvent(queuedEvent)) {
-    map.delete(key);
-  }
-}
-
-function replayUnblockedEvents() {
-  hasScheduledReplayAttempt = false; // Replay any continuous events.
-
-  if (queuedFocus !== null && attemptReplayContinuousQueuedEvent(queuedFocus)) {
-    queuedFocus = null;
-  }
-
-  if (queuedDrag !== null && attemptReplayContinuousQueuedEvent(queuedDrag)) {
-    queuedDrag = null;
-  }
-
-  if (queuedMouse !== null && attemptReplayContinuousQueuedEvent(queuedMouse)) {
-    queuedMouse = null;
-  }
-
-  queuedPointers.forEach(attemptReplayContinuousQueuedEventInMap);
-  queuedPointerCaptures.forEach(attemptReplayContinuousQueuedEventInMap);
-}
-
-function scheduleCallbackIfUnblocked(queuedEvent, unblocked) {
-  if (queuedEvent.blockedOn === unblocked) {
-    queuedEvent.blockedOn = null;
-
-    if (!hasScheduledReplayAttempt) {
-      hasScheduledReplayAttempt = true; // Schedule a callback to attempt replaying as many events as are
-      // now unblocked. This first might not actually be unblocked yet.
-      // We could check it early to avoid scheduling an unnecessary callback.
-
-      Scheduler.unstable_scheduleCallback(Scheduler.unstable_NormalPriority, replayUnblockedEvents);
-    }
-  }
-}
-
-function retryIfBlockedOn(unblocked) {
-  if (queuedFocus !== null) {
-    scheduleCallbackIfUnblocked(queuedFocus, unblocked);
-  }
-
-  if (queuedDrag !== null) {
-    scheduleCallbackIfUnblocked(queuedDrag, unblocked);
-  }
-
-  if (queuedMouse !== null) {
-    scheduleCallbackIfUnblocked(queuedMouse, unblocked);
-  }
-
-  var unblock = function (queuedEvent) {
-    return scheduleCallbackIfUnblocked(queuedEvent, unblocked);
-  };
-
-  queuedPointers.forEach(unblock);
-  queuedPointerCaptures.forEach(unblock);
-
-  for (var i = 0; i < queuedExplicitHydrationTargets.length; i++) {
-    var queuedTarget = queuedExplicitHydrationTargets[i];
-
-    if (queuedTarget.blockedOn === unblocked) {
-      queuedTarget.blockedOn = null;
-    }
-  }
-
-  while (queuedExplicitHydrationTargets.length > 0) {
-    var nextExplicitTarget = queuedExplicitHydrationTargets[0];
-
-    if (nextExplicitTarget.blockedOn !== null) {
-      // We're still blocked.
-      break;
-    } else {
-      attemptExplicitHydrationTarget(nextExplicitTarget);
-
-      if (nextExplicitTarget.blockedOn === null) {
-        // We're unblocked.
-        queuedExplicitHydrationTargets.shift();
-      }
-    }
-  }
-}
-
-var ReactCurrentBatchConfig = ReactSharedInternals.ReactCurrentBatchConfig; // TODO: can we stop exporting these?
-
-var _enabled = true; // This is exported in FB builds for use by legacy FB layer infra.
-// We'd like to remove this but it's not clear if this is safe.
-
-function setEnabled(enabled) {
-  _enabled = !!enabled;
-}
-function isEnabled() {
-  return _enabled;
-}
-function createEventListenerWrapperWithPriority(targetContainer, domEventName, eventSystemFlags) {
-  var eventPriority = getEventPriority(domEventName);
-  var listenerWrapper;
-
-  switch (eventPriority) {
-    case DiscreteEventPriority:
-      listenerWrapper = dispatchDiscreteEvent;
-      break;
-
-    case ContinuousEventPriority:
-      listenerWrapper = dispatchContinuousEvent;
-      break;
-
-    case DefaultEventPriority:
-    default:
-      listenerWrapper = dispatchEvent;
-      break;
-  }
-
-  return listenerWrapper.bind(null, domEventName, eventSystemFlags, targetContainer);
-}
-
-function dispatchDiscreteEvent(domEventName, eventSystemFlags, container, nativeEvent) {
-  var previousPriority = getCurrentUpdatePriority();
-  var prevTransition = ReactCurrentBatchConfig.transition;
-  ReactCurrentBatchConfig.transition = null;
-
-  try {
-    setCurrentUpdatePriority(DiscreteEventPriority);
-    dispatchEvent(domEventName, eventSystemFlags, container, nativeEvent);
-  } finally {
-    setCurrentUpdatePriority(previousPriority);
-    ReactCurrentBatchConfig.transition = prevTransition;
-  }
-}
-
-function dispatchContinuousEvent(domEventName, eventSystemFlags, container, nativeEvent) {
-  var previousPriority = getCurrentUpdatePriority();
-  var prevTransition = ReactCurrentBatchConfig.transition;
-  ReactCurrentBatchConfig.transition = null;
-
-  try {
-    setCurrentUpdatePriority(ContinuousEventPriority);
-    dispatchEvent(domEventName, eventSystemFlags, container, nativeEvent);
-  } finally {
-    setCurrentUpdatePriority(previousPriority);
-    ReactCurrentBatchConfig.transition = prevTransition;
-  }
-}
-
-function dispatchEvent(domEventName, eventSystemFlags, targetContainer, nativeEvent) {
-  if (!_enabled) {
-    return;
-  }
-
-  var blockedOn = findInstanceBlockingEvent(nativeEvent);
-
-  if (blockedOn === null) {
-    dispatchEventForPluginEventSystem(domEventName, eventSystemFlags, nativeEvent, return_targetInst, targetContainer);
-    clearIfContinuousEvent(domEventName, nativeEvent);
-    return;
-  }
-
-  if (queueIfContinuousEvent(blockedOn, domEventName, eventSystemFlags, targetContainer, nativeEvent)) {
-    nativeEvent.stopPropagation();
-    return;
-  } // We need to clear only if we didn't queue because
-  // queueing is accumulative.
-
-
-  clearIfContinuousEvent(domEventName, nativeEvent);
-
-  if (eventSystemFlags & IS_CAPTURE_PHASE && isDiscreteEventThatRequiresHydration(domEventName)) {
-    while (blockedOn !== null) {
-      var fiber = getInstanceFromNode(blockedOn);
-
-      if (fiber !== null) {
-        attemptSynchronousHydration(fiber);
-      }
-
-      var nextBlockedOn = findInstanceBlockingEvent(nativeEvent);
-
-      if (nextBlockedOn === null) {
-        dispatchEventForPluginEventSystem(domEventName, eventSystemFlags, nativeEvent, return_targetInst, targetContainer);
-      }
-
-      if (nextBlockedOn === blockedOn) {
-        break;
-      }
-
-      blockedOn = nextBlockedOn;
-    }
-
-    if (blockedOn !== null) {
-      nativeEvent.stopPropagation();
-    }
-
-    return;
-  } // This is not replayable so we'll invoke it but without a target,
-  // in case the event system needs to trace it.
-
-
-  dispatchEventForPluginEventSystem(domEventName, eventSystemFlags, nativeEvent, null, targetContainer);
-}
-var return_targetInst = null; // Returns a SuspenseInstance or Container if it's blocked.
-// The return_targetInst field above is conceptually part of the return value.
-
-function findInstanceBlockingEvent(nativeEvent) {
-  // TODO: Warn if _enabled is false.
-  return_targetInst = null;
-  var nativeEventTarget = getEventTarget(nativeEvent);
-  var targetInst = getClosestInstanceFromNode(nativeEventTarget);
-
-  if (targetInst !== null) {
-    var nearestMounted = getNearestMountedFiber(targetInst);
-
-    if (nearestMounted === null) {
-      // This tree has been unmounted already. Dispatch without a target.
-      targetInst = null;
-    } else {
-      var tag = nearestMounted.tag;
-
-      if (tag === SuspenseComponent) {
-        var instance = getSuspenseInstanceFromFiber(nearestMounted);
-
-        if (instance !== null) {
-          // Queue the event to be replayed later. Abort dispatching since we
-          // don't want this event dispatched twice through the event system.
-          // TODO: If this is the first discrete event in the queue. Schedule an increased
-          // priority for this boundary.
-          return instance;
-        } // This shouldn't happen, something went wrong but to avoid blocking
-        // the whole system, dispatch the event without a target.
-        // TODO: Warn.
-
-
-        targetInst = null;
-      } else if (tag === HostRoot) {
-        var root = nearestMounted.stateNode;
-
-        if (isRootDehydrated(root)) {
-          // If this happens during a replay something went wrong and it might block
-          // the whole system.
-          return getContainerFromFiber(nearestMounted);
-        }
-
-        targetInst = null;
-      } else if (nearestMounted !== targetInst) {
-        // If we get an event (ex: img onload) before committing that
-        // component's mount, ignore it for now (that is, treat it as if it was an
-        // event on a non-React tree). We might also consider queueing events and
-        // dispatching them after the mount.
-        targetInst = null;
-      }
-    }
-  }
-
-  return_targetInst = targetInst; // We're not blocked on anything.
-
-  return null;
-}
-function getEventPriority(domEventName) {
-  switch (domEventName) {
-    // Used by SimpleEventPlugin:
-    case 'cancel':
-    case 'click':
-    case 'close':
-    case 'contextmenu':
-    case 'copy':
-    case 'cut':
-    case 'auxclick':
-    case 'dblclick':
-    case 'dragend':
-    case 'dragstart':
-    case 'drop':
-    case 'focusin':
-    case 'focusout':
-    case 'input':
-    case 'invalid':
-    case 'keydown':
-    case 'keypress':
-    case 'keyup':
-    case 'mousedown':
-    case 'mouseup':
-    case 'paste':
-    case 'pause':
-    case 'play':
-    case 'pointercancel':
-    case 'pointerdown':
-    case 'pointerup':
-    case 'ratechange':
-    case 'reset':
-    case 'resize':
-    case 'seeked':
-    case 'submit':
-    case 'touchcancel':
-    case 'touchend':
-    case 'touchstart':
-    case 'volumechange': // Used by polyfills: (fall through)
-
-    case 'change':
-    case 'selectionchange':
-    case 'textInput':
-    case 'compositionstart':
-    case 'compositionend':
-    case 'compositionupdate': // Only enableCreateEventHandleAPI: (fall through)
-
-    case 'beforeblur':
-    case 'afterblur': // Not used by React but could be by user code: (fall through)
-
-    case 'beforeinput':
-    case 'blur':
-    case 'fullscreenchange':
-    case 'focus':
-    case 'hashchange':
-    case 'popstate':
-    case 'select':
-    case 'selectstart':
-      return DiscreteEventPriority;
-
-    case 'drag':
-    case 'dragenter':
-    case 'dragexit':
-    case 'dragleave':
-    case 'dragover':
-    case 'mousemove':
-    case 'mouseout':
-    case 'mouseover':
-    case 'pointermove':
-    case 'pointerout':
-    case 'pointerover':
-    case 'scroll':
-    case 'toggle':
-    case 'touchmove':
-    case 'wheel': // Not used by React but could be by user code: (fall through)
-
-    case 'mouseenter':
-    case 'mouseleave':
-    case 'pointerenter':
-    case 'pointerleave':
-      return ContinuousEventPriority;
-
-    case 'message':
-      {
-        // We might be in the Scheduler callback.
-        // Eventually this mechanism will be replaced by a check
-        // of the current priority on the native scheduler.
-        var schedulerPriority = getCurrentPriorityLevel();
-
-        switch (schedulerPriority) {
-          case ImmediatePriority:
-            return DiscreteEventPriority;
-
-          case UserBlockingPriority:
-            return ContinuousEventPriority;
-
-          case NormalPriority$1:
-          case LowPriority:
-            // TODO: Handle LowSchedulerPriority, somehow. Maybe the same lane as hydration.
-            return DefaultEventPriority;
-
-          case IdlePriority:
-            return IdleEventPriority;
-
-          default:
-            return DefaultEventPriority;
-        }
-      }
-
-    default:
-      return DefaultEventPriority;
-  }
-}
-
-function addEventBubbleListener(target, eventType, listener) {
-  target.addEventListener(eventType, listener, false);
-  return listener;
-}
-function addEventCaptureListener(target, eventType, listener) {
-  target.addEventListener(eventType, listener, true);
-  return listener;
-}
-function addEventCaptureListenerWithPassiveFlag(target, eventType, listener, passive) {
-  target.addEventListener(eventType, listener, {
-    capture: true,
-    passive: passive
-  });
-  return listener;
-}
-function addEventBubbleListenerWithPassiveFlag(target, eventType, listener, passive) {
-  target.addEventListener(eventType, listener, {
-    passive: passive
-  });
-  return listener;
-}
-
-/**
- * These variables store information about text content of a target node,
- * allowing comparison of content before and after a given event.
- *
- * Identify the node where selection currently begins, then observe
- * both its text content and its current position in the DOM. Since the
- * browser may natively replace the target node during composition, we can
- * use its position to find its replacement.
- *
- *
- */
-var root = null;
-var startText = null;
-var fallbackText = null;
-function initialize(nativeEventTarget) {
-  root = nativeEventTarget;
-  startText = getText();
-  return true;
-}
-function reset() {
-  root = null;
-  startText = null;
-  fallbackText = null;
-}
-function getData() {
-  if (fallbackText) {
-    return fallbackText;
-  }
-
-  var start;
-  var startValue = startText;
-  var startLength = startValue.length;
-  var end;
-  var endValue = getText();
-  var endLength = endValue.length;
-
-  for (start = 0; start < startLength; start++) {
-    if (startValue[start] !== endValue[start]) {
-      break;
-    }
-  }
-
-  var minEnd = startLength - start;
-
-  for (end = 1; end <= minEnd; end++) {
-    if (startValue[startLength - end] !== endValue[endLength - end]) {
-      break;
-    }
-  }
-
-  var sliceTail = end > 1 ? 1 - end : undefined;
-  fallbackText = endValue.slice(start, sliceTail);
-  return fallbackText;
-}
-function getText() {
-  if ('value' in root) {
-    return root.value;
-  }
-
-  return root.textContent;
-}
-
 /**
  * `charCode` represents the actual "character code" and is safe to use with
  * `String.fromCharCode`. As such, only keys that correspond to printable
@@ -28921,6 +28257,705 @@ var WheelEventInterface = assign({}, MouseEventInterface, {
 });
 
 var SyntheticWheelEvent = createSyntheticEvent(WheelEventInterface);
+
+// has this definition built-in.
+
+var hasScheduledReplayAttempt = false; // The last of each continuous event type. We only need to replay the last one
+// if the last target was dehydrated.
+
+var queuedFocus = null;
+var queuedDrag = null;
+var queuedMouse = null; // For pointer events there can be one latest event per pointerId.
+
+var queuedPointers = new Map();
+var queuedPointerCaptures = new Map(); // We could consider replaying selectionchange and touchmoves too.
+
+var queuedExplicitHydrationTargets = [];
+var discreteReplayableEvents = ['mousedown', 'mouseup', 'touchcancel', 'touchend', 'touchstart', 'auxclick', 'dblclick', 'pointercancel', 'pointerdown', 'pointerup', 'dragend', 'dragstart', 'drop', 'compositionend', 'compositionstart', 'keydown', 'keypress', 'keyup', 'input', 'textInput', // Intentionally camelCase
+'copy', 'cut', 'paste', 'click', 'change', 'contextmenu', 'reset' // 'submit', // stopPropagation blocks the replay mechanism
+];
+function isDiscreteEventThatRequiresHydration(eventType) {
+  return discreteReplayableEvents.indexOf(eventType) > -1;
+}
+
+function createQueuedReplayableEvent(blockedOn, domEventName, eventSystemFlags, targetContainer, nativeEvent) {
+  return {
+    blockedOn: blockedOn,
+    domEventName: domEventName,
+    eventSystemFlags: eventSystemFlags,
+    nativeEvent: nativeEvent,
+    targetContainers: [targetContainer]
+  };
+} // Resets the replaying for this type of continuous event to no event.
+
+
+function clearIfContinuousEvent(domEventName, nativeEvent) {
+  switch (domEventName) {
+    case 'focusin':
+    case 'focusout':
+      queuedFocus = null;
+      break;
+
+    case 'dragenter':
+    case 'dragleave':
+      queuedDrag = null;
+      break;
+
+    case 'mouseover':
+    case 'mouseout':
+      queuedMouse = null;
+      break;
+
+    case 'pointerover':
+    case 'pointerout':
+      {
+        var pointerId = nativeEvent.pointerId;
+        queuedPointers.delete(pointerId);
+        break;
+      }
+
+    case 'gotpointercapture':
+    case 'lostpointercapture':
+      {
+        var _pointerId = nativeEvent.pointerId;
+        queuedPointerCaptures.delete(_pointerId);
+        break;
+      }
+  }
+}
+
+function accumulateOrCreateContinuousQueuedReplayableEvent(existingQueuedEvent, blockedOn, domEventName, eventSystemFlags, targetContainer, nativeEvent) {
+  if (existingQueuedEvent === null || existingQueuedEvent.nativeEvent !== nativeEvent) {
+    var queuedEvent = createQueuedReplayableEvent(blockedOn, domEventName, eventSystemFlags, targetContainer, nativeEvent);
+
+    if (blockedOn !== null) {
+      var fiber = getInstanceFromNode(blockedOn);
+
+      if (fiber !== null) {
+        // Attempt to increase the priority of this target.
+        attemptContinuousHydration(fiber);
+      }
+    }
+
+    return queuedEvent;
+  } // If we have already queued this exact event, then it's because
+  // the different event systems have different DOM event listeners.
+  // We can accumulate the flags, and the targetContainers, and
+  // store a single event to be replayed.
+
+
+  existingQueuedEvent.eventSystemFlags |= eventSystemFlags;
+  var targetContainers = existingQueuedEvent.targetContainers;
+
+  if (targetContainer !== null && targetContainers.indexOf(targetContainer) === -1) {
+    targetContainers.push(targetContainer);
+  }
+
+  return existingQueuedEvent;
+}
+
+function queueIfContinuousEvent(blockedOn, domEventName, eventSystemFlags, targetContainer, nativeEvent) {
+  // These set relatedTarget to null because the replayed event will be treated as if we
+  // moved from outside the window (no target) onto the target once it hydrates.
+  // Instead of mutating we could clone the event.
+  switch (domEventName) {
+    case 'focusin':
+      {
+        var focusEvent = nativeEvent;
+        queuedFocus = accumulateOrCreateContinuousQueuedReplayableEvent(queuedFocus, blockedOn, domEventName, eventSystemFlags, targetContainer, focusEvent);
+        return true;
+      }
+
+    case 'dragenter':
+      {
+        var dragEvent = nativeEvent;
+        queuedDrag = accumulateOrCreateContinuousQueuedReplayableEvent(queuedDrag, blockedOn, domEventName, eventSystemFlags, targetContainer, dragEvent);
+        return true;
+      }
+
+    case 'mouseover':
+      {
+        var mouseEvent = nativeEvent;
+        queuedMouse = accumulateOrCreateContinuousQueuedReplayableEvent(queuedMouse, blockedOn, domEventName, eventSystemFlags, targetContainer, mouseEvent);
+        return true;
+      }
+
+    case 'pointerover':
+      {
+        var pointerEvent = nativeEvent;
+        var pointerId = pointerEvent.pointerId;
+        queuedPointers.set(pointerId, accumulateOrCreateContinuousQueuedReplayableEvent(queuedPointers.get(pointerId) || null, blockedOn, domEventName, eventSystemFlags, targetContainer, pointerEvent));
+        return true;
+      }
+
+    case 'gotpointercapture':
+      {
+        var _pointerEvent = nativeEvent;
+        var _pointerId2 = _pointerEvent.pointerId;
+        queuedPointerCaptures.set(_pointerId2, accumulateOrCreateContinuousQueuedReplayableEvent(queuedPointerCaptures.get(_pointerId2) || null, blockedOn, domEventName, eventSystemFlags, targetContainer, _pointerEvent));
+        return true;
+      }
+  }
+
+  return false;
+} // Check if this target is unblocked. Returns true if it's unblocked.
+
+function attemptExplicitHydrationTarget(queuedTarget) {
+  // TODO: This function shares a lot of logic with findInstanceBlockingEvent.
+  // Try to unify them. It's a bit tricky since it would require two return
+  // values.
+  var targetInst = getClosestInstanceFromNode(queuedTarget.target);
+
+  if (targetInst !== null) {
+    var nearestMounted = getNearestMountedFiber(targetInst);
+
+    if (nearestMounted !== null) {
+      var tag = nearestMounted.tag;
+
+      if (tag === SuspenseComponent) {
+        var instance = getSuspenseInstanceFromFiber(nearestMounted);
+
+        if (instance !== null) {
+          // We're blocked on hydrating this boundary.
+          // Increase its priority.
+          queuedTarget.blockedOn = instance;
+          runWithPriority(queuedTarget.priority, function () {
+            attemptHydrationAtCurrentPriority(nearestMounted);
+          });
+          return;
+        }
+      } else if (tag === HostRoot) {
+        var root = nearestMounted.stateNode;
+
+        if (isRootDehydrated(root)) {
+          queuedTarget.blockedOn = getContainerFromFiber(nearestMounted); // We don't currently have a way to increase the priority of
+          // a root other than sync.
+
+          return;
+        }
+      }
+    }
+  }
+
+  queuedTarget.blockedOn = null;
+}
+
+function queueExplicitHydrationTarget(target) {
+  // TODO: This will read the priority if it's dispatched by the React
+  // event system but not native events. Should read window.event.type, like
+  // we do for updates (getCurrentEventPriority).
+  var updatePriority = getCurrentUpdatePriority();
+  var queuedTarget = {
+    blockedOn: null,
+    target: target,
+    priority: updatePriority
+  };
+  var i = 0;
+
+  for (; i < queuedExplicitHydrationTargets.length; i++) {
+    // Stop once we hit the first target with lower priority than
+    if (!isHigherEventPriority(updatePriority, queuedExplicitHydrationTargets[i].priority)) {
+      break;
+    }
+  }
+
+  queuedExplicitHydrationTargets.splice(i, 0, queuedTarget);
+
+  if (i === 0) {
+    attemptExplicitHydrationTarget(queuedTarget);
+  }
+}
+
+function attemptReplayContinuousQueuedEvent(queuedEvent) {
+  if (queuedEvent.blockedOn !== null) {
+    return false;
+  }
+
+  var targetContainers = queuedEvent.targetContainers;
+
+  while (targetContainers.length > 0) {
+    var nextBlockedOn = findInstanceBlockingEvent(queuedEvent.nativeEvent);
+
+    if (nextBlockedOn === null) {
+      var nativeEvent = queuedEvent.nativeEvent;
+      var nativeEventClone = new nativeEvent.constructor(nativeEvent.type, nativeEvent);
+      setReplayingEvent(nativeEventClone);
+      nativeEvent.target.dispatchEvent(nativeEventClone);
+      resetReplayingEvent();
+    } else {
+      // We're still blocked. Try again later.
+      var fiber = getInstanceFromNode(nextBlockedOn);
+
+      if (fiber !== null) {
+        attemptContinuousHydration(fiber);
+      }
+
+      queuedEvent.blockedOn = nextBlockedOn;
+      return false;
+    } // This target container was successfully dispatched. Try the next.
+
+
+    targetContainers.shift();
+  }
+
+  return true;
+}
+
+function attemptReplayContinuousQueuedEventInMap(queuedEvent, key, map) {
+  if (attemptReplayContinuousQueuedEvent(queuedEvent)) {
+    map.delete(key);
+  }
+}
+
+function replayUnblockedEvents() {
+  hasScheduledReplayAttempt = false; // Replay any continuous events.
+
+  if (queuedFocus !== null && attemptReplayContinuousQueuedEvent(queuedFocus)) {
+    queuedFocus = null;
+  }
+
+  if (queuedDrag !== null && attemptReplayContinuousQueuedEvent(queuedDrag)) {
+    queuedDrag = null;
+  }
+
+  if (queuedMouse !== null && attemptReplayContinuousQueuedEvent(queuedMouse)) {
+    queuedMouse = null;
+  }
+
+  queuedPointers.forEach(attemptReplayContinuousQueuedEventInMap);
+  queuedPointerCaptures.forEach(attemptReplayContinuousQueuedEventInMap);
+}
+
+function scheduleCallbackIfUnblocked(queuedEvent, unblocked) {
+  if (queuedEvent.blockedOn === unblocked) {
+    queuedEvent.blockedOn = null;
+
+    if (!hasScheduledReplayAttempt) {
+      hasScheduledReplayAttempt = true; // Schedule a callback to attempt replaying as many events as are
+      // now unblocked. This first might not actually be unblocked yet.
+      // We could check it early to avoid scheduling an unnecessary callback.
+
+      Scheduler.unstable_scheduleCallback(Scheduler.unstable_NormalPriority, replayUnblockedEvents);
+    }
+  }
+} // [form, submitter or action, formData...]
+
+function retryIfBlockedOn(unblocked) {
+  if (queuedFocus !== null) {
+    scheduleCallbackIfUnblocked(queuedFocus, unblocked);
+  }
+
+  if (queuedDrag !== null) {
+    scheduleCallbackIfUnblocked(queuedDrag, unblocked);
+  }
+
+  if (queuedMouse !== null) {
+    scheduleCallbackIfUnblocked(queuedMouse, unblocked);
+  }
+
+  var unblock = function (queuedEvent) {
+    return scheduleCallbackIfUnblocked(queuedEvent, unblocked);
+  };
+
+  queuedPointers.forEach(unblock);
+  queuedPointerCaptures.forEach(unblock);
+
+  for (var i = 0; i < queuedExplicitHydrationTargets.length; i++) {
+    var queuedTarget = queuedExplicitHydrationTargets[i];
+
+    if (queuedTarget.blockedOn === unblocked) {
+      queuedTarget.blockedOn = null;
+    }
+  }
+
+  while (queuedExplicitHydrationTargets.length > 0) {
+    var nextExplicitTarget = queuedExplicitHydrationTargets[0];
+
+    if (nextExplicitTarget.blockedOn !== null) {
+      // We're still blocked.
+      break;
+    } else {
+      attemptExplicitHydrationTarget(nextExplicitTarget);
+
+      if (nextExplicitTarget.blockedOn === null) {
+        // We're unblocked.
+        queuedExplicitHydrationTargets.shift();
+      }
+    }
+  }
+}
+
+var ReactCurrentBatchConfig = ReactSharedInternals.ReactCurrentBatchConfig; // TODO: can we stop exporting these?
+
+var _enabled = true; // This is exported in FB builds for use by legacy FB layer infra.
+// We'd like to remove this but it's not clear if this is safe.
+
+function setEnabled(enabled) {
+  _enabled = !!enabled;
+}
+function isEnabled() {
+  return _enabled;
+}
+function createEventListenerWrapperWithPriority(targetContainer, domEventName, eventSystemFlags) {
+  var eventPriority = getEventPriority(domEventName);
+  var listenerWrapper;
+
+  switch (eventPriority) {
+    case DiscreteEventPriority:
+      listenerWrapper = dispatchDiscreteEvent;
+      break;
+
+    case ContinuousEventPriority:
+      listenerWrapper = dispatchContinuousEvent;
+      break;
+
+    case DefaultEventPriority:
+    default:
+      listenerWrapper = dispatchEvent;
+      break;
+  }
+
+  return listenerWrapper.bind(null, domEventName, eventSystemFlags, targetContainer);
+}
+
+function dispatchDiscreteEvent(domEventName, eventSystemFlags, container, nativeEvent) {
+  var previousPriority = getCurrentUpdatePriority();
+  var prevTransition = ReactCurrentBatchConfig.transition;
+  ReactCurrentBatchConfig.transition = null;
+
+  try {
+    setCurrentUpdatePriority(DiscreteEventPriority);
+    dispatchEvent(domEventName, eventSystemFlags, container, nativeEvent);
+  } finally {
+    setCurrentUpdatePriority(previousPriority);
+    ReactCurrentBatchConfig.transition = prevTransition;
+  }
+}
+
+function dispatchContinuousEvent(domEventName, eventSystemFlags, container, nativeEvent) {
+  var previousPriority = getCurrentUpdatePriority();
+  var prevTransition = ReactCurrentBatchConfig.transition;
+  ReactCurrentBatchConfig.transition = null;
+
+  try {
+    setCurrentUpdatePriority(ContinuousEventPriority);
+    dispatchEvent(domEventName, eventSystemFlags, container, nativeEvent);
+  } finally {
+    setCurrentUpdatePriority(previousPriority);
+    ReactCurrentBatchConfig.transition = prevTransition;
+  }
+}
+
+function dispatchEvent(domEventName, eventSystemFlags, targetContainer, nativeEvent) {
+  if (!_enabled) {
+    return;
+  }
+
+  var blockedOn = findInstanceBlockingEvent(nativeEvent);
+
+  if (blockedOn === null) {
+    dispatchEventForPluginEventSystem(domEventName, eventSystemFlags, nativeEvent, return_targetInst, targetContainer);
+    clearIfContinuousEvent(domEventName, nativeEvent);
+    return;
+  }
+
+  if (queueIfContinuousEvent(blockedOn, domEventName, eventSystemFlags, targetContainer, nativeEvent)) {
+    nativeEvent.stopPropagation();
+    return;
+  } // We need to clear only if we didn't queue because
+  // queueing is accumulative.
+
+
+  clearIfContinuousEvent(domEventName, nativeEvent);
+
+  if (eventSystemFlags & IS_CAPTURE_PHASE && isDiscreteEventThatRequiresHydration(domEventName)) {
+    while (blockedOn !== null) {
+      var fiber = getInstanceFromNode(blockedOn);
+
+      if (fiber !== null) {
+        attemptSynchronousHydration(fiber);
+      }
+
+      var nextBlockedOn = findInstanceBlockingEvent(nativeEvent);
+
+      if (nextBlockedOn === null) {
+        dispatchEventForPluginEventSystem(domEventName, eventSystemFlags, nativeEvent, return_targetInst, targetContainer);
+      }
+
+      if (nextBlockedOn === blockedOn) {
+        break;
+      }
+
+      blockedOn = nextBlockedOn;
+    }
+
+    if (blockedOn !== null) {
+      nativeEvent.stopPropagation();
+    }
+
+    return;
+  } // This is not replayable so we'll invoke it but without a target,
+  // in case the event system needs to trace it.
+
+
+  dispatchEventForPluginEventSystem(domEventName, eventSystemFlags, nativeEvent, null, targetContainer);
+}
+function findInstanceBlockingEvent(nativeEvent) {
+  var nativeEventTarget = getEventTarget(nativeEvent);
+  return findInstanceBlockingTarget(nativeEventTarget);
+}
+var return_targetInst = null; // Returns a SuspenseInstance or Container if it's blocked.
+// The return_targetInst field above is conceptually part of the return value.
+
+function findInstanceBlockingTarget(targetNode) {
+  // TODO: Warn if _enabled is false.
+  return_targetInst = null;
+  var targetInst = getClosestInstanceFromNode(targetNode);
+
+  if (targetInst !== null) {
+    var nearestMounted = getNearestMountedFiber(targetInst);
+
+    if (nearestMounted === null) {
+      // This tree has been unmounted already. Dispatch without a target.
+      targetInst = null;
+    } else {
+      var tag = nearestMounted.tag;
+
+      if (tag === SuspenseComponent) {
+        var instance = getSuspenseInstanceFromFiber(nearestMounted);
+
+        if (instance !== null) {
+          // Queue the event to be replayed later. Abort dispatching since we
+          // don't want this event dispatched twice through the event system.
+          // TODO: If this is the first discrete event in the queue. Schedule an increased
+          // priority for this boundary.
+          return instance;
+        } // This shouldn't happen, something went wrong but to avoid blocking
+        // the whole system, dispatch the event without a target.
+        // TODO: Warn.
+
+
+        targetInst = null;
+      } else if (tag === HostRoot) {
+        var root = nearestMounted.stateNode;
+
+        if (isRootDehydrated(root)) {
+          // If this happens during a replay something went wrong and it might block
+          // the whole system.
+          return getContainerFromFiber(nearestMounted);
+        }
+
+        targetInst = null;
+      } else if (nearestMounted !== targetInst) {
+        // If we get an event (ex: img onload) before committing that
+        // component's mount, ignore it for now (that is, treat it as if it was an
+        // event on a non-React tree). We might also consider queueing events and
+        // dispatching them after the mount.
+        targetInst = null;
+      }
+    }
+  }
+
+  return_targetInst = targetInst; // We're not blocked on anything.
+
+  return null;
+}
+function getEventPriority(domEventName) {
+  switch (domEventName) {
+    // Used by SimpleEventPlugin:
+    case 'cancel':
+    case 'click':
+    case 'close':
+    case 'contextmenu':
+    case 'copy':
+    case 'cut':
+    case 'auxclick':
+    case 'dblclick':
+    case 'dragend':
+    case 'dragstart':
+    case 'drop':
+    case 'focusin':
+    case 'focusout':
+    case 'input':
+    case 'invalid':
+    case 'keydown':
+    case 'keypress':
+    case 'keyup':
+    case 'mousedown':
+    case 'mouseup':
+    case 'paste':
+    case 'pause':
+    case 'play':
+    case 'pointercancel':
+    case 'pointerdown':
+    case 'pointerup':
+    case 'ratechange':
+    case 'reset':
+    case 'resize':
+    case 'seeked':
+    case 'submit':
+    case 'touchcancel':
+    case 'touchend':
+    case 'touchstart':
+    case 'volumechange': // Used by polyfills: (fall through)
+
+    case 'change':
+    case 'selectionchange':
+    case 'textInput':
+    case 'compositionstart':
+    case 'compositionend':
+    case 'compositionupdate': // Only enableCreateEventHandleAPI: (fall through)
+
+    case 'beforeblur':
+    case 'afterblur': // Not used by React but could be by user code: (fall through)
+
+    case 'beforeinput':
+    case 'blur':
+    case 'fullscreenchange':
+    case 'focus':
+    case 'hashchange':
+    case 'popstate':
+    case 'select':
+    case 'selectstart':
+      return DiscreteEventPriority;
+
+    case 'drag':
+    case 'dragenter':
+    case 'dragexit':
+    case 'dragleave':
+    case 'dragover':
+    case 'mousemove':
+    case 'mouseout':
+    case 'mouseover':
+    case 'pointermove':
+    case 'pointerout':
+    case 'pointerover':
+    case 'scroll':
+    case 'toggle':
+    case 'touchmove':
+    case 'wheel': // Not used by React but could be by user code: (fall through)
+
+    case 'mouseenter':
+    case 'mouseleave':
+    case 'pointerenter':
+    case 'pointerleave':
+      return ContinuousEventPriority;
+
+    case 'message':
+      {
+        // We might be in the Scheduler callback.
+        // Eventually this mechanism will be replaced by a check
+        // of the current priority on the native scheduler.
+        var schedulerPriority = getCurrentPriorityLevel();
+
+        switch (schedulerPriority) {
+          case ImmediatePriority:
+            return DiscreteEventPriority;
+
+          case UserBlockingPriority:
+            return ContinuousEventPriority;
+
+          case NormalPriority$1:
+          case LowPriority:
+            // TODO: Handle LowSchedulerPriority, somehow. Maybe the same lane as hydration.
+            return DefaultEventPriority;
+
+          case IdlePriority:
+            return IdleEventPriority;
+
+          default:
+            return DefaultEventPriority;
+        }
+      }
+
+    default:
+      return DefaultEventPriority;
+  }
+}
+
+function addEventBubbleListener(target, eventType, listener) {
+  target.addEventListener(eventType, listener, false);
+  return listener;
+}
+function addEventCaptureListener(target, eventType, listener) {
+  target.addEventListener(eventType, listener, true);
+  return listener;
+}
+function addEventCaptureListenerWithPassiveFlag(target, eventType, listener, passive) {
+  target.addEventListener(eventType, listener, {
+    capture: true,
+    passive: passive
+  });
+  return listener;
+}
+function addEventBubbleListenerWithPassiveFlag(target, eventType, listener, passive) {
+  target.addEventListener(eventType, listener, {
+    passive: passive
+  });
+  return listener;
+}
+
+/**
+ * These variables store information about text content of a target node,
+ * allowing comparison of content before and after a given event.
+ *
+ * Identify the node where selection currently begins, then observe
+ * both its text content and its current position in the DOM. Since the
+ * browser may natively replace the target node during composition, we can
+ * use its position to find its replacement.
+ *
+ *
+ */
+var root = null;
+var startText = null;
+var fallbackText = null;
+function initialize(nativeEventTarget) {
+  root = nativeEventTarget;
+  startText = getText();
+  return true;
+}
+function reset() {
+  root = null;
+  startText = null;
+  fallbackText = null;
+}
+function getData() {
+  if (fallbackText) {
+    return fallbackText;
+  }
+
+  var start;
+  var startValue = startText;
+  var startLength = startValue.length;
+  var end;
+  var endValue = getText();
+  var endLength = endValue.length;
+
+  for (start = 0; start < startLength; start++) {
+    if (startValue[start] !== endValue[start]) {
+      break;
+    }
+  }
+
+  var minEnd = startLength - start;
+
+  for (end = 1; end <= minEnd; end++) {
+    if (startValue[startLength - end] !== endValue[endLength - end]) {
+      break;
+    }
+  }
+
+  var sliceTail = end > 1 ? 1 - end : undefined;
+  fallbackText = endValue.slice(start, sliceTail);
+  return fallbackText;
+}
+function getText() {
+  if ('value' in root) {
+    return root.value;
+  }
+
+  return root.textContent;
+}
 
 var END_KEYCODES = [9, 13, 27, 32]; // Tab, Return, Esc, Space
 
@@ -31108,6 +31143,10 @@ function validatePropertiesInDevelopment(type, props) {
 
 function validateFormActionInDevelopment(tag, key, value, props) {
   {
+    if (value == null) {
+      return;
+    }
+
     if (tag === 'form') {
       if (key === 'formAction') {
         error('You can only pass the formAction prop to <input> or <button>. Use the action prop on <form>.');
@@ -31222,7 +31261,7 @@ function normalizeHTML(parent, html) {
     // re-initializing custom elements if they exist. But this breaks
     // how <noscript> is being handled. So we use the same document.
     // See the discussion in https://github.com/facebook/react/pull/11157.
-    var testElement = parent.namespaceURI === HTML_NAMESPACE ? parent.ownerDocument.createElement(parent.tagName) : parent.ownerDocument.createElementNS(parent.namespaceURI, parent.tagName);
+    var testElement = parent.namespaceURI === MATH_NAMESPACE || parent.namespaceURI === SVG_NAMESPACE ? parent.ownerDocument.createElementNS(parent.namespaceURI, parent.tagName) : parent.ownerDocument.createElement(parent.tagName);
     testElement.innerHTML = html;
     return testElement.innerHTML;
   }
@@ -31373,14 +31412,14 @@ function setProp(domElement, tag, key, value, props, prevValue) {
     case 'formAction':
       {
         // TODO: Consider moving these special cases to the form, input and button tags.
-        if (value == null || typeof value === 'function' || typeof value === 'symbol' || typeof value === 'boolean') {
-          domElement.removeAttribute(key);
-          break;
-        }
-
         {
           validateFormActionInDevelopment(tag, key, value, props);
         }
+
+        if (value == null || typeof value === 'function' || typeof value === 'symbol' || typeof value === 'boolean') {
+          domElement.removeAttribute(key);
+          break;
+        } // `setAttribute` with objects becomes only `[object]` in IE8/9,
         // ('' + value) makes it output the correct toString()-value.
 
 
@@ -31517,7 +31556,7 @@ function setProp(domElement, tag, key, value, props, prevValue) {
             checkAttributeStringCoercion(value, key);
           }
 
-          domElement.setAttribute(key, value);
+          domElement.setAttribute(key, '' + value);
         } else {
           domElement.removeAttribute(key);
         }
@@ -32016,7 +32055,7 @@ function setInitialProperties(domElement, tag, props) {
 
             default:
               {
-                setProp(domElement, tag, _propKey2, _propValue2, props);
+                setProp(domElement, tag, _propKey2, _propValue2, props, null);
               }
           }
         } // TODO: Make sure we check if this is still unmounted or do any clean
@@ -32054,7 +32093,7 @@ function setInitialProperties(domElement, tag, props) {
 
             default:
               {
-                setProp(domElement, tag, _propKey3, _propValue3, props);
+                setProp(domElement, tag, _propKey3, _propValue3, props, null);
               }
           }
         }
@@ -32383,7 +32422,7 @@ function updatePropertiesWithDiff(domElement, updatePayload, tag, lastProps, nex
 
             default:
               {
-                setProp(domElement, tag, propKey, propValue, nextProps, null);
+                setProp(domElement, tag, propKey, propValue, nextProps, lastProps[propKey]);
               }
           }
         }
@@ -32433,7 +32472,7 @@ function updatePropertiesWithDiff(domElement, updatePayload, tag, lastProps, nex
 
             default:
               {
-                setProp(domElement, tag, _propKey20, _propValue7, nextProps, null);
+                setProp(domElement, tag, _propKey20, _propValue7, nextProps, lastProps[_propKey20]);
               }
           }
         } // <select> value update needs to occur after <option> children
@@ -32479,7 +32518,7 @@ function updatePropertiesWithDiff(domElement, updatePayload, tag, lastProps, nex
 
             default:
               {
-                setProp(domElement, tag, _propKey21, _propValue8, nextProps, null);
+                setProp(domElement, tag, _propKey21, _propValue8, nextProps, lastProps[_propKey21]);
               }
           }
         }
@@ -32504,7 +32543,7 @@ function updatePropertiesWithDiff(domElement, updatePayload, tag, lastProps, nex
 
             default:
               {
-                setProp(domElement, tag, _propKey22, _propValue9, nextProps, null);
+                setProp(domElement, tag, _propKey22, _propValue9, nextProps, lastProps[_propKey22]);
               }
           }
         }
@@ -32548,7 +32587,7 @@ function updatePropertiesWithDiff(domElement, updatePayload, tag, lastProps, nex
 
             default:
               {
-                setProp(domElement, tag, _propKey23, _propValue10, nextProps, null);
+                setProp(domElement, tag, _propKey23, _propValue10, nextProps, lastProps[_propKey23]);
               }
           }
         }
@@ -32574,7 +32613,7 @@ function updatePropertiesWithDiff(domElement, updatePayload, tag, lastProps, nex
   for (var _i6 = 0; _i6 < updatePayload.length; _i6 += 2) {
     var _propKey25 = updatePayload[_i6];
     var _propValue12 = updatePayload[_i6 + 1];
-    setProp(domElement, tag, _propKey25, _propValue12, nextProps, null);
+    setProp(domElement, tag, _propKey25, _propValue12, nextProps, lastProps[_propKey25]);
   }
 }
 
@@ -32894,7 +32933,7 @@ function hydrateSanitizedAttribute(domElement, propKey, attributeName, value, ex
   warnForPropDifference(propKey, serverValue, value);
 }
 
-function diffHydratedCustomComponent(domElement, tag, props, parentNamespaceDev, extraAttributes) {
+function diffHydratedCustomComponent(domElement, tag, props, hostContext, extraAttributes) {
   for (var propKey in props) {
     if (!props.hasOwnProperty(propKey)) {
       continue;
@@ -32964,13 +33003,11 @@ function diffHydratedCustomComponent(domElement, tag, props, parentNamespaceDev,
 
       default:
         {
-          var ownNamespaceDev = parentNamespaceDev;
+          // This is a DEV-only path
+          var hostContextDev = hostContext;
+          var hostContextProd = hostContextDev.context;
 
-          if (ownNamespaceDev === HTML_NAMESPACE) {
-            ownNamespaceDev = getIntrinsicNamespace(tag);
-          }
-
-          if (ownNamespaceDev === HTML_NAMESPACE) {
+          if (hostContextProd === HostContextNamespaceNone && tag !== 'svg' && tag !== 'math') {
             extraAttributes.delete(propKey.toLowerCase());
           } else {
             extraAttributes.delete(propKey);
@@ -32984,7 +33021,7 @@ function diffHydratedCustomComponent(domElement, tag, props, parentNamespaceDev,
   }
 } // This is the exact URL string we expect that Fizz renders if we provide a function action.
 
-function diffHydratedGenericElement(domElement, tag, props, parentNamespaceDev, extraAttributes) {
+function diffHydratedGenericElement(domElement, tag, props, hostContext, extraAttributes) {
   for (var propKey in props) {
     if (!props.hasOwnProperty(propKey)) {
       continue;
@@ -33220,14 +33257,12 @@ function diffHydratedGenericElement(domElement, tag, props, parentNamespaceDev, 
           }
 
           var attributeName = getAttributeAlias(propKey);
-          var isMismatchDueToBadCasing = false;
-          var ownNamespaceDev = parentNamespaceDev;
+          var isMismatchDueToBadCasing = false; // This is a DEV-only path
 
-          if (ownNamespaceDev === HTML_NAMESPACE) {
-            ownNamespaceDev = getIntrinsicNamespace(tag);
-          }
+          var hostContextDev = hostContext;
+          var hostContextProd = hostContextDev.context;
 
-          if (ownNamespaceDev === HTML_NAMESPACE) {
+          if (hostContextProd === HostContextNamespaceNone && tag !== 'svg' && tag !== 'math') {
             extraAttributes.delete(attributeName.toLowerCase());
           } else {
             var standardName = getPossibleStandardName(propKey);
@@ -33255,7 +33290,7 @@ function diffHydratedGenericElement(domElement, tag, props, parentNamespaceDev, 
   }
 }
 
-function diffHydratedProperties(domElement, tag, props, isConcurrentMode, shouldWarnDev, parentNamespaceDev) {
+function diffHydratedProperties(domElement, tag, props, isConcurrentMode, shouldWarnDev, hostContext) {
   {
     validatePropertiesInDevelopment(tag, props);
   } // TODO: Make sure that we check isMounted before firing any of these events.
@@ -33418,9 +33453,9 @@ function diffHydratedProperties(domElement, tag, props, isConcurrentMode, should
     }
 
     if (isCustomElement(tag)) {
-      diffHydratedCustomComponent(domElement, tag, props, parentNamespaceDev, extraAttributes);
+      diffHydratedCustomComponent(domElement, tag, props, hostContext, extraAttributes);
     } else {
-      diffHydratedGenericElement(domElement, tag, props, parentNamespaceDev, extraAttributes);
+      diffHydratedGenericElement(domElement, tag, props, hostContext, extraAttributes);
     }
 
     if (extraAttributes.size > 0 && props.suppressHydrationWarning !== true) {
@@ -33628,6 +33663,9 @@ var SUSPENSE_END_DATA = '/$';
 var SUSPENSE_PENDING_START_DATA = '$?';
 var SUSPENSE_FALLBACK_START_DATA = '$!';
 var STYLE = 'style';
+var HostContextNamespaceNone = 0;
+var HostContextNamespaceSvg = 1;
+var HostContextNamespaceMath = 2;
 var eventsEnabled = null;
 var selectionInformation = null;
 
@@ -33637,7 +33675,7 @@ function getOwnerDocumentFromRootContainer(rootContainerElement) {
 
 function getRootHostContext(rootContainerInstance) {
   var type;
-  var namespace;
+  var context;
   var nodeType = rootContainerInstance.nodeType;
 
   switch (nodeType) {
@@ -33646,16 +33684,42 @@ function getRootHostContext(rootContainerInstance) {
       {
         type = nodeType === DOCUMENT_NODE ? '#document' : '#fragment';
         var root = rootContainerInstance.documentElement;
-        namespace = root ? root.namespaceURI : getChildNamespace(null, '');
+
+        if (root) {
+          var namespaceURI = root.namespaceURI;
+          context = namespaceURI ? getOwnHostContext(namespaceURI) : HostContextNamespaceNone;
+        } else {
+          context = HostContextNamespaceNone;
+        }
+
         break;
       }
 
     default:
       {
         var container = nodeType === COMMENT_NODE ? rootContainerInstance.parentNode : rootContainerInstance;
-        var ownNamespace = container.namespaceURI || null;
         type = container.tagName;
-        namespace = getChildNamespace(ownNamespace, type);
+        var _namespaceURI = container.namespaceURI;
+
+        if (!_namespaceURI) {
+          switch (type) {
+            case 'svg':
+              context = HostContextNamespaceSvg;
+              break;
+
+            case 'math':
+              context = HostContextNamespaceMath;
+              break;
+
+            default:
+              context = HostContextNamespaceNone;
+              break;
+          }
+        } else {
+          var ownContext = getOwnHostContext(_namespaceURI);
+          context = getChildHostContextProd(ownContext, type);
+        }
+
         break;
       }
   }
@@ -33664,18 +33728,56 @@ function getRootHostContext(rootContainerInstance) {
     var validatedTag = type.toLowerCase();
     var ancestorInfo = updatedAncestorInfoDev(null, validatedTag);
     return {
-      namespace: namespace,
+      context: context,
       ancestorInfo: ancestorInfo
     };
   }
 }
+
+function getOwnHostContext(namespaceURI) {
+  switch (namespaceURI) {
+    case SVG_NAMESPACE:
+      return HostContextNamespaceSvg;
+
+    case MATH_NAMESPACE:
+      return HostContextNamespaceMath;
+
+    default:
+      return HostContextNamespaceNone;
+  }
+}
+
+function getChildHostContextProd(parentNamespace, type) {
+  if (parentNamespace === HostContextNamespaceNone) {
+    // No (or default) parent namespace: potential entry point.
+    switch (type) {
+      case 'svg':
+        return HostContextNamespaceSvg;
+
+      case 'math':
+        return HostContextNamespaceMath;
+
+      default:
+        return HostContextNamespaceNone;
+    }
+  }
+
+  if (parentNamespace === HostContextNamespaceSvg && type === 'foreignObject') {
+    // We're leaving SVG.
+    return HostContextNamespaceNone;
+  } // By default, pass namespace below.
+
+
+  return parentNamespace;
+}
+
 function getChildHostContext(parentHostContext, type) {
   {
     var parentHostContextDev = parentHostContext;
-    var namespace = getChildNamespace(parentHostContextDev.namespace, type);
+    var context = getChildHostContextProd(parentHostContextDev.context, type);
     var ancestorInfo = updatedAncestorInfoDev(parentHostContextDev.ancestorInfo, type);
     return {
-      namespace: namespace,
+      context: context,
       ancestorInfo: ancestorInfo
     };
   }
@@ -33717,22 +33819,25 @@ var warnedUnknownTags = {
   webview: true
 };
 function createInstance(type, props, rootContainerInstance, hostContext, internalInstanceHandle) {
-  var namespace;
+  var hostContextProd;
 
   {
     // TODO: take namespace into account when validating.
     var hostContextDev = hostContext;
     validateDOMNesting(type, hostContextDev.ancestorInfo);
-    namespace = hostContextDev.namespace;
+    hostContextProd = hostContextDev.context;
   }
 
   var ownerDocument = getOwnerDocumentFromRootContainer(rootContainerInstance);
   var domElement;
 
-  switch (namespace) {
-    case SVG_NAMESPACE:
-    case MATH_NAMESPACE:
-      domElement = ownerDocument.createElementNS(namespace, type);
+  switch (hostContextProd) {
+    case HostContextNamespaceSvg:
+      domElement = ownerDocument.createElementNS(SVG_NAMESPACE, type);
+      break;
+
+    case HostContextNamespaceMath:
+      domElement = ownerDocument.createElementNS(MATH_NAMESPACE, type);
       break;
 
     default:
@@ -34353,14 +34458,7 @@ function hydrateInstance(instance, type, props, hostContext, internalInstanceHan
   // when the legacy root API is removed.
 
   var isConcurrentMode = (internalInstanceHandle.mode & ConcurrentMode) !== NoMode;
-  var parentNamespace;
-
-  {
-    var hostContextDev = hostContext;
-    parentNamespace = hostContextDev.namespace;
-  }
-
-  return diffHydratedProperties(instance, type, props, isConcurrentMode, shouldWarnDev, parentNamespace);
+  return diffHydratedProperties(instance, type, props, isConcurrentMode, shouldWarnDev, hostContext);
 }
 function hydrateTextInstance(textInstance, text, internalInstanceHandle, shouldWarnDev) {
   precacheFiberNode(internalInstanceHandle, textInstance); // TODO: Temporary hack to check if we're in a concurrent root. We can delete
@@ -34637,8 +34735,6 @@ function clearSingleton(instance) {
 
   return;
 } // -------------------
-// In the future this may need to change, especially when modules / scripts are supported
-
 var NotLoaded =
 /*       */
 0;
@@ -34744,6 +34840,7 @@ function prefetchDNS$1(href, options) {
 }
 
 function preconnect$1(href, options) {
+
   {
     if (typeof href !== 'string' || !href) {
       error('ReactDOM.preconnect(): Expected the `href` argument (first) to be a non-empty string but encountered %s instead.', getValueDescriptorExpectingObjectForWarning(href));
@@ -34769,8 +34866,11 @@ function preload$1(href, options) {
   if (typeof href === 'string' && href && typeof options === 'object' && options !== null && ownerDocument) {
     var as = options.as;
     var limitedEscapedHref = escapeSelectorAttributeValueInsideDoubleQuotes(href);
-    var preloadKey = "link[rel=\"preload\"][as=\"" + as + "\"][href=\"" + limitedEscapedHref + "\"]";
-    var key = preloadKey;
+    var preloadSelector = "link[rel=\"preload\"][as=\"" + as + "\"][href=\"" + limitedEscapedHref + "\"]"; // Some preloads are keyed under their selector. This happens when the preload is for
+    // an arbitrary type. Other preloads are keyed under the resource key they represent a preload for.
+    // Here we figure out which key to use to determine if we have a preload already.
+
+    var key = preloadSelector;
 
     switch (as) {
       case 'style':
@@ -34786,7 +34886,15 @@ function preload$1(href, options) {
       var preloadProps = preloadPropsFromPreloadOptions(href, as, options);
       preloadPropsMap.set(key, preloadProps);
 
-      if (null === ownerDocument.querySelector(preloadKey)) {
+      if (null === ownerDocument.querySelector(preloadSelector)) {
+        if (as === 'style' && ownerDocument.querySelector(getStylesheetSelectorFromKey(key))) {
+          // We already have a stylesheet for this key. We don't need to preload it.
+          return;
+        } else if (as === 'script' && ownerDocument.querySelector(getScriptSelectorFromKey(key))) {
+          // We already have a stylesheet for this key. We don't need to preload it.
+          return;
+        }
+
         var instance = ownerDocument.createElement('link');
         setInitialProperties(instance, 'link', preloadProps);
         markNodeAsHoistable(instance);
@@ -35076,11 +35184,12 @@ function styleTagPropsFromRawProps(rawProps) {
 
 function getStyleKey(href) {
   var limitedEscapedHref = escapeSelectorAttributeValueInsideDoubleQuotes(href);
-  return "href~=\"" + limitedEscapedHref + "\"";
+  return "href=\"" + limitedEscapedHref + "\"";
 }
 
-function getStyleTagSelectorFromKey(key) {
-  return "style[data-" + key + "]";
+function getStyleTagSelector(href) {
+  var limitedEscapedHref = escapeSelectorAttributeValueInsideDoubleQuotes(href);
+  return "style[data-href~=\"" + limitedEscapedHref + "\"]";
 }
 
 function getStylesheetSelectorFromKey(key) {
@@ -35156,10 +35265,9 @@ function acquireResource(hoistableRoot, resource, props) {
     switch (resource.type) {
       case 'style':
         {
-          var qualifiedProps = props;
-          var key = getStyleKey(qualifiedProps.href); // Attempt to hydrate instance from DOM
+          var qualifiedProps = props; // Attempt to hydrate instance from DOM
 
-          var instance = hoistableRoot.querySelector(getStyleTagSelectorFromKey(key));
+          var instance = hoistableRoot.querySelector(getStyleTagSelector(qualifiedProps.href));
 
           if (instance) {
             resource.instance = instance;
@@ -35187,11 +35295,9 @@ function acquireResource(hoistableRoot, resource, props) {
           // there for what qualifies as a stylesheet resource we need to ensure
           // this cast still makes sense;
           var _qualifiedProps = props;
+          var key = getStyleKey(_qualifiedProps.href); // Attempt to hydrate instance from DOM
 
-          var _key4 = getStyleKey(_qualifiedProps.href); // Attempt to hydrate instance from DOM
-
-
-          var _instance2 = hoistableRoot.querySelector(getStylesheetSelectorFromKey(_key4));
+          var _instance2 = hoistableRoot.querySelector(getStylesheetSelectorFromKey(key));
 
           if (_instance2) {
             resource.instance = _instance2;
@@ -35200,7 +35306,7 @@ function acquireResource(hoistableRoot, resource, props) {
           }
 
           var stylesheetProps = stylesheetPropsFromRawProps(props);
-          var preloadProps = preloadPropsMap.get(_key4);
+          var preloadProps = preloadPropsMap.get(key);
 
           if (preloadProps) {
             adoptPreloadPropsForStylesheet(stylesheetProps, preloadProps);
@@ -35230,10 +35336,10 @@ function acquireResource(hoistableRoot, resource, props) {
           // this cast still makes sense;
           var borrowedScriptProps = props;
 
-          var _key5 = getScriptKey(borrowedScriptProps.src); // Attempt to hydrate instance from DOM
+          var _key4 = getScriptKey(borrowedScriptProps.src); // Attempt to hydrate instance from DOM
 
 
-          var _instance3 = hoistableRoot.querySelector(getScriptSelectorFromKey(_key5));
+          var _instance3 = hoistableRoot.querySelector(getScriptSelectorFromKey(_key4));
 
           if (_instance3) {
             resource.instance = _instance3;
@@ -35243,7 +35349,7 @@ function acquireResource(hoistableRoot, resource, props) {
 
           var scriptProps = borrowedScriptProps;
 
-          var _preloadProps2 = preloadPropsMap.get(_key5);
+          var _preloadProps2 = preloadPropsMap.get(_key4);
 
           if (_preloadProps2) {
             scriptProps = assign({}, borrowedScriptProps);
@@ -35393,9 +35499,9 @@ function hydrateHoistable(hoistableRoot, type, props, internalInstanceHandle) {
       {
         var _cache = getHydratableHoistableCache('meta', 'content', ownerDocument);
 
-        var _key6 = type + (props.content || '');
+        var _key5 = type + (props.content || '');
 
-        var _maybeNodes = _cache.get(_key6);
+        var _maybeNodes = _cache.get(_key5);
 
         if (_maybeNodes) {
           var _nodes = _maybeNodes;
@@ -35492,33 +35598,20 @@ function mountHoistable(hoistableRoot, type, instance) {
 }
 function unmountHoistable(instance) {
   instance.parentNode.removeChild(instance);
-} // When passing user input into querySelector(All) the embedded string must not alter
-// the semantics of the query. This escape function is safe to use when we know the
-// provided value is going to be wrapped in double quotes as part of an attribute selector
-// Do not use it anywhere else
-// we escape double quotes and backslashes
-
-var escapeSelectorAttributeValueInsideDoubleQuotesRegex = /[\n\"\\]/g;
-
-function escapeSelectorAttributeValueInsideDoubleQuotes(value) {
-  return value.replace(escapeSelectorAttributeValueInsideDoubleQuotesRegex, function (ch) {
-    return '\\' + ch.charCodeAt(0).toString(16);
-  });
 }
-
 function isHostHoistableType(type, props, hostContext) {
   var outsideHostContainerContext;
-  var namespace;
+  var hostContextProd;
 
   {
     var hostContextDev = hostContext; // We can only render resources when we are not within the host container context
 
     outsideHostContainerContext = !hostContextDev.ancestorInfo.containerTagInScope;
-    namespace = hostContextDev.namespace;
+    hostContextProd = hostContextDev.context;
   } // Global opt out of hoisting for anything in SVG Namespace or anything with an itemProp inside an itemScope
 
 
-  if (namespace === SVG_NAMESPACE || props.itemProp != null) {
+  if (hostContextProd === HostContextNamespaceSvg || props.itemProp != null) {
     {
       if (outsideHostContainerContext && props.itemProp != null && (type === 'meta' || type === 'title' || type === 'style' || type === 'link' || type === 'script')) {
         error('Cannot render a <%s> outside the main document if it has an `itemProp` prop. `itemProp` suggests the tag belongs to an' + ' `itemScope` which can appear anywhere in the DOM. If you were intending for React to hoist this <%s> remove the `itemProp` prop.' + ' Otherwise, try moving this tag into the <head> or <body> of the Document.', type, type);
@@ -35893,7 +35986,12 @@ function insertStylesheetIntoRoot(root, resource, map) {
   resource.state.loading |= Inserted;
 }
 
-var Dispatcher = Internals.Dispatcher;
+var Dispatcher$1 = Internals.Dispatcher;
+
+if (typeof document !== 'undefined') {
+  // Set the default dispatcher to the client dispatcher
+  Dispatcher$1.current = ReactDOMClientDispatcher;
+}
 /* global reportError */
 
 var defaultOnRecoverableError = typeof reportError === 'function' ? // In modern browsers, reportError will dispatch an error event,
@@ -35995,7 +36093,7 @@ function createRoot$1(container, options) {
 
   var root = createContainer(container, ConcurrentRoot, null, isStrictMode, concurrentUpdatesByDefaultOverride, identifierPrefix, onRecoverableError);
   markContainerAsRoot(root.current, container);
-  Dispatcher.current = ReactDOMClientDispatcher;
+  Dispatcher$1.current = ReactDOMClientDispatcher;
   var rootContainerElement = container.nodeType === COMMENT_NODE ? container.parentNode : container;
   listenToAllSupportedEvents(rootContainerElement); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
 
@@ -36053,7 +36151,7 @@ function hydrateRoot$1(container, initialChildren, options) {
 
   var root = createHydrationContainer(initialChildren, null, container, ConcurrentRoot, hydrationCallbacks, isStrictMode, concurrentUpdatesByDefaultOverride, identifierPrefix, onRecoverableError);
   markContainerAsRoot(root.current, container);
-  Dispatcher.current = ReactDOMClientDispatcher; // This can't be a comment node since hydration doesn't work on comment nodes anyway.
+  Dispatcher$1.current = ReactDOMClientDispatcher; // This can't be a comment node since hydration doesn't work on comment nodes anyway.
 
   listenToAllSupportedEvents(container);
 
@@ -36361,41 +36459,60 @@ function unmountComponentAtNode(container) {
   }
 }
 
-function prefetchDNS() {
-  var dispatcher = Internals.Dispatcher.current;
+var Dispatcher = Internals.Dispatcher;
+function prefetchDNS(href) {
+  var passedOptionArg;
+
+  {
+    if (arguments[1] !== undefined) {
+      passedOptionArg = arguments[1];
+    }
+  }
+
+  var dispatcher = Dispatcher.current;
 
   if (dispatcher) {
-    dispatcher.prefetchDNS.apply(this, arguments);
+    {
+      if (passedOptionArg !== undefined) {
+        // prefetchDNS will warn if you pass reserved options arg. We pass it along in Dev only to
+        // elicit the warning. In prod we do not forward since it is not a part of the interface.
+        // @TODO move all arg validation into this file. It needs to be universal anyway so may as well lock down the interace here and
+        // let the rest of the codebase trust the types
+        dispatcher.prefetchDNS(href, passedOptionArg);
+      } else {
+        dispatcher.prefetchDNS(href);
+      }
+    }
   } // We don't error because preconnect needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
 
 }
-function preconnect() {
-  var dispatcher = Internals.Dispatcher.current;
+function preconnect(href, options) {
+  var dispatcher = Dispatcher.current;
 
   if (dispatcher) {
-    dispatcher.preconnect.apply(this, arguments);
+    dispatcher.preconnect(href, options);
   } // We don't error because preconnect needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
 
 }
-function preload() {
-  var dispatcher = Internals.Dispatcher.current;
+function preload(href, options) {
+  var dispatcher = Dispatcher.current;
 
   if (dispatcher) {
-    dispatcher.preload.apply(this, arguments);
+    dispatcher.preload(href, options);
   } // We don't error because preload needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
 
 }
-function preinit() {
-  var dispatcher = Internals.Dispatcher.current;
+function preinit(href, options) {
+  var dispatcher = Dispatcher.current;
 
   if (dispatcher) {
-    dispatcher.preinit.apply(this, arguments);
+    dispatcher.preinit(href, options);
   } // We don't error because preinit needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
