@@ -1,5 +1,5 @@
 import React from 'next/dist/compiled/react'
-import ReactDOMServer from 'next/dist/compiled/react-dom/server.browser'
+import ReactDOMServer from 'next/dist/compiled/react-dom/server.edge'
 import { streamToString } from '../node-web-streams-helper'
 import { AppRenderSpan } from '../lib/trace/constants'
 import { getTracer } from '../lib/trace/tracer'
