@@ -24,25 +24,13 @@ use super::source_asset::StructuredImageSourceAsset;
 #[turbo_tasks::value]
 pub struct StructuredImageModuleType {}
 
-#[turbo_tasks::value_impl]
-impl StructuredImageModuleTypeVc {
-    #[turbo_tasks::function]
-    pub fn new() -> Self {
-        StructuredImageModuleTypeVc::cell(StructuredImageModuleType {})
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl CustomModuleType for StructuredImageModuleType {
-    #[turbo_tasks::function]
-    async fn create_module(
-        &self,
+impl StructuredImageModuleType {
+    pub(crate) fn create_module(
         source: AssetVc,
         context: AssetContextVc,
-        _part: Option<ModulePartVc>,
-    ) -> Result<AssetVc> {
+    ) -> EcmascriptModuleAssetVc {
         let static_asset = StaticModuleAssetVc::new(source, context);
-        Ok(EcmascriptModuleAssetVc::new_with_inner_assets(
+        EcmascriptModuleAssetVc::new_with_inner_assets(
             StructuredImageSourceAsset { image: source }.cell().into(),
             context,
             Value::new(EcmascriptModuleAssetType::Ecmascript),
@@ -55,6 +43,26 @@ impl CustomModuleType for StructuredImageModuleType {
                 "IMAGE".to_string() => static_asset.into()
             )),
         )
-        .into())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl StructuredImageModuleTypeVc {
+    #[turbo_tasks::function]
+    pub fn new() -> Self {
+        StructuredImageModuleTypeVc::cell(StructuredImageModuleType {})
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl CustomModuleType for StructuredImageModuleType {
+    #[turbo_tasks::function]
+    fn create_module(
+        &self,
+        source: AssetVc,
+        context: AssetContextVc,
+        _part: Option<ModulePartVc>,
+    ) -> AssetVc {
+        StructuredImageModuleType::create_module(source, context).into()
     }
 }

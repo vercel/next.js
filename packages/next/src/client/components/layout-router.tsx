@@ -105,6 +105,26 @@ function findDOMNode(
   return ReactDOM.findDOMNode(instance)
 }
 
+const rectProperties = [
+  'bottom',
+  'height',
+  'left',
+  'right',
+  'top',
+  'width',
+  'x',
+  'y',
+] as const
+/**
+ * Check if a HTMLElement is hidden.
+ */
+function elementCanScroll(element: HTMLElement) {
+  // Uses `getBoundingClientRect` to check if the element is hidden instead of `offsetParent`
+  // because `offsetParent` doesn't consider document/body
+  const rect = element.getBoundingClientRect()
+  return rectProperties.every((item) => rect[item] === 0)
+}
+
 /**
  * Check if the top corner of the HTMLElement is in the viewport.
  */
@@ -172,9 +192,21 @@ class ScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerProps> 
         domNode = findDOMNode(this)
       }
 
-      // If there is no DOMNode this layout-router level is skipped. It'll be handled higher-up in the tree.
-      if (!(domNode instanceof HTMLElement)) {
+      // TODO-APP: Handle the case where we couldn't select any DOM node, even higher up in the layout-router above the current segmentPath.
+      // If there is no DOM node this layout-router level is skipped. It'll be handled higher-up in the tree.
+      if (!(domNode instanceof Element)) {
         return
+      }
+
+      // Verify if the element is a HTMLElement and if it's visible on screen (e.g. not display: none).
+      // If the element is not a HTMLElement or not visible we try to select the next sibling and try again.
+      while (!(domNode instanceof HTMLElement) || elementCanScroll(domNode)) {
+        // TODO-APP: Handle the case where we couldn't select any DOM node, even higher up in the layout-router above the current segmentPath.
+        // No siblings found that are visible so we handle scroll higher up in the tree instead.
+        if (domNode.nextElementSibling === null) {
+          return
+        }
+        domNode = domNode.nextElementSibling
       }
 
       // State is mutated to ensure that the focus and scroll is applied only once.
