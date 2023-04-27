@@ -39,5 +39,8 @@ tokio = { workspace = true, features = ["full"] }
 turbo-tasks-hash = { workspace = true }
 turbo-tasks-macros = { workspace = true }
 
+[dev-dependencies]
+serde_test = "1.0.157"
+
 [build-dependencies]
 turbo-tasks-build = { workspace = true }

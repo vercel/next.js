@@ -1,6 +1,9 @@
 use anyhow::{anyhow, Result};
 use indexmap::IndexSet;
-use turbo_tasks::{primitives::StringVc, Value};
+use turbo_tasks::{
+    primitives::{JsonValueVc, StringVc},
+    Value,
+};
 use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::introspect::{
@@ -29,6 +32,7 @@ pub fn create_node_api_source(
     route_match: RouteMatcherVc,
     pathname: StringVc,
     entry: NodeEntryVc,
+    render_data: JsonValueVc,
 ) -> ContentSourceVc {
     NodeApiContentSource {
         cwd,
@@ -38,6 +42,7 @@ pub fn create_node_api_source(
         pathname,
         route_match,
         entry,
+        render_data,
     }
     .cell()
     .into()
@@ -58,6 +63,7 @@ pub struct NodeApiContentSource {
     pathname: StringVc,
     route_match: RouteMatcherVc,
     entry: NodeEntryVc,
+    render_data: JsonValueVc,
 }
 
 #[turbo_tasks::value_impl]
@@ -82,6 +88,7 @@ impl ContentSource for NodeApiContentSource {
                 specificity: this.specificity,
                 get_content: NodeApiGetContentResult {
                     source: self_vc,
+                    render_data: this.render_data,
                     path: path.to_string(),
                 }
                 .cell()
@@ -96,6 +103,7 @@ impl ContentSource for NodeApiContentSource {
 #[turbo_tasks::value]
 struct NodeApiGetContentResult {
     source: NodeApiContentSourceVc,
+    render_data: JsonValueVc,
     path: String,
 }
 
@@ -148,6 +156,7 @@ impl GetContentSourceContent for NodeApiGetContentResult {
                 raw_query: raw_query.clone(),
                 raw_headers: raw_headers.clone(),
                 path: format!("/{}", self.path),
+                data: Some(self.render_data.await?),
             }
             .cell(),
             *body,

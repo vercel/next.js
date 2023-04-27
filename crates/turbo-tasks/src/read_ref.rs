@@ -4,6 +4,7 @@ use std::{
     fmt::{Debug, Display},
     hash::Hash,
     marker::PhantomData,
+    mem::transmute,
     sync::Arc,
 };
 
@@ -37,7 +38,7 @@ impl<T, U> std::ops::Deref for ReadRef<T, U> {
 
     fn deref(&self) -> &Self::Target {
         let inner: &T = &self.0;
-        unsafe { std::mem::transmute(inner) }
+        unsafe { transmute(inner) }
     }
 }
 
@@ -121,16 +122,16 @@ where
     }
 }
 
-impl<T, U: Serialize> Serialize for ReadRef<T, U> {
+impl<T: Serialize, U> Serialize for ReadRef<T, U> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        (**self).serialize(serializer)
+        T::serialize(&self.0, serializer)
     }
 }
 
-impl<'de, T: Deserialize<'de>> Deserialize<'de> for ReadRef<T, T> {
+impl<'de, T: Deserialize<'de>, U> Deserialize<'de> for ReadRef<T, U> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -184,5 +185,55 @@ impl<T, U: Clone> ReadRef<T, U> {
     /// This clone is more expensive, but allows to get an mutable owned value.
     pub fn clone_value(&self) -> U {
         (**self).clone()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use serde::{Deserialize, Serialize};
+    use serde_test::{assert_tokens, Token};
+
+    use super::ReadRef;
+
+    #[test]
+    fn serde_transparent() {
+        #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+        struct Foo16(u16);
+        type Foo16ReadRef = ReadRef<Foo16, u16>;
+
+        let v = Foo16(123);
+        let v = unsafe { Foo16ReadRef::new_transparent(Arc::new(v)) };
+
+        assert_tokens(
+            &v,
+            &[Token::NewtypeStruct { name: "Foo16" }, Token::U16(123)],
+        )
+    }
+
+    #[test]
+    fn serde_non_transparent() {
+        #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+        struct Foo16 {
+            value: u16,
+        }
+        type Foo16ReadRef = ReadRef<Foo16, Foo16>;
+
+        let v = Foo16 { value: 123 };
+        let v = Foo16ReadRef::new(Arc::new(v));
+
+        assert_tokens(
+            &v,
+            &[
+                Token::Struct {
+                    name: "Foo16",
+                    len: 1,
+                },
+                Token::Str("value"),
+                Token::U16(123),
+                Token::StructEnd,
+            ],
+        )
     }
 }
