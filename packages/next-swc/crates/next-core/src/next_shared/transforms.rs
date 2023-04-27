@@ -1,8 +1,10 @@
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
 use anyhow::Result;
+use indexmap::IndexMap;
 use next_transform_dynamic::{next_dynamic, NextDynamicMode};
 use next_transform_strip_page_exports::{next_transform_strip_page_exports, ExportFilter};
+use serde::{Deserialize, Serialize};
 use swc_core::{
     common::{util::take::Take, FileName},
     ecma::{
@@ -12,16 +14,22 @@ use swc_core::{
     },
 };
 use turbo_binding::{
+    swc::custom_transform::modularize_imports::{modularize_imports, PackageConfig},
     turbo::tasks_fs::FileSystemPathVc,
     turbopack::{
         core::reference_type::{ReferenceType, UrlReferenceSubType},
         ecmascript::{
-            CustomTransformVc, CustomTransformer, EcmascriptInputTransform,
-            EcmascriptInputTransformsVc, TransformContext,
+            CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransformsVc,
+            TransformContext, TransformPluginVc,
         },
-        turbopack::module_options::{ModuleRule, ModuleRuleCondition, ModuleRuleEffect},
+        turbopack::module_options::{
+            ModuleRule, ModuleRuleCondition, ModuleRuleEffect, ModuleType,
+        },
     },
 };
+use turbo_tasks::trace::TraceRawVcs;
+
+use crate::next_image::StructuredImageModuleTypeVc;
 
 /// Returns a rule which applies the Next.js page export stripping transform.
 pub async fn get_next_pages_transforms_rule(
@@ -30,7 +38,7 @@ pub async fn get_next_pages_transforms_rule(
 ) -> Result<ModuleRule> {
     // Apply the Next SSG transform to all pages.
     let strip_transform =
-        EcmascriptInputTransform::Custom(CustomTransformVc::cell(box NextJsStripPageExports {
+        EcmascriptInputTransform::Plugin(TransformPluginVc::cell(box NextJsStripPageExports {
             export_filter,
         }));
     Ok(ModuleRule::new(
@@ -77,6 +85,24 @@ impl CustomTransformer for NextJsStripPageExports {
 }
 
 /// Returns a rule which applies the Next.js dynamic transform.
+pub fn get_next_image_rule() -> ModuleRule {
+    ModuleRule::new(
+        ModuleRuleCondition::any(vec![
+            ModuleRuleCondition::ResourcePathEndsWith(".jpg".to_string()),
+            ModuleRuleCondition::ResourcePathEndsWith(".jpeg".to_string()),
+            ModuleRuleCondition::ResourcePathEndsWith(".png".to_string()),
+            ModuleRuleCondition::ResourcePathEndsWith(".webp".to_string()),
+            ModuleRuleCondition::ResourcePathEndsWith(".avif".to_string()),
+            ModuleRuleCondition::ResourcePathEndsWith(".apng".to_string()),
+            ModuleRuleCondition::ResourcePathEndsWith(".gif".to_string()),
+        ]),
+        vec![ModuleRuleEffect::ModuleType(ModuleType::Custom(
+            StructuredImageModuleTypeVc::new().into(),
+        ))],
+    )
+}
+
+/// Returns a rule which applies the Next.js dynamic transform.
 pub async fn get_next_dynamic_transform_rule(
     is_development: bool,
     is_server: bool,
@@ -84,7 +110,7 @@ pub async fn get_next_dynamic_transform_rule(
     pages_dir: Option<FileSystemPathVc>,
 ) -> Result<ModuleRule> {
     let dynamic_transform =
-        EcmascriptInputTransform::Custom(CustomTransformVc::cell(box NextJsDynamic {
+        EcmascriptInputTransform::Plugin(TransformPluginVc::cell(box NextJsDynamic {
             is_development,
             is_server,
             is_server_components,
@@ -133,7 +159,7 @@ pub fn get_next_font_transform_rule() -> ModuleRule {
     ];
 
     let transformer =
-        EcmascriptInputTransform::Custom(CustomTransformVc::cell(box NextJsFont { font_loaders }));
+        EcmascriptInputTransform::Plugin(TransformPluginVc::cell(box NextJsFont { font_loaders }));
     ModuleRule::new(
         // TODO: Only match in pages (not pages/api), app/, etc.
         module_rule_match_js_no_url(),
@@ -186,5 +212,68 @@ fn unwrap_module_program(program: &mut Program) -> Program {
                 .collect(),
             shebang: s.shebang.clone(),
         }),
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(rename_all = "camelCase")]
+pub struct ModularizeImportPackageConfig {
+    pub transform: String,
+    #[serde(default)]
+    pub prevent_full_import: bool,
+    #[serde(default)]
+    pub skip_default_conversion: bool,
+}
+
+/// Returns a rule which applies the Next.js modularize imports transform.
+pub fn get_next_modularize_imports_rule(
+    modularize_imports_config: &IndexMap<String, ModularizeImportPackageConfig>,
+) -> ModuleRule {
+    let transformer = EcmascriptInputTransform::Plugin(TransformPluginVc::cell(Box::new(
+        ModularizeImportsTransformer::new(modularize_imports_config),
+    )));
+    ModuleRule::new(
+        module_rule_match_js_no_url(),
+        vec![ModuleRuleEffect::AddEcmascriptTransforms(
+            EcmascriptInputTransformsVc::cell(vec![transformer]),
+        )],
+    )
+}
+
+#[derive(Debug)]
+struct ModularizeImportsTransformer {
+    packages: HashMap<String, PackageConfig>,
+}
+
+impl ModularizeImportsTransformer {
+    fn new(packages: &IndexMap<String, ModularizeImportPackageConfig>) -> Self {
+        Self {
+            packages: packages
+                .iter()
+                .map(|(k, v)| {
+                    (
+                        k.clone(),
+                        PackageConfig {
+                            transform: v.transform.clone(),
+                            prevent_full_import: v.prevent_full_import,
+                            skip_default_conversion: v.skip_default_conversion,
+                        },
+                    )
+                })
+                .collect(),
+        }
+    }
+}
+
+impl CustomTransformer for ModularizeImportsTransformer {
+    fn transform(&self, program: &mut Program, _ctx: &TransformContext<'_>) -> Option<Program> {
+        let p = std::mem::replace(program, Program::Module(Module::dummy()));
+        *program = p.fold_with(&mut modularize_imports(
+            turbo_binding::swc::custom_transform::modularize_imports::Config {
+                packages: self.packages.clone(),
+            },
+        ));
+
+        None
     }
 }

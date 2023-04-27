@@ -1,6 +1,6 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { clearModuleContext } from '../../../server/web/sandbox'
-import { realpathSync } from 'fs'
+import { realpathSync } from '../../../lib/realpath'
 import path from 'path'
 import isError from '../../../lib/is-error'
 

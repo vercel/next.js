@@ -1,6 +1,6 @@
 import * as React from 'react'
 
-import type { Issue } from '@vercel/turbopack-dev-runtime/types/protocol'
+import type { Issue } from '@vercel/turbopack-dev/types/protocol'
 
 import * as Bus from './bus'
 import { ShadowPortal } from './components/ShadowPortal'
@@ -223,7 +223,12 @@ export default function ReactDevOverlay({
         {children ?? null}
       </ErrorBoundary>
       {isMounted ? (
-        <ShadowPortal globalOverlay={globalOverlay}>
+        <ShadowPortal
+          // setting key ensures that ShadowPortal is re-mounted when the error changes
+          // this is necessary as nextjs-portal need to be reinjected when we re-render <body>
+          key={'' + !state.reactError}
+          globalOverlay={globalOverlay}
+        >
           <CssReset />
           <Base />
           <ComponentStyles />

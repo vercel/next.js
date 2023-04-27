@@ -1,4 +1,3 @@
-import type { Params } from '../../../../shared/lib/router/utils/route-matcher'
 import type { NextConfig } from '../../../config-shared'
 import type { AppRouteRouteDefinition } from '../../route-definitions/app-route-route-definition'
 import type { AppConfig } from '../../../../build/utils'
@@ -32,6 +31,9 @@ import { RouteKind } from '../../route-kind'
 import * as Log from '../../../../build/output/log'
 import { autoImplementMethods } from './helpers/auto-implement-methods'
 import { getNonStaticMethods } from './helpers/get-non-static-methods'
+import { SYMBOL_MODIFY_COOKIE_VALUES } from '../../../web/spec-extension/adapters/request-cookies'
+import { ResponseCookies } from '../../../web/spec-extension/cookies'
+import { HeadersAdapter } from '../../../web/spec-extension/adapters/headers'
 
 /**
  * AppRouteRouteHandlerContext is the context that is passed to the route
@@ -45,8 +47,8 @@ export interface AppRouteRouteHandlerContext extends RouteModuleHandleContext {
  * AppRouteHandlerFnContext is the context that is passed to the handler as the
  * second argument.
  */
-interface AppRouteHandlerFnContext {
-  params?: Params
+type AppRouteHandlerFnContext = {
+  params?: Record<string, string | string[]>
 }
 
 /**
@@ -56,13 +58,13 @@ export type AppRouteHandlerFn = (
   /**
    * Incoming request object.
    */
-  req: Request,
+  req: NextRequest,
   /**
    * Context properties on the request (including the parameters if this was a
    * dynamic route).
    */
   ctx: AppRouteHandlerFnContext
-) => Response
+) => Promise<Response> | Response
 
 /**
  * AppRouteHandlers describes the handlers for app routes that is provided by
@@ -164,12 +166,6 @@ export class AppRouteRouteModule extends RouteModule<
     // If we've already setup, then return.
     if (this.hasSetup) return
 
-    // Patch the global fetch.
-    patchFetch({
-      serverHooks: this.serverHooks,
-      staticGenerationAsyncStorage: this.staticGenerationAsyncStorage,
-    })
-
     // Mark the module as setup. The following warnings about the userland
     // module will run if we're in development. If the module files are modified
     // when in development, then the require cache will be busted for it and
@@ -256,81 +252,157 @@ export class AppRouteRouteModule extends RouteModule<
     // Run the handler with the request AsyncLocalStorage to inject the helper
     // support. We set this to `unknown` because the type is not known until
     // runtime when we do a instanceof check below.
-    const response: unknown = await RequestAsyncStorageWrapper.wrap(
-      this.requestAsyncStorage,
-      requestContext,
+    const response: unknown = await this.actionAsyncStorage.run(
+      {
+        isAppRoute: true,
+      },
       () =>
-        StaticGenerationAsyncStorageWrapper.wrap(
-          this.staticGenerationAsyncStorage,
-          staticGenerationContext,
-          (staticGenerationStore) => {
-            // Check to see if we should bail out of static generation based on
-            // having non-static methods.
-            if (this.nonStaticMethods) {
-              this.staticGenerationBailout(
-                `non-static methods used ${this.nonStaticMethods.join(', ')}`
-              )
-            }
+        RequestAsyncStorageWrapper.wrap(
+          this.requestAsyncStorage,
+          requestContext,
+          () =>
+            StaticGenerationAsyncStorageWrapper.wrap(
+              this.staticGenerationAsyncStorage,
+              staticGenerationContext,
+              (staticGenerationStore) => {
+                // Check to see if we should bail out of static generation based on
+                // having non-static methods.
+                if (this.nonStaticMethods) {
+                  this.staticGenerationBailout(
+                    `non-static methods used ${this.nonStaticMethods.join(
+                      ', '
+                    )}`
+                  )
+                }
 
-            // Update the static generation store based on the dynamic property.
-            switch (this.dynamic) {
-              case 'force-dynamic':
-                // The dynamic property is set to force-dynamic, so we should
-                // force the page to be dynamic.
-                staticGenerationStore.forceDynamic = true
-                this.staticGenerationBailout(`force-dynamic`, {
-                  dynamic: this.dynamic,
-                })
-                break
-              case 'force-static':
-                // The dynamic property is set to force-static, so we should
-                // force the page to be static.
-                staticGenerationStore.forceStatic = true
-                break
-              case 'error':
-                // The dynamic property is set to error, so we should throw an
-                // error if the page is being statically generated.
-                staticGenerationStore.dynamicShouldError = true
-                break
-              default:
-                break
-            }
+                // Update the static generation store based on the dynamic property.
+                switch (this.dynamic) {
+                  case 'force-dynamic':
+                    // The dynamic property is set to force-dynamic, so we should
+                    // force the page to be dynamic.
+                    staticGenerationStore.forceDynamic = true
+                    this.staticGenerationBailout(`force-dynamic`, {
+                      dynamic: this.dynamic,
+                    })
+                    break
+                  case 'force-static':
+                    // The dynamic property is set to force-static, so we should
+                    // force the page to be static.
+                    staticGenerationStore.forceStatic = true
+                    break
+                  case 'error':
+                    // The dynamic property is set to error, so we should throw an
+                    // error if the page is being statically generated.
+                    staticGenerationStore.dynamicShouldError = true
+                    break
+                  default:
+                    break
+                }
 
-            // If the static generation store does not have a revalidate value
-            // set, then we should set it the revalidate value from the userland
-            // module or default to false.
-            staticGenerationStore.revalidate ??=
-              this.userland.revalidate ?? false
+                // If the static generation store does not have a revalidate value
+                // set, then we should set it the revalidate value from the userland
+                // module or default to false.
+                staticGenerationStore.revalidate ??=
+                  this.userland.revalidate ?? false
 
-            // Wrap the request so we can add additional functionality to cases
-            // that might change it's output or affect the rendering.
-            const wrappedRequest = proxyRequest(
-              request,
-              { dynamic: this.dynamic },
-              {
-                headerHooks: this.headerHooks,
-                serverHooks: this.serverHooks,
-                staticGenerationBailout: this.staticGenerationBailout,
+                // Wrap the request so we can add additional functionality to cases
+                // that might change it's output or affect the rendering.
+                const wrappedRequest = proxyRequest(
+                  request,
+                  { dynamic: this.dynamic },
+                  {
+                    headerHooks: this.headerHooks,
+                    serverHooks: this.serverHooks,
+                    staticGenerationBailout: this.staticGenerationBailout,
+                  }
+                )
+
+                // TODO: propagate this pathname from route matcher
+                const route = getPathnameFromAbsolutePath(this.resolvedPagePath)
+                getTracer().getRootSpanAttributes()?.set('next.route', route)
+                return getTracer().trace(
+                  AppRouteRouteHandlersSpan.runHandler,
+                  {
+                    spanName: `executing api route (app) ${route}`,
+                    attributes: {
+                      'next.route': route,
+                    },
+                  },
+                  async () => {
+                    // Patch the global fetch.
+                    patchFetch({
+                      serverHooks: this.serverHooks,
+                      staticGenerationAsyncStorage:
+                        this.staticGenerationAsyncStorage,
+                    })
+                    const res = await handler(wrappedRequest, {
+                      params: context.params,
+                    })
+
+                    await Promise.all(
+                      staticGenerationStore.pendingRevalidates || []
+                    )
+
+                    // It's possible cookies were set in the handler, so we need
+                    // to merge the modified cookies and the returned response
+                    // here.
+                    // TODO: Move this into a helper function.
+                    const requestStore = this.requestAsyncStorage.getStore()
+                    if (requestStore && requestStore.mutableCookies) {
+                      const modifiedCookieValues = (
+                        requestStore.mutableCookies as any
+                      )[SYMBOL_MODIFY_COOKIE_VALUES] as NonNullable<
+                        ReturnType<InstanceType<typeof ResponseCookies>['get']>
+                      >[]
+                      if (modifiedCookieValues.length) {
+                        // Return a new response that extends the response with
+                        // the modified cookies as fallbacks. `res`' cookies
+                        // will still take precedence.
+                        const resCookies = new ResponseCookies(
+                          HeadersAdapter.from(res.headers)
+                        )
+                        const returnedCookies = resCookies.getAll()
+
+                        // Set the modified cookies as fallbacks.
+                        for (const cookie of modifiedCookieValues) {
+                          resCookies.set(cookie)
+                        }
+                        // Set the original cookies as the final values.
+                        for (const cookie of returnedCookies) {
+                          resCookies.set(cookie)
+                        }
+
+                        const responseHeaders = new Headers({})
+                        // Set all the headers except for the cookies.
+                        res.headers.forEach((value, key) => {
+                          if (key.toLowerCase() !== 'set-cookie') {
+                            responseHeaders.append(key, value)
+                          }
+                        })
+                        // Set the final cookies, need to append cookies one
+                        // at a time otherwise it might not work in some browsers.
+                        resCookies.getAll().forEach((cookie) => {
+                          const tempCookies = new ResponseCookies(new Headers())
+                          tempCookies.set(cookie)
+                          responseHeaders.append(
+                            'Set-Cookie',
+                            tempCookies.toString()
+                          )
+                        })
+
+                        return new Response(res.body, {
+                          status: res.status,
+                          statusText: res.statusText,
+                          headers: responseHeaders,
+                        })
+                      }
+                    }
+
+                    return res
+                  }
+                )
               }
             )
-
-            // TODO: propagate this pathname from route matcher
-            const route = getPathnameFromAbsolutePath(this.resolvedPagePath)
-            getTracer().getRootSpanAttributes()?.set('next.route', route)
-            return getTracer().trace(
-              AppRouteRouteHandlersSpan.runHandler,
-              {
-                spanName: `executing api route (app) ${route}`,
-                attributes: {
-                  'next.route': route,
-                },
-              },
-              () =>
-                handler(wrappedRequest, {
-                  params: context.params,
-                })
-            )
-          }
         )
     )
 

@@ -206,11 +206,15 @@ createNextDescribe(
 
       describe('status code', () => {
         it('should respond with 307 status code in server component', async () => {
-          const res = await next.fetch('/redirect/servercomponent')
+          const res = await next.fetch('/redirect/servercomponent', {
+            redirect: 'manual',
+          })
           expect(res.status).toBe(307)
         })
         it('should respond with 307 status code in client component', async () => {
-          const res = await next.fetch('/redirect/clientcomponent')
+          const res = await next.fetch('/redirect/clientcomponent', {
+            redirect: 'manual',
+          })
           expect(res.status).toBe(307)
         })
       })

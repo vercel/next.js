@@ -12,6 +12,7 @@
 /.prettier*                                   @vercel/next-js @leerob
 /*.md                                         @vercel/next-js @leerob
 /packages/create-next-app/                    @vercel/next-js
+/pnpm-lock.yaml                               @vercel/next-js @vercel/web-tooling
 
 # Image Component (@styfle)
 
@@ -27,3 +28,7 @@
 /packages/next/src/build/                     @timneutkens @ijjk @shuding @vercel/web-tooling @huozhi
 /packages/next/src/telemetry/                 @timneutkens @ijjk @shuding @padmaia
 /packages/next-swc/                           @timneutkens @ijjk @shuding @vercel/web-tooling
+Cargo.toml                                    @timneutkens @ijjk @shuding @vercel/web-tooling
+Cargo.lock                                    @timneutkens @ijjk @shuding @vercel/web-tooling
+/.cargo/config.toml                           @timneutkens @ijjk @shuding @vercel/web-tooling
+/.config/nextest.toml                         @timneutkens @ijjk @shuding @vercel/web-tooling

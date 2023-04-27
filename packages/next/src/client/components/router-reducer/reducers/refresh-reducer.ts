@@ -54,62 +54,65 @@ export function refreshReducer(
   // Remove cache.data as it has been resolved at this point.
   cache.data = null
 
-  // TODO-APP: Currently the Flight data can only have one item but in the future it can have multiple paths.
-  const flightDataPath = flightData[0]
+  let currentTree = state.tree
 
-  // FlightDataPath with more than two items means unexpected Flight data was returned
-  if (flightDataPath.length !== 3) {
-    // TODO-APP: handle this case better
-    console.log('REFRESH FAILED')
-    return state
-  }
+  for (const flightDataPath of flightData) {
+    // FlightDataPath with more than two items means unexpected Flight data was returned
+    if (flightDataPath.length !== 3) {
+      // TODO-APP: handle this case better
+      console.log('REFRESH FAILED')
+      return state
+    }
 
-  // Given the path can only have two items the items are only the router state and subTreeData for the root.
-  const [treePatch] = flightDataPath
-  const newTree = applyRouterStatePatchToTree(
-    // TODO-APP: remove ''
-    [''],
-    state.tree,
-    treePatch
-  )
-
-  if (newTree === null) {
-    throw new Error('SEGMENT MISMATCH')
-  }
-
-  if (isNavigatingToNewRootLayout(state.tree, newTree)) {
-    return handleExternalUrl(state, mutable, href, state.pushRef.pendingPush)
-  }
-
-  const canonicalUrlOverrideHref = canonicalUrlOverride
-    ? createHrefFromUrl(canonicalUrlOverride)
-    : undefined
-
-  if (canonicalUrlOverride) {
-    mutable.canonicalUrl = canonicalUrlOverrideHref
-  }
-
-  // The one before last item is the router state tree patch
-  const [subTreeData, head] = flightDataPath.slice(-2)
-
-  // Handles case where prefetch only returns the router tree patch without rendered components.
-  if (subTreeData !== null) {
-    cache.status = CacheStates.READY
-    cache.subTreeData = subTreeData
-    fillLazyItemsTillLeafWithHead(
-      cache,
-      // Existing cache is not passed in as `router.refresh()` has to invalidate the entire cache.
-      undefined,
-      treePatch,
-      head
+    // Given the path can only have two items the items are only the router state and subTreeData for the root.
+    const [treePatch] = flightDataPath
+    const newTree = applyRouterStatePatchToTree(
+      // TODO-APP: remove ''
+      [''],
+      currentTree,
+      treePatch
     )
-    mutable.cache = cache
-    mutable.prefetchCache = new Map()
-  }
 
-  mutable.previousTree = state.tree
-  mutable.patchedTree = newTree
-  mutable.canonicalUrl = href
+    if (newTree === null) {
+      throw new Error('SEGMENT MISMATCH')
+    }
+
+    if (isNavigatingToNewRootLayout(currentTree, newTree)) {
+      return handleExternalUrl(state, mutable, href, state.pushRef.pendingPush)
+    }
+
+    const canonicalUrlOverrideHref = canonicalUrlOverride
+      ? createHrefFromUrl(canonicalUrlOverride)
+      : undefined
+
+    if (canonicalUrlOverride) {
+      mutable.canonicalUrl = canonicalUrlOverrideHref
+    }
+
+    // The one before last item is the router state tree patch
+    const [subTreeData, head] = flightDataPath.slice(-2)
+
+    // Handles case where prefetch only returns the router tree patch without rendered components.
+    if (subTreeData !== null) {
+      cache.status = CacheStates.READY
+      cache.subTreeData = subTreeData
+      fillLazyItemsTillLeafWithHead(
+        cache,
+        // Existing cache is not passed in as `router.refresh()` has to invalidate the entire cache.
+        undefined,
+        treePatch,
+        head
+      )
+      mutable.cache = cache
+      mutable.prefetchCache = new Map()
+    }
+
+    mutable.previousTree = currentTree
+    mutable.patchedTree = newTree
+    mutable.canonicalUrl = href
+
+    currentTree = newTree
+  }
 
   return handleMutable(state, mutable)
 }

@@ -10,16 +10,8 @@ import type {
 } from '../server/config-shared'
 import type { OutgoingHttpHeaders } from 'http'
 
-// `NEXT_PREBUNDLED_REACT` env var is inherited from parent process,
-// then override react packages here for export worker.
-if (process.env.NEXT_PREBUNDLED_REACT) {
-  require('../build/webpack/require-hook').overrideBuiltInReactPackages()
-}
-
 // Polyfill fetch for the export worker.
 import '../server/node-polyfill-fetch'
-
-import { loadRequireHook } from '../build/webpack/require-hook'
 
 import { extname, join, dirname, sep, posix } from 'path'
 import fs, { promises } from 'fs'
@@ -53,8 +45,6 @@ import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { toNodeHeaders } from '../server/web/utils'
 import { RouteModuleLoader } from '../server/future/helpers/module-loader/route-module-loader'
 import { NextRequestAdapter } from '../server/web/spec-extension/adapters/next-request'
-
-loadRequireHook()
 
 const envConfig = require('../shared/lib/runtime-config')
 
@@ -93,6 +83,7 @@ interface ExportPageInput {
   isrMemoryCacheSize?: NextConfigComplete['experimental']['isrMemoryCacheSize']
   fetchCache?: boolean
   incrementalCacheHandlerPath?: string
+  fetchCacheKeyPrefix?: string
   nextConfigOutput?: NextConfigComplete['output']
 }
 
@@ -152,6 +143,7 @@ export default async function exportPage({
   debugOutput,
   isrMemoryCacheSize,
   fetchCache,
+  fetchCacheKeyPrefix,
   incrementalCacheHandlerPath,
 }: ExportPageInput): Promise<ExportPageResults> {
   setHttpClientAndAgentOptions({
@@ -350,12 +342,13 @@ export default async function exportPage({
             CacheHandler = require(incrementalCacheHandlerPath)
             CacheHandler = CacheHandler.default || CacheHandler
           }
-
-          curRenderOpts.incrementalCache = new IncrementalCache({
+          const incrementalCache = new IncrementalCache({
             dev: false,
             requestHeaders: {},
             flushToDisk: true,
+            fetchCache: true,
             maxMemoryCacheSize: isrMemoryCacheSize,
+            fetchCacheKeyPrefix,
             getPrerenderManifest: () => ({
               version: 4,
               routes: {},
@@ -368,15 +361,17 @@ export default async function exportPage({
               notFoundRoutes: [],
             }),
             fs: {
-              readFile: (f) => fs.promises.readFile(f, 'utf8'),
-              readFileSync: (f) => fs.readFileSync(f, 'utf8'),
-              writeFile: (f, d) => fs.promises.writeFile(f, d, 'utf8'),
+              readFile: (f) => fs.promises.readFile(f),
+              readFileSync: (f) => fs.readFileSync(f),
+              writeFile: (f, d) => fs.promises.writeFile(f, d),
               mkdir: (dir) => fs.promises.mkdir(dir, { recursive: true }),
               stat: (f) => fs.promises.stat(f),
             },
             serverDistDir: join(distDir, 'server'),
             CurCacheHandler: CacheHandler,
           })
+          ;(globalThis as any).__incrementalCache = incrementalCache
+          curRenderOpts.incrementalCache = incrementalCache
         }
 
         const isDynamicUsageError = (err: any) =>
@@ -395,8 +390,7 @@ export default async function exportPage({
           // Create the context for the handler. This contains the params from
           // the route and the context for the request.
           const context: AppRouteRouteHandlerContext = {
-            // Query contains the route parameters.
-            params: query,
+            params,
             staticGenerationContext: {
               nextExport: true,
               supportsDynamicHTML: false,

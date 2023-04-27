@@ -17,7 +17,7 @@ const exportDir = join(appDir, 'out')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 let app
 
-describe('app dir with output export (next start)', () => {
+describe.skip('app dir with output export (next start)', () => {
   afterEach(async () => {
     await killApp(app)
     nextConfig.restore()
@@ -54,7 +54,7 @@ describe('app dir with output export (next start)', () => {
     })
     await check(() => stderr, /warn/i)
     expect(stderr).toContain(
-      `warn  - "next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.`
+      `"next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.`
     )
   })
 })

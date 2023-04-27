@@ -4,11 +4,15 @@ use turbo_binding::{
     turbopack::{
         core::{
             compile_time_defines,
-            compile_time_info::{CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc},
+            compile_time_info::{
+                CompileTimeDefines, CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc,
+                FreeVarReferencesVc,
+            },
             environment::{
                 EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironmentVc,
                 ServerAddrVc,
             },
+            free_var_references,
         },
         ecmascript::EcmascriptInputTransform,
         node::execution_context::ExecutionContextVc,
@@ -31,9 +35,10 @@ use crate::{
     next_build::{get_external_next_compiled_package_mapping, get_postcss_package_mapping},
     next_config::NextConfigVc,
     next_import_map::get_next_server_import_map,
+    next_shared::resolve::UnsupportedModulesResolvePluginVc,
     transform_options::{
-        get_decorators_transform_options, get_jsx_transform_options,
-        get_typescript_transform_options,
+        get_decorators_transform_options, get_emotion_compiler_config, get_jsx_transform_options,
+        get_styled_components_compiler_config, get_typescript_transform_options,
     },
     util::foreign_code_context_condition,
 };
@@ -60,6 +65,7 @@ pub async fn get_server_resolve_options_context(
         get_next_server_import_map(project_path, ty, next_config, execution_context);
     let foreign_code_context_condition = foreign_code_context_condition(next_config).await?;
     let root_dir = project_path.root().resolve().await?;
+    let unsupported_modules_resolve_plugin = UnsupportedModulesResolvePluginVc::new(project_path);
 
     Ok(match ty.into_value() {
         ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
@@ -75,7 +81,10 @@ pub async fn get_server_resolve_options_context(
                 module: true,
                 custom_conditions: vec!["development".to_string()],
                 import_map: Some(next_server_import_map),
-                plugins: vec![external_cjs_modules_plugin.into()],
+                plugins: vec![
+                    external_cjs_modules_plugin.into(),
+                    unsupported_modules_resolve_plugin.into(),
+                ],
                 ..Default::default()
             };
             ResolveOptionsContext {
@@ -96,6 +105,7 @@ pub async fn get_server_resolve_options_context(
                 module: true,
                 custom_conditions: vec!["development".to_string()],
                 import_map: Some(next_server_import_map),
+                plugins: vec![unsupported_modules_resolve_plugin.into()],
                 ..Default::default()
             };
             ResolveOptionsContext {
@@ -116,6 +126,7 @@ pub async fn get_server_resolve_options_context(
                 module: true,
                 custom_conditions: vec!["development".to_string(), "react-server".to_string()],
                 import_map: Some(next_server_import_map),
+                plugins: vec![unsupported_modules_resolve_plugin.into()],
                 ..Default::default()
             };
             ResolveOptionsContext {
@@ -134,6 +145,7 @@ pub async fn get_server_resolve_options_context(
                 module: true,
                 custom_conditions: vec!["development".to_string()],
                 import_map: Some(next_server_import_map),
+                plugins: vec![unsupported_modules_resolve_plugin.into()],
                 ..Default::default()
             };
             ResolveOptionsContext {
@@ -152,6 +164,7 @@ pub async fn get_server_resolve_options_context(
                 enable_node_externals: true,
                 module: true,
                 custom_conditions: vec!["development".to_string()],
+                plugins: vec![unsupported_modules_resolve_plugin.into()],
                 ..Default::default()
             };
             ResolveOptionsContext {
@@ -168,14 +181,25 @@ pub async fn get_server_resolve_options_context(
     .cell())
 }
 
-pub fn next_server_defines() -> CompileTimeDefinesVc {
+fn defines() -> CompileTimeDefines {
     compile_time_defines!(
         process.turbopack = true,
         process.env.NODE_ENV = "development",
         process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false,
         process.env.NEXT_RUNTIME = "nodejs"
     )
-    .cell()
+    // TODO(WEB-937) there are more defines needed, see
+    // packages/next/src/build/webpack-config.ts
+}
+
+#[turbo_tasks::function]
+pub fn next_server_defines() -> CompileTimeDefinesVc {
+    defines().cell()
+}
+
+#[turbo_tasks::function]
+pub async fn next_server_free_vars() -> Result<FreeVarReferencesVc> {
+    Ok(free_var_references!(..defines().into_iter()).cell())
 }
 
 #[turbo_tasks::function]
@@ -199,6 +223,7 @@ pub fn get_server_compile_time_info(
         },
     ))
     .defines(next_server_defines())
+    .free_var_references(next_server_free_vars())
     .cell()
 }
 
@@ -209,7 +234,7 @@ pub async fn get_server_module_options_context(
     ty: Value<ServerContextType>,
     next_config: NextConfigVc,
 ) -> Result<ModuleOptionsContextVc> {
-    let custom_rules = get_next_server_transforms_rules(ty.into_value()).await?;
+    let custom_rules = get_next_server_transforms_rules(next_config, ty.into_value()).await?;
     let foreign_code_context_condition = foreign_code_context_condition(next_config).await?;
     let enable_postcss_transform = Some(PostCssTransformOptions {
         postcss_package: Some(get_postcss_package_mapping(project_path)),
@@ -234,7 +259,10 @@ pub async fn get_server_module_options_context(
 
     let tsconfig = get_typescript_transform_options(project_path);
     let decorators_options = get_decorators_transform_options(project_path);
+    let mdx_rs_options = *next_config.mdx_rs().await?;
     let jsx_runtime_options = get_jsx_transform_options(project_path);
+    let enable_emotion = *get_emotion_compiler_config(next_config).await?;
+    let enable_styled_components = *get_styled_components_compiler_config(next_config).await?;
 
     let module_options_context = match ty.into_value() {
         ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
@@ -245,9 +273,12 @@ pub async fn get_server_module_options_context(
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
                 enable_styled_jsx: true,
+                enable_emotion,
+                enable_styled_components,
                 enable_postcss_transform,
                 enable_webpack_loaders,
                 enable_typescript_transform: Some(tsconfig),
+                enable_mdx_rs: mdx_rs_options,
                 decorators: Some(decorators_options),
                 rules: vec![(
                     foreign_code_context_condition,
@@ -270,9 +301,12 @@ pub async fn get_server_module_options_context(
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
                 enable_styled_jsx: true,
+                enable_emotion,
+                enable_styled_components,
                 enable_postcss_transform,
                 enable_webpack_loaders,
                 enable_typescript_transform: Some(tsconfig),
+                enable_mdx_rs: mdx_rs_options,
                 decorators: Some(decorators_options),
                 rules: vec![(
                     foreign_code_context_condition,
@@ -300,9 +334,12 @@ pub async fn get_server_module_options_context(
             };
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
+                enable_emotion,
+                enable_styled_components,
                 enable_postcss_transform,
                 enable_webpack_loaders,
                 enable_typescript_transform: Some(tsconfig),
+                enable_mdx_rs: mdx_rs_options,
                 decorators: Some(decorators_options),
                 rules: vec![(
                     foreign_code_context_condition,
@@ -321,6 +358,7 @@ pub async fn get_server_module_options_context(
                 enable_postcss_transform,
                 enable_webpack_loaders,
                 enable_typescript_transform: Some(tsconfig),
+                enable_mdx_rs: mdx_rs_options,
                 decorators: Some(decorators_options),
                 rules: vec![(
                     foreign_code_context_condition,
@@ -337,10 +375,13 @@ pub async fn get_server_module_options_context(
             };
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
+                enable_emotion,
                 enable_styled_jsx: true,
+                enable_styled_components,
                 enable_postcss_transform,
                 enable_webpack_loaders,
                 enable_typescript_transform: Some(tsconfig),
+                enable_mdx_rs: mdx_rs_options,
                 decorators: Some(decorators_options),
                 rules: vec![(
                     foreign_code_context_condition,

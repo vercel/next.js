@@ -356,19 +356,17 @@ export default class Router {
     // we only honor this header if we are inside of a render worker to
     // prevent external users coercing the routing path
     const matchedPath = req.headers['x-invoke-path'] as string
-    const curRoutes = matchedPath
-      ? this.compiledRoutes.filter((r) => {
-          return (
-            r.name === 'Catchall render' || r.name === '_next/data catchall'
-          )
-        })
-      : this.compiledRoutes
+    let curRoutes = this.compiledRoutes
 
     if (
       process.env.NEXT_RUNTIME !== 'edge' &&
       process.env.__NEXT_PRIVATE_RENDER_WORKER &&
       matchedPath
     ) {
+      curRoutes = this.compiledRoutes.filter((r) => {
+        return r.name === 'Catchall render' || r.name === '_next/data catchall'
+      })
+
       const parsedMatchedPath = new URL(matchedPath || '/', 'http://n')
 
       const pathnameInfo = getNextPathnameInfo(parsedMatchedPath.pathname, {

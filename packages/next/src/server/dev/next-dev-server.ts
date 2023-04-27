@@ -21,7 +21,10 @@ import findUp from 'next/dist/compiled/find-up'
 import { join as pathJoin, relative, resolve as pathResolve, sep } from 'path'
 import Watchpack from 'next/dist/compiled/watchpack'
 import { ampValidation } from '../../build/output'
-import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../../lib/constants'
+import {
+  INSTRUMENTATION_HOOK_FILENAME,
+  PUBLIC_DIR_MIDDLEWARE_CONFLICT,
+} from '../../lib/constants'
 import { fileExists } from '../../lib/file-exists'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import loadCustomRoutes from '../../lib/load-custom-routes'
@@ -151,36 +154,30 @@ export default class DevServer extends Server {
   private getStaticPathsWorker(): { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
   } {
-    if (this.staticPathsWorker) {
-      return this.staticPathsWorker
-    }
-    this.staticPathsWorker = new Worker(
-      require.resolve('./static-paths-worker'),
-      {
-        maxRetries: 1,
-        // For dev server, it's not necessary to spin up too many workers as long as you are not doing a load test.
-        // This helps reusing the memory a lot.
-        numWorkers: Math.min(this.nextConfig.experimental.cpus || 2, 2),
-        enableWorkerThreads: this.nextConfig.experimental.workerThreads,
-        forkOptions: {
-          env: {
-            ...process.env,
-            // discard --inspect/--inspect-brk flags from process.env.NODE_OPTIONS. Otherwise multiple Node.js debuggers
-            // would be started if user launch Next.js in debugging mode. The number of debuggers is linked to
-            // the number of workers Next.js tries to launch. The only worker users are interested in debugging
-            // is the main Next.js one
-            NODE_OPTIONS: getNodeOptionsWithoutInspect(),
-          },
+    const worker = new Worker(require.resolve('./static-paths-worker'), {
+      maxRetries: 1,
+      // For dev server, it's not necessary to spin up too many workers as long as you are not doing a load test.
+      // This helps reusing the memory a lot.
+      numWorkers: 1,
+      enableWorkerThreads: this.nextConfig.experimental.workerThreads,
+      forkOptions: {
+        env: {
+          ...process.env,
+          // discard --inspect/--inspect-brk flags from process.env.NODE_OPTIONS. Otherwise multiple Node.js debuggers
+          // would be started if user launch Next.js in debugging mode. The number of debuggers is linked to
+          // the number of workers Next.js tries to launch. The only worker users are interested in debugging
+          // is the main Next.js one
+          NODE_OPTIONS: getNodeOptionsWithoutInspect(),
         },
-      }
-    ) as Worker & {
+      },
+    }) as Worker & {
       loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
     }
 
-    this.staticPathsWorker.getStdout().pipe(process.stdout)
-    this.staticPathsWorker.getStderr().pipe(process.stderr)
+    worker.getStdout().pipe(process.stdout)
+    worker.getStderr().pipe(process.stderr)
 
-    return this.staticPathsWorker
+    return worker
   }
 
   constructor(options: Options) {
@@ -555,7 +552,10 @@ export default class DevServer extends Server {
           }
 
           if (isAppPath) {
-            if (!validFileMatcher.isAppRouterPage(fileName)) {
+            if (
+              !validFileMatcher.isAppRouterPage(fileName) &&
+              !validFileMatcher.isRootNotFound(fileName)
+            ) {
               continue
             }
             // Ignore files/directories starting with `_` in the app directory
@@ -976,7 +976,6 @@ export default class DevServer extends Server {
 
   protected async close(): Promise<void> {
     await this.stopWatcher()
-    await this.getStaticPathsWorker().end()
     if (this.hotReloader) {
       await this.hotReloader.stop()
     }
@@ -1500,9 +1499,9 @@ export default class DevServer extends Server {
         const instrumentationHook = await require(pathJoin(
           this.distDir,
           'server',
-          'instrumentation'
+          INSTRUMENTATION_HOOK_FILENAME
         ))
-        instrumentationHook.register()
+        await instrumentationHook.register()
       } catch (err: any) {
         err.message = `An error occurred while loading instrumentation hook: ${err.message}`
         throw err
@@ -1661,29 +1660,35 @@ export default class DevServer extends Server {
         experimental: { enableUndici },
       } = this.nextConfig
       const { locales, defaultLocale } = this.nextConfig.i18n || {}
+      const staticPathsWorker = this.getStaticPathsWorker()
 
-      const pathsResult = await this.getStaticPathsWorker().loadStaticPaths({
-        distDir: this.distDir,
-        pathname,
-        config: {
-          configFileName,
-          publicRuntimeConfig,
-          serverRuntimeConfig,
-        },
-        httpAgentOptions,
-        enableUndici,
-        locales,
-        defaultLocale,
-        originalAppPath,
-        isAppPath,
-        requestHeaders,
-        incrementalCacheHandlerPath:
-          this.nextConfig.experimental.incrementalCacheHandlerPath,
-        fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
-        isrFlushToDisk: this.nextConfig.experimental.isrFlushToDisk,
-        maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
-      })
-      return pathsResult
+      try {
+        const pathsResult = await staticPathsWorker.loadStaticPaths({
+          distDir: this.distDir,
+          pathname,
+          config: {
+            configFileName,
+            publicRuntimeConfig,
+            serverRuntimeConfig,
+          },
+          httpAgentOptions,
+          enableUndici,
+          locales,
+          defaultLocale,
+          originalAppPath,
+          isAppPath,
+          requestHeaders,
+          incrementalCacheHandlerPath:
+            this.nextConfig.experimental.incrementalCacheHandlerPath,
+          fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
+          isrFlushToDisk: this.nextConfig.experimental.isrFlushToDisk,
+          maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
+        })
+        return pathsResult
+      } finally {
+        // we don't re-use workers so destroy the used one
+        staticPathsWorker.end()
+      }
     }
     const result = this.staticPathsCache.get(pathname)
 

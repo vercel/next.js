@@ -22,12 +22,6 @@ createNextDescribe(
     },
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
-    // TODO: remove after v16 is officially deprecated
-    if (process.version.startsWith('v16.')) {
-      it('should skip for v16 node.js', () => {})
-      return
-    }
-
     let prerenderManifest
 
     beforeAll(async () => {
@@ -86,8 +80,130 @@ createNextDescribe(
       }
     })
 
-    // On-Demand Revalidate has not effect in dev
+    if (!process.env.CUSTOM_CACHE_HANDLER) {
+      it.each([
+        {
+          type: 'edge route handler',
+          revalidateApi: '/api/revalidate-tag-edge',
+        },
+        {
+          type: 'node route handler',
+          revalidateApi: '/api/revalidate-tag-node',
+        },
+      ])(
+        'it should revalidate tag correctly with $type',
+        async ({ revalidateApi }) => {
+          const initRes = await next.fetch(
+            '/variable-revalidate/revalidate-360'
+          )
+          const html = await initRes.text()
+          const $ = cheerio.load(html)
+          const initLayoutData = $('#layout-data').text()
+          const initPageData = $('#page-data').text()
+
+          const routeHandlerRes = await next.fetch(
+            '/route-handler/revalidate-360'
+          )
+          const initRouteHandlerData = await routeHandlerRes.json()
+
+          const edgeRouteHandlerRes = await next.fetch(
+            '/route-handler-edge/revalidate-360'
+          )
+          const initEdgeRouteHandlerRes = await edgeRouteHandlerRes.json()
+
+          expect(initLayoutData).toBeTruthy()
+          expect(initPageData).toBeTruthy()
+
+          await check(async () => {
+            const revalidateRes = await next.fetch(
+              `${revalidateApi}?tag=thankyounext`
+            )
+            expect((await revalidateRes.json()).revalidated).toBe(true)
+
+            const newRes = await next.fetch(
+              '/variable-revalidate/revalidate-360'
+            )
+            const newHtml = await newRes.text()
+            const new$ = cheerio.load(newHtml)
+            const newLayoutData = new$('#layout-data').text()
+            const newPageData = new$('#page-data').text()
+
+            const newRouteHandlerRes = await next.fetch(
+              '/route-handler/revalidate-360'
+            )
+            const newRouteHandlerData = await newRouteHandlerRes.json()
+
+            const newEdgeRouteHandlerRes = await next.fetch(
+              '/route-handler-edge/revalidate-360'
+            )
+            const newEdgeRouteHandlerData = await newEdgeRouteHandlerRes.json()
+
+            expect(newLayoutData).toBeTruthy()
+            expect(newPageData).toBeTruthy()
+            expect(newRouteHandlerData).toBeTruthy()
+            expect(newEdgeRouteHandlerData).toBeTruthy()
+            expect(newLayoutData).not.toBe(initLayoutData)
+            expect(newPageData).not.toBe(initPageData)
+            expect(newRouteHandlerData).not.toEqual(initRouteHandlerData)
+            expect(newEdgeRouteHandlerData).not.toEqual(initEdgeRouteHandlerRes)
+            return 'success'
+          }, 'success')
+        }
+      )
+    }
+
+    // On-Demand Revalidate has not effect in dev since app routes
+    // aren't considered static until prerendering
     if (!(global as any).isNextDev) {
+      it.each([
+        {
+          type: 'edge route handler',
+          revalidateApi: '/api/revalidate-path-edge',
+        },
+        {
+          type: 'node route handler',
+          revalidateApi: '/api/revalidate-path-node',
+        },
+      ])(
+        'it should revalidate correctly with $type',
+        async ({ revalidateApi }) => {
+          const initRes = await next.fetch(
+            '/variable-revalidate/revalidate-360-isr'
+          )
+          const html = await initRes.text()
+          const $ = cheerio.load(html)
+          const initLayoutData = $('#layout-data').text()
+          const initPageData = $('#page-data').text()
+
+          expect(initLayoutData).toBeTruthy()
+          expect(initPageData).toBeTruthy()
+
+          await check(async () => {
+            const revalidateRes = await next.fetch(
+              `${revalidateApi}?path=/variable-revalidate/revalidate-360-isr`
+            )
+            expect((await revalidateRes.json()).revalidated).toBe(true)
+
+            const newRes = await next.fetch(
+              '/variable-revalidate/revalidate-360-isr'
+            )
+            const newHtml = await newRes.text()
+            const new$ = cheerio.load(newHtml)
+            const newLayoutData = new$('#layout-data').text()
+            const newPageData = new$('#page-data').text()
+
+            expect(newLayoutData).toBeTruthy()
+            expect(newPageData).toBeTruthy()
+            expect(newLayoutData).not.toBe(initLayoutData)
+            expect(newPageData).not.toBe(initPageData)
+            return 'success'
+          }, 'success')
+        }
+      )
+    }
+
+    // On-Demand Revalidate has not effect in dev
+    if (!(global as any).isNextDev && !process.env.CUSTOM_CACHE_HANDLER) {
       it('should revalidate all fetches during on-demand revalidate', async () => {
         const initRes = await next.fetch('/variable-revalidate/revalidate-360')
         const html = await initRes.text()
@@ -98,21 +214,26 @@ createNextDescribe(
         expect(initLayoutData).toBeTruthy()
         expect(initPageData).toBeTruthy()
 
-        const revalidateRes = await next.fetch(
-          '/api/revalidate?path=/variable-revalidate/revalidate-360'
-        )
-        expect((await revalidateRes.json()).revalidated).toBe(true)
+        await check(async () => {
+          const revalidateRes = await next.fetch(
+            '/api/revalidate-path-node?path=/variable-revalidate/revalidate-360-isr'
+          )
+          expect((await revalidateRes.json()).revalidated).toBe(true)
 
-        const newRes = await next.fetch('/variable-revalidate/revalidate-360')
-        const newHtml = await newRes.text()
-        const new$ = cheerio.load(newHtml)
-        const newLayoutData = new$('#layout-data').text()
-        const newPageData = new$('#page-data').text()
+          const newRes = await next.fetch(
+            '/variable-revalidate/revalidate-360-isr'
+          )
+          const newHtml = await newRes.text()
+          const new$ = cheerio.load(newHtml)
+          const newLayoutData = new$('#layout-data').text()
+          const newPageData = new$('#page-data').text()
 
-        expect(newLayoutData).toBeTruthy()
-        expect(newPageData).toBeTruthy()
-        expect(newLayoutData).not.toBe(initLayoutData)
-        expect(newPageData).not.toBe(initPageData)
+          expect(newLayoutData).toBeTruthy()
+          expect(newPageData).toBeTruthy()
+          expect(newLayoutData).not.toBe(initLayoutData)
+          expect(newPageData).not.toBe(initPageData)
+          return 'success'
+        }, 'success')
       })
     }
 
@@ -169,25 +290,28 @@ createNextDescribe(
           const curRandomData = $('#random-data').text()
 
           expect(curDate).not.toBe(prevInitialDate)
-          expect(curRandomData).toBe(prevInitialRandomData)
+          expect(curRandomData).not.toBe(prevInitialRandomData)
 
-          prevInitialDate = $('#date').text()
-          prevInitialRandomData = $('#random-data').text()
+          prevInitialDate = curDate
+          prevInitialRandomData = curRandomData
           return 'success'
         }, 'success')
       })
     }
 
     it('should not cache non-ok statusCode', async () => {
-      const $ = await next.render$('/variable-revalidate/status-code')
-      const origData = JSON.parse($('#page-data').text())
+      await check(async () => {
+        const $ = await next.render$('/variable-revalidate/status-code')
+        const origData = JSON.parse($('#page-data').text())
 
-      expect(origData.status).toBe(404)
+        expect(origData.status).toBe(404)
 
-      const new$ = await next.render$('/variable-revalidate/status-code')
-      const newData = JSON.parse(new$('#page-data').text())
-      expect(newData.status).toBe(origData.status)
-      expect(newData.text).not.toBe(origData.text)
+        const new$ = await next.render$('/variable-revalidate/status-code')
+        const newData = JSON.parse(new$('#page-data').text())
+        expect(newData.status).toBe(origData.status)
+        expect(newData.text).not.toBe(origData.text)
+        return 'success'
+      }, 'success')
     })
 
     if (isNextStart) {
@@ -207,6 +331,10 @@ createNextDescribe(
 
         expect(files).toEqual([
           '(new)/custom/page.js',
+          'api/revalidate-path-edge/route.js',
+          'api/revalidate-path-node/route.js',
+          'api/revalidate-tag-edge/route.js',
+          'api/revalidate-tag-node/route.js',
           'blog/[author]/[slug]/page.js',
           'blog/[author]/page.js',
           'blog/seb.html',
@@ -280,7 +408,9 @@ createNextDescribe(
           'partial-gen-params-no-additional-slug/fr/second.html',
           'partial-gen-params-no-additional-slug/fr/second.rsc',
           'partial-gen-params/[lang]/[slug]/page.js',
+          'route-handler-edge/revalidate-360/route.js',
           'route-handler/post/route.js',
+          'route-handler/revalidate-360/route.js',
           'ssg-preview.html',
           'ssg-preview.rsc',
           'ssg-preview/[[...route]]/page.js',
@@ -296,6 +426,7 @@ createNextDescribe(
           'variable-config-revalidate/revalidate-3.html',
           'variable-config-revalidate/revalidate-3.rsc',
           'variable-config-revalidate/revalidate-3/page.js',
+          'variable-revalidate-edge/body/page.js',
           'variable-revalidate-edge/encoding/page.js',
           'variable-revalidate-edge/no-store/page.js',
           'variable-revalidate-edge/post-method-request/page.js',
@@ -318,8 +449,9 @@ createNextDescribe(
           'variable-revalidate/revalidate-3.html',
           'variable-revalidate/revalidate-3.rsc',
           'variable-revalidate/revalidate-3/page.js',
-          'variable-revalidate/revalidate-360.html',
-          'variable-revalidate/revalidate-360.rsc',
+          'variable-revalidate/revalidate-360-isr.html',
+          'variable-revalidate/revalidate-360-isr.rsc',
+          'variable-revalidate/revalidate-360-isr/page.js',
           'variable-revalidate/revalidate-360/page.js',
           'variable-revalidate/status-code/page.js',
         ])
@@ -531,10 +663,10 @@ createNextDescribe(
             initialRevalidateSeconds: 3,
             srcRoute: '/variable-revalidate/revalidate-3',
           },
-          '/variable-revalidate/revalidate-360': {
-            dataRoute: '/variable-revalidate/revalidate-360.rsc',
+          '/variable-revalidate/revalidate-360-isr': {
+            dataRoute: '/variable-revalidate/revalidate-360-isr.rsc',
             initialRevalidateSeconds: 10,
-            srcRoute: '/variable-revalidate/revalidate-360',
+            srcRoute: '/variable-revalidate/revalidate-360-isr',
           },
         })
         expect(curManifest.dynamicRoutes).toEqual({
@@ -1152,6 +1284,35 @@ createNextDescribe(
         const res2 = await fetchViaHTTP(
           next.url,
           '/variable-revalidate-edge/encoding'
+        )
+        expect(res2.status).toBe(200)
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+
+        expect($2('#layout-data').text()).toBe(layoutData)
+        expect($2('#page-data').text()).toBe(pageData)
+        return 'success'
+      }, 'success')
+    })
+
+    it('should cache correctly handle JSON body', async () => {
+      await check(async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate-edge/body'
+        )
+        expect(res.status).toBe(200)
+        const html = await res.text()
+        const $ = cheerio.load(html)
+
+        const layoutData = $('#layout-data').text()
+        const pageData = $('#page-data').text()
+
+        expect(pageData).toBe('{"hello":"world"}')
+
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate-edge/body'
         )
         expect(res2.status).toBe(200)
         const html2 = await res2.text()

@@ -1,110 +1,111 @@
-import type { Issue } from "@vercel/turbopack-dev-runtime/types/protocol";
+import type { Issue } from '@vercel/turbopack-dev/types/protocol'
 
-import * as Bus from "./internal/bus";
-import { parseStack } from "./internal/helpers/parseStack";
+import * as Bus from './internal/bus'
+import { parseStack } from './internal/helpers/parseStack'
+import { setHooks } from '@vercel/turbopack-dev/client/hmr-client'
 
-let isRegistered = false;
-let stackTraceLimit: number | undefined = undefined;
+let isRegistered = false
+let stackTraceLimit: number | undefined = undefined
 
 function onUnhandledError(ev: ErrorEvent) {
-  const error = ev?.error;
-  if (!error || !(error instanceof Error) || typeof error.stack !== "string") {
+  const error = ev?.error
+  if (!error || !(error instanceof Error) || typeof error.stack !== 'string') {
     // A non-error was thrown, we don't have anything to show. :-(
-    return;
+    return
   }
 
   if (
     error.message.match(/(hydration|content does not match|did not match)/i)
   ) {
-    error.message += `\n\nSee more info here: https://nextjs.org/docs/messages/react-hydration-error`;
+    error.message += `\n\nSee more info here: https://nextjs.org/docs/messages/react-hydration-error`
   }
 
-  const e = error;
+  const e = error
   Bus.emit({
     type: Bus.TYPE_UNHANDLED_ERROR,
     reason: error,
     frames: parseStack(e.stack!),
-  });
+  })
 }
 
 function onUnhandledRejection(ev: PromiseRejectionEvent) {
-  const reason = ev?.reason;
+  const reason = ev?.reason
   if (
     !reason ||
     !(reason instanceof Error) ||
-    typeof reason.stack !== "string"
+    typeof reason.stack !== 'string'
   ) {
     // A non-error was thrown, we don't have anything to show. :-(
-    return;
+    return
   }
 
-  const e = reason;
+  const e = reason
   Bus.emit({
     type: Bus.TYPE_UNHANDLED_REJECTION,
     reason: reason,
     frames: parseStack(e.stack!),
-  });
+  })
 }
 
 function register() {
   if (isRegistered) {
-    return;
+    return
   }
-  isRegistered = true;
+  isRegistered = true
 
   try {
-    const limit = Error.stackTraceLimit;
-    Error.stackTraceLimit = 50;
-    stackTraceLimit = limit;
+    const limit = Error.stackTraceLimit
+    Error.stackTraceLimit = 50
+    stackTraceLimit = limit
     // eslint-disable-next-line no-empty
   } catch {}
 
-  window.addEventListener("error", onUnhandledError);
-  window.addEventListener("unhandledrejection", onUnhandledRejection);
+  window.addEventListener('error', onUnhandledError)
+  window.addEventListener('unhandledrejection', onUnhandledRejection)
+
+  setHooks({
+    beforeRefresh: onBeforeRefresh,
+    refresh: onRefresh,
+    buildOk: onBuildOk,
+    issues: onTurbopackIssues,
+  })
 }
 
 function unregister() {
   if (!isRegistered) {
-    return;
+    return
   }
-  isRegistered = false;
+  isRegistered = false
 
   if (stackTraceLimit !== undefined) {
     try {
-      Error.stackTraceLimit = stackTraceLimit;
+      Error.stackTraceLimit = stackTraceLimit
       // eslint-disable-next-line no-empty
     } catch {}
-    stackTraceLimit = undefined;
+    stackTraceLimit = undefined
   }
 
-  window.removeEventListener("error", onUnhandledError);
-  window.removeEventListener("unhandledrejection", onUnhandledRejection);
+  window.removeEventListener('error', onUnhandledError)
+  window.removeEventListener('unhandledrejection', onUnhandledRejection)
 }
 
 function onBuildOk() {
-  Bus.emit({ type: Bus.TYPE_BUILD_OK });
+  Bus.emit({ type: Bus.TYPE_BUILD_OK })
 }
 
 function onTurbopackIssues(issues: Issue[]) {
-  Bus.emit({ type: Bus.TYPE_TURBOPACK_ISSUES, issues });
+  Bus.emit({ type: Bus.TYPE_TURBOPACK_ISSUES, issues })
 }
 
 function onBeforeRefresh() {
-  Bus.emit({ type: Bus.TYPE_BEFORE_REFRESH });
+  Bus.emit({ type: Bus.TYPE_BEFORE_REFRESH })
 }
 
 function onRefresh() {
-  Bus.emit({ type: Bus.TYPE_REFRESH });
+  Bus.emit({ type: Bus.TYPE_REFRESH })
 }
 
-export { getErrorByType } from "./internal/helpers/getErrorByType";
-export { getServerError } from "./internal/helpers/nodeStackFrames";
-export { default as ReactDevOverlay } from "./internal/ReactDevOverlay";
-export {
-  onBuildOk,
-  onTurbopackIssues,
-  register,
-  unregister,
-  onBeforeRefresh,
-  onRefresh,
-};
+export { getErrorByType } from './internal/helpers/getErrorByType'
+export { getServerError } from './internal/helpers/nodeStackFrames'
+export { default as ReactDevOverlay } from './internal/ReactDevOverlay'
+export { register, unregister }

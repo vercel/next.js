@@ -1,6 +1,7 @@
 import type { NextConfigComplete } from '../config-shared'
 import type { AppRouteUserlandModule } from '../future/route-modules/app-route/module'
 
+import '../../server/require-hook'
 import '../node-polyfill-fetch'
 import {
   buildAppStaticPaths,
@@ -10,20 +11,11 @@ import {
 } from '../../build/utils'
 import { loadComponents } from '../load-components'
 import { setHttpClientAndAgentOptions } from '../config'
-import {
-  loadRequireHook,
-  overrideBuiltInReactPackages,
-} from '../../build/webpack/require-hook'
 import { IncrementalCache } from '../lib/incremental-cache'
 import * as serverHooks from '../../client/components/hooks-server-context'
 import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
 
 type RuntimeConfig = any
-
-loadRequireHook()
-if (process.env.NEXT_PREBUNDLED_REACT) {
-  overrideBuiltInReactPackages()
-}
 
 // expose AsyncLocalStorage on globalThis for react usage
 const { AsyncLocalStorage } = require('async_hooks')
@@ -89,51 +81,43 @@ export async function loadStaticPaths({
     )
   }
 
-  try {
-    if (isAppPath) {
-      const userland: AppRouteUserlandModule | undefined =
-        components.ComponentMod.routeModule?.userland
-      const generateParams: GenerateParams = userland
-        ? [
-            {
-              config: {
-                revalidate: userland.revalidate,
-                dynamic: userland.dynamic,
-                dynamicParams: userland.dynamicParams,
-              },
-              generateStaticParams: userland.generateStaticParams,
-              segmentPath: pathname,
+  if (isAppPath) {
+    const userland: AppRouteUserlandModule | undefined =
+      components.ComponentMod.routeModule?.userland
+    const generateParams: GenerateParams = userland
+      ? [
+          {
+            config: {
+              revalidate: userland.revalidate,
+              dynamic: userland.dynamic,
+              dynamicParams: userland.dynamicParams,
             },
-          ]
-        : await collectGenerateParams(components.ComponentMod.tree)
+            generateStaticParams: userland.generateStaticParams,
+            segmentPath: pathname,
+          },
+        ]
+      : await collectGenerateParams(components.ComponentMod.tree)
 
-      return await buildAppStaticPaths({
-        page: pathname,
-        generateParams,
-        configFileName: config.configFileName,
-        distDir,
-        requestHeaders,
-        incrementalCacheHandlerPath,
-        serverHooks,
-        staticGenerationAsyncStorage,
-        isrFlushToDisk,
-        fetchCacheKeyPrefix,
-        maxMemoryCacheSize,
-      })
-    }
-
-    return await buildStaticPaths({
+    return await buildAppStaticPaths({
       page: pathname,
-      getStaticPaths: components.getStaticPaths,
+      generateParams,
       configFileName: config.configFileName,
-      locales,
-      defaultLocale,
-    })
-  } finally {
-    setTimeout(() => {
-      // we only want to use each worker once to prevent any invalid
-      // caches
-      process.exit(1)
+      distDir,
+      requestHeaders,
+      incrementalCacheHandlerPath,
+      serverHooks,
+      staticGenerationAsyncStorage,
+      isrFlushToDisk,
+      fetchCacheKeyPrefix,
+      maxMemoryCacheSize,
     })
   }
+
+  return await buildStaticPaths({
+    page: pathname,
+    getStaticPaths: components.getStaticPaths,
+    configFileName: config.configFileName,
+    locales,
+    defaultLocale,
+  })
 }

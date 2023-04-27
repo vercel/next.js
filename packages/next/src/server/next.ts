@@ -1,6 +1,9 @@
 import type { Options as DevServerOptions } from './dev/next-dev-server'
 import type { NodeRequestHandler } from './next-server'
 import type { UrlWithParsedQuery } from 'url'
+import type { NextConfigComplete } from './config-shared'
+
+import './require-hook'
 import './node-polyfill-fetch'
 import { default as Server } from './next-server'
 import * as log from '../build/output/log'
@@ -11,14 +14,8 @@ import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { IncomingMessage, ServerResponse } from 'http'
 import { NextUrlWithParsedQuery } from './request-meta'
-import {
-  loadRequireHook,
-  overrideBuiltInReactPackages,
-} from '../build/webpack/require-hook'
 import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
-
-loadRequireHook()
 
 let ServerImpl: typeof Server
 
@@ -29,7 +26,9 @@ const getServerImpl = async () => {
   return ServerImpl
 }
 
-export type NextServerOptions = Partial<DevServerOptions>
+export type NextServerOptions = Partial<DevServerOptions> & {
+  preloadedConfig?: NextConfigComplete
+}
 
 export interface RequestHandler {
   (
@@ -152,12 +151,15 @@ export class NextServer {
   }
 
   private async loadConfig() {
-    return loadConfig(
-      this.options.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
-      resolve(this.options.dir || '.'),
-      this.options.conf,
-      undefined,
-      !!this.options._renderWorker
+    return (
+      this.options.preloadedConfig ||
+      loadConfig(
+        this.options.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
+        resolve(this.options.dir || '.'),
+        this.options.conf,
+        undefined,
+        !!this.options._renderWorker
+      )
     )
   }
 
@@ -176,11 +178,7 @@ export class NextServer {
           }
         }
         if (conf.experimental.appDir) {
-          const useExperimentalReact = !!conf.experimental.experimentalReact
-          process.env.NEXT_PREBUNDLED_REACT = useExperimentalReact
-            ? 'experimental'
-            : 'next'
-          overrideBuiltInReactPackages()
+          process.env.NEXT_PREBUNDLED_REACT = '1'
         }
         this.server = await this.createServer({
           ...this.options,
@@ -245,7 +243,7 @@ function createServer(options: NextServerOptions): NextServer {
 
 // Support commonjs `require('next')`
 module.exports = createServer
-exports = module.exports
+// exports = module.exports
 
 // Support `import next from 'next'`
 export default createServer

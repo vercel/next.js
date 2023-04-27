@@ -14,6 +14,7 @@ if (process.env.NODE_ENV !== "production") {
   (function() {
 'use strict';
 
+var ReactDOM = require('react-dom');
 var React = require('react');
 
 function createStringDecoder() {
@@ -36,18 +37,30 @@ function parseModel(response, json) {
 // eslint-disable-next-line no-unused-vars
 function resolveClientReference(bundlerConfig, metadata) {
   if (bundlerConfig) {
-    var resolvedModuleData = bundlerConfig[metadata.id][metadata.name];
+    var moduleExports = bundlerConfig[metadata.id];
+    var resolvedModuleData = moduleExports[metadata.name];
+    var name;
 
-    if (metadata.async) {
-      return {
-        id: resolvedModuleData.id,
-        chunks: resolvedModuleData.chunks,
-        name: resolvedModuleData.name,
-        async: true
-      };
+    if (resolvedModuleData) {
+      // The potentially aliased name.
+      name = resolvedModuleData.name;
     } else {
-      return resolvedModuleData;
+      // If we don't have this specific name, we might have the full module.
+      resolvedModuleData = moduleExports['*'];
+
+      if (!resolvedModuleData) {
+        throw new Error('Could not find the module "' + metadata.id + '" in the React SSR Manifest. ' + 'This is probably a bug in the React Server Components bundler.');
+      }
+
+      name = metadata.name;
     }
+
+    return {
+      id: resolvedModuleData.id,
+      chunks: resolvedModuleData.chunks,
+      name: name,
+      async: !!metadata.async
+    };
   }
 
   return metadata;
@@ -150,7 +163,71 @@ function requireModule(metadata) {
   return moduleExports[metadata.name];
 }
 
+var ReactDOMSharedInternals = ReactDOM.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
+
+// This client file is in the shared folder because it applies to both SSR and browser contexts.
+var ReactDOMCurrentDispatcher = ReactDOMSharedInternals.Dispatcher;
+function dispatchHint(code, model) {
+  var dispatcher = ReactDOMCurrentDispatcher.current;
+
+  if (dispatcher) {
+    var href, options;
+
+    if (typeof model === 'string') {
+      href = model;
+    } else {
+      href = model[0];
+      options = model[1];
+    }
+
+    switch (code) {
+      case 'D':
+        {
+          // $FlowFixMe[prop-missing] options are not refined to their types by code
+          dispatcher.prefetchDNS(href, options);
+          return;
+        }
+
+      case 'C':
+        {
+          // $FlowFixMe[prop-missing] options are not refined to their types by code
+          dispatcher.preconnect(href, options);
+          return;
+        }
+
+      case 'L':
+        {
+          // $FlowFixMe[prop-missing] options are not refined to their types by code
+          // $FlowFixMe[incompatible-call] options are not refined to their types by code
+          dispatcher.preload(href, options);
+          return;
+        }
+
+      case 'I':
+        {
+          // $FlowFixMe[prop-missing] options are not refined to their types by code
+          // $FlowFixMe[incompatible-call] options are not refined to their types by code
+          dispatcher.preinit(href, options);
+          return;
+        }
+    }
+  }
+}
+
 var knownServerReferences = new WeakMap();
+function createServerReference(id, callServer) {
+  var proxy = function () {
+    // $FlowFixMe[method-unbinding]
+    var args = Array.prototype.slice.call(arguments);
+    return callServer(id, args);
+  };
+
+  knownServerReferences.set(proxy, {
+    id: id,
+    bound: null
+  });
+  return proxy;
+}
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -600,13 +677,13 @@ function parseModelString(response, parentObject, key, value) {
       case '$':
         {
           // This was an escaped string value.
-          return value.substring(1);
+          return value.slice(1);
         }
 
       case 'L':
         {
           // Lazy node
-          var id = parseInt(value.substring(2), 16);
+          var id = parseInt(value.slice(2), 16);
           var chunk = getChunk(response, id); // We create a React.lazy wrapper around any lazy values.
           // When passed into React, we'll know how to suspend on this.
 
@@ -616,7 +693,7 @@ function parseModelString(response, parentObject, key, value) {
       case '@':
         {
           // Promise
-          var _id = parseInt(value.substring(2), 16);
+          var _id = parseInt(value.slice(2), 16);
 
           var _chunk = getChunk(response, _id);
 
@@ -626,19 +703,19 @@ function parseModelString(response, parentObject, key, value) {
       case 'S':
         {
           // Symbol
-          return Symbol.for(value.substring(2));
+          return Symbol.for(value.slice(2));
         }
 
       case 'P':
         {
           // Server Context Provider
-          return getOrCreateServerContext(value.substring(2)).Provider;
+          return getOrCreateServerContext(value.slice(2)).Provider;
         }
 
       case 'F':
         {
           // Server Reference
-          var _id2 = parseInt(value.substring(2), 16);
+          var _id2 = parseInt(value.slice(2), 16);
 
           var _chunk2 = getChunk(response, _id2);
 
@@ -662,6 +739,28 @@ function parseModelString(response, parentObject, key, value) {
           }
         }
 
+      case 'I':
+        {
+          // $Infinity
+          return Infinity;
+        }
+
+      case '-':
+        {
+          // $-0 or $-Infinity
+          if (value === '$-0') {
+            return -0;
+          } else {
+            return -Infinity;
+          }
+        }
+
+      case 'N':
+        {
+          // $NaN
+          return NaN;
+        }
+
       case 'u':
         {
           // matches "$undefined"
@@ -669,16 +768,22 @@ function parseModelString(response, parentObject, key, value) {
           return undefined;
         }
 
+      case 'D':
+        {
+          // Date
+          return new Date(Date.parse(value.slice(2)));
+        }
+
       case 'n':
         {
           // BigInt
-          return BigInt(value.substring(2));
+          return BigInt(value.slice(2));
         }
 
       default:
         {
           // We assume that anything else is a reference ID.
-          var _id3 = parseInt(value.substring(1), 16);
+          var _id3 = parseInt(value.slice(1), 16);
 
           var _chunk3 = getChunk(response, _id3);
 
@@ -805,6 +910,10 @@ function resolveErrorDev(response, id, digest, message, stack) {
     triggerErrorOnChunk(chunk, errorWithDigest);
   }
 }
+function resolveHint(response, code, model) {
+  var hintModel = parseModel(response, model);
+  dispatchHint(code, hintModel);
+}
 function close(response) {
   // In case there are any remaining unresolved chunks, they won't
   // be resolved now. So we need to issue an error to those.
@@ -819,7 +928,7 @@ function processFullRow(response, row) {
   }
 
   var colon = row.indexOf(':', 0);
-  var id = parseInt(row.substring(0, colon), 16);
+  var id = parseInt(row.slice(0, colon), 16);
   var tag = row[colon + 1]; // When tags that are not text are added, check them here before
   // parsing the row as text.
   // switch (tag) {
@@ -828,13 +937,20 @@ function processFullRow(response, row) {
   switch (tag) {
     case 'I':
       {
-        resolveModule(response, id, row.substring(colon + 2));
+        resolveModule(response, id, row.slice(colon + 2));
+        return;
+      }
+
+    case 'H':
+      {
+        var code = row[colon + 2];
+        resolveHint(response, code, row.slice(colon + 3));
         return;
       }
 
     case 'E':
       {
-        var errorInfo = JSON.parse(row.substring(colon + 2));
+        var errorInfo = JSON.parse(row.slice(colon + 2));
 
         {
           resolveErrorDev(response, id, errorInfo.digest, errorInfo.message, errorInfo.stack);
@@ -846,7 +962,7 @@ function processFullRow(response, row) {
     default:
       {
         // We assume anything else is JSON.
-        resolveModel(response, id, row.substring(colon + 1));
+        resolveModel(response, id, row.slice(colon + 1));
         return;
       }
   }
@@ -856,14 +972,14 @@ function processStringChunk(response, chunk, offset) {
   var linebreak = chunk.indexOf('\n', offset);
 
   while (linebreak > -1) {
-    var fullrow = response._partialRow + chunk.substring(offset, linebreak);
+    var fullrow = response._partialRow + chunk.slice(offset, linebreak);
     processFullRow(response, fullrow);
     response._partialRow = '';
     offset = linebreak + 1;
     linebreak = chunk.indexOf('\n', offset);
   }
 
-  response._partialRow += chunk.substring(offset);
+  response._partialRow += chunk.slice(offset);
 }
 function processBinaryChunk(response, chunk) {
 
@@ -1034,7 +1150,7 @@ function describeValueForErrorMessage(value) {
   switch (typeof value) {
     case 'string':
       {
-        return JSON.stringify(value.length <= 10 ? value : value.substr(0, 10) + '...');
+        return JSON.stringify(value.length <= 10 ? value : value.slice(0, 10) + '...');
       }
 
     case 'object':
@@ -1287,8 +1403,37 @@ function serializeSymbolReference(name) {
   return '$S' + name;
 }
 
+function serializeFormDataReference(id) {
+  // Why K? F is "Function". D is "Date". What else?
+  return '$K' + id.toString(16);
+}
+
+function serializeNumber(number) {
+  if (Number.isFinite(number)) {
+    if (number === 0 && 1 / number === -Infinity) {
+      return '$-0';
+    } else {
+      return number;
+    }
+  } else {
+    if (number === Infinity) {
+      return '$Infinity';
+    } else if (number === -Infinity) {
+      return '$-Infinity';
+    } else {
+      return '$NaN';
+    }
+  }
+}
+
 function serializeUndefined() {
   return '$undefined';
+}
+
+function serializeDateFromDateJSON(dateJSON) {
+  // JSON.stringify automatically calls Date.prototype.toJSON which calls toISOString.
+  // We need only tack on a $D prefix.
+  return '$D' + dateJSON;
 }
 
 function serializeBigInt(n) {
@@ -1305,19 +1450,19 @@ function escapeStringValue(value) {
   }
 }
 
-function processReply(root, resolve, reject) {
+function processReply(root, formFieldPrefix, resolve, reject) {
   var nextPartId = 1;
   var pendingParts = 0;
   var formData = null;
 
   function resolveToJSON(key, value) {
-    var parent = this;
+    var parent = this; // Make sure that `parent[key]` wasn't JSONified before `value` was passed to us
 
     {
       // $FlowFixMe[incompatible-use]
-      var originalValue = this[key];
+      var originalValue = parent[key];
 
-      if (typeof originalValue === 'object' && originalValue !== value) {
+      if (typeof originalValue === 'object' && originalValue !== value && !(originalValue instanceof Date)) {
         if (objectName(originalValue) !== 'Object') {
           error('Only plain objects can be passed to Server Functions from the Client. ' + '%s objects are not supported.%s', objectName(originalValue), describeObjectForErrorMessage(parent, key));
         } else {
@@ -1348,7 +1493,7 @@ function processReply(root, resolve, reject) {
 
           var data = formData; // eslint-disable-next-line react-internal/safe-string-coercion
 
-          data.append('' + promiseId, partJSON);
+          data.append(formFieldPrefix + promiseId, partJSON);
           pendingParts--;
 
           if (pendingParts === 0) {
@@ -1360,6 +1505,26 @@ function processReply(root, resolve, reject) {
           reject(reason);
         });
         return serializePromiseID(promiseId);
+      } // TODO: Should we the Object.prototype.toString.call() to test for cross-realm objects?
+
+
+      if (value instanceof FormData) {
+        if (formData === null) {
+          // Upgrade to use FormData to allow us to use rich objects as its values.
+          formData = new FormData();
+        }
+
+        var data = formData;
+        var refId = nextPartId++; // Copy all the form fields with a prefix for this reference.
+        // These must come first in the form order because we assume that all the
+        // fields are available before this is referenced.
+
+        var prefix = formFieldPrefix + refId + '_'; // $FlowFixMe[prop-missing]: FormData has forEach.
+
+        value.forEach(function (originalValue, originalKey) {
+          data.append(prefix + originalKey, originalValue);
+        });
+        return serializeFormDataReference(refId);
       }
 
       if (!isArray(value)) {
@@ -1398,11 +1563,26 @@ function processReply(root, resolve, reject) {
     }
 
     if (typeof value === 'string') {
+      // TODO: Maybe too clever. If we support URL there's no similar trick.
+      if (value[value.length - 1] === 'Z') {
+        // Possibly a Date, whose toJSON automatically calls toISOString
+        // $FlowFixMe[incompatible-use]
+        var _originalValue = parent[key]; // $FlowFixMe[method-unbinding]
+
+        if (_originalValue instanceof Date) {
+          return serializeDateFromDateJSON(value);
+        }
+      }
+
       return escapeStringValue(value);
     }
 
-    if (typeof value === 'boolean' || typeof value === 'number') {
+    if (typeof value === 'boolean') {
       return value;
+    }
+
+    if (typeof value === 'number') {
+      return serializeNumber(value);
     }
 
     if (typeof value === 'undefined') {
@@ -1421,10 +1601,11 @@ function processReply(root, resolve, reject) {
         } // The reference to this function came from the same client so we can pass it back.
 
 
-        var refId = nextPartId++; // eslint-disable-next-line react-internal/safe-string-coercion
+        var _refId = nextPartId++; // eslint-disable-next-line react-internal/safe-string-coercion
 
-        formData.set('' + refId, metaDataJSON);
-        return serializeServerReferenceID(refId);
+
+        formData.set(formFieldPrefix + _refId, metaDataJSON);
+        return serializeServerReferenceID(_refId);
       }
 
       throw new Error('Client Functions cannot be passed directly to Server Functions. ' + 'Only Functions passed from the Server can be passed back again.');
@@ -1457,7 +1638,7 @@ function processReply(root, resolve, reject) {
     resolve(json);
   } else {
     // Otherwise, we use FormData to let us stream in the result.
-    formData.set('0', json);
+    formData.set(formFieldPrefix + '0', json);
 
     if (pendingParts === 0) {
       // $FlowFixMe[incompatible-call] this has already been refined.
@@ -1541,13 +1722,14 @@ function encodeReply(value)
 /* We don't use URLSearchParams yet but maybe */
 {
   return new Promise(function (resolve, reject) {
-    processReply(value, resolve, reject);
+    processReply(value, '', resolve, reject);
   });
 }
 
 exports.createFromFetch = createFromFetch;
 exports.createFromReadableStream = createFromReadableStream;
 exports.createFromXHR = createFromXHR;
+exports.createServerReference = createServerReference;
 exports.encodeReply = encodeReply;
   })();
 }
