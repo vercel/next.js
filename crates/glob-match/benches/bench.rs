@@ -17,9 +17,7 @@ fn globset(pat: &str, s: &str) -> bool {
 }
 
 fn glob_match_crate(b: &mut Criterion) {
-  b.bench_function("mine", |b| {
-    b.iter(|| assert!(glob_match(GLOB, PATH).unwrap_or_default()))
-  });
+  b.bench_function("mine", |b| b.iter(|| assert!(glob_match(GLOB, PATH))));
 }
 
 fn glob_crate(b: &mut Criterion) {

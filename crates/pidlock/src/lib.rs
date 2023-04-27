@@ -9,18 +9,12 @@ use std::{
 use log::warn;
 
 /// Errors that may occur during the `Pidlock` lifetime.
-#[derive(Debug, thiserror::Error, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum PidlockError {
-    /// A lock already exists
-    #[error("lock exists at {0}")]
-    LockExists(PathBuf),
-    /// An operation was attempted in the wrong state, e.g. releasing before
-    /// acquiring.
-    #[error("invalid state")]
+    #[doc = "A lock already exists"]
+    LockExists,
+    #[doc = "An operation was attempted in the wrong state, e.g. releasing before acquiring."]
     InvalidState,
-    /// The lock is already owned by a running process
-    #[error("already owned")]
-    AlreadyOwned,
 }
 
 /// A result from a Pidlock operation
@@ -29,11 +23,11 @@ type PidlockResult = Result<(), PidlockError>;
 /// States a Pidlock can be in during its lifetime.
 #[derive(Debug, PartialEq)]
 enum PidlockState {
-    /// A new pidlock, unacquired
+    #[doc = "A new pidlock, unacquired"]
     New,
-    /// A lock is acquired
+    #[doc = "A lock is acquired"]
     Acquired,
-    /// A lock is released
+    #[doc = "A lock is released"]
     Released,
 }
 
@@ -92,6 +86,12 @@ impl Pidlock {
         }
     }
 
+    /// Check whether a lock file already exists, and if it does, whether the
+    /// specified pid is still a valid process id on the system.
+    fn check_stale(&self) {
+        self.get_owner();
+    }
+
     /// Acquire a lock.
     pub fn acquire(&mut self) -> PidlockResult {
         match self.state {
@@ -100,16 +100,7 @@ impl Pidlock {
                 return Err(PidlockError::InvalidState);
             }
         }
-
-        // acquiring something with a valid owner is an error
-        if self.get_owner().is_some() {
-            return Err(PidlockError::AlreadyOwned);
-        }
-
-        if let Some(p) = self.path.parent() {
-            // even if this fails, the next call might not
-            std::fs::create_dir_all(p).ok();
-        }
+        self.check_stale();
 
         let mut file = match fs::OpenOptions::new()
             .create_new(true)
@@ -118,7 +109,7 @@ impl Pidlock {
         {
             Ok(file) => file,
             Err(_) => {
-                return Err(PidlockError::LockExists(self.path.clone()));
+                return Err(PidlockError::LockExists);
             }
         };
         file.write_all(&format!("{}", self.pid).into_bytes()[..])
@@ -134,7 +125,7 @@ impl Pidlock {
     }
 
     /// Release the lock.
-    fn release(&mut self) -> PidlockResult {
+    pub fn release(&mut self) -> PidlockResult {
         match self.state {
             PidlockState::Acquired => {}
             _ => {
@@ -177,14 +168,6 @@ impl Pidlock {
                 warn!("nonnumeric pid file at {:?}", self.path);
                 None
             }
-        }
-    }
-}
-
-impl Drop for Pidlock {
-    fn drop(&mut self) {
-        if self.locked() {
-            self.release().ok();
         }
     }
 }
@@ -242,7 +225,7 @@ mod tests {
         match pidfile.acquire() {
             Err(err) => {
                 orig_pidfile.release().unwrap();
-                assert_eq!(err, PidlockError::AlreadyOwned);
+                assert_eq!(err, PidlockError::LockExists);
             }
             _ => {
                 orig_pidfile.release().unwrap();
@@ -311,8 +294,8 @@ mod tests {
 
         drop(file);
 
-        let mut pidfile = Pidlock::new(path.clone());
-        assert_eq!(pidfile.acquire(), Err(PidlockError::LockExists(path)));
+        let mut pidfile = Pidlock::new(path);
+        assert_eq!(pidfile.acquire(), Err(PidlockError::LockExists));
     }
 
     #[test]
@@ -333,9 +316,9 @@ mod tests {
 
         drop(file);
 
-        let mut pidfile = Pidlock::new(path.clone());
+        let mut pidfile = Pidlock::new(path);
 
-        assert_eq!(pidfile.acquire(), Err(PidlockError::LockExists(path)));
+        assert_eq!(pidfile.acquire(), Err(PidlockError::LockExists));
     }
 
     #[test]
@@ -352,7 +335,7 @@ mod tests {
 
         drop(file);
 
-        let mut pidfile = Pidlock::new(path.clone());
-        assert_eq!(pidfile.acquire(), Err(PidlockError::LockExists(path)));
+        let mut pidfile = Pidlock::new(path);
+        assert_eq!(pidfile.acquire(), Err(PidlockError::LockExists));
     }
 }

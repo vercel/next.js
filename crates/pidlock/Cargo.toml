@@ -24,7 +24,6 @@ strict = []          # Warnings are errors
 [dependencies]
 libc = "0.2.40"
 log = "0.4.1"
-thiserror = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.45.0", features = [
@@ -35,3 +34,6 @@ windows-sys = { version = "0.45.0", features = [
 [dev-dependencies]
 rand = "0.8.2"
 tempdir = "0.3.7"
+
+[badges]
+circle-ci = { repository = "rockstar/pidlock", branch = "master" }
