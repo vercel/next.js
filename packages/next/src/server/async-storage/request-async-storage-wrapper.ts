@@ -14,10 +14,11 @@ import {
   type ReadonlyHeaders,
 } from '../web/spec-extension/adapters/headers'
 import {
+  MutableRequestCookiesAdapter,
   RequestCookiesAdapter,
   type ReadonlyRequestCookies,
 } from '../web/spec-extension/adapters/request-cookies'
-import { RequestCookies } from '../web/spec-extension/cookies'
+import { RequestCookies, ResponseCookies } from '../web/spec-extension/cookies'
 
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
   const cleaned = HeadersAdapter.from(headers)
@@ -33,6 +34,14 @@ function getCookies(
 ): ReadonlyRequestCookies {
   const cookies = new RequestCookies(HeadersAdapter.from(headers))
   return RequestCookiesAdapter.seal(cookies)
+}
+
+function getMutableCookies(
+  headers: Headers | IncomingHttpHeaders,
+  res: ServerResponse | BaseNextResponse | undefined
+): ResponseCookies {
+  const cookies = new RequestCookies(HeadersAdapter.from(headers))
+  return MutableRequestCookiesAdapter.seal(cookies, res)
 }
 
 /**
@@ -80,6 +89,7 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
     const cache: {
       headers?: ReadonlyHeaders
       cookies?: ReadonlyRequestCookies
+      mutableCookies?: ResponseCookies
     } = {}
 
     const store: RequestStore = {
@@ -100,6 +110,12 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
         }
 
         return cache.cookies
+      },
+      get mutableCookies() {
+        if (!cache.mutableCookies) {
+          cache.mutableCookies = getMutableCookies(req.headers, res)
+        }
+        return cache.mutableCookies
       },
       previewData,
     }
