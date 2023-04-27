@@ -781,6 +781,8 @@ export default async function build(
 
       const manifestPath = path.join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST)
 
+      const { incrementalCacheHandlerPath } = config.experimental
+
       const requiredServerFiles = nextBuildSpan
         .traceChild('generate-required-server-files')
         .traceFn(() => ({
@@ -796,17 +798,8 @@ export default async function build(
             experimental: {
               ...config.experimental,
               trustHostHeader: ciEnvironment.hasNextSupport,
-              incrementalCacheHandlerPath: config.experimental
-                .incrementalCacheHandlerPath
-                ? config.output === 'standalone'
-                  ? path.relative(
-                      path.join(distDir, 'standalone'),
-                      config.experimental.incrementalCacheHandlerPath
-                    )
-                  : path.relative(
-                      distDir,
-                      config.experimental.incrementalCacheHandlerPath
-                    )
+              incrementalCacheHandlerPath: incrementalCacheHandlerPath
+                ? path.relative(distDir, incrementalCacheHandlerPath)
                 : undefined,
             },
           },
@@ -1860,9 +1853,13 @@ export default async function build(
 
             // ensure we trace any dependencies needed for custom
             // incremental cache handler
-            if (config.experimental.incrementalCacheHandlerPath) {
+            if (incrementalCacheHandlerPath) {
               toTrace.push(
-                require.resolve(config.experimental.incrementalCacheHandlerPath)
+                require.resolve(
+                  path.isAbsolute(incrementalCacheHandlerPath)
+                    ? incrementalCacheHandlerPath
+                    : path.join(dir, incrementalCacheHandlerPath)
+                )
               )
             }
 

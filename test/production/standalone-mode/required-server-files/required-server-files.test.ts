@@ -37,12 +37,16 @@ describe('should set-up next', () => {
         pages: new FileRef(join(__dirname, 'pages')),
         lib: new FileRef(join(__dirname, 'lib')),
         'middleware.js': new FileRef(join(__dirname, 'middleware.js')),
+        'cache-handler.js': new FileRef(join(__dirname, 'cache-handler.js')),
         'data.txt': new FileRef(join(__dirname, 'data.txt')),
         '.env': new FileRef(join(__dirname, '.env')),
         '.env.local': new FileRef(join(__dirname, '.env.local')),
         '.env.production': new FileRef(join(__dirname, '.env.production')),
       },
       nextConfig: {
+        experimental: {
+          incrementalCacheHandlerPath: './cache-handler.js',
+        },
         eslint: {
           ignoreDuringBuilds: true,
         },
@@ -297,6 +301,16 @@ describe('should set-up next', () => {
     expect(
       await fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')
     ).toContain('"compress":false')
+  })
+
+  it('`incrementalCacheHandlerPath` should have correct path', async () => {
+    expect(
+      await fs.pathExists(join(next.testDir, 'standalone/cache-handler.js'))
+    ).toBe(true)
+
+    expect(
+      await fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')
+    ).toContain('"incrementalCacheHandlerPath":"../cache-handler.js"')
   })
 
   it('should output middleware correctly', async () => {
