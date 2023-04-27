@@ -58,10 +58,7 @@ import { StaticGenerationAsyncStorageWrapper } from '../server/async-storage/sta
 import { IncrementalCache } from '../server/lib/incremental-cache'
 import { patchFetch } from '../server/lib/patch-fetch'
 import { nodeFs } from '../server/lib/node-fs-methods'
-
-// expose AsyncLocalStorage on global for react usage
-const { AsyncLocalStorage } = require('async_hooks')
-;(globalThis as any).AsyncLocalStorage = AsyncLocalStorage
+import '../server/node-environment'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 

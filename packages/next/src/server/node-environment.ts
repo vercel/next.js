@@ -6,3 +6,8 @@ if (typeof (globalThis as any).AsyncLocalStorage !== 'function') {
   const { AsyncLocalStorage } = require('async_hooks')
   ;(globalThis as any).AsyncLocalStorage = AsyncLocalStorage
 }
+
+if (typeof (globalThis as any).WebSocket !== 'function') {
+  const { WebSocket } = require('next/dist/compiled/undici')
+  ;(globalThis as any).WebSocket = WebSocket
+}
