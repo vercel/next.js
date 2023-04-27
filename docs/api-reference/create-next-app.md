@@ -60,6 +60,10 @@ Options:
   --experimental-app
 
     Initialize as a `app/` directory project.
+    
+  --no-experimental-app
+  
+    Initialize as a `pages/` directory project.
 
   --src-dir
 
