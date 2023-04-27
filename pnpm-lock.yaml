@@ -157,13 +157,13 @@ importers:
       random-seed: 0.3.0
       react: 18.2.0
       react-17: npm:react@17.0.2
-      react-builtin: npm:react@18.3.0-next-c8369527e-20230420
+      react-builtin: npm:react@18.3.0-next-6eadbe0c4-20230425
       react-dom: 18.2.0
       react-dom-17: npm:react-dom@17.0.2
-      react-dom-builtin: npm:react-dom@18.3.0-next-c8369527e-20230420
-      react-dom-experimental-builtin: npm:react-dom@0.0.0-experimental-c8369527e-20230420
-      react-experimental-builtin: npm:react@0.0.0-experimental-c8369527e-20230420
-      react-server-dom-webpack: 18.3.0-next-1f248bdd7-20230419
+      react-dom-builtin: npm:react-dom@18.3.0-next-6eadbe0c4-20230425
+      react-dom-experimental-builtin: npm:react-dom@0.0.0-experimental-6eadbe0c4-20230425
+      react-experimental-builtin: npm:react@0.0.0-experimental-6eadbe0c4-20230425
+      react-server-dom-webpack: 18.3.0-next-6eadbe0c4-20230425
       react-ssr-prepass: 1.0.8
       react-virtualized: 9.22.3
       relay-compiler: 13.0.2
@@ -174,8 +174,8 @@ importers:
       rimraf: 3.0.2
       sass: 1.54.0
       satori: 0.4.4
-      scheduler-builtin: npm:scheduler@0.24.0-next-c8369527e-20230420
-      scheduler-experimental-builtin: npm:scheduler@0.0.0-experimental-c8369527e-20230420
+      scheduler-builtin: npm:scheduler@0.24.0-next-6eadbe0c4-20230425
+      scheduler-experimental-builtin: npm:scheduler@0.0.0-experimental-6eadbe0c4-20230425
       seedrandom: 3.0.5
       selenium-webdriver: 4.0.0-beta.4
       semver: 7.3.7
@@ -342,13 +342,13 @@ importers:
       random-seed: 0.3.0
       react: 18.2.0
       react-17: /react/17.0.2
-      react-builtin: /react/18.3.0-next-c8369527e-20230420
+      react-builtin: /react/18.3.0-next-6eadbe0c4-20230425
       react-dom: 18.2.0_react@18.2.0
       react-dom-17: /react-dom/17.0.2_react@18.2.0
-      react-dom-builtin: /react-dom/18.3.0-next-c8369527e-20230420_react@18.2.0
-      react-dom-experimental-builtin: /react-dom/0.0.0-experimental-c8369527e-20230420_react@18.2.0
-      react-experimental-builtin: /react/0.0.0-experimental-c8369527e-20230420
-      react-server-dom-webpack: 18.3.0-next-1f248bdd7-20230419_4ifzx734of5j5ymg4ksx54vtqi
+      react-dom-builtin: /react-dom/18.3.0-next-6eadbe0c4-20230425_react@18.2.0
+      react-dom-experimental-builtin: /react-dom/0.0.0-experimental-6eadbe0c4-20230425_react@18.2.0
+      react-experimental-builtin: /react/0.0.0-experimental-6eadbe0c4-20230425
+      react-server-dom-webpack: 18.3.0-next-6eadbe0c4-20230425_4ifzx734of5j5ymg4ksx54vtqi
       react-ssr-prepass: 1.0.8_qncsgtzehe3fgiqp6tr7lwq6fm
       react-virtualized: 9.22.3_biqbaboplfbrettd7655fr4n2y
       relay-compiler: 13.0.2
@@ -359,8 +359,8 @@ importers:
       rimraf: 3.0.2
       sass: 1.54.0
       satori: 0.4.4
-      scheduler-builtin: /scheduler/0.24.0-next-c8369527e-20230420
-      scheduler-experimental-builtin: /scheduler/0.0.0-experimental-c8369527e-20230420
+      scheduler-builtin: /scheduler/0.24.0-next-6eadbe0c4-20230425
+      scheduler-experimental-builtin: /scheduler/0.0.0-experimental-6eadbe0c4-20230425
       seedrandom: 3.0.5
       selenium-webdriver: 4.0.0-beta.4
       semver: 7.3.7
@@ -462,7 +462,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 13.3.2-canary.8
+      '@next/eslint-plugin-next': 13.3.2-canary.10
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.42.0
       eslint: ^7.23.0 || ^8.0.0
@@ -538,12 +538,12 @@ importers:
       '@jest/types': 29.5.0
       '@napi-rs/cli': 2.14.7
       '@napi-rs/triples': 1.1.0
-      '@next/env': 13.3.2-canary.8
-      '@next/polyfill-module': 13.3.2-canary.8
-      '@next/polyfill-nomodule': 13.3.2-canary.8
-      '@next/react-dev-overlay': 13.3.2-canary.8
-      '@next/react-refresh-utils': 13.3.2-canary.8
-      '@next/swc': 13.3.2-canary.8
+      '@next/env': 13.3.2-canary.10
+      '@next/polyfill-module': 13.3.2-canary.10
+      '@next/polyfill-nomodule': 13.3.2-canary.10
+      '@next/react-dev-overlay': 13.3.2-canary.10
+      '@next/react-refresh-utils': 13.3.2-canary.10
+      '@next/swc': 13.3.2-canary.10
       '@opentelemetry/api': 1.4.1
       '@segment/ajv-human-errors': 2.1.2
       '@swc/helpers': 0.5.1
@@ -1018,8 +1018,8 @@ importers:
       '@types/react': 18.0.37
       '@types/react-dom': 18.0.11
       '@vercel/ncc': ^0.36.0
-      '@vercel/turbopack-dev': https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230426.2
-      '@vercel/turbopack-node': https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js?turbopack-230426.2
+      '@vercel/turbopack-dev': https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230427.2
+      '@vercel/turbopack-node': https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js?turbopack-230427.2
       anser: ^2.1.1
       css.escape: ^1.5.1
       find-up: ^6.3.0
@@ -1031,8 +1031,8 @@ importers:
       stacktrace-parser: ^0.1.10
       strip-ansi: ^7.0.1
     dependencies:
-      '@vercel/turbopack-dev': '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230426.2_react-refresh@0.12.0'
-      '@vercel/turbopack-node': '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js?turbopack-230426.2'
+      '@vercel/turbopack-dev': '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230427.2_react-refresh@0.12.0'
+      '@vercel/turbopack-node': '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js?turbopack-230427.2'
       anser: 2.1.1
       css.escape: 1.5.1
       next: link:../../../../next
@@ -6014,7 +6014,7 @@ packages:
     dependencies:
       '@mdx-js/mdx': 2.2.1
       source-map: 0.7.3
-      webpack: 5.74.0
+      webpack: 5.74.0_@swc+core@1.3.51
     transitivePeerDependencies:
       - supports-color
 
@@ -6684,7 +6684,6 @@ packages:
     cpu: [arm64]
     os: [darwin]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-darwin-x64/1.3.51:
@@ -6693,7 +6692,6 @@ packages:
     cpu: [x64]
     os: [darwin]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-linux-arm-gnueabihf/1.3.51:
@@ -6702,7 +6700,6 @@ packages:
     cpu: [arm]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-linux-arm64-gnu/1.3.51:
@@ -6711,7 +6708,6 @@ packages:
     cpu: [arm64]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-linux-arm64-musl/1.3.51:
@@ -6720,7 +6716,6 @@ packages:
     cpu: [arm64]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-linux-x64-gnu/1.3.51:
@@ -6729,7 +6724,6 @@ packages:
     cpu: [x64]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-linux-x64-musl/1.3.51:
@@ -6738,7 +6732,6 @@ packages:
     cpu: [x64]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-win32-arm64-msvc/1.3.51:
@@ -6747,7 +6740,6 @@ packages:
     cpu: [arm64]
     os: [win32]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-win32-ia32-msvc/1.3.51:
@@ -6756,7 +6748,6 @@ packages:
     cpu: [ia32]
     os: [win32]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-win32-x64-msvc/1.3.51:
@@ -6765,7 +6756,6 @@ packages:
     cpu: [x64]
     os: [win32]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core/1.3.51_@swc+helpers@0.5.1:
@@ -6790,7 +6780,6 @@ packages:
       '@swc/core-win32-arm64-msvc': 1.3.51
       '@swc/core-win32-ia32-msvc': 1.3.51
       '@swc/core-win32-x64-msvc': 1.3.51
-    dev: true
 
   /@swc/helpers/0.4.14:
     resolution: {integrity: sha512-4C7nX/dvpzB7za4Ql9K81xK3HPxCpHMgwTZVyf+9JQ6VUbn9jjZVN7/Nkdz/Ugzs2CSjqnL/UPXroiVBVHUWUw==}
@@ -21241,14 +21230,14 @@ packages:
       strip-json-comments: 2.0.1
     dev: true
 
-  /react-dom/0.0.0-experimental-c8369527e-20230420_react@18.2.0:
-    resolution: {integrity: sha512-AnSe5gio/GWm+El288/3SlZRvjAse+jHippcp0uS87fh3ab+R2GaTxP3faidDe9uViPD4Vlaji0wg/geQ6EnBQ==}
+  /react-dom/0.0.0-experimental-6eadbe0c4-20230425_react@18.2.0:
+    resolution: {integrity: sha512-w05m7+XXLv1vOOgyGTnodDZo4JZOmRUKcuZyfX5tqpSfXso3IXGNj8Vl5vGkbNcoru8Qn+P3gK8SEQMKUTjdgw==}
     peerDependencies:
-      react: 0.0.0-experimental-c8369527e-20230420
+      react: 0.0.0-experimental-6eadbe0c4-20230425
     dependencies:
       loose-envify: 1.4.0
       react: 18.2.0
-      scheduler: 0.0.0-experimental-c8369527e-20230420
+      scheduler: 0.0.0-experimental-6eadbe0c4-20230425
     dev: true
 
   /react-dom/17.0.2_react@17.0.2:
@@ -21282,14 +21271,14 @@ packages:
       react: 18.2.0
       scheduler: 0.23.0
 
-  /react-dom/18.3.0-next-c8369527e-20230420_react@18.2.0:
-    resolution: {integrity: sha512-KA5zrMTlDTqAwZabkx5J103Q7D3i1uIKKJMxxJ/+uMcbq3GhUXGqRizrfKO1m5y0iAdkCeY8L1N7ZQXliZcE9Q==}
+  /react-dom/18.3.0-next-6eadbe0c4-20230425_react@18.2.0:
+    resolution: {integrity: sha512-t4Itt/pF7uMN52cKJq5N0Nm3tMPfhXm0oVrLqR+tFOqVr/JRKRH6Dk8TXL/NeNKCuvkKs7nUICBFX8UKYsTsSQ==}
     peerDependencies:
-      react: 18.3.0-next-c8369527e-20230420
+      react: 18.3.0-next-6eadbe0c4-20230425
     dependencies:
       loose-envify: 1.4.0
       react: 18.2.0
-      scheduler: 0.24.0-next-c8369527e-20230420
+      scheduler: 0.24.0-next-6eadbe0c4-20230425
     dev: true
 
   /react-is/16.13.1:
@@ -21310,12 +21299,12 @@ packages:
     resolution: {integrity: sha512-suLIhrU2IHKL5JEKR/fAwJv7bbeq4kJ+pJopf77jHwuR+HmJS/HbrPIGsTBUVfw7tXPOmYv7UJ7PCaN49e8x4A==}
     engines: {node: '>=0.10.0'}
 
-  /react-server-dom-webpack/18.3.0-next-1f248bdd7-20230419_4ifzx734of5j5ymg4ksx54vtqi:
-    resolution: {integrity: sha512-dJeUP5T4LDGfqOL2DKtUz2h6I302kIXRR+XOee+wTzA+cFRbTkNOoVdDj0kVmdet9H71psunBbY/FXVZ6lp2mQ==}
+  /react-server-dom-webpack/18.3.0-next-6eadbe0c4-20230425_4ifzx734of5j5ymg4ksx54vtqi:
+    resolution: {integrity: sha512-zdE6jwd/G1DQyfl9LBHj4yvh+raiCzmR7KY3CaAsNluApbAJmgOX6oiIO76/5BtPf4jj/+HYhqn3Ze0fig95ag==}
     engines: {node: '>=0.10.0'}
     peerDependencies:
-      react: 18.3.0-next-1f248bdd7-20230419
-      react-dom: 18.3.0-next-1f248bdd7-20230419
+      react: 18.3.0-next-6eadbe0c4-20230425
+      react-dom: 18.3.0-next-6eadbe0c4-20230425
       webpack: ^5.59.0
     dependencies:
       acorn-loose: 8.3.0
@@ -21374,8 +21363,8 @@ packages:
       react-lifecycles-compat: 3.0.4
     dev: true
 
-  /react/0.0.0-experimental-c8369527e-20230420:
-    resolution: {integrity: sha512-Y4euSylUbN7JIx0Kd3c7L2Veyo44zGJcHba5G4mJXJXmXUOJ4HPUjHr9u4RkSPPkqw9vZlMdyGVTrGjd0u3enQ==}
+  /react/0.0.0-experimental-6eadbe0c4-20230425:
+    resolution: {integrity: sha512-Uth2Yvii2wDjvGxjXfs92o7T2J79xySunKTuIZTQiCeGOdFhhVfMw4hBM7ryQYy0WEZ0USBwEp9NOWCNhGLwOw==}
     engines: {node: '>=0.10.0'}
     dependencies:
       loose-envify: 1.4.0
@@ -21394,8 +21383,8 @@ packages:
     dependencies:
       loose-envify: 1.4.0
 
-  /react/18.3.0-next-c8369527e-20230420:
-    resolution: {integrity: sha512-MSRbNi+P7vIiC2tqWDwIdi/WE1nMxl/UspBWYV7Fut/0BjPRmCAsn9Sboth70gTa+cKlnQtJIz3qYLGnnTh/dA==}
+  /react/18.3.0-next-6eadbe0c4-20230425:
+    resolution: {integrity: sha512-G+q7Ugy2wdggkcmg/ZvZeEfk33Lkw0VGHLG4svd53bKdXKx9M1jvOqSKGb3cxqCsBUByilSnsCmUnTE2F95a1Q==}
     engines: {node: '>=0.10.0'}
     dependencies:
       loose-envify: 1.4.0
@@ -22451,8 +22440,8 @@ packages:
       xmlchars: 2.2.0
     dev: true
 
-  /scheduler/0.0.0-experimental-c8369527e-20230420:
-    resolution: {integrity: sha512-BdGPzFZksue+K7GUMc0pNe5UoUMcTZM/+uDNOupJPKWdMahmqZTUhVAweBipKiGTy/4r/7aOSpvPj0lGCtzYsw==}
+  /scheduler/0.0.0-experimental-6eadbe0c4-20230425:
+    resolution: {integrity: sha512-9Sqbdg232Te0ZIMvg0+7ex6D3wT5LHpZZxcI9cnh3OVJ+/kYK24+I4NVfJAbdoFx46/GVrTbgHrVJhwOZmsICw==}
     dependencies:
       loose-envify: 1.4.0
     dev: true
@@ -22468,8 +22457,8 @@ packages:
     dependencies:
       loose-envify: 1.4.0
 
-  /scheduler/0.24.0-next-c8369527e-20230420:
-    resolution: {integrity: sha512-/DQIqTXEElhLpWggzR7NB7hnf3ipa3MB2y8sUH3RX2qHvVRqdj2uo0V4Ptj++sLiAjxUD3LJIuq31Pv9afLgfw==}
+  /scheduler/0.24.0-next-6eadbe0c4-20230425:
+    resolution: {integrity: sha512-9DR3+z7yRaAi8XMpWLM85EHp9IUq4594caqnOtMDPg0o4wH/at+RCyYhZv4otUunSYF5/s2DzhZ7p/jmbzK7Qw==}
     dependencies:
       loose-envify: 1.4.0
     dev: true
@@ -23788,7 +23777,6 @@ packages:
       source-map: 0.6.1
       terser: 5.14.1
       webpack: 5.74.0_@swc+core@1.3.51
-    dev: true
 
   /terser-webpack-plugin/5.2.4_webpack@5.74.0:
     resolution: {integrity: sha512-E2CkNMN+1cho04YpdANyRrn8CyN4yMy+WdFKZIySFZrGXZxJwJP6PMNGGc/Mcr6qygQHUUqRxnAPmi0M9f00XA==}
@@ -25194,7 +25182,6 @@ packages:
       - '@swc/core'
       - esbuild
       - uglify-js
-    dev: true
 
   /websocket-driver/0.7.3:
     resolution: {integrity: sha512-bpxWlvbbB459Mlipc5GBzzZwhoZgGEZLuqPaR0INBGnPAY1vdBX6hPnoFXiw+3yWxDuHyQjO2oXTMyS8A5haFg==}
@@ -25600,9 +25587,9 @@ packages:
   /zwitch/2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
-  '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230426.2_react-refresh@0.12.0':
-    resolution: {tarball: https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230426.2}
-    id: '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230426.2'
+  '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230427.2_react-refresh@0.12.0':
+    resolution: {tarball: https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230427.2}
+    id: '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230427.2'
     name: '@vercel/turbopack-dev'
     version: 0.0.0
     dependencies:
@@ -25612,8 +25599,8 @@ packages:
       - webpack
     dev: false
 
-  '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js?turbopack-230426.2':
-    resolution: {tarball: https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js?turbopack-230426.2}
+  '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js?turbopack-230427.2':
+    resolution: {tarball: https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js?turbopack-230427.2}
     name: '@vercel/turbopack-node'
     version: 0.0.0
     dependencies:

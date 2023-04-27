@@ -17,7 +17,7 @@ use turbo_binding::{
             },
             resolve::{ResolveResult, ResolveResultVc},
         },
-        dev::ChunkData,
+        dev::{ChunkDataVc, ChunksDataVc},
         turbopack::ecmascript::{
             chunk::{
                 EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
@@ -115,6 +115,20 @@ struct WithClientChunksChunkItem {
 }
 
 #[turbo_tasks::value_impl]
+impl WithClientChunksChunkItemVc {
+    #[turbo_tasks::function]
+    async fn chunks_data(self) -> Result<ChunksDataVc> {
+        let this = self.await?;
+        let inner = this.inner.await?;
+        Ok(ChunkDataVc::from_assets(
+            inner.server_root,
+            this.context
+                .chunk_group(inner.asset.as_root_chunk(this.context.into())),
+        ))
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for WithClientChunksChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> EcmascriptChunkingContextVc {
@@ -122,24 +136,18 @@ impl EcmascriptChunkItem for WithClientChunksChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn content(&self) -> Result<EcmascriptChunkItemContentVc> {
-        let inner = self.inner.await?;
-        let chunks = self
-            .context
-            .chunk_group(inner.asset.as_root_chunk(self.context.into()))
-            .await?;
-        let server_root = inner.server_root.await?;
+    async fn content(self_vc: WithClientChunksChunkItemVc) -> Result<EcmascriptChunkItemContentVc> {
+        let this = self_vc.await?;
+        let inner = this.inner.await?;
 
-        let chunks_data = chunks
+        let chunks_data = self_vc.chunks_data().await?;
+        let chunks_data = chunks_data.iter().try_join().await?;
+        let chunks_data: Vec<_> = chunks_data
             .iter()
-            .map(|&chunk| ChunkData::from_asset(&server_root, chunk))
-            .try_join()
-            .await?
-            .into_iter()
-            .flatten()
-            .collect::<Vec<_>>();
+            .map(|chunk_data| chunk_data.runtime_chunk_data())
+            .collect();
 
-        let module_id = inner.asset.as_chunk_item(self.context).id().await?;
+        let module_id = inner.asset.as_chunk_item(this.context).id().await?;
         Ok(EcmascriptChunkItemContent {
             inner_code: formatdoc!(
                 // We store the chunks in a binding, otherwise a new array would be created every
@@ -169,8 +177,9 @@ impl ChunkItem for WithClientChunksChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<AssetReferencesVc> {
-        let inner = self.inner.await?;
+    async fn references(self_vc: WithClientChunksChunkItemVc) -> Result<AssetReferencesVc> {
+        let this = self_vc.await?;
+        let inner = this.inner.await?;
         let mut references = Vec::new();
         references.push(
             WithClientChunksAssetReference {
@@ -179,9 +188,9 @@ impl ChunkItem for WithClientChunksChunkItem {
             .cell()
             .into(),
         );
-        let group = self
+        let group = this
             .context
-            .chunk_group(inner.asset.as_root_chunk(self.context.into()));
+            .chunk_group(inner.asset.as_root_chunk(this.context.into()));
         let server_root = inner.server_root.await?;
         let chunks = group.await?;
         let client_chunk = StringVc::cell("client chunk".to_string());
@@ -190,6 +199,9 @@ impl ChunkItem for WithClientChunksChunkItem {
             if path.is_inside(&server_root) {
                 references.push(SingleAssetReferenceVc::new(chunk, client_chunk).into());
             }
+        }
+        for chunk_data in &*self_vc.chunks_data().await? {
+            references.extend(chunk_data.references().await?.iter().copied());
         }
         Ok(AssetReferencesVc::cell(references))
     }
