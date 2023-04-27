@@ -81,7 +81,7 @@ describe('createPageFileMatcher', () => {
       expect(fileMatcher.isMetadataFile('app/path/robots.txt')).toBe(false)
 
       expect(fileMatcher.isMetadataFile('app/sitemap.xml')).toBe(true)
-      expect(fileMatcher.isMetadataFile('app/path/sitemap.xml')).toBe(false)
+      expect(fileMatcher.isMetadataFile('app/path/sitemap.xml')).toBe(true)
     })
   })
 })

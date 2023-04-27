@@ -30,7 +30,6 @@ export function prefetchReducer(
      * where we didn't have the prefetch intent. We want to update it to the new, more accurate, kind here.
      */
     if (cacheEntry.kind === PrefetchKind.TEMPORARY) {
-      console.log(href, action.kind, cacheEntry)
       state.prefetchCache.set(href, {
         ...cacheEntry,
         kind: action.kind,

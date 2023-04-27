@@ -49,7 +49,7 @@ In addition, Vercel provides features like:
 - Support for [Image Optimization](/docs/basic-features/image-optimization.md) with `next/image`
 - Instant global deployments via `git push`
 
-[Deploy a Next.js application to Vercel](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/hello-world&project-name=hello-world&repository-name=hello-world&utm_source=next-site&utm_medium=docs&utm_campaign=next-website) for free to try it out.
+[Deploy a Next.js application to Vercel](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/hello-world&project-name=hello-world&repository-name=hello-world&utm_source=next-site&utm_medium=docs&utm_campaign=next-website) for free to try it out.
 
 ## Self-Hosting
 

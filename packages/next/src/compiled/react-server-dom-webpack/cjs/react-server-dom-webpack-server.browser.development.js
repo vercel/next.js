@@ -15,6 +15,7 @@ if (process.env.NODE_ENV !== "production") {
 'use strict';
 
 var React = require('react');
+var ReactDOM = require('react-dom');
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -192,6 +193,11 @@ function processImportChunk(request, id, clientReferenceMetadata) {
   var row = serializeRowHeader('I', id) + json + '\n';
   return stringToChunk(row);
 }
+function processHintChunk(request, id, code, model) {
+  var json = stringify(model);
+  var row = serializeRowHeader('H' + code, id) + json + '\n';
+  return stringToChunk(row);
+}
 
 // eslint-disable-next-line no-unused-vars
 var CLIENT_REFERENCE_TAG = Symbol.for('react.client.reference');
@@ -221,8 +227,8 @@ function resolveClientReferenceMetadata(config, clientReference) {
     var idx = modulePath.lastIndexOf('#');
 
     if (idx !== -1) {
-      name = modulePath.substr(idx + 1);
-      resolvedModuleData = config[modulePath.substr(0, idx)];
+      name = modulePath.slice(idx + 1);
+      resolvedModuleData = config[modulePath.slice(0, idx)];
     }
 
     if (!resolvedModuleData) {
@@ -242,6 +248,118 @@ function getServerReferenceId(config, serverReference) {
 }
 function getServerReferenceBoundArguments(config, serverReference) {
   return serverReference.$$bound;
+}
+
+var ReactDOMSharedInternals = ReactDOM.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
+
+var ReactDOMFlightServerDispatcher = {
+  prefetchDNS: prefetchDNS,
+  preconnect: preconnect,
+  preload: preload,
+  preinit: preinit
+};
+
+function prefetchDNS(href, options) {
+  {
+    if (typeof href === 'string') {
+      var request = resolveRequest();
+
+      if (request) {
+        var hints = getHints(request);
+        var key = 'D' + href;
+
+        if (hints.has(key)) {
+          // duplicate hint
+          return;
+        }
+
+        hints.add(key);
+
+        if (options) {
+          emitHint(request, 'D', [href, options]);
+        } else {
+          emitHint(request, 'D', href);
+        }
+      }
+    }
+  }
+}
+
+function preconnect(href, options) {
+  {
+    if (typeof href === 'string') {
+      var request = resolveRequest();
+
+      if (request) {
+        var hints = getHints(request);
+        var crossOrigin = options == null || typeof options.crossOrigin !== 'string' ? null : options.crossOrigin === 'use-credentials' ? 'use-credentials' : '';
+        var key = "C" + (crossOrigin === null ? 'null' : crossOrigin) + "|" + href;
+
+        if (hints.has(key)) {
+          // duplicate hint
+          return;
+        }
+
+        hints.add(key);
+
+        if (options) {
+          emitHint(request, 'C', [href, options]);
+        } else {
+          emitHint(request, 'C', href);
+        }
+      }
+    }
+  }
+}
+
+function preload(href, options) {
+  {
+    if (typeof href === 'string') {
+      var request = resolveRequest();
+
+      if (request) {
+        var hints = getHints(request);
+        var key = 'L' + href;
+
+        if (hints.has(key)) {
+          // duplicate hint
+          return;
+        }
+
+        hints.add(key);
+        emitHint(request, 'L', [href, options]);
+      }
+    }
+  }
+}
+
+function preinit(href, options) {
+  {
+    if (typeof href === 'string') {
+      var request = resolveRequest();
+
+      if (request) {
+        var hints = getHints(request);
+        var key = 'I' + href;
+
+        if (hints.has(key)) {
+          // duplicate hint
+          return;
+        }
+
+        hints.add(key);
+        emitHint(request, 'I', [href, options]);
+      }
+    }
+  }
+}
+
+var ReactDOMCurrentDispatcher = ReactDOMSharedInternals.Dispatcher;
+function prepareHostDispatcher() {
+  ReactDOMCurrentDispatcher.current = ReactDOMFlightServerDispatcher;
+} // Used to distinguish these contexts from ones used in other renderers.
+function createHints() {
+  return new Set();
 }
 
 // ATTENTION
@@ -581,14 +699,14 @@ function getSuspendedThenable() {
   return thenable;
 }
 
-var currentRequest = null;
+var currentRequest$1 = null;
 var thenableIndexCounter = 0;
 var thenableState = null;
 function prepareToUseHooksForRequest(request) {
-  currentRequest = request;
+  currentRequest$1 = request;
 }
 function resetHooksForRequest() {
-  currentRequest = null;
+  currentRequest$1 = null;
 }
 function prepareToUseHooksForComponent(prevThenableState) {
   thenableIndexCounter = 0;
@@ -610,7 +728,7 @@ function readContext(context) {
       }
     }
 
-    if (currentRequest === null) {
+    if (currentRequest$1 === null) {
       error('Context can only be read while React is rendering. ' + 'In classes, you can read it in the render method or getDerivedStateFromProps. ' + 'In function components, you can read it directly in the function body, but not ' + 'inside Hooks like useReducer() or useMemo().');
     }
   }
@@ -652,7 +770,7 @@ var HooksDispatcher = {
 
     return data;
   },
-  use: use 
+  use: use
 };
 
 function unsupportedHook() {
@@ -664,13 +782,13 @@ function unsupportedRefresh() {
 }
 
 function useId() {
-  if (currentRequest === null) {
+  if (currentRequest$1 === null) {
     throw new Error('useId can only be used while React is rendering');
   }
 
-  var id = currentRequest.identifierCount++; // use 'S' for Flight components to distinguish from 'R' and 'r' in Fizz/Client
+  var id = currentRequest$1.identifierCount++; // use 'S' for Flight components to distinguish from 'R' and 'r' in Fizz/Client
 
-  return ':' + currentRequest.identifierPrefix + 'S' + id.toString(32) + ':';
+  return ':' + currentRequest$1.identifierPrefix + 'S' + id.toString(32) + ':';
 }
 
 function use(usable) {
@@ -709,10 +827,11 @@ function createSignal() {
 }
 
 function resolveCache() {
-  if (currentCache) return currentCache;
-  // active and so to support cache() and fetch() outside of render, we yield
-  // an empty Map.
+  var request = resolveRequest();
 
+  if (request) {
+    return getCache(request);
+  }
 
   return new Map();
 }
@@ -742,14 +861,6 @@ var DefaultCacheDispatcher = {
     return entry;
   }
 };
-var currentCache = null;
-function setCurrentCache(cache) {
-  currentCache = cache;
-  return currentCache;
-}
-function getCurrentCache() {
-  return currentCache;
-}
 
 var isArrayImpl = Array.isArray; // eslint-disable-next-line no-redeclare
 
@@ -835,7 +946,7 @@ function describeValueForErrorMessage(value) {
   switch (typeof value) {
     case 'string':
       {
-        return JSON.stringify(value.length <= 10 ? value : value.substr(0, 10) + '...');
+        return JSON.stringify(value.length <= 10 ? value : value.slice(0, 10) + '...');
       }
 
     case 'object':
@@ -1102,20 +1213,25 @@ function createRequest(model, bundlerConfig, onError, context, identifierPrefix)
     throw new Error('Currently React only supports one RSC renderer at a time.');
   }
 
+  prepareHostDispatcher();
   ReactCurrentCache.current = DefaultCacheDispatcher;
   var abortSet = new Set();
   var pingedTasks = [];
+  var hints = createHints();
   var request = {
     status: OPEN,
+    flushScheduled: false,
     fatalError: null,
     destination: null,
     bundlerConfig: bundlerConfig,
     cache: new Map(),
     nextChunkId: 0,
     pendingChunks: 0,
+    hints: hints,
     abortableTasks: abortSet,
     pingedTasks: pingedTasks,
     completedImportChunks: [],
+    completedHintChunks: [],
     completedJSONChunks: [],
     completedErrorChunks: [],
     writtenSymbols: new Map(),
@@ -1135,6 +1251,12 @@ function createRequest(model, bundlerConfig, onError, context, identifierPrefix)
   var rootTask = createTask(request, model, rootContext, abortSet);
   pingedTasks.push(rootTask);
   return request;
+}
+var currentRequest = null;
+function resolveRequest() {
+  if (currentRequest) return currentRequest;
+
+  return null;
 }
 
 function createRootContext(reqContext) {
@@ -1221,6 +1343,17 @@ function serializeThenable(request, thenable) {
     }
   });
   return newTask.id;
+}
+
+function emitHint(request, code, model) {
+  emitHintChunk(request, code, model);
+  enqueueFlush(request);
+}
+function getHints(request) {
+  return request.hints;
+}
+function getCache(request) {
+  return request.cache;
 }
 
 function readThenable(thenable) {
@@ -1398,6 +1531,7 @@ function pingTask(request, task) {
   pingedTasks.push(task);
 
   if (pingedTasks.length === 1) {
+    request.flushScheduled = request.destination !== null;
     scheduleWork(function () {
       return performWork(request);
     });
@@ -1864,6 +1998,11 @@ function emitImportChunk(request, id, clientReferenceMetadata) {
   request.completedImportChunks.push(processedChunk);
 }
 
+function emitHintChunk(request, code, model) {
+  var processedChunk = processHintChunk(request, request.nextChunkId++, code, model);
+  request.completedHintChunks.push(processedChunk);
+}
+
 function emitSymbolChunk(request, id, name) {
   var symbolReference = serializeSymbolReference(name);
   var processedChunk = processReferenceChunk(request, id, symbolReference);
@@ -1948,9 +2087,9 @@ function retryTask(request, task) {
 
 function performWork(request) {
   var prevDispatcher = ReactCurrentDispatcher.current;
-  var prevCache = getCurrentCache();
   ReactCurrentDispatcher.current = HooksDispatcher;
-  setCurrentCache(request.cache);
+  var prevRequest = currentRequest;
+  currentRequest = request;
   prepareToUseHooksForRequest(request);
 
   try {
@@ -1970,8 +2109,8 @@ function performWork(request) {
     fatalError(request, error);
   } finally {
     ReactCurrentDispatcher.current = prevDispatcher;
-    setCurrentCache(prevCache);
     resetHooksForRequest();
+    currentRequest = prevRequest;
   }
 }
 
@@ -2005,18 +2144,35 @@ function flushCompletedChunks(request, destination) {
       }
     }
 
-    importsChunks.splice(0, i); // Next comes model data.
+    importsChunks.splice(0, i); // Next comes hints.
+
+    var hintChunks = request.completedHintChunks;
+    i = 0;
+
+    for (; i < hintChunks.length; i++) {
+      var _chunk = hintChunks[i];
+
+      var _keepWriting = writeChunkAndReturn(destination, _chunk);
+
+      if (!_keepWriting) {
+        request.destination = null;
+        i++;
+        break;
+      }
+    }
+
+    hintChunks.splice(0, i); // Next comes model data.
 
     var jsonChunks = request.completedJSONChunks;
     i = 0;
 
     for (; i < jsonChunks.length; i++) {
       request.pendingChunks--;
-      var _chunk = jsonChunks[i];
+      var _chunk2 = jsonChunks[i];
 
-      var _keepWriting = writeChunkAndReturn(destination, _chunk);
+      var _keepWriting2 = writeChunkAndReturn(destination, _chunk2);
 
-      if (!_keepWriting) {
+      if (!_keepWriting2) {
         request.destination = null;
         i++;
         break;
@@ -2032,11 +2188,11 @@ function flushCompletedChunks(request, destination) {
 
     for (; i < errorChunks.length; i++) {
       request.pendingChunks--;
-      var _chunk2 = errorChunks[i];
+      var _chunk3 = errorChunks[i];
 
-      var _keepWriting2 = writeChunkAndReturn(destination, _chunk2);
+      var _keepWriting3 = writeChunkAndReturn(destination, _chunk3);
 
-      if (!_keepWriting2) {
+      if (!_keepWriting3) {
         request.destination = null;
         i++;
         break;
@@ -2045,6 +2201,7 @@ function flushCompletedChunks(request, destination) {
 
     errorChunks.splice(0, i);
   } finally {
+    request.flushScheduled = false;
     completeWriting(destination);
   }
 
@@ -2055,12 +2212,28 @@ function flushCompletedChunks(request, destination) {
 }
 
 function startWork(request) {
+  request.flushScheduled = request.destination !== null;
+
   {
     scheduleWork(function () {
       return performWork(request);
     });
   }
 }
+
+function enqueueFlush(request) {
+  if (request.flushScheduled === false && // If there are pinged tasks we are going to flush anyway after work completes
+  request.pingedTasks.length === 0 && // If there is no destination there is nothing we can flush to. A flush will
+  // happen when we start flowing again
+  request.destination !== null) {
+    var destination = request.destination;
+    request.flushScheduled = true;
+    scheduleWork(function () {
+      return flushCompletedChunks(request, destination);
+    });
+  }
+}
+
 function startFlowing(request, destination) {
   if (request.status === CLOSING) {
     request.status = CLOSED;
@@ -2159,8 +2332,8 @@ function resolveServerReference(bundlerConfig, id) {
     var idx = id.lastIndexOf('#');
 
     if (idx !== -1) {
-      name = id.substr(idx + 1);
-      resolvedModuleData = bundlerConfig[id.substr(0, idx)];
+      name = id.slice(idx + 1);
+      resolvedModuleData = bundlerConfig[id.slice(0, idx)];
     }
 
     if (!resolvedModuleData) {
@@ -2522,13 +2695,13 @@ function parseModelString(response, parentObject, key, value) {
       case '$':
         {
           // This was an escaped string value.
-          return value.substring(1);
+          return value.slice(1);
         }
 
       case '@':
         {
           // Promise
-          var id = parseInt(value.substring(2), 16);
+          var id = parseInt(value.slice(2), 16);
           var chunk = getChunk(response, id);
           return chunk;
         }
@@ -2536,13 +2709,13 @@ function parseModelString(response, parentObject, key, value) {
       case 'S':
         {
           // Symbol
-          return Symbol.for(value.substring(2));
+          return Symbol.for(value.slice(2));
         }
 
       case 'F':
         {
           // Server Reference
-          var _id = parseInt(value.substring(2), 16);
+          var _id = parseInt(value.slice(2), 16);
 
           var _chunk = getChunk(response, _id);
 
@@ -2563,7 +2736,7 @@ function parseModelString(response, parentObject, key, value) {
       case 'K':
         {
           // FormData
-          var stringId = value.substring(2);
+          var stringId = value.slice(2);
           var formPrefix = response._prefix + stringId + '_';
           var data = new FormData();
           var backingFormData = response._formData; // We assume that the reference to FormData always comes after each
@@ -2573,7 +2746,7 @@ function parseModelString(response, parentObject, key, value) {
 
           backingFormData.forEach(function (entry, entryKey) {
             if (entryKey.startsWith(formPrefix)) {
-              data.append(entryKey.substr(formPrefix.length), entry);
+              data.append(entryKey.slice(formPrefix.length), entry);
             }
           });
           return data;
@@ -2611,19 +2784,19 @@ function parseModelString(response, parentObject, key, value) {
       case 'D':
         {
           // Date
-          return new Date(Date.parse(value.substring(2)));
+          return new Date(Date.parse(value.slice(2)));
         }
 
       case 'n':
         {
           // BigInt
-          return BigInt(value.substring(2));
+          return BigInt(value.slice(2));
         }
 
       default:
         {
           // We assume that anything else is a reference ID.
-          var _id2 = parseInt(value.substring(1), 16);
+          var _id2 = parseInt(value.slice(1), 16);
 
           var _chunk2 = getChunk(response, _id2);
 

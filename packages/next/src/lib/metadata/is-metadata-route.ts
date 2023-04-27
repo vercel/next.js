@@ -48,13 +48,6 @@ export function isMetadataRouteFile(
       }`
     ),
     new RegExp(
-      `^[\\\\/]sitemap${
-        withExtension
-          ? `\\.${getExtensionRegexString(pageExtensions.concat('xml'))}`
-          : ''
-      }`
-    ),
-    new RegExp(
       `^[\\\\/]manifest${
         withExtension
           ? `\\.${getExtensionRegexString(
@@ -64,7 +57,13 @@ export function isMetadataRouteFile(
       }`
     ),
     new RegExp(`^[\\\\/]favicon\\.ico$`),
-    // TODO-METADATA: add dynamic routes for metadata images
+    new RegExp(
+      `[\\\\/]sitemap${
+        withExtension
+          ? `\\.${getExtensionRegexString(pageExtensions.concat('xml'))}`
+          : ''
+      }`
+    ),
     new RegExp(
       `[\\\\/]${STATIC_METADATA_IMAGES.icon.filename}${
         withExtension
