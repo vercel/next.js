@@ -2,6 +2,7 @@ use std::ops::Deref;
 
 use anyhow::Result;
 use auto_hash_map::AutoSet;
+use turbo_tasks::debug::ValueDebugFormat;
 
 use crate::{self as turbo_tasks, RawVc, ValueToString, ValueToStringVc};
 
@@ -56,8 +57,9 @@ pub struct Usize(usize);
 #[turbo_tasks::value(transparent)]
 pub struct RawVcSet(AutoSet<RawVc>);
 
+#[derive(ValueDebugFormat)]
 #[turbo_tasks::value(transparent)]
-pub struct JsonValue(serde_json::Value);
+pub struct JsonValue(pub serde_json::Value);
 
 #[turbo_tasks::value_impl]
 impl ValueToString for JsonValue {
