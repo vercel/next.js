@@ -381,8 +381,7 @@ async fn get_directory_tree(
                 // appDir ignores paths starting with an underscore
                 if !basename.starts_with('_') {
                     let result = get_directory_tree(dir, page_extensions);
-                    subdirectories
-                        .insert(get_underscore_normalized_path(basename), result);
+                    subdirectories.insert(get_underscore_normalized_path(basename), result);
                 }
             }
             // TODO(WEB-952) handle symlinks in app dir
