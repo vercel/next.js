@@ -3,6 +3,7 @@ import './require-hook'
 import './node-polyfill-fetch'
 import './node-polyfill-form'
 import './node-polyfill-web-streams'
+import './node-polyfill-crypto'
 
 import type { TLSSocket } from 'tls'
 import type { Route, RouterOptions } from './router'

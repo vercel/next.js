@@ -43,7 +43,7 @@ use turbo_binding::{
     },
 };
 use turbo_tasks::{
-    primitives::{OptionStringVc, StringVc, StringsVc},
+    primitives::{JsonValueVc, OptionStringVc, StringVc, StringsVc},
     trace::TraceRawVcs,
     Value,
 };
@@ -78,7 +78,7 @@ use crate::{
     pages_structure::{
         OptionPagesStructureVc, PagesStructure, PagesStructureItem, PagesStructureVc,
     },
-    util::{parse_config_from_source, pathname_for_path, NextRuntime},
+    util::{parse_config_from_source, pathname_for_path, render_data, NextRuntime},
 };
 
 /// Create a content source serving the `pages` or `src/pages` directory as
@@ -245,6 +245,7 @@ pub async fn create_page_source(
         next_config,
     );
 
+    let render_data = render_data(next_config);
     let page_extensions = next_config.page_extensions();
     let force_not_found_source = create_not_found_page_source(
         project_path,
@@ -259,6 +260,7 @@ pub async fn create_page_source(
         output_path.join("force_not_found"),
         SpecificityVc::exact(),
         NextExactMatcherVc::new(StringVc::cell("_next/404".to_string())).into(),
+        render_data,
     );
     let fallback_not_found_source = create_not_found_page_source(
         project_path,
@@ -273,6 +275,7 @@ pub async fn create_page_source(
         output_path.join("fallback_not_found"),
         SpecificityVc::not_found(),
         NextFallbackMatcherVc::new().into(),
+        render_data,
     );
     let page_source = create_page_source_for_directory(
         pages_structure,
@@ -286,6 +289,7 @@ pub async fn create_page_source(
         fallback_page,
         server_root,
         output_path,
+        render_data,
     );
     let fallback_source =
         AssetGraphContentSourceVc::new_eager(server_root, fallback_page.as_asset());
@@ -325,6 +329,7 @@ async fn create_page_source_for_file(
     is_api_path: bool,
     intermediate_output_path: FileSystemPathVc,
     output_root: FileSystemPathVc,
+    render_data: JsonValueVc,
 ) -> Result<ContentSourceVc> {
     let server_chunking_context = DevChunkingContextVc::builder(
         project_path,
@@ -384,6 +389,7 @@ async fn create_page_source_for_file(
             }
             .cell()
             .into(),
+            render_data,
         )
     } else {
         let data_pathname = pathname_for_path(server_root, server_path, true, true);
@@ -426,6 +432,7 @@ async fn create_page_source_for_file(
                 pathname,
                 ssr_entry,
                 fallback_page,
+                render_data,
             ),
             create_node_rendered_source(
                 project_path,
@@ -436,6 +443,7 @@ async fn create_page_source_for_file(
                 pathname,
                 ssr_data_entry,
                 fallback_page,
+                render_data,
             ),
             create_page_loader(
                 server_root,
@@ -478,6 +486,7 @@ async fn create_not_found_page_source(
     intermediate_output_path: FileSystemPathVc,
     specificity: SpecificityVc,
     route_matcher: RouteMatcherVc,
+    render_data: JsonValueVc,
 ) -> Result<ContentSourceVc> {
     let server_chunking_context = DevChunkingContextVc::builder(
         project_path,
@@ -549,6 +558,7 @@ async fn create_not_found_page_source(
             pathname,
             ssr_entry,
             fallback_page,
+            render_data,
         ),
         page_loader,
     ])
@@ -571,6 +581,7 @@ async fn create_page_source_for_directory(
     fallback_page: DevHtmlAssetVc,
     server_root: FileSystemPathVc,
     output_root: FileSystemPathVc,
+    render_data: JsonValueVc,
 ) -> Result<ContentSourceVc> {
     let PagesStructure {
         ref items,
@@ -601,6 +612,7 @@ async fn create_page_source_for_directory(
                 false,
                 output_root,
                 output_root,
+                render_data,
             )
             .issue_context(page, "Next.js pages directory"),
             PagesStructureItem::Api {
@@ -623,6 +635,7 @@ async fn create_page_source_for_directory(
                 true,
                 output_root,
                 output_root,
+                render_data,
             )
             .issue_context(api, "Next.js pages api directory"),
         };
@@ -642,6 +655,7 @@ async fn create_page_source_for_directory(
             fallback_page,
             server_root,
             output_root,
+            render_data,
         ))
     }
 

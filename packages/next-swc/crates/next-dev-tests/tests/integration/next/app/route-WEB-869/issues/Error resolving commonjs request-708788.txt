@@ -12,11 +12,11 @@ PlainIssue {
                 ident: "[project]/packages/next/dist/server/api-utils/node.js",
             },
             start: SourcePos {
-                line: 25,
+                line: 30,
                 column: 17,
             },
             end: SourcePos {
-                line: 25,
+                line: 30,
                 column: 34,
             },
         },
