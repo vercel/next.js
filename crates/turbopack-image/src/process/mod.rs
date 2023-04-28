@@ -1,3 +1,5 @@
+pub mod svg;
+
 use std::{io::Cursor, str::FromStr};
 
 use anyhow::{bail, Context, Result};
@@ -20,6 +22,8 @@ use turbopack_core::{
     ident::AssetIdentVc,
     issue::{Issue, IssueVc},
 };
+
+use self::svg::calculate;
 
 /// Small placeholder version of the image.
 #[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat)]
@@ -246,7 +250,22 @@ pub async fn get_meta_data(
       bail!("Input image not found");
     };
     let bytes = content.content().to_bytes()?;
-    let Some((image, format)) = load_image(ident, &bytes, ident.path().await?.extension()) else {
+    let path = ident.path().await?;
+    let extension = path.extension();
+    if extension == Some("svg") {
+        let content = std::str::from_utf8(&bytes).context("Input image is not valid utf-8")?;
+        let (width, height) =
+            calculate(content).context("Failed to parse svg source code for image dimensions")?;
+        return Ok(ImageMetaData {
+            width,
+            height,
+            mime_type: Some(mime::IMAGE_SVG),
+            blur_placeholder: None,
+            placeholder_for_future_extensions: (),
+        }
+        .cell());
+    }
+    let Some((image, format)) = load_image(ident, &bytes, extension) else {
         return Ok(ImageMetaData::default().cell());
     };
     let (width, height) = image.dimensions();
