@@ -41,8 +41,13 @@ import logger from '../helpers/logging'
 export interface AppRouteRouteHandlerContext extends RouteModuleHandleContext {
   staticGenerationContext: Pick<
     StaticGenerationContext['renderOpts'],
-    'supportsDynamicHTML' | 'incrementalCache' | 'store'
-  >
+    'supportsDynamicHTML' | 'incrementalCache'
+  > & {
+    /**
+     * @internal Used by the `next export` command.
+     */
+    store?: StaticGenerationContext['renderOpts']['store']
+  }
 }
 
 /**

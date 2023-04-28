@@ -34,8 +34,11 @@ startHandler(async ({ request, response, query, params, path }) => {
   const parsedUrl = parseUrl(req.url!, true)
   attachRequestMeta(req, parsedUrl, request.headers.host!)
 
+  // FIXME: (wyattjoh) adapt this to the new module
+  // @ts-expect-error - this hasn't been updated to the new route module
   const context: RouteHandlerManagerContext = {
     params,
+    export: false,
     staticGenerationContext: {
       supportsDynamicHTML: true,
     },
