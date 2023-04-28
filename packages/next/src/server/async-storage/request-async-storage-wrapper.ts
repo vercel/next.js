@@ -24,6 +24,7 @@ import {
   COOKIE_NAME_PRERENDER_BYPASS,
   __ApiPreviewProps,
 } from '../api-utils'
+import { DraftMode } from './draft-mode'
 
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
   const cleaned = HeadersAdapter.from(headers)
@@ -101,6 +102,7 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
       headers?: ReadonlyHeaders
       cookies?: ReadonlyRequestCookies
       mutableCookies?: ResponseCookies
+      draftMode?: DraftMode
     } = {}
 
     const store: RequestStore = {
@@ -130,56 +132,16 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
       },
       previewData,
       get draftMode() {
-        // The logic for draftMode() is very similar to tryGetPreviewData()
-        // but Draft Mode does not have any data associated with it.
-        const isOnDemandRevalidate =
-          previewProps &&
-          checkIsOnDemandRevalidate(req, previewProps).isOnDemandRevalidate
-
-        const cookieValue = this.cookies.get(
-          COOKIE_NAME_PRERENDER_BYPASS
-        )?.value
-
-        const enabled = Boolean(
-          !isOnDemandRevalidate &&
-            cookieValue &&
-            previewProps &&
-            cookieValue === previewProps.previewModeId
-        )
-
-        const value = previewProps?.previewModeId
-
-        if (!value) {
-          throw new Error('invariant: previewProps missing previewModeId')
+        if (!cache.draftMode) {
+          cache.draftMode = new DraftMode(
+            previewProps,
+            req,
+            this.cookies,
+            this.mutableCookies
+          )
         }
 
-        return {
-          enabled,
-          enable: () => {
-            this.mutableCookies.set({
-              name: COOKIE_NAME_PRERENDER_BYPASS,
-              value,
-              httpOnly: true,
-              sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
-              secure: process.env.NODE_ENV !== 'development',
-              path: '/',
-            })
-          },
-          disable: () => {
-            // To delete a cookie, set `expires` to a date in the past:
-            // https://tools.ietf.org/html/rfc6265#section-4.1.1
-            // `Max-Age: 0` is not valid, thus ignored, and the cookie is persisted.
-            this.mutableCookies.set({
-              name: COOKIE_NAME_PRERENDER_BYPASS,
-              value: '',
-              httpOnly: true,
-              sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
-              secure: process.env.NODE_ENV !== 'development',
-              path: '/',
-              expires: new Date(0),
-            })
-          },
-        }
+        return cache.draftMode
       },
     }
 

@@ -69,10 +69,6 @@ export function draftMode(): DraftMode {
   }
   return {
     get enabled() {
-      if (staticGenerationBailout('draftMode().enabled', { soft: true })) {
-        console.log('\n[debug] soft true returned true')
-        return false
-      }
       return requestStore.draftMode.enabled
     },
     enable() {
