@@ -5,6 +5,6 @@ fn main() {
     generate_register();
 
     // Attempt to collect some build time env values but will skip if there are any
-    // errors.
+    // errors. dummy
     let _ = vergen(Config::default());
 }
