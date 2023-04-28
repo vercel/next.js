@@ -82,11 +82,6 @@ export async function getStaticInfoIncludingLayouts({
     ? {
         // TODO-APP: Remove the rsc key altogether. It's no longer required.
         rsc: 'server',
-        // runtime?: ServerRuntime
-        // ssg?: boolean
-        // ssr?: boolean
-        // rsc?: RSCModuleType
-        // middleware?: Partial<MiddlewareConfig>
       }
     : pageStaticInfo
 
