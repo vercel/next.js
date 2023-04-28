@@ -1074,7 +1074,7 @@ export type AppConfig = {
   dynamicParams?: true | false
   dynamic?: 'auto' | 'error' | 'force-static' | 'force-dynamic'
   fetchCache?: 'force-cache' | 'only-cache'
-  preferredRegion?: string
+  preferredRegion?: string | string[]
 }
 export type GenerateParams = Array<{
   config?: AppConfig

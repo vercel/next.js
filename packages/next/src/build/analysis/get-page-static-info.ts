@@ -1,7 +1,9 @@
 import type { NextConfig } from '../../server/config-shared'
 import type { Middleware, RouteHas } from '../../lib/load-custom-routes'
 
+import path from 'path'
 import { promises as fs } from 'fs'
+import { defaultConfig } from '../../server/config-shared'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import { matcher } from 'next/dist/compiled/micromatch'
 import { ServerRuntime } from 'next/types'
@@ -18,6 +20,7 @@ import { isAPIRoute } from '../../lib/is-api-route'
 import { isEdgeRuntime } from '../../lib/is-edge-runtime'
 import { RSC_MODULE_TYPES } from '../../shared/lib/constants'
 import type { RSCMeta } from '../webpack/loaders/get-module-build-info'
+import { getPageFromPath } from '../entries'
 
 export interface MiddlewareConfig {
   matchers: MiddlewareMatcher[]
@@ -81,10 +84,12 @@ function checkExports(swcAST: any): {
   ssr: boolean
   ssg: boolean
   runtime?: string
+  preferredRegion?: string | string[]
 } {
   if (Array.isArray(swcAST?.body)) {
     try {
       let runtime: string | undefined
+      let preferredRegion: string | string[] | undefined
       let ssr: boolean = false
       let ssg: boolean = false
 
@@ -96,6 +101,18 @@ function checkExports(swcAST: any): {
           for (const declaration of node.declaration?.declarations) {
             if (declaration.id.value === 'runtime') {
               runtime = declaration.init.value
+            }
+            if (declaration.id.value === 'preferredRegion') {
+              if (typeof declaration.init.value === 'string') {
+                preferredRegion = declaration.init.value
+              }
+              if (Array.isArray(declaration.init.elements)) {
+                preferredRegion = declaration.init.elements
+                  .map((el: any) => {
+                    return el.expression.value
+                  })
+                  .filter((item: any) => typeof item === 'string')
+              }
             }
           }
         }
@@ -137,7 +154,7 @@ function checkExports(swcAST: any): {
         }
       }
 
-      return { ssr, ssg, runtime }
+      return { ssr, ssg, runtime, preferredRegion }
     } catch (err) {}
   }
 
@@ -319,15 +336,15 @@ export async function getPageStaticInfo(params: {
   pageType: 'pages' | 'app' | 'root'
 }): Promise<PageStaticInfo> {
   const { isDev, pageFilePath, nextConfig, page, pageType } = params
-
   const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
   if (
+    pageType === 'app' ||
     /runtime|getStaticProps|getServerSideProps|export const config/.test(
       fileContent
     )
   ) {
     const swcAST = await parseModule(pageFilePath, fileContent)
-    const { ssg, ssr, runtime } = checkExports(swcAST)
+    const { ssg, ssr, runtime, preferredRegion } = checkExports(swcAST)
     const rsc = getRSCModuleInformation(fileContent).type
 
     // default / failsafe value for config
@@ -348,7 +365,9 @@ export async function getPageStaticInfo(params: {
         } else {
           throw new Error(message)
         }
-        config = {}
+      }
+      config = {
+        regions: preferredRegion === 'all' ? undefined : preferredRegion,
       }
     }
     if (!config) config = {}
@@ -413,6 +432,46 @@ export async function getPageStaticInfo(params: {
       config,
       nextConfig
     )
+
+    // traverse parent layouts to check for runtime until one is found
+    if ((!resolvedRuntime || !middlewareConfig.regions) && pageType === 'app') {
+      const pathParts = pageFilePath.split(/[/\\]/)
+
+      for (let i = pathParts.length - 1; i >= 0; i--) {
+        const curPagePath = pathParts.slice(0, i).join('/')
+        if (!curPagePath.match(/[/\\]app([/\\])/)) break
+
+        const files = await fs.readdir(curPagePath)
+
+        for (const file of files) {
+          const cleanedFile = getPageFromPath(
+            file,
+            nextConfig.pageExtensions || defaultConfig?.pageExtensions || []
+          )
+          const newPageFilePath = path.join(curPagePath, file)
+
+          if (cleanedFile === 'layout' && newPageFilePath !== pageFilePath) {
+            const layoutInfo = await getPageStaticInfo({
+              ...params,
+              pageFilePath: newPageFilePath,
+              page: file,
+            })
+
+            if (!config.regions && layoutInfo.middleware?.regions) {
+              middlewareConfig.regions = layoutInfo.middleware.regions
+            }
+
+            if (!resolvedRuntime && layoutInfo.runtime) {
+              resolvedRuntime = layoutInfo.runtime
+              break
+            }
+          }
+        }
+        if (resolvedRuntime && middlewareConfig.regions) {
+          break
+        }
+      }
+    }
 
     return {
       ssr,

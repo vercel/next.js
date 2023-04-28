@@ -598,16 +598,18 @@ async function findEntryEdgeFunctionConfig(
       )
     )
     if (typeof pageFilePath === 'string') {
+      const config = await getPageStaticInfo({
+        nextConfig: {},
+        pageFilePath,
+        isDev: false,
+        pageType:
+          pageFilePath.includes('app') && !pageFilePath.includes('middleware')
+            ? 'app'
+            : 'root',
+      })
       return {
         file: pageFilePath,
-        config: (
-          await getPageStaticInfo({
-            nextConfig: {},
-            pageFilePath,
-            isDev: false,
-            pageType: 'root',
-          })
-        ).middleware,
+        config: config.middleware,
       }
     }
   }
