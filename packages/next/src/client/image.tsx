@@ -720,7 +720,7 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
             throw new Error(
               `Image with src "${src}" is missing required "width" property.`
             )
-          } else if (Number.isNaN(widthInt)) {
+          } else if (isNaN(widthInt)) {
             throw new Error(
               `Image with src "${src}" has invalid "width" property. Expected a numeric value in pixels but received "${width}".`
             )
@@ -729,7 +729,7 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
             throw new Error(
               `Image with src "${src}" is missing required "height" property.`
             )
-          } else if (Number.isNaN(heightInt)) {
+          } else if (isNaN(heightInt)) {
             throw new Error(
               `Image with src "${src}" has invalid "height" property. Expected a numeric value in pixels but received "${height}".`
             )
