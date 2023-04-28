@@ -1,3 +1,5 @@
+import type { IncomingMessage, ServerResponse } from 'http'
+
 import type {
   GetServerSideProps,
   GetServerSidePropsResult,
@@ -22,6 +24,9 @@ import type { NextFontManifest } from '../../../../build/webpack/plugins/next-fo
 import type { PrerenderManifest } from '../../../../build'
 import type { MockedResponse } from '../../../lib/mock-request'
 
+import React from 'react'
+import ReactDOMServer from 'react-dom/server.browser'
+
 import {
   type AppType,
   type ComponentsEnhancer,
@@ -35,8 +40,6 @@ import {
   getDisplayName,
   isResSent,
 } from '../../../../shared/lib/utils'
-import React from 'react'
-import ReactDOMServer from 'react-dom/server.browser'
 import {
   SSG_GET_INITIAL_PROPS_CONFLICT,
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
@@ -74,7 +77,7 @@ import {
   validateGetServerSideProps,
   validateGetStaticProps,
 } from './helpers/validate-props'
-import RenderResult, { RenderResultMetadata } from '../../../render-result'
+import RenderResult, { type RenderResultMetadata } from '../../../render-result'
 import {
   RedirectPropsResult,
   checkRedirectValues,
@@ -82,12 +85,11 @@ import {
 import { isSerializableProps } from '../../../../lib/is-serializable-props'
 import { validateRevalidate } from './helpers/validate-revalidate'
 import { proxyResponse } from './helpers/proxy-response'
-import { IncomingMessage, ServerResponse } from 'http'
 import isError from '../../../../lib/is-error'
 import { denormalizePagePath } from '../../../../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../../../../shared/lib/page-path/normalize-page-path'
 import {
-  ReactReadableStream,
+  type ReactReadableStream,
   chainStreams,
   continueFromInitialStream,
   renderToInitialStream,
@@ -102,20 +104,18 @@ import {
 } from './helpers/create-components'
 import { enhanceComponents } from './helpers/enhance-components'
 import { postProcessHTML } from '../../../post-process'
-import { HtmlContext, HtmlProps } from '../../../../shared/lib/html-context'
+import {
+  HtmlContext,
+  type HtmlProps,
+} from '../../../../shared/lib/html-context'
 import { serializeError } from './helpers/serialize-error'
-import { NextParsedUrlQuery, getRequestMeta } from '../../../request-meta'
+import { type NextParsedUrlQuery, getRequestMeta } from '../../../request-meta'
 import { renderPageTree } from './helpers/render-page-tree'
 import { renderResultToResponse } from '../helpers/render-result-to-response'
 import { wrapAppContainer } from './helpers/wrap-app-container'
 import Loadable from '../../../../shared/lib/loadable'
 import { tryGetPreviewData } from './helpers/try-get-preview-data'
-
-const createAMPValidator =
-  process.env.NEXT_RUNTIME === 'edge'
-    ? null
-    : (require('./helpers/amp-validator')
-        .createAMPValidator as typeof import('./helpers/amp-validator').createAMPValidator)
+import { createAMPValidator } from './helpers/amp-validator'
 
 const DOCTYPE = '<!DOCTYPE html>'
 

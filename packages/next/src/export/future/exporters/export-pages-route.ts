@@ -219,10 +219,7 @@ export async function exportPagesRoute({
       // TODO: (wyattjoh) this is mirroring the behavior of renderToHTML
       resolvedUrl: undefined as unknown as string,
       err: undefined,
-      runtime: undefined,
-      runtimeConfig: renderOpts.runtimeConfig,
       locale,
-      locales: renderOpts.locales,
       defaultLocale: renderOpts.defaultLocale,
       isLocaleDomain,
     },

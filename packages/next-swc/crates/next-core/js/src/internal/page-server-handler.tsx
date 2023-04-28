@@ -7,7 +7,7 @@ import './shims'
 
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
-import { renderToHTML, RenderOpts } from 'next/dist/server/render'
+import { RenderOpts } from 'next/dist/server/render'
 import { getRedirectStatus } from 'next/dist/lib/redirect-status'
 import { PERMANENT_REDIRECT_STATUS } from 'next/dist/shared/lib/constants'
 import { buildStaticPaths } from 'next/dist/build/utils'
