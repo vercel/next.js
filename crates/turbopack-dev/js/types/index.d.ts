@@ -49,7 +49,7 @@ interface Module {
   hot?: Hot;
   children: ModuleId[];
   parents: ModuleId[];
-  interopNamespace?: EsmInteropNamespace;
+  namespaceObject?: EsmNamespaceObject;
 }
 
 enum SourceType {
@@ -99,16 +99,16 @@ type RequireContextMap = Record<
 >;
 
 interface RequireContext {
-  (moduleId: ModuleId): Exports | EsmInteropNamespace;
+  (moduleId: ModuleId): Exports | EsmNamespaceObject;
   keys(): ModuleId[];
   resolve(moduleId: ModuleId): ModuleId;
 }
 
-export type EsmInteropNamespace = Record<string, any>;
+export type EsmNamespaceObject = Record<string, any>;
 type EsmImport = (
   moduleId: ModuleId,
   allowExportDefault: boolean
-) => EsmInteropNamespace;
+) => EsmNamespaceObject;
 type EsmExport = (exportGetters: Record<string, () => any>) => void;
 type ExportValue = (value: any) => void;
 
