@@ -166,9 +166,9 @@ impl AbsoluteSystemPathBuf {
     }
 }
 
-impl Into<PathBuf> for AbsoluteSystemPathBuf {
-    fn into(self) -> PathBuf {
-        self.0
+impl From<AbsoluteSystemPathBuf> for PathBuf {
+    fn from(path: AbsoluteSystemPathBuf) -> Self {
+        path.0
     }
 }
 
