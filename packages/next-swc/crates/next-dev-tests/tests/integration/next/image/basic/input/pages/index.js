@@ -73,7 +73,7 @@ function runTests() {
 
   it('should link to imported svg image', function () {
     const img = document.querySelector('#svg')
-    expect(img.src).toContain(encodeURIComponent('_next/static/assets'))
+    expect(img.src).toContain('_next/static/assets')
   })
 
   it('should link to local src image', function () {
