@@ -25,7 +25,7 @@ import {
   createBufferedTransformStream,
   continueFromInitialStream,
   streamToBufferedResult,
-} from '../node-web-streams-helper'
+} from '../stream-utils/node-web-streams-helper'
 import {
   canSegmentBeOverridden,
   matchSegment,
@@ -1406,6 +1406,7 @@ export async function renderToHTMLOrFlight(
           }
 
           const flushed = renderToString({
+            ReactDOMServer: require('react-dom/server.edge'),
             element: (
               <>
                 {Array.from(serverInsertedHTMLCallbacks).map((callback) =>
@@ -1434,6 +1435,9 @@ export async function renderToHTMLOrFlight(
 
         try {
           const renderStream = await renderToInitialStream({
+            // We dynamically load ReactDOMServer to ensure it's using the configured
+            // channel. This is tricky to do in the module level.
+            ReactDOMServer: require('react-dom/server.edge'),
             element: content,
             streamOptions: {
               onError: htmlRendererErrorHandler,
@@ -1487,6 +1491,7 @@ export async function renderToHTMLOrFlight(
           }
 
           const renderStream = await renderToInitialStream({
+            ReactDOMServer: require('react-dom/server.edge'),
             element: (
               <html id="__next_error__">
                 <head>

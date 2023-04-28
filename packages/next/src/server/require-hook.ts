@@ -38,12 +38,6 @@ function overrideReact() {
   if (process.env.__NEXT_PRIVATE_PREBUNDLED_REACT) {
     const channel = getPrecompiledReactChannelSuffix()
 
-    console.log(
-      '!!!!!!!!!!!!!!!!!',
-      channel,
-      process.env.__NEXT_PRIVATE_PREBUNDLED_REACT
-    )
-
     aliasedPrebundledReact = true
     addHookAliases([
       ['react', require.resolve(`next/dist/compiled/react${channel}`)],
@@ -91,6 +85,12 @@ function overrideReact() {
         'react-server-dom-webpack/server.edge',
         require.resolve(
           `next/dist/compiled/react-server-dom-webpack${channel}/server.edge`
+        ),
+      ],
+      [
+        'react-server-dom-webpack/server.node',
+        require.resolve(
+          `next/dist/compiled/react-server-dom-webpack${channel}/server.node`
         ),
       ],
       [

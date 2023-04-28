@@ -1,12 +1,12 @@
-import { streamToString } from '../node-web-streams-helper'
+import { streamToString } from '../stream-utils/node-web-streams-helper'
 import { AppRenderSpan } from '../lib/trace/constants'
 import { getTracer } from '../lib/trace/tracer'
 
 export async function renderToString({
-  ReactDOMServer = require('react-dom/server.edge'),
+  ReactDOMServer,
   element,
 }: {
-  ReactDOMServer?: typeof import('react-dom/server.edge')
+  ReactDOMServer: typeof import('react-dom/server.edge')
   element: React.ReactElement
 }) {
   return getTracer().trace(AppRenderSpan.renderToString, async () => {

@@ -7,7 +7,6 @@ import {
   isRedirectError,
 } from '../../client/components/redirect'
 import RenderResult from '../render-result'
-import { getPrecompiledReactChannelSuffix } from '../require-hook'
 import { ActionRenderResult } from './action-render-result'
 
 function formDataFromSearchQueryString(query: string) {
@@ -109,7 +108,7 @@ export async function handleAction({
           const {
             decodeReply,
             decodeReplyFromBusboy,
-          } = require(`next/dist/compiled/react-server-dom-webpack${getPrecompiledReactChannelSuffix()}/server.node`)
+          } = require(`react-server-dom-webpack/server.node`)
 
           if (isMultipartAction) {
             const busboy = require('busboy')
