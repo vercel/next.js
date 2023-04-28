@@ -1,13 +1,22 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 
-import { ACTION } from '../../client/components/app-router-headers'
+import {
+  ACTION,
+  RSC,
+  RSC_CONTENT_TYPE_HEADER,
+  RSC_VARY_HEADER,
+} from '../../client/components/app-router-headers'
 import { isNotFoundError } from '../../client/components/not-found'
 import {
   getURLFromRedirectError,
   isRedirectError,
 } from '../../client/components/redirect'
 import RenderResult from '../render-result'
-import { ActionRenderResult } from './action-render-result'
+import { StaticGenerationStore } from '../../client/components/static-generation-async-storage'
+import { FlightRenderResult } from './flight-render-result'
+import { ActionResult } from './types'
+import { getRevalidateHeaders } from '../web/get-revalidate-headers'
+import { makeRevalidateRequest } from '../web/make-revalidate-request'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -18,18 +27,59 @@ function formDataFromSearchQueryString(query: string) {
   return formData
 }
 
+async function createRedirectRenderResult(
+  redirectUrl: string,
+  staticGenerationStore: StaticGenerationStore
+) {
+  try {
+    const headResponse = await makeRevalidateRequest(
+      'HEAD',
+      redirectUrl,
+      staticGenerationStore,
+      undefined,
+      {
+        [RSC]: '1',
+      }
+    )
+
+    if (headResponse.headers.get('content-type') === RSC_CONTENT_TYPE_HEADER) {
+      const response = await makeRevalidateRequest(
+        'GET',
+        redirectUrl,
+        staticGenerationStore,
+        undefined,
+        {
+          [RSC]: '1',
+        }
+      )
+      return new FlightRenderResult(response.body!)
+    }
+
+    return new RenderResult(JSON.stringify({}))
+  } catch (err) {
+    return new RenderResult(JSON.stringify({}))
+  }
+}
+
 export async function handleAction({
   req,
   res,
   ComponentMod,
   pathname,
   serverActionsManifest,
+  generateFlight,
+  staticGenerationStore,
 }: {
   req: IncomingMessage
   res: ServerResponse
   ComponentMod: any
   pathname: string
   serverActionsManifest: any
+  generateFlight: (options: {
+    actionResult: ActionResult
+    skipFlight: boolean
+  }) => Promise<RenderResult>
+  staticGenerationStore: StaticGenerationStore
 }): Promise<undefined | RenderResult | 'not-found'> {
   let actionId = req.headers[ACTION.toLowerCase()] as string
   const contentType = req.headers['content-type']
@@ -62,7 +112,7 @@ export async function handleAction({
 
     const { actionAsyncStorage } = ComponentMod
 
-    let actionResult: ActionRenderResult
+    let actionResult: RenderResult
 
     try {
       await actionAsyncStorage.run({ isAction: true }, async () => {
@@ -143,10 +193,16 @@ export async function handleAction({
           ComponentMod.__next_app_webpack_require__(actionModId)[actionId]
 
         const returnVal = await actionHandler.apply(null, bound)
-        const result = new ActionRenderResult(JSON.stringify([returnVal]))
         // For form actions, we need to continue rendering the page.
         if (isFetchAction) {
-          actionResult = result
+          if (staticGenerationStore.pathWasRevalidated) {
+            staticGenerationStore.isRevalidate = true
+          }
+          actionResult = await generateFlight({
+            actionResult: returnVal,
+            // if the page was not revalidated, we can skip the rendering the flight tree
+            skipFlight: !staticGenerationStore.pathWasRevalidated,
+          })
         }
       })
 
@@ -155,13 +211,18 @@ export async function handleAction({
       }
     } catch (err) {
       if (isRedirectError(err)) {
-        if (isFetchAction || process.env.NEXT_RUNTIME === 'edge') {
+        if (process.env.NEXT_RUNTIME === 'edge') {
           throw new Error('Invariant: not implemented.')
         }
         const redirectUrl = getURLFromRedirectError(err)
-        res.statusCode = 303
+        // if it's a fetch action, we don't want to mess with the status code
+        // and we'll handle it on the client router
         res.setHeader('Location', redirectUrl)
-        return new ActionRenderResult(JSON.stringify({}))
+        if (!isFetchAction) {
+          res.statusCode = 303
+          return new RenderResult('')
+        }
+        return createRedirectRenderResult(redirectUrl, staticGenerationStore)
       } else if (isNotFoundError(err)) {
         if (isFetchAction) {
           throw new Error('Invariant: not implemented.')

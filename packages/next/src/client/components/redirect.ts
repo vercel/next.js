@@ -4,6 +4,13 @@ type RedirectError<U extends string> = Error & {
   digest: `${typeof REDIRECT_ERROR_CODE};${U}`
 }
 
+export function getRedirectError(url: string): RedirectError<typeof url> {
+  // eslint-disable-next-line no-throw-literal
+  const error = new Error(REDIRECT_ERROR_CODE)
+  ;(error as RedirectError<typeof url>).digest = `${REDIRECT_ERROR_CODE};${url}`
+  return error as RedirectError<typeof url>
+}
+
 /**
  * When used in a React server component, this will insert a meta tag to
  * redirect the user to the target page. When used in a custom app route, it

@@ -6,10 +6,10 @@ export interface StaticGenerationStore {
   readonly isStaticGeneration: boolean
   readonly pathname: string
   readonly incrementalCache?: IncrementalCache
-  readonly isRevalidate?: boolean
   readonly isOnDemandRevalidate?: boolean
   readonly isPrerendering?: boolean
 
+  isRevalidate?: boolean
   forceDynamic?: boolean
   fetchCache?:
     | 'only-cache'
@@ -26,6 +26,7 @@ export interface StaticGenerationStore {
   dynamicUsageStack?: string
 
   nextFetchId?: number
+  pathWasRevalidated?: boolean
 }
 
 export type StaticGenerationAsyncStorage =
