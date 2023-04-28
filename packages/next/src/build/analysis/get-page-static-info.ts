@@ -341,7 +341,7 @@ export async function getPageStaticInfo(params: {
   const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
   if (
     (pageType === 'app' &&
-      pageExtensions.includes(path.extname(pageFilePath))) ||
+      pageExtensions.includes(path.extname(pageFilePath).substring(1))) ||
     /runtime|getStaticProps|getServerSideProps|export const config/.test(
       fileContent
     )
