@@ -7,6 +7,7 @@ export type EdgeAppRouteLoaderQuery = {
   absolutePagePath: string
   page: string
   appDirLoader: string
+  preferredRegion: string | string[] | undefined
   nextConfigOutput: NextConfig['output']
 }
 
@@ -15,6 +16,7 @@ const EdgeAppRouteLoader: webpack.LoaderDefinitionFunction<EdgeAppRouteLoaderQue
     const {
       page,
       absolutePagePath,
+      preferredRegion,
       appDirLoader: appDirLoaderBase64 = '',
     } = this.getOptions()
 
@@ -33,6 +35,7 @@ const EdgeAppRouteLoader: webpack.LoaderDefinitionFunction<EdgeAppRouteLoaderQue
     buildInfo.route = {
       page,
       absolutePagePath,
+      preferredRegion,
     }
 
     const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
