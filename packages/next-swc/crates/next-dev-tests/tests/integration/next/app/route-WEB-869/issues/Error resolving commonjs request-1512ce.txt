@@ -1,22 +1,22 @@
 PlainIssue {
     severity: Error,
-    context: "[project]/packages/next/dist/server/crypto-utils.js",
+    context: "[project]/packages/next/dist/server/lib/mock-request.js",
     category: "resolve",
     title: "Error resolving commonjs request",
-    description: "unable to resolve module \"crypto\"",
-    detail: "It was not possible to find the requested file.\nParsed request as written in source code: module \"crypto\"\nPath where resolving has started: [project]/packages/next/dist/server/crypto-utils.js\nType of request: commonjs request\nImport map: No import map entry\n",
+    description: "unable to resolve module \"stream\"",
+    detail: "It was not possible to find the requested file.\nParsed request as written in source code: module \"stream\"\nPath where resolving has started: [project]/packages/next/dist/server/lib/mock-request.js\nType of request: commonjs request\nImport map: No import map entry\n",
     documentation_link: "",
     source: Some(
         PlainIssueSource {
             asset: PlainAsset {
-                ident: "[project]/packages/next/dist/server/crypto-utils.js",
+                ident: "[project]/packages/next/dist/server/lib/mock-request.js",
             },
             start: SourcePos {
-                line: 18,
+                line: 26,
                 column: 56,
             },
             end: SourcePos {
-                line: 18,
+                line: 26,
                 column: 73,
             },
         },
