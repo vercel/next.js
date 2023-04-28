@@ -9,6 +9,7 @@ enhanceGlobals()
 
 import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
 import { RouteMatcher } from '../future/route-matchers/route-matcher'
+import { ManifestLoader } from '../future/route-modules/pages/helpers/load-manifests'
 
 type WrapOptions = Partial<Pick<AdapterOptions, 'page'>>
 
@@ -62,10 +63,6 @@ export class EdgeRouteModuleWrapper {
   }
 
   private async handler(request: NextRequest): Promise<Response> {
-    // Setup the handler if it hasn't been setup yet. It is the responsibility
-    // of the module to ensure that this is only called once.
-    this.routeModule.setup()
-
     // Get the pathname for the matcher. Pathnames should not have trailing
     // slashes for matching.
     const pathname = removeTrailingSlash(new URL(request.url).pathname)
@@ -82,8 +79,29 @@ export class EdgeRouteModuleWrapper {
     // match (if any).
     const context: RouteHandlerManagerContext = {
       params: match.params,
-      staticGenerationContext: {
-        supportsDynamicHTML: true,
+      export: false,
+      staticGenerationContext: { supportsDynamicHTML: true },
+      manifests: ManifestLoader.load(),
+      renderOpts: {
+        page: this.routeModule.definition.page,
+
+        // FIXME: (wyattjoh) implement
+        isDataReq: undefined,
+        resolvedAsPath: undefined,
+        query: {},
+        resolvedUrl: '',
+        locale: undefined,
+        defaultLocale: undefined,
+        isLocaleDomain: undefined,
+
+        // Not enabled in edge.
+        req: undefined,
+        res: undefined,
+        statusCode: undefined,
+        ampPath: undefined,
+        customServer: undefined,
+        distDir: undefined,
+        err: undefined,
       },
     }
 

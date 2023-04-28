@@ -708,10 +708,6 @@ export default async function exportApp(
             serverRuntimeConfig,
             subFolders,
             buildExport: options.buildExport,
-            optimizeFonts: nextConfig.optimizeFonts as FontConfig,
-            optimizeCss: nextConfig.experimental.optimizeCss,
-            disableOptimizedLoading:
-              nextConfig.experimental.disableOptimizedLoading,
             parentSpanId: pageExportSpan.id,
             httpAgentOptions: nextConfig.httpAgentOptions,
             serverComponents: options.hasAppDir,

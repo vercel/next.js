@@ -85,7 +85,6 @@ export function getRender({
         serverActionsManifest,
       },
       appRenderToHTML,
-      pagesRenderToHTML,
       incrementalCacheHandler,
       loadComponent: async (pathname) => {
         if (isAppPath) return null

@@ -1,7 +1,7 @@
 import type { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-loader'
 import type { MiddlewareLoaderOptions } from './webpack/loaders/next-middleware-loader'
 import type { EdgeSSRLoaderQuery } from './webpack/loaders/next-edge-ssr-loader'
-import type { EdgeAppRouteLoaderQuery } from './webpack/loaders/next-edge-app-route-loader'
+import type { EdgeRouteLoaderQuery } from './webpack/loaders/next-edge-route-loader'
 import type { NextConfigComplete } from '../server/config-shared'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type {
@@ -52,6 +52,11 @@ import { EdgeFunctionLoaderOptions } from './webpack/loaders/next-edge-function-
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { normalizeMetadataRoute } from '../lib/metadata/get-metadata-route'
 import { fileExists } from '../lib/file-exists'
+import { getNextRouteModuleEntry } from './webpack/loaders/next-route-module-loader'
+import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
+
+type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
+export type EntryDefinition = ObjectValue<webpack.EntryObject>
 
 export async function getStaticInfoIncludingLayouts({
   isInsideAppDir,
@@ -128,8 +133,6 @@ export async function getStaticInfoIncludingLayouts({
   }
   return staticInfo
 }
-
-type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 
 /**
  * For a given page path removes the provided extensions.
@@ -285,21 +288,22 @@ export function getEdgeServerEntry(opts: {
   preferredRegion: string | string[] | undefined
 }) {
   if (
-    opts.pagesType === 'app' &&
-    isAppRouteRoute(opts.page) &&
+    ((opts.pagesType === 'app' && isAppRouteRoute(opts.page)) ||
+      (opts.pagesType === 'pages' && !isAPIRoute(opts.page))) &&
     opts.appDirLoader
   ) {
-    const loaderParams: EdgeAppRouteLoaderQuery = {
+    const loaderParams: EdgeRouteLoaderQuery = {
       absolutePagePath: opts.absolutePagePath,
       page: opts.page,
-      appDirLoader: Buffer.from(opts.appDirLoader || '').toString('base64'),
+      appDirLoader: Buffer.from(opts.appDirLoader).toString('base64'),
       nextConfigOutput: opts.config.output,
       preferredRegion: opts.preferredRegion,
+      pagesType: opts.pagesType,
     }
 
     return {
-      import: `next-edge-app-route-loader?${stringify(loaderParams)}!`,
-      layer: WEBPACK_LAYERS.server,
+      import: `next-edge-route-loader?${stringify(loaderParams)}!`,
+      // layer: WEBPACK_LAYERS.middleware,
     }
   }
   if (isMiddlewareFile(opts.page)) {
@@ -556,16 +560,26 @@ export async function createEntrypoints(
               nextConfigOutput: config.output,
               preferredRegion: staticInfo.preferredRegion,
             })
-          } else {
-            if (isInstrumentationHookFile(page) && pagesType === 'root') {
-              server[serverBundlePath.replace('src/', '')] = {
-                import: mappings[page],
-                // the '../' is needed to make sure the file is not chunked
-                filename: `../${INSTRUMENTATION_HOOK_FILENAME}.js`,
-              }
-            } else {
-              server[serverBundlePath] = [mappings[page]]
+          } else if (isInstrumentationHookFile(page) && pagesType === 'root') {
+            server[serverBundlePath.replace('src/', '')] = {
+              import: mappings[page],
+              // the '../' is needed to make sure the file is not chunked
+              filename: `../${INSTRUMENTATION_HOOK_FILENAME}.js`,
             }
+          } else if (!isAPIRoute(page)) {
+            server[serverBundlePath] = getNextRouteModuleEntry({
+              dev: params.isDev ?? false,
+              config: JSON.stringify(config),
+              buildId: params.buildId,
+              page,
+              pages,
+              kind: 'pages',
+              runtime: 'nodejs',
+              pathname: denormalizePagePath(page),
+              filename: mappings[page],
+            })
+          } else {
+            server[serverBundlePath] = [mappings[page]]
           }
         },
         onEdgeServer: () => {
@@ -585,11 +599,25 @@ export async function createEntrypoints(
               // Still passing it here for consistency.
               preferredRegion: staticInfo.preferredRegion,
             }).import
+          } else if (pagesType === 'pages' && !isAPIRoute(page)) {
+            appDirLoader = getNextRouteModuleEntry({
+              dev: params.isDev ?? false,
+              config: JSON.stringify(config),
+              buildId: params.buildId,
+              page,
+              pages,
+              kind: 'pages',
+              runtime: 'experimental-edge',
+              pathname: denormalizePagePath(page),
+              filename: mappings[page],
+            }).import
           }
+
           const normalizedServerBundlePath =
             isInstrumentationHookFile(page) && pagesType === 'root'
               ? serverBundlePath.replace('src/', '')
               : serverBundlePath
+
           edgeServer[normalizedServerBundlePath] = getEdgeServerEntry({
             ...params,
             rootDir,

@@ -1,23 +1,26 @@
-import { getModuleBuildInfo } from '../get-module-build-info'
-import { stringifyRequest } from '../../stringify-request'
-import { NextConfig } from '../../../../server/config-shared'
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { NextConfig } from '../../../server/config-shared'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 
-export type EdgeAppRouteLoaderQuery = {
+import { getModuleBuildInfo } from './get-module-build-info'
+import { stringifyRequest } from '../stringify-request'
+
+export type EdgeRouteLoaderQuery = {
   absolutePagePath: string
   page: string
   appDirLoader: string
   preferredRegion: string | string[] | undefined
   nextConfigOutput: NextConfig['output']
+  pagesType: 'app' | 'pages'
 }
 
-const EdgeAppRouteLoader: webpack.LoaderDefinitionFunction<EdgeAppRouteLoaderQuery> =
+const EdgeRouteLoader: webpack.LoaderDefinitionFunction<EdgeRouteLoaderQuery> =
   async function (this) {
     const {
       page,
       absolutePagePath,
       preferredRegion,
       appDirLoader: appDirLoaderBase64 = '',
+      pagesType,
     } = this.getOptions()
 
     const appDirLoader = Buffer.from(appDirLoaderBase64, 'base64').toString()
@@ -30,7 +33,7 @@ const EdgeAppRouteLoader: webpack.LoaderDefinitionFunction<EdgeAppRouteLoaderQue
     buildInfo.nextEdgeSSR = {
       isServerComponent: false,
       page: page,
-      isAppDir: true,
+      isAppDir: pagesType === 'app',
     }
     buildInfo.route = {
       page,
@@ -49,8 +52,9 @@ const EdgeAppRouteLoader: webpack.LoaderDefinitionFunction<EdgeAppRouteLoaderQue
     import * as module from ${JSON.stringify(modulePath)}
 
     export const ComponentMod = module
+    export const routeModule = module.routeModule
 
     export default EdgeRouteModuleWrapper.wrap(module.routeModule)`
   }
 
-export default EdgeAppRouteLoader
+export default EdgeRouteLoader

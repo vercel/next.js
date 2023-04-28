@@ -19,6 +19,26 @@ export type NextComponentType<
    * @param context Context of `page`
    */
   getInitialProps?(context: Context): InitialProps | Promise<InitialProps>
+
+  /**
+   * This is needed to allow checking for custom getInitialProps in
+   * `pages/_app`. If this is present it indicates that the page has a custom
+   * getInitialProps and we should not apply the AppTree.
+   *
+   * @internal this is an internal API and should not be used outside of Next.js
+   */
+  origGetInitialProps?(context: Context): InitialProps | Promise<InitialProps>
+
+  /**
+   * Used to provide the script elements for a page.
+   *
+   * @internal this is an internal API and should not be used outside of Next.js
+   */
+  unstable_scriptLoader?(): {
+    props: {
+      strategy: 'beforeInteractive' | 'afterInteractive' | 'lazyOnload'
+    }
+  }[]
 }
 
 export type DocumentType = NextComponentType<

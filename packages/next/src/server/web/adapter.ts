@@ -1,5 +1,7 @@
 import type { NextMiddleware, RequestData, FetchEventResult } from './types'
 import type { RequestInit } from './spec-extension/request'
+import type { NodeNextRequest } from '../base-http/node'
+
 import { PageSignatureError } from './error'
 import { fromNodeHeaders } from './utils'
 import { NextFetchEvent } from './spec-extension/fetch-event'
@@ -32,7 +34,7 @@ class NextRequestHint extends NextRequest {
     this.sourcePage = params.page
   }
 
-  get request() {
+  get request(): NodeNextRequest | null {
     throw new PageSignatureError({ page: this.sourcePage })
   }
 

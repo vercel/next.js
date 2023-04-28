@@ -59,7 +59,7 @@ import { sendRenderResult } from './send-payload'
 import { getExtension, serveStatic } from './serve-static'
 import { ParsedUrlQuery } from 'querystring'
 import { apiResolver } from './api-utils/node'
-import { RenderOpts, renderToHTML } from './render'
+import { RenderOpts } from './render'
 import { ParsedUrl, parseUrl } from '../shared/lib/router/utils/parse-url'
 import { parse as nodeParseUrl } from 'url'
 import * as Log from '../build/output/log'
@@ -972,13 +972,7 @@ export default class NextNodeServer extends BaseServer {
       )
     }
 
-    return renderToHTML(
-      req.originalRequest,
-      res.originalResponse,
-      pathname,
-      query,
-      renderOpts
-    )
+    throw new Error("Invariant: shouldn't be hit")
   }
 
   protected streamResponseChunk(res: NodeNextResponse, chunk: any) {
@@ -1527,10 +1521,6 @@ export default class NextNodeServer extends BaseServer {
               finished: true,
             }
           }
-        }
-
-        if (match) {
-          addRequestMeta(req, '_nextMatch', match)
         }
 
         // Try to handle the given route with the configured handlers.
@@ -2545,13 +2535,8 @@ export default class NextNodeServer extends BaseServer {
     return routes
   }
 
-  private _cachedPreviewManifest: PrerenderManifest | undefined
   protected getPrerenderManifest(): PrerenderManifest {
-    if (this._cachedPreviewManifest) {
-      return this._cachedPreviewManifest
-    }
-    const manifest = require(join(this.distDir, PRERENDER_MANIFEST))
-    return (this._cachedPreviewManifest = manifest)
+    return require(join(this.distDir, PRERENDER_MANIFEST))
   }
 
   protected getRoutesManifest() {

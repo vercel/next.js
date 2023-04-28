@@ -3,17 +3,26 @@ import type { ModuleLoader } from './module-loader'
 
 import { NodeModuleLoader } from './node-module-loader'
 
-export interface AppLoaderModule<M extends RouteModule = RouteModule> {
-  routeModule: M
+export class RouteModuleNotFound extends Error {
+  public constructor(id: string) {
+    super(`Route module "${id}" not found`)
+  }
+}
+
+interface LoadedRouteModule<M extends RouteModule = RouteModule> {
+  routeModule?: M
 }
 
 export class RouteModuleLoader {
-  static load<M extends RouteModule>(
+  public static load<M extends RouteModule>(
     id: string,
     loader: ModuleLoader = new NodeModuleLoader()
   ): M {
     if (process.env.NEXT_RUNTIME !== 'edge') {
-      const { routeModule }: AppLoaderModule<M> = loader.load(id)
+      const { routeModule }: LoadedRouteModule<M> = loader.load(id)
+      if (!routeModule) {
+        throw new RouteModuleNotFound(id)
+      }
 
       return routeModule
     }

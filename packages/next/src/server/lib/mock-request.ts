@@ -111,17 +111,21 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
 
   /**
    * A promise that resolves to `true` when the response has been streamed.
+   *
+   * @internal - used internally by Next.js
    */
   public readonly hasStreamed: Promise<boolean>
 
   /**
    * A list of buffers that have been written to the response.
+   *
+   * @internal - used internally by Next.js
    */
   public readonly buffers: Buffer[] = []
 
   private readonly headers = new Headers()
 
-  constructor({ socket = null }: MockedResponseOptions) {
+  constructor({ socket = null }: MockedResponseOptions = {}) {
     super()
 
     this.socket = socket

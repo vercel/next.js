@@ -5,9 +5,9 @@ import { Normalizer } from './normalizer'
  * will normalize the inputted pathname with each normalizer in order.
  */
 export class Normalizers implements Normalizer {
-  constructor(private readonly normalizers: Array<Normalizer> = []) {}
+  public constructor(private readonly normalizers: Array<Normalizer> = []) {}
 
-  public push(normalizer: Normalizer) {
+  public push(normalizer: Normalizer): void {
     this.normalizers.push(normalizer)
   }
 

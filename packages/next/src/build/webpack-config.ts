@@ -1756,11 +1756,12 @@ export default async function getBaseWebpackConfig(
         'noop-loader',
         'next-middleware-loader',
         'next-edge-function-loader',
-        'next-edge-app-route-loader',
+        'next-edge-route-loader',
         'next-edge-ssr-loader',
         'next-middleware-asset-loader',
         'next-middleware-wasm-loader',
         'next-app-loader',
+        'next-route-module-loader',
         'next-font-loader',
         'next-invalid-import-error-loader',
         'next-metadata-route-loader',
@@ -2227,7 +2228,8 @@ export default async function getBaseWebpackConfig(
             return devPlugins
           })()
         : []),
-      !dev &&
+      // Don't include the react-is module in the client bundle.
+      !(isNodeServer || isEdgeServer) &&
         new webpack.IgnorePlugin({
           resourceRegExp: /react-is/,
           contextRegExp: /next[\\/]dist[\\/]/,

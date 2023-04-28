@@ -3,10 +3,12 @@ import type { ModuleLoader } from '../helpers/module-loader/module-loader'
 import type { RouteMatch } from '../route-matches/route-match'
 import type { RouteModule } from '../route-modules/route-module'
 import type { AppRouteRouteHandlerContext } from '../route-modules/app-route/module'
+import type { PagesRouteHandlerContext } from '../route-modules/pages/module'
 
 import { NodeModuleLoader } from '../helpers/module-loader/node-module-loader'
 import { RouteModuleLoader } from '../helpers/module-loader/route-module-loader'
 import { NextRequestAdapter } from '../../web/spec-extension/adapters/next-request'
+import { RouteKind } from '../route-kind'
 
 /**
  * RouteHandlerManager is a manager for route handlers.
@@ -14,10 +16,16 @@ import { NextRequestAdapter } from '../../web/spec-extension/adapters/next-reque
 export type RouteHandlerManagerContext =
   // As new route handlers are added, their types should be '&'-ed with this
   // type.
-  AppRouteRouteHandlerContext
+  AppRouteRouteHandlerContext & PagesRouteHandlerContext
+
+// FIXME: (wyattjoh) add support for other module types.
+const SUPPORTED_MODULE_TYPES = new Set<RouteKind>([
+  RouteKind.APP_ROUTE,
+  RouteKind.PAGES,
+])
 
 export class RouteHandlerManager {
-  constructor(
+  public constructor(
     private readonly moduleLoader: ModuleLoader = new NodeModuleLoader()
   ) {}
 
@@ -26,17 +34,23 @@ export class RouteHandlerManager {
     req: BaseNextRequest,
     context: RouteHandlerManagerContext
   ): Promise<Response | undefined> {
+    // If the match is not an enabled module type, return undefined.
+    if (!SUPPORTED_MODULE_TYPES.has(match.definition.kind)) return
+
     // The module supports minimal mode, load the minimal module.
     const module = RouteModuleLoader.load<RouteModule>(
       match.definition.filename,
       this.moduleLoader
     )
 
-    // Setup the handler. It is the responsibility of the module to ensure that
-    // this is only called once. If this is in development mode, the require
-    // cache will be cleared and the module will be re-created.
-    module.setup()
+    return await this.execute(module, req, context)
+  }
 
+  public async execute(
+    module: RouteModule,
+    req: BaseNextRequest,
+    context: RouteHandlerManagerContext
+  ): Promise<Response | undefined> {
     // Convert the BaseNextRequest to a NextRequest.
     const request = NextRequestAdapter.fromBaseNextRequest(req)
 

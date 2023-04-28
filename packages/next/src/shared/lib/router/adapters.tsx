@@ -74,6 +74,47 @@ export function adaptForSearchParams(
   return transformQuery(router.query)
 }
 
+export function adaptForPathname(
+  router: Pick<NextRouter, 'isReady' | 'isFallback' | 'asPath'>,
+  isAutoExport: boolean,
+  isDynamic: boolean
+): string | null {
+  // When the route is a dynamic route, we need to do more processing to
+  // determine if we need to stop showing the pathname.
+  if (isDynamic) {
+    // When the router is rendering the fallback page, it can't possibly know
+    // the path, so return `null` here. Read more about fallback pages over
+    // at:
+    // https://nextjs.org/docs/api-reference/data-fetching/get-static-paths#fallback-pages
+    if (router.isFallback) {
+      return null
+    }
+
+    // When `isAutoExport` is true, meaning this is a page page has been
+    // automatically statically optimized, and the router is not ready, then
+    // we can't know the pathname yet. Read more about automatic static
+    // optimization at:
+    // https://nextjs.org/docs/advanced-features/automatic-static-optimization
+    if (isAutoExport && !router.isReady) {
+      return null
+    }
+  }
+
+  // The `router.asPath` contains the pathname seen by the browser (including
+  // any query strings), so it should have that stripped. Read more about the
+  // `asPath` option over at:
+  // https://nextjs.org/docs/api-reference/next/router#router-object
+  let url: URL
+  try {
+    url = new URL(router.asPath, 'http://f')
+  } catch (_) {
+    // fallback to / for invalid asPath values e.g. //
+    return '/'
+  }
+
+  return url.pathname
+}
+
 export function PathnameContextProviderAdapter({
   children,
   router,
@@ -92,40 +133,16 @@ export function PathnameContextProviderAdapter({
       ref.current = false
     }
 
-    // When the route is a dynamic route, we need to do more processing to
-    // determine if we need to stop showing the pathname.
-    if (isDynamicRoute(router.pathname)) {
-      // When the router is rendering the fallback page, it can't possibly know
-      // the path, so return `null` here. Read more about fallback pages over
-      // at:
-      // https://nextjs.org/docs/api-reference/data-fetching/get-static-paths#fallback-pages
-      if (router.isFallback) {
-        return null
-      }
-
-      // When `isAutoExport` is true, meaning this is a page page has been
-      // automatically statically optimized, and the router is not ready, then
-      // we can't know the pathname yet. Read more about automatic static
-      // optimization at:
-      // https://nextjs.org/docs/advanced-features/automatic-static-optimization
-      if (isAutoExport && !router.isReady) {
-        return null
-      }
-    }
-
-    // The `router.asPath` contains the pathname seen by the browser (including
-    // any query strings), so it should have that stripped. Read more about the
-    // `asPath` option over at:
-    // https://nextjs.org/docs/api-reference/next/router#router-object
-    let url: URL
-    try {
-      url = new URL(router.asPath, 'http://f')
-    } catch (_) {
-      // fallback to / for invalid asPath values e.g. //
-      return '/'
-    }
-
-    return url.pathname
+    // Return the transformed pathname.
+    return adaptForPathname(
+      {
+        isReady: router.isReady,
+        isFallback: router.isFallback,
+        asPath: router.asPath,
+      },
+      isAutoExport,
+      isDynamicRoute(router.pathname)
+    )
   }, [router.asPath, router.isFallback, router.isReady, router.pathname])
 
   return (

@@ -18,7 +18,7 @@ export class SerializableError extends Error {
 export function isSerializableProps(
   page: string,
   method: string,
-  input: any
+  input: unknown
 ): true {
   if (!isPlainObject(input)) {
     throw new SerializableError(

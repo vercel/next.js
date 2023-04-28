@@ -2,7 +2,7 @@ export function getObjectClassLabel(value: any): string {
   return Object.prototype.toString.call(value)
 }
 
-export function isPlainObject(value: any): boolean {
+export function isPlainObject(value: unknown): boolean {
   if (getObjectClassLabel(value) !== '[object Object]') {
     return false
   }

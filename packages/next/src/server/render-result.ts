@@ -5,7 +5,7 @@ type ContentTypeOption = string | undefined
 
 export type RenderResultMetadata = {
   pageData?: any
-  revalidate?: any
+  revalidate?: number | false | undefined
   staticBailoutInfo?: any
   devOnlyCacheBusterQueryString?: string
   isNotFound?: boolean
@@ -95,6 +95,17 @@ export default class RenderResult {
     })()
   }
 
+  get body() {
+    return this._result
+  }
+
+  get isStream() {
+    return typeof this._result !== 'string' && this._result !== null
+  }
+
+  /**
+   * @deprecated - use `isStream` instead
+   */
   isDynamic(): boolean {
     return typeof this._result !== 'string'
   }

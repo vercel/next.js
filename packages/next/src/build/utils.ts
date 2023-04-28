@@ -10,7 +10,10 @@ import type {
   CustomRoutes,
 } from '../lib/load-custom-routes'
 import type { UnwrapPromise } from '../lib/coalesced-function'
-import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
+import type {
+  EdgeFunctionDefinition,
+  MiddlewareManifest,
+} from './webpack/plugins/middleware-plugin'
 import type { AppRouteUserlandModule } from '../server/future/route-modules/app-route/module'
 import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage'
 
@@ -26,9 +29,6 @@ import { isValidElementType } from 'next/dist/compiled/react-is'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import browserslist from 'next/dist/compiled/browserslist'
 import {
-  SSG_GET_INITIAL_PROPS_CONFLICT,
-  SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
-  SERVER_PROPS_SSG_CONFLICT,
   MIDDLEWARE_FILENAME,
   INSTRUMENTATION_HOOK_FILENAME,
 } from '../lib/constants'
@@ -60,6 +60,7 @@ import { IncrementalCache } from '../server/lib/incremental-cache'
 import { patchFetch } from '../server/lib/patch-fetch'
 import { nodeFs } from '../server/lib/node-fs-methods'
 import '../server/node-environment'
+import { isPagesPageStatic } from './future/utils'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -1343,8 +1344,8 @@ export async function isPageStatic({
   locales?: string[]
   defaultLocale?: string
   parentId?: any
-  edgeInfo?: any
-  pageType?: 'pages' | 'app'
+  edgeInfo?: EdgeFunctionDefinition
+  pageType: 'pages' | 'app'
   pageRuntime?: ServerRuntime
   hasServerComponents?: boolean
   originalAppPath?: string
@@ -1375,6 +1376,18 @@ export async function isPageStatic({
         experimental: { enableUndici },
       })
 
+      if (pageType === 'pages') {
+        return await isPagesPageStatic({
+          page,
+          pageRuntime,
+          distDir,
+          locales,
+          defaultLocale,
+          configFileName,
+          edgeInfo,
+        })
+      }
+
       let componentsResult: LoadComponentsReturnType
       let prerenderRoutes: Array<string> | undefined
       let encodedPrerenderRoutes: Array<string> | undefined
@@ -1382,7 +1395,7 @@ export async function isPageStatic({
       let appConfig: AppConfig = {}
       let isClientComponent: boolean = false
 
-      if (isEdgeRuntime(pageRuntime)) {
+      if (isEdgeRuntime(pageRuntime) && edgeInfo) {
         const runtime = await getRuntimeContext({
           paths: edgeInfo.files.map((file: string) => path.join(distDir, file)),
           env: edgeInfo.env,
@@ -1532,68 +1545,68 @@ export async function isPageStatic({
       const hasStaticProps = !!componentsResult.getStaticProps
       const hasStaticPaths = !!componentsResult.getStaticPaths
       const hasServerProps = !!componentsResult.getServerSideProps
-      const hasLegacyServerProps = !!(await componentsResult.ComponentMod
-        .unstable_getServerProps)
-      const hasLegacyStaticProps = !!(await componentsResult.ComponentMod
-        .unstable_getStaticProps)
-      const hasLegacyStaticPaths = !!(await componentsResult.ComponentMod
-        .unstable_getStaticPaths)
-      const hasLegacyStaticParams = !!(await componentsResult.ComponentMod
-        .unstable_getStaticParams)
+      // const hasLegacyServerProps = !!(await componentsResult.ComponentMod
+      //   .unstable_getServerProps)
+      // const hasLegacyStaticProps = !!(await componentsResult.ComponentMod
+      //   .unstable_getStaticProps)
+      // const hasLegacyStaticPaths = !!(await componentsResult.ComponentMod
+      //   .unstable_getStaticPaths)
+      // const hasLegacyStaticParams = !!(await componentsResult.ComponentMod
+      //   .unstable_getStaticParams)
 
-      if (hasLegacyStaticParams) {
-        throw new Error(
-          `unstable_getStaticParams was replaced with getStaticPaths. Please update your code.`
-        )
-      }
+      // if (hasLegacyStaticParams) {
+      //   throw new Error(
+      //     `unstable_getStaticParams was replaced with getStaticPaths. Please update your code.`
+      //   )
+      // }
 
-      if (hasLegacyStaticPaths) {
-        throw new Error(
-          `unstable_getStaticPaths was replaced with getStaticPaths. Please update your code.`
-        )
-      }
+      // if (hasLegacyStaticPaths) {
+      //   throw new Error(
+      //     `unstable_getStaticPaths was replaced with getStaticPaths. Please update your code.`
+      //   )
+      // }
 
-      if (hasLegacyStaticProps) {
-        throw new Error(
-          `unstable_getStaticProps was replaced with getStaticProps. Please update your code.`
-        )
-      }
+      // if (hasLegacyStaticProps) {
+      //   throw new Error(
+      //     `unstable_getStaticProps was replaced with getStaticProps. Please update your code.`
+      //   )
+      // }
 
-      if (hasLegacyServerProps) {
-        throw new Error(
-          `unstable_getServerProps was replaced with getServerSideProps. Please update your code.`
-        )
-      }
+      // if (hasLegacyServerProps) {
+      //   throw new Error(
+      //     `unstable_getServerProps was replaced with getServerSideProps. Please update your code.`
+      //   )
+      // }
 
-      // A page cannot be prerendered _and_ define a data requirement. That's
-      // contradictory!
-      if (hasGetInitialProps && hasStaticProps) {
-        throw new Error(SSG_GET_INITIAL_PROPS_CONFLICT)
-      }
+      // // A page cannot be prerendered _and_ define a data requirement. That's
+      // // contradictory!
+      // if (hasGetInitialProps && hasStaticProps) {
+      //   throw new Error(SSG_GET_INITIAL_PROPS_CONFLICT)
+      // }
 
-      if (hasGetInitialProps && hasServerProps) {
-        throw new Error(SERVER_PROPS_GET_INIT_PROPS_CONFLICT)
-      }
+      // if (hasGetInitialProps && hasServerProps) {
+      //   throw new Error(SERVER_PROPS_GET_INIT_PROPS_CONFLICT)
+      // }
 
-      if (hasStaticProps && hasServerProps) {
-        throw new Error(SERVER_PROPS_SSG_CONFLICT)
-      }
+      // if (hasStaticProps && hasServerProps) {
+      //   throw new Error(SERVER_PROPS_SSG_CONFLICT)
+      // }
 
-      const pageIsDynamic = isDynamicRoute(page)
-      // A page cannot have static parameters if it is not a dynamic page.
-      if (hasStaticProps && hasStaticPaths && !pageIsDynamic) {
-        throw new Error(
-          `getStaticPaths can only be used with dynamic pages, not '${page}'.` +
-            `\nLearn more: https://nextjs.org/docs/routing/dynamic-routes`
-        )
-      }
+      // const pageIsDynamic = isDynamicRoute(page)
+      // // A page cannot have static parameters if it is not a dynamic page.
+      // if (hasStaticProps && hasStaticPaths && !pageIsDynamic) {
+      //   throw new Error(
+      //     `getStaticPaths can only be used with dynamic pages, not '${page}'.` +
+      //       `\nLearn more: https://nextjs.org/docs/routing/dynamic-routes`
+      //   )
+      // }
 
-      if (hasStaticProps && pageIsDynamic && !hasStaticPaths) {
-        throw new Error(
-          `getStaticPaths is required for dynamic SSG pages and is missing for '${page}'.` +
-            `\nRead more: https://nextjs.org/docs/messages/invalid-getstaticpaths-value`
-        )
-      }
+      // if (hasStaticProps && pageIsDynamic && !hasStaticPaths) {
+      //   throw new Error(
+      //     `getStaticPaths is required for dynamic SSG pages and is missing for '${page}'.` +
+      //       `\nRead more: https://nextjs.org/docs/messages/invalid-getstaticpaths-value`
+      //   )
+      // }
 
       if ((hasStaticProps && hasStaticPaths) || staticPathsResult) {
         ;({

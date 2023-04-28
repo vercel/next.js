@@ -15,13 +15,18 @@ import {
   getAppEntry,
   runDependingOnPageType,
   getStaticInfoIncludingLayouts,
+  EntryDefinition,
 } from '../../build/entries'
 import { watchCompilers } from '../../build/output'
 import * as Log from '../../build/output/log'
 import getBaseWebpackConfig, {
   loadProjectInfo,
 } from '../../build/webpack-config'
-import { APP_DIR_ALIAS, WEBPACK_LAYERS } from '../../lib/constants'
+import {
+  APP_DIR_ALIAS,
+  PAGES_DIR_ALIAS,
+  WEBPACK_LAYERS,
+} from '../../lib/constants'
 import { recursiveDelete } from '../../lib/recursive-delete'
 import {
   BLOCKED_PAGES,
@@ -53,6 +58,8 @@ import { getRegistry } from '../../lib/helpers/get-registry'
 import { RouteMatch } from '../future/route-matches/route-match'
 import type { Telemetry } from '../../telemetry/storage'
 import { parseVersionInfo, VersionInfo } from './parse-version-info'
+import { isAPIRoute } from '../../lib/is-api-route'
+import { getNextRouteModuleEntry } from '../../build/webpack/loaders/next-route-module-loader'
 
 function diff(a: Set<any>, b: Set<any>) {
   return new Set([...a].filter((v) => !b.has(v)))
@@ -668,6 +675,7 @@ export default class HotReloader {
           config.name === COMPILER_NAMES.edgeServer
 
         await Promise.all(
+          // TODO: LOOK HERE
           Object.keys(entries).map(async (entryKey) => {
             const entryData = entries[entryKey]
             const { bundlePath, dispose } = entryData
@@ -738,28 +746,47 @@ export default class HotReloader {
               onEdgeServer: () => {
                 // TODO-APP: verify if child entry should support.
                 if (!isEdgeServerCompilation || !isEntry) return
-                const appDirLoader = isAppPath
-                  ? getAppEntry({
-                      name: bundlePath,
-                      page,
-                      appPaths: entryData.appPaths,
-                      pagePath: posix.join(
-                        APP_DIR_ALIAS,
-                        relative(
-                          this.appDir!,
-                          entryData.absolutePagePath
-                        ).replace(/\\/g, '/')
-                      ),
-                      appDir: this.appDir!,
-                      pageExtensions: this.config.pageExtensions,
-                      rootDir: this.dir,
-                      isDev: true,
-                      tsconfigPath: this.config.typescript.tsconfigPath,
-                      assetPrefix: this.config.assetPrefix,
-                      nextConfigOutput: this.config.output,
-                      preferredRegion: staticInfo.preferredRegion,
-                    }).import
-                  : undefined
+                let appDirLoader: string | undefined
+
+                if (isAppPath) {
+                  appDirLoader = getAppEntry({
+                    name: bundlePath,
+                    page,
+                    appPaths: entryData.appPaths,
+                    pagePath: posix.join(
+                      APP_DIR_ALIAS,
+                      relative(
+                        this.appDir!,
+                        entryData.absolutePagePath
+                      ).replace(/\\/g, '/')
+                    ),
+                    appDir: this.appDir!,
+                    pageExtensions: this.config.pageExtensions,
+                    rootDir: this.dir,
+                    isDev: true,
+                    tsconfigPath: this.config.typescript.tsconfigPath,
+                    assetPrefix: this.config.assetPrefix,
+                    nextConfigOutput: this.config.output,
+                    preferredRegion: staticInfo.preferredRegion,
+                  }).import
+                } else if (!isAPIRoute(page)) {
+                  appDirLoader = getNextRouteModuleEntry({
+                    dev: true,
+                    config: JSON.stringify(this.config),
+                    buildId: this.buildId,
+                    page,
+                    pages: this.pagesMapping,
+                    kind: 'pages',
+                    runtime: 'experimental-edge',
+                    pathname: denormalizePagePath(page),
+                    filename: posix.join(
+                      PAGES_DIR_ALIAS,
+                      relative(this.pagesDir!, entryData.absolutePagePath)
+                        // TODO: (wyattjoh) why is this replace needed?
+                        .replace(/\\/g, '/')
+                    ),
+                  }).import
+                }
 
                 entries[entryKey].status = BUILDING
                 entrypoints[bundlePath] = finalizeEntrypoint({
@@ -819,32 +846,55 @@ export default class HotReloader {
                 ) {
                   relativeRequest = `./${relativeRequest}`
                 }
+
+                let value: EntryDefinition
+                if (isAppPath) {
+                  value = getAppEntry({
+                    name: bundlePath,
+                    page,
+                    appPaths: entryData.appPaths,
+                    pagePath: posix.join(
+                      APP_DIR_ALIAS,
+                      relative(
+                        this.appDir!,
+                        entryData.absolutePagePath
+                      ).replace(/\\/g, '/')
+                    ),
+                    appDir: this.appDir!,
+                    pageExtensions: this.config.pageExtensions,
+                    rootDir: this.dir,
+                    isDev: true,
+                    tsconfigPath: this.config.typescript.tsconfigPath,
+                    assetPrefix: this.config.assetPrefix,
+                    nextConfigOutput: this.config.output,
+                    preferredRegion: staticInfo.preferredRegion,
+                  })
+                } else if (isAPIRoute(page)) {
+                  value = relativeRequest
+                } else {
+                  value = getNextRouteModuleEntry({
+                    dev: true,
+                    config: JSON.stringify(this.config),
+                    buildId: this.buildId,
+                    page,
+                    pages: this.pagesMapping,
+                    kind: 'pages',
+                    runtime: 'nodejs',
+                    pathname: denormalizePagePath(page),
+                    filename: posix.join(
+                      PAGES_DIR_ALIAS,
+                      relative(this.pagesDir!, entryData.absolutePagePath)
+                        // TODO: (wyattjoh) why is this replace needed?
+                        .replace(/\\/g, '/')
+                    ),
+                  })
+                }
+
                 entrypoints[bundlePath] = finalizeEntrypoint({
                   compilerType: COMPILER_NAMES.server,
                   name: bundlePath,
                   isServerComponent,
-                  value: isAppPath
-                    ? getAppEntry({
-                        name: bundlePath,
-                        page,
-                        appPaths: entryData.appPaths,
-                        pagePath: posix.join(
-                          APP_DIR_ALIAS,
-                          relative(
-                            this.appDir!,
-                            entryData.absolutePagePath
-                          ).replace(/\\/g, '/')
-                        ),
-                        appDir: this.appDir!,
-                        pageExtensions: this.config.pageExtensions,
-                        rootDir: this.dir,
-                        isDev: true,
-                        tsconfigPath: this.config.typescript.tsconfigPath,
-                        assetPrefix: this.config.assetPrefix,
-                        nextConfigOutput: this.config.output,
-                        preferredRegion: staticInfo.preferredRegion,
-                      })
-                    : relativeRequest,
+                  value,
                   hasAppDir,
                 })
               },

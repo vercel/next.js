@@ -1177,6 +1177,7 @@ export function Html(
     HTMLHtmlElement
   >
 ) {
+  // HERE
   const {
     inAmpMode,
     docComponentsRendered,

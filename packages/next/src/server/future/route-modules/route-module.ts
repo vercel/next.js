@@ -32,10 +32,15 @@ export interface RouteModuleOptions<U = unknown> {
  */
 export interface RouteModuleHandleContext {
   /**
+   * If true, indicates that this request is for static generation.
+   */
+  export: boolean
+
+  /**
    * Any matched parameters for the request. This is only defined for dynamic
    * routes.
    */
-  params: Record<string, string | string[]> | undefined
+  params: Record<string, string | string[] | undefined> | undefined
 }
 
 /**
@@ -93,21 +98,15 @@ export abstract class RouteModule<
   public abstract readonly definition: D
 
   /**
-   * Setup will setup the route handler. This could patch any globals or perform
-   * validation of the userland module. It is the responsibility of the module
-   * to ensure that this is only called once.
-   */
-  public abstract setup(): Promise<void>
-
-  /**
-   * Handle will handle the request and return a response.
+   * Handle will handle the request and return a response. This may also patch
+   * globals or perform validation of the userland module.
    */
   public abstract handle(
-    req: NextRequest,
+    request: NextRequest,
     context: RouteModuleHandleContext
   ): Promise<Response>
 
-  constructor({ userland }: RouteModuleOptions<U>) {
+  public constructor({ userland }: RouteModuleOptions<U>) {
     this.userland = userland
   }
 }

@@ -1,9 +1,12 @@
 import type { I18NConfig } from '../../config-shared'
 import type { RequestData } from '../types'
+import type { NodeNextRequest } from '../../base-http/node'
+
 import { NextURL } from '../next-url'
 import { toNodeHeaders, validateURL } from '../utils'
 import { RemovedUAError, RemovedPageError } from '../error'
 import { RequestCookies } from './cookies'
+import { WebNextRequest } from '../../base-http/web'
 
 export const INTERNALS = Symbol('internal request')
 

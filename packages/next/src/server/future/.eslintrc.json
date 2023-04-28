@@ -1,0 +1,26 @@
+{
+  "extends": "../../../../../.eslintrc.json",
+  "overrides": [
+    {
+      "files": ["**/*.ts", "**/*.tsx"],
+      "parser": "@typescript-eslint/parser",
+      "plugins": ["@typescript-eslint"],
+      "rules": {
+        // Warn on use of `any`.
+        "@typescript-eslint/no-explicit-any": "warn",
+        // Require explicit return types on functions and class methods.
+        "@typescript-eslint/explicit-module-boundary-types": "warn",
+        // Require explicit accessibility modifiers on class properties and methods.
+        "@typescript-eslint/explicit-member-accessibility": "warn"
+      }
+    }
+  ],
+  "rules": {
+    "prefer-const": [
+      "warn",
+      {
+        "ignoreReadBeforeAssign": true
+      }
+    ]
+  }
+}

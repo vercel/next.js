@@ -1,4 +1,4 @@
-import { DYNAMIC_ERROR_CODE } from '../../client/components/hooks-server-context'
+import { isDynamicServerError } from '../../client/components/hooks-server-context'
 import stringHash from 'next/dist/compiled/string-hash'
 import { formatServerError } from '../../lib/format-server-error'
 import { isNotFoundError } from '../../client/components/not-found'
@@ -33,7 +33,7 @@ export function createErrorHandler({
 
     if (
       err &&
-      (err.digest === DYNAMIC_ERROR_CODE ||
+      (isDynamicServerError(err) ||
         isNotFoundError(err) ||
         err.digest === NEXT_DYNAMIC_NO_SSR_CODE ||
         isRedirectError(err))

@@ -2,7 +2,10 @@ import type { RemotePattern } from '../shared/lib/image-config'
 import type { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
 import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
-import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
+import type {
+  EdgeFunctionDefinition,
+  MiddlewareManifest,
+} from './webpack/plugins/middleware-plugin'
 import type { ActionManifest } from './webpack/plugins/flight-client-entry-plugin'
 import type { ExportOptions } from '../export'
 
@@ -1216,6 +1219,7 @@ export default async function build(
             hasCustomErrorPage &&
             pagesStaticWorkers.isPageStatic({
               page: '/_error',
+              pageType: 'pages',
               distDir,
               configFileName,
               runtimeEnvConfig,
@@ -1374,7 +1378,7 @@ export default async function build(
 
                 if (pageType === 'app' || !isReservedPage(page)) {
                   try {
-                    let edgeInfo: any
+                    let edgeInfo: EdgeFunctionDefinition
 
                     if (isEdgeRuntime(pageRuntime)) {
                       if (pageType === 'app') {
@@ -1590,8 +1594,10 @@ export default async function build(
                     if (
                       !isError(err) ||
                       err.message !== 'INVALID_DEFAULT_EXPORT'
-                    )
+                    ) {
                       throw err
+                    }
+
                     invalidPages.add(page)
                   }
                 }
@@ -2827,6 +2833,11 @@ export default async function build(
         await promises.writeFile(
           path.join(distDir, PRERENDER_MANIFEST),
           JSON.stringify(prerenderManifest),
+          'utf8'
+        )
+        await promises.writeFile(
+          path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
+          `self.__PRERENDER_MANIFEST=${JSON.stringify(prerenderManifest)}`,
           'utf8'
         )
         await generateClientSsgManifest(prerenderManifest, {

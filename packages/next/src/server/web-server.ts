@@ -32,7 +32,6 @@ interface WebServerOptions extends Options {
     ) => Promise<LoadComponentsReturnType | null>
     extendRenderOpts: Partial<BaseServer['renderOpts']> &
       Pick<BaseServer['renderOpts'], 'buildId'>
-    pagesRenderToHTML?: typeof import('./render').renderToHTML
     appRenderToHTML?: typeof import('./app-render/app-render').renderToHTMLOrFlight
     incrementalCacheHandler?: any
   }
@@ -375,9 +374,8 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     query: NextParsedUrlQuery,
     renderOpts: RenderOpts
   ): Promise<RenderResult> {
-    const { pagesRenderToHTML, appRenderToHTML } =
-      this.serverOptions.webServerConfig
-    const curRenderToHTML = pagesRenderToHTML || appRenderToHTML
+    const { appRenderToHTML } = this.serverOptions.webServerConfig
+    const curRenderToHTML = appRenderToHTML
 
     if (curRenderToHTML) {
       return await curRenderToHTML(
