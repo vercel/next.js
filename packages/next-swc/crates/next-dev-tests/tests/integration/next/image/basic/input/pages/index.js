@@ -1,6 +1,7 @@
 import Image from 'next/image'
 import { img } from '../components/img'
 import broken from '../public/broken.jpeg'
+import svg from '../public/test.svg'
 import { useEffect } from 'react'
 
 export default function Home() {
@@ -16,6 +17,7 @@ export default function Home() {
       src={img}
       placeholder="blur"
     />,
+    <Image id="svg" alt="test svg image" src={svg} />,
     <Image
       id="local"
       alt="test src image"
@@ -33,6 +35,11 @@ function runTests() {
     expect(img).toHaveProperty('height', 100)
   })
 
+  it('should return image size for svg', function () {
+    expect(svg).toHaveProperty('width', 400)
+    expect(svg).toHaveProperty('height', 400)
+  })
+
   it('should not return image size for broken images', function () {
     expect(broken).toHaveProperty('width', 0)
     expect(broken).toHaveProperty('height', 0)
@@ -47,6 +54,12 @@ function runTests() {
     expect(img).toHaveProperty('blurHeight', 7)
   })
 
+  it('should not have blur placeholder for svg', function () {
+    expect(svg).toHaveProperty('blurDataURL', null)
+    expect(svg).toHaveProperty('blurWidth', 0)
+    expect(svg).toHaveProperty('blurHeight', 0)
+  })
+
   it('should not have blur placeholder for broken images', function () {
     expect(broken).toHaveProperty('blurDataURL', null)
     expect(broken).toHaveProperty('blurWidth', 0)
@@ -55,6 +68,11 @@ function runTests() {
 
   it('should link to imported image', function () {
     const img = document.querySelector('#imported')
+    expect(img.src).toContain(encodeURIComponent('_next/static/assets'))
+  })
+
+  it('should link to imported svg image', function () {
+    const img = document.querySelector('#svg')
     expect(img.src).toContain(encodeURIComponent('_next/static/assets'))
   })
 
