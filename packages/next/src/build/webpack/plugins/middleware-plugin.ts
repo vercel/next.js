@@ -21,7 +21,6 @@ import {
   SUBRESOURCE_INTEGRITY_MANIFEST,
   NEXT_FONT_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
-  PRERENDER_MANIFEST,
 } from '../../../shared/lib/constants'
 import {
   getPageStaticInfo,
@@ -132,10 +131,6 @@ function getEntryFiles(
 
   if (NextBuildContext!.hasInstrumentationHook) {
     files.push(`server/edge-${INSTRUMENTATION_HOOK_FILENAME}.js`)
-  }
-
-  if (NextBuildContext!.previewProps) {
-    files.push(`${PRERENDER_MANIFEST.replace(/\.json$/, '.js')}`)
   }
 
   files.push(
