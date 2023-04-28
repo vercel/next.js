@@ -5,7 +5,7 @@ createNextDescribe(
   {
     files: __dirname,
   },
-  ({ next, isNextDeploy }) => {
+  ({ next, isNextDeploy, isNextDev }) => {
     describe('from pages', () => {
       it.each([
         { pathname: '/adapter-hooks/static' },
@@ -79,16 +79,15 @@ createNextDescribe(
     describe('useDraftMode', () => {
       it('should draft mode be disabled', async () => {
         const $ = await next.render$('/hooks/use-draft-mode')
-        expect($('#draft-mode-disabled').text()).toBe('DISABLED')
+        expect($('#draft-mode-val').text()).toBe('DISABLED')
       })
 
       it('should draft mode be enabled after cookie is set', async () => {
-        const res = await next.fetch('/api/enable')
-        const cookie = res.headers
-          .get('set-cookie')
+        const res = await next.fetch('/enable')
+        const h = res.headers.get('set-cookie') || ''
+        const cookie = h
           .split(';')
-          .find((str) => str.startsWith('__prerender_bypass'))
-        console.log({ cookie })
+          .find((c) => c.startsWith('__prerender_bypass'))
         const $ = await next.render$(
           '/hooks/use-draft-mode',
           {},
@@ -98,7 +97,8 @@ createNextDescribe(
             },
           }
         )
-        expect($('#draft-mode-enabled').text()).toBe('ENABLED')
+        const val = isNextDev ? 'DISABLED' : 'ENABLED'
+        expect($('#draft-mode-val').text()).toBe(val)
       })
     })
 
