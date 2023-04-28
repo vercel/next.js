@@ -18,7 +18,7 @@ export type RouteHandlerManagerContext =
   // type.
   AppRouteRouteHandlerContext & PagesRouteHandlerContext
 
-// FIXME: (wyattjoh) add support for other module types.
+// TODO: (wyattjoh) add support for other module types.
 const SUPPORTED_MODULE_TYPES = new Set<RouteKind>([
   RouteKind.APP_ROUTE,
   RouteKind.PAGES,
@@ -46,6 +46,10 @@ export class RouteHandlerManager {
     return await this.execute(module, req, context)
   }
 
+  /**
+   * @deprecated Temporary method to allow us to use the return result of the
+   * `loadComponents` method.
+   */
   public async execute(
     module: RouteModule,
     req: BaseNextRequest,

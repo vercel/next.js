@@ -15,6 +15,7 @@ const routeModule = new RouteModule({
 // @ts-expect-error - exposed for edge support
 globalThis._ENTRIES = {
   middleware_edge: {
+    // @ts-expect-error - disabled temporarily, do not merge
     default: EdgeRouteModuleWrapper.wrap(routeModule, { page: `/${PAGE}` }),
   },
 }

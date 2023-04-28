@@ -18,8 +18,11 @@ import {
 import { promises as fs } from 'fs'
 import { isAppRouteRoute } from '../../../lib/is-app-route-route'
 import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
-import { NextConfig } from '../../../server/config-shared'
+import { NextConfigComplete } from '../../../server/config-shared'
 import { AppPathnameNormalizer } from '../../../server/future/normalizers/built/app/app-pathname-normalizer'
+import { AppRouteRouteModuleOptions } from '../../../server/future/route-modules/app-route/module'
+import { RouteKind } from '../../../server/future/route-kind'
+import { AppBundlePathNormalizer } from '../../../server/future/normalizers/built/app/app-bundle-path-normalizer'
 
 export type AppLoaderOptions = {
   name: string
@@ -33,7 +36,7 @@ export type AppLoaderOptions = {
   rootDir?: string
   tsconfigPath?: string
   isDev?: boolean
-  nextConfigOutput?: NextConfig['output']
+  config: string
 }
 type AppLoader = webpack.LoaderDefinitionFunction<AppLoaderOptions>
 
@@ -72,14 +75,14 @@ async function createAppRouteCode({
   pagePath,
   resolver,
   pageExtensions,
-  nextConfigOutput,
+  config,
 }: {
   name: string
   page: string
   pagePath: string
   resolver: PathResolver
   pageExtensions: string[]
-  nextConfigOutput: NextConfig['output']
+  config: NextConfigComplete
 }): Promise<string> {
   // routePath is the path to the route handler file,
   // but could be aliased e.g. private-next-app-dir/favicon.ico
@@ -106,21 +109,24 @@ async function createAppRouteCode({
   // References the route handler file to load found in `./routes/${kind}.ts`.
   // TODO: allow switching to the different kinds of routes
   const kind = 'app-route'
-  const normalizer = new AppPathnameNormalizer()
-  const pathname = normalizer.normalize(page)
+  const pathname = new AppPathnameNormalizer().normalize(page)
+  const bundlePath = new AppBundlePathNormalizer().normalize(page)
 
   // This is providing the options defined by the route options type found at
   // ./routes/${kind}.ts. This is stringified here so that the literal for
   // `userland` can reference the variable for `userland` that's in scope for
   // the loader code.
-  const options = `{
-    userland,
-    pathname: ${JSON.stringify(pathname)},
-    resolvedPagePath: ${JSON.stringify(resolvedPagePath)},
-    nextConfigOutput: ${
-      nextConfigOutput ? JSON.stringify(nextConfigOutput) : 'undefined'
+  const options: Omit<AppRouteRouteModuleOptions, 'userland'> = {
+    definition: {
+      kind: RouteKind.APP_ROUTE,
+      page,
+      pathname,
+      filename,
+      bundlePath,
     },
-  }`
+    resolvedPagePath,
+    config,
+  }
 
   return `
     import 'next/dist/server/node-polyfill-headers'
@@ -129,7 +135,11 @@ async function createAppRouteCode({
 
     import * as userland from ${JSON.stringify(resolvedPagePath)}
 
-    const routeModule = new RouteModule(${options})
+    const options = ${JSON.stringify(options)}
+    const routeModule = new RouteModule({
+      ...options,
+      userland,
+    })
 
     // Pull out the exports that we need to expose from the module. This should
     // be eliminated when we've moved the other routes to the new format. These
@@ -421,9 +431,13 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     rootDir,
     tsconfigPath,
     isDev,
-    nextConfigOutput,
     preferredRegion,
+    config: configBase64,
   } = loaderOptions
+
+  const config: NextConfigComplete = JSON.parse(
+    Buffer.from(configBase64, 'base64').toString('utf-8')
+  )
 
   const buildInfo = getModuleBuildInfo((this as any)._module)
   const page = name.replace(/^app/, '')
@@ -516,7 +530,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       pagePath,
       resolver,
       pageExtensions,
-      nextConfigOutput,
+      config,
     })
   }
 

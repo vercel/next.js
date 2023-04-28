@@ -125,13 +125,10 @@ export async function renderResultToResponse(
     })
   }
 
-  // // If this is a not found, we can return the result immediately.
-  // if (metadata.isNotFound) {
-  //   // FIXME: (wyattjoh) render the 404 page instead of this generic 404 response.
-  //   return new Response('Not Found', {
-  //     status: 404,
-  //   })
-  // }
+  // If this is a not found, we can return the result immediately.
+  if (metadata.isNotFound) {
+    throw new Error("Invariant: 'isNotFound' should never be true here")
+  }
 
   // Get and set the content type on the response.
   const contentType = result.contentType() || 'text/html; charset=utf-8'

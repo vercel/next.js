@@ -181,7 +181,7 @@ export default async function exportPage({
             outDir,
             incrementalCache,
             renderOpts: {
-              // FIXME: (wyattjoh) the type for RenderOpts here is wrong, lots of `as any` used above
+              // TODO: (wyattjoh) the type for RenderOpts here is wrong, lots of `as any` used above
               ...renderOpts,
               supportsDynamicHTML: false,
             },

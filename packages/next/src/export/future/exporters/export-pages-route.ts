@@ -210,7 +210,6 @@ export async function exportPagesRoute({
       res,
       statusCode,
       query,
-      page,
       ampPath: renderAmpPath,
       customServer: undefined,
       distDir,
@@ -227,7 +226,7 @@ export async function exportPagesRoute({
 
   // Validate the module. If it doesn't error here, then it _could_ be
   // pre-rendered.
-  module.setup(page, true, false)
+  module.setup(true)
 
   // For non-dynamic routes that have getStaticProps we should have already
   // pre-rendered the page.

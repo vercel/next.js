@@ -17,17 +17,15 @@ export function createErrorDebug(): React.FunctionComponent<{
 }> | null {
   if (process.env.NODE_ENV !== 'development') return null
 
-  return ({ error }: { error: Error }) => {
-    // Load the ReactDevOverlay component dynamically to avoid loading it in
-    // production.
+  // Load the ReactDevOverlay component dynamically to avoid loading it in
+  // production.
 
-    // FIXME: (wyattjoh) the types for this are not correct
-    const {
-      ReactDevOverlay,
-    } = require('next/dist/compiled/@next/react-dev-overlay/dist/client')
+  // TODO: (wyattjoh) the types for this are not correct
+  const {
+    ReactDevOverlay,
+  } = require('next/dist/compiled/@next/react-dev-overlay/dist/client')
 
-    return <ReactDevOverlay error={error} />
-  }
+  return ReactDevOverlay
 }
 
 export function createAppContainerWithIsomorphicFiberStructure(

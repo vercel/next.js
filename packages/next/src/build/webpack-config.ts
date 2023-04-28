@@ -2228,8 +2228,7 @@ export default async function getBaseWebpackConfig(
             return devPlugins
           })()
         : []),
-      // Don't include the react-is module in the client bundle.
-      !(isNodeServer || isEdgeServer) &&
+      !dev &&
         new webpack.IgnorePlugin({
           resourceRegExp: /react-is/,
           contextRegExp: /next[\\/]dist[\\/]/,

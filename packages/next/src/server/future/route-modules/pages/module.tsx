@@ -225,12 +225,39 @@ interface RouteRenderOptions {
   readonly runtime: ServerRuntime | undefined
 }
 
+type PagesRouteConfig = Pick<
+  NextConfigComplete,
+  | 'amp'
+  | 'output'
+  | 'images'
+  | 'i18n'
+  | 'assetPrefix'
+  | 'basePath'
+  | 'optimizeFonts'
+  | 'poweredByHeader'
+  | 'generateEtags'
+  | 'assetPrefix'
+  | 'crossOrigin'
+  | 'publicRuntimeConfig'
+> & {
+  experimental: Pick<
+    NextConfigComplete['experimental'],
+    | 'appDir'
+    | 'optimizeCss'
+    | 'strictNextHead'
+    | 'amp'
+    | 'nextScriptWorkers'
+    | 'largePageDataBytes'
+  >
+}
+
 export interface PagesRouteModuleOptions
-  extends RouteModuleOptions<PagesUserlandModule> {
-  readonly page: string
-  readonly pathname: string
+  extends RouteModuleOptions<
+    PagesRouteConfig,
+    PagesRouteDefinition,
+    PagesUserlandModule
+  > {
   readonly components: PagesComponents
-  readonly config: PagesRouteConfig
   readonly renderOpts: RouteRenderOptions
 }
 
@@ -274,32 +301,6 @@ interface PagesRouteHandlerRenderContext extends PagesRouteHandlerContext {
   readonly previewData: PreviewData | undefined
 }
 
-type PagesRouteConfig = Pick<
-  NextConfigComplete,
-  | 'amp'
-  | 'output'
-  | 'images'
-  | 'i18n'
-  | 'assetPrefix'
-  | 'basePath'
-  | 'optimizeFonts'
-  | 'poweredByHeader'
-  | 'generateEtags'
-  | 'assetPrefix'
-  | 'crossOrigin'
-  | 'publicRuntimeConfig'
-> & {
-  experimental: Pick<
-    NextConfigComplete['experimental'],
-    | 'appDir'
-    | 'optimizeCss'
-    | 'strictNextHead'
-    | 'amp'
-    | 'nextScriptWorkers'
-    | 'largePageDataBytes'
-  >
-}
-
 type Props = {
   __N_PREVIEW?: boolean
 
@@ -310,11 +311,10 @@ type Props = {
 }
 
 export class PagesRouteModule extends RouteModule<
+  PagesRouteConfig,
   PagesRouteDefinition,
   PagesUserlandModule
 > {
-  public readonly definition: PagesRouteDefinition
-  public readonly config: PagesRouteConfig
   public readonly isDynamic: boolean
   public readonly components: PagesComponents
   public readonly amp: boolean | 'hybrid'
@@ -324,26 +324,15 @@ export class PagesRouteModule extends RouteModule<
   public constructor({
     renderOpts,
     userland,
-    page,
-    pathname,
+    definition,
     components,
     config,
   }: PagesRouteModuleOptions) {
-    super({ userland })
-
-    this.definition = {
-      kind: RouteKind.PAGES,
-      page,
-      pathname,
-      // The following aren't needed for the route handler.
-      bundlePath: '',
-      filename: '',
-    }
+    super({ config, definition, userland })
 
     this.renderOpts = renderOpts
-    this.isDynamic = isDynamicRoute(page)
+    this.isDynamic = isDynamicRoute(definition.page)
     this.components = components
-    this.config = config
     this.amp = userland.config?.amp ?? false
   }
 

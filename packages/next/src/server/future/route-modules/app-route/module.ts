@@ -1,4 +1,4 @@
-import type { NextConfig } from '../../../config-shared'
+import type { NextConfigComplete } from '../../../config-shared'
 import type { AppRouteRouteDefinition } from '../../route-definitions/app-route-route-definition'
 import type { AppConfig } from '../../../../build/utils'
 import type { NextRequest } from '../../../web/spec-extension/request'
@@ -27,7 +27,6 @@ import { AppRouteRouteHandlersSpan } from '../../../lib/trace/constants'
 import { getPathnameFromAbsolutePath } from './helpers/get-pathname-from-absolute-path'
 import { proxyRequest } from './helpers/proxy-request'
 import { resolveHandlerError } from './helpers/resolve-handler-error'
-import { RouteKind } from '../../route-kind'
 import { autoImplementMethods } from './helpers/auto-implement-methods'
 import { getNonStaticMethods } from './helpers/get-non-static-methods'
 import { SYMBOL_MODIFY_COOKIE_VALUES } from '../../../web/spec-extension/adapters/request-cookies'
@@ -88,27 +87,32 @@ export type AppRouteUserlandModule = AppRouteHandlers &
   }
 
 /**
+ * The configuration that we need from the next.config.js file.
+ */
+type AppRouteConfig = Pick<NextConfigComplete, 'output'>
+
+/**
  * AppRouteRouteModuleOptions is the options that are passed to the app route
  * module from the bundled code.
  */
 export interface AppRouteRouteModuleOptions
-  extends RouteModuleOptions<AppRouteUserlandModule> {
-  readonly pathname: string
+  extends RouteModuleOptions<
+    AppRouteConfig,
+    AppRouteRouteDefinition,
+    AppRouteUserlandModule
+  > {
   readonly resolvedPagePath: string
-  readonly nextConfigOutput: NextConfig['output']
 }
 
 /**
  * AppRouteRouteHandler is the handler for app routes.
  */
 export class AppRouteRouteModule extends RouteModule<
+  AppRouteConfig,
   AppRouteRouteDefinition,
   AppRouteUserlandModule
 > {
-  public readonly definition: AppRouteRouteDefinition
-  public readonly pathname: string
   public readonly resolvedPagePath: string
-  public readonly nextConfigOutput: NextConfig['output'] | undefined
 
   private readonly methods: Record<HTTP_METHOD, AppRouteHandlerFn>
   private readonly nonStaticMethods: ReadonlyArray<HTTP_METHOD> | false
@@ -116,24 +120,13 @@ export class AppRouteRouteModule extends RouteModule<
 
   public constructor({
     userland,
-    pathname,
+    definition,
     resolvedPagePath,
-    nextConfigOutput,
+    config,
   }: AppRouteRouteModuleOptions) {
-    super({ userland })
+    super({ config, definition, userland })
 
-    this.definition = {
-      kind: RouteKind.APP_ROUTE,
-      pathname,
-      // The following aren't needed for the route handler.
-      page: '',
-      bundlePath: '',
-      filename: '',
-    }
-
-    this.pathname = pathname
     this.resolvedPagePath = resolvedPagePath
-    this.nextConfigOutput = nextConfigOutput
 
     // Automatically implement some methods if they aren't implemented by the
     // userland module.
@@ -144,12 +137,12 @@ export class AppRouteRouteModule extends RouteModule<
 
     // Get the dynamic property from the userland module.
     this.dynamic = this.userland.dynamic
-    if (this.nextConfigOutput === 'export') {
+    if (this.config.output === 'export') {
       if (!this.dynamic || this.dynamic === 'auto') {
         this.dynamic = 'error'
       } else if (this.dynamic === 'force-dynamic') {
         throw new Error(
-          `export const dynamic = "force-dynamic" on page "${pathname}" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
+          `export const dynamic = "force-dynamic" on page "${this.definition.pathname}" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
         )
       }
     }

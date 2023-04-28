@@ -54,6 +54,7 @@ import { normalizeMetadataRoute } from '../lib/metadata/get-metadata-route'
 import { fileExists } from '../lib/file-exists'
 import { getNextRouteModuleEntry } from './webpack/loaders/next-route-module-loader'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
+import { RouteKind } from '../server/future/route-kind'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 export type EntryDefinition = ObjectValue<webpack.EntryObject>
@@ -365,9 +366,17 @@ export function getEdgeServerEntry(opts: {
   }
 }
 
-export function getAppEntry(opts: Readonly<AppLoaderOptions>) {
+export function getAppEntry({
+  config,
+  ...opts
+}: Readonly<
+  Omit<AppLoaderOptions, 'config'> & { config: NextConfigComplete }
+>) {
   return {
-    import: `next-app-loader?${stringify(opts)}!`,
+    import: `next-app-loader?${stringify({
+      ...opts,
+      config: Buffer.from(JSON.stringify(config)).toString('base64'),
+    })}!`,
     layer: WEBPACK_LAYERS.server,
   }
 }
@@ -557,8 +566,8 @@ export async function createEntrypoints(
               appPaths: matchedAppPaths,
               pageExtensions,
               assetPrefix: config.assetPrefix,
-              nextConfigOutput: config.output,
               preferredRegion: staticInfo.preferredRegion,
+              config,
             })
           } else if (isInstrumentationHookFile(page) && pagesType === 'root') {
             server[serverBundlePath.replace('src/', '')] = {
@@ -568,14 +577,16 @@ export async function createEntrypoints(
             }
           } else if (!isAPIRoute(page)) {
             server[serverBundlePath] = getNextRouteModuleEntry({
-              config: JSON.stringify(config),
+              config,
               buildId: params.buildId,
-              page,
+              definition: {
+                kind: RouteKind.PAGES,
+                page,
+                pathname: denormalizePagePath(page),
+                filename: mappings[page],
+              },
               pages,
-              kind: 'pages',
               runtime: 'nodejs',
-              pathname: denormalizePagePath(page),
-              filename: mappings[page],
             })
           } else {
             server[serverBundlePath] = [mappings[page]]
@@ -593,21 +604,23 @@ export async function createEntrypoints(
               appPaths: matchedAppPaths,
               pageExtensions,
               assetPrefix: config.assetPrefix,
-              nextConfigOutput: config.output,
               // This isn't used with edge as it needs to be set on the entry module, which will be the `edgeServerEntry` instead.
               // Still passing it here for consistency.
               preferredRegion: staticInfo.preferredRegion,
+              config,
             }).import
           } else if (pagesType === 'pages' && !isAPIRoute(page)) {
             appDirLoader = getNextRouteModuleEntry({
-              config: JSON.stringify(config),
+              config,
               buildId: params.buildId,
-              page,
+              definition: {
+                kind: RouteKind.PAGES,
+                page,
+                pathname: denormalizePagePath(page),
+                filename: mappings[page],
+              },
               pages,
-              kind: 'pages',
               runtime: 'experimental-edge',
-              pathname: denormalizePagePath(page),
-              filename: mappings[page],
             }).import
           }
 

@@ -1,5 +1,6 @@
 import type { RouteDefinition } from '../route-definitions/route-definition'
 import type { NextRequest } from '../../web/spec-extension/request'
+import type { NextConfigComplete } from '../../config-shared'
 
 // These are imported weirdly like this because of the way that the bundling
 // works. We need to import the built files from the dist directory, but we
@@ -23,7 +24,13 @@ const { actionAsyncStorage } =
  * route modules should extend this class to add specific options for their
  * route.
  */
-export interface RouteModuleOptions<U = unknown> {
+export interface RouteModuleOptions<
+  C extends Partial<NextConfigComplete>,
+  D extends RouteDefinition = RouteDefinition,
+  U = unknown
+> {
+  readonly config: C
+  readonly definition: D
   readonly userland: Readonly<U>
 }
 
@@ -48,6 +55,7 @@ export interface RouteModuleHandleContext {
  * extended by all route modules.
  */
 export abstract class RouteModule<
+  C extends Partial<NextConfigComplete> = Partial<NextConfigComplete>,
   D extends RouteDefinition = RouteDefinition,
   U = unknown
 > {
@@ -95,7 +103,12 @@ export abstract class RouteModule<
   /**
    * The definition of the route.
    */
-  public abstract readonly definition: D
+  public readonly definition: Readonly<D>
+
+  /**
+   * The contents of next.config.js for the current project.
+   */
+  public readonly config: Readonly<C>
 
   /**
    * Handle will handle the request and return a response. This may also patch
@@ -106,7 +119,13 @@ export abstract class RouteModule<
     context: RouteModuleHandleContext
   ): Promise<Response>
 
-  public constructor({ userland }: RouteModuleOptions<U>) {
+  public constructor({
+    config,
+    definition,
+    userland,
+  }: RouteModuleOptions<C, D, U>) {
+    this.config = config
+    this.definition = definition
     this.userland = userland
   }
 }

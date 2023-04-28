@@ -1,6 +1,8 @@
-import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
+import type { Telemetry } from '../../telemetry/storage'
 import type { NextConfigComplete } from '../config-shared'
 import type { CustomRoutes } from '../../lib/load-custom-routes'
+
+import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
 import { getOverlayMiddleware } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
 import { IncomingMessage, ServerResponse } from 'http'
 import { WebpackHotMiddleware } from './hot-middleware'
@@ -56,10 +58,10 @@ import { promises as fs } from 'fs'
 import { UnwrapPromise } from '../../lib/coalesced-function'
 import { getRegistry } from '../../lib/helpers/get-registry'
 import { RouteMatch } from '../future/route-matches/route-match'
-import type { Telemetry } from '../../telemetry/storage'
 import { parseVersionInfo, VersionInfo } from './parse-version-info'
 import { isAPIRoute } from '../../lib/is-api-route'
 import { getNextRouteModuleEntry } from '../../build/webpack/loaders/next-route-module-loader'
+import { RouteKind } from '../future/route-kind'
 
 function diff(a: Set<any>, b: Set<any>) {
   return new Set([...a].filter((v) => !b.has(v)))
@@ -766,24 +768,26 @@ export default class HotReloader {
                     isDev: true,
                     tsconfigPath: this.config.typescript.tsconfigPath,
                     assetPrefix: this.config.assetPrefix,
-                    nextConfigOutput: this.config.output,
                     preferredRegion: staticInfo.preferredRegion,
+                    config: this.config,
                   }).import
                 } else if (!isAPIRoute(page)) {
                   appDirLoader = getNextRouteModuleEntry({
-                    config: JSON.stringify(this.config),
+                    config: this.config,
                     buildId: this.buildId,
-                    page,
+                    definition: {
+                      kind: RouteKind.PAGES,
+                      page,
+                      pathname: denormalizePagePath(page),
+                      filename: posix.join(
+                        PAGES_DIR_ALIAS,
+                        relative(this.pagesDir!, entryData.absolutePagePath)
+                          // TODO: (wyattjoh) why is this replace needed?
+                          .replace(/\\/g, '/')
+                      ),
+                    },
                     pages: this.pagesMapping,
-                    kind: 'pages',
                     runtime: 'experimental-edge',
-                    pathname: denormalizePagePath(page),
-                    filename: posix.join(
-                      PAGES_DIR_ALIAS,
-                      relative(this.pagesDir!, entryData.absolutePagePath)
-                        // TODO: (wyattjoh) why is this replace needed?
-                        .replace(/\\/g, '/')
-                    ),
                   }).import
                 }
 
@@ -865,26 +869,28 @@ export default class HotReloader {
                     isDev: true,
                     tsconfigPath: this.config.typescript.tsconfigPath,
                     assetPrefix: this.config.assetPrefix,
-                    nextConfigOutput: this.config.output,
                     preferredRegion: staticInfo.preferredRegion,
+                    config: this.config,
                   })
                 } else if (isAPIRoute(page)) {
                   value = relativeRequest
                 } else {
                   value = getNextRouteModuleEntry({
-                    config: JSON.stringify(this.config),
+                    config: this.config,
                     buildId: this.buildId,
-                    page,
+                    definition: {
+                      kind: RouteKind.PAGES,
+                      page,
+                      pathname: denormalizePagePath(page),
+                      filename: posix.join(
+                        PAGES_DIR_ALIAS,
+                        relative(this.pagesDir!, entryData.absolutePagePath)
+                          // TODO: (wyattjoh) why is this replace needed?
+                          .replace(/\\/g, '/')
+                      ),
+                    },
                     pages: this.pagesMapping,
-                    kind: 'pages',
                     runtime: 'nodejs',
-                    pathname: denormalizePagePath(page),
-                    filename: posix.join(
-                      PAGES_DIR_ALIAS,
-                      relative(this.pagesDir!, entryData.absolutePagePath)
-                        // TODO: (wyattjoh) why is this replace needed?
-                        .replace(/\\/g, '/')
-                    ),
                   })
                 }
 

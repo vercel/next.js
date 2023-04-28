@@ -103,6 +103,7 @@ import { fromNodeHeaders, toNodeHeaders } from './web/utils'
 import { NEXT_QUERY_PARAM_PREFIX } from '../lib/constants'
 import { ManifestLoader } from './future/route-modules/pages/helpers/load-manifests'
 import { NodeNextRequest, NodeNextResponse } from './base-http/node'
+import { isAPIRoute } from '../lib/is-api-route'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -1632,13 +1633,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             })
           : resolvedUrl
 
-      // const match =
-      //   pathname !== '/_error' && !is404Page && !is500Page
-      //     ? getRequestMeta(req, '_nextMatch')
-      //     : undefined
+      // TODO: (wyattjoh) improve the match detection
       const match = getRequestMeta(req, '_nextMatch')
       if (
         match ||
+        // In cases where we've relied on the old `loadComponents` call we need
+        // to check to see if the route module is defined and if so execute it.
+        // TODO: (wyattjoh) remove this once we've migrated to the new route manager system completely
         (components.ComponentMod && components.ComponentMod.routeModule)
       ) {
         const context: RouteHandlerManagerContext = {
@@ -1677,11 +1678,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           // Handle the match and collect the response if it's a static response.
           const response = match
             ? await this.handlers.handle(match, req, context)
-            : await this.handlers.execute(
+            : // TODO: (wyattjoh) remove this once we've migrated to the new route manager system completely
+              await this.handlers.execute(
                 components.ComponentMod.routeModule,
                 req,
                 context
               )
+
           if (response) {
             // If the request is for a static response, we can cache it so long
             // as it's not edge.
@@ -1699,6 +1702,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               // configuration of the route.
               const revalidate: number | false =
                 context.staticGenerationContext.store?.revalidate ?? false
+
+              // TODO: (wyattjoh) this branch is hit now for app routes AND pages, maybe we should reevaluate this logic?
 
               // Create the cache entry for the response.
               const cacheEntry: ResponseCacheEntry = {
@@ -1736,8 +1741,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           // This is not an app route, so throw the error so it can bubble.
           throw err
         }
-      } else {
-        throw new Error(`DEBUG: no match for ${pathname} on ${req.url}`)
+      } else if (
+        // App Pages is not supported yet.
+        !isAppPath &&
+        // Pages API is not supported yet.
+        !isAPIRoute(pathname)
+      ) {
+        throw new Error(
+          `Invariant: expected match for ${pathname} on ${req.url} but none found`
+        )
       }
 
       const renderOpts: RenderOpts = {

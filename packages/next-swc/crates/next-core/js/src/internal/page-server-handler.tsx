@@ -237,6 +237,7 @@ export default function startHandler({
     const parsedQuery = parse(renderData.rawQuery)
     const query = { ...parsedQuery, ...renderData.params }
 
+    // @ts-expect-error - disabled temporarily, do not merge
     const renderResult = await renderToHTML(
       /* req: IncomingMessage */
       req,

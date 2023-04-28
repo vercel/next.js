@@ -1,11 +1,12 @@
+import type { Normalizer } from '../../normalizer'
+
 import { normalizePagePath } from '../../../../../shared/lib/page-path/normalize-page-path'
-import { Normalizer } from '../../normalizer'
 import { Normalizers } from '../../normalizers'
 import { PrefixingNormalizer } from '../../prefixing-normalizer'
 import { wrapNormalizerFn } from '../../wrap-normalizer-fn'
 
 export class PagesBundlePathNormalizer extends Normalizers {
-  constructor() {
+  public constructor() {
     super([
       // The bundle path should have the trailing `/index` stripped from
       // it.
@@ -21,7 +22,7 @@ export class PagesBundlePathNormalizer extends Normalizers {
 }
 
 export class DevPagesBundlePathNormalizer extends Normalizers {
-  constructor(pagesNormalizer: Normalizer) {
+  public constructor(pagesNormalizer: Normalizer) {
     super([
       // This should normalize the filename to a page.
       pagesNormalizer,
