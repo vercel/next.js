@@ -220,7 +220,6 @@ export type PagesManifests = {
 }
 
 interface RouteRenderOptions {
-  readonly dev: boolean
   readonly buildId: string
   readonly disableOptimizedLoading: boolean
   readonly runtime: ServerRuntime | undefined
@@ -236,9 +235,15 @@ export interface PagesRouteModuleOptions
 }
 
 export interface PagesRouteHandlerContext extends RouteModuleHandleContext {
+  /**
+   * The manifest files used by pages in order to facilitate rendering.
+   */
   manifests: PagesManifests
+
+  /**
+   * The options used to render the page.
+   */
   renderOpts: {
-    page: string
     req: IncomingMessage | undefined
     res: ServerResponse | undefined
     /**
@@ -349,11 +354,7 @@ export class PagesRouteModule extends RouteModule<
    * @param nextExport Whether or not the app is being exported.
    * @param dev Whether or not the app is doing a development build.
    */
-  public setup(
-    page: string,
-    nextExport: boolean | undefined,
-    dev: boolean | undefined
-  ): void {
+  public setup(nextExport: boolean | undefined): void {
     const {
       default: Component,
       getServerSideProps,
@@ -368,10 +369,11 @@ export class PagesRouteModule extends RouteModule<
     if (
       nextExport &&
       getInitialProps &&
-      (page !== '/_error' || getInitialProps !== origGetInitialProps)
+      (this.definition.page !== '/_error' ||
+        getInitialProps !== origGetInitialProps)
     ) {
       logger.warn(
-        `Detected getInitialProps on page '${page}'` +
+        `Detected getInitialProps on page '${this.definition.page}'` +
           ` while running export. It's recommended to use getStaticProps` +
           ` which has a more correct behavior for static exporting.` +
           `\nRead more: https://nextjs.org/docs/messages/get-initial-props-export`
@@ -381,22 +383,28 @@ export class PagesRouteModule extends RouteModule<
     // Error if the component exports `getServerSideProps` while we are
     // exporting.
     if (nextExport && getServerSideProps) {
-      throw new Error(`Error for page ${page}: ${SERVER_PROPS_EXPORT_ERROR}`)
+      throw new Error(
+        `Error for page ${this.definition.page}: ${SERVER_PROPS_EXPORT_ERROR}`
+      )
     }
 
     // Error on usage of both `getStaticProps` and `getInitialProps`.
     if (getStaticProps && getInitialProps) {
-      throw new Error(SSG_GET_INITIAL_PROPS_CONFLICT + ` ${page}`)
+      throw new Error(
+        SSG_GET_INITIAL_PROPS_CONFLICT + ` ${this.definition.page}`
+      )
     }
 
     // Error on usage of both `getServerSideProps` and `getInitialProps`.
     if (getServerSideProps && getInitialProps) {
-      throw new Error(SERVER_PROPS_GET_INIT_PROPS_CONFLICT + ` ${page}`)
+      throw new Error(
+        SERVER_PROPS_GET_INIT_PROPS_CONFLICT + ` ${this.definition.page}`
+      )
     }
 
     // Error on usage of both `getServerSideProps` and `getStaticProps`.
     if (getServerSideProps && getStaticProps) {
-      throw new Error(SERVER_PROPS_SSG_CONFLICT + ` ${page}`)
+      throw new Error(SERVER_PROPS_SSG_CONFLICT + ` ${this.definition.page}`)
     }
 
     // Error when using `getServerSideProps` with `output: 'export'`.
@@ -409,14 +417,14 @@ export class PagesRouteModule extends RouteModule<
     // Error when there is `getStaticPaths` and the route is not dynamic.
     if (getStaticPaths && !this.isDynamic) {
       throw new Error(
-        `getStaticPaths is only allowed for dynamic SSG pages and was found on "${page}".\nRead more: https://nextjs.org/docs/messages/non-dynamic-getstaticpaths-usage`
+        `getStaticPaths is only allowed for dynamic SSG pages and was found on "${this.definition.page}".\nRead more: https://nextjs.org/docs/messages/non-dynamic-getstaticpaths-usage`
       )
     }
 
     // Error when there is `getStaticPaths but no `getStaticProps`.
     if (getStaticPaths && !getStaticProps) {
       throw new Error(
-        `getStaticPaths was added without a getStaticProps in ${page}. Without getStaticProps, getStaticPaths does nothing`
+        `getStaticPaths was added without a getStaticProps in ${this.definition.page}. Without getStaticProps, getStaticPaths does nothing`
       )
     }
 
@@ -424,7 +432,7 @@ export class PagesRouteModule extends RouteModule<
     // is dynamic.
     if (this.isDynamic && getStaticProps && !getStaticPaths) {
       throw new Error(
-        `getStaticPaths is required for dynamic SSG pages and is missing for ${page}.\nRead more: https://nextjs.org/docs/messages/invalid-getstaticpaths-value`
+        `getStaticPaths is required for dynamic SSG pages and is missing for ${this.definition.page}.\nRead more: https://nextjs.org/docs/messages/invalid-getstaticpaths-value`
       )
     }
 
@@ -436,19 +444,21 @@ export class PagesRouteModule extends RouteModule<
       'getServerSideProps',
     ]) {
       if (method in Component) {
-        throw new Error(`page${page} ${method} ${GSSP_COMPONENT_MEMBER_ERROR}`)
+        throw new Error(
+          `page${this.definition.page} ${method} ${GSSP_COMPONENT_MEMBER_ERROR}`
+        )
       }
     }
 
     // Run the following validations only in development.
-    if (dev) {
+    if (process.env.NODE_ENV === 'development') {
       // Check that the components that we're going to render are valid React
       // components.
       const { isValidElementType } =
         require('next/dist/compiled/react-is') as typeof import('next/dist/compiled/react-is')
       if (!isValidElementType(Component)) {
         throw new Error(
-          `The default export is not a React Component in page: "${page}"`
+          `The default export is not a React Component in page: "${this.definition.page}"`
         )
       }
 
@@ -489,7 +499,7 @@ export class PagesRouteModule extends RouteModule<
     context: PagesRouteHandlerContext
   ): Promise<Response> {
     // Perform the setup and validation of the userland module.
-    this.setup(context.renderOpts.page, context.export, this.renderOpts.dev)
+    this.setup(context.export)
 
     // This is only available when we aren't in the edge runtime, otherwise it
     // will be undefined.
@@ -554,7 +564,6 @@ export class PagesRouteModule extends RouteModule<
       request,
       result,
       {
-        dev: this.renderOpts.dev,
         basePath: this.config.basePath,
         definition: this.definition,
         hasGetStaticProps: typeof this.userland.getStaticProps === 'function',
@@ -643,7 +652,7 @@ export class PagesRouteModule extends RouteModule<
     // If we're in development and we're rendering a custom error module, we
     // should validate that it doesn't have exports that aren't supported.
     if (
-      this.renderOpts.dev &&
+      process.env.NODE_ENV === 'development' &&
       module !== this.userland &&
       module !== this.components.Error
     ) {
@@ -670,9 +679,8 @@ export class PagesRouteModule extends RouteModule<
     // In dev we invalidate the cache by appending a timestamp to the resource URL.
     // This is a workaround to fix https://github.com/vercel/next.js/issues/5860
     // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
-    metadata.devOnlyCacheBusterQueryString = this.renderOpts.dev
-      ? `?ts=${Date.now()}`
-      : ''
+    metadata.devOnlyCacheBusterQueryString =
+      process.env.NODE_ENV === 'development' ? `?ts=${Date.now()}` : ''
 
     // The app has a custom `getInitialProps` method if the `pages/_app` has a
     // `getInitialProps` method that is equal to the `origGetInitialProps`
@@ -712,7 +720,7 @@ export class PagesRouteModule extends RouteModule<
     // We only need to perform this transformation in development because when
     // we're in production we're serving the static files that are already
     // transformed during build.
-    if (this.renderOpts.dev) {
+    if (process.env.NODE_ENV === 'development') {
       // If we're exporting the page during automatic export or when rendering a
       // fallback page during a development build,
       if (isAutoExport || isFallback) {
@@ -822,9 +830,7 @@ export class PagesRouteModule extends RouteModule<
     // https://github.com/facebook/react/pull/22644
 
     const AppContainerWithIsomorphicFiberStructure =
-      createAppContainerWithIsomorphicFiberStructure(AppContainer, {
-        dev: this.renderOpts.dev,
-      })
+      createAppContainerWithIsomorphicFiberStructure(AppContainer)
 
     const ctx = {
       err: context.renderOpts.err,
@@ -862,7 +868,9 @@ export class PagesRouteModule extends RouteModule<
 
     const nextExport =
       !(typeof getStaticProps === 'function') &&
-      (context.export || (this.renderOpts.dev && (isAutoExport || isFallback)))
+      (context.export ||
+        (process.env.NODE_ENV === 'development' &&
+          (isAutoExport || isFallback)))
 
     const styledJsxInsertedHTML = (): JSX.Element => {
       const styles = jsxStyleRegistry.styles()
@@ -995,7 +1003,7 @@ export class PagesRouteModule extends RouteModule<
         // and the result of `getStaticProps` is not serializable we should throw
         // an error.
         if (
-          (this.renderOpts.dev || context.export) &&
+          (process.env.NODE_ENV === 'development' || context.export) &&
           'props' in data &&
           !isSerializableProps(pathname, 'getStaticProps', data.props)
         ) {
@@ -1119,7 +1127,7 @@ export class PagesRouteModule extends RouteModule<
         // and the result of `getServerSideProps` is not serializable we should throw
         // an error.
         if (
-          (this.renderOpts.dev || context.export) &&
+          (process.env.NODE_ENV === 'development' || context.export) &&
           'props' in data &&
           !isSerializableProps(pathname, 'getServerSideProps', data.props)
         ) {
@@ -1207,7 +1215,7 @@ export class PagesRouteModule extends RouteModule<
     }
 
     const Body = createBody(inAmpMode)
-    const ErrorDebug = createErrorDebug(this.renderOpts.dev)
+    const ErrorDebug = createErrorDebug()
 
     const renderDocument = async () => {
       // For `Document`, there are two cases that we don't support:
@@ -1255,7 +1263,7 @@ export class PagesRouteModule extends RouteModule<
 
           // Validate that the props returned do not contain next props.
           if (
-            this.renderOpts.dev &&
+            process.env.NODE_ENV === 'development' &&
             ('router' in props || 'Component' in props)
           ) {
             throw new Error(
@@ -1469,7 +1477,7 @@ export class PagesRouteModule extends RouteModule<
       const htmlProps: HtmlProps = {
         __NEXT_DATA__: {
           props, // The result of getInitialProps
-          page: context.renderOpts.page, // The rendered page
+          page: this.definition.page, // The rendered page
           query, // querystring parsed / passed by the user
           buildId, // buildId is used to facilitate caching of page bundles, we send it to the client so that pageloader knows where to load bundles
           assetPrefix:
@@ -1488,7 +1496,7 @@ export class PagesRouteModule extends RouteModule<
               ? undefined
               : Array.from(dynamicImportsIds),
           err: context.renderOpts.err
-            ? serializeError(this.renderOpts.dev, context.renderOpts.err)
+            ? serializeError(context.renderOpts.err)
             : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
           gsp: !!getStaticProps || undefined, // whether the page is getStaticProps
           gssp: !!getServerSideProps || undefined, // whether the page is getServerSideProps
@@ -1501,7 +1509,7 @@ export class PagesRouteModule extends RouteModule<
           domainLocales: this.config.i18n?.domains,
           isPreview: isPreview || undefined,
           notFoundSrcPage:
-            notFoundSrcPage && this.renderOpts.dev
+            notFoundSrcPage && process.env.NODE_ENV === 'development'
               ? notFoundSrcPage
               : undefined,
         },
@@ -1512,7 +1520,7 @@ export class PagesRouteModule extends RouteModule<
         canonicalBase,
         ampPath: context.renderOpts.ampPath || '',
         inAmpMode,
-        isDevelopment: this.renderOpts.dev,
+        isDevelopment: process.env.NODE_ENV === 'development',
         hybridAmp,
         dynamicImports: Array.from(dynamicImports),
         assetPrefix: this.config.assetPrefix,
@@ -1604,7 +1612,7 @@ export class PagesRouteModule extends RouteModule<
           ampSkipValidation: this.config.experimental.amp?.skipValidation,
           ampOptimizerConfig: this.config.experimental.amp?.optimizer,
           ampValidator:
-            this.renderOpts.dev && createAMPValidator
+            process.env.NODE_ENV === 'development' && createAMPValidator
               ? createAMPValidator(this.config.experimental.amp?.validator)
               : undefined,
           fontManifest: context.manifests.font,

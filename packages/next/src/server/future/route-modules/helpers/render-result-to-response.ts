@@ -19,7 +19,6 @@ type RenderResultToResponseContext = {
 }
 
 type RenderResultToResponseModule = {
-  dev: boolean | undefined
   hasGetStaticProps: boolean
   definition: RouteDefinition
   basePath: string | undefined
@@ -57,7 +56,7 @@ export async function renderResultToResponse(
   const metadata = result.metadata()
 
   // If we're in dev mode, we shouldn't cache for any reason.
-  if (module.dev) {
+  if (process.env.NODE_ENV === 'development') {
     headers.set('Cache-Control', 'no-store, must-revalidate')
   }
   // If revalidate is set, we're in development mode or we're rendering a page

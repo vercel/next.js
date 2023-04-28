@@ -63,9 +63,14 @@ export class EdgeRouteModuleWrapper {
   }
 
   private async handler(request: NextRequest): Promise<Response> {
+    const url = new URL(request.url)
+
     // Get the pathname for the matcher. Pathnames should not have trailing
     // slashes for matching.
-    const pathname = removeTrailingSlash(new URL(request.url).pathname)
+    const pathname = removeTrailingSlash(url.pathname)
+
+    // Get the query string from the URL.
+    const query = Object.fromEntries(url.searchParams.entries())
 
     // Get the match for this request.
     const match = this.matcher.match(pathname)
@@ -83,18 +88,17 @@ export class EdgeRouteModuleWrapper {
       staticGenerationContext: { supportsDynamicHTML: true },
       manifests: ManifestLoader.load(),
       renderOpts: {
-        page: this.routeModule.definition.page,
+        query,
 
         // FIXME: (wyattjoh) implement
         isDataReq: undefined,
         resolvedAsPath: undefined,
-        query: {},
         resolvedUrl: '',
         locale: undefined,
         defaultLocale: undefined,
         isLocaleDomain: undefined,
 
-        // Not enabled in edge.
+        // Not enabled/available in edge.
         req: undefined,
         res: undefined,
         statusCode: undefined,

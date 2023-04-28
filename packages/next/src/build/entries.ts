@@ -568,7 +568,6 @@ export async function createEntrypoints(
             }
           } else if (!isAPIRoute(page)) {
             server[serverBundlePath] = getNextRouteModuleEntry({
-              dev: params.isDev ?? false,
               config: JSON.stringify(config),
               buildId: params.buildId,
               page,
@@ -601,7 +600,6 @@ export async function createEntrypoints(
             }).import
           } else if (pagesType === 'pages' && !isAPIRoute(page)) {
             appDirLoader = getNextRouteModuleEntry({
-              dev: params.isDev ?? false,
               config: JSON.stringify(config),
               buildId: params.buildId,
               page,

@@ -1659,9 +1659,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
                 : undefined,
             // TODO: (wyattjoh) we may not need this! remove if possible
             statusCode: res.statusCode,
-            // Fun fact, the `pathname` here is actually the page!
-            // TODO: (wyattjoh) fix this naming of `pathname` to `page`
-            page: pathname,
             ampPath: opts.ampPath,
             customServer: opts.customServer,
             distDir: opts.distDir,

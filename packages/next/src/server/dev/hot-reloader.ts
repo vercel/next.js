@@ -771,7 +771,6 @@ export default class HotReloader {
                   }).import
                 } else if (!isAPIRoute(page)) {
                   appDirLoader = getNextRouteModuleEntry({
-                    dev: true,
                     config: JSON.stringify(this.config),
                     buildId: this.buildId,
                     page,
@@ -873,7 +872,6 @@ export default class HotReloader {
                   value = relativeRequest
                 } else {
                   value = getNextRouteModuleEntry({
-                    dev: true,
                     config: JSON.stringify(this.config),
                     buildId: this.buildId,
                     page,

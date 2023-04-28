@@ -2,14 +2,11 @@ import type { COMPILER_NAMES } from '../../../../../shared/lib/constants'
 
 import { errorToJSON } from '../../../../render'
 
-export function serializeError(
-  dev: boolean | undefined,
-  err: Error
-): Error & {
+export function serializeError(err: Error): Error & {
   statusCode?: number
   source?: typeof COMPILER_NAMES.server | typeof COMPILER_NAMES.edgeServer
 } {
-  if (dev) {
+  if (process.env.NODE_ENV === 'development') {
     return errorToJSON(err)
   }
 

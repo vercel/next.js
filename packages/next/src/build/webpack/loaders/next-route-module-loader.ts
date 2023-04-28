@@ -10,7 +10,6 @@ type NextRouteModuleLoaderOptions = {
   runtime: ServerRuntime
   pathname: string
   filename: string
-  dev: 'true' | 'false'
   config: string
   buildId: string
   absoluteAppPath: string
@@ -22,11 +21,9 @@ type NextRouteModuleLoaderOptions = {
 
 export const getNextRouteModuleEntry = ({
   pages,
-  dev,
   config,
   ...options
 }: {
-  dev: boolean
   config: string
   buildId: string
   page: string
@@ -39,7 +36,6 @@ export const getNextRouteModuleEntry = ({
   const params: NextRouteModuleLoaderOptions = {
     ...options,
     config: Buffer.from(config).toString('base64'),
-    dev: dev ? 'true' : 'false',
 
     // These are the path references to the internal components that may be
     // overridden by userland components.
@@ -60,7 +56,6 @@ const loader: webpack.LoaderDefinitionFunction<NextRouteModuleLoaderOptions> =
     const {
       page,
       pathname,
-      dev,
       config: configBase64,
       buildId,
       kind,
@@ -83,7 +78,6 @@ const loader: webpack.LoaderDefinitionFunction<NextRouteModuleLoaderOptions> =
       page,
       pathname,
       renderOpts: {
-        dev: dev === 'true',
         buildId,
         disableOptimizedLoading: false,
         runtime,

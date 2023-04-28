@@ -32,7 +32,7 @@ export interface RouteModuleOptions<U = unknown> {
  */
 export interface RouteModuleHandleContext {
   /**
-   * If true, indicates that this request is for static generation.
+   * If true, indicates that this request is during static generation.
    */
   export: boolean
 

@@ -12,10 +12,10 @@ export function createBody(
   return ({ children }) => <div id="__next">{children}</div>
 }
 
-export function createErrorDebug(
-  dev: boolean
-): React.FunctionComponent<{ error: Error }> | null {
-  if (!dev) return null
+export function createErrorDebug(): React.FunctionComponent<{
+  error: Error
+}> | null {
+  if (process.env.NODE_ENV !== 'development') return null
 
   return ({ error }: { error: Error }) => {
     // Load the ReactDevOverlay component dynamically to avoid loading it in
@@ -31,8 +31,7 @@ export function createErrorDebug(
 }
 
 export function createAppContainerWithIsomorphicFiberStructure(
-  AppContainer: React.FunctionComponent<{ children: JSX.Element }>,
-  context: { dev: boolean | undefined }
+  AppContainer: React.FunctionComponent<{ children: JSX.Element }>
 ): React.FunctionComponent<{ children: JSX.Element }> {
   return ({ children }): JSX.Element => (
     <>
@@ -42,7 +41,7 @@ export function createAppContainerWithIsomorphicFiberStructure(
         <>
           {/* TODO: (wyattjoh) why are these here? */}
           {/* <ReactDevOverlay/> */}
-          {context.dev ? (
+          {process.env.NODE_ENV === 'development' ? (
             <>
               {children}
               <Noop />
