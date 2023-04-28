@@ -1,4 +1,3 @@
-import { redirect } from '../client/components/redirect'
 import { getServerActionDispatcher } from './components/app-router'
 
 export async function callServer(actionId: string, actionArgs: any[]) {
