@@ -129,6 +129,7 @@ export function serverActionReducer(
       })
     } else {
       const [actionResult, flightData] = result ?? [undefined, undefined]
+      // TODO: populate the prefetch cache with the new flight data
       if (flightData) {
         // this is an intentional hack around React: we want to update the tree in a new render
         setTimeout(() => {

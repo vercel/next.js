@@ -195,11 +195,15 @@ export async function handleAction({
           ComponentMod.__next_app_webpack_require__(actionModId)[actionId]
 
         const returnVal = await actionHandler.apply(null, bound)
+
+        // if the user called revalidate or refresh, we need to set the flag
+        // so that we can bypass the next cache
+        if (staticGenerationStore.pathWasRevalidated) {
+          staticGenerationStore.isRevalidate = true
+        }
+
         // For form actions, we need to continue rendering the page.
         if (isFetchAction) {
-          if (staticGenerationStore.pathWasRevalidated) {
-            staticGenerationStore.isRevalidate = true
-          }
           actionResult = await generateFlight({
             actionResult: returnVal,
             // if the page was not revalidated, we can skip the rendering the flight tree
