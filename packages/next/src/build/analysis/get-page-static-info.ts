@@ -165,8 +165,8 @@ async function tryToReadFile(filePath: string, shouldThrow: boolean) {
     return await fs.readFile(filePath, {
       encoding: 'utf8',
     })
-  } catch (error) {
-    if (shouldThrow) {
+  } catch (error: any) {
+    if (error.code !== 'EISDIR' && shouldThrow) {
       throw error
     }
   }
@@ -335,9 +335,13 @@ export async function getPageStaticInfo(params: {
   pageType: 'pages' | 'app' | 'root'
 }): Promise<PageStaticInfo> {
   const { isDev, pageFilePath, nextConfig, page, pageType } = params
+  const { defaultConfig } = require('../../server/config-shared')
+  const pageExtensions =
+    nextConfig.pageExtensions || defaultConfig?.pageExtensions || []
   const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
   if (
-    pageType === 'app' ||
+    (pageType === 'app' &&
+      pageExtensions.includes(path.extname(pageFilePath))) ||
     /runtime|getStaticProps|getServerSideProps|export const config/.test(
       fileContent
     )
@@ -443,18 +447,8 @@ export async function getPageStaticInfo(params: {
         const files = await fs.readdir(curPagePath)
 
         for (const file of files) {
-          const { defaultConfig } = require('../../server/config-shared')
           const cleanedFile = normalizePathSep(
-            file.replace(
-              new RegExp(
-                `\\.+(${(
-                  nextConfig.pageExtensions ||
-                  defaultConfig?.pageExtensions ||
-                  []
-                ).join('|')})$`
-              ),
-              ''
-            )
+            file.replace(new RegExp(`\\.+(${pageExtensions.join('|')})$`), '')
           )
           const newPageFilePath = path.join(curPagePath, file)
 
@@ -463,7 +457,7 @@ export async function getPageStaticInfo(params: {
               ...params,
               pageFilePath: newPageFilePath,
               page: file,
-            })
+            }).catch(() => ({} as PageStaticInfo))
 
             if (!config.regions && layoutInfo.middleware?.regions) {
               middlewareConfig.regions = layoutInfo.middleware.regions
