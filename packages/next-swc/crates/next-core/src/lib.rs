@@ -5,6 +5,7 @@
 mod app_render;
 mod app_source;
 pub mod app_structure;
+mod asset_helpers;
 mod babel;
 mod embed_js;
 pub mod env;
@@ -46,5 +47,8 @@ pub fn register() {
     turbopack::dev_server::register();
     turbopack::node::register();
     turbopack::turbopack::register();
+    turbopack::image::register();
+    turbopack::ecmascript::register();
+    turbopack::ecmascript_plugin::register();
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

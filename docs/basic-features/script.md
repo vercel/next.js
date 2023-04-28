@@ -94,7 +94,7 @@ Refer to the [`next/script`](/docs/api-reference/next/script.md#strategy) API re
 
 ### Offloading Scripts To A Web Worker (experimental)
 
-> **Note:** The `worker` strategy is not yet stable and does not yet work with the [`app/`](https://beta.nextjs.org/docs/routing/defining-routes) directory. Use with caution.
+> **Note**: The `worker` strategy is not yet stable and does not yet work with the [`app/`](https://beta.nextjs.org/docs/routing/defining-routes) directory. Use with caution.
 
 Scripts that use the `worker` strategy are offloaded and executed in a web worker with [Partytown](https://partytown.builder.io/). This can improve the performance of your site by dedicating the main thread to the rest of your application code.
 

@@ -105,6 +105,26 @@ function findDOMNode(
   return ReactDOM.findDOMNode(instance)
 }
 
+const rectProperties = [
+  'bottom',
+  'height',
+  'left',
+  'right',
+  'top',
+  'width',
+  'x',
+  'y',
+] as const
+/**
+ * Check if a HTMLElement is hidden.
+ */
+function elementCanScroll(element: HTMLElement) {
+  // Uses `getBoundingClientRect` to check if the element is hidden instead of `offsetParent`
+  // because `offsetParent` doesn't consider document/body
+  const rect = element.getBoundingClientRect()
+  return rectProperties.every((item) => rect[item] === 0)
+}
+
 /**
  * Check if the top corner of the HTMLElement is in the viewport.
  */
@@ -140,7 +160,7 @@ interface ScrollAndFocusHandlerProps {
 class ScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerProps> {
   handlePotentialScroll = () => {
     // Handle scroll and focus, it's only applied once in the first useEffect that triggers that changed.
-    const { focusAndScrollRef } = this.props
+    const { focusAndScrollRef, segmentPath } = this.props
 
     if (focusAndScrollRef.apply) {
       // segmentPaths is an array of segment paths that should be scrolled to
@@ -148,12 +168,10 @@ class ScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerProps> 
       // unless the array is empty, in which case the scroll is always applied
       if (
         focusAndScrollRef.segmentPaths.length !== 0 &&
-        !focusAndScrollRef.segmentPaths.some(
-          (segmentPath) =>
-            segmentPath.length === this.props.segmentPath.length &&
-            segmentPath.every((segment, index) =>
-              matchSegment(segment, this.props.segmentPath[index])
-            )
+        !focusAndScrollRef.segmentPaths.some((scrollRefSegmentPath) =>
+          segmentPath.every((segment, index) =>
+            matchSegment(segment, scrollRefSegmentPath[index])
+          )
         )
       ) {
         return
@@ -174,9 +192,21 @@ class ScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerProps> 
         domNode = findDOMNode(this)
       }
 
-      // If there is no DOMNode this layout-router level is skipped. It'll be handled higher-up in the tree.
-      if (!(domNode instanceof HTMLElement)) {
+      // TODO-APP: Handle the case where we couldn't select any DOM node, even higher up in the layout-router above the current segmentPath.
+      // If there is no DOM node this layout-router level is skipped. It'll be handled higher-up in the tree.
+      if (!(domNode instanceof Element)) {
         return
+      }
+
+      // Verify if the element is a HTMLElement and if it's visible on screen (e.g. not display: none).
+      // If the element is not a HTMLElement or not visible we try to select the next sibling and try again.
+      while (!(domNode instanceof HTMLElement) || elementCanScroll(domNode)) {
+        // TODO-APP: Handle the case where we couldn't select any DOM node, even higher up in the layout-router above the current segmentPath.
+        // No siblings found that are visible so we handle scroll higher up in the tree instead.
+        if (domNode.nextElementSibling === null) {
+          return
+        }
+        domNode = domNode.nextElementSibling
       }
 
       // State is mutated to ensure that the focus and scroll is applied only once.
@@ -277,16 +307,7 @@ function InnerLayoutRouter({
     // TODO-APP: verify if this can be null based on user code
     childProp.current !== null
   ) {
-    if (childNode) {
-      if (childNode.status === CacheStates.LAZY_INITIALIZED) {
-        // @ts-expect-error we're changing it's type!
-        childNode.status = CacheStates.READY
-        // @ts-expect-error
-        childNode.subTreeData = childProp.current
-        // Mutates the prop in order to clean up the memory associated with the subTreeData as it is now part of the cache.
-        childProp.current = null
-      }
-    } else {
+    if (!childNode) {
       // Add the segment's subTreeData to the cache.
       // This writes to the cache when there is no item in the cache yet. It never *overwrites* existing cache items which is why it's safe in concurrent mode.
       childNodes.set(cacheKey, {
@@ -295,10 +316,15 @@ function InnerLayoutRouter({
         subTreeData: childProp.current,
         parallelRoutes: new Map(),
       })
-      // Mutates the prop in order to clean up the memory associated with the subTreeData as it is now part of the cache.
-      childProp.current = null
       // In the above case childNode was set on childNodes, so we have to get it from the cacheNodes again.
       childNode = childNodes.get(cacheKey)
+    } else {
+      if (childNode.status === CacheStates.LAZY_INITIALIZED) {
+        // @ts-expect-error we're changing it's type!
+        childNode.status = CacheStates.READY
+        // @ts-expect-error
+        childNode.subTreeData = childProp.current
+      }
     }
   }
 
@@ -453,6 +479,7 @@ export default function OuterLayoutRouter({
   notFound,
   notFoundStyles,
   asNotFound,
+  styles,
 }: {
   parallelRouterKey: string
   segmentPath: FlightSegmentPath
@@ -467,6 +494,7 @@ export default function OuterLayoutRouter({
   notFound: React.ReactNode | undefined
   notFoundStyles: React.ReactNode | undefined
   asNotFound?: boolean
+  styles?: React.ReactNode
 }) {
   const context = useContext(LayoutRouterContext)
   if (!context) {
@@ -501,6 +529,7 @@ export default function OuterLayoutRouter({
 
   return (
     <>
+      {styles}
       {preservedSegments.map((preservedSegment) => {
         const isChildPropSegment = matchSegment(
           preservedSegment,

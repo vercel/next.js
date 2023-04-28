@@ -15,6 +15,7 @@ if (process.env.NODE_ENV !== "production") {
 'use strict';
 
 var React = require('react');
+var ReactDOM = require('react-dom');
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -58,9 +59,6 @@ function printWarning(level, format, args) {
 function scheduleWork(callback) {
   setTimeout(callback, 0);
 }
-
-var supportsRequestStorage = typeof AsyncLocalStorage === 'function';
-var requestStorage = supportsRequestStorage ? new AsyncLocalStorage() : null;
 var VIEW_SIZE = 512;
 var currentView = null;
 var writtenBytes = 0;
@@ -138,15 +136,6 @@ function stringToChunk(content) {
   return textEncoder.encode(content);
 }
 var precomputedChunkSet = new Set() ;
-function stringToPrecomputedChunk(content) {
-  var precomputedChunk = textEncoder.encode(content);
-
-  {
-    precomputedChunkSet.add(precomputedChunk);
-  }
-
-  return precomputedChunk;
-}
 function closeWithError(destination, error) {
   // $FlowFixMe[method-unbinding]
   if (typeof destination.error === 'function') {
@@ -204,6 +193,11 @@ function processImportChunk(request, id, clientReferenceMetadata) {
   var row = serializeRowHeader('I', id) + json + '\n';
   return stringToChunk(row);
 }
+function processHintChunk(request, id, code, model) {
+  var json = stringify(model);
+  var row = serializeRowHeader('H' + code, id) + json + '\n';
+  return stringToChunk(row);
+}
 
 // eslint-disable-next-line no-unused-vars
 var CLIENT_REFERENCE_TAG = Symbol.for('react.client.reference');
@@ -218,18 +212,36 @@ function isServerReference(reference) {
   return reference.$$typeof === SERVER_REFERENCE_TAG;
 }
 function resolveClientReferenceMetadata(config, clientReference) {
-  var resolvedModuleData = config[clientReference.$$id];
+  var modulePath = clientReference.$$id;
+  var name = '';
+  var resolvedModuleData = config[modulePath];
 
-  if (clientReference.$$async) {
-    return {
-      id: resolvedModuleData.id,
-      chunks: resolvedModuleData.chunks,
-      name: resolvedModuleData.name,
-      async: true
-    };
+  if (resolvedModuleData) {
+    // The potentially aliased name.
+    name = resolvedModuleData.name;
   } else {
-    return resolvedModuleData;
+    // We didn't find this specific export name but we might have the * export
+    // which contains this name as well.
+    // TODO: It's unfortunate that we now have to parse this string. We should
+    // probably go back to encoding path and name separately on the client reference.
+    var idx = modulePath.lastIndexOf('#');
+
+    if (idx !== -1) {
+      name = modulePath.slice(idx + 1);
+      resolvedModuleData = config[modulePath.slice(0, idx)];
+    }
+
+    if (!resolvedModuleData) {
+      throw new Error('Could not find the module "' + modulePath + '" in the React Client Manifest. ' + 'This is probably a bug in the React Server Components bundler.');
+    }
   }
+
+  return {
+    id: resolvedModuleData.id,
+    chunks: resolvedModuleData.chunks,
+    name: name,
+    async: !!clientReference.$$async
+  };
 }
 function getServerReferenceId(config, serverReference) {
   return serverReference.$$id;
@@ -237,6 +249,121 @@ function getServerReferenceId(config, serverReference) {
 function getServerReferenceBoundArguments(config, serverReference) {
   return serverReference.$$bound;
 }
+
+var ReactDOMSharedInternals = ReactDOM.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
+
+var ReactDOMFlightServerDispatcher = {
+  prefetchDNS: prefetchDNS,
+  preconnect: preconnect,
+  preload: preload,
+  preinit: preinit
+};
+
+function prefetchDNS(href, options) {
+  {
+    if (typeof href === 'string') {
+      var request = resolveRequest();
+
+      if (request) {
+        var hints = getHints(request);
+        var key = 'D' + href;
+
+        if (hints.has(key)) {
+          // duplicate hint
+          return;
+        }
+
+        hints.add(key);
+
+        if (options) {
+          emitHint(request, 'D', [href, options]);
+        } else {
+          emitHint(request, 'D', href);
+        }
+      }
+    }
+  }
+}
+
+function preconnect(href, options) {
+  {
+    if (typeof href === 'string') {
+      var request = resolveRequest();
+
+      if (request) {
+        var hints = getHints(request);
+        var crossOrigin = options == null || typeof options.crossOrigin !== 'string' ? null : options.crossOrigin === 'use-credentials' ? 'use-credentials' : '';
+        var key = "C" + (crossOrigin === null ? 'null' : crossOrigin) + "|" + href;
+
+        if (hints.has(key)) {
+          // duplicate hint
+          return;
+        }
+
+        hints.add(key);
+
+        if (options) {
+          emitHint(request, 'C', [href, options]);
+        } else {
+          emitHint(request, 'C', href);
+        }
+      }
+    }
+  }
+}
+
+function preload(href, options) {
+  {
+    if (typeof href === 'string') {
+      var request = resolveRequest();
+
+      if (request) {
+        var hints = getHints(request);
+        var key = 'L' + href;
+
+        if (hints.has(key)) {
+          // duplicate hint
+          return;
+        }
+
+        hints.add(key);
+        emitHint(request, 'L', [href, options]);
+      }
+    }
+  }
+}
+
+function preinit(href, options) {
+  {
+    if (typeof href === 'string') {
+      var request = resolveRequest();
+
+      if (request) {
+        var hints = getHints(request);
+        var key = 'I' + href;
+
+        if (hints.has(key)) {
+          // duplicate hint
+          return;
+        }
+
+        hints.add(key);
+        emitHint(request, 'I', [href, options]);
+      }
+    }
+  }
+}
+
+var ReactDOMCurrentDispatcher = ReactDOMSharedInternals.Dispatcher;
+function prepareHostDispatcher() {
+  ReactDOMCurrentDispatcher.current = ReactDOMFlightServerDispatcher;
+} // Used to distinguish these contexts from ones used in other renderers.
+function createHints() {
+  return new Set();
+}
+
+var supportsRequestStorage = typeof AsyncLocalStorage === 'function';
+var requestStorage = supportsRequestStorage ? new AsyncLocalStorage() : null;
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -268,238 +395,6 @@ function getIteratorFn(maybeIterable) {
 
   return null;
 }
-
-// A simple string attribute.
-// Attributes that aren't in the filter are presumed to have this type.
-var STRING = 1; // A string attribute that accepts booleans in React. In HTML, these are called
-// "enumerated" attributes with "true" and "false" as possible values.
-// When true, it should be set to a "true" string.
-// When false, it should be set to a "false" string.
-
-var BOOLEANISH_STRING = 2; // A real boolean attribute.
-// When true, it should be present (set either to an empty string or its name).
-// When false, it should be omitted.
-
-var BOOLEAN = 3; // An attribute that can be used as a flag as well as with a value.
-// When true, it should be present (set either to an empty string or its name).
-// When false, it should be omitted.
-// For any other value, should be present with that value.
-
-var OVERLOADED_BOOLEAN = 4; // An attribute that must be numeric or parse as a numeric.
-// When falsy, it should be removed.
-
-var NUMERIC = 5; // An attribute that must be positive numeric or parse as a positive numeric.
-
-function PropertyInfoRecord(type, attributeName, attributeNamespace, sanitizeURL, removeEmptyString) {
-  this.acceptsBooleans = type === BOOLEANISH_STRING || type === BOOLEAN || type === OVERLOADED_BOOLEAN;
-  this.attributeName = attributeName;
-  this.attributeNamespace = attributeNamespace;
-  this.type = type;
-  this.sanitizeURL = sanitizeURL;
-  this.removeEmptyString = removeEmptyString;
-} // When adding attributes to this list, be sure to also add them to
-// In React, we let users pass `true` and `false` even though technically
-// these aren't boolean attributes (they are coerced to strings).
-
-['contentEditable', 'draggable', 'spellCheck', 'value'].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  new PropertyInfoRecord(BOOLEANISH_STRING, name.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are "enumerated" SVG attributes that accept "true" and "false".
-
-['allowFullScreen', 'async', // Note: there is a special case that prevents it from being written to the DOM
-// on the client side because the browsers are inconsistent. Instead we call focus().
-'autoFocus', 'autoPlay', 'controls', 'default', 'defer', 'disabled', 'disablePictureInPicture', 'disableRemotePlayback', 'formNoValidate', 'hidden', 'loop', 'noModule', 'noValidate', 'open', 'playsInline', 'readOnly', 'required', 'reversed', 'scoped', 'seamless', // Microdata
-'itemScope'].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  new PropertyInfoRecord(BOOLEAN, name.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are HTML attributes that are "overloaded booleans": they behave like
-
-['rowSpan', 'start'].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  new PropertyInfoRecord(NUMERIC, name.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-});
-var CAMELIZE = /[\-\:]([a-z])/g;
-
-var capitalize = function (token) {
-  return token[1].toUpperCase();
-}; // This is a list of all SVG attributes that need special casing, namespacing,
-// or boolean value assignment. Regular attributes that just accept strings
-// and have the same names are omitted, just like in the HTML attribute filter.
-// Some of these attributes can be hard to find. This list was created by
-// scraping the MDN documentation.
-
-
-['accent-height', 'alignment-baseline', 'arabic-form', 'baseline-shift', 'cap-height', 'clip-path', 'clip-rule', 'color-interpolation', 'color-interpolation-filters', 'color-profile', 'color-rendering', 'dominant-baseline', 'enable-background', 'fill-opacity', 'fill-rule', 'flood-color', 'flood-opacity', 'font-family', 'font-size', 'font-size-adjust', 'font-stretch', 'font-style', 'font-variant', 'font-weight', 'glyph-name', 'glyph-orientation-horizontal', 'glyph-orientation-vertical', 'horiz-adv-x', 'horiz-origin-x', 'image-rendering', 'letter-spacing', 'lighting-color', 'marker-end', 'marker-mid', 'marker-start', 'overline-position', 'overline-thickness', 'paint-order', 'panose-1', 'pointer-events', 'rendering-intent', 'shape-rendering', 'stop-color', 'stop-opacity', 'strikethrough-position', 'strikethrough-thickness', 'stroke-dasharray', 'stroke-dashoffset', 'stroke-linecap', 'stroke-linejoin', 'stroke-miterlimit', 'stroke-opacity', 'stroke-width', 'text-anchor', 'text-decoration', 'text-rendering', 'transform-origin', 'underline-position', 'underline-thickness', 'unicode-bidi', 'unicode-range', 'units-per-em', 'v-alphabetic', 'v-hanging', 'v-ideographic', 'v-mathematical', 'vector-effect', 'vert-adv-y', 'vert-origin-x', 'vert-origin-y', 'word-spacing', 'writing-mode', 'xmlns:xlink', 'x-height' // NOTE: if you add a camelCased prop to this list,
-// you'll need to set attributeName to name.toLowerCase()
-// instead in the assignment below.
-].forEach(function (attributeName) {
-  attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-}); // String SVG attributes with the xlink namespace.
-
-['xlink:actuate', 'xlink:arcrole', 'xlink:role', 'xlink:show', 'xlink:title', 'xlink:type' // NOTE: if you add a camelCased prop to this list,
-// you'll need to set attributeName to name.toLowerCase()
-// instead in the assignment below.
-].forEach(function (attributeName) {
-  attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-}); // String SVG attributes with the xml namespace.
-
-['xml:base', 'xml:lang', 'xml:space' // NOTE: if you add a camelCased prop to this list,
-// you'll need to set attributeName to name.toLowerCase()
-// instead in the assignment below.
-].forEach(function (attributeName) {
-  attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-}); // These attribute exists both in HTML and SVG.
-// The attribute name is case-sensitive in SVG so we can't just use
-// the React name like we do for attributes that exist only in HTML.
-
-['tabIndex', 'crossOrigin'].forEach(function (attributeName) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  new PropertyInfoRecord(STRING, attributeName.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These attributes accept URLs. These must not allow javascript: URLS.
-['src', 'href', 'action'].forEach(function (attributeName) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  new PropertyInfoRecord(STRING, attributeName.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  true, // sanitizeURL
-  true);
-});
-
-var isArrayImpl = Array.isArray; // eslint-disable-next-line no-redeclare
-
-function isArray(a) {
-  return isArrayImpl(a);
-}
-
-// The build script is at scripts/rollup/generate-inline-fizz-runtime.js.
-// Run `yarn generate-inline-fizz-runtime` to generate.
-var clientRenderBoundary = '$RX=function(b,c,d,e){var a=document.getElementById(b);a&&(b=a.previousSibling,b.data="$!",a=a.dataset,c&&(a.dgst=c),d&&(a.msg=d),e&&(a.stck=e),b._reactRetry&&b._reactRetry())};';
-var completeBoundary = '$RC=function(b,c,e){c=document.getElementById(c);c.parentNode.removeChild(c);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var d=a.data;if("/$"===d)if(0===f)break;else f--;else"$"!==d&&"$?"!==d&&"$!"!==d||f++}d=a.nextSibling;e.removeChild(a);a=d}while(a);for(;c.firstChild;)e.insertBefore(c.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};';
-var completeBoundaryWithStyles = '$RM=new Map;\n$RR=function(r,t,w){for(var u=$RC,n=$RM,p=new Map,q=document,g,b,h=q.querySelectorAll("link[data-precedence],style[data-precedence]"),v=[],k=0;b=h[k++];)"not all"===b.getAttribute("media")?v.push(b):("LINK"===b.tagName&&n.set(b.getAttribute("href"),b),p.set(b.dataset.precedence,g=b));b=0;h=[];var l,a;for(k=!0;;){if(k){var f=w[b++];if(!f){k=!1;b=0;continue}var c=!1,m=0;var d=f[m++];if(a=n.get(d)){var e=a._p;c=!0}else{a=q.createElement("link");a.href=d;a.rel="stylesheet";for(a.dataset.precedence=\nl=f[m++];e=f[m++];)a.setAttribute(e,f[m++]);e=a._p=new Promise(function(x,y){a.onload=x;a.onerror=y});n.set(d,a)}d=a.getAttribute("media");!e||"l"===e.s||d&&!matchMedia(d).matches||h.push(e);if(c)continue}else{a=v[b++];if(!a)break;l=a.getAttribute("data-precedence");a.removeAttribute("media")}c=p.get(l)||g;c===g&&(g=a);p.set(l,a);c?c.parentNode.insertBefore(a,c.nextSibling):(c=q.head,c.insertBefore(a,c.firstChild))}Promise.all(h).then(u.bind(null,r,t,""),u.bind(null,r,t,"Resource failed to load"))};';
-var completeSegment = '$RS=function(a,b){a=document.getElementById(a);b=document.getElementById(b);for(a.parentNode.removeChild(a);a.firstChild;)b.parentNode.insertBefore(a.firstChild,b);b.parentNode.removeChild(b)};';
-
-stringToPrecomputedChunk('"></template>');
-stringToPrecomputedChunk('<script>');
-stringToPrecomputedChunk('</script>');
-stringToPrecomputedChunk('<script src="');
-stringToPrecomputedChunk('<script type="module" src="');
-stringToPrecomputedChunk('" integrity="');
-stringToPrecomputedChunk('" async=""></script>');
-
-stringToPrecomputedChunk('<!-- -->');
-
-stringToPrecomputedChunk(' style="');
-stringToPrecomputedChunk(':');
-stringToPrecomputedChunk(';');
-
-stringToPrecomputedChunk(' ');
-stringToPrecomputedChunk('="');
-stringToPrecomputedChunk('"');
-stringToPrecomputedChunk('=""');
-
-stringToPrecomputedChunk('>');
-stringToPrecomputedChunk('/>');
-
-stringToPrecomputedChunk(' selected=""');
-
-stringToPrecomputedChunk('\n');
-
-stringToPrecomputedChunk('<!DOCTYPE html>');
-stringToPrecomputedChunk('</');
-stringToPrecomputedChunk('>');
-// A placeholder is a node inside a hidden partial tree that can be filled in later, but before
-// display. It's never visible to users. We use the template tag because it can be used in every
-// type of parent. <script> tags also work in every other tag except <colgroup>.
-
-stringToPrecomputedChunk('<template id="');
-stringToPrecomputedChunk('"></template>');
-
-stringToPrecomputedChunk('<!--$-->');
-stringToPrecomputedChunk('<!--$?--><template id="');
-stringToPrecomputedChunk('"></template>');
-stringToPrecomputedChunk('<!--$!-->');
-stringToPrecomputedChunk('<!--/$-->');
-stringToPrecomputedChunk('<template');
-stringToPrecomputedChunk('"');
-stringToPrecomputedChunk(' data-dgst="');
-stringToPrecomputedChunk(' data-msg="');
-stringToPrecomputedChunk(' data-stck="');
-stringToPrecomputedChunk('></template>');
-stringToPrecomputedChunk('<div hidden id="');
-stringToPrecomputedChunk('">');
-stringToPrecomputedChunk('</div>');
-stringToPrecomputedChunk('<svg aria-hidden="true" style="display:none" id="');
-stringToPrecomputedChunk('">');
-stringToPrecomputedChunk('</svg>');
-stringToPrecomputedChunk('<math aria-hidden="true" style="display:none" id="');
-stringToPrecomputedChunk('">');
-stringToPrecomputedChunk('</math>');
-stringToPrecomputedChunk('<table hidden id="');
-stringToPrecomputedChunk('">');
-stringToPrecomputedChunk('</table>');
-stringToPrecomputedChunk('<table hidden><tbody id="');
-stringToPrecomputedChunk('">');
-stringToPrecomputedChunk('</tbody></table>');
-stringToPrecomputedChunk('<table hidden><tr id="');
-stringToPrecomputedChunk('">');
-stringToPrecomputedChunk('</tr></table>');
-stringToPrecomputedChunk('<table hidden><colgroup id="');
-stringToPrecomputedChunk('">');
-stringToPrecomputedChunk('</colgroup></table>');
-stringToPrecomputedChunk(completeSegment + ';$RS("');
-stringToPrecomputedChunk('$RS("');
-stringToPrecomputedChunk('","');
-stringToPrecomputedChunk('")</script>');
-stringToPrecomputedChunk('<template data-rsi="" data-sid="');
-stringToPrecomputedChunk('" data-pid="');
-stringToPrecomputedChunk(completeBoundary + '$RC("');
-stringToPrecomputedChunk('$RC("');
-stringToPrecomputedChunk(completeBoundary + completeBoundaryWithStyles + '$RR("');
-stringToPrecomputedChunk(completeBoundaryWithStyles + '$RR("');
-stringToPrecomputedChunk('$RR("');
-stringToPrecomputedChunk('","');
-stringToPrecomputedChunk('",');
-stringToPrecomputedChunk('"');
-stringToPrecomputedChunk(')</script>');
-stringToPrecomputedChunk('<template data-rci="" data-bid="');
-stringToPrecomputedChunk('<template data-rri="" data-bid="');
-stringToPrecomputedChunk('" data-sid="');
-stringToPrecomputedChunk('" data-sty="');
-stringToPrecomputedChunk(clientRenderBoundary + ';$RX("');
-stringToPrecomputedChunk('$RX("');
-stringToPrecomputedChunk('"');
-stringToPrecomputedChunk(',');
-stringToPrecomputedChunk(')</script>');
-stringToPrecomputedChunk('<template data-rxi="" data-bid="');
-stringToPrecomputedChunk('" data-dgst="');
-stringToPrecomputedChunk('" data-msg="');
-stringToPrecomputedChunk('" data-stck="');
-
-stringToPrecomputedChunk('<style media="not all" data-precedence="');
-stringToPrecomputedChunk('" data-href="');
-stringToPrecomputedChunk('">');
-stringToPrecomputedChunk('</style>'); // Tracks whether the boundary currently flushing is flushign style tags or has any
-
-stringToPrecomputedChunk('<style data-precedence="');
-stringToPrecomputedChunk('" data-href="');
-stringToPrecomputedChunk(' ');
-stringToPrecomputedChunk('">');
-stringToPrecomputedChunk('</style>');
-stringToPrecomputedChunk('[');
-stringToPrecomputedChunk(',[');
-stringToPrecomputedChunk(',');
-stringToPrecomputedChunk(']'); // This function writes a 2D array of strings to be embedded in javascript.
 
 var rendererSigil;
 
@@ -807,14 +702,14 @@ function getSuspendedThenable() {
   return thenable;
 }
 
-var currentRequest = null;
+var currentRequest$1 = null;
 var thenableIndexCounter = 0;
 var thenableState = null;
 function prepareToUseHooksForRequest(request) {
-  currentRequest = request;
+  currentRequest$1 = request;
 }
 function resetHooksForRequest() {
-  currentRequest = null;
+  currentRequest$1 = null;
 }
 function prepareToUseHooksForComponent(prevThenableState) {
   thenableIndexCounter = 0;
@@ -836,7 +731,7 @@ function readContext(context) {
       }
     }
 
-    if (currentRequest === null) {
+    if (currentRequest$1 === null) {
       error('Context can only be read while React is rendering. ' + 'In classes, you can read it in the render method or getDerivedStateFromProps. ' + 'In function components, you can read it directly in the function body, but not ' + 'inside Hooks like useReducer() or useMemo().');
     }
   }
@@ -878,7 +773,7 @@ var HooksDispatcher = {
 
     return data;
   },
-  use: use 
+  use: use
 };
 
 function unsupportedHook() {
@@ -890,13 +785,13 @@ function unsupportedRefresh() {
 }
 
 function useId() {
-  if (currentRequest === null) {
+  if (currentRequest$1 === null) {
     throw new Error('useId can only be used while React is rendering');
   }
 
-  var id = currentRequest.identifierCount++; // use 'S' for Flight components to distinguish from 'R' and 'r' in Fizz/Client
+  var id = currentRequest$1.identifierCount++; // use 'S' for Flight components to distinguish from 'R' and 'r' in Fizz/Client
 
-  return ':' + currentRequest.identifierPrefix + 'S' + id.toString(32) + ':';
+  return ':' + currentRequest$1.identifierPrefix + 'S' + id.toString(32) + ':';
 }
 
 function use(usable) {
@@ -935,15 +830,11 @@ function createSignal() {
 }
 
 function resolveCache() {
-  if (currentCache) return currentCache;
+  var request = resolveRequest();
 
-  if (supportsRequestStorage) {
-    var cache = requestStorage.getStore();
-    if (cache) return cache;
-  } // Since we override the dispatcher all the time, we're effectively always
-  // active and so to support cache() and fetch() outside of render, we yield
-  // an empty Map.
-
+  if (request) {
+    return getCache(request);
+  }
 
   return new Map();
 }
@@ -973,13 +864,11 @@ var DefaultCacheDispatcher = {
     return entry;
   }
 };
-var currentCache = null;
-function setCurrentCache(cache) {
-  currentCache = cache;
-  return currentCache;
-}
-function getCurrentCache() {
-  return currentCache;
+
+var isArrayImpl = Array.isArray; // eslint-disable-next-line no-redeclare
+
+function isArray(a) {
+  return isArrayImpl(a);
 }
 
 // in case they error.
@@ -1060,7 +949,7 @@ function describeValueForErrorMessage(value) {
   switch (typeof value) {
     case 'string':
       {
-        return JSON.stringify(value.length <= 10 ? value : value.substr(0, 10) + '...');
+        return JSON.stringify(value.length <= 10 ? value : value.slice(0, 10) + '...');
       }
 
     case 'object':
@@ -1327,20 +1216,25 @@ function createRequest(model, bundlerConfig, onError, context, identifierPrefix)
     throw new Error('Currently React only supports one RSC renderer at a time.');
   }
 
+  prepareHostDispatcher();
   ReactCurrentCache.current = DefaultCacheDispatcher;
   var abortSet = new Set();
   var pingedTasks = [];
+  var hints = createHints();
   var request = {
     status: OPEN,
+    flushScheduled: false,
     fatalError: null,
     destination: null,
     bundlerConfig: bundlerConfig,
     cache: new Map(),
     nextChunkId: 0,
     pendingChunks: 0,
+    hints: hints,
     abortableTasks: abortSet,
     pingedTasks: pingedTasks,
     completedImportChunks: [],
+    completedHintChunks: [],
     completedJSONChunks: [],
     completedErrorChunks: [],
     writtenSymbols: new Map(),
@@ -1360,6 +1254,17 @@ function createRequest(model, bundlerConfig, onError, context, identifierPrefix)
   var rootTask = createTask(request, model, rootContext, abortSet);
   pingedTasks.push(rootTask);
   return request;
+}
+var currentRequest = null;
+function resolveRequest() {
+  if (currentRequest) return currentRequest;
+
+  if (supportsRequestStorage) {
+    var store = requestStorage.getStore();
+    if (store) return store;
+  }
+
+  return null;
 }
 
 function createRootContext(reqContext) {
@@ -1446,6 +1351,17 @@ function serializeThenable(request, thenable) {
     }
   });
   return newTask.id;
+}
+
+function emitHint(request, code, model) {
+  emitHintChunk(request, code, model);
+  enqueueFlush(request);
+}
+function getHints(request) {
+  return request.hints;
+}
+function getCache(request) {
+  return request.cache;
 }
 
 function readThenable(thenable) {
@@ -1623,6 +1539,7 @@ function pingTask(request, task) {
   pingedTasks.push(task);
 
   if (pingedTasks.length === 1) {
+    request.flushScheduled = request.destination !== null;
     scheduleWork(function () {
       return performWork(request);
     });
@@ -1669,8 +1586,32 @@ function serializeProviderReference(name) {
   return '$P' + name;
 }
 
+function serializeNumber(number) {
+  if (Number.isFinite(number)) {
+    if (number === 0 && 1 / number === -Infinity) {
+      return '$-0';
+    } else {
+      return number;
+    }
+  } else {
+    if (number === Infinity) {
+      return '$Infinity';
+    } else if (number === -Infinity) {
+      return '$-Infinity';
+    } else {
+      return '$NaN';
+    }
+  }
+}
+
 function serializeUndefined() {
   return '$undefined';
+}
+
+function serializeDateFromDateJSON(dateJSON) {
+  // JSON.stringify automatically calls Date.prototype.toJSON which calls toISOString.
+  // We need only tack on a $D prefix.
+  return '$D' + dateJSON;
 }
 
 function serializeBigInt(n) {
@@ -1764,11 +1705,12 @@ function escapeStringValue(value) {
 var insideContextProps = null;
 var isInsideContextValue = false;
 function resolveModelToJSON(request, parent, key, value) {
+  // Make sure that `parent[key]` wasn't JSONified before `value` was passed to us
   {
     // $FlowFixMe[incompatible-use]
     var originalValue = parent[key];
 
-    if (typeof originalValue === 'object' && originalValue !== value) {
+    if (typeof originalValue === 'object' && originalValue !== value && !(originalValue instanceof Date)) {
       if (objectName(originalValue) !== 'Object') {
         var jsxParentType = jsxChildrenParents.get(parent);
 
@@ -1929,11 +1871,26 @@ function resolveModelToJSON(request, parent, key, value) {
   }
 
   if (typeof value === 'string') {
+    // TODO: Maybe too clever. If we support URL there's no similar trick.
+    if (value[value.length - 1] === 'Z') {
+      // Possibly a Date, whose toJSON automatically calls toISOString
+      // $FlowFixMe[incompatible-use]
+      var _originalValue = parent[key]; // $FlowFixMe[method-unbinding]
+
+      if (_originalValue instanceof Date) {
+        return serializeDateFromDateJSON(value);
+      }
+    }
+
     return escapeStringValue(value);
   }
 
-  if (typeof value === 'boolean' || typeof value === 'number') {
+  if (typeof value === 'boolean') {
     return value;
+  }
+
+  if (typeof value === 'number') {
+    return serializeNumber(value);
   }
 
   if (typeof value === 'undefined') {
@@ -2049,6 +2006,11 @@ function emitImportChunk(request, id, clientReferenceMetadata) {
   request.completedImportChunks.push(processedChunk);
 }
 
+function emitHintChunk(request, code, model) {
+  var processedChunk = processHintChunk(request, request.nextChunkId++, code, model);
+  request.completedHintChunks.push(processedChunk);
+}
+
 function emitSymbolChunk(request, id, name) {
   var symbolReference = serializeSymbolReference(name);
   var processedChunk = processReferenceChunk(request, id, symbolReference);
@@ -2133,9 +2095,9 @@ function retryTask(request, task) {
 
 function performWork(request) {
   var prevDispatcher = ReactCurrentDispatcher.current;
-  var prevCache = getCurrentCache();
   ReactCurrentDispatcher.current = HooksDispatcher;
-  setCurrentCache(request.cache);
+  var prevRequest = currentRequest;
+  currentRequest = request;
   prepareToUseHooksForRequest(request);
 
   try {
@@ -2155,8 +2117,8 @@ function performWork(request) {
     fatalError(request, error);
   } finally {
     ReactCurrentDispatcher.current = prevDispatcher;
-    setCurrentCache(prevCache);
     resetHooksForRequest();
+    currentRequest = prevRequest;
   }
 }
 
@@ -2190,18 +2152,35 @@ function flushCompletedChunks(request, destination) {
       }
     }
 
-    importsChunks.splice(0, i); // Next comes model data.
+    importsChunks.splice(0, i); // Next comes hints.
+
+    var hintChunks = request.completedHintChunks;
+    i = 0;
+
+    for (; i < hintChunks.length; i++) {
+      var _chunk = hintChunks[i];
+
+      var _keepWriting = writeChunkAndReturn(destination, _chunk);
+
+      if (!_keepWriting) {
+        request.destination = null;
+        i++;
+        break;
+      }
+    }
+
+    hintChunks.splice(0, i); // Next comes model data.
 
     var jsonChunks = request.completedJSONChunks;
     i = 0;
 
     for (; i < jsonChunks.length; i++) {
       request.pendingChunks--;
-      var _chunk = jsonChunks[i];
+      var _chunk2 = jsonChunks[i];
 
-      var _keepWriting = writeChunkAndReturn(destination, _chunk);
+      var _keepWriting2 = writeChunkAndReturn(destination, _chunk2);
 
-      if (!_keepWriting) {
+      if (!_keepWriting2) {
         request.destination = null;
         i++;
         break;
@@ -2217,11 +2196,11 @@ function flushCompletedChunks(request, destination) {
 
     for (; i < errorChunks.length; i++) {
       request.pendingChunks--;
-      var _chunk2 = errorChunks[i];
+      var _chunk3 = errorChunks[i];
 
-      var _keepWriting2 = writeChunkAndReturn(destination, _chunk2);
+      var _keepWriting3 = writeChunkAndReturn(destination, _chunk3);
 
-      if (!_keepWriting2) {
+      if (!_keepWriting3) {
         request.destination = null;
         i++;
         break;
@@ -2230,6 +2209,7 @@ function flushCompletedChunks(request, destination) {
 
     errorChunks.splice(0, i);
   } finally {
+    request.flushScheduled = false;
     completeWriting(destination);
   }
 
@@ -2240,9 +2220,11 @@ function flushCompletedChunks(request, destination) {
 }
 
 function startWork(request) {
+  request.flushScheduled = request.destination !== null;
+
   if (supportsRequestStorage) {
     scheduleWork(function () {
-      return requestStorage.run(request.cache, performWork, request);
+      return requestStorage.run(request, performWork, request);
     });
   } else {
     scheduleWork(function () {
@@ -2250,6 +2232,20 @@ function startWork(request) {
     });
   }
 }
+
+function enqueueFlush(request) {
+  if (request.flushScheduled === false && // If there are pinged tasks we are going to flush anyway after work completes
+  request.pingedTasks.length === 0 && // If there is no destination there is nothing we can flush to. A flush will
+  // happen when we start flowing again
+  request.destination !== null) {
+    var destination = request.destination;
+    request.flushScheduled = true;
+    scheduleWork(function () {
+      return flushCompletedChunks(request, destination);
+    });
+  }
+}
+
 function startFlowing(request, destination) {
   if (request.status === CLOSING) {
     request.status = CLOSED;
@@ -2334,8 +2330,36 @@ function importServerContexts(contexts) {
 
 // eslint-disable-next-line no-unused-vars
 function resolveServerReference(bundlerConfig, id) {
-  // This needs to return async: true if it's an async module.
-  return bundlerConfig[id];
+  var name = '';
+  var resolvedModuleData = bundlerConfig[id];
+
+  if (resolvedModuleData) {
+    // The potentially aliased name.
+    name = resolvedModuleData.name;
+  } else {
+    // We didn't find this specific export name but we might have the * export
+    // which contains this name as well.
+    // TODO: It's unfortunate that we now have to parse this string. We should
+    // probably go back to encoding path and name separately on the client reference.
+    var idx = id.lastIndexOf('#');
+
+    if (idx !== -1) {
+      name = id.slice(idx + 1);
+      resolvedModuleData = bundlerConfig[id.slice(0, idx)];
+    }
+
+    if (!resolvedModuleData) {
+      throw new Error('Could not find the module "' + id + '" in the React Server Manifest. ' + 'This is probably a bug in the React Server Components bundler.');
+    }
+  } // TODO: This needs to return async: true if it's an async module.
+
+
+  return {
+    id: resolvedModuleData.id,
+    chunks: resolvedModuleData.chunks,
+    name: name,
+    async: false
+  };
 } // The chunk cache contains all the chunks we've preloaded so far.
 // If they're still pending they're a thenable. This map also exists
 // in Webpack but unfortunately it's not exposed so we have to
@@ -2511,27 +2535,6 @@ function wakeChunk(listeners, value) {
   }
 }
 
-function wakeChunkIfInitialized(chunk, resolveListeners, rejectListeners) {
-  switch (chunk.status) {
-    case INITIALIZED:
-      wakeChunk(resolveListeners, chunk.value);
-      break;
-
-    case PENDING:
-    case BLOCKED:
-      chunk.value = resolveListeners;
-      chunk.reason = rejectListeners;
-      break;
-
-    case ERRORED:
-      if (rejectListeners) {
-        wakeChunk(rejectListeners, chunk.reason);
-      }
-
-      break;
-  }
-}
-
 function triggerErrorOnChunk(chunk, error) {
   if (chunk.status !== PENDING && chunk.status !== BLOCKED) {
     // We already resolved. We didn't expect to see this.
@@ -2551,28 +2554,6 @@ function triggerErrorOnChunk(chunk, error) {
 function createResolvedModelChunk(response, value) {
   // $FlowFixMe[invalid-constructor] Flow doesn't support functions as constructors
   return new Chunk(RESOLVED_MODEL, value, null, response);
-}
-
-function resolveModelChunk(chunk, value) {
-  if (chunk.status !== PENDING) {
-    // We already resolved. We didn't expect to see this.
-    return;
-  }
-
-  var resolveListeners = chunk.value;
-  var rejectListeners = chunk.reason;
-  var resolvedChunk = chunk;
-  resolvedChunk.status = RESOLVED_MODEL;
-  resolvedChunk.value = value;
-
-  if (resolveListeners !== null) {
-    // This is unfortunate that we're reading this eagerly if
-    // we already have listeners attached since they might no
-    // longer be rendered or might not be the highest pri.
-    initializeModelChunk(resolvedChunk); // The status might have changed after initialization.
-
-    wakeChunkIfInitialized(chunk, resolveListeners, rejectListeners);
-  }
 }
 
 function bindArgs(fn, args) {
@@ -2661,7 +2642,19 @@ function getChunk(response, id) {
   var chunk = chunks.get(id);
 
   if (!chunk) {
-    chunk = createPendingChunk(response);
+    var prefix = response._prefix;
+    var key = prefix + id; // Check if we have this field in the backing store already.
+
+    var backingEntry = response._formData.get(key);
+
+    if (backingEntry != null) {
+      // We assume that this is a string entry for now.
+      chunk = createResolvedModelChunk(response, backingEntry);
+    } else {
+      // We're still waiting on this entry to stream in.
+      chunk = createPendingChunk(response);
+    }
+
     chunks.set(id, chunk);
   }
 
@@ -2714,13 +2707,13 @@ function parseModelString(response, parentObject, key, value) {
       case '$':
         {
           // This was an escaped string value.
-          return value.substring(1);
+          return value.slice(1);
         }
 
       case '@':
         {
           // Promise
-          var id = parseInt(value.substring(2), 16);
+          var id = parseInt(value.slice(2), 16);
           var chunk = getChunk(response, id);
           return chunk;
         }
@@ -2728,13 +2721,13 @@ function parseModelString(response, parentObject, key, value) {
       case 'S':
         {
           // Symbol
-          return Symbol.for(value.substring(2));
+          return Symbol.for(value.slice(2));
         }
 
       case 'F':
         {
           // Server Reference
-          var _id = parseInt(value.substring(2), 16);
+          var _id = parseInt(value.slice(2), 16);
 
           var _chunk = getChunk(response, _id);
 
@@ -2752,6 +2745,47 @@ function parseModelString(response, parentObject, key, value) {
           return loadServerReference(response, metaData.id, metaData.bound, initializingChunk, parentObject, key);
         }
 
+      case 'K':
+        {
+          // FormData
+          var stringId = value.slice(2);
+          var formPrefix = response._prefix + stringId + '_';
+          var data = new FormData();
+          var backingFormData = response._formData; // We assume that the reference to FormData always comes after each
+          // entry that it references so we can assume they all exist in the
+          // backing store already.
+          // $FlowFixMe[prop-missing] FormData has forEach on it.
+
+          backingFormData.forEach(function (entry, entryKey) {
+            if (entryKey.startsWith(formPrefix)) {
+              data.append(entryKey.slice(formPrefix.length), entry);
+            }
+          });
+          return data;
+        }
+
+      case 'I':
+        {
+          // $Infinity
+          return Infinity;
+        }
+
+      case '-':
+        {
+          // $-0 or $-Infinity
+          if (value === '$-0') {
+            return -0;
+          } else {
+            return -Infinity;
+          }
+        }
+
+      case 'N':
+        {
+          // $NaN
+          return NaN;
+        }
+
       case 'u':
         {
           // matches "$undefined"
@@ -2759,16 +2793,22 @@ function parseModelString(response, parentObject, key, value) {
           return undefined;
         }
 
+      case 'D':
+        {
+          // Date
+          return new Date(Date.parse(value.slice(2)));
+        }
+
       case 'n':
         {
           // BigInt
-          return BigInt(value.substring(2));
+          return BigInt(value.slice(2));
         }
 
       default:
         {
           // We assume that anything else is a reference ID.
-          var _id2 = parseInt(value.substring(1), 16);
+          var _id2 = parseInt(value.slice(1), 16);
 
           var _chunk2 = getChunk(response, _id2);
 
@@ -2801,10 +2841,13 @@ function parseModelString(response, parentObject, key, value) {
   return value;
 }
 
-function createResponse(bundlerConfig) {
+function createResponse(bundlerConfig, formFieldPrefix) {
+  var backingFormData = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : new FormData();
   var chunks = new Map();
   var response = {
     _bundlerConfig: bundlerConfig,
+    _prefix: formFieldPrefix,
+    _formData: backingFormData,
     _chunks: chunks,
     _fromJSON: function (key, value) {
       if (typeof value === 'string') {
@@ -2816,19 +2859,6 @@ function createResponse(bundlerConfig) {
     }
   };
   return response;
-}
-function resolveField(response, id, model) {
-  var chunks = response._chunks;
-  var chunk = chunks.get(id);
-
-  if (!chunk) {
-    chunks.set(id, createResolvedModelChunk(response, model));
-  } else {
-    resolveModelChunk(chunk, model);
-  }
-}
-function resolveFile(response, id, file) {
-  throw new Error('Not implemented.');
 }
 function close(response) {
   // In case there are any remaining unresolved chunks, they won't
@@ -2873,23 +2903,13 @@ function renderToReadableStream(model, webpackMap, options) {
 }
 
 function decodeReply(body, webpackMap) {
-  var response = createResponse(webpackMap);
-
   if (typeof body === 'string') {
-    resolveField(response, 0, body);
-  } else {
-    // $FlowFixMe[prop-missing] Flow doesn't know that forEach exists.
-    body.forEach(function (value, key) {
-      var id = +key;
-
-      if (typeof value === 'string') {
-        resolveField(response, id, value);
-      } else {
-        resolveFile();
-      }
-    });
+    var form = new FormData();
+    form.append('0', body);
+    body = form;
   }
 
+  var response = createResponse(webpackMap, '', body);
   close(response);
   return getRoot(response);
 }

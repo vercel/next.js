@@ -11,7 +11,7 @@ on:
         type: string
 
     secrets:
-      START_RELEASE_TOKEN:
+      RELEASE_BOT_TOKEN:
         required: true
 
 name: Trigger Release
@@ -44,6 +44,8 @@ jobs:
 
       - run: git clone https://ijjk:${{ secrets.START_RELEASE_TOKEN }}@github.com/vercel/next.js.git --depth=25 .
 
+      - run: git describe || 'echo failed to get tag'
+
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
@@ -69,4 +71,4 @@ jobs:
 
       - run: node ./scripts/start-release.js --release-type ${{ github.event.inputs.releaseType }} --semver-type ${{ github.event.inputs.semverType }}
         env:
-          START_RELEASE_TOKEN: ${{ secrets.START_RELEASE_TOKEN }}
+          RELEASE_BOT_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}

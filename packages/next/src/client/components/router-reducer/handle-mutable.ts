@@ -39,7 +39,7 @@ export function handleMutable(
         mutable.hashFragment && mutable.hashFragment !== ''
           ? // Remove leading # and decode hash to make non-latin hashes work.
             decodeURIComponent(mutable.hashFragment.slice(1))
-          : null,
+          : state.focusAndScrollRef.hashFragment,
       segmentPaths:
         mutable?.scrollableSegments ?? state.focusAndScrollRef.segmentPaths,
     },

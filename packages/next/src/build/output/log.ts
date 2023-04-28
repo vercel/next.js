@@ -37,3 +37,11 @@ export function event(...message: any[]) {
 export function trace(...message: any[]) {
   console.log(prefixes.trace, ...message)
 }
+
+const warnOnceMessages = new Set()
+export function warnOnce(...message: any[]) {
+  if (!warnOnceMessages.has(message[0])) {
+    warnOnceMessages.add(message.join(' '))
+    warn(...message)
+  }
+}

@@ -15,6 +15,7 @@ if (process.env.NODE_ENV !== "production") {
 'use strict';
 
 var util = require('util');
+var ReactDOM = require('react-dom');
 var React = require('react');
 
 function createStringDecoder() {
@@ -36,8 +37,28 @@ function parseModel(response, json) {
 
 // eslint-disable-next-line no-unused-vars
 function resolveClientReference(bundlerConfig, metadata) {
-  var resolvedModuleData = bundlerConfig[metadata.id][metadata.name];
-  return resolvedModuleData;
+  var moduleExports = bundlerConfig[metadata.id];
+  var resolvedModuleData = moduleExports[metadata.name];
+  var name;
+
+  if (resolvedModuleData) {
+    // The potentially aliased name.
+    name = resolvedModuleData.name;
+  } else {
+    // If we don't have this specific name, we might have the full module.
+    resolvedModuleData = moduleExports['*'];
+
+    if (!resolvedModuleData) {
+      throw new Error('Could not find the module "' + metadata.id + '" in the React SSR Manifest. ' + 'This is probably a bug in the React Server Components bundler.');
+    }
+
+    name = metadata.name;
+  }
+
+  return {
+    specifier: resolvedModuleData.specifier,
+    name: name
+  };
 }
 var asyncModuleCache = new Map();
 function preloadModule(metadata) {
@@ -90,6 +111,57 @@ function requireModule(metadata) {
   }
 
   return moduleExports[metadata.name];
+}
+
+var ReactDOMSharedInternals = ReactDOM.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
+
+// This client file is in the shared folder because it applies to both SSR and browser contexts.
+var ReactDOMCurrentDispatcher = ReactDOMSharedInternals.Dispatcher;
+function dispatchHint(code, model) {
+  var dispatcher = ReactDOMCurrentDispatcher.current;
+
+  if (dispatcher) {
+    var href, options;
+
+    if (typeof model === 'string') {
+      href = model;
+    } else {
+      href = model[0];
+      options = model[1];
+    }
+
+    switch (code) {
+      case 'D':
+        {
+          // $FlowFixMe[prop-missing] options are not refined to their types by code
+          dispatcher.prefetchDNS(href, options);
+          return;
+        }
+
+      case 'C':
+        {
+          // $FlowFixMe[prop-missing] options are not refined to their types by code
+          dispatcher.preconnect(href, options);
+          return;
+        }
+
+      case 'L':
+        {
+          // $FlowFixMe[prop-missing] options are not refined to their types by code
+          // $FlowFixMe[incompatible-call] options are not refined to their types by code
+          dispatcher.preload(href, options);
+          return;
+        }
+
+      case 'I':
+        {
+          // $FlowFixMe[prop-missing] options are not refined to their types by code
+          // $FlowFixMe[incompatible-call] options are not refined to their types by code
+          dispatcher.preinit(href, options);
+          return;
+        }
+    }
+  }
 }
 
 var knownServerReferences = new WeakMap();
@@ -522,13 +594,13 @@ function parseModelString(response, parentObject, key, value) {
       case '$':
         {
           // This was an escaped string value.
-          return value.substring(1);
+          return value.slice(1);
         }
 
       case 'L':
         {
           // Lazy node
-          var id = parseInt(value.substring(2), 16);
+          var id = parseInt(value.slice(2), 16);
           var chunk = getChunk(response, id); // We create a React.lazy wrapper around any lazy values.
           // When passed into React, we'll know how to suspend on this.
 
@@ -538,7 +610,7 @@ function parseModelString(response, parentObject, key, value) {
       case '@':
         {
           // Promise
-          var _id = parseInt(value.substring(2), 16);
+          var _id = parseInt(value.slice(2), 16);
 
           var _chunk = getChunk(response, _id);
 
@@ -548,19 +620,19 @@ function parseModelString(response, parentObject, key, value) {
       case 'S':
         {
           // Symbol
-          return Symbol.for(value.substring(2));
+          return Symbol.for(value.slice(2));
         }
 
       case 'P':
         {
           // Server Context Provider
-          return getOrCreateServerContext(value.substring(2)).Provider;
+          return getOrCreateServerContext(value.slice(2)).Provider;
         }
 
       case 'F':
         {
           // Server Reference
-          var _id2 = parseInt(value.substring(2), 16);
+          var _id2 = parseInt(value.slice(2), 16);
 
           var _chunk2 = getChunk(response, _id2);
 
@@ -584,6 +656,28 @@ function parseModelString(response, parentObject, key, value) {
           }
         }
 
+      case 'I':
+        {
+          // $Infinity
+          return Infinity;
+        }
+
+      case '-':
+        {
+          // $-0 or $-Infinity
+          if (value === '$-0') {
+            return -0;
+          } else {
+            return -Infinity;
+          }
+        }
+
+      case 'N':
+        {
+          // $NaN
+          return NaN;
+        }
+
       case 'u':
         {
           // matches "$undefined"
@@ -591,16 +685,22 @@ function parseModelString(response, parentObject, key, value) {
           return undefined;
         }
 
+      case 'D':
+        {
+          // Date
+          return new Date(Date.parse(value.slice(2)));
+        }
+
       case 'n':
         {
           // BigInt
-          return BigInt(value.substring(2));
+          return BigInt(value.slice(2));
         }
 
       default:
         {
           // We assume that anything else is a reference ID.
-          var _id3 = parseInt(value.substring(1), 16);
+          var _id3 = parseInt(value.slice(1), 16);
 
           var _chunk3 = getChunk(response, _id3);
 
@@ -727,6 +827,10 @@ function resolveErrorDev(response, id, digest, message, stack) {
     triggerErrorOnChunk(chunk, errorWithDigest);
   }
 }
+function resolveHint(response, code, model) {
+  var hintModel = parseModel(response, model);
+  dispatchHint(code, hintModel);
+}
 function close(response) {
   // In case there are any remaining unresolved chunks, they won't
   // be resolved now. So we need to issue an error to those.
@@ -741,7 +845,7 @@ function processFullRow(response, row) {
   }
 
   var colon = row.indexOf(':', 0);
-  var id = parseInt(row.substring(0, colon), 16);
+  var id = parseInt(row.slice(0, colon), 16);
   var tag = row[colon + 1]; // When tags that are not text are added, check them here before
   // parsing the row as text.
   // switch (tag) {
@@ -750,13 +854,20 @@ function processFullRow(response, row) {
   switch (tag) {
     case 'I':
       {
-        resolveModule(response, id, row.substring(colon + 2));
+        resolveModule(response, id, row.slice(colon + 2));
+        return;
+      }
+
+    case 'H':
+      {
+        var code = row[colon + 2];
+        resolveHint(response, code, row.slice(colon + 3));
         return;
       }
 
     case 'E':
       {
-        var errorInfo = JSON.parse(row.substring(colon + 2));
+        var errorInfo = JSON.parse(row.slice(colon + 2));
 
         {
           resolveErrorDev(response, id, errorInfo.digest, errorInfo.message, errorInfo.stack);
@@ -768,7 +879,7 @@ function processFullRow(response, row) {
     default:
       {
         // We assume anything else is JSON.
-        resolveModel(response, id, row.substring(colon + 1));
+        resolveModel(response, id, row.slice(colon + 1));
         return;
       }
   }
@@ -778,14 +889,14 @@ function processStringChunk(response, chunk, offset) {
   var linebreak = chunk.indexOf('\n', offset);
 
   while (linebreak > -1) {
-    var fullrow = response._partialRow + chunk.substring(offset, linebreak);
+    var fullrow = response._partialRow + chunk.slice(offset, linebreak);
     processFullRow(response, fullrow);
     response._partialRow = '';
     offset = linebreak + 1;
     linebreak = chunk.indexOf('\n', offset);
   }
 
-  response._partialRow += chunk.substring(offset);
+  response._partialRow += chunk.slice(offset);
 }
 function processBinaryChunk(response, chunk) {
 
@@ -839,6 +950,10 @@ function noServerCall() {
   throw new Error('Server Functions cannot be called during initial render. ' + 'This would create a fetch waterfall. Try to use a Server Component ' + 'to pass data to Client Components instead.');
 }
 
+function createServerReference(id, callServer) {
+  return noServerCall;
+}
+
 function createFromNodeStream(stream, moduleMap) {
   var response = createResponse(moduleMap, noServerCall);
   stream.on('data', function (chunk) {
@@ -858,5 +973,6 @@ function createFromNodeStream(stream, moduleMap) {
 }
 
 exports.createFromNodeStream = createFromNodeStream;
+exports.createServerReference = createServerReference;
   })();
 }

@@ -12,9 +12,12 @@ use turbo_binding::{
                 ChunkingTypeOptionVc,
             },
             ident::AssetIdentVc,
-            reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
+            reference::{
+                AssetReference, AssetReferenceVc, AssetReferencesVc, SingleAssetReferenceVc,
+            },
             resolve::{ResolveResult, ResolveResultVc},
         },
+        dev::{ChunkDataVc, ChunksDataVc},
         turbopack::ecmascript::{
             chunk::{
                 EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
@@ -26,7 +29,7 @@ use turbo_binding::{
         },
     },
 };
-use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
+use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value, ValueToString, ValueToStringVc};
 
 #[turbo_tasks::function]
 fn modifier() -> StringVc {
@@ -112,6 +115,20 @@ struct WithClientChunksChunkItem {
 }
 
 #[turbo_tasks::value_impl]
+impl WithClientChunksChunkItemVc {
+    #[turbo_tasks::function]
+    async fn chunks_data(self) -> Result<ChunksDataVc> {
+        let this = self.await?;
+        let inner = this.inner.await?;
+        Ok(ChunkDataVc::from_assets(
+            inner.server_root,
+            this.context
+                .chunk_group(inner.asset.as_root_chunk(this.context.into())),
+        ))
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for WithClientChunksChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> EcmascriptChunkingContextVc {
@@ -119,34 +136,18 @@ impl EcmascriptChunkItem for WithClientChunksChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn content(&self) -> Result<EcmascriptChunkItemContentVc> {
-        let inner = self.inner.await?;
-        let chunks = self
-            .context
-            .chunk_group(inner.asset.as_root_chunk(self.context.into()))
-            .await?;
-        let server_root = inner.server_root.await?;
+    async fn content(self_vc: WithClientChunksChunkItemVc) -> Result<EcmascriptChunkItemContentVc> {
+        let this = self_vc.await?;
+        let inner = this.inner.await?;
 
-        let mut asset_paths = vec![];
-        for chunk in chunks.iter() {
-            for reference in chunk.references().await?.iter() {
-                let assets = &*reference.resolve_reference().primary_assets().await?;
-                for asset in assets.iter() {
-                    asset_paths.push(asset.ident().path().await?);
-                }
-            }
+        let chunks_data = self_vc.chunks_data().await?;
+        let chunks_data = chunks_data.iter().try_join().await?;
+        let chunks_data: Vec<_> = chunks_data
+            .iter()
+            .map(|chunk_data| chunk_data.runtime_chunk_data())
+            .collect();
 
-            asset_paths.push(chunk.ident().path().await?);
-        }
-
-        let mut client_chunks = Vec::new();
-        for asset_path in asset_paths {
-            if let Some(path) = server_root.get_path_to(&asset_path) {
-                client_chunks.push(path.to_string());
-            }
-        }
-
-        let module_id = inner.asset.as_chunk_item(self.context).id().await?;
+        let module_id = inner.asset.as_chunk_item(this.context).id().await?;
         Ok(EcmascriptChunkItemContent {
             inner_code: formatdoc!(
                 // We store the chunks in a binding, otherwise a new array would be created every
@@ -159,7 +160,7 @@ impl EcmascriptChunkItem for WithClientChunksChunkItem {
                     const chunks = {:#};
                 "#,
                 StringifyJs(&module_id),
-                StringifyJs(&client_chunks),
+                StringifyJs(&chunks_data),
             )
             .into(),
             ..Default::default()
@@ -176,8 +177,33 @@ impl ChunkItem for WithClientChunksChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> AssetReferencesVc {
-        self.inner.references()
+    async fn references(self_vc: WithClientChunksChunkItemVc) -> Result<AssetReferencesVc> {
+        let this = self_vc.await?;
+        let inner = this.inner.await?;
+        let mut references = Vec::new();
+        references.push(
+            WithClientChunksAssetReference {
+                asset: inner.asset.into(),
+            }
+            .cell()
+            .into(),
+        );
+        let group = this
+            .context
+            .chunk_group(inner.asset.as_root_chunk(this.context.into()));
+        let server_root = inner.server_root.await?;
+        let chunks = group.await?;
+        let client_chunk = StringVc::cell("client chunk".to_string());
+        for &chunk in chunks.iter() {
+            let path = chunk.ident().path().await?;
+            if path.is_inside(&server_root) {
+                references.push(SingleAssetReferenceVc::new(chunk, client_chunk).into());
+            }
+        }
+        for chunk_data in &*self_vc.chunks_data().await? {
+            references.extend(chunk_data.references().await?.iter().copied());
+        }
+        Ok(AssetReferencesVc::cell(references))
     }
 }
 

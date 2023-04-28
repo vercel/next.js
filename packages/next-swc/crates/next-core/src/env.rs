@@ -27,11 +27,17 @@ pub async fn env_for_js(
     let env = if client {
         FilterProcessEnvVc::new(
             env,
-            vec!["NEXT_PUBLIC_".to_string(), "NODE_ENV".to_string()],
+            vec![
+                "NEXT_PUBLIC_".to_string(),
+                "NODE_ENV".to_string(),
+                "PORT".to_string(),
+            ],
         )
         .into()
     } else {
-        env
+        // Server doesn't need to have env vars injected since it will have them in the
+        // real process.env.
+        EnvMapVc::cell(Default::default()).into()
     };
 
     let env =

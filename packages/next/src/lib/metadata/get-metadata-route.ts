@@ -1,6 +1,7 @@
-import { isMetadataRoute } from './is-metadata-route'
+import { isMetadataRoute, isMetadataRouteFile } from './is-metadata-route'
 import path from '../../shared/lib/isomorphic/path'
 import { djb2Hash } from '../../shared/lib/hash'
+import { isDynamicRoute } from '../../shared/lib/router/utils'
 
 /*
  * If there's special convention like (...) or @ in the page path,
@@ -30,28 +31,38 @@ export function getMetadataRouteSuffix(page: string) {
  */
 export function normalizeMetadataRoute(page: string) {
   let route = page
+  let suffix = ''
   if (isMetadataRoute(page)) {
-    // Remove the file extension, e.g. /route-path/robots.txt -> /route-path
-    const pathnamePrefix = page.slice(0, -(path.basename(page).length + 1))
-    const suffix = getMetadataRouteSuffix(pathnamePrefix)
-
-    if (route === '/sitemap') {
-      route += '.xml'
-    }
     if (route === '/robots') {
       route += '.txt'
-    }
-    if (route === '/manifest') {
+    } else if (route === '/manifest') {
       route += '.webmanifest'
+    } else if (route.endsWith('/sitemap')) {
+      route += '.xml'
+    } else {
+      // Remove the file extension, e.g. /route-path/robots.txt -> /route-path
+      const pathnamePrefix = page.slice(0, -(path.basename(page).length + 1))
+      suffix = getMetadataRouteSuffix(pathnamePrefix)
     }
     // Support both /<metadata-route.ext> and custom routes /<metadata-route>/route.ts.
-    // If it's a metadata file route, we need to append /route to the page.
+    // If it's a metadata file route, we need to append /[id]/route to the page.
     if (!route.endsWith('/route')) {
-      const { dir, name, ext } = path.parse(route)
+      const isStaticMetadataFile = isMetadataRouteFile(route, [], true)
+      const { dir, name: baseName, ext } = path.parse(route)
 
-      route = path.join(
+      // If it's dynamic routes, we need to append [[...__metadata_id__]] to the page;
+      // If it's static routes, we need to append nothing to the page.
+      // If its special routes like robots.txt and manifest.webmanifest, we leave them as static routes.
+      const isStaticRoute =
+        !isDynamicRoute(route) &&
+        (page.startsWith('/robots') ||
+          page.startsWith('/manifest') ||
+          isStaticMetadataFile)
+
+      route = path.posix.join(
         dir,
-        `${name}${suffix ? `-${suffix}` : ''}${ext}`,
+        `${baseName}${suffix ? `-${suffix}` : ''}${ext}`,
+        isStaticRoute ? '' : '[[...__metadata_id__]]',
         'route'
       )
     }

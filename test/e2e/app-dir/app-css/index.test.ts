@@ -154,7 +154,7 @@ createNextDescribe(
           const html = await next.render('/loading-bug/hi')
           // The link tag should be included together with loading
           expect(html).toMatch(
-            /<link rel="stylesheet" href="(.+)\.css"\/><h2>Loading...<\/h2>/
+            /<link rel="stylesheet" href="(.+)\.css(\?v=\d+)?"\/><h2>Loading...<\/h2>/
           )
         })
 
@@ -233,9 +233,23 @@ createNextDescribe(
         it('should bundle css resources into chunks', async () => {
           const html = await next.render('/dashboard')
           expect(
-            [...html.matchAll(/<link rel="stylesheet" href="[^.]+\.css"/g)]
-              .length
+            [
+              ...html.matchAll(
+                /<link rel="stylesheet" href="[^.]+\.css(\?v=\d+)?"/g
+              ),
+            ].length
           ).toBe(3)
+        })
+      })
+
+      describe('css ordering', () => {
+        it('should have inner layers take precedence over outer layers', async () => {
+          const browser = await next.browser('/ordering')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h1')).color`
+            )
+          ).toBe('rgb(255, 0, 0)')
         })
       })
 
@@ -256,10 +270,10 @@ createNextDescribe(
             const initialHtml = await next.render('/css/css-duplicate-2/server')
 
             // Even if it's deduped by Float, it should still only be included once in the payload.
-            // There are two matches, one for the rendered <link> and one for the flight data.
+            // There are 3 matches, one for the rendered <link>, one for float preload and one for the <link> inside flight payload.
             expect(
               initialHtml.match(/css-duplicate-2\/layout\.css/g).length
-            ).toBe(2)
+            ).toBe(3)
           })
 
           it('should only load chunks for the css module that is used by the specific entrypoint', async () => {
@@ -269,14 +283,14 @@ createNextDescribe(
             const browser = await next.browser('/css/css-duplicate/a')
             expect(
               await browser.eval(
-                `[...document.styleSheets].some(({ href }) => href.endsWith('/a/page.css'))`
+                `[...document.styleSheets].some(({ href }) => href.includes('/a/page.css'))`
               )
             ).toBe(true)
 
             // Should not load the chunk from /b
             expect(
               await browser.eval(
-                `[...document.styleSheets].some(({ href }) => href.endsWith('/b/page.css'))`
+                `[...document.styleSheets].some(({ href }) => href.includes('/b/page.css'))`
               )
             ).toBe(false)
           })

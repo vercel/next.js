@@ -1,7 +1,7 @@
-import Anser from "@vercel/turbopack-next/compiled/anser";
-import * as React from "react";
+import Anser from '@vercel/turbopack-next/compiled/anser'
+import * as React from 'react'
 
-export type TerminalProps = { content: string };
+export type TerminalProps = { content: string }
 
 export function Terminal({ content }: TerminalProps) {
   const decoded = React.useMemo(() => {
@@ -9,8 +9,8 @@ export function Terminal({ content }: TerminalProps) {
       json: true,
       use_classes: true,
       remove_empty: true,
-    });
-  }, [content]);
+    })
+  }, [content])
 
   return (
     <div data-nextjs-terminal className="terminal">
@@ -20,10 +20,10 @@ export function Terminal({ content }: TerminalProps) {
             key={`terminal-entry-${index}`}
             style={{
               color: entry.fg ? `var(--color-${entry.fg})` : undefined,
-              ...(entry.decoration === "bold"
+              ...(entry.decoration === 'bold'
                 ? { fontWeight: 800 }
-                : entry.decoration === "italic"
-                ? { fontStyle: "italic" }
+                : entry.decoration === 'italic'
+                ? { fontStyle: 'italic' }
                 : undefined),
             }}
           >
@@ -32,5 +32,5 @@ export function Terminal({ content }: TerminalProps) {
         ))}
       </pre>
     </div>
-  );
+  )
 }

@@ -29,15 +29,6 @@
       "dependsOn": ["^dev"],
       "outputs": ["dist/**"]
     },
-    "typescript": {},
-    "test-pack": {
-      "dependsOn": ["^test-pack", "test-pack-global-deps"],
-      "outputs": ["packed-*.tgz"],
-      "env": ["NEXT_SWC_VERSION"]
-    },
-    "test-pack-global-deps": {
-      "inputs": ["../../scripts/test-pack-package.mts", "../../package.json"],
-      "cache": false
-    }
+    "typescript": {}
   }
 }

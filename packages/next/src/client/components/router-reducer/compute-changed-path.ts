@@ -10,6 +10,16 @@ const segmentToPathname = (segment: Segment): string => {
   return segment[1]
 }
 
+function normalizePathname(pathname: string): string {
+  return pathname.split('/').reduce((acc, segment) => {
+    if (segment === '' || (segment.startsWith('(') && segment.endsWith(')'))) {
+      return acc
+    }
+
+    return `${acc}/${segment}`
+  }, '')
+}
+
 export function extractPathFromFlightRouterState(
   flightRouterState: FlightRouterState
 ): string | undefined {
@@ -23,7 +33,7 @@ export function extractPathFromFlightRouterState(
   )
     return undefined
 
-  if (segment === '__PAGE__') return ''
+  if (segment.startsWith('__PAGE__')) return ''
 
   const path = [segment]
 
@@ -47,10 +57,8 @@ export function extractPathFromFlightRouterState(
     }
   }
 
-  const finalPath = path.join('/')
-
-  // it'll end up including a trailing slash because of '__PAGE__'
-  return finalPath.endsWith('/') ? finalPath.slice(0, -1) : finalPath
+  // TODO-APP: optimise this, it's not ideal to join and split
+  return normalizePathname(path.join('/'))
 }
 
 function computeChangedPathImpl(
@@ -103,11 +111,5 @@ export function computeChangedPath(
   }
 
   // lightweight normalization to remove route groups
-  return changedPath.split('/').reduce((acc, segment) => {
-    if (segment === '' || (segment.startsWith('(') && segment.endsWith(')'))) {
-      return acc
-    }
-
-    return `${acc}/${segment}`
-  }, '')
+  return normalizePathname(changedPath)
 }

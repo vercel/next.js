@@ -34,7 +34,7 @@ async function sync(channel = 'next') {
     )
     if (stderr) {
       console.error(stderr)
-      throw new Error(`Failed to read latest React canary version from npm.`)
+      throw new Error('Failed to read latest React canary version from npm.')
     }
     newVersionStr = stdout.trim()
   }
