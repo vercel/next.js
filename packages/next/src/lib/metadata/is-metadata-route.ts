@@ -43,7 +43,7 @@ export function isMetadataRouteFile(
     new RegExp(
       `^[\\\\/]robots${
         withExtension
-          ? `\\.${getExtensionRegexString(pageExtensions.concat('txt'))}`
+          ? `\\.${getExtensionRegexString(pageExtensions.concat('txt'))}$`
           : ''
       }`
     ),
@@ -52,7 +52,7 @@ export function isMetadataRouteFile(
         withExtension
           ? `\\.${getExtensionRegexString(
               pageExtensions.concat('webmanifest', 'json')
-            )}`
+            )}$`
           : ''
       }`
     ),
@@ -60,43 +60,43 @@ export function isMetadataRouteFile(
     new RegExp(
       `[\\\\/]sitemap${
         withExtension
-          ? `\\.${getExtensionRegexString(pageExtensions.concat('xml'))}`
+          ? `\\.${getExtensionRegexString(pageExtensions.concat('xml'))}$`
           : ''
       }`
     ),
     new RegExp(
-      `[\\\\/]${STATIC_METADATA_IMAGES.icon.filename}${
+      `[\\\\/]${STATIC_METADATA_IMAGES.icon.filename}\\d?${
         withExtension
           ? `\\.${getExtensionRegexString(
               pageExtensions.concat(STATIC_METADATA_IMAGES.icon.extensions)
-            )}`
+            )}$`
           : ''
       }`
     ),
     new RegExp(
-      `[\\\\/]${STATIC_METADATA_IMAGES.apple.filename}${
+      `[\\\\/]${STATIC_METADATA_IMAGES.apple.filename}\\d?${
         withExtension
           ? `\\.${getExtensionRegexString(
               pageExtensions.concat(STATIC_METADATA_IMAGES.apple.extensions)
-            )}`
+            )}$`
           : ''
       }`
     ),
     new RegExp(
-      `[\\\\/]${STATIC_METADATA_IMAGES.openGraph.filename}${
+      `[\\\\/]${STATIC_METADATA_IMAGES.openGraph.filename}\\d?${
         withExtension
           ? `\\.${getExtensionRegexString(
               pageExtensions.concat(STATIC_METADATA_IMAGES.openGraph.extensions)
-            )}`
+            )}$`
           : ''
       }`
     ),
     new RegExp(
-      `[\\\\/]${STATIC_METADATA_IMAGES.twitter.filename}${
+      `[\\\\/]${STATIC_METADATA_IMAGES.twitter.filename}\\d?${
         withExtension
           ? `\\.${getExtensionRegexString(
               pageExtensions.concat(STATIC_METADATA_IMAGES.twitter.extensions)
-            )}`
+            )}$`
           : ''
       }`
     ),
