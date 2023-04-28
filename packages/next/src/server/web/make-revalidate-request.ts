@@ -3,7 +3,7 @@ import { StaticGenerationStore } from '../../client/components/static-generation
 import { getRevalidateHeaders } from './get-revalidate-headers'
 
 export function makeRevalidateRequest(
-  method = 'HEAD',
+  method: 'GET' | 'HEAD',
   path: string,
   store: StaticGenerationStore,
   ctx: {

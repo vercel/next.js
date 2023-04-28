@@ -21,13 +21,16 @@ import {
 } from '../router-reducer-types'
 import { addBasePath } from '../../../add-base-path'
 import { createHrefFromUrl } from '../create-href-from-url'
-import React from 'react'
-import { getRedirectError, redirect } from '../../redirect'
+
+type FetchServerActionResult = {
+  result: ActionFlightData | undefined
+  redirectLocation: URL | undefined
+}
 
 async function fetchServerAction(
   state: ReadonlyReducerState,
   { actionId, actionArgs }: ServerActionAction
-) {
+): Promise<FetchServerActionResult> {
   const body = await encodeReply(actionArgs)
 
   const res = await fetch('', {
@@ -46,9 +49,10 @@ async function fetchServerAction(
   })
 
   const location = res.headers.get('location')
+
   const redirectLocation = location
     ? new URL(addBasePath(location), window.location.origin)
-    : null
+    : undefined
 
   let isFlightResponse =
     res.headers.get('content-type') === RSC_CONTENT_TYPE_HEADER
@@ -62,6 +66,10 @@ async function fetchServerAction(
   return { result, redirectLocation }
 }
 
+/*
+ * This reducer is responsible for calling the server action and processing any side-effects from the server action.
+ * It does not mutate the state by itself but rather delegates to other reducers to do the actual mutation.
+ */
 export function serverActionReducer(
   state: ReadonlyReducerState,
   action: ServerActionAction
@@ -81,13 +89,12 @@ export function serverActionReducer(
   // suspends until the server action is resolved.
   const { result, redirectLocation } = readRecordValue(
     action.mutable.inFlightServerAction!
-  ) as {
-    result: ActionFlightData | undefined
-    redirectLocation: URL | null
-  }
+  ) as Awaited<FetchServerActionResult>
 
   if (redirectLocation) {
     const flightData = result as FlightData | undefined
+
+    // the redirection might have a flight data associated with it, so we'll populate the cache with it
     if (flightData) {
       const href = createHrefFromUrl(
         redirectLocation,
@@ -102,21 +109,24 @@ export function serverActionReducer(
             undefined,
           ])
         ),
-        kind: PrefetchKind.TEMPORARY,
+        kind: PrefetchKind.TEMPORARY, //TODO: maybe this could cached longer?
         prefetchTime: Date.now(),
         treeAtTimeOfPrefetch: action.mutable.previousTree!,
         lastUsedTime: null,
       })
     }
 
+    // TODO: do this instead when experimental React is enabled
     // action.reject(getRedirectError(redirectLocation.toString()))
 
+    // this is an intentional hack around React: we want to redirect in a new render
     setTimeout(() => {
       action.navigate(redirectLocation.toString(), 'push', !flightData)
     })
   } else {
     const [actionResult, flightData] = result ?? [undefined, undefined]
     if (flightData) {
+      // this is an intentional hack around React: we want to update the tree in a new render
       setTimeout(() => {
         action.changeByServerResponse(
           action.mutable.previousTree!,
@@ -128,7 +138,7 @@ export function serverActionReducer(
     }
     action.resolve(actionResult)
   }
-  action.mutable.serverActionApplied = true
 
+  action.mutable.serverActionApplied = true
   return state
 }

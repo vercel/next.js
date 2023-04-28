@@ -4,7 +4,6 @@ import {
   ACTION,
   RSC,
   RSC_CONTENT_TYPE_HEADER,
-  RSC_VARY_HEADER,
 } from '../../client/components/app-router-headers'
 import { isNotFoundError } from '../../client/components/not-found'
 import {
@@ -15,7 +14,6 @@ import RenderResult from '../render-result'
 import { StaticGenerationStore } from '../../client/components/static-generation-async-storage'
 import { FlightRenderResult } from './flight-render-result'
 import { ActionResult } from './types'
-import { getRevalidateHeaders } from '../web/get-revalidate-headers'
 import { makeRevalidateRequest } from '../web/make-revalidate-request'
 
 function formDataFromSearchQueryString(query: string) {
@@ -27,38 +25,42 @@ function formDataFromSearchQueryString(query: string) {
   return formData
 }
 
+const rscHeaders = {
+  [RSC]: '1',
+}
+
 async function createRedirectRenderResult(
   redirectUrl: string,
   staticGenerationStore: StaticGenerationStore
 ) {
-  try {
-    const headResponse = await makeRevalidateRequest(
-      'HEAD',
-      redirectUrl,
-      staticGenerationStore,
-      undefined,
-      {
-        [RSC]: '1',
-      }
-    )
-
-    if (headResponse.headers.get('content-type') === RSC_CONTENT_TYPE_HEADER) {
-      const response = await makeRevalidateRequest(
-        'GET',
+  // if we're redirecting to a relative path, we'll try to stream the response
+  if (redirectUrl.startsWith('/')) {
+    try {
+      const headResponse = await makeRevalidateRequest(
+        'HEAD',
         redirectUrl,
         staticGenerationStore,
         undefined,
-        {
-          [RSC]: '1',
-        }
+        rscHeaders
       )
-      return new FlightRenderResult(response.body!)
-    }
 
-    return new RenderResult(JSON.stringify({}))
-  } catch (err) {
-    return new RenderResult(JSON.stringify({}))
+      if (
+        headResponse.headers.get('content-type') === RSC_CONTENT_TYPE_HEADER
+      ) {
+        const response = await makeRevalidateRequest(
+          'GET',
+          redirectUrl,
+          staticGenerationStore,
+          undefined,
+          rscHeaders
+        )
+        return new FlightRenderResult(response.body!)
+      }
+    } catch (err) {
+      // we couldn't stream the redirect response, so we'll just do a normal redirect
+    }
   }
+  return new RenderResult(JSON.stringify({}))
 }
 
 export async function handleAction({
