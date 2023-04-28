@@ -1260,7 +1260,7 @@ export default async function getBaseWebpackConfig(
             layer === WEBPACK_LAYERS.server ||
             layer === WEBPACK_LAYERS.action)
         ) {
-          request = `react-dom${bundledReactChannel}/server-rendering-stub`
+          request = `next/dist/compiled/react-dom${bundledReactChannel}/server-rendering-stub`
         } else if (isAppLayer) {
           request =
             'next/dist/compiled/' +
@@ -1793,9 +1793,8 @@ export default async function getBaseWebpackConfig(
         ...(hasAppDir
           ? [
               {
-                test: codeCondition.test,
+                // All app dir layers need to use this configured resolution logic
                 issuerLayer: {
-                  // All app dir layers
                   or: [
                     WEBPACK_LAYERS.server,
                     WEBPACK_LAYERS.client,
