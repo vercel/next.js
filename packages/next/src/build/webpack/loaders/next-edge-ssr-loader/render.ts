@@ -25,7 +25,6 @@ export function getRender({
   buildManifest,
   reactLoadableManifest,
   appRenderToHTML,
-  pagesRenderToHTML,
   clientReferenceManifest,
   subresourceIntegrityManifest,
   serverCSSManifest,
@@ -35,7 +34,7 @@ export function getRender({
   nextFontManifest,
   incrementalCacheHandler,
 }: {
-  pagesType: 'app' | 'pages' | 'root'
+  pagesType: 'app' | 'root'
   dev: boolean
   page: string
   appMod: any

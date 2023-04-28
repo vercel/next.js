@@ -48,7 +48,6 @@ import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
   SERVER_PROPS_EXPORT_ERROR,
 } from '../../../../lib/constants'
-import { RouteKind } from '../../route-kind'
 import {
   RouteModule,
   type RouteModuleHandleContext,

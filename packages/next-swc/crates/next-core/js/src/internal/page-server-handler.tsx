@@ -10,7 +10,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { RenderOpts } from 'next/dist/server/render'
 import { getRedirectStatus } from 'next/dist/lib/redirect-status'
 import { PERMANENT_REDIRECT_STATUS } from 'next/dist/shared/lib/constants'
-import { buildStaticPaths } from 'next/dist/build/utils'
+import { getStaticPaths } from 'next/dist/build/future/is-static/pages'
 import type { BuildManifest } from 'next/dist/server/get-page-files'
 import type { ReactLoadableManifest } from 'next/dist/server/load-components'
 
@@ -95,11 +95,14 @@ export default function startHandler({
         paths: prerenderRoutes,
         fallback: prerenderFallback,
         encodedPaths: _encodedPrerenderRoutes,
-      } = await buildStaticPaths({
+      } = await getStaticPaths({
         page: renderData.path,
         getStaticPaths: namespace.getStaticPaths,
         // TODO(alexkirsz) Provide the correct next.config.js path.
         configFileName: 'next.config.js',
+        // FIXME: (wyattjoh) these should be the real values for locales and defaultLocale
+        locales: undefined,
+        defaultLocale: undefined,
       })
 
       // We provide a dummy base URL to the URL constructor so that it doesn't

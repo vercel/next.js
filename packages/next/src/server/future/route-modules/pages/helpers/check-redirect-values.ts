@@ -1,4 +1,3 @@
-import type { IncomingMessage } from 'http'
 import type { Redirect } from '../../../../../../types'
 
 import {

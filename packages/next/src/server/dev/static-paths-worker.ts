@@ -4,17 +4,15 @@ import type { AppRouteUserlandModule } from '../future/route-modules/app-route/m
 import '../require-hook'
 import '../node-polyfill-fetch'
 import '../node-environment'
-import {
-  buildAppStaticPaths,
-  buildStaticPaths,
-  collectGenerateParams,
-  GenerateParams,
-} from '../../build/utils'
+
+import { collectGenerateParams, GenerateParams } from '../../build/utils'
 import { loadComponents } from '../load-components'
 import { setHttpClientAndAgentOptions } from '../config'
 import { IncrementalCache } from '../lib/incremental-cache'
 import * as serverHooks from '../../client/components/hooks-server-context'
 import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
+import { getStaticPaths } from '../../build/future/is-static/pages'
+import { generateStaticParams } from '../../build/future/is-static/app-page'
 
 type RuntimeConfig = any
 
@@ -95,26 +93,32 @@ export async function loadStaticPaths({
         ]
       : await collectGenerateParams(components.ComponentMod.tree)
 
-    return await buildAppStaticPaths({
+    return await generateStaticParams({
       page: pathname,
-      generateParams,
-      configFileName: config.configFileName,
       distDir,
-      requestHeaders,
-      incrementalCacheHandlerPath,
-      serverHooks,
-      staticGenerationAsyncStorage,
+      configFileName: config.configFileName,
+      generateParams,
       isrFlushToDisk,
-      fetchCacheKeyPrefix,
+      incrementalCacheHandlerPath,
+      requestHeaders,
       maxMemoryCacheSize,
+      fetchCacheKeyPrefix,
+      staticGenerationAsyncStorage,
+      serverHooks,
     })
   }
 
-  return await buildStaticPaths({
+  if (!components.getStaticPaths) {
+    throw new Error(
+      `Invariant: attempted to buildStaticPaths without "getStaticPaths": ${pathname}`
+    )
+  }
+
+  return await getStaticPaths({
     page: pathname,
-    getStaticPaths: components.getStaticPaths,
-    configFileName: config.configFileName,
     locales,
     defaultLocale,
+    getStaticPaths: components.getStaticPaths,
+    configFileName: config.configFileName,
   })
 }
