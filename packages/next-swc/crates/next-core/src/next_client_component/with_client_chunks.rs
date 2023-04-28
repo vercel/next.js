@@ -4,7 +4,7 @@ use turbo_binding::{
     turbo::tasks_fs::FileSystemPathVc,
     turbopack::{
         core::{
-            asset::{Asset, AssetContentVc, AssetVc},
+            asset::{Asset, AssetContentVc, AssetVc, AssetsVc},
             chunk::{
                 availability_info::AvailabilityInfo, ChunkItem, ChunkItemVc, ChunkVc,
                 ChunkableAsset, ChunkableAssetReference, ChunkableAssetReferenceVc,
@@ -12,6 +12,7 @@ use turbo_binding::{
                 ChunkingTypeOptionVc,
             },
             ident::AssetIdentVc,
+            proxied_asset::ProxiedAssetVc,
             reference::{
                 AssetReference, AssetReferenceVc, AssetReferencesVc, SingleAssetReferenceVc,
             },
@@ -117,13 +118,43 @@ struct WithClientChunksChunkItem {
 #[turbo_tasks::value_impl]
 impl WithClientChunksChunkItemVc {
     #[turbo_tasks::function]
+    async fn chunks(self) -> Result<AssetsVc> {
+        let this = self.await?;
+        let inner = this.inner.await?;
+        Ok(this
+            .context
+            .chunk_group(inner.asset.as_root_chunk(this.context.into())))
+    }
+
+    #[turbo_tasks::function]
+    async fn client_chunks(self) -> Result<AssetsVc> {
+        let this = self.await?;
+        let inner = this.inner.await?;
+        let chunks = self.chunks();
+        let output_root = this.context.output_root().await?;
+
+        let mut client_chunks = Vec::new();
+        for chunk in &*chunks.await? {
+            let extension = chunk.ident().path().extension().await?;
+            // Only expose CSS chunks as client chunks.
+            if &*extension == "css" {
+                if let Some(path) = output_root.get_path_to(&*chunk.ident().path().await?) {
+                    client_chunks
+                        .push(ProxiedAssetVc::new(*chunk, inner.server_root.join(path)).into());
+                }
+            }
+        }
+
+        Ok(AssetsVc::cell(client_chunks))
+    }
+
+    #[turbo_tasks::function]
     async fn chunks_data(self) -> Result<ChunksDataVc> {
         let this = self.await?;
         let inner = this.inner.await?;
         Ok(ChunkDataVc::from_assets(
             inner.server_root,
-            this.context
-                .chunk_group(inner.asset.as_root_chunk(this.context.into())),
+            self.client_chunks(),
         ))
     }
 }
@@ -188,17 +219,11 @@ impl ChunkItem for WithClientChunksChunkItem {
             .cell()
             .into(),
         );
-        let group = this
-            .context
-            .chunk_group(inner.asset.as_root_chunk(this.context.into()));
-        let server_root = inner.server_root.await?;
-        let chunks = group.await?;
+        let client_chunks = self_vc.client_chunks();
+        let client_chunks = client_chunks.await?;
         let client_chunk = StringVc::cell("client chunk".to_string());
-        for &chunk in chunks.iter() {
-            let path = chunk.ident().path().await?;
-            if path.is_inside(&server_root) {
-                references.push(SingleAssetReferenceVc::new(chunk, client_chunk).into());
-            }
+        for &chunk in client_chunks.iter() {
+            references.push(SingleAssetReferenceVc::new(chunk, client_chunk).into());
         }
         for chunk_data in &*self_vc.chunks_data().await? {
             references.extend(chunk_data.references().await?.iter().copied());

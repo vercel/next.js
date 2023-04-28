@@ -10,6 +10,28 @@ createNextDescribe(
     files: __dirname,
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
+    if (isNextStart) {
+      it('should have correct preferredRegion values in manifest', async () => {
+        const middlewareManifest = JSON.parse(
+          await next.readFile('.next/server/middleware-manifest.json')
+        )
+        expect(
+          middlewareManifest.functions['/(rootonly)/dashboard/hello/page']
+            .regions
+        ).toEqual(['iad1', 'sfo1'])
+        expect(middlewareManifest.functions['/dashboard/page'].regions).toEqual(
+          ['iad1']
+        )
+        expect(
+          middlewareManifest.functions['/slow-page-no-loading/page'].regions
+        ).toEqual(['edge'])
+
+        expect(middlewareManifest.functions['/test-page/page'].regions).toEqual(
+          ['home']
+        )
+      })
+    }
+
     it('should have correct searchParams and params (server)', async () => {
       const html = await next.render('/dynamic/category-1/id-2?query1=value2')
       const $ = cheerio.load(html)
