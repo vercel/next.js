@@ -127,30 +127,39 @@ async fn apply_module_type(
 
             base.into()
         }
-        ModuleType::Typescript(transforms) => EcmascriptModuleAssetVc::new(
+        ModuleType::Typescript {
+            transforms,
+            options,
+        } => EcmascriptModuleAssetVc::new(
             source,
             context.into(),
             Value::new(EcmascriptModuleAssetType::Typescript),
             *transforms,
-            Value::new(Default::default()),
+            Value::new(*options),
             context.compile_time_info(),
         )
         .into(),
-        ModuleType::TypescriptWithTypes(transforms) => EcmascriptModuleAssetVc::new(
+        ModuleType::TypescriptWithTypes {
+            transforms,
+            options,
+        } => EcmascriptModuleAssetVc::new(
             source,
             context.with_types_resolving_enabled().into(),
             Value::new(EcmascriptModuleAssetType::TypescriptWithTypes),
             *transforms,
-            Value::new(Default::default()),
+            Value::new(*options),
             context.compile_time_info(),
         )
         .into(),
-        ModuleType::TypescriptDeclaration(transforms) => EcmascriptModuleAssetVc::new(
+        ModuleType::TypescriptDeclaration {
+            transforms,
+            options,
+        } => EcmascriptModuleAssetVc::new(
             source,
             context.with_types_resolving_enabled().into(),
             Value::new(EcmascriptModuleAssetType::TypescriptDeclaration),
             *transforms,
-            Value::new(Default::default()),
+            Value::new(*options),
             context.compile_time_info(),
         )
         .into(),
@@ -293,16 +302,20 @@ impl ModuleAssetContextVc {
                                     transforms: transforms.extend(*additional_transforms),
                                     options,
                                 }),
-                                Some(ModuleType::Typescript(transforms)) => {
-                                    Some(ModuleType::Typescript(
-                                        transforms.extend(*additional_transforms),
-                                    ))
-                                }
-                                Some(ModuleType::TypescriptWithTypes(transforms)) => {
-                                    Some(ModuleType::TypescriptWithTypes(
-                                        transforms.extend(*additional_transforms),
-                                    ))
-                                }
+                                Some(ModuleType::Typescript {
+                                    transforms,
+                                    options,
+                                }) => Some(ModuleType::Typescript {
+                                    transforms: transforms.extend(*additional_transforms),
+                                    options,
+                                }),
+                                Some(ModuleType::TypescriptWithTypes {
+                                    transforms,
+                                    options,
+                                }) => Some(ModuleType::TypescriptWithTypes {
+                                    transforms: transforms.extend(*additional_transforms),
+                                    options,
+                                }),
                                 Some(module_type) => {
                                     ModuleIssue {
                                         ident,

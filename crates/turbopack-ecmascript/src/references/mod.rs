@@ -7,6 +7,7 @@ pub mod node;
 pub mod pattern_mapping;
 pub mod raw;
 pub mod require_context;
+pub mod type_issue;
 pub mod typescript;
 pub mod unreachable;
 pub mod util;
@@ -43,7 +44,7 @@ use turbo_tasks::{
     primitives::{BoolVc, RegexVc},
     TryJoinIterExt, Value,
 };
-use turbo_tasks_fs::FileSystemPathVc;
+use turbo_tasks_fs::{FileJsonContent, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
     compile_time_info::{CompileTimeInfoVc, FreeVarReference},
@@ -116,11 +117,12 @@ use crate::{
         },
         esm::{module_id::EsmModuleIdAssetReferenceVc, EsmBindingVc, EsmExportsVc},
         require_context::{RequireContextAssetReferenceVc, RequireContextMapVc},
+        type_issue::SpecifiedModuleTypeIssue,
     },
     resolve::try_to_severity,
     tree_shake::{part_of_module, split},
     typescript::resolve::tsconfig,
-    EcmascriptInputTransformsVc, EcmascriptOptions,
+    EcmascriptInputTransformsVc, EcmascriptOptions, SpecifiedModuleType, SpecifiedModuleTypeVc,
 };
 
 #[turbo_tasks::value(shared)]
@@ -249,6 +251,20 @@ impl Default for AnalyzeEcmascriptModuleResultBuilder {
     }
 }
 
+#[turbo_tasks::function]
+async fn specified_module_type(package_json: FileSystemPathVc) -> Result<SpecifiedModuleTypeVc> {
+    if let FileJsonContent::Content(content) = &*package_json.read_json().await? {
+        if let Some(r#type) = content.get("type") {
+            match r#type.as_str() {
+                Some("module") => return Ok(SpecifiedModuleType::EcmaScript.cell()),
+                Some("commonjs") => return Ok(SpecifiedModuleType::CommonJs.cell()),
+                _ => {}
+            }
+        }
+    }
+    Ok(SpecifiedModuleType::Automatic.cell())
+}
+
 struct AnalysisState<'a> {
     handler: &'a Handler,
     source: AssetVc,
@@ -292,11 +308,18 @@ pub(crate) async fn analyze_ecmascript_module(
         parse(source, ty, transforms)
     };
 
-    match &*find_context_file(path.parent(), package_json()).await? {
-        FindContextFileResult::Found(package_json, _) => {
-            analysis.add_reference(PackageJsonReferenceVc::new(*package_json));
+    let specified_type = match options.specified_module_type {
+        SpecifiedModuleType::Automatic => {
+            match *find_context_file(path.parent(), package_json()).await? {
+                FindContextFileResult::Found(package_json, _) => {
+                    analysis.add_reference(PackageJsonReferenceVc::new(package_json));
+                    *specified_module_type(package_json).await?
+                }
+                FindContextFileResult::NotFound(_) => SpecifiedModuleType::Automatic,
+            }
         }
-        FindContextFileResult::NotFound(_) => {}
+        SpecifiedModuleType::EcmaScript => SpecifiedModuleType::EcmaScript,
+        SpecifiedModuleType::CommonJs => SpecifiedModuleType::CommonJs,
     };
 
     if analyze_types {
@@ -520,13 +543,39 @@ pub(crate) async fn analyze_ecmascript_module(
             }
 
             let exports = if !esm_exports.is_empty() || !esm_star_exports.is_empty() {
+                if matches!(specified_type, SpecifiedModuleType::CommonJs) {
+                    SpecifiedModuleTypeIssue {
+                        path: source.ident().path(),
+                        specified_type,
+                    }
+                    .cell()
+                    .as_issue()
+                    .emit();
+                }
                 let esm_exports: EsmExportsVc = EsmExports {
                     exports: esm_exports,
                     star_exports: esm_star_exports,
                 }
-                .into();
+                .cell();
                 analysis.add_code_gen(esm_exports);
                 EcmascriptExports::EsmExports(esm_exports)
+            } else if matches!(specified_type, SpecifiedModuleType::EcmaScript) {
+                if has_cjs_export(program) {
+                    SpecifiedModuleTypeIssue {
+                        path: source.ident().path(),
+                        specified_type,
+                    }
+                    .cell()
+                    .as_issue()
+                    .emit();
+                }
+                EcmascriptExports::EsmExports(
+                    EsmExports {
+                        exports: Default::default(),
+                        star_exports: Default::default(),
+                    }
+                    .cell(),
+                )
             } else if has_cjs_export(program) {
                 EcmascriptExports::CommonJs
             } else {

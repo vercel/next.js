@@ -69,8 +69,9 @@ async fn expand_star_exports(root_asset: EcmascriptChunkPlaceableVc) -> Result<E
                 category: StringVc::cell("analyze".to_string()),
                 message: StringVc::cell(format!(
                     "export * used with module {} which has no exports\nTypescript only: Did you \
-                     want to export only types with `export type {{ ... }} from \"...\"`?",
-                    // TODO recommend export type * from "..." once https://github.com/microsoft/TypeScript/issues/37238 is implemented
+                     want to export only types with `export type * from \"...\"`?\nNote: Using \
+                     `export type` is more efficient than `export *` as it won't emit any runtime \
+                     code.",
                     asset.ident().to_string().await?
                 )),
                 source_ident: asset.ident(),
