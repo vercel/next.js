@@ -22,9 +22,13 @@ use turbo_binding::{
         turbopack::condition::ContextCondition,
     },
 };
-use turbo_tasks::{primitives::StringVc, trace::TraceRawVcs, Value, ValueToString};
+use turbo_tasks::{
+    primitives::{JsonValue, JsonValueVc, StringVc},
+    trace::TraceRawVcs,
+    Value, ValueToString,
+};
 
-use crate::next_config::NextConfigVc;
+use crate::next_config::{NextConfigVc, OutputType};
 
 /// Converts a filename within the server root into a next pathname.
 #[turbo_tasks::function]
@@ -347,4 +351,20 @@ pub async fn load_next_json<T: DeserializeOwned>(
     let result: T = parse_json_rope_with_source_context(file.content())?;
 
     Ok(result)
+}
+
+#[turbo_tasks::function]
+pub async fn render_data(next_config: NextConfigVc) -> Result<JsonValueVc> {
+    #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Data {
+        next_config_output: Option<OutputType>,
+    }
+
+    let config = next_config.await?;
+
+    let value = serde_json::to_value(Data {
+        next_config_output: config.output.clone(),
+    })?;
+    Ok(JsonValue(value).cell())
 }

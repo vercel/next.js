@@ -16,6 +16,7 @@ import type { StaticGenerationAsyncStorage } from '../client/components/static-g
 
 import '../server/require-hook'
 import '../server/node-polyfill-fetch'
+import '../server/node-polyfill-crypto'
 import chalk from 'next/dist/compiled/chalk'
 import getGzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
