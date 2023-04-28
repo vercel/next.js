@@ -931,7 +931,6 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
             context.compile_time_info().environment(),
         )
         .layer("ssr")
-        .css_chunk_root_path(server_root.join("_next/static/chunks"))
         .reference_chunk_source_maps(false)
         .build();
 
@@ -1012,7 +1011,6 @@ impl AppRouteVc {
             this.context.compile_time_info().environment(),
         )
         .layer("ssr")
-        .css_chunk_root_path(this.server_root.join("_next/static/chunks"))
         .reference_chunk_source_maps(false)
         .build();
 
