@@ -824,7 +824,7 @@ function runTests(mode) {
       )
     })
 
-     it('should show error when invalid Infinity width prop', async () => {
+    it('should show error when invalid Infinity width prop', async () => {
       const browser = await webdriver(appPort, '/invalid-Infinity-width')
 
       expect(await hasRedbox(browser, true)).toBe(true)
