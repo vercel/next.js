@@ -16,4 +16,4 @@ export default function DashboardPage(props) {
   )
 }
 
-export const runtime = 'experimental-edge'
+export const runtime = 'edge'

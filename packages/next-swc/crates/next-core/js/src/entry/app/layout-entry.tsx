@@ -18,4 +18,8 @@ export {
   renderToReadableStream,
   decodeReply,
 } from 'next/dist/compiled/react-server-dom-webpack/server.edge'
-export { preloadStyle } from 'next/dist/server/app-render/rsc/preloads'
+export {
+  preloadStyle,
+  preloadFont,
+  preconnect,
+} from 'next/dist/server/app-render/rsc/preloads'
