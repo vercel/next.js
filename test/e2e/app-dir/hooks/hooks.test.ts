@@ -77,12 +77,23 @@ createNextDescribe(
     })
 
     describe('useDraftMode', () => {
-      it('should draft mode be disabled', async () => {
+      let initialRand = 'unintialized'
+      it('should use initial rand when draft mode be disabled', async () => {
         const $ = await next.render$('/hooks/use-draft-mode')
         expect($('#draft-mode-val').text()).toBe('DISABLED')
+        expect($('#rand').text()).toBeDefined()
+        initialRand = $('#rand').text()
       })
 
-      it('should draft mode be enabled after cookie is set', async () => {
+      if (!isNextDev) {
+        it('should not generate rand when draft mode disabled during next start', async () => {
+          const $ = await next.render$('/hooks/use-draft-mode')
+          expect($('#draft-mode-val').text()).toBe('DISABLED')
+          expect($('#rand').text()).toBe(initialRand)
+        })
+      }
+
+      it('should genenerate rand when draft mode enabled', async () => {
         const res = await next.fetch('/enable')
         const h = res.headers.get('set-cookie') || ''
         const cookie = h
@@ -97,8 +108,8 @@ createNextDescribe(
             },
           }
         )
-        const val = isNextDev ? 'DISABLED' : 'ENABLED'
-        expect($('#draft-mode-val').text()).toBe(val)
+        expect($('#draft-mode-val').text()).toBe('ENABLED')
+        expect($('#rand').text()).not.toBe(initialRand)
       })
     })
 
