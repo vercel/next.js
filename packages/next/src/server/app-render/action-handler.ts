@@ -114,7 +114,7 @@ export async function handleAction({
 
     const { actionAsyncStorage } = ComponentMod
 
-    let actionResult: RenderResult
+    let actionResult: RenderResult | undefined
 
     try {
       await actionAsyncStorage.run({ isAction: true }, async () => {
@@ -208,7 +208,7 @@ export async function handleAction({
         }
       })
 
-      if (actionResult!) {
+      if (actionResult) {
         return actionResult
       }
     } catch (err) {
@@ -220,11 +220,12 @@ export async function handleAction({
         // if it's a fetch action, we don't want to mess with the status code
         // and we'll handle it on the client router
         res.setHeader('Location', redirectUrl)
-        if (!isFetchAction) {
-          res.statusCode = 303
-          return new RenderResult('')
+        if (isFetchAction) {
+          return createRedirectRenderResult(redirectUrl, staticGenerationStore)
         }
-        return createRedirectRenderResult(redirectUrl, staticGenerationStore)
+
+        res.statusCode = 303
+        return new RenderResult('')
       } else if (isNotFoundError(err)) {
         if (isFetchAction) {
           throw new Error('Invariant: not implemented.')
