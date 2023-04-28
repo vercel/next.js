@@ -60,7 +60,7 @@ use turbo_binding::{
         },
     },
 };
-use turbo_tasks::{TryJoinIterExt, ValueToString};
+use turbo_tasks::{primitives::JsonValueVc, TryJoinIterExt, ValueToString};
 
 use crate::{
     app_render::next_layout_entry_transition::NextServerComponentTransition,
@@ -96,6 +96,7 @@ use crate::{
         get_server_compile_time_info, get_server_module_options_context,
         get_server_resolve_options_context, ServerContextType,
     },
+    util::render_data,
 };
 
 #[turbo_tasks::function]
@@ -421,6 +422,7 @@ pub async fn create_app_source(
         client_compile_time_info,
         next_config,
     );
+    let render_data = render_data(next_config);
 
     let sources = entrypoints
         .await?
@@ -438,6 +440,7 @@ pub async fn create_app_source(
                 server_runtime_entries,
                 fallback_page,
                 output_path,
+                render_data,
             ),
             Entrypoint::AppRoute { path } => create_app_route_source_for_route(
                 pathname,
@@ -449,6 +452,7 @@ pub async fn create_app_source(
                 server_root,
                 server_runtime_entries,
                 output_path,
+                render_data,
             ),
         })
         .chain(once(create_global_metadata_source(
@@ -517,6 +521,7 @@ async fn create_app_page_source_for_route(
     runtime_entries: AssetsVc,
     fallback_page: DevHtmlAssetVc,
     intermediate_output_path_root: FileSystemPathVc,
+    render_data: JsonValueVc,
 ) -> Result<ContentSourceVc> {
     let pathname_vc = StringVc::cell(pathname.to_string());
 
@@ -542,6 +547,7 @@ async fn create_app_page_source_for_route(
         .cell()
         .into(),
         fallback_page,
+        render_data,
     );
 
     Ok(source.issue_context(app_dir, &format!("Next.js App Page Route {pathname}")))
@@ -559,6 +565,7 @@ async fn create_app_route_source_for_route(
     server_root: FileSystemPathVc,
     runtime_entries: AssetsVc,
     intermediate_output_path_root: FileSystemPathVc,
+    render_data: JsonValueVc,
 ) -> Result<ContentSourceVc> {
     let pathname_vc = StringVc::cell(pathname.to_string());
 
@@ -582,6 +589,7 @@ async fn create_app_route_source_for_route(
         }
         .cell()
         .into(),
+        render_data,
     );
 
     Ok(source.issue_context(app_dir, &format!("Next.js App Route {pathname}")))
