@@ -14,6 +14,7 @@ import {
   getEdgeServerEntry,
   getAppEntry,
   runDependingOnPageType,
+  getStaticInfoIncludingLayouts,
 } from '../../build/entries'
 import { watchCompilers } from '../../build/output'
 import * as Log from '../../build/output/log'
@@ -713,12 +714,14 @@ export default class HotReloader {
             const hasAppDir = !!this.appDir
             const isAppPath = hasAppDir && bundlePath.startsWith('app/')
             const staticInfo = isEntry
-              ? await getPageStaticInfo({
-                  page,
+              ? await getStaticInfoIncludingLayouts({
+                  isInsideAppDir: isAppPath,
+                  pageExtensions: this.config.pageExtensions,
                   pageFilePath: entryData.absolutePagePath,
-                  nextConfig: this.config,
+                  appDir: this.appDir,
+                  config: this.config,
                   isDev: true,
-                  pageType: isAppPath ? 'app' : 'pages',
+                  page,
                 })
               : {}
             const isServerComponent =
@@ -755,6 +758,7 @@ export default class HotReloader {
                       tsconfigPath: this.config.typescript.tsconfigPath,
                       assetPrefix: this.config.assetPrefix,
                       nextConfigOutput: this.config.output,
+                      preferredRegion: staticInfo.preferredRegion,
                     }).import
                   : undefined
 
@@ -774,6 +778,7 @@ export default class HotReloader {
                     isServerComponent,
                     appDirLoader,
                     pagesType: isAppPath ? 'app' : 'pages',
+                    preferredRegion: staticInfo.preferredRegion,
                   }),
                   hasAppDir,
                 })
@@ -838,6 +843,7 @@ export default class HotReloader {
                         tsconfigPath: this.config.typescript.tsconfigPath,
                         assetPrefix: this.config.assetPrefix,
                         nextConfigOutput: this.config.output,
+                        preferredRegion: staticInfo.preferredRegion,
                       })
                     : relativeRequest,
                   hasAppDir,

@@ -53,6 +53,87 @@ import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { normalizeMetadataRoute } from '../lib/metadata/get-metadata-route'
 import { fileExists } from '../lib/file-exists'
 
+export async function getStaticInfoIncludingLayouts({
+  isInsideAppDir,
+  pageExtensions,
+  pageFilePath,
+  appDir,
+  config,
+  isDev,
+  page,
+}: {
+  isInsideAppDir: boolean
+  pageExtensions: string[]
+  pageFilePath: string
+  appDir: string | undefined
+  config: NextConfigComplete
+  isDev: boolean | undefined
+  page: string
+}): Promise<PageStaticInfo> {
+  const pageStaticInfo = await getPageStaticInfo({
+    nextConfig: config,
+    pageFilePath,
+    isDev,
+    page,
+    pageType: isInsideAppDir ? 'app' : 'pages',
+  })
+
+  const staticInfo: PageStaticInfo = isInsideAppDir
+    ? {
+        // TODO-APP: Remove the rsc key altogether. It's no longer required.
+        rsc: 'server',
+        // runtime?: ServerRuntime
+        // ssg?: boolean
+        // ssr?: boolean
+        // rsc?: RSCModuleType
+        // middleware?: Partial<MiddlewareConfig>
+      }
+    : pageStaticInfo
+
+  if (isInsideAppDir) {
+    const layoutFiles = []
+    const potentialLayoutFiles = pageExtensions.map((ext) => 'layout.' + ext)
+    let dir = dirname(pageFilePath)
+    while (dir !== appDir) {
+      for (const potentialLayoutFile of potentialLayoutFiles) {
+        const layoutFile = join(dir, potentialLayoutFile)
+        if (!(await fileExists(layoutFile))) {
+          continue
+        }
+        layoutFiles.unshift(layoutFile)
+      }
+      // Walk up the directory tree
+      dir = join(dir, '..')
+    }
+
+    for (const layoutFile of layoutFiles) {
+      const layoutStaticInfo = await getPageStaticInfo({
+        nextConfig: config,
+        pageFilePath: layoutFile,
+        isDev,
+        page,
+        pageType: isInsideAppDir ? 'app' : 'pages',
+      })
+
+      // Only runtime is relevant here.
+      if (layoutStaticInfo.runtime) {
+        staticInfo.runtime = layoutStaticInfo.runtime
+      }
+      if (layoutStaticInfo.preferredRegion) {
+        staticInfo.preferredRegion = layoutStaticInfo.preferredRegion
+      }
+    }
+
+    if (pageStaticInfo.runtime) {
+      staticInfo.runtime = pageStaticInfo.runtime
+    }
+    if (pageStaticInfo.preferredRegion) {
+      staticInfo.preferredRegion = pageStaticInfo.preferredRegion
+    }
+  }
+  return staticInfo
+}
+
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 
 /**
@@ -432,69 +513,15 @@ export async function createEntrypoints(
         (absolutePagePath.startsWith(APP_DIR_ALIAS) ||
           absolutePagePath.startsWith(appDir))
 
-      const pageStaticInfo = await getPageStaticInfo({
-        nextConfig: config,
+      const staticInfo: PageStaticInfo = await getStaticInfoIncludingLayouts({
+        isInsideAppDir,
+        pageExtensions,
         pageFilePath,
+        appDir,
+        config,
         isDev,
         page,
-        pageType: isInsideAppDir ? 'app' : 'pages',
       })
-
-      const staticInfo: PageStaticInfo = isInsideAppDir
-        ? {
-            // TODO-APP: Remove the rsc key altogether. It's no longer required.
-            rsc: 'server',
-            // runtime?: ServerRuntime
-            // ssg?: boolean
-            // ssr?: boolean
-            // rsc?: RSCModuleType
-            // middleware?: Partial<MiddlewareConfig>
-          }
-        : pageStaticInfo
-
-      if (isInsideAppDir) {
-        const layoutFiles = []
-        const potentialLayoutFiles = pageExtensions.map(
-          (ext) => 'layout.' + ext
-        )
-        let dir = dirname(pageFilePath)
-        while (dir !== appDir) {
-          for (const potentialLayoutFile of potentialLayoutFiles) {
-            const layoutFile = join(dir, potentialLayoutFile)
-            if (!(await fileExists(layoutFile))) {
-              continue
-            }
-            layoutFiles.unshift(layoutFile)
-          }
-          // Walk up the directory tree
-          dir = join(dir, '..')
-        }
-
-        for (const layoutFile of layoutFiles) {
-          const layoutStaticInfo = await getPageStaticInfo({
-            nextConfig: config,
-            pageFilePath: layoutFile,
-            isDev,
-            page,
-            pageType: isInsideAppDir ? 'app' : 'pages',
-          })
-
-          // Only runtime is relevant here.
-          if (layoutStaticInfo.runtime) {
-            staticInfo.runtime = layoutStaticInfo.runtime
-          }
-          if (layoutStaticInfo.preferredRegion) {
-            staticInfo.preferredRegion = layoutStaticInfo.preferredRegion
-          }
-        }
-
-        if (pageStaticInfo.runtime) {
-          staticInfo.runtime = pageStaticInfo.runtime
-        }
-        if (pageStaticInfo.preferredRegion) {
-          staticInfo.preferredRegion = pageStaticInfo.preferredRegion
-        }
-      }
 
       const isServerComponent =
         isInsideAppDir && staticInfo.rsc !== RSC_MODULE_TYPES.client
