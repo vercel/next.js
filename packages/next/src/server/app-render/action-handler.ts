@@ -15,6 +15,7 @@ import { StaticGenerationStore } from '../../client/components/static-generation
 import { FlightRenderResult } from './flight-render-result'
 import { ActionResult } from './types'
 import { makeRevalidateRequest } from '../web/make-revalidate-request'
+import { ActionAsyncStorage } from '../../client/components/action-async-storage'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -112,105 +113,114 @@ export async function handleAction({
       }
     )
 
-    const { actionAsyncStorage } = ComponentMod
+    const { actionAsyncStorage } = ComponentMod as {
+      actionAsyncStorage: ActionAsyncStorage
+    }
 
     let actionResult: RenderResult | undefined
 
     try {
-      await actionAsyncStorage.run({ isAction: true }, async () => {
-        if (process.env.NEXT_RUNTIME === 'edge') {
-          // Use react-server-dom-webpack/server.edge
-          const { decodeReply } = ComponentMod
+      await actionAsyncStorage.run(
+        { isAction: true, shouldRefresh: false },
+        async () => {
+          if (process.env.NEXT_RUNTIME === 'edge') {
+            // Use react-server-dom-webpack/server.edge
+            const { decodeReply } = ComponentMod
 
-          const webRequest = req as unknown as Request
-          if (!webRequest.body) {
-            throw new Error('invariant: Missing request body.')
-          }
-
-          if (isMultipartAction) {
-            throw new Error('invariant: Multipart form data is not supported.')
-          } else {
-            let actionData = ''
-
-            const reader = webRequest.body.getReader()
-            while (true) {
-              const { done, value } = await reader.read()
-              if (done) {
-                break
-              }
-
-              actionData += new TextDecoder().decode(value)
+            const webRequest = req as unknown as Request
+            if (!webRequest.body) {
+              throw new Error('invariant: Missing request body.')
             }
 
-            if (isFormAction) {
-              const formData = formDataFromSearchQueryString(actionData)
-              actionId = formData.get('$$id') as string
-
-              if (!actionId) {
-                throw new Error('Invariant: missing action ID.')
-              }
-              formData.delete('$$id')
-              bound = [formData]
+            if (isMultipartAction) {
+              throw new Error(
+                'invariant: Multipart form data is not supported.'
+              )
             } else {
-              bound = await decodeReply(actionData, serverModuleMap)
-            }
-          }
-        } else {
-          // Use react-server-dom-webpack/server.node which supports streaming
-          const {
-            decodeReply,
-            decodeReplyFromBusboy,
-          } = require('next/dist/compiled/react-server-dom-webpack/server.node')
+              let actionData = ''
 
-          if (isMultipartAction) {
-            const busboy = require('busboy')
-            const bb = busboy({ headers: req.headers })
-            req.pipe(bb)
+              const reader = webRequest.body.getReader()
+              while (true) {
+                const { done, value } = await reader.read()
+                if (done) {
+                  break
+                }
 
-            bound = await decodeReplyFromBusboy(bb, serverModuleMap)
-          } else {
-            const { parseBody } =
-              require('../api-utils/node') as typeof import('../api-utils/node')
-            const actionData = (await parseBody(req, '1mb')) || ''
-
-            if (isFormAction) {
-              actionId = actionData.$$id as string
-              if (!actionId) {
-                throw new Error('Invariant: missing action ID.')
+                actionData += new TextDecoder().decode(value)
               }
-              const formData = formDataFromSearchQueryString(actionData)
-              formData.delete('$$id')
-              bound = [formData]
+
+              if (isFormAction) {
+                const formData = formDataFromSearchQueryString(actionData)
+                actionId = formData.get('$$id') as string
+
+                if (!actionId) {
+                  throw new Error('Invariant: missing action ID.')
+                }
+                formData.delete('$$id')
+                bound = [formData]
+              } else {
+                bound = await decodeReply(actionData, serverModuleMap)
+              }
+            }
+          } else {
+            // Use react-server-dom-webpack/server.node which supports streaming
+            const {
+              decodeReply,
+              decodeReplyFromBusboy,
+            } = require('next/dist/compiled/react-server-dom-webpack/server.node')
+
+            if (isMultipartAction) {
+              const busboy = require('busboy')
+              const bb = busboy({ headers: req.headers })
+              req.pipe(bb)
+
+              bound = await decodeReplyFromBusboy(bb, serverModuleMap)
             } else {
-              bound = await decodeReply(actionData, serverModuleMap)
+              const { parseBody } =
+                require('../api-utils/node') as typeof import('../api-utils/node')
+              const actionData = (await parseBody(req, '1mb')) || ''
+
+              if (isFormAction) {
+                actionId = actionData.$$id as string
+                if (!actionId) {
+                  throw new Error('Invariant: missing action ID.')
+                }
+                const formData = formDataFromSearchQueryString(actionData)
+                formData.delete('$$id')
+                bound = [formData]
+              } else {
+                bound = await decodeReply(actionData, serverModuleMap)
+              }
             }
           }
+
+          const actionModId =
+            serverActionsManifest[
+              process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
+            ][actionId].workers[workerName]
+          const actionHandler =
+            ComponentMod.__next_app_webpack_require__(actionModId)[actionId]
+
+          const returnVal = await actionHandler.apply(null, bound)
+
+          // if the user called revalidate or refresh, we need to set the flag
+          // so that we can bypass the next cache
+          if (staticGenerationStore.pathWasRevalidated) {
+            staticGenerationStore.isRevalidate = true
+          }
+
+          // For form actions, we need to continue rendering the page.
+          if (isFetchAction) {
+            actionResult = await generateFlight({
+              actionResult: returnVal,
+              // if the page was not revalidated, we can skip the rendering the flight tree
+              skipFlight:
+                !staticGenerationStore.pathWasRevalidated &&
+                !actionAsyncStorage.getStore()?.shouldRefresh,
+            })
+          }
         }
-
-        const actionModId =
-          serverActionsManifest[
-            process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
-          ][actionId].workers[workerName]
-        const actionHandler =
-          ComponentMod.__next_app_webpack_require__(actionModId)[actionId]
-
-        const returnVal = await actionHandler.apply(null, bound)
-
-        // if the user called revalidate or refresh, we need to set the flag
-        // so that we can bypass the next cache
-        if (staticGenerationStore.pathWasRevalidated) {
-          staticGenerationStore.isRevalidate = true
-        }
-
-        // For form actions, we need to continue rendering the page.
-        if (isFetchAction) {
-          actionResult = await generateFlight({
-            actionResult: returnVal,
-            // if the page was not revalidated, we can skip the rendering the flight tree
-            skipFlight: !staticGenerationStore.pathWasRevalidated,
-          })
-        }
-      })
+      )
 
       if (actionResult) {
         return actionResult

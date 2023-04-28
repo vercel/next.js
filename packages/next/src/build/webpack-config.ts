@@ -88,8 +88,8 @@ const babelIncludeRegexes: RegExp[] = [
 
 const reactPackagesRegex = /^(react(?:$|\/)|react-dom(?:$|\/))/
 
-const staticGenerationAsyncStorageRegex =
-  /next[\\/]dist[\\/]client[\\/]components[\\/]static-generation-async-storage/
+const asyncStoragesRegex =
+  /next[\\/]dist[\\/]client[\\/]components[\\/](static-generation-async-storage|action-async-storage)/
 
 const mainFieldsPerCompiler: Record<CompilerNameValues, string[]> = {
   [COMPILER_NAMES.server]: ['main', 'module'],
@@ -1299,7 +1299,12 @@ export default async function getBaseWebpackConfig(
           localRes
         )
 
-      if (isNextExternal) {
+      const shouldBundleOverride =
+        /next[/\\]dist[/\\](esm[\\/])?server[/\\]web[/\\]spec-extension[/\\]refresh[^-]/.test(
+          localRes
+        )
+
+      if (isNextExternal && !shouldBundleOverride) {
         // Generate Next.js external import
         const externalRequest = path.posix.join(
           'next',
@@ -1821,10 +1826,7 @@ export default async function getBaseWebpackConfig(
                   and: [
                     codeCondition.test,
                     {
-                      not: [
-                        optOutBundlingPackageRegex,
-                        staticGenerationAsyncStorageRegex,
-                      ],
+                      not: [optOutBundlingPackageRegex, asyncStoragesRegex],
                     },
                   ],
                 },
@@ -1847,7 +1849,7 @@ export default async function getBaseWebpackConfig(
                 // Make sure that AsyncLocalStorage module instance is shared between server and client
                 // layers.
                 layer: WEBPACK_LAYERS.shared,
-                test: staticGenerationAsyncStorageRegex,
+                test: asyncStoragesRegex,
               },
             ]
           : []),
@@ -1881,7 +1883,7 @@ export default async function getBaseWebpackConfig(
                 // Alias react for switching between default set and share subset.
                 oneOf: [
                   {
-                    exclude: [staticGenerationAsyncStorageRegex],
+                    exclude: [asyncStoragesRegex],
                     issuerLayer: {
                       or: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.action],
                     },
@@ -1958,7 +1960,7 @@ export default async function getBaseWebpackConfig(
                     issuerLayer: {
                       or: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.action],
                     },
-                    exclude: [staticGenerationAsyncStorageRegex],
+                    exclude: [asyncStoragesRegex],
                     use: swcLoaderForServerLayer,
                   },
                   {
@@ -1971,10 +1973,7 @@ export default async function getBaseWebpackConfig(
                     issuerLayer: {
                       or: [WEBPACK_LAYERS.client, WEBPACK_LAYERS.appClient],
                     },
-                    exclude: [
-                      staticGenerationAsyncStorageRegex,
-                      codeCondition.exclude,
-                    ],
+                    exclude: [asyncStoragesRegex, codeCondition.exclude],
                     use: [
                       ...(dev && isClient
                         ? [

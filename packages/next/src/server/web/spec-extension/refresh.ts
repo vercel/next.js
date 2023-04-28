@@ -1,19 +1,11 @@
-import {
-  StaticGenerationAsyncStorage,
-  StaticGenerationStore,
-} from '../../../client/components/static-generation-async-storage'
+import { actionAsyncStorage } from '../../../client/components/action-async-storage'
 
 export function refresh() {
-  const staticGenerationAsyncStorage = (
-    fetch as any
-  ).__nextGetStaticStore?.() as undefined | StaticGenerationAsyncStorage
+  const asyncActionStore = actionAsyncStorage.getStore()
 
-  const store: undefined | StaticGenerationStore =
-    staticGenerationAsyncStorage?.getStore()
-
-  if (!store || !store.incrementalCache) {
-    throw new Error(`Invariant: static generation store missing in refresh`)
+  if (asyncActionStore && asyncActionStore.isAction) {
+    asyncActionStore.shouldRefresh = true
+  } else {
+    throw new Error('refresh() can only be called from within a Server Action.')
   }
-
-  store.pathWasRevalidated = true
 }

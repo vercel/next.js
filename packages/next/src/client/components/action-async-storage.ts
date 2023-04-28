@@ -4,6 +4,7 @@ import { createAsyncLocalStorage } from './async-local-storage'
 export interface ActionStore {
   readonly isAction?: boolean
   readonly isAppRoute?: boolean
+  shouldRefresh?: boolean
 }
 
 export type ActionAsyncStorage = AsyncLocalStorage<ActionStore>
