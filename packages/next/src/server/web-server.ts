@@ -147,7 +147,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   }
   protected getPrerenderManifest() {
     const { prerenderManifest } = this.serverOptions.webServerConfig
-    if (this.renderOpts.dev || !prerenderManifest) {
+    if (this.renderOpts?.dev || !prerenderManifest) {
       return {
         version: -1 as any, // letting us know this doesn't conform to spec
         routes: {},

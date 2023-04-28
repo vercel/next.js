@@ -2541,7 +2541,8 @@ export default class NextNodeServer extends BaseServer {
     if (
       this.renderOpts?.dev ||
       this.serverOptions?.dev ||
-      this.renderWorkerOpts?.dev
+      this.renderWorkerOpts?.dev ||
+      process.env.NODE_ENV === 'development'
     ) {
       this._cachedPreviewManifest = {
         version: 4,
