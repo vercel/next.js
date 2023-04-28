@@ -19,11 +19,7 @@ import {
   type ReadonlyRequestCookies,
 } from '../web/spec-extension/adapters/request-cookies'
 import { RequestCookies, ResponseCookies } from '../web/spec-extension/cookies'
-import {
-  checkIsOnDemandRevalidate,
-  COOKIE_NAME_PRERENDER_BYPASS,
-  __ApiPreviewProps,
-} from '../api-utils'
+import { __ApiPreviewProps } from '../api-utils'
 import { DraftMode } from './draft-mode'
 
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
