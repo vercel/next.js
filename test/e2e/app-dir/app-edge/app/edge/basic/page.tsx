@@ -5,4 +5,5 @@ export default function Page() {
   return <p>Node!</p>
 }
 
-export const runtime = 'edge'
+// export const runtime = 'edge'
+export const preferredRegion = ['sfo1', 'lhr1']

@@ -1,5 +1,7 @@
 'use client'
 
+export const runtime = 'edge'
+
 // TODO-APP: support typing for useSelectedLayoutSegment
 // @ts-ignore
 import { useSelectedLayoutSegments } from 'next/navigation'
