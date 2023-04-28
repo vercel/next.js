@@ -181,6 +181,7 @@ export default function startHandler({
       basePath: '',
       // TODO(WEB-583) this isn't correct, instead it should set `dev: true`
       nextExport: true,
+      nextConfigOutput: renderData.data?.nextConfigOutput,
       resolvedUrl: renderData.url,
       optimizeFonts: false,
       optimizeCss: false,
