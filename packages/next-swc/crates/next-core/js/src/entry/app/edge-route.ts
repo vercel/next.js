@@ -1,10 +1,10 @@
 // IPC need to be the first import to allow it to catch errors happening during
 // the other imports
-import startHandler from '../internal/api-server-handler'
+import startHandler from '../../internal/api-server-handler'
 
 import 'next/dist/server/node-polyfill-fetch.js'
 
-import { join } from 'node:path'
+import { join } from 'path'
 import { parse as parseUrl } from 'node:url'
 
 import {
@@ -12,10 +12,10 @@ import {
   NodeNextResponse,
 } from 'next/dist/server/base-http/node'
 
-import { attachRequestMeta } from '../internal/next-request-helpers'
-import { runEdgeFunction } from '../internal/edge'
+import { runEdgeFunction } from '../../internal/edge'
+import { attachRequestMeta } from '../../internal/next-request-helpers'
 
-import chunkGroup from 'INNER_EDGE_CHUNK_GROUP'
+import chunkGroup from 'ROUTE_CHUNK_GROUP'
 
 startHandler(async ({ request, response, query, params, path }) => {
   const req = new NodeNextRequest(request)
@@ -26,8 +26,8 @@ startHandler(async ({ request, response, query, params, path }) => {
 
   const edgeInfo = {
     name: 'edge',
-    paths: chunkGroup.map((chunk: string) =>
-      join(process.cwd(), '.next/server/pages', chunk)
+    paths: chunkGroup.map((chunk) =>
+      join(process.cwd(), '.next/server/app', chunk)
     ),
     wasm: [],
     env: Object.keys(process.env),
@@ -36,7 +36,7 @@ startHandler(async ({ request, response, query, params, path }) => {
 
   await runEdgeFunction({
     edgeInfo,
-    outputDir: 'pages',
+    outputDir: 'app',
     req,
     res,
     query,
