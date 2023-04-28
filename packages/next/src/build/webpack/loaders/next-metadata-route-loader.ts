@@ -106,9 +106,9 @@ export async function GET(_, ctx) {
   const id = __metadata_id__[0]
   const imageMetadata = generateImageMetadata ? await generateImageMetadata({ params }) : null
   if (imageMetadata) {
-    const hasId = imageMetadata.some((item) => { item.id === id })
+    const hasId = imageMetadata.some((item) => item.id.toString() === id)
     if (!hasId) {
-      return new NextResponse(null, {
+      return new NextResponse('Not Found', {
         status: 404,
       })
     }
@@ -140,7 +140,7 @@ export async function GET(_, ctx) {
     const targetId = __metadata_id__[0]
     id = sitemaps.find((item) => item.id.toString() === targetId)?.id
     if (id == null) {
-      return new NextResponse(null, {
+      return new NextResponse('Not Found', {
         status: 404,
       })
     }

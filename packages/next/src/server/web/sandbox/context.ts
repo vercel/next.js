@@ -117,7 +117,7 @@ function createProcessPolyfill(options: Pick<ModuleContextOptions, 'env'>) {
     if (key === 'env') continue
     Object.defineProperty(processPolyfill, key, {
       get() {
-        if (overridenValue[key]) {
+        if (overridenValue[key] !== undefined) {
           return overridenValue[key]
         }
         if (typeof (process as any)[key] === 'function') {
