@@ -49,7 +49,7 @@ use turbo_tasks::{
 };
 
 use crate::{
-    embed_js::{next_asset, next_js_file},
+    embed_js::next_asset,
     env::env_for_js,
     fallback::get_fallback_page,
     next_client::{
@@ -164,7 +164,7 @@ pub async fn create_page_source(
         edge_resolve_options_context,
         output_path,
         base_path: project_path,
-        bootstrap_file: next_js_file("entry/edge-bootstrap.ts"),
+        bootstrap_asset: next_asset("entry/edge-bootstrap.ts"),
         entry_name: "edge".to_string(),
     }
     .cell()
