@@ -51,11 +51,6 @@ impl DevChunkingContextBuilder {
         self
     }
 
-    pub fn css_chunk_root_path(mut self, path: FileSystemPathVc) -> Self {
-        self.context.css_chunk_root_path = Some(path);
-        self
-    }
-
     pub fn reference_chunk_source_maps(mut self, source_maps: bool) -> Self {
         self.context.reference_chunk_source_maps = source_maps;
         self
@@ -87,8 +82,6 @@ pub struct DevChunkingContext {
     chunk_root_path: FileSystemPathVc,
     /// Chunks reference source maps assets
     reference_chunk_source_maps: bool,
-    /// Css Chunks are placed at this path
-    css_chunk_root_path: Option<FileSystemPathVc>,
     /// Css chunks reference source maps assets
     reference_css_chunk_source_maps: bool,
     /// Static assets are placed at this path
@@ -115,7 +108,6 @@ impl DevChunkingContextVc {
                 output_root,
                 chunk_root_path,
                 reference_chunk_source_maps: true,
-                css_chunk_root_path: None,
                 reference_css_chunk_source_maps: true,
                 asset_root_path,
                 layer: None,
@@ -301,16 +293,7 @@ impl ChunkingContext for DevChunkingContext {
             name += "._";
         }
         name += extension;
-        let mut root_path = self.chunk_root_path;
-        #[allow(clippy::single_match, reason = "future extensions")]
-        match extension {
-            ".css" => {
-                if let Some(path) = self.css_chunk_root_path {
-                    root_path = path;
-                }
-            }
-            _ => {}
-        }
+        let root_path = self.chunk_root_path;
         let root_path = if let Some(layer) = self.layer.as_deref() {
             root_path.join(layer)
         } else {

@@ -17,6 +17,7 @@ pub mod ident;
 pub mod introspect;
 pub mod issue;
 pub mod plugin;
+pub mod proxied_asset;
 pub mod reference;
 pub mod reference_type;
 pub mod resolve;
