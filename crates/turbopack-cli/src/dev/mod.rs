@@ -398,10 +398,9 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
     {
         let index_uri = ServerAddr::new(server.addr).to_string()?;
         println!(
-            "{} - started server on {}:{}, url: {}",
+            "{} - started server on {}, url: {}",
             "ready".green(),
-            server.addr.ip(),
-            server.addr.port(),
+            server.addr,
             index_uri
         );
         if !args.no_open {
