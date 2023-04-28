@@ -1,5 +1,5 @@
 {
-  "name": "react-server-dom-webpack-experimental",
+  "name": "react-server-dom-webpack-experimental-builtin",
   "main": "index.js",
   "exports": {
     ".": "./index.js",

@@ -1,5 +1,5 @@
 {
-  "name": "react",
+  "name": "react-builtin",
   "main": "index.js",
   "exports": {
     ".": {

@@ -1,5 +1,5 @@
 {
-  "name": "react-experimental",
+  "name": "react-experimental-builtin",
   "main": "index.js",
   "exports": {
     ".": {

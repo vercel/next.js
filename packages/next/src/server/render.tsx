@@ -1291,6 +1291,7 @@ export async function renderToHTML(
     ) => {
       const content = renderContent(EnhancedApp, EnhancedComponent)
       return await renderToInitialStream({
+        ReactDOMServer,
         element: content,
       })
     }

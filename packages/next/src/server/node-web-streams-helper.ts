@@ -162,14 +162,14 @@ export function createInsertedHTMLStream(
 }
 
 export function renderToInitialStream({
+  ReactDOMServer = require('react-dom/server.edge'),
   element,
   streamOptions,
 }: {
+  ReactDOMServer?: typeof import('react-dom/server.edge')
   element: React.ReactElement
   streamOptions?: any
 }): Promise<ReactReadableStream> {
-  const ReactDOMServer =
-    require('react-dom/server.edge') as typeof import('react-dom/server.edge')
   return getTracer().trace(AppRenderSpan.renderToReadableStream, async () =>
     ReactDOMServer.renderToReadableStream(element, streamOptions)
   )

@@ -1629,7 +1629,7 @@ export async function copy_vendor_react(task_) {
     // TODO-APP: remove unused fields from package.json and unused files
     function overridePackageName(source) {
       const json = JSON.parse(source)
-      json.name = json.name + packageSuffix
+      json.name = json.name + '-' + channel
       return JSON.stringify(
         {
           name: json.name,

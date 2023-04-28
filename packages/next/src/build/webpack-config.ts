@@ -86,7 +86,7 @@ const babelIncludeRegexes: RegExp[] = [
   /[\\/](strip-ansi|ansi-regex|styled-jsx)[\\/]/,
 ]
 
-const reactPackagesRegex = /^(react(?:$|\/)|react-dom(?:$|\/))/
+const reactPackagesRegex = /^(react|react-dom|react-server-dom-webpack)($|\/)/
 
 const staticGenerationAsyncStorageRegex =
   /next[\\/]dist[\\/]client[\\/]components[\\/]static-generation-async-storage/
@@ -1227,6 +1227,7 @@ export default async function getBaseWebpackConfig(
     if (
       request === 'react/jsx-dev-runtime' ||
       request === 'react/jsx-runtime'
+      // || request.startsWith('react-server-dom-webpack/')
     ) {
       if (isAppLayer) {
         return `commonjs next/dist/compiled/${request}`
@@ -1238,11 +1239,7 @@ export default async function getBaseWebpackConfig(
     if (layer === WEBPACK_LAYERS.server) {
       // React needs to be bundled for Server Components so the special
       // `react-server` export condition can be used.
-      if (
-        reactPackagesRegex.test(request) ||
-        // Match `react-server-dom-webpack` and `react-server-dom-webpack-experimental`
-        request.startsWith('next/dist/compiled/react-server-dom-webpack')
-      ) {
+      if (reactPackagesRegex.test(request)) {
         return
       }
     }
@@ -1256,7 +1253,7 @@ export default async function getBaseWebpackConfig(
         return `commonjs ${request}`
       }
 
-      if (/^(react(?:$|\/)|react-dom(?:$|\/))/.test(request)) {
+      if (reactPackagesRegex.test(request)) {
         // override react-dom to server-rendering-stub for server
         if (
           request === 'react-dom' &&
@@ -1268,9 +1265,12 @@ export default async function getBaseWebpackConfig(
         } else if (isAppLayer) {
           request =
             'next/dist/compiled/' +
-            request.replace(/^(react-dom|react)/, (name) => {
-              return name + bundledReactChannel
-            })
+            request.replace(
+              /^(react-server-dom-webpack|react-dom|react)/,
+              (name) => {
+                return name + bundledReactChannel
+              }
+            )
         }
         return `commonjs ${request}`
       }
@@ -1450,7 +1450,7 @@ export default async function getBaseWebpackConfig(
       if (layer === WEBPACK_LAYERS.client) {
         if (reactPackagesRegex.test(request)) {
           return `commonjs next/dist/compiled/${request.replace(
-            /^(react-dom|react)/,
+            /^(react-server-dom-webpack|react-dom|react)/,
             (name) => {
               return name + bundledReactChannel
             }

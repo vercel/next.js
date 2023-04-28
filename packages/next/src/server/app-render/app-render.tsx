@@ -1405,27 +1405,29 @@ export async function renderToHTMLOrFlight(
             }
           }
 
-          const flushed = renderToString(
-            <>
-              {Array.from(serverInsertedHTMLCallbacks).map((callback) =>
-                callback()
-              )}
-              {polyfillsFlushed
-                ? null
-                : polyfills?.map((polyfill) => {
-                    return (
-                      <script
-                        key={polyfill.src}
-                        src={polyfill.src}
-                        integrity={polyfill.integrity}
-                        noModule={true}
-                        nonce={nonce}
-                      />
-                    )
-                  })}
-              {errorMetaTags}
-            </>
-          )
+          const flushed = renderToString({
+            element: (
+              <>
+                {Array.from(serverInsertedHTMLCallbacks).map((callback) =>
+                  callback()
+                )}
+                {polyfillsFlushed
+                  ? null
+                  : polyfills?.map((polyfill) => {
+                      return (
+                        <script
+                          key={polyfill.src}
+                          src={polyfill.src}
+                          integrity={polyfill.integrity}
+                          noModule={true}
+                          nonce={nonce}
+                        />
+                      )
+                    })}
+                {errorMetaTags}
+              </>
+            ),
+          })
           polyfillsFlushed = true
           return flushed
         }

@@ -38,6 +38,12 @@ function overrideReact() {
   if (process.env.__NEXT_PRIVATE_PREBUNDLED_REACT) {
     const channel = getPrecompiledReactChannelSuffix()
 
+    console.log(
+      '!!!!!!!!!!!!!!!!!',
+      channel,
+      process.env.__NEXT_PRIVATE_PREBUNDLED_REACT
+    )
+
     aliasedPrebundledReact = true
     addHookAliases([
       ['react', require.resolve(`next/dist/compiled/react${channel}`)],
