@@ -45,6 +45,7 @@ import {
   FLIGHT_SERVER_CSS_MANIFEST,
   SERVER_DIRECTORY,
   NEXT_FONT_MANIFEST,
+  PHASE_PRODUCTION_BUILD,
 } from '../shared/lib/constants'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { findDir } from '../lib/find-pages-dir'
@@ -2542,7 +2543,8 @@ export default class NextNodeServer extends BaseServer {
       this.renderOpts?.dev ||
       this.serverOptions?.dev ||
       this.renderWorkerOpts?.dev ||
-      process.env.NODE_ENV === 'development'
+      process.env.NODE_ENV === 'development' ||
+      process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD
     ) {
       this._cachedPreviewManifest = {
         version: 4,
