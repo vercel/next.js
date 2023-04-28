@@ -1,6 +1,9 @@
 import { isMetadataRoute, isMetadataRouteFile } from './is-metadata-route'
 import path from '../../shared/lib/isomorphic/path'
+import { interpolateDynamicPath } from '../../server/server-utils'
+import { getNamedRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import { djb2Hash } from '../../shared/lib/hash'
+import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 
 /*
  * If there's special convention like (...) or @ in the page path,
@@ -10,13 +13,36 @@ import { djb2Hash } from '../../shared/lib/hash'
  * /app/open-graph.tsx -> /open-graph/route
  * /app/(post)/open-graph.tsx -> /open-graph/route-[0-9a-z]{6}
  */
-export function getMetadataRouteSuffix(page: string) {
+function getMetadataRouteSuffix(page: string) {
   let suffix = ''
 
   if ((page.includes('(') && page.includes(')')) || page.includes('@')) {
     suffix = djb2Hash(page).toString(36).slice(0, 6)
   }
   return suffix
+}
+
+/**
+ * Fill the dynamic segment in the metadata route
+ *
+ * Example:
+ * fillMetadataSegment('/a/[slug]', { params: { slug: 'b' } }, 'open-graph') -> '/a/b/open-graph'
+ *
+ */
+export function fillMetadataSegment(
+  segment: string,
+  params: any,
+  imageSegment: string
+) {
+  const pathname = normalizeAppPath(segment)
+  const routeRegex = getNamedRouteRegex(pathname, false)
+  const route = interpolateDynamicPath(pathname, params, routeRegex)
+  const suffix = getMetadataRouteSuffix(segment)
+  const routeSuffix = suffix ? `-${suffix}` : ''
+
+  const { name, ext } = path.parse(imageSegment)
+
+  return path.join(route, `${name}${routeSuffix}${ext}`)
 }
 
 /**
