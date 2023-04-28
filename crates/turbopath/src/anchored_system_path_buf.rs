@@ -44,8 +44,8 @@ impl AnchoredSystemPathBuf {
     }
 }
 
-impl Into<PathBuf> for AnchoredSystemPathBuf {
-    fn into(self) -> PathBuf {
-        self.0
+impl From<AnchoredSystemPathBuf> for PathBuf {
+    fn from(path: AnchoredSystemPathBuf) -> PathBuf {
+        path.0
     }
 }
