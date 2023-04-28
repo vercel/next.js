@@ -235,7 +235,17 @@ async function createModuleContext(options: ModuleContextOptions) {
         ? { strings: true, wasm: true }
         : undefined,
     extend: (context) => {
-      context.WebSocket = require('next/dist/compiled/undici').WebSocket
+      let WebSocket
+
+      // undici's WebSocket handling is only available in Node.js >= 18
+      // so fallback to using ws for v16
+      if (Number(process.version.split('.')[0].substring(1)) < 18) {
+        WebSocket = require('next/dist/compiled/ws').WebSocket
+      } else {
+        WebSocket = require('next/dist/compiled/undici').WebSocket
+      }
+
+      context.WebSocket = WebSocket
       context.process = createProcessPolyfill(options)
 
       Object.defineProperty(context, 'require', {
