@@ -12,11 +12,11 @@ PlainIssue {
                 ident: "[project]/packages/next/dist/server/api-utils/node.js",
             },
             start: SourcePos {
-                line: 149,
+                line: 154,
                 column: 20,
             },
             end: SourcePos {
-                line: 149,
+                line: 154,
                 column: 42,
             },
         },
@@ -26,7 +26,7 @@ PlainIssue {
         [
             PlainIssueProcessingPathItem {
                 context: Some(
-                    "[project]/packages/next-swc/crates/next-dev-tests/tests/integration/next/app/route-WEB-869/input/app",
+                    "[project]/packages/next-swc/crates/next-dev-tests/tests/integration/next/app/route/input/app",
                 ),
                 description: "Next.js App Route /[slug]",
             },

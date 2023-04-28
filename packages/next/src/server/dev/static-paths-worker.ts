@@ -1,8 +1,9 @@
 import type { NextConfigComplete } from '../config-shared'
 import type { AppRouteUserlandModule } from '../future/route-modules/app-route/module'
 
-import '../../server/require-hook'
+import '../require-hook'
 import '../node-polyfill-fetch'
+import '../node-environment'
 import {
   buildAppStaticPaths,
   buildStaticPaths,
@@ -16,10 +17,6 @@ import * as serverHooks from '../../client/components/hooks-server-context'
 import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
 
 type RuntimeConfig = any
-
-// expose AsyncLocalStorage on globalThis for react usage
-const { AsyncLocalStorage } = require('async_hooks')
-;(globalThis as any).AsyncLocalStorage = AsyncLocalStorage
 
 // we call getStaticPaths in a separate process to ensure
 // side-effects aren't relied on in dev that will break

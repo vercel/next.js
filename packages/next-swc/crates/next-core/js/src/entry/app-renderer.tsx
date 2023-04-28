@@ -284,6 +284,7 @@ async function runOperation(renderData: RenderData) {
     assetPrefix: '',
     pageConfig: {},
     reactLoadableManifest: {},
+    nextConfigOutput: renderData.data?.nextConfigOutput,
   }
   const result = await renderToHTMLOrFlight(
     req,

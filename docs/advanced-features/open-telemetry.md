@@ -56,7 +56,7 @@ If our wrapper `@vercel/otel` doesn't suit your needs, you can configure OpenTel
 Firstly you need to install OpenTelemetry packages:
 
 ```bash
-npm install @opentelemetry/sdk-node @opentelemetry/resources @opentelemetry/semantic-conventions @opentelemetry/sdk-trace-base @opentelemetry/exporter-trace-otlp-http
+npm install @opentelemetry/sdk-node @opentelemetry/resources @opentelemetry/semantic-conventions @opentelemetry/sdk-trace-base @opentelemetry/exporter-trace-otlp-grpc
 ```
 
 Now you can initialize `NodeSDK` in your `instrumentation.ts`.
@@ -73,9 +73,8 @@ export async function register() {
 
 ```ts
 // instrumentation.node.ts
-import { trace, context } from '@opentelemetry/api'
 import { NodeSDK } from '@opentelemetry/sdk-node'
-import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http'
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc'
 import { Resource } from '@opentelemetry/resources'
 import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions'
 import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace-node'
@@ -90,7 +89,7 @@ sdk.start()
 ```
 
 Doing this is equivalent to using `@vercel/otel`, but it's possible to modify and extend.
-For example, you could use `@opentelemetry/exporter-trace-otlp-grpc` instead of `@opentelemetry/exporter-trace-otlp-http` or you can specify more resource attributes.
+For example, you could use `@opentelemetry/exporter-trace-otlp-http` instead of `@opentelemetry/exporter-trace-otlp-grpc` or you can specify more resource attributes.
 
 ## Testing your instrumentation
 
