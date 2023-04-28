@@ -1,5 +1,6 @@
 import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
+import { Request } from 'playwright-chromium'
 
 createNextDescribe(
   'app-dir action handling',
@@ -171,6 +172,57 @@ createNextDescribe(
         await browser.elementByCss('#dec').click()
         await check(() => browser.elementByCss('h1').text(), '3')
       })
+    })
+
+    describe('fetch actions', () => {
+      it('should handle redirect to a relative URL in a single pass', async () => {
+        const browser = await next.browser('/client')
+
+        // wait for network idle
+        await browser.waitForIdleNetwork()
+
+        let requests = []
+
+        browser.on('request', (req: Request) => {
+          requests.push(new URL(req.url()).pathname)
+        })
+
+        await browser.elementByCss('#redirect').click()
+
+        // no other requests should be made
+        expect(requests).toEqual(['/client'])
+      })
+
+      it('should handle regular redirects', async () => {
+        const browser = await next.browser('/client')
+
+        await browser.elementByCss('#redirect-external').click()
+
+        await check(async () => {
+          return browser.eval('window.location.toString()')
+        }, 'https://example.com/')
+      })
+
+      it('should handle refreshing the current page', async () => {
+        const browser = await next.browser('/client')
+
+        const randomNumber = await browser.elementByCss('#random-number').text()
+
+        await browser.elementByCss('#refresh').click()
+
+        // the number on the layout should have changed
+        await check(
+          () =>
+            browser.elementByCss('#random-number').text() !== randomNumber
+              ? 'success'
+              : 'failure',
+          'success'
+        )
+      })
+
+      it.skip('should handle revalidatePath', async () => {})
+
+      it.skip('should handle revalidateTag', async () => {})
     })
   }
 )

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 
-import double, { inc, dec } from './actions'
+import double, { inc, dec, redirectAction, refreshAction } from './actions'
 
 export default function Counter() {
   const [count, setCount] = useState(0)
@@ -36,6 +36,30 @@ export default function Counter() {
         }}
       >
         *2
+      </button>
+      <button
+        id="redirect"
+        onClick={async () => {
+          redirectAction('/client/target')
+        }}
+      >
+        redirect
+      </button>
+      <button
+        id="redirect-external"
+        onClick={async () => {
+          redirectAction('https://example.com')
+        }}
+      >
+        redirect external
+      </button>
+      <button
+        id="refresh"
+        onClick={async () => {
+          refreshAction()
+        }}
+      >
+        refresh
       </button>
     </div>
   )
