@@ -3,7 +3,6 @@ import type { Middleware, RouteHas } from '../../lib/load-custom-routes'
 
 import path from 'path'
 import { promises as fs } from 'fs'
-import { defaultConfig } from '../../server/config-shared'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import { matcher } from 'next/dist/compiled/micromatch'
 import { ServerRuntime } from 'next/types'
@@ -20,7 +19,7 @@ import { isAPIRoute } from '../../lib/is-api-route'
 import { isEdgeRuntime } from '../../lib/is-edge-runtime'
 import { RSC_MODULE_TYPES } from '../../shared/lib/constants'
 import type { RSCMeta } from '../webpack/loaders/get-module-build-info'
-import { getPageFromPath } from '../entries'
+import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 
 export interface MiddlewareConfig {
   matchers: MiddlewareMatcher[]
@@ -444,9 +443,18 @@ export async function getPageStaticInfo(params: {
         const files = await fs.readdir(curPagePath)
 
         for (const file of files) {
-          const cleanedFile = getPageFromPath(
-            file,
-            nextConfig.pageExtensions || defaultConfig?.pageExtensions || []
+          const { defaultConfig } = require('../../server/config-shared')
+          const cleanedFile = normalizePathSep(
+            file.replace(
+              new RegExp(
+                `\\.+(${(
+                  nextConfig.pageExtensions ||
+                  defaultConfig?.pageExtensions ||
+                  []
+                ).join('|')})$`
+              ),
+              ''
+            )
           )
           const newPageFilePath = path.join(curPagePath, file)
 

@@ -602,10 +602,11 @@ async function findEntryEdgeFunctionConfig(
         nextConfig: {},
         pageFilePath,
         isDev: false,
-        pageType:
-          pageFilePath.includes('app') && !pageFilePath.includes('middleware')
-            ? 'app'
-            : 'root',
+        pageType: pageFilePath.match(/[/\\]pages[/\\]/)
+          ? 'pages'
+          : pageFilePath.match(/[/\\]app[/\\]/)
+          ? 'app'
+          : 'root',
       })
       return {
         file: pageFilePath,
