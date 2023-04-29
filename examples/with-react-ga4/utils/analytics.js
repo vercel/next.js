@@ -19,6 +19,9 @@ export const logEvent = (category = '', action = '') => {
 
 export const logException = (description = '', fatal = false) => {
   if (description) {
-    ReactGA.exception({ description, fatal })
+    ReactGA.gtag('event', 'exception', {
+      description: 'error_description',
+      fatal: false, // set to true if the error is fatal
+    })
   }
 }
