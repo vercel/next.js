@@ -8,6 +8,6 @@
     "@opentelemetry/sdk-trace-base": "^1.0.0",
     "@opentelemetry/sdk-trace-node": "^1.0.0",
     "@opentelemetry/semantic-conventions": "^1.0.0",
-    "@opentelemetry/exporter-trace-otlp-http": "^0.34.0"
+    "@opentelemetry/exporter-trace-otlp-grpc": "^0.34.0"
   }
 }

@@ -32,6 +32,7 @@ module.exports = function (task) {
         module: {
           type: esm ? 'es6' : 'commonjs',
           ignoreDynamic: true,
+          exportInteropAnnotation: true,
         },
         env: {
           targets: MODERN_BROWSERSLIST_TARGET,
@@ -65,11 +66,13 @@ module.exports = function (task) {
         module: {
           type: esm ? 'es6' : 'commonjs',
           ignoreDynamic: true,
+          exportInteropAnnotation: true,
         },
         env: {
           targets: {
-            // follow the version defined in packages/next/package.json#engine
-            node: '14.18.0',
+            // Should match version defined in packages/next/package.json#engine
+            // Should also match NODE_16_VERSION in packages/next/src/server/config.ts
+            node: '16.8.0',
           },
         },
         jsc: {
