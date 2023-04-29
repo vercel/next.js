@@ -292,6 +292,14 @@ export async function ncc_undici(task, opts) {
     .source(relative(__dirname, require.resolve('undici')))
     .ncc({ packageName: 'undici', externals })
     .target('src/compiled/undici')
+
+  const outputFile = join('src/compiled/undici/index.js')
+  await fs.writeFile(
+    outputFile,
+    (
+      await fs.readFile(outputFile, 'utf8')
+    ).replace(/process\.emitWarning/g, 'void')
+  )
 }
 
 // eslint-disable-next-line camelcase
