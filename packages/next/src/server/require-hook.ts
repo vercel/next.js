@@ -10,12 +10,6 @@ const hookPropertyMap = new Map()
 
 let aliasedPrebundledReact = false
 
-export function getPrecompiledReactChannelSuffix() {
-  return process.env.__NEXT_PRIVATE_PREBUNDLED_REACT === 'experimental'
-    ? '-experimental'
-    : ''
-}
-
 export function addHookAliases(aliases: [string, string][] = []) {
   for (const [key, value] of aliases) {
     hookPropertyMap.set(key, value)
@@ -36,68 +30,130 @@ addHookAliases([
 // Override built-in React packages if necessary
 function overrideReact() {
   if (process.env.__NEXT_PRIVATE_PREBUNDLED_REACT) {
-    const channel = getPrecompiledReactChannelSuffix()
-
     aliasedPrebundledReact = true
-    addHookAliases([
-      ['react', require.resolve(`next/dist/compiled/react${channel}`)],
-      [
-        'react/jsx-runtime',
-        require.resolve(`next/dist/compiled/react${channel}/jsx-runtime`),
-      ],
-      [
-        'react/jsx-dev-runtime',
-        require.resolve(`next/dist/compiled/react${channel}/jsx-dev-runtime`),
-      ],
-      [
-        'react-dom',
-        require.resolve(
-          `next/dist/compiled/react-dom${channel}/server-rendering-stub`
-        ),
-      ],
-      [
-        'react-dom/client',
-        require.resolve(`next/dist/compiled/react-dom${channel}/client`),
-      ],
-      [
-        'react-dom/server',
-        require.resolve(`next/dist/compiled/react-dom${channel}/server`),
-      ],
-      [
-        'react-dom/server.browser',
-        require.resolve(
-          `next/dist/compiled/react-dom${channel}/server.browser`
-        ),
-      ],
-      [
-        'react-dom/server.edge',
-        require.resolve(`next/dist/compiled/react-dom${channel}/server.edge`),
-      ],
-      [
-        'react-server-dom-webpack/client',
-        require.resolve(
-          `next/dist/compiled/react-server-dom-webpack${channel}/client`
-        ),
-      ],
-      [
-        'react-server-dom-webpack/client.edge',
-        require.resolve(
-          `next/dist/compiled/react-server-dom-webpack${channel}/client.edge`
-        ),
-      ],
-      [
-        'react-server-dom-webpack/server.edge',
-        require.resolve(
-          `next/dist/compiled/react-server-dom-webpack${channel}/server.edge`
-        ),
-      ],
-      [
-        'react-server-dom-webpack/server.node',
-        require.resolve(
-          `next/dist/compiled/react-server-dom-webpack${channel}/server.node`
-        ),
-      ],
-    ])
+
+    // Require these modules with static paths to make sure they are tracked by
+    // NFT when building the app in standalone mode, as we are now conditionally
+    // aliasing them it's tricky to track them in build time.
+    if (process.env.__NEXT_PRIVATE_PREBUNDLED_REACT === 'experimental') {
+      addHookAliases([
+        ['react', require.resolve(`next/dist/compiled/react-experimental`)],
+        [
+          'react/jsx-runtime',
+          require.resolve(`next/dist/compiled/react-experimental/jsx-runtime`),
+        ],
+        [
+          'react/jsx-dev-runtime',
+          require.resolve(
+            `next/dist/compiled/react-experimental/jsx-dev-runtime`
+          ),
+        ],
+        [
+          'react-dom',
+          require.resolve(
+            `next/dist/compiled/react-dom-experimental/server-rendering-stub`
+          ),
+        ],
+        [
+          'react-dom/client',
+          require.resolve(`next/dist/compiled/react-dom-experimental/client`),
+        ],
+        [
+          'react-dom/server',
+          require.resolve(`next/dist/compiled/react-dom-experimental/server`),
+        ],
+        [
+          'react-dom/server.browser',
+          require.resolve(
+            `next/dist/compiled/react-dom-experimental/server.browser`
+          ),
+        ],
+        [
+          'react-dom/server.edge',
+          require.resolve(
+            `next/dist/compiled/react-dom-experimental/server.edge`
+          ),
+        ],
+        [
+          'react-server-dom-webpack/client',
+          require.resolve(
+            `next/dist/compiled/react-server-dom-webpack-experimental/client`
+          ),
+        ],
+        [
+          'react-server-dom-webpack/client.edge',
+          require.resolve(
+            `next/dist/compiled/react-server-dom-webpack-experimental/client.edge`
+          ),
+        ],
+        [
+          'react-server-dom-webpack/server.edge',
+          require.resolve(
+            `next/dist/compiled/react-server-dom-webpack-experimental/server.edge`
+          ),
+        ],
+        [
+          'react-server-dom-webpack/server.node',
+          require.resolve(
+            `next/dist/compiled/react-server-dom-webpack-experimental/server.node`
+          ),
+        ],
+      ])
+    } else {
+      addHookAliases([
+        ['react', require.resolve(`next/dist/compiled/react`)],
+        [
+          'react/jsx-runtime',
+          require.resolve(`next/dist/compiled/react/jsx-runtime`),
+        ],
+        [
+          'react/jsx-dev-runtime',
+          require.resolve(`next/dist/compiled/react/jsx-dev-runtime`),
+        ],
+        [
+          'react-dom',
+          require.resolve(`next/dist/compiled/react-dom/server-rendering-stub`),
+        ],
+        [
+          'react-dom/client',
+          require.resolve(`next/dist/compiled/react-dom/client`),
+        ],
+        [
+          'react-dom/server',
+          require.resolve(`next/dist/compiled/react-dom/server`),
+        ],
+        [
+          'react-dom/server.browser',
+          require.resolve(`next/dist/compiled/react-dom/server.browser`),
+        ],
+        [
+          'react-dom/server.edge',
+          require.resolve(`next/dist/compiled/react-dom/server.edge`),
+        ],
+        [
+          'react-server-dom-webpack/client',
+          require.resolve(`next/dist/compiled/react-server-dom-webpack/client`),
+        ],
+        [
+          'react-server-dom-webpack/client.edge',
+          require.resolve(
+            `next/dist/compiled/react-server-dom-webpack/client.edge`
+          ),
+        ],
+        [
+          'react-server-dom-webpack/server.edge',
+          require.resolve(
+            `next/dist/compiled/react-server-dom-webpack/server.edge`
+          ),
+        ],
+        [
+          'react-server-dom-webpack/server.node',
+          require.resolve(
+            `next/dist/compiled/react-server-dom-webpack/server.node`
+          ),
+        ],
+      ])
+    }
   } else {
     addHookAliases([
       ['react/jsx-runtime', require.resolve(`react/jsx-runtime`)],
