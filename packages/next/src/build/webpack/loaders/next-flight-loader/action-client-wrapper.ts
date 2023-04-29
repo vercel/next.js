@@ -1,5 +1,7 @@
-// This file must be bundled in the app's client layer.
+// This file must be bundled in the app's client layer, it shouldn't be directly
+// imported by the server.
 
+// eslint-disable-next-line import/no-extraneous-dependencies
 import { createServerReference } from 'react-server-dom-webpack/client'
 import { callServer } from 'next/dist/client/app-call-server'
 
