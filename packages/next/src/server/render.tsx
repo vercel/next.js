@@ -43,8 +43,6 @@ export type RenderOptsPartial = {
   nextConfigOutput?: 'standalone' | 'export'
   nextScriptWorkers: any
   devOnlyCacheBusterQueryString?: string
-  resolvedUrl?: string
-  resolvedAsPath?: string
   clientReferenceManifest?: ClientReferenceManifest
   serverCSSManifest?: any
   nextFontManifest?: NextFontManifest

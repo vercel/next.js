@@ -576,6 +576,16 @@ export class PagesRouteModule extends RouteModule<
     if (context.res) context.res.statusCode = 404
     context.renderOpts.statusCode = 404
 
+    if (
+      process.env.NODE_ENV === 'development' &&
+      this.components.NotFound === this.components.Error
+    ) {
+      // TODO: (wyattjoh) look into only sending this warning once
+      logger.warn(
+        `You have added a custom /_error page without a custom /404 page. This prevents the 404 page from being auto statically optimized.\nSee here for info: https://nextjs.org/docs/messages/custom-error-no-custom-404`
+      )
+    }
+
     // Render the 404 page.
     return this.render(request, context, this.components.NotFound)
   }
@@ -586,19 +596,24 @@ export class PagesRouteModule extends RouteModule<
     module: PagesUserlandModule,
     err: Error
   ): Promise<RenderResult> {
-    // If we've encountered an error while in development, we should render the
-    // error overlay.
-    // FIXME: (wyattjoh) implement the error overlay.
+    // TODO: (wyattjoh) look into adding cache control headers
 
     // If we've encountered an error during prerendering, we should bail out
     // so we notify the user that there's an error.
-    if (context.export) {
-      throw err
-    }
+    if (context.export) throw err
+
+    // Add the runtime error to the context object.
+    context.renderOpts.err = err
+
+    // Modify the status code on the context object.
+    if (context.res) context.res.statusCode = 500
+    context.renderOpts.statusCode = 500
 
     // If the module that encountered the error is the error module itself, we
     // should bail out to avoid an infinite loop.
     if (module === this.components.Error) {
+      // TODO: (wyattjoh) look into WrappedError's
+      // TODO: (wyattjoh) look into using fallback error components when in development
       throw err
     }
     // If the module that encountered the error is the internal server error
@@ -612,12 +627,17 @@ export class PagesRouteModule extends RouteModule<
       module = this.components.InternalServerError
     }
 
-    // Modify the status code on the context object.
-    if (context.res) context.res.statusCode = 500
-    context.renderOpts.statusCode = 500
-
-    // Add the runtime error to the context object.
-    context.renderOpts.err = err
+    // The following is a holdover from pages. If `pages/500` exists, we
+    // still need to trigger the `getInitialProps` to allow reporting the
+    // error on the `pages/_error` component. We only need to do this if the
+    // `pages/500` module is different from the `pages/_error` module which
+    // implies that there is a custom `pages/500` module.
+    if (
+      module === this.components.InternalServerError &&
+      module !== this.components.Error
+    ) {
+      await this.render(request, context, this.components.Error)
+    }
 
     // Render the error module.
     return this.render(request, context, module)

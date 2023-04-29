@@ -1611,28 +1611,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         })
       }
 
-      const hadTrailingSlash =
-        urlPathname !== '/' && this.nextConfig.trailingSlash
-
-      const resolvedUrl = formatUrl({
-        pathname: `${resolvedUrlPathname}${hadTrailingSlash ? '/' : ''}`,
-        // make sure to only add query values from original URL
-        query: origQuery,
-      })
-
-      // For getServerSideProps and getInitialProps we need to ensure we use the
-      // original URL and not the resolved URL to prevent a hydration mismatch
-      // on asPath.
-      const resolvedAsPath =
-        hasServerProps || hasGetInitialProps
-          ? formatUrl({
-              // we use the original URL pathname less the _next/data prefix if
-              // present
-              pathname: `${urlPathname}${hadTrailingSlash ? '/' : ''}`,
-              query: origQuery,
-            })
-          : resolvedUrl
-
       // TODO: (wyattjoh) improve the match detection
       const match = getRequestMeta(req, '_nextMatch')
       if (
@@ -1642,8 +1620,30 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         // TODO: (wyattjoh) remove this once we've migrated to the new route manager system completely
         (components.ComponentMod && components.ComponentMod.routeModule)
       ) {
+        const hadTrailingSlash =
+          urlPathname !== '/' && this.nextConfig.trailingSlash
+
+        const resolvedUrl = formatUrl({
+          pathname: `${resolvedUrlPathname}${hadTrailingSlash ? '/' : ''}`,
+          // make sure to only add query values from original URL
+          query: origQuery,
+        })
+
+        // For getServerSideProps and getInitialProps we need to ensure we use the
+        // original URL and not the resolved URL to prevent a hydration mismatch
+        // on asPath.
+        const resolvedAsPath =
+          hasServerProps || hasGetInitialProps
+            ? formatUrl({
+                // we use the original URL pathname less the _next/data prefix if
+                // present
+                pathname: `${urlPathname}${hadTrailingSlash ? '/' : ''}`,
+                query: origQuery,
+              })
+            : resolvedUrl
+
         const context: RouteHandlerManagerContext = {
-          params: match?.params,
+          params: match?.params ?? opts.params,
           export: false,
           staticGenerationContext: { supportsDynamicHTML, incrementalCache },
           manifests: ManifestLoader.load({ distDir: this.distDir }),
@@ -1762,11 +1762,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             }
           : {}),
         isDataReq,
-        resolvedUrl,
         locale,
         locales,
         defaultLocale,
-        resolvedAsPath,
         supportsDynamicHTML,
         isOnDemandRevalidate,
       }
