@@ -94,9 +94,11 @@ pub async fn foreign_code_context_condition(next_config: NextConfigVc) -> Result
 }
 
 #[derive(Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum NextRuntime {
     #[default]
     NodeJs,
+    #[serde(alias = "experimental-edge")]
     Edge,
 }
 
@@ -117,7 +119,7 @@ impl NextSourceConfigVc {
     }
 }
 
-/// An issue that occurred while resolving the React Refresh runtime module.
+/// An issue that occurred while parsing the page config.
 #[turbo_tasks::value(shared)]
 pub struct NextSourceConfigParsingIssue {
     ident: AssetIdentVc,

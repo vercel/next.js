@@ -5,7 +5,7 @@ import {
 import { getClientReferenceModuleKey } from '../../lib/client-reference'
 
 /**
- * Get inline <link> tags based on server CSS manifest. Only used when rendering to HTML.
+ * Get external stylesheet link hrefs based on server CSS manifest.
  */
 export function getCssInlinedLinkTags(
   clientReferenceManifest: ClientReferenceManifest,

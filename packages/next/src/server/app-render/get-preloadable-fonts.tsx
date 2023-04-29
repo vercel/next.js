@@ -2,9 +2,13 @@ import { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest
 import { ClientCSSReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 
 /**
- * Get inline <link rel="preload" as="font"> tags based on server CSS manifest and next/font manifest. Only used when rendering to HTML.
+ * Get hrefs for fonts to preload
+ * Returns null if there are no fonts at all.
+ * Returns string[] if there are fonts to preload (font paths)
+ * Returns empty string[] if there are fonts but none to preload and no other fonts have been preloaded
+ * Returns null if there are fonts but none to preload and at least some were previously preloaded
  */
-export function getPreloadedFontFilesInlineLinkTags(
+export function getPreloadableFonts(
   serverCSSManifest: ClientCSSReferenceManifest,
   nextFontManifest: NextFontManifest | undefined,
   serverCSSForEntries: string[],
@@ -39,15 +43,11 @@ export function getPreloadedFontFilesInlineLinkTags(
     }
   }
 
-  // If we find an entry in the manifest but it's empty, add a preconnect tag by returning null.
-  // Only render a preconnect tag if we previously didn't preload any fonts.
-  if (
-    !foundFontUsage ||
-    (fontFiles.size === 0 && injectedFontPreloadTags.size > 0)
-  ) {
+  if (fontFiles.size) {
+    return [...fontFiles].sort()
+  } else if (foundFontUsage && injectedFontPreloadTags.size === 0) {
+    return []
+  } else {
     return null
   }
-
-  // Sorting to make order deterministic
-  return [...fontFiles].sort()
 }
