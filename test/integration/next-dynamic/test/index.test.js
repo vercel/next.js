@@ -40,6 +40,42 @@ function runTests() {
       'https://nextjs.org/docs/messages/invalid-dynamic-suspense'
     )
   })
+
+  it('should render dynamic server rendered values with ref on client mount', async () => {
+    const browser = await webdriver(appPort, '/ref')
+    const text = await browser.elementByCss('#first-render').text()
+    expect(text).toBe('<div>1</div><div>Ref</div>')
+    expect(await browser.eval('window.caughtErrors')).toBe('')
+
+    // should not print "invalid-dynamic-suspense" warning in browser's console
+    const logs = (await browser.log()).map((log) => log.message).join('\n')
+    expect(logs).not.toContain(
+      'https://nextjs.org/docs/messages/invalid-dynamic-suspense'
+    )
+  })
+
+  it('should render dynamic NoSSR rendered values with ref on client mount', async () => {
+    const browser = await webdriver(appPort, '/refWithNoSSR')
+    const text = await browser.elementByCss('#first-render').text()
+
+    expect(text).toMatch(/the-server-value/i)
+
+    await new Promise((resolve) => {
+      setTimeout(async () => {
+        const text = await browser.elementByCss('#first-render').text()
+        expect(text).toBe('<div>1</div><div>Ref</div>')
+        resolve()
+      }, 500)
+    })
+
+    expect(await browser.eval('window.caughtErrors')).toBe('')
+
+    // should not print "invalid-dynamic-suspense" warning in browser's console
+    const logs = (await browser.log()).map((log) => log.message).join('\n')
+    expect(logs).not.toContain(
+      'https://nextjs.org/docs/messages/invalid-dynamic-suspense'
+    )
+  })
 }
 
 describe('next/dynamic', () => {
