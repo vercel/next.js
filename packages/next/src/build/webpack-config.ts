@@ -1229,7 +1229,10 @@ export default async function getBaseWebpackConfig(
       request === 'react/jsx-runtime'
     ) {
       if (isAppLayer) {
-        return `commonjs next/dist/compiled/${request}`
+        return `commonjs next/dist/compiled/${request.replace(
+          'react',
+          'react' + bundledReactChannel
+        )}`
       }
       return
     }

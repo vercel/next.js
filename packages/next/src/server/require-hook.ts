@@ -70,6 +70,10 @@ function overrideReact() {
         ),
       ],
       [
+        'react-dom/server.edge',
+        require.resolve(`next/dist/compiled/react-dom${channel}/server.edge`),
+      ],
+      [
         'react-server-dom-webpack/client',
         require.resolve(
           `next/dist/compiled/react-server-dom-webpack${channel}/client`
@@ -92,10 +96,6 @@ function overrideReact() {
         require.resolve(
           `next/dist/compiled/react-server-dom-webpack${channel}/server.node`
         ),
-      ],
-      [
-        'react-dom/server.edge',
-        require.resolve(`next/dist/compiled/react-dom/server.edge`),
       ],
     ])
   } else {

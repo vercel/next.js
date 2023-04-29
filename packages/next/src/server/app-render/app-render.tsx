@@ -14,6 +14,7 @@ import type { StaticGenerationBailout } from '../../client/components/static-gen
 import type { RequestAsyncStorage } from '../../client/components/request-async-storage'
 
 import React from 'react'
+import ReactDOMServer from 'react-dom/server.edge'
 import { NotFound as DefaultNotFound } from '../../client/components/error'
 import { createServerComponentRenderer } from './create-server-components-renderer'
 
@@ -32,7 +33,6 @@ import {
 } from '../../client/components/match-segments'
 import { ServerInsertedHTMLContext } from '../../shared/lib/server-inserted-html'
 import { stripInternalQueries } from '../internal-utils'
-import { HeadManagerContext } from '../../shared/lib/head-manager-context'
 import {
   NEXT_ROUTER_PREFETCH,
   NEXT_ROUTER_STATE_TREE,
@@ -1315,10 +1315,11 @@ export async function renderToHTMLOrFlight(
       nonce
     )
 
+    const { HeadManagerContext } =
+      require('../../shared/lib/head-manager-context') as typeof import('../../shared/lib/head-manager-context')
     const serverInsertedHTMLCallbacks: Set<() => React.ReactNode> = new Set()
     function InsertedHTML({ children }: { children: JSX.Element }) {
       // Reset addInsertedHtmlCallback on each render
-      serverInsertedHTMLCallbacks.clear()
       const addInsertedHtml = React.useCallback(
         (handler: () => React.ReactNode) => {
           serverInsertedHTMLCallbacks.add(handler)
@@ -1435,9 +1436,7 @@ export async function renderToHTMLOrFlight(
 
         try {
           const renderStream = await renderToInitialStream({
-            // We dynamically load ReactDOMServer to ensure it's using the configured
-            // channel. This is tricky to do in the module level.
-            ReactDOMServer: require('react-dom/server.edge'),
+            ReactDOMServer,
             element: content,
             streamOptions: {
               onError: htmlRendererErrorHandler,
