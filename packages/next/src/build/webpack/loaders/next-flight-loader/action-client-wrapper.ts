@@ -1,6 +1,6 @@
 // This file must be bundled in the app's client layer.
 
-import { createServerReference } from 'next/dist/compiled/react-server-dom-webpack/client'
+import { createServerReference } from 'react-server-dom-webpack/client'
 import { callServer } from 'next/dist/client/app-call-server'
 
 // A noop wrapper to let the Flight client create the server reference.
