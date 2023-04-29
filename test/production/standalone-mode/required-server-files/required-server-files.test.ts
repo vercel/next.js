@@ -293,10 +293,10 @@ describe('should set-up next', () => {
     )
   })
 
-  it('`compress` should be `true` by default', async () => {
+  it('`compress` should be `false` in nextEnv', async () => {
     expect(
       await fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')
-    ).toContain('"compress":true')
+    ).toContain('"compress":false')
   })
 
   it('should output middleware correctly', async () => {
@@ -321,6 +321,8 @@ describe('should set-up next', () => {
     expect(typeof requiredFilesManifest.config.configFile).toBe('undefined')
     expect(typeof requiredFilesManifest.config.trailingSlash).toBe('boolean')
     expect(typeof requiredFilesManifest.appDir).toBe('string')
+    // not in a monorepo so relative app dir is empty string
+    expect(requiredFilesManifest.relativeAppDir).toBe('')
   })
 
   it('should de-dupe HTML/data requests', async () => {
@@ -400,7 +402,7 @@ describe('should set-up next', () => {
     expect(props2.gspCalls).not.toBe(props.gspCalls)
   })
 
-  it('should not 404 for onlyGenerated manual revalidate in minimal mode', async () => {
+  it('should not 404 for onlyGenerated on-demand revalidate in minimal mode', async () => {
     const previewProps = JSON.parse(
       await next.readFile('standalone/.next/prerender-manifest.json')
     ).preview
@@ -568,7 +570,7 @@ describe('should set-up next', () => {
   it('should render dynamic SSR page correctly with x-matched-path', async () => {
     const html = await renderViaHTTP(
       appPort,
-      '/some-other-path?slug=first',
+      '/some-other-path?nxtPslug=first',
       undefined,
       {
         headers: {
@@ -585,7 +587,7 @@ describe('should set-up next', () => {
 
     const html2 = await renderViaHTTP(
       appPort,
-      '/some-other-path?slug=second',
+      '/some-other-path?nxtPslug=second',
       undefined,
       {
         headers: {
@@ -604,7 +606,7 @@ describe('should set-up next', () => {
     const html3 = await renderViaHTTP(appPort, '/some-other-path', undefined, {
       headers: {
         'x-matched-path': '/dynamic/[slug]',
-        'x-now-route-matches': '1=second&slug=second',
+        'x-now-route-matches': '1=second&nxtPslug=second',
       },
     })
     const $3 = cheerio.load(html3)
@@ -701,7 +703,7 @@ describe('should set-up next', () => {
   it('should return data correctly with x-matched-path', async () => {
     const res = await fetchViaHTTP(
       appPort,
-      `/_next/data/${next.buildId}/dynamic/first.json?slug=first`,
+      `/_next/data/${next.buildId}/dynamic/first.json?nxtPslug=first`,
       undefined,
       {
         headers: {
@@ -759,7 +761,7 @@ describe('should set-up next', () => {
       {
         headers: {
           'x-matched-path': '/catch-all/[[...rest]]',
-          'x-now-route-matches': '1=hello&catchAll=hello',
+          'x-now-route-matches': '1=hello&nxtPcatchAll=hello',
         },
       }
     )
@@ -778,7 +780,7 @@ describe('should set-up next', () => {
       {
         headers: {
           'x-matched-path': '/catch-all/[[...rest]]',
-          'x-now-route-matches': '1=hello/world&catchAll=hello/world',
+          'x-now-route-matches': '1=hello/world&nxtPcatchAll=hello/world',
         },
       }
     )
@@ -816,7 +818,7 @@ describe('should set-up next', () => {
       {
         headers: {
           'x-matched-path': `/_next/data/${next.buildId}/catch-all/[[...rest]].json`,
-          'x-now-route-matches': '1=hello&rest=hello',
+          'x-now-route-matches': '1=hello&nxtPrest=hello',
         },
       }
     )
@@ -833,7 +835,7 @@ describe('should set-up next', () => {
       {
         headers: {
           'x-matched-path': `/_next/data/${next.buildId}/catch-all/[[...rest]].json`,
-          'x-now-route-matches': '1=hello/world&rest=hello/world',
+          'x-now-route-matches': '1=hello/world&nxtPrest=hello/world',
         },
       }
     )
@@ -1109,7 +1111,7 @@ describe('should set-up next', () => {
         headers: {
           'x-matched-path': '/optional-ssg/[[...rest]]',
           'x-now-route-matches':
-            '1=en%2Fes%2Fhello%252Fworld&rest=en%2Fes%2Fhello%252Fworld',
+            '1=en%2Fes%2Fhello%252Fworld&nxtPrest=en%2Fes%2Fhello%252Fworld',
         },
       }
     )
@@ -1143,7 +1145,7 @@ describe('should set-up next', () => {
     const res = await fetchViaHTTP(
       appPort,
       '/api/optional/index',
-      { rest: 'index', another: 'value' },
+      { nxtPrest: 'index', another: 'value' },
       {
         headers: {
           'x-matched-path': '/api/optional/[[...rest]]',
@@ -1287,5 +1289,10 @@ describe('should set-up next', () => {
     const res = await fetchViaHTTP(appPort, '/')
     expect(res.status).toBe(200)
     expect(await res.text()).toContain('index page')
+
+    // when not in next env should be compress: true
+    expect(
+      await fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')
+    ).toContain('"compress":true')
   })
 })

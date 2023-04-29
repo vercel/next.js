@@ -1,6 +1,10 @@
+/**@type import('next').NextConfig */
 module.exports = {
   experimental: {
     appDir: true,
+    incrementalCacheHandlerPath: process.env.CUSTOM_CACHE_HANDLER
+      ? require.resolve('./cache-handler.js')
+      : undefined,
   },
   // assetPrefix: '/assets',
   rewrites: async () => {
@@ -13,8 +17,7 @@ module.exports = {
         },
         {
           source: '/rewritten-use-search-params',
-          destination:
-            '/hooks/use-search-params/slug?first=value&second=other%20value&third',
+          destination: '/hooks/use-search-params',
         },
         {
           source: '/rewritten-use-pathname',

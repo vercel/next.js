@@ -1,19 +1,20 @@
 ---
-description: Optimizing loading web fonts with the built-in `@next/font` loaders.
+description: Optimizing loading web fonts with the built-in `next/font` loaders.
 ---
 
-# @next/font
+# next/font
 
 <details>
   <summary><b>Version History</b></summary>
 
-| Version   | Changes                 |
-| --------- | ----------------------- |
-| `v13.0.0` | `@next/font` was added. |
+| Version   | Changes                                                               |
+| --------- | --------------------------------------------------------------------- |
+| `v13.2.0` | `@next/font` renamed to `next/font`. Installation no longer required. |
+| `v13.0.0` | `next/font` was added.                                                |
 
 </details>
 
-This API reference will help you understand how to use `@next/font/google` and `@next/font/local`. For features and usage, please see the [Optimizing Fonts](/docs/basic-features/font-optimization.md) page.
+This API reference will help you understand how to use `next/font/google` and `next/font/local`. For features and usage, please see the [Optimizing Fonts](/docs/basic-features/font-optimization.md) page.
 
 ### Font function arguments
 
@@ -37,7 +38,7 @@ For usage, review [Google Fonts](/docs/basic-features/font-optimization.md#googl
 
 The path of the font file as a string or an array of objects (with type `Array<{path: string, weight?: string, style?: string}>`) relative to the directory where the font loader function is called.
 
-Used in `@next/font/local`
+Used in `next/font/local`
 
 - Required
 
@@ -52,9 +53,9 @@ Examples:
 The font [`weight`](https://fonts.google.com/knowledge/glossary/weight) with the following possibilities:
 
 - A string with possible values of the weights available for the specific font or a range of values if it's a [variable](https://fonts.google.com/variablefonts) font
-- An array of weight values if the font is not a [variable google font](https://fonts.google.com/variablefonts). It applies to `@next/font/google` only.
+- An array of weight values if the font is not a [variable google font](https://fonts.google.com/variablefonts). It applies to `next/font/google` only.
 
-Used in `@next/font/google` and `@next/font/local`
+Used in `next/font/google` and `next/font/local`
 
 - Required if the font being used is **not** [variable](https://fonts.google.com/variablefonts)
 
@@ -69,23 +70,23 @@ Examples:
 The font [`style`](https://developer.mozilla.org/en-US/docs/Web/CSS/font-style) with the following possibilities:
 
 - A string [value](https://developer.mozilla.org/en-US/docs/Web/CSS/font-style#values) with default value of `'normal'`
-- An array of style values if the font is not a [variable google font](https://fonts.google.com/variablefonts). It applies to `@next/font/google` only.
+- An array of style values if the font is not a [variable google font](https://fonts.google.com/variablefonts). It applies to `next/font/google` only.
 
-Used in `@next/font/google` and `@next/font/local`
+Used in `next/font/google` and `next/font/local`
 
 - Optional
 
 Examples:
 
-- `style: 'italic'`: A string - it can be `normal` or `italic` for `@next/font/google`
-- `style: 'oblique'`: A string - it can take any value for `@next/font/local` but is expected to come from [standard font styles](https://developer.mozilla.org/en-US/docs/Web/CSS/font-style)
-- `style: ['italic','normal']`: An array of 2 values for `@next/font/google` - the values are from `normal` and `italic`
+- `style: 'italic'`: A string - it can be `normal` or `italic` for `next/font/google`
+- `style: 'oblique'`: A string - it can take any value for `next/font/local` but is expected to come from [standard font styles](https://developer.mozilla.org/en-US/docs/Web/CSS/font-style)
+- `style: ['italic','normal']`: An array of 2 values for `next/font/google` - the values are from `normal` and `italic`
 
 ### `subsets`
 
-The font [`subsets`](https://fonts.google.com/knowledge/glossary/subsetting) defined by an array of string values with the names of each subset you would like to be [preloaded](/docs/optimizing/fonts.md#specifying-a-subset). Fonts specified via `subsets` will have a link preload tag injected into the head when the [`preload`](/docs/api-reference/components/font.md#preload) option is true, which is the default.
+The font [`subsets`](https://fonts.google.com/knowledge/glossary/subsetting) defined by an array of string values with the names of each subset you would like to be [preloaded](/docs/basic-features/font-optimization#specifying-a-subset). Fonts specified via `subsets` will have a link preload tag injected into the head when the [`preload`](/docs/api-reference/next/font.md#preload) option is true, which is the default.
 
-Used in `@next/font/google`
+Used in `next/font/google`
 
 - Optional
 
@@ -97,7 +98,7 @@ Examples:
 
 Some variable fonts have extra `axes` that can be included. By default, only the font weight is included to keep the file size down. The possible values of `axes` depend on the specific font.
 
-Used in `@next/font/google`
+Used in `next/font/google`
 
 - Optional
 
@@ -107,21 +108,21 @@ Examples:
 
 ### `display`
 
-The font [`display`](https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display) with possible string [values](https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display#values) of `'auto'`, `'block'`, `'swap'`, `'fallback'` or `'optional'` with default value of `'optional'`.
+The font [`display`](https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display) with possible string [values](https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display#values) of `'auto'`, `'block'`, `'swap'`, `'fallback'` or `'optional'` with default value of `'swap'`.
 
-Used in `@next/font/google` and `@next/font/local`
+Used in `next/font/google` and `next/font/local`
 
 - Optional
 
 Examples:
 
-- `display: 'swap'`: A string assigned to the `swap` value
+- `display: 'optional'`: A string assigned to the `optional` value
 
 ### `preload`
 
-A boolean value that specifies whether the font should be [preloaded](/docs/optimizing/fonts#preloading) or not. The default is `true`.
+A boolean value that specifies whether the font should be [preloaded](/docs/basic-features/font-optimization#preloading) or not. The default is `true`.
 
-Used in `@next/font/google` and `@next/font/local`
+Used in `next/font/google` and `next/font/local`
 
 - Optional
 
@@ -135,7 +136,7 @@ The fallback font to use if the font cannot be loaded. An array of strings of fa
 
 - Optional
 
-Used in `@next/font/google` and `@next/font/local`
+Used in `next/font/google` and `next/font/local`
 
 Examples:
 
@@ -143,23 +144,23 @@ Examples:
 
 ### `adjustFontFallback`
 
-- For `@next/font/google`: A boolean value that sets whether an automatic fallback font should be used to reduce [Cumulative Layout Shift](https://web.dev/cls/). The default is `true`.
-- For `@next/font/local`: A string or boolean `false` value that sets whether an automatic fallback font should be used to reduce [Cumulative Layout Shift](https://web.dev/cls/). The possible values are `'Arial'`, `'Times New Roman'` or `false`. The default is `'Arial'`.
+- For `next/font/google`: A boolean value that sets whether an automatic fallback font should be used to reduce [Cumulative Layout Shift](https://web.dev/cls/). The default is `true`.
+- For `next/font/local`: A string or boolean `false` value that sets whether an automatic fallback font should be used to reduce [Cumulative Layout Shift](https://web.dev/cls/). The possible values are `'Arial'`, `'Times New Roman'` or `false`. The default is `'Arial'`.
 
-Used in `@next/font/google` and `@next/font/local`
+Used in `next/font/google` and `next/font/local`
 
 - Optional
 
 Examples:
 
-- `adjustFontFallback: false`: for ``@next/font/google`
-- `adjustFontFallback: 'Times New Roman'`: for `@next/font/local`
+- `adjustFontFallback: false`: for ``next/font/google`
+- `adjustFontFallback: 'Times New Roman'`: for `next/font/local`
 
 ### `variable`
 
 A string value to define the CSS variable name to be used if the style is applied with the [CSS variable method](#css-variables).
 
-Used in `@next/font/google` and `@next/font/local`
+Used in `next/font/google` and `next/font/local`
 
 - Optional
 
@@ -171,7 +172,7 @@ Examples:
 
 An array of font face [descriptor](https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face#descriptors) key-value pairs that define the generated `@font-face` further.
 
-Used in `@next/font/local`
+Used in `next/font/local`
 
 - Optional
 
@@ -211,7 +212,7 @@ In addition to importing the font, also import the CSS file where the CSS variab
 
 ```js
 // pages/index.js
-import { Inter } from '@next/font/google'
+import { Inter } from 'next/font/google'
 import styles from '../styles/component.module.css'
 
 const inter = Inter({
@@ -251,8 +252,8 @@ Then, specify your font definitions as follows:
 
 ```ts
 // styles/fonts.ts
-import { Inter, Lora, Source_Sans_Pro } from '@next/font/google';
-import localFont from '@next/font/local';
+import { Inter, Lora, Source_Sans_Pro } from 'next/font/google';
+import localFont from 'next/font/local';
 
 // define your variable fonts
 const inter = Inter();

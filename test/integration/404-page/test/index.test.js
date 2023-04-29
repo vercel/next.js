@@ -12,6 +12,7 @@ import {
   fetchViaHTTP,
   waitFor,
   getPageFileFromPagesManifest,
+  check,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -206,14 +207,14 @@ describe('404 Page Support', () => {
       },
     })
     await renderViaHTTP(appPort, '/abc')
-    await waitFor(1000)
+    try {
+      await check(() => stderr, gip404Err)
+    } finally {
+      await killApp(app)
 
-    await killApp(app)
-
-    await fs.remove(pages404)
-    await fs.move(`${pages404}.bak`, pages404)
-
-    expect(stderr).toMatch(gip404Err)
+      await fs.remove(pages404)
+      await fs.move(`${pages404}.bak`, pages404)
+    }
   })
 
   it('does not show error with getStaticProps in pages/404 build', async () => {

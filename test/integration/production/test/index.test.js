@@ -37,7 +37,7 @@ let app
 const context = {}
 
 if (process.env.TEST_WASM) {
-  jest.setTimeout(120 * 1000)
+  jest.setTimeout(240 * 1000)
 }
 
 describe('Production Usage', () => {
@@ -163,6 +163,11 @@ describe('Production Usage', () => {
         file.includes('next/dist/server/send-payload/index.js')
       )
     ).toBe(true)
+    expect(
+      serverTrace.files.some((file) =>
+        file.includes('next/dist/server/lib/route-resolver.js')
+      )
+    ).toBe(false)
     const repoRoot = join(__dirname, '../../../../')
     expect(
       serverTrace.files.some((file) => {
@@ -226,7 +231,6 @@ describe('Production Usage', () => {
           /node_modules\/react\/cjs\/react\.production\.min\.js/,
           /node_modules\/next/,
           /next\/link\.js/,
-          /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
           /next\/error\.js/,
         ],
         notTests: [/\0/, /\?/, /!/],
@@ -241,7 +245,6 @@ describe('Production Usage', () => {
           /node_modules\/react\/cjs\/react\.production\.min\.js/,
           /node_modules\/next/,
           /next\/link\.js/,
-          /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
         ],
         notTests: [/\0/, /\?/, /!/],
       },
@@ -255,7 +258,6 @@ describe('Production Usage', () => {
           /node_modules\/react\/cjs\/react\.production\.min\.js/,
           /node_modules\/next/,
           /next\/link\.js/,
-          /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
           /node_modules\/nanoid\/index\.js/,
           /node_modules\/nanoid\/url-alphabet\/index\.js/,
           /node_modules\/es5-ext\/array\/#\/clear\.js/,
@@ -279,7 +281,6 @@ describe('Production Usage', () => {
           /node_modules\/react\/cjs\/react\.development\.js/,
           /node_modules\/next/,
           /next\/router\.js/,
-          /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
         ],
         notTests: [/\0/, /\?/, /!/],
       },
@@ -293,7 +294,6 @@ describe('Production Usage', () => {
           /node_modules\/react\/cjs\/react\.production\.min\.js/,
           /node_modules\/next/,
           /next\/link\.js/,
-          /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
         ],
         notTests: [
           /next\/dist\/server\/next\.js/,
@@ -645,13 +645,13 @@ describe('Production Usage', () => {
 
       const cssStaticAssets = await recursiveReadDir(
         join(__dirname, '..', '.next', 'static'),
-        /\.css$/
+        (f) => /\.css$/.test(f)
       )
       expect(cssStaticAssets.length).toBeGreaterThanOrEqual(1)
       expect(cssStaticAssets[0]).toMatch(/[\\/]css[\\/]/)
       const mediaStaticAssets = await recursiveReadDir(
         join(__dirname, '..', '.next', 'static'),
-        /\.svg$/
+        (f) => /\.svg$/.test(f)
       )
       expect(mediaStaticAssets.length).toBeGreaterThanOrEqual(1)
       expect(mediaStaticAssets[0]).toMatch(/[\\/]media[\\/]/)
@@ -775,26 +775,6 @@ describe('Production Usage', () => {
       expect(text).toBe('Hello World')
       expect(await browser.eval('window.beforeNav')).toBe(1)
       await browser.close()
-    })
-
-    it('should set title by routeChangeComplete event', async () => {
-      const browser = await webdriver(appPort, '/')
-      await browser.eval(function setup() {
-        window.next.router.events.on(
-          'routeChangeComplete',
-          function handler(url) {
-            window.routeChangeTitle = document.title
-            window.routeChangeUrl = url
-          }
-        )
-        window.next.router.push('/with-title')
-      })
-      await browser.waitForElementByCss('#with-title')
-
-      const title = await browser.eval(`window.routeChangeTitle`)
-      const url = await browser.eval(`window.routeChangeUrl`)
-      expect(title).toBe('hello from title')
-      expect(url).toBe('/with-title')
     })
 
     it('should reload page successfully (on bad link)', async () => {
@@ -1181,10 +1161,6 @@ describe('Production Usage', () => {
         await browser.close()
       }
     }
-  })
-
-  it('should not emit profiling events', async () => {
-    expect(existsSync(join(appDir, '.next', 'profile-events.json'))).toBe(false)
   })
 
   it('should not emit stats', async () => {

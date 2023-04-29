@@ -16,6 +16,7 @@ description: Enable Image Optimization with the built-in Image component.
 
 | Version   | Changes                                                                                                                                                                                                                  |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `v13.2.0` | `contentDispositionType` configuration added.                                                                                                                                                                            |
 | `v13.0.6` | `ref` prop added.                                                                                                                                                                                                        |
 | `v13.0.0` | `<span>` wrapper removed. `layout`, `objectFit`, `objectPosition`, `lazyBoundary`, `lazyRoot` props removed. `alt` is required. `onLoadingComplete` receives reference to `img` element. Built-in loader config removed. |
 | `v12.3.0` | `remotePatterns` and `unoptimized` configuration is stable.                                                                                                                                                              |
@@ -40,8 +41,8 @@ This `next/image` component uses browser native [lazy loading](https://caniuse.c
 
 ## Known Browser Bugs
 
-- [Safari 15](https://bugs.webkit.org/show_bug.cgi?id=243601) displays a gray border while loading. Possible solutions:
-  - Use CSS `@media not all and (min-resolution:.001dpcm) { img[loading="lazy"] { clip-path: inset(0.5px) } }`
+- [Safari 15 and 16](https://bugs.webkit.org/show_bug.cgi?id=243601) display a gray border while loading. Safari 16.4 [fixed this issue](https://webkit.org/blog/13966/webkit-features-in-safari-16-4/#:~:text=Now%20in%20Safari%2016.4%2C%20a%20gray%20line%20no%20longer%20appears%20to%20mark%20the%20space%20where%20a%20lazy%2Dloaded%20image%20will%20appear%20once%20it%E2%80%99s%20been%20loaded.). Possible solutions:
+  - Use CSS `@supports (font: -apple-system-body) and (-webkit-appearance: none) { img[loading="lazy"] { clip-path: inset(0.6px) } }`
   - Use [`priority`](#priority) if the image is above the fold
 - [Firefox 67+](https://bugzilla.mozilla.org/show_bug.cgi?id=1556156) displays a white background while loading. Possible solutions:
   - Enable [AVIF `formats`](#acceptable-formats)
@@ -208,7 +209,7 @@ In some cases, you may need more advanced usage. The `<Image />` component optio
 
 ### style
 
-Allows [passing CSS styles](https://reactjs.org/docs/dom-elements.html#style) to the underlying image element.
+Allows [passing CSS styles](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/style) to the underlying image element.
 
 Also keep in mind that the required `width` and `height` props can interact with your styling. If you use styling to modify an image's `width`, you must set the `height="auto"` style as well, or your image will be distorted.
 
@@ -269,7 +270,15 @@ You can also [generate a solid color Data URL](https://png-pixel.com) to match t
 When true, the source image will be served as-is instead of changing quality,
 size, or format. Defaults to `false`.
 
-This prop can be assigned to all images by updating `next.config.js` with the following configuration:
+```js
+import Image from 'next/image'
+
+const UnoptimizedImage = (props) => {
+  return <Image {...props} unoptimized />
+}
+```
+
+Since Next.js 12.3.0, this prop can be assigned to all images by updating `next.config.js` with the following configuration:
 
 ```js
 module.exports = {
@@ -308,7 +317,7 @@ module.exports = {
 }
 ```
 
-> Note: The example above will ensure the `src` property of `next/image` must start with `https://example.com/account123/`. Any other protocol, hostname, port, or unmatched path will respond with 400 Bad Request.
+> **Note**: The example above will ensure the `src` property of `next/image` must start with `https://example.com/account123/`. Any other protocol, hostname, port, or unmatched path will respond with 400 Bad Request.
 
 Below is another example of the `remotePatterns` property in the `next.config.js` file:
 
@@ -325,7 +334,7 @@ module.exports = {
 }
 ```
 
-> Note: The example above will ensure the `src` property of `next/image` must start with `https://img1.example.com` or `https://me.avatar.example.com` or any number of subdomains. Any other protocol or unmatched hostname will respond with 400 Bad Request.
+> **Note**: The example above will ensure the `src` property of `next/image` must start with `https://img1.example.com` or `https://me.avatar.example.com` or any number of subdomains. Any other protocol or unmatched hostname will respond with 400 Bad Request.
 
 Wildcard patterns can be used for both `pathname` and `hostname` and have the following syntax:
 
@@ -336,7 +345,7 @@ The `**` syntax does not work in the middle of the pattern.
 
 ### Domains
 
-> Note: We recommend using [`remotePatterns`](#remote-patterns) instead so you can restrict protocol and pathname.
+> **Note**: We recommend using [`remotePatterns`](#remote-patterns) instead so you can restrict protocol and pathname.
 
 Similar to [`remotePatterns`](#remote-patterns), the `domains` configuration can be used to provide a list of allowed hostnames for external images.
 
@@ -374,6 +383,10 @@ export default function myImageLoader({ src, width, quality }) {
 ```
 
 Alternatively, you can use the [`loader` prop](#loader) to configure each instance of `next/image`.
+
+Examples:
+
+- [Custom Image Loader Configuration](/docs/api-reference/next.config.js/custom-image-loader-config.md#example-loader-configuration)
 
 ## Advanced
 
@@ -435,9 +448,9 @@ module.exports = {
 }
 ```
 
-> Note: AVIF generally takes 20% longer to encode but it compresses 20% smaller compared to WebP. This means that the first time an image is requested, it will typically be slower and then subsequent requests that are cached will be faster.
+> **Note**: AVIF generally takes 20% longer to encode but it compresses 20% smaller compared to WebP. This means that the first time an image is requested, it will typically be slower and then subsequent requests that are cached will be faster.
 
-> Note: If you self-host with a Proxy/CDN in front of Next.js, you must configure the Proxy to forward the `Accept` header.
+> **Note**: If you self-host with a Proxy/CDN in front of Next.js, you must configure the Proxy to forward the `Accept` header.
 
 ## Caching Behavior
 
@@ -495,16 +508,19 @@ module.exports = {
 
 The default [loader](#loader) does not optimize SVG images for a few reasons. First, SVG is a vector format meaning it can be resized losslessly. Second, SVG has many of the same features as HTML/CSS, which can lead to vulnerabilities without proper [Content Security Policy (CSP) headers](/docs/advanced-features/security-headers.md).
 
-If you need to serve SVG images with the default Image Optimization API, you can set `dangerouslyAllowSVG` and `contentSecurityPolicy` inside your `next.config.js`:
+If you need to serve SVG images with the default Image Optimization API, you can set `dangerouslyAllowSVG` inside your `next.config.js`:
 
 ```js
 module.exports = {
   images: {
     dangerouslyAllowSVG: true,
+    contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
 }
 ```
+
+In addition, it is strongly recommended to also set `contentDispositionType` to force the browser to download the image, as well as `contentSecurityPolicy` to prevent scripts embedded in the image from executing.
 
 ### Animated Images
 

@@ -33,10 +33,10 @@ You can also pass command line arguments to set up a new project
 non-interactively. See `create-next-app --help`:
 
 ```bash
-create-next-app <project-directory> [options]
+Usage: create-next-app <project-directory> [options]
 
 Options:
-  -V, --version                      output the version number
+  -V, --version                        output the version number
   --ts, --typescript
 
     Initialize as a TypeScript project. (default)
@@ -45,17 +45,29 @@ Options:
 
     Initialize as a JavaScript project.
 
+  --tailwind
+
+    Initialize with Tailwind CSS config. (default)
+
+  --no-tailwind
+
+    Initialize without Tailwind CSS config.
+
   --eslint
 
-    Initialize with eslint config.
-
-  --no-eslint
-
-    Initialize without eslint config.
+    Initialize with ESLint config.
 
   --experimental-app
 
     Initialize as a `app/` directory project.
+
+  --src-dir
+
+    Initialize inside a `src/` directory.
+
+  --import-alias <alias-to-configure>
+
+    Specify import alias to use (default "@/*").
 
   --use-npm
 
@@ -77,6 +89,12 @@ Options:
     a slash (e.g. bug/fix-1) and the path to the example (e.g. foo/bar).
     In this case, you must specify the path to the example separately:
     --example-path foo/bar
+
+  --reset-preferences
+
+    Explicitly tell the CLI to reset any stored preferences
+
+  -h, --help                           output usage information
 ```
 
 ### Why use Create Next App?

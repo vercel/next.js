@@ -39,7 +39,8 @@ interface Window {
 }
 
 interface NextFetchRequestConfig {
-  revalidate?: number
+  revalidate?: number | false
+  tags?: string[]
 }
 
 interface RequestInit {

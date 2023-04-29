@@ -4,11 +4,6 @@ import { NextInstance } from 'test/lib/next-modes/base'
 import { sandbox } from './helpers'
 
 describe('ReactRefreshModule app', () => {
-  if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
-    it('should skip for react v17', () => {})
-    return
-  }
-
   let next: NextInstance
 
   beforeAll(async () => {
@@ -25,7 +20,7 @@ describe('ReactRefreshModule app', () => {
 
   it('should allow any variable names', async () => {
     const { session, cleanup } = await sandbox(next, new Map([]))
-    expect(await session.hasRedbox()).toBe(false)
+    expect(await session.hasRedbox(false)).toBe(false)
 
     const variables = [
       '_a',
@@ -44,7 +39,7 @@ describe('ReactRefreshModule app', () => {
           return null
         }`
       )
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
       expect(next.cliOutput).not.toContain(
         `'${variable}' has already been declared`
       )

@@ -7,7 +7,7 @@ const mockedGoogleFontResponses = require.resolve(
   './google-font-mocked-responses.js'
 )
 
-describe('@next/font/google fetch error', () => {
+describe('next/font/google fetch error', () => {
   const isDev = (global as any).isNextDev
   let next: NextInstance
 
@@ -20,12 +20,6 @@ describe('@next/font/google fetch error', () => {
     next = await createNext({
       files: {
         pages: new FileRef(join(__dirname, 'google-fetch-error/pages')),
-        'next.config.js': new FileRef(
-          join(__dirname, 'google-fetch-error/next.config.js')
-        ),
-      },
-      dependencies: {
-        '@next/font': 'canary',
       },
       env: {
         NEXT_FONT_GOOGLE_MOCKED_RESPONSES: mockedGoogleFontResponses,
@@ -44,12 +38,12 @@ describe('@next/font/google fetch error', () => {
       const ascentOverride = await browser.eval(
         'Array.from(document.fonts.values()).find(font => font.family.includes("Inter_Fallback")).ascentOverride'
       )
-      expect(ascentOverride).toBe('90%')
+      expect(ascentOverride).toBe('90.2%')
 
       const descentOverride = await browser.eval(
         'Array.from(document.fonts.values()).find(font => font.family.includes("Inter_Fallback")).descentOverride'
       )
-      expect(descentOverride).toBe('22.43%')
+      expect(descentOverride).toBe('22.48%')
 
       const lineGapOverride = await browser.eval(
         'Array.from(document.fonts.values()).find(font => font.family.includes("Inter_Fallback")).lineGapOverride'
@@ -59,7 +53,7 @@ describe('@next/font/google fetch error', () => {
       const sizeAdjust = await browser.eval(
         'Array.from(document.fonts.values()).find(font => font.family.includes("Inter_Fallback")).sizeAdjust'
       )
-      expect(sizeAdjust).toBe('107.64%')
+      expect(sizeAdjust).toBe('107.4%')
 
       expect(next.cliOutput.slice(outputIndex)).toInclude(
         'Failed to download `Inter` from Google Fonts. Using fallback font instead.'

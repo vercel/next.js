@@ -20,7 +20,7 @@ description: Backwards compatible Image Optimization with the Legacy Image compo
 
 </details>
 
-Starting with Next.js 13, the `next/image` component was rewritten to improves both the performance and developer experience. In order to provide a backwards compatible upgrade solution, the old `next/image` was renamed to `next/legacy/image`.
+Starting with Next.js 13, the `next/image` component was rewritten to improve both the performance and developer experience. In order to provide a backwards compatible upgrade solution, the old `next/image` was renamed to `next/legacy/image`.
 
 ## Comparison
 
@@ -203,7 +203,7 @@ In some cases, you may need more advanced usage. The `<Image />` component optio
 
 ### style
 
-Allows [passing CSS styles](https://reactjs.org/docs/dom-elements.html#style) to the underlying image element.
+Allows [passing CSS styles](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/style) to the underlying image element.
 
 Note that all `layout` modes apply their own styles to the image element, and these automatic styles take precedence over the `style` prop.
 
@@ -274,9 +274,9 @@ If the image is nested in a scrollable parent element other than the root docume
 
 ### lazyRoot
 
-A React [Ref](https://reactjs.org/docs/refs-and-the-dom.html) pointing to the scrollable parent element. Defaults to `null` (the document viewport).
+A React [Ref](https://react.dev/learn/referencing-values-with-refs) pointing to the scrollable parent element. Defaults to `null` (the document viewport).
 
-The Ref must point to a DOM element or a React component that [forwards the Ref](https://reactjs.org/docs/forwarding-refs.html) to the underlying DOM element.
+The Ref must point to a DOM element or a React component that [forwards the Ref](https://react.dev/reference/react/forwardRef) to the underlying DOM element.
 
 **Example pointing to a DOM element**
 
@@ -329,7 +329,15 @@ const Example = () => {
 When true, the source image will be served as-is instead of changing quality,
 size, or format. Defaults to `false`.
 
-This prop can be assigned to all images by updating `next.config.js` with the following configuration:
+```js
+import Image from 'next/image'
+
+const UnoptimizedImage = (props) => {
+  return <Image {...props} unoptimized />
+}
+```
+
+Since Next.js 12.3.0, this prop can be assigned to all images by updating `next.config.js` with the following configuration:
 
 ```js
 module.exports = {
@@ -371,7 +379,7 @@ module.exports = {
 }
 ```
 
-> Note: The example above will ensure the `src` property of `next/legacy/image` must start with `https://example.com/account123/`. Any other protocol, hostname, port, or unmatched path will respond with 400 Bad Request.
+> **Note**: The example above will ensure the `src` property of `next/legacy/image` must start with `https://example.com/account123/`. Any other protocol, hostname, port, or unmatched path will respond with 400 Bad Request.
 
 Below is another example of the `remotePatterns` property in the `next.config.js` file:
 
@@ -388,7 +396,7 @@ module.exports = {
 }
 ```
 
-> Note: The example above will ensure the `src` property of `next/legacy/image` must start with `https://img1.example.com` or `https://me.avatar.example.com` or any number of subdomains. Any other protocol or unmatched hostname will respond with 400 Bad Request.
+> **Note**: The example above will ensure the `src` property of `next/legacy/image` must start with `https://img1.example.com` or `https://me.avatar.example.com` or any number of subdomains. Any other protocol or unmatched hostname will respond with 400 Bad Request.
 
 Wildcard patterns can be used for both `pathname` and `hostname` and have the following syntax:
 
@@ -399,7 +407,7 @@ The `**` syntax does not work in the middle of the pattern.
 
 ### Domains
 
-> Note: We recommend using [`remotePatterns`](#remote-patterns) instead so you can restrict protocol and pathname.
+> **Note**: We recommend using [`remotePatterns`](#remote-patterns) instead so you can restrict protocol and pathname.
 
 Similar to [`remotePatterns`](#remote-patterns), the `domains` configuration can be used to provide a list of allowed hostnames for external images.
 
@@ -441,7 +449,7 @@ The following Image Optimization cloud providers are included:
 
 If you need a different provider, you can use the [`loader`](#loader) prop with `next/legacy/image`.
 
-> Images can not be optimized at build time using [`next export`](/docs/advanced-features/static-html-export.md), only on-demand. To use `next/legacy/image` with `next export`, you will need to use a different loader than the default. [Read more in the discussion.](https://github.com/vercel/next.js/discussions/19065)
+> Images can not be optimized at build time using [`output: 'export'`](/docs/advanced-features/static-html-export.md), only on-demand. To use `next/legacy/image` with `output: 'export'`, you will need to use a different loader than the default. [Read more in the discussion.](https://github.com/vercel/next.js/discussions/19065)
 
 > The `next/legacy/image` component's default loader uses [`squoosh`](https://www.npmjs.com/package/@squoosh/lib) because it is quick to install and suitable for a development environment. When using `next start` in your production environment, it is strongly recommended that you install [`sharp`](https://www.npmjs.com/package/sharp) by running `yarn add sharp` in your project directory. This is not necessary for Vercel deployments, as `sharp` is installed automatically.
 
@@ -505,7 +513,7 @@ module.exports = {
 }
 ```
 
-> Note: AVIF generally takes 20% longer to encode but it compresses 20% smaller compared to WebP. This means that the first time an image is requested, it will typically be slower and then subsequent requests that are cached will be faster.
+> **Note**: AVIF generally takes 20% longer to encode but it compresses 20% smaller compared to WebP. This means that the first time an image is requested, it will typically be slower and then subsequent requests that are cached will be faster.
 
 ## Caching Behavior
 
@@ -563,16 +571,19 @@ module.exports = {
 
 The default [loader](#loader) does not optimize SVG images for a few reasons. First, SVG is a vector format meaning it can be resized losslessly. Second, SVG has many of the same features as HTML/CSS, which can lead to vulnerabilities without proper [Content Security Policy (CSP) headers](/docs/advanced-features/security-headers.md).
 
-If you need to serve SVG images with the default Image Optimization API, you can set `dangerouslyAllowSVG` and `contentSecurityPolicy` inside your `next.config.js`:
+If you need to serve SVG images with the default Image Optimization API, you can set `dangerouslyAllowSVG` inside your `next.config.js`:
 
 ```js
 module.exports = {
   images: {
     dangerouslyAllowSVG: true,
+    contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
 }
 ```
+
+In addition, it is strongly recommended to also set `contentDispositionType` to force the browser to download the image, as well as `contentSecurityPolicy` to prevent scripts embedded in the image from executing.
 
 ### Animated Images
 

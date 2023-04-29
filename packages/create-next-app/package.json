@@ -1,6 +1,6 @@
 {
   "name": "create-next-app",
-  "version": "13.0.6-canary.1",
+  "version": "13.3.2-canary.13",
   "keywords": [
     "react",
     "next",
@@ -25,12 +25,14 @@
     "prerelease": "rimraf ./dist/",
     "release": "ncc build ./index.ts -o ./dist/ --minify --no-cache --no-source-map-register",
     "prepublishOnly": "cd ../../ && turbo run build",
-    "build": "pnpm release"
+    "build": "pnpm release",
+    "lint-fix": "pnpm prettier -w --plugin prettier-plugin-tailwindcss 'templates/*-tw/{ts,js}/{app,pages}/**/*.{js,ts,tsx}'"
   },
   "devDependencies": {
     "@types/async-retry": "1.4.2",
     "@types/ci-info": "2.0.0",
     "@types/cross-spawn": "6.0.0",
+    "@types/glob": "7.1.1",
     "@types/node": "^12.6.8",
     "@types/prompts": "2.0.1",
     "@types/rimraf": "3.0.0",
@@ -41,16 +43,18 @@
     "chalk": "2.4.2",
     "ci-info": "watson/ci-info#f43f6a1cefff47fb361c88cf4b943fdbcaafe540",
     "commander": "2.20.0",
+    "conf": "10.2.0",
     "cpy": "7.3.0",
     "cross-spawn": "6.0.5",
+    "glob": "8.0.3",
     "got": "10.7.0",
+    "prettier-plugin-tailwindcss": "0.2.4",
     "prompts": "2.1.0",
-    "rimraf": "3.0.2",
     "tar": "4.4.10",
     "update-check": "1.5.4",
     "validate-npm-package-name": "3.0.0"
   },
   "engines": {
-    "node": ">=14.6.0"
+    "node": ">=16.8.0"
   }
 }

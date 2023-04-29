@@ -14,8 +14,34 @@ const CHANGE_ITEM_GROUPS = {
     'contributing',
     'CODE_OF_CONDUCT.md',
     'readme.md',
+    '.github/ISSUE_TEMPLATE',
+    '.github/labeler.json',
+    '.github/pull_request_template.md',
+    'packages/next-plugin-storybook/readme.md',
+    'packages/next/license.md',
+    'packages/next/README.md',
+    'packages/eslint-plugin-next/README.md',
+    'packages/next-codemod/license.md',
+    'packages/next-codemod/README.md',
+    'packages/next-swc/crates/wasm/README.md',
+    'packages/next-swc/README.md',
+    'packages/next-bundle-analyzer/readme.md',
+    'packages/next-mdx/license.md',
+    'packages/next-mdx/readme.md',
+    'packages/react-dev-overlay/README.md',
+    'packages/react-refresh-utils/README.md',
+    'packages/create-next-app/README.md',
+    'packages/font/README.md',
+    'packages/next-env/README.md',
   ],
-  'next-swc': ['packages/next-swc', 'scripts/normalize-version-bump.js'],
+  'deploy-examples': ['examples/image-component'],
+  cna: ['packages/create-next-app', 'test/integration/create-next-app'],
+  'next-codemod': ['packages/next-codemod'],
+  'next-swc': [
+    'packages/next-swc',
+    'scripts/normalize-version-bump.js',
+    'test/integration/create-next-app',
+  ],
 }
 
 async function main() {
@@ -61,6 +87,7 @@ async function main() {
   const typeIndex = process.argv.indexOf('--type')
   const type = typeIndex > -1 && process.argv[typeIndex + 1]
   const isNegated = process.argv.indexOf('--not') > -1
+  const alwaysCanary = process.argv.indexOf('--always-canary') > -1
 
   if (!type) {
     throw new Error(
@@ -68,15 +95,20 @@ async function main() {
     )
   }
   const execArgIndex = process.argv.indexOf('--exec')
+  const listChangedDirectories = process.argv.includes(
+    '--listChangedDirectories'
+  )
 
-  if (execArgIndex < 0) {
-    throw new Error('no "--exec" flag provided')
+  if (execArgIndex < 0 && !listChangedDirectories) {
+    throw new Error(
+      'Invalid: must provide either "--exec" or "--listChangedDirectories" flag'
+    )
   }
   let hasMatchingChange = false
   const changeItems = CHANGE_ITEM_GROUPS[type]
   const execArgs = process.argv.slice(execArgIndex + 1)
 
-  if (execArgs.length < 1) {
+  if (execArgs.length < 1 && !listChangedDirectories) {
     throw new Error('Missing exec arguments after "--exec"')
   }
 
@@ -88,6 +120,13 @@ async function main() {
     )
   }
   let changedFilesCount = 0
+  let changedDirectories = []
+
+  // always run for canary if flag is enabled
+  if (alwaysCanary && branchName === 'canary') {
+    changedFilesCount += 1
+    hasMatchingChange = true
+  }
 
   for (let file of changedFilesOutput.split('\n')) {
     file = file.trim().replace(/\\/g, '/')
@@ -98,7 +137,13 @@ async function main() {
       // if --not flag is provided we execute for any file changed
       // not included in the change items otherwise we only execute
       // if a change item is changed
-      const matchesItem = changeItems.some((item) => file.startsWith(item))
+      const matchesItem = changeItems.some((item) => {
+        const found = file.startsWith(item)
+        if (found) {
+          changedDirectories.push(item)
+        }
+        return found
+      })
 
       if (!matchesItem && isNegated) {
         hasMatchingChange = true
@@ -119,6 +164,10 @@ async function main() {
   }
 
   if (hasMatchingChange) {
+    if (listChangedDirectories) {
+      console.log(changedDirectories.join('\n'))
+      return
+    }
     const cmd = spawn(execArgs[0], execArgs.slice(1))
     cmd.stdout.pipe(process.stdout)
     cmd.stderr.pipe(process.stderr)
@@ -132,7 +181,7 @@ async function main() {
       })
       cmd.on('error', (err) => reject(err))
     })
-  } else {
+  } else if (!listChangedDirectories) {
     console.log(
       `No matching changed files for ${isNegated ? 'not ' : ''}"${type}":\n` +
         changedFilesOutput.trim()

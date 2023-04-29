@@ -9,6 +9,7 @@ import {
   nextBuild,
   waitFor,
 } from 'next-test-utils'
+import stripAnsi from 'strip-ansi'
 
 const dir = path.join(__dirname, '..')
 const nextConfig = path.join(dir, 'next.config.js')
@@ -56,10 +57,10 @@ describe('Error when app dir is present without experimental.appDir', () => {
         let output = ''
         app = await launchApp(dir, appPort, {
           onStdout(data: string) {
-            output += data
+            output += stripAnsi(data)
           },
           onStderr(data: string) {
-            output += data
+            output += stripAnsi(data)
           },
         })
         await waitFor(200)
