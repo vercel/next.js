@@ -9,16 +9,15 @@ import type {
   RenderOpts,
   Segment,
 } from './types'
+
 import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
 import type { StaticGenerationBailout } from '../../client/components/static-generation-bailout'
 import type { RequestAsyncStorage } from '../../client/components/request-async-storage'
 // Import builtin react directly to avoid require cache conflicts
 import React from 'next/dist/compiled/react'
-import ReactDOMServer from 'next/dist/compiled/react-dom/server.browser'
+import ReactDOMServer from 'next/dist/compiled/react-dom/server.edge'
 import { NotFound as DefaultNotFound } from '../../client/components/error'
 
-// this needs to be required lazily so that `next-server` can set
-// the env before we require
 import { ParsedUrlQuery } from 'querystring'
 import { NextParsedUrlQuery } from '../request-meta'
 import RenderResult, { type RenderResultMetadata } from '../render-result'
@@ -62,7 +61,7 @@ import { getShortDynamicParamType } from './get-short-dynamic-param-type'
 import { getSegmentParam } from './get-segment-param'
 import { getCssInlinedLinkTags } from './get-css-inlined-link-tags'
 import { getServerCSSForEntries } from './get-server-css-for-entries'
-import { getPreloadedFontFilesInlineLinkTags } from './get-preloaded-font-files-inline-link-tags'
+import { getPreloadableFonts } from './get-preloadable-fonts'
 import { getScriptNonceFromHeader } from './get-script-nonce-from-header'
 import { renderToString } from './render-to-string'
 import { parseAndValidateFlightRouterState } from './parse-and-validate-flight-router-state'
@@ -156,6 +155,8 @@ export async function renderToHTMLOrFlight(
     supportsDynamicHTML,
     nextConfigOutput,
   } = renderOpts
+
+  const appUsingSizeAdjust = nextFontManifest?.appUsingSizeAdjust
 
   const clientReferenceManifest = renderOpts.clientReferenceManifest!
   const serverCSSManifest = renderOpts.serverCSSManifest!
@@ -408,10 +409,7 @@ export async function renderToHTMLOrFlight(
       layoutOrPagePath: string | undefined
       injectedCSS: Set<string>
       injectedFontPreloadTags: Set<string>
-    }): {
-      styles: React.ReactNode
-      preloads: React.ReactNode
-    } => {
+    }): React.ReactNode => {
       const stylesheets: string[] = layoutOrPagePath
         ? getCssInlinedLinkTags(
             clientReferenceManifest,
@@ -424,77 +422,64 @@ export async function renderToHTMLOrFlight(
         : []
 
       const preloadedFontFiles = layoutOrPagePath
-        ? getPreloadedFontFilesInlineLinkTags(
+        ? getPreloadableFonts(
             serverCSSManifest!,
             nextFontManifest,
             serverCSSForEntries,
             layoutOrPagePath,
             injectedFontPreloadTagsWithCurrentLayout
           )
-        : []
-
-      const preloads = (
-        <>
-          {preloadedFontFiles?.length === 0 ? (
-            <>
-              <link
-                data-next-font={
-                  nextFontManifest?.appUsingSizeAdjust ? 'size-adjust' : ''
-                }
-                rel="preconnect"
-                href="/"
-                crossOrigin="anonymous"
-              />
-            </>
-          ) : null}
-          {preloadedFontFiles
-            ? preloadedFontFiles.map((fontFile) => {
-                const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFile)![1]
-                return (
-                  <link
-                    key={fontFile}
-                    rel="preload"
-                    href={`${assetPrefix}/_next/${fontFile}`}
-                    as="font"
-                    type={`font/${ext}`}
-                    crossOrigin="anonymous"
-                    data-next-font={
-                      fontFile.includes('-s') ? 'size-adjust' : ''
-                    }
-                  />
-                )
-              })
-            : null}
-        </>
-      )
-
-      const styles = stylesheets
-        ? stylesheets.map((href, index) => (
-            <link
-              rel="stylesheet"
-              // In dev, Safari and Firefox will cache the resource during HMR:
-              // - https://github.com/vercel/next.js/issues/5860
-              // - https://bugs.webkit.org/show_bug.cgi?id=187726
-              // Because of this, we add a `?v=` query to bypass the cache during
-              // development. We need to also make sure that the number is always
-              // increasing.
-              href={`${assetPrefix}/_next/${href}${
-                process.env.NODE_ENV === 'development' ? `?v=${Date.now()}` : ''
-              }`}
-              // `Precedence` is an opt-in signal for React to handle
-              // resource loading and deduplication, etc:
-              // https://github.com/facebook/react/pull/25060
-              // @ts-ignore
-              precedence="next.js"
-              key={index}
-            />
-          ))
         : null
 
-      return {
-        styles,
-        preloads,
+      if (preloadedFontFiles) {
+        if (preloadedFontFiles.length) {
+          for (let i = 0; i < preloadedFontFiles.length; i++) {
+            const fontFilename = preloadedFontFiles[i]
+            const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFilename)![1]
+            const type = `font/${ext}`
+            const href = `${assetPrefix}/_next/${fontFilename}`
+            ComponentMod.preloadFont(href, type)
+          }
+        } else {
+          try {
+            let url = new URL(assetPrefix)
+            ComponentMod.preconnect(url.origin, 'anonymous')
+          } catch (error) {
+            // assetPrefix must not be a fully qualified domain name. We assume
+            // we should preconnect to same origin instead
+            ComponentMod.preconnect('/', 'anonymous')
+          }
+        }
       }
+
+      const styles = stylesheets
+        ? stylesheets.map((href, index) => {
+            const fullHref = `${assetPrefix}/_next/${href}${
+              process.env.NODE_ENV === 'development' ? `?v=${Date.now()}` : ''
+            }`
+            ComponentMod.preloadStyle(fullHref)
+            return (
+              <link
+                rel="stylesheet"
+                // In dev, Safari and Firefox will cache the resource during HMR:
+                // - https://github.com/vercel/next.js/issues/5860
+                // - https://bugs.webkit.org/show_bug.cgi?id=187726
+                // Because of this, we add a `?v=` query to bypass the cache during
+                // development. We need to also make sure that the number is always
+                // increasing.
+                href={fullHref}
+                // `Precedence` is an opt-in signal for React to handle
+                // resource loading and deduplication, etc:
+                // https://github.com/facebook/react/pull/25060
+                // @ts-ignore
+                precedence="next.js"
+                key={index}
+              />
+            )
+          })
+        : null
+
+      return styles
     }
 
     const parseLoaderTree = (tree: LoaderTree) => {
@@ -558,7 +543,7 @@ export async function renderToHTMLOrFlight(
         injectedFontPreloadTags
       )
 
-      const { styles, preloads } = getLayerAssets({
+      const styles = getLayerAssets({
         layoutOrPagePath,
         injectedCSS: injectedCSSWithCurrentLayout,
         injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
@@ -909,7 +894,15 @@ export async function renderToHTMLOrFlight(
               ) : (
                 <Component {...props} />
               )}
-              {preloads}
+              {/* This null is currently critical. The wrapped Component can render null and if there was not fragment
+                surrounding it this would look like a pending tree data state on the client which will cause an errror 
+                and break the app. Long-term we need to move away from using null as a partial tree identifier since it
+                is a valid return type for the components we wrap. Once we make this change we can safely remove the
+                fragment. The reason the extra null here is required is that fragments which only have 1 child are elided.
+                If the Component above renders null the actual treedata will look like `[null, null]`. If we remove the extra
+                null it will look like `null` (the array is elided) and this is what confuses the client router.            
+                TODO-APP update router to use a Symbol for partial tree detection */}
+              {null}
             </>
           )
         },
@@ -1038,7 +1031,7 @@ export async function renderToHTMLOrFlight(
                     const { layoutOrPagePath } =
                       parseLoaderTree(loaderTreeToFilter)
 
-                    const { styles } = getLayerAssets({
+                    const styles = getLayerAssets({
                       layoutOrPagePath,
                       injectedCSS: new Set(injectedCSS),
                       injectedFontPreloadTags: new Set(injectedFontPreloadTags),
@@ -1072,7 +1065,7 @@ export async function renderToHTMLOrFlight(
             injectedCSSWithCurrentLayout,
             true
           )
-          getPreloadedFontFilesInlineLinkTags(
+          getPreloadableFonts(
             serverCSSManifest!,
             nextFontManifest,
             serverCSSForEntries,
@@ -1153,6 +1146,7 @@ export async function renderToHTMLOrFlight(
                 searchParams={providedSearchParams}
                 getDynamicParamFromSegment={getDynamicParamFromSegment}
               />
+              {appUsingSizeAdjust ? <meta name="next-size-adjust" /> : null}
             </>
           ),
           injectedCSS: new Set(),
@@ -1290,6 +1284,7 @@ export async function renderToHTMLOrFlight(
                     searchParams={providedSearchParams}
                     getDynamicParamFromSegment={getDynamicParamFromSegment}
                   />
+                  {appUsingSizeAdjust ? <meta name="next-size-adjust" /> : null}
                 </>
               }
               globalErrorComponent={GlobalError}
@@ -1497,6 +1492,7 @@ export async function renderToHTMLOrFlight(
                     searchParams={providedSearchParams}
                     getDynamicParamFromSegment={getDynamicParamFromSegment}
                   />
+                  {appUsingSizeAdjust ? <meta name="next-size-adjust" /> : null}
                 </head>
                 <body></body>
               </html>

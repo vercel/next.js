@@ -1,7 +1,9 @@
+import './node-environment'
 import './require-hook'
 import './node-polyfill-fetch'
 import './node-polyfill-form'
 import './node-polyfill-web-streams'
+import './node-polyfill-crypto'
 
 import type { TLSSocket } from 'tls'
 import type { Route, RouterOptions } from './router'
@@ -319,10 +321,6 @@ export default class NextNodeServer extends BaseServer {
         }
       }
     }
-
-    // expose AsyncLocalStorage on global for react usage
-    const { AsyncLocalStorage } = require('async_hooks')
-    ;(globalThis as any).AsyncLocalStorage = AsyncLocalStorage
 
     // ensure options are set when loadConfig isn't called
     setHttpClientAndAgentOptions(this.nextConfig)

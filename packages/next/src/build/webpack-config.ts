@@ -12,6 +12,7 @@ import {
   APP_DIR_ALIAS,
   WEBPACK_LAYERS,
   RSC_ACTION_PROXY_ALIAS,
+  RSC_ACTION_CLIENT_WRAPPER_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
@@ -1058,6 +1059,9 @@ export default async function getBaseWebpackConfig(
       [RSC_ACTION_PROXY_ALIAS]:
         'next/dist/build/webpack/loaders/next-flight-loader/action-proxy',
 
+      [RSC_ACTION_CLIENT_WRAPPER_ALIAS]:
+        'next/dist/build/webpack/loaders/next-flight-loader/action-client-wrapper',
+
       ...(isClient || isEdgeServer
         ? {
             [clientResolveRewrites]: hasRewrites
@@ -1067,8 +1071,9 @@ export default async function getBaseWebpackConfig(
           }
         : {}),
 
-      '@swc/helpers': path.dirname(
-        require.resolve('@swc/helpers/package.json')
+      '@swc/helpers/_': path.join(
+        path.dirname(require.resolve('@swc/helpers/package.json')),
+        '_'
       ),
 
       setimmediate: 'next/dist/compiled/setimmediate',
@@ -1263,7 +1268,7 @@ export default async function getBaseWebpackConfig(
       }
 
       const notExternalModules =
-        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|legacy\/image|constants|dynamic|script|navigation|headers)$)|string-hash|private-next-rsc-action-proxy$)/
+        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|legacy\/image|constants|dynamic|script|navigation|headers)$)|string-hash|private-next-rsc-action-proxy|private-next-rsc-action-client-wrapper$)/
       if (notExternalModules.test(request)) {
         return
       }
@@ -1286,7 +1291,9 @@ export default async function getBaseWebpackConfig(
       // so that the DefinePlugin can inject process.env values.
 
       // Treat next internals as non-external for server layer
-      if (layer === WEBPACK_LAYERS.server) return
+      if (layer === WEBPACK_LAYERS.server) {
+        return
+      }
 
       const isNextExternal =
         /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic|app-dynamic|lazy-dynamic|head[^-]))/.test(
@@ -1330,6 +1337,15 @@ export default async function getBaseWebpackConfig(
     // since `resolveExternal` cannot find the styled-jsx dep with pnpm
     if (request === 'styled-jsx/style') {
       resolveResult.res = require.resolve(request)
+    }
+
+    // Don't bundle @vercel/og nodejs bundle for nodejs runtime
+    // TODO-APP: bundle route.js with different layer that externals common node_module deps
+    if (
+      layer === WEBPACK_LAYERS.server &&
+      request === 'next/dist/compiled/@vercel/og/index.node.js'
+    ) {
+      return `module ${request}`
     }
 
     const { res, isEsm } = resolveResult
@@ -1413,6 +1429,7 @@ export default async function getBaseWebpackConfig(
       if (layer === WEBPACK_LAYERS.server) {
         // All packages should be bundled for the server layer if they're not opted out.
         // This option takes priority over the transpilePackages option.
+
         if (optOutBundlingPackageRegex.test(res)) {
           return `${externalType} ${request}`
         }

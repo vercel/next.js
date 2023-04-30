@@ -16,6 +16,7 @@ import type { StaticGenerationAsyncStorage } from '../client/components/static-g
 
 import '../server/require-hook'
 import '../server/node-polyfill-fetch'
+import '../server/node-polyfill-crypto'
 import chalk from 'next/dist/compiled/chalk'
 import getGzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
@@ -58,10 +59,7 @@ import { StaticGenerationAsyncStorageWrapper } from '../server/async-storage/sta
 import { IncrementalCache } from '../server/lib/incremental-cache'
 import { patchFetch } from '../server/lib/patch-fetch'
 import { nodeFs } from '../server/lib/node-fs-methods'
-
-// expose AsyncLocalStorage on global for react usage
-const { AsyncLocalStorage } = require('async_hooks')
-;(globalThis as any).AsyncLocalStorage = AsyncLocalStorage
+import '../server/node-environment'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 

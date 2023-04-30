@@ -254,8 +254,11 @@ function generateImgAttrs({
 }
 
 function getInt(x: unknown): number | undefined {
-  if (typeof x === 'number' || typeof x === 'undefined') {
+  if (typeof x === 'undefined') {
     return x
+  }
+  if (typeof x === 'number') {
+    return Number.isFinite(x) ? x : NaN
   }
   if (typeof x === 'string' && /^[0-9]+$/.test(x)) {
     return parseInt(x, 10)
