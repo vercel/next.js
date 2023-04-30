@@ -95,6 +95,7 @@ pub fn get_next_image_rule() -> ModuleRule {
             ModuleRuleCondition::ResourcePathEndsWith(".avif".to_string()),
             ModuleRuleCondition::ResourcePathEndsWith(".apng".to_string()),
             ModuleRuleCondition::ResourcePathEndsWith(".gif".to_string()),
+            ModuleRuleCondition::ResourcePathEndsWith(".svg".to_string()),
         ]),
         vec![ModuleRuleEffect::ModuleType(ModuleType::Custom(
             StructuredImageModuleTypeVc::new().into(),
