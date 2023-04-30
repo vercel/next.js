@@ -254,7 +254,7 @@ createNextDescribe(
       })
 
       if (isDev) {
-        it.only('should not affect css orders during HMR', async () => {
+        it('should not affect css orders during HMR', async () => {
           const filePath = 'app/ordering/page.js'
           const origContent = await next.readFile(filePath)
 
