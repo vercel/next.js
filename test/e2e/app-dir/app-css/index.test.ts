@@ -254,6 +254,39 @@ createNextDescribe(
       })
 
       if (isDev) {
+        it.only('should not affect css orders during HMR', async () => {
+          const filePath = 'app/ordering/page.js'
+          const origContent = await next.readFile(filePath)
+
+          // h1 should be red
+          const browser = await next.browser('/ordering')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h1')).color`
+            )
+          ).toBe('rgb(255, 0, 0)')
+
+          try {
+            await next.patchFile(
+              filePath,
+              origContent.replace('<h1>Hello</h1>', '<h1>Hello!</h1>')
+            )
+
+            // Wait for HMR to trigger
+            await check(
+              () => browser.eval(`document.querySelector('h1').textContent`),
+              'Hello!'
+            )
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('h1')).color`
+              )
+            ).toBe('rgb(255, 0, 0)')
+          } finally {
+            await next.patchFile(filePath, origContent)
+          }
+        })
+
         describe('multiple entries', () => {
           it('should only inject the same style once if used by different layers', async () => {
             const browser = await next.browser('/css/css-duplicate-2/client')
