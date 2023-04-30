@@ -214,6 +214,7 @@ pub async fn get_next_server_import_map(
             import_map.insert_wildcard_alias("react-dom/", external);
             import_map.insert_exact_alias("styled-jsx", external);
             import_map.insert_wildcard_alias("styled-jsx/", external);
+            import_map.insert_exact_alias("react-server-dom-webpack/", external);
         }
         ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. }
@@ -385,6 +386,10 @@ pub async fn insert_next_server_special_aliases(
             import_map.insert_wildcard_alias(
                 "react-dom/",
                 request_to_import_mapping(app_dir, "next/dist/compiled/react-dom/*"),
+            );
+            import_map.insert_wildcard_alias(
+                "react-server-dom-webpack/",
+                request_to_import_mapping(app_dir, "next/dist/compiled/react-server-dom-webpack/*"),
             );
         }
         ServerContextType::Middleware => {}
