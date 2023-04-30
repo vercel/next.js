@@ -97,6 +97,10 @@ pub async fn get_next_client_import_map(
                 "react-dom/",
                 request_to_import_mapping(app_dir, "next/dist/compiled/react-dom/*"),
             );
+            import_map.insert_wildcard_alias(
+                "react-server-dom-webpack/",
+                request_to_import_mapping(app_dir, "next/dist/compiled/react-server-dom-webpack/*"),
+            );
         }
         ClientContextType::Fallback => {}
         ClientContextType::Other => {}
