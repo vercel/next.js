@@ -928,6 +928,7 @@ export async function renderToHTMLOrFlight(
         injectedFontPreloadTags,
         rootLayoutIncluded,
         asNotFound,
+        hasLoadingAncestor,
       }: {
         createSegmentPath: CreateSegmentPath
         loaderTreeToFilter: LoaderTree
@@ -940,6 +941,7 @@ export async function renderToHTMLOrFlight(
         injectedFontPreloadTags: Set<string>
         rootLayoutIncluded: boolean
         asNotFound?: boolean
+        hasLoadingAncestor?: boolean
       }): Promise<FlightDataPath[]> => {
         const [segment, parallelRoutes, components] = loaderTreeToFilter
 
@@ -957,6 +959,8 @@ export async function renderToHTMLOrFlight(
          */
         const rootLayoutIncludedAtThisLevelOrAbove =
           rootLayoutIncluded || rootLayoutAtThisLevel
+
+        const hasLoading = hasLoadingAncestor || !!components.loading
 
         // Because this function walks to a deeper point in the tree to start rendering we have to track the dynamic parameters up to the point where rendering starts
         const segmentParam = getDynamicParamFromSegment(segment)
@@ -1003,7 +1007,7 @@ export async function renderToHTMLOrFlight(
                 query
               ),
               // Check if one level down from the common layout has a loading component. If it doesn't only provide the router state as part of the Flight data.
-              isPrefetch && !Boolean(components.loading)
+              isPrefetch && !hasLoading
                 ? null
                 : // Create component tree using the slice of the loaderTree
                   // @ts-expect-error TODO-APP: fix async component type
@@ -1025,7 +1029,7 @@ export async function renderToHTMLOrFlight(
 
                     return <Component />
                   }),
-              isPrefetch && !Boolean(components.loading)
+              isPrefetch && !hasLoading
                 ? null
                 : (() => {
                     const { layoutOrPagePath } =
@@ -1101,6 +1105,7 @@ export async function renderToHTMLOrFlight(
                   injectedFontPreloadTagsWithCurrentLayout,
                 rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
                 asNotFound,
+                hasLoadingAncestor: hasLoading,
               })
 
               return path
