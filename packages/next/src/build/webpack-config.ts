@@ -1073,8 +1073,9 @@ export default async function getBaseWebpackConfig(
           }
         : {}),
 
-      '@swc/helpers': path.dirname(
-        require.resolve('@swc/helpers/package.json')
+      '@swc/helpers/_': path.join(
+        path.dirname(require.resolve('@swc/helpers/package.json')),
+        '_'
       ),
 
       setimmediate: 'next/dist/compiled/setimmediate',

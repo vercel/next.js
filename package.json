@@ -50,7 +50,8 @@
     "postinstall": "git config index.skipHash false && node scripts/install-native.mjs",
     "version": "npx pnpm@7.24.3 install --no-frozen-lockfile && IS_PUBLISH=yes ./scripts/check-pre-compiled.sh && git add .",
     "prepare": "husky install",
-    "sync-react": "node ./scripts/sync-react.js"
+    "sync-react": "node ./scripts/sync-react.js",
+    "update-google-fonts": "node ./scripts/update-google-fonts.js"
   },
   "devDependencies": {
     "@babel/core": "7.18.0",
