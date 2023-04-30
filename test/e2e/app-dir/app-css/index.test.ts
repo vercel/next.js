@@ -305,7 +305,7 @@ createNextDescribe(
             // Even if it's deduped by Float, it should still only be included once in the payload.
             // There are 3 matches, one for the rendered <link>, one for float preload and one for the <link> inside flight payload.
             expect(
-              initialHtml.match(/css-duplicate-2\/layout\.css/g).length
+              initialHtml.match(/css-duplicate-2\/layout\.css\?v=/g).length
             ).toBe(3)
           })
 
