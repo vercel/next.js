@@ -1,5 +1,5 @@
 import ReactDOMServer from 'react-dom/server.browser'
-import { streamToString } from '../../../../node-web-streams-helper'
+import { streamToString } from '../../../../stream-utils/node-web-streams-helper'
 
 export async function renderToString(
   element: React.ReactElement

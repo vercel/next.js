@@ -422,7 +422,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       canonicalBase: this.nextConfig.amp.canonicalBase || '',
       buildId: this.buildId,
       generateEtags,
-      previewProps: this.getPreviewProps(),
+      previewProps: this.getPrerenderManifest().preview,
       customServer: customServer === true ? true : undefined,
       ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
       basePath: this.nextConfig.basePath,
@@ -1010,10 +1010,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
   // Backwards compatibility
   protected async close(): Promise<void> {}
-
-  protected getPreviewProps(): __ApiPreviewProps {
-    return this.getPrerenderManifest().preview
-  }
 
   protected async _beforeCatchAllRender(
     _req: BaseNextRequest,
@@ -1647,6 +1643,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           export: false,
           staticGenerationContext: { supportsDynamicHTML, incrementalCache },
           manifests: ManifestLoader.load({ distDir: this.distDir }),
+          previewProps: this.renderOpts.previewProps,
           // Pass in the headers that have already been set on the response.
           headers:
             process.env.NEXT_RUNTIME !== 'edge'
@@ -1665,7 +1662,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
                 : undefined,
             // TODO: (wyattjoh) we may not need this! remove if possible
             statusCode: res.statusCode,
-            previewProps: this.renderOpts.previewProps,
+
             ampPath: opts.ampPath,
             customServer: opts.customServer,
             distDir: opts.distDir,

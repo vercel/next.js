@@ -110,6 +110,7 @@ export class EdgeRouteModuleWrapper {
         distDir: undefined,
         err: undefined,
       },
+      previewProps: undefined,
     }
 
     // Get the response from the handler.

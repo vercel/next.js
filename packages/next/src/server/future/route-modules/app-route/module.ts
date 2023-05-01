@@ -236,6 +236,11 @@ export class AppRouteRouteModule extends RouteModule<
       req: request,
     }
 
+    // TODO: types for renderOpts should include previewProps
+    ;(requestContext as any).renderOpts = {
+      previewProps: context.previewProps ?? {},
+    }
+
     // Get the context for the static generation.
     const staticGenerationContext: StaticGenerationContext = {
       pathname: this.definition.pathname,

@@ -271,6 +271,11 @@ export interface ExperimentalConfig {
    *
    */
   instrumentationHook?: boolean
+
+  /**
+   * Enable `react@experimental` channel for the `app` directory.
+   */
+  serverActions?: boolean
 }
 
 export type ExportPathMap = {

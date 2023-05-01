@@ -286,6 +286,9 @@ const configSchema = {
         appDir: {
           type: 'boolean',
         },
+        serverActions: {
+          type: 'boolean',
+        },
         extensionAlias: {
           type: 'object',
         },

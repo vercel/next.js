@@ -205,6 +205,8 @@ export async function exportPagesRoute({
     params: query,
     export: true,
     manifests: ManifestLoader.load({ distDir }),
+    headers: undefined,
+    previewProps: undefined,
     renderOpts: {
       req,
       res,

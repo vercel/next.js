@@ -39,6 +39,7 @@ startHandler(async ({ request, response, query, params, path }) => {
   const context: RouteHandlerManagerContext = {
     params,
     export: false,
+    previewProps: undefined,
     staticGenerationContext: {
       supportsDynamicHTML: true,
     },

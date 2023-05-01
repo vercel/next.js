@@ -21,7 +21,6 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { NextConfigComplete } from '../../../config-shared'
 import type { FontManifest } from '../../../font-utils'
 import type { NextFontManifest } from '../../../../build/webpack/plugins/next-font-manifest-plugin'
-import type { __ApiPreviewProps } from '../../../api-utils'
 import type { MockedResponse } from '../../../lib/mock-request'
 
 import React from 'react'
@@ -93,7 +92,7 @@ import {
   renderToInitialStream,
   streamFromArray,
   streamToString,
-} from '../../../node-web-streams-helper'
+} from '../../../stream-utils/node-web-streams-helper'
 import { renderToString } from './helpers/render-to-string'
 import {
   createAppContainerWithIsomorphicFiberStructure,
@@ -289,7 +288,6 @@ export interface PagesRouteHandlerContext extends RouteModuleHandleContext {
     locale: string | undefined
     defaultLocale: string | undefined
     isLocaleDomain: boolean | undefined
-    previewProps: __ApiPreviewProps | undefined
 
     /**
      * @deprecated this is a temporary way to access the render result from the
@@ -512,7 +510,7 @@ export class PagesRouteModule extends RouteModule<
       req &&
       context.renderOpts.res &&
       tryGetPreviewData &&
-      context.renderOpts.previewProps &&
+      context.previewProps &&
       // Preview mode is only supported on pages with `getStaticProps` or
       // `getServerSideProps`.
       (typeof this.userland.getServerSideProps === 'function' ||
@@ -521,7 +519,7 @@ export class PagesRouteModule extends RouteModule<
       previewData = tryGetPreviewData(
         req,
         context.renderOpts.res,
-        context.renderOpts.previewProps
+        context.previewProps
       )
       isPreviewMode = previewData !== false
     }

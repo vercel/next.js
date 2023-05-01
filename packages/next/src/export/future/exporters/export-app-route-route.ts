@@ -58,6 +58,8 @@ export async function exportAppRouteRoute({
   const context: AppRouteRouteHandlerContext = {
     params,
     export: true,
+    previewProps: undefined,
+    headers: undefined,
     staticGenerationContext: {
       supportsDynamicHTML: false,
       incrementalCache,

@@ -136,7 +136,8 @@ export class ManifestLoader {
       build: loader.required(BUILD_MANIFEST),
       subresourceIntegrity: loader.optional(SUBRESOURCE_INTEGRITY_MANIFEST),
       reactLoadable: loader.required(REACT_LOADABLE_MANIFEST),
-      prerender: loader.optional(PRERENDER_MANIFEST),
+      // TODO: (wyattjoh) re-introduce this
+      // prerender: loader.optional(PRERENDER_MANIFEST),
       font: loader.optional(FONT_MANIFEST),
       nextFont: loader.optional(NEXT_FONT_MANIFEST),
     }

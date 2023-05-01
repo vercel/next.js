@@ -2,6 +2,7 @@ import type { RouteDefinition } from '../route-definitions/route-definition'
 import type { NextRequest } from '../../web/spec-extension/request'
 import type { NextConfigComplete } from '../../config-shared'
 import type { OutgoingHttpHeaders } from 'http'
+import type { __ApiPreviewProps } from '../../api-utils'
 
 // These are imported weirdly like this because of the way that the bundling
 // works. We need to import the built files from the dist directory, but we
@@ -56,6 +57,8 @@ export interface RouteModuleHandleContext {
    * mode.
    */
   headers: OutgoingHttpHeaders | undefined
+
+  previewProps: __ApiPreviewProps | undefined
 }
 
 /**

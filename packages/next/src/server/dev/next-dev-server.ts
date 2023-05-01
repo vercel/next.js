@@ -1,4 +1,3 @@
-import type { __ApiPreviewProps } from '../api-utils'
 import type { CustomRoutes } from '../../lib/load-custom-routes'
 import type { FindComponentsResult } from '../next-server'
 import type { LoadComponentsReturnType } from '../load-components'
@@ -14,7 +13,6 @@ import type { MiddlewareMatcher } from '../../build/analysis/get-page-static-inf
 import type { FunctionComponent } from 'react'
 import type { RouteMatch } from '../future/route-matches/route-match'
 
-import crypto from 'crypto'
 import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import findUp from 'next/dist/compiled/find-up'
@@ -917,7 +915,7 @@ export default class DevServer extends Server {
         pagesDir: this.pagesDir,
         distDir: this.distDir,
         config: this.nextConfig,
-        previewProps: this.getPreviewProps(),
+        previewProps: this.getPrerenderManifest().preview,
         buildId: this.buildId,
         rewrites,
         appDir: this.appDir,
@@ -1425,18 +1423,6 @@ export default class DevServer extends Server {
       rewrites: { beforeFiles: [], afterFiles: [], fallback: [] },
       headers: [],
     }
-  }
-
-  private _devCachedPreviewProps: __ApiPreviewProps | undefined
-  protected getPreviewProps() {
-    if (this._devCachedPreviewProps) {
-      return this._devCachedPreviewProps
-    }
-    return (this._devCachedPreviewProps = {
-      previewModeId: crypto.randomBytes(16).toString('hex'),
-      previewModeSigningKey: crypto.randomBytes(32).toString('hex'),
-      previewModeEncryptionKey: crypto.randomBytes(32).toString('hex'),
-    })
   }
 
   protected getPagesManifest(): PagesManifest | undefined {
