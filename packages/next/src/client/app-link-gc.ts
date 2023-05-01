@@ -10,7 +10,7 @@ export function linkGc() {
               (node as HTMLLinkElement).tagName === 'LINK'
             ) {
               const link = node as HTMLLinkElement
-              if (link.dataset.precedence === 'next.js') {
+              if (link.dataset.precedence?.startsWith('next')) {
                 const href = link.getAttribute('href')
                 if (href) {
                   const [resource, version] = href.split('?v=')
@@ -19,7 +19,7 @@ export function linkGc() {
                       `link[href^="${resource}"]`
                     ) as NodeListOf<HTMLLinkElement>
                     for (const otherLink of allLinks) {
-                      if (otherLink.dataset.precedence === 'next.js') {
+                      if (otherLink.dataset.precedence?.startsWith('next')) {
                         const otherHref = otherLink.getAttribute('href')
                         if (otherHref) {
                           const [, otherVersion] = otherHref.split('?v=')
