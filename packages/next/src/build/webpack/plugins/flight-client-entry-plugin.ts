@@ -152,17 +152,15 @@ export class ClientReferenceEntryPlugin {
       })
     })
 
-    if (this.useServerActions) {
-      compiler.hooks.make.tap(PLUGIN_NAME, (compilation) => {
-        compilation.hooks.processAssets.tap(
-          {
-            name: PLUGIN_NAME,
-            stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
-          },
-          (assets) => this.createActionAssets(compilation, assets)
-        )
-      })
-    }
+    compiler.hooks.make.tap(PLUGIN_NAME, (compilation) => {
+      compilation.hooks.processAssets.tap(
+        {
+          name: PLUGIN_NAME,
+          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
+        },
+        (assets) => this.createActionAssets(compilation, assets)
+      )
+    })
   }
 
   async createClientEntries(compiler: webpack.Compiler, compilation: any) {
