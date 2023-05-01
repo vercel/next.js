@@ -14,10 +14,11 @@ import type {
 import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
 import type { StaticGenerationBailout } from '../../client/components/static-generation-bailout'
 import type { RequestAsyncStorage } from '../../client/components/request-async-storage'
-// Import builtin react directly to avoid require cache conflicts
-import React from 'next/dist/compiled/react'
-import ReactDOMServer from 'next/dist/compiled/react-dom/server.edge'
+
+import React from 'react'
+import ReactDOMServer from 'react-dom/server.edge'
 import { NotFound as DefaultNotFound } from '../../client/components/error'
+import { createServerComponentRenderer } from './create-server-components-renderer'
 
 import { ParsedUrlQuery } from 'querystring'
 import { NextParsedUrlQuery } from '../request-meta'
@@ -27,14 +28,13 @@ import {
   createBufferedTransformStream,
   continueFromInitialStream,
   streamToBufferedResult,
-} from '../node-web-streams-helper'
+} from '../stream-utils/node-web-streams-helper'
 import {
   canSegmentBeOverridden,
   matchSegment,
 } from '../../client/components/match-segments'
 import { ServerInsertedHTMLContext } from '../../shared/lib/server-inserted-html'
 import { stripInternalQueries } from '../internal-utils'
-import { HeadManagerContext } from '../../shared/lib/head-manager-context'
 import {
   NEXT_ROUTER_PREFETCH,
   NEXT_ROUTER_STATE_TREE,
@@ -57,7 +57,6 @@ import { interopDefault } from './interop-default'
 import { preloadComponent } from './preload-component'
 import { FlightRenderResult } from './flight-render-result'
 import { createErrorHandler } from './create-error-handler'
-import { createServerComponentRenderer } from './create-server-components-renderer'
 import { getShortDynamicParamType } from './get-short-dynamic-param-type'
 import { getSegmentParam } from './get-segment-param'
 import { getCssInlinedLinkTags } from './get-css-inlined-link-tags'
@@ -1210,10 +1209,9 @@ export async function renderToHTMLOrFlight(
     const AppRouter =
       ComponentMod.AppRouter as typeof import('../../client/components/app-router').default
 
-    const GlobalError = interopDefault(
+    const GlobalError =
       /** GlobalError can be either the default error boundary or the overwritten app/global-error.js **/
       ComponentMod.GlobalError as typeof import('../../client/components/error-boundary').default
-    )
 
     let serverComponentsInlinedTransformStream: TransformStream<
       Uint8Array,
@@ -1339,10 +1337,11 @@ export async function renderToHTMLOrFlight(
       nonce
     )
 
+    const { HeadManagerContext } =
+      require('../../shared/lib/head-manager-context') as typeof import('../../shared/lib/head-manager-context')
     const serverInsertedHTMLCallbacks: Set<() => React.ReactNode> = new Set()
     function InsertedHTML({ children }: { children: JSX.Element }) {
       // Reset addInsertedHtmlCallback on each render
-      serverInsertedHTMLCallbacks.clear()
       const addInsertedHtml = React.useCallback(
         (handler: () => React.ReactNode) => {
           serverInsertedHTMLCallbacks.add(handler)
@@ -1429,27 +1428,30 @@ export async function renderToHTMLOrFlight(
             }
           }
 
-          const flushed = renderToString(
-            <>
-              {Array.from(serverInsertedHTMLCallbacks).map((callback) =>
-                callback()
-              )}
-              {polyfillsFlushed
-                ? null
-                : polyfills?.map((polyfill) => {
-                    return (
-                      <script
-                        key={polyfill.src}
-                        src={polyfill.src}
-                        integrity={polyfill.integrity}
-                        noModule={true}
-                        nonce={nonce}
-                      />
-                    )
-                  })}
-              {errorMetaTags}
-            </>
-          )
+          const flushed = renderToString({
+            ReactDOMServer: require('react-dom/server.edge'),
+            element: (
+              <>
+                {Array.from(serverInsertedHTMLCallbacks).map((callback) =>
+                  callback()
+                )}
+                {polyfillsFlushed
+                  ? null
+                  : polyfills?.map((polyfill) => {
+                      return (
+                        <script
+                          key={polyfill.src}
+                          src={polyfill.src}
+                          integrity={polyfill.integrity}
+                          noModule={true}
+                          nonce={nonce}
+                        />
+                      )
+                    })}
+                {errorMetaTags}
+              </>
+            ),
+          })
           polyfillsFlushed = true
           return flushed
         }
@@ -1510,7 +1512,7 @@ export async function renderToHTMLOrFlight(
           }
 
           const renderStream = await renderToInitialStream({
-            ReactDOMServer,
+            ReactDOMServer: require('react-dom/server.edge'),
             element: (
               <html id="__next_error__">
                 <head>

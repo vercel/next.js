@@ -1765,12 +1765,12 @@ export async function copy_vendor_react(task_) {
     const reactServerDomDir = dirname(
       relative(
         __dirname,
-        require.resolve(`react-server-dom-webpack/package.json`)
+        require.resolve(`react-server-dom-webpack${packageSuffix}/package.json`)
       )
     )
     yield task
       .source(join(reactServerDomDir, 'LICENSE'))
-      .target(`src/compiled/react-server-dom-webpack`)
+      .target(`src/compiled/react-server-dom-webpack${packageSuffix}`)
     yield task
       .source(join(reactServerDomDir, '{package.json,*.js,cjs/**/*.js}'))
       // eslint-disable-next-line require-yield
@@ -1782,8 +1782,12 @@ export async function copy_vendor_react(task_) {
         file.data = source
           .replace(/__webpack_chunk_load__/g, 'globalThis.__next_chunk_load__')
           .replace(/__webpack_require__/g, 'globalThis.__next_require__')
+
+        if (file.base === 'package.json') {
+          file.data = overridePackageName(file.data)
+        }
       })
-      .target(`src/compiled/react-server-dom-webpack`)
+      .target(`src/compiled/react-server-dom-webpack${packageSuffix}`)
   }
 
   // As taskr transpiles async functions into generators, to reuse the same logic

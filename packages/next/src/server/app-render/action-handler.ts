@@ -167,7 +167,7 @@ export async function handleAction({
             const {
               decodeReply,
               decodeReplyFromBusboy,
-            } = require('next/dist/compiled/react-server-dom-webpack/server.node')
+            } = require(`react-server-dom-webpack/server.node`)
 
             if (isMultipartAction) {
               const busboy = require('busboy')
