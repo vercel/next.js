@@ -23,6 +23,7 @@ import {
 } from '../router-reducer-types'
 import { addBasePath } from '../../../add-base-path'
 import { createHrefFromUrl } from '../create-href-from-url'
+import { getRedirectError } from '../../redirect'
 
 type FetchServerActionResult = {
   result: ActionFlightData | undefined
@@ -122,13 +123,8 @@ export function serverActionReducer(
         })
       }
 
-      // TODO: do this instead when experimental React is enabled
-      // action.reject(getRedirectError(redirectLocation.toString()))
-
-      // this is an intentional hack around React: we want to redirect in a new render
-      setTimeout(() => {
-        action.navigate(redirectLocation.toString(), 'push', !flightData)
-      })
+      // we throw the redirection in the action handler so that it is caught during render
+      action.reject(getRedirectError(redirectLocation.toString()))
     } else {
       const [actionResult, flightData] = result ?? [undefined, undefined]
       // TODO: populate the prefetch cache with the new flight data

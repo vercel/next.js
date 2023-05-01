@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 
 import double, { inc, dec, redirectAction, refreshAction } from './actions'
 
 export default function Counter() {
   const [count, setCount] = useState(0)
-
+  const [_, startTransition] = useTransition()
   return (
     <div>
       <h1>{count}</h1>
@@ -40,7 +40,9 @@ export default function Counter() {
       <button
         id="redirect"
         onClick={async () => {
-          redirectAction('/client/target')
+          startTransition(async () => {
+            await redirectAction('/client/target')
+          })
         }}
       >
         redirect
