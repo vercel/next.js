@@ -35,6 +35,7 @@ export interface MiddlewareMatcher {
 
 export interface PageStaticInfo {
   runtime?: ServerRuntime
+  preferredRegion?: string | string[]
   ssg?: boolean
   ssr?: boolean
   rsc?: RSCModuleType
@@ -81,10 +82,12 @@ function checkExports(swcAST: any): {
   ssr: boolean
   ssg: boolean
   runtime?: string
+  preferredRegion?: string | string[]
 } {
   if (Array.isArray(swcAST?.body)) {
     try {
       let runtime: string | undefined
+      let preferredRegion: string | string[] | undefined
       let ssr: boolean = false
       let ssg: boolean = false
 
@@ -96,6 +99,22 @@ function checkExports(swcAST: any): {
           for (const declaration of node.declaration?.declarations) {
             if (declaration.id.value === 'runtime') {
               runtime = declaration.init.value
+            }
+
+            if (declaration.id.value === 'preferredRegion') {
+              if (declaration.init.type === 'ArrayExpression') {
+                const elements: string[] = []
+                for (const element of declaration.init.elements) {
+                  const { expression } = element
+                  if (expression.type !== 'StringLiteral') {
+                    continue
+                  }
+                  elements.push(expression.value)
+                }
+                preferredRegion = elements
+              } else {
+                preferredRegion = declaration.init.value
+              }
             }
           }
         }
@@ -137,7 +156,7 @@ function checkExports(swcAST: any): {
         }
       }
 
-      return { ssr, ssg, runtime }
+      return { ssr, ssg, runtime, preferredRegion }
     } catch (err) {}
   }
 
@@ -269,6 +288,12 @@ function getMiddlewareConfig(
 
 const apiRouteWarnings = new LRUCache({ max: 250 })
 function warnAboutExperimentalEdge(apiRoute: string | null) {
+  if (
+    process.env.NODE_ENV === 'production' &&
+    process.env.NEXT_PRIVATE_BUILD_WORKER === '1'
+  ) {
+    return
+  }
   if (apiRouteWarnings.has(apiRoute)) {
     return
   }
@@ -322,12 +347,12 @@ export async function getPageStaticInfo(params: {
 
   const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
   if (
-    /runtime|getStaticProps|getServerSideProps|export const config/.test(
+    /runtime|preferredRegion|getStaticProps|getServerSideProps|export const config/.test(
       fileContent
     )
   ) {
     const swcAST = await parseModule(pageFilePath, fileContent)
-    const { ssg, ssr, runtime } = checkExports(swcAST)
+    const { ssg, ssr, runtime, preferredRegion } = checkExports(swcAST)
     const rsc = getRSCModuleInformation(fileContent).type
 
     // default / failsafe value for config
@@ -420,6 +445,7 @@ export async function getPageStaticInfo(params: {
       rsc,
       ...(middlewareConfig && { middleware: middlewareConfig }),
       ...(resolvedRuntime && { runtime: resolvedRuntime }),
+      preferredRegion,
     }
   }
 

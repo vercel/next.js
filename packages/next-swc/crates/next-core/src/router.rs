@@ -46,7 +46,7 @@ use turbo_tasks_fs::json::parse_json_with_source_context;
 
 use crate::{
     asset_helpers::as_es_module_asset,
-    embed_js::{next_asset, next_js_file},
+    embed_js::next_asset,
     next_config::NextConfigVc,
     next_edge::{
         context::{get_edge_compile_time_info, get_edge_resolve_options_context},
@@ -287,7 +287,7 @@ fn edge_transition_map(
         edge_resolve_options_context,
         output_path: output_path.root(),
         base_path: project_path,
-        bootstrap_file: next_js_file("entry/edge-bootstrap.ts"),
+        bootstrap_asset: next_asset("entry/edge-bootstrap.ts"),
         entry_name: "middleware".to_string(),
     }
     .cell()
