@@ -288,6 +288,12 @@ function getMiddlewareConfig(
 
 const apiRouteWarnings = new LRUCache({ max: 250 })
 function warnAboutExperimentalEdge(apiRoute: string | null) {
+  if (
+    process.env.NODE_ENV === 'production' &&
+    process.env.NEXT_PRIVATE_BUILD_WORKER === '1'
+  ) {
+    return
+  }
   if (apiRouteWarnings.has(apiRoute)) {
     return
   }

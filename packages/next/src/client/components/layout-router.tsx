@@ -157,7 +157,7 @@ interface ScrollAndFocusHandlerProps {
   children: React.ReactNode
   segmentPath: FlightSegmentPath
 }
-class ScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerProps> {
+class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerProps> {
   handlePotentialScroll = () => {
     // Handle scroll and focus, it's only applied once in the first useEffect that triggers that changed.
     const { focusAndScrollRef, segmentPath } = this.props
@@ -268,6 +268,28 @@ class ScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerProps> 
   }
 }
 
+function ScrollAndFocusHandler({
+  segmentPath,
+  children,
+}: {
+  segmentPath: FlightSegmentPath
+  children: React.ReactNode
+}) {
+  const context = useContext(GlobalLayoutRouterContext)
+  if (!context) {
+    throw new Error('invariant global layout router not mounted')
+  }
+
+  return (
+    <InnerScrollAndFocusHandler
+      segmentPath={segmentPath}
+      focusAndScrollRef={context.focusAndScrollRef}
+    >
+      {children}
+    </InnerScrollAndFocusHandler>
+  )
+}
+
 /**
  * InnerLayoutRouter handles rendering the provided segment based on the cache.
  */
@@ -296,7 +318,7 @@ function InnerLayoutRouter({
     throw new Error('invariant global layout router not mounted')
   }
 
-  const { changeByServerResponse, tree: fullTree, focusAndScrollRef } = context
+  const { changeByServerResponse, tree: fullTree } = context
 
   // Read segment path from the parallel router cache node.
   let childNode = childNodes.get(cacheKey)
@@ -418,14 +440,7 @@ function InnerLayoutRouter({
     </LayoutRouterContext.Provider>
   )
   // Ensure root layout is not wrapped in a div as the root layout renders `<html>`
-  return (
-    <ScrollAndFocusHandler
-      focusAndScrollRef={focusAndScrollRef}
-      segmentPath={segmentPath}
-    >
-      {subtree}
-    </ScrollAndFocusHandler>
-  )
+  return subtree
 }
 
 /**
@@ -551,34 +566,36 @@ export default function OuterLayoutRouter({
           <TemplateContext.Provider
             key={cacheKey}
             value={
-              <ErrorBoundary errorComponent={error} errorStyles={errorStyles}>
-                <LoadingBoundary
-                  hasLoading={hasLoading}
-                  loading={loading}
-                  loadingStyles={loadingStyles}
-                >
-                  <NotFoundBoundary
-                    notFound={notFound}
-                    notFoundStyles={notFoundStyles}
-                    asNotFound={asNotFound}
+              <ScrollAndFocusHandler segmentPath={segmentPath}>
+                <ErrorBoundary errorComponent={error} errorStyles={errorStyles}>
+                  <LoadingBoundary
+                    hasLoading={hasLoading}
+                    loading={loading}
+                    loadingStyles={loadingStyles}
                   >
-                    <RedirectBoundary>
-                      <InnerLayoutRouter
-                        parallelRouterKey={parallelRouterKey}
-                        url={url}
-                        tree={tree}
-                        childNodes={childNodesForParallelRouter!}
-                        childProp={isChildPropSegment ? childProp : null}
-                        segmentPath={segmentPath}
-                        cacheKey={cacheKey}
-                        isActive={
-                          currentChildSegmentValue === preservedSegmentValue
-                        }
-                      />
-                    </RedirectBoundary>
-                  </NotFoundBoundary>
-                </LoadingBoundary>
-              </ErrorBoundary>
+                    <NotFoundBoundary
+                      notFound={notFound}
+                      notFoundStyles={notFoundStyles}
+                      asNotFound={asNotFound}
+                    >
+                      <RedirectBoundary>
+                        <InnerLayoutRouter
+                          parallelRouterKey={parallelRouterKey}
+                          url={url}
+                          tree={tree}
+                          childNodes={childNodesForParallelRouter!}
+                          childProp={isChildPropSegment ? childProp : null}
+                          segmentPath={segmentPath}
+                          cacheKey={cacheKey}
+                          isActive={
+                            currentChildSegmentValue === preservedSegmentValue
+                          }
+                        />
+                      </RedirectBoundary>
+                    </NotFoundBoundary>
+                  </LoadingBoundary>
+                </ErrorBoundary>
+              </ScrollAndFocusHandler>
             }
           >
             <>

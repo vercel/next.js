@@ -24,7 +24,7 @@ createNextDescribe(
         )
         expect(
           middlewareManifest.functions['/slow-page-no-loading/page'].regions
-        ).toEqual(['edge'])
+        ).toEqual(['global'])
 
         expect(middlewareManifest.functions['/test-page/page'].regions).toEqual(
           ['home']
