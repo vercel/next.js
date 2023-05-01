@@ -1141,8 +1141,12 @@ export default async function build(
           forkOptions: {
             env: {
               ...process.env,
-              NEXT_PREBUNDLED_REACT_WORKER: type === 'app' ? '1' : '',
-              __NEXT_PRIVATE_PREBUNDLED_REACT: type === 'app' ? '1' : '',
+              __NEXT_PRIVATE_PREBUNDLED_REACT:
+                type === 'app'
+                  ? config.experimental.experimentalReact
+                    ? 'experimental'
+                    : 'next'
+                  : '',
             },
           },
           enableWorkerThreads: config.experimental.workerThreads,
