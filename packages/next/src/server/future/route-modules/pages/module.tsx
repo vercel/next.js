@@ -1020,6 +1020,9 @@ export class PagesRouteModule extends RouteModule<
               'ISR cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
             )
           }
+        } else {
+          // By default, we never revalidate.
+          metadata.revalidate = false
         }
 
         // If we're in development or exporting and the page is not a 404 page

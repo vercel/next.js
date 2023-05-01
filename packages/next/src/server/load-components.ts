@@ -125,11 +125,24 @@ async function loadComponentsImpl({
       : null,
   ])
 
-  const Component = interopDefault(ComponentMod)
-  const Document = interopDefault(DocumentMod)
-  const App = interopDefault(AppMod)
+  const isRouteModule =
+    typeof ComponentMod === 'object' &&
+    'routeModule' in ComponentMod &&
+    typeof ComponentMod.routeModule !== 'undefined'
 
-  const { getServerSideProps, getStaticProps, getStaticPaths } = ComponentMod
+  const Component = isRouteModule
+    ? ComponentMod.routeModule.default
+    : interopDefault(ComponentMod)
+  const Document = isRouteModule
+    ? ComponentMod.routeModule.components.Document
+    : interopDefault(DocumentMod)
+  const App = isRouteModule
+    ? ComponentMod.routeModule?.components.App
+    : interopDefault(AppMod)
+
+  const { getServerSideProps, getStaticProps, getStaticPaths } = isRouteModule
+    ? ComponentMod.routeModule.userland
+    : ComponentMod
 
   return {
     App,
@@ -137,7 +150,10 @@ async function loadComponentsImpl({
     Component,
     buildManifest,
     reactLoadableManifest,
-    pageConfig: ComponentMod.config || {},
+    pageConfig:
+      (isRouteModule
+        ? ComponentMod.routeModule.userland.config
+        : ComponentMod.config) || {},
     ComponentMod,
     getServerSideProps,
     getStaticProps,

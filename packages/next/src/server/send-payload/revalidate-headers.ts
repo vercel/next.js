@@ -10,7 +10,7 @@ export function getRevalidateCacheControlHeader(
   } else if (typeof options.revalidate === 'number') {
     if (options.revalidate < 1) {
       throw new Error(
-        `invariant: invalid Cache-Control duration provided: ${options.revalidate} < 1`
+        `Invariant: invalid Cache-Control duration provided: ${options.revalidate} < 1`
       )
     }
 

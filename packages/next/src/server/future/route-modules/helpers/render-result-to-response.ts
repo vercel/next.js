@@ -58,11 +58,7 @@ export async function renderResultToResponse(
   // If we're in dev mode, we shouldn't cache for any reason.
   if (process.env.NODE_ENV === 'development') {
     headers.set('Cache-Control', 'no-store, must-revalidate')
-  }
-  // If revalidate is set, we're in development mode or we're rendering a page
-  // with getServerSideProps and we're not rendering a data request, we need to
-  // set the Cache-Control header.
-  else if (typeof metadata.revalidate !== 'undefined' && !context.isDataReq) {
+  } else if (typeof metadata.revalidate !== 'undefined') {
     const header = getRevalidateCacheControlHeader({
       // When the page is 404, Cache-Control should not be added unless we are
       // rendering the 404 page for `notFound: true` which should cache

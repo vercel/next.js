@@ -1991,9 +1991,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     const { revalidate, value: cachedData } = cacheEntry
     const revalidateOptions: any =
-      // FIXME: (wyattjoh) validate this logic change
-      // JUSTIFICATION: (wyattjoh) a page with `getServerSideProps` can't return a `revalidate` value
-      typeof revalidate !== 'undefined' && !this.renderOpts.dev && !isDataReq
+      typeof revalidate !== 'undefined' &&
+      (!this.renderOpts.dev || (hasServerProps && !isDataReq))
         ? {
             // When the page is 404 cache-control should not be added unless
             // we are rendering the 404 page for notFound: true which should
