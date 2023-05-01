@@ -104,8 +104,9 @@ createNextDescribe(
         document.getElementById('file').files = list.files;
       `)
 
-      await new Promise((resolve) => setTimeout(resolve, 1000))
       await browser.elementByCss('#upload').click()
+
+      await new Promise((resolve) => setTimeout(resolve, 1000))
 
       expect(
         logs.some((log) => log.includes('File name: hello.txt size: 5'))
