@@ -2317,7 +2317,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       res.send()
       return null
     }
-    // HERE
     res.statusCode = 404
     return this.renderErrorToResponse(ctx, null)
   }

@@ -60,7 +60,7 @@ import { getRegistry } from '../../lib/helpers/get-registry'
 import { RouteMatch } from '../future/route-matches/route-match'
 import { parseVersionInfo, VersionInfo } from './parse-version-info'
 import { isAPIRoute } from '../../lib/is-api-route'
-import { getNextRouteModuleEntry } from '../../build/webpack/loaders/next-route-module-loader'
+import { getRouteModuleLoader } from '../../build/webpack/loaders/next-route-module-loader'
 import { RouteKind } from '../future/route-kind'
 
 function diff(a: Set<any>, b: Set<any>) {
@@ -677,7 +677,6 @@ export default class HotReloader {
           config.name === COMPILER_NAMES.edgeServer
 
         await Promise.all(
-          // TODO: LOOK HERE
           Object.keys(entries).map(async (entryKey) => {
             const entryData = entries[entryKey]
             const { bundlePath, dispose } = entryData
@@ -772,7 +771,7 @@ export default class HotReloader {
                     config: this.config,
                   }).import
                 } else if (!isAPIRoute(page)) {
-                  appDirLoader = getNextRouteModuleEntry({
+                  appDirLoader = getRouteModuleLoader({
                     config: this.config,
                     buildId: this.buildId,
                     definition: {
@@ -875,7 +874,7 @@ export default class HotReloader {
                 } else if (isAPIRoute(page)) {
                   value = relativeRequest
                 } else {
-                  value = getNextRouteModuleEntry({
+                  value = getRouteModuleLoader({
                     config: this.config,
                     buildId: this.buildId,
                     definition: {

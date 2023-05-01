@@ -280,7 +280,7 @@ export async function renderToHTMLOrFlight(
     /**
      * Dynamic parameters. E.g. when you visit `/dashboard/vercel` which is rendered by `/dashboard/[slug]` the value will be {"slug": "vercel"}.
      */
-    // TODO: (wyattjoh) why is this not in the type?
+    // TODO: (wyattjoh) this should be fixed by the module transition
     const pathParams = (renderOpts as any).params as ParsedUrlQuery
 
     /**

@@ -33,7 +33,7 @@ function getBundlePath(kind: RouteKind, page: string): string {
   }
 }
 
-export const getNextRouteModuleEntry = ({
+export const getRouteModuleLoader = ({
   pages,
   config,
   definition,

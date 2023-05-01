@@ -52,7 +52,7 @@ import { EdgeFunctionLoaderOptions } from './webpack/loaders/next-edge-function-
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { normalizeMetadataRoute } from '../lib/metadata/get-metadata-route'
 import { fileExists } from '../lib/file-exists'
-import { getNextRouteModuleEntry } from './webpack/loaders/next-route-module-loader'
+import { getRouteModuleLoader } from './webpack/loaders/next-route-module-loader'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { RouteKind } from '../server/future/route-kind'
 
@@ -577,7 +577,7 @@ export async function createEntrypoints(
               filename: `../${INSTRUMENTATION_HOOK_FILENAME}.js`,
             }
           } else if (!isAPIRoute(page)) {
-            server[serverBundlePath] = getNextRouteModuleEntry({
+            server[serverBundlePath] = getRouteModuleLoader({
               config,
               buildId: params.buildId,
               definition: {
@@ -611,7 +611,7 @@ export async function createEntrypoints(
               config,
             }).import
           } else if (pagesType === 'pages' && !isAPIRoute(page)) {
-            appDirLoader = getNextRouteModuleEntry({
+            appDirLoader = getRouteModuleLoader({
               config,
               buildId: params.buildId,
               definition: {
