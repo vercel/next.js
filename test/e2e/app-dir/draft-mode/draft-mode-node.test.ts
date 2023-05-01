@@ -7,8 +7,9 @@ createNextDescribe(
   },
   ({ next, isNextDev }) => {
     let initialRand = 'unintialized'
+    let Cookie = ''
 
-    it('should use initial rand when draft mode be disabled', async () => {
+    it('should use initial rand when draft mode is disabled', async () => {
       const $ = await next.render$('/')
       expect($('#mode').text()).toBe('DISABLED')
       expect($('#rand').text()).toBeDefined()
@@ -23,16 +24,29 @@ createNextDescribe(
       })
     }
 
-    it('should genenerate rand when draft mode enabled', async () => {
+    it('should be disabled from api route handler', async () => {
+      const res = await next.fetch('/state')
+      expect(await res.text()).toBe('DISABLED')
+    })
+
+    it('should have set-cookie header on enable', async () => {
       const res = await next.fetch('/enable')
       const h = res.headers.get('set-cookie') || ''
-      const Cookie = h
-        .split(';')
-        .find((c) => c.startsWith('__prerender_bypass'))
+      Cookie = h.split(';').find((c) => c.startsWith('__prerender_bypass'))
+      expect(Cookie).toBeDefined()
+    })
+
+    it('should genenerate rand when draft mode enabled', async () => {
       const opts = { headers: { Cookie } }
       const $ = await next.render$('/', {}, opts)
       expect($('#mode').text()).toBe('ENABLED')
       expect($('#rand').text()).not.toBe(initialRand)
+    })
+
+    it('should be enabled from api route handler when draft mode enabled', async () => {
+      const opts = { headers: { Cookie } }
+      const res = await next.fetch('/state', opts)
+      expect(await res.text()).toBe('ENABLED')
     })
   }
 )
