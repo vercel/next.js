@@ -67,16 +67,14 @@ impl DevManifestContentSourceVc {
             Ok(content_source.get_children().await?.clone_value())
         }
 
-        let routes = GraphTraversal::<NonDeterministic<_>>::visit(
-            this.page_roots.iter().copied(),
-            get_content_source_children,
-        )
-        .await
-        .completed()?
-        .into_iter()
-        .map(content_source_to_pathname)
-        .try_join()
-        .await?;
+        let routes = NonDeterministic::new()
+            .visit(this.page_roots.iter().copied(), get_content_source_children)
+            .await
+            .completed()?
+            .into_iter()
+            .map(content_source_to_pathname)
+            .try_join()
+            .await?;
         let mut routes = routes
             .into_iter()
             .flatten()
