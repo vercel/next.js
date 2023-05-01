@@ -4,6 +4,7 @@ import '../styles/global.css'
 import './style.css'
 
 export const revalidate = 0
+export const preferredRegion = 'sfo1'
 
 async function getData() {
   return {
