@@ -3,7 +3,7 @@ use std::fmt::Write;
 use anyhow::Result;
 use indexmap::IndexSet;
 use turbo_tasks::{
-    graph::{GraphTraversal, ReverseTopological, SkipDuplicates},
+    graph::{GraphTraversal, ReverseTopological},
     primitives::{BoolVc, StringVc},
     TryJoinIterExt, Value, ValueToString,
 };
@@ -441,24 +441,21 @@ async fn get_parallel_chunks<I>(entries: I) -> Result<impl Iterator<Item = Chunk
 where
     I: IntoIterator<Item = ChunkVc>,
 {
-    Ok(
-        GraphTraversal::<SkipDuplicates<ReverseTopological<_>, _>>::visit(
-            entries,
-            |chunk: ChunkVc| async move {
-                Ok(chunk
-                    .parallel_chunks()
-                    .await?
-                    .iter()
-                    .copied()
-                    .collect::<Vec<_>>()
-                    .into_iter())
-            },
-        )
+    Ok(ReverseTopological::new()
+        .skip_duplicates()
+        .visit(entries, |chunk: ChunkVc| async move {
+            Ok(chunk
+                .parallel_chunks()
+                .await?
+                .iter()
+                .copied()
+                .collect::<Vec<_>>()
+                .into_iter())
+        })
         .await
         .completed()?
         .into_inner()
-        .into_iter(),
-    )
+        .into_iter())
 }
 
 async fn get_optimized_chunks<I>(chunks: I) -> Result<ChunksVc>

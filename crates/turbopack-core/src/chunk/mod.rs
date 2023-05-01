@@ -562,10 +562,9 @@ where
         _phantom: PhantomData,
     };
 
-    let GraphTraversalResult::Completed(traversal_result) =
-        GraphTraversal::<ReverseTopological<_>>::visit(root_edges, visit).await else {
-            return Ok(None);
-        };
+    let GraphTraversalResult::Completed(traversal_result) = ReverseTopological::new().visit(root_edges, visit).await else {
+        return Ok(None);
+    };
 
     let graph_nodes: Vec<_> = traversal_result?.into_iter().collect();
 

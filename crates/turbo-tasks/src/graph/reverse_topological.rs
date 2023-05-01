@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use super::graph_store::GraphStore;
+use super::graph_store::{GraphNode, GraphStore};
 
 /// A graph traversal that returns nodes in reverse topological order.
 pub struct ReverseTopological<T>
@@ -16,6 +16,15 @@ where
     T: Eq + std::hash::Hash + Clone,
 {
     fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T> ReverseTopological<T>
+where
+    T: Eq + std::hash::Hash + Clone,
+{
+    pub fn new() -> Self {
         Self {
             adjacency_map: HashMap::new(),
             roots: Vec::new(),
@@ -23,13 +32,14 @@ where
     }
 }
 
-impl<T> GraphStore<T> for ReverseTopological<T>
+impl<T> GraphStore for ReverseTopological<T>
 where
     T: Eq + std::hash::Hash + Clone,
 {
+    type Node = T;
     type Handle = T;
 
-    fn insert(&mut self, from_handle: Option<T>, node: T) -> Option<(Self::Handle, &T)> {
+    fn insert(&mut self, from_handle: Option<T>, node: GraphNode<T>) -> Option<(Self::Handle, &T)> {
         let vec = if let Some(from_handle) = from_handle {
             self.adjacency_map
                 .entry(from_handle)
@@ -38,8 +48,8 @@ where
             &mut self.roots
         };
 
-        vec.push(node.clone());
-        Some((node, vec.last().unwrap()))
+        vec.push(node.node().clone());
+        Some((node.into_node(), vec.last().unwrap()))
     }
 }
 
