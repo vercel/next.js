@@ -24,17 +24,6 @@ export function headers() {
   return requestStore.headers
 }
 
-export function previewData() {
-  const requestStore = requestAsyncStorage.getStore()
-  if (!requestStore) {
-    throw new Error(
-      `Invariant: Method expects to have requestAsyncStorage, none available`
-    )
-  }
-
-  return requestStore.previewData
-}
-
 export function cookies() {
   if (staticGenerationBailout('cookies')) {
     return RequestCookiesAdapter.seal(new RequestCookies(new Headers({})))

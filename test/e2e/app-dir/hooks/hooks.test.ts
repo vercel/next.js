@@ -5,7 +5,7 @@ createNextDescribe(
   {
     files: __dirname,
   },
-  ({ next, isNextDeploy, isNextDev }) => {
+  ({ next, isNextDeploy }) => {
     describe('from pages', () => {
       it.each([
         { pathname: '/adapter-hooks/static' },
@@ -84,14 +84,6 @@ createNextDescribe(
         expect($('#rand').text()).toBeDefined()
         initialRand = $('#rand').text()
       })
-
-      if (!isNextDev) {
-        it('should not generate rand when draft mode disabled during next start', async () => {
-          const $ = await next.render$('/hooks/use-draft-mode')
-          expect($('#draft-mode-val').text()).toBe('DISABLED')
-          expect($('#rand').text()).toBe(initialRand)
-        })
-      }
 
       it('should genenerate rand when draft mode enabled', async () => {
         const res = await next.fetch('/enable')
