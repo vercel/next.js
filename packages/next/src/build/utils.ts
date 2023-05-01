@@ -1324,7 +1324,6 @@ export async function isPageStatic({
   configFileName,
   runtimeEnvConfig,
   httpAgentOptions,
-  enableUndici,
   locales,
   defaultLocale,
   parentId,
@@ -1342,7 +1341,6 @@ export async function isPageStatic({
   configFileName: string
   runtimeEnvConfig: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
-  enableUndici?: NextConfigComplete['experimental']['enableUndici']
   locales?: string[]
   defaultLocale?: string
   parentId?: any
@@ -1373,10 +1371,6 @@ export async function isPageStatic({
   return isPageStaticSpan
     .traceAsyncFn(async () => {
       require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
-      setHttpClientAndAgentOptions({
-        httpAgentOptions,
-        experimental: { enableUndici },
-      })
 
       let componentsResult: LoadComponentsReturnType
       let prerenderRoutes: Array<string> | undefined

@@ -77,9 +77,7 @@ interface ExportPageInput {
   optimizeCss: any
   disableOptimizedLoading: any
   parentSpanId: any
-  httpAgentOptions: NextConfigComplete['httpAgentOptions']
   serverComponents?: boolean
-  enableUndici: NextConfigComplete['experimental']['enableUndici']
   debugOutput?: boolean
   isrMemoryCacheSize?: NextConfigComplete['experimental']['isrMemoryCacheSize']
   fetchCache?: boolean
@@ -134,19 +132,13 @@ export default async function exportPage({
   optimizeFonts,
   optimizeCss,
   disableOptimizedLoading,
-  httpAgentOptions,
   serverComponents,
-  enableUndici,
   debugOutput,
   isrMemoryCacheSize,
   fetchCache,
   fetchCacheKeyPrefix,
   incrementalCacheHandlerPath,
 }: ExportPageInput): Promise<ExportPageResults> {
-  setHttpClientAndAgentOptions({
-    httpAgentOptions,
-    experimental: { enableUndici },
-  })
   const exportPageSpan = trace('export-page-worker', parentSpanId)
 
   return exportPageSpan.traceAsyncFn(async () => {

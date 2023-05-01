@@ -713,9 +713,7 @@ export default async function exportApp(
             disableOptimizedLoading:
               nextConfig.experimental.disableOptimizedLoading,
             parentSpanId: pageExportSpan.id,
-            httpAgentOptions: nextConfig.httpAgentOptions,
             serverComponents: options.hasAppDir,
-            enableUndici: nextConfig.experimental.enableUndici,
             debugOutput: options.debugOutput,
             isrMemoryCacheSize: nextConfig.experimental.isrMemoryCacheSize,
             fetchCache: nextConfig.experimental.appDir,

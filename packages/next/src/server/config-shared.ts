@@ -215,7 +215,6 @@ export interface ExperimentalConfig {
    * [webpack/webpack#ModuleNotoundError.js#L13-L42](https://github.com/webpack/webpack/blob/2a0536cf510768111a3a6dceeb14cb79b9f59273/lib/ModuleNotFoundError.js#L13-L42)
    */
   fallbackNodePolyfills?: false
-  enableUndici?: boolean
   sri?: {
     algorithm?: SubresourceIntegrityAlgorithm
   }
@@ -508,14 +507,6 @@ export interface NextConfig extends Record<string, any> {
   serverRuntimeConfig?: { [key: string]: any }
 
   /**
-   * Next.js automatically polyfills node-fetch and enables HTTP Keep-Alive by default.
-   * You may want to disable HTTP Keep-Alive for certain `fetch()` calls or globally.
-   *
-   * @see [Disabling HTTP Keep-Alive](https://nextjs.org/docs/api-reference/next.config.js/disabling-http-keep-alive)
-   */
-  httpAgentOptions?: { keepAlive?: boolean }
-
-  /**
    * During a build, Next.js will automatically trace each page and its dependencies to determine all of the files
    * that are needed for deploying a production version of your application.
    *
@@ -650,9 +641,6 @@ export const defaultConfig: NextConfig = {
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
   reactStrictMode: false,
-  httpAgentOptions: {
-    keepAlive: true,
-  },
   outputFileTracing: true,
   staticPageGenerationTimeout: 60,
   swcMinify: true,
@@ -700,7 +688,6 @@ export const defaultConfig: NextConfig = {
     disablePostcssPresetEnv: undefined,
     amp: undefined,
     urlImports: undefined,
-    enableUndici: false,
     adjustFontFallbacks: false,
     adjustFontFallbacksWithSizeAdjust: false,
     turbo: undefined,
