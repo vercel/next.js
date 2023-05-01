@@ -10,8 +10,10 @@ import {
 } from '../../app-router-headers'
 import { createRecordFromThenable } from '../create-record-from-thenable'
 import { readRecordValue } from '../read-record-value'
-import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack/client'
-import { encodeReply } from 'next/dist/compiled/react-server-dom-webpack/client'
+// eslint-disable-next-line import/no-extraneous-dependencies
+import { createFromFetch } from 'react-server-dom-webpack/client'
+// eslint-disable-next-line import/no-extraneous-dependencies
+import { encodeReply } from 'react-server-dom-webpack/client'
 
 import {
   PrefetchKind,
