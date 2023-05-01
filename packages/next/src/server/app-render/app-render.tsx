@@ -1204,10 +1204,9 @@ export async function renderToHTMLOrFlight(
     const AppRouter =
       ComponentMod.AppRouter as typeof import('../../client/components/app-router').default
 
-    const GlobalError = interopDefault(
+    const GlobalError =
       /** GlobalError can be either the default error boundary or the overwritten app/global-error.js **/
       ComponentMod.GlobalError as typeof import('../../client/components/error-boundary').default
-    )
 
     let serverComponentsInlinedTransformStream: TransformStream<
       Uint8Array,
