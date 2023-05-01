@@ -704,8 +704,8 @@ export default async function getBaseWebpackConfig(
   const hasServerComponents = hasAppDir
   const disableOptimizedLoading = true
   const enableTypedRoutes = !!config.experimental.typedRoutes && hasAppDir
-  const experimentalReact = !!config.experimental.experimentalReact && hasAppDir
-  const bundledReactChannel = experimentalReact ? '-experimental' : ''
+  const serverActions = !!config.experimental.serverActions && hasAppDir
+  const bundledReactChannel = serverActions ? '-experimental' : ''
 
   if (isClient) {
     if (
@@ -2307,7 +2307,7 @@ export default async function getBaseWebpackConfig(
               appDir,
               dev,
               isEdgeServer,
-              useExperimentalReact: experimentalReact,
+              useServerActions: serverActions,
             })),
       hasAppDir &&
         !isClient &&
