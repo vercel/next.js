@@ -6,13 +6,9 @@ import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 const supportedTurbopackNextConfigOptions = [
   'configFileName',
   'env',
-  'experimental.appDir',
   'modularizeImports',
   'compiler.emotion',
   'compiler.styledComponents',
-  'experimental.serverComponentsExternalPackages',
-  'experimental.turbo',
-  'experimental.mdxRs',
   'images',
   'pageExtensions',
   'onDemandEntries',
@@ -22,14 +18,27 @@ const supportedTurbopackNextConfigOptions = [
   'reactStrictMode',
   'swcMinify',
   'transpilePackages',
+  'experimental.appDir',
+  'experimental.serverComponentsExternalPackages',
+  'experimental.turbo',
+  'experimental.mdxRs',
   'experimental.swcFileReading',
   'experimental.forceSwcTransforms',
+  // options below are not really supported, but ignored
+  'devIndicators',
+  'onDemandEntries',
+  'experimental.cpus',
+  'experimental.sharedPool',
+  'experimental.proxyTimeout',
+  'experimental.isrFlushToDisk',
+  'experimental.workerThreads',
+  'experimenatl.pageEnv',
 ]
 
 // The following will need to be supported by `next build --turbo`
 const prodSpecificTurboNextConfigOptions = [
-  'eslint.ignoreDuringBuilds',
-  'typescript.ignoreDuringBuilds',
+  'eslint',
+  'typescript',
   'staticPageGenerationTimeout',
   'outputFileTracing',
   'output',
@@ -39,6 +48,15 @@ const prodSpecificTurboNextConfigOptions = [
   'productionBrowserSourceMaps',
   'optimizeFonts',
   'poweredByHeader',
+  'staticPageGenerationTimeout',
+  'compiler.reactRemoveProperties',
+  'compiler.removeConsole',
+  'experimental.turbotrace',
+  'experimental.outputFileTracingRoot',
+  'experimental.outputFileTracingExcludes',
+  'experimental.outputFileTracingIgnores',
+  'experiemental.outputFileTracingIncludes',
+  'experimental.gzipSize',
 ]
 
 // check for babelrc, swc plugins
