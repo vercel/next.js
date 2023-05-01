@@ -211,7 +211,8 @@ const nextDev: CliCommand = async (argv) => {
     allowRetry,
     isDev: true,
     hostname: host,
-    useWorkers: !process.env.__NEXT_DISABLE_MEMORY_WATCHER,
+    // This is required especially for app dir.
+    useWorkers: true,
   }
 
   if (args['--turbo']) {
@@ -318,7 +319,7 @@ const nextDev: CliCommand = async (argv) => {
 
         const setupFork = async (newDir?: string) => {
           // if we're using workers we can auto restart on config changes
-          if (!devServerOptions.useWorkers && devServerTeardown) {
+          if (process.env.__NEXT_DISABLE_MEMORY_WATCHER && devServerTeardown) {
             Log.info(
               `Detected change, manual restart required due to '__NEXT_DISABLE_MEMORY_WATCHER' usage`
             )
@@ -408,12 +409,6 @@ const nextDev: CliCommand = async (argv) => {
               undefined,
               undefined,
               true
-            )
-          }
-
-          if (config.experimental?.appDir && !devServerOptions.useWorkers) {
-            Log.error(
-              `Disabling dev workers is not supported with appDir enabled`
             )
           }
         }

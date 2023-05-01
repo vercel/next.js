@@ -82,6 +82,17 @@ export class EdgeRouteModuleWrapper {
     // match (if any).
     const context: RouteHandlerManagerContext = {
       params: match.params,
+      prerenderManifest: {
+        version: 4,
+        routes: {},
+        dynamicRoutes: {},
+        preview: {
+          previewModeEncryptionKey: '',
+          previewModeId: '',
+          previewModeSigningKey: '',
+        },
+        notFoundRoutes: [],
+      },
       staticGenerationContext: {
         supportsDynamicHTML: true,
       },
