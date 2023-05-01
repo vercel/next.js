@@ -8,9 +8,11 @@ use self::{
     vite::Vite,
     webpack::Webpack,
 };
+use crate::bundlers::rspack::Rspack;
 
 mod nextjs;
 mod parcel;
+mod rspack;
 mod vite;
 mod webpack;
 
@@ -161,5 +163,6 @@ pub fn get_bundlers() -> Vec<Box<dyn Bundler>> {
         Box::new(Vite::new(true, false)),
         Box::new(Vite::new(false, true)),
         Box::new(Webpack {}),
+        Box::new(Rspack {}),
     ]
 }
