@@ -56,7 +56,7 @@ If our wrapper `@vercel/otel` doesn't suit your needs, you can configure OpenTel
 Firstly you need to install OpenTelemetry packages:
 
 ```bash
-npm install @opentelemetry/sdk-node @opentelemetry/resources @opentelemetry/semantic-conventions @opentelemetry/sdk-trace-base @opentelemetry/exporter-trace-otlp-grpc
+npm install @opentelemetry/sdk-node @opentelemetry/resources @opentelemetry/semantic-conventions @opentelemetry/sdk-trace-node @opentelemetry/exporter-trace-otlp-grpc
 ```
 
 Now you can initialize `NodeSDK` in your `instrumentation.ts`.
