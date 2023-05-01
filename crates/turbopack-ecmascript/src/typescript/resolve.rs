@@ -10,7 +10,7 @@ use turbo_tasks_fs::{
     FileContent, FileContentVc, FileJsonContent, FileJsonContentVc, FileSystemPathVc,
 };
 use turbopack_core::{
-    asset::{Asset, AssetVc},
+    asset::{Asset, AssetOptionVc, AssetVc},
     context::AssetContext,
     ident::AssetIdentVc,
     issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc, OptionIssueSourceVc},
@@ -25,7 +25,7 @@ use turbopack_core::{
         },
         origin::{ResolveOrigin, ResolveOriginVc},
         parse::{Request, RequestVc},
-        pattern::QueryMapVc,
+        pattern::{Pattern, QueryMapVc},
         resolve, AliasPattern, ResolveResultVc,
     },
     source_asset::SourceAssetVc,
@@ -63,7 +63,6 @@ pub async fn read_tsconfigs(
                 .cell()
                 .as_issue()
                 .emit();
-                break;
             }
             FileJsonContent::NotFound => {
                 TsConfigIssue {
@@ -74,43 +73,99 @@ pub async fn read_tsconfigs(
                 .cell()
                 .as_issue()
                 .emit();
-                break;
             }
             FileJsonContent::Content(json) => {
                 configs.push((parsed_data, tsconfig));
                 if let Some(extends) = json["extends"].as_str() {
-                    let context = tsconfig.ident().path().parent();
-                    let result = resolve(
-                        context,
-                        RequestVc::parse(Value::new(extends.to_string().into())),
-                        resolve_options,
-                    )
-                    .first_asset()
-                    .await?;
-                    // There might be multiple alternatives like
-                    // "some/path/node_modules/xyz/abc.json" and "some/node_modules/xyz/abc.json".
-                    // We only want to use the first one.
-                    if let Some(asset) = *result {
+                    let resolved = resolve_extends(tsconfig, extends, resolve_options).await?;
+                    if let Some(asset) = &*resolved.await? {
                         data = asset.content().file_content();
-                        tsconfig = asset;
+                        tsconfig = *asset;
+                        continue;
                     } else {
                         TsConfigIssue {
                             severity: IssueSeverity::Error.into(),
                             source_ident: tsconfig.ident(),
-                            message: StringVc::cell("extends doesn't resolve correctly".into()),
+                            message: StringVc::cell(
+                                "extends doesn't resolve correctly".to_string(),
+                            ),
                         }
                         .cell()
                         .as_issue()
                         .emit();
-                        break;
                     }
-                } else {
-                    break;
                 }
             }
         }
+        break;
     }
     Ok(configs)
+}
+
+/// Resolves tsconfig files according to TS's implementation:
+/// https://github.com/microsoft/TypeScript/blob/611a912d/src/compiler/commandLineParser.ts#L3294-L3326
+async fn resolve_extends(
+    tsconfig: AssetVc,
+    extends: &str,
+    resolve_options: ResolveOptionsVc,
+) -> Result<AssetOptionVc> {
+    let context = tsconfig.ident().path().parent();
+    let request = RequestVc::parse_string(extends.to_string());
+
+    // TS's resolution is weird, and has special behavior for different import
+    // types.
+    let extends = match &*request.await? {
+        // TS has special behavior for "rooted" paths (absolute paths):
+        // https://github.com/microsoft/TypeScript/blob/611a912d/src/compiler/commandLineParser.ts#L3303-L3313
+        Request::Windows { path: Pattern::Constant(path) } |
+        // Server relative is treated as absolute
+        Request::ServerRelative { path: Pattern::Constant(path) } => {
+            return resolve_extends_rooted_or_relative(context, request, resolve_options, path).await;
+        }
+
+        // TS has special behavior for (explicitly) './' and '../', but not '.' nor '..':
+        // https://github.com/microsoft/TypeScript/blob/611a912d/src/compiler/commandLineParser.ts#L3303-L3313
+        Request::Relative {
+            path: Pattern::Constant(path),
+            ..
+        } if path.starts_with("./") || path.starts_with("../") => {
+            return resolve_extends_rooted_or_relative(context, request, resolve_options, path).await;
+        }
+
+        // An empty extends is treated as "tsconfig.json"
+        Request::Empty => {
+            "tsconfig.json".to_string()
+        }
+        // All other types are treated as module imports, and joined with
+        // "tsconfig.json". This includes "relative" imports like '.' and '..'.
+        _ => {
+            format!("{extends}/tsconfig.json")
+        }
+    };
+
+    let request = RequestVc::parse_string(extends);
+    // There might be multiple alternatives like
+    // "some/path/node_modules/xyz/abc.json" and "some/node_modules/xyz/abc.json".
+    // We only want to use the first one.
+    Ok(resolve(context, request, resolve_options).first_asset())
+}
+
+async fn resolve_extends_rooted_or_relative(
+    context: FileSystemPathVc,
+    request: RequestVc,
+    resolve_options: ResolveOptionsVc,
+    path: &str,
+) -> Result<AssetOptionVc> {
+    let mut result = resolve(context, request, resolve_options).first_asset();
+
+    // If the file doesn't end with ".json" and we can't find the file, then we have
+    // to try again with it.
+    // https://github.com/microsoft/TypeScript/blob/611a912d/src/compiler/commandLineParser.ts#L3305
+    if !path.ends_with(".json") && result.await?.is_none() {
+        let request = RequestVc::parse_string(format!("{path}.json"));
+        result = resolve(context, request, resolve_options).first_asset();
+    }
+    Ok(result)
 }
 
 pub async fn read_from_tsconfigs<T>(
