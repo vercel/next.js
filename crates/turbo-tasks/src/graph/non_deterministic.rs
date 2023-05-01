@@ -1,4 +1,4 @@
-use super::graph_store::GraphStore;
+use super::graph_store::{GraphNode, GraphStore};
 
 /// A graph traversal that does not guarantee any particular order, and may not
 /// return the same order every time it is run.
@@ -8,19 +8,26 @@ pub struct NonDeterministic<T> {
 
 impl<T> Default for NonDeterministic<T> {
     fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T> NonDeterministic<T> {
+    pub fn new() -> Self {
         Self { output: Vec::new() }
     }
 }
 
-impl<T> GraphStore<T> for NonDeterministic<T> {
+impl<T> GraphStore for NonDeterministic<T> {
+    type Node = T;
     type Handle = ();
 
     fn insert(
         &mut self,
         _from_handle: Option<Self::Handle>,
-        node: T,
+        node: GraphNode<T>,
     ) -> Option<(Self::Handle, &T)> {
-        self.output.push(node);
+        self.output.push(node.into_node());
         Some(((), self.output.last().unwrap()))
     }
 }

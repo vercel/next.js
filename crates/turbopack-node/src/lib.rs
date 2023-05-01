@@ -10,7 +10,7 @@ pub use node_entry::{
     NodeEntry, NodeEntryVc, NodeRenderingEntriesVc, NodeRenderingEntry, NodeRenderingEntryVc,
 };
 use turbo_tasks::{
-    graph::{GraphTraversal, ReverseTopological, SkipDuplicates},
+    graph::{GraphTraversal, ReverseTopological},
     CompletionVc, CompletionsVc, TryJoinIterExt, ValueToString,
 };
 use turbo_tasks_env::{ProcessEnv, ProcessEnvVc};
@@ -170,13 +170,12 @@ async fn separate_assets(
             .await
     };
 
-    let graph = GraphTraversal::<SkipDuplicates<ReverseTopological<Type>, _>>::visit(
-        once(Type::Internal(intermediate_asset)),
-        get_asset_children,
-    )
-    .await
-    .completed()?
-    .into_inner();
+    let graph = ReverseTopological::new()
+        .skip_duplicates()
+        .visit(once(Type::Internal(intermediate_asset)), get_asset_children)
+        .await
+        .completed()?
+        .into_inner();
 
     let mut internal_assets = IndexSet::new();
     let mut external_asset_entrypoints = IndexSet::new();

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_tasks::{
-    graph::{GraphTraversal, NonDeterministic, SkipDuplicates},
+    graph::{GraphTraversal, NonDeterministic},
     CompletionVc, CompletionsVc,
 };
 
@@ -20,16 +20,15 @@ async fn get_referenced_assets(parent: AssetVc) -> Result<impl Iterator<Item = A
 /// asset graph changes.
 #[turbo_tasks::function]
 pub async fn any_content_changed(root: AssetVc) -> Result<CompletionVc> {
-    let completions = GraphTraversal::<SkipDuplicates<NonDeterministic<_>, _>>::visit(
-        [root],
-        get_referenced_assets,
-    )
-    .await
-    .completed()?
-    .into_inner()
-    .into_iter()
-    .map(content_changed)
-    .collect();
+    let completions = NonDeterministic::new()
+        .skip_duplicates()
+        .visit([root], get_referenced_assets)
+        .await
+        .completed()?
+        .into_inner()
+        .into_iter()
+        .map(content_changed)
+        .collect();
 
     Ok(CompletionsVc::cell(completions).completed())
 }
