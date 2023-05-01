@@ -1330,16 +1330,6 @@ createNextDescribe(
       }, 'success')
     })
 
-    it('Should not throw Dynamic Server Usage error when using generateStaticParams with previewData', async () => {
-      const browserOnIndexPage = await next.browser('/ssg-preview')
-
-      const content = await browserOnIndexPage
-        .elementByCss('#preview-data')
-        .text()
-
-      expect(content).toContain('previewData')
-    })
-
     it('should not throw Dynamic Server Usage error when using generateStaticParams with draftMode', async () => {
       const browserOnIndexPage = await next.browser('/ssg-draft-mode')
 
