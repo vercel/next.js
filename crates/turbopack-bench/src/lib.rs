@@ -33,8 +33,6 @@ use crate::{bundlers::Bundler, util::PageGuard};
 pub mod bundlers;
 pub mod util;
 
-const MAX_UPDATE_TIMEOUT: Duration = Duration::from_secs(60);
-
 pub fn bench_startup(c: &mut Criterion, bundlers: &[Box<dyn Bundler>]) {
     let mut g = c.benchmark_group("bench_startup");
     g.sample_size(10);
@@ -182,6 +180,9 @@ fn bench_hmr_internal(
                         let module_picker = &*module_picker;
                         let browser = &*browser;
 
+                        let max_init_update_timeout = bundler.max_init_update_timeout(module_count);
+                        let max_update_timeout = bundler.max_update_timeout(module_count);
+
                         b.to_async(&runtime).try_iter_async(
                             &runtime,
                             || async {
@@ -226,7 +227,7 @@ fn bench_hmr_internal(
                                         }
                                         Err(e) => {
                                             exponential_duration *= 2;
-                                            if exponential_duration > MAX_UPDATE_TIMEOUT {
+                                            if exponential_duration > max_init_update_timeout {
                                                 return Err(
                                                     e.context("failed to make warmup change")
                                                 );
@@ -237,16 +238,34 @@ fn bench_hmr_internal(
 
                                 // Once we know the HMR server is connected, we make a few warmup
                                 // changes.
-                                for _ in 0..hmr_warmup {
-                                    make_change(
+                                let mut hmr_warmup_iter = 0;
+                                let mut hmr_warmup_dropped = 0;
+                                while hmr_warmup_iter < hmr_warmup {
+                                    match make_change(
                                         &modules[0].0,
                                         bundler,
                                         &mut guard,
                                         location,
-                                        MAX_UPDATE_TIMEOUT,
+                                        max_update_timeout,
                                         &WallTime,
                                     )
-                                    .await?;
+                                    .await
+                                    {
+                                        Err(_) => {
+                                            // We don't care about dropped updates during warmup.
+                                            hmr_warmup_dropped += 1;
+
+                                            if hmr_warmup_dropped >= hmr_warmup {
+                                                return Err(anyhow!(
+                                                    "failed to make warmup change {} times",
+                                                    hmr_warmup_dropped
+                                                ));
+                                            }
+                                        }
+                                        Ok(_) => {
+                                            hmr_warmup_iter += 1;
+                                        }
+                                    }
                                 }
 
                                 Ok(guard)
@@ -255,26 +274,45 @@ fn bench_hmr_internal(
                                 let module_picker = Arc::clone(module_picker);
                                 async move {
                                     let mut value = m.zero();
-                                    for iter in 0..iters {
+                                    let mut dropped = 0;
+                                    let mut iter = 0;
+                                    while iter < iters {
                                         let module = module_picker.pick();
-                                        let duration = make_change(
+                                        let duration = match make_change(
                                             module,
                                             bundler,
                                             &mut guard,
                                             location,
-                                            MAX_UPDATE_TIMEOUT,
+                                            max_update_timeout,
                                             &m,
                                         )
-                                        .await?;
+                                        .await
+                                        {
+                                            Err(_) => {
+                                                // Some bundlers (e.g. Turbopack and Vite) can drop
+                                                // updates under certain conditions. We don't want
+                                                // to crash or stop the benchmark
+                                                // because of this. Instead, we keep going and
+                                                // report the number of dropped updates at the end.
+                                                dropped += 1;
+                                                continue;
+                                            }
+                                            Ok(duration) => duration,
+                                        };
                                         value = m.add(&value, &duration);
 
-                                        let i: u64 = iter + 1;
-                                        if verbose && i != iters && i.count_ones() == 1 {
+                                        iter += 1;
+                                        if verbose && iter != iters && iter.count_ones() == 1 {
                                             eprint!(
-                                                " [{:?} {:?}/{}]",
+                                                " [{:?} {:?}/{}{}]",
                                                 duration,
-                                                FormatDuration(value / (i as u32)),
-                                                i
+                                                FormatDuration(value / (iter as u32)),
+                                                iter,
+                                                if dropped > 0 {
+                                                    format!(" ({} dropped)", dropped)
+                                                } else {
+                                                    "".to_string()
+                                                }
                                             );
                                         }
                                     }

@@ -2,6 +2,7 @@ use std::{
     fs,
     path::Path,
     process::{Child, Command, Stdio},
+    time::Duration,
 };
 
 use anyhow::{anyhow, Context, Result};
@@ -122,6 +123,14 @@ impl Bundler for NextJs {
         .ok_or_else(|| anyhow!("failed to find devserver address"))?;
 
         Ok((proc, format!("{addr}/page")))
+    }
+
+    fn max_update_timeout(&self, module_count: usize) -> std::time::Duration {
+        match (self.render_type, self.turbo) {
+            (RenderType::ServerSidePrerendered, true) => Duration::from_millis(500),
+            // Arbitrary default timeout that seems to work well for Next.js Webpack
+            _ => Duration::from_millis(5000 + (module_count as f64 / 2.0).ceil() as u64),
+        }
     }
 }
 

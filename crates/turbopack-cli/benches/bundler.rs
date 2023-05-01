@@ -1,6 +1,7 @@
 use std::{
     path::Path,
     process::{Child, Command, Stdio},
+    time::Duration,
 };
 
 use anyhow::{anyhow, Context, Result};
@@ -74,5 +75,9 @@ impl Bundler for Turbopack {
         .ok_or_else(|| anyhow!("failed to find devserver address"))?;
 
         Ok((proc, addr))
+    }
+
+    fn max_update_timeout(&self, _module_count: usize) -> std::time::Duration {
+        Duration::from_millis(500)
     }
 }

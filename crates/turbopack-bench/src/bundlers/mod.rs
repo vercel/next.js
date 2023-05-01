@@ -1,4 +1,4 @@
-use std::{path::Path, process::Child};
+use std::{path::Path, process::Child, time::Duration};
 
 use anyhow::Result;
 
@@ -56,6 +56,20 @@ pub trait Bundler {
         Ok(())
     }
     fn start_server(&self, test_dir: &Path) -> Result<(Child, String)>;
+
+    /// The maximum amount of time to wait for HMR during the setup and warmup
+    /// phase.
+    fn max_init_update_timeout(&self, _module_count: usize) -> Duration {
+        Duration::from_secs(60)
+    }
+
+    /// The maximum amount of time to wait for HMR during the actual benchmark.
+    /// This is a lot shorter than the init timeout because we expect
+    /// updates to generally happen quickly, and we don't want to wait for a
+    /// long time when an update is dropped.
+    fn max_update_timeout(&self, _module_count: usize) -> Duration {
+        Duration::from_secs(5)
+    }
 }
 
 pub fn get_bundlers() -> Vec<Box<dyn Bundler>> {
