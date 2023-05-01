@@ -106,11 +106,11 @@ createNextDescribe(
 
       await browser.elementByCss('#upload').click()
 
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      expect(
-        logs.some((log) => log.includes('File name: hello.txt size: 5'))
-      ).toBe(true)
+      await check(() => {
+        return logs.some((log) => log.includes('File name: hello.txt size: 5'))
+          ? 'yes'
+          : ''
+      }, 'yes')
     })
 
     it('should support hoc auth wrappers', async () => {
