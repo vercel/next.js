@@ -11,19 +11,25 @@ createNextDescribe(
       const browser = await next.browser('/')
 
       const searchParams = browser.waitForElementByCss('#search-params').text()
-      const id = await browser.elementByCss('#random-number').text()
+      await browser.elementByCss('#increment').click()
+      await browser.elementByCss('#increment').click()
+
       await browser.elementByCss('#push').click()
 
       await check(async () => {
         const newSearchParams = await browser
           .waitForElementByCss('#search-params')
           .text()
-        const newId = await browser.elementByCss('#random-number').text()
 
-        return newSearchParams !== searchParams && id === newId
+        const count = await browser.waitForElementByCss('#count').text()
+
+        return newSearchParams !== searchParams && count === '2'
           ? 'success'
           : 'retry'
       }, 'success')
+
+      await browser.elementByCss('#increment').click()
+      await browser.elementByCss('#increment').click()
 
       await browser.elementByCss('#replace').click()
 
@@ -31,9 +37,9 @@ createNextDescribe(
         const newSearchParams = await browser
           .waitForElementByCss('#search-params')
           .text()
-        const newId = await browser.elementByCss('#random-number').text()
+        const count = await browser.waitForElementByCss('#count').text()
 
-        return newSearchParams !== searchParams && id === newId
+        return newSearchParams !== searchParams && count === '4'
           ? 'success'
           : 'retry'
       }, 'success')
