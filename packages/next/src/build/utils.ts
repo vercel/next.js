@@ -1952,7 +1952,7 @@ ${
   // to ensure the correctness of the version for app.
   `\
 if (nextConfig && nextConfig.experimental && nextConfig.experimental.appDir) {
-  process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = nextConfig.experimental.experimentalReact ? 'experimental' : 'next'
+  process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = nextConfig.experimental.serverActions ? 'experimental' : 'next'
 }
 `
 }

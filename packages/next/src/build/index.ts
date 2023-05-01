@@ -1143,7 +1143,7 @@ export default async function build(
               ...process.env,
               __NEXT_PRIVATE_PREBUNDLED_REACT:
                 type === 'app'
-                  ? config.experimental.experimentalReact
+                  ? config.experimental.serverActions
                     ? 'experimental'
                     : 'next'
                   : '',
