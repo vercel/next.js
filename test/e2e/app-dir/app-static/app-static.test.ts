@@ -750,16 +750,6 @@ createNextDescribe(
               '^\\/force\\-static\\/([^\\/]+?)(?:\\/)?$'
             ),
           },
-          '/ssg-preview/[[...route]]': {
-            dataRoute: '/ssg-preview/[[...route]].rsc',
-            dataRouteRegex: normalizeRegEx(
-              '^\\/ssg\\-preview(?:\\/(.+?))?\\.rsc$'
-            ),
-            fallback: null,
-            routeRegex: normalizeRegEx(
-              '^\\/ssg\\-preview(?:\\/(.+?))?(?:\\/)?$'
-            ),
-          },
           '/static-to-dynamic-error-forced/[id]': {
             dataRoute: '/static-to-dynamic-error-forced/[id].rsc',
             dataRouteRegex: normalizeRegEx(
