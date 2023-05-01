@@ -76,6 +76,35 @@ createNextDescribe(
       }
     })
 
+    describe('useDraftMode', () => {
+      let initialRand = 'unintialized'
+      it('should use initial rand when draft mode be disabled', async () => {
+        const $ = await next.render$('/hooks/use-draft-mode')
+        expect($('#draft-mode-val').text()).toBe('DISABLED')
+        expect($('#rand').text()).toBeDefined()
+        initialRand = $('#rand').text()
+      })
+
+      it('should genenerate rand when draft mode enabled', async () => {
+        const res = await next.fetch('/enable')
+        const h = res.headers.get('set-cookie') || ''
+        const cookie = h
+          .split(';')
+          .find((c) => c.startsWith('__prerender_bypass'))
+        const $ = await next.render$(
+          '/hooks/use-draft-mode',
+          {},
+          {
+            headers: {
+              Cookie: cookie,
+            },
+          }
+        )
+        expect($('#draft-mode-val').text()).toBe('ENABLED')
+        expect($('#rand').text()).not.toBe(initialRand)
+      })
+    })
+
     describe('useRouter', () => {
       it('should allow access to the router', async () => {
         const browser = await next.browser('/hooks/use-router')

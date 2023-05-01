@@ -1143,7 +1143,7 @@ export default async function build(
               ...process.env,
               __NEXT_PRIVATE_PREBUNDLED_REACT:
                 type === 'app'
-                  ? config.experimental.experimentalReact
+                  ? config.experimental.serverActions
                     ? 'experimental'
                     : 'next'
                   : '',
@@ -2833,6 +2833,11 @@ export default async function build(
           JSON.stringify(prerenderManifest),
           'utf8'
         )
+        await promises.writeFile(
+          path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
+          `self.__PRERENDER_MANIFEST=${JSON.stringify(prerenderManifest)}`,
+          'utf8'
+        )
         await generateClientSsgManifest(prerenderManifest, {
           distDir,
           buildId,
@@ -2849,6 +2854,11 @@ export default async function build(
         await promises.writeFile(
           path.join(distDir, PRERENDER_MANIFEST),
           JSON.stringify(prerenderManifest),
+          'utf8'
+        )
+        await promises.writeFile(
+          path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
+          `self.__PRERENDER_MANIFEST=${JSON.stringify(prerenderManifest)}`,
           'utf8'
         )
       }

@@ -1,13 +1,11 @@
-import { previewData } from 'next/headers'
+import { draftMode } from 'next/headers'
 
 export default function Page() {
-  const previewDataResult = previewData()
+  const result = draftMode()
 
   return (
     <main>
-      <pre id="preview-data">
-        {JSON.stringify({ previewData: previewDataResult })}
-      </pre>
+      <pre id="draft-mode">{JSON.stringify({ result })}</pre>
     </main>
   )
 }

@@ -411,13 +411,13 @@ createNextDescribe(
           'route-handler-edge/revalidate-360/route.js',
           'route-handler/post/route.js',
           'route-handler/revalidate-360/route.js',
-          'ssg-preview.html',
-          'ssg-preview.rsc',
-          'ssg-preview/[[...route]]/page.js',
-          'ssg-preview/test-2.html',
-          'ssg-preview/test-2.rsc',
-          'ssg-preview/test.html',
-          'ssg-preview/test.rsc',
+          'ssg-draft-mode.html',
+          'ssg-draft-mode.rsc',
+          'ssg-draft-mode/[[...route]]/page.js',
+          'ssg-draft-mode/test-2.html',
+          'ssg-draft-mode/test-2.rsc',
+          'ssg-draft-mode/test.html',
+          'ssg-draft-mode/test.rsc',
           'ssr-auto/cache-no-store/page.js',
           'ssr-auto/fetch-revalidate-zero/page.js',
           'ssr-forced/page.js',
@@ -603,6 +603,21 @@ createNextDescribe(
             initialRevalidateSeconds: false,
             srcRoute: '/partial-gen-params-no-additional-slug/[lang]/[slug]',
           },
+          '/ssg-draft-mode': {
+            dataRoute: '/ssg-draft-mode.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/ssg-draft-mode/[[...route]]',
+          },
+          '/ssg-draft-mode/test': {
+            dataRoute: '/ssg-draft-mode/test.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/ssg-draft-mode/[[...route]]',
+          },
+          '/ssg-draft-mode/test-2': {
+            dataRoute: '/ssg-draft-mode/test-2.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/ssg-draft-mode/[[...route]]',
+          },
           '/force-static/first': {
             dataRoute: '/force-static/first.rsc',
             initialRevalidateSeconds: false,
@@ -617,21 +632,6 @@ createNextDescribe(
             dataRoute: '/gen-params-dynamic-revalidate/one.rsc',
             initialRevalidateSeconds: 3,
             srcRoute: '/gen-params-dynamic-revalidate/[slug]',
-          },
-          '/ssg-preview': {
-            dataRoute: '/ssg-preview.rsc',
-            initialRevalidateSeconds: false,
-            srcRoute: '/ssg-preview/[[...route]]',
-          },
-          '/ssg-preview/test': {
-            dataRoute: '/ssg-preview/test.rsc',
-            initialRevalidateSeconds: false,
-            srcRoute: '/ssg-preview/[[...route]]',
-          },
-          '/ssg-preview/test-2': {
-            dataRoute: '/ssg-preview/test-2.rsc',
-            initialRevalidateSeconds: false,
-            srcRoute: '/ssg-preview/[[...route]]',
           },
           '/variable-config-revalidate/revalidate-3': {
             dataRoute: '/variable-config-revalidate/revalidate-3.rsc',
@@ -734,6 +734,12 @@ createNextDescribe(
               '^\\/partial\\-gen\\-params\\-no\\-additional\\-slug\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
             ),
           },
+          '/ssg-draft-mode/[[...route]]': {
+            dataRoute: '/ssg-draft-mode/[[...route]].rsc',
+            dataRouteRegex: '^\\/ssg\\-draft\\-mode(?:\\/(.+?))?\\.rsc$',
+            fallback: null,
+            routeRegex: '^\\/ssg\\-draft\\-mode(?:\\/(.+?))?(?:\\/)?$',
+          },
           '/force-static/[slug]': {
             dataRoute: '/force-static/[slug].rsc',
             dataRouteRegex: normalizeRegEx(
@@ -742,16 +748,6 @@ createNextDescribe(
             fallback: null,
             routeRegex: normalizeRegEx(
               '^\\/force\\-static\\/([^\\/]+?)(?:\\/)?$'
-            ),
-          },
-          '/ssg-preview/[[...route]]': {
-            dataRoute: '/ssg-preview/[[...route]].rsc',
-            dataRouteRegex: normalizeRegEx(
-              '^\\/ssg\\-preview(?:\\/(.+?))?\\.rsc$'
-            ),
-            fallback: null,
-            routeRegex: normalizeRegEx(
-              '^\\/ssg\\-preview(?:\\/(.+?))?(?:\\/)?$'
             ),
           },
           '/static-to-dynamic-error-forced/[id]': {
@@ -1324,14 +1320,14 @@ createNextDescribe(
       }, 'success')
     })
 
-    it('Should not throw Dynamic Server Usage error when using generateStaticParams with previewData', async () => {
-      const browserOnIndexPage = await next.browser('/ssg-preview')
+    it('should not throw Dynamic Server Usage error when using generateStaticParams with draftMode', async () => {
+      const browserOnIndexPage = await next.browser('/ssg-draft-mode')
 
       const content = await browserOnIndexPage
-        .elementByCss('#preview-data')
+        .elementByCss('#draft-mode')
         .text()
 
-      expect(content).toContain('previewData')
+      expect(content).toBe('{"result":{"enabled":false}}')
     })
 
     it('should force SSR correctly for headers usage', async () => {
