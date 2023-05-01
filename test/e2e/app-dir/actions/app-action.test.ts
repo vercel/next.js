@@ -90,6 +90,9 @@ createNextDescribe(
       next.on('stdout', (log) => {
         logs.push(log)
       })
+      next.on('stderr', (log) => {
+        logs.push(log)
+      })
 
       const browser = await next.browser('/server')
 
@@ -100,6 +103,8 @@ createNextDescribe(
         list.items.add(file);
         document.getElementById('file').files = list.files;
       `)
+
+      await new Promise((resolve) => setTimeout(resolve, 1000))
       await browser.elementByCss('#upload').click()
 
       expect(
