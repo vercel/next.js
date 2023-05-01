@@ -9,8 +9,6 @@ import {
   dirname,
 } from 'path'
 import { pathToFileURL } from 'url'
-import { Agent as HttpAgent } from 'http'
-import { Agent as HttpsAgent } from 'https'
 import findUp from 'next/dist/compiled/find-up'
 import chalk from '../lib/chalk'
 import * as Log from '../build/output/log'
