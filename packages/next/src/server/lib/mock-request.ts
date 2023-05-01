@@ -9,7 +9,7 @@ import type { Socket } from 'net'
 import type { TLSSocket } from 'tls'
 
 import Stream from 'stream'
-import { toNodeHeaders } from '../web/utils'
+import { fromNodeHeaders, toNodeHeaders } from '../web/utils'
 
 interface MockedRequestOptions {
   url: string
@@ -98,8 +98,9 @@ export class MockedRequest extends Stream.Readable implements IncomingMessage {
   }
 }
 
-interface MockedResponseOptions {
+export interface MockedResponseOptions {
   socket?: Socket | null
+  headers?: OutgoingHttpHeaders
 }
 
 export class MockedResponse extends Stream.Writable implements ServerResponse {
@@ -123,12 +124,19 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
    */
   public readonly buffers: Buffer[] = []
 
-  private readonly headers = new Headers()
+  /**
+   * The headers object that contains the headers that were initialized on the
+   * response and any that were added subsequently.
+   *
+   * @internal - used internally by Next.js
+   */
+  public readonly headers: Headers
 
-  constructor({ socket = null }: MockedResponseOptions = {}) {
+  constructor(res: MockedResponseOptions = {}) {
     super()
 
-    this.socket = socket
+    this.socket = res.socket ?? null
+    this.headers = res.headers ? fromNodeHeaders(res.headers) : new Headers()
 
     // Attach listeners for the `finish`, `end`, and `error` events to the
     // `MockedResponse` instance.
@@ -137,6 +145,15 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
       this.on('end', () => resolve(true))
       this.on('error', (err) => reject(err))
     })
+  }
+
+  /**
+   * Returns true if the response has been sent, false otherwise.
+   *
+   * @internal - used internally by Next.js
+   */
+  public get isSent() {
+    return this.finished || this.headersSent
   }
 
   /**

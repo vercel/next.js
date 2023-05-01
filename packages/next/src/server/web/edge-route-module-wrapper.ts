@@ -87,6 +87,9 @@ export class EdgeRouteModuleWrapper {
       export: false,
       staticGenerationContext: { supportsDynamicHTML: true },
       manifests: ManifestLoader.load(),
+
+      // There are no headers set on the response above the handler in edge.
+      headers: undefined,
       renderOpts: {
         query,
 

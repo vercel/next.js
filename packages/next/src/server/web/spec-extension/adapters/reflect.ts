@@ -1,4 +1,12 @@
 export class ReflectAdapter {
+  static apply<T, A extends readonly any[], R>(
+    target: (this: T, ...args: A) => R,
+    thisArg: any,
+    args: any[]
+  ): any {
+    return Reflect.apply(target, thisArg, args)
+  }
+
   static get<T extends object>(
     target: T,
     prop: string | symbol,

@@ -21,7 +21,7 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { NextConfigComplete } from '../../../config-shared'
 import type { FontManifest } from '../../../font-utils'
 import type { NextFontManifest } from '../../../../build/webpack/plugins/next-font-manifest-plugin'
-import type { PrerenderManifest } from '../../../../build'
+import type { __ApiPreviewProps } from '../../../api-utils'
 import type { MockedResponse } from '../../../lib/mock-request'
 
 import React from 'react'
@@ -38,7 +38,6 @@ import {
   type RenderPage,
   type RenderPageResult,
   getDisplayName,
-  isResSent,
 } from '../../../../shared/lib/utils'
 import {
   SSG_GET_INITIAL_PROPS_CONFLICT,
@@ -115,6 +114,7 @@ import { wrapAppContainer } from './helpers/wrap-app-container'
 import Loadable from '../../../../shared/lib/loadable'
 import { tryGetPreviewData } from './helpers/try-get-preview-data'
 import { createAMPValidator } from './helpers/amp-validator'
+import { createMockedResponse } from '../helpers/create-mocked-response'
 
 const DOCTYPE = '<!DOCTYPE html>'
 
@@ -215,7 +215,6 @@ export type PagesManifests = {
   readonly reactLoadable: ReactLoadableManifest
   readonly font: FontManifest | undefined
   readonly nextFont: NextFontManifest | undefined
-  readonly prerender: PrerenderManifest | undefined
 }
 
 interface RouteRenderOptions {
@@ -290,12 +289,19 @@ export interface PagesRouteHandlerContext extends RouteModuleHandleContext {
     locale: string | undefined
     defaultLocale: string | undefined
     isLocaleDomain: boolean | undefined
+    previewProps: __ApiPreviewProps | undefined
+
+    /**
+     * @deprecated this is a temporary way to access the render result from the
+     * node.js server. This will be removed in a future version.
+     */
+    renderResult?: RenderResult
   }
 }
 
 interface PagesRouteHandlerRenderContext extends PagesRouteHandlerContext {
   readonly req?: IncomingMessage
-  readonly res?: ServerResponse
+  readonly res?: MockedResponse
   readonly isPreviewMode: boolean
   readonly previewData: PreviewData | undefined
 }
@@ -493,6 +499,8 @@ export class PagesRouteModule extends RouteModule<
     // will be undefined.
     const req = context.renderOpts.req
     const res = context.renderOpts.res
+      ? createMockedResponse({ headers: context.headers })
+      : undefined
 
     // Check to see if we're in preview mode.
     let previewData: PreviewData
@@ -504,7 +512,7 @@ export class PagesRouteModule extends RouteModule<
       req &&
       context.renderOpts.res &&
       tryGetPreviewData &&
-      context.manifests.prerender &&
+      context.renderOpts.previewProps &&
       // Preview mode is only supported on pages with `getStaticProps` or
       // `getServerSideProps`.
       (typeof this.userland.getServerSideProps === 'function' ||
@@ -513,7 +521,7 @@ export class PagesRouteModule extends RouteModule<
       previewData = tryGetPreviewData(
         req,
         context.renderOpts.res,
-        context.manifests.prerender.preview
+        context.renderOpts.previewProps
       )
       isPreviewMode = previewData !== false
     }
@@ -527,11 +535,13 @@ export class PagesRouteModule extends RouteModule<
       isPreviewMode,
     })
 
+    // TODO: (wyattjoh) remove this when we have a better API for this.
+    context.renderOpts.renderResult = result
+
     // Render the result to a response.
     return await this.transform(request, result, {
       res,
       statusCode: context.renderOpts.statusCode,
-      isResSent: res ? isResSent(res) : false,
       isDataReq: context.renderOpts.isDataReq === true,
       isPreviewMode,
     })
@@ -541,9 +551,8 @@ export class PagesRouteModule extends RouteModule<
     request: NextRequest,
     result: RenderResult,
     context: {
-      res?: ServerResponse
+      res?: MockedResponse
       statusCode: number | undefined
-      isResSent: boolean
       isDataReq: boolean
       isPreviewMode: boolean
     }
@@ -559,9 +568,8 @@ export class PagesRouteModule extends RouteModule<
         generateEtags: this.config.generateEtags,
       },
       {
-        res: context.res as MockedResponse,
+        res: context.res,
         statusCode: context.statusCode,
-        isResSent: context.isResSent,
         isDataReq: context.isDataReq,
         isPreviewMode: context.isPreviewMode,
       }
@@ -684,7 +692,10 @@ export class PagesRouteModule extends RouteModule<
       // We don't support setting this in the module handler, instead the error
       // page is served directly.
       'isNotFound'
-    > = {}
+    > = {
+      // By default, we never revalidate.
+      revalidate: false,
+    }
 
     // In dev we invalidate the cache by appending a timestamp to the resource URL.
     // This is a workaround to fix https://github.com/vercel/next.js/issues/5860
@@ -942,7 +953,9 @@ export class PagesRouteModule extends RouteModule<
                 ...(this.isDynamic
                   ? { params: query as ParsedUrlQuery }
                   : undefined),
-                ...(isPreview ? { preview: true, previewData } : undefined),
+                ...(isPreview
+                  ? { draftMode: true, preview: true, previewData }
+                  : undefined),
                 locales: this.config.i18n?.locales,
                 locale: context.renderOpts.locale,
                 defaultLocale: context.renderOpts.defaultLocale,
@@ -1020,9 +1033,6 @@ export class PagesRouteModule extends RouteModule<
               'ISR cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
             )
           }
-        } else {
-          // By default, we never revalidate.
-          metadata.revalidate = false
         }
 
         // If we're in development or exporting and the page is not a 404 page
@@ -1090,7 +1100,7 @@ export class PagesRouteModule extends RouteModule<
                 resolvedUrl,
                 ...(this.isDynamic ? { params: context.params } : undefined),
                 ...(previewData !== false
-                  ? { preview: true, previewData: previewData }
+                  ? { draftMode: true, preview: true, previewData: previewData }
                   : undefined),
                 locales: this.config.i18n?.locales,
                 locale: context.renderOpts.locale,
@@ -1207,7 +1217,7 @@ export class PagesRouteModule extends RouteModule<
     // The response might be finished on the getInitialProps call.
     if (
       context.res &&
-      isResSent(context.res) &&
+      context.res.isSent &&
       typeof getStaticProps !== 'function'
     ) {
       return new RenderResult(null, metadata)
@@ -1331,7 +1341,7 @@ export class PagesRouteModule extends RouteModule<
         // The response might be finished on the getInitialProps call.
         if (
           context.res &&
-          isResSent(context.res) &&
+          context.res.isSent &&
           typeof getStaticProps === 'function'
         ) {
           return null

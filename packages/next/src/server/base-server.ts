@@ -1647,6 +1647,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           export: false,
           staticGenerationContext: { supportsDynamicHTML, incrementalCache },
           manifests: ManifestLoader.load({ distDir: this.distDir }),
+          // Pass in the headers that have already been set on the response.
+          headers:
+            process.env.NEXT_RUNTIME !== 'edge'
+              ? (res as NodeNextResponse).originalResponse.getHeaders()
+              : undefined,
           renderOpts: {
             req:
               process.env.NEXT_RUNTIME !== 'edge'
@@ -1660,6 +1665,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
                 : undefined,
             // TODO: (wyattjoh) we may not need this! remove if possible
             statusCode: res.statusCode,
+            previewProps: this.renderOpts.previewProps,
             ampPath: opts.ampPath,
             customServer: opts.customServer,
             distDir: opts.distDir,
@@ -1688,35 +1694,73 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           if (response) {
             // If the request is for a static response, we can cache it so long
             // as it's not edge.
-            if (isSSG && process.env.NEXT_RUNTIME !== 'edge') {
-              const blob = await response.blob()
+            if (match?.definition.kind === RouteKind.APP_ROUTE) {
+              if (isSSG && process.env.NEXT_RUNTIME !== 'edge') {
+                const blob = await response.blob()
 
-              // Copy the headers from the response.
-              const headers = toNodeHeaders(response.headers)
-              if (!headers['content-type'] && blob.type) {
-                headers['content-type'] = blob.type
+                // Copy the headers from the response.
+                const headers = toNodeHeaders(response.headers)
+                if (!headers['content-type'] && blob.type) {
+                  headers['content-type'] = blob.type
+                }
+
+                // Pull the revalidation time from the static generation context.
+                // It has been computed based on the API's accessed and the
+                // configuration of the route.
+                const revalidate: number | false =
+                  context.staticGenerationContext.store?.revalidate ?? false
+
+                // TODO: (wyattjoh) this branch is hit now for app routes AND pages, maybe we should reevaluate this logic?
+
+                // Create the cache entry for the response.
+                const cacheEntry: ResponseCacheEntry = {
+                  value: {
+                    kind: 'ROUTE',
+                    status: response.status,
+                    body: Buffer.from(await blob.arrayBuffer()),
+                    headers,
+                  },
+                  revalidate,
+                }
+
+                return cacheEntry
+              }
+            }
+            // TODO: (wyattjoh) remove this once we've migrated to the new route manager system completely
+            else if (context.renderOpts.renderResult) {
+              // We have a render result available, we should cache it.
+              const result = context.renderOpts.renderResult
+              const metadata = context.renderOpts.renderResult.metadata()
+
+              // Handle `isNotFound`.
+              if (metadata.isNotFound) {
+                return { value: null, revalidate: metadata.revalidate }
               }
 
-              // Pull the revalidation time from the static generation context.
-              // It has been computed based on the API's accessed and the
-              // configuration of the route.
-              const revalidate: number | false =
-                context.staticGenerationContext.store?.revalidate ?? false
+              // Handle `isRedirect`.
+              if (metadata.isRedirect) {
+                return {
+                  value: {
+                    kind: 'REDIRECT',
+                    props: metadata.pageData,
+                    revalidate: metadata.revalidate,
+                  },
+                }
+              }
 
-              // TODO: (wyattjoh) this branch is hit now for app routes AND pages, maybe we should reevaluate this logic?
+              // Handle `isNull`.
+              if (result.isNull()) {
+                return { value: null, revalidate: metadata.revalidate }
+              }
 
-              // Create the cache entry for the response.
-              const cacheEntry: ResponseCacheEntry = {
+              return {
                 value: {
-                  kind: 'ROUTE',
-                  status: response.status,
-                  body: Buffer.from(await blob.arrayBuffer()),
-                  headers,
+                  kind: 'PAGE',
+                  html: result,
+                  pageData: metadata.pageData,
+                  revalidate: metadata.revalidate,
                 },
-                revalidate,
               }
-
-              return cacheEntry
             }
 
             // Send the response now that we have copied it into the cache.

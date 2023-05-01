@@ -11,9 +11,8 @@ import { getRevalidateCacheControlHeader } from '../../../send-payload/revalidat
 import { fromNodeHeaders, toNodeHeaders } from '../../../web/utils'
 
 type RenderResultToResponseContext = {
-  res: MockedResponse
+  res?: MockedResponse
   statusCode: number | undefined
-  isResSent: boolean
   isDataReq: boolean | undefined
   isPreviewMode: boolean
 }
@@ -43,7 +42,7 @@ export async function renderResultToResponse(
 ): Promise<Response> {
   // If the response has already been sent, then just convert the incoming
   // response to a `Response` object and return it.
-  if (context.isResSent) {
+  if (context.res?.isSent) {
     return new Response(Buffer.concat(context.res.buffers), {
       status: context.res.statusCode,
       statusText: context.res.statusMessage,
@@ -51,7 +50,10 @@ export async function renderResultToResponse(
     })
   }
 
-  const headers = new Headers()
+  // Use the headers from the response if they're available, otherwise create
+  // a new `Headers` object. This allows us to override headers that are set
+  // by the route module.
+  const headers = context.res ? new Headers(context.res.headers) : new Headers()
 
   const metadata = result.metadata()
 
