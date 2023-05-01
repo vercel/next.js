@@ -111,6 +111,7 @@ pub(super) async fn get_font_fallback(
 
 static FALLBACK_FONT_NAME: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?:^\w|[A-Z]|\b\w)").unwrap());
 
+// From https://github.com/vercel/next.js/blob/1628260b88ce3052ac307a1607b6e8470188ab83/packages/next/src/server/font-utils.ts#L101
 fn format_fallback_font_name(font_family: &str) -> String {
     let mut fallback_name = FALLBACK_FONT_NAME
         .replace(font_family, |caps: &regex::Captures| {
