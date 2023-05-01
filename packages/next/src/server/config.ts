@@ -72,15 +72,16 @@ export function setHttpClientAndAgentOptions(
 ) {
   if (isAboveNodejs16) {
     // Node.js 18 has undici built-in.
-    if (config.experimental?.enableUndici && !isAboveNodejs18) {
+    if (!isAboveNodejs18) {
       // When appDir is enabled undici is the default because of Response.clone() issues in node-fetch
-      ;(globalThis as any).__NEXT_USE_UNDICI = config.experimental?.enableUndici
+      ;(globalThis as any).__NEXT_USE_UNDICI = true
     }
   } else if (config.experimental?.enableUndici && !silent) {
     Log.warn(
       `\`enableUndici\` option requires Node.js v${NODE_16_VERSION} or greater. Falling back to \`node-fetch\``
     )
   }
+
   if ((globalThis as any).__NEXT_HTTP_AGENT) {
     // We only need to assign once because we want
     // to reuse the same agent for all requests.
