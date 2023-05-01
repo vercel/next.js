@@ -44,6 +44,12 @@ export async function handleAction({
     req.method === 'POST'
 
   if (isFetchAction || isFormAction || isMultipartAction) {
+    if (!serverActionsManifest) {
+      throw new Error(
+        'Server Actions require `experimental.serverActions` option to be enabled in your Next.js config.'
+      )
+    }
+
     let bound = []
 
     const workerName = 'app' + pathname
