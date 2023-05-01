@@ -5,17 +5,36 @@ mod anchored_system_path_buf;
 mod relative_system_path_buf;
 mod relative_unix_path_buf;
 
-use std::path::{Path, PathBuf};
+use std::{
+    io,
+    path::{Path, PathBuf},
+};
 
 pub use absolute_system_path_buf::AbsoluteSystemPathBuf;
 pub use anchored_system_path_buf::AnchoredSystemPathBuf;
 use path_slash::{PathBufExt, PathExt};
 pub use relative_system_path_buf::RelativeSystemPathBuf;
 pub use relative_unix_path_buf::RelativeUnixPathBuf;
-use thiserror::Error;
+
+#[derive(Debug, thiserror::Error)]
+pub enum PathError {
+    #[error("Path validation failed: {0}")]
+    PathValidationError(#[from] PathValidationError),
+    #[error("IO Error {0}")]
+    IO(#[from] io::Error),
+}
+
+impl PathError {
+    pub fn is_io_error(&self, kind: io::ErrorKind) -> bool {
+        match self {
+            PathError::IO(err) => err.kind() == kind,
+            _ => false,
+        }
+    }
+}
 
 // Custom error type for path validation errors
-#[derive(Debug, Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum PathValidationError {
     #[error("Path is non-UTF-8: {0}")]
     InvalidUnicode(PathBuf),
