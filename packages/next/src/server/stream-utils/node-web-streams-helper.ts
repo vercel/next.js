@@ -1,25 +1,16 @@
-import type { FlightRouterState } from './app-render/types'
-import { nonNullable } from '../lib/non-nullable'
-import { getTracer } from './lib/trace/tracer'
-import { AppRenderSpan } from './lib/trace/constants'
-import type RenderResult from './render-result'
+import type { FlightRouterState } from '../app-render/types'
+import type RenderResult from '../render-result'
+
+import { nonNullable } from '../../lib/non-nullable'
+import { getTracer } from '../lib/trace/tracer'
+import { AppRenderSpan } from '../lib/trace/constants'
+import { decodeText, encodeText } from './encode-decode'
 
 const queueTask =
   process.env.NEXT_RUNTIME === 'edge' ? globalThis.setTimeout : setImmediate
 
 export type ReactReadableStream = ReadableStream<Uint8Array> & {
   allReady?: Promise<void> | undefined
-}
-
-export function encodeText(input: string) {
-  return new TextEncoder().encode(input)
-}
-
-export function decodeText(
-  input: Uint8Array | undefined,
-  textDecoder: TextDecoder
-) {
-  return textDecoder.decode(input, { stream: true })
 }
 
 export const streamToBufferedResult = async (
@@ -166,7 +157,7 @@ export function renderToInitialStream({
   element,
   streamOptions,
 }: {
-  ReactDOMServer: any
+  ReactDOMServer: typeof import('react-dom/server.edge')
   element: React.ReactElement
   streamOptions?: any
 }): Promise<ReactReadableStream> {

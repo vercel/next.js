@@ -9,7 +9,7 @@ import {
   IncrementalCacheEntry,
 } from '../../response-cache'
 import { encode } from '../../../shared/lib/bloom-filter/base64-arraybuffer'
-import { encodeText } from '../../node-web-streams-helper'
+import { encodeText } from '../../stream-utils/encode-decode'
 
 function toRoute(pathname: string): string {
   return pathname.replace(/\/$/, '').replace(/\/index$/, '') || '/'
