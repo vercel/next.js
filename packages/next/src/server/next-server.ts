@@ -92,8 +92,6 @@ import { checkIsOnDemandRevalidate } from './api-utils'
 import ResponseCache from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
-
-import { setHttpClientAndAgentOptions } from './config'
 import { RouteKind } from './future/route-kind'
 
 import { PagesAPIRouteMatch } from './future/route-matches/pages-api-route-match'
@@ -322,9 +320,6 @@ export default class NextNodeServer extends BaseServer {
         }
       }
     }
-
-    // ensure options are set when loadConfig isn't called
-    setHttpClientAndAgentOptions(this.nextConfig)
   }
 
   protected async prepareImpl() {

@@ -35,7 +35,6 @@ import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import * as Log from './output/log'
 import { loadComponents } from '../server/load-components'
 import { trace } from '../trace'
-import { setHttpClientAndAgentOptions } from '../server/config'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { Sema } from 'next/dist/compiled/async-sema'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
@@ -929,8 +928,6 @@ export async function isPageStatic({
   distDir,
   configFileName,
   runtimeEnvConfig,
-  httpAgentOptions,
-  enableUndici,
   locales,
   defaultLocale,
   parentId,
@@ -948,8 +945,6 @@ export async function isPageStatic({
   distDir: string
   configFileName: string
   runtimeEnvConfig: any
-  httpAgentOptions: NextConfigComplete['httpAgentOptions']
-  enableUndici?: NextConfigComplete['experimental']['enableUndici']
   locales?: string[]
   defaultLocale?: string
   parentId?: any
@@ -968,10 +963,6 @@ export async function isPageStatic({
   return isPageStaticSpan
     .traceAsyncFn(async () => {
       require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
-      setHttpClientAndAgentOptions({
-        httpAgentOptions,
-        experimental: { enableUndici },
-      })
 
       if (pageType === 'pages') {
         return await isPagesPageStatic({

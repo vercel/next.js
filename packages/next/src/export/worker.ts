@@ -13,7 +13,6 @@ import '../server/node-environment'
 import { join } from 'path'
 import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import { trace } from '../trace'
-import { setHttpClientAndAgentOptions } from '../server/config'
 import isError from '../lib/is-error'
 import { IncrementalCache } from '../server/lib/incremental-cache'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
@@ -51,9 +50,7 @@ interface ExportPageInput {
   serverRuntimeConfig: { [key: string]: any }
   subFolders?: boolean
   parentSpanId: any
-  httpAgentOptions: NextConfigComplete['httpAgentOptions']
   serverComponents?: boolean
-  enableUndici: NextConfigComplete['experimental']['enableUndici']
   debugOutput?: boolean
   isrMemoryCacheSize?: NextConfigComplete['experimental']['isrMemoryCacheSize']
   fetchCache?: boolean
@@ -101,26 +98,21 @@ export default async function exportPage({
   buildExport = false,
   serverRuntimeConfig,
   subFolders = false,
-  httpAgentOptions,
   serverComponents = false,
-  enableUndici,
   debugOutput,
   isrMemoryCacheSize,
   fetchCache,
   fetchCacheKeyPrefix,
   incrementalCacheHandlerPath,
 }: ExportPageInput): Promise<ExportPageResults> {
-  setHttpClientAndAgentOptions({
-    httpAgentOptions,
-    experimental: { enableUndici },
-  })
+  const exportPageSpan = trace('export-page-worker', parentSpanId)
 
   // Create the batched writer that can be used to write all the files to disk
   // that were generated during the export of this page.
   const writer = new BatchedFileWriter()
   const start = Date.now()
 
-  const results = await trace('export-page-worker', parentSpanId).traceAsyncFn(
+  const results = await exportPageSpan.traceAsyncFn(
     async (): Promise<ExportersResult | null> => {
       try {
         const { query: originalQuery = {} } = pathMap

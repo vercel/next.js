@@ -1,4 +1,3 @@
-import type { NextConfigComplete } from '../config-shared'
 import type { AppRouteUserlandModule } from '../future/route-modules/app-route/module'
 
 import '../require-hook'
@@ -7,7 +6,6 @@ import '../node-environment'
 
 import { collectGenerateParams, GenerateParams } from '../../build/utils'
 import { loadComponents } from '../load-components'
-import { setHttpClientAndAgentOptions } from '../config'
 import { IncrementalCache } from '../lib/incremental-cache'
 import * as serverHooks from '../../client/components/hooks-server-context'
 import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
@@ -23,8 +21,6 @@ export async function loadStaticPaths({
   distDir,
   pathname,
   config,
-  httpAgentOptions,
-  enableUndici,
   locales,
   defaultLocale,
   isAppPath,
@@ -38,8 +34,6 @@ export async function loadStaticPaths({
   distDir: string
   pathname: string
   config: RuntimeConfig
-  httpAgentOptions: NextConfigComplete['httpAgentOptions']
-  enableUndici: NextConfigComplete['enableUndici']
   locales?: string[]
   defaultLocale?: string
   isAppPath?: boolean
@@ -56,10 +50,6 @@ export async function loadStaticPaths({
 }> {
   // update work memory runtime-config
   require('../../shared/lib/runtime-config').setConfig(config)
-  setHttpClientAndAgentOptions({
-    httpAgentOptions,
-    experimental: { enableUndici },
-  })
 
   const components = await loadComponents({
     distDir,
