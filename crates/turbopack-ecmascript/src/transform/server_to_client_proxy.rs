@@ -42,7 +42,7 @@ pub fn create_proxy_module(transition_name: &str, target_import: &str) -> Progra
                 span: DUMMY_SP,
             })),
             ModuleItem::Stmt(quote!(
-                "__turbopack_export_value__($proxy);" as Stmt,
+                "__turbopack_export_namespace__($proxy);" as Stmt,
                 proxy = ident,
             )),
         ],
