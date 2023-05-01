@@ -164,6 +164,7 @@ fn relay_no_artifact_dir_fixture(input: PathBuf) {
                 FileName::Real(PathBuf::from("input.tsx")),
                 current_dir().unwrap(),
                 Some(PathBuf::from("src/pages")),
+                None,
             )
         },
         &input,
