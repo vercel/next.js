@@ -149,6 +149,14 @@ function exportValue(module, value) {
 }
 
 /**
+ * @param {Module} module
+ * @param {any} namespace
+ */
+function exportNamespace(module, namespace) {
+  module.exports = module.namespaceObject = namespace;
+}
+
+/**
  * @param {Record<string, any>} obj
  * @param {string} key
  */
@@ -467,6 +475,7 @@ function instantiateModule(id, source) {
         s: makeEsm.bind(null, module),
         j: cjs.bind(null, module.exports),
         v: exportValue.bind(null, module),
+        n: exportNamespace.bind(null, module),
         m: module,
         c: moduleCache,
         l: loadChunk.bind(null, { type: SourceTypeParent, parentId: id }),
