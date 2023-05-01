@@ -24,7 +24,7 @@ static UNITS: Lazy<HashMap<&str, f64>> = Lazy::new(|| {
 });
 
 static UNIT_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"^([0-9.]+(?:e\d+)?)((?:in|cm|em|ex|m|mm|pc|pt|px)?)$").unwrap());
+    Lazy::new(|| Regex::new(r"^([0-9.]+(?:e-?\d+)?)((?:in|cm|em|ex|m|mm|pc|pt|px)?)$").unwrap());
 
 static ROOT_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"<svg\s([^>"']|"[^"]*"|'[^']*')*>"#).unwrap());
@@ -33,8 +33,10 @@ static HEIGHT_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"\sheight=['"]([^%]+?)['"]"#).unwrap());
 static VIEW_BOX_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"\sviewBox=['"](.+?)['"]"#).unwrap());
-static VIEW_BOX_CONTENT_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"^\s*(\w+)\s+(\w+)\s+(\w+)\s+(\w+)\s*$"#).unwrap());
+static VIEW_BOX_CONTENT_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r#"^\s*((?:\w|\.|-)+)\s+((?:\w|\.|-)+)\s+((?:\w|\.|-)+)\s+((?:\w|\.|-)+)\s*$"#)
+        .unwrap()
+});
 
 fn parse_length(len: &str) -> Result<f64> {
     let captures = UNIT_REGEX
@@ -157,6 +159,14 @@ mod tests {
         let svg = r#"<svg width="20ex" height="10ex"></svg>"#;
         let result = calculate(svg)?;
         assert_eq!(result, (160, 80));
+        Ok(())
+    }
+
+    #[test]
+    fn test_calculate_complex_viewbox() -> Result<()> {
+        let svg = r#"<svg viewBox="-100 -10.5 5000e-2 50.42e3"></svg>"#;
+        let result = calculate(svg)?;
+        assert_eq!(result, (50, 50420));
         Ok(())
     }
 }
