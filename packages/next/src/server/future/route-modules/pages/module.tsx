@@ -679,10 +679,12 @@ export class PagesRouteModule extends RouteModule<
       }
     }
 
-    const metadata: RenderResultMetadata = {}
-    if (this.userland !== module && module === this.components.NotFound) {
-      metadata.isNotFound = true
-    }
+    const metadata: Omit<
+      RenderResultMetadata,
+      // We don't support setting this in the module handler, instead the error
+      // page is served directly.
+      'isNotFound'
+    > = {}
 
     // In dev we invalidate the cache by appending a timestamp to the resource URL.
     // This is a workaround to fix https://github.com/vercel/next.js/issues/5860
@@ -748,8 +750,14 @@ export class PagesRouteModule extends RouteModule<
       }
     }
 
-    // Make sure all dynamic imports are loaded.
-    await Loadable.preloadAll()
+    try {
+      // Make sure all dynamic imports are loaded.
+      await Loadable.preloadAll()
+    } catch (err) {
+      // An internal error occurred, let's render the 500 page.
+      // TODO: (wyattjoh) check to see if this typecast is necessary
+      return this.render500(request, context, module, err as Error)
+    }
 
     // We can't use preview data if we're not rendering the fallback page.
     const isPreview = !isFallback ? context.isPreviewMode : false
@@ -887,12 +895,19 @@ export class PagesRouteModule extends RouteModule<
     }
 
     // Load the initial props used for rendering the page.
-    const props: Props = await loadGetInitialProps(App, {
-      AppTree: ctx.AppTree,
-      Component,
-      router,
-      ctx,
-    })
+    let props: Props
+    try {
+      props = await loadGetInitialProps(App, {
+        AppTree: ctx.AppTree,
+        Component,
+        router,
+        ctx,
+      })
+    } catch (err) {
+      // An internal error occurred, let's render the 500 page.
+      // TODO: (wyattjoh) check to see if this typecast is necessary
+      return this.render500(request, context, module, err as Error)
+    }
 
     // If this has `getStaticProps` or `getServerSideProps` we need to mark it
     // as preview if this is a preview request.
