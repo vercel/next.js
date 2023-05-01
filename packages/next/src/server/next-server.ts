@@ -274,7 +274,8 @@ export default class NextNodeServer extends BaseServer {
               this.port || 0,
               ipcPort,
               options.isNodeDebugging,
-              'app'
+              'app',
+              this.nextConfig.experimental.experimentalReact
             )
           }
           this.renderWorkers.pages = createWorker(

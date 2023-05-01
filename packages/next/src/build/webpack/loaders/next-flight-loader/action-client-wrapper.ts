@@ -1,6 +1,8 @@
-// This file must be bundled in the app's client layer.
+// This file must be bundled in the app's client layer, it shouldn't be directly
+// imported by the server.
 
-import { createServerReference } from 'next/dist/compiled/react-server-dom-webpack/client'
+// eslint-disable-next-line import/no-extraneous-dependencies
+import { createServerReference } from 'react-server-dom-webpack/client'
 import { callServer } from 'next/dist/client/app-call-server'
 
 // A noop wrapper to let the Flight client create the server reference.

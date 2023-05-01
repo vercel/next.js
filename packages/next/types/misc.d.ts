@@ -20,6 +20,7 @@ declare module 'next/dist/compiled/react-dom/server'
 declare module 'next/dist/compiled/react-dom/server.edge'
 declare module 'next/dist/compiled/react-dom/server.browser'
 declare module 'next/dist/compiled/browserslist'
+declare module 'react-server-dom-webpack/client'
 declare module 'react-dom/server.browser'
 declare module 'react-dom/server.edge'
 
