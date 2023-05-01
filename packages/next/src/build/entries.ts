@@ -85,11 +85,12 @@ export async function getStaticInfoIncludingLayouts({
       }
     : pageStaticInfo
 
-  if (isInsideAppDir) {
+  if (isInsideAppDir && appDir) {
     const layoutFiles = []
     const potentialLayoutFiles = pageExtensions.map((ext) => 'layout.' + ext)
     let dir = dirname(pageFilePath)
-    while (dir !== appDir) {
+    // Uses startsWith to not include directories further up.
+    while (dir.startsWith(appDir)) {
       for (const potentialLayoutFile of potentialLayoutFiles) {
         const layoutFile = join(dir, potentialLayoutFile)
         if (!(await fileExists(layoutFile))) {
