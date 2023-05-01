@@ -1,4 +1,3 @@
-import type { NextConfigComplete } from '../config-shared'
 import type { AppRouteUserlandModule } from '../future/route-modules/app-route/module'
 
 import '../require-hook'
