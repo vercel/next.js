@@ -32,13 +32,12 @@ import {
 import { traverseModules, forEachEntryModule } from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { getProxiedPluginState } from '../../build-context'
-import { warnOnce } from '../../../shared/lib/utils/warn-once'
 
 interface Options {
   dev: boolean
   appDir: string
   isEdgeServer: boolean
-  useExperimentalReact: boolean
+  useServerActions: boolean
 }
 
 const PLUGIN_NAME = 'ClientEntryPlugin'
@@ -80,14 +79,14 @@ export class ClientReferenceEntryPlugin {
   dev: boolean
   appDir: string
   isEdgeServer: boolean
-  useExperimentalReact: boolean
+  useServerActions: boolean
   assetPrefix: string
 
   constructor(options: Options) {
     this.dev = options.dev
     this.appDir = options.appDir
     this.isEdgeServer = options.isEdgeServer
-    this.useExperimentalReact = options.useExperimentalReact
+    this.useServerActions = options.useServerActions
     this.assetPrefix = !this.dev && !this.isEdgeServer ? '../' : ''
   }
 
@@ -159,7 +158,7 @@ export class ClientReferenceEntryPlugin {
           name: PLUGIN_NAME,
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
         },
-        (assets) => this.createAsset(compilation, assets)
+        (assets) => this.createActionAssets(compilation, assets)
       )
     })
   }
@@ -241,20 +240,23 @@ export class ClientReferenceEntryPlugin {
       )
 
       if (actionEntryImports.size > 0) {
-        if (!this.useExperimentalReact) {
-          warnOnce(
-            '\nServer Actions require `experimental.experimentalReact` option to be enabled in your Next.js config.\n'
+        if (!this.useServerActions) {
+          compilation.errors.push(
+            new Error(
+              'Server Actions require `experimental.serverActions` option to be enabled in your Next.js config.'
+            )
+          )
+        } else {
+          addActionEntryList.push(
+            this.injectActionEntry({
+              compiler,
+              compilation,
+              actions: actionEntryImports,
+              entryName: name,
+              bundlePath: name,
+            })
           )
         }
-        addActionEntryList.push(
-          this.injectActionEntry({
-            compiler,
-            compilation,
-            actions: actionEntryImports,
-            entryName: name,
-            bundlePath: name,
-          })
-        )
       }
     })
 
@@ -780,7 +782,7 @@ export class ClientReferenceEntryPlugin {
     })
   }
 
-  createAsset(
+  createActionAssets(
     compilation: webpack.Compilation,
     assets: webpack.Compilation['assets']
   ) {

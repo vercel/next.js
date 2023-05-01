@@ -10,7 +10,10 @@ import type {
   CustomRoutes,
 } from '../lib/load-custom-routes'
 import type { UnwrapPromise } from '../lib/coalesced-function'
-import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
+import type {
+  EdgeFunctionDefinition,
+  MiddlewareManifest,
+} from './webpack/plugins/middleware-plugin'
 import type { AppRouteUserlandModule } from '../server/future/route-modules/app-route/module'
 import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage'
 
@@ -1834,23 +1837,8 @@ export async function copyTracedFiles(
     )
   }
 
-  for (const middleware of Object.values(middlewareManifest.middleware) || []) {
-    if (isMiddlewareFilename(middleware.name)) {
-      for (const file of middleware.files) {
-        const originalPath = path.join(distDir, file)
-        const fileOutputPath = path.join(
-          outputPath,
-          path.relative(tracingRoot, distDir),
-          file
-        )
-        await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
-        await fs.copyFile(originalPath, fileOutputPath)
-      }
-    }
-  }
-
-  for (const page of Object.values(middlewareManifest.functions)) {
-    for (const file of page.files) {
+  async function handleEdgeFunction(page: EdgeFunctionDefinition) {
+    async function handleFile(file: string) {
       const originalPath = path.join(distDir, file)
       const fileOutputPath = path.join(
         outputPath,
@@ -1860,17 +1848,26 @@ export async function copyTracedFiles(
       await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
       await fs.copyFile(originalPath, fileOutputPath)
     }
-    for (const file of [...(page.wasm ?? []), ...(page.assets ?? [])]) {
-      const originalPath = path.join(distDir, file.filePath)
-      const fileOutputPath = path.join(
-        outputPath,
-        path.relative(tracingRoot, distDir),
-        file.filePath
-      )
-      await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
-      await fs.copyFile(originalPath, fileOutputPath)
+    await Promise.all([
+      page.files.map(handleFile),
+      page.wasm?.map((file) => handleFile(file.filePath)),
+      page.assets?.map((file) => handleFile(file.filePath)),
+    ])
+  }
+
+  const edgeFunctionHandlers: Promise<any>[] = []
+
+  for (const middleware of Object.values(middlewareManifest.middleware)) {
+    if (isMiddlewareFilename(middleware.name)) {
+      edgeFunctionHandlers.push(handleEdgeFunction(middleware))
     }
   }
+
+  for (const page of Object.values(middlewareManifest.functions)) {
+    edgeFunctionHandlers.push(handleEdgeFunction(page))
+  }
+
+  await Promise.all(edgeFunctionHandlers)
 
   for (const page of pageKeys) {
     if (middlewareManifest.functions.hasOwnProperty(page)) {
@@ -1955,7 +1952,7 @@ ${
   // to ensure the correctness of the version for app.
   `\
 if (nextConfig && nextConfig.experimental && nextConfig.experimental.appDir) {
-  process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = nextConfig.experimental.experimentalReact ? 'experimental' : 'next'
+  process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = nextConfig.experimental.serverActions ? 'experimental' : 'next'
 }
 `
 }

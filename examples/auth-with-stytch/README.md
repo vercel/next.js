@@ -21,7 +21,7 @@ The first step is to configure the appropriate redirect URLs for your project. Y
 
 ## Running the example app
 
-Now just click the deploy button below! Once you're signed in to your Vercel account, you'll be guided through how to get up and running quickly. Check out [.env.template](/.env.template) for pointers on filling in the appropriate environment variables for this step.
+Now just click the deploy button below! Once you're signed in to your Vercel account, you'll be guided through how to get up and running quickly. Check out [.env.template](.env.template) for pointers on filling in the appropriate environment variables for this step.
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Fblob%2Fcanary%2Fexamples%2Fauth-with-stytch%2F&env=STYTCH_PROJECT_ENV,STYTCH_PROJECT_ID,STYTCH_SECRET,NEXT_PUBLIC_STYTCH_PUBLIC_TOKEN,IRON_SESSION_PASSWORD,IRON_SESSION_COOKIE_NAME&envDescription=All%20variables%20here%20need%20values%2C%20see%20the%20following%20link%20for%20pointers%20on%20how%20to%20feel%20these%20out.&envLink=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Fblob%2Fcanary%2Fexamples%2Fauth-with-stytch%2F.env.template&project-name=stytch-nextjs-vercel&repo-name=stytch-nextjs-vercel&demo-title=Stytch%20on%20Next.js%20with%20Vercel&demo-description=Next.js%20example%20app%20using%20Stytch%20authentication&demo-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Fblob%2Fcanary%2Fexamples%2Fauth-with-stytch&demo-image=https%3A%2F%2Fstytch.com%2Flogo-preview.png)
 
