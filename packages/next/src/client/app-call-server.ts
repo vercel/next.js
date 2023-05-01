@@ -1,4 +1,6 @@
-import { encodeReply } from 'next/dist/compiled/react-server-dom-webpack/client'
+// @ts-ignore
+// eslint-disable-next-line import/no-extraneous-dependencies
+import { encodeReply } from 'react-server-dom-webpack/client'
 
 export async function callServer(id: string, args: any[]) {
   const actionId = id
