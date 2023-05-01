@@ -147,6 +147,7 @@ where
                 file.name.clone(),
                 current_dir().unwrap(),
                 opts.pages_dir.clone(),
+                None,
             ))
         } else {
             Either::Right(noop())

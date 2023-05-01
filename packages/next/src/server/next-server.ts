@@ -3,6 +3,7 @@ import './require-hook'
 import './node-polyfill-fetch'
 import './node-polyfill-form'
 import './node-polyfill-web-streams'
+import './node-polyfill-crypto'
 
 import type { TLSSocket } from 'tls'
 import type { Route, RouterOptions } from './router'
@@ -46,6 +47,7 @@ import {
   FLIGHT_SERVER_CSS_MANIFEST,
   SERVER_DIRECTORY,
   NEXT_FONT_MANIFEST,
+  PHASE_PRODUCTION_BUILD,
 } from '../shared/lib/constants'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { findDir } from '../lib/find-pages-dir'
@@ -272,7 +274,8 @@ export default class NextNodeServer extends BaseServer {
               this.port || 0,
               ipcPort,
               options.isNodeDebugging,
-              'app'
+              'app',
+              this.nextConfig.experimental.serverActions
             )
           }
           this.renderWorkers.pages = createWorker(
@@ -400,21 +403,7 @@ export default class NextNodeServer extends BaseServer {
       maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
       flushToDisk:
         !this.minimalMode && this.nextConfig.experimental.isrFlushToDisk,
-      getPrerenderManifest: () => {
-        if (dev) {
-          return {
-            version: -1 as any, // letting us know this doesn't conform to spec
-            routes: {},
-            dynamicRoutes: {},
-            notFoundRoutes: [],
-            preview: {
-              previewModeId: 'development-id',
-            } as any, // `preview` is special case read in next-dev-server
-          }
-        } else {
-          return this.getPrerenderManifest()
-        }
-      },
+      getPrerenderManifest: () => this.getPrerenderManifest(),
       CurCacheHandler: CacheHandler,
     })
   }
@@ -2547,6 +2536,30 @@ export default class NextNodeServer extends BaseServer {
   private _cachedPreviewManifest: PrerenderManifest | undefined
   protected getPrerenderManifest(): PrerenderManifest {
     if (this._cachedPreviewManifest) {
+      return this._cachedPreviewManifest
+    }
+    if (
+      this.renderOpts?.dev ||
+      this.serverOptions?.dev ||
+      this.renderWorkerOpts?.dev ||
+      process.env.NODE_ENV === 'development' ||
+      process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD
+    ) {
+      this._cachedPreviewManifest = {
+        version: 4,
+        routes: {},
+        dynamicRoutes: {},
+        notFoundRoutes: [],
+        preview: {
+          previewModeId: require('crypto').randomBytes(16).toString('hex'),
+          previewModeSigningKey: require('crypto')
+            .randomBytes(32)
+            .toString('hex'),
+          previewModeEncryptionKey: require('crypto')
+            .randomBytes(32)
+            .toString('hex'),
+        },
+      }
       return this._cachedPreviewManifest
     }
     const manifest = require(join(this.distDir, PRERENDER_MANIFEST))

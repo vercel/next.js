@@ -27,6 +27,7 @@ export type AppLoaderOptions = {
   pagePath: string
   appDir: string
   appPaths: readonly string[] | null
+  preferredRegion: string | string[] | undefined
   pageExtensions: string[]
   assetPrefix: string
   rootDir?: string
@@ -421,6 +422,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     tsconfigPath,
     isDev,
     nextConfigOutput,
+    preferredRegion,
   } = loaderOptions
 
   const buildInfo = getModuleBuildInfo((this as any)._module)
@@ -428,6 +430,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   buildInfo.route = {
     page,
     absolutePagePath: createAbsolutePath(appDir, pagePath),
+    preferredRegion,
   }
 
   const extensions = pageExtensions.map((extension) => `.${extension}`)
@@ -589,9 +592,9 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
     export * as serverHooks from 'next/dist/client/components/hooks-server-context'
 
-    export { renderToReadableStream, decodeReply } from 'next/dist/compiled/react-server-dom-webpack/server.edge'
+    export { renderToReadableStream, decodeReply } from 'react-server-dom-webpack/server.edge'
     export const __next_app_webpack_require__ = __webpack_require__
-    export { preloadStyle } from 'next/dist/server/app-render/rsc/preloads'
+    export { preloadStyle, preloadFont, preconnect } from 'next/dist/server/app-render/rsc/preloads'
   `
 
   return result

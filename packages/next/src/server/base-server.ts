@@ -419,7 +419,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       canonicalBase: this.nextConfig.amp.canonicalBase || '',
       buildId: this.buildId,
       generateEtags,
-      previewProps: this.getPreviewProps(),
+      previewProps: this.getPrerenderManifest().preview,
       customServer: customServer === true ? true : undefined,
       ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
       basePath: this.nextConfig.basePath,
@@ -1006,10 +1006,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
   // Backwards compatibility
   protected async close(): Promise<void> {}
-
-  protected getPreviewProps(): __ApiPreviewProps {
-    return this.getPrerenderManifest().preview
-  }
 
   protected async _beforeCatchAllRender(
     _req: BaseNextRequest,
@@ -1605,6 +1601,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       if (match) {
         const context: RouteHandlerManagerContext = {
           params: match.params,
+          prerenderManifest: this.getPrerenderManifest(),
           staticGenerationContext: {
             supportsDynamicHTML,
             incrementalCache,
