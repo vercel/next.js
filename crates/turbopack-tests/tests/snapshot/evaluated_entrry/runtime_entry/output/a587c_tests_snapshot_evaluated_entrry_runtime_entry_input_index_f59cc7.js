@@ -174,6 +174,17 @@ function createGetter(obj, key) {
 }
 
 /**
+ * @param {any} obj
+ * @returns {any} prototype of the object
+ */
+const getProto = Object.getPrototypeOf
+  ? (obj) => Object.getPrototypeOf(obj)
+  : (obj) => obj.__proto__;
+
+/** Prototypes that are not expanded for exports */
+const LEAF_PROTOTYPES = [null, getProto({}), getProto([]), getProto(getProto)];
+
+/**
  * @param {Exports} raw
  * @param {EsmNamespaceObject} ns
  * @param {boolean} [allowExportDefault] false: will have the raw module as default export, true: will have the default property as default export
@@ -181,8 +192,15 @@ function createGetter(obj, key) {
 function interopEsm(raw, ns, allowExportDefault) {
   /** @type {Object.<string, () => any>} */
   const getters = { __proto__: null };
-  for (const key in raw) {
-    getters[key] = createGetter(raw, key);
+  for (
+    let current = raw;
+    (typeof current === "object" || typeof current === "function") &&
+    !LEAF_PROTOTYPES.includes(current);
+    current = getProto(current)
+  ) {
+    for (const key of Object.getOwnPropertyNames(current)) {
+      getters[key] = createGetter(raw, key);
+    }
   }
   if (!(allowExportDefault && "default" in getters)) {
     getters["default"] = () => raw;
@@ -282,11 +300,11 @@ function externalRequire(id, esm) {
     // compilation error.
     throw new Error(`Failed to load external module ${id}: ${err}`);
   }
-  if (!esm || raw.__esModule) {
+  if (!esm) {
     return raw;
   }
   const ns = {};
-  interopEsm(raw, ns, true);
+  interopEsm(raw, ns, raw.__esModule);
   return ns;
 }
 externalRequire.resolve = (name, opt) => {
