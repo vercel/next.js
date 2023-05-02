@@ -134,10 +134,10 @@ async function loadComponentsImpl({
     ? ComponentMod.routeModule.default
     : interopDefault(ComponentMod)
   const Document = isRouteModule
-    ? ComponentMod.routeModule.components.Document
+    ? ComponentMod.routeModule.components?.Document
     : interopDefault(DocumentMod)
   const App = isRouteModule
-    ? ComponentMod.routeModule?.components.App
+    ? ComponentMod.routeModule.components?.App
     : interopDefault(AppMod)
 
   const { getServerSideProps, getStaticProps, getStaticPaths } = isRouteModule

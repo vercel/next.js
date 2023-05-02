@@ -83,8 +83,6 @@ import { isSerializableProps } from '../../../../lib/is-serializable-props'
 import { validateRevalidate } from './helpers/validate-revalidate'
 import { proxyResponse } from './helpers/proxy-response'
 import isError from '../../../../lib/is-error'
-import { denormalizePagePath } from '../../../../shared/lib/page-path/denormalize-page-path'
-import { normalizePagePath } from '../../../../shared/lib/page-path/normalize-page-path'
 import {
   type ReactReadableStream,
   chainStreams,
@@ -114,6 +112,7 @@ import Loadable from '../../../../shared/lib/loadable'
 import { tryGetPreviewData } from './helpers/try-get-preview-data'
 import { createAMPValidator } from './helpers/amp-validator'
 import { createMockedResponse } from '../helpers/create-mocked-response'
+import { stripInternalQueries } from '../../../internal-utils'
 
 const DOCTYPE = '<!DOCTYPE html>'
 
@@ -300,8 +299,11 @@ export interface PagesRouteHandlerContext extends RouteModuleHandleContext {
 interface PagesRouteHandlerRenderContext extends PagesRouteHandlerContext {
   readonly req?: IncomingMessage
   readonly res?: MockedResponse
+  readonly pathname: string
   readonly isPreviewMode: boolean
   readonly previewData: PreviewData | undefined
+  readonly isFallback: boolean
+  readonly notFoundSrcPage: string | undefined
 }
 
 type Props = {
@@ -524,13 +526,19 @@ export class PagesRouteModule extends RouteModule<
       isPreviewMode = previewData !== false
     }
 
+    const { __nextFallback, __nextNotFoundSrcPage } = context.renderOpts.query
+    stripInternalQueries(context.renderOpts.query)
+
     // Render the page.
     const result = await this.render(request, {
       ...context,
+      pathname: this.definition.pathname,
       req,
       res,
       previewData,
       isPreviewMode,
+      isFallback: __nextFallback === 'true',
+      notFoundSrcPage: __nextNotFoundSrcPage,
     })
 
     // TODO: (wyattjoh) remove this when we have a better API for this.
@@ -592,6 +600,11 @@ export class PagesRouteModule extends RouteModule<
       )
     }
 
+    // Ensure that the pathname is set to the error page.
+    if (context.pathname !== '/_error') {
+      context = { ...context, pathname: '/_error' }
+    }
+
     // Render the 404 page.
     return this.render(request, context, this.components.NotFound)
   }
@@ -631,6 +644,11 @@ export class PagesRouteModule extends RouteModule<
     // server error page.
     else {
       module = this.components.InternalServerError
+    }
+
+    // Ensure that the pathname is set to the error page.
+    if (context.pathname !== '/_error') {
+      context = { ...context, pathname: '/_error' }
     }
 
     // The following is a holdover from pages. If `pages/500` exists, we
@@ -729,8 +747,6 @@ export class PagesRouteModule extends RouteModule<
 
     let { query } = context.renderOpts
     let asPath = context.renderOpts.resolvedAsPath || request.url
-    const isFallback: boolean = !!query.__nextFallback
-    const notFoundSrcPage = query.__nextNotFoundSrcPage
 
     // We only need to perform this transformation in development because when
     // we're in production we're serving the static files that are already
@@ -738,24 +754,24 @@ export class PagesRouteModule extends RouteModule<
     if (process.env.NODE_ENV === 'development') {
       // If we're exporting the page during automatic export or when rendering a
       // fallback page during a development build,
-      if (isAutoExport || isFallback) {
+      if (isAutoExport || context.isFallback) {
         // Remove all the query parameters except those set during export. Right
         // now this is just `amp`.
         query = query.amp ? { amp: query.amp } : {}
 
-        asPath = this.definition.pathname
+        asPath = context.pathname
 
         // Ensure trailing slash is present for non-dynamic auto-export pages.
         if (
           !this.isDynamic &&
           request.url.endsWith('/') &&
-          this.definition.pathname !== '/'
+          context.pathname !== '/'
         ) {
           asPath += '/'
         }
 
         // FIXME: (wyattjoh) this seems like a bug. We're mutating the request object here.
-        request.nextUrl.pathname = this.definition.pathname
+        request.nextUrl.pathname = context.pathname
       }
     }
 
@@ -769,16 +785,16 @@ export class PagesRouteModule extends RouteModule<
     }
 
     // We can't use preview data if we're not rendering the fallback page.
-    const isPreview = !isFallback ? context.isPreviewMode : false
-    const previewData = !isFallback ? context.previewData : undefined
+    const isPreview = !context.isFallback ? context.isPreviewMode : false
+    const previewData = !context.isFallback ? context.previewData : undefined
 
     // Create the server router for the render.
     const router = new ServerRouter({
-      pathname: this.definition.pathname,
+      pathname: context.pathname,
       query,
       asPath,
       basePath: this.config.basePath,
-      isFallback,
+      isFallback: context.isFallback,
       locale: context.renderOpts.locale,
       isReady: routerIsReady,
       defaultLocale: context.renderOpts.defaultLocale,
@@ -861,7 +877,7 @@ export class PagesRouteModule extends RouteModule<
       err: context.renderOpts.err,
       req: isAutoExport ? undefined : context.req,
       res: isAutoExport ? undefined : context.res,
-      pathname: this.definition.pathname,
+      pathname: context.pathname,
       query,
       asPath,
       locale: context.renderOpts.locale,
@@ -895,7 +911,7 @@ export class PagesRouteModule extends RouteModule<
       !(typeof getStaticProps === 'function') &&
       (context.export ||
         (process.env.NODE_ENV === 'development' &&
-          (isAutoExport || isFallback)))
+          (isAutoExport || context.isFallback)))
 
     const styledJsxInsertedHTML = (): JSX.Element => {
       const styles = jsxStyleRegistry.styles()
@@ -934,16 +950,16 @@ export class PagesRouteModule extends RouteModule<
 
       // If this page has static props and isn't a fallback we should try to get
       // the static props.
-      if (!isFallback) {
+      if (!context.isFallback) {
         let data: GetStaticPropsResult<unknown> | RedirectPropsResult
 
         try {
           data = await getTracer().trace(
             RenderSpan.getStaticProps,
             {
-              spanName: `getStaticProps ${this.definition.pathname}`,
+              spanName: `getStaticProps ${context.pathname}`,
               attributes: {
-                'next.route': this.definition.pathname,
+                'next.route': context.pathname,
               },
             },
             () =>
@@ -1040,7 +1056,7 @@ export class PagesRouteModule extends RouteModule<
           (process.env.NODE_ENV === 'development' || context.export) &&
           'props' in data &&
           !isSerializableProps(
-            this.definition.pathname,
+            this.definition.page,
             'getStaticProps',
             data.props
           )
@@ -1066,7 +1082,7 @@ export class PagesRouteModule extends RouteModule<
 
       // If this page has server side props and isn't a fallback we should try to
       // get the server side props.
-      if (!isFallback) {
+      if (!context.isFallback) {
         let data: GetServerSidePropsResult<unknown> | RedirectPropsResult
 
         const proxyCtx = {
@@ -1168,7 +1184,7 @@ export class PagesRouteModule extends RouteModule<
           (process.env.NODE_ENV === 'development' || context.export) &&
           'props' in data &&
           !isSerializableProps(
-            this.definition.pathname,
+            this.definition.page,
             'getServerSideProps',
             data.props
           )
@@ -1518,7 +1534,7 @@ export class PagesRouteModule extends RouteModule<
       const htmlProps: HtmlProps = {
         __NEXT_DATA__: {
           props, // The result of getInitialProps
-          page: this.definition.page, // The rendered page
+          page: context.pathname, // The rendered page
           query, // querystring parsed / passed by the user
           buildId, // buildId is used to facilitate caching of page bundles, we send it to the client so that pageloader knows where to load bundles
           assetPrefix:
@@ -1531,7 +1547,7 @@ export class PagesRouteModule extends RouteModule<
               : undefined, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
           nextExport: nextExport === true || undefined, // If this is a page exported by `next export`
           autoExport: isAutoExport === true || undefined, // If this is an auto exported page
-          isFallback,
+          isFallback: context.isFallback,
           dynamicIds:
             dynamicImportsIds.size === 0
               ? undefined
@@ -1550,8 +1566,8 @@ export class PagesRouteModule extends RouteModule<
           domainLocales: this.config.i18n?.domains,
           isPreview: isPreview || undefined,
           notFoundSrcPage:
-            notFoundSrcPage && process.env.NODE_ENV === 'development'
-              ? notFoundSrcPage
+            context.notFoundSrcPage && process.env.NODE_ENV === 'development'
+              ? context.notFoundSrcPage
               : undefined,
         },
         strictNextHead: Boolean(this.config.experimental.strictNextHead),
@@ -1645,7 +1661,7 @@ export class PagesRouteModule extends RouteModule<
       const html = await streamToString(chainStreams(streams))
 
       const processed = await postProcessHTML(
-        this.definition.pathname,
+        context.pathname,
         html,
         {
           optimizeCss: this.config.experimental.optimizeCss,

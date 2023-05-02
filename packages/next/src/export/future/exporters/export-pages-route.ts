@@ -21,6 +21,7 @@ import { NextRequestAdapter } from '../../../server/web/spec-extension/adapters/
 import { getStatusCode } from '../helpers/get-status-code'
 import { getHTMLFilename } from './helpers/get-html-filename'
 import { ManifestRouteModuleLoader } from '../../../server/future/helpers/module-loader/manifest-module-loader'
+import { stripInternalQueries } from '../../../server/internal-utils'
 
 type ExportPagesRouteRenderOpts = Pick<
   RenderOpts,
@@ -236,13 +237,19 @@ export async function exportPagesRoute({
     return null
   }
 
+  const { __nextFallback, __nextNotFoundSrcPage } = context.renderOpts.query
+  stripInternalQueries(context.renderOpts.query)
+
   // Render the page using the module.
   let result = await module.render(request, {
     ...context,
+    pathname: page,
     req,
     res,
     previewData: undefined,
     isPreviewMode: false,
+    isFallback: __nextFallback === 'true',
+    notFoundSrcPage: __nextNotFoundSrcPage,
   })
 
   let metadata = result.metadata()
@@ -287,10 +294,13 @@ export async function exportPagesRoute({
         ...context.renderOpts,
         query: { ...query, amp: '1' },
       },
+      pathname: page,
       req,
       res,
       previewData: undefined,
       isPreviewMode: false,
+      isFallback: __nextFallback === 'true',
+      notFoundSrcPage: __nextNotFoundSrcPage,
     })
 
     html = result.toUnchunkedString()
