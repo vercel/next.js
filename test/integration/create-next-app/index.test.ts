@@ -552,7 +552,7 @@ describe('create next app', () => {
         projectName,
         files: [
           'package.json',
-          'pages/index.js',
+          'app/page.js',
           '.gitignore',
           '.eslintrc.json',
           'pnpm-lock.yaml',
