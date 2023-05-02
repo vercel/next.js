@@ -27,6 +27,8 @@ use turbo_tasks_fs::{FileContent, FileSystemPath, FileSystemPathVc};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
     asset::{Asset, AssetContent, AssetVc},
+    error::PrettyPrintError,
+    issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
     source_map::{GenerateSourceMap, GenerateSourceMapVc, OptionSourceMapVc},
     SOURCE_MAP_ROOT_NAME,
 };
@@ -141,13 +143,40 @@ pub async fn parse(
     ty: Value<EcmascriptModuleAssetType>,
     transforms: EcmascriptInputTransformsVc,
 ) -> Result<ParseResultVc> {
+    match parse_internal(source, ty, transforms).await {
+        Ok(result) => Ok(result),
+        Err(error) => Err(error.context(format!(
+            "failed to parse {}",
+            source.ident().to_string().await?
+        ))),
+    }
+}
+
+async fn parse_internal(
+    source: AssetVc,
+    ty: Value<EcmascriptModuleAssetType>,
+    transforms: EcmascriptInputTransformsVc,
+) -> Result<ParseResultVc> {
     let content = source.content();
     let fs_path_vc = source.ident().path();
     let fs_path = &*fs_path_vc.await?;
     let ident = &*source.ident().to_string().await?;
     let file_path_hash = *hash_ident(source.ident().to_string()).await? as u128;
     let ty = ty.into_value();
-    Ok(match &*content.await? {
+    let content = match content.await {
+        Ok(content) => content,
+        Err(error) => {
+            ReadSourceIssue {
+                source,
+                error: PrettyPrintError(&error).to_string(),
+            }
+            .cell()
+            .as_issue()
+            .emit();
+            return Ok(ParseResult::Unparseable.cell());
+        }
+    };
+    Ok(match &*content {
         AssetContent::File(file) => match &*file.await? {
             FileContent::NotFound => ParseResult::NotFound.cell(),
             FileContent::Content(file) => match file.content().to_str() {
@@ -174,8 +203,16 @@ pub async fn parse(
                         }
                     }
                 }
-                // FIXME: report error
-                Err(_) => ParseResult::Unparseable.cell(),
+                Err(error) => {
+                    ReadSourceIssue {
+                        source,
+                        error: PrettyPrintError(&error).to_string(),
+                    }
+                    .cell()
+                    .as_issue()
+                    .emit();
+                    ParseResult::Unparseable.cell()
+                }
             },
         },
         AssetContent::Redirect { .. } => ParseResult::Unparseable.cell(),
@@ -338,4 +375,44 @@ async fn parse_content(
 async fn hash_ident(ident: StringVc) -> Result<U64Vc> {
     let ident = &*ident.await?;
     Ok(U64Vc::cell(hash_xxh3_hash64(ident)))
+}
+
+#[turbo_tasks::value]
+struct ReadSourceIssue {
+    source: AssetVc,
+    error: String,
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for ReadSourceIssue {
+    #[turbo_tasks::function]
+    fn context(&self) -> FileSystemPathVc {
+        self.source.ident().path()
+    }
+
+    #[turbo_tasks::function]
+    fn title(&self) -> StringVc {
+        StringVc::cell("Reading source code for parsing failed".to_string())
+    }
+
+    #[turbo_tasks::function]
+    fn description(&self) -> StringVc {
+        StringVc::cell(
+            format!(
+                "An unexpected error happened while trying to read the source code to parse: {}",
+                self.error
+            )
+            .into(),
+        )
+    }
+
+    #[turbo_tasks::function]
+    fn severity(&self) -> IssueSeverityVc {
+        IssueSeverity::Error.cell()
+    }
+
+    #[turbo_tasks::function]
+    fn category(&self) -> StringVc {
+        StringVc::cell("parse".to_string())
+    }
 }

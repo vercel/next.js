@@ -33,6 +33,18 @@ pub struct BlurPlaceholder {
     pub height: u32,
 }
 
+impl BlurPlaceholder {
+    pub fn fallback() -> Self {
+        BlurPlaceholder {
+            data_url: "data:image/gif;base64,R0lGODlhAQABAIAAAP///\
+                       wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
+                .to_string(),
+            width: 1,
+            height: 1,
+        }
+    }
+}
+
 /// Gathered meta information about an image.
 #[serde_as]
 #[turbo_tasks::value]
@@ -45,6 +57,18 @@ pub struct ImageMetaData {
     pub mime_type: Option<Mime>,
     pub blur_placeholder: Option<BlurPlaceholder>,
     placeholder_for_future_extensions: (),
+}
+
+impl ImageMetaData {
+    pub fn fallback_value(mime_type: Option<Mime>) -> Self {
+        ImageMetaData {
+            width: 100,
+            height: 100,
+            mime_type,
+            blur_placeholder: Some(BlurPlaceholder::fallback()),
+            placeholder_for_future_extensions: (),
+        }
+    }
 }
 
 /// Options for generating a blur placeholder.
@@ -138,7 +162,7 @@ fn compute_blur_data(
             .cell()
             .as_issue()
             .emit();
-            None
+            Some(BlurPlaceholder::fallback())
         }
     }
 }
@@ -253,9 +277,20 @@ pub async fn get_meta_data(
     let path = ident.path().await?;
     let extension = path.extension();
     if extension == Some("svg") {
-        let content = std::str::from_utf8(&bytes).context("Input image is not valid utf-8")?;
-        let (width, height) =
-            calculate(content).context("Failed to parse svg source code for image dimensions")?;
+        let content = result_to_issue(
+            ident,
+            std::str::from_utf8(&bytes).context("Input image is not valid utf-8"),
+        );
+        let Some(content) = content else {
+            return Ok(ImageMetaData::fallback_value(Some(mime::IMAGE_SVG)).cell());
+        };
+        let info = result_to_issue(
+            ident,
+            calculate(content).context("Failed to parse svg source code for image dimensions"),
+        );
+        let Some((width, height)) = info else {
+            return Ok(ImageMetaData::fallback_value(Some(mime::IMAGE_SVG)).cell());
+        };
         return Ok(ImageMetaData {
             width,
             height,
@@ -266,7 +301,7 @@ pub async fn get_meta_data(
         .cell());
     }
     let Some((image, format)) = load_image(ident, &bytes, extension) else {
-        return Ok(ImageMetaData::default().cell());
+        return Ok(ImageMetaData::fallback_value(None).cell());
     };
     let (width, height) = image.dimensions();
     let blur_placeholder = if let Some(blur_placeholder) = blur_placeholder {
