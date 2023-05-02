@@ -787,6 +787,7 @@ export default class HotReloader {
                     },
                     pages: this.pagesMapping,
                     runtime: 'experimental-edge',
+                    preferredRegion: staticInfo.preferredRegion,
                   }).import
                 }
 
@@ -890,6 +891,7 @@ export default class HotReloader {
                     },
                     pages: this.pagesMapping,
                     runtime: 'nodejs',
+                    preferredRegion: staticInfo.preferredRegion,
                   })
                 }
 
