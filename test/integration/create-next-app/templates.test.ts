@@ -19,9 +19,16 @@ import {
 import { Span } from 'next/dist/trace'
 
 import { useTempDir } from '../../../test/lib/use-temp-dir'
-import { fetchViaHTTP, findPort, killApp, launchApp } from 'next-test-utils'
+import {
+  check,
+  fetchViaHTTP,
+  findPort,
+  killApp,
+  launchApp,
+} from 'next-test-utils'
 import resolveFrom from 'resolve-from'
 import { createNextInstall } from '../../../test/lib/create-next-install'
+import ansiEscapes from 'ansi-escapes'
 
 const startsWithoutError = async (
   appDir: string,
@@ -272,11 +279,18 @@ describe('create-next-app templates', () => {
       /**
        * Bind the exit listener.
        */
-      await new Promise<void>((resolve) => {
+      await new Promise<void>(async (resolve) => {
         childProcess.on('exit', async (exitCode) => {
           expect(exitCode).toBe(0)
           resolve()
         })
+        let output = ''
+        childProcess.stdout.on('data', (data) => {
+          output += data
+          process.stdout.write(data)
+        })
+        childProcess.stdin.write(ansiEscapes.cursorForward() + '\n')
+        await check(() => output, /What import alias would you like configured/)
         childProcess.stdin.write('@/something/*\n')
       })
 
