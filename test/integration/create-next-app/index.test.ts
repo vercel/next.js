@@ -591,7 +591,7 @@ describe('create next app', () => {
         projectName,
         files: [
           'package.json',
-          'pages/index.tsx',
+          'app/page.tsx',
           '.gitignore',
           'pnpm-lock.yaml',
           'node_modules/next',
@@ -620,7 +620,7 @@ describe('create next app', () => {
 
       const files = [
         'package.json',
-        'pages/index.js',
+        'app/page.js',
         '.gitignore',
         '.eslintrc.json',
         'package-lock.json',
@@ -687,7 +687,7 @@ describe('create next app', () => {
 
       const files = [
         'package.json',
-        'pages/index.js',
+        'app/page.js',
         '.gitignore',
         '.eslintrc.json',
         'yarn.lock',
@@ -761,7 +761,7 @@ describe('create next app', () => {
 
       const files = [
         'package.json',
-        'pages/index.js',
+        'app/page.js',
         '.gitignore',
         '.eslintrc.json',
         'pnpm-lock.yaml',
