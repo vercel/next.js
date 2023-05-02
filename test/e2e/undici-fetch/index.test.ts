@@ -53,6 +53,11 @@ if (
           `,
         },
         dependencies: {},
+        nextConfig: {
+          experimental: {
+            enableUndici: true,
+          },
+        },
       })
     })
     afterAll(() => next.destroy())
