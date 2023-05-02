@@ -12,6 +12,7 @@ import {
   WebNextResponse,
 } from '../../../../server/base-http/web'
 import { SERVER_RUNTIME } from '../../../../lib/constants'
+import { PrerenderManifest } from '../../..'
 
 export function getRender({
   dev,
@@ -23,6 +24,7 @@ export function getRender({
   pagesType,
   Document,
   buildManifest,
+  prerenderManifest,
   reactLoadableManifest,
   appRenderToHTML,
   pagesRenderToHTML,
@@ -46,6 +48,7 @@ export function getRender({
   pagesRenderToHTML: any
   Document: DocumentType
   buildManifest: BuildManifest
+  prerenderManifest: PrerenderManifest
   reactLoadableManifest: ReactLoadableManifest
   subresourceIntegrityManifest?: Record<string, string>
   clientReferenceManifest?: ClientReferenceManifest
@@ -61,6 +64,7 @@ export function getRender({
   const baseLoadComponentResult = {
     dev,
     buildManifest,
+    prerenderManifest,
     reactLoadableManifest,
     subresourceIntegrityManifest,
     nextFontManifest,
@@ -75,6 +79,7 @@ export function getRender({
     webServerConfig: {
       page,
       pagesType,
+      prerenderManifest,
       extendRenderOpts: {
         buildId,
         runtime: SERVER_RUNTIME.experimentalEdge,
