@@ -727,10 +727,6 @@ export class PagesRouteModule extends RouteModule<
     // Pull some values off of the request context.
     const { isLocaleDomain = false, resolvedUrl } = context.renderOpts
 
-    // This is the pathname that matched this route.
-    // FIXME: (wyattjoh) check to see if this is the right pathname? We may need the route definition's pathname instead
-    const pathname: string = request.nextUrl.pathname
-
     let { query } = context.renderOpts
     let asPath = context.renderOpts.resolvedAsPath || request.url
     const isFallback: boolean = !!query.__nextFallback
@@ -747,15 +743,19 @@ export class PagesRouteModule extends RouteModule<
         // now this is just `amp`.
         query = query.amp ? { amp: query.amp } : {}
 
-        asPath = pathname
+        asPath = this.definition.pathname
 
         // Ensure trailing slash is present for non-dynamic auto-export pages.
-        if (!this.isDynamic && request.url.endsWith('/') && pathname !== '/') {
+        if (
+          !this.isDynamic &&
+          request.url.endsWith('/') &&
+          this.definition.pathname !== '/'
+        ) {
           asPath += '/'
         }
 
         // FIXME: (wyattjoh) this seems like a bug. We're mutating the request object here.
-        request.nextUrl.pathname = pathname
+        request.nextUrl.pathname = this.definition.pathname
       }
     }
 
@@ -774,7 +774,7 @@ export class PagesRouteModule extends RouteModule<
 
     // Create the server router for the render.
     const router = new ServerRouter({
-      pathname: pathname,
+      pathname: this.definition.pathname,
       query,
       asPath,
       basePath: this.config.basePath,
@@ -861,7 +861,7 @@ export class PagesRouteModule extends RouteModule<
       err: context.renderOpts.err,
       req: isAutoExport ? undefined : context.req,
       res: isAutoExport ? undefined : context.res,
-      pathname,
+      pathname: this.definition.pathname,
       query,
       asPath,
       locale: context.renderOpts.locale,
@@ -941,9 +941,9 @@ export class PagesRouteModule extends RouteModule<
           data = await getTracer().trace(
             RenderSpan.getStaticProps,
             {
-              spanName: `getStaticProps ${pathname}`,
+              spanName: `getStaticProps ${this.definition.pathname}`,
               attributes: {
-                'next.route': pathname,
+                'next.route': this.definition.pathname,
               },
             },
             () =>
@@ -981,7 +981,7 @@ export class PagesRouteModule extends RouteModule<
           if ('notFound' in data && 'redirect' in data) {
             throw new Error(
               `\`redirect\` and \`notFound\` can not both be returned from getStaticProps` +
-                `at the same time. Page: ${pathname}` +
+                `at the same time. Page: ${this.definition.pathname}` +
                 `\nSee more info here: https://nextjs.org/docs/messages/gssp-mixed-not-found-redirect`
             )
           }
@@ -1039,7 +1039,11 @@ export class PagesRouteModule extends RouteModule<
         if (
           (process.env.NODE_ENV === 'development' || context.export) &&
           'props' in data &&
-          !isSerializableProps(pathname, 'getStaticProps', data.props)
+          !isSerializableProps(
+            this.definition.pathname,
+            'getStaticProps',
+            data.props
+          )
         ) {
           throw new Error(
             'Invariant: getStaticProps did not return valid props. Please report this.'
@@ -1074,9 +1078,9 @@ export class PagesRouteModule extends RouteModule<
           data = await getTracer().trace(
             RenderSpan.getServerSideProps,
             {
-              spanName: `getServerSideProps ${pathname}`,
+              spanName: `getServerSideProps ${this.definition.pathname}`,
               attributes: {
-                'next.route': pathname,
+                'next.route': this.definition.pathname,
               },
             },
             async () =>
@@ -1163,7 +1167,11 @@ export class PagesRouteModule extends RouteModule<
         if (
           (process.env.NODE_ENV === 'development' || context.export) &&
           'props' in data &&
-          !isSerializableProps(pathname, 'getServerSideProps', data.props)
+          !isSerializableProps(
+            this.definition.pathname,
+            'getServerSideProps',
+            data.props
+          )
         ) {
           throw new Error(
             'Invariant: getServerSideProps did not return valid props. Please report this.'
@@ -1190,7 +1198,7 @@ export class PagesRouteModule extends RouteModule<
       Object.keys(props.pageProps).includes('url')
     ) {
       logger.warn(
-        `The prop \`url\` is a reserved prop in Next.js for legacy reasons and will be overridden on page ${pathname}\n` +
+        `The prop \`url\` is a reserved prop in Next.js for legacy reasons and will be overridden on page ${this.definition.pathname}\n` +
           `See more info here: https://nextjs.org/docs/messages/reserved-page-prop`
       )
     }
@@ -1225,17 +1233,16 @@ export class PagesRouteModule extends RouteModule<
     // up hydrating query values.
     let filteredBuildManifest = context.manifests.build
     if (isAutoExport && this.isDynamic) {
-      const page = denormalizePagePath(normalizePagePath(pathname))
       // This code would be much cleaner using `immer` and directly pushing into
       // the result from `getPageFiles`, we could maybe consider that in the
       // future.
-      if (page in filteredBuildManifest.pages) {
+      if (this.definition.page in filteredBuildManifest.pages) {
         filteredBuildManifest = {
           ...filteredBuildManifest,
           pages: {
             ...filteredBuildManifest.pages,
-            [page]: [
-              ...filteredBuildManifest.pages[page],
+            [this.definition.page]: [
+              ...filteredBuildManifest.pages[this.definition.page],
               ...filteredBuildManifest.lowPriorityFiles.filter((f) =>
                 f.includes('_buildManifest')
               ),
@@ -1638,7 +1645,7 @@ export class PagesRouteModule extends RouteModule<
       const html = await streamToString(chainStreams(streams))
 
       const processed = await postProcessHTML(
-        pathname,
+        this.definition.pathname,
         html,
         {
           optimizeCss: this.config.experimental.optimizeCss,
