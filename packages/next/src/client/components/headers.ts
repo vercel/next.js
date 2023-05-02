@@ -57,8 +57,8 @@ export function draftMode(): DraftMode {
     )
   }
   return {
-    get enabled() {
-      return requestStore.draftMode.enabled
+    get isEnabled() {
+      return requestStore.draftMode.isEnabled
     },
     enable() {
       if (staticGenerationBailout('draftMode().enable()')) {

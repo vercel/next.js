@@ -146,7 +146,7 @@ export type DraftMode = {
    * Get the current value of Draft Mode.
    * True when enabled, false when disabled.
    */
-  enabled: boolean
+  isEnabled: boolean
   /**
    * Set the value of Draft Mode to true.
    */

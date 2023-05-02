@@ -11,7 +11,7 @@ import {
 } from '../api-utils'
 
 export class DraftMode {
-  public readonly enabled: boolean
+  public readonly isEnabled: boolean
 
   private readonly previewModeId: string | undefined
 
@@ -29,7 +29,7 @@ export class DraftMode {
 
     const cookieValue = this.cookies.get(COOKIE_NAME_PRERENDER_BYPASS)?.value
 
-    this.enabled = Boolean(
+    this.isEnabled = Boolean(
       !isOnDemandRevalidate &&
         cookieValue &&
         previewProps &&
