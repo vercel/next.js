@@ -929,6 +929,7 @@ export async function isPageStatic({
   distDir,
   configFileName,
   runtimeEnvConfig,
+  httpAgentOptions,
   locales,
   defaultLocale,
   parentId,
@@ -946,6 +947,7 @@ export async function isPageStatic({
   distDir: string
   configFileName: string
   runtimeEnvConfig: any
+  httpAgentOptions: NextConfigComplete['httpAgentOptions']
   locales?: string[]
   defaultLocale?: string
   parentId?: any
