@@ -51,6 +51,7 @@ describe('create next app', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
+          '--app',
           `--import-alias=@/*`,
         ],
         {
@@ -76,6 +77,7 @@ describe('create next app', () => {
             '--no-tailwind',
             '--eslint',
             '--no-src-dir',
+            '--app',
             `--import-alias=@/*`,
           ],
           { cwd }
@@ -310,6 +312,7 @@ describe('create next app', () => {
             '--js',
             '--no-tailwind',
             '--eslint',
+            '--app',
             '--example',
             '__internal-testing-retry',
             '--import-alias=@/*',
@@ -345,7 +348,7 @@ describe('create next app', () => {
       )
 
       expect(res.exitCode).toBe(0)
-      shouldBeJavascriptProject({ cwd, projectName, template: 'app' })
+      shouldBeJavascriptProject({ cwd, projectName, template: 'default' })
     })
   })
 
@@ -360,6 +363,7 @@ describe('create next app', () => {
           '--eslint',
           '--example',
           '--no-src-dir',
+          '--app',
           `--import-alias=@/*`,
         ],
         {
@@ -396,6 +400,7 @@ describe('create next app', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
+          '--app',
           `--import-alias=@/*`,
         ],
         {
@@ -436,6 +441,7 @@ describe('create next app', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
+          '--app',
           `--import-alias=@/*`,
         ],
         {
@@ -461,6 +467,7 @@ describe('create next app', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
+          '--app',
           `--import-alias=@/*`,
         ],
         {
@@ -485,6 +492,7 @@ describe('create next app', () => {
           '--eslint',
           '--use-npm',
           '--no-src-dir',
+          '--app',
           `--import-alias=@/*`,
         ],
         {
@@ -539,6 +547,7 @@ describe('create next app', () => {
           '--eslint',
           '--use-pnpm',
           '--no-src-dir',
+          '--app',
           `--import-alias=@/*`,
         ],
         {
@@ -610,6 +619,7 @@ describe('create next app', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
+          '--app',
           `--import-alias=@/*`,
         ],
         {
@@ -677,6 +687,7 @@ describe('create next app', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
+          '--app',
           `--import-alias=@/*`,
         ],
         {
@@ -751,6 +762,7 @@ describe('create next app', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
+          '--app',
           `--import-alias=@/*`,
         ],
         {
