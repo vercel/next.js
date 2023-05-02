@@ -15,6 +15,12 @@ async function nowhere() {
   notFound()
 }
 
+async function file(formData) {
+  'use server'
+  const file = formData.get('file')
+  console.log('File name:', file.name, 'size:', file.size)
+}
+
 export default function Form() {
   return (
     <>
@@ -31,6 +37,13 @@ export default function Form() {
         <input type="text" name="$$id" value={nowhere.$$id} hidden readOnly />
         <button type="submit" id="nowhere">
           Go nowhere
+        </button>
+      </form>
+      <hr />
+      <form action={file}>
+        <input type="file" name="file" id="file" required />
+        <button type="submit" id="upload">
+          Upload file
         </button>
       </form>
     </>
