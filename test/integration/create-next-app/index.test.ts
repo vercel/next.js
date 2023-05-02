@@ -51,7 +51,6 @@ describe('create next app', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-experimental-app',
           `--import-alias=@/*`,
         ],
         {
@@ -77,7 +76,6 @@ describe('create next app', () => {
             '--no-tailwind',
             '--eslint',
             '--no-src-dir',
-            '--no-experimental-app',
             `--import-alias=@/*`,
           ],
           { cwd }
@@ -138,7 +136,7 @@ describe('create next app', () => {
         projectName,
         files: [
           'package.json',
-          'app/page.tsx',
+          'pages/index.tsx',
           '.gitignore',
           'node_modules/next',
         ],
@@ -195,7 +193,7 @@ describe('create next app', () => {
         projectName,
         files: [
           'package.json',
-          'app/page.tsx',
+          'pages/index.tsx',
           '.gitignore',
           'node_modules/next',
         ],
@@ -259,7 +257,7 @@ describe('create next app', () => {
         projectName,
         files: [
           'package.json',
-          'app/page.tsx',
+          'pages/index.tsx',
           '.gitignore',
           'node_modules/react',
         ],
@@ -292,7 +290,7 @@ describe('create next app', () => {
         projectName,
         files: [
           'package.json',
-          'app/page.tsx',
+          'pages/index.tsx',
           '.gitignore',
           'node_modules/react',
         ],
@@ -362,7 +360,6 @@ describe('create next app', () => {
           '--eslint',
           '--example',
           '--no-src-dir',
-          '--no-experimental-app',
           `--import-alias=@/*`,
         ],
         {
@@ -399,7 +396,6 @@ describe('create next app', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-experimental-app',
           `--import-alias=@/*`,
         ],
         {
@@ -440,7 +436,6 @@ describe('create next app', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-experimental-app',
           `--import-alias=@/*`,
         ],
         {
@@ -466,7 +461,6 @@ describe('create next app', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-experimental-app',
           `--import-alias=@/*`,
         ],
         {
@@ -491,7 +485,6 @@ describe('create next app', () => {
           '--eslint',
           '--use-npm',
           '--no-src-dir',
-          '--no-experimental-app',
           `--import-alias=@/*`,
         ],
         {
@@ -526,7 +519,7 @@ describe('create next app', () => {
         projectName,
         files: [
           'package.json',
-          'app/page.tsx',
+          'pages/index.tsx',
           '.gitignore',
           'package-lock.json',
           'node_modules/next',
@@ -546,7 +539,6 @@ describe('create next app', () => {
           '--eslint',
           '--use-pnpm',
           '--no-src-dir',
-          '--no-experimental-app',
           `--import-alias=@/*`,
         ],
         {
@@ -560,7 +552,7 @@ describe('create next app', () => {
         projectName,
         files: [
           'package.json',
-          'app/page.js',
+          'pages/index.js',
           '.gitignore',
           '.eslintrc.json',
           'pnpm-lock.yaml',
@@ -599,7 +591,7 @@ describe('create next app', () => {
         projectName,
         files: [
           'package.json',
-          'app/page.tsx',
+          'pages/index.tsx',
           '.gitignore',
           'pnpm-lock.yaml',
           'node_modules/next',
@@ -618,7 +610,6 @@ describe('create next app', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-experimental-app',
           `--import-alias=@/*`,
         ],
         {
@@ -629,7 +620,7 @@ describe('create next app', () => {
 
       const files = [
         'package.json',
-        'app/page.js',
+        'pages/index.js',
         '.gitignore',
         '.eslintrc.json',
         'package-lock.json',
@@ -658,7 +649,7 @@ describe('create next app', () => {
 
       const files = [
         'package.json',
-        'app/page.tsx',
+        'pages/index.tsx',
         '.gitignore',
         'package-lock.json',
         'node_modules/next',
@@ -686,7 +677,6 @@ describe('create next app', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-experimental-app',
           `--import-alias=@/*`,
         ],
         {
@@ -697,7 +687,7 @@ describe('create next app', () => {
 
       const files = [
         'package.json',
-        'app/page.js',
+        'pages/index.js',
         '.gitignore',
         '.eslintrc.json',
         'yarn.lock',
@@ -733,7 +723,7 @@ describe('create next app', () => {
 
       const files = [
         'package.json',
-        'app/page.tsx',
+        'pages/index.tsx',
         '.gitignore',
         'yarn.lock',
         'node_modules/next',
@@ -761,7 +751,6 @@ describe('create next app', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-experimental-app',
           `--import-alias=@/*`,
         ],
         {
@@ -772,7 +761,7 @@ describe('create next app', () => {
 
       const files = [
         'package.json',
-        'app/page.js',
+        'pages/index.js',
         '.gitignore',
         '.eslintrc.json',
         'pnpm-lock.yaml',
@@ -808,7 +797,7 @@ describe('create next app', () => {
 
       const files = [
         'package.json',
-        'app/page.tsx',
+        'pages/index.tsx',
         '.gitignore',
         'pnpm-lock.yaml',
         'node_modules/next',
