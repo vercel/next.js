@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/node_modules/tsconfig-mod/prop.ts"],"sourcesContent":["export const prop = 1;\n"],"names":[],"mappings":";;;AAAO,MAAM,OAAO"}},
+    {"offset": {"line": 8, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}
