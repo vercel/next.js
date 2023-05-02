@@ -34,6 +34,7 @@ import { getNonStaticMethods } from './helpers/get-non-static-methods'
 import { SYMBOL_MODIFY_COOKIE_VALUES } from '../../../web/spec-extension/adapters/request-cookies'
 import { ResponseCookies } from '../../../web/spec-extension/cookies'
 import { HeadersAdapter } from '../../../web/spec-extension/adapters/headers'
+import { PrerenderManifest } from '../../../../build'
 
 /**
  * AppRouteRouteHandlerContext is the context that is passed to the route
@@ -41,6 +42,7 @@ import { HeadersAdapter } from '../../../web/spec-extension/adapters/headers'
  */
 export interface AppRouteRouteHandlerContext extends RouteModuleHandleContext {
   staticGenerationContext: StaticGenerationContext['renderOpts']
+  prerenderManifest: PrerenderManifest
 }
 
 /**
@@ -233,6 +235,11 @@ export class AppRouteRouteModule extends RouteModule<
     // Get the context for the request.
     const requestContext: RequestContext = {
       req: request,
+    }
+
+    // TODO: types for renderOpts should include previewProps
+    ;(requestContext as any).renderOpts = {
+      previewProps: context.prerenderManifest.preview,
     }
 
     // Get the context for the static generation.

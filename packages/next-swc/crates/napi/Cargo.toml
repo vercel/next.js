@@ -22,6 +22,7 @@ rustls-tls = ["next-dev/rustls-tls"]
 
 # Internal only. Enabled when building for the Next.js integration test suite.
 __internal_nextjs_integration_test = [
+  "next-core/__internal_nextjs_integration_test",
   "next-dev/__internal_nextjs_integration_test",
   "next-dev/serializable"
 ]

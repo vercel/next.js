@@ -12,6 +12,7 @@ import type { OutgoingHttpHeaders } from 'http'
 
 // Polyfill fetch for the export worker.
 import '../server/node-polyfill-fetch'
+import '../server/node-environment'
 
 import { extname, join, dirname, sep, posix } from 'path'
 import fs, { promises } from 'fs'
@@ -118,10 +119,6 @@ interface RenderOpts {
   incrementalCache?: IncrementalCache
   strictNextHead?: boolean
 }
-
-// expose AsyncLocalStorage on globalThis for react usage
-const { AsyncLocalStorage } = require('async_hooks')
-;(globalThis as any).AsyncLocalStorage = AsyncLocalStorage
 
 export default async function exportPage({
   parentSpanId,
@@ -391,6 +388,17 @@ export default async function exportPage({
           // the route and the context for the request.
           const context: AppRouteRouteHandlerContext = {
             params,
+            prerenderManifest: {
+              version: 4,
+              routes: {},
+              dynamicRoutes: {},
+              preview: {
+                previewModeEncryptionKey: '',
+                previewModeId: '',
+                previewModeSigningKey: '',
+              },
+              notFoundRoutes: [],
+            },
             staticGenerationContext: {
               nextExport: true,
               supportsDynamicHTML: false,

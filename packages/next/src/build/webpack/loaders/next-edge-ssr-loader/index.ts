@@ -1,3 +1,4 @@
+import type webpack from 'webpack'
 import { getModuleBuildInfo } from '../get-module-build-info'
 import { stringifyRequest } from '../../stringify-request'
 
@@ -16,6 +17,7 @@ export type EdgeSSRLoaderQuery = {
   pagesType: 'app' | 'pages' | 'root'
   sriEnabled: boolean
   incrementalCacheHandlerPath?: string
+  preferredRegion: string | string[] | undefined
 }
 
 /*
@@ -30,64 +32,68 @@ function swapDistFolderWithEsmDistFolder(path: string) {
   return path.replace('next/dist/pages', 'next/dist/esm/pages')
 }
 
-export default async function edgeSSRLoader(this: any) {
-  const {
-    dev,
-    page,
-    buildId,
-    absolutePagePath,
-    absoluteAppPath,
-    absoluteDocumentPath,
-    absolute500Path,
-    absoluteErrorPath,
-    isServerComponent,
-    stringifiedConfig,
-    appDirLoader: appDirLoaderBase64,
-    pagesType,
-    sriEnabled,
-    incrementalCacheHandlerPath,
-  } = this.getOptions()
+const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
+  async function edgeSSRLoader(this) {
+    const {
+      dev,
+      page,
+      buildId,
+      absolutePagePath,
+      absoluteAppPath,
+      absoluteDocumentPath,
+      absolute500Path,
+      absoluteErrorPath,
+      isServerComponent,
+      stringifiedConfig,
+      appDirLoader: appDirLoaderBase64,
+      pagesType,
+      sriEnabled,
+      incrementalCacheHandlerPath,
+      preferredRegion,
+    } = this.getOptions()
 
-  const appDirLoader = Buffer.from(
-    appDirLoaderBase64 || '',
-    'base64'
-  ).toString()
-  const isAppDir = pagesType === 'app'
+    const appDirLoader = Buffer.from(
+      appDirLoaderBase64 || '',
+      'base64'
+    ).toString()
+    const isAppDir = pagesType === 'app'
 
-  const buildInfo = getModuleBuildInfo(this._module)
-  buildInfo.nextEdgeSSR = {
-    isServerComponent: isServerComponent === 'true',
-    page: page,
-    isAppDir,
-  }
-  buildInfo.route = {
-    page,
-    absolutePagePath,
-  }
+    const buildInfo = getModuleBuildInfo(this._module as any)
+    buildInfo.nextEdgeSSR = {
+      // @ts-expect-error === 'true' is correct because loader options are serialized as searchParams. Type needs to be fixed somehow.
+      isServerComponent: isServerComponent === 'true',
+      page: page,
+      isAppDir,
+    }
+    buildInfo.route = {
+      page,
+      absolutePagePath,
+      preferredRegion,
+    }
 
-  const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
-  const stringifiedAppPath = stringifyRequest(
-    this,
-    swapDistFolderWithEsmDistFolder(absoluteAppPath)
-  )
-  const stringifiedErrorPath = stringifyRequest(
-    this,
-    swapDistFolderWithEsmDistFolder(absoluteErrorPath)
-  )
-  const stringifiedDocumentPath = stringifyRequest(
-    this,
-    swapDistFolderWithEsmDistFolder(absoluteDocumentPath)
-  )
-  const stringified500Path = absolute500Path
-    ? stringifyRequest(this, absolute500Path)
-    : null
+    const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
+    const stringifiedAppPath = stringifyRequest(
+      this,
+      swapDistFolderWithEsmDistFolder(absoluteAppPath)
+    )
+    const stringifiedErrorPath = stringifyRequest(
+      this,
+      swapDistFolderWithEsmDistFolder(absoluteErrorPath)
+    )
+    const stringifiedDocumentPath = stringifyRequest(
+      this,
+      swapDistFolderWithEsmDistFolder(absoluteDocumentPath)
+    )
+    const stringified500Path = absolute500Path
+      ? stringifyRequest(this, absolute500Path)
+      : null
 
-  const pageModPath = `${appDirLoader}${stringifiedPagePath.substring(
-    1,
-    stringifiedPagePath.length - 1
-  )}${isAppDir ? '?__edge_ssr_entry__' : ''}`
+    const pageModPath = `${appDirLoader}${stringifiedPagePath.substring(
+      1,
+      stringifiedPagePath.length - 1
+    )}${isAppDir ? '?__edge_ssr_entry__' : ''}`
 
-  const transformed = `
+    const transformed = `
     import { adapter, enhanceGlobals } from 'next/dist/esm/server/web/adapter'
     import { getRender } from 'next/dist/esm/build/webpack/loaders/next-edge-ssr-loader/render'
     import {IncrementalCache} from 'next/dist/esm/server/lib/incremental-cache'
@@ -128,6 +134,7 @@ export default async function edgeSSRLoader(this: any) {
     }
 
     const buildManifest = self.__BUILD_MANIFEST
+    const prerenderManifest = self.__PRERENDER_MANIFEST
     const reactLoadableManifest = self.__REACT_LOADABLE_MANIFEST
     const rscManifest = self.__RSC_MANIFEST
     const rscCssManifest = self.__RSC_CSS_MANIFEST
@@ -147,6 +154,7 @@ export default async function edgeSSRLoader(this: any) {
       error500Mod,
       Document,
       buildManifest,
+      prerenderManifest,
       appRenderToHTML,
       pagesRenderToHTML,
       reactLoadableManifest,
@@ -170,5 +178,6 @@ export default async function edgeSSRLoader(this: any) {
       })
     }`
 
-  return transformed
-}
+    return transformed
+  }
+export default edgeSSRLoader

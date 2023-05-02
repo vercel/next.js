@@ -60,16 +60,18 @@ use turbo_binding::{
         },
     },
 };
-use turbo_tasks::{TryJoinIterExt, ValueToString};
+use turbo_tasks::{primitives::JsonValueVc, TryJoinIterExt, ValueToString};
 
 use crate::{
     app_render::next_layout_entry_transition::NextServerComponentTransition,
+    app_segment_config::parse_segment_config_from_source,
     app_structure::{
         get_entrypoints, get_global_metadata, Components, Entrypoint, GlobalMetadataVc, LoaderTree,
         LoaderTreeVc, Metadata, MetadataItem, MetadataWithAltItem, OptionAppDirVc,
     },
     asset_helpers::as_es_module_asset,
-    embed_js::{next_js_file, next_js_file_path},
+    bootstrap::{route_bootstrap, BootstrapConfigVc},
+    embed_js::{next_asset, next_js_file, next_js_file_path},
     env::env_for_js,
     fallback::get_fallback_page,
     next_client::{
@@ -96,6 +98,7 @@ use crate::{
         get_server_compile_time_info, get_server_module_options_context,
         get_server_resolve_options_context, ServerContextType,
     },
+    util::{render_data, NextRuntime},
 };
 
 #[turbo_tasks::function]
@@ -223,7 +226,7 @@ fn next_layout_entry_transition(
 }
 
 #[turbo_tasks::function]
-fn next_route_transition(
+fn next_edge_route_transition(
     project_path: FileSystemPathVc,
     app_dir: FileSystemPathVc,
     server_root: FileSystemPathVc,
@@ -259,7 +262,7 @@ fn next_route_transition(
         edge_resolve_options_context,
         output_path,
         base_path: app_dir,
-        bootstrap_file: next_js_file("entry/app/route-bootstrap.ts"),
+        bootstrap_asset: next_asset("entry/app/edge-route-bootstrap.ts"),
         entry_name: "edge".to_string(),
     }
     .cell()
@@ -284,8 +287,8 @@ fn app_context(
 
     let mut transitions = HashMap::new();
     transitions.insert(
-        "next-route".to_string(),
-        next_route_transition(
+        "next-edge-route".to_string(),
+        next_edge_route_transition(
             project_path,
             app_dir,
             server_root,
@@ -421,6 +424,7 @@ pub async fn create_app_source(
         client_compile_time_info,
         next_config,
     );
+    let render_data = render_data(next_config);
 
     let sources = entrypoints
         .await?
@@ -438,6 +442,7 @@ pub async fn create_app_source(
                 server_runtime_entries,
                 fallback_page,
                 output_path,
+                render_data,
             ),
             Entrypoint::AppRoute { path } => create_app_route_source_for_route(
                 pathname,
@@ -449,6 +454,7 @@ pub async fn create_app_source(
                 server_root,
                 server_runtime_entries,
                 output_path,
+                render_data,
             ),
         })
         .chain(once(create_global_metadata_source(
@@ -517,6 +523,7 @@ async fn create_app_page_source_for_route(
     runtime_entries: AssetsVc,
     fallback_page: DevHtmlAssetVc,
     intermediate_output_path_root: FileSystemPathVc,
+    render_data: JsonValueVc,
 ) -> Result<ContentSourceVc> {
     let pathname_vc = StringVc::cell(pathname.to_string());
 
@@ -542,6 +549,7 @@ async fn create_app_page_source_for_route(
         .cell()
         .into(),
         fallback_page,
+        render_data,
     );
 
     Ok(source.issue_context(app_dir, &format!("Next.js App Page Route {pathname}")))
@@ -559,6 +567,7 @@ async fn create_app_route_source_for_route(
     server_root: FileSystemPathVc,
     runtime_entries: AssetsVc,
     intermediate_output_path_root: FileSystemPathVc,
+    render_data: JsonValueVc,
 ) -> Result<ContentSourceVc> {
     let pathname_vc = StringVc::cell(pathname.to_string());
 
@@ -582,6 +591,7 @@ async fn create_app_route_source_for_route(
         }
         .cell()
         .into(),
+        render_data,
     );
 
     Ok(source.issue_context(app_dir, &format!("Next.js App Route {pathname}")))
@@ -923,7 +933,6 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
             context.compile_time_info().environment(),
         )
         .layer("ssr")
-        .css_chunk_root_path(server_root.join("_next/static/chunks"))
         .reference_chunk_source_maps(false)
         .build();
 
@@ -994,7 +1003,6 @@ impl AppRouteVc {
     #[turbo_tasks::function]
     async fn entry(self) -> Result<NodeRenderingEntryVc> {
         let this = self.await?;
-        let internal_asset = SourceAssetVc::new(next_js_file_path("entry/app/route.ts"));
 
         let chunking_context = DevChunkingContextVc::builder(
             this.project_path,
@@ -1004,14 +1012,52 @@ impl AppRouteVc {
             this.context.compile_time_info().environment(),
         )
         .layer("ssr")
-        .css_chunk_root_path(this.server_root.join("_next/static/chunks"))
         .reference_chunk_source_maps(false)
         .build();
 
-        let entry = this.context.with_transition("next-route").process(
-            SourceAssetVc::new(this.entry_path).into(),
+        let entry_source_asset = SourceAssetVc::new(this.entry_path);
+        let entry_asset = this.context.process(
+            entry_source_asset.into(),
             Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),
         );
+
+        let config = parse_segment_config_from_source(entry_asset);
+        let module = match config.await?.runtime {
+            NextRuntime::NodeJs => {
+                let bootstrap_asset = next_asset("entry/app/route.ts");
+
+                route_bootstrap(
+                    entry_asset,
+                    this.context,
+                    this.project_path,
+                    bootstrap_asset,
+                    BootstrapConfigVc::empty(),
+                )
+            }
+            NextRuntime::Edge => {
+                let internal_asset = next_asset("entry/app/edge-route.ts");
+
+                let entry = this.context.with_transition("next-edge-route").process(
+                    entry_source_asset.into(),
+                    Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),
+                );
+
+                EcmascriptModuleAssetVc::new_with_inner_assets(
+                    internal_asset,
+                    this.context,
+                    Value::new(EcmascriptModuleAssetType::Typescript),
+                    EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
+                        use_define_for_class_fields: false,
+                    }]),
+                    Default::default(),
+                    this.context.compile_time_info(),
+                    InnerAssetsVc::cell(indexmap! {
+                        "ROUTE_CHUNK_GROUP".to_string() => entry
+                    }),
+                )
+            }
+        };
+
         Ok(NodeRenderingEntry {
             runtime_entries: EvaluatableAssetsVc::cell(
                 this.runtime_entries
@@ -1020,19 +1066,7 @@ impl AppRouteVc {
                     .map(|entry| EvaluatableAssetVc::from_asset(*entry, this.context))
                     .collect(),
             ),
-            module: EcmascriptModuleAssetVc::new_with_inner_assets(
-                internal_asset.into(),
-                this.context,
-                Value::new(EcmascriptModuleAssetType::Typescript),
-                EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
-                    use_define_for_class_fields: false,
-                }]),
-                Default::default(),
-                this.context.compile_time_info(),
-                InnerAssetsVc::cell(indexmap! {
-                    "ROUTE_CHUNK_GROUP".to_string() => entry
-                }),
-            ),
+            module,
             chunking_context,
             intermediate_output_path: this.intermediate_output_path,
             output_root: this.output_root,

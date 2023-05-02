@@ -50,7 +50,8 @@
     "postinstall": "git config index.skipHash false && node scripts/install-native.mjs",
     "version": "npx pnpm@7.24.3 install --no-frozen-lockfile && IS_PUBLISH=yes ./scripts/check-pre-compiled.sh && git add .",
     "prepare": "husky install",
-    "sync-react": "node ./scripts/sync-react.js"
+    "sync-react": "node ./scripts/sync-react.js",
+    "update-google-fonts": "node ./scripts/update-google-fonts.js"
   },
   "devDependencies": {
     "@babel/core": "7.18.0",
@@ -203,6 +204,7 @@
     "react-dom-builtin": "npm:react-dom@18.3.0-next-6eadbe0c4-20230425",
     "react-dom-experimental-builtin": "npm:react-dom@0.0.0-experimental-6eadbe0c4-20230425",
     "react-server-dom-webpack": "18.3.0-next-6eadbe0c4-20230425",
+    "react-server-dom-webpack-experimental": "npm:react-server-dom-webpack@0.0.0-experimental-6eadbe0c4-20230425",
     "react-ssr-prepass": "1.0.8",
     "react-virtualized": "9.22.3",
     "relay-compiler": "13.0.2",
@@ -249,7 +251,7 @@
     "@types/react-dom": "18.0.11"
   },
   "engines": {
-    "node": ">=16"
+    "node": ">=16.8.0"
   },
   "packageManager": "pnpm@7.24.3"
 }

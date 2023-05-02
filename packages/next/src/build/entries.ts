@@ -7,12 +7,13 @@ import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type {
   MiddlewareConfig,
   MiddlewareMatcher,
+  PageStaticInfo,
 } from './analysis/get-page-static-info'
 import type { LoadedEnvFiles } from '@next/env'
 import type { AppLoaderOptions } from './webpack/loaders/next-app-loader'
 
 import chalk from 'next/dist/compiled/chalk'
-import { posix, join } from 'path'
+import { posix, join, dirname } from 'path'
 import { stringify } from 'querystring'
 import {
   PAGES_DIR_ALIAS,
@@ -50,6 +51,84 @@ import { encodeMatchers } from './webpack/loaders/next-middleware-loader'
 import { EdgeFunctionLoaderOptions } from './webpack/loaders/next-edge-function-loader'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { normalizeMetadataRoute } from '../lib/metadata/get-metadata-route'
+import { fileExists } from '../lib/file-exists'
+
+export async function getStaticInfoIncludingLayouts({
+  isInsideAppDir,
+  pageExtensions,
+  pageFilePath,
+  appDir,
+  config,
+  isDev,
+  page,
+}: {
+  isInsideAppDir: boolean
+  pageExtensions: string[]
+  pageFilePath: string
+  appDir: string | undefined
+  config: NextConfigComplete
+  isDev: boolean | undefined
+  page: string
+}): Promise<PageStaticInfo> {
+  const pageStaticInfo = await getPageStaticInfo({
+    nextConfig: config,
+    pageFilePath,
+    isDev,
+    page,
+    pageType: isInsideAppDir ? 'app' : 'pages',
+  })
+
+  const staticInfo: PageStaticInfo = isInsideAppDir
+    ? {
+        // TODO-APP: Remove the rsc key altogether. It's no longer required.
+        rsc: 'server',
+      }
+    : pageStaticInfo
+
+  if (isInsideAppDir && appDir) {
+    const layoutFiles = []
+    const potentialLayoutFiles = pageExtensions.map((ext) => 'layout.' + ext)
+    let dir = dirname(pageFilePath)
+    // Uses startsWith to not include directories further up.
+    while (dir.startsWith(appDir)) {
+      for (const potentialLayoutFile of potentialLayoutFiles) {
+        const layoutFile = join(dir, potentialLayoutFile)
+        if (!(await fileExists(layoutFile))) {
+          continue
+        }
+        layoutFiles.unshift(layoutFile)
+      }
+      // Walk up the directory tree
+      dir = join(dir, '..')
+    }
+
+    for (const layoutFile of layoutFiles) {
+      const layoutStaticInfo = await getPageStaticInfo({
+        nextConfig: config,
+        pageFilePath: layoutFile,
+        isDev,
+        page,
+        pageType: isInsideAppDir ? 'app' : 'pages',
+      })
+
+      // Only runtime is relevant here.
+      if (layoutStaticInfo.runtime) {
+        staticInfo.runtime = layoutStaticInfo.runtime
+      }
+      if (layoutStaticInfo.preferredRegion) {
+        staticInfo.preferredRegion = layoutStaticInfo.preferredRegion
+      }
+    }
+
+    if (pageStaticInfo.runtime) {
+      staticInfo.runtime = pageStaticInfo.runtime
+    }
+    if (pageStaticInfo.preferredRegion) {
+      staticInfo.preferredRegion = pageStaticInfo.preferredRegion
+    }
+  }
+  return staticInfo
+}
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 
@@ -204,6 +283,7 @@ export function getEdgeServerEntry(opts: {
   pagesType: 'app' | 'pages' | 'root'
   appDirLoader?: string
   hasInstrumentationHook?: boolean
+  preferredRegion: string | string[] | undefined
 }) {
   if (
     opts.pagesType === 'app' &&
@@ -215,6 +295,7 @@ export function getEdgeServerEntry(opts: {
       page: opts.page,
       appDirLoader: Buffer.from(opts.appDirLoader || '').toString('base64'),
       nextConfigOutput: opts.config.output,
+      preferredRegion: opts.preferredRegion,
     }
 
     return {
@@ -240,6 +321,7 @@ export function getEdgeServerEntry(opts: {
       absolutePagePath: opts.absolutePagePath,
       page: opts.page,
       rootDir: opts.rootDir,
+      preferredRegion: opts.preferredRegion,
     }
 
     return `next-edge-function-loader?${stringify(loaderParams)}!`
@@ -268,6 +350,7 @@ export function getEdgeServerEntry(opts: {
     sriEnabled: !opts.isDev && !!opts.config.experimental.sri?.algorithm,
     incrementalCacheHandlerPath:
       opts.config.experimental.incrementalCacheHandlerPath,
+    preferredRegion: opts.preferredRegion,
   }
 
   return {
@@ -426,12 +509,14 @@ export async function createEntrypoints(
         (absolutePagePath.startsWith(APP_DIR_ALIAS) ||
           absolutePagePath.startsWith(appDir))
 
-      const staticInfo = await getPageStaticInfo({
-        nextConfig: config,
+      const staticInfo: PageStaticInfo = await getStaticInfoIncludingLayouts({
+        isInsideAppDir,
+        pageExtensions,
         pageFilePath,
+        appDir,
+        config,
         isDev,
         page,
-        pageType: isInsideAppDir ? 'app' : 'pages',
       })
 
       const isServerComponent =
@@ -470,6 +555,7 @@ export async function createEntrypoints(
               pageExtensions,
               assetPrefix: config.assetPrefix,
               nextConfigOutput: config.output,
+              preferredRegion: staticInfo.preferredRegion,
             })
           } else {
             if (isInstrumentationHookFile(page) && pagesType === 'root') {
@@ -496,6 +582,9 @@ export async function createEntrypoints(
               pageExtensions,
               assetPrefix: config.assetPrefix,
               nextConfigOutput: config.output,
+              // This isn't used with edge as it needs to be set on the entry module, which will be the `edgeServerEntry` instead.
+              // Still passing it here for consistency.
+              preferredRegion: staticInfo.preferredRegion,
             }).import
           }
           const normalizedServerBundlePath =
@@ -513,6 +602,7 @@ export async function createEntrypoints(
             middleware: staticInfo?.middleware,
             pagesType,
             appDirLoader,
+            preferredRegion: staticInfo.preferredRegion,
           })
         },
       })
