@@ -467,7 +467,7 @@ export default async function build(
           )
 
         for (const [pageKey, pagePath] of Object.entries(mappedAppPages)) {
-          if (pageKey.includes('[__metadata_id__]')) {
+          if (pageKey.includes('[[...__metadata_id__]]')) {
             const pageFilePath = getPageFilePath({
               absolutePagePath: pagePath,
               pagesDir,
@@ -481,13 +481,11 @@ export default async function build(
               !metadataExports.generateSitemaps
             ) {
               delete mappedAppPages[pageKey]
-              mappedAppPages[pageKey.replace('[__metadata_id__]/', '')] =
+              mappedAppPages[pageKey.replace('[[...__metadata_id__]]/', '')] =
                 pagePath
             }
           }
         }
-
-        console.log('mappedAppPages', mappedAppPages)
 
         NextBuildContext.mappedAppPages = mappedAppPages
       }

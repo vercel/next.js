@@ -434,17 +434,17 @@ createNextDescribe(
           '/sitemap.xml/route': 'app/sitemap.xml/route.js',
 
           // dynamic
-          '/(group)/dynamic/[size]/sitemap.xml/[__metadata_id__]/route':
-            'app/(group)/dynamic/[size]/sitemap.xml/[__metadata_id__]/route.js',
-          '/(group)/dynamic/[size]/apple-icon-48jo90/[__metadata_id__]/route':
-            'app/(group)/dynamic/[size]/apple-icon-48jo90/[__metadata_id__]/route.js',
+          '/(group)/dynamic/[size]/sitemap.xml/[[...__metadata_id__]]/route':
+            'app/(group)/dynamic/[size]/sitemap.xml/[[...__metadata_id__]]/route.js',
+          '/(group)/dynamic/[size]/apple-icon-48jo90/[[...__metadata_id__]]/route':
+            'app/(group)/dynamic/[size]/apple-icon-48jo90/[[...__metadata_id__]]/route.js',
         })
       })
 
       it('should include default og font files in file trace', async () => {
         const fileTrace = JSON.parse(
           await next.readFile(
-            '.next/server/app/metadata/unset/opengraph-image2/[[...__metadata_id__]]/route.js.nft.json'
+            '.next/server/app/metadata-base/unset/opengraph-image2/[[...__metadata_id__]]/route.js.nft.json'
           )
         )
 
