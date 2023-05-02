@@ -465,20 +465,24 @@ pub async fn create_app_source(
         .collect();
 
     if let Some(&Entrypoint::AppPage { loader_tree }) = entrypoints.get("/") {
-        let not_found_page_source = create_app_not_found_page_source(
-            loader_tree,
-            context_ssr,
-            context,
-            project_path,
-            app_dir,
-            env,
-            server_root,
-            server_runtime_entries,
-            fallback_page,
-            output_path,
-            render_data,
-        );
-        sources.push(not_found_page_source);
+        if let Some(_) = loader_tree.await?.components.await?.not_found {
+            // Only add a source for the app 404 page if a top-level not-found page is
+            // defined. Otherwise, the 404 page is handled by the pages logic.
+            let not_found_page_source = create_app_not_found_page_source(
+                loader_tree,
+                context_ssr,
+                context,
+                project_path,
+                app_dir,
+                env,
+                server_root,
+                server_runtime_entries,
+                fallback_page,
+                output_path,
+                render_data,
+            );
+            sources.push(not_found_page_source);
+        }
     }
 
     Ok(CombinedContentSource { sources }.cell().into())
