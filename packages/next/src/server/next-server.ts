@@ -269,11 +269,12 @@ export default class NextNodeServer extends BaseServer {
       this.renderWorkersPromises = new Promise<void>(async (resolveWorkers) => {
         try {
           this.renderWorkers = {}
-          const { ipcPort } = await createIpcServer(this)
+          const { ipcPort, ipcValidationKey } = await createIpcServer(this)
           if (this.hasAppDir) {
             this.renderWorkers.app = createWorker(
               this.port || 0,
               ipcPort,
+              ipcValidationKey,
               options.isNodeDebugging,
               'app',
               this.nextConfig.experimental.serverActions
@@ -282,6 +283,7 @@ export default class NextNodeServer extends BaseServer {
           this.renderWorkers.pages = createWorker(
             this.port || 0,
             ipcPort,
+            ipcValidationKey,
             options.isNodeDebugging,
             'pages'
           )
