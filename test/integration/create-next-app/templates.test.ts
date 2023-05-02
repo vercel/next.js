@@ -185,7 +185,7 @@ describe('create-next-app templates', () => {
     await useTempDir(async (cwd) => {
       const projectName = 'typescript-test'
       const childProcess = createNextApp(
-        [projectName, '--ts', '--no-tailwind', '--eslint'],
+        [projectName, '--ts', '--no-tailwind', '--eslint', '--app'],
         {
           cwd,
           env: {
@@ -199,8 +199,8 @@ describe('create-next-app templates', () => {
       const exitCode = await spawnExitPromise(childProcess)
 
       expect(exitCode).toBe(0)
-      shouldBeTypescriptProject({ cwd, projectName, template: 'default' })
-      await startsWithoutError(path.join(cwd, projectName))
+      shouldBeTypescriptProject({ cwd, projectName, template: 'app' })
+      await startsWithoutError(path.join(cwd, projectName), undefined, true)
     })
   })
 
