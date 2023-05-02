@@ -1,5 +1,5 @@
 module.exports = {
   experimental: {
-    enableUndici: true,
+    appDir: true,
   },
 }
