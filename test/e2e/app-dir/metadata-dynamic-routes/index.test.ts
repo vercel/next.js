@@ -420,15 +420,31 @@ createNextDescribe(
         const edgeRoute = functionRoutes.find((route) =>
           route.startsWith('/(group)/twitter-image-')
         )
-        expect(edgeRoute).toMatch(
-          /\/\(group\)\/twitter-image-\w{6}\/\[\[\.\.\.__metadata_id__\]\]\/route/
+        expect(edgeRoute).toMatch(/\/\(group\)\/twitter-image-\w{6}\/route/)
+      })
+
+      it('should optimize routes without multiple generation API as static routes', async () => {
+        const appPathsManifest = JSON.parse(
+          await next.readFile('.next/server/app-paths-manifest.json')
         )
+
+        expect(appPathsManifest).toMatchObject({
+          // static routes
+          '/twitter-image/route': 'app/twitter-image/route.js',
+          '/sitemap.xml/route': 'app/sitemap.xml/route.js',
+
+          // dynamic
+          '/(group)/dynamic/[size]/sitemap.xml/[__metadata_id__]/route':
+            'app/(group)/dynamic/[size]/sitemap.xml/[__metadata_id__]/route.js',
+          '/(group)/dynamic/[size]/apple-icon-48jo90/[__metadata_id__]/route':
+            'app/(group)/dynamic/[size]/apple-icon-48jo90/[__metadata_id__]/route.js',
+        })
       })
 
       it('should include default og font files in file trace', async () => {
         const fileTrace = JSON.parse(
           await next.readFile(
-            '.next/server/app/opengraph-image/[[...__metadata_id__]]/route.js.nft.json'
+            '.next/server/app/metadata/unset/opengraph-image2/[[...__metadata_id__]]/route.js.nft.json'
           )
         )
 

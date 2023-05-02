@@ -85,7 +85,7 @@ export function normalizeMetadataRoute(page: string, pagePath: string) {
     route = path.posix.join(
       dir,
       `${baseName}${suffix ? `-${suffix}` : ''}${ext}`,
-      isStaticRoute ? '' : '[[...__metadata_id__]]',
+      isStaticRoute ? '' : '[__metadata_id__]',
       'route'
     )
   }

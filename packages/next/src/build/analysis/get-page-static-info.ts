@@ -86,6 +86,12 @@ function checkExports(swcAST: any): {
   generateImageMetadata?: boolean
   generateSitemaps?: boolean
 } {
+  const exportsSet = new Set<string>([
+    'getStaticProps',
+    'getServerSideProps',
+    'generateImageMetadata',
+    'generateSitemaps',
+  ])
   if (Array.isArray(swcAST?.body)) {
     try {
       let runtime: string | undefined
@@ -126,9 +132,7 @@ function checkExports(swcAST: any): {
         if (
           node.type === 'ExportDeclaration' &&
           node.declaration?.type === 'FunctionDeclaration' &&
-          ['getStaticProps', 'getServerSideProps'].includes(
-            node.declaration.identifier?.value
-          )
+          exportsSet.has(node.declaration.identifier?.value)
         ) {
           const id = node.declaration.identifier.value
           ssg = id === 'getStaticProps'
@@ -142,14 +146,7 @@ function checkExports(swcAST: any): {
           node.declaration?.type === 'VariableDeclaration'
         ) {
           const id = node.declaration?.declarations[0]?.id.value
-          if (
-            [
-              'getStaticProps',
-              'getServerSideProps',
-              'generateImageMetadata',
-              'generateSitemaps',
-            ].includes(id)
-          ) {
+          if (exportsSet.has(id)) {
             ssg = id === 'getStaticProps'
             ssr = id === 'getServerSideProps'
             generateImageMetadata = id === 'generateImageMetadata'
@@ -365,7 +362,11 @@ function warnAboutUnsupportedValue(
 
 export async function getMetadataExports(pageFilePath: string) {
   const fileContent = (await tryToReadFile(pageFilePath, true)) || ''
-  if (!/generateImageMetadata|generateSitemaps/.test(fileContent)) return null
+  if (!/generateImageMetadata|generateSitemaps/.test(fileContent))
+    return {
+      generateImageMetadata: false,
+      generateSitemaps: false,
+    }
 
   const swcAST = await parseModule(pageFilePath, fileContent)
   const exportsInfo = checkExports(swcAST)
