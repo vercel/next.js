@@ -91,7 +91,7 @@ import {
 } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import {
-  getMetadataExports,
+  isDynamicMetadataRoute,
   getPageStaticInfo,
 } from './analysis/get-page-static-info'
 import { createPagesMapping, getPageFilePath } from './entries'
@@ -466,6 +466,8 @@ export default async function build(
             })
           )
 
+        // If the metadata route doesn't contain generating dynamic exports,
+        // we can replace the dynamic catch-all route and use the static route instead.
         for (const [pageKey, pagePath] of Object.entries(mappedAppPages)) {
           if (pageKey.includes('[[...__metadata_id__]]')) {
             const pageFilePath = getPageFilePath({
@@ -475,11 +477,8 @@ export default async function build(
               rootDir,
             })
 
-            const metadataExports = await getMetadataExports(pageFilePath)
-            if (
-              !metadataExports.generateImageMetadata &&
-              !metadataExports.generateSitemaps
-            ) {
+            const isDynamic = await isDynamicMetadataRoute(pageFilePath)
+            if (!isDynamic) {
               delete mappedAppPages[pageKey]
               mappedAppPages[pageKey.replace('[[...__metadata_id__]]/', '')] =
                 pagePath
@@ -1374,10 +1373,6 @@ export default async function build(
                     appPathRoutes
                   )) {
                     if (normalizedPath === page) {
-                      if (!mappedAppPages[originalPath]) {
-                        console.log('breaking', originalPath)
-                        throw new Error('bad')
-                      }
                       pagePath = mappedAppPages[originalPath].replace(
                         /^private-next-app-dir/,
                         ''

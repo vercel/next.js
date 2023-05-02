@@ -360,21 +360,18 @@ function warnAboutUnsupportedValue(
   warnedUnsupportedValueMap.set(pageFilePath, true)
 }
 
-export async function getMetadataExports(pageFilePath: string) {
+// Detect if metadata routes is a dynamic route, which containing
+// generateImageMetadata or generateSitemaps as export
+export async function isDynamicMetadataRoute(
+  pageFilePath: string
+): Promise<boolean> {
   const fileContent = (await tryToReadFile(pageFilePath, true)) || ''
-  if (!/generateImageMetadata|generateSitemaps/.test(fileContent))
-    return {
-      generateImageMetadata: false,
-      generateSitemaps: false,
-    }
+  if (!/generateImageMetadata|generateSitemaps/.test(fileContent)) return false
 
   const swcAST = await parseModule(pageFilePath, fileContent)
   const exportsInfo = checkExports(swcAST)
 
-  return {
-    generateImageMetadata: !!exportsInfo.generateImageMetadata,
-    generateSitemaps: !!exportsInfo.generateSitemaps,
-  }
+  return !exportsInfo.generateImageMetadata || !exportsInfo.generateSitemaps
 }
 
 /**
