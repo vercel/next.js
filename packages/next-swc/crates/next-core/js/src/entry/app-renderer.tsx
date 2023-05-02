@@ -15,7 +15,7 @@ declare global {
 }
 
 import type { Ipc } from '@vercel/turbopack-node/ipc/index'
-import type { IncomingMessage, ServerResponse } from 'node:http'
+import type { IncomingMessage } from 'node:http'
 import type {
   ClientCSSReferenceManifest,
   ClientReferenceManifest,
@@ -124,8 +124,6 @@ type LoaderTree = [
 ]
 
 async function runOperation(renderData: RenderData) {
-  let tree: LoaderTree = LOADER_TREE
-
   const proxyMethodsForModule = (
     id: string
   ): ProxyHandler<ClientReferenceManifest['ssrModuleMapping']> => {
