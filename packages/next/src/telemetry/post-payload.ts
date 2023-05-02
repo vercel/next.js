@@ -4,7 +4,7 @@ const { fetch } = require('next/dist/compiled/undici') as {
 }
 
 export function _postPayload(endpoint: string, body: object, signal?: any) {
-  if (!signal) {
+  if (!signal && 'timeout' in AbortSignal) {
     // @ts-expect-error Needs @types/node@16.14.0 or newer
     signal = AbortSignal.timeout(5000)
   }
