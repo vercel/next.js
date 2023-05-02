@@ -75,7 +75,11 @@ class UrlNode {
       return
     }
 
-    if (isCatchAll) {
+    const allowedCatchAll = urlPaths.some(
+      (segment) => segment === '[[...__metadata_id__]]'
+    )
+    if (isCatchAll && !allowedCatchAll) {
+      console.log('urlPaths', urlPaths, slugNames)
       throw new Error(`Catch-all must be the last part of the URL.`)
     }
 

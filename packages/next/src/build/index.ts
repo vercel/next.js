@@ -463,6 +463,8 @@ export default async function build(
             })
           )
         NextBuildContext.mappedAppPages = mappedAppPages
+
+        console.log('mappedAppPages', mappedAppPages)
       }
 
       let mappedRootPaths: { [page: string]: string } = {}
@@ -1349,6 +1351,10 @@ export default async function build(
                     appPathRoutes
                   )) {
                     if (normalizedPath === page) {
+                      if (!mappedAppPages[originalPath]) {
+                        console.log('breaking', originalPath)
+                        throw new Error('bad')
+                      }
                       pagePath = mappedAppPages[originalPath].replace(
                         /^private-next-app-dir/,
                         ''

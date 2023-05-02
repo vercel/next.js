@@ -223,7 +223,9 @@ export function createPagesMapping({
       )
 
       const route =
-        pagesType === 'app' ? normalizeMetadataRoute(pageKey) : pageKey
+        pagesType === 'app'
+          ? normalizeMetadataRoute(pageKey, pagePath)
+          : pageKey
       result[route] = normalizedPath
       return result
     },

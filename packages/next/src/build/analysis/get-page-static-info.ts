@@ -83,6 +83,8 @@ function checkExports(swcAST: any): {
   ssg: boolean
   runtime?: string
   preferredRegion?: string | string[]
+  generateImageMetadata?: boolean
+  generateSitemaps?: boolean
 } {
   if (Array.isArray(swcAST?.body)) {
     try {
@@ -90,6 +92,8 @@ function checkExports(swcAST: any): {
       let preferredRegion: string | string[] | undefined
       let ssr: boolean = false
       let ssg: boolean = false
+      let generateImageMetadata: boolean = false
+      let generateSitemaps: boolean = false
 
       for (const node of swcAST.body) {
         if (
@@ -126,8 +130,11 @@ function checkExports(swcAST: any): {
             node.declaration.identifier?.value
           )
         ) {
-          ssg = node.declaration.identifier.value === 'getStaticProps'
-          ssr = node.declaration.identifier.value === 'getServerSideProps'
+          const id = node.declaration.identifier.value
+          ssg = id === 'getStaticProps'
+          ssr = id === 'getServerSideProps'
+          generateImageMetadata = id === 'generateImageMetadata'
+          generateSitemaps = id === 'generateSitemaps'
         }
 
         if (
@@ -135,9 +142,18 @@ function checkExports(swcAST: any): {
           node.declaration?.type === 'VariableDeclaration'
         ) {
           const id = node.declaration?.declarations[0]?.id.value
-          if (['getStaticProps', 'getServerSideProps'].includes(id)) {
+          if (
+            [
+              'getStaticProps',
+              'getServerSideProps',
+              'generateImageMetadata',
+              'generateSitemaps',
+            ].includes(id)
+          ) {
             ssg = id === 'getStaticProps'
             ssr = id === 'getServerSideProps'
+            generateImageMetadata = id === 'generateImageMetadata'
+            generateSitemaps = id === 'generateSitemaps'
           }
         }
 
@@ -149,18 +165,36 @@ function checkExports(swcAST: any): {
               specifier.orig?.value
           )
 
-          ssg = values.some((value: any) => ['getStaticProps'].includes(value))
-          ssr = values.some((value: any) =>
-            ['getServerSideProps'].includes(value)
-          )
+          for (const value of values) {
+            if (!ssg && value === 'getStaticProps') ssg = true
+            if (!ssr && value === 'getServerSideProps') ssr = true
+            if (!generateImageMetadata && value === 'generateImageMetadata')
+              generateImageMetadata = true
+            if (!generateSitemaps && value === 'generateSitemaps')
+              generateSitemaps = true
+          }
         }
       }
 
-      return { ssr, ssg, runtime, preferredRegion }
+      return {
+        ssr,
+        ssg,
+        runtime,
+        preferredRegion,
+        generateImageMetadata,
+        generateSitemaps,
+      }
     } catch (err) {}
   }
 
-  return { ssg: false, ssr: false }
+  return {
+    ssg: false,
+    ssr: false,
+    runtime: undefined,
+    preferredRegion: undefined,
+    generateImageMetadata: false,
+    generateSitemaps: false,
+  }
 }
 
 async function tryToReadFile(filePath: string, shouldThrow: boolean) {
@@ -327,6 +361,19 @@ function warnAboutUnsupportedValue(
   )
 
   warnedUnsupportedValueMap.set(pageFilePath, true)
+}
+
+export async function getMetadataExports(pageFilePath: string) {
+  const fileContent = (await tryToReadFile(pageFilePath, true)) || ''
+  if (!/generateImageMetadata|generateSitemaps/.test(fileContent)) return null
+
+  const swcAST = await parseModule(pageFilePath, fileContent)
+  const exportsInfo = checkExports(swcAST)
+
+  return {
+    generateImageMetadata: !!exportsInfo.generateImageMetadata,
+    generateSitemaps: !!exportsInfo.generateSitemaps,
+  }
 }
 
 /**
