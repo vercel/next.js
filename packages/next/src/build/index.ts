@@ -2377,16 +2377,16 @@ export default async function build(
                   initialHeaders?: SsgRoute['initialHeaders']
                 } = {}
 
-                if (isRouteHandler) {
-                  const exportRouteMeta =
-                    exportConfig.initialPageMetaMap[route] || {}
+                const exportRouteMeta: {
+                  status?: number
+                  headers?: Record<string, string>
+                } = exportConfig.initialPageMetaMap[route] || {}
 
-                  if (exportRouteMeta.status !== 200) {
-                    routeMeta.initialStatus = exportRouteMeta.status
-                  }
-                  if (Object.keys(exportRouteMeta.headers).length) {
-                    routeMeta.initialHeaders = exportRouteMeta.headers
-                  }
+                if (exportRouteMeta.status !== 200) {
+                  routeMeta.initialStatus = exportRouteMeta.status
+                }
+                if (Object.keys(exportRouteMeta.headers || {}).length) {
+                  routeMeta.initialHeaders = exportRouteMeta.headers
                 }
 
                 finalPrerenderRoutes[route] = {

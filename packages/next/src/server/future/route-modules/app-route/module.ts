@@ -21,7 +21,7 @@ import {
   handleInternalServerErrorResponse,
 } from '../helpers/response-handlers'
 import { type HTTP_METHOD, HTTP_METHODS, isHTTPMethod } from '../../../web/http'
-import { patchFetch } from '../../../lib/patch-fetch'
+import { addImplicitTags, patchFetch } from '../../../lib/patch-fetch'
 import { getTracer } from '../../../lib/trace/tracer'
 import { AppRouteRouteHandlersSpan } from '../../../lib/trace/constants'
 import { getPathnameFromAbsolutePath } from './helpers/get-pathname-from-absolute-path'
@@ -349,6 +349,9 @@ export class AppRouteRouteModule extends RouteModule<
                     await Promise.all(
                       staticGenerationStore.pendingRevalidates || []
                     )
+                    addImplicitTags(staticGenerationStore)
+                    ;(context.staticGenerationContext as any).fetchTags =
+                      staticGenerationStore.tags?.join(',')
 
                     // It's possible cookies were set in the handler, so we need
                     // to merge the modified cookies and the returned response

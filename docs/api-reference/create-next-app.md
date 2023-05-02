@@ -57,9 +57,9 @@ Options:
 
     Initialize with ESLint config.
 
-  --experimental-app
+  --app-dir
 
-    Initialize as a `app/` directory project.
+    Initialize as an `app/` directory project.
 
   --src-dir
 

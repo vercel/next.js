@@ -19,9 +19,16 @@ import {
 import { Span } from 'next/dist/trace'
 
 import { useTempDir } from '../../../test/lib/use-temp-dir'
-import { fetchViaHTTP, findPort, killApp, launchApp } from 'next-test-utils'
+import {
+  check,
+  fetchViaHTTP,
+  findPort,
+  killApp,
+  launchApp,
+} from 'next-test-utils'
 import resolveFrom from 'resolve-from'
 import { createNextInstall } from '../../../test/lib/create-next-install'
+import ansiEscapes from 'ansi-escapes'
 
 const startsWithoutError = async (
   appDir: string,
@@ -80,7 +87,7 @@ describe('create-next-app templates', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-experimental-app',
+          '--no-app-dir',
           `--import-alias=@/*`,
         ],
         {
@@ -126,7 +133,7 @@ describe('create-next-app templates', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-experimental-app',
+          '--no-app-dir',
           `--import-alias=@/*`,
         ],
         {
@@ -153,7 +160,7 @@ describe('create-next-app templates', () => {
           '--no-tailwind',
           '--eslint',
           '--src-dir',
-          '--no-experimental-app',
+          '--no-app-dir',
           `--import-alias=@/*`,
         ],
         {
@@ -207,7 +214,7 @@ describe('create-next-app templates', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-experimental-app',
+          '--no-app-dir',
           `--import-alias=@/*`,
         ],
         {
@@ -236,7 +243,7 @@ describe('create-next-app templates', () => {
           '--no-tailwind',
           '--eslint',
           '--src-dir',
-          '--no-experimental-app',
+          '--no-app-dir',
           `--import-alias=@/*`,
         ],
         {
@@ -274,7 +281,7 @@ describe('create-next-app templates', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-experimental-app',
+          '--no-app-dir',
         ],
         {
           cwd,
@@ -284,11 +291,18 @@ describe('create-next-app templates', () => {
       /**
        * Bind the exit listener.
        */
-      await new Promise<void>((resolve) => {
+      await new Promise<void>(async (resolve) => {
         childProcess.on('exit', async (exitCode) => {
           expect(exitCode).toBe(0)
           resolve()
         })
+        let output = ''
+        childProcess.stdout.on('data', (data) => {
+          output += data
+          process.stdout.write(data)
+        })
+        childProcess.stdin.write(ansiEscapes.cursorForward() + '\n')
+        await check(() => output, /What import alias would you like configured/)
         childProcess.stdin.write('@/something/*\n')
       })
 
@@ -320,7 +334,7 @@ describe('create-next-app templates', () => {
           '--no-eslint',
           '--tailwind',
           '--src-dir',
-          '--no-experimental-app',
+          '--no-app-dir',
           `--import-alias=@/*`,
         ],
         {
@@ -369,7 +383,7 @@ describe('create-next-app templates', () => {
           '--js',
           '--eslint',
           '--no-src-dir',
-          '--no-experimental-app',
+          '--no-app-dir',
           `--import-alias=@/*`,
         ],
         {
@@ -406,7 +420,7 @@ describe('create-next-app templates', () => {
   })
 })
 
-describe('create-next-app --experimental-app', () => {
+describe('create-next-app --app-dir', () => {
   if (!process.env.NEXT_TEST_CNA && process.env.NEXT_TEST_JOB) {
     it('should skip when env is not set', () => {})
     return
@@ -428,7 +442,7 @@ describe('create-next-app --experimental-app', () => {
           projectName,
           '--ts',
           '--no-tailwind',
-          '--experimental-app',
+          '--app-dir',
           '--eslint',
           '--no-src-dir',
           `--import-alias=@/*`,
@@ -458,7 +472,7 @@ describe('create-next-app --experimental-app', () => {
           projectName,
           '--js',
           '--no-tailwind',
-          '--experimental-app',
+          '--app-dir',
           '--eslint',
           '--no-src-dir',
           `--import-alias=@/*`,
@@ -489,7 +503,7 @@ describe('create-next-app --experimental-app', () => {
           projectName,
           '--js',
           '--no-tailwind',
-          '--experimental-app',
+          '--app-dir',
           '--eslint',
           '--src-dir',
           '--import-alias=@/*',
@@ -526,7 +540,7 @@ describe('create-next-app --experimental-app', () => {
           projectName,
           '--ts',
           '--tailwind',
-          '--experimental-app',
+          '--app-dir',
           '--eslint',
           '--src-dir',
           `--import-alias=@/*`,

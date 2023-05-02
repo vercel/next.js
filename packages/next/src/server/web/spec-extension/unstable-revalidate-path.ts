@@ -3,6 +3,7 @@ import type {
   StaticGenerationStore,
 } from '../../../client/components/static-generation-async-storage'
 
+import { unstable_revalidateTag } from './unstable-revalidate-tag'
 import { headers } from '../../../client/components/headers'
 import {
   PRERENDER_REVALIDATE_HEADER,
@@ -12,9 +13,14 @@ import {
 export function unstable_revalidatePath(
   path: string,
   ctx: {
+    manualRevalidate?: boolean
     unstable_onlyGenerated?: boolean
   } = {}
 ) {
+  if (!ctx?.manualRevalidate) {
+    return unstable_revalidateTag(path)
+  }
+
   const staticGenerationAsyncStorage = (
     fetch as any
   ).__nextGetStaticStore?.() as undefined | StaticGenerationAsyncStorage

@@ -32,6 +32,22 @@ createNextDescribe(
       }
     })
 
+    it('should not have cache tags header for non-minimal mode', async () => {
+      for (const path of [
+        '/ssr-forced',
+        '/ssr-forced',
+        '/variable-revalidate/revalidate-3',
+        '/variable-revalidate/revalidate-360',
+        '/variable-revalidate/revalidate-360-isr',
+      ]) {
+        const res = await fetchViaHTTP(next.url, path, undefined, {
+          redirect: 'manual',
+        })
+        expect(res.status).toBe(200)
+        expect(res.headers.get('x-next-cache-tags')).toBeFalsy()
+      }
+    })
+
     if (isDev) {
       it('should error correctly for invalid params from generateStaticParams', async () => {
         await next.patchFile(
@@ -154,7 +170,7 @@ createNextDescribe(
 
     // On-Demand Revalidate has not effect in dev since app routes
     // aren't considered static until prerendering
-    if (!(global as any).isNextDev) {
+    if (!(global as any).isNextDev && !process.env.CUSTOM_CACHE_HANDLER) {
       it.each([
         {
           type: 'edge route handler',
@@ -205,7 +221,9 @@ createNextDescribe(
     // On-Demand Revalidate has not effect in dev
     if (!(global as any).isNextDev && !process.env.CUSTOM_CACHE_HANDLER) {
       it('should revalidate all fetches during on-demand revalidate', async () => {
-        const initRes = await next.fetch('/variable-revalidate/revalidate-360')
+        const initRes = await next.fetch(
+          '/variable-revalidate/revalidate-360-isr'
+        )
         const html = await initRes.text()
         const $ = cheerio.load(html)
         const initLayoutData = $('#layout-data').text()
@@ -410,6 +428,7 @@ createNextDescribe(
           'partial-gen-params/[lang]/[slug]/page.js',
           'route-handler-edge/revalidate-360/route.js',
           'route-handler/post/route.js',
+          'route-handler/revalidate-360-isr/route.js',
           'route-handler/revalidate-360/route.js',
           'ssg-draft-mode.html',
           'ssg-draft-mode.rsc',
@@ -632,6 +651,16 @@ createNextDescribe(
             dataRoute: '/gen-params-dynamic-revalidate/one.rsc',
             initialRevalidateSeconds: 3,
             srcRoute: '/gen-params-dynamic-revalidate/[slug]',
+          },
+          '/route-handler/revalidate-360-isr': {
+            dataRoute: null,
+            initialHeaders: {
+              'content-type': 'application/json',
+              'x-next-cache-tags':
+                'thankyounext,/route-handler/revalidate-360-isr',
+            },
+            initialRevalidateSeconds: false,
+            srcRoute: '/route-handler/revalidate-360-isr',
           },
           '/variable-config-revalidate/revalidate-3': {
             dataRoute: '/variable-config-revalidate/revalidate-3.rsc',
