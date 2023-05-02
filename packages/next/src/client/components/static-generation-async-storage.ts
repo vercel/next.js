@@ -7,6 +7,7 @@ export interface StaticGenerationStore {
   readonly pathname: string
   readonly incrementalCache?: IncrementalCache
   readonly isRevalidate?: boolean
+  readonly isMinimalMode?: boolean
   readonly isOnDemandRevalidate?: boolean
   readonly isPrerendering?: boolean
 
@@ -17,6 +18,7 @@ export interface StaticGenerationStore {
     | 'force-no-store'
     | 'default-no-store'
     | 'only-no-store'
+
   revalidate?: false | number
   forceStatic?: boolean
   dynamicShouldError?: boolean
@@ -26,6 +28,8 @@ export interface StaticGenerationStore {
   dynamicUsageStack?: string
 
   nextFetchId?: number
+
+  tags?: string[]
 }
 
 export type StaticGenerationAsyncStorage =
