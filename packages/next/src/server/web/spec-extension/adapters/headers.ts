@@ -17,8 +17,14 @@ export class ReadonlyHeadersError extends Error {
   }
 }
 
-export type ReadonlyHeaders = Omit<Headers, 'append' | 'delete' | 'set'>
-
+export type ReadonlyHeaders = Headers & {
+  /** @deprecated Method unavailable on ReadonlyHeaders. Read more: https://beta.nextjs.org/docs/api-reference/cookies */
+  append(...args: any[]): never
+  /** @deprecated Method unavailable on ReadonlyHeaders. Read more: https://beta.nextjs.org/docs/api-reference/cookies */
+  set(...args: any[]): never
+  /** @deprecated Method unavailable on ReadonlyHeaders. Read more: https://beta.nextjs.org/docs/api-reference/cookies */
+  delete(...args: any[]): never
+}
 export class HeadersAdapter extends Headers {
   private readonly headers: IncomingHttpHeaders
 
