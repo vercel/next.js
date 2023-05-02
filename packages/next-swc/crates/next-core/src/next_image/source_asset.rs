@@ -56,7 +56,7 @@ impl Asset for StructuredImageSourceAsset {
         writeln!(result, "import src from \"IMAGE\";",)?;
         let blur_options = blur_options();
         match self.blur_placeholder_mode {
-            BlurPlaceholderMode::NextImage => {
+            BlurPlaceholderMode::NextImageUrl => {
                 let info = get_meta_data(self.image.ident(), content, None).await?;
                 let width = info.width;
                 let height = info.height;

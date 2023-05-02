@@ -25,14 +25,14 @@ pub enum BlurPlaceholderMode {
     /// Do not generate a blur placeholder at all.
     None,
     /// Generate a blur placeholder as data url and embed it directly into the
-    /// javascript code. This need to compute the blur placeholder eagerly and
+    /// JavaScript code. This needs to compute the blur placeholder eagerly and
     /// has a higher computation overhead.
     DataUrl,
     /// Avoid generating a blur placeholder eagerly and uses `/_next/image`
     /// instead to compute one on demand. This changes the UX slightly (blur
     /// placeholder is shown later than it should be) and should
     /// only be used for development.
-    NextImage,
+    NextImageUrl,
 }
 
 /// Module type that analyzes images and offers some meta information like
