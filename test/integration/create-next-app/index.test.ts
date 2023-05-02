@@ -51,7 +51,6 @@ describe('create next app', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-app-dir',
           `--import-alias=@/*`,
         ],
         {
@@ -77,14 +76,13 @@ describe('create next app', () => {
             '--no-tailwind',
             '--eslint',
             '--no-src-dir',
-            '--no-app-dir',
             `--import-alias=@/*`,
           ],
           { cwd }
         )
 
         expect(res.exitCode).toBe(0)
-        shouldBeJavascriptProject({ cwd, projectName, template: 'default' })
+        shouldBeJavascriptProject({ cwd, projectName, template: 'app' })
       })
     })
   }
@@ -323,7 +321,7 @@ describe('create next app', () => {
         )
 
         expect(res.exitCode).toBe(0)
-        shouldBeJavascriptProject({ cwd, projectName, template: 'default' })
+        shouldBeJavascriptProject({ cwd, projectName, template: 'app' })
       })
     })
   }
@@ -347,7 +345,7 @@ describe('create next app', () => {
       )
 
       expect(res.exitCode).toBe(0)
-      shouldBeJavascriptProject({ cwd, projectName, template: 'default' })
+      shouldBeJavascriptProject({ cwd, projectName, template: 'app' })
     })
   })
 
@@ -362,7 +360,6 @@ describe('create next app', () => {
           '--eslint',
           '--example',
           '--no-src-dir',
-          '--no-app-dir',
           `--import-alias=@/*`,
         ],
         {
@@ -399,7 +396,6 @@ describe('create next app', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-app-dir',
           `--import-alias=@/*`,
         ],
         {
@@ -440,7 +436,6 @@ describe('create next app', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-app-dir',
           `--import-alias=@/*`,
         ],
         {
@@ -453,7 +448,7 @@ describe('create next app', () => {
       await fs.remove(tmpBin)
 
       expect(res.exitCode).toBe(0)
-      shouldBeJavascriptProject({ cwd, projectName: '.', template: 'default' })
+      shouldBeJavascriptProject({ cwd, projectName: '.', template: 'app' })
     })
   })
 
@@ -466,7 +461,6 @@ describe('create next app', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-app-dir',
           `--import-alias=@/*`,
         ],
         {
@@ -476,7 +470,7 @@ describe('create next app', () => {
       )
 
       expect(res.exitCode).toBe(0)
-      shouldBeJavascriptProject({ cwd, projectName, template: 'default' })
+      shouldBeJavascriptProject({ cwd, projectName, template: 'app' })
     })
   })
 
@@ -491,7 +485,6 @@ describe('create next app', () => {
           '--eslint',
           '--use-npm',
           '--no-src-dir',
-          '--no-app-dir',
           `--import-alias=@/*`,
         ],
         {
@@ -500,7 +493,7 @@ describe('create next app', () => {
       )
 
       expect(res.exitCode).toBe(0)
-      shouldBeJavascriptProject({ cwd, projectName, template: 'default' })
+      shouldBeJavascriptProject({ cwd, projectName, template: 'app' })
     })
   })
 
@@ -546,7 +539,6 @@ describe('create next app', () => {
           '--eslint',
           '--use-pnpm',
           '--no-src-dir',
-          '--no-app-dir',
           `--import-alias=@/*`,
         ],
         {
@@ -560,7 +552,7 @@ describe('create next app', () => {
         projectName,
         files: [
           'package.json',
-          'pages/index.js',
+          'app/page.js',
           '.gitignore',
           '.eslintrc.json',
           'pnpm-lock.yaml',
@@ -618,7 +610,6 @@ describe('create next app', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-app-dir',
           `--import-alias=@/*`,
         ],
         {
@@ -629,7 +620,7 @@ describe('create next app', () => {
 
       const files = [
         'package.json',
-        'pages/index.js',
+        'app/page.js',
         '.gitignore',
         '.eslintrc.json',
         'package-lock.json',
@@ -686,7 +677,6 @@ describe('create next app', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-app-dir',
           `--import-alias=@/*`,
         ],
         {
@@ -697,7 +687,7 @@ describe('create next app', () => {
 
       const files = [
         'package.json',
-        'pages/index.js',
+        'app/page.js',
         '.gitignore',
         '.eslintrc.json',
         'yarn.lock',
@@ -761,7 +751,6 @@ describe('create next app', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-app-dir',
           `--import-alias=@/*`,
         ],
         {
@@ -772,7 +761,7 @@ describe('create next app', () => {
 
       const files = [
         'package.json',
-        'pages/index.js',
+        'app/page.js',
         '.gitignore',
         '.eslintrc.json',
         'pnpm-lock.yaml',

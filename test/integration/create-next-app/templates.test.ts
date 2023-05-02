@@ -87,7 +87,7 @@ describe('create-next-app templates', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-app-dir',
+          '--no-app',
           `--import-alias=@/*`,
         ],
         {
@@ -133,7 +133,7 @@ describe('create-next-app templates', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-app-dir',
+          '--no-app',
           `--import-alias=@/*`,
         ],
         {
@@ -160,7 +160,7 @@ describe('create-next-app templates', () => {
           '--no-tailwind',
           '--eslint',
           '--src-dir',
-          '--no-app-dir',
+          '--no-app',
           `--import-alias=@/*`,
         ],
         {
@@ -214,7 +214,7 @@ describe('create-next-app templates', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-app-dir',
+          '--no-app',
           `--import-alias=@/*`,
         ],
         {
@@ -243,7 +243,7 @@ describe('create-next-app templates', () => {
           '--no-tailwind',
           '--eslint',
           '--src-dir',
-          '--no-app-dir',
+          '--no-app',
           `--import-alias=@/*`,
         ],
         {
@@ -281,7 +281,7 @@ describe('create-next-app templates', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-app-dir',
+          '--no-app',
         ],
         {
           cwd,
@@ -334,7 +334,7 @@ describe('create-next-app templates', () => {
           '--no-eslint',
           '--tailwind',
           '--src-dir',
-          '--no-app-dir',
+          '--no-app',
           `--import-alias=@/*`,
         ],
         {
@@ -383,7 +383,7 @@ describe('create-next-app templates', () => {
           '--js',
           '--eslint',
           '--no-src-dir',
-          '--no-app-dir',
+          '--no-app',
           `--import-alias=@/*`,
         ],
         {
@@ -420,7 +420,7 @@ describe('create-next-app templates', () => {
   })
 })
 
-describe('create-next-app --app-dir', () => {
+describe('create-next-app --app', () => {
   if (!process.env.NEXT_TEST_CNA && process.env.NEXT_TEST_JOB) {
     it('should skip when env is not set', () => {})
     return
@@ -442,7 +442,7 @@ describe('create-next-app --app-dir', () => {
           projectName,
           '--ts',
           '--no-tailwind',
-          '--app-dir',
+          '--app',
           '--eslint',
           '--no-src-dir',
           `--import-alias=@/*`,
@@ -472,7 +472,7 @@ describe('create-next-app --app-dir', () => {
           projectName,
           '--js',
           '--no-tailwind',
-          '--app-dir',
+          '--app',
           '--eslint',
           '--no-src-dir',
           `--import-alias=@/*`,
@@ -503,7 +503,7 @@ describe('create-next-app --app-dir', () => {
           projectName,
           '--js',
           '--no-tailwind',
-          '--app-dir',
+          '--app',
           '--eslint',
           '--src-dir',
           '--import-alias=@/*',
@@ -540,7 +540,7 @@ describe('create-next-app --app-dir', () => {
           projectName,
           '--ts',
           '--tailwind',
-          '--app-dir',
+          '--app',
           '--eslint',
           '--src-dir',
           `--import-alias=@/*`,
