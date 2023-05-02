@@ -38,12 +38,20 @@ pub struct TsConfigIssue {
     pub message: StringVc,
 }
 
+#[turbo_tasks::function]
+async fn json_only(resolve_options: ResolveOptionsVc) -> Result<ResolveOptionsVc> {
+    let mut opts = resolve_options.await?.clone_value();
+    opts.extensions = vec![".json".to_string()];
+    Ok(opts.cell())
+}
+
 pub async fn read_tsconfigs(
     mut data: FileContentVc,
     mut tsconfig: AssetVc,
     resolve_options: ResolveOptionsVc,
 ) -> Result<Vec<(FileJsonContentVc, AssetVc)>> {
     let mut configs = Vec::new();
+    let resolve_options = json_only(resolve_options);
     loop {
         let parsed_data = data.parse_json_with_comments();
         match &*parsed_data.await? {
@@ -113,14 +121,16 @@ async fn resolve_extends(
     let request = RequestVc::parse_string(extends.to_string());
 
     // TS's resolution is weird, and has special behavior for different import
-    // types.
-    let extends = match &*request.await? {
+    // types. There might be multiple alternatives like
+    // "some/path/node_modules/xyz/abc.json" and "some/node_modules/xyz/abc.json".
+    // We only want to use the first one.
+    match &*request.await? {
         // TS has special behavior for "rooted" paths (absolute paths):
         // https://github.com/microsoft/TypeScript/blob/611a912d/src/compiler/commandLineParser.ts#L3303-L3313
         Request::Windows { path: Pattern::Constant(path) } |
         // Server relative is treated as absolute
         Request::ServerRelative { path: Pattern::Constant(path) } => {
-            return resolve_extends_rooted_or_relative(context, request, resolve_options, path).await;
+            resolve_extends_rooted_or_relative(context, request, resolve_options, path).await
         }
 
         // TS has special behavior for (explicitly) './' and '../', but not '.' nor '..':
@@ -129,25 +139,26 @@ async fn resolve_extends(
             path: Pattern::Constant(path),
             ..
         } if path.starts_with("./") || path.starts_with("../") => {
-            return resolve_extends_rooted_or_relative(context, request, resolve_options, path).await;
+            resolve_extends_rooted_or_relative(context, request, resolve_options, path).await
         }
 
-        // An empty extends is treated as "tsconfig.json"
+        // An empty extends is treated as "./tsconfig"
         Request::Empty => {
-            "tsconfig.json".to_string()
+            let request = RequestVc::parse_string("./tsconfig".to_string());
+            Ok(resolve(context, request, resolve_options).first_asset())
         }
-        // All other types are treated as module imports, and joined with
+
+        // All other types are treated as module imports, and potentially joined with
         // "tsconfig.json". This includes "relative" imports like '.' and '..'.
         _ => {
-            format!("{extends}/tsconfig.json")
+            let mut result = resolve(context, request, resolve_options).first_asset();
+            if result.await?.is_none() {
+                let request = RequestVc::parse_string(format!("{extends}/tsconfig"));
+                result = resolve(context, request, resolve_options).first_asset();
+            }
+            Ok(result)
         }
-    };
-
-    let request = RequestVc::parse_string(extends);
-    // There might be multiple alternatives like
-    // "some/path/node_modules/xyz/abc.json" and "some/node_modules/xyz/abc.json".
-    // We only want to use the first one.
-    Ok(resolve(context, request, resolve_options).first_asset())
+    }
 }
 
 async fn resolve_extends_rooted_or_relative(

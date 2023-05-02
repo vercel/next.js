@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/typescript/tsconfig-extends-module/input/index.ts"],"sourcesContent":["import { prop as globalFoo } from \"foo\";\nimport { prop as localFoo } from \"./foo\";\nimport { prop as atFoo } from \"@/foo\";\n\nconsole.log(globalFoo, localFoo, atFoo);\n"],"names":[],"mappings":";;;;;;;AAIA,QAAQ,GAAG"}},
+    {"offset": {"line": 12, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}
