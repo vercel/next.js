@@ -203,23 +203,6 @@ createNextDescribe(
         }, 'https://example.com/')
       })
 
-      it('should handle refreshing the current page', async () => {
-        const browser = await next.browser('/client')
-
-        const randomNumber = await browser.elementByCss('#random-number').text()
-
-        await browser.elementByCss('#refresh').click()
-
-        // the number on the layout should have changed
-        await check(
-          () =>
-            browser.elementByCss('#random-number').text() !== randomNumber
-              ? 'success'
-              : 'failure',
-          'success'
-        )
-      })
-
       it.skip('should handle revalidatePath', async () => {})
 
       it.skip('should handle revalidateTag', async () => {})

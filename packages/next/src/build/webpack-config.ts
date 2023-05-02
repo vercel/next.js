@@ -1311,12 +1311,7 @@ export default async function getBaseWebpackConfig(
           localRes
         )
 
-      const shouldBundleOverride =
-        /next[/\\]dist[/\\](esm[\\/])?server[/\\]web[/\\]spec-extension[/\\]refresh[^-]/.test(
-          localRes
-        )
-
-      if (isNextExternal && !shouldBundleOverride) {
+      if (isNextExternal) {
         // Generate Next.js external import
         const externalRequest = path.posix.join(
           'next',

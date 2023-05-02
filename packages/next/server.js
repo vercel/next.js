@@ -5,7 +5,6 @@ const serverExports = {
     .NextResponse,
   ImageResponse: require('next/dist/server/web/spec-extension/image-response')
     .ImageResponse,
-  refresh: require('next/dist/server/web/spec-extension/refresh').refresh,
   unstable_cache: require('next/dist/server/web/spec-extension/unstable-cache')
     .unstable_cache,
   unstable_revalidateTag:
@@ -36,7 +35,6 @@ exports.ImageResponse = serverExports.ImageResponse
 exports.unstable_cache = serverExports.unstable_cache
 exports.unstable_revalidatePath = serverExports.unstable_revalidatePath
 exports.unstable_revalidateTag = serverExports.unstable_revalidateTag
-exports.refresh = serverExports.refresh
 exports.userAgentFromString = serverExports.userAgentFromString
 exports.userAgent = serverExports.userAgent
 exports.URLPattern = serverExports.URLPattern

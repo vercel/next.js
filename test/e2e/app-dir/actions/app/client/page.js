@@ -55,14 +55,6 @@ export default function Counter() {
       >
         redirect external
       </button>
-      <button
-        id="refresh"
-        onClick={async () => {
-          refreshAction()
-        }}
-      >
-        refresh
-      </button>
     </div>
   )
 }
