@@ -1327,7 +1327,7 @@ createNextDescribe(
         .elementByCss('#draft-mode')
         .text()
 
-      expect(content).toBe('{"result":{"enabled":false}}')
+      expect(content).toBe('{"result":{"isEnabled":false}}')
     })
 
     it('should force SSR correctly for headers usage', async () => {
