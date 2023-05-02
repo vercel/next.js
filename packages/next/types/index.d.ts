@@ -1,5 +1,6 @@
 /// <reference types="node" />
 /// <reference types="react" />
+/// <reference types="react/experimental" />
 /// <reference types="react-dom" />
 
 import React from 'react'
@@ -42,13 +43,11 @@ declare module 'react' {
     amp?: string
   }
 
-  // <link nonce=""> support
-  interface LinkHTMLAttributes<T> extends HTMLAttributes<T> {
-    nonce?: string
+  // <img fetchPriority=""> support
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- It's actually required for module augmentation to work.
+  interface ImgHTMLAttributes<T> {
+    fetchPriority?: 'high' | 'low' | 'auto' | undefined
   }
-
-  function use<T>(promise: Promise<T> | React.Context<T>): T
-  function cache<T extends Function>(fn: T): T
 }
 
 export type Redirect =
@@ -142,6 +141,22 @@ export {
 
 export type PreviewData = string | false | object | undefined
 
+export type DraftMode = {
+  /**
+   * Get the current value of Draft Mode.
+   * True when enabled, false when disabled.
+   */
+  enabled: boolean
+  /**
+   * Set the value of Draft Mode to true.
+   */
+  enable: () => void
+  /**
+   * Set the value of Draft Mode to false.
+   */
+  disable: () => void
+}
+
 /**
  * Context object passed into `getStaticProps`.
  * @link https://nextjs.org/docs/api-reference/data-fetching/get-static-props#context-parameter
@@ -153,6 +168,7 @@ export type GetStaticPropsContext<
   params?: Params
   preview?: boolean
   previewData?: Preview
+  draftMode?: boolean
   locale?: string
   locales?: string[]
   defaultLocale?: string

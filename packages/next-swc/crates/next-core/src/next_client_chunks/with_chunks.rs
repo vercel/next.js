@@ -17,6 +17,7 @@ use turbo_binding::{
             ident::AssetIdentVc,
             reference::AssetReferencesVc,
         },
+        dev::{ChunkDataVc, ChunksDataVc},
         ecmascript::{
             chunk::{
                 EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
@@ -126,6 +127,22 @@ struct WithChunksChunkItem {
 }
 
 #[turbo_tasks::value_impl]
+impl WithChunksChunkItemVc {
+    #[turbo_tasks::function]
+    async fn chunks_data(self) -> Result<ChunksDataVc> {
+        let this = self.await?;
+        let inner = this.inner.await?;
+        let Some(inner_chunking_context) = EcmascriptChunkingContextVc::resolve_from(inner.chunking_context).await? else {
+            bail!("the chunking context is not an EcmascriptChunkingContextVc");
+        };
+        Ok(ChunkDataVc::from_assets(
+            inner_chunking_context.output_root(),
+            this.inner.chunks(),
+        ))
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for WithChunksChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> EcmascriptChunkingContextVc {
@@ -133,26 +150,20 @@ impl EcmascriptChunkItem for WithChunksChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn content(&self) -> Result<EcmascriptChunkItemContentVc> {
-        let inner = self.inner.await?;
+    async fn content(self_vc: WithChunksChunkItemVc) -> Result<EcmascriptChunkItemContentVc> {
+        let this = self_vc.await?;
+        let inner = this.inner.await?;
         let Some(inner_chunking_context) = EcmascriptChunkingContextVc::resolve_from(inner.chunking_context).await? else {
             bail!("the chunking context is not an EcmascriptChunkingContextVc");
         };
 
-        let chunks = self.inner.chunks().await?;
-        let server_root = inner_chunking_context.output_root().await?;
-        let mut client_chunks = Vec::new();
-
-        for chunk_path in chunks
+        let chunks_data = self_vc.chunks_data().await?;
+        let chunks_data = chunks_data.iter().try_join().await?;
+        let chunks_data: Vec<_> = chunks_data
             .iter()
-            .map(|chunk| chunk.ident().path())
-            .try_join()
-            .await?
-        {
-            if let Some(path) = server_root.get_path_to(&chunk_path) {
-                client_chunks.push(serde_json::Value::String(path.to_string()));
-            }
-        }
+            .map(|chunk_data| chunk_data.runtime_chunk_data())
+            .collect();
+
         let module_id = &*inner
             .asset
             .as_chunk_item(inner_chunking_context)
@@ -171,7 +182,7 @@ impl EcmascriptChunkItem for WithChunksChunkItem {
             const chunks = {:#};
             "#,
             StringifyJs(&module_id),
-            StringifyJs(&client_chunks),
+            StringifyJs(&chunks_data),
         )?;
 
         Ok(EcmascriptChunkItemContent {
@@ -190,7 +201,13 @@ impl ChunkItem for WithChunksChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> AssetReferencesVc {
-        self.inner.references()
+    async fn references(self_vc: WithChunksChunkItemVc) -> Result<AssetReferencesVc> {
+        let mut references = self_vc.await?.inner.references().await?.clone_value();
+
+        for chunk_data in &*self_vc.chunks_data().await? {
+            references.extend(chunk_data.references().await?.iter().copied());
+        }
+
+        Ok(AssetReferencesVc::cell(references))
     }
 }

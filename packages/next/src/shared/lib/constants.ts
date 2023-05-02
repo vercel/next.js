@@ -1,3 +1,7 @@
+import MODERN_BROWSERSLIST_TARGET from './modern-browserslist-target'
+
+export { MODERN_BROWSERSLIST_TARGET }
+
 export type ValueOf<T> = Required<T>[keyof T]
 
 export const COMPILER_NAMES = {
@@ -47,19 +51,6 @@ export const CLIENT_PUBLIC_FILES_PATH = 'public'
 export const CLIENT_STATIC_FILES_PATH = 'static'
 export const CLIENT_STATIC_FILES_RUNTIME = 'runtime'
 export const STRING_LITERAL_DROP_BUNDLE = '__NEXT_DROP_CLIENT_FILE__'
-/**
- * These are the browser versions that support all of the following:
- * static import: https://caniuse.com/es6-module
- * dynamic import: https://caniuse.com/es6-module-dynamic-import
- * import.meta: https://caniuse.com/mdn-javascript_operators_import_meta
- */
-export const MODERN_BROWSERSLIST_TARGET = [
-  'chrome 64',
-  'edge 79',
-  'firefox 67',
-  'opera 51',
-  'safari 12',
-]
 export const NEXT_BUILTIN_DOCUMENT = '__NEXT_BUILTIN_DOCUMENT__'
 export const NEXT_CLIENT_SSR_ENTRY_SUFFIX = '.__sc_client__'
 

@@ -97,6 +97,10 @@ pub async fn get_next_client_import_map(
                 "react-dom/",
                 request_to_import_mapping(app_dir, "next/dist/compiled/react-dom/*"),
             );
+            import_map.insert_wildcard_alias(
+                "react-server-dom-webpack/",
+                request_to_import_mapping(app_dir, "next/dist/compiled/react-server-dom-webpack/*"),
+            );
         }
         ClientContextType::Fallback => {}
         ClientContextType::Other => {}
@@ -210,10 +214,20 @@ pub async fn get_next_server_import_map(
             import_map.insert_wildcard_alias("react-dom/", external);
             import_map.insert_exact_alias("styled-jsx", external);
             import_map.insert_wildcard_alias("styled-jsx/", external);
+            import_map.insert_exact_alias("react-server-dom-webpack/", external);
         }
         ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. } => {
+            import_map.insert_exact_alias(
+                "next/head",
+                request_to_import_mapping(project_path, "next/dist/client/components/noop-head"),
+            );
+            import_map.insert_exact_alias(
+                "next/dynamic",
+                request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
+            );
+
             for name in next_config.server_component_externals().await?.iter() {
                 import_map.insert_exact_alias(name, external);
                 import_map.insert_wildcard_alias(format!("{name}/"), external);
@@ -250,6 +264,23 @@ pub async fn get_next_edge_import_map(
     let ty = ty.into_value();
 
     insert_next_server_special_aliases(&mut import_map, ty).await?;
+
+    match ty {
+        ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {}
+        ServerContextType::AppSSR { .. }
+        | ServerContextType::AppRSC { .. }
+        | ServerContextType::AppRoute { .. } => {
+            import_map.insert_exact_alias(
+                "next/head",
+                request_to_import_mapping(project_path, "next/dist/client/components/noop-head"),
+            );
+            import_map.insert_exact_alias(
+                "next/dynamic",
+                request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
+            );
+        }
+        ServerContextType::Middleware => {}
+    }
 
     Ok(import_map.cell())
 }
@@ -355,6 +386,10 @@ pub async fn insert_next_server_special_aliases(
             import_map.insert_wildcard_alias(
                 "react-dom/",
                 request_to_import_mapping(app_dir, "next/dist/compiled/react-dom/*"),
+            );
+            import_map.insert_wildcard_alias(
+                "react-server-dom-webpack/",
+                request_to_import_mapping(app_dir, "next/dist/compiled/react-server-dom-webpack/*"),
             );
         }
         ServerContextType::Middleware => {}

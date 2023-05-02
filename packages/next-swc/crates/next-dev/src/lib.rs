@@ -369,7 +369,7 @@ async fn source(
     let static_source =
         StaticAssetsContentSourceVc::new(String::new(), project_path.join("public")).into();
     let manifest_source = DevManifestContentSource {
-        page_roots: vec![app_source, page_source],
+        page_roots: vec![page_source],
         next_config,
     }
     .cell()
@@ -491,10 +491,9 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
     {
         let index_uri = ServerAddr::new(server.addr).to_string()?;
         println!(
-            "{} - started server on {}:{}, url: {}",
+            "{} - started server on {}, url: {}",
             "ready".green(),
-            server.addr.ip(),
-            server.addr.port(),
+            server.addr,
             index_uri
         );
         if !options.no_open {

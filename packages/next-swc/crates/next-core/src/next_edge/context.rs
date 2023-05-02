@@ -5,8 +5,8 @@ use turbo_binding::{
         core::{
             compile_time_defines,
             compile_time_info::{
-                CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc, FreeVarReference,
-                FreeVarReferencesVc,
+                CompileTimeDefines, CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc,
+                FreeVarReference, FreeVarReferencesVc,
             },
             environment::{
                 EdgeWorkerEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment,
@@ -22,21 +22,30 @@ use turbo_tasks::Value;
 
 use crate::{
     next_config::NextConfigVc, next_import_map::get_next_edge_import_map,
-    next_server::context::ServerContextType, util::foreign_code_context_condition,
+    next_server::context::ServerContextType,
+    next_shared::resolve::UnsupportedModulesResolvePluginVc, util::foreign_code_context_condition,
 };
 
-pub fn next_edge_defines() -> CompileTimeDefinesVc {
+fn defines() -> CompileTimeDefines {
     compile_time_defines!(
         process.turbopack = true,
         process.env.NODE_ENV = "development",
         process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false,
         process.env.NEXT_RUNTIME = "edge"
     )
-    .cell()
+    // TODO(WEB-937) there are more defines needed, see
+    // packages/next/src/build/webpack-config.ts
 }
 
+#[turbo_tasks::function]
+pub fn next_edge_defines() -> CompileTimeDefinesVc {
+    defines().cell()
+}
+
+#[turbo_tasks::function]
 pub fn next_edge_free_vars(project_path: FileSystemPathVc) -> FreeVarReferencesVc {
     free_var_references!(
+        ..defines().into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
             request: "next/dist/compiled/buffer".to_string(),
             context: Some(project_path),
@@ -89,6 +98,7 @@ pub async fn get_edge_resolve_options_context(
         import_map: Some(next_edge_import_map),
         module: true,
         browser: true,
+        plugins: vec![UnsupportedModulesResolvePluginVc::new(project_path).into()],
         ..Default::default()
     };
 

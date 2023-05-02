@@ -3,7 +3,11 @@ import allyTrap from './maintain--tab-focus'
 import * as React from 'react'
 import { lock, unlock } from './body-locker'
 
-export type OverlayProps = { className?: string; fixed?: boolean }
+export type OverlayProps = {
+  children?: React.ReactNode
+  className?: string
+  fixed?: boolean
+}
 
 const Overlay: React.FC<OverlayProps> = function Overlay({
   className,

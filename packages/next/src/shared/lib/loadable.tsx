@@ -101,7 +101,7 @@ function createLoadableComponent(loadFn: any, options: any) {
     if (moduleIds) {
       READY_INITIALIZERS.push((ids: any) => {
         for (const moduleId of moduleIds) {
-          if (ids.indexOf(moduleId) !== -1) {
+          if (ids.includes(moduleId)) {
             return init()
           }
         }

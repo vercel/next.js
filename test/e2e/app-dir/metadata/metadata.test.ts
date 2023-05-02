@@ -487,13 +487,19 @@ createNextDescribe(
           'og:image:height': '114',
           'og:image:type': 'image/png',
           'og:image:alt': 'A alt txt for og',
-          'og:image':
-            'https://example.com/opengraph/static/opengraph-image.png?b76e8f0282c93c8e',
+          'og:image': isNextDev
+            ? expect.stringMatching(
+                /http:\/\/localhost:\d+\/opengraph\/static\/opengraph-image.png\?b76e8f0282c93c8e/
+              )
+            : 'https://example.com/opengraph/static/opengraph-image.png?b76e8f0282c93c8e',
         })
 
         await match('meta', 'name', 'content', {
-          'twitter:image':
-            'https://example.com/opengraph/static/twitter-image.png?b76e8f0282c93c8e',
+          'twitter:image': isNextDev
+            ? expect.stringMatching(
+                /http:\/\/localhost:\d+\/opengraph\/static\/twitter-image.png\?b76e8f0282c93c8e/
+              )
+            : 'https://example.com/opengraph/static/twitter-image.png?b76e8f0282c93c8e',
           'twitter:image:alt': 'A alt txt for twitter',
           'twitter:card': 'summary_large_image',
         })
@@ -738,7 +744,7 @@ createNextDescribe(
         expect(invalidRobotsResponse.status).toBe(404)
       })
 
-      it('should support root dir sitemap.xml', async () => {
+      it('should support sitemap.xml under every routes', async () => {
         const res = await next.fetch('/sitemap.xml')
         expect(res.headers.get('content-type')).toBe('application/xml')
         const sitemap = await res.text()
@@ -747,7 +753,7 @@ createNextDescribe(
           '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
         )
         const invalidSitemapResponse = await next.fetch('/title/sitemap.xml')
-        expect(invalidSitemapResponse.status).toBe(404)
+        expect(invalidSitemapResponse.status).toBe(200)
       })
 
       it('should support static manifest.webmanifest', async () => {
@@ -781,6 +787,28 @@ createNextDescribe(
         })
       }
     })
+
+    if (isNextStart) {
+      describe('static optimization', () => {
+        it('should build static files into static route', async () => {
+          expect(
+            await next.hasFile(
+              '.next/server/app/opengraph/static/opengraph-image.png.meta'
+            )
+          ).toBe(true)
+          expect(
+            await next.hasFile(
+              '.next/server/app/opengraph/static/opengraph-image.png.body'
+            )
+          ).toBe(true)
+          expect(
+            await next.hasFile(
+              '.next/server/app/opengraph/static/opengraph-image.png/[[...__metadata_id__]]/route.js'
+            )
+          ).toBe(false)
+        })
+      })
+    }
 
     describe('react cache', () => {
       it('should have same title and page value on initial load', async () => {

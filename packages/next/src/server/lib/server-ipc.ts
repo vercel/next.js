@@ -68,7 +68,8 @@ export const createWorker = (
   serverPort: number,
   ipcPort: number,
   isNodeDebugging: boolean | 'brk' | undefined,
-  type: string
+  type: 'pages' | 'app',
+  useServerActions?: boolean
 ) => {
   const { initialEnv } = require('@next/env') as typeof import('@next/env')
   const { Worker } = require('next/dist/compiled/jest-worker')
@@ -88,7 +89,13 @@ export const createWorker = (
         __NEXT_PRIVATE_RENDER_WORKER: type,
         __NEXT_PRIVATE_ROUTER_IPC_PORT: ipcPort + '',
         NODE_ENV: process.env.NODE_ENV,
-        NEXT_PREBUNDLED_REACT: process.env.NEXT_PREBUNDLED_REACT,
+        ...(type === 'app'
+          ? {
+              __NEXT_PRIVATE_PREBUNDLED_REACT: useServerActions
+                ? 'experimental'
+                : 'next',
+            }
+          : {}),
       },
       execArgv: genExecArgv(
         isNodeDebugging === undefined ? false : isNodeDebugging,

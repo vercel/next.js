@@ -9,7 +9,7 @@ import {
   IncrementalCacheEntry,
 } from '../../response-cache'
 import { encode } from '../../../shared/lib/bloom-filter/base64-arraybuffer'
-import { encodeText } from '../../node-web-streams-helper'
+import { encodeText } from '../../stream-utils/encode-decode'
 
 function toRoute(pathname: string): string {
   return pathname.replace(/\/$/, '').replace(/\/index$/, '') || '/'
@@ -40,7 +40,7 @@ export class CacheHandler {
   public async get(
     _key: string,
     _fetchCache?: boolean,
-    _originUrl?: string,
+    _fetchUrl?: string,
     _fetchIdx?: number
   ): Promise<CacheHandlerValue | null> {
     return {} as any
@@ -50,9 +50,11 @@ export class CacheHandler {
     _key: string,
     _data: IncrementalCacheValue | null,
     _fetchCache?: boolean,
-    _originUrl?: string,
+    _fetchUrl?: string,
     _fetchIdx?: number
   ): Promise<void> {}
+
+  public async revalidateTag(_tag: string): Promise<void> {}
 }
 
 export class IncrementalCache {
@@ -60,6 +62,8 @@ export class IncrementalCache {
   cacheHandler?: CacheHandler
   prerenderManifest: PrerenderManifest
   requestHeaders: Record<string, undefined | string | string[]>
+  requestProtocol?: 'http' | 'https'
+  allowedRevalidateHeaderKeys?: string[]
   minimalMode?: boolean
   fetchCacheKeyPrefix?: string
 
@@ -72,10 +76,12 @@ export class IncrementalCache {
     minimalMode,
     serverDistDir,
     requestHeaders,
+    requestProtocol,
     maxMemoryCacheSize,
     getPrerenderManifest,
     fetchCacheKeyPrefix,
     CurCacheHandler,
+    allowedRevalidateHeaderKeys,
   }: {
     fs?: CacheFs
     dev: boolean
@@ -84,6 +90,8 @@ export class IncrementalCache {
     minimalMode?: boolean
     serverDistDir?: string
     flushToDisk?: boolean
+    requestProtocol?: 'http' | 'https'
+    allowedRevalidateHeaderKeys?: string[]
     requestHeaders: IncrementalCache['requestHeaders']
     maxMemoryCacheSize?: number
     getPrerenderManifest: () => PrerenderManifest
@@ -94,7 +102,6 @@ export class IncrementalCache {
       if (fs && serverDistDir) {
         CurCacheHandler = FileSystemCache
       }
-
       if (minimalMode && fetchCache) {
         CurCacheHandler = FetchCache
       }
@@ -107,6 +114,8 @@ export class IncrementalCache {
     this.dev = dev
     this.minimalMode = minimalMode
     this.requestHeaders = requestHeaders
+    this.requestProtocol = requestProtocol
+    this.allowedRevalidateHeaderKeys = allowedRevalidateHeaderKeys
     this.prerenderManifest = getPrerenderManifest()
     this.fetchCacheKeyPrefix = fetchCacheKeyPrefix
 
@@ -152,6 +161,10 @@ export class IncrementalCache {
     return fetchCache ? pathname : normalizePagePath(pathname)
   }
 
+  async revalidateTag(tag: string) {
+    return this.cacheHandler?.revalidateTag?.(tag)
+  }
+
   // x-ref: https://github.com/facebook/react/blob/2655c9354d8e1c54ba888444220f63e836925caa/packages/react/src/ReactFetch.js#L23
   async fetchCacheKey(
     url: string,
@@ -159,7 +172,7 @@ export class IncrementalCache {
   ): Promise<string> {
     // this should be bumped anytime a fix is made to cache entries
     // that should bust the cache
-    const MAIN_KEY_PREFIX = 'v2'
+    const MAIN_KEY_PREFIX = 'v3'
 
     let cacheKey: string
     const bodyChunks: string[] = []
@@ -271,7 +284,7 @@ export class IncrementalCache {
     pathname: string,
     fetchCache?: boolean,
     revalidate?: number,
-    originUrl?: string,
+    fetchUrl?: string,
     fetchIdx?: number
   ): Promise<IncrementalCacheEntry | null> {
     // we don't leverage the prerender cache in dev mode
@@ -288,7 +301,7 @@ export class IncrementalCache {
     const cacheData = await this.cacheHandler?.get(
       pathname,
       fetchCache,
-      originUrl,
+      fetchUrl,
       fetchIdx
     )
 
@@ -353,7 +366,7 @@ export class IncrementalCache {
         entry.value,
         curRevalidate,
         fetchCache,
-        originUrl,
+        fetchUrl,
         fetchIdx
       )
     }
@@ -366,7 +379,7 @@ export class IncrementalCache {
     data: IncrementalCacheValue | null,
     revalidateSeconds?: number | false,
     fetchCache?: boolean,
-    originUrl?: string,
+    fetchUrl?: string,
     fetchIdx?: number
   ) {
     if (this.dev && !fetchCache) return
@@ -398,7 +411,7 @@ export class IncrementalCache {
         pathname,
         data,
         fetchCache,
-        originUrl,
+        fetchUrl,
         fetchIdx
       )
     } catch (error) {
