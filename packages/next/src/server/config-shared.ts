@@ -215,7 +215,6 @@ export interface ExperimentalConfig {
    * [webpack/webpack#ModuleNotoundError.js#L13-L42](https://github.com/webpack/webpack/blob/2a0536cf510768111a3a6dceeb14cb79b9f59273/lib/ModuleNotFoundError.js#L13-L42)
    */
   fallbackNodePolyfills?: false
-  enableUndici?: boolean
   sri?: {
     algorithm?: SubresourceIntegrityAlgorithm
   }
@@ -271,6 +270,11 @@ export interface ExperimentalConfig {
    *
    */
   instrumentationHook?: boolean
+
+  /**
+   * Enable `react@experimental` channel for the `app` directory.
+   */
+  serverActions?: boolean
 }
 
 export type ExportPathMap = {
@@ -695,7 +699,6 @@ export const defaultConfig: NextConfig = {
     disablePostcssPresetEnv: undefined,
     amp: undefined,
     urlImports: undefined,
-    enableUndici: false,
     adjustFontFallbacks: false,
     adjustFontFallbacksWithSizeAdjust: false,
     turbo: undefined,

@@ -36,6 +36,15 @@ startHandler(async ({ request, response, query, params, path }) => {
 
   const context: RouteHandlerManagerContext = {
     params,
+    prerenderManifest: {
+      version: -1 as any, // letting us know this doesn't conform to spec
+      routes: {},
+      dynamicRoutes: {},
+      notFoundRoutes: [],
+      preview: {
+        previewModeId: 'development-id',
+      } as any,
+    },
     staticGenerationContext: {
       supportsDynamicHTML: true,
     },

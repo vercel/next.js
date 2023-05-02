@@ -9,9 +9,16 @@ export default function Page() {
           <div key={i}>{i}</div>
         ))
       }
-      <Link href="/invisible-first-element" id="to-invisible-first-element">
-        To invisible first element
-      </Link>
+      <div>
+        <Link href="/loading-scroll" id="to-loading-scroll">
+          To loading scroll
+        </Link>
+      </div>
+      <div>
+        <Link href="/invisible-first-element" id="to-invisible-first-element">
+          To invisible first element
+        </Link>
+      </div>
     </>
   )
 }

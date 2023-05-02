@@ -79,7 +79,6 @@ interface ExportPageInput {
   parentSpanId: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   serverComponents?: boolean
-  enableUndici: NextConfigComplete['experimental']['enableUndici']
   debugOutput?: boolean
   isrMemoryCacheSize?: NextConfigComplete['experimental']['isrMemoryCacheSize']
   fetchCache?: boolean
@@ -136,7 +135,6 @@ export default async function exportPage({
   disableOptimizedLoading,
   httpAgentOptions,
   serverComponents,
-  enableUndici,
   debugOutput,
   isrMemoryCacheSize,
   fetchCache,
@@ -145,7 +143,6 @@ export default async function exportPage({
 }: ExportPageInput): Promise<ExportPageResults> {
   setHttpClientAndAgentOptions({
     httpAgentOptions,
-    experimental: { enableUndici },
   })
   const exportPageSpan = trace('export-page-worker', parentSpanId)
 
@@ -388,6 +385,17 @@ export default async function exportPage({
           // the route and the context for the request.
           const context: AppRouteRouteHandlerContext = {
             params,
+            prerenderManifest: {
+              version: 4,
+              routes: {},
+              dynamicRoutes: {},
+              preview: {
+                previewModeEncryptionKey: '',
+                previewModeId: '',
+                previewModeSigningKey: '',
+              },
+              notFoundRoutes: [],
+            },
             staticGenerationContext: {
               nextExport: true,
               supportsDynamicHTML: false,

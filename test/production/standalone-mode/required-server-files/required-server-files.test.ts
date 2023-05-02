@@ -1268,12 +1268,14 @@ describe('should set-up next', () => {
     expect(envVariables.envLocal).toBeUndefined()
   })
 
-  it('should run middleware correctly without minimalMode', async () => {
+  it('should run middleware correctly (without minimalMode, with wasm)', async () => {
     await next.destroy()
     await killApp(server)
     await setupNext({ nextEnv: false, minimalMode: false })
 
-    const testServer = join(next.testDir, 'standalone/server.js')
+    const standaloneDir = join(next.testDir, 'standalone')
+
+    const testServer = join(standaloneDir, 'server.js')
     await fs.writeFile(
       testServer,
       (
@@ -1304,9 +1306,19 @@ describe('should set-up next', () => {
     expect(res.status).toBe(200)
     expect(await res.text()).toContain('index page')
 
+    expect(fs.existsSync(join(standaloneDir, '.next/server/edge-chunks'))).toBe(
+      true
+    )
+
+    const resImageResponse = await fetchViaHTTP(
+      appPort,
+      '/a-non-existent-page/to-test-with-middleware'
+    )
+
+    expect(resImageResponse.status).toBe(200)
+    expect(resImageResponse.headers.get('content-type')).toBe('image/png')
+
     // when not in next env should be compress: true
-    expect(
-      await fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')
-    ).toContain('"compress":true')
+    expect(fs.readFileSync(testServer, 'utf8')).toContain('"compress":true')
   })
 })
