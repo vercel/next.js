@@ -67,11 +67,7 @@ checkFields<Diff<{
   dynamicParams?: boolean
   fetchCache?: 'auto' | 'force-no-store' | 'only-no-store' | 'default-no-store' | 'default-cache' | 'only-cache' | 'force-cache'
   preferredRegion?: 'auto' | 'global' | 'home' | string | string[]
-  ${
-    options.type === 'page' || options.type === 'route'
-      ? "runtime?: 'nodejs' | 'experimental-edge' | 'edge'"
-      : ''
-  }
+  runtime?: 'nodejs' | 'experimental-edge' | 'edge'
   ${
     options.type === 'route'
       ? ''
