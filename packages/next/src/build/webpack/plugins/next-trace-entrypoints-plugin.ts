@@ -16,6 +16,8 @@ import {
 import { NextConfigComplete } from '../../../server/config-shared'
 import { loadBindings } from '../../swc'
 import { isMatch } from 'next/dist/compiled/micromatch'
+import { getModuleBuildInfo } from '../loaders/get-module-build-info'
+import { getPageFilePath } from '../../entries'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'
 const TRACE_IGNORES = [
@@ -126,7 +128,9 @@ export interface TurbotraceContext {
 export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
   public turbotraceContext: TurbotraceContext = {}
 
+  private rootDir: string
   private appDir: string
+  private pagesDir: string
   private appDirEnabled?: boolean
   private tracingRoot: string
   private entryTraces: Map<string, Set<string>>
@@ -136,26 +140,32 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
   private chunksToTrace: string[] = []
 
   constructor({
+    rootDir,
     appDir,
+    pagesDir,
     appDirEnabled,
     traceIgnores,
     esmExternals,
     outputFileTracingRoot,
     turbotrace,
   }: {
+    rootDir: string
     appDir: string
+    pagesDir: string
     appDirEnabled?: boolean
     traceIgnores?: string[]
     outputFileTracingRoot?: string
     esmExternals?: NextConfigComplete['experimental']['esmExternals']
     turbotrace?: NextConfigComplete['experimental']['turbotrace']
   }) {
+    this.rootDir = rootDir
     this.appDir = appDir
+    this.pagesDir = pagesDir
     this.entryTraces = new Map()
     this.esmExternals = esmExternals
     this.appDirEnabled = appDirEnabled
     this.traceIgnores = traceIgnores || []
-    this.tracingRoot = outputFileTracingRoot || appDir
+    this.tracingRoot = outputFileTracingRoot || rootDir
     this.turbotrace = turbotrace
   }
 
@@ -221,7 +231,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
       }
       const result = await nodeFileTrace([...chunksToTrace], {
         base: this.tracingRoot,
-        processCwd: this.appDir,
+        processCwd: this.rootDir,
         readFile: async (path) => {
           if (chunksToTrace.has(path)) {
             const source =
@@ -336,25 +346,42 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                     if (!dep) continue
                     const entryMod = getModuleFromDependency(compilation, dep)
 
-                    // since app entries are wrapped in next-app-loader
-                    // we need to pull the original pagePath for
-                    // referencing during tracing
-                    if (isApp && entryMod.request) {
-                      const loaderQueryIdx = entryMod.request.indexOf('?')
+                    // Handle case where entry is a loader coming from Next.js.
+                    // For example edge-loader or app-loader.
+                    if (entryMod && entryMod.resource === '') {
+                      const moduleBuildInfo = getModuleBuildInfo(entryMod)
+                      // All loaders that are used to create entries have a `route` property on the buildInfo.
+                      if (moduleBuildInfo.route) {
+                        const absolutePath = getPageFilePath({
+                          absolutePagePath:
+                            moduleBuildInfo.route.absolutePagePath,
+                          rootDir: this.rootDir,
+                          appDir: this.appDir,
+                          pagesDir: this.pagesDir,
+                        })
 
-                      const loaderQuery = new URLSearchParams(
-                        entryMod.request.substring(loaderQueryIdx)
-                      )
-                      const resource =
-                        loaderQuery
-                          .get('pagePath')
-                          ?.replace(
-                            'private-next-app-dir',
-                            nodePath.join(this.appDir, 'app')
-                          ) || ''
+                        // Ensures we don't handle non-pages.
+                        if (
+                          absolutePath.startsWith(this.pagesDir) ||
+                          absolutePath.startsWith(this.appDir)
+                        ) {
+                          entryModMap.set(absolutePath, entryMod)
+                          entryNameMap.set(absolutePath, name)
+                        }
+                      } else {
+                        // If there was no `route` property, we can assume that it was something custom instead.
+                        // In order to trace these we add them to the additionalEntries map.
+                        if (entryMod.request) {
+                          let curMap = additionalEntries.get(name)
 
-                      entryModMap.set(resource, entryMod)
-                      entryNameMap.set(resource, name)
+                          if (!curMap) {
+                            curMap = new Map()
+                            additionalEntries.set(name, curMap)
+                          }
+                          depModMap.set(entryMod.request, entryMod)
+                          curMap.set(entryMod.resource, entryMod)
+                        }
+                      }
                     }
 
                     if (entryMod && entryMod.resource) {
@@ -362,6 +389,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                         /\\/g,
                         '/'
                       )
+
                       if (normalizedResource.includes('pages/')) {
                         entryNameMap.set(entryMod.resource, name)
                         entryModMap.set(entryMod.resource, entryMod)
@@ -439,11 +467,11 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                     action: 'print',
                     input: chunks,
                     contextDirectory,
-                    processCwd: this.turbotrace?.processCwd ?? this.appDir,
+                    processCwd: this.turbotrace?.processCwd ?? this.rootDir,
                     logLevel: this.turbotrace?.logLevel,
                     showAll: this.turbotrace?.logAll,
                   },
-                  appDir: this.appDir,
+                  appDir: this.rootDir,
                   depModArray: Array.from(depModMap.keys()),
                   entryNameMap,
                   outputPath: compilation.outputOptions.path!,
@@ -469,7 +497,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
               .traceAsyncFn(async () => {
                 const result = await nodeFileTrace(entriesToTrace, {
                   base: this.tracingRoot,
-                  processCwd: this.appDir,
+                  processCwd: this.rootDir,
                   readFile,
                   readlink,
                   stat,
@@ -739,7 +767,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
           // When in esm externals mode, and using import, we resolve with
           // ESM resolving options.
           const { res } = await resolveExternal(
-            this.appDir,
+            this.rootDir,
             this.esmExternals,
             context,
             request,
@@ -792,7 +820,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
               input: chunks,
               contextDirectory:
                 this.turbotrace?.contextDirectory ?? this.tracingRoot,
-              processCwd: this.turbotrace?.processCwd ?? this.appDir,
+              processCwd: this.turbotrace?.processCwd ?? this.rootDir,
               showAll: this.turbotrace?.logAll,
               logLevel: this.turbotrace?.logLevel,
             },
