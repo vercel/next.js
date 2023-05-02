@@ -1737,6 +1737,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               const result = context.renderOpts.renderResult
               const metadata = context.renderOpts.renderResult.metadata()
 
+              // TODO: (wyattjoh) look into fixing this
+              // Handle `isAlreadySent`.
+              if (metadata.isAlreadySent) {
+                // Send the response now that we have copied it into the cache.
+                await sendResponse(req, res, response)
+
+                return null
+              }
+
               // Handle `isNotFound`.
               if (metadata.isNotFound) {
                 return { value: null, revalidate: metadata.revalidate }

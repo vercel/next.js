@@ -1253,6 +1253,7 @@ export class PagesRouteModule extends RouteModule<
       context.res.isSent &&
       typeof getStaticProps !== 'function'
     ) {
+      metadata.isAlreadySent = true
       return new RenderResult(null, metadata)
     }
 

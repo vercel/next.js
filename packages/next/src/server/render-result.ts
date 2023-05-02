@@ -10,6 +10,7 @@ export type RenderResultMetadata = {
   devOnlyCacheBusterQueryString?: string
   isNotFound?: boolean
   isRedirect?: boolean
+  isAlreadySent?: boolean
 }
 
 export default class RenderResult {

@@ -107,8 +107,8 @@ export interface MockedResponseOptions {
 export class MockedResponse extends Stream.Writable implements ServerResponse {
   public statusCode: number
   public statusMessage: string = ''
-  public readonly finished = false
-  public readonly headersSent = false
+  public finished = false
+  public headersSent = false
   public readonly socket: Socket | null
 
   /**
@@ -171,6 +171,11 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
     this.buffers.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
 
     return true
+  }
+
+  public end() {
+    this.finished = true
+    return super.end(...arguments)
   }
 
   /**
@@ -250,6 +255,7 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
     }
 
     this.statusCode = statusCode
+    this.headersSent = true
 
     return this
   }
