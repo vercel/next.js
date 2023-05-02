@@ -50,7 +50,7 @@ import {
   getURLFromRedirectError,
   isRedirectError,
 } from '../../client/components/redirect'
-import { patchFetch } from '../lib/patch-fetch'
+import { addImplicitTags, patchFetch } from '../lib/patch-fetch'
 import { AppRenderSpan } from '../lib/trace/constants'
 import { getTracer } from '../lib/trace/tracer'
 import { interopDefault } from './interop-default'
@@ -1580,6 +1580,8 @@ export async function renderToHTMLOrFlight(
     if (staticGenerationStore.pendingRevalidates) {
       await Promise.all(staticGenerationStore.pendingRevalidates)
     }
+    addImplicitTags(staticGenerationStore)
+    ;(renderOpts as any).fetchTags = staticGenerationStore.tags?.join(',')
 
     if (staticGenerationStore.isStaticGeneration) {
       const htmlResult = await streamToBufferedResult(renderResult)

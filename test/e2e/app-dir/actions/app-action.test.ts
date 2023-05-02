@@ -86,6 +86,34 @@ createNextDescribe(
       }, 'my-not-found')
     })
 
+    it('should support uploading files', async () => {
+      const logs: string[] = []
+      next.on('stdout', (log) => {
+        logs.push(log)
+      })
+      next.on('stderr', (log) => {
+        logs.push(log)
+      })
+
+      const browser = await next.browser('/server')
+
+      // Fake a file to upload
+      await browser.eval(`
+        const file = new File(['hello'], 'hello.txt', { type: 'text/plain' });
+        const list = new DataTransfer();
+        list.items.add(file);
+        document.getElementById('file').files = list.files;
+      `)
+
+      await browser.elementByCss('#upload').click()
+
+      await check(() => {
+        return logs.some((log) => log.includes('File name: hello.txt size: 5'))
+          ? 'yes'
+          : ''
+      }, 'yes')
+    })
+
     it('should support hoc auth wrappers', async () => {
       const browser = await next.browser('/header')
       await await browser.eval(`document.cookie = 'auth=0'`)
