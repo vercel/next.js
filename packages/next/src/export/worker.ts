@@ -46,6 +46,7 @@ import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { toNodeHeaders } from '../server/web/utils'
 import { RouteModuleLoader } from '../server/future/helpers/module-loader/route-module-loader'
 import { NextRequestAdapter } from '../server/web/spec-extension/adapters/next-request'
+import * as ciEnvironment from '../telemetry/ci-info'
 
 const envConfig = require('../shared/lib/runtime-config')
 
@@ -322,6 +323,12 @@ export default async function exportPage({
           fontManifest: optimizeFonts ? requireFontManifest(distDir) : null,
           locale: locale as string,
           supportsDynamicHTML: false,
+          ...(ciEnvironment.hasNextSupport
+            ? {
+                isMinimalMode: true,
+                isRevalidate: true,
+              }
+            : {}),
         }
       }
 
@@ -400,6 +407,12 @@ export default async function exportPage({
               nextExport: true,
               supportsDynamicHTML: false,
               incrementalCache: curRenderOpts.incrementalCache,
+              ...(ciEnvironment.hasNextSupport
+                ? {
+                    isMinimalMode: true,
+                    isRevalidate: true,
+                  }
+                : {}),
             },
           }
 
@@ -429,6 +442,12 @@ export default async function exportPage({
 
               results.fromBuildExportRevalidate = revalidate
               const headers = toNodeHeaders(response.headers)
+              const cacheTags = (context.staticGenerationContext as any)
+                .fetchTags
+
+              if (cacheTags) {
+                headers['x-next-cache-tags'] = cacheTags
+              }
 
               if (!headers['content-type'] && body.type) {
                 headers['content-type'] = body.type
@@ -481,7 +500,26 @@ export default async function exportPage({
             results.fromBuildExportRevalidate = revalidate
 
             if (revalidate !== 0) {
+              const cacheTags = (curRenderOpts as any).fetchTags
+              const headers = cacheTags
+                ? {
+                    'x-next-cache-tags': cacheTags,
+                  }
+                : undefined
+
+              if (ciEnvironment.hasNextSupport) {
+                if (cacheTags) {
+                  results.fromBuildExportMeta = {
+                    headers,
+                  }
+                }
+              }
+
               await promises.writeFile(htmlFilepath, html ?? '', 'utf8')
+              await promises.writeFile(
+                htmlFilepath.replace(/\.html$/, '.meta'),
+                JSON.stringify({ headers })
+              )
               await promises.writeFile(
                 htmlFilepath.replace(/\.html$/, '.rsc'),
                 flightData

@@ -1,4 +1,4 @@
-import { unstable_cache } from 'next/server'
+import { unstable_cache } from 'next/cache'
 
 export const revalidate = 0
 
