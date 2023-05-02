@@ -36,5 +36,5 @@ export function absolutePathToPage(
       keepIndex: options.keepIndex,
     }
   )
-  return isAppDir ? normalizeMetadataRoute(page, pagePath) : page
+  return isAppDir ? normalizeMetadataRoute(page) : page
 }
