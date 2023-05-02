@@ -5,10 +5,7 @@ import type {
 
 import { unstable_revalidateTag } from './unstable-revalidate-tag'
 import { headers } from '../../../client/components/headers'
-import {
-  PRERENDER_REVALIDATE_HEADER,
-  PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
-} from '../../../lib/constants'
+import { PRERENDER_REVALIDATE_HEADER } from '../../../lib/constants'
 
 export function unstable_revalidatePath(path: string, type?: 'ondemand') {
   if (type !== 'ondemand') {
