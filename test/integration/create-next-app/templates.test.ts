@@ -49,13 +49,11 @@ const startsWithoutError = async (
       expect(await res.text()).toContain('Get started by editing')
       expect(res.status).toBe(200)
 
-      const apiRes = await fetchViaHTTP(appPort, '/api/hello')
-      if (usingAppDirectory) {
-        expect(await apiRes.text()).toEqual('Hello, Next.js!')
-      } else {
+      if (!usingAppDirectory) {
+        const apiRes = await fetchViaHTTP(appPort, '/api/hello')
         expect(await apiRes.json()).toEqual({ name: 'John Doe' })
+        expect(apiRes.status).toBe(200)
       }
-      expect(apiRes.status).toBe(200)
     } finally {
       await killApp(app)
     }

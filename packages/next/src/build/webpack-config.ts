@@ -2205,7 +2205,9 @@ export default async function getBaseWebpackConfig(
         new (require('./webpack/plugins/next-trace-entrypoints-plugin')
           .TraceEntryPointsPlugin as typeof import('./webpack/plugins/next-trace-entrypoints-plugin').TraceEntryPointsPlugin)(
           {
-            appDir: dir,
+            rootDir: dir,
+            appDir: appDir,
+            pagesDir: pagesDir,
             esmExternals: config.experimental.esmExternals,
             outputFileTracingRoot: config.experimental.outputFileTracingRoot,
             appDirEnabled: hasAppDir,

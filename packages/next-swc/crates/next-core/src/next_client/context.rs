@@ -23,9 +23,11 @@ use turbo_binding::{
         env::ProcessEnvAssetVc,
         node::execution_context::ExecutionContextVc,
         turbopack::{
+            condition::ContextCondition,
             module_options::{
                 module_options_context::{ModuleOptionsContext, ModuleOptionsContextVc},
-                PostCssTransformOptions, WebpackLoadersOptions,
+                JsxTransformOptions, PostCssTransformOptions, TypescriptTransformOptions,
+                WebpackLoadersOptions,
             },
             resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
             transition::TransitionsByNameVc,
@@ -34,10 +36,12 @@ use turbo_binding::{
     },
 };
 use turbo_tasks::{primitives::StringVc, Value};
+use turbo_tasks_fs::FileSystem;
 
 use super::transforms::get_next_client_transforms_rules;
 use crate::{
     babel::maybe_add_babel_loader,
+    embed_js::next_js_fs,
     env::env_for_js,
     next_build::{get_external_next_compiled_package_mapping, get_postcss_package_mapping},
     next_client::runtime_entry::{RuntimeEntriesVc, RuntimeEntry},
@@ -219,10 +223,23 @@ pub async fn get_client_module_options_context(
         enable_typescript_transform: Some(tsconfig),
         enable_mdx_rs: mdx_rs_options,
         decorators: Some(decorators_options),
-        rules: vec![(
-            foreign_code_context_condition(next_config).await?,
-            module_options_context.clone().cell(),
-        )],
+        rules: vec![
+            (
+                foreign_code_context_condition(next_config).await?,
+                module_options_context.clone().cell(),
+            ),
+            // If the module is an internal asset (i.e overlay, fallback) coming from the embedded
+            // FS, don't apply user defined transforms.
+            (
+                ContextCondition::InPath(next_js_fs().root()),
+                ModuleOptionsContext {
+                    enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
+                    enable_jsx: Some(JsxTransformOptions::default().cell()),
+                    ..module_options_context.clone()
+                }
+                .cell(),
+            ),
+        ],
         custom_rules,
         ..module_options_context
     }

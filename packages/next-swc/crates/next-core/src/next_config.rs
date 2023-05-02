@@ -516,7 +516,17 @@ impl NextConfigVc {
             .await?
             .env
             .iter()
-            .map(|(k, v)| (k.clone(), v.to_string()))
+            .map(|(k, v)| {
+                (
+                    k.clone(),
+                    if let JsonValue::String(s) = v {
+                        // A string value is kept, calling `to_string` would wrap in to quotes.
+                        s.clone()
+                    } else {
+                        v.to_string()
+                    },
+                )
+            })
             .collect();
 
         Ok(EnvMapVc::cell(env))
