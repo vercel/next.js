@@ -203,16 +203,14 @@ export default class FileSystemCache implements CacheHandler {
 
           let meta: { status?: number; headers?: OutgoingHttpHeaders } = {}
 
-          try {
-            meta = JSON.parse(
-              (
-                await this.fs.readFile(filePath.replace(/\.html$/, '.meta'))
-              ).toString('utf-8')
-            )
-          } catch (_) {
-            if (!process.env.NEXT_PHASE) {
-              console.error(_)
-            }
+          if (isAppPath) {
+            try {
+              meta = JSON.parse(
+                (
+                  await this.fs.readFile(filePath.replace(/\.html$/, '.meta'))
+                ).toString('utf-8')
+              )
+            } catch (_) {}
           }
 
           data = {
