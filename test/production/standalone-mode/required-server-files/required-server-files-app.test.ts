@@ -14,7 +14,6 @@ describe('should set-up next', () => {
   let next: NextInstance
   let server
   let appPort
-  let errors = []
 
   const setupNext = async ({
     nextEnv,
