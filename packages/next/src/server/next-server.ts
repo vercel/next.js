@@ -905,11 +905,7 @@ export default class NextNodeServer extends BaseServer {
       pageModule,
       {
         ...this.renderOpts.previewProps,
-        revalidate: (newReq: IncomingMessage, newRes: ServerResponse) =>
-          this.getRequestHandler()(
-            new NodeNextRequest(newReq),
-            new NodeNextResponse(newRes)
-          ),
+        revalidate: this.revalidate,
         // internal config so is not typed
         trustHostHeader: (this.nextConfig.experimental as Record<string, any>)
           .trustHostHeader,
@@ -1672,36 +1668,36 @@ export default class NextNodeServer extends BaseServer {
     }
   }
 
-  // public async revalidate({
-  //   urlPath,
-  //   revalidateHeaders,
-  //   opts,
-  // }: {
-  //   urlPath: string
-  //   revalidateHeaders: { [key: string]: string | string[] }
-  //   opts: { unstable_onlyGenerated: boolean }
-  // }) {
-  //   this.prepare()
-  //   const handler = this.getRequestHandler()
+  public async revalidate({
+    urlPath,
+    revalidateHeaders,
+    opts,
+  }: {
+    urlPath: string
+    revalidateHeaders: { [key: string]: string | string[] }
+    opts: { unstable_onlyGenerated?: boolean }
+  }) {
+    this.prepare()
+    const handler = this.getRequestHandler()
 
-  //   const mocked = createRequestResponseMocks({
-  //     url: urlPath,
-  //     headers: revalidateHeaders,
-  //   })
-  //   await handler(
-  //     new NodeNextRequest(mocked.req),
-  //     new NodeNextResponse(mocked.res)
-  //   )
+    const mocked = createRequestResponseMocks({
+      url: urlPath,
+      headers: revalidateHeaders,
+    })
+    await handler(
+      new NodeNextRequest(mocked.req),
+      new NodeNextResponse(mocked.res)
+    )
+    await mocked.res.hasStreamed
 
-  //   await mocked.res.hasStreamed
-  //   if (
-  //     mocked.res.getHeader('x-nextjs-cache') !== 'REVALIDATED' &&
-  //     !(mocked.res.statusCode === 404 && opts.unstable_onlyGenerated)
-  //   ) {
-  //     throw new Error(`Invalid response ${mocked.res.statusCode}`)
-  //   }
-  //   return {}
-  // }
+    if (
+      mocked.res.getHeader('x-nextjs-cache') !== 'REVALIDATED' &&
+      !(mocked.res.statusCode === 404 && opts.unstable_onlyGenerated)
+    ) {
+      throw new Error(`Invalid response ${mocked.res.statusCode}`)
+    }
+    return {}
+  }
 
   public async render(
     req: BaseNextRequest | IncomingMessage,
