@@ -1,7 +1,6 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import { writeFile, rm } from 'fs/promises'
 import { createServer } from 'http'
 import {
   fetchViaHTTP,
