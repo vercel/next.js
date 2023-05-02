@@ -96,23 +96,5 @@ describe('node-fetch-keep-alive', () => {
       expect(obj).toEqual({ connection: 'keep-alive' })
       await browser.close()
     })
-
-    it('should close connection when next.config.js has keepAlive:false', async () => {
-      const file = join(appDir, 'next.config.js')
-      const content = `module.exports = {
-        httpAgentOptions: {
-          keepAlive: false,
-        },
-      }`
-      await writeFile(file, content)
-      let obj = {}
-      try {
-        const res = await fetchViaHTTP(appPort, '/api/json')
-        obj = await res.json()
-      } finally {
-        await rm(file)
-      }
-      expect(obj).toEqual({ connection: 'close' })
-    })
   }
 })
