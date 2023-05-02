@@ -54,7 +54,7 @@ export function fillMetadataSegment(
  * @param page
  * @returns
  */
-export function normalizeMetadataRoute(page: string, pagePath: string) {
+export function normalizeMetadataRoute(page: string) {
   if (!isMetadataRoute(page)) {
     return page
   }
