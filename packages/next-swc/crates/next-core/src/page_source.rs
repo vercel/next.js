@@ -520,14 +520,14 @@ async fn create_not_found_page_source(
     let (page_asset, pathname) =
         if let Some(not_found_page_asset) = get_not_found_page(pages_dir, page_extensions).await? {
             // If a 404 page is defined, the pathname should be 404.
-            (not_found_page_asset, StringVc::cell("404".to_string()))
+            (not_found_page_asset, StringVc::cell("/404".to_string()))
         } else {
             (
                 // The error page asset must be within the context path so it can depend on the
                 // Next.js module.
                 next_asset("entry/error.tsx"),
                 // If no 404 page is defined, the pathname should be _error.
-                StringVc::cell("_error".to_string()),
+                StringVc::cell("/_error".to_string()),
             )
         };
 
