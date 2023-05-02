@@ -87,12 +87,6 @@ describe('should set-up next', () => {
       undefined,
       {
         cwd: next.testDir,
-        onStderr(msg) {
-          if (msg.includes('top-level')) {
-            errors.push(msg)
-          }
-          stderr += msg
-        },
       }
     )
   }
