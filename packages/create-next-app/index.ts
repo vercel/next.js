@@ -347,7 +347,9 @@ async function run(): Promise<void> {
       if (ciInfo.isCI) {
         program.appDir = false
       } else {
-        const styledAppDir = chalk.hex('#007acc')('`app/` router')
+        const styledAppDir = chalk.hex('#007acc')(
+          'experimental `app/` directory'
+        )
         const { appDir } = await prompts({
           onState: onPromptState,
           type: 'toggle',

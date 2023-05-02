@@ -82,7 +82,7 @@ describe('create-next-app templates', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-experimental-app',
+          '--no-app-dir',
           `--import-alias=@/*`,
         ],
         {
@@ -128,7 +128,7 @@ describe('create-next-app templates', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-experimental-app',
+          '--no-app-dir',
           `--import-alias=@/*`,
         ],
         {
@@ -155,7 +155,7 @@ describe('create-next-app templates', () => {
           '--no-tailwind',
           '--eslint',
           '--src-dir',
-          '--no-experimental-app',
+          '--no-app-dir',
           `--import-alias=@/*`,
         ],
         {
@@ -209,7 +209,7 @@ describe('create-next-app templates', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-experimental-app',
+          '--no-app-dir',
           `--import-alias=@/*`,
         ],
         {
@@ -238,7 +238,7 @@ describe('create-next-app templates', () => {
           '--no-tailwind',
           '--eslint',
           '--src-dir',
-          '--no-experimental-app',
+          '--no-app-dir',
           `--import-alias=@/*`,
         ],
         {
@@ -276,7 +276,7 @@ describe('create-next-app templates', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-experimental-app',
+          '--no-app-dir',
         ],
         {
           cwd,
@@ -322,7 +322,7 @@ describe('create-next-app templates', () => {
           '--no-eslint',
           '--tailwind',
           '--src-dir',
-          '--no-experimental-app',
+          '--no-app-dir',
           `--import-alias=@/*`,
         ],
         {
@@ -371,7 +371,7 @@ describe('create-next-app templates', () => {
           '--js',
           '--eslint',
           '--no-src-dir',
-          '--no-experimental-app',
+          '--no-app-dir',
           `--import-alias=@/*`,
         ],
         {
