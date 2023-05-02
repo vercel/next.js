@@ -70,8 +70,9 @@ module.exports = function (task) {
         },
         env: {
           targets: {
-            // Should match version defined in packages/next/package.json#engine
-            node: '16.14.0',
+            // Follows version defined in packages/next/package.json#engine
+            // Currently a few minors behind due to babel class transpiling
+            node: '16.8.0',
           },
         },
         jsc: {
