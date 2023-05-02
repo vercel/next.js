@@ -33,64 +33,6 @@ export const projectSpecification: ProjectSpecification = {
     deps: ['next', 'react', 'react-dom', 'eslint', 'eslint-config-next'],
     devDeps: [],
   },
-  default: {
-    js: {
-      files: [
-        'pages/index.js',
-        'pages/_app.js',
-        'pages/api/hello.js',
-        'jsconfig.json',
-      ],
-      deps: [],
-      devDeps: [],
-    },
-    ts: {
-      files: [
-        'pages/index.tsx',
-        'pages/_app.tsx',
-        'pages/api/hello.ts',
-        'tsconfig.json',
-        'next-env.d.ts',
-      ],
-      deps: ['@types/node', '@types/react', '@types/react-dom', 'typescript'],
-      devDeps: [],
-    },
-  },
-  'default-tw': {
-    js: {
-      files: [
-        'jsconfig.json',
-        'pages/_app.js',
-        'pages/api/hello.js',
-        'pages/index.js',
-        'postcss.config.js',
-        'tailwind.config.js',
-      ],
-      deps: ['autoprefixer', 'postcss', 'tailwindcss'],
-      devDeps: [],
-    },
-    ts: {
-      files: [
-        'next-env.d.ts',
-        'pages/_app.tsx',
-        'pages/api/hello.ts',
-        'pages/index.tsx',
-        'postcss.config.js',
-        'tailwind.config.js',
-        'tsconfig.json',
-      ],
-      deps: [
-        '@types/node',
-        '@types/react-dom',
-        '@types/react',
-        'autoprefixer',
-        'postcss',
-        'tailwindcss',
-        'typescript',
-      ],
-      devDeps: [],
-    },
-  },
   app: {
     js: {
       deps: [],

@@ -80,7 +80,6 @@ describe('create-next-app templates', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-experimental-app',
           `--import-alias=@/*`,
         ],
         {
@@ -126,7 +125,6 @@ describe('create-next-app templates', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-experimental-app',
           `--import-alias=@/*`,
         ],
         {
@@ -137,7 +135,7 @@ describe('create-next-app templates', () => {
       const exitCode = await spawnExitPromise(childProcess)
 
       expect(exitCode).toBe(0)
-      shouldBeTypescriptProject({ cwd, projectName, template: 'default' })
+      shouldBeTypescriptProject({ cwd, projectName, template: 'app' })
 
       await startsWithoutError(path.join(cwd, projectName))
     })
@@ -153,7 +151,6 @@ describe('create-next-app templates', () => {
           '--no-tailwind',
           '--eslint',
           '--src-dir',
-          '--no-experimental-app',
           `--import-alias=@/*`,
         ],
         {
@@ -167,7 +164,7 @@ describe('create-next-app templates', () => {
       shouldBeTypescriptProject({
         cwd,
         projectName,
-        template: 'default',
+        template: 'app',
         srcDir: true,
       })
       await startsWithoutError(path.join(cwd, projectName))
@@ -192,7 +189,7 @@ describe('create-next-app templates', () => {
       const exitCode = await spawnExitPromise(childProcess)
 
       expect(exitCode).toBe(0)
-      shouldBeTypescriptProject({ cwd, projectName, template: 'default' })
+      shouldBeTypescriptProject({ cwd, projectName, template: 'app' })
       await startsWithoutError(path.join(cwd, projectName))
     })
   })
@@ -207,7 +204,6 @@ describe('create-next-app templates', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-experimental-app',
           `--import-alias=@/*`,
         ],
         {
@@ -218,7 +214,7 @@ describe('create-next-app templates', () => {
       const exitCode = await spawnExitPromise(childProcess)
 
       expect(exitCode).toBe(0)
-      shouldBeJavascriptProject({ cwd, projectName, template: 'default' })
+      shouldBeJavascriptProject({ cwd, projectName, template: 'app' })
       await startsWithoutError(path.join(cwd, projectName), [
         'default',
         'turbo',
@@ -236,7 +232,6 @@ describe('create-next-app templates', () => {
           '--no-tailwind',
           '--eslint',
           '--src-dir',
-          '--no-experimental-app',
           `--import-alias=@/*`,
         ],
         {
@@ -250,7 +245,7 @@ describe('create-next-app templates', () => {
       shouldBeJavascriptProject({
         cwd,
         projectName,
-        template: 'default',
+        template: 'app',
         srcDir: true,
       })
       await startsWithoutError(path.join(cwd, projectName), [
@@ -268,14 +263,7 @@ describe('create-next-app templates', () => {
        * Start the create-next-app call.
        */
       const childProcess = createNextApp(
-        [
-          projectName,
-          '--ts',
-          '--no-tailwind',
-          '--eslint',
-          '--no-src-dir',
-          '--no-experimental-app',
-        ],
+        [projectName, '--ts', '--no-tailwind', '--eslint', '--no-src-dir'],
         {
           cwd,
         },
@@ -320,7 +308,6 @@ describe('create-next-app templates', () => {
           '--no-eslint',
           '--tailwind',
           '--src-dir',
-          '--no-experimental-app',
           `--import-alias=@/*`,
         ],
         {
@@ -364,14 +351,7 @@ describe('create-next-app templates', () => {
        * Start the create-next-app call.
        */
       const childProcess = createNextApp(
-        [
-          projectName,
-          '--js',
-          '--eslint',
-          '--no-src-dir',
-          '--no-experimental-app',
-          `--import-alias=@/*`,
-        ],
+        [projectName, '--js', '--eslint', '--no-src-dir', `--import-alias=@/*`],
         {
           cwd,
         },

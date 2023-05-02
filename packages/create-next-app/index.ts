@@ -67,13 +67,6 @@ const program = new Commander.Command(packageJson.name)
 `
   )
   .option(
-    '--experimental-app',
-    `
-
-  Initialize as a \`app/\` directory project.
-`
-  )
-  .option(
     '--src-dir',
     `
 
@@ -340,29 +333,6 @@ async function run(): Promise<void> {
     }
 
     if (
-      !process.argv.includes('--experimental-app') &&
-      !process.argv.includes('--no-experimental-app')
-    ) {
-      if (ciInfo.isCI) {
-        program.experimentalApp = false
-      } else {
-        const styledAppDir = chalk.hex('#007acc')(
-          'experimental `app/` directory'
-        )
-        const { appDir } = await prompts({
-          onState: onPromptState,
-          type: 'toggle',
-          name: 'appDir',
-          message: `Would you like to use ${styledAppDir} with this project?`,
-          initial: false,
-          active: 'Yes',
-          inactive: 'No',
-        })
-        program.experimentalApp = Boolean(appDir)
-      }
-    }
-
-    if (
       typeof program.importAlias !== 'string' ||
       !program.importAlias.length
     ) {
@@ -396,7 +366,6 @@ async function run(): Promise<void> {
       typescript: program.typescript,
       tailwind: program.tailwind,
       eslint: program.eslint,
-      experimentalApp: program.experimentalApp,
       srcDir: program.srcDir,
       importAlias: program.importAlias,
     })
@@ -424,7 +393,6 @@ async function run(): Promise<void> {
       typescript: program.typescript,
       eslint: program.eslint,
       tailwind: program.tailwind,
-      experimentalApp: program.experimentalApp,
       srcDir: program.srcDir,
       importAlias: program.importAlias,
     })
