@@ -322,6 +322,9 @@ export default class NextNodeServer extends BaseServer {
         }
       }
     }
+
+    // ensure options are set when loadConfig isn't called
+    setHttpClientAndAgentOptions(this.nextConfig)
   }
 
   protected async prepareImpl() {

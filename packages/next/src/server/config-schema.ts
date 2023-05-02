@@ -417,6 +417,9 @@ const configSchema = {
           },
           type: 'array',
         },
+        enableUndici: {
+          type: 'boolean',
+        },
         workerThreads: {
           type: 'boolean',
         },
@@ -502,6 +505,15 @@ const configSchema = {
       isFunction: true,
       errorMessage: 'must be a function that returns a Promise',
     } as any,
+    httpAgentOptions: {
+      additionalProperties: false,
+      properties: {
+        keepAlive: {
+          type: 'boolean',
+        },
+      },
+      type: 'object',
+    },
     i18n: {
       additionalProperties: false,
       nullable: true,

@@ -22,6 +22,7 @@ import { exportAppPageRoute } from './future/exporters/export-app-page-route'
 import { exportPagesRoute } from './future/exporters/export-pages-route'
 import { ExportersResult } from './future/exporters/exporters'
 import { getIncrementalCache } from './helpers/get-incremental-cache'
+import { setHttpClientAndAgentOptions } from '../server/config'
 
 const envConfig = require('../shared/lib/runtime-config')
 
@@ -50,7 +51,9 @@ interface ExportPageInput {
   serverRuntimeConfig: { [key: string]: any }
   subFolders?: boolean
   parentSpanId: any
+  httpAgentOptions: NextConfigComplete['httpAgentOptions']
   serverComponents?: boolean
+  enableUndici: NextConfigComplete['experimental']['enableUndici']
   debugOutput?: boolean
   isrMemoryCacheSize?: NextConfigComplete['experimental']['isrMemoryCacheSize']
   fetchCache?: boolean
@@ -99,12 +102,18 @@ export default async function exportPage({
   serverRuntimeConfig,
   subFolders = false,
   serverComponents = false,
+  httpAgentOptions,
+  enableUndici,
   debugOutput,
   isrMemoryCacheSize,
   fetchCache,
   fetchCacheKeyPrefix,
   incrementalCacheHandlerPath,
 }: ExportPageInput): Promise<ExportPageResults> {
+  setHttpClientAndAgentOptions({
+    httpAgentOptions,
+    experimental: { enableUndici },
+  })
   const exportPageSpan = trace('export-page-worker', parentSpanId)
 
   // Create the batched writer that can be used to write all the files to disk

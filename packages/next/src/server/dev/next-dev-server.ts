@@ -1638,8 +1638,13 @@ export default class DevServer extends Server {
     // from waiting on them for the page to load in dev mode
 
     const __getStaticPaths = async () => {
-      const { configFileName, publicRuntimeConfig, serverRuntimeConfig } =
-        this.nextConfig
+      const {
+        configFileName,
+        publicRuntimeConfig,
+        serverRuntimeConfig,
+        httpAgentOptions,
+        experimental: { enableUndici },
+      } = this.nextConfig
       const { locales, defaultLocale } = this.nextConfig.i18n || {}
       const staticPathsWorker = this.getStaticPathsWorker()
 
@@ -1652,6 +1657,8 @@ export default class DevServer extends Server {
             publicRuntimeConfig,
             serverRuntimeConfig,
           },
+          httpAgentOptions,
+          enableUndici,
           locales,
           defaultLocale,
           originalAppPath,
