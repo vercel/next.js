@@ -347,7 +347,6 @@ function Router({
       cache,
       prefetchCache,
       tree,
-      serverActionDispatcher,
     }
   }
 
