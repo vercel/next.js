@@ -2,6 +2,7 @@ import Image from 'next/image'
 import { img } from '../components/img'
 import broken from '../public/broken.jpeg'
 import svg from '../public/test.svg'
+import brokenSvg from '../public/broken.svg'
 import { useEffect } from 'react'
 
 export default function Home() {
@@ -25,6 +26,17 @@ export default function Home() {
       width="116"
       height="100"
     />,
+    <Image
+      id="broken"
+      alt="test imported broken image"
+      src={broken}
+      placeholder="blur"
+    />,
+    <Image
+      id="broken-svg"
+      alt="test imported broken svg image"
+      src={brokenSvg}
+    />,
   ]
 }
 
@@ -40,9 +52,11 @@ function runTests() {
     expect(svg).toHaveProperty('height', 400)
   })
 
-  it('should not return image size for broken images', function () {
-    expect(broken).toHaveProperty('width', 0)
-    expect(broken).toHaveProperty('height', 0)
+  it('should return fake image size for broken images', function () {
+    expect(broken).toHaveProperty('width', 100)
+    expect(broken).toHaveProperty('height', 100)
+    expect(brokenSvg).toHaveProperty('width', 100)
+    expect(brokenSvg).toHaveProperty('height', 100)
   })
 
   it('should have blur placeholder', function () {
@@ -60,10 +74,13 @@ function runTests() {
     expect(svg).toHaveProperty('blurHeight', 0)
   })
 
-  it('should not have blur placeholder for broken images', function () {
-    expect(broken).toHaveProperty('blurDataURL', null)
-    expect(broken).toHaveProperty('blurWidth', 0)
-    expect(broken).toHaveProperty('blurHeight', 0)
+  it('should have fake blur placeholder for broken images', function () {
+    expect(broken).toHaveProperty(
+      'blurDataURL',
+      expect.stringContaining('data:')
+    )
+    expect(broken).toHaveProperty('blurWidth', 1)
+    expect(broken).toHaveProperty('blurHeight', 1)
   })
 
   it('should link to imported image', function () {
@@ -79,5 +96,15 @@ function runTests() {
   it('should link to local src image', function () {
     const img = document.querySelector('#local')
     expect(img.src).toContain('triangle-black')
+  })
+
+  it('should link to imported broken image', function () {
+    const img = document.querySelector('#broken')
+    expect(img.src).toContain(encodeURIComponent('_next/static/assets'))
+  })
+
+  it('should link to imported broken svg image', function () {
+    const img = document.querySelector('#broken-svg')
+    expect(img.src).toContain('_next/static/assets')
   })
 }
