@@ -325,7 +325,6 @@ export default async function exportPage({
           supportsDynamicHTML: false,
           ...(ciEnvironment.hasNextSupport
             ? {
-                isMinimalMode: true,
                 isRevalidate: true,
               }
             : {}),
@@ -409,7 +408,6 @@ export default async function exportPage({
               incrementalCache: curRenderOpts.incrementalCache,
               ...(ciEnvironment.hasNextSupport
                 ? {
-                    isMinimalMode: true,
                     isRevalidate: true,
                   }
                 : {}),

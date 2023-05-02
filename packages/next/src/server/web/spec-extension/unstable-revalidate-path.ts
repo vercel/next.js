@@ -10,14 +10,8 @@ import {
   PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
 } from '../../../lib/constants'
 
-export function unstable_revalidatePath(
-  path: string,
-  ctx: {
-    manualRevalidate?: boolean
-    unstable_onlyGenerated?: boolean
-  } = {}
-) {
-  if (!ctx?.manualRevalidate) {
+export function unstable_revalidatePath(path: string, type?: 'ondemand') {
+  if (type !== 'ondemand') {
     return unstable_revalidateTag(path)
   }
 
@@ -52,11 +46,6 @@ export function unstable_revalidatePath(
 
   const revalidateHeaders: typeof reqHeaders = {
     [PRERENDER_REVALIDATE_HEADER]: previewModeId,
-    ...(ctx.unstable_onlyGenerated
-      ? {
-          [PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER]: '1',
-        }
-      : {}),
   }
 
   const curAllowedRevalidateHeaderKeys =
