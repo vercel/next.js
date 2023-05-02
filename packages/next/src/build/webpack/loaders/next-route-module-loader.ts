@@ -9,6 +9,7 @@ import { PagesBundlePathNormalizer } from '../../../server/future/normalizers/bu
 import { AppBundlePathNormalizer } from '../../../server/future/normalizers/built/app/app-bundle-path-normalizer'
 import { PagesRouteDefinition } from '../../../server/future/route-definitions/pages-route-definition'
 import { NextConfigComplete } from '../../../server/config-shared'
+import { getModuleBuildInfo } from './get-module-build-info'
 
 type NextRouteModuleLoaderOptions = {
   definition: string
@@ -20,6 +21,7 @@ type NextRouteModuleLoaderOptions = {
   absolute404Path: string
   absolute500Path: string
   absoluteErrorPath: string
+  preferredRegion: string | string[] | undefined
 }
 
 function getBundlePath(kind: RouteKind, page: string): string {
@@ -44,6 +46,7 @@ export const getRouteModuleLoader = ({
   buildId: string
   runtime: ServerRuntime
   pages: { [page: string]: string }
+  preferredRegion: string | string[] | undefined
 }) => {
   const params: NextRouteModuleLoaderOptions = {
     ...options,
@@ -61,6 +64,7 @@ export const getRouteModuleLoader = ({
     absolute500Path: pages['/500'] || pages['/_error'],
     absolute404Path: pages['/404'] || pages['/_error'],
     absoluteErrorPath: pages['/_error'],
+    preferredRegion: options.preferredRegion,
   }
 
   return {
@@ -96,6 +100,7 @@ const loader: webpack.LoaderDefinitionFunction<NextRouteModuleLoaderOptions> =
       absolute500Path,
       absolute404Path,
       absoluteErrorPath,
+      preferredRegion,
     } = this.getOptions()
 
     const config: NextConfigComplete = JSON.parse(
@@ -104,6 +109,14 @@ const loader: webpack.LoaderDefinitionFunction<NextRouteModuleLoaderOptions> =
     const definition: PagesRouteDefinition = JSON.parse(
       Buffer.from(definitionBase64, 'base64').toString('utf-8')
     )
+
+    const buildInfo = getModuleBuildInfo(this._module as any)
+    buildInfo.route = {
+      page: definition.page,
+      // TODO-APP: This is not actually absolute.
+      absolutePagePath: definition.filename,
+      preferredRegion,
+    }
 
     // This is providing the options defined by the route options type found at
     // ./routes/${kind}.ts. This is stringified here so that the literal for

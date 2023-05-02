@@ -588,6 +588,7 @@ export async function createEntrypoints(
               },
               pages,
               runtime: 'nodejs',
+              preferredRegion: staticInfo.preferredRegion,
             })
           } else {
             server[serverBundlePath] = [mappings[page]]
@@ -622,6 +623,7 @@ export async function createEntrypoints(
               },
               pages,
               runtime: 'experimental-edge',
+              preferredRegion: staticInfo.preferredRegion,
             }).import
           }
 
