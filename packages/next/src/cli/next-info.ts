@@ -4,7 +4,9 @@ import childProcess from 'child_process'
 
 import chalk from 'next/dist/compiled/chalk'
 import arg from 'next/dist/compiled/arg/index.js'
-import fetch from 'next/dist/compiled/node-fetch'
+const { fetch } = require('next/dist/compiled/undici') as {
+  fetch: typeof global.fetch
+}
 import { printAndExit } from '../server/lib/utils'
 import { CliCommand } from '../lib/commands'
 import isError from '../lib/is-error'
