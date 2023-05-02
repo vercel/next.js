@@ -856,6 +856,7 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
                 layout,
                 loading,
                 template,
+                not_found,
                 metadata,
                 route: _,
             } = &*components.await?;
@@ -865,6 +866,7 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
             write_component(state, "layout", *layout)?;
             write_component(state, "loading", *loading)?;
             write_component(state, "template", *template)?;
+            write_component(state, "not-found", *not_found)?;
             write_metadata(state, metadata)?;
             write!(state.loader_tree_code, "}}]")?;
             Ok(())
