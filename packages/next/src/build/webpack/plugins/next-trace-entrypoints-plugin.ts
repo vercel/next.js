@@ -129,8 +129,8 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
   public turbotraceContext: TurbotraceContext = {}
 
   private rootDir: string
-  private appDir: string
-  private pagesDir: string
+  private appDir: string | undefined
+  private pagesDir: string | undefined
   private appDirEnabled?: boolean
   private tracingRoot: string
   private entryTraces: Map<string, Set<string>>
@@ -150,8 +150,8 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     turbotrace,
   }: {
     rootDir: string
-    appDir: string
-    pagesDir: string
+    appDir: string | undefined
+    pagesDir: string | undefined
     appDirEnabled?: boolean
     traceIgnores?: string[]
     outputFileTracingRoot?: string
@@ -362,8 +362,9 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
 
                         // Ensures we don't handle non-pages.
                         if (
-                          absolutePath.startsWith(this.pagesDir) ||
-                          absolutePath.startsWith(this.appDir)
+                          (this.pagesDir &&
+                            absolutePath.startsWith(this.pagesDir)) ||
+                          (this.appDir && absolutePath.startsWith(this.appDir))
                         ) {
                           entryModMap.set(absolutePath, entryMod)
                           entryNameMap.set(absolutePath, name)
