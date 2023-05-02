@@ -149,7 +149,7 @@ export function getPageFromPath(pagePath: string, pageExtensions: string[]) {
   return page === '' ? '/' : page
 }
 
-function getPageFilePath({
+export function getPageFilePath({
   absolutePagePath,
   pagesDir,
   appDir,
