@@ -1614,7 +1614,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         // In cases where we've relied on the old `loadComponents` call we need
         // to check to see if the route module is defined and if so execute it.
         // TODO: (wyattjoh) remove this once we've migrated to the new route manager system completely
-        (components.ComponentMod && components.ComponentMod.routeModule)
+        components.ComponentMod?.routeModule
       ) {
         const hadTrailingSlash =
           urlPathname !== '/' && this.nextConfig.trailingSlash
@@ -1679,14 +1679,22 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
         try {
           // Handle the match and collect the response if it's a static response.
-          const response = match
-            ? await this.handlers.handle(match, req, context)
-            : // TODO: (wyattjoh) remove this once we've migrated to the new route manager system completely
+          const response = components.ComponentMod.routeModule
+            ? // TODO: (wyattjoh) remove this once we've migrated to the new route manager system completely
               await this.handlers.execute(
                 components.ComponentMod.routeModule,
                 req,
                 context
               )
+            : match
+            ? await this.handlers.handle(match, req, context)
+            : (() => {
+                // We either have a routeModule from above, or we have a match
+                // from the router. If this is hit it means something is wrong.
+                throw new Error(
+                  'Invariant: expected either match or routeModule'
+                )
+              })()
 
           if (response) {
             // If the request is for a static response, we can cache it so long

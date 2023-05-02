@@ -499,7 +499,13 @@ export class PagesRouteModule extends RouteModule<
     // will be undefined.
     const req = context.renderOpts.req
     const res = context.renderOpts.res
-      ? createMockedResponse({ headers: context.headers })
+      ? createMockedResponse({
+          headers: context.headers,
+          statusCode:
+            context.renderOpts.statusCode ??
+            context.renderOpts.res.statusCode ??
+            200,
+        })
       : undefined
 
     // Check to see if we're in preview mode.
@@ -586,6 +592,11 @@ export class PagesRouteModule extends RouteModule<
     request: NextRequest,
     context: PagesRouteHandlerRenderContext
   ): Promise<RenderResult> {
+    // If we're exporting the app, we should return a not found instead.
+    if (context.export) {
+      return new RenderResult(null, { isNotFound: true })
+    }
+
     // Modify the status code on the context object.
     if (context.res) context.res.statusCode = 404
     context.renderOpts.statusCode = 404

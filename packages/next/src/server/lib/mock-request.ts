@@ -99,12 +99,13 @@ export class MockedRequest extends Stream.Readable implements IncomingMessage {
 }
 
 export interface MockedResponseOptions {
+  statusCode?: number
   socket?: Socket | null
   headers?: OutgoingHttpHeaders
 }
 
 export class MockedResponse extends Stream.Writable implements ServerResponse {
-  public statusCode: number = 200
+  public statusCode: number
   public statusMessage: string = ''
   public readonly finished = false
   public readonly headersSent = false
@@ -135,6 +136,7 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
   constructor(res: MockedResponseOptions = {}) {
     super()
 
+    this.statusCode = res.statusCode ?? 200
     this.socket = res.socket ?? null
     this.headers = res.headers ? fromNodeHeaders(res.headers) : new Headers()
 
