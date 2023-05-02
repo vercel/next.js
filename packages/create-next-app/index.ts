@@ -67,10 +67,10 @@ const program = new Commander.Command(packageJson.name)
 `
   )
   .option(
-    '--experimental-app',
+    '--app-dir',
     `
 
-  Initialize as a \`app/\` directory project.
+  Initialize as an \`app/\` directory project.
 `
   )
   .option(
@@ -232,6 +232,7 @@ async function run(): Promise<void> {
       tailwind: true,
       srcDir: false,
       importAlias: '@/*',
+      customizeImportAlias: false,
     }
     const getPrefOrDefault = (field: string) =>
       preferences[field] ?? defaults[field]
@@ -340,15 +341,13 @@ async function run(): Promise<void> {
     }
 
     if (
-      !process.argv.includes('--experimental-app') &&
-      !process.argv.includes('--no-experimental-app')
+      !process.argv.includes('--app-dir') &&
+      !process.argv.includes('--no-app-dir')
     ) {
       if (ciInfo.isCI) {
-        program.experimentalApp = false
+        program.appDir = false
       } else {
-        const styledAppDir = chalk.hex('#007acc')(
-          'experimental `app/` directory'
-        )
+        const styledAppDir = chalk.hex('#007acc')('`app/` router')
         const { appDir } = await prompts({
           onState: onPromptState,
           type: 'toggle',
@@ -358,7 +357,7 @@ async function run(): Promise<void> {
           active: 'Yes',
           inactive: 'No',
         })
-        program.experimentalApp = Boolean(appDir)
+        program.appDir = Boolean(appDir)
       }
     }
 
@@ -370,19 +369,34 @@ async function run(): Promise<void> {
         program.importAlias = '@/*'
       } else {
         const styledImportAlias = chalk.hex('#007acc')('import alias')
-        const { importAlias } = await prompts({
+
+        const { customizeImportAlias } = await prompts({
           onState: onPromptState,
-          type: 'text',
-          name: 'importAlias',
-          message: `What ${styledImportAlias} would you like configured?`,
-          initial: getPrefOrDefault('importAlias'),
-          validate: (value) =>
-            /.+\/\*/.test(value)
-              ? true
-              : 'Import alias must follow the pattern <prefix>/*',
+          type: 'toggle',
+          name: 'customizeImportAlias',
+          message: `Would you like to customize the default ${styledImportAlias}?`,
+          initial: getPrefOrDefault('customizeImportAlias'),
+          active: 'Yes',
+          inactive: 'No',
         })
-        program.importAlias = importAlias
-        preferences.importAlias = importAlias
+
+        if (!customizeImportAlias) {
+          program.importAlias = '@/*'
+        } else {
+          const { importAlias } = await prompts({
+            onState: onPromptState,
+            type: 'text',
+            name: 'importAlias',
+            message: `What ${styledImportAlias} would you like configured?`,
+            initial: getPrefOrDefault('importAlias'),
+            validate: (value) =>
+              /.+\/\*/.test(value)
+                ? true
+                : 'Import alias must follow the pattern <prefix>/*',
+          })
+          program.importAlias = importAlias
+          preferences.importAlias = importAlias
+        }
       }
     }
   }
@@ -396,7 +410,7 @@ async function run(): Promise<void> {
       typescript: program.typescript,
       tailwind: program.tailwind,
       eslint: program.eslint,
-      experimentalApp: program.experimentalApp,
+      appDir: program.appDir,
       srcDir: program.srcDir,
       importAlias: program.importAlias,
     })
@@ -424,7 +438,7 @@ async function run(): Promise<void> {
       typescript: program.typescript,
       eslint: program.eslint,
       tailwind: program.tailwind,
-      experimentalApp: program.experimentalApp,
+      appDir: program.appDir,
       srcDir: program.srcDir,
       importAlias: program.importAlias,
     })

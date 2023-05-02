@@ -408,7 +408,7 @@ describe('create-next-app templates', () => {
   })
 })
 
-describe('create-next-app --experimental-app', () => {
+describe('create-next-app --app-dir', () => {
   if (!process.env.NEXT_TEST_CNA && process.env.NEXT_TEST_JOB) {
     it('should skip when env is not set', () => {})
     return
@@ -430,7 +430,7 @@ describe('create-next-app --experimental-app', () => {
           projectName,
           '--ts',
           '--no-tailwind',
-          '--experimental-app',
+          '--app-dir',
           '--eslint',
           '--no-src-dir',
           `--import-alias=@/*`,
@@ -460,7 +460,7 @@ describe('create-next-app --experimental-app', () => {
           projectName,
           '--js',
           '--no-tailwind',
-          '--experimental-app',
+          '--app-dir',
           '--eslint',
           '--no-src-dir',
           `--import-alias=@/*`,
@@ -491,7 +491,7 @@ describe('create-next-app --experimental-app', () => {
           projectName,
           '--js',
           '--no-tailwind',
-          '--experimental-app',
+          '--app-dir',
           '--eslint',
           '--src-dir',
           '--import-alias=@/*',
@@ -528,7 +528,7 @@ describe('create-next-app --experimental-app', () => {
           projectName,
           '--ts',
           '--tailwind',
-          '--experimental-app',
+          '--app-dir',
           '--eslint',
           '--src-dir',
           `--import-alias=@/*`,
