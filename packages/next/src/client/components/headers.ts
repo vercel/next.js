@@ -56,5 +56,5 @@ export function draftMode() {
       `Invariant: Method expects to have requestAsyncStorage, none available`
     )
   }
-  return new DraftMode(requestStore)
+  return new DraftMode(requestStore.draftMode)
 }

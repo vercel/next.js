@@ -1,24 +1,28 @@
-import { RequestStore } from './request-async-storage'
+import { DraftModeProvider } from '../../server/async-storage/draft-mode-provider'
 import { staticGenerationBailout } from './static-generation-bailout'
 
 export class DraftMode {
-  #requestStore: RequestStore
-  constructor(requestStore: RequestStore) {
-    this.#requestStore = requestStore
+  /**
+   * @internal - this declaration is stripped via `tsc --stripInternal`
+   */
+  private readonly _provider: DraftModeProvider
+
+  constructor(provider: DraftModeProvider) {
+    this._provider = provider
   }
   get isEnabled() {
-    return this.#requestStore.draftMode.isEnabled
+    return this._provider.isEnabled
   }
   public enable() {
     if (staticGenerationBailout('draftMode().enable()')) {
       return
     }
-    return this.#requestStore.draftMode.enable()
+    return this._provider.enable()
   }
   public disable() {
     if (staticGenerationBailout('draftMode().disable()')) {
       return
     }
-    return this.#requestStore.draftMode.disable()
+    return this._provider.disable()
   }
 }

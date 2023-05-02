@@ -13,8 +13,15 @@ import {
 export class DraftModeProvider {
   public readonly isEnabled: boolean
 
-  #previewModeId: string | undefined
-  #mutableCookies: ResponseCookies
+  /**
+   * @internal - this declaration is stripped via `tsc --stripInternal`
+   */
+  private readonly _previewModeId: string | undefined
+
+  /**
+   * @internal - this declaration is stripped via `tsc --stripInternal`
+   */
+  private readonly _mutableCookies: ResponseCookies
 
   constructor(
     previewProps: __ApiPreviewProps | undefined,
@@ -37,20 +44,20 @@ export class DraftModeProvider {
         cookieValue === previewProps.previewModeId
     )
 
-    this.#previewModeId = previewProps?.previewModeId
-    this.#mutableCookies = mutableCookies
+    this._previewModeId = previewProps?.previewModeId
+    this._mutableCookies = mutableCookies
   }
 
   enable() {
-    if (!this.#previewModeId) {
+    if (!this._previewModeId) {
       throw new Error(
         'Invariant: previewProps missing previewModeId this should never happen'
       )
     }
 
-    this.#mutableCookies.set({
+    this._mutableCookies.set({
       name: COOKIE_NAME_PRERENDER_BYPASS,
-      value: this.#previewModeId,
+      value: this._previewModeId,
       httpOnly: true,
       sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
       secure: process.env.NODE_ENV !== 'development',
@@ -62,7 +69,7 @@ export class DraftModeProvider {
     // To delete a cookie, set `expires` to a date in the past:
     // https://tools.ietf.org/html/rfc6265#section-4.1.1
     // `Max-Age: 0` is not valid, thus ignored, and the cookie is persisted.
-    this.#mutableCookies.set({
+    this._mutableCookies.set({
       name: COOKIE_NAME_PRERENDER_BYPASS,
       value: '',
       httpOnly: true,
