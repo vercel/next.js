@@ -16,16 +16,23 @@ export function addImplicitTags(
     staticGenerationStore.tags = []
   }
   const tags = staticGenerationStore.tags
+  const newTags = []
   const pathnameParts = staticGenerationStore.pathname.split('/')
 
   // we automatically add the current path segments as tags
   // for revalidatePath handling
   for (let i = 1; i < pathnameParts.length + 1; i++) {
     const curPathname = pathnameParts.slice(0, i).join('/')
-    if (curPathname && !tags.includes(curPathname)) {
-      tags.push(curPathname)
+
+    if (curPathname) {
+      newTags.push(curPathname)
+
+      if (!tags.includes(curPathname)) {
+        tags.push(curPathname)
+      }
     }
   }
+  return newTags
 }
 
 // we patch fetch to collect cache information used for
@@ -112,6 +119,13 @@ export function patchFetch({
             if (!staticGenerationStore.tags.includes(tag)) {
               staticGenerationStore.tags.push(tag)
             }
+          }
+        }
+        const implicitTags = addImplicitTags(staticGenerationStore)
+
+        for (const tag of implicitTags || []) {
+          if (tag && !tags.includes(tag)) {
+            tags.push(tag)
           }
         }
 
