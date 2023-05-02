@@ -861,7 +861,7 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
                 route: _,
             } = &*components.await?;
             write_component(state, "page", *page)?;
-            write_component(state, "default", *default)?;
+            write_component(state, "defaultPage", *default)?;
             write_component(state, "error", *error)?;
             write_component(state, "layout", *layout)?;
             write_component(state, "loading", *loading)?;
