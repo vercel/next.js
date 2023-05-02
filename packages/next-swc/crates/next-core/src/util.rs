@@ -55,10 +55,12 @@ pub async fn pathname_for_path(
     } else {
         path
     };
+    // `get_path_to` always strips the leading `/` from the path, so we need to add
+    // it back here.
     let path = if path == "index" && !data {
-        ""
+        "/".to_string()
     } else {
-        path.strip_suffix("/index").unwrap_or(path)
+        format!("/{}", path.strip_suffix("/index").unwrap_or(path))
     };
 
     Ok(StringVc::cell(path.to_string()))

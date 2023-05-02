@@ -78,13 +78,7 @@ impl DevManifestContentSourceVc {
         let mut routes = routes
             .into_iter()
             .flatten()
-            .map(|s| {
-                if !s.starts_with('/') {
-                    format!("/{}", s)
-                } else {
-                    s.to_string()
-                }
-            })
+            .map(|route| route.clone_value())
             .collect::<Vec<_>>();
 
         routes.sort_by_cached_key(|s| s.split('/').map(PageSortKey::from).collect::<Vec<_>>());
