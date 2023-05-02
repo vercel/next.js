@@ -463,10 +463,11 @@ async function revalidate(
       // We prefer to use the IPC call if running under the workers mode.
       const ipcPort = process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT
       if (ipcPort) {
+        const ipcKey = process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY
         const res = await invokeRequest(
           `http://${
             context.hostname
-          }:${ipcPort}?method=revalidate&args=${encodeURIComponent(
+          }:${ipcPort}?key=${ipcKey}&method=revalidate&args=${encodeURIComponent(
             JSON.stringify([{ urlPath, revalidateHeaders }])
           )}`,
           {
