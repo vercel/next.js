@@ -22,7 +22,7 @@ use turbo_binding::{
                 asset_graph::AssetGraphContentSourceVc,
                 combined::{CombinedContentSource, CombinedContentSourceVc},
                 specificity::SpecificityVc,
-                ContentSourceData, ContentSourceVc, NoContentSourceVc,
+                ContentSourceData, ContentSourceVc,
             },
         },
         ecmascript::{
@@ -95,10 +95,14 @@ pub async fn create_page_source(
     next_config: NextConfigVc,
     server_addr: ServerAddrVc,
 ) -> Result<ContentSourceVc> {
-    let Some(pages_structure) = *pages_structure.await? else {
-        return Ok(NoContentSourceVc::new().into());
+    let (pages_dir, pages_structure) = if let Some(pages_structure) = *pages_structure.await? {
+        (
+            pages_structure.directory().resolve().await?,
+            Some(pages_structure),
+        )
+    } else {
+        (project_path.join("pages"), None)
     };
-    let pages_dir = pages_structure.directory().resolve().await?;
 
     let client_ty = Value::new(ClientContextType::Pages { pages_dir });
     let server_ty = Value::new(ServerContextType::Pages { pages_dir });
@@ -247,67 +251,72 @@ pub async fn create_page_source(
 
     let render_data = render_data(next_config);
     let page_extensions = next_config.page_extensions();
-    let force_not_found_source = create_not_found_page_source(
-        project_path,
-        env,
-        server_context,
-        client_context,
-        pages_dir,
-        page_extensions,
-        fallback_runtime_entries,
-        fallback_page,
-        server_root,
-        output_path.join("force_not_found"),
-        SpecificityVc::exact(),
-        NextExactMatcherVc::new(StringVc::cell("_next/404".to_string())).into(),
-        render_data,
-    );
-    let fallback_not_found_source = create_not_found_page_source(
-        project_path,
-        env,
-        server_context,
-        client_context,
-        pages_dir,
-        page_extensions,
-        fallback_runtime_entries,
-        fallback_page,
-        server_root,
-        output_path.join("fallback_not_found"),
-        SpecificityVc::not_found(),
-        NextFallbackMatcherVc::new().into(),
-        render_data,
-    );
-    let page_source = create_page_source_for_directory(
-        pages_structure,
-        project_path,
-        env,
-        server_context,
-        server_data_context,
-        client_context,
-        pages_dir,
-        server_runtime_entries,
-        fallback_page,
-        server_root,
-        output_path,
-        render_data,
-    );
-    let fallback_source =
-        AssetGraphContentSourceVc::new_eager(server_root, fallback_page.as_asset());
 
-    let source = CombinedContentSource {
-        sources: vec![
-            // Match _next/404 first to ensure rewrites work properly.
-            force_not_found_source.issue_context(pages_dir, "Next.js pages directory not found"),
-            page_source,
-            fallback_source
-                .as_content_source()
-                .issue_context(pages_dir, "Next.js pages directory fallback"),
-            fallback_not_found_source
-                .issue_context(pages_dir, "Next.js pages directory not found fallback"),
-        ],
+    let mut sources = vec![];
+
+    // Match _next/404 first to ensure rewrites work properly.
+    sources.push(
+        create_not_found_page_source(
+            project_path,
+            env,
+            server_context,
+            client_context,
+            pages_dir,
+            page_extensions,
+            fallback_runtime_entries,
+            fallback_page,
+            server_root,
+            output_path.join("force_not_found"),
+            SpecificityVc::exact(),
+            NextExactMatcherVc::new(StringVc::cell("_next/404".to_string())).into(),
+            render_data,
+        )
+        .issue_context(pages_dir, "Next.js pages directory not found"),
+    );
+
+    if let Some(pages_structure) = pages_structure {
+        sources.push(create_page_source_for_directory(
+            pages_structure,
+            project_path,
+            env,
+            server_context,
+            server_data_context,
+            client_context,
+            pages_dir,
+            server_runtime_entries,
+            fallback_page,
+            server_root,
+            output_path,
+            render_data,
+        ));
     }
-    .cell()
-    .into();
+
+    sources.push(
+        AssetGraphContentSourceVc::new_eager(server_root, fallback_page.as_asset())
+            .as_content_source()
+            .issue_context(pages_dir, "Next.js pages directory fallback"),
+    );
+
+    sources.push(
+        create_not_found_page_source(
+            project_path,
+            env,
+            server_context,
+            client_context,
+            pages_dir,
+            page_extensions,
+            fallback_runtime_entries,
+            fallback_page,
+            server_root,
+            output_path.join("fallback_not_found"),
+            SpecificityVc::not_found(),
+            NextFallbackMatcherVc::new().into(),
+            render_data,
+        )
+        .issue_context(pages_dir, "Next.js pages directory not found fallback"),
+    );
+
+    let source = CombinedContentSource { sources }.cell().into();
     Ok(source)
 }
 
