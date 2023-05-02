@@ -34,6 +34,7 @@ describe('should set-up next', () => {
 
     next = await createNext({
       files: {
+        app: new FileRef(join(__dirname, 'app')),
         pages: new FileRef(join(__dirname, 'pages')),
         lib: new FileRef(join(__dirname, 'lib')),
         'middleware.js': new FileRef(join(__dirname, 'middleware.js')),
@@ -45,6 +46,9 @@ describe('should set-up next', () => {
       nextConfig: {
         eslint: {
           ignoreDuringBuilds: true,
+        },
+        experimental: {
+          appDir: true,
         },
         output: 'standalone',
         async rewrites() {
@@ -138,6 +142,36 @@ describe('should set-up next', () => {
   afterAll(async () => {
     await next.destroy()
     if (server) await killApp(server)
+  })
+
+  it('should send cache tags in minimal mode for ISR', async () => {
+    for (const [path, tags] of [
+      ['/isr/first', 'isr-page,/isr,/isr/[slug]'],
+      ['/isr/second', 'isr-page,/isr,/isr/[slug]'],
+      ['/api/isr/first', 'isr-page,/api,/api/isr,/api/isr/[slug]'],
+      ['/api/isr/second', 'isr-page,/api,/api/isr,/api/isr/[slug]'],
+    ]) {
+      const res = await fetchViaHTTP(appPort, path, undefined, {
+        redirect: 'manual',
+      })
+      expect(res.status).toBe(200)
+      expect(res.headers.get('x-next-cache-tags')).toBe(tags)
+    }
+  })
+
+  it('should not send cache tags in minimal mode for SSR', async () => {
+    for (const path of [
+      '/ssr/first',
+      '/ssr/second',
+      '/api/ssr/first',
+      '/api/ssr/second',
+    ]) {
+      const res = await fetchViaHTTP(appPort, path, undefined, {
+        redirect: 'manual',
+      })
+      expect(res.status).toBe(200)
+      expect(res.headers.get('x-next-cache-tags')).toBeFalsy()
+    }
   })
 
   it('should resolve correctly when a redirect is returned', async () => {

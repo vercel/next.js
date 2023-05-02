@@ -7,6 +7,27 @@ import { CACHE_ONE_YEAR } from '../../lib/constants'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
+export function addImplicitTags(
+  staticGenerationStore: ReturnType<StaticGenerationAsyncStorage['getStore']>
+) {
+  if (!staticGenerationStore) return
+
+  if (!Array.isArray(staticGenerationStore.tags)) {
+    staticGenerationStore.tags = []
+  }
+  const tags = staticGenerationStore.tags
+  const pathnameParts = staticGenerationStore.pathname.split('/')
+
+  // we automatically add the current path segments as tags
+  // for revalidatePath handling
+  for (let i = 1; i < pathnameParts.length + 1; i++) {
+    const curPathname = pathnameParts.slice(0, i).join('/')
+    if (curPathname && !tags.includes(curPathname)) {
+      tags.push(curPathname)
+    }
+  }
+}
+
 // we patch fetch to collect cache information used for
 // determining if a page is static or not
 export function patchFetch({
@@ -81,7 +102,18 @@ export function patchFetch({
         // RequestInit doesn't keep extra fields e.g. next so it's
         // only available if init is used separate
         let curRevalidate = getNextField('revalidate')
-        const tags: undefined | string[] = getNextField('tags')
+        const tags: string[] = getNextField('tags') || []
+
+        if (Array.isArray(tags)) {
+          if (!staticGenerationStore.tags) {
+            staticGenerationStore.tags = []
+          }
+          for (const tag of tags) {
+            if (!staticGenerationStore.tags.includes(tag)) {
+              staticGenerationStore.tags.push(tag)
+            }
+          }
+        }
 
         const isOnlyCache = staticGenerationStore.fetchCache === 'only-cache'
         const isForceCache = staticGenerationStore.fetchCache === 'force-cache'
