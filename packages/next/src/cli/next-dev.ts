@@ -265,9 +265,12 @@ const nextDev: CliCommand = async (argv) => {
       )
     }
 
-    const turboJson = findUp.sync('turbo.json', { cwd: dir })
     // eslint-disable-next-line no-shadow
     const packagePath = findUp.sync('package.json', { cwd: dir })
+    const lockfilePath = findUp.sync(
+      ['pnpm-lock.yaml', 'package-lock.json', 'yarn.lock'],
+      { cwd: dir }
+    )
 
     let bindings: any = await loadBindings()
     let server = bindings.turbo.startDev({
@@ -275,8 +278,8 @@ const nextDev: CliCommand = async (argv) => {
       showAll: args['--show-all'] ?? false,
       root:
         args['--root'] ??
-        (turboJson
-          ? path.dirname(turboJson)
+        (lockfilePath
+          ? path.dirname(lockfilePath)
           : packagePath
           ? path.dirname(packagePath)
           : undefined),
