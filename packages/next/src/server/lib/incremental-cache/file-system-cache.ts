@@ -1,8 +1,9 @@
+import type { OutgoingHttpHeaders } from 'http'
+import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
 import LRUCache from 'next/dist/compiled/lru-cache'
+import { CacheFs } from '../../../shared/lib/utils'
 import path from '../../../shared/lib/isomorphic/path'
 import { CachedFetchValue } from '../../response-cache'
-import { CacheFs } from '../../../shared/lib/utils'
-import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
 import { CACHE_ONE_YEAR } from '../../../lib/constants'
 
 type FileSystemCacheContext = Omit<
@@ -199,12 +200,27 @@ export default class FileSystemCache implements CacheHandler {
                   )
                 ).toString('utf8')
               )
+
+          let meta: { status?: number; headers?: OutgoingHttpHeaders } = {}
+
+          if (isAppPath) {
+            try {
+              meta = JSON.parse(
+                (
+                  await this.fs.readFile(filePath.replace(/\.html$/, '.meta'))
+                ).toString('utf-8')
+              )
+            } catch (_) {}
+          }
+
           data = {
             lastModified: mtime.getTime(),
             value: {
               kind: 'PAGE',
               html: fileData,
               pageData,
+              headers: meta.headers,
+              status: meta.status,
             },
           }
         }
@@ -216,11 +232,65 @@ export default class FileSystemCache implements CacheHandler {
         // unable to get data from disk
       }
     }
+    let cacheTags: undefined | string[]
+
+    if (data?.value?.kind === 'PAGE') {
+      const tagsHeader = data.value.headers?.['x-next-cache-tags']
+
+      if (typeof tagsHeader === 'string') {
+        cacheTags = tagsHeader.split(',')
+      }
+    }
+
+    const getDerivedTags = (tags: string[]): string[] => {
+      const derivedTags: string[] = []
+
+      for (const tag of tags || []) {
+        if (tag.startsWith('/')) {
+          const pathnameParts = tag.split('/')
+
+          // we automatically add the current path segments as tags
+          // for revalidatePath handling
+          for (let i = 1; i < pathnameParts.length + 1; i++) {
+            const curPathname = pathnameParts.slice(0, i).join('/')
+
+            if (curPathname) {
+              derivedTags.push(curPathname)
+
+              if (!derivedTags.includes(curPathname)) {
+                derivedTags.push(curPathname)
+              }
+            }
+          }
+        } else if (!derivedTags.includes(tag)) {
+          derivedTags.push(tag)
+        }
+      }
+      return derivedTags
+    }
+
+    if (data?.value?.kind === 'PAGE' && cacheTags?.length) {
+      this.loadTagsManifest()
+      const derivedTags = getDerivedTags(cacheTags || [])
+
+      const isStale = derivedTags.some((tag) => {
+        return (
+          tagsManifest?.items[tag]?.revalidatedAt &&
+          tagsManifest?.items[tag].revalidatedAt >=
+            (data?.lastModified || Date.now())
+        )
+      })
+      if (isStale) {
+        data.lastModified = -1
+      }
+    }
 
     if (data && data?.value?.kind === 'FETCH') {
       this.loadTagsManifest()
       const innerData = data.value.data
-      const isStale = innerData.tags?.some((tag) => {
+      const derivedTags = getDerivedTags(innerData.tags || [])
+
+      const isStale = derivedTags.some((tag) => {
         return (
           tagsManifest?.items[tag]?.revalidatedAt &&
           tagsManifest?.items[tag].revalidatedAt >=
@@ -274,6 +344,16 @@ export default class FileSystemCache implements CacheHandler {
         ).filePath,
         isAppPath ? data.pageData : JSON.stringify(data.pageData)
       )
+
+      if (data.headers || data.status) {
+        await this.fs.writeFile(
+          htmlPath.replace(/\.html$/, '.meta'),
+          JSON.stringify({
+            headers: data.headers,
+            status: data.status,
+          })
+        )
+      }
     } else if (data?.kind === 'FETCH') {
       const { filePath } = await this.getFsPath({
         pathname: key,

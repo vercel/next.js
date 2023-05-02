@@ -85,6 +85,11 @@ export class NodeNextResponse extends BaseNextResponse<Writable> {
     return this
   }
 
+  removeHeader(name: string): this {
+    this._res.removeHeader(name)
+    return this
+  }
+
   getHeaderValues(name: string): string[] | undefined {
     const values = this._res.getHeader(name)
 

@@ -17,6 +17,8 @@
     "client.js",
     "client.d.ts",
     "compat",
+    "cache.js",
+    "cache.d.ts",
     "config.js",
     "config.d.ts",
     "constants.js",
