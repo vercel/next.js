@@ -99,6 +99,7 @@ async function createAppRouteCode({
   const filename = path.parse(resolvedPagePath).name
   if (isMetadataRoute(name) && filename !== 'route') {
     resolvedPagePath = `next-metadata-route-loader?${stringify({
+      page,
       pageExtensions,
     })}!${resolvedPagePath + METADATA_RESOURCE_QUERY}`
   }
