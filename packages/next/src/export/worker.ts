@@ -118,6 +118,7 @@ interface RenderOpts {
   supportsDynamicHTML?: boolean
   incrementalCache?: IncrementalCache
   strictNextHead?: boolean
+  originalPathname?: string
 }
 
 export default async function exportPage({
@@ -323,6 +324,7 @@ export default async function exportPage({
           fontManifest: optimizeFonts ? requireFontManifest(distDir) : null,
           locale: locale as string,
           supportsDynamicHTML: false,
+          originalPathname: page,
           ...(ciEnvironment.hasNextSupport
             ? {
                 isRevalidate: true,
@@ -403,6 +405,7 @@ export default async function exportPage({
               notFoundRoutes: [],
             },
             staticGenerationContext: {
+              originalPathname: page,
               nextExport: true,
               supportsDynamicHTML: false,
               incrementalCache: curRenderOpts.incrementalCache,

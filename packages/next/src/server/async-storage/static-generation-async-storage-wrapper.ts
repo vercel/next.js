@@ -6,6 +6,7 @@ import type { IncrementalCache } from '../lib/incremental-cache'
 export type StaticGenerationContext = {
   pathname: string
   renderOpts: {
+    originalPathname?: string
     incrementalCache?: IncrementalCache
     supportsDynamicHTML: boolean
     isRevalidate?: boolean
@@ -54,6 +55,7 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
     const store: StaticGenerationStore = {
       isStaticGeneration,
       pathname,
+      originalPathname: renderOpts.originalPathname,
       incrementalCache:
         // we fallback to a global incremental cache for edge-runtime locally
         // so that it can access the fs cache without mocks
