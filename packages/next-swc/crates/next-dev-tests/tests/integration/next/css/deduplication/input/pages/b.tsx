@@ -11,7 +11,9 @@ export default function B() {
 
   return (
     <>
-      <Link href="/a">A</Link>
+      <Link className="a" href="/a">
+        A
+      </Link>
     </>
   )
 }
