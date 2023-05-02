@@ -10,29 +10,14 @@ const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 export function addImplicitTags(
   staticGenerationStore: ReturnType<StaticGenerationAsyncStorage['getStore']>
 ) {
-  if (!staticGenerationStore) return
+  if (!staticGenerationStore?.pathname) return
 
   if (!Array.isArray(staticGenerationStore.tags)) {
     staticGenerationStore.tags = []
   }
-  const tags = staticGenerationStore.tags
-  const newTags = []
-  const pathnameParts = staticGenerationStore.pathname.split('/')
-
-  // we automatically add the current path segments as tags
-  // for revalidatePath handling
-  for (let i = 1; i < pathnameParts.length + 1; i++) {
-    const curPathname = pathnameParts.slice(0, i).join('/')
-
-    if (curPathname) {
-      newTags.push(curPathname)
-
-      if (!tags.includes(curPathname)) {
-        tags.push(curPathname)
-      }
-    }
+  if (!staticGenerationStore.tags.includes(staticGenerationStore.pathname)) {
+    staticGenerationStore.tags.push(staticGenerationStore.pathname)
   }
-  return newTags
 }
 
 // we patch fetch to collect cache information used for
@@ -121,13 +106,7 @@ export function patchFetch({
             }
           }
         }
-        const implicitTags = addImplicitTags(staticGenerationStore)
-
-        for (const tag of implicitTags || []) {
-          if (tag && !tags.includes(tag)) {
-            tags.push(tag)
-          }
-        }
+        addImplicitTags(staticGenerationStore)
 
         const isOnlyCache = staticGenerationStore.fetchCache === 'only-cache'
         const isForceCache = staticGenerationStore.fetchCache === 'force-cache'

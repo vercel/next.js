@@ -100,10 +100,10 @@ describe('should set-up next', () => {
 
   it('should send cache tags in minimal mode for ISR', async () => {
     for (const [path, tags] of [
-      ['/isr/first', 'isr-page,/isr,/isr/[slug]'],
-      ['/isr/second', 'isr-page,/isr,/isr/[slug]'],
-      ['/api/isr/first', 'isr-page,/api,/api/isr,/api/isr/[slug]'],
-      ['/api/isr/second', 'isr-page,/api,/api/isr,/api/isr/[slug]'],
+      ['/isr/first', 'isr-page,/isr/[slug]'],
+      ['/isr/second', 'isr-page,/isr/[slug]'],
+      ['/api/isr/first', 'isr-page,/api/isr/[slug]'],
+      ['/api/isr/second', 'isr-page,/api/isr/[slug]'],
     ]) {
       const res = await fetchViaHTTP(appPort, path, undefined, {
         redirect: 'manual',

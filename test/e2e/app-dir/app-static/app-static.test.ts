@@ -657,7 +657,7 @@ createNextDescribe(
             initialHeaders: {
               'content-type': 'application/json',
               'x-next-cache-tags':
-                'thankyounext,/route-handler,/route-handler/revalidate-360-isr',
+                'thankyounext,/route-handler/revalidate-360-isr',
             },
             initialRevalidateSeconds: false,
             srcRoute: '/route-handler/revalidate-360-isr',
