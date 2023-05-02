@@ -1912,17 +1912,23 @@ export async function copyTracedFiles(
     serverOutputPath,
     `${
       moduleType
-        ? `import Server from 'next/dist/server/next-server.js'
-import http from 'http'
+        ? `import http from 'http'
 import path from 'path'
 import { fileURLToPath } from 'url'
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
-const NextServer = Server.default`
+
+import httpProxy from 'next/dist/compiled/http-proxy'
+import { normalizeRepeatedSlashes } from 'next/dist/shared/lib/utils'
+import { Worker } from 'next/dist/compiled/jest-worker'
+`
         : `
-const NextServer = require('next/dist/server/next-server').default
 const http = require('http')
-const path = require('path')`
+const path = require('path')
+const httpProxy = require('next/dist/compiled/http-proxy')
+const { normalizeRepeatedSlashes } = require('next/dist/shared/lib/utils')
+const { Worker } = require('next/dist/compiled/jest-worker')`
     }
+
 process.env.NODE_ENV = 'production'
 process.chdir(__dirname)
 
@@ -1943,16 +1949,7 @@ const nextConfig = ${JSON.stringify({
       distDir: `./${path.relative(dir, distDir)}`,
     })}
 
-${
-  // In standalone mode, we don't have separated render workers so if both
-  // app and pages are used, we need to resolve to the prebundled React
-  // to ensure the correctness of the version for app.
-  `\
-if (nextConfig && nextConfig.experimental && nextConfig.experimental.appDir) {
-  process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = nextConfig.experimental.serverActions ? 'experimental' : 'next'
-}
-`
-}
+process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(nextConfig)
 
 const server = http.createServer(async (req, res) => {
   try {
@@ -1971,20 +1968,87 @@ if (
 ) {
   server.keepAliveTimeout = keepAliveTimeout
 }
-server.listen(currentPort, (err) => {
+server.listen(currentPort, async (err) => {
   if (err) {
     console.error("Failed to start server", err)
     process.exit(1)
   }
-  const nextServer = new NextServer({
-    hostname,
-    port: currentPort,
-    dir: path.join(__dirname),
-    dev: false,
-    customServer: false,
-    conf: nextConfig,
+
+  const renderServerPath = require.resolve('next/dist/server/lib/render-server')
+  const routerWorker = new Worker(renderServerPath, {
+    numWorkers: 1,
+    maxRetries: 10,
+    forkOptions: {
+      env: {
+        FORCE_COLOR: '1',
+        ...process.env,
+      },
+    },
+    exposedMethods: ['initialize'],
   })
-  handler = nextServer.getRequestHandler()
+  let didInitialize = false
+
+  for (const _worker of (routerWorker._workerPool?._workers || [])) {
+    _worker._child.on('exit', (code, signal) => {
+      // catch failed initializing without retry
+      if ((code || signal) && !didInitialize) {
+        routerWorker?.end()
+        process.exit(1)
+      }
+    })
+  }
+
+  const workerStdout = routerWorker.getStdout()
+  const workerStderr = routerWorker.getStderr()
+
+  workerStdout.on('data', (data) => {
+    process.stdout.write(data)
+  })
+  workerStderr.on('data', (data) => {
+    process.stderr.write(data)
+  })
+
+  const { port: routerPort } = await routerWorker.initialize({
+    dir: path.join(__dirname),
+    port: currentPort,
+    dev: false,
+    hostname,
+    workerType: 'router',
+  })
+  didInitialize = true
+
+  const getProxyServer = (pathname) => {
+    const targetUrl = \`http://\${hostname}:\${routerPort}\${pathname}\`
+    const proxyServer = httpProxy.createProxy({
+      target: targetUrl,
+      changeOrigin: false,
+      ignorePath: true,
+      xfwd: true,
+      ws: true,
+      followRedirects: false,
+    })
+    return proxyServer
+  }
+
+  // proxy to router worker
+  handler = async (req, res) => {
+    const urlParts = (req.url || '').split('?')
+    const urlNoQuery = urlParts[0]
+
+    // this normalizes repeated slashes in the path e.g. hello//world ->
+    // hello/world or backslashes to forward slashes, this does not
+    // handle trailing slash as that is handled the same as a next.config.js
+    // redirect
+    if (urlNoQuery?.match(/(\\|\\/\\/)/)) {
+      const cleanUrl = normalizeRepeatedSlashes(req.url)
+      res.statusCode = 308
+      res.setHeader('Location', cleanUrl)
+      res.end(cleanUrl)
+      return
+    }
+    const proxyServer = getProxyServer(req.url || '/')
+    proxyServer.web(req, res)
+  }
 
   console.log(
     'Listening on port',

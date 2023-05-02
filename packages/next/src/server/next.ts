@@ -169,9 +169,11 @@ export class NextServer {
       this.serverPromise = this.loadConfig().then(async (conf) => {
         if (!this.options.dev) {
           if (conf.output === 'standalone') {
-            log.warn(
-              `"next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.`
-            )
+            if (!process.env.__NEXT_PRIVATE_STANDALONE_CONFIG) {
+              log.warn(
+                `"next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.`
+              )
+            }
           } else if (conf.output === 'export') {
             throw new Error(
               `"next start" does not work with "output: export" configuration. Use "npx serve@latest out" instead.`
