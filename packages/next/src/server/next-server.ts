@@ -907,7 +907,7 @@ export default class NextNodeServer extends BaseServer {
       pageModule,
       {
         ...this.renderOpts.previewProps,
-        revalidate: this.revalidate,
+        revalidate: this.revalidate.bind(this),
         // internal config so is not typed
         trustHostHeader: (this.nextConfig.experimental as Record<string, any>)
           .trustHostHeader,
@@ -1679,13 +1679,12 @@ export default class NextNodeServer extends BaseServer {
     revalidateHeaders: { [key: string]: string | string[] }
     opts: { unstable_onlyGenerated?: boolean }
   }) {
-    this.prepare()
-    const handler = this.getRequestHandler()
-
     const mocked = createRequestResponseMocks({
       url: urlPath,
       headers: revalidateHeaders,
     })
+
+    const handler = this.getRequestHandler()
     await handler(
       new NodeNextRequest(mocked.req),
       new NodeNextResponse(mocked.res)
