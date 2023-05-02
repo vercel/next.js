@@ -1796,6 +1796,22 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             return null
           }
 
+          // If the error is relating to an invalid URL, we should render the
+          // error page instead of re-throwing. This could have occurred from
+          // the base so we also reset that value.
+          if (
+            err &&
+            typeof err === 'object' &&
+            'code' in err &&
+            err.code === 'ERR_INVALID_URL'
+          ) {
+            req.url = '/_error'
+            addRequestMeta(req, '__NEXT_INIT_URL', 'http://n')
+            await this.renderError(null, req, res, '/_error', {})
+
+            return null
+          }
+
           // This is not an app route, so throw the error so it can bubble.
           throw err
         }
