@@ -1,7 +1,7 @@
-import { NextResponse, unstable_revalidateTag } from 'next/server'
+import { NextResponse } from 'next/server'
+import { unstable_revalidateTag } from 'next/cache'
 
 export const revalidate = 0
-export const runtime = 'edge'
 
 export async function GET(req) {
   const tag = req.nextUrl.searchParams.get('tag')

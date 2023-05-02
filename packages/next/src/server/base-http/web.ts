@@ -64,6 +64,11 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
     return this
   }
 
+  removeHeader(name: string): this {
+    this.headers.delete(name)
+    return this
+  }
+
   getHeaderValues(name: string): string[] | undefined {
     // https://developer.mozilla.org/en-US/docs/Web/API/Headers/get#example
     return this.getHeader(name)
