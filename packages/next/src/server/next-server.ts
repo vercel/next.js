@@ -107,6 +107,7 @@ import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
 import { addPathPrefix } from '../shared/lib/router/utils/add-path-prefix'
 import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
 import { filterReqHeaders, invokeRequest } from './lib/server-ipc'
+import { createRequestResponseMocks } from './lib/mock-request'
 
 export * from './base-server'
 
@@ -914,6 +915,7 @@ export default class NextNodeServer extends BaseServer {
           .trustHostHeader,
         allowedRevalidateHeaderKeys:
           this.nextConfig.experimental.allowedRevalidateHeaderKeys,
+        hostname: this.hostname,
       },
       this.minimalMode,
       this.renderOpts.dev,
@@ -1669,6 +1671,37 @@ export default class NextNodeServer extends BaseServer {
       return handler(this.normalizeReq(req), this.normalizeRes(res), parsedUrl)
     }
   }
+
+  // public async revalidate({
+  //   urlPath,
+  //   revalidateHeaders,
+  //   opts,
+  // }: {
+  //   urlPath: string
+  //   revalidateHeaders: { [key: string]: string | string[] }
+  //   opts: { unstable_onlyGenerated: boolean }
+  // }) {
+  //   this.prepare()
+  //   const handler = this.getRequestHandler()
+
+  //   const mocked = createRequestResponseMocks({
+  //     url: urlPath,
+  //     headers: revalidateHeaders,
+  //   })
+  //   await handler(
+  //     new NodeNextRequest(mocked.req),
+  //     new NodeNextResponse(mocked.res)
+  //   )
+
+  //   await mocked.res.hasStreamed
+  //   if (
+  //     mocked.res.getHeader('x-nextjs-cache') !== 'REVALIDATED' &&
+  //     !(mocked.res.statusCode === 404 && opts.unstable_onlyGenerated)
+  //   ) {
+  //     throw new Error(`Invalid response ${mocked.res.statusCode}`)
+  //   }
+  //   return {}
+  // }
 
   public async render(
     req: BaseNextRequest | IncomingMessage,

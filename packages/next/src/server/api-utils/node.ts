@@ -36,6 +36,7 @@ import {
   PRERENDER_REVALIDATE_HEADER,
   PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
 } from '../../lib/constants'
+import { invokeRequest } from '../lib/server-ipc'
 
 export function tryGetPreviewData(
   req: IncomingMessage | BaseNextRequest | Request,
@@ -194,6 +195,7 @@ export async function parseBody(
 type ApiContext = __ApiPreviewProps & {
   trustHostHeader?: boolean
   allowedRevalidateHeaderKeys?: string[]
+  hostname?: string
   revalidate?: (_req: IncomingMessage, _res: ServerResponse) => Promise<any>
 }
 
@@ -453,6 +455,23 @@ async function revalidate(
         throw new Error(`Invalid response ${res.status}`)
       }
     } else if (context.revalidate) {
+      // const ipcPort = process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT
+      // if (ipcPort) {
+      //   res = await invokeRequest(
+      //     `http://${
+      //       context.hostname
+      //     }:${ipcPort}?method=revalidate&args=${encodeURIComponent(
+      //       JSON.stringify([{ urlPath, revalidateHeaders }])
+      //     )}`,
+      //     {
+      //       method: 'GET',
+      //       headers: {},
+      //     }
+      //   )
+
+      //   return
+      // }
+
       const mocked = createRequestResponseMocks({
         url: urlPath,
         headers: revalidateHeaders,
