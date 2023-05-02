@@ -214,9 +214,7 @@ export async function handleAction({
             actionResult = await generateFlight({
               actionResult: returnVal,
               // if the page was not revalidated, we can skip the rendering the flight tree
-              skipFlight:
-                !staticGenerationStore.pathWasRevalidated &&
-                !actionAsyncStorage.getStore()?.shouldRefresh,
+              skipFlight: !staticGenerationStore.pathWasRevalidated,
             })
           }
         }
