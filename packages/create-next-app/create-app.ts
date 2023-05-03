@@ -36,7 +36,7 @@ export async function createApp({
   typescript,
   tailwind,
   eslint,
-  appDir,
+  appRouter,
   srcDir,
   importAlias,
 }: {
@@ -47,13 +47,13 @@ export async function createApp({
   typescript: boolean
   tailwind: boolean
   eslint: boolean
-  appDir: boolean
+  appRouter: boolean
   srcDir: boolean
   importAlias: string
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
   const mode: TemplateMode = typescript ? 'ts' : 'js'
-  const template: TemplateType = appDir
+  const template: TemplateType = appRouter
     ? tailwind
       ? 'app-tw'
       : 'app'
