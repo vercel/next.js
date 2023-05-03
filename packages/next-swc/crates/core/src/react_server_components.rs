@@ -141,13 +141,11 @@ impl<C: Comments> ReactServerComponents<C> {
 
                                         // Remove the directive.
                                         return false;
-                                    } else if &**value == "use server" {
-                                        if !finished_directives {
-                                            is_action_file = true;
+                                    } else if &**value == "use server" && !finished_directives {
+                                        is_action_file = true;
 
-                                            if is_client_entry {
-                                                panic_both_directives(expr_stmt.span)
-                                            }
+                                        if is_client_entry {
+                                            panic_both_directives(expr_stmt.span)
                                         }
                                     }
                                 }
