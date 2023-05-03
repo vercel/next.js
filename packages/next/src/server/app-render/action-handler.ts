@@ -335,8 +335,18 @@ export async function handleAction({
 
       if (isFetchAction) {
         res.statusCode = 500
-        return await generateFlight({
-          actionResult: Promise.reject(err),
+        const rejectedPromise = Promise.reject(err)
+        try {
+          // we need to await the promise to trigger the rejection early
+          // so that it's already handled by the time we call
+          // the RSC runtime. Otherwise, it will throw an unhandled
+          // promise rejection error in the renderer.
+          await rejectedPromise
+        } catch (_) {
+          // swallow error, it's gonna be handled on the client
+        }
+        return generateFlight({
+          actionResult: rejectedPromise,
           // if the page was not revalidated, we can skip the rendering the flight tree
           skipFlight: !staticGenerationStore.pathWasRevalidated,
         })

@@ -1,5 +1,6 @@
 import {
   ActionFlightData,
+  ActionResult,
   FlightData,
 } from '../../../../server/app-render/types'
 import { callServer } from '../../../app-call-server'
@@ -26,8 +27,9 @@ import { createHrefFromUrl } from '../create-href-from-url'
 import { RedirectType, getRedirectError } from '../../redirect'
 
 type FetchServerActionResult = {
-  result: ActionFlightData | undefined
   redirectLocation: URL | undefined
+  actionResult?: ActionResult
+  actionFlightData?: FlightData | undefined | null
 }
 
 async function fetchServerAction(
@@ -60,13 +62,22 @@ async function fetchServerAction(
   let isFlightResponse =
     res.headers.get('content-type') === RSC_CONTENT_TYPE_HEADER
 
-  const result = isFlightResponse
-    ? await createFromFetch(Promise.resolve(res), {
-        callServer,
-      })
-    : undefined
+  if (isFlightResponse) {
+    const result = (await createFromFetch(Promise.resolve(res), {
+      callServer,
+    })) as ActionFlightData | undefined
 
-  return { result, redirectLocation }
+    const [actionResult, actionFlightData] = result ?? []
+
+    return {
+      actionResult,
+      actionFlightData,
+      redirectLocation,
+    }
+  }
+  return {
+    redirectLocation,
+  }
 }
 
 /*
@@ -90,15 +101,13 @@ export function serverActionReducer(
   }
 
   // suspends until the server action is resolved.
-  const { result, redirectLocation } = readRecordValue(
+  const { actionResult, actionFlightData, redirectLocation } = readRecordValue(
     action.mutable.inFlightServerAction!
   ) as Awaited<FetchServerActionResult>
 
   if (redirectLocation) {
-    const flightData = result as FlightData | undefined
-
     // the redirection might have a flight data associated with it, so we'll populate the cache with it
-    if (flightData) {
+    if (actionFlightData) {
       const href = createHrefFromUrl(
         redirectLocation,
         // Ensures the hash is not part of the cache key as it does not affect fetching the server
@@ -107,7 +116,7 @@ export function serverActionReducer(
       state.prefetchCache.set(href, {
         data: createRecordFromThenable(
           Promise.resolve([
-            flightData,
+            actionFlightData,
             // TODO-APP: verify the logic around canonical URL overrides
             undefined,
           ])
@@ -124,32 +133,20 @@ export function serverActionReducer(
       getRedirectError(redirectLocation.toString(), RedirectType.push)
     )
   } else {
-    const [actionResult, flightData] = result ?? [undefined, undefined]
-
     // TODO-APP: populate the prefetch cache with the new flight data
-    if (flightData) {
+    if (actionFlightData) {
       // this is an intentional hack around React: we want to update the tree in a new render
       setTimeout(() => {
         action.changeByServerResponse(
           action.mutable.previousTree!,
-          flightData,
+          actionFlightData,
           // TODO-APP: verify the logic around canonical URL overrides
           undefined
         )
       })
     }
-    try {
-      if (actionResult) {
-        // the promise should be resolved by now or an actual error
-        const actualResult = readRecordValue(actionResult)
-        action.resolve(actualResult)
-      } else {
-        action.resolve(undefined)
-      }
-    } catch (e) {
-      // there should be a reason at this point
-      action.reject((e as any).reason)
-    }
+
+    action.resolve(actionResult)
   }
 
   action.mutable.serverActionApplied = true

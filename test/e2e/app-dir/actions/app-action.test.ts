@@ -2,6 +2,9 @@ import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import { Request } from 'playwright-chromium'
 
+const GENERIC_RSC_ERROR =
+  'Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+
 createNextDescribe(
   'app-dir action handling',
   {
@@ -120,9 +123,12 @@ createNextDescribe(
 
       await browser.elementByCss('#authed').click()
 
-      await check(() => {
-        return browser.elementByCss('h1').text()
-      }, 'Error: Unauthorized request')
+      await check(
+        () => {
+          return browser.elementByCss('h1').text()
+        },
+        isNextDev ? 'Error: Unauthorized request' : GENERIC_RSC_ERROR
+      )
 
       await await browser.eval(`document.cookie = 'auth=1'`)
 
@@ -206,11 +212,14 @@ createNextDescribe(
         await await browser.eval(`document.cookie = 'auth=0'`)
         await browser.elementByCss('#authed').click()
 
-        await check(async () => {
-          const text = await browser.elementByCss('h1').text()
-          console.log('text', text)
-          return text && text.length > 0 ? text : 'failed'
-        }, /Multipart form data is not supported/)
+        await check(
+          async () => {
+            const text = await browser.elementByCss('h1').text()
+            console.log('text', text)
+            return text && text.length > 0 ? text : 'failed'
+          },
+          isNextDev ? /Multipart form data is not supported/ : GENERIC_RSC_ERROR
+        )
       })
     })
 
