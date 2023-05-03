@@ -20,7 +20,6 @@ import { ensureLeadingSlash } from '../../shared/lib/page-path/ensure-leading-sl
 import { removePagePathTail } from '../../shared/lib/page-path/remove-page-path-tail'
 import { reportTrigger } from '../../build/output'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
-import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import {
   isInstrumentationHookFile,
   isInstrumentationHookFilename,
@@ -715,7 +714,6 @@ export function onDemandEntryHandler({
         const isInsideAppDir =
           !!appDir && pagePathData.absolutePagePath.startsWith(appDir)
 
-        const pageType = isInsideAppDir ? 'app' : 'pages'
         const pageBundleType = getPageBundleType(pagePathData.bundlePath)
         const addEntry = (
           compilerType: CompilerNameValues

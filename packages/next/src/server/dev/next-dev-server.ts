@@ -73,7 +73,6 @@ import {
   runDependingOnPageType,
 } from '../../build/entries'
 import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
-import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import {
