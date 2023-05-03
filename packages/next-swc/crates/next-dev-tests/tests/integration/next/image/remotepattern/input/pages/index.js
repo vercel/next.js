@@ -1,11 +1,8 @@
 import Image from 'next/image'
-import { useEffect } from 'react'
+import { useTestHarness } from '@turbo/pack-test-harness'
 
 export default function Home() {
-  useEffect(() => {
-    // Only run on client
-    import('@turbo/pack-test-harness').then(runTests)
-  })
+  useTestHarness(runTests)
 
   // Only the jpg is approved in the NextConfig's image.remotePatterns.
   return (

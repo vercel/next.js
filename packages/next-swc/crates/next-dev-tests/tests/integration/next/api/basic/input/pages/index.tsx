@@ -1,15 +1,10 @@
-import { useEffect } from 'react'
+import { useTestHarness, Harness } from '@turbo/pack-test-harness'
 
 export default function Page() {
-  useEffect(() => {
-    // Only run on client
-    import('@turbo/pack-test-harness').then((mod) => runTests(mod))
-  })
+  useTestHarness(runTests)
 
   return <h1>Ready</h1>
 }
-
-type Harness = typeof import('@turbo/pack-test-harness')
 
 let once = true
 function runTests(harness: Harness) {
