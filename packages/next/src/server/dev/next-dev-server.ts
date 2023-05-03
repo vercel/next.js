@@ -105,7 +105,7 @@ import { IncrementalCache } from '../lib/incremental-cache'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import { NextUrlWithParsedQuery } from '../request-meta'
 import { deserializeErr, errorToJSON } from '../render'
-import { invokeRequest } from '../lib/server-ipc'
+import { invokeRequest } from '../lib/server-ipc/invoke-request'
 import { generateInterceptionRoutesRewrites } from '../../lib/generate-interception-routes-rewrites'
 
 // Load ReactDevOverlay only when needed
