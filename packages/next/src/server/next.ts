@@ -178,9 +178,16 @@ export class NextServer {
             )
           }
         }
+
+        // When running as a custom server with app dir, we must set this env
+        // to correctly alias the React versions.
         if (conf.experimental.appDir) {
-          process.env.NEXT_PREBUNDLED_REACT = '1'
+          process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = conf.experimental
+            .serverActions
+            ? 'experimental'
+            : 'next'
         }
+
         this.server = await this.createServer({
           ...this.options,
           conf,
