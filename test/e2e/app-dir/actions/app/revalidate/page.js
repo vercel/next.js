@@ -1,7 +1,7 @@
 import {
   //   unstable_cache,
-  unstable_revalidatePath as revalidatePath,
-  unstable_revalidateTag as revalidateTag,
+  revalidatePath,
+  revalidateTag,
 } from 'next/cache'
 import { redirect } from 'next/navigation'
 

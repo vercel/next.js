@@ -288,7 +288,6 @@ export async function handleAction({
         // For form actions, we need to continue rendering the page.
         if (isFetchAction) {
           await Promise.all(staticGenerationStore.pendingRevalidates || [])
-          staticGenerationStore.isRevalidate = true
 
           actionResult = await generateFlight({
             actionResult: Promise.resolve(returnVal),

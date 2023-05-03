@@ -9,8 +9,8 @@ export interface StaticGenerationStore {
   readonly incrementalCache?: IncrementalCache
   readonly isOnDemandRevalidate?: boolean
   readonly isPrerendering?: boolean
+  readonly isRevalidate?: boolean
 
-  isRevalidate?: boolean
   forceDynamic?: boolean
   fetchCache?:
     | 'only-cache'

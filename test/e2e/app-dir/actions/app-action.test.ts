@@ -303,7 +303,7 @@ createNextDescribe(
         }, 'success')
       })
 
-      it.skip('should handle revalidateTag + redirect', async () => {
+      it('should handle revalidateTag + redirect', async () => {
         const browser = await next.browser('/revalidate')
         const randomNumber = await browser.elementByCss('#random-number').text()
         const justPutIt = await browser.elementByCss('#justputit').text()
