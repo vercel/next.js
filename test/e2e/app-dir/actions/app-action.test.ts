@@ -42,6 +42,26 @@ createNextDescribe(
         const res = (await browser.elementByCss('h1').text()) || ''
         return res.includes('Mozilla') ? 'UA' : ''
       }, 'UA')
+
+      // Set cookies
+      await browser.elementByCss('#setCookie').click()
+      await check(async () => {
+        const res = (await browser.elementByCss('h1').text()) || ''
+        const id = res.split(':')
+        return id[0] === id[1] && id[0] === id[2] && id[0]
+          ? 'same'
+          : 'different'
+      }, 'same')
+    })
+
+    it('should support setting cookies in route handlers with the correct overrides', async () => {
+      const res = await next.fetch('/handler')
+      const setCookieHeader = res.headers.get('set-cookie') as string[]
+      expect(setCookieHeader).toContain('bar=bar2; Path=/')
+      expect(setCookieHeader).toContain('baz=baz2; Path=/')
+      expect(setCookieHeader).toContain('foo=foo1; Path=/')
+      expect(setCookieHeader).toContain('test1=value1; Path=/; Secure')
+      expect(setCookieHeader).toContain('test2=value2; Path=/handler; HttpOnly')
     })
 
     it('should support formData and redirect', async () => {
@@ -52,7 +72,7 @@ createNextDescribe(
 
       await check(() => {
         return browser.eval('window.location.pathname + window.location.search')
-      }, '/header?name=test')
+      }, '/header?name=test&constructor=FormData')
     })
 
     it('should support notFound', async () => {
@@ -63,6 +83,34 @@ createNextDescribe(
       await check(() => {
         return browser.elementByCss('h1').text()
       }, 'my-not-found')
+    })
+
+    it('should support uploading files', async () => {
+      const logs: string[] = []
+      next.on('stdout', (log) => {
+        logs.push(log)
+      })
+      next.on('stderr', (log) => {
+        logs.push(log)
+      })
+
+      const browser = await next.browser('/server')
+
+      // Fake a file to upload
+      await browser.eval(`
+        const file = new File(['hello'], 'hello.txt', { type: 'text/plain' });
+        const list = new DataTransfer();
+        list.items.add(file);
+        document.getElementById('file').files = list.files;
+      `)
+
+      await browser.elementByCss('#upload').click()
+
+      await check(() => {
+        return logs.some((log) => log.includes('File name: hello.txt size: 5'))
+          ? 'yes'
+          : ''
+      }, 'yes')
     })
 
     it('should support hoc auth wrappers', async () => {
@@ -131,5 +179,26 @@ createNextDescribe(
         })
       })
     }
+
+    describe('Edge SSR', () => {
+      it('should handle basic actions correctly', async () => {
+        const browser = await next.browser('/server/edge')
+
+        const cnt = await browser.elementByCss('h1').text()
+        expect(cnt).toBe('0')
+
+        await browser.elementByCss('#inc').click()
+        await check(() => browser.elementByCss('h1').text(), '1')
+
+        await browser.elementByCss('#inc').click()
+        await check(() => browser.elementByCss('h1').text(), '2')
+
+        await browser.elementByCss('#double').click()
+        await check(() => browser.elementByCss('h1').text(), '4')
+
+        await browser.elementByCss('#dec').click()
+        await check(() => browser.elementByCss('h1').text(), '3')
+      })
+    })
   }
 )

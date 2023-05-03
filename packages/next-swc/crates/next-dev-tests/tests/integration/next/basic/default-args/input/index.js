@@ -1,9 +1,9 @@
-import { named } from "./module.js";
+import { named } from './module.js'
 
 function Fun({ value = named }) {
-  return value;
+  return value
 }
 
-it("support imports in default arguments", () => {
-  expect(Fun({})).toBe("named");
-});
+it('support imports in default arguments', () => {
+  expect(Fun({})).toBe('named')
+})

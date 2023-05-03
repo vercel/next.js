@@ -211,7 +211,8 @@ const nextDev: CliCommand = async (argv) => {
     allowRetry,
     isDev: true,
     hostname: host,
-    useWorkers: !process.env.__NEXT_DISABLE_MEMORY_WATCHER,
+    // This is required especially for app dir.
+    useWorkers: true,
   }
 
   if (args['--turbo']) {
@@ -219,7 +220,7 @@ const nextDev: CliCommand = async (argv) => {
 
     const { validateTurboNextConfig } =
       require('../lib/turbopack-warning') as typeof import('../lib/turbopack-warning')
-    const { loadBindings, __isCustomTurbopackBinary } =
+    const { loadBindings, __isCustomTurbopackBinary, teardownHeapProfiler } =
       require('../build/swc') as typeof import('../build/swc')
     const { eventCliSession } =
       require('../telemetry/events/version') as typeof import('../telemetry/events/version')
@@ -232,6 +233,7 @@ const nextDev: CliCommand = async (argv) => {
     const rawNextConfig = await validateTurboNextConfig({
       isCustomTurbopack,
       ...devServerOptions,
+      isDev: true,
     })
 
     const distDir = path.join(dir, rawNextConfig.distDir || '.next')
@@ -285,6 +287,13 @@ const nextDev: CliCommand = async (argv) => {
     if (!isCustomTurbopack) {
       await telemetry.flush()
     }
+
+    // There are some cases like test fixtures teardown that normal flush won't hit.
+    // Force flush those on those case, but don't wait for it.
+    ;['SIGTERM', 'SIGINT', 'beforeExit', 'exit'].forEach((event) =>
+      process.on(event, () => teardownHeapProfiler())
+    )
+
     return server
   } else {
     let cleanupFns: (() => Promise<void> | void)[] = []
@@ -310,16 +319,11 @@ const nextDev: CliCommand = async (argv) => {
 
         const setupFork = async (newDir?: string) => {
           // if we're using workers we can auto restart on config changes
-          if (!devServerOptions.useWorkers && devServerTeardown) {
+          if (process.env.__NEXT_DISABLE_MEMORY_WATCHER && devServerTeardown) {
             Log.info(
               `Detected change, manual restart required due to '__NEXT_DISABLE_MEMORY_WATCHER' usage`
             )
             return
-          }
-
-          const startDir = dir
-          if (newDir) {
-            dir = newDir
           }
 
           if (devServerTeardown) {
@@ -327,6 +331,7 @@ const nextDev: CliCommand = async (argv) => {
             devServerTeardown = undefined
           }
 
+          const startDir = dir
           if (newDir) {
             dir = newDir
             process.env = Object.keys(process.env).reduce((newEnv, key) => {
@@ -370,14 +375,32 @@ const nextDev: CliCommand = async (argv) => {
             process[fd].write(chunk)
           }
 
-          devServerOptions.onStdout = (chunk) => {
-            filterForkErrors(chunk, 'stdout')
+          let resolveCleanup!: (cleanup: () => Promise<void>) => void
+          let cleanupPromise = new Promise<() => Promise<void>>((resolve) => {
+            resolveCleanup = resolve
+          })
+          const cleanupWrapper = async () => {
+            const promise = cleanupPromise
+            cleanupPromise = Promise.resolve(async () => {})
+            const cleanup = await promise
+            await cleanup()
           }
-          devServerOptions.onStderr = (chunk) => {
-            filterForkErrors(chunk, 'stderr')
+          cleanupFns.push(cleanupWrapper)
+          devServerTeardown = cleanupWrapper
+
+          try {
+            devServerOptions.onStdout = (chunk) => {
+              filterForkErrors(chunk, 'stdout')
+            }
+            devServerOptions.onStderr = (chunk) => {
+              filterForkErrors(chunk, 'stderr')
+            }
+            shouldFilter = false
+            resolveCleanup(await startServer(devServerOptions))
+          } finally {
+            // fallback to noop, if not provided
+            resolveCleanup(async () => {})
           }
-          shouldFilter = false
-          devServerTeardown = await startServer(devServerOptions)
 
           if (!config) {
             config = await loadConfig(
@@ -388,14 +411,7 @@ const nextDev: CliCommand = async (argv) => {
               true
             )
           }
-
-          if (config.experimental?.appDir && !devServerOptions.useWorkers) {
-            Log.error(
-              `Disabling dev workers is not supported with appDir enabled`
-            )
-          }
         }
-        cleanupFns.push(() => devServerTeardown?.())
 
         await setupFork()
         await preflight()

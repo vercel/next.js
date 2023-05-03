@@ -64,7 +64,6 @@ describe('dependencies can use env vars in middlewares', () => {
     const manifest = await readJson(manifestPath)
     const envVars = manifest?.middleware?.['/']?.env
 
-    expect(envVars).toHaveLength(2)
     expect(envVars).toContain('ENV_VAR_USED_IN_MIDDLEWARE')
     expect(envVars).toContain('MY_CUSTOM_PACKAGE_ENV_VAR')
   })

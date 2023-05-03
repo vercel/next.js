@@ -191,7 +191,6 @@ jobs:
           cargo fmt -- --check
           cargo clippy --all -- -D warnings -A deprecated
           cargo check -p next-dev --no-default-features --features cli,custom_allocator,rustls-tls,__internal_nextjs_integration_test
-        working-directory: packages/next-swc
 
   checkPrecompiled:
     name: Check Pre-compiled
@@ -967,6 +966,9 @@ jobs:
       - build
       - build-wasm
       - build-native
+    permissions:
+      contents: write
+      id-token: write
     env:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
     steps:
@@ -998,6 +1000,7 @@ jobs:
           name: wasm-binaries
           path: packages/next-swc/crates/wasm
 
+      - run: npm i -g npm@9 # need latest version for provenance
       - run: npm i -g pnpm@${PNPM_VERSION}
       - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
       - run: ./scripts/publish-native.js
@@ -1191,7 +1194,7 @@ jobs:
 
   test-native:
     name: Unit Test Native Code
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-8-core-oss
 
     steps:
       - uses: actions/checkout@v3

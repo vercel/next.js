@@ -21,7 +21,9 @@ mime = { workspace = true }
 indoc = { workspace = true }
 allsorts = { workspace = true }
 futures = { workspace = true }
+lazy_static = { workspace = true }
 turbo-binding = { workspace = true, features = [
+  "__swc_transform_modularize_imports",
   "__feature_auto_hash_map",
   "__turbo_tasks",
   "__turbo_tasks_bytes",
@@ -34,21 +36,25 @@ turbo-binding = { workspace = true, features = [
   "__turbopack_dev",
   "__turbopack_dev_server",
   "__turbopack_ecmascript",
+  "__turbopack_ecmascript_plugin",
   "__turbopack_env",
+  "__turbopack_static",
+  "__turbopack_image",
   "__turbopack_node",
-  ] }
+] }
 turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 next-transform-strip-page-exports = { workspace = true }
 next-transform-font = { workspace = true }
 next-transform-dynamic = { workspace = true }
 
-swc_core = { workspace = true, features = ["ecma_ast", "common"] }
+swc_core = { workspace = true, features = [
+  "ecma_ast",
+  "common",
+] }
 
 [build-dependencies]
-turbo-binding = { workspace = true, features = [
-  "__turbo_tasks_build"
-]}
+turbo-binding = { workspace = true, features = ["__turbo_tasks_build"] }
 
 [features]
 next-font-local = []
@@ -61,4 +67,3 @@ dynamic_embed_contents = [
   "turbo-binding/__turbo_tasks_fs_dynamic_embed_contents",
   "turbo-binding/__turbopack_dev_dynamic_embed_contents",
 ]
-

@@ -2,12 +2,23 @@ import { redirect, notFound } from 'next/navigation'
 
 async function action(formData) {
   'use server'
-  redirect('/header?name=' + formData.get('name'))
+  redirect(
+    '/header?name=' +
+      formData.get('name') +
+      '&constructor=' +
+      formData.constructor.name
+  )
 }
 
 async function nowhere() {
   'use server'
   notFound()
+}
+
+async function file(formData) {
+  'use server'
+  const file = formData.get('file')
+  console.log('File name:', file.name, 'size:', file.size)
 }
 
 export default function Form() {
@@ -26,6 +37,13 @@ export default function Form() {
         <input type="text" name="$$id" value={nowhere.$$id} hidden readOnly />
         <button type="submit" id="nowhere">
           Go nowhere
+        </button>
+      </form>
+      <hr />
+      <form action={file}>
+        <input type="file" name="file" id="file" required />
+        <button type="submit" id="upload">
+          Upload file
         </button>
       </form>
     </>

@@ -6,7 +6,6 @@ import {
   ImageConfigComplete,
   imageConfigDefault,
 } from '../shared/lib/image-config'
-import { ServerRuntime } from 'next/types'
 import { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/subresource-integrity-plugin'
 import { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
@@ -45,6 +44,37 @@ export interface TypeScriptConfig {
   ignoreBuildErrors?: boolean
   /** Relative path to a custom tsconfig file */
   tsconfigPath?: string
+}
+
+export interface EmotionConfig {
+  sourceMap?: boolean
+  autoLabel?: 'dev-only' | 'always' | 'never'
+  labelFormat?: string
+  importMap?: {
+    [importName: string]: {
+      [exportName: string]: {
+        canonicalImport?: [string, string]
+        styledBaseImport?: [string, string]
+      }
+    }
+  }
+}
+
+export interface StyledComponentsConfig {
+  /**
+   * Enabled by default in development, disabled in production to reduce file size,
+   * setting this will override the default for all environments.
+   */
+  displayName?: boolean
+  topLevelImportPaths?: string[]
+  ssr?: boolean
+  fileName?: boolean
+  meaninglessFileNames?: string[]
+  minify?: boolean
+  transpileTemplateLiterals?: boolean
+  namespace?: string
+  pure?: boolean
+  cssProp?: boolean
 }
 
 type JSONValue =
@@ -151,7 +181,7 @@ export interface ExperimentalConfig {
   externalDir?: boolean
   /**
    * The App Router (app directory) enables support for layouts, Server Components, streaming, and colocated data fetching.
-   * @see https://beta.nextjs.org/docs/api-reference/next.config.js#appdir
+   * @see https://beta.nextjs.org/docs/api-reference/next-config#appdir
    */
   appDir?: boolean
   amp?: {
@@ -164,7 +194,6 @@ export interface ExperimentalConfig {
   craCompat?: boolean
   esmExternals?: boolean | 'loose'
   isrMemoryCacheSize?: number
-  runtime?: Exclude<ServerRuntime, undefined>
   fullySpecified?: boolean
   urlImports?: NonNullable<webpack.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
@@ -186,7 +215,6 @@ export interface ExperimentalConfig {
    * [webpack/webpack#ModuleNotoundError.js#L13-L42](https://github.com/webpack/webpack/blob/2a0536cf510768111a3a6dceeb14cb79b9f59273/lib/ModuleNotFoundError.js#L13-L42)
    */
   fallbackNodePolyfills?: false
-  enableUndici?: boolean
   sri?: {
     algorithm?: SubresourceIntegrityAlgorithm
   }
@@ -195,7 +223,7 @@ export interface ExperimentalConfig {
 
   /**
    * A list of packages that should be treated as external in the RSC server build.
-   * @see https://beta.nextjs.org/docs/api-reference/next.config.js#servercomponentsexternalpackages
+   * @see https://beta.nextjs.org/docs/api-reference/next-config#servercomponentsexternalpackages
    */
   serverComponentsExternalPackages?: string[]
 
@@ -222,14 +250,14 @@ export interface ExperimentalConfig {
 
   /**
    * For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
-   * @see https://beta.nextjs.org/docs/api-reference/next.config.js#mdxrs
+   * @see https://beta.nextjs.org/docs/api-reference/next-config#mdxrs
    */
   mdxRs?: boolean
 
   /**
    * Generate Route types and enable type checking for Link and Router.push, etc.
    * This option requires `appDir` to be enabled first.
-   * @see https://beta.nextjs.org/docs/api-reference/next.config.js#typedroutes
+   * @see https://beta.nextjs.org/docs/api-reference/next-config#typedroutes
    */
   typedRoutes?: boolean
 
@@ -244,11 +272,9 @@ export interface ExperimentalConfig {
   instrumentationHook?: boolean
 
   /**
-   * Use the `experimental` channel of React and React DOM in the app/ directory.
-   * By default, this will be disable and the `next` channel will be used.
-   * This requires `appDir` to be enabled first.
+   * Enable `react@experimental` channel for the `app` directory.
    */
-  experimentalReact?: boolean
+  serverActions?: boolean
 }
 
 export type ExportPathMap = {
@@ -390,11 +416,11 @@ export interface NextConfig extends Record<string, any> {
   compress?: boolean
 
   /**
-   * The field should only be used when a Next.js project is not hosted on Vercel while using Vercel Analytics.
-   * Vercel provides zero-configuration analytics for Next.js projects hosted on Vercel.
+   * The field should only be used when a Next.js project is not hosted on Vercel while using Vercel Speed Insights.
+   * Vercel provides zero-configuration insights for Next.js projects hosted on Vercel.
    *
    * @default ''
-   * @see [Next.js Analytics](https://nextjs.org/analytics)
+   * @see [Next.js Speed Insights](https://nextjs.org/analytics)
    */
   analyticsId?: string
 
@@ -540,39 +566,8 @@ export interface NextConfig extends Record<string, any> {
       | {
           exclude?: string[]
         }
-    styledComponents?:
-      | boolean
-      | {
-          /**
-           * Enabled by default in development, disabled in production to reduce file size,
-           * setting this will override the default for all environments.
-           */
-          displayName?: boolean
-          topLevelImportPaths?: string[]
-          ssr?: boolean
-          fileName?: boolean
-          meaninglessFileNames?: string[]
-          minify?: boolean
-          transpileTemplateLiterals?: boolean
-          namespace?: string
-          pure?: boolean
-          cssProp?: boolean
-        }
-    emotion?:
-      | boolean
-      | {
-          sourceMap?: boolean
-          autoLabel?: 'dev-only' | 'always' | 'never'
-          labelFormat?: string
-          importMap?: {
-            [importName: string]: {
-              [exportName: string]: {
-                canonicalImport?: [string, string]
-                styledBaseImport?: [string, string]
-              }
-            }
-          }
-        }
+    styledComponents?: boolean | StyledComponentsConfig
+    emotion?: boolean | EmotionConfig
   }
 
   /**
@@ -669,7 +664,6 @@ export const defaultConfig: NextConfig = {
     fetchCacheKeyPrefix: '',
     middlewarePrefetch: 'flexible',
     optimisticClientCache: true,
-    runtime: undefined,
     manualClientBasePath: false,
     legacyBrowsers: false,
     newNextLinkBehavior: true,
@@ -705,7 +699,6 @@ export const defaultConfig: NextConfig = {
     disablePostcssPresetEnv: undefined,
     amp: undefined,
     urlImports: undefined,
-    enableUndici: false,
     adjustFontFallbacks: false,
     adjustFontFallbacksWithSizeAdjust: false,
     turbo: undefined,

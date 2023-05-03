@@ -6,9 +6,9 @@ import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 const supportedTurbopackNextConfigOptions = [
   'configFileName',
   'env',
-  'experimental.appDir',
-  'experimental.serverComponentsExternalPackages',
-  'experimental.turbo',
+  'modularizeImports',
+  'compiler.emotion',
+  'compiler.styledComponents',
   'images',
   'pageExtensions',
   'onDemandEntries',
@@ -18,18 +18,59 @@ const supportedTurbopackNextConfigOptions = [
   'reactStrictMode',
   'swcMinify',
   'transpilePackages',
+  'experimental.appDir',
+  'experimental.serverComponentsExternalPackages',
+  'experimental.turbo',
+  'experimental.mdxRs',
+  'experimental.swcFileReading',
+  'experimental.forceSwcTransforms',
+  // options below are not really supported, but ignored
+  'devIndicators',
+  'onDemandEntries',
+  'experimental.cpus',
+  'experimental.sharedPool',
+  'experimental.proxyTimeout',
+  'experimental.isrFlushToDisk',
+  'experimental.workerThreads',
+  'experimenatl.pageEnv',
+]
+
+// The following will need to be supported by `next build --turbo`
+const prodSpecificTurboNextConfigOptions = [
+  'eslint',
+  'typescript',
+  'staticPageGenerationTimeout',
+  'outputFileTracing',
+  'output',
+  'generateBuildId',
+  'analyticsId',
+  'compress',
+  'productionBrowserSourceMaps',
+  'optimizeFonts',
+  'poweredByHeader',
+  'staticPageGenerationTimeout',
+  'compiler.reactRemoveProperties',
+  'compiler.removeConsole',
+  'experimental.turbotrace',
+  'experimental.outputFileTracingRoot',
+  'experimental.outputFileTracingExcludes',
+  'experimental.outputFileTracingIgnores',
+  'experiemental.outputFileTracingIncludes',
+  'experimental.gzipSize',
 ]
 
 // check for babelrc, swc plugins
 export async function validateTurboNextConfig({
   dir,
   isCustomTurbopack,
+  isDev,
 }: {
   allowRetry?: boolean
   isCustomTurbopack?: boolean
   dir: string
   port: number
   hostname?: string
+  isDev?: boolean
 }) {
   const { getPkgManager } =
     require('../lib/helpers/get-pkg-manager') as typeof import('../lib/helpers/get-pkg-manager')
@@ -71,59 +112,57 @@ export async function validateTurboNextConfig({
       })
     }
 
-    const checkUnsupportedCustomConfig = (
-      configKey = '',
-      parentUserConfig: any,
-      parentDefaultConfig: any
-    ): boolean => {
-      try {
-        // these should not error
+    const flattenKeys = (obj: any, prefix: string = ''): string[] => {
+      let keys: string[] = []
+
+      for (const key in obj) {
+        if (typeof obj[key] === 'undefined') {
+          continue
+        }
+
+        const pre = prefix.length ? `${prefix}.` : ''
+
         if (
-          // we only want the key after the dot for experimental options
-          supportedTurbopackNextConfigOptions
-            .map((key) => key.split('.').splice(-1)[0])
-            .includes(configKey)
+          typeof obj[key] === 'object' &&
+          !Array.isArray(obj[key]) &&
+          obj[key] !== null
         ) {
-          return false
+          keys = keys.concat(flattenKeys(obj[key], pre + key))
+        } else {
+          keys.push(pre + key)
         }
-
-        // experimental options are checked separately
-        if (configKey === 'experimental') {
-          return false
-        }
-
-        let userValue = parentUserConfig?.[configKey]
-        let defaultValue = parentDefaultConfig?.[configKey]
-
-        if (typeof defaultValue !== 'object') {
-          return defaultValue !== userValue
-        }
-        return Object.keys(userValue || {}).some((key: string) => {
-          return checkUnsupportedCustomConfig(key, userValue, defaultValue)
-        })
-      } catch (e) {
-        console.error(
-          `Unexpected error occurred while checking ${configKey}`,
-          e
-        )
-        return false
       }
+
+      return keys
     }
 
-    unsupportedConfig = [
-      ...Object.keys(rawNextConfig).filter((key) =>
-        checkUnsupportedCustomConfig(key, rawNextConfig, defaultConfig)
-      ),
-      ...Object.keys(rawNextConfig.experimental ?? {})
-        .filter((key) =>
-          checkUnsupportedCustomConfig(
-            key,
-            rawNextConfig?.experimental,
-            defaultConfig?.experimental
-          )
-        )
-        .map((key) => `experimental.${key}`),
-    ]
+    const getDeepValue = (obj: any, keys: string | string[]): any => {
+      if (typeof keys === 'string') {
+        keys = keys.split('.')
+      }
+      if (keys.length === 1) {
+        return obj[keys[0]]
+      }
+      return getDeepValue(obj[keys[0]], keys.slice(1))
+    }
+
+    const customKeys = flattenKeys(rawNextConfig)
+
+    let supportedKeys = isDev
+      ? [
+          ...supportedTurbopackNextConfigOptions,
+          ...prodSpecificTurboNextConfigOptions,
+        ]
+      : supportedTurbopackNextConfigOptions
+
+    for (const key of customKeys) {
+      let isSupported =
+        supportedKeys.some((supportedKey) => key.startsWith(supportedKey)) ||
+        getDeepValue(rawNextConfig, key) === getDeepValue(defaultConfig, key)
+      if (!isSupported) {
+        unsupportedConfig.push(key)
+      }
+    }
   } catch (e) {
     console.error('Unexpected error occurred while checking config', e)
   }
@@ -159,10 +198,6 @@ export async function validateTurboNextConfig({
     )})\n  ${chalk.dim(
       `To use Turbopack, remove the following configuration options:\n${unsupportedConfig
         .map((name) => `    - ${chalk.red(name)}\n`)
-        .join(
-          ''
-        )}  The only supported configurations options are:\n${supportedTurbopackNextConfigOptions
-        .map((name) => `    - ${chalk.cyan(name)}\n`)
         .join('')}  `
     )}   `
   }

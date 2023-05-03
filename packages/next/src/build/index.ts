@@ -90,8 +90,11 @@ import {
   eventBuildCompleted,
 } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
-import { getPageStaticInfo } from './analysis/get-page-static-info'
-import { createPagesMapping } from './entries'
+import {
+  isDynamicMetadataRoute,
+  getPageStaticInfo,
+} from './analysis/get-page-static-info'
+import { createPagesMapping, getPageFilePath } from './entries'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
@@ -280,33 +283,19 @@ export default async function build(
 
       const publicDir = path.join(dir, 'public')
       const isAppDirEnabled = !!config.experimental.appDir
-      const useExperimentalReact = !!config.experimental.experimentalReact
-      const initialRequireHookFilePath = require.resolve(
-        'next/dist/server/initialize-require-hook'
-      )
-      const content = await promises.readFile(
-        initialRequireHookFilePath,
-        'utf8'
-      )
 
       if (isAppDirEnabled) {
-        process.env.NEXT_PREBUNDLED_REACT = useExperimentalReact
-          ? 'experimental'
-          : 'next'
-      }
-      await promises
-        .writeFile(
-          initialRequireHookFilePath,
-          content.replace(
-            /isPrebundled = (true|false)/,
-            `isPrebundled = ${isAppDirEnabled}`
+        process.env.NEXT_PREBUNDLED_REACT = '1'
+
+        if (!process.env.__NEXT_TEST_MODE && ciEnvironment.hasNextSupport) {
+          const requireHook = require.resolve('../server/require-hook')
+          const contents = await promises.readFile(requireHook, 'utf8')
+          await promises.writeFile(
+            requireHook,
+            `process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = '1'\n${contents}`
           )
-        )
-        .catch((err) => {
-          if (isAppDirEnabled) {
-            throw err
-          }
-        })
+        }
+      }
 
       const { pagesDir, appDir } = findPagesDir(dir, isAppDirEnabled)
       NextBuildContext.pagesDir = pagesDir
@@ -398,31 +387,6 @@ export default async function build(
               )
           : []
 
-      let appPaths: string[] | undefined
-
-      if (appDir) {
-        appPaths = await nextBuildSpan
-          .traceChild('collect-app-paths')
-          .traceAsyncFn(() =>
-            recursiveReadDir(
-              appDir,
-              (absolutePath) => {
-                if (validFileMatcher.isAppRouterPage(absolutePath)) {
-                  return true
-                }
-                // For now we only collect the root /not-found page in the app
-                // directory as the 404 fallback.
-                if (validFileMatcher.isRootNotFound(absolutePath)) {
-                  return true
-                }
-                return false
-              },
-              undefined,
-              (part) => part.startsWith('_')
-            )
-          )
-      }
-
       const middlewareDetectionRegExp = new RegExp(
         `^${MIDDLEWARE_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
       )
@@ -474,18 +438,67 @@ export default async function build(
       let mappedAppPages: { [page: string]: string } | undefined
       let denormalizedAppPages: string[] | undefined
 
-      if (appPaths && appDir) {
+      if (appDir) {
+        const appPaths = await nextBuildSpan
+          .traceChild('collect-app-paths')
+          .traceAsyncFn(() =>
+            recursiveReadDir(
+              appDir,
+              (absolutePath) =>
+                validFileMatcher.isAppRouterPage(absolutePath) ||
+                // For now we only collect the root /not-found page in the app
+                // directory as the 404 fallback
+                validFileMatcher.isRootNotFound(absolutePath),
+              undefined,
+              (part) => part.startsWith('_')
+            )
+          )
+
         mappedAppPages = nextBuildSpan
           .traceChild('create-app-mapping')
           .traceFn(() =>
             createPagesMapping({
-              pagePaths: appPaths!,
+              pagePaths: appPaths,
               isDev: false,
               pagesType: 'app',
               pageExtensions: config.pageExtensions,
               pagesDir: pagesDir,
             })
           )
+
+        // If the metadata route doesn't contain generating dynamic exports,
+        // we can replace the dynamic catch-all route and use the static route instead.
+        for (const [pageKey, pagePath] of Object.entries(mappedAppPages)) {
+          if (pageKey.includes('[[...__metadata_id__]]')) {
+            const pageFilePath = getPageFilePath({
+              absolutePagePath: pagePath,
+              pagesDir,
+              appDir,
+              rootDir,
+            })
+
+            const isDynamic = await isDynamicMetadataRoute(pageFilePath)
+            if (!isDynamic) {
+              delete mappedAppPages[pageKey]
+              mappedAppPages[pageKey.replace('[[...__metadata_id__]]/', '')] =
+                pagePath
+            }
+
+            if (
+              pageKey.includes('sitemap.xml/[[...__metadata_id__]]') &&
+              isDynamic
+            ) {
+              delete mappedAppPages[pageKey]
+              mappedAppPages[
+                pageKey.replace(
+                  'sitemap.xml/[[...__metadata_id__]]',
+                  'sitemap/[__metadata_id__]'
+                )
+              ] = pagePath
+            }
+          }
+        }
+
         NextBuildContext.mappedAppPages = mappedAppPages
       }
 
@@ -1080,10 +1093,9 @@ export default async function build(
 
       const timeout = config.staticPageGenerationTimeout || 0
       const sharedPool = config.experimental.sharedPool || false
-      const staticWorker = sharedPool
+      const staticWorkerPath = sharedPool
         ? require.resolve('./worker')
         : require.resolve('./utils')
-      let infoPrinted = false
 
       let appPathsManifest: Record<string, string> = {}
       const appPathRoutes: Record<string, string> = {}
@@ -1124,69 +1136,93 @@ export default async function build(
         4
       )
 
-      const staticWorkers = new Worker(staticWorker, {
-        timeout: timeout * 1000,
-        onRestart: (method, [arg], attempts) => {
-          if (method === 'exportPage') {
-            const { path: pagePath } = arg
-            if (attempts >= 3) {
-              throw new Error(
-                `Static page generation for ${pagePath} is still timing out after 3 attempts. See more info here https://nextjs.org/docs/messages/static-page-generation-timeout`
+      function createStaticWorker(type: 'app' | 'pages') {
+        const numWorkersPerType = isAppDirEnabled
+          ? Math.max(1, ~~(numWorkers / 2))
+          : numWorkers
+
+        let infoPrinted = false
+
+        return new Worker(staticWorkerPath, {
+          timeout: timeout * 1000,
+          onRestart: (method, [arg], attempts) => {
+            if (method === 'exportPage') {
+              const { path: pagePath } = arg
+              if (attempts >= 3) {
+                throw new Error(
+                  `Static page generation for ${pagePath} is still timing out after 3 attempts. See more info here https://nextjs.org/docs/messages/static-page-generation-timeout`
+                )
+              }
+              Log.warn(
+                `Restarted static page generation for ${pagePath} because it took more than ${timeout} seconds`
+              )
+            } else {
+              const pagePath = arg
+              if (attempts >= 2) {
+                throw new Error(
+                  `Collecting page data for ${pagePath} is still timing out after 2 attempts. See more info here https://nextjs.org/docs/messages/page-data-collection-timeout`
+                )
+              }
+              Log.warn(
+                `Restarted collecting page data for ${pagePath} because it took more than ${timeout} seconds`
               )
             }
-            Log.warn(
-              `Restarted static page generation for ${pagePath} because it took more than ${timeout} seconds`
-            )
-          } else {
-            const pagePath = arg
-            if (attempts >= 2) {
-              throw new Error(
-                `Collecting page data for ${pagePath} is still timing out after 2 attempts. See more info here https://nextjs.org/docs/messages/page-data-collection-timeout`
+            if (!infoPrinted) {
+              Log.warn(
+                'See more info here https://nextjs.org/docs/messages/static-page-generation-timeout'
               )
+              infoPrinted = true
             }
-            Log.warn(
-              `Restarted collecting page data for ${pagePath} because it took more than ${timeout} seconds`
-            )
-          }
-          if (!infoPrinted) {
-            Log.warn(
-              'See more info here https://nextjs.org/docs/messages/static-page-generation-timeout'
-            )
-            infoPrinted = true
-          }
-        },
-        numWorkers,
-        enableWorkerThreads: config.experimental.workerThreads,
-        computeWorkerKey(method, ...args) {
-          if (method === 'exportPage') {
-            const typedArgs = args as Parameters<
-              typeof import('./worker').exportPage
-            >
-            return typedArgs[0].pathMap.page
-          } else if (method === 'isPageStatic') {
-            const typedArgs = args as Parameters<
-              typeof import('./worker').isPageStatic
-            >
-            return typedArgs[0].originalAppPath || typedArgs[0].page
-          }
-          return method
-        },
-        exposedMethods: sharedPool
-          ? [
-              'hasCustomGetInitialProps',
-              'isPageStatic',
-              'getNamedExports',
-              'exportPage',
-            ]
-          : ['hasCustomGetInitialProps', 'isPageStatic', 'getNamedExports'],
-      }) as Worker &
-        Pick<
-          typeof import('./worker'),
-          | 'hasCustomGetInitialProps'
-          | 'isPageStatic'
-          | 'getNamedExports'
-          | 'exportPage'
-        >
+          },
+          numWorkers: numWorkersPerType,
+          forkOptions: {
+            env: {
+              ...process.env,
+              __NEXT_PRIVATE_PREBUNDLED_REACT:
+                type === 'app'
+                  ? config.experimental.serverActions
+                    ? 'experimental'
+                    : 'next'
+                  : '',
+            },
+          },
+          enableWorkerThreads: config.experimental.workerThreads,
+          computeWorkerKey(method, ...args) {
+            if (method === 'exportPage') {
+              const typedArgs = args as Parameters<
+                typeof import('./worker').exportPage
+              >
+              return typedArgs[0].pathMap.page
+            } else if (method === 'isPageStatic') {
+              const typedArgs = args as Parameters<
+                typeof import('./worker').isPageStatic
+              >
+              return typedArgs[0].originalAppPath || typedArgs[0].page
+            }
+            return method
+          },
+          exposedMethods: sharedPool
+            ? [
+                'hasCustomGetInitialProps',
+                'isPageStatic',
+                'getNamedExports',
+                'exportPage',
+              ]
+            : ['hasCustomGetInitialProps', 'isPageStatic', 'getNamedExports'],
+        }) as Worker &
+          Pick<
+            typeof import('./worker'),
+            | 'hasCustomGetInitialProps'
+            | 'isPageStatic'
+            | 'getNamedExports'
+            | 'exportPage'
+          >
+      }
+
+      const pagesStaticWorkers = createStaticWorker('pages')
+      const appStaticWorkers = isAppDirEnabled
+        ? createStaticWorker('app')
+        : undefined
 
       const analysisBegin = process.hrtime()
       const staticCheckSpan = nextBuildSpan.traceChild('static-check')
@@ -1208,7 +1244,7 @@ export default async function build(
           nonStaticErrorPageSpan.traceAsyncFn(
             async () =>
               hasCustomErrorPage &&
-              (await staticWorkers.hasCustomGetInitialProps(
+              (await pagesStaticWorkers.hasCustomGetInitialProps(
                 '/_error',
                 distDir,
                 runtimeEnvConfig,
@@ -1219,13 +1255,12 @@ export default async function build(
         const errorPageStaticResult = nonStaticErrorPageSpan.traceAsyncFn(
           async () =>
             hasCustomErrorPage &&
-            staticWorkers.isPageStatic({
+            pagesStaticWorkers.isPageStatic({
               page: '/_error',
               distDir,
               configFileName,
               runtimeEnvConfig,
               httpAgentOptions: config.httpAgentOptions,
-              enableUndici: config.experimental.enableUndici,
               locales: config.i18n?.locales,
               defaultLocale: config.i18n?.defaultLocale,
               nextConfigOutput: config.output,
@@ -1235,14 +1270,14 @@ export default async function build(
         const appPageToCheck = '/_app'
 
         const customAppGetInitialPropsPromise =
-          staticWorkers.hasCustomGetInitialProps(
+          pagesStaticWorkers.hasCustomGetInitialProps(
             appPageToCheck,
             distDir,
             runtimeEnvConfig,
             true
           )
 
-        const namedExportsPromise = staticWorkers.getNamedExports(
+        const namedExportsPromise = pagesStaticWorkers.getNamedExports(
           appPageToCheck,
           distDir,
           runtimeEnvConfig
@@ -1274,8 +1309,13 @@ export default async function build(
           : null
         const entriesWithAction = actionManifest ? new Set() : null
         if (actionManifest && entriesWithAction) {
-          for (const id in actionManifest) {
-            for (const entry in actionManifest[id].workers) {
+          for (const id in actionManifest.node) {
+            for (const entry in actionManifest.node[id].workers) {
+              entriesWithAction.add(entry)
+            }
+          }
+          for (const id in actionManifest.edge) {
+            for (const entry in actionManifest.edge[id].workers) {
               entriesWithAction.add(entry)
             }
           }
@@ -1367,7 +1407,12 @@ export default async function build(
                     })
                   : undefined
 
-                const pageRuntime = staticInfo?.runtime
+                const pageRuntime = middlewareManifest.functions[
+                  originalAppPath || page
+                ]
+                  ? 'edge'
+                  : staticInfo?.runtime
+
                 isServerComponent =
                   pageType === 'app' &&
                   staticInfo?.rsc !== RSC_MODULE_TYPES.client
@@ -1393,14 +1438,17 @@ export default async function build(
                       checkPageSpan.traceChild('is-page-static')
                     let workerResult = await isPageStaticSpan.traceAsyncFn(
                       () => {
-                        return staticWorkers.isPageStatic({
+                        return (
+                          pageType === 'app'
+                            ? appStaticWorkers
+                            : pagesStaticWorkers
+                        )!.isPageStatic({
                           page,
                           originalAppPath,
                           distDir,
                           configFileName,
                           runtimeEnvConfig,
                           httpAgentOptions: config.httpAgentOptions,
-                          enableUndici: config.experimental.enableUndici,
                           locales: config.i18n?.locales,
                           defaultLocale: config.i18n?.defaultLocale,
                           parentId: isPageStaticSpan.id,
@@ -1629,7 +1677,11 @@ export default async function build(
           hasNonStaticErrorPage: nonStaticErrorPage,
         }
 
-        if (!sharedPool) staticWorkers.end()
+        if (!sharedPool) {
+          pagesStaticWorkers.end()
+          appStaticWorkers?.end()
+        }
+
         return returnValue
       })
 
@@ -2114,7 +2166,8 @@ export default async function build(
               denormalizedAppPages,
               outputFileTracingRoot,
               requiredServerFiles.config,
-              middlewareManifest
+              middlewareManifest,
+              hasInstrumentationHook
             )
           })
       }
@@ -2298,12 +2351,16 @@ export default async function build(
             pages: combinedPages,
             outdir: path.join(distDir, 'export'),
             statusMessage: 'Generating static pages',
+            exportAppPageWorker: sharedPool
+              ? appStaticWorkers?.exportPage.bind(appStaticWorkers)
+              : undefined,
             exportPageWorker: sharedPool
-              ? staticWorkers.exportPage.bind(staticWorkers)
+              ? pagesStaticWorkers.exportPage.bind(pagesStaticWorkers)
               : undefined,
             endWorker: sharedPool
               ? async () => {
-                  await staticWorkers.end()
+                  await pagesStaticWorkers.end()
+                  await appStaticWorkers?.end()
                 }
               : undefined,
           }
@@ -2362,16 +2419,16 @@ export default async function build(
                   initialHeaders?: SsgRoute['initialHeaders']
                 } = {}
 
-                if (isRouteHandler) {
-                  const exportRouteMeta =
-                    exportConfig.initialPageMetaMap[route] || {}
+                const exportRouteMeta: {
+                  status?: number
+                  headers?: Record<string, string>
+                } = exportConfig.initialPageMetaMap[route] || {}
 
-                  if (exportRouteMeta.status !== 200) {
-                    routeMeta.initialStatus = exportRouteMeta.status
-                  }
-                  if (Object.keys(exportRouteMeta.headers).length) {
-                    routeMeta.initialHeaders = exportRouteMeta.headers
-                  }
+                if (exportRouteMeta.status !== 200) {
+                  routeMeta.initialStatus = exportRouteMeta.status
+                }
+                if (Object.keys(exportRouteMeta.headers || {}).length) {
+                  routeMeta.initialHeaders = exportRouteMeta.headers
                 }
 
                 finalPrerenderRoutes[route] = {
@@ -2731,7 +2788,8 @@ export default async function build(
       }
 
       // ensure the worker is not left hanging
-      staticWorkers.close()
+      pagesStaticWorkers.close()
+      appStaticWorkers?.close()
 
       const analysisEnd = process.hrtime(analysisBegin)
       telemetry.record(
@@ -2804,10 +2862,20 @@ export default async function build(
           notFoundRoutes: ssgNotFoundPaths,
           preview: previewProps,
         }
+        NextBuildContext.previewModeId = previewProps.previewModeId
+        NextBuildContext.fetchCacheKeyPrefix =
+          config.experimental.fetchCacheKeyPrefix
+        NextBuildContext.allowedRevalidateHeaderKeys =
+          config.experimental.allowedRevalidateHeaderKeys
 
         await promises.writeFile(
           path.join(distDir, PRERENDER_MANIFEST),
           JSON.stringify(prerenderManifest),
+          'utf8'
+        )
+        await promises.writeFile(
+          path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
+          `self.__PRERENDER_MANIFEST=${JSON.stringify(prerenderManifest)}`,
           'utf8'
         )
         await generateClientSsgManifest(prerenderManifest, {
@@ -2826,6 +2894,11 @@ export default async function build(
         await promises.writeFile(
           path.join(distDir, PRERENDER_MANIFEST),
           JSON.stringify(prerenderManifest),
+          'utf8'
+        )
+        await promises.writeFile(
+          path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
+          `self.__PRERENDER_MANIFEST=${JSON.stringify(prerenderManifest)}`,
           'utf8'
         )
       }
@@ -2938,7 +3011,7 @@ export default async function build(
 
       if (config.analyticsId) {
         console.log(
-          chalk.bold.green('Next.js Analytics') +
+          chalk.bold.green('Next.js Speed Insights') +
             ' is enabled for this production build. ' +
             "You'll receive a Real Experience Score computed by all of your visitors."
         )

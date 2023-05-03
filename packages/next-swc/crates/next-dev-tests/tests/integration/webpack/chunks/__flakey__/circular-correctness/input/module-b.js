@@ -1,5 +1,5 @@
-import "./module-x";
+import './module-x'
 
 export default function () {
-  return import(/* webpackChunkName: "c" */ "./module-c");
+  return import(/* webpackChunkName: "c" */ './module-c')
 }

@@ -422,7 +422,9 @@ createNextDescribe(
       })
 
       it('should support redirect in generateMetadata', async () => {
-        const res = await next.fetch('/async/redirect')
+        const res = await next.fetch('/async/redirect', {
+          redirect: 'manual',
+        })
         expect(res.status).toBe(307)
       })
 
@@ -478,21 +480,29 @@ createNextDescribe(
 
       it('should pick up opengraph-image and twitter-image as static metadata files', async () => {
         const $ = await next.render$('/opengraph/static')
-        expect($('[property="og:image"]').attr('content')).toBe(
-          'https://example.com/opengraph/static/opengraph-image.png?b76e8f0282c93c8e'
-        )
-        expect($('[property="og:image:type"]').attr('content')).toBe(
-          'image/png'
-        )
-        expect($('[property="og:image:width"]').attr('content')).toBe('114')
-        expect($('[property="og:image:height"]').attr('content')).toBe('114')
 
-        expect($('[name="twitter:image"]').attr('content')).toBe(
-          'https://example.com/opengraph/static/twitter-image.png?b76e8f0282c93c8e'
-        )
-        expect($('[name="twitter:card"]').attr('content')).toBe(
-          'summary_large_image'
-        )
+        const match = createMultiHtmlMatcher($)
+        await match('meta', 'property', 'content', {
+          'og:image:width': '114',
+          'og:image:height': '114',
+          'og:image:type': 'image/png',
+          'og:image:alt': 'A alt txt for og',
+          'og:image': isNextDev
+            ? expect.stringMatching(
+                /http:\/\/localhost:\d+\/opengraph\/static\/opengraph-image.png\?b76e8f0282c93c8e/
+              )
+            : 'https://example.com/opengraph/static/opengraph-image.png?b76e8f0282c93c8e',
+        })
+
+        await match('meta', 'name', 'content', {
+          'twitter:image': isNextDev
+            ? expect.stringMatching(
+                /http:\/\/localhost:\d+\/opengraph\/static\/twitter-image.png\?b76e8f0282c93c8e/
+              )
+            : 'https://example.com/opengraph/static/twitter-image.png?b76e8f0282c93c8e',
+          'twitter:image:alt': 'A alt txt for twitter',
+          'twitter:card': 'summary_large_image',
+        })
 
         // favicon shouldn't be overridden
         const $icon = $('link[rel="icon"]')
@@ -545,15 +555,18 @@ createNextDescribe(
 
       it('should support root level of favicon.ico', async () => {
         let $ = await next.render$('/')
-        let $icon = $('link[rel="icon"]')
-        expect($icon.attr('href')).toBe('/favicon.ico')
-        expect($icon.attr('type')).toBe('image/x-icon')
-        expect($icon.attr('sizes')).toBe('any')
+        const favIcon = $('link[rel="icon"]')
+        expect(favIcon.attr('href')).toBe('/favicon.ico')
+        expect(favIcon.attr('type')).toBe('image/x-icon')
+        expect(favIcon.attr('sizes')).toBe('any')
+
+        const iconSvg = $('link[rel="icon"][type="image/svg+xml"]')
+        expect(iconSvg.attr('href')).toBe('/icon.svg?90699bff34adba1f')
 
         $ = await next.render$('/basic')
-        $icon = $('link[rel="icon"]')
-        expect($icon.attr('href')).toBe('/favicon.ico')
-        expect($icon.attr('sizes')).toBe('any')
+        const icon = $('link[rel="icon"]')
+        expect(icon.attr('href')).toBe('/favicon.ico')
+        expect(icon.attr('sizes')).toBe('any')
       })
     })
 
@@ -731,7 +744,7 @@ createNextDescribe(
         expect(invalidRobotsResponse.status).toBe(404)
       })
 
-      it('should support root dir sitemap.xml', async () => {
+      it('should support sitemap.xml under every routes', async () => {
         const res = await next.fetch('/sitemap.xml')
         expect(res.headers.get('content-type')).toBe('application/xml')
         const sitemap = await res.text()
@@ -740,7 +753,7 @@ createNextDescribe(
           '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
         )
         const invalidSitemapResponse = await next.fetch('/title/sitemap.xml')
-        expect(invalidSitemapResponse.status).toBe(404)
+        expect(invalidSitemapResponse.status).toBe(200)
       })
 
       it('should support static manifest.webmanifest', async () => {
@@ -774,6 +787,28 @@ createNextDescribe(
         })
       }
     })
+
+    if (isNextStart) {
+      describe('static optimization', () => {
+        it('should build static files into static route', async () => {
+          expect(
+            await next.hasFile(
+              '.next/server/app/opengraph/static/opengraph-image.png.meta'
+            )
+          ).toBe(true)
+          expect(
+            await next.hasFile(
+              '.next/server/app/opengraph/static/opengraph-image.png.body'
+            )
+          ).toBe(true)
+          expect(
+            await next.hasFile(
+              '.next/server/app/opengraph/static/opengraph-image.png/[[...__metadata_id__]]/route.js'
+            )
+          ).toBe(false)
+        })
+      })
+    }
 
     describe('react cache', () => {
       it('should have same title and page value on initial load', async () => {

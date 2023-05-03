@@ -23,7 +23,8 @@ import { isDynamicRoute } from '../shared/lib/router/utils'
 import { interpolateDynamicPath, normalizeVercelUrl } from './server-utils'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { IncrementalCache } from './lib/incremental-cache'
-import { NEXT_QUERY_PARAM_PREFIX } from '../lib/constants'
+import { PrerenderManifest } from '../build'
+
 interface WebServerOptions extends Options {
   webServerConfig: {
     page: string
@@ -36,6 +37,7 @@ interface WebServerOptions extends Options {
     pagesRenderToHTML?: typeof import('./render').renderToHTML
     appRenderToHTML?: typeof import('./app-render/app-render').renderToHTMLOrFlight
     incrementalCacheHandler?: any
+    prerenderManifest: PrerenderManifest | undefined
   }
 }
 
@@ -63,7 +65,10 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     return new IncrementalCache({
       dev,
       requestHeaders,
+      requestProtocol: 'https',
       appDir: this.hasAppDir,
+      allowedRevalidateHeaderKeys:
+        this.nextConfig.experimental.allowedRevalidateHeaderKeys,
       minimalMode: this.minimalMode,
       fetchCache: this.nextConfig.experimental.appDir,
       fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
@@ -71,19 +76,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       flushToDisk: false,
       CurCacheHandler:
         this.serverOptions.webServerConfig.incrementalCacheHandler,
-      getPrerenderManifest: () => {
-        if (dev) {
-          return {
-            version: -1 as any, // letting us know this doesn't conform to spec
-            routes: {},
-            dynamicRoutes: {},
-            notFoundRoutes: [],
-            preview: null as any, // `preview` is special case read in next-dev-server
-          }
-        } else {
-          return this.getPrerenderManifest()
-        }
-      },
+      getPrerenderManifest: () => this.getPrerenderManifest(),
     })
   }
   protected getResponseCache() {
@@ -105,18 +98,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     res: BaseNextResponse,
     parsedUrl: UrlWithParsedQuery
   ): Promise<void> {
-    for (const key of Object.keys(parsedUrl.query)) {
-      const value = parsedUrl.query[key]
-
-      if (
-        key !== NEXT_QUERY_PARAM_PREFIX &&
-        key.startsWith(NEXT_QUERY_PARAM_PREFIX)
-      ) {
-        const normalizedKey = key.substring(NEXT_QUERY_PARAM_PREFIX.length)
-        parsedUrl.query[normalizedKey] = value
-        delete parsedUrl.query[key]
-      }
-    }
     super.run(req, res, parsedUrl)
   }
   protected async hasPage(page: string) {
@@ -165,17 +146,19 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
   }
   protected getPrerenderManifest() {
-    return {
-      version: 4 as const,
-      routes: {},
-      dynamicRoutes: {},
-      notFoundRoutes: [],
-      preview: {
-        previewModeId: '',
-        previewModeSigningKey: '',
-        previewModeEncryptionKey: '',
-      },
+    const { prerenderManifest } = this.serverOptions.webServerConfig
+    if (this.renderOpts?.dev || !prerenderManifest) {
+      return {
+        version: -1 as any, // letting us know this doesn't conform to spec
+        routes: {},
+        dynamicRoutes: {},
+        notFoundRoutes: [],
+        preview: {
+          previewModeId: 'development-id',
+        } as any, // `preview` is special case read in next-dev-server
+      }
     }
+    return prerenderManifest
   }
   protected getServerComponentManifest() {
     return this.serverOptions.webServerConfig.extendRenderOpts
@@ -391,8 +374,10 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       return await curRenderToHTML(
         {
           url: req.url,
+          method: req.method,
           cookies: req.cookies,
           headers: req.headers,
+          body: req.body,
         } as any,
         {} as any,
         pathname,
