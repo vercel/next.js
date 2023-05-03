@@ -9,7 +9,7 @@ function test() {
     expect(text).toMatch(/[\d.]+/)
 
     const second = await fetch('/api/test')
-    expect(await second.text()).toEqual(text);
+    expect(await second.text()).toEqual(text)
   }, 20000)
 }
 
