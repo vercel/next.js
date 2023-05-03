@@ -23,7 +23,7 @@ import {
 } from '../router-reducer-types'
 import { addBasePath } from '../../../add-base-path'
 import { createHrefFromUrl } from '../create-href-from-url'
-import { getRedirectError } from '../../redirect'
+import { RedirectType, getRedirectError } from '../../redirect'
 
 type FetchServerActionResult = {
   result: ActionFlightData | undefined
@@ -124,7 +124,9 @@ export function serverActionReducer(
       }
 
       // we throw the redirection in the action handler so that it is caught during render
-      action.reject(getRedirectError(redirectLocation.toString()))
+      action.reject(
+        getRedirectError(redirectLocation.toString(), RedirectType.push)
+      )
     } else {
       const [actionResult, flightData] = result ?? [undefined, undefined]
       // TODO: populate the prefetch cache with the new flight data
