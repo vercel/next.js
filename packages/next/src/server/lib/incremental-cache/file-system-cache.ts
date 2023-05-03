@@ -243,7 +243,7 @@ export default class FileSystemCache implements CacheHandler {
     }
 
     const getDerivedTags = (tags: string[]): string[] => {
-      const derivedTags: string[] = []
+      const derivedTags: string[] = ['/']
 
       for (const tag of tags || []) {
         if (tag.startsWith('/')) {

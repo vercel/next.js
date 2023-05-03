@@ -90,8 +90,11 @@ import {
   eventBuildCompleted,
 } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
-import { getPageStaticInfo } from './analysis/get-page-static-info'
-import { createPagesMapping } from './entries'
+import {
+  isDynamicMetadataRoute,
+  getPageStaticInfo,
+} from './analysis/get-page-static-info'
+import { createPagesMapping, getPageFilePath } from './entries'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
@@ -462,6 +465,40 @@ export default async function build(
               pagesDir: pagesDir,
             })
           )
+
+        // If the metadata route doesn't contain generating dynamic exports,
+        // we can replace the dynamic catch-all route and use the static route instead.
+        for (const [pageKey, pagePath] of Object.entries(mappedAppPages)) {
+          if (pageKey.includes('[[...__metadata_id__]]')) {
+            const pageFilePath = getPageFilePath({
+              absolutePagePath: pagePath,
+              pagesDir,
+              appDir,
+              rootDir,
+            })
+
+            const isDynamic = await isDynamicMetadataRoute(pageFilePath)
+            if (!isDynamic) {
+              delete mappedAppPages[pageKey]
+              mappedAppPages[pageKey.replace('[[...__metadata_id__]]/', '')] =
+                pagePath
+            }
+
+            if (
+              pageKey.includes('sitemap.xml/[[...__metadata_id__]]') &&
+              isDynamic
+            ) {
+              delete mappedAppPages[pageKey]
+              mappedAppPages[
+                pageKey.replace(
+                  'sitemap.xml/[[...__metadata_id__]]',
+                  'sitemap/[__metadata_id__]'
+                )
+              ] = pagePath
+            }
+          }
+        }
+
         NextBuildContext.mappedAppPages = mappedAppPages
       }
 
@@ -1370,7 +1407,12 @@ export default async function build(
                     })
                   : undefined
 
-                const pageRuntime = staticInfo?.runtime
+                const pageRuntime = middlewareManifest.functions[
+                  originalAppPath || page
+                ]
+                  ? 'edge'
+                  : staticInfo?.runtime
+
                 isServerComponent =
                   pageType === 'app' &&
                   staticInfo?.rsc !== RSC_MODULE_TYPES.client

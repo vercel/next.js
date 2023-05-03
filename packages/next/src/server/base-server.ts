@@ -1602,6 +1602,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           params: match.params,
           prerenderManifest: this.getPrerenderManifest(),
           staticGenerationContext: {
+            originalPathname: components.ComponentMod.originalPathname,
             supportsDynamicHTML,
             incrementalCache,
             isRevalidate: isSSG,
@@ -1703,6 +1704,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           ? {
               incrementalCache,
               isRevalidate: isSSG,
+              originalPathname: components.ComponentMod.originalPathname,
             }
           : {}),
         isDataReq,
@@ -1725,7 +1727,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
         supportsDynamicHTML,
         isOnDemandRevalidate,
-        isMinimalMode: this.minimalMode,
       }
 
       const renderResult = await this.renderHTML(

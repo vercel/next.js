@@ -1223,6 +1223,7 @@ export async function buildAppStaticPaths({
     {
       pathname: page,
       renderOpts: {
+        originalPathname: page,
         incrementalCache,
         supportsDynamicHTML: true,
         isRevalidate: false,
