@@ -112,11 +112,11 @@ export function serverActionReducer(
           data: createRecordFromThenable(
             Promise.resolve([
               flightData,
-              // TODO: verify the logic around canonical URL overrides
+              // TODO-APP: verify the logic around canonical URL overrides
               undefined,
             ])
           ),
-          kind: PrefetchKind.TEMPORARY, //TODO: maybe this could cached longer?
+          kind: PrefetchKind.TEMPORARY, // TODO-APP: maybe this could cached longer?
           prefetchTime: Date.now(),
           treeAtTimeOfPrefetch: action.mutable.previousTree!,
           lastUsedTime: null,
@@ -129,14 +129,14 @@ export function serverActionReducer(
       )
     } else {
       const [actionResult, flightData] = result ?? [undefined, undefined]
-      // TODO: populate the prefetch cache with the new flight data
+      // TODO-APP: populate the prefetch cache with the new flight data
       if (flightData) {
         // this is an intentional hack around React: we want to update the tree in a new render
         setTimeout(() => {
           action.changeByServerResponse(
             action.mutable.previousTree!,
             flightData,
-            // TODO: verify the logic around canonical URL overrides
+            // TODO-APP: verify the logic around canonical URL overrides
             undefined
           )
         })
