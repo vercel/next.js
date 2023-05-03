@@ -206,8 +206,9 @@ createNextDescribe(
       it('should handle redirect to a relative URL in a single pass', async () => {
         const browser = await next.browser('/client')
 
-        // wait for network idle
-        await browser.waitForIdleNetwork()
+        await new Promise((resolve) => {
+          setTimeout(resolve, 3000)
+        })
 
         let requests = []
 
