@@ -42,11 +42,11 @@ swc_relay = { version = "0.2.7" }
 testing = { version = "0.33.6" }
 
 # Turbo crates
-turbo-binding = { git = "https://github.com/vercel/turbo.git", branch = "alexkirsz/web-366-custom-404-page-in-applayouts" } # last tag: "turbopack-230502.4"
+turbo-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230503.2" }
 # [TODO]: need to refactor embed_directory! macro usages, as well as resolving turbo_tasks::function, macros..
-turbo-tasks = { git = "https://github.com/vercel/turbo.git", branch = "alexkirsz/web-366-custom-404-page-in-applayouts" } # last tag: "turbopack-230502.4"
+turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230503.2" }
 # [TODO]: need to refactor embed_directory! macro usage in next-core
-turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", branch = "alexkirsz/web-366-custom-404-page-in-applayouts" } # last tag: "turbopack-230502.4"
+turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230503.2" }
 
 # General Deps
 
