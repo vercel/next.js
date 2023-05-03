@@ -37,7 +37,10 @@ use swc_core::{
     },
     ecma::{
         ast::*,
-        visit::{AstParentKind, AstParentNodeRef, VisitAstPath, VisitWithPath},
+        visit::{
+            fields::{AssignExprField, ExprField, PatField, PatOrExprField},
+            AstParentKind, AstParentNodeRef, VisitAstPath, VisitWithPath,
+        },
     },
 };
 use turbo_tasks::{
@@ -1292,8 +1295,31 @@ pub(crate) async fn analyze_ecmascript_module(
                 ast_path: &[AstParentKind],
                 obj: JsValue,
                 prop: JsValue,
+                state: &AnalysisState<'_>,
                 analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
             ) -> Result<()> {
+                if let Some(prop) = prop.as_str() {
+                    if let Some(def_name_len) = obj.get_defineable_name_len() {
+                        let compile_time_info = state.compile_time_info.await?;
+                        let free_var_references = compile_time_info.free_var_references.await?;
+                        for (name, value) in free_var_references.iter() {
+                            if name.len() != def_name_len + 1 {
+                                continue;
+                            }
+                            let mut it = name.iter().map(Cow::Borrowed).rev();
+                            if it.next().unwrap() != Cow::Borrowed(prop) {
+                                continue;
+                            }
+                            if obj.iter_defineable_name_rev().eq(it) {
+                                if handle_free_var_reference(ast_path, value, state, analysis)
+                                    .await?
+                                {
+                                    return Ok(());
+                                }
+                            }
+                        }
+                    }
+                }
                 match (obj, prop) {
                     (
                         JsValue::WellKnownFunction(WellKnownFunctionKind::Require),
@@ -1329,53 +1355,73 @@ pub(crate) async fn analyze_ecmascript_module(
                             .iter_defineable_name_rev()
                             .eq(name.iter().map(Cow::Borrowed).rev())
                         {
-                            match value {
-                                FreeVarReference::Value(value) => {
-                                    analysis.add_code_gen(ConstantValueVc::new(
-                                        Value::new(value.clone()),
-                                        AstPathVc::cell(ast_path.to_vec()),
-                                    ));
-                                }
-                                FreeVarReference::EcmaScriptModule {
-                                    request,
-                                    context,
-                                    export,
-                                } => {
-                                    let esm_reference = EsmAssetReferenceVc::new(
-                                        context.map_or(state.origin, |context| {
-                                            PlainResolveOriginVc::new(
-                                                state.origin.context(),
-                                                context,
-                                            )
-                                            .into()
-                                        }),
-                                        RequestVc::parse(Value::new(request.clone().into())),
-                                        Default::default(),
-                                        state
-                                            .import_parts
-                                            .then(|| {
-                                                export.as_ref().map(|export| {
-                                                    ModulePartVc::export(export.to_string())
-                                                })
-                                            })
-                                            .flatten(),
-                                    )
-                                    .resolve()
-                                    .await?;
-                                    analysis.add_reference(esm_reference);
-                                    analysis.add_code_gen(EsmBindingVc::new(
-                                        esm_reference,
-                                        export.clone(),
-                                        AstPathVc::cell(ast_path.to_vec()),
-                                    ));
-                                }
+                            if handle_free_var_reference(ast_path, value, state, analysis).await? {
+                                return Ok(());
                             }
-                            break;
                         }
                     }
                 }
 
                 Ok(())
+            }
+
+            async fn handle_free_var_reference(
+                ast_path: &[AstParentKind],
+                value: &FreeVarReference,
+                state: &AnalysisState<'_>,
+                analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
+            ) -> Result<bool> {
+                // We don't want to replace assignments as this would lead to invalid code.
+                if matches!(
+                    &ast_path[..],
+                    [
+                        ..,
+                        AstParentKind::AssignExpr(AssignExprField::Left),
+                        AstParentKind::PatOrExpr(PatOrExprField::Pat),
+                        AstParentKind::Pat(PatField::Expr),
+                        AstParentKind::Expr(ExprField::Member),
+                    ]
+                ) {
+                    return Ok(false);
+                }
+                match value {
+                    FreeVarReference::Value(value) => {
+                        analysis.add_code_gen(ConstantValueVc::new(
+                            Value::new(value.clone()),
+                            AstPathVc::cell(ast_path.to_vec()),
+                        ));
+                    }
+                    FreeVarReference::EcmaScriptModule {
+                        request,
+                        context,
+                        export,
+                    } => {
+                        let esm_reference = EsmAssetReferenceVc::new(
+                            context.map_or(state.origin, |context| {
+                                PlainResolveOriginVc::new(state.origin.context(), context).into()
+                            }),
+                            RequestVc::parse(Value::new(request.clone().into())),
+                            Default::default(),
+                            state
+                                .import_parts
+                                .then(|| {
+                                    export
+                                        .as_ref()
+                                        .map(|export| ModulePartVc::export(export.to_string()))
+                                })
+                                .flatten(),
+                        )
+                        .resolve()
+                        .await?;
+                        analysis.add_reference(esm_reference);
+                        analysis.add_code_gen(EsmBindingVc::new(
+                            esm_reference,
+                            export.clone(),
+                            AstPathVc::cell(ast_path.to_vec()),
+                        ));
+                    }
+                }
+                Ok(true)
             }
 
             let effects = take(&mut var_graph.effects);
@@ -1656,7 +1702,8 @@ pub(crate) async fn analyze_ecmascript_module(
                                 let obj = analysis_state.link_value(obj, in_try).await?;
                                 let prop = analysis_state.link_value(prop, in_try).await?;
 
-                                handle_member(&ast_path, obj, prop, &mut analysis).await?;
+                                handle_member(&ast_path, obj, prop, &analysis_state, &mut analysis)
+                                    .await?;
                             }
                             Effect::ImportedBinding {
                                 esm_reference_index,

@@ -1,0 +1,83 @@
+[
+    Member {
+        obj: FreeVar(
+            Atom('A' type=inline),
+        ),
+        prop: Constant(
+            Str(
+                Word(
+                    Atom('B' type=inline),
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                1,
+            ),
+            hi: BytePos(
+                4,
+            ),
+            ctxt: #0,
+        },
+        in_try: false,
+    },
+    FreeVar {
+        var: FreeVar(
+            Atom('A' type=inline),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+            MemberExpr(
+                Obj,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                1,
+            ),
+            hi: BytePos(
+                2,
+            ),
+            ctxt: #1,
+        },
+        in_try: false,
+    },
+]

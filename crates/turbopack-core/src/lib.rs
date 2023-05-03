@@ -34,6 +34,11 @@ pub mod virtual_asset;
 pub const PROJECT_FILESYSTEM_NAME: &str = "project";
 pub const SOURCE_MAP_ROOT_NAME: &str = "turbopack";
 
+#[doc(hidden)]
+pub mod __private {
+    pub use indexmap::IndexMap;
+}
+
 pub fn register() {
     turbo_tasks::register();
     turbo_tasks_fs::register();
