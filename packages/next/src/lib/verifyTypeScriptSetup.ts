@@ -17,7 +17,6 @@ import { writeConfigurationDefaults } from './typescript/writeConfigurationDefau
 import { installDependencies } from './install-dependencies'
 import { isCI } from '../telemetry/ci-info'
 import { missingDepsError } from './typescript/missingDependencyError'
-import { writeVscodeConfigurations } from './typescript/writeVscodeConfigurations'
 
 const requiredPackages = [
   {
@@ -135,10 +134,6 @@ export async function verifyTypeScriptSetup({
       hasPagesDir,
       isAppDirEnabled,
     })
-
-    if (isAppDirEnabled && !isCI) {
-      await writeVscodeConfigurations(dir, tsPath)
-    }
 
     let result
     if (typeCheckPreflight) {
