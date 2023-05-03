@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse, unstable_revalidatePath } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { unstable_revalidatePath } from 'next/cache'
 
 export const runtime = 'edge'
 

@@ -7,7 +7,7 @@ import { RequestCookies } from '../../server/web/spec-extension/cookies'
 import { requestAsyncStorage } from './request-async-storage'
 import { actionAsyncStorage } from './action-async-storage'
 import { staticGenerationBailout } from './static-generation-bailout'
-import { DraftMode } from '../../../types'
+import { DraftMode } from './draft-mode'
 
 export function headers() {
   if (staticGenerationBailout('headers')) {
@@ -49,28 +49,12 @@ export function cookies() {
   return requestStore.cookies
 }
 
-export function draftMode(): DraftMode {
+export function draftMode() {
   const requestStore = requestAsyncStorage.getStore()
   if (!requestStore) {
     throw new Error(
       `Invariant: Method expects to have requestAsyncStorage, none available`
     )
   }
-  return {
-    get enabled() {
-      return requestStore.draftMode.enabled
-    },
-    enable() {
-      if (staticGenerationBailout('draftMode().enable()')) {
-        return
-      }
-      return requestStore.draftMode.enable()
-    },
-    disable() {
-      if (staticGenerationBailout('draftMode().disable()')) {
-        return
-      }
-      return requestStore.draftMode.disable()
-    },
-  }
+  return new DraftMode(requestStore.draftMode)
 }

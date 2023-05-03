@@ -95,7 +95,8 @@ export async function handleAction({
               actionId = formData.get('$$id') as string
 
               if (!actionId) {
-                throw new Error('Invariant: missing action ID.')
+                // Return if no action ID is found, it could be a regular POST request
+                return
               }
               formData.delete('$$id')
               bound = [formData]
@@ -124,7 +125,8 @@ export async function handleAction({
             if (isFormAction) {
               actionId = actionData.$$id as string
               if (!actionId) {
-                throw new Error('Invariant: missing action ID.')
+                // Return if no action ID is found, it could be a regular POST request
+                return
               }
               const formData = formDataFromSearchQueryString(actionData)
               formData.delete('$$id')

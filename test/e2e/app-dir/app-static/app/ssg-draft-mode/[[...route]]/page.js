@@ -1,11 +1,11 @@
 import { draftMode } from 'next/headers'
 
 export default function Page() {
-  const result = draftMode()
+  const { isEnabled } = draftMode()
 
   return (
     <main>
-      <pre id="draft-mode">{JSON.stringify({ result })}</pre>
+      <pre id="draft-mode">{JSON.stringify({ isEnabled })}</pre>
     </main>
   )
 }
