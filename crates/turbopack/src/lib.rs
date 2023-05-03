@@ -54,6 +54,7 @@ pub mod rebase;
 pub mod resolve;
 pub mod resolve_options_context;
 pub mod transition;
+pub(crate) mod unsupported_sass;
 
 pub use turbopack_css as css;
 pub use turbopack_ecmascript as ecmascript;

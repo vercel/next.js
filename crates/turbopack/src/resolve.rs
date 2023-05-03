@@ -14,7 +14,10 @@ use turbopack_ecmascript::typescript::resolve::{
     apply_tsconfig_resolve_options, tsconfig, tsconfig_resolve_options,
 };
 
-use crate::resolve_options_context::ResolveOptionsContextVc;
+use crate::{
+    resolve_options_context::ResolveOptionsContextVc,
+    unsupported_sass::UnsupportedSassResolvePluginVc,
+};
 
 const NODE_EXTERNALS: [&str; 51] = [
     "assert",
@@ -108,6 +111,9 @@ async fn base_resolve_options(
         import_map.extend(&additional_import_map);
     }
     let import_map = import_map.cell();
+
+    let mut plugins = opt.plugins.clone();
+    plugins.push(UnsupportedSassResolvePluginVc::new(root).as_resolve_plugin());
 
     Ok(ResolveOptions {
         extensions: if let Some(environment) = emulating {
@@ -220,7 +226,7 @@ async fn base_resolve_options(
         },
         import_map: Some(import_map),
         resolved_map: opt.resolved_map,
-        plugins: opt.plugins.clone(),
+        plugins,
         ..Default::default()
     }
     .into())
