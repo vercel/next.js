@@ -98,5 +98,11 @@ export const createServerHandler = async ({
     }
     const proxyServer = getProxyServer(req.url || '/')
     proxyServer.web(req, res)
+    proxyServer.on('error', (err, _req, res) => {
+      res.statusCode = 500
+      res.end('Internal Server Error')
+
+      console.error(err)
+    })
   }
 }
