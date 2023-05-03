@@ -66,7 +66,11 @@ export async function fetchServerResponse(
         }
       }
     }
-    const res = await fetch(fetchUrl, {
+    
+    const cloneUrl = fetchUrl.searchParams ? new URL(fetchUrl.toString()) : new URL(fetchUrl);
+    if (!cloneUrl.searchParams.has('rscQuery')) cloneUrl.searchParams.append('rscQuery', true)
+  
+    const res = await fetch(cloneUrl, {
       // Backwards compat for older browsers. `same-origin` is the default in modern browsers.
       credentials: 'same-origin',
       headers,
