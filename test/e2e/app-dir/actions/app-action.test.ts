@@ -203,13 +203,16 @@ createNextDescribe(
       it('should return error response for hoc auth wrappers in edge runtime', async () => {
         const browser = await next.browser('/header/edge')
         await await browser.eval(`document.cookie = 'auth=0'`)
+
         await browser.elementByCss('#authed').click()
 
-        await check(async () => {
-          const text = await browser.elementByCss('h1').text()
-          console.log('text', text)
-          return text && text.length > 0 ? text : 'failed'
-        }, /Multipart form data is not supported/)
+        await check(() => {
+          return browser.elementByCss('h1').text()
+        }, 'Error: Unauthorized request')
+
+        await await browser.eval(`document.cookie = 'auth=1'`)
+
+        await browser.elementByCss('#authed').click()
       })
     })
   }
