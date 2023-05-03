@@ -13,7 +13,9 @@ export default function A() {
 
   return (
     <>
-      <Link href="/b">B</Link>
+      <Link className="b" href="/b">
+        B
+      </Link>
       <button className="a" onClick={() => DYNAMIC_IMPORT1()}>
         Load dynamic styles 1
       </button>
