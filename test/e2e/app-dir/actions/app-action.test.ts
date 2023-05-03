@@ -200,6 +200,18 @@ createNextDescribe(
         await browser.elementByCss('#dec').click()
         await check(() => browser.elementByCss('h1').text(), '3')
       })
+
+      it('should return error response for hoc auth wrappers in edge runtime', async () => {
+        const browser = await next.browser('/header/edge')
+        await await browser.eval(`document.cookie = 'auth=0'`)
+        await browser.elementByCss('#authed').click()
+
+        await check(async () => {
+          const text = await browser.elementByCss('h1').text()
+          console.log('text', text)
+          return text && text.length > 0 ? text : 'failed'
+        }, /Multipart form data is not supported/)
+      })
     })
 
     describe('fetch actions', () => {

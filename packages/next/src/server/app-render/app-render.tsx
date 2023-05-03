@@ -921,12 +921,12 @@ export async function renderToHTMLOrFlight(
                 <Component {...props} />
               )}
               {/* This null is currently critical. The wrapped Component can render null and if there was not fragment
-                surrounding it this would look like a pending tree data state on the client which will cause an errror 
+                surrounding it this would look like a pending tree data state on the client which will cause an errror
                 and break the app. Long-term we need to move away from using null as a partial tree identifier since it
                 is a valid return type for the components we wrap. Once we make this change we can safely remove the
                 fragment. The reason the extra null here is required is that fragments which only have 1 child are elided.
                 If the Component above renders null the actual treedata will look like `[null, null]`. If we remove the extra
-                null it will look like `null` (the array is elided) and this is what confuses the client router.            
+                null it will look like `null` (the array is elided) and this is what confuses the client router.
                 TODO-APP update router to use a Symbol for partial tree detection */}
               {null}
             </>
