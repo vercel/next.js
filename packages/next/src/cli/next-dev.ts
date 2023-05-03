@@ -265,24 +265,11 @@ const nextDev: CliCommand = async (argv) => {
       )
     }
 
-    // eslint-disable-next-line no-shadow
-    const packagePath = findUp.sync('package.json', { cwd: dir })
-    const lockfilePath = findUp.sync(
-      ['pnpm-lock.yaml', 'package-lock.json', 'yarn.lock'],
-      { cwd: dir }
-    )
-
     let bindings: any = await loadBindings()
     let server = bindings.turbo.startDev({
       ...devServerOptions,
       showAll: args['--show-all'] ?? false,
-      root:
-        args['--root'] ??
-        (lockfilePath
-          ? path.dirname(lockfilePath)
-          : packagePath
-          ? path.dirname(packagePath)
-          : undefined),
+      root: args['--root'] ?? rawNextConfig.experimental?.outputFileTracingRoot,
     })
     // Start preflight after server is listening and ignore errors:
     preflight().catch(() => {})
