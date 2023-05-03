@@ -23,7 +23,7 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
 }
-          var ReactVersion = '18.3.0-experimental-6eadbe0c4-20230425';
+          var ReactVersion = '18.3.0-experimental-b7972822b-20230503';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -1858,6 +1858,11 @@ function useEffectEvent(callback) {
 
   return dispatcher.useEffectEvent(callback);
 }
+function useOptimistic(passthrough, reducer) {
+  var dispatcher = resolveDispatcher(); // $FlowFixMe[not-a-function] This is unstable, thus optional
+
+  return dispatcher.useOptimistic(passthrough, reducer);
+}
 
 // Helpers to patch console.logs to avoid logging during side-effect free
 // replaying on render function. This currently only patches the object
@@ -3054,6 +3059,7 @@ exports.createFactory = createFactory;
 exports.createRef = createRef;
 exports.createServerContext = createServerContext;
 exports.experimental_useEffectEvent = useEffectEvent;
+exports.experimental_useOptimistic = useOptimistic;
 exports.forwardRef = forwardRef;
 exports.isValidElement = isValidElement;
 exports.lazy = lazy;
