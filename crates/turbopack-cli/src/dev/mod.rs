@@ -416,12 +416,6 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
                 start = FormatDuration(start.elapsed()),
                 memory = FormatBytes(TurboMalloc::memory_usage())
             );
-        } else {
-            println!(
-                "{event_type} - initial compilation {start}",
-                event_type = "event".purple(),
-                start = FormatDuration(start.elapsed()),
-            );
         }
 
         let mut progress_counter = 0;
