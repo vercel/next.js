@@ -4,10 +4,12 @@ import { useEffect } from 'react'
 
 function test() {
   it('should handle cookies in Route request', async () => {
-    const res = await fetch('/api/test')
-    const text = await res.text()
-    expect(text).toEqual('hello world')
-    expect(res.headers.get('method')).toEqual('GET')
+    const first = await fetch('/api/test')
+    const text = await first.text()
+    expect(text).toMatch(/[\d.]+/)
+
+    const second = await fetch('/api/test')
+    expect(await second.text()).toEqual(text);
   }, 20000)
 }
 
