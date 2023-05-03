@@ -1,5 +1,9 @@
 import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
+import { Request } from 'playwright-chromium'
+
+const GENERIC_RSC_ERROR =
+  'Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
 
 createNextDescribe(
   'app-dir action handling',
@@ -119,9 +123,12 @@ createNextDescribe(
 
       await browser.elementByCss('#authed').click()
 
-      await check(() => {
-        return browser.elementByCss('h1').text()
-      }, 'Error: Unauthorized request')
+      await check(
+        () => {
+          return browser.elementByCss('h1').text()
+        },
+        isNextDev ? 'Error: Unauthorized request' : GENERIC_RSC_ERROR
+      )
 
       await await browser.eval(`document.cookie = 'auth=1'`)
 
@@ -205,11 +212,120 @@ createNextDescribe(
         await await browser.eval(`document.cookie = 'auth=0'`)
         await browser.elementByCss('#authed').click()
 
+        await check(
+          async () => {
+            const text = await browser.elementByCss('h1').text()
+            console.log('text', text)
+            return text && text.length > 0 ? text : 'failed'
+          },
+          isNextDev ? /Multipart form data is not supported/ : GENERIC_RSC_ERROR
+        )
+      })
+    })
+
+    describe('fetch actions', () => {
+      it('should handle redirect to a relative URL in a single pass', async () => {
+        const browser = await next.browser('/client')
+
+        await new Promise((resolve) => {
+          setTimeout(resolve, 3000)
+        })
+
+        let requests = []
+
+        browser.on('request', (req: Request) => {
+          requests.push(new URL(req.url()).pathname)
+        })
+
+        await browser.elementByCss('#redirect').click()
+
+        // no other requests should be made
+        expect(requests).toEqual(['/client'])
+      })
+
+      it('should handle regular redirects', async () => {
+        const browser = await next.browser('/client')
+
+        await browser.elementByCss('#redirect-external').click()
+
         await check(async () => {
-          const text = await browser.elementByCss('h1').text()
-          console.log('text', text)
-          return text && text.length > 0 ? text : 'failed'
-        }, /Multipart form data is not supported/)
+          return browser.eval('window.location.toString()')
+        }, 'https://example.com/')
+      })
+
+      it('should handle revalidatePath', async () => {
+        const browser = await next.browser('/revalidate')
+        const randomNumber = await browser.elementByCss('#random-number').text()
+        const justPutIt = await browser.elementByCss('#justputit').text()
+        const thankYouNext = await browser.elementByCss('#thankyounext').text()
+
+        await browser.elementByCss('#revalidate-path').click()
+
+        await check(async () => {
+          const newRandomNumber = await browser
+            .elementByCss('#random-number')
+            .text()
+          const newJustPutIt = await browser.elementByCss('#justputit').text()
+          const newThankYouNext = await browser
+            .elementByCss('#thankyounext')
+            .text()
+
+          return newRandomNumber !== randomNumber &&
+            justPutIt !== newJustPutIt &&
+            thankYouNext !== newThankYouNext
+            ? 'success'
+            : 'failure'
+        }, 'success')
+      })
+
+      it('should handle revalidateTag', async () => {
+        const browser = await next.browser('/revalidate')
+        const randomNumber = await browser.elementByCss('#random-number').text()
+        const justPutIt = await browser.elementByCss('#justputit').text()
+        const thankYouNext = await browser.elementByCss('#thankyounext').text()
+
+        await browser.elementByCss('#revalidate-justputit').click()
+
+        await check(async () => {
+          const newRandomNumber = await browser
+            .elementByCss('#random-number')
+            .text()
+          const newJustPutIt = await browser.elementByCss('#justputit').text()
+          const newThankYouNext = await browser
+            .elementByCss('#thankyounext')
+            .text()
+
+          return newRandomNumber !== randomNumber &&
+            justPutIt !== newJustPutIt &&
+            thankYouNext === newThankYouNext
+            ? 'success'
+            : 'failure'
+        }, 'success')
+      })
+
+      it('should handle revalidateTag + redirect', async () => {
+        const browser = await next.browser('/revalidate')
+        const randomNumber = await browser.elementByCss('#random-number').text()
+        const justPutIt = await browser.elementByCss('#justputit').text()
+        const thankYouNext = await browser.elementByCss('#thankyounext').text()
+
+        await browser.elementByCss('#revalidate-path-redirect').click()
+
+        await check(async () => {
+          const newRandomNumber = await browser
+            .elementByCss('#random-number')
+            .text()
+          const newJustPutIt = await browser.elementByCss('#justputit').text()
+          const newThankYouNext = await browser
+            .elementByCss('#thankyounext')
+            .text()
+
+          return newRandomNumber === randomNumber &&
+            justPutIt !== newJustPutIt &&
+            thankYouNext === newThankYouNext
+            ? 'success'
+            : 'failure'
+        }, 'success')
       })
     })
   }

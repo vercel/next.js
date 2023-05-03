@@ -7,9 +7,9 @@ export interface StaticGenerationStore {
   readonly pathname: string
   readonly originalPathname?: string
   readonly incrementalCache?: IncrementalCache
-  readonly isRevalidate?: boolean
   readonly isOnDemandRevalidate?: boolean
   readonly isPrerendering?: boolean
+  readonly isRevalidate?: boolean
 
   forceDynamic?: boolean
   fetchCache?:
@@ -28,6 +28,7 @@ export interface StaticGenerationStore {
   dynamicUsageStack?: string
 
   nextFetchId?: number
+  pathWasRevalidated?: boolean
 
   tags?: string[]
 }
