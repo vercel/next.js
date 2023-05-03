@@ -25,4 +25,7 @@ export function revalidateTag(tag: string) {
       console.error(`revalidateTag failed for ${tag}`, err)
     })
   )
+
+  // TODO: only revalidate if the path matches
+  store.pathWasRevalidated = true
 }
