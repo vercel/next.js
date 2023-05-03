@@ -361,7 +361,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
 
   protected async renderHTML(
     req: WebNextRequest,
-    _res: WebNextResponse,
+    res: WebNextResponse,
     pathname: string,
     query: NextParsedUrlQuery,
     renderOpts: RenderOpts
@@ -379,7 +379,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
           headers: req.headers,
           body: req.body,
         } as any,
-        {} as any,
+        res as any,
         pathname,
         query,
         Object.assign(renderOpts, {
