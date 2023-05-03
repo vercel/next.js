@@ -1,4 +1,9 @@
-import type { IncomingMessage, ServerResponse } from 'http'
+import type {
+  IncomingHttpHeaders,
+  IncomingMessage,
+  OutgoingHttpHeaders,
+  ServerResponse,
+} from 'http'
 
 import {
   ACTION,
@@ -14,7 +19,6 @@ import RenderResult from '../render-result'
 import { StaticGenerationStore } from '../../client/components/static-generation-async-storage'
 import { FlightRenderResult } from './flight-render-result'
 import { ActionResult } from './types'
-import { makeRevalidateRequest } from '../web/make-revalidate-request'
 import { ActionAsyncStorage } from '../../client/components/action-async-storage'
 
 function formDataFromSearchQueryString(query: string) {
@@ -26,35 +30,107 @@ function formDataFromSearchQueryString(query: string) {
   return formData
 }
 
-const rscHeaders = {
-  [RSC]: '1',
+function nodeHeadersToRecord(
+  headers: IncomingHttpHeaders | OutgoingHttpHeaders
+) {
+  const record: Record<string, string> = {}
+  for (const [key, value] of Object.entries(headers)) {
+    if (value !== undefined) {
+      record[key] = Array.isArray(value) ? value.join(', ') : `${value}`
+    }
+  }
+  return record
+}
+
+function getForwardedHeaders(
+  req: IncomingMessage,
+  res: ServerResponse
+): Headers {
+  // Get request headers and cookies
+  const requestHeaders = req.headers
+  const requestCookies = requestHeaders['cookie'] ?? ''
+
+  // Get response headers and Set-Cookie header
+  const responseHeaders = res.getHeaders()
+  const rawSetCookies = responseHeaders['set-cookie']
+  const setCookies = (
+    Array.isArray(rawSetCookies) ? rawSetCookies : [rawSetCookies]
+  ).map((setCookie) => {
+    // remove the suffixes like 'HttpOnly' and 'SameSite'
+    const [cookie] = `${setCookie}`.split(';')
+    return cookie
+  })
+
+  // Merge request and response headers
+  const mergedHeaders = {
+    ...nodeHeadersToRecord(requestHeaders),
+    ...nodeHeadersToRecord(responseHeaders),
+  }
+
+  // Merge cookies
+  const mergedCookies = requestCookies.split('; ').concat(setCookies).join('; ')
+
+  // Update the 'cookie' header with the merged cookies
+  mergedHeaders['cookie'] = mergedCookies
+
+  // Remove headers that should not be forwarded
+  delete mergedHeaders['transfer-encoding']
+
+  return new Headers(mergedHeaders)
+}
+
+function fetchIPv4v6(
+  url: URL,
+  init: RequestInit,
+  v6 = false
+): Promise<Response> {
+  const hostname = url.hostname
+
+  if (!v6 && hostname === 'localhost') {
+    url.hostname = '127.0.0.1'
+  }
+  return fetch(url, init).catch((err) => {
+    if (err.code === 'ECONNREFUSED' && !v6) {
+      return fetchIPv4v6(url, init, true)
+    }
+    throw err
+  })
 }
 
 async function createRedirectRenderResult(
+  req: IncomingMessage,
+  res: ServerResponse,
   redirectUrl: string,
   staticGenerationStore: StaticGenerationStore
 ) {
   // if we're redirecting to a relative path, we'll try to stream the response
   if (redirectUrl.startsWith('/')) {
+    const forwardedHeaders = getForwardedHeaders(req, res)
+    forwardedHeaders.set(RSC, '1')
+
+    const host = req.headers['host']
+    const proto =
+      staticGenerationStore.incrementalCache?.requestProtocol || 'https'
+    const fetchUrl = new URL(`${proto}://${host}${redirectUrl}`)
+
     try {
-      const headResponse = await makeRevalidateRequest(
-        'HEAD',
-        redirectUrl,
-        staticGenerationStore,
-        undefined,
-        rscHeaders
-      )
+      const headResponse = await fetchIPv4v6(fetchUrl, {
+        method: 'HEAD',
+        headers: forwardedHeaders,
+      })
 
       if (
         headResponse.headers.get('content-type') === RSC_CONTENT_TYPE_HEADER
       ) {
-        const response = await makeRevalidateRequest(
-          'GET',
-          redirectUrl,
-          staticGenerationStore,
-          undefined,
-          rscHeaders
-        )
+        const response = await fetchIPv4v6(fetchUrl, {
+          method: 'GET',
+          headers: forwardedHeaders,
+        })
+        // copy the headers from the redirect response to the response we're sending
+        for (const [key, value] of response.headers) {
+          res.setHeader(key, value)
+        }
+
         return new FlightRenderResult(response.body!)
       }
     } catch (err) {
@@ -120,105 +196,102 @@ export async function handleAction({
     let actionResult: RenderResult | undefined
 
     try {
-      await actionAsyncStorage.run(
-        { isAction: true, shouldRefresh: false },
-        async () => {
-          if (process.env.NEXT_RUNTIME === 'edge') {
-            // Use react-server-dom-webpack/server.edge
-            const { decodeReply } = ComponentMod
+      await actionAsyncStorage.run({ isAction: true }, async () => {
+        if (process.env.NEXT_RUNTIME === 'edge') {
+          // Use react-server-dom-webpack/server.edge
+          const { decodeReply } = ComponentMod
 
-            const webRequest = req as unknown as Request
-            if (!webRequest.body) {
-              throw new Error('invariant: Missing request body.')
-            }
+          const webRequest = req as unknown as Request
+          if (!webRequest.body) {
+            throw new Error('invariant: Missing request body.')
+          }
 
-            if (isMultipartAction) {
-              throw new Error(
-                'invariant: Multipart form data is not supported.'
-              )
-            } else {
-              let actionData = ''
-
-              const reader = webRequest.body.getReader()
-              while (true) {
-                const { done, value } = await reader.read()
-                if (done) {
-                  break
-                }
-
-                actionData += new TextDecoder().decode(value)
-              }
-
-              if (isFormAction) {
-                const formData = formDataFromSearchQueryString(actionData)
-                actionId = formData.get('$$id') as string
-
-                if (!actionId) {
-                  throw new Error('Invariant: missing action ID.')
-                }
-                formData.delete('$$id')
-                bound = [formData]
-              } else {
-                bound = await decodeReply(actionData, serverModuleMap)
-              }
-            }
+          if (isMultipartAction) {
+            throw new Error('invariant: Multipart form data is not supported.')
           } else {
-            // Use react-server-dom-webpack/server.node which supports streaming
-            const {
-              decodeReply,
-              decodeReplyFromBusboy,
-            } = require(`react-server-dom-webpack/server.node`)
+            let actionData = ''
 
-            if (isMultipartAction) {
-              const busboy = require('busboy')
-              const bb = busboy({ headers: req.headers })
-              req.pipe(bb)
-
-              bound = await decodeReplyFromBusboy(bb, serverModuleMap)
-            } else {
-              const { parseBody } =
-                require('../api-utils/node') as typeof import('../api-utils/node')
-              const actionData = (await parseBody(req, '1mb')) || ''
-
-              if (isFormAction) {
-                actionId = actionData.$$id as string
-                if (!actionId) {
-                  throw new Error('Invariant: missing action ID.')
-                }
-                const formData = formDataFromSearchQueryString(actionData)
-                formData.delete('$$id')
-                bound = [formData]
-              } else {
-                bound = await decodeReply(actionData, serverModuleMap)
+            const reader = webRequest.body.getReader()
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) {
+                break
               }
+
+              actionData += new TextDecoder().decode(value)
+            }
+
+            if (isFormAction) {
+              const formData = formDataFromSearchQueryString(actionData)
+              actionId = formData.get('$$id') as string
+
+              if (!actionId) {
+                throw new Error('Invariant: missing action ID.')
+              }
+              formData.delete('$$id')
+              bound = [formData]
+            } else {
+              bound = await decodeReply(actionData, serverModuleMap)
             }
           }
+        } else {
+          // Use react-server-dom-webpack/server.node which supports streaming
+          const {
+            decodeReply,
+            decodeReplyFromBusboy,
+          } = require(`react-server-dom-webpack/server.node`)
 
-          const actionModId =
-            serverActionsManifest[
-              process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
-            ][actionId].workers[workerName]
-          const actionHandler =
-            ComponentMod.__next_app_webpack_require__(actionModId)[actionId]
+          if (isMultipartAction) {
+            const busboy = require('busboy')
+            const bb = busboy({ headers: req.headers })
+            req.pipe(bb)
 
-          const returnVal = await actionHandler.apply(null, bound)
+            bound = await decodeReplyFromBusboy(bb, serverModuleMap)
+          } else {
+            const { parseBody } =
+              require('../api-utils/node') as typeof import('../api-utils/node')
+            const actionData = (await parseBody(req, '1mb')) || ''
 
-          // if the user called revalidate or refresh, we need to set the flag
-          // so that we can bypass the next cache
-          if (staticGenerationStore.pathWasRevalidated) {
-            staticGenerationStore.isRevalidate = true
-          }
-
-          // For form actions, we need to continue rendering the page.
-          if (isFetchAction) {
-            actionResult = await generateFlight({
-              actionResult: returnVal,
-              // if the page was not revalidated, we can skip the rendering the flight tree
-              skipFlight: !staticGenerationStore.pathWasRevalidated,
-            })
+            if (isFormAction) {
+              actionId = actionData.$$id as string
+              if (!actionId) {
+                throw new Error('Invariant: missing action ID.')
+              }
+              const formData = formDataFromSearchQueryString(actionData)
+              formData.delete('$$id')
+              bound = [formData]
+            } else {
+              bound = await decodeReply(actionData, serverModuleMap)
+            }
           }
         }
-      )
+
+        const actionModId =
+          serverActionsManifest[
+            process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
+          ][actionId].workers[workerName]
+        const actionHandler =
+          ComponentMod.__next_app_webpack_require__(actionModId)[actionId]
+
+        const returnVal = await actionHandler.apply(null, bound)
+
+        // if the user called revalidate or refresh, we need to set the flag
+        // so that we can bypass the next cache
+        if (staticGenerationStore.pathWasRevalidated) {
+          staticGenerationStore.isRevalidate = true
+
+          await Promise.all(staticGenerationStore.pendingRevalidates || [])
+        }
+
+        // For form actions, we need to continue rendering the page.
+        if (isFetchAction) {
+          actionResult = await generateFlight({
+            actionResult: returnVal,
+            // if the page was not revalidated, we can skip the rendering the flight tree
+            skipFlight: !staticGenerationStore.pathWasRevalidated,
+          })
+        }
+      })
 
       if (actionResult) {
         return actionResult
@@ -229,11 +302,22 @@ export async function handleAction({
           throw new Error('Invariant: not implemented.')
         }
         const redirectUrl = getURLFromRedirectError(err)
+
         // if it's a fetch action, we don't want to mess with the status code
         // and we'll handle it on the client router
         res.setHeader('Location', redirectUrl)
+
+        // we need to make sure any pending revalidates are resolved before
+        // we redirect
+        await Promise.all(staticGenerationStore.pendingRevalidates || [])
+
         if (isFetchAction) {
-          return createRedirectRenderResult(redirectUrl, staticGenerationStore)
+          return createRedirectRenderResult(
+            req,
+            res,
+            redirectUrl,
+            staticGenerationStore
+          )
         }
 
         res.statusCode = 303
@@ -242,6 +326,7 @@ export async function handleAction({
         if (isFetchAction) {
           throw new Error('Invariant: not implemented.')
         }
+        await Promise.all(staticGenerationStore.pendingRevalidates || [])
         res.statusCode = 404
         return 'not-found'
       }

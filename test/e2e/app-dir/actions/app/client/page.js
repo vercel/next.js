@@ -1,12 +1,11 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 
-import double, { inc, dec, redirectAction, refreshAction } from './actions'
+import double, { inc, dec, redirectAction } from './actions'
 
 export default function Counter() {
   const [count, setCount] = useState(0)
-  const [_, startTransition] = useTransition()
   return (
     <div>
       <h1>{count}</h1>
@@ -37,24 +36,22 @@ export default function Counter() {
       >
         *2
       </button>
-      <button
-        id="redirect"
-        onClick={async () => {
-          startTransition(async () => {
-            await redirectAction('/client/target')
-          })
-        }}
-      >
-        redirect
-      </button>
-      <button
-        id="redirect-external"
-        onClick={async () => {
-          redirectAction('https://example.com')
-        }}
-      >
-        redirect external
-      </button>
+      <form>
+        <button
+          id="redirect"
+          formAction={() => redirectAction('/redirect-target')}
+        >
+          redirect
+        </button>
+      </form>
+      <form>
+        <button
+          id="redirect-external"
+          formAction={() => redirectAction('https://example.com')}
+        >
+          redirect external
+        </button>
+      </form>
     </div>
   )
 }
