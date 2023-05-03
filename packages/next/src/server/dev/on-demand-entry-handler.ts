@@ -9,7 +9,10 @@ import type {
 
 import { EventEmitter } from 'events'
 import { findPageFile } from '../lib/find-page-file'
-import { runDependingOnPageType } from '../../build/entries'
+import {
+  getStaticInfoIncludingLayouts,
+  runDependingOnPageType,
+} from '../../build/entries'
 import { join, posix } from 'path'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
@@ -767,12 +770,14 @@ export function onDemandEntryHandler({
           }
         }
 
-        const staticInfo = await getPageStaticInfo({
+        const staticInfo = await getStaticInfoIncludingLayouts({
           page,
           pageFilePath: pagePathData.absolutePagePath,
-          nextConfig,
+          isInsideAppDir,
+          pageExtensions: nextConfig.pageExtensions,
           isDev: true,
-          pageType,
+          config: nextConfig,
+          appDir,
         })
 
         const added = new Map<CompilerNameValues, ReturnType<typeof addEntry>>()
