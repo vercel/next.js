@@ -1,11 +1,7 @@
-import { useEffect } from 'react'
+import { useTestHarness } from '@turbo/pack-test-harness'
 
 export default function ErrorPage(props: { static: 'static' }) {
-  useEffect(() => {
-    import('@turbo/pack-test-harness').then((harness) =>
-      harness.markAsHydrated()
-    )
-  })
+  useTestHarness((harness) => harness.markAsHydrated())
 
   return <div data-test-error>{props.static}</div>
 }
