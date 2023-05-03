@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ChildProcess } from 'child_process'
 
-import * as httpProxy from 'next/dist/compiled/http-proxy'
+import httpProxy from 'next/dist/compiled/http-proxy'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import { normalizeRepeatedSlashes } from '../../shared/lib/utils'
 
