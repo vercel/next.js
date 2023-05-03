@@ -15,6 +15,8 @@ import { NodeNextRequest } from '../../../server/base-http/node'
 import { MockedRequest } from '../../../server/lib/mock-request'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
 import { getHTMLFilename } from './helpers/get-html-filename'
+import * as ciEnvironment from '../../../telemetry/ci-info'
+import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 
 type ExportAppRouteRouteContext = {
   page: string
@@ -51,20 +53,9 @@ export async function exportAppRouteRoute({
   const htmlFilepath = posix.join(outDir, htmlBasename)
 
   // If the rout is dynamic, get the params from the path.
-  const params = isDynamicRoute(page) ? getParams(page, pathname) : {}
-
-  // Create the context for the handler. This contains the params from
-  // the route and the context for the request.
-  const context: AppRouteRouteHandlerContext = {
-    params,
-    export: true,
-    previewProps: undefined,
-    headers: undefined,
-    staticGenerationContext: {
-      supportsDynamicHTML: false,
-      incrementalCache,
-    },
-  }
+  const params = isDynamicRoute(page)
+    ? getParams(normalizeAppPath(page), pathname)
+    : {}
 
   // Create the mocked request. This looks really bad, but these wrappers will
   // convert the MockedRequest to a NodeNextRequest to a NextRequest.
@@ -83,6 +74,20 @@ export async function exportAppRouteRoute({
 
     // Load the module for the route.
     const module = RouteModuleLoader.load<AppRouteRouteModule>(filename)
+
+    // Create the context for the handler. This contains the params from
+    // the route and the context for the request.
+    const context: AppRouteRouteHandlerContext = {
+      params,
+      export: true,
+      previewProps: undefined,
+      headers: undefined,
+      staticGenerationContext: {
+        supportsDynamicHTML: false,
+        incrementalCache,
+        isRevalidate: ciEnvironment.hasNextSupport,
+      },
+    }
 
     // Call the handler with the request and context from the module.
     const response = await module.handle(request, context)
@@ -106,6 +111,11 @@ export async function exportAppRouteRoute({
       headers['content-type'] = body.type
     }
 
+    const cacheTags = (context.staticGenerationContext as any).fetchTags
+    if (cacheTags) {
+      headers['x-next-cache-tags'] = cacheTags
+    }
+
     writer.write(
       htmlFilepath.replace(/\.html$/, '.body'),
       Buffer.from(await body.arrayBuffer())
@@ -121,10 +131,10 @@ export async function exportAppRouteRoute({
       metadata: { status: response.status, headers },
     }
   } catch (err) {
-    if (!isDynamicUsageError(err)) {
-      return { type: 'error', error: err }
+    if (isDynamicUsageError(err)) {
+      return { type: 'dynamic' }
     }
 
-    return null
+    return { type: 'error', error: err }
   }
 }

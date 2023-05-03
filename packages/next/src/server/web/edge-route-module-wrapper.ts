@@ -85,7 +85,10 @@ export class EdgeRouteModuleWrapper {
     const context: RouteHandlerManagerContext = {
       params: match.params,
       export: false,
-      staticGenerationContext: { supportsDynamicHTML: true },
+      staticGenerationContext: {
+        supportsDynamicHTML: true,
+        isRevalidate: false,
+      },
       manifests: ManifestLoader.load(),
 
       // There are no headers set on the response above the handler in edge.

@@ -123,7 +123,7 @@ export type RenderOptsPartial = {
   nextFontManifest?: NextFontManifest
   isBot?: boolean
   incrementalCache?: import('../lib/incremental-cache').IncrementalCache
-  isRevalidate?: boolean
+  isRevalidate: boolean
   nextExport?: boolean
   nextConfigOutput?: 'standalone' | 'export'
   appDirDevErrorLogger?: (err: any) => Promise<void>

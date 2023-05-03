@@ -42,6 +42,7 @@ startHandler(async ({ request, response, query, params, path }) => {
     previewProps: undefined,
     staticGenerationContext: {
       supportsDynamicHTML: true,
+      isRevalidate: false,
     },
   }
 

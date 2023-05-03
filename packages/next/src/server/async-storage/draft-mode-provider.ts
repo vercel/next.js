@@ -10,16 +10,24 @@ import {
   __ApiPreviewProps,
 } from '../api-utils'
 
-export class DraftMode {
-  public readonly enabled: boolean
+export class DraftModeProvider {
+  public readonly isEnabled: boolean
 
-  private readonly previewModeId: string | undefined
+  /**
+   * @internal - this declaration is stripped via `tsc --stripInternal`
+   */
+  private readonly _previewModeId: string | undefined
+
+  /**
+   * @internal - this declaration is stripped via `tsc --stripInternal`
+   */
+  private readonly _mutableCookies: ResponseCookies
 
   constructor(
     previewProps: __ApiPreviewProps | undefined,
     req: IncomingMessage | BaseNextRequest<unknown> | NextRequest,
-    private readonly cookies: ReadonlyRequestCookies,
-    private readonly mutableCookies: ResponseCookies
+    cookies: ReadonlyRequestCookies,
+    mutableCookies: ResponseCookies
   ) {
     // The logic for draftMode() is very similar to tryGetPreviewData()
     // but Draft Mode does not have any data associated with it.
@@ -27,28 +35,29 @@ export class DraftMode {
       previewProps &&
       checkIsOnDemandRevalidate(req, previewProps).isOnDemandRevalidate
 
-    const cookieValue = this.cookies.get(COOKIE_NAME_PRERENDER_BYPASS)?.value
+    const cookieValue = cookies.get(COOKIE_NAME_PRERENDER_BYPASS)?.value
 
-    this.enabled = Boolean(
+    this.isEnabled = Boolean(
       !isOnDemandRevalidate &&
         cookieValue &&
         previewProps &&
         cookieValue === previewProps.previewModeId
     )
 
-    this.previewModeId = previewProps?.previewModeId
+    this._previewModeId = previewProps?.previewModeId
+    this._mutableCookies = mutableCookies
   }
 
   enable() {
-    if (!this.previewModeId) {
+    if (!this._previewModeId) {
       throw new Error(
-        'Invariant: previewProps missing previewModeId this should not be hit'
+        'Invariant: previewProps missing previewModeId this should never happen'
       )
     }
 
-    this.mutableCookies.set({
+    this._mutableCookies.set({
       name: COOKIE_NAME_PRERENDER_BYPASS,
-      value: this.previewModeId,
+      value: this._previewModeId,
       httpOnly: true,
       sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
       secure: process.env.NODE_ENV !== 'development',
@@ -60,7 +69,7 @@ export class DraftMode {
     // To delete a cookie, set `expires` to a date in the past:
     // https://tools.ietf.org/html/rfc6265#section-4.1.1
     // `Max-Age: 0` is not valid, thus ignored, and the cookie is persisted.
-    this.mutableCookies.set({
+    this._mutableCookies.set({
       name: COOKIE_NAME_PRERENDER_BYPASS,
       value: '',
       httpOnly: true,

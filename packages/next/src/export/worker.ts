@@ -23,6 +23,7 @@ import { exportPagesRoute } from './future/exporters/export-pages-route'
 import { ExportersResult } from './future/exporters/exporters'
 import { getIncrementalCache } from './helpers/get-incremental-cache'
 import { setHttpClientAndAgentOptions } from '../server/config'
+import * as ciEnvironment from '../telemetry/ci-info'
 
 const envConfig = require('../shared/lib/runtime-config')
 
@@ -182,6 +183,7 @@ export default async function exportPage({
               // TODO: (wyattjoh) the type for RenderOpts here is wrong, lots of `as any` used above
               ...renderOpts,
               supportsDynamicHTML: false,
+              isRevalidate: ciEnvironment.hasNextSupport,
             },
           })
         }
@@ -242,6 +244,12 @@ export default async function exportPage({
         ssgNotFound: true,
         fromBuildExportRevalidate: 0,
         duration,
+      }
+    case 'dynamic':
+      return {
+        duration,
+        fromBuildExportRevalidate: 0,
+        fromBuildExportMeta: undefined,
       }
     default:
       // TODO: (wyattjoh) maybe we don't need this?

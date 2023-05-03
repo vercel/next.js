@@ -122,7 +122,7 @@ export async function exportPagesRoute({
     writer.write(htmlFilepath, module, 'utf8')
 
     // Return that we've already built this page.
-    return { type: 'built', revalidate: undefined }
+    return { type: 'built', revalidate: undefined, metadata: undefined }
   }
 
   // For AMP support, we need to render the AMP version of the page.
@@ -324,5 +324,5 @@ export async function exportPagesRoute({
     }
   }
 
-  return { type: 'built', revalidate: metadata.revalidate }
+  return { type: 'built', revalidate: metadata.revalidate, metadata: undefined }
 }

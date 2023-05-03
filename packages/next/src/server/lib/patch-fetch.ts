@@ -7,6 +7,19 @@ import { CACHE_ONE_YEAR } from '../../lib/constants'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
+export function addImplicitTags(
+  staticGenerationStore: ReturnType<StaticGenerationAsyncStorage['getStore']>
+) {
+  if (!staticGenerationStore?.pathname) return
+
+  if (!Array.isArray(staticGenerationStore.tags)) {
+    staticGenerationStore.tags = []
+  }
+  if (!staticGenerationStore.tags.includes(staticGenerationStore.pathname)) {
+    staticGenerationStore.tags.push(staticGenerationStore.pathname)
+  }
+}
+
 // we patch fetch to collect cache information used for
 // determining if a page is static or not
 export function patchFetch({
@@ -81,7 +94,19 @@ export function patchFetch({
         // RequestInit doesn't keep extra fields e.g. next so it's
         // only available if init is used separate
         let curRevalidate = getNextField('revalidate')
-        const tags: undefined | string[] = getNextField('tags')
+        const tags: string[] = getNextField('tags') || []
+
+        if (Array.isArray(tags)) {
+          if (!staticGenerationStore.tags) {
+            staticGenerationStore.tags = []
+          }
+          for (const tag of tags) {
+            if (!staticGenerationStore.tags.includes(tag)) {
+              staticGenerationStore.tags.push(tag)
+            }
+          }
+        }
+        addImplicitTags(staticGenerationStore)
 
         const isOnlyCache = staticGenerationStore.fetchCache === 'only-cache'
         const isForceCache = staticGenerationStore.fetchCache === 'force-cache'

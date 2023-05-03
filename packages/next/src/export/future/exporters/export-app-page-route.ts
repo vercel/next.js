@@ -1,7 +1,10 @@
 import type { BatchedFileWriter } from '../../helpers/batched-file-writer'
 import type { ExportersResult } from './exporters'
 import type { NextParsedUrlQuery } from '../../../server/request-meta'
-import type { RenderOptsPartial } from '../../../server/app-render/types'
+import type {
+  RenderOpts,
+  RenderOptsPartial,
+} from '../../../server/app-render/types'
 
 import { createRequestResponseMocks } from '../../../server/lib/mock-request'
 import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
@@ -13,6 +16,9 @@ import { posix } from 'path'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
 import { IncrementalCache } from '../../../server/lib/incremental-cache'
 import RenderResult from '../../../server/render-result'
+import { OutgoingHttpHeaders } from 'http'
+import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
+import * as ciEnvironment from '../../../telemetry/ci-info'
 
 type ExportAppPageRouteContext = {
   page: string
@@ -67,13 +73,15 @@ export async function exportAppPageRoute({
   const params =
     // If the page is a dynamic route and the request path is not the same as
     // the page, then get the parameters.
-    isDynamic && page !== pathname ? getParams(page, pathname) : {}
+    isDynamic && page !== pathname
+      ? getParams(normalizeAppPath(page), pathname)
+      : {}
 
   const components = await loadComponents({
     distDir,
     pathname: page,
     hasServerComponents: !!serverComponents,
-    isAppPath: false,
+    isAppPath: true,
   })
 
   // Lazily load the renderer.
@@ -83,6 +91,14 @@ export async function exportAppPageRoute({
   const { req, res } = createRequestResponseMocks({
     url: `http://localhost:3000${pathname}`,
   })
+
+  const context: RenderOpts = {
+    ...components,
+    ...renderOpts,
+    // @ts-expect-error - this is temporary until we update the types
+    params,
+    supportsDynamicHTML: false,
+  }
 
   let result: RenderResult
   try {
@@ -101,22 +117,15 @@ export async function exportAppPageRoute({
         res,
         page === '/_not-found' ? '/404' : pathname,
         query,
-        {
-          ...components,
-          ...renderOpts,
-          // @ts-expect-error - this is temporary until we update the types
-          params,
-          supportsDynamicHTML: false,
-        }
+        context
       )
     }
   } catch (err) {
-    // If this isn't a dynamic usage error, we should throw it.
-    if (!isDynamicUsageError(err)) {
-      return { type: 'error', error: err }
+    if (isDynamicUsageError(err)) {
+      return { type: 'dynamic' }
     }
 
-    return null
+    return { type: 'error', error: err }
   }
 
   const html = result.toUnchunkedString()
@@ -133,6 +142,16 @@ export async function exportAppPageRoute({
   if (metadata.revalidate !== 0) {
     writer.write(htmlFilepath, html, 'utf8')
     writer.write(htmlFilepath.replace(/\.html$/, '.rsc'), metadata.pageData)
+  }
+
+  let headers: OutgoingHttpHeaders | undefined
+  if (ciEnvironment.hasNextSupport) {
+    const cacheTags = (context as any).fetchTags
+    if (cacheTags) {
+      headers = {
+        'x-next-cache-tags': cacheTags,
+      }
+    }
   }
 
   // Warn about static generation failures when debug is enabled.
@@ -153,5 +172,12 @@ export async function exportAppPageRoute({
     console.warn(err)
   }
 
-  return { type: 'built', revalidate: metadata.revalidate }
+  return {
+    type: 'built',
+    revalidate: metadata.revalidate,
+    metadata: {
+      status: undefined,
+      headers,
+    },
+  }
 }

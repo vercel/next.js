@@ -8,7 +8,7 @@ export type StaticGenerationContext = {
   renderOpts: {
     incrementalCache?: IncrementalCache
     supportsDynamicHTML: boolean
-    isRevalidate?: boolean
+    isRevalidate: boolean | undefined
     isOnDemandRevalidate?: boolean
     isBot?: boolean
     nextExport?: boolean

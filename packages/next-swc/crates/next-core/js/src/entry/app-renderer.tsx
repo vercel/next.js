@@ -285,6 +285,7 @@ async function runOperation(renderData: RenderData) {
     pageConfig: {},
     reactLoadableManifest: {},
     nextConfigOutput: renderData.data?.nextConfigOutput,
+    isRevalidate: false,
   }
   const result = await renderToHTMLOrFlight(
     req,

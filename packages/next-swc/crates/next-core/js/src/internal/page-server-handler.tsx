@@ -205,6 +205,7 @@ export default function startHandler({
         remotePatterns: [],
         unoptimized: true,
       },
+      isRevalidate: false,
     }
 
     if ('getStaticPaths' in namespace) {
