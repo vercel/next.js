@@ -288,7 +288,8 @@ export function navigateReducer(
           currentCache,
           flightSegmentPath,
           treePatch,
-          () => fetchServerResponse(url, newTree!, state.nextUrl)
+          // eslint-disable-next-line no-loop-func
+          () => fetchServerResponse(url, currentTree, state.nextUrl)
         )
       }
 
