@@ -55,23 +55,25 @@ pub async fn pathname_for_path(
     } else {
         path
     };
+    // `get_path_to` always strips the leading `/` from the path, so we need to add
+    // it back here.
     let path = if path == "index" && !data {
-        ""
+        "/".to_string()
     } else {
-        path.strip_suffix("/index").unwrap_or(path)
+        format!("/{}", path.strip_suffix("/index").unwrap_or(path))
     };
 
-    Ok(StringVc::cell(path.to_string()))
+    Ok(StringVc::cell(path))
 }
 
 // Adapted from https://github.com/vercel/next.js/blob/canary/packages/next/shared/lib/router/utils/get-asset-path-from-route.ts
-pub fn get_asset_path_from_route(route: &str, ext: &str) -> String {
-    if route.is_empty() {
-        format!("index{}", ext)
-    } else if route == "index" || route.starts_with("index/") {
-        format!("index/{}{}", route, ext)
+pub fn get_asset_path_from_pathname(pathname: &str, ext: &str) -> String {
+    if pathname == "/" {
+        format!("/index{}", ext)
+    } else if pathname == "/index" || pathname.starts_with("/index/") {
+        format!("/index{}{}", pathname, ext)
     } else {
-        format!("{}{}", route, ext)
+        format!("{}{}", pathname, ext)
     }
 }
 

@@ -25,6 +25,7 @@ import {
 } from '../shared/lib/utils'
 import type { PreviewData, ServerRuntime } from 'next/types'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
+import type { OutgoingHttpHeaders } from 'http2'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PayloadOptions } from './send-payload'
 import type { PrerenderManifest } from '../build'
@@ -1586,8 +1587,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           | 'https',
       })
 
-    let isRevalidate = false
-
     const doRender: () => Promise<ResponseCacheEntry | null> = async () => {
       // In development, we always want to generate dynamic HTML.
       const supportsDynamicHTML =
@@ -1603,8 +1602,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           params: match.params,
           prerenderManifest: this.getPrerenderManifest(),
           staticGenerationContext: {
+            originalPathname: components.ComponentMod.originalPathname,
             supportsDynamicHTML,
             incrementalCache,
+            isRevalidate: isSSG,
           },
         }
 
@@ -1612,6 +1613,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           // Handle the match and collect the response if it's a static response.
           const response = await this.handlers.handle(match, req, context)
           if (response) {
+            const cacheTags = (context.staticGenerationContext as any).fetchTags
+
             // If the request is for a static response, we can cache it so long
             // as it's not edge.
             if (isSSG && process.env.NEXT_RUNTIME !== 'edge') {
@@ -1619,6 +1622,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
               // Copy the headers from the response.
               const headers = toNodeHeaders(response.headers)
+
+              if (cacheTags) {
+                headers['x-next-cache-tags'] = cacheTags
+              }
+
               if (!headers['content-type'] && blob.type) {
                 headers['content-type'] = blob.type
               }
@@ -1669,6 +1677,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       let isrRevalidate: number | false
       let isNotFound: boolean | undefined
       let isRedirect: boolean | undefined
+      let headers: OutgoingHttpHeaders | undefined
 
       const origQuery = parseUrl(req.url || '', true).query
 
@@ -1694,7 +1703,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         ...(isAppPath && this.nextConfig.experimental.appDir
           ? {
               incrementalCache,
-              isRevalidate: this.minimalMode || isRevalidate,
+              isRevalidate: isSSG,
+              originalPathname: components.ComponentMod.originalPathname,
             }
           : {}),
         isDataReq,
@@ -1736,6 +1746,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       isNotFound = renderResultMeta.isNotFound
       isRedirect = renderResultMeta.isRedirect
 
+      const cacheTags = (renderOpts as any).fetchTags
+
+      if (cacheTags) {
+        headers = {
+          'x-next-cache-tags': cacheTags,
+        }
+      }
+
       // we don't throw static to dynamic errors in dev as isSSG
       // is a best guess in dev since we don't have the prerender pass
       // to know whether the path is actually static or not
@@ -1771,7 +1789,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         if (body.isNull()) {
           return null
         }
-        value = { kind: 'PAGE', html: body, pageData }
+        value = { kind: 'PAGE', html: body, pageData, headers }
       }
       return { revalidate: isrRevalidate, value }
     }
@@ -1782,10 +1800,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         const isProduction = !this.renderOpts.dev
         const isDynamicPathname = isDynamicRoute(pathname)
         const didRespond = hasResolved || res.sent
-
-        if (hadCache) {
-          isRevalidate = true
-        }
 
         if (!staticPaths) {
           ;({ staticPaths, fallbackMode } = hasStaticPaths
@@ -1813,6 +1827,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         ) {
           await this.render404(req, res)
           return null
+        }
+
+        if (hadCache?.isStale === -1) {
+          isOnDemandRevalidate = true
         }
 
         // only allow on-demand revalidate for fallback: true/blocking
@@ -1990,17 +2008,33 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     } else if (cachedData.kind === 'IMAGE') {
       throw new Error('invariant SSG should not return an image cache value')
     } else if (cachedData.kind === 'ROUTE') {
+      const headers = { ...cachedData.headers }
+
+      if (!(this.minimalMode && isSSG)) {
+        delete headers['x-next-cache-tags']
+      }
+
       await sendResponse(
         req,
         res,
         new Response(cachedData.body, {
-          headers: fromNodeHeaders(cachedData.headers),
+          headers: fromNodeHeaders(headers),
           status: cachedData.status || 200,
         })
       )
       return null
     } else {
       if (isAppPath) {
+        if (
+          this.minimalMode &&
+          isSSG &&
+          cachedData.headers?.['x-next-cache-tags']
+        ) {
+          res.setHeader(
+            'x-next-cache-tags',
+            cachedData.headers['x-next-cache-tags'] as string
+          )
+        }
         if (isDataReq && typeof cachedData.pageData !== 'string') {
           throw new Error(
             'invariant: Expected pageData to be a string for app data request but received ' +

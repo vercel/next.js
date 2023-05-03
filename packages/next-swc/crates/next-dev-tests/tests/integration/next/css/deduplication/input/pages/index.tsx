@@ -1,14 +1,10 @@
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
+import { Harness, useTestHarness } from '@turbo/pack-test-harness'
 
 export default function Page() {
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
 
-  useEffect(() => {
-    // Only run on client
-    import('@turbo/pack-test-harness').then((mod) =>
-      runTests(mod, iframeRef.current!)
-    )
-  })
+  useTestHarness((harness) => runTests(harness, iframeRef.current!))
 
   return (
     <>
@@ -16,8 +12,6 @@ export default function Page() {
     </>
   )
 }
-
-type Harness = typeof import('@turbo/pack-test-harness')
 
 declare global {
   interface Window {
@@ -50,7 +44,7 @@ function runTests(harness: Harness, iframe: HTMLIFrameElement) {
       expect(getComputedStyle(buttonA).color).toEqual('rgb(255, 0, 0)')
       const buttonB = await harness.waitForSelector(
         iframe.contentWindow!.document,
-        'button.a'
+        'button.b'
       )
       expect(buttonB).not.toBeNull()
       expect(getComputedStyle(buttonB).color).toEqual('rgb(255, 0, 0)')
@@ -94,7 +88,7 @@ function runTests(harness: Harness, iframe: HTMLIFrameElement) {
 
       const link = await harness.waitForSelector(
         iframe.contentWindow!.document,
-        'a'
+        'a.b'
       )
       expect(link).toBeInstanceOf(
         (iframe.contentWindow as any).HTMLAnchorElement
@@ -106,7 +100,7 @@ function runTests(harness: Harness, iframe: HTMLIFrameElement) {
 
       const link2 = await harness.waitForSelector(
         iframe.contentWindow!.document,
-        'a'
+        'a.a'
       )
       expect(link2).toBeInstanceOf(
         (iframe.contentWindow as any).HTMLAnchorElement
@@ -118,7 +112,7 @@ function runTests(harness: Harness, iframe: HTMLIFrameElement) {
 
       const link3 = await harness.waitForSelector(
         iframe.contentWindow!.document,
-        'a'
+        'a.b'
       )
       expect(link3).toBeInstanceOf(
         (iframe.contentWindow as any).HTMLAnchorElement

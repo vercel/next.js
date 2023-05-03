@@ -5,7 +5,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
  *
  * @type {ServerResponse}
  */
-export class ServerResponseShim {
+class ServerResponseShim {
   headersSent = false
   #headers: Map<string, number | string | ReadonlyArray<string>> = new Map()
   #statusCode: number = 200
@@ -111,4 +111,30 @@ export class ServerResponseShim {
   writeProcessing() {
     throw new Error('writeProcessing is not implemented')
   }
+}
+
+function getStatusCodeForPath(pathname: string): number {
+  if (pathname === '/404' || pathname === '/_error') {
+    return 404
+  }
+
+  return 200
+}
+
+/**
+ * Creates a `ServerResponse` object for a given request and pathname.
+ */
+export function createServerResponse(
+  req: IncomingMessage,
+  pathname: string
+): ServerResponse {
+  const statusCode = getStatusCodeForPath(pathname)
+
+  const res = new ServerResponseShim(req) as any
+
+  // For pages, setting the status code on the response object is necessary for
+  // `Error.getInitialProps` to detect the status code.
+  res.statusCode = statusCode
+
+  return res as ServerResponse
 }

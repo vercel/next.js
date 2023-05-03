@@ -85,6 +85,34 @@ createNextDescribe(
       }, 'my-not-found')
     })
 
+    it('should support uploading files', async () => {
+      const logs: string[] = []
+      next.on('stdout', (log) => {
+        logs.push(log)
+      })
+      next.on('stderr', (log) => {
+        logs.push(log)
+      })
+
+      const browser = await next.browser('/server')
+
+      // Fake a file to upload
+      await browser.eval(`
+        const file = new File(['hello'], 'hello.txt', { type: 'text/plain' });
+        const list = new DataTransfer();
+        list.items.add(file);
+        document.getElementById('file').files = list.files;
+      `)
+
+      await browser.elementByCss('#upload').click()
+
+      await check(() => {
+        return logs.some((log) => log.includes('File name: hello.txt size: 5'))
+          ? 'yes'
+          : ''
+      }, 'yes')
+    })
+
     it('should support hoc auth wrappers', async () => {
       const browser = await next.browser('/header')
       await await browser.eval(`document.cookie = 'auth=0'`)
@@ -170,6 +198,18 @@ createNextDescribe(
 
         await browser.elementByCss('#dec').click()
         await check(() => browser.elementByCss('h1').text(), '3')
+      })
+
+      it('should return error response for hoc auth wrappers in edge runtime', async () => {
+        const browser = await next.browser('/header/edge')
+        await await browser.eval(`document.cookie = 'auth=0'`)
+        await browser.elementByCss('#authed').click()
+
+        await check(async () => {
+          const text = await browser.elementByCss('h1').text()
+          console.log('text', text)
+          return text && text.length > 0 ? text : 'failed'
+        }, /Multipart form data is not supported/)
       })
     })
   }
