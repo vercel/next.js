@@ -7,7 +7,7 @@ createNextDescribe(
   {
     files: __dirname,
   },
-  ({ next, isNextDev, isNextDeploy }) => {
+  ({ next, isNextDeploy }) => {
     describe('query string', () => {
       it('should set query correctly', async () => {
         const browser = await webdriver(next.url, '/')
@@ -184,9 +184,7 @@ createNextDescribe(
           }
 
           expect(stored).toEqual({
-            // Not actually sure why this is '2' in dev. Possibly something
-            // related to an update triggered by <HotReload>?
-            'navigate-https://example.vercel.sh/': isNextDev ? '2' : '1',
+            'navigate-https://example.vercel.sh/': '1',
             'navigation-supported': 'true',
           })
         })

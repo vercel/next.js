@@ -5,15 +5,14 @@ import {
 
 type Callback = (...args: any[]) => Promise<any>
 
-// TODO: generic callback type?
-export function unstable_cache(
-  cb: Callback,
+export function unstable_cache<T extends Callback>(
+  cb: T,
   keyParts: string[],
   options: {
     revalidate: number | false
     tags?: string[]
   }
-): Callback {
+): T {
   const joinedKey = cb.toString() + '-' + keyParts.join(', ')
   const staticGenerationAsyncStorage = (
     fetch as any
@@ -34,7 +33,7 @@ export function unstable_cache(
     )
   }
 
-  return async (...args: any[]) => {
+  const cachedCb = async (...args: any[]) => {
     // We override the default fetch cache handling inside of the
     // cache callback so that we only cache the specific values returned
     // from the callback instead of also caching any fetches done inside
@@ -131,4 +130,6 @@ export function unstable_cache(
       }
     )
   }
+  // TODO: once AsyncLocalStorage.run() returns the correct types this override will no longer be necessary
+  return cachedCb as unknown as T
 }
