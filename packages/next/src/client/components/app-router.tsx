@@ -1,7 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import React, { useEffect, useMemo, useCallback } from 'react'
+import React, { use, useEffect, useMemo, useCallback } from 'react'
 import {
   AppRouterContext,
   LayoutRouterContext,
@@ -48,6 +48,7 @@ import { AppRouterAnnouncer } from './app-router-announcer'
 import { RedirectBoundary } from './redirect-boundary'
 import { NotFoundBoundary } from './not-found-boundary'
 import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
+import { createInfinitePromise } from './infinite-promise'
 
 const isServer = typeof window === 'undefined'
 
@@ -95,16 +96,6 @@ function isExternalURL(url: URL) {
 function HistoryUpdater({ tree, pushRef, canonicalUrl, sync }: any) {
   // @ts-ignore TODO-APP: useInsertionEffect is available
   React.useInsertionEffect(() => {
-    // When mpaNavigation flag is set do a hard navigation to the new url.
-    if (pushRef.mpaNavigation) {
-      const location = window.location
-      if (pushRef.pendingPush) {
-        location.assign(canonicalUrl)
-      } else {
-        location.replace(canonicalUrl)
-      }
-      return
-    }
     // Identifier is shortened intentionally.
     // __NA is used to identify if the history entry can be handled by the app-router.
     // __N is used to identify if the history entry can be handled by the old router.
@@ -348,6 +339,29 @@ function Router({
       prefetchCache,
       tree,
     }
+  }
+
+  // When mpaNavigation flag is set do a hard navigation to the new url.
+  // Infinitely suspend because we don't actually want to rerender any child
+  // components with the new URL and any entangled state updates shouldn't
+  // commit either (eg: useTransition isPending should stay true until the page
+  // unloads).
+  //
+  // This is a side effect in render. Don't try this at home, kids. It's
+  // probably safe because we know this is a singleton component and it's never
+  // in <Offscreen>. At least I hope so. (It will run twice in dev strict mode,
+  // but that's... fine?)
+  if (pushRef.mpaNavigation) {
+    const location = window.location
+    if (pushRef.pendingPush) {
+      location.assign(canonicalUrl)
+    } else {
+      location.replace(canonicalUrl)
+    }
+    // TODO-APP: Should we listen to navigateerror here to catch failed
+    // navigations somehow? And should we call window.stop() if a SPA navigation
+    // should interrupt an MPA one?
+    use(createInfinitePromise())
   }
 
   /**
