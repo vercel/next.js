@@ -88,6 +88,7 @@ export interface RenderOpts {
   trailingSlash?: boolean
   supportsDynamicHTML?: boolean
   strictNextHead?: boolean
+  originalPathname?: string
 }
 
 export default async function exportPage({
@@ -184,6 +185,7 @@ export default async function exportPage({
               ...renderOpts,
               supportsDynamicHTML: false,
               isRevalidate: ciEnvironment.hasNextSupport,
+              originalPathname: page,
             },
           })
         }

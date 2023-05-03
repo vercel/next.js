@@ -15,7 +15,7 @@ declare global {
 }
 
 import type { Ipc } from '@vercel/turbopack-node/ipc/index'
-import type { IncomingMessage, ServerResponse } from 'node:http'
+import type { IncomingMessage } from 'node:http'
 import type {
   ClientCSSReferenceManifest,
   ClientReferenceManifest,
@@ -25,13 +25,13 @@ import type { RenderOpts } from 'next/dist/server/app-render/types'
 
 import { renderToHTMLOrFlight } from 'next/dist/server/app-render/app-render'
 import { RSC_VARY_HEADER } from 'next/dist/client/components/app-router-headers'
-import { ServerResponseShim } from '../internal/http'
 import { headersFromEntries } from '../internal/headers'
 import { parse, ParsedUrlQuery } from 'node:querystring'
 import { PassThrough } from 'node:stream'
 ;('TURBOPACK { transition: next-layout-entry; chunking-type: isolatedParallel }')
 // @ts-ignore
 import layoutEntry from './app/layout-entry'
+import { createServerResponse } from '../internal/http'
 
 globalThis.__next_require__ = (data) => {
   const [, , ssr_id] = JSON.parse(data)
@@ -91,7 +91,7 @@ const MIME_TEXT_HTML_UTF8 = 'text/html; charset=utf-8'
     ipc.send({
       type: 'headers',
       data: {
-        status: 200,
+        status: result.statusCode,
         headers: result.headers,
       },
     })
@@ -124,8 +124,6 @@ type LoaderTree = [
 ]
 
 async function runOperation(renderData: RenderData) {
-  let tree: LoaderTree = LOADER_TREE
-
   const proxyMethodsForModule = (
     id: string
   ): ProxyHandler<ClientReferenceManifest['ssrModuleMapping']> => {
@@ -251,7 +249,9 @@ async function runOperation(renderData: RenderData) {
     method: renderData.method,
     headers: headersFromEntries(renderData.rawHeaders),
   } as any
-  const res: ServerResponse = new ServerResponseShim(req) as any
+
+  const res = createServerResponse(req, renderData.path)
+
   const query = parse(renderData.rawQuery)
   const renderOpt: Omit<
     RenderOpts,
@@ -305,6 +305,7 @@ async function runOperation(renderData: RenderData) {
     body.write(result.toUnchunkedString())
   }
   return {
+    statusCode: res.statusCode,
     headers: [
       ['Content-Type', result.contentType() ?? MIME_TEXT_HTML_UTF8],
       ['Vary', RSC_VARY_HEADER],

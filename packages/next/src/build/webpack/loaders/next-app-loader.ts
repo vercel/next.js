@@ -102,6 +102,7 @@ async function createAppRouteCode({
   const filename = path.parse(resolvedPagePath).name
   if (isMetadataRoute(name) && filename !== 'route') {
     resolvedPagePath = `next-metadata-route-loader?${stringify({
+      page,
       pageExtensions,
     })}!${resolvedPagePath + METADATA_RESOURCE_QUERY}`
   }
@@ -152,6 +153,8 @@ async function createAppRouteCode({
       staticGenerationBailout
     } = routeModule
 
+    const originalPathname = "${page}"
+
     export {
       routeModule,
       requestAsyncStorage,
@@ -159,6 +162,7 @@ async function createAppRouteCode({
       serverHooks,
       headerHooks,
       staticGenerationBailout,
+      originalPathname
     }`
 }
 
@@ -609,6 +613,8 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     export { renderToReadableStream, decodeReply } from 'react-server-dom-webpack/server.edge'
     export const __next_app_webpack_require__ = __webpack_require__
     export { preloadStyle, preloadFont, preconnect } from 'next/dist/server/app-render/rsc/preloads'
+    
+    export const originalPathname = "${page}"
   `
 
   return result

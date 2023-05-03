@@ -92,6 +92,7 @@ export async function generateStaticParams({
     {
       pathname: page,
       renderOpts: {
+        originalPathname: page,
         incrementalCache,
         supportsDynamicHTML: true,
         isRevalidate: false,

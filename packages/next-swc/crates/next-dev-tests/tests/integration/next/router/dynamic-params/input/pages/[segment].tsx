@@ -1,10 +1,7 @@
-import { useEffect } from 'react'
+import { useTestHarness } from '@turbo/pack-test-harness'
 
 export default function Home({ params }: { params: any }) {
-  useEffect(() => {
-    // Only run on client
-    import('@turbo/pack-test-harness').then(() => runTests(params))
-  })
+  useTestHarness(() => runTests(params))
 
   return <div>Test</div>
 }

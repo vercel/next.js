@@ -14,8 +14,8 @@ import { getStaticPaths } from 'next/dist/build/future/is-static/pages'
 import type { BuildManifest } from 'next/dist/server/get-page-files'
 import type { ReactLoadableManifest } from 'next/dist/server/load-components'
 
-import { ServerResponseShim } from './http'
 import { headersFromEntries } from './headers'
+import { createServerResponse } from './http'
 import type { Ipc } from '@vercel/turbopack-node/ipc/index'
 import type { RenderData } from 'types/turbopack'
 import type { ChunkGroup } from 'types/next'
@@ -223,19 +223,7 @@ export default function startHandler({
       method: 'GET',
       headers: headersFromEntries(renderData.rawHeaders),
     } as any
-    const res: ServerResponse = new ServerResponseShim(req) as any
-
-    // Both _error and 404 should receive a 404 status code.
-    const statusCode =
-      renderData.path === '/404'
-        ? 404
-        : renderData.path === '/_error'
-        ? 404
-        : 200
-
-    // Setting the status code on the response object is necessary for
-    // `Error.getInitialProps` to detect the status code.
-    res.statusCode = statusCode
+    const res: ServerResponse = createServerResponse(req, renderData.path)
 
     const parsedQuery = parse(renderData.rawQuery)
     const query = { ...parsedQuery, ...renderData.params }
@@ -302,7 +290,7 @@ export default function startHandler({
       const pageData = renderResult.metadata().pageData
       return {
         type: 'response',
-        statusCode,
+        statusCode: res.statusCode,
         headers: [['Content-Type', MIME_APPLICATION_JAVASCRIPT]],
         // Page data is only returned if the page had getXxyProps.
         body: JSON.stringify(pageData === undefined ? {} : pageData),
@@ -320,7 +308,7 @@ export default function startHandler({
 
     return {
       type: 'response',
-      statusCode,
+      statusCode: res.statusCode,
       headers: [
         ['Content-Type', renderResult.contentType() ?? MIME_TEXT_HTML_UTF8],
       ],

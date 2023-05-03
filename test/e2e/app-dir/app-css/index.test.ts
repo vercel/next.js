@@ -203,6 +203,20 @@ createNextDescribe(
           ).toBe('rgb(210, 105, 30)')
         })
 
+        it('should include css imported in root not-found.js', async () => {
+          const browser = await next.browser('/random-non-existing-path')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h1')).color`
+            )
+          ).toBe('rgb(210, 105, 30)')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h1')).backgroundColor`
+            )
+          ).toBe('rgb(0, 0, 0)')
+        })
+
         it('should include css imported in error.js', async () => {
           const browser = await next.browser('/error/client-component')
           await browser.elementByCss('button').click()

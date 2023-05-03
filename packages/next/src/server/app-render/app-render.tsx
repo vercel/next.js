@@ -753,6 +753,8 @@ export async function renderToHTMLOrFlight(
             const childSegment = parallelRoute[0]
             const childSegmentParam = getDynamicParamFromSegment(childSegment)
 
+            // if we're prefetching and that there's a Loading component, we bail out
+            // otherwise we keep rendering for the prefetch
             if (isPrefetch && Loading) {
               const childProp: ChildProp = {
                 // Null indicates the tree is not fully rendered
@@ -919,12 +921,12 @@ export async function renderToHTMLOrFlight(
                 <Component {...props} />
               )}
               {/* This null is currently critical. The wrapped Component can render null and if there was not fragment
-                surrounding it this would look like a pending tree data state on the client which will cause an errror 
+                surrounding it this would look like a pending tree data state on the client which will cause an errror
                 and break the app. Long-term we need to move away from using null as a partial tree identifier since it
                 is a valid return type for the components we wrap. Once we make this change we can safely remove the
                 fragment. The reason the extra null here is required is that fragments which only have 1 child are elided.
                 If the Component above renders null the actual treedata will look like `[null, null]`. If we remove the extra
-                null it will look like `null` (the array is elided) and this is what confuses the client router.            
+                null it will look like `null` (the array is elided) and this is what confuses the client router.
                 TODO-APP update router to use a Symbol for partial tree detection */}
               {null}
             </>
@@ -1026,48 +1028,42 @@ export async function renderToHTMLOrFlight(
                 getDynamicParamFromSegment,
                 query
               ),
-              // Check if one level down from the common layout has a loading component. If it doesn't only provide the router state as part of the Flight data.
-              isPrefetch && !Boolean(components.loading)
-                ? null
-                : // Create component tree using the slice of the loaderTree
-                  // @ts-expect-error TODO-APP: fix async component type
-                  React.createElement(async () => {
-                    const { Component } = await createComponentTree(
-                      // This ensures flightRouterPath is valid and filters down the tree
-                      {
-                        createSegmentPath,
-                        loaderTree: loaderTreeToFilter,
-                        parentParams: currentParams,
-                        firstItem: isFirst,
-                        injectedCSS,
-                        injectedFontPreloadTags,
-                        // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
-                        rootLayoutIncluded,
-                        asNotFound,
-                      }
-                    )
+              // Create component tree using the slice of the loaderTree
+              // @ts-expect-error TODO-APP: fix async component type
+              React.createElement(async () => {
+                const { Component } = await createComponentTree(
+                  // This ensures flightRouterPath is valid and filters down the tree
+                  {
+                    createSegmentPath,
+                    loaderTree: loaderTreeToFilter,
+                    parentParams: currentParams,
+                    firstItem: isFirst,
+                    injectedCSS,
+                    injectedFontPreloadTags,
+                    // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
+                    rootLayoutIncluded,
+                    asNotFound,
+                  }
+                )
 
-                    return <Component />
-                  }),
-              isPrefetch && !Boolean(components.loading)
-                ? null
-                : (() => {
-                    const { layoutOrPagePath } =
-                      parseLoaderTree(loaderTreeToFilter)
+                return <Component />
+              }),
+              (() => {
+                const { layoutOrPagePath } = parseLoaderTree(loaderTreeToFilter)
 
-                    const styles = getLayerAssets({
-                      layoutOrPagePath,
-                      injectedCSS: new Set(injectedCSS),
-                      injectedFontPreloadTags: new Set(injectedFontPreloadTags),
-                    })
+                const styles = getLayerAssets({
+                  layoutOrPagePath,
+                  injectedCSS: new Set(injectedCSS),
+                  injectedFontPreloadTags: new Set(injectedFontPreloadTags),
+                })
 
-                    return (
-                      <>
-                        {styles}
-                        {rscPayloadHead}
-                      </>
-                    )
-                  })(),
+                return (
+                  <>
+                    {styles}
+                    {rscPayloadHead}
+                  </>
+                )
+              })(),
             ],
           ]
         }

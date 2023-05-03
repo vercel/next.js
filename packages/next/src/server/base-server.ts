@@ -1643,6 +1643,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           params: match?.params ?? opts.params,
           export: false,
           staticGenerationContext: {
+            originalPathname: components.ComponentMod.originalPathname,
             supportsDynamicHTML,
             incrementalCache,
             // TODO: (wyattjoh) investigate if we can remove this (isSSG is available internal to the module)
@@ -1843,6 +1844,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           ? {
               incrementalCache,
               isRevalidate: isSSG,
+              originalPathname: components.ComponentMod.originalPathname,
             }
           : {}),
         isDataReq,
@@ -1851,7 +1853,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         defaultLocale,
         supportsDynamicHTML,
         isOnDemandRevalidate,
-        isMinimalMode: this.minimalMode,
       }
 
       const result: RenderResult = await this.renderHTML(

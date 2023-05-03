@@ -4,7 +4,6 @@ import LRUCache from 'next/dist/compiled/lru-cache'
 import { CacheFs } from '../../../shared/lib/utils'
 import path from '../../../shared/lib/isomorphic/path'
 import { CachedFetchValue } from '../../response-cache'
-import { CACHE_ONE_YEAR } from '../../../lib/constants'
 
 type FileSystemCacheContext = Omit<
   CacheHandlerContext,
@@ -243,7 +242,7 @@ export default class FileSystemCache implements CacheHandler {
     }
 
     const getDerivedTags = (tags: string[]): string[] => {
-      const derivedTags: string[] = []
+      const derivedTags: string[] = ['/']
 
       for (const tag of tags || []) {
         if (tag.startsWith('/')) {
@@ -290,15 +289,17 @@ export default class FileSystemCache implements CacheHandler {
       const innerData = data.value.data
       const derivedTags = getDerivedTags(innerData.tags || [])
 
-      const isStale = derivedTags.some((tag) => {
+      const wasRevalidated = derivedTags.some((tag) => {
         return (
           tagsManifest?.items[tag]?.revalidatedAt &&
           tagsManifest?.items[tag].revalidatedAt >=
             (data?.lastModified || Date.now())
         )
       })
-      if (isStale) {
-        data.lastModified = Date.now() - CACHE_ONE_YEAR
+      // When revalidate tag is called we don't return
+      // stale data so it's updated right away
+      if (wasRevalidated) {
+        data = undefined
       }
     }
 
