@@ -4,6 +4,7 @@ import type {
   OutgoingHttpHeaders,
   ServerResponse,
 } from 'http'
+import type { WebNextRequest } from '../base-http/web'
 
 import {
   ACTION,
@@ -189,7 +190,9 @@ export async function handleAction({
       {
         get: (_, id: string) => {
           return {
-            id: serverActionsManifest.node[id].workers[workerName],
+            id: serverActionsManifest[
+              process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
+            ][id].workers[workerName],
             name: id,
             chunks: [],
           }
@@ -209,13 +212,15 @@ export async function handleAction({
           // Use react-server-dom-webpack/server.edge
           const { decodeReply } = ComponentMod
 
-          const webRequest = req as unknown as Request
+          const webRequest = req as unknown as WebNextRequest
           if (!webRequest.body) {
             throw new Error('invariant: Missing request body.')
           }
 
           if (isMultipartAction) {
-            throw new Error('invariant: Multipart form data is not supported.')
+            // TODO-APP: Add streaming support
+            const formData = await webRequest.request.formData()
+            bound = await decodeReply(formData, serverModuleMap)
           } else {
             let actionData = ''
 
