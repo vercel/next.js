@@ -117,6 +117,10 @@ async function createRedirectRenderResult(
       const headResponse = await fetchIPv4v6(fetchUrl, {
         method: 'HEAD',
         headers: forwardedHeaders,
+        next: {
+          // @ts-ignore
+          internal: 1,
+        },
       })
 
       if (
@@ -125,6 +129,10 @@ async function createRedirectRenderResult(
         const response = await fetchIPv4v6(fetchUrl, {
           method: 'GET',
           headers: forwardedHeaders,
+          next: {
+            // @ts-ignore
+            internal: 1,
+          },
         })
         // copy the headers from the redirect response to the response we're sending
         for (const [key, value] of response.headers) {
@@ -277,16 +285,11 @@ export async function handleAction({
 
         const returnVal = await actionHandler.apply(null, bound)
 
-        // if the user called revalidate or refresh, we need to set the flag
-        // so that we can bypass the next cache
-        if (staticGenerationStore.pathWasRevalidated) {
-          staticGenerationStore.isRevalidate = true
-
-          await Promise.all(staticGenerationStore.pendingRevalidates || [])
-        }
-
         // For form actions, we need to continue rendering the page.
         if (isFetchAction) {
+          await Promise.all(staticGenerationStore.pendingRevalidates || [])
+          staticGenerationStore.isRevalidate = true
+
           actionResult = await generateFlight({
             actionResult: returnVal,
             // if the page was not revalidated, we can skip the rendering the flight tree
@@ -308,9 +311,6 @@ export async function handleAction({
         // if it's a fetch action, we don't want to mess with the status code
         // and we'll handle it on the client router
         res.setHeader('Location', redirectUrl)
-
-        // we need to make sure any pending revalidates are resolved before
-        // we redirect
         await Promise.all(staticGenerationStore.pendingRevalidates || [])
 
         if (isFetchAction) {

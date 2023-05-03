@@ -231,9 +231,80 @@ createNextDescribe(
         }, 'https://example.com/')
       })
 
-      it.skip('should handle revalidatePath', async () => {})
+      it('should handle revalidatePath', async () => {
+        const browser = await next.browser('/revalidate')
+        const randomNumber = await browser.elementByCss('#random-number').text()
+        const justPutIt = await browser.elementByCss('#justputit').text()
+        const thankYouNext = await browser.elementByCss('#thankyounext').text()
 
-      it.skip('should handle revalidateTag', async () => {})
+        await browser.elementByCss('#revalidate-path').click()
+
+        await check(async () => {
+          const newRandomNumber = await browser
+            .elementByCss('#random-number')
+            .text()
+          const newJustPutIt = await browser.elementByCss('#justputit').text()
+          const newThankYouNext = await browser
+            .elementByCss('#thankyounext')
+            .text()
+
+          return newRandomNumber !== randomNumber &&
+            justPutIt !== newJustPutIt &&
+            thankYouNext !== newThankYouNext
+            ? 'success'
+            : 'failure'
+        }, 'success')
+      })
+
+      it('should handle revalidateTag', async () => {
+        const browser = await next.browser('/revalidate')
+        const randomNumber = await browser.elementByCss('#random-number').text()
+        const justPutIt = await browser.elementByCss('#justputit').text()
+        const thankYouNext = await browser.elementByCss('#thankyounext').text()
+
+        await browser.elementByCss('#revalidate-justputit').click()
+
+        await check(async () => {
+          const newRandomNumber = await browser
+            .elementByCss('#random-number')
+            .text()
+          const newJustPutIt = await browser.elementByCss('#justputit').text()
+          const newThankYouNext = await browser
+            .elementByCss('#thankyounext')
+            .text()
+
+          return newRandomNumber !== randomNumber &&
+            justPutIt !== newJustPutIt &&
+            thankYouNext === newThankYouNext
+            ? 'success'
+            : 'failure'
+        }, 'success')
+      })
+
+      it.skip('should handle revalidateTag + redirect', async () => {
+        const browser = await next.browser('/revalidate')
+        const randomNumber = await browser.elementByCss('#random-number').text()
+        const justPutIt = await browser.elementByCss('#justputit').text()
+        const thankYouNext = await browser.elementByCss('#thankyounext').text()
+
+        await browser.elementByCss('#revalidate-path-redirect').click()
+
+        await check(async () => {
+          const newRandomNumber = await browser
+            .elementByCss('#random-number')
+            .text()
+          const newJustPutIt = await browser.elementByCss('#justputit').text()
+          const newThankYouNext = await browser
+            .elementByCss('#thankyounext')
+            .text()
+
+          return newRandomNumber === randomNumber &&
+            justPutIt !== newJustPutIt &&
+            thankYouNext === newThankYouNext
+            ? 'success'
+            : 'failure'
+        }, 'success')
+      })
     })
   }
 )
