@@ -10,6 +10,7 @@ const cacheHeader = {
 }
 
 type MetadataRouteLoaderOptions = {
+  page: string
   pageExtensions: string[]
 }
 
@@ -127,9 +128,27 @@ export async function GET(_, ctx) {
 `
 }
 
-function getDynamicSiteMapRouteCode(resourcePath: string) {
-  // generateSitemaps
-  return `\
+function getDynamicSiteMapRouteCode(resourcePath: string, page: string) {
+  let staticGenerationCode = ''
+
+  if (
+    process.env.NODE_ENV === 'production' &&
+    page.includes('[__metadata_id__]')
+  ) {
+    staticGenerationCode = `\
+export async function generateStaticParams() {
+  const sitemaps = await generateSitemaps()
+  const params = []
+
+  for (const item of sitemaps) {
+    params.push({ __metadata_id__: item.id.toString() + '.xml' })
+  }
+  return params
+}
+    `
+  }
+
+  const code = `\
 import { NextResponse } from 'next/server'
 import * as _sitemapModule from ${JSON.stringify(resourcePath)}
 import { resolveRouteData } from 'next/dist/build/webpack/loaders/metadata/resolve-route-data'
@@ -172,7 +191,10 @@ export async function GET(_, ctx) {
     },
   })
 }
+
+${staticGenerationCode}
 `
+  return code
 }
 // `import.meta.url` is the resource name of the current module.
 // When it's static route, it could be favicon.ico, sitemap.xml, robots.txt etc.
@@ -180,7 +202,7 @@ export async function GET(_, ctx) {
 const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLoaderOptions> =
   function () {
     const { resourcePath } = this
-    const { pageExtensions } = this.getOptions()
+    const { pageExtensions, page } = this.getOptions()
 
     const { name: fileBaseName, ext } = getFilenameAndExtension(resourcePath)
     const isDynamic = pageExtensions.includes(ext)
@@ -190,7 +212,7 @@ const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLo
       if (fileBaseName === 'robots' || fileBaseName === 'manifest') {
         code = getDynamicTextRouteCode(resourcePath)
       } else if (fileBaseName === 'sitemap') {
-        code = getDynamicSiteMapRouteCode(resourcePath)
+        code = getDynamicSiteMapRouteCode(resourcePath, page)
       } else {
         code = getDynamicImageRouteCode(resourcePath)
       }
