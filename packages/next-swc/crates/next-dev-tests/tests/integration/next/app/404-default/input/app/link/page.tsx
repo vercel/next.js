@@ -1,14 +1,15 @@
+'use client'
+
 import Link from 'next/link'
 import { useEffect } from 'react'
+import { useTestHarness } from '@turbo/pack-test-harness'
 
 export default function Page() {
-  useEffect(() => {
-    import('@turbo/pack-test-harness').then((mod) => mod.markAsHydrated())
-  })
+  useTestHarness((mod) => mod.markAsHydrated())
 
   return (
     <Link href="/not-found" data-test-link>
-      Not found
+      -&gt; Not found
     </Link>
   )
 }

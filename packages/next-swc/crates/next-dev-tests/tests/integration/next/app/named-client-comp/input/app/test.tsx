@@ -1,12 +1,9 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useTestHarness } from '@turbo/pack-test-harness'
 
 export function Test() {
-  useEffect(() => {
-    import('@turbo/pack-test-harness').then(() => {
-      it('should allow to import a named export from a client component', () => {})
-    })
-    return () => {}
+  useTestHarness(() => {
+    it('should allow to import a named export from a client component', () => {})
   }, [])
 }

@@ -657,7 +657,7 @@ createNextDescribe(
             initialHeaders: {
               'content-type': 'application/json',
               'x-next-cache-tags':
-                'thankyounext,/route-handler/revalidate-360-isr',
+                'thankyounext,/route-handler/revalidate-360-isr/route',
             },
             initialRevalidateSeconds: false,
             srcRoute: '/route-handler/revalidate-360-isr',
@@ -1356,7 +1356,7 @@ createNextDescribe(
         .elementByCss('#draft-mode')
         .text()
 
-      expect(content).toBe('{"result":{"enabled":false}}')
+      expect(content).toBe('{"isEnabled":false}')
     })
 
     it('should force SSR correctly for headers usage', async () => {

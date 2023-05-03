@@ -1,11 +1,8 @@
-import { useEffect } from 'react'
+import { useTestHarness } from '@turbo/pack-test-harness'
 import MagicImage from 'magic-image'
 
 export default function Home() {
-  useEffect(() => {
-    // Only run on client
-    import('@turbo/pack-test-harness').then(runTests)
-  })
+  useTestHarness(runTests)
 
   return <MagicImage />
 }

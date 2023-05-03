@@ -24,7 +24,7 @@ use turbo_binding::{
 };
 use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value};
 
-use crate::{embed_js::next_js_file_path, util::get_asset_path_from_route};
+use crate::{embed_js::next_js_file_path, util::get_asset_path_from_pathname};
 
 #[turbo_tasks::function]
 pub async fn create_page_loader(
@@ -65,7 +65,7 @@ impl PageLoaderAssetVc {
         writeln!(
             result,
             "const PAGE_PATH = {};\n",
-            StringifyJs(&format_args!("/{}", &*this.pathname.await?))
+            StringifyJs(&*this.pathname.await?)
         )?;
 
         let page_loader_path = next_js_file_path("entry/page-loader.ts");
@@ -126,11 +126,10 @@ fn page_loader_chunk_reference_description() -> StringVc {
 impl Asset for PageLoaderAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<AssetIdentVc> {
-        Ok(AssetIdentVc::from_path(
-            self.server_root
-                .join("_next/static/chunks/pages")
-                .join(&get_asset_path_from_route(&self.pathname.await?, ".js")),
-        ))
+        Ok(AssetIdentVc::from_path(self.server_root.join(&format!(
+            "_next/static/chunks/pages{}",
+            get_asset_path_from_pathname(&self.pathname.await?, ".js")
+        ))))
     }
 
     #[turbo_tasks::function]

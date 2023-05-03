@@ -211,7 +211,7 @@ async fn run_test(resource: PathBuf) -> JestRunResult {
     )
     .entry_request(EntryRequest::Module(
         "@turbo/pack-test-harness".to_string(),
-        "".to_string(),
+        "/harness".to_string(),
     ))
     .entry_request(EntryRequest::Relative("index.js".to_owned()))
     .eager_compile(false)
