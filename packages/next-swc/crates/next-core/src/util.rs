@@ -63,7 +63,7 @@ pub async fn pathname_for_path(
         format!("/{}", path.strip_suffix("/index").unwrap_or(path))
     };
 
-    Ok(StringVc::cell(path.to_string()))
+    Ok(StringVc::cell(path))
 }
 
 // Adapted from https://github.com/vercel/next.js/blob/canary/packages/next/shared/lib/router/utils/get-asset-path-from-route.ts
