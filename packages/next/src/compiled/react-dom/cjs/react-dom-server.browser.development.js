@@ -17,7 +17,7 @@ if (process.env.NODE_ENV !== "production") {
 var React = require("next/dist/compiled/react");
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-next-6eadbe0c4-20230425';
+var ReactVersion = '18.3.0-next-5dd90c562-20230502';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -1918,6 +1918,7 @@ var startInlineScript = stringToPrecomputedChunk('<script>');
 var endInlineScript = stringToPrecomputedChunk('</script>');
 var startScriptSrc = stringToPrecomputedChunk('<script src="');
 var startModuleSrc = stringToPrecomputedChunk('<script type="module" src="');
+var scriptNonce = stringToPrecomputedChunk('" nonce="');
 var scriptIntegirty = stringToPrecomputedChunk('" integrity="');
 var endAsyncScript = stringToPrecomputedChunk('" async=""></script>');
 /**
@@ -1952,7 +1953,7 @@ function createResponseState(identifierPrefix, nonce, bootstrapScriptContent, bo
   var idPrefix = identifierPrefix === undefined ? '' : identifierPrefix;
   var inlineScriptWithNonce = nonce === undefined ? startInlineScript : stringToPrecomputedChunk('<script nonce="' + escapeTextForBrowser(nonce) + '">');
   var bootstrapChunks = [];
-  var externalRuntimeDesc = null;
+  var externalRuntimeScript = null;
   var streamingFormat = ScriptStreamingFormat;
 
   if (bootstrapScriptContent !== undefined) {
@@ -1965,12 +1966,27 @@ function createResponseState(identifierPrefix, nonce, bootstrapScriptContent, bo
       streamingFormat = DataStreamingFormat;
 
       if (typeof externalRuntimeConfig === 'string') {
-        externalRuntimeDesc = {
+        externalRuntimeScript = {
           src: externalRuntimeConfig,
-          integrity: undefined
+          chunks: []
         };
+        pushScriptImpl(externalRuntimeScript.chunks, {
+          src: externalRuntimeConfig,
+          async: true,
+          integrity: undefined,
+          nonce: nonce
+        });
       } else {
-        externalRuntimeDesc = externalRuntimeConfig;
+        externalRuntimeScript = {
+          src: externalRuntimeConfig.src,
+          chunks: []
+        };
+        pushScriptImpl(externalRuntimeScript.chunks, {
+          src: externalRuntimeConfig.src,
+          async: true,
+          integrity: externalRuntimeConfig.integrity,
+          nonce: nonce
+        });
       }
     }
   }
@@ -1981,6 +1997,10 @@ function createResponseState(identifierPrefix, nonce, bootstrapScriptContent, bo
       var src = typeof scriptConfig === 'string' ? scriptConfig : scriptConfig.src;
       var integrity = typeof scriptConfig === 'string' ? undefined : scriptConfig.integrity;
       bootstrapChunks.push(startScriptSrc, stringToChunk(escapeTextForBrowser(src)));
+
+      if (nonce) {
+        bootstrapChunks.push(scriptNonce, stringToChunk(escapeTextForBrowser(nonce)));
+      }
 
       if (integrity) {
         bootstrapChunks.push(scriptIntegirty, stringToChunk(escapeTextForBrowser(integrity)));
@@ -2000,6 +2020,10 @@ function createResponseState(identifierPrefix, nonce, bootstrapScriptContent, bo
 
       bootstrapChunks.push(startModuleSrc, stringToChunk(escapeTextForBrowser(_src)));
 
+      if (nonce) {
+        bootstrapChunks.push(scriptNonce, stringToChunk(escapeTextForBrowser(nonce)));
+      }
+
       if (_integrity) {
         bootstrapChunks.push(scriptIntegirty, stringToChunk(escapeTextForBrowser(_integrity)));
       }
@@ -2018,7 +2042,7 @@ function createResponseState(identifierPrefix, nonce, bootstrapScriptContent, bo
     streamingFormat: streamingFormat,
     startInlineScript: inlineScriptWithNonce,
     instructions: NothingSent,
-    externalRuntimeConfig: externalRuntimeDesc,
+    externalRuntimeScript: externalRuntimeScript,
     htmlChunks: null,
     headChunks: null,
     hasBody: false,
@@ -2026,7 +2050,8 @@ function createResponseState(identifierPrefix, nonce, bootstrapScriptContent, bo
     preconnectChunks: [],
     preloadChunks: [],
     hoistableChunks: [],
-    stylesToHoist: false
+    stylesToHoist: false,
+    nonce: nonce
   };
 } // Constants for the insertion mode we're currently writing in. We don't encode all HTML5 insertion
 // modes. We only include the variants as they matter for the sake of our purposes.
@@ -2267,36 +2292,58 @@ function pushStringAttribute(target, name, value) // not null or undefined
   if (typeof value !== 'function' && typeof value !== 'symbol' && typeof value !== 'boolean') {
     target.push(attributeSeparator, stringToChunk(name), attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
   }
-} // Since this will likely be repeated a lot in the HTML, we use a more concise message
+}
 // than on the client and hopefully it's googleable.
 
 
 stringToPrecomputedChunk(escapeTextForBrowser( // eslint-disable-next-line no-script-url
 "javascript:throw new Error('A React form was unexpectedly submitted.')"));
+var startHiddenInputChunk = stringToPrecomputedChunk('<input type="hidden"');
+
+function pushAdditionalFormField(value, key) {
+  var target = this;
+  target.push(startHiddenInputChunk);
+
+  if (typeof value !== 'string') {
+    throw new Error('File/Blob fields are not yet supported in progressive forms. ' + 'It probably means you are closing over binary data or FormData in a Server Action.');
+  }
+
+  pushStringAttribute(target, 'name', key);
+  pushStringAttribute(target, 'value', value);
+  target.push(endOfStartTagSelfClosing);
+}
+
+function pushAdditionalFormFields(target, formData) {
+  if (formData !== null) {
+    // $FlowFixMe[prop-missing]: FormData has forEach.
+    formData.forEach(pushAdditionalFormField, target);
+  }
+}
 
 function pushFormActionAttribute(target, responseState, formAction, formEncType, formMethod, formTarget, name) {
-  {
-    // Plain form actions support all the properties, so we have to emit them.
-    if (name !== null) {
-      pushAttribute(target, 'name', name);
-    }
+  var formData = null;
 
-    if (formAction !== null) {
-      pushAttribute(target, 'formAction', formAction);
-    }
-
-    if (formEncType !== null) {
-      pushAttribute(target, 'formEncType', formEncType);
-    }
-
-    if (formMethod !== null) {
-      pushAttribute(target, 'formMethod', formMethod);
-    }
-
-    if (formTarget !== null) {
-      pushAttribute(target, 'formTarget', formTarget);
-    }
+  if (name !== null) {
+    pushAttribute(target, 'name', name);
   }
+
+  if (formAction !== null) {
+    pushAttribute(target, 'formAction', formAction);
+  }
+
+  if (formEncType !== null) {
+    pushAttribute(target, 'formEncType', formEncType);
+  }
+
+  if (formMethod !== null) {
+    pushAttribute(target, 'formMethod', formMethod);
+  }
+
+  if (formTarget !== null) {
+    pushAttribute(target, 'formTarget', formTarget);
+  }
+
+  return formData;
 }
 
 function pushAttribute(target, name, value) // not null or undefined
@@ -2831,26 +2878,24 @@ function pushStartForm(target, props, responseState) {
     }
   }
 
-  {
-    // Plain form actions support all the properties, so we have to emit them.
-    if (formAction !== null) {
-      pushAttribute(target, 'action', formAction);
-    }
+  if (formAction !== null) {
+    pushAttribute(target, 'action', formAction);
+  }
 
-    if (formEncType !== null) {
-      pushAttribute(target, 'encType', formEncType);
-    }
+  if (formEncType !== null) {
+    pushAttribute(target, 'encType', formEncType);
+  }
 
-    if (formMethod !== null) {
-      pushAttribute(target, 'method', formMethod);
-    }
+  if (formMethod !== null) {
+    pushAttribute(target, 'method', formMethod);
+  }
 
-    if (formTarget !== null) {
-      pushAttribute(target, 'target', formTarget);
-    }
+  if (formTarget !== null) {
+    pushAttribute(target, 'target', formTarget);
   }
 
   target.push(endOfStartTag);
+
   pushInnerHTML(target, innerHTML, children);
 
   if (typeof children === 'string') {
@@ -2943,7 +2988,7 @@ function pushInput(target, props, responseState) {
     }
   }
 
-  pushFormActionAttribute(target, responseState, formAction, formEncType, formMethod, formTarget, name);
+  var formData = pushFormActionAttribute(target, responseState, formAction, formEncType, formMethod, formTarget, name);
 
   {
     if (checked !== null && defaultChecked !== null && !didWarnDefaultChecked) {
@@ -2971,7 +3016,9 @@ function pushInput(target, props, responseState) {
     pushAttribute(target, 'value', defaultValue);
   }
 
-  target.push(endOfStartTagSelfClosing);
+  target.push(endOfStartTagSelfClosing); // We place any additional hidden form fields after the input.
+
+  pushAdditionalFormFields(target, formData);
   return null;
 }
 
@@ -3037,8 +3084,10 @@ function pushStartButton(target, props, responseState) {
     }
   }
 
-  pushFormActionAttribute(target, responseState, formAction, formEncType, formMethod, formTarget, name);
-  target.push(endOfStartTag);
+  var formData = pushFormActionAttribute(target, responseState, formAction, formEncType, formMethod, formTarget, name);
+  target.push(endOfStartTag); // We place any additional hidden form fields we need to include inside the button itself.
+
+  pushAdditionalFormFields(target, formData);
   pushInnerHTML(target, innerHTML, children);
 
   if (typeof children === 'string') {
@@ -4978,16 +5027,16 @@ function preloadLateStyles(set, precedence) {
 
 function writePreamble(destination, resources, responseState, willFlushAllSegments) {
   // This function must be called exactly once on every request
-  if (!willFlushAllSegments && responseState.externalRuntimeConfig) {
+  if (!willFlushAllSegments && responseState.externalRuntimeScript) {
     // If the root segment is incomplete due to suspended tasks
     // (e.g. willFlushAllSegments = false) and we are using data
     // streaming format, ensure the external runtime is sent.
     // (User code could choose to send this even earlier by calling
     //  preinit(...), if they know they will suspend).
-    var _responseState$extern = responseState.externalRuntimeConfig,
+    var _responseState$extern = responseState.externalRuntimeScript,
         src = _responseState$extern.src,
-        integrity = _responseState$extern.integrity;
-    internalPreinitScript(resources, src, integrity);
+        chunks = _responseState$extern.chunks;
+    internalPreinitScript(resources, src, chunks);
   }
 
   var htmlChunks = responseState.htmlChunks;
@@ -5042,10 +5091,10 @@ function writePreamble(destination, resources, responseState, willFlushAllSegmen
     var key = getResourceKey(resource.props.as, resource.props.href);
 
     if (resources.stylesMap.has(key)) ; else {
-      var chunks = resource.chunks;
+      var _chunks = resource.chunks;
 
-      for (i = 0; i < chunks.length; i++) {
-        writeChunk(destination, chunks[i]);
+      for (i = 0; i < _chunks.length; i++) {
+        writeChunk(destination, _chunks[i]);
       }
     }
   });
@@ -5974,29 +6023,21 @@ function preinit(href, options) {
         }
     }
   }
-} // This method is trusted. It must only be called from within this codebase and it assumes the arguments
-// conform to the types because no user input is being passed in. It also assumes that it is being called as
-// part of a work or flush loop and therefore does not need to request Fizz to flush Resources.
+}
 
-
-function internalPreinitScript(resources, src, integrity) {
+function internalPreinitScript(resources, src, chunks) {
   var key = getResourceKey('script', src);
   var resource = resources.scriptsMap.get(key);
 
   if (!resource) {
     resource = {
       type: 'script',
-      chunks: [],
+      chunks: chunks,
       state: NoState,
       props: null
     };
     resources.scriptsMap.set(key, resource);
     resources.scripts.add(resource);
-    pushScriptImpl(resource.chunks, {
-      async: true,
-      src: src,
-      integrity: integrity
-    });
   }
 
   return;
@@ -6064,7 +6105,8 @@ function scriptPropsFromPreinitOptions(src, options) {
     src: src,
     async: true,
     crossOrigin: options.crossOrigin,
-    integrity: options.integrity
+    integrity: options.integrity,
+    nonce: options.nonce
   };
 }
 
