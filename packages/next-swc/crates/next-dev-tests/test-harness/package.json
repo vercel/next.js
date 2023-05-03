@@ -2,7 +2,7 @@
   "name": "@turbo/pack-test-harness",
   "private": true,
   "version": "0.0.1",
-  "main": "./harness.ts",
+  "main": "./hooks.ts",
   "dependencies": {
     "expect": "24.5.0",
     "jest-circus": "27.5.1",

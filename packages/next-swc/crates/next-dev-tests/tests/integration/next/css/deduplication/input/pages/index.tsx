@@ -1,14 +1,10 @@
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
+import { Harness, useTestHarness } from '@turbo/pack-test-harness'
 
 export default function Page() {
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
 
-  useEffect(() => {
-    // Only run on client
-    import('@turbo/pack-test-harness').then((mod) =>
-      runTests(mod, iframeRef.current!)
-    )
-  })
+  useTestHarness((harness) => runTests(harness, iframeRef.current!))
 
   return (
     <>
@@ -16,8 +12,6 @@ export default function Page() {
     </>
   )
 }
-
-type Harness = typeof import('@turbo/pack-test-harness')
 
 declare global {
   interface Window {

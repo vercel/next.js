@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useTestHarness } from '@turbo/pack-test-harness'
 
 function test() {
   it('should make a GET request', async () => {
@@ -27,8 +27,5 @@ function test() {
 }
 
 export default function Test() {
-  useEffect(() => {
-    import('@turbo/pack-test-harness').then(() => test())
-    return () => {}
-  }, [])
+  useTestHarness(() => test())
 }
