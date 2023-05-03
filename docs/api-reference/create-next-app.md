@@ -57,9 +57,9 @@ Options:
 
     Initialize with ESLint config.
 
-  --app-dir
+  --app
 
-    Initialize as an `app/` directory project.
+    Initialize as an App Router project.
 
   --src-dir
 
