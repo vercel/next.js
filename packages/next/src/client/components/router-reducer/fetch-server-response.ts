@@ -67,7 +67,10 @@ export async function fetchServerResponse(
       }
     }
     
+    // without cloning the URL any link that you click on will add the `rscQuery` to the url you are visting.
     const cloneUrl = fetchUrl.searchParams ? new URL(fetchUrl.toString()) : new URL(fetchUrl);
+
+    // this can probably be removed, I was doing all of this with patch-package and ran into some issues without having proper TS support in node_modules when implementing the patch
     if (!cloneUrl.searchParams.has('rscQuery')) cloneUrl.searchParams.append('rscQuery', true)
   
     const res = await fetch(cloneUrl, {
