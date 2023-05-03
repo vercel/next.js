@@ -1,10 +1,10 @@
 use std::path::{Path, PathBuf};
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{AbsoluteSystemPathBuf, IntoSystem, PathValidationError};
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Serialize, Deserialize)]
 pub struct AnchoredSystemPathBuf(PathBuf);
 
 impl TryFrom<&Path> for AnchoredSystemPathBuf {
