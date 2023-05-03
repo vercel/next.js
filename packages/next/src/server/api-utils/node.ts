@@ -35,7 +35,7 @@ import {
   PRERENDER_REVALIDATE_HEADER,
   PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
 } from '../../lib/constants'
-import { invokeRequest } from '../lib/server-ipc'
+import { invokeRequest } from '../lib/server-ipc/invoke-request'
 
 export function tryGetPreviewData(
   req: IncomingMessage | BaseNextRequest | Request,
