@@ -63,6 +63,7 @@ import { IncrementalCache } from '../server/lib/incremental-cache'
 import { patchFetch } from '../server/lib/patch-fetch'
 import { nodeFs } from '../server/lib/node-fs-methods'
 import '../server/node-environment'
+import * as ciEnvironment from '../telemetry/ci-info'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -1216,6 +1217,7 @@ export async function buildAppStaticPaths({
     }),
     CurCacheHandler: CacheHandler,
     requestHeaders,
+    minimalMode: ciEnvironment.hasNextSupport,
   })
 
   return StaticGenerationAsyncStorageWrapper.wrap(
