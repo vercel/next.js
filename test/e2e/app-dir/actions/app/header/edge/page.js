@@ -1,6 +1,6 @@
-import { getCookie, getHeader, setCookie } from './actions'
-import UI from './ui'
-import { validator } from './validator'
+import { getCookie, getHeader, setCookie } from '../actions'
+import UI from '../ui'
+import { validator } from '../validator'
 
 export default function Page() {
   const prefix = 'Prefix:'
@@ -16,3 +16,5 @@ export default function Page() {
     />
   )
 }
+
+export const runtime = 'edge'
