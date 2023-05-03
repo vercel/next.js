@@ -32,7 +32,6 @@ export const createServerHandler = async ({
     initialize: typeof import('./render-server').initialize
   }
 
-  // eslint-disable-next-line no-loop-func
   let didInitialize = false
 
   for (const _worker of ((routerWorker as any)._workerPool?._workers || []) as {
@@ -40,6 +39,7 @@ export const createServerHandler = async ({
   }[]) {
     _worker._child.on('exit', (code, signal) => {
       // catch failed initializing without retry
+      // eslint-disable-next-line no-loop-func
       if ((code || signal) && !didInitialize) {
         routerWorker?.end()
         process.exit(1)
