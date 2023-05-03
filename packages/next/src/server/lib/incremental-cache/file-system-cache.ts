@@ -290,15 +290,17 @@ export default class FileSystemCache implements CacheHandler {
       const innerData = data.value.data
       const derivedTags = getDerivedTags(innerData.tags || [])
 
-      const isStale = derivedTags.some((tag) => {
+      const wasRevalidated = derivedTags.some((tag) => {
         return (
           tagsManifest?.items[tag]?.revalidatedAt &&
           tagsManifest?.items[tag].revalidatedAt >=
             (data?.lastModified || Date.now())
         )
       })
-      if (isStale) {
-        data.lastModified = Date.now() - CACHE_ONE_YEAR
+      // When revalidate tag is called we don't return
+      // stale data so it's updated right away
+      if (wasRevalidated) {
+        data = undefined
       }
     }
 
