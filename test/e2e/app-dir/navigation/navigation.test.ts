@@ -7,7 +7,7 @@ createNextDescribe(
   {
     files: __dirname,
   },
-  ({ next, isNextDev, isNextDeploy }) => {
+  ({ next, isNextDeploy }) => {
     describe('query string', () => {
       it('should set query correctly', async () => {
         const browser = await webdriver(next.url, '/')
