@@ -68,9 +68,11 @@ import * as Log from '../../build/output/log'
 import isError, { getProperError } from '../../lib/is-error'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import { getSortedRoutes } from '../../shared/lib/router/utils'
-import { runDependingOnPageType } from '../../build/entries'
+import {
+  getStaticInfoIncludingLayouts,
+  runDependingOnPageType,
+} from '../../build/entries'
 import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
-import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import {
@@ -498,12 +500,14 @@ export default class DevServer extends Server {
             pagesType: 'root',
           })
 
-          const staticInfo = await getPageStaticInfo({
+          const staticInfo = await getStaticInfoIncludingLayouts({
             pageFilePath: fileName,
-            nextConfig: this.nextConfig,
+            config: this.nextConfig,
+            appDir: this.appDir,
             page: rootFile,
             isDev: true,
-            pageType: isAppPath ? 'app' : 'pages',
+            isInsideAppDir: isAppPath,
+            pageExtensions: this.nextConfig.pageExtensions,
           })
 
           if (isMiddlewareFile(rootFile)) {
