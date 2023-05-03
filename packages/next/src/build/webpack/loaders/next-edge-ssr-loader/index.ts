@@ -99,7 +99,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
     import {IncrementalCache} from 'next/dist/esm/server/lib/incremental-cache'
 
     enhanceGlobals()
-    
+
     const pageType = ${JSON.stringify(pagesType)}
     ${
       isAppDir
@@ -126,7 +126,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       const appRenderToHTML = null
     `
     }
-    
+
     const incrementalCacheHandler = ${
       incrementalCacheHandlerPath
         ? `require("${incrementalCacheHandlerPath}")`

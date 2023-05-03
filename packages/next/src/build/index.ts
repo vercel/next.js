@@ -483,6 +483,19 @@ export default async function build(
               mappedAppPages[pageKey.replace('[[...__metadata_id__]]/', '')] =
                 pagePath
             }
+
+            if (
+              pageKey.includes('sitemap.xml/[[...__metadata_id__]]') &&
+              isDynamic
+            ) {
+              delete mappedAppPages[pageKey]
+              mappedAppPages[
+                pageKey.replace(
+                  'sitemap.xml/[[...__metadata_id__]]',
+                  'sitemap/[__metadata_id__]'
+                )
+              ] = pagePath
+            }
           }
         }
 
@@ -1392,7 +1405,12 @@ export default async function build(
                     })
                   : undefined
 
-                const pageRuntime = staticInfo?.runtime
+                const pageRuntime = middlewareManifest.functions[
+                  originalAppPath || page
+                ]
+                  ? 'edge'
+                  : staticInfo?.runtime
+
                 isServerComponent =
                   pageType === 'app' &&
                   staticInfo?.rsc !== RSC_MODULE_TYPES.client
