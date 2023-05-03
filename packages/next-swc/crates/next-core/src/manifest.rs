@@ -26,7 +26,7 @@ use turbo_tasks::{
 use crate::{
     embed_js::next_js_file,
     next_config::{NextConfigVc, RewritesReadRef},
-    util::get_asset_path_from_route,
+    util::get_asset_path_from_pathname,
 };
 
 /// A content source which creates the next.js `_devPagesManifest.json` and
@@ -111,12 +111,12 @@ impl DevManifestContentSourceVc {
         let sorted_pages = &*self.find_pages().await?;
         let routes = sorted_pages
             .iter()
-            .map(|p| {
+            .map(|pathname| {
                 (
-                    p,
+                    pathname,
                     vec![format!(
-                        "_next/static/chunks/pages/{}",
-                        get_asset_path_from_route(p, ".js")
+                        "_next/static/chunks/pages{}",
+                        get_asset_path_from_pathname(pathname, ".js")
                     )],
                 )
             })
