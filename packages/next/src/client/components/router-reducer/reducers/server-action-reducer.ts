@@ -51,10 +51,6 @@ async function fetchServerAction(
     body,
   })
 
-  if (!res.ok) {
-    throw new Error(await res.text())
-  }
-
   const location = res.headers.get('location')
 
   const redirectLocation = location
@@ -92,63 +88,67 @@ export function serverActionReducer(
       fetchServerAction(state, action)
     )
   }
-  try {
-    // suspends until the server action is resolved.
-    const { result, redirectLocation } = readRecordValue(
-      action.mutable.inFlightServerAction!
-    ) as Awaited<FetchServerActionResult>
 
-    if (redirectLocation) {
-      const flightData = result as FlightData | undefined
+  // suspends until the server action is resolved.
+  const { result, redirectLocation } = readRecordValue(
+    action.mutable.inFlightServerAction!
+  ) as Awaited<FetchServerActionResult>
 
-      // the redirection might have a flight data associated with it, so we'll populate the cache with it
-      if (flightData) {
-        const href = createHrefFromUrl(
-          redirectLocation,
-          // Ensures the hash is not part of the cache key as it does not affect fetching the server
-          false
-        )
-        state.prefetchCache.set(href, {
-          data: createRecordFromThenable(
-            Promise.resolve([
-              flightData,
-              // TODO-APP: verify the logic around canonical URL overrides
-              undefined,
-            ])
-          ),
-          kind: PrefetchKind.TEMPORARY, // TODO-APP: maybe this could cached longer?
-          prefetchTime: Date.now(),
-          treeAtTimeOfPrefetch: action.mutable.previousTree!,
-          lastUsedTime: null,
-        })
-      }
+  if (redirectLocation) {
+    const flightData = result as FlightData | undefined
 
-      // we throw the redirection in the action handler so that it is caught during render
-      action.reject(
-        getRedirectError(redirectLocation.toString(), RedirectType.push)
+    // the redirection might have a flight data associated with it, so we'll populate the cache with it
+    if (flightData) {
+      const href = createHrefFromUrl(
+        redirectLocation,
+        // Ensures the hash is not part of the cache key as it does not affect fetching the server
+        false
       )
-    } else {
-      const [actionResult, flightData] = result ?? [undefined, undefined]
-      // TODO-APP: populate the prefetch cache with the new flight data
-      if (flightData) {
-        // this is an intentional hack around React: we want to update the tree in a new render
-        setTimeout(() => {
-          action.changeByServerResponse(
-            action.mutable.previousTree!,
+      state.prefetchCache.set(href, {
+        data: createRecordFromThenable(
+          Promise.resolve([
             flightData,
             // TODO-APP: verify the logic around canonical URL overrides
-            undefined
-          )
-        })
-      }
-      action.resolve(actionResult)
+            undefined,
+          ])
+        ),
+        kind: PrefetchKind.TEMPORARY, //TODO-APP: maybe this could cached longer?
+        prefetchTime: Date.now(),
+        treeAtTimeOfPrefetch: action.mutable.previousTree!,
+        lastUsedTime: null,
+      })
     }
-  } catch (e: any) {
-    if (e.status === 'rejected') {
-      action.reject(e.value)
-    } else {
-      // it's an unresolved promise, so we want to keep suspending
-      throw e
+
+    // we throw the redirection in the action handler so that it is caught during render
+    action.reject(
+      getRedirectError(redirectLocation.toString(), RedirectType.push)
+    )
+  } else {
+    const [actionResult, flightData] = result ?? [undefined, undefined]
+
+    // TODO-APP: populate the prefetch cache with the new flight data
+    if (flightData) {
+      // this is an intentional hack around React: we want to update the tree in a new render
+      setTimeout(() => {
+        action.changeByServerResponse(
+          action.mutable.previousTree!,
+          flightData,
+          // TODO-APP: verify the logic around canonical URL overrides
+          undefined
+        )
+      })
+    }
+    try {
+      if (actionResult) {
+        // the promise should be resolved by now or an actual error
+        const actualResult = readRecordValue(actionResult)
+        action.resolve(actualResult)
+      } else {
+        action.resolve(undefined)
+      }
+    } catch (e) {
+      // there should be a reason at this point
+      action.reject((e as any).reason)
     }
   }
 

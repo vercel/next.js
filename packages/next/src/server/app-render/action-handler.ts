@@ -291,7 +291,7 @@ export async function handleAction({
           staticGenerationStore.isRevalidate = true
 
           actionResult = await generateFlight({
-            actionResult: returnVal,
+            actionResult: Promise.resolve(returnVal),
             // if the page was not revalidated, we can skip the rendering the flight tree
             skipFlight: !staticGenerationStore.pathWasRevalidated,
           })
@@ -335,9 +335,11 @@ export async function handleAction({
 
       if (isFetchAction) {
         res.statusCode = 500
-        return new RenderResult(
-          (err as Error)?.message ?? 'Internal Server Error'
-        )
+        return await generateFlight({
+          actionResult: Promise.reject(err),
+          // if the page was not revalidated, we can skip the rendering the flight tree
+          skipFlight: !staticGenerationStore.pathWasRevalidated,
+        })
       }
 
       throw err
