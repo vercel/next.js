@@ -1972,7 +1972,12 @@ server.listen(currentPort, async (err) => {
     process.exit(1)
   }
 
-  handler = await createServerHandler({ port: currentPort, hostname, dir })
+  handler = await createServerHandler({
+    port: currentPort,
+    hostname,
+    dir,
+    conf: nextConfig,
+  })
 
   console.log(
     'Listening on port',

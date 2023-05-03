@@ -285,8 +285,6 @@ export default async function build(
       const isAppDirEnabled = !!config.experimental.appDir
 
       if (isAppDirEnabled) {
-        process.env.NEXT_PREBUNDLED_REACT = '1'
-
         if (!process.env.__NEXT_TEST_MODE && ciEnvironment.hasNextSupport) {
           const requireHook = require.resolve('../server/require-hook')
           const contents = await promises.readFile(requireHook, 'utf8')

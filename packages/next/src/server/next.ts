@@ -180,9 +180,6 @@ export class NextServer {
             )
           }
         }
-        if (conf.experimental.appDir) {
-          process.env.NEXT_PREBUNDLED_REACT = '1'
-        }
         this.server = await this.createServer({
           ...this.options,
           conf,

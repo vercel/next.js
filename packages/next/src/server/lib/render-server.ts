@@ -42,6 +42,7 @@ export async function initialize(opts: {
   dir: string
   port: number
   dev: boolean
+  minimalMode?: boolean
   hostname?: string
   workerType: 'router' | 'render'
   keepAliveTimeout?: number
