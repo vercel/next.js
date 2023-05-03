@@ -1,12 +1,14 @@
 import Link from 'next/link'
 import '@/styles/a.css'
 import { useEffect } from 'react'
+import { useTestHarness } from '@turbo/pack-test-harness'
 
 export default function A() {
+  useTestHarness((harness) => {
+    harness.markAsHydrated()
+  })
+
   useEffect(() => {
-    import('@turbo/pack-test-harness').then((harness) =>
-      harness.markAsHydrated()
-    )
     globalThis.DYNAMIC_IMPORT1 = () => import('../lib/dynamic1.js')
     globalThis.DYNAMIC_IMPORT2 = () => import('../lib/dynamic2.js')
   })

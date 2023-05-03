@@ -20,7 +20,7 @@ PlainIssue {
                 context: Some(
                     "[next]/entry/app-renderer.tsx",
                 ),
-                description: "server-side rendering //",
+                description: "server-side rendering /",
             },
         ],
     ),
