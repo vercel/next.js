@@ -30,6 +30,7 @@ export const createServerHandler = async ({
     initialize: typeof import('./render-server').initialize
   }
 
+  // eslint-disable-next-line no-loop-func
   let didInitialize = false
 
   for (const _worker of ((routerWorker as any)._workerPool?._workers || []) as {
