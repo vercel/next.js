@@ -69,11 +69,17 @@ pub async fn get_server_resolve_options_context(
     let foreign_code_context_condition = foreign_code_context_condition(next_config).await?;
     let root_dir = project_path.root().resolve().await?;
     let unsupported_modules_resolve_plugin = UnsupportedModulesResolvePluginVc::new(project_path);
+    let server_component_externals_plugin = ExternalCjsModulesResolvePluginVc::new(
+        project_path,
+        false,
+        next_config.server_component_externals(),
+    );
 
     Ok(match ty.into_value() {
         ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
             let external_cjs_modules_plugin = ExternalCjsModulesResolvePluginVc::new(
                 project_path,
+                true,
                 next_config.transpile_packages(),
             );
 
@@ -108,7 +114,10 @@ pub async fn get_server_resolve_options_context(
                 module: true,
                 custom_conditions: vec!["development".to_string()],
                 import_map: Some(next_server_import_map),
-                plugins: vec![unsupported_modules_resolve_plugin.into()],
+                plugins: vec![
+                    server_component_externals_plugin.into(),
+                    unsupported_modules_resolve_plugin.into(),
+                ],
                 ..Default::default()
             };
             ResolveOptionsContext {
@@ -129,7 +138,10 @@ pub async fn get_server_resolve_options_context(
                 module: true,
                 custom_conditions: vec!["development".to_string(), "react-server".to_string()],
                 import_map: Some(next_server_import_map),
-                plugins: vec![unsupported_modules_resolve_plugin.into()],
+                plugins: vec![
+                    server_component_externals_plugin.into(),
+                    unsupported_modules_resolve_plugin.into(),
+                ],
                 ..Default::default()
             };
             ResolveOptionsContext {
@@ -148,7 +160,10 @@ pub async fn get_server_resolve_options_context(
                 module: true,
                 custom_conditions: vec!["development".to_string()],
                 import_map: Some(next_server_import_map),
-                plugins: vec![unsupported_modules_resolve_plugin.into()],
+                plugins: vec![
+                    server_component_externals_plugin.into(),
+                    unsupported_modules_resolve_plugin.into(),
+                ],
                 ..Default::default()
             };
             ResolveOptionsContext {
