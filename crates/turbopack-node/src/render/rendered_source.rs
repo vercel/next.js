@@ -226,14 +226,14 @@ impl GetContentSourceContent for NodeRenderGetContentResult {
                 url: url.clone(),
                 raw_query: raw_query.clone(),
                 raw_headers: raw_headers.clone(),
-                path: format!("/{}", source.pathname.await?),
+                path: source.pathname.await?.clone_value(),
                 data: Some(self.render_data.await?),
             }
             .cell(),
         )
         .issue_context(
             entry.module.ident().path(),
-            format!("server-side rendering /{}", source.pathname.await?),
+            format!("server-side rendering {}", source.pathname.await?),
         )
         .await?;
         Ok(match *result.await? {
