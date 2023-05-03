@@ -63,16 +63,24 @@ async function fetchServerAction(
     res.headers.get('content-type') === RSC_CONTENT_TYPE_HEADER
 
   if (isFlightResponse) {
-    const result = (await createFromFetch(Promise.resolve(res), {
+    const result = await createFromFetch(Promise.resolve(res), {
       callServer,
-    })) as ActionFlightData | undefined
-
-    const [actionResult, actionFlightData] = result ?? []
-
-    return {
-      actionResult,
-      actionFlightData,
-      redirectLocation,
+    })
+    // if it was a redirection, then result is just a regular RSC payload
+    if (location) {
+      return {
+        actionFlightData: result as FlightData,
+        redirectLocation,
+      }
+      // otherwise it's a tuple of [actionResult, actionFlightData]
+    } else {
+      const [actionResult, actionFlightData] =
+        (result as ActionFlightData | undefined) ?? []
+      return {
+        actionResult,
+        actionFlightData,
+        redirectLocation,
+      }
     }
   }
   return {

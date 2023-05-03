@@ -55,7 +55,7 @@ export default async function Page() {
           id="revalidate-thankyounext"
           formAction={async () => {
             'use server'
-            await revalidateTag('thankyounext')
+            revalidateTag('thankyounext')
           }}
         >
           revalidate thankyounext
@@ -66,7 +66,7 @@ export default async function Page() {
           id="revalidate-justputit"
           formAction={async () => {
             'use server'
-            await revalidateTag('justputit')
+            revalidateTag('justputit')
           }}
         >
           revalidate justputit
@@ -77,7 +77,7 @@ export default async function Page() {
           id="revalidate-path"
           formAction={async () => {
             'use server'
-            await revalidatePath('/revalidate')
+            revalidatePath('/revalidate')
           }}
         >
           revalidate path
@@ -88,8 +88,8 @@ export default async function Page() {
           id="revalidate-path-redirect"
           formAction={async () => {
             'use server'
-            await revalidateTag('justputit')
-            await redirect('/revalidate')
+            revalidateTag('justputit')
+            redirect('/revalidate')
           }}
         >
           revalidate justputit + redirect
@@ -100,7 +100,7 @@ export default async function Page() {
           id="redirect"
           formAction={async () => {
             'use server'
-            await redirect('/revalidate')
+            redirect('/revalidate')
           }}
         >
           redirect
