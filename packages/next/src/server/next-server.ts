@@ -107,7 +107,6 @@ import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
 import { addPathPrefix } from '../shared/lib/router/utils/add-path-prefix'
 import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
 import { filterReqHeaders, invokeRequest } from './lib/server-ipc'
-import { createRequestResponseMocks } from './lib/mock-request'
 
 export * from './base-server'
 
@@ -907,13 +906,16 @@ export default class NextNodeServer extends BaseServer {
       pageModule,
       {
         ...this.renderOpts.previewProps,
-        revalidate: this.revalidate.bind(this),
+        revalidate: (newReq: IncomingMessage, newRes: ServerResponse) =>
+          this.getRequestHandler()(
+            new NodeNextRequest(newReq),
+            new NodeNextResponse(newRes)
+          ),
         // internal config so is not typed
         trustHostHeader: (this.nextConfig.experimental as Record<string, any>)
           .trustHostHeader,
         allowedRevalidateHeaderKeys:
           this.nextConfig.experimental.allowedRevalidateHeaderKeys,
-        hostname: this.hostname,
       },
       this.minimalMode,
       this.renderOpts.dev,
@@ -1668,36 +1670,6 @@ export default class NextNodeServer extends BaseServer {
     return async (req, res, parsedUrl) => {
       return handler(this.normalizeReq(req), this.normalizeRes(res), parsedUrl)
     }
-  }
-
-  public async revalidate({
-    urlPath,
-    revalidateHeaders,
-    opts,
-  }: {
-    urlPath: string
-    revalidateHeaders: { [key: string]: string | string[] }
-    opts: { unstable_onlyGenerated?: boolean }
-  }) {
-    const mocked = createRequestResponseMocks({
-      url: urlPath,
-      headers: revalidateHeaders,
-    })
-
-    const handler = this.getRequestHandler()
-    await handler(
-      new NodeNextRequest(mocked.req),
-      new NodeNextResponse(mocked.res)
-    )
-    await mocked.res.hasStreamed
-
-    if (
-      mocked.res.getHeader('x-nextjs-cache') !== 'REVALIDATED' &&
-      !(mocked.res.statusCode === 404 && opts.unstable_onlyGenerated)
-    ) {
-      throw new Error(`Invalid response ${mocked.res.statusCode}`)
-    }
-    return {}
   }
 
   public async render(
