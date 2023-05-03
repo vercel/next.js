@@ -1916,18 +1916,15 @@ export async function copyTracedFiles(
 import path from 'path'
 import { fileURLToPath } from 'url'
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
-
-import httpProxy from 'next/dist/compiled/http-proxy'
-import { normalizeRepeatedSlashes } from 'next/dist/shared/lib/utils'
-import { Worker } from 'next/dist/compiled/jest-worker'
+import { createServerHandler } from 'next/dist/server/lib/render-server-standalone.js'
 `
         : `
 const http = require('http')
 const path = require('path')
-const httpProxy = require('next/dist/compiled/http-proxy')
-const { normalizeRepeatedSlashes } = require('next/dist/shared/lib/utils')
-const { Worker } = require('next/dist/compiled/jest-worker')`
+const { createServerHandler } = require('next/dist/server/lib/render-server-standalone')`
     }
+
+const dir = path.join(__dirname)
 
 process.env.NODE_ENV = 'production'
 process.chdir(__dirname)
@@ -1974,81 +1971,7 @@ server.listen(currentPort, async (err) => {
     process.exit(1)
   }
 
-  const renderServerPath = require.resolve('next/dist/server/lib/render-server')
-  const routerWorker = new Worker(renderServerPath, {
-    numWorkers: 1,
-    maxRetries: 10,
-    forkOptions: {
-      env: {
-        FORCE_COLOR: '1',
-        ...process.env,
-      },
-    },
-    exposedMethods: ['initialize'],
-  })
-  let didInitialize = false
-
-  for (const _worker of (routerWorker._workerPool?._workers || [])) {
-    _worker._child.on('exit', (code, signal) => {
-      // catch failed initializing without retry
-      if ((code || signal) && !didInitialize) {
-        routerWorker?.end()
-        process.exit(1)
-      }
-    })
-  }
-
-  const workerStdout = routerWorker.getStdout()
-  const workerStderr = routerWorker.getStderr()
-
-  workerStdout.on('data', (data) => {
-    process.stdout.write(data)
-  })
-  workerStderr.on('data', (data) => {
-    process.stderr.write(data)
-  })
-
-  const { port: routerPort } = await routerWorker.initialize({
-    dir: path.join(__dirname),
-    port: currentPort,
-    dev: false,
-    hostname,
-    workerType: 'router',
-  })
-  didInitialize = true
-
-  const getProxyServer = (pathname) => {
-    const targetUrl = \`http://\${hostname}:\${routerPort}\${pathname}\`
-    const proxyServer = httpProxy.createProxy({
-      target: targetUrl,
-      changeOrigin: false,
-      ignorePath: true,
-      xfwd: true,
-      ws: true,
-      followRedirects: false,
-    })
-    return proxyServer
-  }
-
-  // proxy to router worker
-  handler = async (req, res) => {
-    const urlParts = (req.url || '').split('?')
-    const urlNoQuery = urlParts[0]
-
-    // this normalizes repeated slashes in the path e.g. hello//world ->
-    // hello/world or backslashes to forward slashes, this does not
-    // handle trailing slash as that is handled the same as a next.config.js
-    // redirect
-    if (urlNoQuery?.match(/(\\|\\/\\/)/)) {
-      const cleanUrl = normalizeRepeatedSlashes(req.url)
-      res.statusCode = 308
-      res.setHeader('Location', cleanUrl)
-      res.end(cleanUrl)
-      return
-    }
-    const proxyServer = getProxyServer(req.url || '/')
-    proxyServer.web(req, res)
-  }
+  handler = await createServerHandler({ port: currentPort, hostname, dir })
 
   console.log(
     'Listening on port',
