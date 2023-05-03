@@ -26,7 +26,6 @@ function HandleRedirect({
   const router = useRouter()
 
   useEffect(() => {
-    // @ts-ignore startTransition exists
     React.startTransition(() => {
       if (redirectType === RedirectType.push) {
         router.push(redirect, {})
@@ -61,17 +60,19 @@ export class RedirectErrorBoundary extends React.Component<
 
   render() {
     const { redirect, redirectType } = this.state
-    if (redirect !== null && redirectType !== null) {
-      return (
-        <HandleRedirect
-          redirect={redirect}
-          redirectType={redirectType}
-          reset={() => this.setState({ redirect: null })}
-        />
-      )
-    }
 
-    return this.props.children
+    return (
+      <>
+        {this.props.children}
+        {redirect !== null && redirectType !== null && (
+          <HandleRedirect
+            redirect={redirect}
+            redirectType={redirectType}
+            reset={() => this.setState({ redirect: null })}
+          />
+        )}
+      </>
+    )
   }
 }
 
