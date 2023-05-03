@@ -159,10 +159,12 @@ createNextDescribe(
       })
 
       it('should support generate multi sitemaps with generateSitemaps', async () => {
-        const ids = [0, 1, 2, 3]
+        const ids = [0, 1, 2]
         function fetchSitemap(id) {
           return next
-            .fetch(`/dynamic/small/sitemap.xml/${id}`)
+            .fetch(
+              isNextDev ? `/gsp/sitemap.xml/${id}` : `/gsp/sitemap/${id}.xml`
+            )
             .then((res) => res.text())
         }
 
@@ -434,11 +436,21 @@ createNextDescribe(
           '/sitemap.xml/route': 'app/sitemap.xml/route.js',
 
           // dynamic
-          '/(group)/dynamic/[size]/sitemap.xml/[[...__metadata_id__]]/route':
-            'app/(group)/dynamic/[size]/sitemap.xml/[[...__metadata_id__]]/route.js',
+          '/gsp/sitemap/[__metadata_id__]/route':
+            'app/gsp/sitemap/[__metadata_id__]/route.js',
           '/(group)/dynamic/[size]/apple-icon-48jo90/[[...__metadata_id__]]/route':
             'app/(group)/dynamic/[size]/apple-icon-48jo90/[[...__metadata_id__]]/route.js',
         })
+      })
+
+      it('should generate static paths of dynamic sitemap in production', async () => {
+        const sitemapPaths = [0, 1, 2].map(
+          (id) => `.next/server/app/gsp/sitemap/${id}.xml.meta`
+        )
+        const promises = sitemapPaths.map(async (filePath) => {
+          expect(await next.hasFile(filePath)).toBe(true)
+        })
+        await Promise.all(promises)
       })
 
       it('should include default og font files in file trace', async () => {
