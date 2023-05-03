@@ -1,6 +1,5 @@
-use std::collections::HashMap;
-
 use anyhow::Result;
+use indexmap::IndexMap;
 use turbo_tasks_fs::FileSystemPathVc;
 
 use crate::environment::EnvironmentVc;
@@ -54,7 +53,7 @@ macro_rules! definable_name_map_internal {
 macro_rules! compile_time_defines {
     ($($more:tt)+) => {
         {
-            let mut map = std::collections::HashMap::new();
+            let mut map = $crate::__private::IndexMap::new();
             $crate::definable_name_map_internal!(map, $($more)+);
             $crate::compile_time_info::CompileTimeDefines(map)
         }
@@ -65,7 +64,7 @@ macro_rules! compile_time_defines {
 macro_rules! free_var_references {
     ($($more:tt)+) => {
         {
-            let mut map = std::collections::HashMap::new();
+            let mut map = $crate::__private::IndexMap::new();
             $crate::definable_name_map_internal!(map, $($more)+);
             $crate::compile_time_info::FreeVarReferences(map)
         }
@@ -98,11 +97,11 @@ impl From<&str> for CompileTimeDefineValue {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct CompileTimeDefines(pub HashMap<Vec<String>, CompileTimeDefineValue>);
+pub struct CompileTimeDefines(pub IndexMap<Vec<String>, CompileTimeDefineValue>);
 
 impl IntoIterator for CompileTimeDefines {
     type Item = (Vec<String>, CompileTimeDefineValue);
-    type IntoIter = std::collections::hash_map::IntoIter<Vec<String>, CompileTimeDefineValue>;
+    type IntoIter = indexmap::map::IntoIter<Vec<String>, CompileTimeDefineValue>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
@@ -113,11 +112,12 @@ impl IntoIterator for CompileTimeDefines {
 impl CompileTimeDefinesVc {
     #[turbo_tasks::function]
     pub fn empty() -> Self {
-        Self::cell(HashMap::new())
+        Self::cell(IndexMap::new())
     }
 }
 
 #[turbo_tasks::value]
+#[derive(Debug)]
 pub enum FreeVarReference {
     EcmaScriptModule {
         request: String,
@@ -152,13 +152,13 @@ impl From<CompileTimeDefineValue> for FreeVarReference {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct FreeVarReferences(pub HashMap<Vec<String>, FreeVarReference>);
+pub struct FreeVarReferences(pub IndexMap<Vec<String>, FreeVarReference>);
 
 #[turbo_tasks::value_impl]
 impl FreeVarReferencesVc {
     #[turbo_tasks::function]
     pub fn empty() -> Self {
-        Self::cell(HashMap::new())
+        Self::cell(IndexMap::new())
     }
 }
 

@@ -6,7 +6,7 @@ use swc_core::{
             ComputedPropName, Expr, Ident, KeyValueProp, Lit, MemberExpr, MemberProp, Prop,
             PropName, Str,
         },
-        visit::fields::{ExprField, PropField},
+        visit::fields::PropField,
     },
 };
 
@@ -78,20 +78,8 @@ impl CodeGenerateable for EsmBinding {
 
         loop {
             match ast_path.last() {
-                Some(swc_core::ecma::visit::AstParentKind::Expr(ExprField::Ident)) => {
-                    ast_path.pop();
-                    visitors.push(
-                        create_visitor!(exact ast_path, visit_mut_expr(expr: &mut Expr) {
-                            if let Some(ident) = imported_module.as_deref() {
-                              *expr = make_expr(ident, this.export.as_deref());
-                            }
-                            // If there's no identifier for the imported module,
-                            // resolution failed and will insert code that throws
-                            // before this expression is reached. Leave behind the original identifier.
-                        }),
-                    );
-                    break;
-                }
+                // Shorthand properties get special treatment because we need to rewrite them to
+                // normal key-value pairs.
                 Some(swc_core::ecma::visit::AstParentKind::Prop(PropField::Shorthand)) => {
                     ast_path.pop();
                     visitors.push(
@@ -102,6 +90,21 @@ impl CodeGenerateable for EsmBinding {
                                     *prop = Prop::KeyValue(KeyValueProp { key: PropName::Ident(ident.clone()), value: Box::new(make_expr(imported_ident, this.export.as_deref()))});
                                 }
                             }
+                        }),
+                    );
+                    break;
+                }
+                // Any other expression can be replaced with the import accessor.
+                Some(swc_core::ecma::visit::AstParentKind::Expr(_)) => {
+                    ast_path.pop();
+                    visitors.push(
+                        create_visitor!(exact ast_path, visit_mut_expr(expr: &mut Expr) {
+                            if let Some(ident) = imported_module.as_deref() {
+                                *expr = make_expr(ident, this.export.as_deref());
+                            }
+                            // If there's no identifier for the imported module,
+                            // resolution failed and will insert code that throws
+                            // before this expression is reached. Leave behind the original identifier.
                         }),
                     );
                     break;

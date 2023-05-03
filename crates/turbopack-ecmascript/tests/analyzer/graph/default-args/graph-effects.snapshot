@@ -10,49 +10,6 @@
             ),
             Module(
                 Body(
-                    0,
-                ),
-            ),
-            ModuleItem(
-                ModuleDecl,
-            ),
-            ModuleDecl(
-                Import,
-            ),
-            ImportDecl(
-                Specifiers(
-                    0,
-                ),
-            ),
-            ImportSpecifier(
-                Named,
-            ),
-            ImportNamedSpecifier(
-                Local,
-            ),
-        ],
-        span: Span {
-            lo: BytePos(
-                10,
-            ),
-            hi: BytePos(
-                15,
-            ),
-            ctxt: #2,
-        },
-        in_try: false,
-    },
-    ImportedBinding {
-        esm_reference_index: 1,
-        export: Some(
-            "named",
-        ),
-        ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
                     1,
                 ),
             ),
