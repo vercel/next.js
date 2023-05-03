@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useTestHarness } from '@turbo/pack-test-harness'
 import { Inter } from 'next/font/google'
 
 const interNoArgs = Inter()
@@ -7,10 +7,7 @@ const interWithVariableName = Inter({
 })
 
 export default function Home() {
-  useEffect(() => {
-    // Only run on client
-    import('@turbo/pack-test-harness').then(runTests)
-  })
+  useTestHarness(runTests)
 
   return <div className={interNoArgs.className}>Test</div>
 }
