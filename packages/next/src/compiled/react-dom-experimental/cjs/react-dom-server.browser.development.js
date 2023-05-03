@@ -17,7 +17,7 @@ if (process.env.NODE_ENV !== "production") {
 var React = require("next/dist/compiled/react-experimental");
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-experimental-5dd90c562-20230502';
+var ReactVersion = '18.3.0-experimental-b7972822b-20230503';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -8389,7 +8389,7 @@ function unsupportedSetOptimisticState() {
   throw new Error('Cannot update optimistic state while rendering.');
 }
 
-function useOptimisticState(passthrough, reducer) {
+function useOptimistic(passthrough, reducer) {
   resolveCurrentlyRenderingComponent();
   return [passthrough, unsupportedSetOptimisticState];
 }
@@ -8497,7 +8497,7 @@ var HooksDispatcher = {
 }
 
 {
-  HooksDispatcher.useOptimisticState = useOptimisticState;
+  HooksDispatcher.useOptimistic = useOptimistic;
 }
 
 var currentResponseState = null;

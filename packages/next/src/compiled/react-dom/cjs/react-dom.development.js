@@ -26939,7 +26939,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks) {
   return root;
 }
 
-var ReactVersion = '18.3.0-next-5dd90c562-20230502';
+var ReactVersion = '18.3.0-canary-b7972822b-20230503';
 
 function createPortal$1(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {

@@ -301,7 +301,7 @@ function generateCacheKey(request) {
   }
 }
 
-var ReactVersion = '18.3.0-experimental-5dd90c562-20230502';
+var ReactVersion = '18.3.0-experimental-b7972822b-20230503';
 
 // ATTENTION
 // When adding new symbols to this file,

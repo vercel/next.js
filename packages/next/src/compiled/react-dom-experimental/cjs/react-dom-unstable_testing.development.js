@@ -11929,7 +11929,7 @@ function rerenderState(initialState) {
   return rerenderReducer(basicStateReducer);
 }
 
-function mountOptimisticState(passthrough, reducer) {
+function mountOptimistic(passthrough, reducer) {
   var hook = mountWorkInProgressHook();
   hook.memoizedState = hook.baseState = passthrough;
   var queue = {
@@ -11947,7 +11947,7 @@ function mountOptimisticState(passthrough, reducer) {
   return [passthrough, dispatch];
 }
 
-function updateOptimisticState(passthrough, reducer) {
+function updateOptimistic(passthrough, reducer) {
   var hook = updateWorkInProgressHook(); // Optimistic updates are always rebased on top of the latest value passed in
   // as an argument. It's called a passthrough because if there are no pending
   // updates, it will be returned as-is.
@@ -11961,8 +11961,8 @@ function updateOptimisticState(passthrough, reducer) {
   return updateReducerImpl(hook, currentHook, resolvedReducer);
 }
 
-function rerenderOptimisticState(passthrough, reducer) {
-  // Unlike useState, useOptimisticState doesn't support render phase updates.
+function rerenderOptimistic(passthrough, reducer) {
+  // Unlike useState, useOptimistic doesn't support render phase updates.
   // Also unlike useState, we need to replay all pending updates again in case
   // the passthrough value changed.
   //
@@ -11971,7 +11971,7 @@ function rerenderOptimisticState(passthrough, reducer) {
   // regular mount or update.
   if (currentHook !== null) {
     // This is an update. Process the update queue.
-    return updateOptimisticState(passthrough, reducer);
+    return updateOptimistic(passthrough, reducer);
   } // This is a mount. No updates to process.
 
 
@@ -12833,7 +12833,7 @@ var ContextOnlyDispatcher = {
 }
 
 {
-  ContextOnlyDispatcher.useOptimisticState = throwInvalidHookError;
+  ContextOnlyDispatcher.useOptimistic = throwInvalidHookError;
 }
 
 var HooksDispatcherOnMountInDEV = null;
@@ -12992,10 +12992,10 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
   }
 
   {
-    HooksDispatcherOnMountInDEV.useOptimisticState = function useOptimisticState(passthrough, reducer) {
-      currentHookNameInDev = 'useOptimisticState';
+    HooksDispatcherOnMountInDEV.useOptimistic = function useOptimistic(passthrough, reducer) {
+      currentHookNameInDev = 'useOptimistic';
       mountHookTypesDev();
-      return mountOptimisticState(passthrough);
+      return mountOptimistic(passthrough);
     };
   }
 
@@ -13132,10 +13132,10 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
   }
 
   {
-    HooksDispatcherOnMountWithHookTypesInDEV.useOptimisticState = function useOptimisticState(passthrough, reducer) {
-      currentHookNameInDev = 'useOptimisticState';
+    HooksDispatcherOnMountWithHookTypesInDEV.useOptimistic = function useOptimistic(passthrough, reducer) {
+      currentHookNameInDev = 'useOptimistic';
       updateHookTypesDev();
-      return mountOptimisticState(passthrough);
+      return mountOptimistic(passthrough);
     };
   }
 
@@ -13272,10 +13272,10 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
   }
 
   {
-    HooksDispatcherOnUpdateInDEV.useOptimisticState = function useOptimisticState(passthrough, reducer) {
-      currentHookNameInDev = 'useOptimisticState';
+    HooksDispatcherOnUpdateInDEV.useOptimistic = function useOptimistic(passthrough, reducer) {
+      currentHookNameInDev = 'useOptimistic';
       updateHookTypesDev();
-      return updateOptimisticState(passthrough, reducer);
+      return updateOptimistic(passthrough, reducer);
     };
   }
 
@@ -13412,10 +13412,10 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
   }
 
   {
-    HooksDispatcherOnRerenderInDEV.useOptimisticState = function useOptimisticState(passthrough, reducer) {
-      currentHookNameInDev = 'useOptimisticState';
+    HooksDispatcherOnRerenderInDEV.useOptimistic = function useOptimistic(passthrough, reducer) {
+      currentHookNameInDev = 'useOptimistic';
       updateHookTypesDev();
-      return rerenderOptimisticState(passthrough, reducer);
+      return rerenderOptimistic(passthrough, reducer);
     };
   }
 
@@ -13576,11 +13576,11 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
   }
 
   {
-    InvalidNestedHooksDispatcherOnMountInDEV.useOptimisticState = function useOptimisticState(passthrough, reducer) {
-      currentHookNameInDev = 'useOptimisticState';
+    InvalidNestedHooksDispatcherOnMountInDEV.useOptimistic = function useOptimistic(passthrough, reducer) {
+      currentHookNameInDev = 'useOptimistic';
       warnInvalidHookAccess();
       mountHookTypesDev();
-      return mountOptimisticState(passthrough);
+      return mountOptimistic(passthrough);
     };
   }
 
@@ -13741,11 +13741,11 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
   }
 
   {
-    InvalidNestedHooksDispatcherOnUpdateInDEV.useOptimisticState = function useOptimisticState(passthrough, reducer) {
-      currentHookNameInDev = 'useOptimisticState';
+    InvalidNestedHooksDispatcherOnUpdateInDEV.useOptimistic = function useOptimistic(passthrough, reducer) {
+      currentHookNameInDev = 'useOptimistic';
       warnInvalidHookAccess();
       updateHookTypesDev();
-      return updateOptimisticState(passthrough, reducer);
+      return updateOptimistic(passthrough, reducer);
     };
   }
 
@@ -13906,11 +13906,11 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
   }
 
   {
-    InvalidNestedHooksDispatcherOnRerenderInDEV.useOptimisticState = function useOptimisticState(passthrough, reducer) {
-      currentHookNameInDev = 'useOptimisticState';
+    InvalidNestedHooksDispatcherOnRerenderInDEV.useOptimistic = function useOptimistic(passthrough, reducer) {
+      currentHookNameInDev = 'useOptimistic';
       warnInvalidHookAccess();
       updateHookTypesDev();
-      return rerenderOptimisticState(passthrough, reducer);
+      return rerenderOptimistic(passthrough, reducer);
     };
   }
 }
@@ -28287,7 +28287,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks) {
   return root;
 }
 
-var ReactVersion = '18.3.0-experimental-5dd90c562-20230502';
+var ReactVersion = '18.3.0-experimental-b7972822b-20230503';
 
 function createPortal$1(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {
