@@ -4,7 +4,6 @@ import LRUCache from 'next/dist/compiled/lru-cache'
 import { CacheFs } from '../../../shared/lib/utils'
 import path from '../../../shared/lib/isomorphic/path'
 import { CachedFetchValue } from '../../response-cache'
-import { CACHE_ONE_YEAR } from '../../../lib/constants'
 
 type FileSystemCacheContext = Omit<
   CacheHandlerContext,
