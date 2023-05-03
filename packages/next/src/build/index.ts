@@ -90,8 +90,11 @@ import {
   eventBuildCompleted,
 } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
-import { getPageStaticInfo } from './analysis/get-page-static-info'
-import { createPagesMapping } from './entries'
+import {
+  isDynamicMetadataRoute,
+  getPageStaticInfo,
+} from './analysis/get-page-static-info'
+import { createPagesMapping, getPageFilePath } from './entries'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
@@ -462,6 +465,27 @@ export default async function build(
               pagesDir: pagesDir,
             })
           )
+
+        // If the metadata route doesn't contain generating dynamic exports,
+        // we can replace the dynamic catch-all route and use the static route instead.
+        for (const [pageKey, pagePath] of Object.entries(mappedAppPages)) {
+          if (pageKey.includes('[[...__metadata_id__]]')) {
+            const pageFilePath = getPageFilePath({
+              absolutePagePath: pagePath,
+              pagesDir,
+              appDir,
+              rootDir,
+            })
+
+            const isDynamic = await isDynamicMetadataRoute(pageFilePath)
+            if (!isDynamic) {
+              delete mappedAppPages[pageKey]
+              mappedAppPages[pageKey.replace('[[...__metadata_id__]]/', '')] =
+                pagePath
+            }
+          }
+        }
+
         NextBuildContext.mappedAppPages = mappedAppPages
       }
 
@@ -1143,7 +1167,7 @@ export default async function build(
               ...process.env,
               __NEXT_PRIVATE_PREBUNDLED_REACT:
                 type === 'app'
-                  ? config.experimental.experimentalReact
+                  ? config.experimental.serverActions
                     ? 'experimental'
                     : 'next'
                   : '',
@@ -1224,7 +1248,6 @@ export default async function build(
               configFileName,
               runtimeEnvConfig,
               httpAgentOptions: config.httpAgentOptions,
-              enableUndici: config.experimental.enableUndici,
               locales: config.i18n?.locales,
               defaultLocale: config.i18n?.defaultLocale,
               nextConfigOutput: config.output,
@@ -1371,7 +1394,12 @@ export default async function build(
                     })
                   : undefined
 
-                const pageRuntime = staticInfo?.runtime
+                const pageRuntime = middlewareManifest.functions[
+                  originalAppPath || page
+                ]
+                  ? 'edge'
+                  : staticInfo?.runtime
+
                 isServerComponent =
                   pageType === 'app' &&
                   staticInfo?.rsc !== RSC_MODULE_TYPES.client
@@ -1408,7 +1436,6 @@ export default async function build(
                           configFileName,
                           runtimeEnvConfig,
                           httpAgentOptions: config.httpAgentOptions,
-                          enableUndici: config.experimental.enableUndici,
                           locales: config.i18n?.locales,
                           defaultLocale: config.i18n?.defaultLocale,
                           parentId: isPageStaticSpan.id,
@@ -2379,16 +2406,16 @@ export default async function build(
                   initialHeaders?: SsgRoute['initialHeaders']
                 } = {}
 
-                if (isRouteHandler) {
-                  const exportRouteMeta =
-                    exportConfig.initialPageMetaMap[route] || {}
+                const exportRouteMeta: {
+                  status?: number
+                  headers?: Record<string, string>
+                } = exportConfig.initialPageMetaMap[route] || {}
 
-                  if (exportRouteMeta.status !== 200) {
-                    routeMeta.initialStatus = exportRouteMeta.status
-                  }
-                  if (Object.keys(exportRouteMeta.headers).length) {
-                    routeMeta.initialHeaders = exportRouteMeta.headers
-                  }
+                if (exportRouteMeta.status !== 200) {
+                  routeMeta.initialStatus = exportRouteMeta.status
+                }
+                if (Object.keys(exportRouteMeta.headers || {}).length) {
+                  routeMeta.initialHeaders = exportRouteMeta.headers
                 }
 
                 finalPrerenderRoutes[route] = {
@@ -2833,6 +2860,11 @@ export default async function build(
           JSON.stringify(prerenderManifest),
           'utf8'
         )
+        await promises.writeFile(
+          path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
+          `self.__PRERENDER_MANIFEST=${JSON.stringify(prerenderManifest)}`,
+          'utf8'
+        )
         await generateClientSsgManifest(prerenderManifest, {
           distDir,
           buildId,
@@ -2849,6 +2881,11 @@ export default async function build(
         await promises.writeFile(
           path.join(distDir, PRERENDER_MANIFEST),
           JSON.stringify(prerenderManifest),
+          'utf8'
+        )
+        await promises.writeFile(
+          path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
+          `self.__PRERENDER_MANIFEST=${JSON.stringify(prerenderManifest)}`,
           'utf8'
         )
       }

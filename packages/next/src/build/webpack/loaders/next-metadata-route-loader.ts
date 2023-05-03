@@ -102,7 +102,7 @@ const handler = imageModule.default
 const generateImageMetadata = imageModule.generateImageMetadata
 
 export async function GET(_, ctx) {
-  const { __metadata_id__ = [], ...params } = ctx.params
+  const { __metadata_id__ = [], ...params } = ctx.params || {}
   const targetId = __metadata_id__[0]
   let id = undefined
   const imageMetadata = generateImageMetadata ? await generateImageMetadata({ params }) : null
@@ -122,7 +122,7 @@ export async function GET(_, ctx) {
       })
     }
   }
-  return handler({ params, id })
+  return handler({ params: ctx.params ? params : undefined, id })
 }
 `
 }
@@ -141,7 +141,7 @@ const contentType = ${JSON.stringify(getContentType(resourcePath))}
 const fileType = ${JSON.stringify(getFilenameAndExtension(resourcePath).name)}
 
 export async function GET(_, ctx) {
-  const { __metadata_id__ = [], ...params } = ctx.params
+  const { __metadata_id__ = [], ...params } = ctx.params || {}
   const targetId = __metadata_id__[0]
   let id = undefined
   const sitemaps = generateSitemaps ? await generateSitemaps() : null

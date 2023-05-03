@@ -704,8 +704,8 @@ export default async function getBaseWebpackConfig(
   const hasServerComponents = hasAppDir
   const disableOptimizedLoading = true
   const enableTypedRoutes = !!config.experimental.typedRoutes && hasAppDir
-  const experimentalReact = !!config.experimental.experimentalReact && hasAppDir
-  const bundledReactChannel = experimentalReact ? '-experimental' : ''
+  const serverActions = !!config.experimental.serverActions && hasAppDir
+  const bundledReactChannel = serverActions ? '-experimental' : ''
 
   if (isClient) {
     if (
@@ -2205,7 +2205,9 @@ export default async function getBaseWebpackConfig(
         new (require('./webpack/plugins/next-trace-entrypoints-plugin')
           .TraceEntryPointsPlugin as typeof import('./webpack/plugins/next-trace-entrypoints-plugin').TraceEntryPointsPlugin)(
           {
-            appDir: dir,
+            rootDir: dir,
+            appDir: appDir,
+            pagesDir: pagesDir,
             esmExternals: config.experimental.esmExternals,
             outputFileTracingRoot: config.experimental.outputFileTracingRoot,
             appDirEnabled: hasAppDir,
@@ -2307,7 +2309,7 @@ export default async function getBaseWebpackConfig(
               appDir,
               dev,
               isEdgeServer,
-              useExperimentalReact: experimentalReact,
+              useServerActions: serverActions,
             })),
       hasAppDir &&
         !isClient &&

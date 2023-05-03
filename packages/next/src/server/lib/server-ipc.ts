@@ -2,6 +2,7 @@ import type NextServer from '../next-server'
 import { genExecArgv, getNodeOptionsWithoutInspect } from './utils'
 import { deserializeErr, errorToJSON } from '../render'
 import { IncomingMessage } from 'http'
+import crypto from 'crypto'
 import isError from '../../lib/is-error'
 
 // we can't use process.send as jest-worker relies on
@@ -12,11 +13,23 @@ export async function createIpcServer(
 ): Promise<{
   ipcPort: number
   ipcServer: import('http').Server
+  ipcValidationKey: string
 }> {
+  // Generate a random key in memory to validate messages from other processes.
+  // This is just a simple guard against other processes attempting to send
+  // traffic to the IPC server.
+  const ipcValidationKey = crypto.randomBytes(32).toString('hex')
+
   const ipcServer = (require('http') as typeof import('http')).createServer(
     async (req, res) => {
       try {
         const url = new URL(req.url || '/', 'http://n')
+        const key = url.searchParams.get('key')
+
+        if (key !== ipcValidationKey) {
+          return res.end()
+        }
+
         const method = url.searchParams.get('method')
         const args: any[] = JSON.parse(url.searchParams.get('args') || '[]')
 
@@ -61,15 +74,17 @@ export async function createIpcServer(
   return {
     ipcPort,
     ipcServer,
+    ipcValidationKey,
   }
 }
 
 export const createWorker = (
   serverPort: number,
   ipcPort: number,
+  ipcValidationKey: string,
   isNodeDebugging: boolean | 'brk' | undefined,
   type: 'pages' | 'app',
-  useExperimentalReact?: boolean
+  useServerActions?: boolean
 ) => {
   const { initialEnv } = require('@next/env') as typeof import('@next/env')
   const { Worker } = require('next/dist/compiled/jest-worker')
@@ -88,10 +103,11 @@ export const createWorker = (
           .trim(),
         __NEXT_PRIVATE_RENDER_WORKER: type,
         __NEXT_PRIVATE_ROUTER_IPC_PORT: ipcPort + '',
+        __NEXT_PRIVATE_ROUTER_IPC_KEY: ipcValidationKey,
         NODE_ENV: process.env.NODE_ENV,
         ...(type === 'app'
           ? {
-              __NEXT_PRIVATE_PREBUNDLED_REACT: useExperimentalReact
+              __NEXT_PRIVATE_PREBUNDLED_REACT: useServerActions
                 ? 'experimental'
                 : 'next',
             }

@@ -1223,6 +1223,7 @@ export async function buildAppStaticPaths({
     {
       pathname: page,
       renderOpts: {
+        originalPathname: page,
         incrementalCache,
         supportsDynamicHTML: true,
         isRevalidate: false,
@@ -1324,7 +1325,6 @@ export async function isPageStatic({
   configFileName,
   runtimeEnvConfig,
   httpAgentOptions,
-  enableUndici,
   locales,
   defaultLocale,
   parentId,
@@ -1342,7 +1342,6 @@ export async function isPageStatic({
   configFileName: string
   runtimeEnvConfig: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
-  enableUndici?: NextConfigComplete['experimental']['enableUndici']
   locales?: string[]
   defaultLocale?: string
   parentId?: any
@@ -1375,7 +1374,6 @@ export async function isPageStatic({
       require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
       setHttpClientAndAgentOptions({
         httpAgentOptions,
-        experimental: { enableUndici },
       })
 
       let componentsResult: LoadComponentsReturnType
@@ -1952,7 +1950,7 @@ ${
   // to ensure the correctness of the version for app.
   `\
 if (nextConfig && nextConfig.experimental && nextConfig.experimental.appDir) {
-  process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = nextConfig.experimental.experimentalReact ? 'experimental' : 'next'
+  process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = nextConfig.experimental.serverActions ? 'experimental' : 'next'
 }
 `
 }

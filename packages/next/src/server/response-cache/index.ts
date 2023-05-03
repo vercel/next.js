@@ -111,6 +111,8 @@ export default class ResponseCache {
                     kind: 'PAGE',
                     html: RenderResult.fromStatic(cachedResponse.value.html),
                     pageData: cachedResponse.value.pageData,
+                    headers: cachedResponse.value.headers,
+                    status: cachedResponse.value.status,
                   }
                 : cachedResponse.value,
           })
@@ -121,7 +123,7 @@ export default class ResponseCache {
           }
         }
 
-        const cacheEntry = await responseGenerator(resolved, !!cachedResponse)
+        const cacheEntry = await responseGenerator(resolved, cachedResponse)
         const resolveValue =
           cacheEntry === null
             ? null
@@ -150,6 +152,8 @@ export default class ResponseCache {
                     kind: 'PAGE',
                     html: cacheEntry.value.html.toUnchunkedString(),
                     pageData: cacheEntry.value.pageData,
+                    headers: cacheEntry.value.headers,
+                    status: cacheEntry.value.status,
                   }
                 : cacheEntry.value,
               cacheEntry.revalidate

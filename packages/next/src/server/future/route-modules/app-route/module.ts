@@ -21,7 +21,7 @@ import {
   handleInternalServerErrorResponse,
 } from '../helpers/response-handlers'
 import { type HTTP_METHOD, HTTP_METHODS, isHTTPMethod } from '../../../web/http'
-import { patchFetch } from '../../../lib/patch-fetch'
+import { addImplicitTags, patchFetch } from '../../../lib/patch-fetch'
 import { getTracer } from '../../../lib/trace/tracer'
 import { AppRouteRouteHandlersSpan } from '../../../lib/trace/constants'
 import { getPathnameFromAbsolutePath } from './helpers/get-pathname-from-absolute-path'
@@ -34,6 +34,7 @@ import { getNonStaticMethods } from './helpers/get-non-static-methods'
 import { SYMBOL_MODIFY_COOKIE_VALUES } from '../../../web/spec-extension/adapters/request-cookies'
 import { ResponseCookies } from '../../../web/spec-extension/cookies'
 import { HeadersAdapter } from '../../../web/spec-extension/adapters/headers'
+import { PrerenderManifest } from '../../../../build'
 
 /**
  * AppRouteRouteHandlerContext is the context that is passed to the route
@@ -41,6 +42,7 @@ import { HeadersAdapter } from '../../../web/spec-extension/adapters/headers'
  */
 export interface AppRouteRouteHandlerContext extends RouteModuleHandleContext {
   staticGenerationContext: StaticGenerationContext['renderOpts']
+  prerenderManifest: PrerenderManifest
 }
 
 /**
@@ -235,6 +237,11 @@ export class AppRouteRouteModule extends RouteModule<
       req: request,
     }
 
+    // TODO: types for renderOpts should include previewProps
+    ;(requestContext as any).renderOpts = {
+      previewProps: context.prerenderManifest.preview,
+    }
+
     // Get the context for the static generation.
     const staticGenerationContext: StaticGenerationContext = {
       pathname: this.definition.pathname,
@@ -342,6 +349,9 @@ export class AppRouteRouteModule extends RouteModule<
                     await Promise.all(
                       staticGenerationStore.pendingRevalidates || []
                     )
+                    addImplicitTags(staticGenerationStore)
+                    ;(context.staticGenerationContext as any).fetchTags =
+                      staticGenerationStore.tags?.join(',')
 
                     // It's possible cookies were set in the handler, so we need
                     // to merge the modified cookies and the returned response
