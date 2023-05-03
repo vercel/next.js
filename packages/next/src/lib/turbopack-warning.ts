@@ -25,6 +25,7 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.swcFileReading',
   'experimental.forceSwcTransforms',
   // options below are not really supported, but ignored
+  'webpack',
   'devIndicators',
   'onDemandEntries',
   'experimental.cpus',
@@ -98,6 +99,9 @@ export async function validateTurboNextConfig({
   let babelrc = await getBabelConfigFile(dir)
   if (babelrc) babelrc = path.basename(babelrc)
 
+  let hasWebpack = false
+  let hasTurbo = false
+
   let unsupportedConfig: string[] = []
   let rawNextConfig: NextConfig = {}
 
@@ -156,6 +160,13 @@ export async function validateTurboNextConfig({
       : supportedTurbopackNextConfigOptions
 
     for (const key of customKeys) {
+      if (key.startsWith('webpack')) {
+        hasWebpack = true
+      }
+      if (key.startsWith('experimental.turbo')) {
+        hasTurbo = true
+      }
+
       let isSupported =
         supportedKeys.some((supportedKey) => key.startsWith(supportedKey)) ||
         getDeepValue(rawNextConfig, key) === getDeepValue(defaultConfig, key)
@@ -183,6 +194,17 @@ export async function validateTurboNextConfig({
 
   if (!hasWarningOrError) {
     feedbackMessage = chalk.dim(feedbackMessage)
+  }
+
+  if (hasWebpack && !hasTurbo) {
+    console.warn(
+      `\n${chalk.yellow(
+        'Warning:'
+      )} Webpack is configured while Turbopack is not, which may cause problems.\n
+  ${chalk.dim(
+    `See instructions if you need to configure Turbopack:\n  https://turbo.build/pack/docs/features/customizing-turbopack\n`
+  )}`
+    )
   }
 
   if (babelrc) {
