@@ -263,6 +263,7 @@ export default class NextNodeServer extends BaseServer {
         dir: this.dir,
         workerType: 'render',
         hostname: this.hostname,
+        minimalMode: this.minimalMode,
         dev: !!options.dev,
       }
       const { createWorker, createIpcServer } =
