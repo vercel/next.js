@@ -2,7 +2,7 @@ import { useTestHarness } from '@turbo/pack-test-harness'
 import source from './hello.replace'
 
 export default function Home() {
-  uuseTestHarness(runTests)
+  useTestHarness(runTests)
 
   return null
 }
