@@ -465,7 +465,7 @@ pub async fn create_app_source(
         .collect();
 
     if let Some(&Entrypoint::AppPage { loader_tree }) = entrypoints.get("/") {
-        if let Some(_) = loader_tree.await?.components.await?.not_found {
+        if loader_tree.await?.components.await?.not_found.is_some() {
             // Only add a source for the app 404 page if a top-level not-found page is
             // defined. Otherwise, the 404 page is handled by the pages logic.
             let not_found_page_source = create_app_not_found_page_source(
@@ -616,7 +616,7 @@ async fn create_app_not_found_page_source(
         render_data,
     );
 
-    Ok(source.issue_context(app_dir, &format!("Next.js App Page Route /404")))
+    Ok(source.issue_context(app_dir, "Next.js App Page Route /404"))
 }
 
 #[allow(clippy::too_many_arguments)]
