@@ -1,11 +1,8 @@
-import { useEffect } from 'react'
+import { useTestHarness } from '@turbo/pack-test-harness'
 import * as Named from '../module.tsx'
 
 export default function Page() {
-  useEffect(() => {
-    // Only run on client
-    import('@turbo/pack-test-harness').then(runTests)
-  })
+  useTestHarness(runTests)
 
   const object = { Named: Named.Named }
   const object2 = { Named }
