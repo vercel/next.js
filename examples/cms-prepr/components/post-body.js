@@ -1,4 +1,3 @@
-import {ReactElement} from "react";
 import Image from "next/image";
 
 export default function PostBody({ content }) {
@@ -15,6 +14,8 @@ export default function PostBody({ content }) {
         width={1000}
         height={500}
       />
+    } else {
+      return null;
     }
   })
 
