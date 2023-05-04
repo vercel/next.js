@@ -86,7 +86,7 @@ describe.each([
         const res = await fetchViaHTTP(next.url, `/`)
         expect(res.status).toEqual(200)
         expect(stripAnsi(next.cliOutput)).toInclude(
-          `error - Page /pages provided runtime 'edge', the edge runtime for rendering is currently experimental. Use runtime 'experimental-edge' instead.`
+          `- error Page /pages provided runtime 'edge', the edge runtime for rendering is currently experimental. Use runtime 'experimental-edge' instead.`
         )
         expect(next.cliOutput).not.toInclude('warn')
       })
