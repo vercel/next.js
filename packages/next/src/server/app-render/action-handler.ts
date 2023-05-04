@@ -267,7 +267,7 @@ export async function handleAction({
               // React doesn't yet publish a busboy version of decodeAction
               // so we polyfill the parsing of FormData.
               const { Readable } = require('stream')
-              const UndiciRequest = require('undici').Request
+              const UndiciRequest = require('next/dist/compiled/undici').Request
               const fakeRequest = new UndiciRequest('http://localhost', {
                 method: 'POST',
                 headers: { 'Content-Type': req.headers['content-type'] },
