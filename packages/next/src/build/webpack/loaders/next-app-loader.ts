@@ -33,6 +33,7 @@ export type AppLoaderOptions = {
   rootDir?: string
   tsconfigPath?: string
   isDev?: boolean
+  basePath: string
   nextConfigOutput?: NextConfig['output']
 }
 type AppLoader = webpack.LoaderDefinitionFunction<AppLoaderOptions>
@@ -176,6 +177,7 @@ async function createTreeCodeFromPath(
     resolveParallelSegments,
     loaderContext,
     pageExtensions,
+    basePath,
   }: {
     resolver: PathResolver
     resolvePath: (pathname: string) => Promise<string>
@@ -184,6 +186,7 @@ async function createTreeCodeFromPath(
     ) => [key: string, segment: string | string[]][]
     loaderContext: webpack.LoaderContext<AppLoaderOptions>
     pageExtensions: string[]
+    basePath: string
   }
 ) {
   const splittedPath = pagePath.split(/[\\/]/)
@@ -231,7 +234,8 @@ async function createTreeCodeFromPath(
   }
 
   async function createSubtreePropsFromSegmentPath(
-    segments: string[]
+    segments: string[],
+    basePath: string
   ): Promise<{
     treeCode: string
   }> {
@@ -258,6 +262,7 @@ async function createTreeCodeFromPath(
 
       if (resolvedRouteDir) {
         metadata = await createStaticMetadataFromRoute(resolvedRouteDir, {
+          basePath,
           segment: segmentPath,
           resolvePath,
           isRootLayoutOrRootPage,
@@ -295,7 +300,8 @@ async function createTreeCodeFromPath(
           ...segments,
           ...(parallelKey === 'children' ? [] : [parallelKey]),
           Array.isArray(parallelSegment) ? parallelSegment[0] : parallelSegment,
-        ]
+        ],
+        basePath
       )
 
       const parallelSegmentPath =
@@ -395,7 +401,7 @@ async function createTreeCodeFromPath(
     }
   }
 
-  const { treeCode } = await createSubtreePropsFromSegmentPath([])
+  const { treeCode } = await createSubtreePropsFromSegmentPath([], basePath)
 
   return {
     treeCode: `const tree = ${treeCode}.children;`,
@@ -427,6 +433,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     isDev,
     nextConfigOutput,
     preferredRegion,
+    basePath,
   } = loaderOptions
 
   const buildInfo = getModuleBuildInfo((this as any)._module)
@@ -535,6 +542,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     resolveParallelSegments,
     loaderContext: this,
     pageExtensions,
+    basePath,
   })
 
   if (!rootLayout) {
@@ -599,7 +607,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     export { renderToReadableStream, decodeReply, decodeAction } from 'react-server-dom-webpack/server.edge'
     export const __next_app_webpack_require__ = __webpack_require__
     export { preloadStyle, preloadFont, preconnect } from 'next/dist/server/app-render/rsc/preloads'
-    
+
     export const originalPathname = "${page}"
   `
 
