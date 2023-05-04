@@ -456,8 +456,3 @@ declare module 'next/dist/compiled/@opentelemetry/api' {
   import * as m from '@opentelemetry/api'
   export = m
 }
-
-declare module 'next/dist/compiled/zod' {
-  import m from 'zod'
-  export = m
-}
