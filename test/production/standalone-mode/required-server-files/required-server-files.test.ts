@@ -941,7 +941,7 @@ describe('should set-up next', () => {
     errors = []
     const res = await fetchViaHTTP(appPort, '/errors/gip', { crash: '1' })
     expect(res.status).toBe(500)
-    expect(await res.text()).toBe('internal server error')
+    expect(await res.text()).toBe('Internal Server Error')
 
     await check(
       () => (errors[0].includes('gip hit an oops') ? 'success' : errors[0]),
@@ -953,7 +953,7 @@ describe('should set-up next', () => {
     errors = []
     const res = await fetchViaHTTP(appPort, '/errors/gssp', { crash: '1' })
     expect(res.status).toBe(500)
-    expect(await res.text()).toBe('internal server error')
+    expect(await res.text()).toBe('Internal Server Error')
     await check(
       () => (errors[0].includes('gssp hit an oops') ? 'success' : errors[0]),
       'success'
@@ -964,7 +964,7 @@ describe('should set-up next', () => {
     errors = []
     const res = await fetchViaHTTP(appPort, '/errors/gsp/crash')
     expect(res.status).toBe(500)
-    expect(await res.text()).toBe('internal server error')
+    expect(await res.text()).toBe('Internal Server Error')
     await check(
       () => (errors[0].includes('gsp hit an oops') ? 'success' : errors[0]),
       'success'
@@ -975,7 +975,7 @@ describe('should set-up next', () => {
     errors = []
     const res = await fetchViaHTTP(appPort, '/api/error')
     expect(res.status).toBe(500)
-    expect(await res.text()).toBe('internal server error')
+    expect(await res.text()).toBe('Internal Server Error')
     await check(
       () =>
         errors[0].includes('some error from /api/error')

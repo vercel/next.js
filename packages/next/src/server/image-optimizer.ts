@@ -460,7 +460,7 @@ export async function optimizeImage({
       console.error(
         `Error: 'sharp' is required to be installed in standalone mode for the image optimization to function correctly. Read more at: https://nextjs.org/docs/messages/sharp-missing-in-production`
       )
-      throw new ImageError(500, 'internal server error')
+      throw new ImageError(500, 'Internal Server Error')
     }
     // Show sharp warning in production once
     if (showSharpMissingWarning) {

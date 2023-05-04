@@ -37,9 +37,9 @@ export const createServerHandler = async ({
   for (const _worker of ((routerWorker as any)._workerPool?._workers || []) as {
     _child: ChildProcess
   }[]) {
+    // eslint-disable-next-line no-loop-func
     _worker._child.on('exit', (code, signal) => {
       // catch failed initializing without retry
-      // eslint-disable-next-line no-loop-func
       if ((code || signal) && !didInitialize) {
         routerWorker?.end()
         process.exit(1)
@@ -98,10 +98,9 @@ export const createServerHandler = async ({
     }
     const proxyServer = getProxyServer(req.url || '/')
     proxyServer.web(req, res)
-    proxyServer.on('error', (err, _req, res) => {
+    proxyServer.on('error', (err) => {
       res.statusCode = 500
       res.end('Internal Server Error')
-
       console.error(err)
     })
   }
