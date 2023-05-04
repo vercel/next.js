@@ -104,6 +104,8 @@ export const createWorker = (
         __NEXT_PRIVATE_RENDER_WORKER: type,
         __NEXT_PRIVATE_ROUTER_IPC_PORT: ipcPort + '',
         __NEXT_PRIVATE_ROUTER_IPC_KEY: ipcValidationKey,
+        __NEXT_PRIVATE_STANDALONE_CONFIG:
+          process.env.__NEXT_PRIVATE_STANDALONE_CONFIG,
         NODE_ENV: process.env.NODE_ENV,
         ...(type === 'app'
           ? {

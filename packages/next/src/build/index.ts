@@ -285,8 +285,6 @@ export default async function build(
       const isAppDirEnabled = !!config.experimental.appDir
 
       if (isAppDirEnabled) {
-        process.env.NEXT_PREBUNDLED_REACT = '1'
-
         if (!process.env.__NEXT_TEST_MODE && ciEnvironment.hasNextSupport) {
           const requireHook = require.resolve('../server/require-hook')
           const contents = await promises.readFile(requireHook, 'utf8')
@@ -1901,10 +1899,21 @@ export default async function build(
               config.experimental?.turbotrace?.contextDirectory ??
               outputFileTracingRoot
 
+            // Under standalone mode, we need to trace the extra IPC server and
+            // worker files.
+            const isStandalone = config.output === 'standalone'
+
             const nextServerEntry = require.resolve(
               'next/dist/server/next-server'
             )
-            const toTrace = [nextServerEntry]
+            const toTrace = [
+              nextServerEntry,
+              isStandalone
+                ? require.resolve(
+                    'next/dist/server/lib/render-server-standalone'
+                  )
+                : null,
+            ].filter(nonNullable)
 
             // ensure we trace any dependencies needed for custom
             // incremental cache handler
@@ -1929,7 +1938,7 @@ export default async function build(
               '**/*.d.ts',
               '**/*.map',
               '**/next/dist/pages/**/*',
-              '**/next/dist/compiled/jest-worker/**/*',
+              isStandalone ? null : '**/next/dist/compiled/jest-worker/**/*',
               '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
               '**/node_modules/webpack5/**/*',
               '**/next/dist/server/lib/squoosh/**/*.wasm',
@@ -1946,7 +1955,8 @@ export default async function build(
                 ? ['**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*']
                 : []),
               ...additionalIgnores,
-            ]
+            ].filter(nonNullable)
+
             const ignoreFn = (pathname: string) => {
               if (path.isAbsolute(pathname) && !pathname.startsWith(root)) {
                 return true
@@ -1959,6 +1969,26 @@ export default async function build(
             }
             const traceContext = path.join(nextServerEntry, '..', '..')
             const tracedFiles = new Set<string>()
+
+            function addToTracedFiles(base: string, file: string) {
+              tracedFiles.add(
+                path
+                  .relative(distDir, path.join(base, file))
+                  .replace(/\\/g, '/')
+              )
+            }
+
+            if (isStandalone) {
+              addToTracedFiles(
+                '',
+                require.resolve('next/dist/compiled/jest-worker/processChild')
+              )
+              addToTracedFiles(
+                '',
+                require.resolve('next/dist/compiled/jest-worker/threadChild')
+              )
+            }
+
             if (config.experimental.turbotrace) {
               const files: string[] = await nodeFileTrace(
                 {
@@ -1974,11 +2004,7 @@ export default async function build(
               )
               for (const file of files) {
                 if (!ignoreFn(path.join(traceContext, file))) {
-                  tracedFiles.add(
-                    path
-                      .relative(distDir, path.join(traceContext, file))
-                      .replace(/\\/g, '/')
-                  )
+                  addToTracedFiles(traceContext, file)
                 }
               }
             } else {
@@ -1989,11 +2015,7 @@ export default async function build(
               })
 
               serverResult.fileList.forEach((file) => {
-                tracedFiles.add(
-                  path
-                    .relative(distDir, path.join(root, file))
-                    .replace(/\\/g, '/')
-                )
+                addToTracedFiles(root, file)
               })
             }
             await promises.writeFile(

@@ -684,6 +684,10 @@ export default async function loadConfig(
   rawConfig?: boolean,
   silent?: boolean
 ): Promise<NextConfigComplete> {
+  if (process.env.__NEXT_PRIVATE_STANDALONE_CONFIG) {
+    return JSON.parse(process.env.__NEXT_PRIVATE_STANDALONE_CONFIG)
+  }
+
   const curLog = silent
     ? {
         warn: () => {},

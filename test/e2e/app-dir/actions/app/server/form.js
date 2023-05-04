@@ -15,6 +15,11 @@ async function nowhere() {
   notFound()
 }
 
+async function here() {
+  'use server'
+  // nothing
+}
+
 async function file(formData) {
   'use server'
   const file = formData.get('file')
@@ -25,18 +30,19 @@ export default function Form() {
   return (
     <>
       <hr />
-      <form method="POST" action="">
-        <input type="text" name="$$id" value={action.$$id} hidden readOnly />
+      <form action={action}>
         <input type="text" name="name" id="name" required />
         <button type="submit" id="submit">
           Submit
         </button>
       </form>
       <hr />
-      <form method="POST" action="">
-        <input type="text" name="$$id" value={nowhere.$$id} hidden readOnly />
-        <button type="submit" id="nowhere">
+      <form>
+        <button formAction={nowhere} type="submit" id="nowhere">
           Go nowhere
+        </button>
+        <button formAction={here} type="submit" id="here">
+          Go here
         </button>
       </form>
       <hr />
