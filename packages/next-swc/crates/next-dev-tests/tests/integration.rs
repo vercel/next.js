@@ -211,7 +211,7 @@ async fn run_test(resource: PathBuf) -> JestRunResult {
     )
     .entry_request(EntryRequest::Module(
         "@turbo/pack-test-harness".to_string(),
-        "".to_string(),
+        "/harness".to_string(),
     ))
     .entry_request(EntryRequest::Relative("index.js".to_owned()))
     .eager_compile(false)
@@ -407,7 +407,7 @@ async fn run_browser(addr: SocketAddr) -> Result<JestRunResult> {
                             writeln!(message, "    at {} ({}:{}:{})", frame.function_name, frame.url, frame.line_number, frame.column_number)?;
                         }
                     }
-                    let expected_error = !message.contains("(expected error)");
+                    let expected_error = message.contains("(expected error)");
                     let message = message.trim_end();
                     if !is_debugging {
                         if !expected_error {

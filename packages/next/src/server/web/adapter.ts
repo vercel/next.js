@@ -255,7 +255,7 @@ export async function adapter(
    * the incoming request was a data request.
    */
   const redirect = response?.headers.get('Location')
-  if (response && redirect) {
+  if (response && redirect && !isEdgeRendering) {
     const redirectURL = new NextURL(redirect, {
       forceLocale: false,
       headers: params.request.headers,

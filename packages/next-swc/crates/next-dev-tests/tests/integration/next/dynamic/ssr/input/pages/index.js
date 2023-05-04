@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useTestHarness } from '@turbo/pack-test-harness'
 import dynamic from 'next/dynamic'
 import '../components/nested-loaded'
 
@@ -15,9 +15,7 @@ if (typeof document !== 'undefined') {
 }
 
 export default function Home() {
-  useEffect(() => {
-    import('@turbo/pack-test-harness').then(runClientSideTests)
-  }, [])
+  useTestHarness(runClientSideTests)
 
   return <Dynamic />
 }

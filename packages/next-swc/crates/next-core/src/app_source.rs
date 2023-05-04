@@ -93,7 +93,7 @@ use crate::{
         transition::NextEdgeTransition,
     },
     next_image::module::{BlurPlaceholderMode, StructuredImageModuleType},
-    next_route_matcher::NextParamsMatcherVc,
+    next_route_matcher::{NextFallbackMatcherVc, NextParamsMatcherVc},
     next_server::context::{
         get_server_compile_time_info, get_server_module_options_context,
         get_server_resolve_options_context, ServerContextType,
@@ -426,8 +426,8 @@ pub async fn create_app_source(
     );
     let render_data = render_data(next_config);
 
-    let sources = entrypoints
-        .await?
+    let entrypoints = entrypoints.await?;
+    let mut sources: Vec<_> = entrypoints
         .iter()
         .map(|(pathname, &loader_tree)| match loader_tree {
             Entrypoint::AppPage { loader_tree } => create_app_page_source_for_route(
@@ -463,6 +463,27 @@ pub async fn create_app_source(
             server_root,
         )))
         .collect();
+
+    if let Some(&Entrypoint::AppPage { loader_tree }) = entrypoints.get("/") {
+        if loader_tree.await?.components.await?.not_found.is_some() {
+            // Only add a source for the app 404 page if a top-level not-found page is
+            // defined. Otherwise, the 404 page is handled by the pages logic.
+            let not_found_page_source = create_app_not_found_page_source(
+                loader_tree,
+                context_ssr,
+                context,
+                project_path,
+                app_dir,
+                env,
+                server_root,
+                server_runtime_entries,
+                fallback_page,
+                output_path,
+                render_data,
+            );
+            sources.push(not_found_page_source);
+        }
+    }
 
     Ok(CombinedContentSource { sources }.cell().into())
 }
@@ -553,6 +574,49 @@ async fn create_app_page_source_for_route(
     );
 
     Ok(source.issue_context(app_dir, &format!("Next.js App Page Route {pathname}")))
+}
+
+#[allow(clippy::too_many_arguments)]
+#[turbo_tasks::function]
+async fn create_app_not_found_page_source(
+    loader_tree: LoaderTreeVc,
+    context_ssr: AssetContextVc,
+    context: AssetContextVc,
+    project_path: FileSystemPathVc,
+    app_dir: FileSystemPathVc,
+    env: ProcessEnvVc,
+    server_root: FileSystemPathVc,
+    runtime_entries: AssetsVc,
+    fallback_page: DevHtmlAssetVc,
+    intermediate_output_path_root: FileSystemPathVc,
+    render_data: JsonValueVc,
+) -> Result<ContentSourceVc> {
+    let pathname_vc = StringVc::cell("/404".to_string());
+
+    let source = create_node_rendered_source(
+        project_path,
+        env,
+        SpecificityVc::not_found(),
+        server_root,
+        NextFallbackMatcherVc::new().into(),
+        pathname_vc,
+        AppRenderer {
+            runtime_entries,
+            app_dir,
+            context_ssr,
+            context,
+            server_root,
+            project_path,
+            intermediate_output_path: intermediate_output_path_root,
+            loader_tree,
+        }
+        .cell()
+        .into(),
+        fallback_page,
+        render_data,
+    );
+
+    Ok(source.issue_context(app_dir, "Next.js App Page Route /404"))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -856,15 +920,17 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
                 layout,
                 loading,
                 template,
+                not_found,
                 metadata,
                 route: _,
             } = &*components.await?;
             write_component(state, "page", *page)?;
-            write_component(state, "default", *default)?;
+            write_component(state, "defaultPage", *default)?;
             write_component(state, "error", *error)?;
             write_component(state, "layout", *layout)?;
             write_component(state, "loading", *loading)?;
             write_component(state, "template", *template)?;
+            write_component(state, "not-found", *not_found)?;
             write_metadata(state, metadata)?;
             write!(state.loader_tree_code, "}}]")?;
             Ok(())

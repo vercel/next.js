@@ -101,6 +101,10 @@ pub async fn get_next_client_import_map(
                 "react-server-dom-webpack/",
                 request_to_import_mapping(app_dir, "next/dist/compiled/react-server-dom-webpack/*"),
             );
+            import_map.insert_exact_alias(
+                "next/dynamic",
+                request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
+            );
         }
         ClientContextType::Fallback => {}
         ClientContextType::Other => {}

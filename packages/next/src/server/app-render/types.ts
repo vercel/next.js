@@ -100,6 +100,10 @@ export type FlightDataPath =
  */
 export type FlightData = Array<FlightDataPath> | string
 
+export type ActionResult = Promise<any>
+
+export type ActionFlightData = [ActionResult, FlightData | null]
+
 /**
  * Property holding the current subTreeData.
  */
@@ -127,6 +131,7 @@ export type RenderOptsPartial = {
   nextExport?: boolean
   nextConfigOutput?: 'standalone' | 'export'
   appDirDevErrorLogger?: (err: any) => Promise<void>
+  originalPathname?: string
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial

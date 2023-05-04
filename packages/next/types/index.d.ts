@@ -2,6 +2,7 @@
 /// <reference types="react" />
 /// <reference types="react/experimental" />
 /// <reference types="react-dom" />
+/// <reference types="react-dom/experimental" />
 
 import React from 'react'
 import { ParsedUrlQuery } from 'querystring'
@@ -140,22 +141,6 @@ export {
 }
 
 export type PreviewData = string | false | object | undefined
-
-export type DraftMode = {
-  /**
-   * Get the current value of Draft Mode.
-   * True when enabled, false when disabled.
-   */
-  enabled: boolean
-  /**
-   * Set the value of Draft Mode to true.
-   */
-  enable: () => void
-  /**
-   * Set the value of Draft Mode to false.
-   */
-  disable: () => void
-}
 
 /**
  * Context object passed into `getStaticProps`.
