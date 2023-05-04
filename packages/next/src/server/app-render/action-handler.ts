@@ -131,6 +131,7 @@ async function createRedirectRenderResult(
   redirectUrl: string,
   staticGenerationStore: StaticGenerationStore
 ) {
+  res.setHeader('x-action-redirect', redirectUrl)
   // if we're redirecting to a relative path, we'll try to stream the response
   if (redirectUrl.startsWith('/')) {
     const forwardedHeaders = getForwardedHeaders(req, res)
@@ -349,7 +350,6 @@ export async function handleAction({
 
         // if it's a fetch action, we don't want to mess with the status code
         // and we'll handle it on the client router
-        res.setHeader('Location', redirectUrl)
         await Promise.all(staticGenerationStore.pendingRevalidates || [])
 
         if (isFetchAction) {
@@ -361,6 +361,7 @@ export async function handleAction({
           )
         }
 
+        res.setHeader('Location', redirectUrl)
         res.statusCode = 303
         return new RenderResult('')
       } else if (isNotFoundError(err)) {
