@@ -6,6 +6,7 @@ use turbo_tasks_fs::FileSystemPathVc;
 
 use super::{Issue, IssueVc};
 use crate::{
+    error::PrettyPrintError,
     issue::{IssueSeverityVc, OptionIssueSourceVc},
     resolve::{options::ResolveOptionsVc, parse::RequestVc},
 };
@@ -82,7 +83,16 @@ impl Issue for ResolvingIssue {
         if let Some(import_map) = &self.resolve_options.await?.import_map {
             let result = import_map.lookup(self.context, self.request);
 
-            writeln!(detail, "Import map: {}", result.to_string().await?)?;
+            match result.to_string().await {
+                Ok(str) => writeln!(detail, "Import map: {}", str)?,
+                Err(err) => {
+                    writeln!(
+                        detail,
+                        "Error while looking up import map: {}",
+                        PrettyPrintError(&err)
+                    )?;
+                }
+            }
         }
         Ok(StringVc::cell(detail))
     }
