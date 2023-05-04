@@ -70,10 +70,8 @@ export async function getAllPostsForHome(preview) {
               url
             }
           }
-          seo {
-            social_media_image {
-              url(preset: "square")
-            }
+          cover {
+            url(preset: "square")
           }
         }
       }
@@ -112,10 +110,8 @@ export async function getPostAndMorePosts(slug, preview) {
           url
         }
       }
-      seo {
-        social_media_image {
-          url(preset: "square")
-        }
+      cover {
+        url(preset: "square")
       }
     }
     MoreArticles: Articles(limit: 3, sort: publish_on_DESC) {
@@ -124,6 +120,9 @@ export async function getPostAndMorePosts(slug, preview) {
         _slug
         _publish_on
         title, 
+        cover {
+          url(preset: "square")
+        }
         content {
           ... on Text {
             html
@@ -134,11 +133,6 @@ export async function getPostAndMorePosts(slug, preview) {
           full_name
           profile_pic {
             url
-          }
-        }
-        seo {
-          social_media_image {
-            url(preset: "square")
           }
         }
       }

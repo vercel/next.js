@@ -22,7 +22,7 @@ export default function Index({ allPosts, preview }) {
           {heroPost && (
             <HeroPost
               title={heroPost.title}
-              coverImage={heroPost.seo.social_media_image[0].url}
+              coverImage={heroPost.cover[0].url}
               date={heroPost.publish_on}
               author={heroPost.authors[0]}
               slug={heroPost._slug}
