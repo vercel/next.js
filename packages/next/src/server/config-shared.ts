@@ -686,7 +686,7 @@ export const defaultConfig: NextConfig = {
     swcFileReading: true,
     craCompat: false,
     esmExternals: true,
-    appDir: false,
+    appDir: true,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
     incrementalCacheHandlerPath: undefined,
