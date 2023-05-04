@@ -484,6 +484,9 @@ const configSchema = {
             },
           },
         },
+        verboseRequestLogs: {
+          type: 'boolean',
+        },
       },
       type: 'object',
     },

@@ -1789,7 +1789,7 @@ export default class NextNodeServer extends BaseServer {
               )
             }
             process.stdout.write('\n')
-          } else {
+          } else if (this.nextConfig.experimental.verboseRequestLogs) {
             process.stdout.write(
               `- ${chalk.cyan(req.method || 'GET')} ${req.url} ${
                 res.statusCode
