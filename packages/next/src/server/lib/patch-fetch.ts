@@ -26,6 +26,43 @@ export function addImplicitTags(
   return newTags
 }
 
+function trackFetchMetric(
+  staticGenerationStore: ReturnType<StaticGenerationAsyncStorage['getStore']>,
+  ctx: {
+    url: string
+    status: number
+    method: string
+    cacheStatus: 'hit' | 'miss'
+    start: number
+  }
+) {
+  if (!staticGenerationStore) return
+  if (!staticGenerationStore.fetchMetrics) {
+    staticGenerationStore.fetchMetrics = []
+  }
+  const dedupeFields = ['url', 'status', 'method']
+
+  // don't add metric if one already exists for the fetch
+  if (
+    staticGenerationStore.fetchMetrics.some((metric) => {
+      return dedupeFields.every(
+        (field) => (metric as any)[field] === (ctx as any)[field]
+      )
+    })
+  ) {
+    return
+  }
+  staticGenerationStore.fetchMetrics.push({
+    url: ctx.url,
+    cacheStatus: ctx.cacheStatus,
+    status: ctx.status,
+    method: ctx.method,
+    start: ctx.start,
+    end: Date.now(),
+    idx: staticGenerationStore.nextFetchId || 0,
+  })
+}
+
 // we patch fetch to collect cache information used for
 // determining if a page is static or not
 export function patchFetch({
@@ -53,7 +90,7 @@ export function patchFetch({
       // Error caused by malformed URL should be handled by native fetch
       url = undefined
     }
-
+    const fetchStart = Date.now()
     const method = init?.method?.toUpperCase() || 'GET'
 
     return await getTracer().trace(
@@ -267,7 +304,7 @@ export function patchFetch({
         const fetchIdx = staticGenerationStore.nextFetchId ?? 1
         staticGenerationStore.nextFetchId = fetchIdx + 1
 
-        const doOriginalFetch = async () => {
+        const doOriginalFetch = async (isStale?: boolean) => {
           // add metadata to init without editing the original
           const clonedInit = {
             ...init,
@@ -275,6 +312,15 @@ export function patchFetch({
           }
 
           return originFetch(input, clonedInit).then(async (res) => {
+            if (!isStale) {
+              trackFetchMetric(staticGenerationStore, {
+                start: fetchStart,
+                url: fetchUrl,
+                cacheStatus: 'miss',
+                status: res.status,
+                method: clonedInit.method || 'GET',
+              })
+            }
             if (
               res.status === 200 &&
               staticGenerationStore.incrementalCache &&
@@ -336,7 +382,7 @@ export function patchFetch({
                   staticGenerationStore.pendingRevalidates = []
                 }
                 staticGenerationStore.pendingRevalidates.push(
-                  doOriginalFetch().catch(console.error)
+                  doOriginalFetch(true).catch(console.error)
                 )
               } else if (
                 tags &&
@@ -373,6 +419,14 @@ export function patchFetch({
               } else {
                 decodedBody = Buffer.from(resData.body, 'base64').subarray()
               }
+
+              trackFetchMetric(staticGenerationStore, {
+                start: fetchStart,
+                url: fetchUrl,
+                cacheStatus: 'hit',
+                status: resData.status || 200,
+                method: init?.method || 'GET',
+              })
 
               return new Response(decodedBody, {
                 headers: resData.headers,
