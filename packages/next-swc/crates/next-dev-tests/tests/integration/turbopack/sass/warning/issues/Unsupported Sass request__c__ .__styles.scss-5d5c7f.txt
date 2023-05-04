@@ -1,6 +1,6 @@
 PlainIssue {
     severity: Warning,
-    context: "[project]/packages/next-swc/crates/next-dev-tests/tests/integration/turbopack/sass/warning/input",
+    context: "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/turbopack/sass/warning/input",
     category: "resolve",
     title: "Unsupported Sass request: ./styles.scss",
     description: "Turbopack does not yet support importing Sass modules.",
