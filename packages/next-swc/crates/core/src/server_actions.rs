@@ -1205,7 +1205,8 @@ fn annotate_ident_as_action(
         generate_action_id(file_name, export_name).into(),
     ));
 
-    // myAction.$$bound = [];
+    // myAction.$$bound = [arg1, arg2, arg3];
+    // or myAction.$$bound = null; if there are no bound values.
     annotations.push(annotate(
         &ident,
         "$$bound",
@@ -1220,11 +1221,15 @@ fn annotate_ident_as_action(
                 }),
             }))
         } else {
-            ArrayLit {
-                span: DUMMY_SP,
-                elems: bound,
+            if bound.is_empty() {
+                Lit::Null(Null { span: DUMMY_SP }).into()
+            } else {
+                ArrayLit {
+                    span: DUMMY_SP,
+                    elems: bound,
+                }
+                .into()
             }
-            .into()
         },
     ));
 
