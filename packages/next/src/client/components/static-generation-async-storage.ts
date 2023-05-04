@@ -5,10 +5,11 @@ import { createAsyncLocalStorage } from './async-local-storage'
 export interface StaticGenerationStore {
   readonly isStaticGeneration: boolean
   readonly pathname: string
+  readonly originalPathname?: string
   readonly incrementalCache?: IncrementalCache
-  readonly isRevalidate?: boolean
   readonly isOnDemandRevalidate?: boolean
   readonly isPrerendering?: boolean
+  readonly isRevalidate?: boolean
 
   forceDynamic?: boolean
   fetchCache?:
@@ -17,6 +18,7 @@ export interface StaticGenerationStore {
     | 'force-no-store'
     | 'default-no-store'
     | 'only-no-store'
+
   revalidate?: false | number
   forceStatic?: boolean
   dynamicShouldError?: boolean
@@ -26,6 +28,9 @@ export interface StaticGenerationStore {
   dynamicUsageStack?: string
 
   nextFetchId?: number
+  pathWasRevalidated?: boolean
+
+  tags?: string[]
 }
 
 export type StaticGenerationAsyncStorage =

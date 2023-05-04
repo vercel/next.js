@@ -211,7 +211,8 @@ const nextDev: CliCommand = async (argv) => {
     allowRetry,
     isDev: true,
     hostname: host,
-    useWorkers: !process.env.__NEXT_DISABLE_MEMORY_WATCHER,
+    // This is required especially for app dir.
+    useWorkers: true,
   }
 
   if (args['--turbo']) {
@@ -264,21 +265,11 @@ const nextDev: CliCommand = async (argv) => {
       )
     }
 
-    const turboJson = findUp.sync('turbo.json', { cwd: dir })
-    // eslint-disable-next-line no-shadow
-    const packagePath = findUp.sync('package.json', { cwd: dir })
-
     let bindings: any = await loadBindings()
     let server = bindings.turbo.startDev({
       ...devServerOptions,
       showAll: args['--show-all'] ?? false,
-      root:
-        args['--root'] ??
-        (turboJson
-          ? path.dirname(turboJson)
-          : packagePath
-          ? path.dirname(packagePath)
-          : undefined),
+      root: args['--root'] ?? rawNextConfig.experimental?.outputFileTracingRoot,
     })
     // Start preflight after server is listening and ignore errors:
     preflight().catch(() => {})
@@ -318,7 +309,7 @@ const nextDev: CliCommand = async (argv) => {
 
         const setupFork = async (newDir?: string) => {
           // if we're using workers we can auto restart on config changes
-          if (!devServerOptions.useWorkers && devServerTeardown) {
+          if (process.env.__NEXT_DISABLE_MEMORY_WATCHER && devServerTeardown) {
             Log.info(
               `Detected change, manual restart required due to '__NEXT_DISABLE_MEMORY_WATCHER' usage`
             )
@@ -408,12 +399,6 @@ const nextDev: CliCommand = async (argv) => {
               undefined,
               undefined,
               true
-            )
-          }
-
-          if (config.experimental?.appDir && !devServerOptions.useWorkers) {
-            Log.error(
-              `Disabling dev workers is not supported with appDir enabled`
             )
           }
         }

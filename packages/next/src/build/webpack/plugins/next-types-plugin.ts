@@ -67,11 +67,7 @@ checkFields<Diff<{
   dynamicParams?: boolean
   fetchCache?: 'auto' | 'force-no-store' | 'only-no-store' | 'default-no-store' | 'default-cache' | 'only-cache' | 'force-cache'
   preferredRegion?: 'auto' | 'global' | 'home' | string | string[]
-  ${
-    options.type === 'page' || options.type === 'route'
-      ? "runtime?: 'nodejs' | 'experimental-edge' | 'edge'"
-      : ''
-  }
+  runtime?: 'nodejs' | 'experimental-edge' | 'edge'
   ${
     options.type === 'route'
       ? ''
@@ -588,11 +584,13 @@ export class NextTypesPlugin {
         appTypesBasePath,
         relativePathToApp.replace(/\.(js|jsx|ts|tsx|mjs)$/, '.ts')
       )
-      const relativeImportPath = path
-        .join(this.getRelativePathFromAppTypesDir(relativePathToApp))
-        .replace(/\.(js|jsx|ts|tsx|mjs)$/, '')
-        .replace(/\\/g, '/')
-      const assetPath = assetDirRelative + '/' + normalizePathSep(typePath)
+      const relativeImportPath = normalizePathSep(
+        path
+          .join(this.getRelativePathFromAppTypesDir(relativePathToApp))
+          .replace(/\.(js|jsx|ts|tsx|mjs)$/, '')
+      )
+
+      const assetPath = path.join(assetDirRelative, typePath)
 
       if (IS_LAYOUT) {
         const slots = await collectNamedSlots(mod.resource)
@@ -673,6 +671,17 @@ export class NextTypesPlugin {
 
           await Promise.all(promises)
 
+          // Support `"moduleResolution": "Node16" | "NodeNext"` with `"type": "module"`
+
+          const packageJsonAssetPath = path.join(
+            assetDirRelative,
+            'types/package.json'
+          )
+
+          assets[packageJsonAssetPath] = new sources.RawSource(
+            '{"type": "module"}'
+          ) as unknown as webpack.sources.RawSource
+
           if (this.typedRoutes) {
             if (this.dev && !this.isEdgeServer) {
               devPageFiles.forEach((file) => {
@@ -680,17 +689,8 @@ export class NextTypesPlugin {
               })
             }
 
-            // Support tsconfig values for "moduleResolution": "Node16" or "NodeNext"
-            const packageJsonTypePath = path.join('types', 'package.json')
-            const packageJsonAssetPath =
-              assetDirRelative + '/' + normalizePathSep(packageJsonTypePath)
-            assets[packageJsonAssetPath] = new sources.RawSource(
-              '{"type": "module"}'
-            ) as unknown as webpack.sources.RawSource
+            const linkAssetPath = path.join(assetDirRelative, 'types/link.d.ts')
 
-            const linkTypePath = path.join('types', 'link.d.ts')
-            const linkAssetPath =
-              assetDirRelative + '/' + normalizePathSep(linkTypePath)
             assets[linkAssetPath] = new sources.RawSource(
               createRouteDefinitions()
             ) as unknown as webpack.sources.RawSource

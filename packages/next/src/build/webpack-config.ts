@@ -88,8 +88,8 @@ const babelIncludeRegexes: RegExp[] = [
 
 const reactPackagesRegex = /^(react|react-dom|react-server-dom-webpack)($|\/)/
 
-const staticGenerationAsyncStorageRegex =
-  /next[\\/]dist[\\/]client[\\/]components[\\/]static-generation-async-storage/
+const asyncStoragesRegex =
+  /next[\\/]dist[\\/]client[\\/]components[\\/](static-generation-async-storage|action-async-storage)/
 
 const mainFieldsPerCompiler: Record<CompilerNameValues, string[]> = {
   [COMPILER_NAMES.server]: ['main', 'module'],
@@ -704,8 +704,8 @@ export default async function getBaseWebpackConfig(
   const hasServerComponents = hasAppDir
   const disableOptimizedLoading = true
   const enableTypedRoutes = !!config.experimental.typedRoutes && hasAppDir
-  const experimentalReact = !!config.experimental.experimentalReact && hasAppDir
-  const bundledReactChannel = experimentalReact ? '-experimental' : ''
+  const serverActions = !!config.experimental.serverActions && hasAppDir
+  const bundledReactChannel = serverActions ? '-experimental' : ''
 
   if (isClient) {
     if (
@@ -1841,10 +1841,7 @@ export default async function getBaseWebpackConfig(
                   and: [
                     codeCondition.test,
                     {
-                      not: [
-                        optOutBundlingPackageRegex,
-                        staticGenerationAsyncStorageRegex,
-                      ],
+                      not: [optOutBundlingPackageRegex, asyncStoragesRegex],
                     },
                   ],
                 },
@@ -1866,7 +1863,7 @@ export default async function getBaseWebpackConfig(
                 // Make sure that AsyncLocalStorage module instance is shared between server and client
                 // layers.
                 layer: WEBPACK_LAYERS.shared,
-                test: staticGenerationAsyncStorageRegex,
+                test: asyncStoragesRegex,
               },
             ]
           : []),
@@ -1900,7 +1897,7 @@ export default async function getBaseWebpackConfig(
                 // Alias react for switching between default set and share subset.
                 oneOf: [
                   {
-                    exclude: [staticGenerationAsyncStorageRegex],
+                    exclude: [asyncStoragesRegex],
                     issuerLayer: {
                       or: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.action],
                     },
@@ -1974,7 +1971,7 @@ export default async function getBaseWebpackConfig(
                     issuerLayer: {
                       or: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.action],
                     },
-                    exclude: [staticGenerationAsyncStorageRegex],
+                    exclude: [asyncStoragesRegex],
                     use: swcLoaderForServerLayer,
                   },
                   {
@@ -1987,10 +1984,7 @@ export default async function getBaseWebpackConfig(
                     issuerLayer: {
                       or: [WEBPACK_LAYERS.client, WEBPACK_LAYERS.appClient],
                     },
-                    exclude: [
-                      staticGenerationAsyncStorageRegex,
-                      codeCondition.exclude,
-                    ],
+                    exclude: [asyncStoragesRegex, codeCondition.exclude],
                     use: [
                       ...(dev && isClient
                         ? [
@@ -2205,7 +2199,9 @@ export default async function getBaseWebpackConfig(
         new (require('./webpack/plugins/next-trace-entrypoints-plugin')
           .TraceEntryPointsPlugin as typeof import('./webpack/plugins/next-trace-entrypoints-plugin').TraceEntryPointsPlugin)(
           {
-            appDir: dir,
+            rootDir: dir,
+            appDir: appDir,
+            pagesDir: pagesDir,
             esmExternals: config.experimental.esmExternals,
             outputFileTracingRoot: config.experimental.outputFileTracingRoot,
             appDirEnabled: hasAppDir,
@@ -2307,7 +2303,7 @@ export default async function getBaseWebpackConfig(
               appDir,
               dev,
               isEdgeServer,
-              useExperimentalReact: experimentalReact,
+              useServerActions: serverActions,
             })),
       hasAppDir &&
         !isClient &&

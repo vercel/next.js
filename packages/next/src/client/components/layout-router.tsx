@@ -564,7 +564,7 @@ export default function OuterLayoutRouter({
               - Passed to the router during rendering to ensure it can be immediately rendered when suspending on a Flight fetch.
           */
           <TemplateContext.Provider
-            key={cacheKey}
+            key={createRouterCacheKey(preservedSegment, true)}
             value={
               <ScrollAndFocusHandler segmentPath={segmentPath}>
                 <ErrorBoundary errorComponent={error} errorStyles={errorStyles}>

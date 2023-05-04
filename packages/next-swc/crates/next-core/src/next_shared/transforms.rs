@@ -27,9 +27,9 @@ use turbo_binding::{
         },
     },
 };
-use turbo_tasks::trace::TraceRawVcs;
+use turbo_tasks::{trace::TraceRawVcs, Value};
 
-use crate::next_image::StructuredImageModuleTypeVc;
+use crate::next_image::{module::BlurPlaceholderMode, StructuredImageModuleTypeVc};
 
 /// Returns a rule which applies the Next.js page export stripping transform.
 pub async fn get_next_pages_transforms_rule(
@@ -98,7 +98,7 @@ pub fn get_next_image_rule() -> ModuleRule {
             ModuleRuleCondition::ResourcePathEndsWith(".svg".to_string()),
         ]),
         vec![ModuleRuleEffect::ModuleType(ModuleType::Custom(
-            StructuredImageModuleTypeVc::new().into(),
+            StructuredImageModuleTypeVc::new(Value::new(BlurPlaceholderMode::DataUrl)).into(),
         ))],
     )
 }

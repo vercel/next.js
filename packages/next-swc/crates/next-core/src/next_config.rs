@@ -51,7 +51,7 @@ pub struct NextConfig {
     pub config_file: Option<String>,
     pub config_file_name: String,
 
-    pub env: IndexMap<String, String>,
+    pub env: IndexMap<String, JsonValue>,
     pub experimental: ExperimentalConfig,
     pub images: ImageConfig,
     pub page_extensions: Vec<String>,
@@ -509,7 +509,27 @@ impl NextConfigVc {
 
     #[turbo_tasks::function]
     pub async fn env(self) -> Result<EnvMapVc> {
-        Ok(EnvMapVc::cell(self.await?.env.clone()))
+        // The value expected for env is Record<String, String>, but config itself
+        // allows arbitary object (https://github.com/vercel/next.js/blob/25ba8a74b7544dfb6b30d1b67c47b9cb5360cb4e/packages/next/src/server/config-schema.ts#L203)
+        // then stringifies it. We do the interop here as well.
+        let env = self
+            .await?
+            .env
+            .iter()
+            .map(|(k, v)| {
+                (
+                    k.clone(),
+                    if let JsonValue::String(s) = v {
+                        // A string value is kept, calling `to_string` would wrap in to quotes.
+                        s.clone()
+                    } else {
+                        v.to_string()
+                    },
+                )
+            })
+            .collect();
+
+        Ok(EnvMapVc::cell(env))
     }
 
     #[turbo_tasks::function]

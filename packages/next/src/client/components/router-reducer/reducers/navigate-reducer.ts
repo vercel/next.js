@@ -140,7 +140,7 @@ export function navigateReducer(
   ) {
     const segments = pathname.split('/')
     // TODO-APP: figure out something better for index pages
-    segments.push('')
+    segments.push('__PAGE__')
 
     // Optimistic tree case.
     // If the optimistic tree is deeper than the current state leave that deeper part out of the fetch
@@ -165,7 +165,7 @@ export function navigateReducer(
     // TODO-APP: re-evaluate if we need to strip the last segment
     const optimisticFlightSegmentPath = segments
       .slice(1)
-      .map((segment) => ['children', segment === '' ? '__PAGE__' : segment])
+      .map((segment) => ['children', segment])
       .flat()
 
     // Copy existing cache nodes as far as possible and fill in `data` property with the started data fetch.
@@ -288,7 +288,8 @@ export function navigateReducer(
           currentCache,
           flightSegmentPath,
           treePatch,
-          () => fetchServerResponse(url, newTree!, state.nextUrl)
+          // eslint-disable-next-line no-loop-func
+          () => fetchServerResponse(url, currentTree, state.nextUrl)
         )
       }
 

@@ -444,8 +444,8 @@ describe('app dir - rsc basics', () => {
       /<div>version=([^<]+)<\/div>/
     )?.[1]
 
-    expect(versionPages).not.toInclude('-next-')
-    expect(versionApp).toInclude('-next-')
+    expect(versionPages).not.toInclude('-canary-')
+    expect(versionApp).toInclude('-canary-')
   })
 
   // disable this flaky test
