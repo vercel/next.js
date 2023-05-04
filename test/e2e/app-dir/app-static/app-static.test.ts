@@ -1848,14 +1848,6 @@ createNextDescribe(
       })
     })
 
-    if (!(global as any).isNextDeploy) {
-      it('should show a message to leave feedback for `appDir`', async () => {
-        expect(next.cliOutput).toContain(
-          `Thank you for testing \`appDir\` please leave your feedback at https://nextjs.link/app-feedback`
-        )
-      })
-    }
-
     it('should keep querystring on static page', async () => {
       const browser = await next.browser('/blog/tim?message=hello-world')
       const checkUrl = async () =>

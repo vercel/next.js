@@ -453,10 +453,23 @@ async function revalidate(
         throw new Error(`Invalid response ${res.status}`)
       }
     } else if (context.revalidate) {
-      const mocked = createRequestResponseMocks({
-        url: urlPath,
-        headers: revalidateHeaders,
-      })
+      // We prefer to use the IPC call if running under the workers mode.
+      const ipcPort = process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT
+      if (ipcPort) {
+        const ipcKey = process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY
+        const res = await invokeRequest(
+          `http://${
+            context.hostname
+          }:${ipcPort}?key=${ipcKey}&method=revalidate&args=${encodeURIComponent(
+            JSON.stringify([{ urlPath, revalidateHeaders, opts }])
+          )}`,
+          {
+            method: 'GET',
+            headers: {},
+          }
+        )
+
+        const chunks = []
 
       await context.revalidate(mocked.req, mocked.res)
       await mocked.res.hasStreamed

@@ -332,7 +332,6 @@ export default async function build(
         dir,
         appDir,
         pagesDir,
-        isAppDirEnabled,
         runLint,
         shouldLint,
         ignoreESLint,
