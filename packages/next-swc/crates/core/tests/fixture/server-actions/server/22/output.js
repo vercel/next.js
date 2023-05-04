@@ -9,9 +9,9 @@ ensureServerEntryExports([
 ]);
 action.$$typeof = Symbol.for("react.server.reference");
 action.$$id = "f14702b5a021dd117f7ec7a3c838f397c2046d3b";
-action.$$bound = [];
+action.$$bound = null;
 action.$$with_bound = false;
 $$ACTION_0.$$typeof = Symbol.for("react.server.reference");
 $$ACTION_0.$$id = "c18c215a6b7cdc64bf709f3a714ffdef1bf9651d";
-$$ACTION_0.$$bound = [];
+$$ACTION_0.$$bound = null;
 $$ACTION_0.$$with_bound = false;
