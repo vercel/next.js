@@ -22,6 +22,33 @@ import { FlightRenderResult } from './flight-render-result'
 import { ActionResult } from './types'
 import { ActionAsyncStorage } from '../../client/components/action-async-storage'
 
+function nodeToWebReadableStream(nodeReadable: import('stream').Readable) {
+  if (process.env.NEXT_RUNTIME !== 'edge') {
+    const { Readable } = require('stream')
+    if ('toWeb' in Readable && typeof Readable.toWeb === 'function') {
+      return Readable.toWeb(nodeReadable)
+    }
+
+    return new ReadableStream({
+      start(controller) {
+        nodeReadable.on('data', (chunk) => {
+          controller.enqueue(chunk)
+        })
+
+        nodeReadable.on('end', () => {
+          controller.close()
+        })
+
+        nodeReadable.on('error', (error) => {
+          controller.error(error)
+        })
+      },
+    })
+  } else {
+    throw new Error('Invalid runtime')
+  }
+}
+
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
   const formData = new FormData()
@@ -266,12 +293,11 @@ export async function handleAction({
             } else {
               // React doesn't yet publish a busboy version of decodeAction
               // so we polyfill the parsing of FormData.
-              const { Readable } = require('stream')
               const UndiciRequest = require('next/dist/compiled/undici').Request
               const fakeRequest = new UndiciRequest('http://localhost', {
                 method: 'POST',
                 headers: { 'Content-Type': req.headers['content-type'] },
-                body: Readable.toWeb(req),
+                body: nodeToWebReadableStream(req),
                 duplex: 'half',
               })
               const formData = await fakeRequest.formData()
