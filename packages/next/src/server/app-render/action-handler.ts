@@ -318,9 +318,6 @@ export async function handleAction({
       return actionResult
     } catch (err) {
       if (isRedirectError(err)) {
-        if (process.env.NEXT_RUNTIME === 'edge') {
-          throw new Error('Invariant: not implemented.')
-        }
         const redirectUrl = getURLFromRedirectError(err)
 
         // if it's a fetch action, we don't want to mess with the status code
