@@ -43,10 +43,8 @@ function createTypeGuardFile(
     slots?: string[]
   }
 ) {
-  // Use `import = require()` to avoid TypeScript's "esModuleInterop" flag causing
-  // problems.
   return `// File: ${fullPath}
-import entry = require('${relativePath}.js')
+import entry from '${relativePath}.js'
 ${
   options.type === 'route'
     ? `import type { NextRequest } from 'next/server.js'`
