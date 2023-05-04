@@ -7,8 +7,10 @@ declare global {
   // We need to extract only the call signature as `autoReady(jest.describe)` drops all the other properties
   var describe: AutoReady<typeof jest.describe>
   var it: AutoReady<typeof jest.it>
-  var READY: (arg: string) => void
+  var TURBOPACK_READY: (arg: string) => void
+  var TURBOPACK_CHANGE_FILE: (arg: string) => void
   var nsObj: (obj: any) => any
+  var __turbopackFileChanged: (id: string, error: Error) => void
 
   interface Window {
     NEXT_HYDRATED?: boolean
@@ -62,8 +64,8 @@ function markReady() {
     isReady = true
     requestIdleCallback(
       () => {
-        if (typeof READY === 'function') {
-          READY('')
+        if (typeof TURBOPACK_READY === 'function') {
+          TURBOPACK_READY('')
         } else {
           console.info(
             '%cTurbopack tests:',
@@ -209,4 +211,42 @@ export function markAsHydrated() {
   if (typeof window.onNextHydrated === 'function') {
     window.onNextHydrated()
   }
+}
+
+const fileChangedResolvers: Map<
+  string,
+  { resolve: (value: unknown) => void; reject: (error: Error) => void }
+> = new Map()
+
+globalThis.__turbopackFileChanged = (id: string, error?: Error) => {
+  const resolver = fileChangedResolvers.get(id)
+  if (resolver == null) {
+    throw new Error(`No resolver found for id ${id}`)
+  } else if (error != null) {
+    resolver.reject(error)
+  } else {
+    resolver.resolve(null)
+  }
+}
+
+function unsafeUniqueId(): string {
+  const LENGTH = 10
+  const BASE = 16
+  return Math.floor(Math.random() * Math.pow(BASE, LENGTH))
+    .toString(BASE)
+    .slice(0, LENGTH)
+}
+
+export async function changeFile(
+  path: string,
+  find: string,
+  replaceWith: string
+) {
+  return new Promise((resolve, reject) => {
+    const id = unsafeUniqueId()
+
+    fileChangedResolvers.set(id, { resolve, reject })
+
+    TURBOPACK_CHANGE_FILE(JSON.stringify({ path, id, find, replaceWith }))
+  })
 }
