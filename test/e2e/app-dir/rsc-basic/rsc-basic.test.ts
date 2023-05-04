@@ -413,6 +413,7 @@ describe('app dir - rsc basics', () => {
       await resolveStreamResponse(response, (_, result) => {
         gotInlinedData = result.includes('self.__next_f=')
         gotData = result.includes('next_streaming_data')
+        console.log('result', result)
         if (!gotFallback) {
           gotFallback = result.includes('next_streaming_fallback')
           if (gotFallback) {
@@ -422,6 +423,7 @@ describe('app dir - rsc basics', () => {
         }
       })
 
+      expect(gotFallback).toBe('impossible')
       expect(gotFallback).toBe(true)
       expect(gotData).toBe(true)
       expect(gotInlinedData).toBe(true)
@@ -448,8 +450,7 @@ describe('app dir - rsc basics', () => {
     expect(versionApp).toInclude('-canary-')
   })
 
-  // disable this flaky test
-  it.skip('should support partial hydration with inlined server data in browser', async () => {
+  it('should support partial hydration with inlined server data in browser', async () => {
     // Should end up with "next_streaming_data".
     const browser = await next.browser('/partial-hydration', {
       waitHydration: false,
