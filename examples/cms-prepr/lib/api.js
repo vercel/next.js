@@ -57,7 +57,8 @@ export async function getAllPostsForHome(preview) {
           _id
           _slug
           _publish_on
-          title, 
+          title
+          excerpt
           content {
             ...on Text {
               html
@@ -91,7 +92,8 @@ export async function getPostAndMorePosts(slug, preview) {
       _id
       _slug
       _publish_on
-      title, 
+      title
+      excerpt
       content {
         __typename
         ... on Text {
@@ -119,7 +121,8 @@ export async function getPostAndMorePosts(slug, preview) {
         _id
         _slug
         _publish_on
-        title, 
+        title
+        excerpt 
         cover {
           url(preset: "square")
         }

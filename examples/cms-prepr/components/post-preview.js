@@ -25,7 +25,7 @@ export default function PostPreview({
       <div className="text-lg mb-4">
         <Date dateString={date} />
       </div>
-      <p className="text-lg leading-relaxed mb-4">{excerpt}</p>
+      <div className="text-lg leading-relaxed mb-4" dangerouslySetInnerHTML={{__html: excerpt}}></div>
       <Avatar name={author.full_name} picture={author.profile_pic[0].url} />
     </div>
   )

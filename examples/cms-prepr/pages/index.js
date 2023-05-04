@@ -26,7 +26,7 @@ export default function Index({ allPosts, preview }) {
               date={heroPost.publish_on}
               author={heroPost.authors[0]}
               slug={heroPost._slug}
-              excerpt={heroPost.content[0].text}
+              excerpt={heroPost.excerpt}
             />
           )}
           {morePosts.length > 0 && <MoreStories posts={morePosts} />}
