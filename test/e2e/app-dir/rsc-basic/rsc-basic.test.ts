@@ -410,18 +410,22 @@ describe('app dir - rsc basics', () => {
       let gotData = false
       let gotInlinedData = false
 
-      await resolveStreamResponse(response, (_, result) => {
-        gotInlinedData = result.includes('self.__next_f=')
-        gotData = result.includes('next_streaming_data')
-        console.log('result', result)
+      process.stdout.write('resolveStreamResponse')
+      await resolveStreamResponse(response, (_, chunk) => {
+        process.stdout.write('resolveStreamResponse:callback')
+        gotInlinedData = chunk.includes('self.__next_f=')
+        gotData = chunk.includes('next_streaming_data')
+        // console.log('console:chunk', chunk)
+        process.stdout.write('stdout:chunk ' + chunk + '\n')
         if (!gotFallback) {
-          gotFallback = result.includes('next_streaming_fallback')
+          gotFallback = chunk.includes('next_streaming_fallback')
           if (gotFallback) {
             expect(gotData).toBe(false)
             expect(gotInlinedData).toBe(false)
           }
         }
       })
+      process.stdout.write('resolveStreamResponse:end')
 
       expect(gotFallback).toBe('impossible')
       expect(gotFallback).toBe(true)
