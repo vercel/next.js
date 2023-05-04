@@ -127,7 +127,7 @@ export class IncrementalCache {
     if (
       minimalMode &&
       typeof requestHeaders['x-next-revalidated-tags'] === 'string' &&
-      requestHeaders['x-next-revalidats-tag-token'] ==
+      requestHeaders['x-next-revalidats-tag-token'] ===
         this.prerenderManifest?.preview?.previewModeId
     ) {
       revalidatedTags = requestHeaders['x-next-revalidated-tags'].split(',')
