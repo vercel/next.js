@@ -1,9 +1,7 @@
 export default function Root({ children }) {
   return (
     <html>
-      <head>
-        <title>Missing Config</title>
-      </head>
+      <head></head>
       <body>{children}</body>
     </html>
   )

@@ -22,6 +22,33 @@ import { FlightRenderResult } from './flight-render-result'
 import { ActionResult } from './types'
 import { ActionAsyncStorage } from '../../client/components/action-async-storage'
 
+function nodeToWebReadableStream(nodeReadable: import('stream').Readable) {
+  if (process.env.NEXT_RUNTIME !== 'edge') {
+    const { Readable } = require('stream')
+    if ('toWeb' in Readable && typeof Readable.toWeb === 'function') {
+      return Readable.toWeb(nodeReadable)
+    }
+
+    return new ReadableStream({
+      start(controller) {
+        nodeReadable.on('data', (chunk) => {
+          controller.enqueue(chunk)
+        })
+
+        nodeReadable.on('end', () => {
+          controller.close()
+        })
+
+        nodeReadable.on('error', (error) => {
+          controller.error(error)
+        })
+      },
+    })
+  } else {
+    throw new Error('Invalid runtime')
+  }
+}
+
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
   const formData = new FormData()
@@ -104,6 +131,7 @@ async function createRedirectRenderResult(
   redirectUrl: string,
   staticGenerationStore: StaticGenerationStore
 ) {
+  res.setHeader('x-action-redirect', redirectUrl)
   // if we're redirecting to a relative path, we'll try to stream the response
   if (redirectUrl.startsWith('/')) {
     const forwardedHeaders = getForwardedHeaders(req, res)
@@ -166,6 +194,7 @@ export async function handleAction({
   generateFlight: (options: {
     actionResult: ActionResult
     skipFlight: boolean
+    asNotFound?: boolean
   }) => Promise<RenderResult>
   staticGenerationStore: StaticGenerationStore
 }): Promise<undefined | RenderResult | 'not-found'> {
@@ -266,12 +295,11 @@ export async function handleAction({
             } else {
               // React doesn't yet publish a busboy version of decodeAction
               // so we polyfill the parsing of FormData.
-              const { Readable } = require('stream')
               const UndiciRequest = require('next/dist/compiled/undici').Request
               const fakeRequest = new UndiciRequest('http://localhost', {
                 method: 'POST',
                 headers: { 'Content-Type': req.headers['content-type'] },
-                body: Readable.toWeb(req),
+                body: nodeToWebReadableStream(req),
                 duplex: 'half',
               })
               const formData = await fakeRequest.formData()
@@ -318,14 +346,10 @@ export async function handleAction({
       return actionResult
     } catch (err) {
       if (isRedirectError(err)) {
-        if (process.env.NEXT_RUNTIME === 'edge') {
-          throw new Error('Invariant: not implemented.')
-        }
         const redirectUrl = getURLFromRedirectError(err)
 
         // if it's a fetch action, we don't want to mess with the status code
         // and we'll handle it on the client router
-        res.setHeader('Location', redirectUrl)
         await Promise.all(staticGenerationStore.pendingRevalidates || [])
 
         if (isFetchAction) {
@@ -337,31 +361,37 @@ export async function handleAction({
           )
         }
 
+        res.setHeader('Location', redirectUrl)
         res.statusCode = 303
         return new RenderResult('')
       } else if (isNotFoundError(err)) {
-        if (isFetchAction) {
-          throw new Error('Invariant: not implemented.')
-        }
-        await Promise.all(staticGenerationStore.pendingRevalidates || [])
         res.statusCode = 404
+
+        await Promise.all(staticGenerationStore.pendingRevalidates || [])
+        if (isFetchAction) {
+          const promise = Promise.reject(err)
+          try {
+            await promise
+          } catch (_) {}
+          return generateFlight({
+            skipFlight: false,
+            actionResult: promise,
+            asNotFound: true,
+          })
+        }
         return 'not-found'
       }
 
       if (isFetchAction) {
         res.statusCode = 500
-        const rejectedPromise = Promise.reject(err)
+        await Promise.all(staticGenerationStore.pendingRevalidates || [])
+        const promise = Promise.reject(err)
         try {
-          // we need to await the promise to trigger the rejection early
-          // so that it's already handled by the time we call
-          // the RSC runtime. Otherwise, it will throw an unhandled
-          // promise rejection error in the renderer.
-          await rejectedPromise
-        } catch (_) {
-          // swallow error, it's gonna be handled on the client
-        }
+          await promise
+        } catch (_) {}
+
         return generateFlight({
-          actionResult: rejectedPromise,
+          actionResult: promise,
           // if the page was not revalidated, we can skip the rendering the flight tree
           skipFlight: !staticGenerationStore.pathWasRevalidated,
         })

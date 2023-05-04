@@ -468,7 +468,7 @@ async function revalidate(
           `http://${
             context.hostname
           }:${ipcPort}?key=${ipcKey}&method=revalidate&args=${encodeURIComponent(
-            JSON.stringify([{ urlPath, revalidateHeaders }])
+            JSON.stringify([{ urlPath, revalidateHeaders, opts }])
           )}`,
           {
             method: 'GET',

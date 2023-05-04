@@ -53,7 +53,7 @@ async function fetchServerAction(
     body,
   })
 
-  const location = res.headers.get('location')
+  const location = res.headers.get('x-action-redirect')
 
   const redirectLocation = location
     ? new URL(addBasePath(location), window.location.origin)

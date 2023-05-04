@@ -245,7 +245,7 @@ async function runOperation(renderData: RenderData) {
     cssModules: {},
   }
   const req: IncomingMessage = {
-    url: renderData.url,
+    url: renderData.originalUrl,
     method: renderData.method,
     headers: headersFromEntries(renderData.rawHeaders),
   } as any
