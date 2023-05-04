@@ -234,8 +234,7 @@ async function createTreeCodeFromPath(
   }
 
   async function createSubtreePropsFromSegmentPath(
-    segments: string[],
-    basePath: string
+    segments: string[]
   ): Promise<{
     treeCode: string
   }> {
@@ -300,8 +299,7 @@ async function createTreeCodeFromPath(
           ...segments,
           ...(parallelKey === 'children' ? [] : [parallelKey]),
           Array.isArray(parallelSegment) ? parallelSegment[0] : parallelSegment,
-        ],
-        basePath
+        ]
       )
 
       const parallelSegmentPath =
@@ -401,7 +399,7 @@ async function createTreeCodeFromPath(
     }
   }
 
-  const { treeCode } = await createSubtreePropsFromSegmentPath([], basePath)
+  const { treeCode } = await createSubtreePropsFromSegmentPath([])
 
   return {
     treeCode: `const tree = ${treeCode}.children;`,
