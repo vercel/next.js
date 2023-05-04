@@ -24,6 +24,7 @@ export interface CacheHandlerContext {
   maxMemoryCacheSize?: number
   fetchCacheKeyPrefix?: string
   prerenderManifest?: PrerenderManifest
+  revalidatedTags: string[]
   _appDir: boolean
   _requestHeaders: IncrementalCache['requestHeaders']
 }
@@ -68,6 +69,7 @@ export class IncrementalCache {
   allowedRevalidateHeaderKeys?: string[]
   minimalMode?: boolean
   fetchCacheKeyPrefix?: string
+  revalidatedTags?: string[]
 
   constructor({
     fs,
@@ -120,6 +122,14 @@ export class IncrementalCache {
     this.allowedRevalidateHeaderKeys = allowedRevalidateHeaderKeys
     this.prerenderManifest = getPrerenderManifest()
     this.fetchCacheKeyPrefix = fetchCacheKeyPrefix
+    let revalidatedTags: string[] = []
+
+    if (
+      minimalMode &&
+      typeof requestHeaders['x-next-revalidated-tags'] === 'string'
+    ) {
+      revalidatedTags = requestHeaders['x-next-revalidated-tags'].split(',')
+    }
 
     if (CurCacheHandler) {
       this.cacheHandler = new CurCacheHandler({
@@ -127,6 +137,7 @@ export class IncrementalCache {
         fs,
         flushToDisk,
         serverDistDir,
+        revalidatedTags,
         maxMemoryCacheSize,
         _appDir: !!appDir,
         _requestHeaders: requestHeaders,
