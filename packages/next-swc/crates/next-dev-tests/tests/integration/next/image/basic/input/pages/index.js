@@ -8,33 +8,33 @@ import { useTestHarness } from '@turbo/pack-test-harness'
 export default function Home() {
   useTestHarness(runTests)
 
-  return [
+  return <>
     <Image
       id="imported"
       alt="test imported image"
       src={img}
       placeholder="blur"
-    />,
-    <Image id="svg" alt="test svg image" src={svg} />,
+    />
+    <Image id="svg" alt="test svg image" src={svg} />
     <Image
       id="local"
       alt="test src image"
       src="/triangle-black.png"
       width="116"
       height="100"
-    />,
+    />
     <Image
       id="broken"
       alt="test imported broken image"
       src={broken}
       placeholder="blur"
-    />,
+    />
     <Image
       id="broken-svg"
       alt="test imported broken svg image"
       src={brokenSvg}
-    />,
-  ]
+    />
+  </>
 }
 
 console.log(img)
