@@ -732,6 +732,7 @@ importers:
       react-dom: 18.2.0_react@18.2.0
       sass: 1.54.0
       styled-jsx: 5.1.1_uuaxwgga6hqycsez5ok7v2wg4i
+      zod: 3.21.4
     devDependencies:
       '@ampproject/toolbox-optimizer': 2.8.3
       '@babel/code-frame': 7.12.11
@@ -930,7 +931,6 @@ importers:
       webpack-sources1: /webpack-sources/1.4.3
       webpack-sources3: /webpack-sources/3.2.3
       ws: 8.2.3
-      zod: 3.21.4
 
   packages/next-bundle-analyzer:
     specifiers:
@@ -25596,7 +25596,7 @@ packages:
 
   /zod/3.21.4:
     resolution: {integrity: sha512-m46AKbrzKVzOzs/DZgVnG5H55N1sv1M8qZU3A8RIKbs3mrACDNeIOeilDymVb2HdmP8uwshOCF4uJ8uM9rCqJw==}
-    dev: true
+    dev: false
 
   /zwitch/1.0.5:
     resolution: {integrity: sha512-V50KMwwzqJV0NpZIZFwfOD5/lyny3WlSzRiXgA0G7VUnRlqttta1L6UQIHzd6EuBY/cHGfwTIck7w1yH6Q5zUw==}
