@@ -25,7 +25,7 @@ function runTests(justPutIt: () => Promise<string>) {
   it('should print warning when missing config with app and pages', async () => {
     await fs.outputFile(pagesIndex, 'module.exports = "index"')
     const output = await justPutIt()
-    expect(output).toMatch(`warn  - ${msg}`)
+    expect(output).toMatch(`- warn ${msg}`)
   })
   it('should not print when config found with app', async () => {
     await fs.writeFile(
@@ -34,7 +34,7 @@ function runTests(justPutIt: () => Promise<string>) {
     )
     const output = await justPutIt()
     expect(output).not.toMatch(`Error: > ${msg}`)
-    expect(output).not.toMatch(`warn  - ${msg}`)
+    expect(output).not.toMatch(`- warn ${msg}`)
   })
   it('should not print when config found with app and pages', async () => {
     await fs.outputFile(pagesIndex, 'module.exports = "index"')
@@ -44,7 +44,7 @@ function runTests(justPutIt: () => Promise<string>) {
     )
     const output = await justPutIt()
     expect(output).not.toMatch(`Error: > ${msg}`)
-    expect(output).not.toMatch(`warn  - ${msg}`)
+    expect(output).not.toMatch(`- warn ${msg}`)
   })
 }
 

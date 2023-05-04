@@ -54,7 +54,7 @@ describe.each([
         expect(res.status).toEqual(200)
         expect(next.cliOutput).not.toInclude('error')
         expect(stripAnsi(next.cliOutput)).toInclude(
-          `warn  - /pages/api/edge provided runtime 'experimental-edge'. It can be updated to 'edge' instead.`
+          `- warn /pages/api/edge provided runtime 'experimental-edge'. It can be updated to 'edge' instead.`
         )
       })
       it('warns about page using edge runtime', async () => {
@@ -70,7 +70,7 @@ describe.each([
         expect(res.status).toEqual(200)
         expect(next.cliOutput).not.toInclude('error')
         expect(stripAnsi(next.cliOutput)).toInclude(
-          `warn  - You are using an experimental edge runtime, the API might change.`
+          `- warn You are using an experimental edge runtime, the API might change.`
         )
       })
 
