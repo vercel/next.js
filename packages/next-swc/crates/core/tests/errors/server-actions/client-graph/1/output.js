@@ -4,7 +4,7 @@
     }
     fn.$$typeof = Symbol.for("react.server.reference");
     fn.$$id = "6d53ce510b2e36499b8f56038817b9bad86cabb4";
-    fn.$$bound = [];
+    fn.$$bound = null;
     return <div>App</div>;
 }
 export async function $$ACTION_0(closure) {}
