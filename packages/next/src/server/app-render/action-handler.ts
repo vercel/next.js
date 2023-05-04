@@ -148,7 +148,7 @@ async function createRedirectRenderResult(
         staticGenerationStore.revalidatedTags.join(',')
       )
       forwardedHeaders.set(
-        'x-next-revalidats-tag-token',
+        'x-next-revalidate-tag-token',
         staticGenerationStore.incrementalCache?.prerenderManifest?.preview
           ?.previewModeId || ''
       )
