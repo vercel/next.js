@@ -535,6 +535,7 @@ createNextDescribe(
           'https://example.com/icon.png',
         ])
         await checkLink(browser, 'apple-touch-icon', [
+          '/icon2.png',
           '/apple-icon.png',
           '/apple-icon-x3.png',
         ])
