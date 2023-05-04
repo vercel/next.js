@@ -80,7 +80,10 @@ createNextDescribe(
     })
 
     it('should support notFound', async () => {
-      const browser = await next.browser('/server')
+      const browser = await next.browser('/server', {
+        // TODO we should also test this with javascript on but not-found is not implemented yet.
+        disableJavaScript: true,
+      })
 
       await browser.elementByCss('#nowhere').click()
 
