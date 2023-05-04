@@ -42,10 +42,17 @@ describe('tsconfig.json verifier', () => {
           \\"moduleResolution\\": \\"node\\",
           \\"resolveJsonModule\\": true,
           \\"isolatedModules\\": true,
-          \\"jsx\\": \\"preserve\\"
+          \\"jsx\\": \\"preserve\\",
+          \\"plugins\\": [
+            {
+              \\"name\\": \\"next\\"
+            }
+          ],
+          \\"strictNullChecks\\": true
         },
         \\"include\\": [
           \\"next-env.d.ts\\",
+          \\".next/types/**/*.ts\\",
           \\"**/*.ts\\",
           \\"**/*.tsx\\"
         ],
@@ -90,10 +97,17 @@ describe('tsconfig.json verifier', () => {
           \\"moduleResolution\\": \\"node\\",
           \\"resolveJsonModule\\": true,
           \\"isolatedModules\\": true,
-          \\"jsx\\": \\"preserve\\"
+          \\"jsx\\": \\"preserve\\",
+          \\"plugins\\": [
+            {
+              \\"name\\": \\"next\\"
+            }
+          ],
+          \\"strictNullChecks\\": true
         },
         \\"include\\": [
           \\"next-env.d.ts\\",
+          \\".next/types/**/*.ts\\",
           \\"**/*.ts\\",
           \\"**/*.tsx\\"
         ],
@@ -155,12 +169,19 @@ describe('tsconfig.json verifier', () => {
           \\"moduleResolution\\": \\"node\\",
           \\"resolveJsonModule\\": true,
           \\"isolatedModules\\": true,
-          \\"jsx\\": \\"preserve\\"
+          \\"jsx\\": \\"preserve\\",
+          \\"plugins\\": [
+            {
+              \\"name\\": \\"next\\"
+            }
+          ],
+          \\"strictNullChecks\\": true
         }
         // in-object comment 2
         ,
         \\"include\\": [
           \\"next-env.d.ts\\",
+          \\".next/types/**/*.ts\\",
           \\"**/*.ts\\",
           \\"**/*.tsx\\"
         ],
@@ -203,10 +224,17 @@ describe('tsconfig.json verifier', () => {
           \\"moduleResolution\\": \\"node\\",
           \\"resolveJsonModule\\": true,
           \\"isolatedModules\\": true,
-          \\"jsx\\": \\"preserve\\"
+          \\"jsx\\": \\"preserve\\",
+          \\"plugins\\": [
+            {
+              \\"name\\": \\"next\\"
+            }
+          ],
+          \\"strictNullChecks\\": true
         },
         \\"include\\": [
           \\"next-env.d.ts\\",
+          \\".next/types/**/*.ts\\",
           \\"**/*.ts\\",
           \\"**/*.tsx\\"
         ],
@@ -248,10 +276,17 @@ describe('tsconfig.json verifier', () => {
           \\"moduleResolution\\": \\"node\\",
           \\"resolveJsonModule\\": true,
           \\"isolatedModules\\": true,
-          \\"jsx\\": \\"preserve\\"
+          \\"jsx\\": \\"preserve\\",
+          \\"plugins\\": [
+            {
+              \\"name\\": \\"next\\"
+            }
+          ],
+          \\"strictNullChecks\\": true
         },
         \\"include\\": [
           \\"next-env.d.ts\\",
+          \\".next/types/**/*.ts\\",
           \\"**/*.ts\\",
           \\"**/*.tsx\\"
         ],
@@ -297,10 +332,17 @@ describe('tsconfig.json verifier', () => {
           \\"module\\": \\"esnext\\",
           \\"resolveJsonModule\\": true,
           \\"isolatedModules\\": true,
-          \\"jsx\\": \\"preserve\\"
+          \\"jsx\\": \\"preserve\\",
+          \\"plugins\\": [
+            {
+              \\"name\\": \\"next\\"
+            }
+          ],
+          \\"strictNullChecks\\": true
         },
         \\"include\\": [
           \\"next-env.d.ts\\",
+          \\".next/types/**/*.ts\\",
           \\"**/*.ts\\",
           \\"**/*.tsx\\"
         ],
@@ -344,10 +386,17 @@ describe('tsconfig.json verifier', () => {
           \\"moduleResolution\\": \\"node\\",
           \\"resolveJsonModule\\": true,
           \\"isolatedModules\\": true,
-          \\"jsx\\": \\"preserve\\"
+          \\"jsx\\": \\"preserve\\",
+          \\"plugins\\": [
+            {
+              \\"name\\": \\"next\\"
+            }
+          ],
+          \\"strictNullChecks\\": true
         },
         \\"include\\": [
           \\"next-env.d.ts\\",
+          \\".next/types/**/*.ts\\",
           \\"**/*.ts\\",
           \\"**/*.tsx\\"
         ],
@@ -393,10 +442,17 @@ describe('tsconfig.json verifier', () => {
           \\"incremental\\": true,
           \\"resolveJsonModule\\": true,
           \\"isolatedModules\\": true,
-          \\"jsx\\": \\"preserve\\"
+          \\"jsx\\": \\"preserve\\",
+          \\"plugins\\": [
+            {
+              \\"name\\": \\"next\\"
+            }
+          ],
+          \\"strictNullChecks\\": true
         },
         \\"include\\": [
           \\"next-env.d.ts\\",
+          \\".next/types/**/*.ts\\",
           \\"**/*.ts\\",
           \\"**/*.tsx\\"
         ],
@@ -433,10 +489,17 @@ describe('tsconfig.json verifier', () => {
           "moduleResolution": "node",
           "resolveJsonModule": true,
           "isolatedModules": true,
-          "jsx": "preserve"
+          "jsx": "preserve",
+          "plugins": [
+            {
+              "name": "next"
+            }
+          ],
+          "strictNullChecks": true
         },
         "include": [
           "next-env.d.ts",
+          ".next/types/**/*.ts",
           "**/*.ts",
           "**/*.tsx"
         ],
@@ -487,10 +550,17 @@ describe('tsconfig.json verifier', () => {
           "moduleResolution": "node",
           "resolveJsonModule": true,
           "isolatedModules": true,
-          "jsx": "preserve"
+          "jsx": "preserve",
+          "plugins": [
+            {
+              "name": "next"
+            }
+          ],
+          "strictNullChecks": true
         },
         "include": [
           "next-env.d.ts",
+          ".next/types/**/*.ts",
           "**/*.ts",
           "**/*.tsx"
         ],
@@ -516,7 +586,8 @@ describe('tsconfig.json verifier', () => {
       "{
         \\"extends\\": \\"./tsconfig.base.json\\",
         \\"compilerOptions\\": {
-          \\"incremental\\": true
+          \\"incremental\\": true,
+          \\"strictNullChecks\\": true
         }
       }
       "
