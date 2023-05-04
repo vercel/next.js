@@ -44,7 +44,7 @@ function createTypeGuardFile(
   }
 ) {
   return `// File: ${fullPath}
-import entry from '${relativePath}.js'
+import * as entry from '${relativePath}.js'
 ${
   options.type === 'route'
     ? `import type { NextRequest } from 'next/server.js'`
