@@ -80,7 +80,10 @@ createNextDescribe(
     })
 
     it('should support notFound', async () => {
-      const browser = await next.browser('/server')
+      const browser = await next.browser('/server', {
+        // TODO we should also test this with javascript on but not-found is not implemented yet.
+        disableJavaScript: true,
+      })
 
       await browser.elementByCss('#nowhere').click()
 
@@ -119,7 +122,7 @@ createNextDescribe(
 
     it('should support hoc auth wrappers', async () => {
       const browser = await next.browser('/header')
-      await await browser.eval(`document.cookie = 'auth=0'`)
+      await browser.eval(`document.cookie = 'auth=0'`)
 
       await browser.elementByCss('#authed').click()
 
@@ -130,7 +133,7 @@ createNextDescribe(
         isNextDev ? 'Error: Unauthorized request' : GENERIC_RSC_ERROR
       )
 
-      await await browser.eval(`document.cookie = 'auth=1'`)
+      await browser.eval(`document.cookie = 'auth=1'`)
 
       await browser.elementByCss('#authed').click()
 
@@ -209,17 +212,22 @@ createNextDescribe(
 
       it('should return error response for hoc auth wrappers in edge runtime', async () => {
         const browser = await next.browser('/header/edge')
-        await await browser.eval(`document.cookie = 'auth=0'`)
+        await await browser.eval(`document.cookie = 'edge-auth=0'`)
+
         await browser.elementByCss('#authed').click()
 
         await check(
-          async () => {
-            const text = await browser.elementByCss('h1').text()
-            console.log('text', text)
-            return text && text.length > 0 ? text : 'failed'
-          },
-          isNextDev ? /Multipart form data is not supported/ : GENERIC_RSC_ERROR
+          () => browser.elementByCss('h1').text(),
+          isNextDev ? 'Error: Unauthorized request' : GENERIC_RSC_ERROR
         )
+
+        await browser.eval(`document.cookie = 'edge-auth=1'`)
+
+        await browser.elementByCss('#authed').click()
+
+        await check(() => {
+          return browser.elementByCss('h1').text()
+        }, 'Prefix: HELLO, WORLD')
       })
     })
 

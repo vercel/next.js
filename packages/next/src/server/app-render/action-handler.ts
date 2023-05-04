@@ -4,6 +4,7 @@ import type {
   OutgoingHttpHeaders,
   ServerResponse,
 } from 'http'
+import type { WebNextRequest } from '../base-http/web'
 
 import {
   ACTION,
@@ -170,7 +171,7 @@ export async function handleAction({
 }): Promise<undefined | RenderResult | 'not-found'> {
   let actionId = req.headers[ACTION.toLowerCase()] as string
   const contentType = req.headers['content-type']
-  const isFormAction =
+  const isURLEncodedAction =
     req.method === 'POST' && contentType === 'application/x-www-form-urlencoded'
   const isMultipartAction =
     req.method === 'POST' && contentType?.startsWith('multipart/form-data')
@@ -180,7 +181,7 @@ export async function handleAction({
     typeof actionId === 'string' &&
     req.method === 'POST'
 
-  if (isFetchAction || isFormAction || isMultipartAction) {
+  if (isFetchAction || isURLEncodedAction || isMultipartAction) {
     let bound = []
 
     const workerName = 'app' + pathname
@@ -189,7 +190,9 @@ export async function handleAction({
       {
         get: (_, id: string) => {
           return {
-            id: serverActionsManifest.node[id].workers[workerName],
+            id: serverActionsManifest[
+              process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
+            ][id].workers[workerName],
             name: id,
             chunks: [],
           }
@@ -207,15 +210,24 @@ export async function handleAction({
       await actionAsyncStorage.run({ isAction: true }, async () => {
         if (process.env.NEXT_RUNTIME === 'edge') {
           // Use react-server-dom-webpack/server.edge
-          const { decodeReply } = ComponentMod
+          const { decodeReply, decodeAction } = ComponentMod
 
-          const webRequest = req as unknown as Request
+          const webRequest = req as unknown as WebNextRequest
           if (!webRequest.body) {
             throw new Error('invariant: Missing request body.')
           }
 
           if (isMultipartAction) {
-            throw new Error('invariant: Multipart form data is not supported.')
+            // TODO-APP: Add streaming support
+            const formData = await webRequest.request.formData()
+            if (isFetchAction) {
+              bound = await decodeReply(formData, serverModuleMap)
+            } else {
+              const action = await decodeAction(formData, serverModuleMap)
+              await action()
+              // Skip the fetch path
+              return
+            }
           } else {
             let actionData = ''
 
@@ -229,16 +241,9 @@ export async function handleAction({
               actionData += new TextDecoder().decode(value)
             }
 
-            if (isFormAction) {
+            if (isURLEncodedAction) {
               const formData = formDataFromSearchQueryString(actionData)
-              actionId = formData.get('$$id') as string
-
-              if (!actionId) {
-                // Return if no action ID is found, it could be a regular POST request
-                return
-              }
-              formData.delete('$$id')
-              bound = [formData]
+              bound = await decodeReply(formData, serverModuleMap)
             } else {
               bound = await decodeReply(actionData, serverModuleMap)
             }
@@ -248,28 +253,41 @@ export async function handleAction({
           const {
             decodeReply,
             decodeReplyFromBusboy,
+            decodeAction,
           } = require(`react-server-dom-webpack/server.node`)
 
           if (isMultipartAction) {
-            const busboy = require('busboy')
-            const bb = busboy({ headers: req.headers })
-            req.pipe(bb)
+            if (isFetchAction) {
+              const busboy = require('busboy')
+              const bb = busboy({ headers: req.headers })
+              req.pipe(bb)
 
-            bound = await decodeReplyFromBusboy(bb, serverModuleMap)
+              bound = await decodeReplyFromBusboy(bb, serverModuleMap)
+            } else {
+              // React doesn't yet publish a busboy version of decodeAction
+              // so we polyfill the parsing of FormData.
+              const { Readable } = require('stream')
+              const UndiciRequest = require('next/dist/compiled/undici').Request
+              const fakeRequest = new UndiciRequest('http://localhost', {
+                method: 'POST',
+                headers: { 'Content-Type': req.headers['content-type'] },
+                body: Readable.toWeb(req),
+                duplex: 'half',
+              })
+              const formData = await fakeRequest.formData()
+              const action = await decodeAction(formData, serverModuleMap)
+              await action()
+              // Skip the fetch path
+              return
+            }
           } else {
             const { parseBody } =
               require('../api-utils/node') as typeof import('../api-utils/node')
             const actionData = (await parseBody(req, '1mb')) || ''
 
-            if (isFormAction) {
-              actionId = actionData.$$id as string
-              if (!actionId) {
-                // Return if no action ID is found, it could be a regular POST request
-                return
-              }
+            if (isURLEncodedAction) {
               const formData = formDataFromSearchQueryString(actionData)
-              formData.delete('$$id')
-              bound = [formData]
+              bound = await decodeReply(formData, serverModuleMap)
             } else {
               bound = await decodeReply(actionData, serverModuleMap)
             }
@@ -297,9 +315,7 @@ export async function handleAction({
         }
       })
 
-      if (actionResult) {
-        return actionResult
-      }
+      return actionResult
     } catch (err) {
       if (isRedirectError(err)) {
         if (process.env.NEXT_RUNTIME === 'edge') {

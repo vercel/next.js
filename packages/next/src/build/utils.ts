@@ -1913,17 +1913,20 @@ export async function copyTracedFiles(
     serverOutputPath,
     `${
       moduleType
-        ? `import Server from 'next/dist/server/next-server.js'
-import http from 'http'
+        ? `import http from 'http'
 import path from 'path'
 import { fileURLToPath } from 'url'
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
-const NextServer = Server.default`
+import { createServerHandler } from 'next/dist/server/lib/render-server-standalone.js'
+`
         : `
-const NextServer = require('next/dist/server/next-server').default
 const http = require('http')
-const path = require('path')`
+const path = require('path')
+const { createServerHandler } = require('next/dist/server/lib/render-server-standalone')`
     }
+
+const dir = path.join(__dirname)
+
 process.env.NODE_ENV = 'production'
 process.chdir(__dirname)
 
@@ -1944,16 +1947,7 @@ const nextConfig = ${JSON.stringify({
       distDir: `./${path.relative(dir, distDir)}`,
     })}
 
-${
-  // In standalone mode, we don't have separated render workers so if both
-  // app and pages are used, we need to resolve to the prebundled React
-  // to ensure the correctness of the version for app.
-  `\
-if (nextConfig && nextConfig.experimental && nextConfig.experimental.appDir) {
-  process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = nextConfig.experimental.serverActions ? 'experimental' : 'next'
-}
-`
-}
+process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(nextConfig)
 
 const server = http.createServer(async (req, res) => {
   try {
@@ -1961,7 +1955,7 @@ const server = http.createServer(async (req, res) => {
   } catch (err) {
     console.error(err);
     res.statusCode = 500
-    res.end('internal server error')
+    res.end('Internal Server Error')
   }
 })
 
@@ -1972,20 +1966,18 @@ if (
 ) {
   server.keepAliveTimeout = keepAliveTimeout
 }
-server.listen(currentPort, (err) => {
+server.listen(currentPort, async (err) => {
   if (err) {
     console.error("Failed to start server", err)
     process.exit(1)
   }
-  const nextServer = new NextServer({
-    hostname,
+
+  handler = await createServerHandler({
     port: currentPort,
-    dir: path.join(__dirname),
-    dev: false,
-    customServer: false,
+    hostname,
+    dir,
     conf: nextConfig,
   })
-  handler = nextServer.getRequestHandler()
 
   console.log(
     'Listening on port',

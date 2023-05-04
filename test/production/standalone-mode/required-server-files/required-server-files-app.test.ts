@@ -71,9 +71,9 @@ describe('should set-up next', () => {
     const testServer = join(next.testDir, 'standalone/server.js')
     await fs.writeFile(
       testServer,
-      (await fs.readFile(testServer, 'utf8'))
-        .replace('console.error(err)', `console.error('top-level', err)`)
-        .replace('conf:', `minimalMode: ${minimalMode},conf:`)
+      (
+        await fs.readFile(testServer, 'utf8')
+      ).replace('conf:', `minimalMode: ${minimalMode},conf:`)
     )
     appPort = await findPort()
     server = await initNextServerScript(
