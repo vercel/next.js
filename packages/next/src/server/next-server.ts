@@ -30,7 +30,7 @@ import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware
 import type { RouteMatch } from './future/route-matches/route-match'
 
 import fs from 'fs'
-import { join, relative, resolve, sep } from 'path'
+import { join, relative, resolve, sep, isAbsolute } from 'path'
 import { IncomingMessage, ServerResponse } from 'http'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import {
@@ -385,9 +385,9 @@ export default class NextNodeServer extends BaseServer {
     const { incrementalCacheHandlerPath } = this.nextConfig.experimental
 
     if (incrementalCacheHandlerPath) {
-      CacheHandler = require(this.minimalMode
-        ? join(this.distDir, incrementalCacheHandlerPath)
-        : incrementalCacheHandlerPath)
+      CacheHandler = require(isAbsolute(incrementalCacheHandlerPath)
+        ? incrementalCacheHandlerPath
+        : join(this.distDir, incrementalCacheHandlerPath))
       CacheHandler = CacheHandler.default || CacheHandler
     }
 
