@@ -218,6 +218,8 @@ export async function renderToHTMLOrFlight(
         `Invariant: Render expects to have staticGenerationAsyncStorage, none found`
       )
     }
+    staticGenerationStore.fetchMetrics = []
+    ;(renderOpts as any).fetchMetrics = staticGenerationStore.fetchMetrics
 
     // don't modify original query object
     query = { ...query }
