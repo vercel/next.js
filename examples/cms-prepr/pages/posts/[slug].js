@@ -50,7 +50,7 @@ export default function Post({ post, morePosts, preview }) {
 }
 
 export async function getStaticProps({ params, preview = false }) {
-  const {post, morePosts} = await getPostAndMorePosts(params.slug, preview)
+  const { post, morePosts } = await getPostAndMorePosts(params.slug, preview)
 
   return {
     props: {
@@ -63,7 +63,6 @@ export async function getStaticProps({ params, preview = false }) {
 
 export async function getStaticPaths() {
   const allPosts = await getAllPostsWithSlug()
-
 
   const paths = allPosts.map((post) => ({
     params: { slug: post._slug },

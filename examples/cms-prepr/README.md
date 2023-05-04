@@ -6,8 +6,8 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 Check out our Blog page example:
 
-* **Live**: [https://next-blog-prepr.vercel.app/](https://next-blog-prepr.vercel.app/)
-* **Preview**: [https://next-blog-prepr.vercel.app/api/preview...](https://next-blog-prepr.vercel.app/api/preview?secret=237864ihasdhj283768&slug=discover-enjoy-amsterdam)
+- **Live**: [https://next-blog-prepr.vercel.app/](https://next-blog-prepr.vercel.app/)
+- **Preview**: [https://next-blog-prepr.vercel.app/api/preview...](https://next-blog-prepr.vercel.app/api/preview?secret=237864ihasdhj283768&slug=discover-enjoy-amsterdam)
 
 ## How to use
 
@@ -49,15 +49,15 @@ Once you’ve set up your Prepr environment, you can define environment variable
 cp .env.local.example .env.local
 ```
 
-The  `.env.local` file will be ignored by Git.
+The `.env.local` file will be ignored by Git.
 
 **2.2** In your environment, navigate to **Settings > Development > Access Tokens**. You will see the automatically generated access tokens for your Prepr environment.
 
 ![Access tokens](https://assets-site.prepr.io//11t9w1duzr57-access-tokens.png)
 
-Copy the *GraphQL Published* access token and paste it as the `PREPRIO_PRODUCTION_TOKEN` variable in `.env.local`. Then copy and paste the *GraphQL To do* access token as the `PREPRIO_PREVIEW_TOKEN` variable.
+Copy the _GraphQL Published_ access token and paste it as the `PREPRIO_PRODUCTION_TOKEN` variable in `.env.local`. Then copy and paste the _GraphQL To do_ access token as the `PREPRIO_PREVIEW_TOKEN` variable.
 
-Alternatively, you can create access tokens yourself by clicking **Add access token**. If so, make sure to [choose the right GraphQL permissions](https://docs.prepr.io/reference/graphql/v1/authorization) for the access tokens.  
+Alternatively, you can create access tokens yourself by clicking **Add access token**. If so, make sure to [choose the right GraphQL permissions](https://docs.prepr.io/reference/graphql/v1/authorization) for the access tokens.
 
 **2.3** Set a custom value with no spaces as the `PREPRIO_PREVIEW_SECRET` variable, for example, a UUID. This value will be used to enable [preview mode](https://nextjs.org/docs/advanced-features/preview-mode).
 
@@ -72,7 +72,7 @@ PREPRIO_PREVIEW_SECRET='your secret id'
 
 ### Step 3. Run Next.js in development mode
 
-Now that you've finished preparing the project, you may proceed to run it. 
+Now that you've finished preparing the project, you may proceed to run it.
 
 **3.1** Execute one of the following commands to install the packages listed in the `package.json` file:
 
@@ -83,6 +83,7 @@ npm install
 ```bash
 yarn install
 ```
+
 **3.2** Execute one of the following commands to run the dev script defined in the `package.json` file:
 
 ```bash
@@ -97,21 +98,22 @@ Your example Blog website should be up and running on [http://localhost:3000](ht
 
 ### Step 4. Optional: Try Preview mode
 
-Great progress has been made! You are just a few steps away from getting your example website live. 
+Great progress has been made! You are just a few steps away from getting your example website live.
 Before proceeding, you can test how the content preview works in Prepr. This step is optional. Proceed to Step 5 if you don’t want to use preview mode.
 
 To try preview mode, follow these steps:
 
-**4.1** In Prepr, go to one of the content items of the *Article model* and update the item title. For example, you can add *[PREVIEW]* in front of the title. After you edit the content item, save it with the *Review status*.
+**4.1** In Prepr, go to one of the content items of the _Article model_ and update the item title. For example, you can add _[PREVIEW]_ in front of the title. After you edit the content item, save it with the _Review status_.
 
-**4.2** To preview the content item, transform its URL to the following format: 
+**4.2** To preview the content item, transform its URL to the following format:
 
 `http://localhost:3000/api/preview?secret=<PREPRIO_PREVIEW_SECRET>&slug=<SLUG_TO_PREVIEW>`,
 where:
+
 - `<PREPRIO_PREVIEW_SECRET>` is the same preview secret you defined in the `.env.local` file;
 - `<SLUG_TO_PREVIEW>` is the slug of the content item you want to preview.
 
-**Tip:** The default *To Do access token* allows you to retrieve content items in all available statuses, including *To Do*, *In Progress*, *Review*, *Done*, and *Published*. This means you can test the preview mode with all of these statuses.
+**Tip:** The default _To Do access token_ allows you to retrieve content items in all available statuses, including _To Do_, _In Progress_, _Review_, _Done_, and _Published_. This means you can test the preview mode with all of these statuses.
 
 **Note:** To exit the preview mode, you must click **Click here to exit preview mode** at the top of the page.
 
@@ -123,22 +125,23 @@ To make your Next.js app available online, deploy it to the cloud using [Vercel]
 
 You can go for one of the following options:
 
-* **Deploy your local project**</br>
-To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [import it to Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example).
+- **Deploy your local project**</br>
+  To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [import it to Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example).
 
 **Important:** When you import your project on Vercel, make sure to click on **Environment Variables** and set them to match your `.env.local` file.
 
-* **Deploy from our template**</br>
-Alternatively, you can deploy using our template by clicking on the **Deploy** button below.
+- **Deploy from our template**</br>
+  Alternatively, you can deploy using our template by clicking on the **Deploy** button below.
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/cms-prepr&project-name=cms-prepr&repository-name=cms-prepr&env=PREPRIO_API,PREPRIO_PRODUCTION_TOKEN,PREPRIO_PREVIEW_TOKEN,PREPRIO_PREVIEW_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20Prepr&envLink=https://vercel.link/cms-prepr-env)
 
 ## Next steps
 
 For more advanced topics, please refer to the Prepr’s documentation:
-* [A/B testing](https://docs.prepr.io/optimization-and-personalization/ab-testing)
-* [Personalization](https://docs.prepr.io/optimization-and-personalization/personalized-stack)
-* [Recommendations](https://docs.prepr.io/optimization-and-personalization/recommendations)
+
+- [A/B testing](https://docs.prepr.io/optimization-and-personalization/ab-testing)
+- [Personalization](https://docs.prepr.io/optimization-and-personalization/personalized-stack)
+- [Recommendations](https://docs.prepr.io/optimization-and-personalization/recommendations)
 
 If you have questions, please [get in touch](https://prepr.io/get-in-touch) with one of our specialists or [join our Slack community](https://slack.prepr.io/).
 

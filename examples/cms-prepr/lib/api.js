@@ -1,23 +1,28 @@
-import client from "../apollo-client";
-import {gql} from '@apollo/client';
+import client from '../apollo-client'
+import { gql } from '@apollo/client'
 
 async function fetchAPI(query, { variables, preview } = {}) {
-
   const data = await client.query({
-    query: gql`${query}`,
+    query: gql`
+      ${query}
+    `,
     variables,
     context: {
       headers: {
-        "Authorization": "Bearer " + (preview ? process.env.PREPRIO_PREVIEW_TOKEN : process.env.PREPRIO_PRODUCTION_TOKEN),
-      }
+        Authorization:
+          'Bearer ' +
+          (preview
+            ? process.env.PREPRIO_PREVIEW_TOKEN
+            : process.env.PREPRIO_PRODUCTION_TOKEN),
+      },
     },
-    fetchPolicy: 'no-cache'
+    fetchPolicy: 'no-cache',
   })
   return data
 }
 
 export async function getPreviewPostBySlug(slug) {
-  const {data} = await fetchAPI(
+  const { data } = await fetchAPI(
     `
   query ArticleBySlug($slug: String!) {
     Article(slug: $slug) {
@@ -36,7 +41,8 @@ export async function getPreviewPostBySlug(slug) {
 }
 
 export async function getAllPostsWithSlug() {
-  const {data} = await fetchAPI(`
+  const { data } = await fetchAPI(
+    `
     {
       Articles {
         items {
@@ -44,12 +50,14 @@ export async function getAllPostsWithSlug() {
         }
       }
     }
-  `, {preview: true})
+  `,
+    { preview: true }
+  )
   return data?.Articles.items
 }
 
 export async function getAllPostsForHome(preview) {
-  const {data} = await fetchAPI(
+  const { data } = await fetchAPI(
     `
     {
       Articles(sort: publish_on_DESC) {
@@ -85,7 +93,7 @@ export async function getAllPostsForHome(preview) {
 }
 
 export async function getPostAndMorePosts(slug, preview) {
-  const {data} = await fetchAPI(
+  const { data } = await fetchAPI(
     `
   query ArticlesBySlug($slug: String!) {
     Article(slug: $slug) {

@@ -11,7 +11,6 @@ export default function PostPreview({
   author,
   slug,
 }) {
-
   return (
     <div>
       <div className="mb-5">
@@ -25,7 +24,10 @@ export default function PostPreview({
       <div className="text-lg mb-4">
         <Date dateString={date} />
       </div>
-      <div className="text-lg leading-relaxed mb-4" dangerouslySetInnerHTML={{__html: excerpt}}></div>
+      <div
+        className="text-lg leading-relaxed mb-4"
+        dangerouslySetInnerHTML={{ __html: excerpt }}
+      ></div>
       <Avatar name={author.full_name} picture={author.profile_pic[0].url} />
     </div>
   )
