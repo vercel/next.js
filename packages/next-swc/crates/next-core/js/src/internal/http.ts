@@ -1,4 +1,4 @@
-import type { IncomingMessage, ServerResponse } from "node:http";
+import type { IncomingMessage, ServerResponse } from 'node:http'
 
 /**
  * Shim for Node.js's http.ServerResponse
@@ -6,109 +6,109 @@ import type { IncomingMessage, ServerResponse } from "node:http";
  * @type {ServerResponse}
  */
 export class ServerResponseShim {
-  headersSent = false;
-  #headers: Map<string, number | string | ReadonlyArray<string>> = new Map();
-  #statusCode: number = 200;
-  req: IncomingMessage;
+  headersSent = false
+  #headers: Map<string, number | string | ReadonlyArray<string>> = new Map()
+  #statusCode: number = 200
+  req: IncomingMessage
 
   constructor(req: IncomingMessage) {
-    this.req = req;
+    this.req = req
   }
 
   setHeader(name: string, value: number | string | ReadonlyArray<string>) {
-    this.#headers.set(name.toLowerCase(), value);
-    return this;
+    this.#headers.set(name.toLowerCase(), value)
+    return this
   }
 
   getHeader(name: string) {
-    return this.#headers.get(name.toLowerCase());
+    return this.#headers.get(name.toLowerCase())
   }
 
   getHeaderNames() {
-    return Array.from(this.#headers.keys());
+    return Array.from(this.#headers.keys())
   }
 
   getHeaders() {
-    return Object.fromEntries(this.#headers);
+    return Object.fromEntries(this.#headers)
   }
 
   hasHeader(name: string) {
-    return this.#headers.has(name.toLowerCase());
+    return this.#headers.has(name.toLowerCase())
   }
 
   removeHeader(name: string) {
-    this.#headers.delete(name.toLowerCase());
+    this.#headers.delete(name.toLowerCase())
   }
 
   get statusCode() {
-    return this.#statusCode;
+    return this.#statusCode
   }
 
   set statusCode(code) {
-    this.#statusCode = code;
+    this.#statusCode = code
   }
 
   get statusMessage() {
-    throw new Error("statusMessage is not implemented");
+    throw new Error('statusMessage is not implemented')
   }
 
   set statusMessage(message) {
-    throw new Error("set statusMessage is not implemented");
+    throw new Error('set statusMessage is not implemented')
   }
 
   get socket() {
-    throw new Error("socket is not implemented");
+    throw new Error('socket is not implemented')
   }
 
   get sendDate() {
-    throw new Error("sendDate is not implemented");
+    throw new Error('sendDate is not implemented')
   }
 
   flushHeaders() {
-    throw new Error("flushHeaders is not implemented");
+    throw new Error('flushHeaders is not implemented')
   }
 
   end() {
-    throw new Error("end is not implemented");
+    throw new Error('end is not implemented')
   }
 
   cork() {
-    throw new Error("cork is not implemented");
+    throw new Error('cork is not implemented')
   }
 
   uncork() {
-    throw new Error("uncork is not implemented");
+    throw new Error('uncork is not implemented')
   }
 
   addTrailers() {
-    throw new Error("addTrailers is not implemented");
+    throw new Error('addTrailers is not implemented')
   }
 
   setTimeout(_msecs: any, _callback: any) {
-    throw new Error("setTimeout is not implemented");
+    throw new Error('setTimeout is not implemented')
   }
 
   get writableEnded() {
-    throw new Error("writableEnded is not implemented");
+    throw new Error('writableEnded is not implemented')
   }
 
   get writableFinished() {
-    throw new Error("writableFinished is not implemented");
+    throw new Error('writableFinished is not implemented')
   }
 
   write(_chunk: any, _encoding: any, _callback: any) {
-    throw new Error("write is not implemented");
+    throw new Error('write is not implemented')
   }
 
   writeContinue() {
-    throw new Error("writeContinue is not implemented");
+    throw new Error('writeContinue is not implemented')
   }
 
   writeHead(_statusCode: any, _statusMessage: any, _headers: any) {
-    throw new Error("writeHead is not implemented");
+    throw new Error('writeHead is not implemented')
   }
 
   writeProcessing() {
-    throw new Error("writeProcessing is not implemented");
+    throw new Error('writeProcessing is not implemented')
   }
 }

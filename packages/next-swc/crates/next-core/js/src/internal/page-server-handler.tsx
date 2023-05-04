@@ -181,6 +181,7 @@ export default function startHandler({
       basePath: '',
       // TODO(WEB-583) this isn't correct, instead it should set `dev: true`
       nextExport: true,
+      nextConfigOutput: renderData.data?.nextConfigOutput,
       resolvedUrl: renderData.url,
       optimizeFonts: false,
       optimizeCss: false,
@@ -346,7 +347,7 @@ function createNotFoundResponse(isDataReq: boolean): IpcOutgoingMessage {
 
 type ManifestItem = {
   id: string
-  chunks: string[]
+  chunks: ChunkData[]
 }
 
 /**
@@ -380,12 +381,13 @@ function createReactLoadableManifestProxy(): ReactLoadableManifest {
         return {
           id,
           files: chunks.map((chunk) => {
+            let path = typeof chunk === 'string' ? chunk : chunk.path
             // Turbopack prefixes chunks with "_next/", but Next.js expects
             // them to be relative to the build directory.
-            if (chunk.startsWith('_next/')) {
-              return chunk.slice('_next/'.length)
+            if (path.startsWith('_next/')) {
+              path = path.slice('_next/'.length)
             }
-            return chunk
+            return path
           }),
         }
       },

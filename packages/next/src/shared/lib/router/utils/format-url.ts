@@ -91,7 +91,7 @@ export function formatWithValidation(url: UrlObject): string {
   if (process.env.NODE_ENV === 'development') {
     if (url !== null && typeof url === 'object') {
       Object.keys(url).forEach((key) => {
-        if (urlObjectKeys.indexOf(key) === -1) {
+        if (!urlObjectKeys.includes(key)) {
           console.warn(
             `Unknown key passed via urlObject into url.format: ${key}`
           )

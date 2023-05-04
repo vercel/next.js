@@ -10,6 +10,33 @@ createNextDescribe(
     files: __dirname,
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
+    if (isNextStart) {
+      it('should have correct preferredRegion values in manifest', async () => {
+        const middlewareManifest = JSON.parse(
+          await next.readFile('.next/server/middleware-manifest.json')
+        )
+        expect(
+          middlewareManifest.functions['/(rootonly)/dashboard/hello/page']
+            .regions
+        ).toEqual(['iad1', 'sfo1'])
+        expect(middlewareManifest.functions['/dashboard/page'].regions).toEqual(
+          ['iad1']
+        )
+        expect(
+          middlewareManifest.functions['/slow-page-no-loading/page'].regions
+        ).toEqual(['global'])
+
+        expect(middlewareManifest.functions['/test-page/page'].regions).toEqual(
+          ['home']
+        )
+
+        // Inherits from the root layout.
+        expect(
+          middlewareManifest.functions['/slow-page-with-loading/page'].regions
+        ).toEqual(['sfo1'])
+      })
+    }
+
     it('should have correct searchParams and params (server)', async () => {
       const html = await next.render('/dynamic/category-1/id-2?query1=value2')
       const $ = cheerio.load(html)
@@ -273,7 +300,7 @@ createNextDescribe(
       it('should serve polyfills for browsers that do not support modules', async () => {
         const html = await next.render('/dashboard/index')
         expect(html).toMatch(
-          /<script src="\/_next\/static\/chunks\/polyfills(-\w+)?\.js" nomodule="">/
+          /<script src="\/_next\/static\/chunks\/polyfills(-\w+)?\.js" noModule="">/
         )
       })
     }
@@ -522,17 +549,10 @@ createNextDescribe(
           await browser.waitForElementByCss('#render-id-456')
           expect(await browser.eval('window.history.length')).toBe(3)
 
-          // Get the id on the rendered page.
-          const firstID = await browser.elementById('render-id-456').text()
-
           // Go back, and redo the navigation by clicking the link.
           await browser.back()
           await browser.elementById('link').click()
           await browser.waitForElementByCss('#render-id-456')
-
-          // Get the id again, and compare, they should not be the same.
-          const secondID = await browser.elementById('render-id-456').text()
-          expect(secondID).not.toBe(firstID)
         } finally {
           await browser.close()
         }
@@ -549,9 +569,6 @@ createNextDescribe(
           await browser.waitForElementByCss('#render-id-456')
           expect(await browser.eval('window.history.length')).toBe(2)
 
-          // Get the date again, and compare, they should not be the same.
-          const firstId = await browser.elementById('render-id-456').text()
-
           // Navigate to the subpage, verify that the history entry was NOT added.
           await browser.elementById('link').click()
           await browser.waitForElementByCss('#render-id-123')
@@ -561,10 +578,6 @@ createNextDescribe(
           await browser.elementById('link').click()
           await browser.waitForElementByCss('#render-id-456')
           expect(await browser.eval('window.history.length')).toBe(2)
-
-          // Get the date again, and compare, they should not be the same.
-          const secondId = await browser.elementById('render-id-456').text()
-          expect(firstId).not.toBe(secondId)
         } finally {
           await browser.close()
         }

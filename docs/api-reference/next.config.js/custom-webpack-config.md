@@ -4,7 +4,7 @@ description: Extend the default webpack config added by Next.js.
 
 # Custom Webpack Config
 
-> Note: changes to webpack config are not covered by semver so proceed at your own risk
+> **Note**: changes to webpack config are not covered by semver so proceed at your own risk
 
 Before continuing to add custom webpack configuration to your application make sure Next.js doesn't already support your use-case:
 

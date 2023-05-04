@@ -1,11 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextApiRequest, NextApiResponse } from '../../shared/lib/utils'
 import type { PageConfig, ResponseLimit, SizeLimit } from 'next/types'
-import {
-  checkIsOnDemandRevalidate,
-  PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
-  __ApiPreviewProps,
-} from '.'
+import { checkIsOnDemandRevalidate, __ApiPreviewProps } from '.'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
 import type { PreviewData } from 'next/types'
@@ -26,7 +22,6 @@ import {
   clearPreviewData,
   sendError,
   ApiError,
-  PRERENDER_REVALIDATE_HEADER,
   COOKIE_NAME_PRERENDER_BYPASS,
   COOKIE_NAME_PRERENDER_DATA,
   SYMBOL_PREVIEW_DATA,
@@ -37,6 +32,10 @@ import { getTracer } from '../lib/trace/tracer'
 import { NodeSpan } from '../lib/trace/constants'
 import { RequestCookies } from '../web/spec-extension/cookies'
 import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
+import {
+  PRERENDER_REVALIDATE_HEADER,
+  PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
+} from '../../lib/constants'
 
 export function tryGetPreviewData(
   req: IncomingMessage | BaseNextRequest | Request,
@@ -60,6 +59,23 @@ export function tryGetPreviewData(
 
   const previewModeId = cookies.get(COOKIE_NAME_PRERENDER_BYPASS)?.value
   const tokenPreviewData = cookies.get(COOKIE_NAME_PRERENDER_DATA)?.value
+
+  // Case: preview mode cookie set but data cookie is not set
+  if (
+    previewModeId &&
+    !tokenPreviewData &&
+    previewModeId === options.previewModeId
+  ) {
+    // This is "Draft Mode" which doesn't use
+    // previewData, so we return an empty object
+    // for backwards compat with "Preview Mode".
+    const data = {}
+    Object.defineProperty(req, SYMBOL_PREVIEW_DATA, {
+      value: data,
+      enumerable: false,
+    })
+    return data
+  }
 
   // Case: neither cookie is set.
   if (!previewModeId && !tokenPreviewData) {
@@ -263,8 +279,42 @@ function sendJson(res: NextApiResponse, jsonBody: any): void {
   res.send(JSON.stringify(jsonBody))
 }
 
-function isNotValidData(str: string): boolean {
-  return typeof str !== 'string' || str.length < 16
+function isValidData(str: any): str is string {
+  return typeof str === 'string' && str.length >= 16
+}
+
+function setDraftMode<T>(
+  res: NextApiResponse<T>,
+  options: {
+    enable: boolean
+    previewModeId?: string
+  }
+): NextApiResponse<T> {
+  if (!isValidData(options.previewModeId)) {
+    throw new Error('invariant: invalid previewModeId')
+  }
+  const expires = options.enable ? undefined : new Date(0)
+  // To delete a cookie, set `expires` to a date in the past:
+  // https://tools.ietf.org/html/rfc6265#section-4.1.1
+  // `Max-Age: 0` is not valid, thus ignored, and the cookie is persisted.
+  const { serialize } =
+    require('next/dist/compiled/cookie') as typeof import('cookie')
+  const previous = res.getHeader('Set-Cookie')
+  res.setHeader(`Set-Cookie`, [
+    ...(typeof previous === 'string'
+      ? [previous]
+      : Array.isArray(previous)
+      ? previous
+      : []),
+    serialize(COOKIE_NAME_PRERENDER_BYPASS, options.previewModeId, {
+      httpOnly: true,
+      sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
+      secure: process.env.NODE_ENV !== 'development',
+      path: '/',
+      expires,
+    }),
+  ])
+  return res
 }
 
 function setPreviewData<T>(
@@ -275,13 +325,13 @@ function setPreviewData<T>(
     path?: string
   } & __ApiPreviewProps
 ): NextApiResponse<T> {
-  if (isNotValidData(options.previewModeId)) {
+  if (!isValidData(options.previewModeId)) {
     throw new Error('invariant: invalid previewModeId')
   }
-  if (isNotValidData(options.previewModeEncryptionKey)) {
+  if (!isValidData(options.previewModeEncryptionKey)) {
     throw new Error('invariant: invalid previewModeEncryptionKey')
   }
-  if (isNotValidData(options.previewModeSigningKey)) {
+  if (!isValidData(options.previewModeSigningKey)) {
     throw new Error('invariant: invalid previewModeSigningKey')
   }
 
@@ -465,6 +515,8 @@ export async function apiResolver(
     setLazyProp({ req: apiReq }, 'preview', () =>
       apiReq.previewData !== false ? true : undefined
     )
+    // Set draftMode to the same value as preview
+    setLazyProp({ req: apiReq }, 'draftMode', () => apiReq.preview)
 
     // Parsing of body
     if (bodyParser && !apiReq.body) {
@@ -504,6 +556,8 @@ export async function apiResolver(
     apiRes.json = (data) => sendJson(apiRes, data)
     apiRes.redirect = (statusOrUrl: number | string, url?: string) =>
       redirect(apiRes, statusOrUrl, url)
+    apiRes.setDraftMode = (options = { enable: true }) =>
+      setDraftMode(apiRes, Object.assign({}, apiContext, options))
     apiRes.setPreviewData = (data, options = {}) =>
       setPreviewData(apiRes, data, Object.assign({}, apiContext, options))
     apiRes.clearPreviewData = (options = {}) =>

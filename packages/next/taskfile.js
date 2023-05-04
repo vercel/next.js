@@ -292,6 +292,14 @@ export async function ncc_undici(task, opts) {
     .source(relative(__dirname, require.resolve('undici')))
     .ncc({ packageName: 'undici', externals })
     .target('src/compiled/undici')
+
+  const outputFile = join('src/compiled/undici/index.js')
+  await fs.writeFile(
+    outputFile,
+    (
+      await fs.readFile(outputFile, 'utf8')
+    ).replace(/process\.emitWarning/g, 'void')
+  )
 }
 
 // eslint-disable-next-line camelcase
@@ -1684,6 +1692,15 @@ export async function copy_vendor_react(task_) {
       .target(`src/compiled/react${packageSuffix}`)
     yield task
       .source(join(reactDir, 'cjs/**/*.js'))
+      // eslint-disable-next-line require-yield
+      .run({ every: true }, function* (file) {
+        const source = file.data.toString()
+        // We replace the module/chunk loading code with our own implementation in Next.js.
+        file.data = source.replace(
+          /require\(["']react["']\)/g,
+          `require("next/dist/compiled/react${packageSuffix}")`
+        )
+      })
       .target(`src/compiled/react${packageSuffix}/cjs`)
 
     yield task
@@ -1704,10 +1721,18 @@ export async function copy_vendor_react(task_) {
       .run({ every: true }, function* (file) {
         const source = file.data.toString()
         // We replace the module/chunk loading code with our own implementation in Next.js.
-        file.data = source.replace(
-          /require\(["']scheduler["']\)/g,
-          `require("next/dist/compiled/scheduler${packageSuffix}")`
-        )
+        file.data = source
+          .replace(
+            /require\(["']scheduler["']\)/g,
+            `require("next/dist/compiled/scheduler${packageSuffix}")`
+          )
+          .replace(
+            /require\(["']react["']\)/g,
+            `require("next/dist/compiled/react${packageSuffix}")`
+          )
+
+        // Note that we don't replace `react-dom` with `next/dist/compiled/react-dom`
+        // as it mighe be aliased to the server rendering stub.
       })
       .target(`src/compiled/react-dom${packageSuffix}/cjs`)
 
@@ -1740,12 +1765,12 @@ export async function copy_vendor_react(task_) {
     const reactServerDomDir = dirname(
       relative(
         __dirname,
-        require.resolve(`react-server-dom-webpack/package.json`)
+        require.resolve(`react-server-dom-webpack${packageSuffix}/package.json`)
       )
     )
     yield task
       .source(join(reactServerDomDir, 'LICENSE'))
-      .target(`src/compiled/react-server-dom-webpack`)
+      .target(`src/compiled/react-server-dom-webpack${packageSuffix}`)
     yield task
       .source(join(reactServerDomDir, '{package.json,*.js,cjs/**/*.js}'))
       // eslint-disable-next-line require-yield
@@ -1757,8 +1782,12 @@ export async function copy_vendor_react(task_) {
         file.data = source
           .replace(/__webpack_chunk_load__/g, 'globalThis.__next_chunk_load__')
           .replace(/__webpack_require__/g, 'globalThis.__next_require__')
+
+        if (file.base === 'package.json') {
+          file.data = overridePackageName(file.data)
+        }
       })
-      .target(`src/compiled/react-server-dom-webpack`)
+      .target(`src/compiled/react-server-dom-webpack${packageSuffix}`)
   }
 
   // As taskr transpiles async functions into generators, to reuse the same logic

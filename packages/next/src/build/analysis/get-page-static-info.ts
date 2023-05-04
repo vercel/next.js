@@ -35,6 +35,7 @@ export interface MiddlewareMatcher {
 
 export interface PageStaticInfo {
   runtime?: ServerRuntime
+  preferredRegion?: string | string[]
   ssg?: boolean
   ssr?: boolean
   rsc?: RSCModuleType
@@ -52,20 +53,22 @@ export function getRSCModuleInformation(
   isServerLayer = true
 ): RSCMeta {
   const actions = source.match(ACTION_MODULE_LABEL)?.[1]?.split(',')
+  const clientInfoMatch = source.match(CLIENT_MODULE_LABEL)
+  const isClientRef = !!clientInfoMatch
 
   if (!isServerLayer) {
     return {
       type: RSC_MODULE_TYPES.client,
       actions,
+      isClientRef,
     }
   }
 
-  const clientInfoMatch = source.match(CLIENT_MODULE_LABEL)
   const clientRefs = clientInfoMatch?.[1]?.split(',')
   const clientEntryType = clientInfoMatch?.[2] as 'cjs' | 'auto'
 
   const type = clientRefs ? RSC_MODULE_TYPES.client : RSC_MODULE_TYPES.server
-  return { type, actions, clientRefs, clientEntryType }
+  return { type, actions, clientRefs, clientEntryType, isClientRef }
 }
 
 /**
@@ -79,10 +82,12 @@ function checkExports(swcAST: any): {
   ssr: boolean
   ssg: boolean
   runtime?: string
+  preferredRegion?: string | string[]
 } {
   if (Array.isArray(swcAST?.body)) {
     try {
       let runtime: string | undefined
+      let preferredRegion: string | string[] | undefined
       let ssr: boolean = false
       let ssg: boolean = false
 
@@ -94,6 +99,22 @@ function checkExports(swcAST: any): {
           for (const declaration of node.declaration?.declarations) {
             if (declaration.id.value === 'runtime') {
               runtime = declaration.init.value
+            }
+
+            if (declaration.id.value === 'preferredRegion') {
+              if (declaration.init.type === 'ArrayExpression') {
+                const elements: string[] = []
+                for (const element of declaration.init.elements) {
+                  const { expression } = element
+                  if (expression.type !== 'StringLiteral') {
+                    continue
+                  }
+                  elements.push(expression.value)
+                }
+                preferredRegion = elements
+              } else {
+                preferredRegion = declaration.init.value
+              }
             }
           }
         }
@@ -135,7 +156,7 @@ function checkExports(swcAST: any): {
         }
       }
 
-      return { ssr, ssg, runtime }
+      return { ssr, ssg, runtime, preferredRegion }
     } catch (err) {}
   }
 
@@ -267,6 +288,12 @@ function getMiddlewareConfig(
 
 const apiRouteWarnings = new LRUCache({ max: 250 })
 function warnAboutExperimentalEdge(apiRoute: string | null) {
+  if (
+    process.env.NODE_ENV === 'production' &&
+    process.env.NEXT_PRIVATE_BUILD_WORKER === '1'
+  ) {
+    return
+  }
   if (apiRouteWarnings.has(apiRoute)) {
     return
   }
@@ -310,26 +337,26 @@ function warnAboutUnsupportedValue(
  * Related discussion: https://github.com/vercel/next.js/discussions/34179
  */
 export async function getPageStaticInfo(params: {
-  nextConfig: Partial<NextConfig>
   pageFilePath: string
+  nextConfig: Partial<NextConfig>
   isDev?: boolean
   page?: string
-  pageType?: 'pages' | 'app'
+  pageType: 'pages' | 'app' | 'root'
 }): Promise<PageStaticInfo> {
   const { isDev, pageFilePath, nextConfig, page, pageType } = params
 
   const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
   if (
-    /runtime|getStaticProps|getServerSideProps|export const config/.test(
+    /runtime|preferredRegion|getStaticProps|getServerSideProps|export const config/.test(
       fileContent
     )
   ) {
     const swcAST = await parseModule(pageFilePath, fileContent)
-    const { ssg, ssr, runtime } = checkExports(swcAST)
+    const { ssg, ssr, runtime, preferredRegion } = checkExports(swcAST)
     const rsc = getRSCModuleInformation(fileContent).type
 
     // default / failsafe value for config
-    let config: any = {}
+    let config: any
     try {
       config = extractExportedConstValue(swcAST, 'config')
     } catch (e) {
@@ -338,12 +365,29 @@ export async function getPageStaticInfo(params: {
       }
       // `export config` doesn't exist, or other unknown error throw by swc, silence them
     }
+    if (pageType === 'app') {
+      if (config) {
+        const message = `\`export const config\` in ${pageFilePath} is deprecated. Please change \`runtime\` property to segment export config. See https://beta.nextjs.org/docs/api-reference/segment-config`
+        if (isDev) {
+          Log.warnOnce(message)
+        } else {
+          throw new Error(message)
+        }
+        config = {}
+      }
+    }
+    if (!config) config = {}
 
-    // Currently, we use `export const config = { runtime: '...' }` to specify the page runtime.
-    // But in the new app directory, we prefer to use `export const runtime = '...'`
+    // We use `export const config = { runtime: '...' }` to specify the page runtime for pages/.
+    // In the new app directory, we prefer to use `export const runtime = '...'`
     // and deprecate the old way. To prevent breaking changes for `pages`, we use the exported config
     // as the fallback value.
-    let resolvedRuntime = runtime || config.runtime
+    let resolvedRuntime
+    if (pageType === 'app') {
+      resolvedRuntime = runtime
+    } else {
+      resolvedRuntime = runtime || config.runtime
+    }
 
     if (
       typeof resolvedRuntime !== 'undefined' &&
@@ -366,11 +410,10 @@ export async function getPageStaticInfo(params: {
 
     const isAnAPIRoute = isAPIRoute(page?.replace(/^(?:\/src)?\/pages\//, '/'))
 
-    resolvedRuntime = isEdgeRuntime(resolvedRuntime)
-      ? resolvedRuntime
-      : requiresServerRuntime
-      ? resolvedRuntime || nextConfig.experimental?.runtime
-      : undefined
+    resolvedRuntime =
+      isEdgeRuntime(resolvedRuntime) || requiresServerRuntime
+        ? resolvedRuntime
+        : undefined
 
     if (resolvedRuntime === SERVER_RUNTIME.experimentalEdge) {
       warnAboutExperimentalEdge(isAnAPIRoute ? page! : null)
@@ -402,6 +445,7 @@ export async function getPageStaticInfo(params: {
       rsc,
       ...(middlewareConfig && { middleware: middlewareConfig }),
       ...(resolvedRuntime && { runtime: resolvedRuntime }),
+      preferredRegion,
     }
   }
 
@@ -409,6 +453,6 @@ export async function getPageStaticInfo(params: {
     ssr: false,
     ssg: false,
     rsc: RSC_MODULE_TYPES.server,
-    runtime: nextConfig.experimental?.runtime,
+    runtime: undefined,
   }
 }

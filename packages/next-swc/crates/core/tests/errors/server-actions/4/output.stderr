@@ -4,7 +4,7 @@
  2 |     
  3 | ,-> export default class Component {
  4 | |     render() {
- 5 | |       return null;
+ 5 | |       return null
  6 | |     }
  7 | `-> }
    `----

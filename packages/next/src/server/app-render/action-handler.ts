@@ -9,6 +9,15 @@ import {
 import RenderResult from '../render-result'
 import { ActionRenderResult } from './action-render-result'
 
+function formDataFromSearchQueryString(query: string) {
+  const searchParams = new URLSearchParams(query)
+  const formData = new FormData()
+  for (const [key, value] of searchParams) {
+    formData.append(key, value)
+  }
+  return formData
+}
+
 export async function handleAction({
   req,
   res,
@@ -35,66 +44,101 @@ export async function handleAction({
     req.method === 'POST'
 
   if (isFetchAction || isFormAction || isMultipartAction) {
-    if (process.env.NEXT_RUNTIME !== 'edge') {
-      try {
-        let bound = []
+    let bound = []
 
-        const workerName = 'app' + pathname
-        const { decodeReply } = ComponentMod
+    const workerName = 'app' + pathname
+    const serverModuleMap = new Proxy(
+      {},
+      {
+        get: (_, id: string) => {
+          return {
+            id: serverActionsManifest.node[id].workers[workerName],
+            name: id,
+            chunks: [],
+          }
+        },
+      }
+    )
 
-        if (isMultipartAction) {
-          const formFields: any[] = []
+    const { actionAsyncStorage } = ComponentMod
 
-          const busboy = require('busboy')
-          const bb = busboy({ headers: req.headers })
-          let innerResolvor: () => void, innerRejector: (e: any) => void
-          const promise = new Promise<void>((resolve, reject) => {
-            innerResolvor = resolve
-            innerRejector = reject
-          })
-          bb.on('file', () =>
-            innerRejector(new Error('File upload is not supported.'))
-          )
-          bb.on('error', (err: any) => innerRejector(err))
-          bb.on('field', (id: any, val: any) => (formFields[+id] = val))
-          bb.on('finish', () => innerResolvor())
-          req.pipe(bb)
-          await promise
+    let actionResult: ActionRenderResult
 
-          bound = await decodeReply(
-            formFields,
-            new Proxy(
-              {},
-              {
-                get: (_, id: string) => {
-                  return {
-                    id: serverActionsManifest[id].workers[workerName],
-                    name: id,
-                    chunks: [],
-                  }
-                },
-              }
-            )
-          )
-        } else {
-          const { parseBody } =
-            require('../api-utils/node') as typeof import('../api-utils/node')
-          const actionData = (await parseBody(req, '1mb')) || ''
+    try {
+      await actionAsyncStorage.run({ isAction: true }, async () => {
+        if (process.env.NEXT_RUNTIME === 'edge') {
+          // Use react-server-dom-webpack/server.edge
+          const { decodeReply } = ComponentMod
 
-          if (isFormAction) {
-            actionId = actionData.$$id as string
-            if (!actionId) {
-              throw new Error('Invariant: missing action ID.')
-            }
-            const formData = new URLSearchParams(actionData)
-            formData.delete('$$id')
-            bound = [formData]
+          const webRequest = req as unknown as Request
+          if (!webRequest.body) {
+            throw new Error('invariant: Missing request body.')
+          }
+
+          if (isMultipartAction) {
+            throw new Error('invariant: Multipart form data is not supported.')
           } else {
-            bound = await decodeReply(actionData)
+            let actionData = ''
+
+            const reader = webRequest.body.getReader()
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) {
+                break
+              }
+
+              actionData += new TextDecoder().decode(value)
+            }
+
+            if (isFormAction) {
+              const formData = formDataFromSearchQueryString(actionData)
+              actionId = formData.get('$$id') as string
+
+              if (!actionId) {
+                throw new Error('Invariant: missing action ID.')
+              }
+              formData.delete('$$id')
+              bound = [formData]
+            } else {
+              bound = await decodeReply(actionData, serverModuleMap)
+            }
+          }
+        } else {
+          // Use react-server-dom-webpack/server.node which supports streaming
+          const {
+            decodeReply,
+            decodeReplyFromBusboy,
+          } = require(`react-server-dom-webpack/server.node`)
+
+          if (isMultipartAction) {
+            const busboy = require('busboy')
+            const bb = busboy({ headers: req.headers })
+            req.pipe(bb)
+
+            bound = await decodeReplyFromBusboy(bb, serverModuleMap)
+          } else {
+            const { parseBody } =
+              require('../api-utils/node') as typeof import('../api-utils/node')
+            const actionData = (await parseBody(req, '1mb')) || ''
+
+            if (isFormAction) {
+              actionId = actionData.$$id as string
+              if (!actionId) {
+                throw new Error('Invariant: missing action ID.')
+              }
+              const formData = formDataFromSearchQueryString(actionData)
+              formData.delete('$$id')
+              bound = [formData]
+            } else {
+              bound = await decodeReply(actionData, serverModuleMap)
+            }
           }
         }
 
-        const actionModId = serverActionsManifest[actionId].workers[workerName]
+        const actionModId =
+          serverActionsManifest[
+            process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
+          ][actionId].workers[workerName]
         const actionHandler =
           ComponentMod.__next_app_webpack_require__(actionModId)[actionId]
 
@@ -102,36 +146,38 @@ export async function handleAction({
         const result = new ActionRenderResult(JSON.stringify([returnVal]))
         // For form actions, we need to continue rendering the page.
         if (isFetchAction) {
-          return result
+          actionResult = result
         }
-      } catch (err) {
-        if (isRedirectError(err)) {
-          if (isFetchAction) {
-            throw new Error('Invariant: not implemented.')
-          }
-          const redirectUrl = getURLFromRedirectError(err)
-          res.statusCode = 303
-          res.setHeader('Location', redirectUrl)
-          return new ActionRenderResult(JSON.stringify({}))
-        } else if (isNotFoundError(err)) {
-          if (isFetchAction) {
-            throw new Error('Invariant: not implemented.')
-          }
-          res.statusCode = 404
-          return 'not-found'
-        }
+      })
 
-        if (isFetchAction) {
-          res.statusCode = 500
-          return new RenderResult(
-            (err as Error)?.message ?? 'Internal Server Error'
-          )
-        }
-
-        throw err
+      if (actionResult!) {
+        return actionResult
       }
-    } else {
-      throw new Error('Not implemented in Edge Runtime.')
+    } catch (err) {
+      if (isRedirectError(err)) {
+        if (isFetchAction || process.env.NEXT_RUNTIME === 'edge') {
+          throw new Error('Invariant: not implemented.')
+        }
+        const redirectUrl = getURLFromRedirectError(err)
+        res.statusCode = 303
+        res.setHeader('Location', redirectUrl)
+        return new ActionRenderResult(JSON.stringify({}))
+      } else if (isNotFoundError(err)) {
+        if (isFetchAction) {
+          throw new Error('Invariant: not implemented.')
+        }
+        res.statusCode = 404
+        return 'not-found'
+      }
+
+      if (isFetchAction) {
+        res.statusCode = 500
+        return new RenderResult(
+          (err as Error)?.message ?? 'Internal Server Error'
+        )
+      }
+
+      throw err
     }
   }
 }

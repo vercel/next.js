@@ -1,6 +1,9 @@
-import './initialize-require-hook'
+import './node-environment'
+import './require-hook'
 import './node-polyfill-fetch'
+import './node-polyfill-form'
 import './node-polyfill-web-streams'
+import './node-polyfill-crypto'
 
 import type { TLSSocket } from 'tls'
 import type { Route, RouterOptions } from './router'
@@ -44,6 +47,7 @@ import {
   FLIGHT_SERVER_CSS_MANIFEST,
   SERVER_DIRECTORY,
   NEXT_FONT_MANIFEST,
+  PHASE_PRODUCTION_BUILD,
 } from '../shared/lib/constants'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { findDir } from '../lib/find-pages-dir'
@@ -89,7 +93,6 @@ import ResponseCache from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
-import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render/app-render'
 import { setHttpClientAndAgentOptions } from './config'
 import { RouteKind } from './future/route-kind'
 
@@ -271,7 +274,8 @@ export default class NextNodeServer extends BaseServer {
               this.port || 0,
               ipcPort,
               options.isNodeDebugging,
-              'app'
+              'app',
+              this.nextConfig.experimental.serverActions
             )
           }
           this.renderWorkers.pages = createWorker(
@@ -319,10 +323,6 @@ export default class NextNodeServer extends BaseServer {
       }
     }
 
-    // expose AsyncLocalStorage on global for react usage
-    const { AsyncLocalStorage } = require('async_hooks')
-    ;(globalThis as any).AsyncLocalStorage = AsyncLocalStorage
-
     // ensure options are set when loadConfig isn't called
     setHttpClientAndAgentOptions(this.nextConfig)
   }
@@ -334,14 +334,13 @@ export default class NextNodeServer extends BaseServer {
       this.nextConfig.experimental.instrumentationHook
     ) {
       try {
-        const instrumentationHook = await require(join(
+        const instrumentationHook = await require(resolve(
           this.serverOptions.dir || '.',
           this.serverOptions.conf.distDir!,
           'server',
           INSTRUMENTATION_HOOK_FILENAME
         ))
-
-        instrumentationHook.register?.()
+        await instrumentationHook.register?.()
       } catch (err: any) {
         if (err.code !== 'MODULE_NOT_FOUND') {
           err.message = `An error occurred while loading instrumentation hook: ${err.message}`
@@ -370,8 +369,10 @@ export default class NextNodeServer extends BaseServer {
 
   protected getIncrementalCache({
     requestHeaders,
+    requestProtocol,
   }: {
     requestHeaders: IncrementalCache['requestHeaders']
+    requestProtocol: 'http' | 'https'
   }) {
     const dev = !!this.renderOpts.dev
     let CacheHandler: any
@@ -383,6 +384,7 @@ export default class NextNodeServer extends BaseServer {
         : incrementalCacheHandlerPath)
       CacheHandler = CacheHandler.default || CacheHandler
     }
+
     // incremental-cache is request specific with a shared
     // although can have shared caches in module scope
     // per-cache handler
@@ -390,7 +392,10 @@ export default class NextNodeServer extends BaseServer {
       fs: this.getCacheFilesystem(),
       dev,
       requestHeaders,
+      requestProtocol,
       appDir: this.hasAppDir,
+      allowedRevalidateHeaderKeys:
+        this.nextConfig.experimental.allowedRevalidateHeaderKeys,
       minimalMode: this.minimalMode,
       serverDistDir: this.serverDistDir,
       fetchCache: this.nextConfig.experimental.appDir,
@@ -398,19 +403,7 @@ export default class NextNodeServer extends BaseServer {
       maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
       flushToDisk:
         !this.minimalMode && this.nextConfig.experimental.isrFlushToDisk,
-      getPrerenderManifest: () => {
-        if (dev) {
-          return {
-            version: -1 as any, // letting us know this doesn't conform to spec
-            routes: {},
-            dynamicRoutes: {},
-            notFoundRoutes: [],
-            preview: null as any, // `preview` is special case read in next-dev-server
-          }
-        } else {
-          return this.getPrerenderManifest()
-        }
-      },
+      getPrerenderManifest: () => this.getPrerenderManifest(),
       CurCacheHandler: CacheHandler,
     })
   }
@@ -956,6 +949,8 @@ export default class NextNodeServer extends BaseServer {
     renderOpts.nextFontManifest = this.nextFontManifest
 
     if (this.hasAppDir && renderOpts.isAppPath) {
+      const { renderToHTMLOrFlight: appRenderToHTMLOrFlight } =
+        require('./app-render/app-render') as typeof import('./app-render/app-render')
       return appRenderToHTMLOrFlight(
         req.originalRequest,
         res.originalResponse,
@@ -1172,10 +1167,14 @@ export default class NextNodeServer extends BaseServer {
     return require(join(this.distDir, 'server', `${NEXT_FONT_MANIFEST}.json`))
   }
 
-  protected getFallback(page: string): Promise<string> {
+  protected async getFallback(page: string): Promise<string> {
     page = normalizePagePath(page)
     const cacheFs = this.getCacheFilesystem()
-    return cacheFs.readFile(join(this.serverDistDir, 'pages', `${page}.html`))
+    const html = await cacheFs.readFile(
+      join(this.serverDistDir, 'pages', `${page}.html`)
+    )
+
+    return html.toString('utf8')
   }
 
   protected generateRoutes(dev?: boolean): RouterOptions {
@@ -1369,17 +1368,39 @@ export default class NextNodeServer extends BaseServer {
 
         if (this.isRouterWorker) {
           let page = pathname
+          let matchedExistingRoute = false
 
           if (!(await this.hasPage(page))) {
             for (const route of this.dynamicRoutes || []) {
               if (route.match(pathname)) {
                 page = route.page
+                matchedExistingRoute = true
                 break
               }
             }
+          } else {
+            matchedExistingRoute = true
           }
 
-          const renderKind = this.appPathRoutes?.[page] ? 'app' : 'pages'
+          let renderKind: 'app' | 'pages' =
+            this.appPathRoutes?.[page] ||
+            // Possible that it's a dynamic app route or behind routing rules
+            // such as i18n. In that case, we need to check the route kind directly.
+            match?.definition.kind === RouteKind.APP_PAGE
+              ? 'app'
+              : 'pages'
+
+          // Handle app dir's /not-found feature: for 404 pages, they should be
+          // routed to the app renderer.
+          if (!matchedExistingRoute && this.appPathRoutes) {
+            if (
+              this.appPathRoutes[
+                this.renderOpts.dev ? '/not-found' : '/_not-found'
+              ]
+            ) {
+              renderKind = 'app'
+            }
+          }
 
           if (this.renderWorkersPromises) {
             await this.renderWorkersPromises
@@ -2073,13 +2094,8 @@ export default class NextNodeServer extends BaseServer {
     ) {
       return { finished: false }
     }
-    const normalizedPathname = removeTrailingSlash(params.parsed.pathname || '')
 
     let url: string
-
-    const options: MatchOptions = {
-      i18n: this.i18nProvider?.analyze(normalizedPathname),
-    }
 
     if (this.nextConfig.skipMiddlewareUrlNormalize) {
       url = getRequestMeta(params.request, '__NEXT_INIT_URL')!
@@ -2105,14 +2121,6 @@ export default class NextNodeServer extends BaseServer {
       name?: string
       params?: { [key: string]: string | string[] }
     } = {}
-
-    const match = await this.matchers.match(normalizedPathname, options)
-    if (match) {
-      page.name = match.params
-        ? match.definition.pathname
-        : params.parsedUrl.pathname
-      page.params = match.params
-    }
 
     const middleware = this.getMiddleware()
     if (!middleware) {
@@ -2528,6 +2536,30 @@ export default class NextNodeServer extends BaseServer {
   private _cachedPreviewManifest: PrerenderManifest | undefined
   protected getPrerenderManifest(): PrerenderManifest {
     if (this._cachedPreviewManifest) {
+      return this._cachedPreviewManifest
+    }
+    if (
+      this.renderOpts?.dev ||
+      this.serverOptions?.dev ||
+      this.renderWorkerOpts?.dev ||
+      process.env.NODE_ENV === 'development' ||
+      process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD
+    ) {
+      this._cachedPreviewManifest = {
+        version: 4,
+        routes: {},
+        dynamicRoutes: {},
+        notFoundRoutes: [],
+        preview: {
+          previewModeId: require('crypto').randomBytes(16).toString('hex'),
+          previewModeSigningKey: require('crypto')
+            .randomBytes(32)
+            .toString('hex'),
+          previewModeEncryptionKey: require('crypto')
+            .randomBytes(32)
+            .toString('hex'),
+        },
+      }
       return this._cachedPreviewManifest
     }
     const manifest = require(join(this.distDir, PRERENDER_MANIFEST))
