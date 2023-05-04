@@ -78,8 +78,13 @@ let BACKEND;
           return;
         }
 
+        const encodedChunkPath = chunkPath
+          .split("/")
+          .map((p) => encodeURIComponent(p))
+          .join("/");
+
         const previousLink = document.querySelector(
-          `link[type=stylesheet][href^="/${chunkPath}"]`
+          `link[rel=stylesheet][href^="/${encodedChunkPath}"]`
         );
 
         if (previousLink == null) {
@@ -89,7 +94,7 @@ let BACKEND;
 
         const link = document.createElement("link");
         link.rel = "stylesheet";
-        link.href = `/${chunkPath}?t=${Date.now()}`;
+        link.href = `/${encodedChunkPath}`;
         link.onerror = () => {
           reject();
         };
