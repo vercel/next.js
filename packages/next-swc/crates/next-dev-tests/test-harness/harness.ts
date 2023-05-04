@@ -85,14 +85,26 @@ export function wait(ms: number): Promise<void> {
   })
 }
 
-async function waitForPath(contentWindow: Window, path: string): Promise<void> {
+export async function waitForCondition(
+  predicate: () => boolean,
+  timeout: number | null = null
+): Promise<void> {
+  const start = Date.now()
   while (true) {
-    if (contentWindow.location.pathname === path) {
+    if (predicate()) {
       break
     }
 
     await wait(1)
+
+    if (timeout != null && Date.now() - start > timeout) {
+      throw new Error('Timed out waiting for condition')
+    }
   }
+}
+
+async function waitForPath(contentWindow: Window, path: string): Promise<void> {
+  return waitForCondition(() => contentWindow.location.pathname === path)
 }
 
 /**
