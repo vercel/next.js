@@ -5,5 +5,5 @@ ensureServerEntryExports([
 ]);
 x.$$typeof = Symbol.for("react.server.reference");
 x.$$id = "b78c261f135a7a852508c2920bd7228020ff4bd7";
-x.$$bound = [];
+x.$$bound = null;
 x.$$with_bound = false;
