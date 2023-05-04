@@ -69,6 +69,7 @@ fn defines(mode: NextMode) -> CompileTimeDefines {
         process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false,
         process.env.__NEXT_HAS_REWRITES = true,
         process.env.__NEXT_I18N_SUPPORT = false,
+        process.env.__NEXT_NEW_LINK_BEHAVIOR = true
     )
     // TODO(WEB-937) there are more defines needed, see
     // packages/next/src/build/webpack-config.ts

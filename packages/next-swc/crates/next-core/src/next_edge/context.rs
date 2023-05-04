@@ -29,6 +29,7 @@ fn defines() -> CompileTimeDefines {
         process.turbopack = true,
         process.env.NODE_ENV = "development",
         process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false,
+        process.env.__NEXT_NEW_LINK_BEHAVIOR = true,
         process.env.NEXT_RUNTIME = "edge"
     )
     // TODO(WEB-937) there are more defines needed, see
