@@ -1220,16 +1220,14 @@ fn annotate_ident_as_action(
                     optional: false,
                 }),
             }))
+        } else if bound.is_empty() {
+            Lit::Null(Null { span: DUMMY_SP }).into()
         } else {
-            if bound.is_empty() {
-                Lit::Null(Null { span: DUMMY_SP }).into()
-            } else {
-                ArrayLit {
-                    span: DUMMY_SP,
-                    elems: bound,
-                }
-                .into()
+            ArrayLit {
+                span: DUMMY_SP,
+                elems: bound,
             }
+            .into()
         },
     ));
 
