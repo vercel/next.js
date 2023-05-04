@@ -17,6 +17,7 @@ pub struct RenderData {
     params: IndexMap<String, Param>,
     method: String,
     url: String,
+    original_url: String,
     raw_query: String,
     raw_headers: Vec<(String, String)>,
     path: String,

@@ -47,11 +47,12 @@ pub async fn resolve_source_request(
             ContentSourceResult::NeedData(needed) => {
                 current_source = needed.source.resolve().await?;
                 current_asset_path = needed.path.clone();
-                data = request_to_data(&request_overwrites, &needed.vary).await?;
+                data = request_to_data(&request_overwrites, &request, &needed.vary).await?;
             }
             ContentSourceResult::Result { get_content, .. } => {
                 let content_vary = get_content.vary().await?;
-                let content_data = request_to_data(&request_overwrites, &content_vary).await?;
+                let content_data =
+                    request_to_data(&request_overwrites, &request, &content_vary).await?;
                 let content = get_content.get(Value::new(content_data));
                 match &*content.await? {
                     ContentSourceContent::Rewrite(rewrite) => {
@@ -96,6 +97,7 @@ static CACHE_BUSTER: AtomicU64 = AtomicU64::new(0);
 
 async fn request_to_data(
     request: &SourceRequest,
+    original_request: &SourceRequest,
     vary: &ContentSourceDataVary,
 ) -> Result<ContentSourceData> {
     let mut data = ContentSourceData::default();
@@ -104,6 +106,9 @@ async fn request_to_data(
     }
     if vary.url {
         data.url = Some(request.uri.to_string());
+    }
+    if vary.original_url {
+        data.original_url = Some(original_request.uri.to_string());
     }
     if vary.body {
         data.body = Some(request.body.clone().into());

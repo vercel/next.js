@@ -236,6 +236,9 @@ pub struct ContentSourceData {
     pub method: Option<String>,
     /// The full url (including query string), if requested.
     pub url: Option<String>,
+    /// The full url (including query string) before rewrites where applied, if
+    /// requested.
+    pub original_url: Option<String>,
     /// Query string items, if requested.
     pub query: Option<Query>,
     /// raw query string, if requested. Does not include the `?`.
@@ -368,6 +371,7 @@ impl ContentSourceDataFilter {
 pub struct ContentSourceDataVary {
     pub method: bool,
     pub url: bool,
+    pub original_url: bool,
     pub query: Option<ContentSourceDataFilter>,
     pub raw_query: bool,
     pub headers: Option<ContentSourceDataFilter>,
@@ -387,6 +391,7 @@ impl ContentSourceDataVary {
         let ContentSourceDataVary {
             method,
             url,
+            original_url,
             query,
             raw_query,
             headers,
@@ -397,6 +402,7 @@ impl ContentSourceDataVary {
         } = self;
         *method = *method || other.method;
         *url = *url || other.url;
+        *original_url = *original_url || other.original_url;
         *body = *body || other.body;
         *cache_buster = *cache_buster || other.cache_buster;
         *raw_query = *raw_query || other.raw_query;
@@ -412,6 +418,7 @@ impl ContentSourceDataVary {
         let ContentSourceDataVary {
             method,
             url,
+            original_url,
             query,
             raw_query,
             headers,
@@ -424,6 +431,9 @@ impl ContentSourceDataVary {
             return false;
         }
         if other.url && !url {
+            return false;
+        }
+        if other.original_url && !original_url {
             return false;
         }
         if other.body && !body {
