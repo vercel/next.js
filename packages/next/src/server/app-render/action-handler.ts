@@ -125,6 +125,14 @@ function fetchIPv4v6(
   })
 }
 
+async function wrapErrorInResolvedPromise<T>(error: T): Promise<T> {
+  const promise = Promise.reject(error)
+  try {
+    await promise
+  } catch (err) {}
+  return promise
+}
+
 async function createRedirectRenderResult(
   req: IncomingMessage,
   res: ServerResponse,
@@ -193,6 +201,7 @@ export async function handleAction({
   generateFlight: (options: {
     actionResult: ActionResult
     skipFlight: boolean
+    asNotFound?: boolean
   }) => Promise<RenderResult>
   staticGenerationStore: StaticGenerationStore
 }): Promise<undefined | RenderResult | 'not-found'> {
@@ -363,26 +372,24 @@ export async function handleAction({
         res.statusCode = 303
         return new RenderResult('')
       } else if (isNotFoundError(err)) {
-        if (isFetchAction) {
-          throw new Error('Invariant: not implemented.')
-        }
-        await Promise.all(staticGenerationStore.pendingRevalidates || [])
         res.statusCode = 404
+
+        await Promise.all(staticGenerationStore.pendingRevalidates || [])
+        if (isFetchAction) {
+          const rejectedPromise = wrapErrorInResolvedPromise(err)
+          return generateFlight({
+            skipFlight: false,
+            actionResult: rejectedPromise,
+            asNotFound: true,
+          })
+        }
         return 'not-found'
       }
 
       if (isFetchAction) {
         res.statusCode = 500
-        const rejectedPromise = Promise.reject(err)
-        try {
-          // we need to await the promise to trigger the rejection early
-          // so that it's already handled by the time we call
-          // the RSC runtime. Otherwise, it will throw an unhandled
-          // promise rejection error in the renderer.
-          await rejectedPromise
-        } catch (_) {
-          // swallow error, it's gonna be handled on the client
-        }
+        await Promise.all(staticGenerationStore.pendingRevalidates || [])
+        const rejectedPromise = wrapErrorInResolvedPromise(err)
         return generateFlight({
           actionResult: rejectedPromise,
           // if the page was not revalidated, we can skip the rendering the flight tree
