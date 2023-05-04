@@ -38,6 +38,7 @@ use crate::{
     next_build::{get_external_next_compiled_package_mapping, get_postcss_package_mapping},
     next_config::NextConfigVc,
     next_import_map::get_next_server_import_map,
+    next_server::resolve::ExternalPredicate,
     next_shared::resolve::UnsupportedModulesResolvePluginVc,
     transform_options::{
         get_decorators_transform_options, get_emotion_compiler_config, get_jsx_transform_options,
@@ -71,16 +72,14 @@ pub async fn get_server_resolve_options_context(
     let unsupported_modules_resolve_plugin = UnsupportedModulesResolvePluginVc::new(project_path);
     let server_component_externals_plugin = ExternalCjsModulesResolvePluginVc::new(
         project_path,
-        false,
-        next_config.server_component_externals(),
+        ExternalPredicate::Only(next_config.server_component_externals()).cell(),
     );
 
     Ok(match ty.into_value() {
         ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
             let external_cjs_modules_plugin = ExternalCjsModulesResolvePluginVc::new(
                 project_path,
-                true,
-                next_config.transpile_packages(),
+                ExternalPredicate::AllExcept(next_config.transpile_packages()).cell(),
             );
 
             let resolve_options_context = ResolveOptionsContext {
