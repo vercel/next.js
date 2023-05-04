@@ -33,6 +33,15 @@ export interface StaticGenerationStore {
   tags?: string[]
 
   revalidatedTags?: string[]
+  fetchMetrics?: Array<{
+    url: string
+    idx: number
+    end: number
+    start: number
+    method: string
+    status: number
+    cacheStatus: 'hit' | 'miss'
+  }>
 }
 
 export type StaticGenerationAsyncStorage =
