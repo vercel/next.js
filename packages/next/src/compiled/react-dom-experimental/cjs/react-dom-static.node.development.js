@@ -20,7 +20,7 @@ var util = require('util');
 var async_hooks = require('async_hooks');
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-experimental-b7972822b-20230503';
+var ReactVersion = '18.3.0-experimental-aef7ce554-20230503';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -2404,7 +2404,7 @@ function makeFormFieldPrefix(responseState) {
   // I'm just reusing this counter. It's not really the same namespace as "name".
   // It could just be its own counter.
   var id = responseState.nextSuspenseID++;
-  return responseState.idPrefix + '$ACTION:' + id + ':';
+  return responseState.idPrefix + id;
 } // Since this will likely be repeated a lot in the HTML, we use a more concise message
 // than on the client and hopefully it's googleable.
 
@@ -2487,23 +2487,23 @@ function pushFormActionAttribute(target, responseState, formAction, formEncType,
     }
   }
 
-  if (name !== null) {
+  if (name != null) {
     pushAttribute(target, 'name', name);
   }
 
-  if (formAction !== null) {
+  if (formAction != null) {
     pushAttribute(target, 'formAction', formAction);
   }
 
-  if (formEncType !== null) {
+  if (formEncType != null) {
     pushAttribute(target, 'formEncType', formEncType);
   }
 
-  if (formMethod !== null) {
+  if (formMethod != null) {
     pushAttribute(target, 'formMethod', formMethod);
   }
 
-  if (formTarget !== null) {
+  if (formTarget != null) {
     pushAttribute(target, 'formTarget', formTarget);
   }
 
@@ -3117,19 +3117,19 @@ function pushStartForm(target, props, responseState) {
     }
   }
 
-  if (formAction !== null) {
+  if (formAction != null) {
     pushAttribute(target, 'action', formAction);
   }
 
-  if (formEncType !== null) {
+  if (formEncType != null) {
     pushAttribute(target, 'encType', formEncType);
   }
 
-  if (formMethod !== null) {
+  if (formMethod != null) {
     pushAttribute(target, 'method', formMethod);
   }
 
-  if (formTarget !== null) {
+  if (formTarget != null) {
     pushAttribute(target, 'target', formTarget);
   }
 
@@ -9634,10 +9634,13 @@ function spawnNewSuspendedTask(request, task, thenableState, x) {
 
 
 function renderNode(request, task, node) {
-  // TODO: Store segment.children.length here and reset it in case something
+  // Store how much we've pushed at this point so we can reset it in case something
   // suspended partially through writing something.
-  // Snapshot the current context in case something throws to interrupt the
+  var segment = task.blockedSegment;
+  var childrenLength = segment.children.length;
+  var chunkLength = segment.chunks.length; // Snapshot the current context in case something throws to interrupt the
   // process.
+
   var previousFormatContext = task.blockedSegment.formatContext;
   var previousLegacyContext = task.legacyContext;
   var previousContext = task.context;
@@ -9650,7 +9653,10 @@ function renderNode(request, task, node) {
   try {
     return renderNodeDestructive(request, task, null, node);
   } catch (thrownValue) {
-    resetHooksState();
+    resetHooksState(); // Reset the write pointers to where we started.
+
+    segment.children.length = childrenLength;
+    segment.chunks.length = chunkLength;
     var x = thrownValue === SuspenseException ? // This is a special type of exception used for Suspense. For historical
     // reasons, the rest of the Suspense implementation expects the thrown
     // value to be a thenable, because before `use` existed that was the
@@ -9922,6 +9928,9 @@ function retryTask(request, task) {
     currentTaskInDEV = task;
   }
 
+  var childrenLength = segment.children.length;
+  var chunkLength = segment.chunks.length;
+
   try {
     // We call the destructive form that mutates this task. That way if something
     // suspends again, we can reuse the same task instead of spawning a new one.
@@ -9936,7 +9945,10 @@ function retryTask(request, task) {
     segment.status = COMPLETED;
     finishedTask(request, task.blockedBoundary, segment);
   } catch (thrownValue) {
-    resetHooksState();
+    resetHooksState(); // Reset the write pointers to where we started.
+
+    segment.children.length = childrenLength;
+    segment.chunks.length = chunkLength;
     var x = thrownValue === SuspenseException ? // This is a special type of exception used for Suspense. For historical
     // reasons, the rest of the Suspense implementation expects the thrown
     // value to be a thenable, because before `use` existed that was the
