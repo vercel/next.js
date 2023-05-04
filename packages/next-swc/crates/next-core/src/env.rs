@@ -61,6 +61,15 @@ pub async fn env_for_js(
         map.insert("__NEXT_STRICT_MODE_APP".to_string(), "true".to_string());
     }
 
+    // BasePath calculation is based on this env variable
+    // https://github.com/vercel/next.js/blob/7fa4946b4254906f466cfe556ee00102b73b7b0c/packages/next/src/client/add-base-path.ts#L4
+    if let Some(base_path) = &next_config.base_path {
+        map.insert(
+            "__NEXT_ROUTER_BASEPATH".to_string(),
+            serde_json::to_string(base_path)?,
+        );
+    }
+
     if !test_mode.is_empty() {
         map.insert("__NEXT_TEST_MODE".to_string(), "true".to_string());
     }

@@ -36,7 +36,7 @@ use turbo_binding::{
     },
 };
 use turbo_tasks::{
-    primitives::{BoolVc, StringsVc},
+    primitives::{BoolVc, OptionStringVc, StringsVc},
     trace::TraceRawVcs,
     CompletionVc, Value,
 };
@@ -59,6 +59,7 @@ pub struct NextConfig {
     pub rewrites: Rewrites,
     pub transpile_packages: Option<Vec<String>>,
     pub modularize_imports: Option<IndexMap<String, ModularizeImportPackageConfig>>,
+    pub base_path: Option<String>,
 
     // Partially supported
     pub compiler: Option<CompilerConfig>,
@@ -70,7 +71,6 @@ pub struct NextConfig {
     amp: AmpConfig,
     analytics_id: String,
     asset_prefix: String,
-    base_path: String,
     clean_dist_dir: bool,
     compress: bool,
     dev_indicators: DevIndicatorsConfig,
@@ -585,6 +585,11 @@ impl NextConfigVc {
         Ok(BoolVc::cell(
             self.await?.experimental.mdx_rs.unwrap_or(false),
         ))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn base_path(self) -> Result<OptionStringVc> {
+        Ok(OptionStringVc::cell(self.await?.base_path.clone()))
     }
 }
 
