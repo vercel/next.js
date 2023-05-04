@@ -105,9 +105,9 @@ describe('should set-up next', () => {
     const testServer = join(next.testDir, 'standalone/server.js')
     await fs.writeFile(
       testServer,
-      (await fs.readFile(testServer, 'utf8'))
-        .replace('console.error(err)', `console.error('top-level', err)`)
-        .replace('conf:', 'minimalMode: true,conf:')
+      (
+        await fs.readFile(testServer, 'utf8')
+      ).replace('conf:', 'minimalMode: true,conf:')
     )
     appPort = await findPort()
     server = await initNextServerScript(
@@ -121,9 +121,7 @@ describe('should set-up next', () => {
       {
         cwd: next.testDir,
         onStderr(msg) {
-          if (msg.includes('top-level')) {
-            errors.push(msg)
-          }
+          errors.push(msg)
         },
       }
     )
