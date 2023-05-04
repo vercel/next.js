@@ -290,7 +290,9 @@ export default async function build(
           const contents = await promises.readFile(requireHook, 'utf8')
           await promises.writeFile(
             requireHook,
-            `process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = '1'\n${contents}`
+            `process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = '${
+              config.experimental.serverActions ? 'experimental' : 'next'
+            }'\n${contents}`
           )
         }
       }

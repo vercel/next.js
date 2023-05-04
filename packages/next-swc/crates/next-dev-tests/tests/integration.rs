@@ -407,7 +407,7 @@ async fn run_browser(addr: SocketAddr) -> Result<JestRunResult> {
                             writeln!(message, "    at {} ({}:{}:{})", frame.function_name, frame.url, frame.line_number, frame.column_number)?;
                         }
                     }
-                    let expected_error = !message.contains("(expected error)");
+                    let expected_error = message.contains("(expected error)");
                     let message = message.trim_end();
                     if !is_debugging {
                         if !expected_error {
