@@ -8,7 +8,7 @@ import type { FieldResolverWithMetadataBase } from '../types/resolvers'
 import type { ResolvedTwitterMetadata, Twitter } from '../types/twitter-types'
 import { resolveAsArrayOrUndefined } from '../generate/utils'
 import {
-  getFallbackMetadataBaseIfPresent,
+  getSocialImageFallbackMetadataBase,
   isStringOrURL,
   resolveUrl,
 } from './resolve-url'
@@ -101,7 +101,7 @@ export const resolveOpenGraph: FieldResolverWithMetadataBase<'openGraph'> = (
       }
     }
 
-    const imageMetadataBase = getFallbackMetadataBaseIfPresent(metadataBase)
+    const imageMetadataBase = getSocialImageFallbackMetadataBase(metadataBase)
     resolved.images = resolveImages(og.images, imageMetadataBase)
   }
 
@@ -132,7 +132,7 @@ export const resolveTwitter: FieldResolverWithMetadataBase<'twitter'> = (
   for (const infoKey of TwitterBasicInfoKeys) {
     resolved[infoKey] = twitter[infoKey] || null
   }
-  const imageMetadataBase = getFallbackMetadataBaseIfPresent(metadataBase)
+  const imageMetadataBase = getSocialImageFallbackMetadataBase(metadataBase)
   resolved.images = resolveImages(twitter.images, imageMetadataBase)
 
   if ('card' in resolved) {
