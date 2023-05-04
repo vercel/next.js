@@ -125,14 +125,6 @@ function fetchIPv4v6(
   })
 }
 
-async function wrapErrorInResolvedPromise<T>(error: T): Promise<T> {
-  const promise = Promise.reject(error)
-  try {
-    await promise
-  } catch (err) {}
-  return promise
-}
-
 async function createRedirectRenderResult(
   req: IncomingMessage,
   res: ServerResponse,
@@ -376,10 +368,13 @@ export async function handleAction({
 
         await Promise.all(staticGenerationStore.pendingRevalidates || [])
         if (isFetchAction) {
-          const rejectedPromise = wrapErrorInResolvedPromise(err)
+          const promise = Promise.reject(err)
+          try {
+            await promise
+          } catch (_) {}
           return generateFlight({
             skipFlight: false,
-            actionResult: rejectedPromise,
+            actionResult: promise,
             asNotFound: true,
           })
         }
@@ -389,9 +384,13 @@ export async function handleAction({
       if (isFetchAction) {
         res.statusCode = 500
         await Promise.all(staticGenerationStore.pendingRevalidates || [])
-        const rejectedPromise = wrapErrorInResolvedPromise(err)
+        const promise = Promise.reject(err)
+        try {
+          await promise
+        } catch (_) {}
+
         return generateFlight({
-          actionResult: rejectedPromise,
+          actionResult: promise,
           // if the page was not revalidated, we can skip the rendering the flight tree
           skipFlight: !staticGenerationStore.pathWasRevalidated,
         })
