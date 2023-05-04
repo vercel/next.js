@@ -3,6 +3,7 @@
 mod absolute_system_path_buf;
 mod anchored_system_path_buf;
 mod relative_system_path_buf;
+mod relative_unix_path;
 mod relative_unix_path_buf;
 
 use std::{
@@ -14,6 +15,7 @@ pub use absolute_system_path_buf::AbsoluteSystemPathBuf;
 pub use anchored_system_path_buf::AnchoredSystemPathBuf;
 use path_slash::{PathBufExt, PathExt};
 pub use relative_system_path_buf::RelativeSystemPathBuf;
+pub use relative_unix_path::RelativeUnixPath;
 pub use relative_unix_path_buf::RelativeUnixPathBuf;
 
 #[derive(Debug, thiserror::Error)]
@@ -44,6 +46,8 @@ pub enum PathValidationError {
     NotRelative(PathBuf),
     #[error("Path {0} is not parent of {1}")]
     NotParent(String, String),
+    #[error("Path {0} is not a unix path")]
+    NotUnix(String),
 }
 
 trait IntoSystem {

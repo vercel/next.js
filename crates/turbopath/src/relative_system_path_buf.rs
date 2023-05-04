@@ -43,6 +43,10 @@ impl RelativeSystemPathBuf {
         Ok(RelativeSystemPathBuf(system_path))
     }
 
+    pub(crate) fn new_unchecked(unchecked_path: impl Into<PathBuf>) -> Self {
+        Self(unchecked_path.into())
+    }
+
     pub fn as_path(&self) -> &Path {
         &self.0
     }
