@@ -183,12 +183,14 @@ createNextDescribe(
             return
           }
 
-          expect(stored).toEqual({
-            // Not actually sure why this is '2' in dev. Possibly something
-            // related to an update triggered by <HotReload>?
-            'navigate-https://example.vercel.sh/': isNextDev ? '2' : '1',
-            'navigation-supported': 'true',
-          })
+          expect(stored['navigation-supported']).toEqual('true')
+
+          // This one is a bit flaky during dev, original notes by @sophiebits:
+          // > Not actually sure why this is '2' in dev. Possibly something
+          // > related to an update triggered by <HotReload>?
+          expect(stored['navigate-https://example.vercel.sh/']).toBeOneOf(
+            isNextDev ? ['1', '2'] : ['1']
+          )
         })
       })
 

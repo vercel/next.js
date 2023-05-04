@@ -1,6 +1,6 @@
 import { getCookie, getHeader, setCookie } from '../actions'
 import UI from '../ui'
-import { validator } from '../validator'
+import { validator } from './validator'
 
 export default function Page() {
   const prefix = 'Prefix:'

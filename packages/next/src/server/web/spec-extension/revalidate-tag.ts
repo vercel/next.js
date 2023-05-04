@@ -3,7 +3,7 @@ import {
   StaticGenerationStore,
 } from '../../../client/components/static-generation-async-storage'
 
-export function unstable_revalidateTag(tag: string) {
+export function revalidateTag(tag: string) {
   const staticGenerationAsyncStorage = (
     fetch as any
   ).__nextGetStaticStore?.() as undefined | StaticGenerationAsyncStorage
@@ -13,7 +13,7 @@ export function unstable_revalidateTag(tag: string) {
 
   if (!store || !store.incrementalCache) {
     throw new Error(
-      `Invariant: static generation store missing in unstable_revalidateTag ${tag}`
+      `Invariant: static generation store missing in revalidateTag ${tag}`
     )
   }
 
@@ -25,4 +25,7 @@ export function unstable_revalidateTag(tag: string) {
       console.error(`revalidateTag failed for ${tag}`, err)
     })
   )
+
+  // TODO: only revalidate if the path matches
+  store.pathWasRevalidated = true
 }

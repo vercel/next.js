@@ -100,6 +100,10 @@ export type FlightDataPath =
  */
 export type FlightData = Array<FlightDataPath> | string
 
+export type ActionResult = Promise<any>
+
+export type ActionFlightData = [ActionResult, FlightData | null]
+
 /**
  * Property holding the current subTreeData.
  */
