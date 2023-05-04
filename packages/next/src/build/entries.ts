@@ -553,6 +553,7 @@ export async function createEntrypoints(
               appDir,
               appPaths: matchedAppPaths,
               pageExtensions,
+              basePath: config.basePath,
               assetPrefix: config.assetPrefix,
               nextConfigOutput: config.output,
               preferredRegion: staticInfo.preferredRegion,
@@ -580,6 +581,7 @@ export async function createEntrypoints(
               appDir: appDir!,
               appPaths: matchedAppPaths,
               pageExtensions,
+              basePath: config.basePath,
               assetPrefix: config.assetPrefix,
               nextConfigOutput: config.output,
               // This isn't used with edge as it needs to be set on the entry module, which will be the `edgeServerEntry` instead.
