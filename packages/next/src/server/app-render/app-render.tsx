@@ -16,7 +16,6 @@ import type { StaticGenerationBailout } from '../../client/components/static-gen
 import type { RequestAsyncStorage } from '../../client/components/request-async-storage'
 
 import React from 'react'
-import ReactDOMServer from 'react-dom/server.edge'
 import { NotFound as DefaultNotFound } from '../../client/components/error'
 import { createServerComponentRenderer } from './create-server-components-renderer'
 
@@ -1454,7 +1453,7 @@ export async function renderToHTMLOrFlight(
 
         try {
           const renderStream = await renderToInitialStream({
-            ReactDOMServer,
+            ReactDOMServer: require('react-dom/server.edge'),
             element: content,
             streamOptions: {
               onError: htmlRendererErrorHandler,
