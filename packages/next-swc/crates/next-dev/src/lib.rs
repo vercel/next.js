@@ -389,10 +389,7 @@ async fn source(
     let main_source = main_source.into();
     let source_maps = SourceMapContentSourceVc::new(main_source).into();
     let source_map_trace = NextSourceMapTraceContentSourceVc::new(main_source).into();
-    let img_source = NextImageContentSourceVc::new(
-        CombinedContentSourceVc::new(vec![static_source, page_source]).into(),
-    )
-    .into();
+    let img_source = NextImageContentSourceVc::new(main_source).into();
     let router_source = NextRouterContentSourceVc::new(
         main_source,
         execution_context,
