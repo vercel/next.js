@@ -193,6 +193,7 @@ export async function handleAction({
   generateFlight: (options: {
     actionResult: ActionResult
     skipFlight: boolean
+    asNotFound?: boolean
   }) => Promise<RenderResult>
   staticGenerationStore: StaticGenerationStore
 }): Promise<undefined | RenderResult | 'not-found'> {
@@ -363,28 +364,33 @@ export async function handleAction({
         res.statusCode = 303
         return new RenderResult('')
       } else if (isNotFoundError(err)) {
-        if (isFetchAction) {
-          throw new Error('Invariant: not implemented.')
-        }
-        await Promise.all(staticGenerationStore.pendingRevalidates || [])
         res.statusCode = 404
+
+        await Promise.all(staticGenerationStore.pendingRevalidates || [])
+        if (isFetchAction) {
+          const promise = Promise.reject(err)
+          try {
+            await promise
+          } catch (_) {}
+          return generateFlight({
+            skipFlight: false,
+            actionResult: promise,
+            asNotFound: true,
+          })
+        }
         return 'not-found'
       }
 
       if (isFetchAction) {
         res.statusCode = 500
-        const rejectedPromise = Promise.reject(err)
+        await Promise.all(staticGenerationStore.pendingRevalidates || [])
+        const promise = Promise.reject(err)
         try {
-          // we need to await the promise to trigger the rejection early
-          // so that it's already handled by the time we call
-          // the RSC runtime. Otherwise, it will throw an unhandled
-          // promise rejection error in the renderer.
-          await rejectedPromise
-        } catch (_) {
-          // swallow error, it's gonna be handled on the client
-        }
+          await promise
+        } catch (_) {}
+
         return generateFlight({
-          actionResult: rejectedPromise,
+          actionResult: promise,
           // if the page was not revalidated, we can skip the rendering the flight tree
           skipFlight: !staticGenerationStore.pathWasRevalidated,
         })

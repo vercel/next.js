@@ -78,11 +78,21 @@ createNextDescribe(
       }, '/header?name=test&constructor=FormData')
     })
 
-    it('should support notFound', async () => {
+    it('should support notFound (javascript disabled)', async () => {
       const browser = await next.browser('/server', {
         // TODO we should also test this with javascript on but not-found is not implemented yet.
         disableJavaScript: true,
       })
+
+      await browser.elementByCss('#nowhere').click()
+
+      await check(() => {
+        return browser.elementByCss('h1').text()
+      }, 'my-not-found')
+    })
+
+    it('should support notFound', async () => {
+      const browser = await next.browser('/server')
 
       await browser.elementByCss('#nowhere').click()
 

@@ -939,6 +939,7 @@ export async function renderToHTMLOrFlight(
     const generateFlight = async (options?: {
       actionResult: ActionResult
       skipFlight: boolean
+      asNotFound?: boolean
     }): Promise<RenderResult> => {
       /**
        * Use router state to decide at what common layout to render the page.
@@ -1176,7 +1177,7 @@ export async function renderToHTMLOrFlight(
               injectedCSS: new Set(),
               injectedFontPreloadTags: new Set(),
               rootLayoutIncluded: false,
-              asNotFound: pathname === '/404',
+              asNotFound: pathname === '/404' || options?.asNotFound,
             })
           ).map((path) => path.slice(1)) // remove the '' (root) segment
 
