@@ -114,6 +114,7 @@ impl GetContentSourceContent for NodeApiGetContentResult {
         ContentSourceDataVary {
             method: true,
             url: true,
+            original_url: true,
             raw_headers: true,
             raw_query: true,
             body: true,
@@ -131,6 +132,7 @@ impl GetContentSourceContent for NodeApiGetContentResult {
         let ContentSourceData {
             method: Some(method),
             url: Some(url),
+            original_url: Some(original_url),
             raw_headers: Some(raw_headers),
             raw_query: Some(raw_query),
             body: Some(body),
@@ -153,6 +155,7 @@ impl GetContentSourceContent for NodeApiGetContentResult {
                 params: params.clone(),
                 method: method.clone(),
                 url: url.clone(),
+                original_url: original_url.clone(),
                 raw_query: raw_query.clone(),
                 raw_headers: raw_headers.clone(),
                 path: format!("/{}", self.path),
