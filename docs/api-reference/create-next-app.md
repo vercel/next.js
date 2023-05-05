@@ -61,6 +61,10 @@ Options:
 
     Initialize as an App Router project.
 
+  --no-app
+
+    Initialize project without App Router.
+
   --src-dir
 
     Initialize inside a `src/` directory.
