@@ -1,5 +1,4 @@
 import path from 'path'
-import fs from 'fs-extra'
 import { check } from 'next-test-utils'
 import { createNextDescribe } from 'e2e-utils'
 import cheerio from 'cheerio'
