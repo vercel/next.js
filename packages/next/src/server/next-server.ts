@@ -2494,14 +2494,22 @@ export default class NextNodeServer extends BaseServer {
                       res.setHeader(key, value as string | string[])
                     }
                   }
-                  res.statusCode = result.response.status
-                  for await (const chunk of result.response.body ||
-                    ([] as any)) {
-                    this.streamResponseChunk(res as NodeNextResponse, chunk)
-                  }
-                  res.send()
-                  return {
-                    finished: true,
+
+                  //we want to proxy the rewrite later, do skip this
+                  const rewrite = result.response.headers.get(
+                    'x-middleware-rewrite'
+                  )
+
+                  if (!rewrite) {
+                    res.statusCode = result.response.status
+                    for await (const chunk of result.response.body ||
+                      ([] as any)) {
+                      this.streamResponseChunk(res as NodeNextResponse, chunk)
+                    }
+                    res.send()
+                    return {
+                      finished: true,
+                    }
                   }
                 }
               }
