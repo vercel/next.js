@@ -1,6 +1,7 @@
 on:
   push:
-    branches: ['canary', 'trunk-merge/*']
+    branches:
+      ['canary', 'trunk-merge/*', 'wyattjoh/NEXT-987-pages-module-transition']
   pull_request:
     types: [opened, synchronize]
   merge_group:
