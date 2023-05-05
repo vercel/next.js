@@ -73,7 +73,7 @@ export async function exportAppRouteRoute({
     const filename = posix.join(distDir, 'server', 'app', page)
 
     // Load the module for the route.
-    const module = RouteModuleLoader.load<AppRouteRouteModule>(filename)
+    const module = await RouteModuleLoader.load<AppRouteRouteModule>(filename)
 
     // Create the context for the handler. This contains the params from
     // the route and the context for the request.

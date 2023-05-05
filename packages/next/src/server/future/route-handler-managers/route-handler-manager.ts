@@ -38,7 +38,7 @@ export class RouteHandlerManager {
     if (!SUPPORTED_MODULE_TYPES.has(match.definition.kind)) return
 
     // The module supports minimal mode, load the minimal module.
-    const module = RouteModuleLoader.load<RouteModule>(
+    const module = await RouteModuleLoader.load<RouteModule>(
       match.definition.filename,
       this.moduleLoader
     )

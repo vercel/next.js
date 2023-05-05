@@ -28,7 +28,7 @@ export class ManifestRouteModuleLoader {
 
   private async find(id: string): Promise<string> {
     // Load the manifest.
-    const manifest = this.loader.load(
+    const manifest: Record<string, string> = await this.loader.load(
       path.join(this.distDir, SERVER_DIRECTORY, this.manifestName)
     )
 
