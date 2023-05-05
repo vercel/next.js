@@ -1,5 +1,5 @@
-import * as Log from '../../../build/output/log'
 import path from '../../../shared/lib/isomorphic/path'
+import * as Log from '../../../build/output/log'
 
 function isStringOrURL(icon: any): icon is string | URL {
   return typeof icon === 'string' || icon instanceof URL
