@@ -470,9 +470,10 @@ createNextDescribe(
         const browser = await next.browser('/opengraph/article')
         const matchMultiDom = createMultiDomMatcher(browser)
         await matchMultiDom('meta', 'property', 'content', {
-          'og:title': 'My custom title',
+          'og:title': 'My custom title | Layout open graph title',
           'og:description': 'My custom description',
           'og:type': 'article',
+          'og:image': 'https://example.com/og-image.jpg',
           'article:published_time': '2023-01-01T00:00:00.000Z',
           'article:author': ['author1', 'author2', 'author3'],
         })
