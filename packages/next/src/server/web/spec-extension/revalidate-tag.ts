@@ -16,6 +16,12 @@ export function revalidateTag(tag: string) {
       `Invariant: static generation store missing in revalidateTag ${tag}`
     )
   }
+  if (!store.revalidatedTags) {
+    store.revalidatedTags = []
+  }
+  if (!store.revalidatedTags.includes(tag)) {
+    store.revalidatedTags.push(tag)
+  }
 
   if (!store.pendingRevalidates) {
     store.pendingRevalidates = []

@@ -31,6 +31,8 @@ export interface StaticGenerationStore {
   pathWasRevalidated?: boolean
 
   tags?: string[]
+
+  revalidatedTags?: string[]
   fetchMetrics?: Array<{
     url: string
     idx: number

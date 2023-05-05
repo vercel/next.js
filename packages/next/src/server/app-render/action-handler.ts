@@ -142,6 +142,18 @@ async function createRedirectRenderResult(
       staticGenerationStore.incrementalCache?.requestProtocol || 'https'
     const fetchUrl = new URL(`${proto}://${host}${redirectUrl}`)
 
+    if (staticGenerationStore.revalidatedTags) {
+      forwardedHeaders.set(
+        'x-next-revalidated-tags',
+        staticGenerationStore.revalidatedTags.join(',')
+      )
+      forwardedHeaders.set(
+        'x-next-revalidate-tag-token',
+        staticGenerationStore.incrementalCache?.prerenderManifest?.preview
+          ?.previewModeId || ''
+      )
+    }
+
     try {
       const headResponse = await fetchIPv4v6(fetchUrl, {
         method: 'HEAD',

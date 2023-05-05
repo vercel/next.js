@@ -4,6 +4,7 @@ import LRUCache from 'next/dist/compiled/lru-cache'
 import { CacheFs } from '../../../shared/lib/utils'
 import path from '../../../shared/lib/isomorphic/path'
 import { CachedFetchValue } from '../../response-cache'
+import { getDerivedTags } from './utils'
 
 type FileSystemCacheContext = Omit<
   CacheHandlerContext,
@@ -26,12 +27,14 @@ export default class FileSystemCache implements CacheHandler {
   private serverDistDir: FileSystemCacheContext['serverDistDir']
   private appDir: boolean
   private tagsManifestPath?: string
+  private revalidatedTags: string[]
 
   constructor(ctx: FileSystemCacheContext) {
     this.fs = ctx.fs
     this.flushToDisk = ctx.flushToDisk
     this.serverDistDir = ctx.serverDistDir
     this.appDir = !!ctx._appDir
+    this.revalidatedTags = ctx.revalidatedTags
 
     if (ctx.maxMemoryCacheSize && !memoryCache) {
       memoryCache = new LRUCache({
@@ -241,33 +244,6 @@ export default class FileSystemCache implements CacheHandler {
       }
     }
 
-    const getDerivedTags = (tags: string[]): string[] => {
-      const derivedTags: string[] = ['/']
-
-      for (const tag of tags || []) {
-        if (tag.startsWith('/')) {
-          const pathnameParts = tag.split('/')
-
-          // we automatically add the current path segments as tags
-          // for revalidatePath handling
-          for (let i = 1; i < pathnameParts.length + 1; i++) {
-            const curPathname = pathnameParts.slice(0, i).join('/')
-
-            if (curPathname) {
-              derivedTags.push(curPathname)
-
-              if (!derivedTags.includes(curPathname)) {
-                derivedTags.push(curPathname)
-              }
-            }
-          }
-        } else if (!derivedTags.includes(tag)) {
-          derivedTags.push(tag)
-        }
-      }
-      return derivedTags
-    }
-
     if (data?.value?.kind === 'PAGE' && cacheTags?.length) {
       this.loadTagsManifest()
       const derivedTags = getDerivedTags(cacheTags || [])
@@ -290,6 +266,10 @@ export default class FileSystemCache implements CacheHandler {
       const derivedTags = getDerivedTags(innerData.tags || [])
 
       const wasRevalidated = derivedTags.some((tag) => {
+        if (this.revalidatedTags.includes(tag)) {
+          return true
+        }
+
         return (
           tagsManifest?.items[tag]?.revalidatedAt &&
           tagsManifest?.items[tag].revalidatedAt >=
