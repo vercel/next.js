@@ -278,7 +278,7 @@ export async function exportPagesRoute({
   const isInAmpMode =
     module.amp === true || (module.amp === 'hybrid' && Boolean(query.amp))
 
-  if (isInAmpMode && !module.config.experimental.amp?.skipValidation) {
+  if (isInAmpMode && !module.config?.experimental.amp?.skipValidation) {
     // FIXME: validate if the amp validation is still required
   } else if (module.amp === 'hybrid') {
     // Because we didn't render the amp page yet but it's being requested (the

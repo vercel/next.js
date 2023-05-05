@@ -49,20 +49,18 @@ export type LoadComponentsReturnType = {
 }
 
 async function loadDefaultErrorComponentsImpl(distDir: string) {
-  const Document = interopDefault(require('next/dist/pages/_document'))
-  const AppMod = require('next/dist/pages/_app')
-  const App = interopDefault(AppMod)
-  const ComponentMod = require('next/dist/pages/_error')
-  const Component = interopDefault(ComponentMod)
+  // Load the compiled route module for this builtin error.
+  // TODO: (wyattjoh) replace this with just exporting the route module when the transition is complete
+  const ComponentMod = require('./future/route-modules/pages/builtin/_error')
 
   return {
-    App,
-    Document,
-    Component,
+    App: ComponentMod.routeModule.application.components.App,
+    Document: ComponentMod.routeModule.application.components.Document,
+    Component: ComponentMod.routeModule.userland.default,
+    ComponentMod,
     pageConfig: {},
     buildManifest: require(join(distDir, `fallback-${BUILD_MANIFEST}`)),
     reactLoadableManifest: {},
-    ComponentMod,
     pathname: '/_error',
   }
 }

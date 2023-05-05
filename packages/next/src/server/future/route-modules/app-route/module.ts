@@ -145,7 +145,7 @@ export class AppRouteRouteModule extends RouteModule<
 
     // Get the dynamic property from the userland module.
     this.dynamic = this.userland.dynamic
-    if (this.config.output === 'export') {
+    if (this.config?.output === 'export') {
       if (!this.dynamic || this.dynamic === 'auto') {
         this.dynamic = 'error'
       } else if (this.dynamic === 'force-dynamic') {

@@ -31,7 +31,11 @@ export interface RouteModuleOptions<
   D extends RouteDefinition = RouteDefinition,
   U = unknown
 > {
-  readonly config: C
+  /**
+   * The contents of next.config.js for the current project. If this is for a
+   * built-in route, this will be undefined.
+   */
+  readonly config: C | undefined
   readonly definition: D
   readonly userland: Readonly<U>
 }
@@ -117,9 +121,10 @@ export abstract class RouteModule<
   public readonly definition: Readonly<D>
 
   /**
-   * The contents of next.config.js for the current project.
+   * The contents of next.config.js for the current project. If this is for a
+   * builtin module, this will be undefined.
    */
-  public readonly config: Readonly<C>
+  public readonly config: Readonly<C> | undefined
 
   /**
    * Handle will handle the request and return a response. This may also patch

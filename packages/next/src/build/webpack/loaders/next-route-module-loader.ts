@@ -14,7 +14,7 @@ import { getModuleBuildInfo } from './get-module-build-info'
 type NextRouteModuleLoaderOptions = {
   definition: string
   runtime: ServerRuntime
-  config: string
+  config: string | undefined
   buildId: string
   absoluteAppPath: string
   absoluteDocumentPath: string
@@ -41,7 +41,7 @@ export const getRouteModuleLoader = ({
   definition,
   ...options
 }: {
-  config: NextConfigComplete
+  config: NextConfigComplete | undefined
   definition: Omit<RouteDefinition, 'bundlePath'>
   buildId: string
   runtime: ServerRuntime
@@ -50,7 +50,9 @@ export const getRouteModuleLoader = ({
 }) => {
   const params: NextRouteModuleLoaderOptions = {
     ...options,
-    config: Buffer.from(JSON.stringify(config)).toString('base64'),
+    config: config
+      ? Buffer.from(JSON.stringify(config)).toString('base64')
+      : undefined,
     definition: Buffer.from(
       JSON.stringify({
         ...definition,
@@ -103,9 +105,9 @@ const loader: webpack.LoaderDefinitionFunction<NextRouteModuleLoaderOptions> =
       preferredRegion,
     } = this.getOptions()
 
-    const config: NextConfigComplete = JSON.parse(
-      Buffer.from(configBase64, 'base64').toString('utf-8')
-    )
+    const config: NextConfigComplete | undefined = configBase64
+      ? JSON.parse(Buffer.from(configBase64, 'base64').toString('utf-8'))
+      : undefined
     const definition: PagesRouteDefinition = JSON.parse(
       Buffer.from(definitionBase64, 'base64').toString('utf-8')
     )

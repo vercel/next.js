@@ -409,7 +409,7 @@ export class PagesRouteModule extends RouteModule<
     }
 
     // Error when using `getServerSideProps` with `output: 'export'`.
-    if (getServerSideProps && this.config.output === 'export') {
+    if (getServerSideProps && this.config?.output === 'export') {
       throw new Error(
         'getServerSideProps cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
       )
@@ -584,11 +584,11 @@ export class PagesRouteModule extends RouteModule<
       request,
       result,
       {
-        basePath: this.config.basePath,
+        basePath: this.config?.basePath,
         definition: this.definition,
         hasGetStaticProps: typeof this.userland.getStaticProps === 'function',
-        poweredByHeader: this.config.poweredByHeader,
-        generateEtags: this.config.generateEtags,
+        poweredByHeader: this.config?.poweredByHeader,
+        generateEtags: this.config?.generateEtags,
       },
       {
         res: context.res,
@@ -817,13 +817,13 @@ export class PagesRouteModule extends RouteModule<
       pathname: context.pathname,
       query,
       asPath,
-      basePath: this.config.basePath,
+      basePath: this.config?.basePath ?? '',
       isFallback: context.isFallback,
       locale: context.renderOpts.locale,
       isReady: routerIsReady,
       defaultLocale: context.renderOpts.defaultLocale,
-      locales: this.config.i18n?.locales,
-      domainLocales: this.config.i18n?.domains,
+      locales: this.config?.i18n?.locales,
+      domainLocales: this.config?.i18n?.domains,
       isPreview,
       isLocaleDomain,
     })
@@ -850,7 +850,9 @@ export class PagesRouteModule extends RouteModule<
     }
 
     let AppContainer = (props: { children: JSX.Element }): JSX.Element => (
-      <ImageConfigContext.Provider value={this.config.images}>
+      // This parameter is only undefined when rendering a builtin page which
+      // doesn't have any images.
+      <ImageConfigContext.Provider value={this.config?.images as any}>
         <RouterContext.Provider value={router}>
           <AmpStateContext.Provider value={ampState}>
             <HeadManagerContext.Provider
@@ -905,7 +907,7 @@ export class PagesRouteModule extends RouteModule<
       query,
       asPath,
       locale: context.renderOpts.locale,
-      locales: this.config.i18n?.locales,
+      locales: this.config?.i18n?.locales,
       defaultLocale: context.renderOpts.defaultLocale,
       AppTree: (props: any) => {
         return (
@@ -987,7 +989,7 @@ export class PagesRouteModule extends RouteModule<
                 ...(isPreview
                   ? { draftMode: true, preview: true, previewData }
                   : undefined),
-                locales: this.config.i18n?.locales,
+                locales: this.config?.i18n?.locales,
                 locale: context.renderOpts.locale,
                 defaultLocale: context.renderOpts.defaultLocale,
               })
@@ -1059,7 +1061,7 @@ export class PagesRouteModule extends RouteModule<
           metadata.revalidate = validateRevalidate(data.revalidate, request.url)
 
           // TODO: (wyattjoh) should we error if `context.nextExport` is true?
-          if (metadata.revalidate && this.config.output === 'export') {
+          if (metadata.revalidate && this.config?.output === 'export') {
             throw new Error(
               'ISR cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
             )
@@ -1137,7 +1139,7 @@ export class PagesRouteModule extends RouteModule<
                 ...(previewData !== false
                   ? { draftMode: true, preview: true, previewData: previewData }
                   : undefined),
-                locales: this.config.i18n?.locales,
+                locales: this.config?.i18n?.locales,
                 locale: context.renderOpts.locale,
                 defaultLocale: context.renderOpts.defaultLocale,
               })
@@ -1544,10 +1546,10 @@ export class PagesRouteModule extends RouteModule<
         context.req &&
         !context.renderOpts.ampPath &&
         getRequestMeta(context.req, '__nextStrippedLocale')
-          ? `${this.config.amp?.canonicalBase || ''}/${
+          ? `${this.config?.amp?.canonicalBase || ''}/${
               context.renderOpts.locale
             }`
-          : this.config.amp?.canonicalBase || ''
+          : this.config?.amp?.canonicalBase || ''
 
       const htmlProps: HtmlProps = {
         __NEXT_DATA__: {
@@ -1556,12 +1558,13 @@ export class PagesRouteModule extends RouteModule<
           query, // querystring parsed / passed by the user
           buildId, // buildId is used to facilitate caching of page bundles, we send it to the client so that pageloader knows where to load bundles
           assetPrefix:
-            this.config.assetPrefix === ''
+            this.config?.assetPrefix === ''
               ? undefined
-              : this.config.assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
+              : this.config?.assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
           runtimeConfig:
+            this.config?.publicRuntimeConfig &&
             Object.keys(this.config.publicRuntimeConfig).length > 0
-              ? this.config.publicRuntimeConfig
+              ? this.config?.publicRuntimeConfig
               : undefined, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
           nextExport: nextExport === true || undefined, // If this is a page exported by `next export`
           autoExport: isAutoExport === true || undefined, // If this is an auto exported page
@@ -1579,16 +1582,16 @@ export class PagesRouteModule extends RouteModule<
           gip: typeof getInitialProps === 'function' || undefined, // whether the page has getInitialProps
           appGip: !appHasDefaultGetInitialProps || undefined, // whether the _app has getInitialProps
           locale: context.renderOpts.locale,
-          locales: this.config.i18n?.locales,
+          locales: this.config?.i18n?.locales,
           defaultLocale: context.renderOpts.defaultLocale,
-          domainLocales: this.config.i18n?.domains,
+          domainLocales: this.config?.i18n?.domains,
           isPreview: isPreview || undefined,
           notFoundSrcPage:
             context.notFoundSrcPage && process.env.NODE_ENV === 'development'
               ? context.notFoundSrcPage
               : undefined,
         },
-        strictNextHead: Boolean(this.config.experimental.strictNextHead),
+        strictNextHead: Boolean(this.config?.experimental.strictNextHead),
         buildManifest: filteredBuildManifest,
         docComponentsRendered,
         dangerousAsPath: router.asPath,
@@ -1598,7 +1601,7 @@ export class PagesRouteModule extends RouteModule<
         isDevelopment: process.env.NODE_ENV === 'development',
         hybridAmp,
         dynamicImports: Array.from(dynamicImports),
-        assetPrefix: this.config.assetPrefix,
+        assetPrefix: this.config?.assetPrefix,
         // Only enabled in production as development mode has features relying on HMR (style injection for example)
         unstable_runtimeJS:
           process.env.NODE_ENV === 'production'
@@ -1612,13 +1615,13 @@ export class PagesRouteModule extends RouteModule<
         head: documentResult.head,
         headTags: documentResult.headTags,
         styles: documentResult.styles,
-        crossOrigin: this.config.crossOrigin || undefined,
-        optimizeCss: this.config.experimental.optimizeCss,
-        optimizeFonts: this.config.optimizeFonts,
-        nextConfigOutput: this.config.output,
-        nextScriptWorkers: this.config.experimental.nextScriptWorkers,
+        crossOrigin: this.config?.crossOrigin || undefined,
+        optimizeCss: this.config?.experimental.optimizeCss,
+        optimizeFonts: this.config?.optimizeFonts,
+        nextConfigOutput: this.config?.output,
+        nextScriptWorkers: this.config?.experimental.nextScriptWorkers,
         runtime: this.renderOpts.runtime,
-        largePageDataBytes: this.config.experimental.largePageDataBytes,
+        largePageDataBytes: this.config?.experimental.largePageDataBytes,
         nextFontManifest: context.manifests.nextFont,
       }
 
@@ -1682,17 +1685,17 @@ export class PagesRouteModule extends RouteModule<
         context.pathname,
         html,
         {
-          optimizeCss: this.config.experimental.optimizeCss,
-          optimizeFonts: this.config.optimizeFonts,
-          ampSkipValidation: this.config.experimental.amp?.skipValidation,
-          ampOptimizerConfig: this.config.experimental.amp?.optimizer,
+          optimizeCss: this.config?.experimental.optimizeCss,
+          optimizeFonts: this.config?.optimizeFonts ?? true,
+          ampSkipValidation: this.config?.experimental.amp?.skipValidation,
+          ampOptimizerConfig: this.config?.experimental.amp?.optimizer,
           ampValidator:
             process.env.NODE_ENV === 'development' && createAMPValidator
-              ? createAMPValidator(this.config.experimental.amp?.validator)
+              ? createAMPValidator(this.config?.experimental.amp?.validator)
               : undefined,
           fontManifest: context.manifests.font,
           distDir: context.renderOpts.distDir,
-          assetPrefix: this.config.assetPrefix,
+          assetPrefix: this.config?.assetPrefix,
         },
         {
           inAmpMode,

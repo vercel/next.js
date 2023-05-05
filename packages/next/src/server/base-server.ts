@@ -1275,11 +1275,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const is404Page = pathname === '/404'
     const is500Page = pathname === '/500'
     const isAppPath = components.isAppPath
-    const hasServerProps = !!components.getServerSideProps
-    let hasStaticPaths = !!components.getStaticPaths
+    const hasGetServerSideProps = !!components.getServerSideProps
+    let hasGetStaticPaths = !!components.getStaticPaths
 
     const hasGetInitialProps = !!components.Component?.getInitialProps
-    let isSSG = !!components.getStaticProps
+    let hasGetStaticProps = !!components.getStaticProps
 
     // Compute the iSSG cache key. We use the rewroteUrl since
     // pages with fallback: false are allowed to be rewritten to
@@ -1305,15 +1305,16 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const hasFallback = typeof fallbackMode !== 'undefined'
 
       if (hasFallback) {
-        hasStaticPaths = true
+        hasGetStaticPaths = true
       }
 
       if (hasFallback || staticPaths?.includes(resolvedUrlPathname)) {
-        isSSG = true
+        hasGetStaticProps = true
       } else if (!this.renderOpts.dev) {
         const manifest = this.getPrerenderManifest()
-        isSSG =
-          isSSG || !!manifest.routes[pathname === '/index' ? '/' : pathname]
+        hasGetStaticProps =
+          hasGetStaticProps ||
+          !!manifest.routes[pathname === '/index' ? '/' : pathname]
       }
     }
 
@@ -1324,7 +1325,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         (req.headers['x-nextjs-data'] &&
           (this.serverOptions as any).webServerConfig)
       ) &&
-      (isSSG || hasServerProps)
+      (hasGetStaticProps || hasGetServerSideProps)
 
     delete query.__nextDataReq
 
@@ -1332,7 +1333,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // resolve to a static data route we bail early to avoid
     // unexpected SSR invocations
     if (
-      !isSSG &&
+      !hasGetStaticProps &&
       req.headers['x-middleware-prefetch'] &&
       !(is404Page || pathname === '/_error')
     ) {
@@ -1344,7 +1345,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     if (isAppPath) {
       res.setHeader('vary', RSC_VARY_HEADER)
 
-      if (isSSG && req.headers[RSC.toLowerCase()]) {
+      if (hasGetStaticProps && req.headers[RSC.toLowerCase()]) {
         if (!this.minimalMode) {
           isDataReq = true
         }
@@ -1363,7 +1364,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // normalize req.url for SSG paths as it is not exposed
     // to getStaticProps and the asPath should not expose /_next/data
     if (
-      isSSG &&
+      hasGetStaticProps &&
       this.minimalMode &&
       req.headers['x-matched-path'] &&
       req.url.startsWith('/_next/data')
@@ -1412,7 +1413,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       pathname !== '/_error' &&
       req.method !== 'HEAD' &&
       req.method !== 'GET' &&
-      (typeof components.Component === 'string' || isSSG)
+      (typeof components.Component === 'string' || hasGetStaticProps)
     ) {
       res.statusCode = 405
       res.setHeader('Allow', ['GET', 'HEAD'])
@@ -1446,7 +1447,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // be static so we can collect revalidate and populate the
       // cache if there are no dynamic data requirements
       opts.supportsDynamicHTML =
-        !isSSG && !isBotRequest && !query.amp && isSupportedDocument
+        !hasGetStaticProps && !isBotRequest && !query.amp && isSupportedDocument
       opts.isBot = isBotRequest
     }
 
@@ -1460,7 +1461,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       opts.supportsDynamicHTML = true
     }
 
-    const defaultLocale = isSSG
+    const defaultLocale = hasGetStaticProps
       ? this.nextConfig.i18n?.defaultLocale
       : query.__nextDefaultLocale
 
@@ -1470,7 +1471,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     let previewData: PreviewData
     let isPreviewMode = false
 
-    if (hasServerProps || isSSG) {
+    if (hasGetServerSideProps || hasGetStaticProps) {
       // For the edge runtime, we don't support preview mode in SSG.
       if (process.env.NEXT_RUNTIME !== 'edge') {
         const { tryGetPreviewData } =
@@ -1483,12 +1484,16 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     let isOnDemandRevalidate = false
     let revalidateOnlyGenerated = false
 
-    if (isSSG) {
+    if (hasGetStaticProps) {
       ;({ isOnDemandRevalidate, revalidateOnlyGenerated } =
         checkIsOnDemandRevalidate(req, this.renderOpts.previewProps))
     }
 
-    if (isSSG && this.minimalMode && req.headers['x-matched-path']) {
+    if (
+      hasGetStaticProps &&
+      this.minimalMode &&
+      req.headers['x-matched-path']
+    ) {
       // the url value is already correct when the matched-path header is set
       resolvedUrlPathname = urlPathname
     }
@@ -1534,7 +1539,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     let ssgCacheKey =
-      isPreviewMode || !isSSG || opts.supportsDynamicHTML
+      isPreviewMode || !hasGetStaticProps || opts.supportsDynamicHTML
         ? null // Preview mode, on-demand revalidate, flight request can bypass the cache
         : `${locale ? `/${locale}` : ''}${
             (pathname === '/' || resolvedUrlPathname === '/') && locale
@@ -1542,7 +1547,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               : resolvedUrlPathname
           }${query.amp ? '.amp' : ''}`
 
-    if ((is404Page || is500Page) && isSSG) {
+    if ((is404Page || is500Page) && hasGetStaticProps) {
       ssgCacheKey = `${locale ? `/${locale}` : ''}${pathname}${
         query.amp ? '.amp' : ''
       }`
@@ -1596,7 +1601,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const doRender: () => Promise<ResponseCacheEntry | null> = async () => {
       // In development, we always want to generate dynamic HTML.
       const supportsDynamicHTML =
-        (!isDataReq && opts.dev) || !(isSSG || hasStaticPaths)
+        (!isDataReq && opts.dev) || !(hasGetStaticProps || hasGetStaticPaths)
 
       const origQuery = parseUrl(req.url || '', true).query
 
@@ -1630,7 +1635,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         // original URL and not the resolved URL to prevent a hydration mismatch
         // on asPath.
         const resolvedAsPath =
-          hasServerProps || hasGetInitialProps
+          hasGetServerSideProps || hasGetInitialProps
             ? formatUrl({
                 // we use the original URL pathname less the _next/data prefix if
                 // present
@@ -1647,7 +1652,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             supportsDynamicHTML,
             incrementalCache,
             // TODO: (wyattjoh) investigate if we can remove this (isSSG is available internal to the module)
-            isRevalidate: isSSG,
+            isRevalidate: hasGetStaticProps,
           },
           manifests: ManifestLoader.load({ distDir: this.distDir }),
           previewProps: this.renderOpts.previewProps,
@@ -1709,7 +1714,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             // If the request is for a static response, we can cache it so long
             // as it's not edge.
             if (match?.definition.kind === RouteKind.APP_ROUTE) {
-              if (isSSG && process.env.NEXT_RUNTIME !== 'edge') {
+              if (hasGetStaticProps && process.env.NEXT_RUNTIME !== 'edge') {
                 const blob = await response.blob()
 
                 // Copy the headers from the response.
@@ -1799,7 +1804,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           // should return a 500 response.
           if (match?.definition.kind === RouteKind.APP_ROUTE) {
             // If this is during static generation, throw the error again.
-            if (isSSG) throw err
+            if (hasGetStaticProps) throw err
 
             // Otherwise, send a 500 response.
             Log.error(err)
@@ -1843,7 +1848,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         ...(isAppPath && this.nextConfig.experimental.appDir
           ? {
               incrementalCache,
-              isRevalidate: isSSG,
+              isRevalidate: hasGetStaticProps,
               originalPathname: components.ComponentMod.originalPathname,
             }
           : {}),
@@ -1879,7 +1884,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // to know whether the path is actually static or not
       if (
         isAppPath &&
-        isSSG &&
+        hasGetStaticProps &&
         metadata.revalidate === 0 &&
         !this.renderOpts.dev
       ) {
@@ -1932,7 +1937,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         const didRespond = hasResolved || res.sent
 
         if (!staticPaths) {
-          ;({ staticPaths, fallbackMode } = hasStaticPaths
+          ;({ staticPaths, fallbackMode } = hasGetStaticPaths
             ? await this.getStaticPaths({
                 pathname,
                 requestHeaders: req.headers,
@@ -2074,7 +2079,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       return null
     }
 
-    if (isSSG && !this.minimalMode) {
+    if (hasGetStaticProps && !this.minimalMode) {
       // set x-nextjs-cache header to match the header
       // we set for the image-optimizer
       res.setHeader(
@@ -2092,13 +2097,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const { revalidate, value: cachedData } = cacheEntry
     const revalidateOptions: any =
       typeof revalidate !== 'undefined' &&
-      (!this.renderOpts.dev || (hasServerProps && !isDataReq))
+      (!this.renderOpts.dev || (hasGetServerSideProps && !isDataReq))
         ? {
             // When the page is 404 cache-control should not be added unless
             // we are rendering the 404 page for notFound: true which should
             // cache according to revalidate correctly
             private: isPreviewMode || (is404Page && cachedData),
-            stateful: !isSSG,
+            stateful: !hasGetStaticProps,
             revalidate,
           }
         : undefined
@@ -2140,7 +2145,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     } else if (cachedData.kind === 'ROUTE') {
       const headers = { ...cachedData.headers }
 
-      if (!(this.minimalMode && isSSG)) {
+      if (!(this.minimalMode && hasGetStaticProps)) {
         delete headers['x-next-cache-tags']
       }
 
@@ -2157,7 +2162,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       if (isAppPath) {
         if (
           this.minimalMode &&
-          isSSG &&
+          hasGetStaticProps &&
           cachedData.headers?.['x-next-cache-tags']
         ) {
           res.setHeader(
