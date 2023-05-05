@@ -122,7 +122,10 @@ const loader: webpack.LoaderDefinitionFunction<NextRouteModuleLoaderOptions> =
     // ./routes/${kind}.ts. This is stringified here so that the literal for
     // `userland` can reference the variable for `userland` that's in scope for
     // the loader code.
-    const options: Omit<PagesRouteModuleOptions, 'components' | 'userland'> = {
+    const options: Omit<
+      PagesRouteModuleOptions,
+      'userland' | 'application' | 'builtin'
+    > = {
       definition,
       renderOpts: {
         buildId,
@@ -161,12 +164,16 @@ const loader: webpack.LoaderDefinitionFunction<NextRouteModuleLoaderOptions> =
       const options = ${JSON.stringify(options)}
       const routeModule = new RouteModule({
         ...options,
-        components: {
-          App: moduleApp.default,
-          Document: moduleDocument.default,
-          InternalServerError: moduleInternalServerError,
-          NotFound: moduleNotFound,
-          Error: moduleError,
+        application: {
+          components: {
+            App: moduleApp.default,
+            Document: moduleDocument.default,
+          },
+          modules: {
+            InternalServerError: moduleInternalServerError,
+            NotFound: moduleNotFound,
+            Error: moduleError,
+          },
         },
         userland,
       })

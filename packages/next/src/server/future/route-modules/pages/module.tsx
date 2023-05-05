@@ -188,7 +188,9 @@ type PagesComponents = {
    * `_document` page file, or it could be the default `Document` component.
    */
   readonly Document: DocumentType
+}
 
+type PagesModules = {
   /**
    * The module for serving error responses when a more specific error module
    * isn't available or the more specific error module fails to load.
@@ -205,6 +207,11 @@ type PagesComponents = {
    * a page.
    */
   readonly InternalServerError: InternalErrorUserlandModule
+}
+
+export type PagesRouteApplication = {
+  readonly components: PagesComponents
+  readonly modules: PagesModules
 }
 
 export type PagesManifests = {
@@ -253,7 +260,7 @@ export interface PagesRouteModuleOptions
     PagesRouteDefinition,
     PagesUserlandModule
   > {
-  readonly components: PagesComponents
+  readonly application: PagesRouteApplication
   readonly renderOpts: RouteRenderOptions
 }
 
@@ -321,7 +328,7 @@ export class PagesRouteModule extends RouteModule<
   PagesUserlandModule
 > {
   public readonly isDynamic: boolean
-  public readonly components: PagesComponents
+  public readonly application: PagesRouteApplication
   public readonly amp: boolean | 'hybrid'
 
   private readonly renderOpts: RouteRenderOptions
@@ -330,14 +337,14 @@ export class PagesRouteModule extends RouteModule<
     renderOpts,
     userland,
     definition,
-    components,
+    application,
     config,
   }: PagesRouteModuleOptions) {
     super({ config, definition, userland })
 
     this.renderOpts = renderOpts
     this.isDynamic = isDynamicRoute(definition.page)
-    this.components = components
+    this.application = application
     this.amp = userland.config?.amp ?? false
   }
 
@@ -456,31 +463,35 @@ export class PagesRouteModule extends RouteModule<
         )
       }
 
-      if (!isValidElementType(this.components.App)) {
+      if (!isValidElementType(this.application.components.App)) {
         throw new Error(
           `The default export is not a React Component in page: "/_app"`
         )
       }
 
-      if (!isValidElementType(this.components.Document)) {
+      if (!isValidElementType(this.application.components.Document)) {
         throw new Error(
           `The default export is not a React Component in page: "/_document"`
         )
       }
 
-      if (!isValidElementType(this.components.Error.default)) {
+      if (!isValidElementType(this.application.modules.Error.default)) {
         throw new Error(
           `The default export is not a React Component in page: "/_error"`
         )
       }
 
-      if (!isValidElementType(this.components.NotFound.default)) {
+      if (!isValidElementType(this.application.modules.NotFound.default)) {
         throw new Error(
           `The default export is not a React Component in page: "/404"`
         )
       }
 
-      if (!isValidElementType(this.components.InternalServerError.default)) {
+      if (
+        !isValidElementType(
+          this.application.modules.InternalServerError.default
+        )
+      ) {
         throw new Error(
           `The default export is not a React Component in page: "/500"`
         )
@@ -603,7 +614,7 @@ export class PagesRouteModule extends RouteModule<
 
     if (
       process.env.NODE_ENV === 'development' &&
-      this.components.NotFound === this.components.Error
+      this.application.modules.NotFound === this.application.modules.Error
     ) {
       // TODO: (wyattjoh) look into only sending this warning once
       logger.warn(
@@ -617,7 +628,7 @@ export class PagesRouteModule extends RouteModule<
     }
 
     // Render the 404 page.
-    return this.render(request, context, this.components.NotFound)
+    return this.render(request, context, this.application.modules.NotFound)
   }
 
   private async render500(
@@ -641,20 +652,21 @@ export class PagesRouteModule extends RouteModule<
 
     // If the module that encountered the error is the error module itself, we
     // should bail out to avoid an infinite loop.
-    if (module === this.components.Error) {
-      // TODO: (wyattjoh) look into WrappedError's
-      // TODO: (wyattjoh) look into using fallback error components when in development
+    if (module === this.application.modules.Error) {
+      // If we're in development and the error was thrown via the application's
+      // provided error page, then we should render the fallback error page.
+      // This is handled above the error module itself.
       throw err
     }
     // If the module that encountered the error is the internal server error
     // we should try to render the error module instead.
-    else if (module === this.components.InternalServerError) {
-      module = this.components.Error
+    else if (module === this.application.modules.InternalServerError) {
+      module = this.application.modules.Error
     }
     // Otherwise, it's a page that errored out, so we should render the internal
     // server error page.
     else {
-      module = this.components.InternalServerError
+      module = this.application.modules.InternalServerError
     }
 
     // Ensure that the pathname is set to the error page.
@@ -668,10 +680,10 @@ export class PagesRouteModule extends RouteModule<
     // `pages/500` module is different from the `pages/_error` module which
     // implies that there is a custom `pages/500` module.
     if (
-      module === this.components.InternalServerError &&
-      module !== this.components.Error
+      module === this.application.modules.InternalServerError &&
+      module !== this.application.modules.Error
     ) {
-      await this.render(request, context, this.components.Error)
+      await this.render(request, context, this.application.modules.Error)
     }
 
     // Render the error module.
@@ -683,27 +695,28 @@ export class PagesRouteModule extends RouteModule<
     context: PagesRouteHandlerRenderContext,
     module = this.userland
   ): Promise<RenderResult> {
+    const { modules, components } = this.application
     const {
       default: Component,
       getServerSideProps,
       getStaticProps,
       default: { getInitialProps },
     } = module
-    const { App } = this.components
-    let { Document } = this.components
+    const { App } = components
+    let { Document } = components
 
     // If we're in development and we're rendering a custom error module, we
     // should validate that it doesn't have exports that aren't supported.
     if (
       process.env.NODE_ENV === 'development' &&
       module !== this.userland &&
-      module !== this.components.Error
+      module !== modules.Error
     ) {
       if (getStaticProps || getServerSideProps) {
         let pathname
-        if (module === this.components.NotFound) {
+        if (module === modules.NotFound) {
           pathname = '/404'
-        } else if (module === this.components.InternalServerError) {
+        } else if (module === modules.InternalServerError) {
           pathname = '/500'
         } else {
           throw new Error('Invariant: Unexpected error component.')
@@ -931,19 +944,12 @@ export class PagesRouteModule extends RouteModule<
     }
 
     // Load the initial props used for rendering the page.
-    let props: Props
-    try {
-      props = await loadGetInitialProps(App, {
-        AppTree: ctx.AppTree,
-        Component,
-        router,
-        ctx,
-      })
-    } catch (err) {
-      // An internal error occurred, let's render the 500 page.
-      // TODO: (wyattjoh) check to see if this typecast is necessary
-      return this.render500(request, context, module, err as Error)
-    }
+    const props: Props = await loadGetInitialProps(App, {
+      AppTree: ctx.AppTree,
+      Component,
+      router,
+      ctx,
+    })
 
     // If this has `getStaticProps` or `getServerSideProps` we need to mark it
     // as preview if this is a preview request.
@@ -1017,7 +1023,7 @@ export class PagesRouteModule extends RouteModule<
         // Handle notFound.
         if ('notFound' in data && data.notFound) {
           // If the /404 page returns `notFound: true` we should error.
-          if (module === this.components.NotFound) {
+          if (module === modules.NotFound) {
             throw new Error(
               `The /404 page can not return notFound in "getStaticProps", please remove it to continue!`
             )
@@ -1164,7 +1170,7 @@ export class PagesRouteModule extends RouteModule<
 
         // Handle notFound.
         if ('notFound' in data && data.notFound) {
-          if (module === this.components.NotFound) {
+          if (module === modules.NotFound) {
             throw new Error(
               `The /404 page can not return notFound in "getStaticProps", please remove it to continue!`
             )
