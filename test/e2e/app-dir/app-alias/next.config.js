@@ -1,5 +1,1 @@
-export default {
-  experimental: {
-    appDir: true,
-  },
-}
+export default {}
