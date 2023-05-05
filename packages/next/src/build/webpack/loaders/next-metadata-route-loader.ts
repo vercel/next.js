@@ -45,18 +45,13 @@ function getStaticRouteCode(resourcePath: string, fileBaseName: string) {
       ? cacheHeader.none
       : cacheHeader.longCache
   const code = `\
-import fs from 'fs'
-import { fileURLToPath } from 'url'
 import { NextResponse } from 'next/server'
 
 const contentType = ${JSON.stringify(getContentType(resourcePath))}
-const resourceUrl = new URL(import.meta.url)
-const filePath = fileURLToPath(resourceUrl).replace(${JSON.stringify(
-    METADATA_RESOURCE_QUERY
-  )}, '')
-
 const buffer = Buffer.from(${JSON.stringify(
-    fs.readFileSync(resourcePath).toString('utf-8')
+    fs
+      .readFileSync(resourcePath.replace(METADATA_RESOURCE_QUERY, ''))
+      .toString('utf-8')
   )})
 
 export function GET() {
