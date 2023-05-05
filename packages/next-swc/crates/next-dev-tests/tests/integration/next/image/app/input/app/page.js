@@ -3,7 +3,6 @@ import img from '../public/triangle-black.png'
 import Test from './test'
 
 export default function Home() {
-  console.log({ img })
   return [
     <Image
       id="imported"
