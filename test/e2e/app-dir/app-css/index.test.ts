@@ -609,7 +609,7 @@ createNextDescribe(
                 browser.eval(
                   `document.querySelectorAll('link[rel="stylesheet"][href*="/page.css"]').length`
                 ),
-              '1'
+              1
             )
           } finally {
             await next.patchFile(filePath, origContent)
