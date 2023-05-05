@@ -45,7 +45,7 @@ This `next/image` component uses browser native [lazy loading](https://caniuse.c
   - Use CSS `@supports (font: -apple-system-body) and (-webkit-appearance: none) { img[loading="lazy"] { clip-path: inset(0.6px) } }`
   - Use [`priority`](#priority) if the image is above the fold
 - [Firefox 67+](https://bugzilla.mozilla.org/show_bug.cgi?id=1556156) displays a white background while loading. Possible solutions:
-  - Enable [AVIF `formats`](#acceptable-formats)
+  - Enable [AVIF `formats`](#formats)
   - Use [`placeholder="blur"`](#placeholder)
 
 ## Required Props
@@ -60,7 +60,7 @@ Must be one of the following:
 2. A path string. This can be either an absolute external URL,
    or an internal path depending on the [loader](#loader) prop.
 
-When using an external URL, you must add it to [remotePatterns](#remote-patterns) in `next.config.js`.
+When using an external URL, you must add it to [remotePatterns](#remotepatterns) in `next.config.js`.
 
 ### width
 
@@ -120,7 +120,7 @@ const MyImage = (props) => {
 }
 ```
 
-Alternatively, you can use the [loaderFile](#loader-configuration) configuration in next.config.js to configure every instance of `next/image` in your application, without passing a prop.
+Alternatively, you can use the [loaderFile](#loaderfile) configuration in next.config.js to configure every instance of `next/image` in your application, without passing a prop.
 
 ### fill
 
@@ -293,7 +293,7 @@ module.exports = {
 Other properties on the `<Image />` component will be passed to the underlying
 `img` element with the exception of the following:
 
-- `srcSet`. Use [Device Sizes](#device-sizes) instead.
+- `srcSet`. Use [Device Sizes](#devicesizes) instead.
 - `decoding`. It is always `"async"`.
 
 ## Configuration Options
@@ -345,9 +345,9 @@ The `**` syntax does not work in the middle of the pattern.
 
 ### Domains
 
-> **Note**: We recommend using [`remotePatterns`](#remote-patterns) instead so you can restrict protocol and pathname.
+> **Note**: We recommend using [`remotePatterns`](#remotepatterns) instead so you can restrict protocol and pathname.
 
-Similar to [`remotePatterns`](#remote-patterns), the `domains` configuration can be used to provide a list of allowed hostnames for external images.
+Similar to [`remotePatterns`](#remotepatterns), the `domains` configuration can be used to provide a list of allowed hostnames for external images.
 
 However, the `domains` configuration does not support wildcard pattern matching and it cannot restrict protocol, port, or pathname.
 
@@ -408,7 +408,7 @@ module.exports = {
 
 ### Image Sizes
 
-You can specify a list of image widths using the `images.imageSizes` property in your `next.config.js` file. These widths are concatenated with the array of [device sizes](#device-sizes) to form the full array of sizes used to generate image [srcset](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/srcset)s.
+You can specify a list of image widths using the `images.imageSizes` property in your `next.config.js` file. These widths are concatenated with the array of [device sizes](#devicesizes) to form the full array of sizes used to generate image [srcset](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/srcset)s.
 
 The reason there are two separate lists is that imageSizes is only used for images which provide a [`sizes`](#sizes) prop, which indicates that the image is less than the full width of the screen. **Therefore, the sizes in imageSizes should all be smaller than the smallest size in deviceSizes.**
 
@@ -464,11 +464,11 @@ The cache status of an image can be determined by reading the value of the `x-ne
 - `STALE` - the path is in the cache but exceeded the revalidate time so it will be updated in the background
 - `HIT` - the path is in the cache and has not exceeded the revalidate time
 
-The expiration (or rather Max Age) is defined by either the [`minimumCacheTTL`](#minimum-cache-ttl) configuration or the upstream image `Cache-Control` header, whichever is larger. Specifically, the `max-age` value of the `Cache-Control` header is used. If both `s-maxage` and `max-age` are found, then `s-maxage` is preferred. The `max-age` is also passed-through to any downstream clients including CDNs and browsers.
+The expiration (or rather Max Age) is defined by either the [`minimumCacheTTL`](#minimumcachettl) configuration or the upstream image `Cache-Control` header, whichever is larger. Specifically, the `max-age` value of the `Cache-Control` header is used. If both `s-maxage` and `max-age` are found, then `s-maxage` is preferred. The `max-age` is also passed-through to any downstream clients including CDNs and browsers.
 
-- You can configure [`minimumCacheTTL`](#minimum-cache-ttl) to increase the cache duration when the upstream image does not include `Cache-Control` header or the value is very low.
-- You can configure [`deviceSizes`](#device-sizes) and [`imageSizes`](#device-sizes) to reduce the total number of possible generated images.
-- You can configure [formats](#acceptable-formats) to disable multiple formats in favor of a single image format.
+- You can configure [`minimumCacheTTL`](#minimumcachettl) to increase the cache duration when the upstream image does not include `Cache-Control` header or the value is very low.
+- You can configure [`deviceSizes`](#devicesizes) and [`imageSizes`](#imagesizes) to reduce the total number of possible generated images.
+- You can configure [formats](#formats) to disable multiple formats in favor of a single image format.
 
 ### Minimum Cache TTL
 
