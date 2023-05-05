@@ -97,7 +97,10 @@ export async function adapter(
     nextConfig: params.request.nextConfig,
   })
 
-  for (const key of requestUrl.searchParams.keys()) {
+  // Iterator uses an index to keep track of the current iteration. Because of deleting and appending below we can't just use the iterator.
+  // Instead we use the keys before iteration.
+  const keys = [...requestUrl.searchParams.keys()]
+  for (const key of keys) {
     const value = requestUrl.searchParams.getAll(key)
 
     if (
