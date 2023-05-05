@@ -1,6 +1,8 @@
 import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import { Request } from 'playwright-chromium'
+import fs from 'fs-extra'
+import { join } from 'path'
 
 const GENERIC_RSC_ERROR =
   'Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
@@ -169,6 +171,24 @@ createNextDescribe(
       await browser.elementByCss('#dec').click()
       await check(() => browser.elementByCss('h1').text(), '3')
     })
+
+    if (!isNextDev) {
+      it('should not expose action content in sourcemaps', async () => {
+        const sourcemap = (
+          await fs.readdir(
+            join(next.testDir, '.next', 'static', 'chunks', 'app', 'client')
+          )
+        ).find((f) => f.endsWith('.js.map'))
+
+        expect(sourcemap).toBeDefined()
+
+        expect(
+          await next.readFile(
+            join('.next', 'static', 'chunks', 'app', 'client', sourcemap)
+          )
+        ).not.toContain('this_is_sensitive_info')
+      })
+    }
 
     if (isNextDev) {
       describe('HMR', () => {
