@@ -25,8 +25,8 @@ export function linkGc() {
                       ...document.querySelectorAll(
                         'link[href^="' +
                           (resource.startsWith(currentOrigin)
-                            ? resource.slice(origin.length)
-                            : origin + resource) +
+                            ? resource.slice(currentOrigin.length)
+                            : currentOrigin + resource) +
                           '"]'
                       ),
                     ] as HTMLLinkElement[]
