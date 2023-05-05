@@ -49,11 +49,14 @@ import { NextResponse } from 'next/server'
 
 const contentType = ${JSON.stringify(getContentType(resourcePath))}
 const buffer = Buffer.from(${JSON.stringify(
-    await fs.promises
-      .readFile(resourcePath.replace(METADATA_RESOURCE_QUERY, ''), {
-        encoding: 'utf-8',
-      })
-      .toString()
+    (
+      await fs.promises.readFile(
+        resourcePath.replace(METADATA_RESOURCE_QUERY, ''),
+        {
+          encoding: 'utf-8',
+        }
+      )
+    ).toString()
   )})
 
 export function GET() {
