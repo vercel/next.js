@@ -1,4 +1,5 @@
 import type webpack from 'webpack'
+import fs from 'fs'
 import path from 'path'
 import { METADATA_RESOURCE_QUERY } from './metadata/discover'
 import { imageExtMimeTypeMap } from '../../../lib/mime-type'
@@ -43,7 +44,7 @@ function getStaticRouteCode(resourcePath: string, fileBaseName: string) {
       : process.env.NODE_ENV !== 'production'
       ? cacheHeader.none
       : cacheHeader.longCache
-  return `\
+  const code = `\
 import fs from 'fs'
 import { fileURLToPath } from 'url'
 import { NextResponse } from 'next/server'
@@ -54,9 +55,11 @@ const filePath = fileURLToPath(resourceUrl).replace(${JSON.stringify(
     METADATA_RESOURCE_QUERY
   )}, '')
 
-let buffer
+const buffer = Buffer.from(${JSON.stringify(
+    fs.readFileSync(resourcePath).toString('utf-8')
+  )})
+
 export function GET() {
-  if (!buffer) { buffer = fs.readFileSync(filePath) }
   return new NextResponse(buffer, {
     headers: {
       'Content-Type': contentType,
@@ -67,6 +70,7 @@ export function GET() {
 
 export const dynamic = 'force-static'
 `
+  return code
 }
 
 function getDynamicTextRouteCode(resourcePath: string) {
