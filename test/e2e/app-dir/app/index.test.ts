@@ -205,6 +205,12 @@ createNextDescribe(
       })
     }
 
+    it('should serve from pages with latest react', async () => {
+      const $ = await next.render$('/')
+      expect($('#hello').text()).toBe('hello from pages/index')
+      expect($('#react-version').text()).toBe('18.2.0')
+    })
+
     if (isNextStart) {
       it('should generate build traces correctly', async () => {
         const trace = JSON.parse(
@@ -262,12 +268,6 @@ createNextDescribe(
     it('should pass props from getServerSideProps in root layout', async () => {
       const $ = await next.render$('/dashboard')
       expect($('title').first().text()).toBe('hello world')
-    })
-
-    it('should serve from pages with latest react', async () => {
-      const $ = await next.render$('/')
-      expect($('#hello').text()).toBe('hello from pages/index')
-      expect($('#react-version').text()).toBe('18.2.0')
     })
 
     it('should serve dynamic route from pages', async () => {
