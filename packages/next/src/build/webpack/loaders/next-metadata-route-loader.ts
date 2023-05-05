@@ -37,7 +37,7 @@ function getContentType(resourcePath: string) {
 }
 
 // Strip metadata resource query string from `import.meta.url` to make sure the fs.readFileSync get the right path.
-function getStaticRouteCode(resourcePath: string, fileBaseName: string) {
+async function getStaticRouteCode(resourcePath: string, fileBaseName: string) {
   const cache =
     fileBaseName === 'favicon'
       ? 'public, max-age=0, must-revalidate'
@@ -49,9 +49,11 @@ import { NextResponse } from 'next/server'
 
 const contentType = ${JSON.stringify(getContentType(resourcePath))}
 const buffer = Buffer.from(${JSON.stringify(
-    fs
-      .readFileSync(resourcePath.replace(METADATA_RESOURCE_QUERY, ''))
-      .toString('utf-8')
+    await fs.promises
+      .readFile(resourcePath.replace(METADATA_RESOURCE_QUERY, ''), {
+        encoding: 'utf-8',
+      })
+      .toString()
   )})
 
 export function GET() {
@@ -200,7 +202,7 @@ ${staticGenerationCode}
 // When it's static route, it could be favicon.ico, sitemap.xml, robots.txt etc.
 // TODO-METADATA: improve the cache control strategy
 const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLoaderOptions> =
-  function () {
+  async function () {
     const { resourcePath } = this
     const { pageExtensions, page } = this.getOptions()
 
@@ -217,7 +219,7 @@ const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLo
         code = getDynamicImageRouteCode(resourcePath)
       }
     } else {
-      code = getStaticRouteCode(resourcePath, fileBaseName)
+      code = await getStaticRouteCode(resourcePath, fileBaseName)
     }
 
     return code
