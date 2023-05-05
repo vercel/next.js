@@ -283,8 +283,12 @@ export default async function build(
 
       const publicDir = path.join(dir, 'public')
       const isAppDirEnabled = !!config.experimental.appDir
+      const { pagesDir, appDir } = findPagesDir(dir, isAppDirEnabled)
+      NextBuildContext.pagesDir = pagesDir
+      NextBuildContext.appDir = appDir
+      hasAppDir = Boolean(appDir)
 
-      if (isAppDirEnabled) {
+      if (isAppDirEnabled && hasAppDir) {
         if (!process.env.__NEXT_TEST_MODE && ciEnvironment.hasNextSupport) {
           const requireHook = require.resolve('../server/require-hook')
           const contents = await promises.readFile(requireHook, 'utf8')
@@ -296,11 +300,6 @@ export default async function build(
           )
         }
       }
-
-      const { pagesDir, appDir } = findPagesDir(dir, isAppDirEnabled)
-      NextBuildContext.pagesDir = pagesDir
-      NextBuildContext.appDir = appDir
-      hasAppDir = Boolean(appDir)
 
       const isSrcDir = path
         .relative(dir, pagesDir || appDir || '')
