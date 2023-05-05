@@ -5,11 +5,11 @@ https://docs.convex.dev/using/writing-convex-functions for more.
 
 A query function that takes two arguments looks like:
 
-```typescript
-// myQueryFunction.ts
+```javascript
+// myQueryFunction.js
 import { query } from './_generated/server'
 
-export default query(async ({ db }, first: number, second: string) => {
+export default query(async ({ db }, first, second) => {
   // Validate arguments here.
   if (typeof first !== 'number' || first < 0) {
     throw new Error('First argument is not a non-negative number.')
@@ -30,17 +30,17 @@ export default query(async ({ db }, first: number, second: string) => {
 
 Using this query function in a React component looks like:
 
-```typescript
+```javascript
 const data = useQuery('myQueryFunction', 10, 'hello')
 ```
 
 A mutation function looks like:
 
-```typescript
-// myMutationFunction.ts
+```javascript
+// myMutationFunction.js
 import { mutation } from './_generated/server'
 
-export default mutation(async ({ db }, first: string, second: string) => {
+export default mutation(async ({ db }, first, second) => {
   // Validate arguments here.
   if (typeof first !== 'string' || typeof second !== 'string') {
     throw new Error('Both arguments must be strings')
@@ -58,7 +58,7 @@ export default mutation(async ({ db }, first: string, second: string) => {
 
 Using this mutation function in a React component looks like:
 
-```typescript
+```javascript
 const mutation = useMutation('myMutationFunction')
 function handleButtonPress() {
   // fire and forget, the most common way to use mutations

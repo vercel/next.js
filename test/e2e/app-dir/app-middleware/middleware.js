@@ -22,6 +22,11 @@ export async function middleware(request) {
     }
   }
 
+  if (request.nextUrl.pathname.includes('/rewrite-to-app')) {
+    request.nextUrl.pathname = '/headers'
+    return NextResponse.rewrite(request.nextUrl)
+  }
+
   return NextResponse.next({
     request: {
       headers,

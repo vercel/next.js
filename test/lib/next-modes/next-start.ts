@@ -87,14 +87,16 @@ export class NextStartInstance extends NextInstance {
     })
 
     this._buildId = (
-      await fs.readFile(
-        path.join(
-          this.testDir,
-          this.nextConfig?.distDir || '.next',
-          'BUILD_ID'
-        ),
-        'utf8'
-      )
+      await fs
+        .readFile(
+          path.join(
+            this.testDir,
+            this.nextConfig?.distDir || '.next',
+            'BUILD_ID'
+          ),
+          'utf8'
+        )
+        .catch(() => '')
     ).trim()
 
     console.log('running', startArgs.join(' '))
@@ -120,7 +122,7 @@ export class NextStartInstance extends NextInstance {
 
         const readyCb = (msg) => {
           if (msg.includes('started server on') && msg.includes('url:')) {
-            this._url = msg.split('url: ').pop().trim()
+            this._url = msg.split('url: ').pop().split(/\s/)[0].trim()
             this._parsedUrl = new URL(this._url)
             this.off('stdout', readyCb)
             resolve()

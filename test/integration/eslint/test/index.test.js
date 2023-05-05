@@ -4,7 +4,7 @@ import os from 'os'
 import { join } from 'path'
 
 import findUp from 'next/dist/compiled/find-up'
-import { nextBuild, nextLint, File } from 'next-test-utils'
+import { File, nextBuild, nextLint } from 'next-test-utils'
 
 const dirFirstTimeSetup = join(__dirname, '../first-time-setup')
 const dirCustomConfig = join(__dirname, '../custom-config')
@@ -37,6 +37,7 @@ const dirEslintCache = join(__dirname, '../eslint-cache')
 const dirEslintCacheCustomDir = join(__dirname, '../eslint-cache-custom-dir')
 const dirFileLinting = join(__dirname, '../file-linting')
 const mjsCjsLinting = join(__dirname, '../mjs-cjs-linting')
+const dirTypescript = join(__dirname, '../with-typescript')
 
 describe('ESLint', () => {
   describe('Next Build', () => {
@@ -104,7 +105,7 @@ describe('ESLint', () => {
         'Error: `next/head` should not be imported in `pages/_document.js`. Use `<Head />` from `next/document` instead'
       )
       expect(output).toContain(
-        'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization.'
+        'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images.'
       )
       expect(output).toContain('Warning: Do not include stylesheets manually')
       expect(output).toContain(
@@ -142,7 +143,7 @@ describe('ESLint', () => {
         'Error: `next/head` should not be imported in `pages/_document.js`. Use `<Head />` from `next/document` instead'
       )
       expect(output).toContain(
-        'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization.'
+        'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images.'
       )
       expect(output).toContain('Warning: Do not include stylesheets manually')
       expect(output).toContain(
@@ -353,6 +354,53 @@ describe('ESLint', () => {
       })
     })
 
+    test('should generate next-env.d.ts before lint command', async () => {
+      await nextLint(dirTypescript, [], {
+        stdout: true,
+        stderr: true,
+      })
+
+      const files = await fs.readdir(dirTypescript)
+
+      expect(files).toContain('next-env.d.ts')
+    })
+
+    for (const { dir } of [
+      { dir: dirEmptyDirectory },
+      { dir: dirIgnoreDuringBuilds },
+      { dir: dirCustomDirectories },
+      { dir: dirConfigInPackageJson },
+    ]) {
+      test('should not generate next-env.d.ts without typescript', async () => {
+        await nextLint(dir, [], {
+          stdout: true,
+          stderr: true,
+        })
+
+        const files = await fs.readdir(dir)
+
+        expect(files).not.toContain('next-env.d.ts')
+      })
+    }
+
+    test('should add relative path for dist types in tsconfig.json when app dir exist', async () => {
+      await nextLint(dirTypescript, [], {
+        stdout: true,
+        stderr: true,
+      })
+
+      const tsConfigPath = join(
+        dirTypescript,
+        '../with-typescript/tsconfig.json'
+      )
+      const tsConfigContent = await fs.readFile(tsConfigPath, {
+        encoding: 'utf8',
+      })
+      const tsConfigJson = JSON.parse(tsConfigContent)
+
+      expect(tsConfigJson.include).toContain('.build/types/**/*.ts')
+    })
+
     test('shows warnings and errors', async () => {
       const { stdout, stderr } = await nextLint(dirCustomConfig, [], {
         stdout: true,
@@ -387,7 +435,7 @@ describe('ESLint', () => {
         'Error: `next/head` should not be imported in `pages/_document.js`. Use `<Head />` from `next/document` instead'
       )
       expect(output).toContain(
-        'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization.'
+        'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images.'
       )
       expect(output).toContain('Warning: Do not include stylesheets manually')
       expect(output).toContain(
@@ -423,7 +471,7 @@ describe('ESLint', () => {
         'Error: `next/head` should not be imported in `pages/_document.js`. Use `<Head />` from `next/document` instead'
       )
       expect(output).toContain(
-        'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization.'
+        'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images.'
       )
       expect(output).toContain('Warning: Do not include stylesheets manually')
       expect(output).toContain(
@@ -449,7 +497,7 @@ describe('ESLint', () => {
 
       const output = stdout + stderr
       expect(output).toContain(
-        'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization.'
+        'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images.'
       )
       expect(output).toContain('Error: Synchronous scripts should not be used.')
     })
@@ -485,7 +533,7 @@ describe('ESLint', () => {
 
       const output = stdout + stderr
       expect(output).toContain(
-        'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization.'
+        'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images.'
       )
       expect(output).toContain('Error: Synchronous scripts should not be used.')
     })
@@ -758,7 +806,7 @@ describe('ESLint', () => {
 
       expect(output).toContain('pages/bar.js')
       expect(output).toContain(
-        'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization.'
+        'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images.'
       )
 
       expect(output).not.toContain('pages/index.js')
@@ -803,7 +851,7 @@ describe('ESLint', () => {
             }),
             expect.objectContaining({
               message:
-                'Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization. See: https://nextjs.org/docs/messages/no-img-element',
+                'Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element',
             }),
           ])
         )
@@ -842,7 +890,7 @@ describe('ESLint', () => {
         'img elements must have an alt prop, either with meaningful text, or an empty string for decorative images.'
       )
       expect(fileOutput).toContain(
-        'Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization. See: https://nextjs.org/docs/messages/no-img-element'
+        'Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element'
       )
 
       expect(fileOutput).toContain('file-linting/pages/index.js')
@@ -882,7 +930,7 @@ describe('ESLint', () => {
         'img elements must have an alt prop, either with meaningful text, or an empty string for decorative images.'
       )
       expect(output).toContain(
-        'Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization. See: https://nextjs.org/docs/messages/no-img-element'
+        'Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element'
       )
 
       expect(output).toContain('pages/index.cjs')

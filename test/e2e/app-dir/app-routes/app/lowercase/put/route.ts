@@ -1,5 +1,1 @@
-export const handler = async (): Promise<Response> => {
-  return new Response('hello, world')
-}
-
-export const put = handler
+export { PUT as put } from '../../../handlers/hello'

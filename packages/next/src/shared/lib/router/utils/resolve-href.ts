@@ -43,7 +43,7 @@ export function resolveHref(
 
   if ((urlParts[0] || '').match(/(\/\/|\\)/)) {
     console.error(
-      `Invalid href passed to next/router: ${urlAsString}, repeated forward-slashes (//) or backslashes \\ are not valid in the href`
+      `Invalid href '${urlAsString}' passed to next/router in page: '${router.pathname}'. Repeated forward-slashes (//) or backslashes \\ are not valid in the href.`
     )
     const normalizedUrl = normalizeRepeatedSlashes(urlAsStringNoProto)
     urlAsString = (urlProtoMatch ? urlProtoMatch[0] : '') + normalizedUrl

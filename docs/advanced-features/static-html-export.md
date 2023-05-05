@@ -11,27 +11,66 @@ description: Export your Next.js app to static HTML, and run it standalone witho
   </ul>
 </details>
 
-`next export` allows you to export your Next.js application to static HTML, which can render without the need of a Node.js server. It is recommended to only use `next export` if you don't need any of the [unsupported features](#unsupported-features) requiring a server.
+Next.js can be used to generate static applications, including using React in the browser without the need for a Node.js server.
 
-If you're looking to build a hybrid site where only _some_ pages are prerendered to static HTML, Next.js already does that automatically. Learn more about [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) and [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md).
+The core of Next.js has been designed to enable starting as a static site (or Single-Page Application), if desired, and later upgrade to use powerful, dynamic features that require a server. For example, [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md), [Internationalized Routing](/docs/advanced-features/i18n-routing.md), [and more](#unsupported-features).
 
-## `next export`
+Since Next.js supports this static export, it can be deployed and hosted on any web server that can serve HTML/CSS/JS static assets.
 
-Update your build script in `package.json` to use `next export`:
+## Usage
 
-```json
-"scripts": {
-  "build": "next build && next export"
+Update your [`next.config.js`](/docs/api-reference/next.config.js/introduction.md) file to include `output: 'export'` like the following:
+
+```js
+/**
+ * @type {import('next').NextConfig}
+ */
+const nextConfig = {
+  output: 'export',
 }
+
+module.exports = nextConfig
 ```
 
-Running `npm run build` will generate an `out` directory.
+Then run `next build` to generate an `out` directory containing the HTML/CSS/JS static assets.
 
-`next export` builds an HTML version of your app. During `next build`, [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) and [`getStaticPaths`](/docs/basic-features/data-fetching/get-static-paths.md) will generate an HTML file for each page in your `pages` directory (or more for [dynamic routes](/docs/routing/dynamic-routes.md)). Then, `next export` will copy the already exported files into the correct directory. `getInitialProps` will generate the HTML files during `next export` instead of `next build`.
+You can utilize [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) and [`getStaticPaths`](/docs/basic-features/data-fetching/get-static-paths.md) to generate an HTML file for each page in your `pages` directory (or more for [dynamic routes](/docs/routing/dynamic-routes.md)).
 
-For more advanced scenarios, you can define a parameter called [`exportPathMap`](/docs/api-reference/next.config.js/exportPathMap.md) in your [`next.config.js`](/docs/api-reference/next.config.js/introduction.md) file to configure exactly which pages will be generated.
+If you want to change the output directory, you can configure `distDir` like the following:
 
-> **Warning**: Using `exportPathMap` for defining routes with any `getStaticPaths` powered page is now ignored and gets overridden. We recommend not to use them together.
+```js
+/**
+ * @type {import('next').NextConfig}
+ */
+const nextConfig = {
+  output: 'export',
+  distDir: 'dist',
+}
+
+module.exports = nextConfig
+```
+
+In this example, `next build` will generate a `dist` directory containing the HTML/CSS/JS static assets.
+
+Learn more about [Setting a custom build directory](/docs/api-reference/next.config.js/setting-a-custom-build-directory.md).
+
+If you want to change the output directory structure to always include a trailing slash, you can configure `trailingSlash` like the following:
+
+```js
+/**
+ * @type {import('next').NextConfig}
+ */
+const nextConfig = {
+  output: 'export',
+  trailingSlash: true,
+}
+
+module.exports = nextConfig
+```
+
+This will change links so that `href="/about"` will instead be `href="/about/"`. It will also change the output so that `out/about.html` will instead emit `out/about/index.html`.
+
+Learn more about [Trailing Slash](/docs/api-reference/next.config.js/trailing-slash.md).
 
 ## Supported Features
 
@@ -59,7 +98,8 @@ Features that require a Node.js server, or dynamic logic that cannot be computed
 - [Headers](/docs/api-reference/next.config.js/headers.md)
 - [Middleware](/docs/middleware.md)
 - [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md)
-- [`fallback: true`](/docs/api-reference/data-fetching/get-static-paths.md#fallback-true)
+- [`getStaticPaths` with `fallback: true`](/docs/api-reference/data-fetching/get-static-paths.md#fallback-true)
+- [`getStaticPaths` with `fallback: 'blocking'`](/docs/api-reference/data-fetching/get-static-paths.md#fallback-blocking)
 - [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props.md)
 
 ### `getInitialProps`
@@ -72,3 +112,23 @@ It's possible to use the [`getInitialProps`](/docs/api-reference/data-fetching/g
 - `getInitialProps` should fetch from an API and cannot use Node.js-specific libraries or the file system like `getStaticProps` can.
 
 We recommend migrating towards `getStaticProps` over `getInitialProps` whenever possible.
+
+## next export
+
+> **Warning**: "next export" is deprecated since Next.js 13.3 in favor of "output: 'export'" configuration.
+
+In versions of Next.js prior to 13.3, there was no configuration option in next.config.js and instead there was a separate command for `next export`.
+
+This could be used by updating your `package.json` file to include `next export` like the following:
+
+```json
+"scripts": {
+  "build": "next build && next export"
+}
+```
+
+Running `npm run build` will generate an `out` directory.
+
+`next export` builds an HTML version of your app. During `next build`, [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) and [`getStaticPaths`](/docs/basic-features/data-fetching/get-static-paths.md) will generate an HTML file for each page in your `pages` directory (or more for [dynamic routes](/docs/routing/dynamic-routes.md)). Then, `next export` will copy the already exported files into the correct directory. `getInitialProps` will generate the HTML files during `next export` instead of `next build`.
+
+> **Warning**: Using [`exportPathMap`](/docs/api-reference/next.config.js/exportPathMap.md) is deprecated and is overridden by `getStaticPaths` inside `pages`. We recommend not to use them together.

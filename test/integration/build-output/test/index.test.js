@@ -187,9 +187,8 @@ describe('Build Output', () => {
       })
 
       it('should not emit extracted comments', async () => {
-        const files = await recursiveReadDir(
-          join(appDir, '.next'),
-          /\.txt|\.LICENSE\./
+        const files = await recursiveReadDir(join(appDir, '.next'), (f) =>
+          /\.txt|\.LICENSE\./.test(f)
         )
         expect(files).toEqual([])
       })

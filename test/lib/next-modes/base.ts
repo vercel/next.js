@@ -142,6 +142,7 @@ export class NextInstance {
           react: reactVersion,
           'react-dom': reactVersion,
           '@types/react': reactVersion,
+          '@types/react-dom': reactVersion,
           typescript: 'latest',
           '@types/node': 'latest',
           ...this.dependencies,
@@ -163,13 +164,13 @@ export class NextInstance {
                     require('next/package.json').version,
                 },
                 scripts: {
+                  // since we can't get the build id as a build artifact, make it
+                  // available under the static files
+                  'post-build': 'cp .next/BUILD_ID .next/static/__BUILD_ID',
                   ...pkgScripts,
                   build:
                     (pkgScripts['build'] || this.buildCommand || 'next build') +
                     ' && pnpm post-build',
-                  // since we can't get the build id as a build artifact, make it
-                  // available under the static files
-                  'post-build': 'cp .next/BUILD_ID .next/static/__BUILD_ID',
                 },
               },
               null,
@@ -384,6 +385,9 @@ export class NextInstance {
   }
 
   // TODO: block these in deploy mode
+  public async hasFile(filename: string) {
+    return fs.pathExists(path.join(this.testDir, filename))
+  }
   public async readFile(filename: string) {
     return fs.readFile(path.join(this.testDir, filename), 'utf8')
   }
@@ -399,6 +403,12 @@ export class NextInstance {
     return fs.rename(
       path.join(this.testDir, filename),
       path.join(this.testDir, newFilename)
+    )
+  }
+  public async renameFolder(foldername: string, newFoldername: string) {
+    return fs.move(
+      path.join(this.testDir, foldername),
+      path.join(this.testDir, newFoldername)
     )
   }
   public async deleteFile(filename: string) {

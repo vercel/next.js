@@ -818,25 +818,15 @@ describe.each([[''], ['/docs']])(
           expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(
             `"Failed to compile"`
           )
-          expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-          "./components/parse-error.js
-          Error: 
-            x Expression expected
-             ,-[1:1]
-           1 | This
-           2 | is
-           3 | }}}
-             : ^
-           4 | invalid
-           5 | js
-             \`----
+          let redboxSource = await getRedboxSource(browser)
 
-          Caused by:
-              Syntax Error
+          redboxSource = redboxSource.replace(`${next.testDir}`, '.')
+          redboxSource = redboxSource.substring(
+            0,
+            redboxSource.indexOf('`----')
+          )
 
-          Import trace for requested module:
-          ./components/parse-error.js"
-        `)
+          expect(redboxSource).toMatchSnapshot()
 
           await next.patchFile(aboutPage, aboutContent)
 

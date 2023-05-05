@@ -6,7 +6,6 @@ import { cssFileResolve } from './file-resolve'
 
 export function getGlobalCssLoader(
   ctx: ConfigurationContext,
-  hasAppDir: boolean,
   postcss: any,
   preProcessors: readonly webpack.RuleSetUseItem[] = []
 ): webpack.RuleSetUseItem[] {
@@ -17,7 +16,8 @@ export function getGlobalCssLoader(
     // loader
     loaders.push(
       getClientStyleLoader({
-        hasAppDir: hasAppDir,
+        hasAppDir: ctx.hasAppDir,
+        isAppDir: ctx.isAppDir,
         isDevelopment: ctx.isDevelopment,
         assetPrefix: ctx.assetPrefix,
       })

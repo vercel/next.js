@@ -6,8 +6,7 @@ import { cssFileResolve } from './file-resolve'
 export function getNextFontLoader(
   ctx: ConfigurationContext,
   postcss: any,
-  fontLoaderPath: string,
-  fontLoaderOptions: any
+  fontLoaderPath: string
 ): webpack.RuleSetUseItem[] {
   const loaders: webpack.RuleSetUseItem[] = []
 
@@ -64,7 +63,6 @@ export function getNextFontLoader(
       isServer: ctx.isServer,
       assetPrefix: ctx.assetPrefix,
       fontLoaderPath,
-      fontLoaderOptions,
       postcss,
     },
   })

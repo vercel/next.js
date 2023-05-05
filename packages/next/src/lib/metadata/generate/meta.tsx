@@ -4,15 +4,18 @@ export function Meta({
   name,
   property,
   content,
+  media,
 }: {
   name?: string
   property?: string
+  media?: string
   content: string | number | URL | null | undefined
 }): React.ReactElement | null {
   if (typeof content !== 'undefined' && content !== null && content !== '') {
     return (
       <meta
         {...(name ? { name } : { property })}
+        {...(media ? { media } : undefined)}
         content={typeof content === 'string' ? content : content.toString()}
       />
     )
@@ -28,6 +31,24 @@ type MultiMetaContent =
   | (ExtendMetaContent | string | URL | number)[]
   | null
   | undefined
+
+function camelToSnake(camelCaseStr: string) {
+  return camelCaseStr.replace(/([A-Z])/g, function (match) {
+    return '_' + match.toLowerCase()
+  })
+}
+
+function getMetaKey(prefix: string, key: string) {
+  // Use `twitter:image` and `og:image` instead of `twitter:image:url` and `og:image:url`
+  // to be more compatible as it's a more common format
+  if ((prefix === 'og:image' || prefix === 'twitter:image') && key === 'url') {
+    return prefix
+  }
+  if (prefix.startsWith('og:') || prefix.startsWith('twitter:')) {
+    key = camelToSnake(key)
+  }
+  return prefix + ':' + key
+}
 
 function ExtendMeta({
   content,
@@ -46,9 +67,8 @@ function ExtendMeta({
         return typeof v === 'undefined' ? null : (
           <Meta
             key={keyPrefix + ':' + k + '_' + index}
-            {...(propertyPrefix
-              ? { property: propertyPrefix + ':' + k }
-              : { name: namePrefix + ':' + k })}
+            {...(propertyPrefix && { property: getMetaKey(propertyPrefix, k) })}
+            {...(namePrefix && { name: getMetaKey(namePrefix, k) })}
             content={typeof v === 'string' ? v : v?.toString()}
           />
         )

@@ -59,6 +59,9 @@ export type Viewport = {
   initialScale?: number
   minimumScale?: number
   maximumScale?: number
+  userScalable?: boolean
+  viewportFit?: 'auto' | 'cover' | 'contain'
+  interactiveWidget?: 'resizes-visual' | 'resizes-content' | 'overlays-content'
 }
 
 // Apple Web App

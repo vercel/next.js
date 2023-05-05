@@ -15,12 +15,7 @@ export default function transformer(
       source: { value: 'next/image' },
     })
     .forEach((imageImport) => {
-      j(imageImport).replaceWith(
-        j.importDeclaration(
-          imageImport.node.specifiers,
-          j.stringLiteral('next/legacy/image')
-        )
-      )
+      imageImport.node.source = j.stringLiteral('next/legacy/image')
     })
   // Before: const Image = await import("next/image")
   //  After: const Image = await import("next/legacy/image")
@@ -43,12 +38,7 @@ export default function transformer(
       source: { value: 'next/future/image' },
     })
     .forEach((imageFutureImport) => {
-      j(imageFutureImport).replaceWith(
-        j.importDeclaration(
-          imageFutureImport.node.specifiers,
-          j.stringLiteral('next/image')
-        )
-      )
+      imageFutureImport.node.source = j.stringLiteral('next/image')
     })
 
   // Before: const Image = await import("next/future/image")

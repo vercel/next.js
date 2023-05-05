@@ -18,10 +18,10 @@ function getFormattedLinkDiagnosticMessageText(
   if (typeof message === 'string' && diagnostic.code === 2322) {
     const match =
       message.match(
-        /Type '"(.+)"' is not assignable to type 'Route<string> | URL'\./
+        /Type '"(.+)"' is not assignable to type 'RouteImpl<.+> \| UrlObject'\./
       ) ||
       message.match(
-        /Type '"(.+)"' is not assignable to type 'URL | Route<string>'\./
+        /Type '"(.+)"' is not assignable to type 'UrlObject \| RouteImpl<.+>'\./
       )
 
     if (match) {
@@ -29,13 +29,35 @@ function getFormattedLinkDiagnosticMessageText(
       return `"${chalk.bold(
         href
       )}" is not an existing route. If it is intentional, please type it explicitly with \`as Route\`.`
-    } else if (message === "Type 'string' is not assignable to type 'never'.") {
+    } else if (
+      message === "Type 'string' is not assignable to type 'UrlObject'."
+    ) {
+      const relatedMessage = diagnostic.relatedInformation?.[0]?.messageText
       if (
-        diagnostic.relatedInformation?.[0]?.messageText ===
-        `The expected type comes from property 'href' which is declared here on type 'IntrinsicAttributes & LinkRestProps & { href: never; }`
+        typeof relatedMessage === 'string' &&
+        relatedMessage.match(
+          /The expected type comes from property 'href' which is declared here on type 'IntrinsicAttributes & /
+        )
       ) {
         return `Invalid \`href\` property of \`Link\`: the route does not exist. If it is intentional, please type it explicitly with \`as Route\`.`
       }
+    }
+  } else if (typeof message === 'string' && diagnostic.code === 2820) {
+    const match =
+      message.match(
+        /Type '"(.+)"' is not assignable to type 'RouteImpl<.+> \| UrlObject'\. Did you mean '"(.+)"'?/
+      ) ||
+      message.match(
+        /Type '"(.+)"' is not assignable to type 'UrlObject \| RouteImpl<.+>'\. Did you mean '"(.+)"'?/
+      )
+
+    if (match) {
+      const [, href, suggestion] = match
+      return `"${chalk.bold(
+        href
+      )}" is not an existing route. Did you mean "${chalk.bold(
+        suggestion
+      )}" instead? If it is intentional, please type it explicitly with \`as Route\`.`
     }
   }
 }
@@ -51,7 +73,11 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
   const messageText = message.messageText
 
   if (typeof messageText === 'string') {
-    const type = /page\.[^.]+$/.test(relativeSourceFilepath) ? 'Page' : 'Layout'
+    const type = /page\.[^.]+$/.test(relativeSourceFilepath)
+      ? 'Page'
+      : /route\.[^.]+$/.test(relativeSourceFilepath)
+      ? 'Route'
+      : 'Layout'
 
     // Reference of error codes:
     // https://github.com/Microsoft/TypeScript/blob/main/src/compiler/diagnosticMessages.json
@@ -190,6 +216,52 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
           return main
         }
 
+        function processNextItems(
+          indent: number,
+          next?: import('typescript').DiagnosticMessageChain[]
+        ) {
+          if (!next) return ''
+
+          let result = ''
+
+          for (const item of next) {
+            switch (item.code) {
+              case 2322:
+                const types = item.messageText.match(
+                  /Type '(.+)' is not assignable to type '(.+)'./
+                )
+                if (types) {
+                  result += '\n' + ' '.repeat(indent * 2)
+                  result += `Expected "${chalk.bold(
+                    types[2]
+                  )}", got "${chalk.bold(types[1])}".`
+                }
+                break
+              default:
+            }
+
+            result += processNextItems(indent + 1, item.next)
+          }
+
+          return result
+        }
+
+        const invalidParamFn = messageText.match(
+          /Type '{ __tag__: (.+); __param_position__: "(.*)"; __param_type__: (.+); }' does not satisfy/
+        )
+        if (invalidParamFn) {
+          let main = `${type} "${chalk.bold(
+            relativeSourceFilepath
+          )}" has an invalid ${invalidParamFn[1]} export:\n  Type "${chalk.bold(
+            invalidParamFn[3]
+          )}" is not a valid type for the function's ${
+            invalidParamFn[2]
+          } argument.`
+
+          if ('next' in message) main += processNextItems(1, message.next)
+          return main
+        }
+
         const invalidExportFnReturn = messageText.match(
           /Type '{ __tag__: "(.+)"; __return_type__: (.+); }' does not satisfy/
         )
@@ -199,33 +271,8 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
           )}" has an invalid export:\n  "${chalk.bold(
             invalidExportFnReturn[2]
           )}" is not a valid ${invalidExportFnReturn[1]} return type:`
-          function processNext(
-            indent: number,
-            next?: import('typescript').DiagnosticMessageChain[]
-          ) {
-            if (!next) return
 
-            for (const item of next) {
-              switch (item.code) {
-                case 2322:
-                  const types = item.messageText.match(
-                    /Type '(.+)' is not assignable to type '(.+)'./
-                  )
-                  if (types) {
-                    main += '\n' + ' '.repeat(indent * 2)
-                    main += `Expected "${chalk.bold(
-                      types[2]
-                    )}", got "${chalk.bold(types[1])}".`
-                  }
-                  break
-                default:
-              }
-
-              processNext(indent + 1, item.next)
-            }
-          }
-
-          if ('next' in message) processNext(1, message.next)
+          if ('next' in message) main += processNextItems(1, message.next)
           return main
         }
 

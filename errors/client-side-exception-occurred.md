@@ -10,5 +10,5 @@ Add error boundaries in your React tree to gracefully handle client-side errors 
 
 ### Useful Links
 
-- [Error Boundaries Documentation](https://reactjs.org/docs/error-boundaries.html)
+- [Error Boundaries Documentation](https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary)
 - [Custom Error Page Documentation](https://nextjs.org/docs/advanced-features/custom-error-page#more-advanced-error-page-customizing)

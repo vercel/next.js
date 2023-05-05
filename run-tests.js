@@ -40,6 +40,7 @@ const testFilters = {
   e2e: 'e2e/',
   production: 'production/',
   development: 'development/',
+  examples: 'examples/',
 }
 
 const mockTrace = () => ({
@@ -53,6 +54,9 @@ const configuredTestTypes = Object.values(testFilters)
 const cleanUpAndExit = async (code) => {
   if (process.env.NEXT_TEST_STARTER) {
     await fs.remove(process.env.NEXT_TEST_STARTER)
+  }
+  if (process.env.NEXT_TEST_TEMP_REPO) {
+    await fs.remove(process.env.NEXT_TEST_TEMP_REPO)
   }
   console.log(`exiting with code ${code}`)
 
@@ -119,6 +123,10 @@ async function main() {
     }
     case 'e2e': {
       filterTestsBy = testFilters.e2e
+      break
+    }
+    case 'examples': {
+      filterTestsBy = testFilters.examples
       break
     }
     case 'all':
@@ -252,14 +260,23 @@ async function main() {
     // to avoid having to run yarn each time
     console.log('Creating Next.js install for isolated tests')
     const reactVersion = process.env.NEXT_TEST_REACT_VERSION || 'latest'
-    const testStarter = await createNextInstall({
+    const { installDir, pkgPaths, tmpRepoDir } = await createNextInstall({
       parentSpan: mockTrace(),
       dependencies: {
         react: reactVersion,
         'react-dom': reactVersion,
       },
+      keepRepoDir: true,
     })
-    process.env.NEXT_TEST_STARTER = testStarter
+
+    const serializedPkgPaths = []
+
+    for (const key of pkgPaths.keys()) {
+      serializedPkgPaths.push([key, pkgPaths.get(key)])
+    }
+    process.env.NEXT_TEST_PKG_PATHS = JSON.stringify(serializedPkgPaths)
+    process.env.NEXT_TEST_TEMP_REPO = tmpRepoDir
+    process.env.NEXT_TEST_STARTER = installDir
   }
 
   const sema = new Sema(concurrency, { capacity: testNames.length })
@@ -511,9 +528,9 @@ async function main() {
         if (!timingsRes.ok) {
           throw new Error(`request status: ${timingsRes.status}`)
         }
+        const result = await timingsRes.json()
         console.log(
-          'Sent updated timings successfully',
-          await timingsRes.json()
+          `Sent updated timings successfully. API URL: "${result?.url}" HTML URL: "${result?.html_url}"`
         )
       } catch (err) {
         console.log('Failed to update timings data', err)
@@ -522,7 +539,9 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error(err)
-  cleanUpAndExit(1)
-})
+main()
+  .then(() => cleanUpAndExit(0))
+  .catch((err) => {
+    console.error(err)
+    cleanUpAndExit(1)
+  })

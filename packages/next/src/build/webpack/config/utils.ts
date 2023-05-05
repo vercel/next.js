@@ -2,7 +2,10 @@ import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { NextConfigComplete } from '../../../server/config-shared'
 
 export type ConfigurationContext = {
+  // If the `appDir` feature is enabled
   hasAppDir: boolean
+  // If the current rule matches a resource in the app layer
+  isAppDir?: boolean
   supportedBrowsers: string[] | undefined
   rootDirectory: string
   customAppFile: RegExp | undefined

@@ -11,7 +11,7 @@ import type {
   NEXT_DATA,
 } from '../shared/lib/utils'
 import type { ScriptProps } from '../client/script'
-import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-manifest-plugin'
+import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 
 import { BuildManifest, getPageFiles } from '../server/get-page-files'
 import { htmlEscapeJsonString } from '../server/htmlescape'
@@ -24,7 +24,7 @@ export { DocumentContext, DocumentInitialProps, DocumentProps }
 
 export type OriginProps = {
   nonce?: string
-  crossOrigin?: string
+  crossOrigin?: 'anonymous' | 'use-credentials' | '' | undefined
   children?: React.ReactNode
 }
 
@@ -40,6 +40,9 @@ type HeadHTMLProps = React.DetailedHTMLProps<
 >
 
 type HeadProps = OriginProps & HeadHTMLProps
+
+/** Set of pages that have triggered a large data warning on production mode. */
+const largePageDataWarnings = new Set<string>()
 
 function getDocumentFiles(
   buildManifest: BuildManifest,
@@ -256,9 +259,7 @@ function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
 
           let srcProps: {
             src?: string
-            dangerouslySetInnerHTML?: {
-              __html: string
-            }
+            dangerouslySetInnerHTML?: ScriptProps['dangerouslySetInnerHTML']
           } = {}
 
           if (src) {
@@ -354,20 +355,20 @@ function getAmpPath(ampPath: string, asPath: string): string {
   return ampPath || `${asPath}${asPath.includes('?') ? '&' : '?'}amp=1`
 }
 
-function getFontLoaderLinks(
-  fontLoaderManifest: FontLoaderManifest | undefined,
+function getNextFontLinkTags(
+  nextFontManifest: NextFontManifest | undefined,
   dangerousAsPath: string,
   assetPrefix: string = ''
 ) {
-  if (!fontLoaderManifest) {
+  if (!nextFontManifest) {
     return {
       preconnect: null,
       preload: null,
     }
   }
 
-  const appFontsEntry = fontLoaderManifest.pages['/_app']
-  const pageFontsEntry = fontLoaderManifest.pages[dangerousAsPath]
+  const appFontsEntry = nextFontManifest.pages['/_app']
+  const pageFontsEntry = nextFontManifest.pages[dangerousAsPath]
 
   const preloadedFontFiles = [
     ...(appFontsEntry ?? []),
@@ -384,7 +385,7 @@ function getFontLoaderLinks(
     preconnect: preconnectToSelf ? (
       <link
         data-next-font={
-          fontLoaderManifest.pagesUsingSizeAdjust ? 'size-adjust' : ''
+          nextFontManifest.pagesUsingSizeAdjust ? 'size-adjust' : ''
         }
         rel="preconnect"
         href="/"
@@ -579,7 +580,9 @@ export class Head extends React.Component<HeadProps> {
           src,
           ...scriptProps
         } = file
-        let html = ''
+        let html: NonNullable<
+          ScriptProps['dangerouslySetInnerHTML']
+        >['__html'] = ''
 
         if (dangerouslySetInnerHTML && dangerouslySetInnerHTML.__html) {
           html = dangerouslySetInnerHTML.__html
@@ -599,7 +602,10 @@ export class Head extends React.Component<HeadProps> {
             key={scriptProps.id || index}
             nonce={nonce}
             data-nscript="beforeInteractive"
-            crossOrigin={crossOrigin || process.env.__NEXT_CROSS_ORIGIN}
+            crossOrigin={
+              crossOrigin ||
+              (process.env.__NEXT_CROSS_ORIGIN as typeof crossOrigin)
+            }
           />
         )
       })
@@ -621,7 +627,7 @@ export class Head extends React.Component<HeadProps> {
     return getPolyfillScripts(this.context, this.props)
   }
 
-  makeStylesheetInert(node: ReactNode): ReactNode[] {
+  makeStylesheetInert(node: ReactNode[]): ReactNode[] {
     return React.Children.map(node, (c: any) => {
       if (
         c?.type === 'link' &&
@@ -647,7 +653,8 @@ export class Head extends React.Component<HeadProps> {
       }
 
       return c
-    }).filter(Boolean)
+      // @types/react bug. Returned value from .map will not be `null` if you pass in `[null]`
+    })!.filter(Boolean)
   }
 
   render() {
@@ -666,7 +673,7 @@ export class Head extends React.Component<HeadProps> {
       optimizeCss,
       optimizeFonts,
       assetPrefix,
-      fontLoaderManifest,
+      nextFontManifest,
     } = this.context
 
     const disableRuntimeJS = unstable_runtimeJS === false
@@ -680,20 +687,37 @@ export class Head extends React.Component<HeadProps> {
     let otherHeadElements: Array<JSX.Element> = []
     if (head) {
       head.forEach((c) => {
+        let metaTag
+
+        if (this.context.strictNextHead) {
+          metaTag = React.createElement('meta', {
+            name: 'next-head',
+            content: '1',
+          })
+        }
+
         if (
           c &&
           c.type === 'link' &&
           c.props['rel'] === 'preload' &&
           c.props['as'] === 'style'
         ) {
+          metaTag && cssPreloads.push(metaTag)
           cssPreloads.push(c)
         } else {
-          c && otherHeadElements.push(c)
+          if (c) {
+            if (metaTag && (c.type !== 'meta' || !c.props['charSet'])) {
+              otherHeadElements.push(metaTag)
+            }
+            otherHeadElements.push(c)
+          }
         }
       })
       head = cssPreloads.concat(otherHeadElements)
     }
-    let children = React.Children.toArray(this.props.children).filter(Boolean)
+    let children: React.ReactNode[] = React.Children.toArray(
+      this.props.children
+    ).filter(Boolean)
     // show a warning if Head contains <title> (only in development)
     if (process.env.NODE_ENV !== 'production') {
       children = React.Children.map(children, (child: any) => {
@@ -713,7 +737,8 @@ export class Head extends React.Component<HeadProps> {
           }
         }
         return child
-      })
+        // @types/react bug. Returned value from .map will not be `null` if you pass in `[null]`
+      })!
       if (this.props.crossOrigin)
         console.warn(
           'Warning: `Head` attribute `crossOrigin` is deprecated. https://nextjs.org/docs/messages/doc-crossorigin-deprecated'
@@ -773,7 +798,8 @@ export class Head extends React.Component<HeadProps> {
         }
       }
       return child
-    })
+      // @types/react bug. Returned value from .map will not be `null` if you pass in `[null]`
+    })!
 
     const files: DocumentFiles = getDocumentFiles(
       this.context.buildManifest,
@@ -781,8 +807,8 @@ export class Head extends React.Component<HeadProps> {
       process.env.NEXT_RUNTIME !== 'edge' && inAmpMode
     )
 
-    const fontLoaderLinks = getFontLoaderLinks(
-      fontLoaderManifest,
+    const nextFontLinkTags = getNextFontLinkTags(
+      nextFontManifest,
       dangerousAsPath,
       assetPrefix
     )
@@ -819,16 +845,18 @@ export class Head extends React.Component<HeadProps> {
           </>
         )}
         {head}
-        <meta
-          name="next-head-count"
-          content={React.Children.count(head || []).toString()}
-        />
+        {this.context.strictNextHead ? null : (
+          <meta
+            name="next-head-count"
+            content={React.Children.count(head || []).toString()}
+          />
+        )}
 
         {children}
         {optimizeFonts && <meta name="next-font-preconnect" />}
 
-        {fontLoaderLinks.preconnect}
-        {fontLoaderLinks.preload}
+        {nextFontLinkTags.preconnect}
+        {nextFontLinkTags.preload}
 
         {process.env.NEXT_RUNTIME !== 'edge' && inAmpMode && (
           <>
@@ -998,6 +1026,11 @@ export class NextScript extends React.Component<OriginProps> {
     const { __NEXT_DATA__, largePageDataBytes } = context
     try {
       const data = JSON.stringify(__NEXT_DATA__)
+
+      if (largePageDataWarnings.has(__NEXT_DATA__.page)) {
+        return htmlEscapeJsonString(data)
+      }
+
       const bytes =
         process.env.NEXT_RUNTIME === 'edge'
           ? new TextEncoder().encode(data).buffer.byteLength
@@ -1005,6 +1038,10 @@ export class NextScript extends React.Component<OriginProps> {
       const prettyBytes = require('../lib/pretty-bytes').default
 
       if (largePageDataBytes && bytes > largePageDataBytes) {
+        if (process.env.NODE_ENV === 'production') {
+          largePageDataWarnings.add(__NEXT_DATA__.page)
+        }
+
         console.warn(
           `Warning: data for page "${__NEXT_DATA__.page}"${
             __NEXT_DATA__.page === context.dangerousAsPath

@@ -48,9 +48,10 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-experimental-app',
+          '--app',
           `--import-alias=@/*`,
         ],
         {
@@ -73,16 +74,17 @@ describe('create next app', () => {
           [
             projectName,
             '--js',
+            '--no-tailwind',
             '--eslint',
             '--no-src-dir',
-            '--no-experimental-app',
+            '--app',
             `--import-alias=@/*`,
           ],
           { cwd }
         )
 
         expect(res.exitCode).toBe(0)
-        shouldBeJavascriptProject({ cwd, projectName, template: 'default' })
+        shouldBeJavascriptProject({ cwd, projectName, template: 'app' })
       })
     })
   }
@@ -91,7 +93,14 @@ describe('create next app', () => {
     await useTempDir(async (cwd) => {
       const projectName = 'invalid-example-name'
       const res = await run(
-        [projectName, '--js', '--eslint', '--example', 'not a real example'],
+        [
+          projectName,
+          '--js',
+          '--no-tailwind',
+          '--eslint',
+          '--example',
+          'not a real example',
+        ],
         {
           cwd,
           reject: false,
@@ -111,7 +120,14 @@ describe('create next app', () => {
     await useTempDir(async (cwd) => {
       const projectName = 'valid-example'
       const res = await run(
-        [projectName, '--js', '--eslint', '--example', 'basic-css'],
+        [
+          projectName,
+          '--js',
+          '--no-tailwind',
+          '--eslint',
+          '--example',
+          'basic-css',
+        ],
         {
           cwd,
         }
@@ -134,7 +150,14 @@ describe('create next app', () => {
     await useTempDir(async (cwd) => {
       const projectName = 'valid-example-without-package-json'
       const res = await run(
-        [projectName, '--js', '--eslint', '--example', 'with-docker-compose'],
+        [
+          projectName,
+          '--js',
+          '--no-tailwind',
+          '--eslint',
+          '--example',
+          'with-docker-compose',
+        ],
         {
           cwd,
         }
@@ -156,6 +179,7 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--example',
           `${exampleRepo}/${examplePath}`,
@@ -186,6 +210,7 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--example',
           'https://github.com/vercel/nextjs-portfolio-starter/',
@@ -216,6 +241,7 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--example',
           exampleRepo,
@@ -248,6 +274,7 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--example',
           `${exampleRepo}/${examplePath}`,
@@ -283,7 +310,9 @@ describe('create next app', () => {
           [
             projectName,
             '--js',
+            '--no-tailwind',
             '--eslint',
+            '--app',
             '--example',
             '__internal-testing-retry',
             '--import-alias=@/*',
@@ -295,7 +324,7 @@ describe('create next app', () => {
         )
 
         expect(res.exitCode).toBe(0)
-        shouldBeJavascriptProject({ cwd, projectName, template: 'default' })
+        shouldBeJavascriptProject({ cwd, projectName, template: 'app' })
       })
     })
   }
@@ -307,6 +336,7 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--example',
           'default',
@@ -329,10 +359,11 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--example',
           '--no-src-dir',
-          '--no-experimental-app',
+          '--app',
           `--import-alias=@/*`,
         ],
         {
@@ -366,9 +397,10 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-experimental-app',
+          '--app',
           `--import-alias=@/*`,
         ],
         {
@@ -406,9 +438,10 @@ describe('create next app', () => {
         [
           '.',
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-experimental-app',
+          '--app',
           `--import-alias=@/*`,
         ],
         {
@@ -421,7 +454,7 @@ describe('create next app', () => {
       await fs.remove(tmpBin)
 
       expect(res.exitCode).toBe(0)
-      shouldBeJavascriptProject({ cwd, projectName: '.', template: 'default' })
+      shouldBeJavascriptProject({ cwd, projectName: '.', template: 'app' })
     })
   })
 
@@ -431,9 +464,10 @@ describe('create next app', () => {
       const res = await run(
         [
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-experimental-app',
+          '--app',
           `--import-alias=@/*`,
         ],
         {
@@ -443,7 +477,7 @@ describe('create next app', () => {
       )
 
       expect(res.exitCode).toBe(0)
-      shouldBeJavascriptProject({ cwd, projectName, template: 'default' })
+      shouldBeJavascriptProject({ cwd, projectName, template: 'app' })
     })
   })
 
@@ -454,10 +488,11 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--use-npm',
           '--no-src-dir',
-          '--no-experimental-app',
+          '--app',
           `--import-alias=@/*`,
         ],
         {
@@ -466,7 +501,7 @@ describe('create next app', () => {
       )
 
       expect(res.exitCode).toBe(0)
-      shouldBeJavascriptProject({ cwd, projectName, template: 'default' })
+      shouldBeJavascriptProject({ cwd, projectName, template: 'app' })
     })
   })
 
@@ -477,6 +512,7 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--use-npm',
           '--example',
@@ -507,10 +543,11 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--use-pnpm',
           '--no-src-dir',
-          '--no-experimental-app',
+          '--app',
           `--import-alias=@/*`,
         ],
         {
@@ -524,7 +561,7 @@ describe('create next app', () => {
         projectName,
         files: [
           'package.json',
-          'pages/index.js',
+          'app/page.js',
           '.gitignore',
           '.eslintrc.json',
           'pnpm-lock.yaml',
@@ -548,6 +585,7 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--use-pnpm',
           '--example',
@@ -578,9 +616,10 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-experimental-app',
+          '--app',
           `--import-alias=@/*`,
         ],
         {
@@ -591,7 +630,7 @@ describe('create next app', () => {
 
       const files = [
         'package.json',
-        'pages/index.js',
+        'app/page.js',
         '.gitignore',
         '.eslintrc.json',
         'package-lock.json',
@@ -610,6 +649,7 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--example',
           `${exampleRepo}/${examplePath}`,
@@ -644,9 +684,10 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-experimental-app',
+          '--app',
           `--import-alias=@/*`,
         ],
         {
@@ -657,7 +698,7 @@ describe('create next app', () => {
 
       const files = [
         'package.json',
-        'pages/index.js',
+        'app/page.js',
         '.gitignore',
         '.eslintrc.json',
         'yarn.lock',
@@ -683,6 +724,7 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--example',
           `${exampleRepo}/${examplePath}`,
@@ -717,9 +759,10 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-experimental-app',
+          '--app',
           `--import-alias=@/*`,
         ],
         {
@@ -730,7 +773,7 @@ describe('create next app', () => {
 
       const files = [
         'package.json',
-        'pages/index.js',
+        'app/page.js',
         '.gitignore',
         '.eslintrc.json',
         'pnpm-lock.yaml',
@@ -756,6 +799,7 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--example',
           `${exampleRepo}/${examplePath}`,

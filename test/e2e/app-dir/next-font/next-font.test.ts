@@ -231,6 +231,7 @@ describe.each([['app'], ['app-old']])('%s', (fixture: string) => {
             expect($('link[rel="preconnect"]').length).toBe(0)
 
             // From root layout
+            expect($('link[as="font"]').length).toBe(3)
             expect(getAttrs($('link[as="font"]'))).toEqual([
               {
                 as: 'font',
@@ -238,7 +239,6 @@ describe.each([['app'], ['app-old']])('%s', (fixture: string) => {
                 href: '/_next/static/media/b2104791981359ae-s.p.woff2',
                 rel: 'preload',
                 type: 'font/woff2',
-                'data-next-font': 'size-adjust',
               },
               {
                 as: 'font',
@@ -246,7 +246,6 @@ describe.each([['app'], ['app-old']])('%s', (fixture: string) => {
                 href: '/_next/static/media/b61859a50be14c53-s.p.woff2',
                 rel: 'preload',
                 type: 'font/woff2',
-                'data-next-font': 'size-adjust',
               },
               {
                 as: 'font',
@@ -254,7 +253,6 @@ describe.each([['app'], ['app-old']])('%s', (fixture: string) => {
                 href: '/_next/static/media/e9b9dc0d8ba35f48-s.p.woff2',
                 rel: 'preload',
                 type: 'font/woff2',
-                'data-next-font': 'size-adjust',
               },
             ])
           })
@@ -273,7 +271,6 @@ describe.each([['app'], ['app-old']])('%s', (fixture: string) => {
                 href: '/_next/static/media/e1053f04babc7571-s.p.woff2',
                 rel: 'preload',
                 type: 'font/woff2',
-                'data-next-font': 'size-adjust',
               },
               {
                 as: 'font',
@@ -281,7 +278,6 @@ describe.each([['app'], ['app-old']])('%s', (fixture: string) => {
                 href: '/_next/static/media/e9b9dc0d8ba35f48-s.p.woff2',
                 rel: 'preload',
                 type: 'font/woff2',
-                'data-next-font': 'size-adjust',
               },
               {
                 as: 'font',
@@ -289,7 +285,6 @@ describe.each([['app'], ['app-old']])('%s', (fixture: string) => {
                 href: '/_next/static/media/feab2c68f2a8e9a4-s.p.woff2',
                 rel: 'preload',
                 type: 'font/woff2',
-                'data-next-font': 'size-adjust',
               },
             ])
           })
@@ -308,7 +303,6 @@ describe.each([['app'], ['app-old']])('%s', (fixture: string) => {
                 href: '/_next/static/media/75c5faeeb9c86969-s.p.woff2',
                 rel: 'preload',
                 type: 'font/woff2',
-                'data-next-font': 'size-adjust',
               },
               {
                 as: 'font',
@@ -316,7 +310,6 @@ describe.each([['app'], ['app-old']])('%s', (fixture: string) => {
                 href: '/_next/static/media/e9b9dc0d8ba35f48-s.p.woff2',
                 rel: 'preload',
                 type: 'font/woff2',
-                'data-next-font': 'size-adjust',
               },
             ])
           })
@@ -335,7 +328,6 @@ describe.each([['app'], ['app-old']])('%s', (fixture: string) => {
                 href: '/_next/static/media/568e4c6d8123c4d6-s.p.woff2',
                 rel: 'preload',
                 type: 'font/woff2',
-                'data-next-font': 'size-adjust',
               },
               {
                 as: 'font',
@@ -343,7 +335,6 @@ describe.each([['app'], ['app-old']])('%s', (fixture: string) => {
                 href: '/_next/static/media/e9b9dc0d8ba35f48-s.p.woff2',
                 rel: 'preload',
                 type: 'font/woff2',
-                'data-next-font': 'size-adjust',
               },
             ])
           })
@@ -358,10 +349,9 @@ describe.each([['app'], ['app-old']])('%s', (fixture: string) => {
               // Preconnect
               expect($('link[rel="preconnect"]').length).toBe(1)
               expect($('link[rel="preconnect"]').get(0).attribs).toEqual({
-                crossorigin: 'anonymous',
+                crossorigin: '',
                 href: '/',
                 rel: 'preconnect',
-                'data-next-font': 'size-adjust',
               })
               // Preload
               expect($('link[as="font"]').length).toBe(0)
@@ -378,6 +368,34 @@ describe.each([['app'], ['app-old']])('%s', (fixture: string) => {
           })
         })
       }
+
+      describe('navigation', () => {
+        it('should not have duplicate preload tags on navigation', async () => {
+          const browser = await next.browser('/navigation')
+
+          // Before navigation, root layout imports the font
+          const preloadBeforeNavigation = await browser.elementsByCss(
+            'link[as="font"]'
+          )
+          expect(preloadBeforeNavigation.length).toBe(1)
+          expect(await preloadBeforeNavigation[0].getAttribute('href')).toBe(
+            '/_next/static/media/c287665b44f047d4-s.p.woff2'
+          )
+
+          // Navigate to a page that also imports that font
+          await browser.elementByCss('a').click()
+          await browser.waitForElementByCss('#page-with-same-font')
+
+          // After navigating
+          const preloadAfterNavigation = await browser.elementsByCss(
+            'link[as="font"]'
+          )
+          expect(preloadAfterNavigation.length).toBe(1)
+          expect(await preloadAfterNavigation[0].getAttribute('href')).toBe(
+            '/_next/static/media/c287665b44f047d4-s.p.woff2'
+          )
+        })
+      })
 
       if (isDev) {
         describe('Dev errors', () => {

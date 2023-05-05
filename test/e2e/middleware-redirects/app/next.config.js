@@ -5,6 +5,7 @@ module.exports = {
   },
   experimental: {
     clientRouterFilter: true,
+    clientRouterFilterRedirects: true,
   },
   redirects() {
     return [

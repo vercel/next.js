@@ -79,11 +79,7 @@ export class NextDevInstance extends NextInstance {
           if (msg.includes('started server on') && msg.includes('url:')) {
             // turbo devserver emits stdout in rust directly, can contain unexpected chars with color codes
             // strip out again for the safety
-            this._url = msg
-              .split('url: ')
-              .pop()
-              .trim()
-              .split(require('os').EOL)[0]
+            this._url = msg.split('url: ').pop().split(/\s/)[0].trim()
             try {
               this._parsedUrl = new URL(this._url)
             } catch (err) {
@@ -92,7 +88,7 @@ export class NextDevInstance extends NextInstance {
                 msg,
               })
             }
-            this.off('stdout', readyCb)
+            // server might reload so we keep listening
             resolve()
           }
         }

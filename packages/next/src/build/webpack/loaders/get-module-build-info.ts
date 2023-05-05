@@ -28,12 +28,15 @@ export interface RSCMeta {
   type: RSCModuleType
   actions?: string[]
   clientRefs?: string[]
+  clientEntryType?: 'cjs' | 'auto'
+  isClientRef?: boolean
   requests?: string[] // client requests in flight client entry
 }
 
 export interface RouteMeta {
   page: string
   absolutePagePath: string
+  preferredRegion: string | string[] | undefined
 }
 
 export interface EdgeMiddlewareMeta {

@@ -321,6 +321,14 @@
               "path": "/docs/advanced-features/output-file-tracing.md"
             },
             {
+              "title": "Instrumentation",
+              "path": "/docs/advanced-features/instrumentation.md"
+            },
+            {
+              "title": "Open Telemetry",
+              "path": "/docs/advanced-features/open-telemetry.md"
+            },
+            {
               "title": "Security Headers",
               "path": "/docs/advanced-features/security-headers.md"
             },
@@ -507,6 +515,10 @@
             {
               "title": "CDN Support with Asset Prefix",
               "path": "/docs/api-reference/next.config.js/cdn-support-with-asset-prefix.md"
+            },
+            {
+              "title": "Custom Image Loader Config",
+              "path": "/docs/api-reference/next.config.js/custom-image-loader-config.md"
             },
             {
               "title": "Custom Webpack Config",

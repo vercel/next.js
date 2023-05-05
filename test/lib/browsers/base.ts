@@ -43,7 +43,11 @@ export class BrowserInterface implements PromiseLike<any> {
     })
   }
 
-  async setup(browserName: string, locale?: string): Promise<void> {}
+  async setup(
+    browserName: string,
+    locale: string,
+    javaScriptEnabled: boolean
+  ): Promise<void> {}
   async close(): Promise<void> {}
   async quit(): Promise<void> {}
 
@@ -122,10 +126,13 @@ export class BrowserInterface implements PromiseLike<any> {
   async getAttribute<T = any>(name: string): Promise<T> {
     return
   }
-  async eval<T = any>(snippet: string | Function): Promise<T> {
+  async eval<T = any>(snippet: string | Function, ...args: any[]): Promise<T> {
     return
   }
-  async evalAsync<T = any>(snippet: string | Function): Promise<T> {
+  async evalAsync<T = any>(
+    snippet: string | Function,
+    ...args: any[]
+  ): Promise<T> {
     return
   }
   async text(): Promise<string> {
@@ -148,4 +155,6 @@ export class BrowserInterface implements PromiseLike<any> {
   async url(): Promise<string> {
     return ''
   }
+
+  async waitForIdleNetwork(): Promise<void> {}
 }

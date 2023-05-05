@@ -92,7 +92,12 @@ export const createHeaderRoute = ({
           key = compileNonPath(key, params)
           value = compileNonPath(value, params)
         }
-        res.setHeader(key, value)
+
+        if (key.toLowerCase() === 'set-cookie') {
+          res.appendHeader(key, value)
+        } else {
+          res.setHeader(key, value)
+        }
       }
       return { finished: false }
     },

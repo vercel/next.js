@@ -217,9 +217,9 @@ If you submit this form, it will submit the data to the forms API endpoint `/api
 
 ## Part 4: Configuring Forms in Next.js
 
-You have created a Next.js API Route for form submission. Now it's time to configure the client (the form itself) inside Next.js using React. The first step will be extending your knowledge of HTML forms and converting it into React (using [JSX](https://reactjs.org/docs/introducing-jsx.html)).
+You have created a Next.js API Route for form submission. Now it's time to configure the client (the form itself) inside Next.js using React. The first step will be extending your knowledge of HTML forms and converting it into React (using [JSX](https://react.dev/learn/writing-markup-with-jsx)).
 
-Here's the same form in a [React function component](https://reactjs.org/docs/components-and-props.html) written using [JSX](https://reactjs.org/docs/introducing-jsx.html).
+Here's the same form in a [React function component](https://react.dev/reference/react/Component) written using [JSX](https://react.dev/learn/writing-markup-with-jsx).
 
 ```js
 export default function Form() {

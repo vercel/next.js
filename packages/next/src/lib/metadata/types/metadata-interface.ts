@@ -26,7 +26,9 @@ import type {
   ResolvedRobots,
   TemplateString,
   Verification,
+  ThemeColorDescriptor,
 } from './metadata-types'
+import type { Manifest as ManifestFile } from './manifest-types'
 import type { OpenGraph, ResolvedOpenGraph } from './opengraph-types'
 import type { ResolvedTwitterMetadata, Twitter } from './twitter-types'
 
@@ -131,9 +133,19 @@ interface Metadata extends DeprecatedMetadataFields {
    * ```tsx
    * "#000000"
    * <meta name="theme-color" content="#000000" />
+   *
+   * { media: "(prefers-color-scheme: dark)", color: "#000000" }
+   * <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
+   *
+   * [
+   *  { media: "(prefers-color-scheme: dark)", color: "#000000" },
+   *  { media: "(prefers-color-scheme: light)", color: "#ffffff" }
+   * ]
+   * <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
+   * <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
    * ```
    */
-  themeColor?: null | string
+  themeColor?: null | string | ThemeColorDescriptor | ThemeColorDescriptor[]
 
   /**
    * The color scheme for the document.
@@ -207,6 +219,22 @@ interface Metadata extends DeprecatedMetadataFields {
    * <link rel="canonical" href="https://example.com" />
    * <link rel="alternate" href="https://example.com/en-US" hreflang="en-US" />
    * ```
+   *
+   * Multiple titles example for alternate URLs except `canonical`:
+   * ```tsx
+   * {
+   *   canonical: "https://example.com",
+   *   types: {
+   *     'application/rss+xml': [
+   *       { url: 'blog.rss', title: 'rss' },
+   *       { url: 'blog/js.rss', title: 'js title' },
+   *     ],
+   *   },
+   * }
+   * <link rel="canonical" href="https://example.com" />
+   * <link rel="alternate" href="https://example.com/blog.rss" type="application/rss+xml" title="rss" />
+   * <link rel="alternate" href="https://example.com/blog/js.rss" type="application/rss+xml" title="js title" />
+   * ```
    */
   alternates?: null | AlternateURLs
 
@@ -219,11 +247,11 @@ interface Metadata extends DeprecatedMetadataFields {
    * "https://example.com/icon.png"
    * <link rel="icon" href="https://example.com/icon.png" />
    *
-   * { icon: "https://example.com/icon.png", appleIcon: "https://example.com/apple-icon.png" }
+   * { icon: "https://example.com/icon.png", apple: "https://example.com/apple-icon.png" }
    * <link rel="icon" href="https://example.com/icon.png" />
    * <link rel="apple-touch-icon" href="https://example.com/apple-icon.png" />
    *
-   * [{ rel: "icon", href: "https://example.com/icon.png" }, { rel: "apple-touch-icon", href: "https://example.com/apple-icon.png" }]
+   * [{ rel: "icon", url: "https://example.com/icon.png" }, { rel: "apple-touch-icon", url: "https://example.com/apple-icon.png" }]
    * <link rel="icon" href="https://example.com/icon.png" />
    * <link rel="apple-touch-icon" href="https://example.com/apple-icon.png" />
    * ```
@@ -231,7 +259,7 @@ interface Metadata extends DeprecatedMetadataFields {
   icons?: null | IconURL | Array<Icon> | Icons
 
   /**
-   * The manifest.json file is the only file that every extension using WebExtension APIs must contain
+   * A web application manifest, as defined in the Web Application Manifest specification.
    *
    * @see https://developer.mozilla.org/en-US/docs/Web/Manifest
    * @example
@@ -291,7 +319,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * The common verification tokens for the document.
    * @example
    * ```tsx
-   * { verification: { google: "google-site-verification=1234567890", yandex: "1234567890", "me": "1234567890" } }
+   * { verification: { google: "1234567890", yandex: "1234567890", "me": "1234567890" } }
    * <meta name="google-site-verification" content="1234567890" />
    * <meta name="yandex-verification" content="1234567890" />
    * <meta name="me" content="@me" />
@@ -444,7 +472,7 @@ interface ResolvedMetadata extends DeprecatedMetadataFields {
   // if you provide an array it will be flattened into a single tag with comma separation
   keywords: null | Array<string>
   referrer: null | ReferrerEnum
-  themeColor: null | string
+  themeColor: null | ThemeColorDescriptor[]
   colorScheme: null | ColorSchemeEnum
   viewport: null | string
   creator: null | string
@@ -507,5 +535,36 @@ interface ResolvedMetadata extends DeprecatedMetadataFields {
       } & DeprecatedMetadataFields)
 }
 
-export type ResolvingMetadata = Promise<ResolvedMetadata>
-export { Metadata, ResolvedMetadata }
+type RobotsFile = {
+  // Apply rules for all
+  rules:
+    | {
+        userAgent?: string | string[]
+        allow?: string | string[]
+        disallow?: string | string[]
+        crawlDelay?: number
+      }
+    // Apply rules for specific user agents
+    | Array<{
+        userAgent: string | string[]
+        allow?: string | string[]
+        disallow?: string | string[]
+        crawlDelay?: number
+      }>
+  sitemap?: string | string[]
+  host?: string
+}
+
+type SitemapFile = Array<{
+  url: string
+  lastModified?: string | Date
+}>
+
+type ResolvingMetadata = Promise<ResolvedMetadata>
+declare namespace MetadataRoute {
+  export type Robots = RobotsFile
+  export type Sitemap = SitemapFile
+  export type Manifest = ManifestFile
+}
+
+export { Metadata, ResolvedMetadata, ResolvingMetadata, MetadataRoute }

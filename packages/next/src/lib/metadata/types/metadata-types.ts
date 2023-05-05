@@ -150,3 +150,8 @@ export type ResolvedIcons = {
   shortcut?: IconDescriptor[]
   other?: IconDescriptor[]
 }
+
+export type ThemeColorDescriptor = {
+  color: string
+  media?: string
+}

@@ -1,5 +1,14 @@
-import { accumulateMetadata, MetadataItems } from './resolve-metadata'
+import {
+  accumulateMetadata as originAccumulateMetadata,
+  MetadataItems,
+} from './resolve-metadata'
 import { Metadata } from './types/metadata-interface'
+
+function accumulateMetadata(metadataItems: MetadataItems) {
+  return originAccumulateMetadata(metadataItems, {
+    pathname: '/test',
+  })
+}
 
 describe('accumulateMetadata', () => {
   describe('typing', () => {
@@ -54,49 +63,49 @@ describe('accumulateMetadata', () => {
     it('should convert string or URL images field to array, not only for basic og type', async () => {
       const items: [Metadata[], Metadata][] = [
         [
-          [{ openGraph: { type: 'article', images: 'https://test.com' } }],
-          { openGraph: { images: ['https://test.com'] } },
+          [{ openGraph: { type: 'article', images: 'https://test1.com' } }],
+          { openGraph: { images: [{ url: 'https://test1.com' }] } },
         ],
         [
-          [{ openGraph: { type: 'book', images: 'https://test.com' } }],
-          { openGraph: { images: ['https://test.com'] } },
+          [{ openGraph: { type: 'book', images: 'https://test2.com' } }],
+          { openGraph: { images: [{ url: 'https://test2.com' }] } },
         ],
         [
           [
             {
               openGraph: {
                 type: 'music.song',
-                images: new URL('https://test.com'),
+                images: new URL('https://test3.com'),
               },
             },
           ],
-          { openGraph: { images: [new URL('https://test.com')] } },
+          { openGraph: { images: [new URL('https://test3.com')] } },
         ],
         [
           [
             {
               openGraph: {
                 type: 'music.playlist',
-                images: { url: 'https://test.com' },
+                images: { url: 'https://test4.com' },
               },
             },
           ],
-          { openGraph: { images: [{ url: 'https://test.com' }] } },
+          { openGraph: { images: [{ url: 'https://test4.com' }] } },
         ],
         [
           [
             {
               openGraph: {
                 type: 'music.radio_station',
-                images: 'https://test.com',
+                images: 'https://test5.com',
               },
             },
           ],
-          { openGraph: { images: ['https://test.com'] } },
+          { openGraph: { images: [{ url: 'https://test5.com' }] } },
         ],
         [
-          [{ openGraph: { type: 'video.movie', images: 'https://test.com' } }],
-          { openGraph: { images: ['https://test.com'] } },
+          [{ openGraph: { type: 'video.movie', images: 'https://test6.com' } }],
+          { openGraph: { images: [{ url: 'https://test6.com' }] } },
         ],
       ]
 
@@ -106,6 +115,194 @@ describe('accumulateMetadata', () => {
           configuredMetadata.map((m) => [m, null])
         )
         expect(metadata).toMatchObject(result)
+      })
+    })
+  })
+
+  describe('themeColor', () => {
+    it('should support string theme color', async () => {
+      const metadataItems: MetadataItems = [
+        [{ themeColor: '#000' }, null],
+        [{ themeColor: '#fff' }, null],
+      ]
+      const metadata = await accumulateMetadata(metadataItems)
+      console.log('xxmetadata', metadata.themeColor)
+      expect(metadata).toMatchObject({
+        themeColor: [{ color: '#fff' }],
+      })
+    })
+
+    it('should support theme color descriptors', async () => {
+      const metadataItems1: MetadataItems = [
+        [
+          {
+            themeColor: {
+              media: '(prefers-color-scheme: light)',
+              color: '#fff',
+            },
+          },
+          null,
+        ],
+        [
+          {
+            themeColor: {
+              media: '(prefers-color-scheme: dark)',
+              color: 'cyan',
+            },
+          },
+          null,
+        ],
+      ]
+      const metadata1 = await accumulateMetadata(metadataItems1)
+      expect(metadata1).toMatchObject({
+        themeColor: [{ media: '(prefers-color-scheme: dark)', color: 'cyan' }],
+      })
+
+      const metadataItems2: MetadataItems = [
+        [
+          {
+            themeColor: [
+              { media: '(prefers-color-scheme: light)', color: '#fff' },
+              { media: '(prefers-color-scheme: dark)', color: 'cyan' },
+            ],
+          },
+          null,
+        ],
+      ]
+      const metadata2 = await accumulateMetadata(metadataItems2)
+      expect(metadata2).toMatchObject({
+        themeColor: [
+          { media: '(prefers-color-scheme: light)', color: '#fff' },
+          { media: '(prefers-color-scheme: dark)', color: 'cyan' },
+        ],
+      })
+    })
+  })
+
+  describe('viewport', () => {
+    it('should support string viewport', async () => {
+      const metadataItems: MetadataItems = [
+        [
+          { viewport: 'width=device-width, initial-scale=1, shrink-to-fit=no' },
+          null,
+        ],
+      ]
+      const metadata = await accumulateMetadata(metadataItems)
+      expect(metadata).toMatchObject({
+        viewport: 'width=device-width, initial-scale=1, shrink-to-fit=no',
+      })
+    })
+
+    it('should support viewport descriptors', async () => {
+      const metadataItems: MetadataItems = [
+        [
+          {
+            viewport: {
+              width: 'device-width',
+              height: 'device-height',
+              initialScale: 1,
+              minimumScale: 1,
+              maximumScale: 1,
+              viewportFit: 'cover',
+              userScalable: false,
+              interactiveWidget: 'overlays-content',
+            },
+          },
+          null,
+        ],
+      ]
+      const metadata = await accumulateMetadata(metadataItems)
+      expect(metadata).toMatchObject({
+        viewport:
+          'width=device-width, height=device-height, initial-scale=1, minimum-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no, interactive-widget=overlays-content',
+      })
+    })
+  })
+
+  describe('alternate', () => {
+    it('should support string alternate', async () => {
+      const metadataItems: MetadataItems = [
+        [
+          {
+            alternates: {
+              canonical: '/relative',
+              languages: {
+                'en-US': 'https://example.com/en-US',
+                'de-DE': 'https://example.com/de-DE',
+              },
+              media: {
+                'only screen and (max-width: 600px)': '/mobile',
+              },
+              types: {
+                'application/rss+xml': 'https://example.com/rss',
+              },
+            },
+          },
+          null,
+        ],
+      ]
+      const metadata = await accumulateMetadata(metadataItems)
+      expect(metadata).toMatchObject({
+        alternates: {
+          canonical: { url: '/relative' },
+          languages: {
+            'en-US': [{ url: 'https://example.com/en-US' }],
+            'de-DE': [{ url: 'https://example.com/de-DE' }],
+          },
+          media: {
+            'only screen and (max-width: 600px)': [{ url: '/mobile' }],
+          },
+          types: {
+            'application/rss+xml': [{ url: 'https://example.com/rss' }],
+          },
+        },
+      })
+    })
+
+    it('should support alternate descriptors', async () => {
+      const metadataItems: MetadataItems = [
+        [
+          {
+            alternates: {
+              canonical: '/relative',
+              languages: {
+                'en-US': [
+                  { url: '/en-US', title: 'en' },
+                  { url: '/zh_CN', title: 'zh' },
+                ],
+              },
+              media: {
+                'only screen and (max-width: 600px)': [
+                  { url: '/mobile', title: 'mobile' },
+                ],
+              },
+              types: {
+                'application/rss+xml': 'https://example.com/rss',
+              },
+            },
+          },
+          null,
+        ],
+      ]
+      const metadata = await accumulateMetadata(metadataItems)
+      expect(metadata).toMatchObject({
+        alternates: {
+          canonical: { url: '/relative' },
+          languages: {
+            'en-US': [
+              { url: '/en-US', title: 'en' },
+              { url: '/zh_CN', title: 'zh' },
+            ],
+          },
+          media: {
+            'only screen and (max-width: 600px)': [
+              { url: '/mobile', title: 'mobile' },
+            ],
+          },
+          types: {
+            'application/rss+xml': [{ url: 'https://example.com/rss' }],
+          },
+        },
       })
     })
   })

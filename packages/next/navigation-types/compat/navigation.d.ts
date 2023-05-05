@@ -19,6 +19,11 @@ declare module 'next/navigation' {
    */
   export function usePathname(): string | null
 
-  // Re-export the types for next/navigation.
-  export * from 'next/dist/client/components/navigation'
+  /**
+   * Get the current parameters. For example useParams() on /dashboard/[team]
+   * where pathname is /dashboard/nextjs would return { team: 'nextjs' }
+   *
+   * If used from `pages/`, the hook will return `null`.
+   */
+  export function useParams(): Record<string, string | string[]> | null
 }

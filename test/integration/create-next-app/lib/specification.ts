@@ -56,16 +56,46 @@ export const projectSpecification: ProjectSpecification = {
       devDeps: [],
     },
   },
+  'default-tw': {
+    js: {
+      files: [
+        'jsconfig.json',
+        'pages/_app.js',
+        'pages/api/hello.js',
+        'pages/index.js',
+        'postcss.config.js',
+        'tailwind.config.js',
+      ],
+      deps: ['autoprefixer', 'postcss', 'tailwindcss'],
+      devDeps: [],
+    },
+    ts: {
+      files: [
+        'next-env.d.ts',
+        'pages/_app.tsx',
+        'pages/api/hello.ts',
+        'pages/index.tsx',
+        'postcss.config.js',
+        'tailwind.config.js',
+        'tsconfig.json',
+      ],
+      deps: [
+        '@types/node',
+        '@types/react-dom',
+        '@types/react',
+        'autoprefixer',
+        'postcss',
+        'tailwindcss',
+        'typescript',
+      ],
+      devDeps: [],
+    },
+  },
   app: {
     js: {
       deps: [],
       devDeps: [],
-      files: [
-        'app/page.js',
-        'app/layout.js',
-        'app/api/hello/route.js',
-        'jsconfig.json',
-      ],
+      files: ['app/page.js', 'app/layout.js', 'jsconfig.json'],
     },
     ts: {
       deps: ['@types/node', '@types/react', '@types/react-dom', 'typescript'],
@@ -73,9 +103,41 @@ export const projectSpecification: ProjectSpecification = {
       files: [
         'app/page.tsx',
         'app/layout.tsx',
-        'app/api/hello/route.ts',
         'tsconfig.json',
         'next-env.d.ts',
+      ],
+    },
+  },
+  'app-tw': {
+    js: {
+      deps: ['autoprefixer', 'postcss', 'tailwindcss'],
+      devDeps: [],
+      files: [
+        'app/layout.js',
+        'app/page.js',
+        'jsconfig.json',
+        'postcss.config.js',
+        'tailwind.config.js',
+      ],
+    },
+    ts: {
+      deps: [
+        '@types/node',
+        '@types/react-dom',
+        '@types/react',
+        'autoprefixer',
+        'postcss',
+        'tailwindcss',
+        'typescript',
+      ],
+      devDeps: [],
+      files: [
+        'app/layout.tsx',
+        'app/page.tsx',
+        'next-env.d.ts',
+        'postcss.config.js',
+        'tailwind.config.js',
+        'tsconfig.json',
       ],
     },
   },

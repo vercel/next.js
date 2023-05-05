@@ -1,20 +1,22 @@
-use std::collections::HashMap;
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
 use regex::Regex;
 use serde::Deserialize;
-
-use next_binding::swc::core::{
+use turbo_binding::swc::core::{
     common::{
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
         FileName, Span, Spanned, DUMMY_SP,
     },
-    ecma::ast::*,
-    ecma::atoms::{js_word, JsWord},
-    ecma::utils::{prepend_stmts, quote_ident, quote_str, ExprFactory},
-    ecma::visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
+    ecma::{
+        ast::*,
+        atoms::{js_word, JsWord},
+        utils::{prepend_stmts, quote_ident, quote_str, ExprFactory},
+        visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
+    },
 };
+
+use crate::auto_cjs::contains_cjs;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(untagged)]
@@ -59,17 +61,24 @@ impl<C: Comments> VisitMut for ReactServerComponents<C> {
     noop_visit_mut_type!();
 
     fn visit_mut_module(&mut self, module: &mut Module) {
-        let (is_client_entry, imports) = self.collect_top_level_directives_and_imports(module);
+        let (is_client_entry, is_action_file, imports) =
+            self.collect_top_level_directives_and_imports(module);
+        let is_cjs = contains_cjs(module);
 
         if self.is_server {
             if !is_client_entry {
                 self.assert_server_graph(&imports, module);
             } else {
-                self.to_module_ref(module);
+                self.to_module_ref(module, is_cjs);
                 return;
             }
         } else {
-            self.assert_client_graph(&imports, module);
+            if !is_action_file {
+                self.assert_client_graph(&imports, module);
+            }
+            if is_client_entry {
+                self.prepend_comment_node(module, is_cjs);
+            }
         }
         module.visit_mut_children_with(self)
     }
@@ -81,10 +90,24 @@ impl<C: Comments> ReactServerComponents<C> {
     fn collect_top_level_directives_and_imports(
         &mut self,
         module: &mut Module,
-    ) -> (bool, Vec<ModuleImports>) {
+    ) -> (bool, bool, Vec<ModuleImports>) {
         let mut imports: Vec<ModuleImports> = vec![];
         let mut finished_directives = false;
         let mut is_client_entry = false;
+        let mut is_action_file = false;
+
+        fn panic_both_directives(span: Span) {
+            // It's not possible to have both directives in the same file.
+            HANDLER.with(|handler| {
+                handler
+                    .struct_span_err(
+                        span,
+                        "It's not possible to have both `use client` and `use server` directives \
+                         in the same file.",
+                    )
+                    .emit()
+            })
+        }
 
         let _ = &module.body.retain(|item| {
             match item {
@@ -101,6 +124,10 @@ impl<C: Comments> ReactServerComponents<C> {
                                     if &**value == "use client" {
                                         if !finished_directives {
                                             is_client_entry = true;
+
+                                            if is_action_file {
+                                                panic_both_directives(expr_stmt.span)
+                                            }
                                         } else {
                                             HANDLER.with(|handler| {
                                                 handler
@@ -114,6 +141,12 @@ impl<C: Comments> ReactServerComponents<C> {
 
                                         // Remove the directive.
                                         return false;
+                                    } else if &**value == "use server" && !finished_directives {
+                                        is_action_file = true;
+
+                                        if is_client_entry {
+                                            panic_both_directives(expr_stmt.span)
+                                        }
                                     }
                                 }
                                 // Match `ParenthesisExpression` which is some formatting tools
@@ -224,12 +257,12 @@ impl<C: Comments> ReactServerComponents<C> {
             true
         });
 
-        (is_client_entry, imports)
+        (is_client_entry, is_action_file, imports)
     }
 
     // Convert the client module to the module reference code and add a special
     // comment to the top of the file.
-    fn to_module_ref(&self, module: &mut Module) {
+    fn to_module_ref(&self, module: &mut Module, is_cjs: bool) {
         // Clear all the statements and module declarations.
         module.body.clear();
 
@@ -286,19 +319,7 @@ impl<C: Comments> ReactServerComponents<C> {
             .into_iter(),
         );
 
-        // Prepend a special comment to the top of the file.
-        self.comments.add_leading(
-            module.span.lo,
-            Comment {
-                span: DUMMY_SP,
-                kind: CommentKind::Block,
-                text: format!(
-                    " __next_internal_client_entry_do_not_use__ {} ",
-                    self.export_names.join(",")
-                )
-                .into(),
-            },
-        );
+        self.prepend_comment_node(module, is_cjs);
     }
 
     fn assert_server_graph(&self, imports: &[ModuleImports], module: &Module) {
@@ -470,8 +491,11 @@ impl<C: Comments> ReactServerComponents<C> {
                         handler
                             .struct_span_err(
                                 span,
-                                format!("NEXT_RSC_ERR_INVALID_API: {}", invalid_export_name)
-                                    .as_str(),
+                                format!(
+                                    "NEXT_RSC_ERR_CLIENT_METADATA_EXPORT: {}",
+                                    invalid_export_name
+                                )
+                                .as_str(),
                             )
                             .emit()
                     })
@@ -481,11 +505,7 @@ impl<C: Comments> ReactServerComponents<C> {
                 if has_gm_export && has_metadata_export {
                     HANDLER.with(|handler| {
                         handler
-                            .struct_span_err(
-                                span,
-                                "NEXT_RSC_ERR_INVALID_API: export generateMetadata and metadata \
-                                 together",
-                            )
+                            .struct_span_err(span, "NEXT_RSC_ERR_CONFLICT_METADATA_EXPORT")
                             .emit()
                     })
                 }
@@ -504,6 +524,24 @@ impl<C: Comments> ReactServerComponents<C> {
                 })
             }
         }
+    }
+
+    fn prepend_comment_node(&self, module: &Module, is_cjs: bool) {
+        // Prepend a special comment to the top of the file that contains
+        // module export names and the detected module type.
+        self.comments.add_leading(
+            module.span.lo,
+            Comment {
+                span: DUMMY_SP,
+                kind: CommentKind::Block,
+                text: format!(
+                    " __next_internal_client_entry_do_not_use__ {} {} ",
+                    self.export_names.join(","),
+                    if is_cjs { "cjs" } else { "auto" }
+                )
+                .into(),
+            },
+        );
     }
 }
 

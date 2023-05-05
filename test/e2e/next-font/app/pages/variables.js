@@ -1,13 +1,14 @@
 import { Fira_Code, Roboto } from 'next/font/google'
 import localFont from 'next/font/local'
 
-const firaCode = Fira_Code({ variable: '--fira-code' })
+const firaCode = Fira_Code({ variable: '--fira-code', subsets: ['latin'] })
 const roboto = Roboto({
   weight: '100',
   style: 'italic',
   display: 'swap',
   preload: true,
   variable: '--roboto-100-italic',
+  subsets: ['latin'],
 })
 const myFont = localFont({
   src: '../fonts/my-font.woff2',

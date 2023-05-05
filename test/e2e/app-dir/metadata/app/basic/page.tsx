@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import Client from './client'
 
 export default function Page() {
   return (
@@ -11,6 +12,7 @@ export default function Page() {
       <Link href="/title-template/extra/inner" id="to-nested">
         to /title-template/extra/inner
       </Link>
+      <Client />
     </div>
   )
 }
@@ -21,10 +23,15 @@ export const metadata: Metadata = {
   referrer: 'origin-when-cross-origin',
   keywords: ['next.js', 'react', 'javascript'],
   authors: [{ name: 'huozhi' }, { name: 'tree', url: 'https://tree.com' }],
-  themeColor: 'cyan',
+  themeColor: { color: 'cyan', media: '(prefers-color-scheme: dark)' },
   colorScheme: 'dark',
-  manifest: 'https://github.com/manifest.json',
-  viewport: 'width=device-width, initial-scale=1, shrink-to-fit=no',
+  manifest: 'https://www.google.com/manifest',
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+    interactiveWidget: 'resizes-visual',
+  },
   creator: 'shu',
   publisher: 'vercel',
   robots: 'index, follow',

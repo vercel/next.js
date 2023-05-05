@@ -323,7 +323,7 @@ for (const variant of ['default', 'turbo']) {
       await session.patch('index.module.css', `.button {`)
       expect(await session.hasRedbox(true)).toBe(true)
       const source = await session.getRedboxSource()
-      expect(source).toMatch('./index.module.css:1:1')
+      expect(source).toMatch('./index.module.css (1:1)')
       expect(source).toMatch('Syntax error: ')
       expect(source).toMatch('Unclosed block')
       expect(source).toMatch('> 1 | .button {')

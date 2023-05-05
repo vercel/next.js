@@ -1,9 +1,10 @@
 module.exports = {
   experimental: {
-    appDir: true,
+    clientRouterFilterRedirects: true,
     sri: {
       algorithm: 'sha256',
     },
+    webpackBuildWorker: true,
   },
   // output: 'standalone',
   rewrites: async () => {
@@ -45,12 +46,12 @@ module.exports = {
         permanent: false,
       },
       {
-        source: '/redirect-3/some/:path*',
+        source: '/redirect-3/some',
         destination: 'https://example.vercel.sh',
         permanent: false,
       },
       {
-        source: '/redirect-4/:path*',
+        source: '/redirect-4',
         destination: 'https://example.vercel.sh',
         permanent: false,
       },

@@ -15,7 +15,7 @@ export function getNextFontError(
     }
 
     // Parse the query and get the path of the file where the font function was called.
-    // provided by next-swc next_font_loaders
+    // provided by next-swc next-transform-font
     const file = JSON.parse(resourceResolveData.query.slice(1)).path
 
     if (err.name === 'NextFontError') {

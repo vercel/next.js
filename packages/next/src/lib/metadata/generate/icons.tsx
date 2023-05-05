@@ -3,21 +3,18 @@ import type { Icon, IconDescriptor } from '../types/metadata-types'
 
 import React from 'react'
 
-const resolveUrl = (url: string | URL) =>
-  typeof url === 'string' ? url : url.toString()
-
 function IconDescriptorLink({ icon }: { icon: IconDescriptor }) {
   const { url, rel = 'icon', ...props } = icon
 
-  return <link rel={rel} href={resolveUrl(url)} {...props} />
+  return <link rel={rel} href={url.toString()} {...props} />
 }
 
 function IconLink({ rel, icon }: { rel?: string; icon: Icon }) {
   if (typeof icon === 'object' && !(icon instanceof URL)) {
-    if (rel) icon.rel = rel
+    if (!icon.rel && rel) icon.rel = rel
     return <IconDescriptorLink icon={icon} />
   } else {
-    const href = resolveUrl(icon)
+    const href = icon.toString()
     return <link rel={rel} href={href} />
   }
 }

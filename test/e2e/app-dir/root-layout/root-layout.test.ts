@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import { getRedboxSource, hasRedbox } from 'next-test-utils'
+import { check, getRedboxSource, hasRedbox } from 'next-test-utils'
 
 createNextDescribe(
   'app-dir root layout',
@@ -111,17 +111,23 @@ createNextDescribe(
         await browser.eval('window.__TEST_NO_RELOAD = true')
 
         // Navigate to page with same root layout
-        await browser.elementByCss('a').click()
-        expect(
-          await browser.waitForElementByCss('#parallel-one-inner').text()
-        ).toBe('One inner')
-        expect(await browser.eval('window.__TEST_NO_RELOAD')).toBeTrue()
+        await check(async () => {
+          await browser.elementByCss('a').click()
+          expect(
+            await browser.waitForElementByCss('#parallel-one-inner').text()
+          ).toBe('One inner')
+          expect(await browser.eval('window.__TEST_NO_RELOAD')).toBeTrue()
+          return 'success'
+        }, 'success')
 
         // Navigate to page with different root layout
-        await browser.elementByCss('a').click()
-        expect(await browser.waitForElementByCss('#dynamic-hello').text()).toBe(
-          'dynamic hello'
-        )
+        await check(async () => {
+          await browser.elementByCss('a').click()
+          expect(
+            await browser.waitForElementByCss('#dynamic-hello').text()
+          ).toBe('dynamic hello')
+          return 'success'
+        }, 'success')
         expect(await browser.eval('window.__TEST_NO_RELOAD')).toBeUndefined()
       })
 
@@ -192,6 +198,11 @@ createNextDescribe(
           'Basic route'
         )
         expect(await browser.eval('window.__TEST_NO_RELOAD')).toBeUndefined()
+
+        const res = await next.fetch(
+          `${next.url}/static-mpa-navigation/slug-not-existed`
+        )
+        expect(res.status).toBe(404)
       })
     })
 

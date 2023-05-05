@@ -1,7 +1,5 @@
-import path from '../../../shared/lib/isomorphic/path'
 import { isAPIRoute } from '../../../lib/is-api-route'
-import { PAGES_MANIFEST, SERVER_DIRECTORY } from '../../../shared/lib/constants'
-import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
+import { PAGES_MANIFEST } from '../../../shared/lib/constants'
 import { RouteKind } from '../route-kind'
 import {
   PagesAPILocaleRouteMatcher,
@@ -12,15 +10,20 @@ import {
   ManifestLoader,
 } from './helpers/manifest-loaders/manifest-loader'
 import { ManifestRouteMatcherProvider } from './manifest-route-matcher-provider'
-import { LocaleRouteNormalizer } from '../normalizers/locale-route-normalizer'
+import { I18NProvider } from '../helpers/i18n-provider'
+import { PagesNormalizers } from '../normalizers/built/pages'
 
 export class PagesAPIRouteMatcherProvider extends ManifestRouteMatcherProvider<PagesAPIRouteMatcher> {
+  private readonly normalizers: PagesNormalizers
+
   constructor(
-    private readonly distDir: string,
+    distDir: string,
     manifestLoader: ManifestLoader,
-    private readonly localeNormalizer?: LocaleRouteNormalizer
+    private readonly i18nProvider?: I18NProvider
   ) {
     super(PAGES_MANIFEST, manifestLoader)
+
+    this.normalizers = new PagesNormalizers(distDir)
   }
 
   protected async transform(
@@ -34,17 +37,17 @@ export class PagesAPIRouteMatcherProvider extends ManifestRouteMatcherProvider<P
     const matchers: Array<PagesAPIRouteMatcher> = []
 
     for (const page of pathnames) {
-      if (this.localeNormalizer) {
+      if (this.i18nProvider) {
         // Match the locale on the page name, or default to the default locale.
-        const { detectedLocale, pathname } = this.localeNormalizer.match(page)
+        const { detectedLocale, pathname } = this.i18nProvider.analyze(page)
 
         matchers.push(
           new PagesAPILocaleRouteMatcher({
             kind: RouteKind.PAGES_API,
             pathname,
             page,
-            bundlePath: path.join('pages', normalizePagePath(page)),
-            filename: path.join(this.distDir, SERVER_DIRECTORY, manifest[page]),
+            bundlePath: this.normalizers.bundlePath.normalize(page),
+            filename: this.normalizers.filename.normalize(manifest[page]),
             i18n: {
               locale: detectedLocale,
             },
@@ -56,8 +59,8 @@ export class PagesAPIRouteMatcherProvider extends ManifestRouteMatcherProvider<P
             kind: RouteKind.PAGES_API,
             pathname: page,
             page,
-            bundlePath: path.join('pages', normalizePagePath(page)),
-            filename: path.join(this.distDir, SERVER_DIRECTORY, manifest[page]),
+            bundlePath: this.normalizers.bundlePath.normalize(page),
+            filename: this.normalizers.filename.normalize(manifest[page]),
           })
         )
       }

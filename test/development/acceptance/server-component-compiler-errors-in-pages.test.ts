@@ -64,8 +64,8 @@ createNextDescribe(
            \`----
 
         Import trace for requested module:
-          components/Comp.js
-          pages/index.js"
+          ./components/Comp.js
+          ./pages/index.js"
       `)
 
       await cleanup()
@@ -106,8 +106,8 @@ createNextDescribe(
            \`----
 
         Import trace for requested module:
-          components/Comp.js
-          pages/index.js"
+          ./components/Comp.js
+          ./pages/index.js"
       `)
 
       await cleanup()

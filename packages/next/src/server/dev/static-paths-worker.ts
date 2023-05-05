@@ -1,6 +1,9 @@
 import type { NextConfigComplete } from '../config-shared'
+import type { AppRouteUserlandModule } from '../future/route-modules/app-route/module'
 
+import '../require-hook'
 import '../node-polyfill-fetch'
+import '../node-environment'
 import {
   buildAppStaticPaths,
   buildStaticPaths,
@@ -9,23 +12,11 @@ import {
 } from '../../build/utils'
 import { loadComponents } from '../load-components'
 import { setHttpClientAndAgentOptions } from '../config'
-import {
-  loadRequireHook,
-  overrideBuiltInReactPackages,
-} from '../../build/webpack/require-hook'
+import { IncrementalCache } from '../lib/incremental-cache'
+import * as serverHooks from '../../client/components/hooks-server-context'
+import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
 
 type RuntimeConfig = any
-
-loadRequireHook()
-if (process.env.NEXT_PREBUNDLED_REACT) {
-  overrideBuiltInReactPackages()
-}
-
-let workerWasUsed = false
-
-// expose AsyncLocalStorage on globalThis for react usage
-const { AsyncLocalStorage } = require('async_hooks')
-;(globalThis as any).AsyncLocalStorage = AsyncLocalStorage
 
 // we call getStaticPaths in a separate process to ensure
 // side-effects aren't relied on in dev that will break
@@ -35,37 +26,38 @@ export async function loadStaticPaths({
   pathname,
   config,
   httpAgentOptions,
-  enableUndici,
   locales,
   defaultLocale,
   isAppPath,
   originalAppPath,
+  isrFlushToDisk,
+  fetchCacheKeyPrefix,
+  maxMemoryCacheSize,
+  requestHeaders,
+  incrementalCacheHandlerPath,
 }: {
   distDir: string
   pathname: string
   config: RuntimeConfig
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
-  enableUndici: NextConfigComplete['enableUndici']
   locales?: string[]
   defaultLocale?: string
   isAppPath?: boolean
   originalAppPath?: string
+  isrFlushToDisk?: boolean
+  fetchCacheKeyPrefix?: string
+  maxMemoryCacheSize?: number
+  requestHeaders: IncrementalCache['requestHeaders']
+  incrementalCacheHandlerPath?: string
 }): Promise<{
   paths?: string[]
   encodedPaths?: string[]
   fallback?: boolean | 'blocking'
 }> {
-  // we only want to use each worker once to prevent any invalid
-  // caches
-  if (workerWasUsed) {
-    process.exit(1)
-  }
-
   // update work memory runtime-config
   require('../../shared/lib/runtime-config').setConfig(config)
   setHttpClientAndAgentOptions({
     httpAgentOptions,
-    experimental: { enableUndici },
   })
 
   const components = await loadComponents({
@@ -82,32 +74,40 @@ export async function loadStaticPaths({
       `Invariant: failed to load page with getStaticPaths for ${pathname}`
     )
   }
-  workerWasUsed = true
 
   if (isAppPath) {
-    const handlers = components.ComponentMod.handlers
-    const generateParams: GenerateParams = handlers
+    const userland: AppRouteUserlandModule | undefined =
+      components.ComponentMod.routeModule?.userland
+    const generateParams: GenerateParams = userland
       ? [
           {
             config: {
-              revalidate: handlers.revalidate,
-              dynamic: handlers.dynamic,
-              dynamicParams: handlers.dynamicParams,
+              revalidate: userland.revalidate,
+              dynamic: userland.dynamic,
+              dynamicParams: userland.dynamicParams,
             },
-            generateStaticParams: handlers.generateStaticParams,
+            generateStaticParams: userland.generateStaticParams,
             segmentPath: pathname,
           },
         ]
       : await collectGenerateParams(components.ComponentMod.tree)
 
-    return buildAppStaticPaths({
+    return await buildAppStaticPaths({
       page: pathname,
       generateParams,
       configFileName: config.configFileName,
+      distDir,
+      requestHeaders,
+      incrementalCacheHandlerPath,
+      serverHooks,
+      staticGenerationAsyncStorage,
+      isrFlushToDisk,
+      fetchCacheKeyPrefix,
+      maxMemoryCacheSize,
     })
   }
 
-  return buildStaticPaths({
+  return await buildStaticPaths({
     page: pathname,
     getStaticPaths: components.getStaticPaths,
     configFileName: config.configFileName,

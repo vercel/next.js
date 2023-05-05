@@ -21,5 +21,6 @@ export function restoreReducer(
     prefetchCache: state.prefetchCache,
     // Restore provided tree
     tree: tree,
+    nextUrl: url.pathname,
   }
 }

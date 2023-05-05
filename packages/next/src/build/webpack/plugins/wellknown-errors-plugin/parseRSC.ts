@@ -1,6 +1,6 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 
-import { getModuleTrace, getImportTraceForOverlay } from './getModuleTrace'
+import { getModuleTrace, formatModuleTrace } from './getModuleTrace'
 import { SimpleWebpackError } from './simpleWebpackError'
 
 function formatRSCErrorMessage(
@@ -16,6 +16,10 @@ function formatRSCErrorMessage(
   const NEXT_RSC_ERR_REACT_API = /.+NEXT_RSC_ERR_REACT_API: (.*?)\n/s
   const NEXT_RSC_ERR_SERVER_IMPORT = /.+NEXT_RSC_ERR_SERVER_IMPORT: (.*?)\n/s
   const NEXT_RSC_ERR_CLIENT_IMPORT = /.+NEXT_RSC_ERR_CLIENT_IMPORT: (.*?)\n/s
+  const NEXT_RSC_ERR_CLIENT_METADATA_EXPORT =
+    /.+NEXT_RSC_ERR_CLIENT_METADATA_EXPORT: (.*?)\n/s
+  const NEXT_RSC_ERR_CONFLICT_METADATA_EXPORT =
+    /NEXT_RSC_ERR_CONFLICT_METADATA_EXPORT/s
   const NEXT_RSC_ERR_CLIENT_DIRECTIVE = /.+NEXT_RSC_ERR_CLIENT_DIRECTIVE\n/s
   const NEXT_RSC_ERR_CLIENT_DIRECTIVE_PAREN =
     /.+NEXT_RSC_ERR_CLIENT_DIRECTIVE_PAREN\n/s
@@ -36,6 +40,7 @@ function formatRSCErrorMessage(
     formattedVerboseMessage =
       '\n\nMaybe one of these should be marked as a client entry with "use client":\n'
   } else if (NEXT_RSC_ERR_SERVER_IMPORT.test(message)) {
+    let shouldAddUseClient = true
     const matches = message.match(NEXT_RSC_ERR_SERVER_IMPORT)
     switch (matches && matches[1]) {
       case 'react-dom/server':
@@ -45,6 +50,7 @@ function formatRSCErrorMessage(
       case 'next/router':
         // If importing "next/router", we should tell them to use "next/navigation".
         formattedMessage = `\n\nYou have a Server Component that imports next/router. Use next/navigation instead.`
+        shouldAddUseClient = false
         break
       default:
         formattedMessage = message.replace(
@@ -52,8 +58,9 @@ function formatRSCErrorMessage(
           `\n\nYou're importing a component that imports $1. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.\n\n`
         )
     }
-    formattedVerboseMessage =
-      '\n\nMaybe one of these should be marked as a client entry "use client":\n'
+    formattedVerboseMessage = shouldAddUseClient
+      ? '\n\nMaybe one of these should be marked as a client entry "use client":\n'
+      : '\n\nImport trace:\n'
   } else if (NEXT_RSC_ERR_CLIENT_IMPORT.test(message)) {
     if (isPagesDir) {
       formattedMessage = message.replace(
@@ -93,6 +100,20 @@ function formatRSCErrorMessage(
       `\n\n${fileName} must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.\n\n`
     )
     formattedVerboseMessage = '\n\nImport path:\n'
+  } else if (NEXT_RSC_ERR_CLIENT_METADATA_EXPORT.test(message)) {
+    formattedMessage = message.replace(
+      NEXT_RSC_ERR_CLIENT_METADATA_EXPORT,
+      `\n\nYou are attempting to export "$1" from a component marked with "use client", which is disallowed. Either remove the export, or the "use client" directive. Read more: https://beta.nextjs.org/docs/api-reference/metadata\n\n`
+    )
+
+    formattedVerboseMessage = '\n\nFile path:\n'
+  } else if (NEXT_RSC_ERR_CONFLICT_METADATA_EXPORT.test(message)) {
+    formattedMessage = message.replace(
+      NEXT_RSC_ERR_CONFLICT_METADATA_EXPORT,
+      `\n\n"metadata" and "generateMetadata" cannot be exported at the same time, please keep one of them. Read more: https://beta.nextjs.org/docs/api-reference/metadata\n\n`
+    )
+
+    formattedVerboseMessage = '\n\nFile path:\n'
   }
 
   return [formattedMessage, formattedVerboseMessage]
@@ -123,12 +144,16 @@ export function getRscError(
     fileName
   )
 
+  const { formattedModuleTrace, lastInternalFileName, invalidImportMessage } =
+    formatModuleTrace(compiler, moduleTrace)
+
   const error = new SimpleWebpackError(
-    fileName,
+    lastInternalFileName,
     'ReactServerComponentsError:\n' +
       formattedError[0] +
+      invalidImportMessage +
       formattedError[1] +
-      getImportTraceForOverlay(compiler, moduleTrace)
+      formattedModuleTrace
   )
 
   // Delete the stack because it's created here.

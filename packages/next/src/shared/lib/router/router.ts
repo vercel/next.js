@@ -538,7 +538,7 @@ function fetchNextData({
               return { dataHref, response, text, json: {}, cacheKey }
             }
 
-            if (!hasMiddleware && response.status === 404) {
+            if (response.status === 404) {
               if (tryToParseAsJSON(text)?.notFound) {
                 return {
                   dataHref,
@@ -1055,6 +1055,72 @@ export default class Router implements BaseRouter {
     return this.change('replaceState', url, as, options)
   }
 
+  async _bfl(
+    as: string,
+    resolvedAs?: string,
+    locale?: string | false,
+    skipNavigate?: boolean
+  ) {
+    if (process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED) {
+      let matchesBflStatic = false
+      let matchesBflDynamic = false
+
+      for (const curAs of [as, resolvedAs]) {
+        if (curAs) {
+          const asNoSlash = removeTrailingSlash(
+            new URL(curAs, 'http://n').pathname
+          )
+          const asNoSlashLocale = addBasePath(
+            addLocale(asNoSlash, locale || this.locale)
+          )
+
+          if (
+            asNoSlash !==
+            removeTrailingSlash(new URL(this.asPath, 'http://n').pathname)
+          ) {
+            matchesBflStatic =
+              matchesBflStatic ||
+              !!this._bfl_s?.has(asNoSlash) ||
+              !!this._bfl_s?.has(asNoSlashLocale)
+
+            for (const normalizedAS of [asNoSlash, asNoSlashLocale]) {
+              // if any sub-path of as matches a dynamic filter path
+              // it should be hard navigated
+              const curAsParts = normalizedAS.split('/')
+              for (
+                let i = 0;
+                !matchesBflDynamic && i < curAsParts.length + 1;
+                i++
+              ) {
+                const currentPart = curAsParts.slice(0, i).join('/')
+                if (currentPart && this._bfl_d?.has(currentPart)) {
+                  matchesBflDynamic = true
+                  break
+                }
+              }
+            }
+
+            // if the client router filter is matched then we trigger
+            // a hard navigation
+            if (matchesBflStatic || matchesBflDynamic) {
+              if (skipNavigate) {
+                return true
+              }
+              handleHardNavigation({
+                url: addBasePath(
+                  addLocale(as, locale || this.locale, this.defaultLocale)
+                ),
+                router: this,
+              })
+              return new Promise(() => {})
+            }
+          }
+        }
+      }
+    }
+    return false
+  }
+
   private async change(
     method: HistoryMethod,
     url: string,
@@ -1071,36 +1137,8 @@ export default class Router implements BaseRouter {
     // any time without notice.
     const isQueryUpdating = (options as any)._h === 1
 
-    if (process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED) {
-      const asNoSlash = removeTrailingSlash(new URL(as, 'http://n').pathname)
-
-      if (
-        asNoSlash !==
-        removeTrailingSlash(new URL(this.asPath, 'http://n').pathname)
-      ) {
-        const matchesBflStatic = this._bfl_s?.has(asNoSlash)
-        let matchesBflDynamic = false
-        const asNoSlashParts = asNoSlash.split('/')
-
-        // if any sub-path of as matches a dynamic filter path
-        // it should be hard navigated
-        for (let i = 0; i < asNoSlashParts.length + 1; i++) {
-          const currentPart = asNoSlashParts.slice(0, i).join('/')
-          if (currentPart && this._bfl_d?.has(currentPart)) {
-            matchesBflDynamic = true
-            break
-          }
-        }
-        // if the client router filter is matched then we trigger
-        // a hard navigation
-        if (!isQueryUpdating && (matchesBflStatic || matchesBflDynamic)) {
-          handleHardNavigation({
-            url: addBasePath(addLocale(as, options.locale || this.locale)),
-            router: this,
-          })
-          return false
-        }
-      }
+    if (!isQueryUpdating && !options.shallow) {
+      await this._bfl(as, undefined, options.locale)
     }
 
     let shouldResolveHref =
@@ -1284,6 +1322,13 @@ export default class Router implements BaseRouter {
 
     let parsed = parseRelativeUrl(url)
     let { pathname, query } = parsed
+
+    // if we detected the path as app route during prefetching
+    // trigger hard navigation
+    if ((this.components[pathname] as any)?.__appRouter) {
+      handleHardNavigation({ url: as, router: this })
+      return new Promise(() => {})
+    }
 
     // The build manifest needs to be loaded before auto-static dynamic pages
     // get their query parameters to allow ensuring they can be parsed properly
@@ -1485,6 +1530,14 @@ export default class Router implements BaseRouter {
         isMiddlewareRewrite,
       })
 
+      if (!isQueryUpdating && !options.shallow) {
+        await this._bfl(
+          as,
+          'resolvedAs' in routeInfo ? routeInfo.resolvedAs : undefined,
+          nextState.locale
+        )
+      }
+
       if ('route' in routeInfo && isMiddlewareMatch) {
         pathname = routeInfo.route || route
         route = pathname
@@ -1615,6 +1668,7 @@ export default class Router implements BaseRouter {
             routeProps: { shallow: false },
             locale: nextState.locale,
             isPreview: nextState.isPreview,
+            isNotFound: true,
           })
 
           if ('type' in routeInfo) {
@@ -1881,6 +1935,7 @@ export default class Router implements BaseRouter {
     unstable_skipClientCache,
     isQueryUpdating,
     isMiddlewareRewrite,
+    isNotFound,
   }: {
     route: string
     pathname: string
@@ -1894,6 +1949,7 @@ export default class Router implements BaseRouter {
     unstable_skipClientCache?: boolean
     isQueryUpdating?: boolean
     isMiddlewareRewrite?: boolean
+    isNotFound?: boolean
   }) {
     /**
      * This `route` binding can change if there's a rewrite
@@ -1927,7 +1983,7 @@ export default class Router implements BaseRouter {
         dataHref: this.pageLoader.getDataHref({
           href: formatWithValidation({ pathname, query }),
           skipInterpolation: true,
-          asPath: resolvedAs,
+          asPath: isNotFound ? '/404' : resolvedAs,
           locale,
         }),
         hasMiddleware: true,
@@ -1949,7 +2005,7 @@ export default class Router implements BaseRouter {
           ? null
           : await withMiddlewareEffects({
               fetchData: () => fetchNextData(fetchNextDataParams),
-              asPath: resolvedAs,
+              asPath: isNotFound ? '/404' : resolvedAs,
               locale: locale,
               router: this,
             }).catch((err) => {
@@ -1962,6 +2018,12 @@ export default class Router implements BaseRouter {
               }
               throw err
             })
+
+      // when rendering error routes we don't apply middleware
+      // effects
+      if (data && (pathname === '/_error' || pathname === '/404')) {
+        data.effect = undefined
+      }
 
       if (isQueryUpdating) {
         if (!data) {
@@ -2233,6 +2295,7 @@ export default class Router implements BaseRouter {
       return
     }
     let parsed = parseRelativeUrl(url)
+    const urlPathname = parsed.pathname
 
     let { pathname, query } = parsed
     const originalPathname = pathname
@@ -2372,6 +2435,10 @@ export default class Router implements BaseRouter {
       (PREFETCH?.include && PREFETCH.include.includes(route)) ||
       (PREFETCH?.exclude && !PREFETCH.exclude.includes(route))
 
+    if (await this._bfl(asPath, resolvedAs, options.locale, true)) {
+      this.components[urlPathname] = { __appRouter: true } as any
+    }
+
     await Promise.all([
       this.pageLoader._isSsg(route).then((isSsg) => {
         return isSsg || isPrefetchRoute
@@ -2394,7 +2461,9 @@ export default class Router implements BaseRouter {
                 options.unstable_skipClientCache ||
                 (options.priority &&
                   !!process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE),
-            }).then(() => false)
+            })
+              .then(() => false)
+              .catch(() => false)
           : false
       }),
       this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](route),

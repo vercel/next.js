@@ -95,8 +95,8 @@ describe('find config', () => {
       isAppDirEnabled: true,
     })
 
-    await expect(fs.readFile(declarationFile, 'utf8')).resolves.toContain(
-      'next/navigation-types/navigation'
+    await expect(fs.readFile(declarationFile, 'utf8')).resolves.not.toContain(
+      'next/navigation-types/compat/navigation'
     )
 
     await writeAppTypeDeclarations({
