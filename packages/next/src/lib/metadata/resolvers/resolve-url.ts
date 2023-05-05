@@ -1,5 +1,5 @@
-import path from '../../../shared/lib/isomorphic/path'
 import * as Log from '../../../build/output/log'
+import path from '../../../shared/lib/isomorphic/path'
 
 function isStringOrURL(icon: any): icon is string | URL {
   return typeof icon === 'string' || icon instanceof URL
@@ -35,7 +35,7 @@ export function getSocialImageFallbackMetadataBase(
     // Add new line to warning for worker output
     console.log()
     Log.warnOnce(
-      `metadata.metadataBase is not set for resolving social open graph or twitter images, fallbacks to "${fallbackMetadata.origin}". See https://beta.nextjs.org/docs/api-reference/metadata#metadatabase`
+      `metadata.metadataBase is not set for resolving social open graph or twitter images, fallbacks to "${fallbackMetadata.origin}". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase`
     )
   }
 
