@@ -144,7 +144,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
-  verboseRequestLogs?: boolean
+  logging?: 'verbose'
   appDocumentPreloading?: boolean
   strictNextHead?: boolean
   clientRouterFilter?: boolean
@@ -659,7 +659,6 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
-    verboseRequestLogs: false,
     appDocumentPreloading: true,
     clientRouterFilter: false,
     clientRouterFilterRedirects: false,
