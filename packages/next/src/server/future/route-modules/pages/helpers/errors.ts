@@ -4,14 +4,6 @@ import {
   UNSTABLE_REVALIDATE_RENAME_ERROR,
 } from '../../../../../lib/constants'
 
-export class NoRouterError extends Error {
-  public constructor() {
-    super(
-      'No router instance found. you should only use "next/router" inside the client side of your app. https://nextjs.org/docs/messages/no-router-instance'
-    )
-  }
-}
-
 export class NoReturnedValueError extends Error {
   public constructor(methodName: 'getServerSideProps' | 'getStaticProps') {
     super(

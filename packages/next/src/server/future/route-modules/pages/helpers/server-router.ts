@@ -2,7 +2,16 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { NextRouter } from '../../../../../shared/lib/router/router'
 import type { DomainLocale } from '../../../../config-shared'
 
-import { NoRouterError } from './errors'
+import { RouterEvent } from '../../../../../client/router'
+import { MittEmitter } from '../../../../../shared/lib/mitt'
+
+class NoRouterError extends Error {
+  public constructor() {
+    super(
+      'No router instance found. you should only use "next/router" inside the client side of your app. https://nextjs.org/docs/messages/no-router-instance'
+    )
+  }
+}
 
 interface ServerRouterOptions {
   readonly pathname: string
@@ -19,6 +28,20 @@ interface ServerRouterOptions {
   readonly isLocaleDomain: boolean
 }
 
+class ServerRouterEvents implements MittEmitter<RouterEvent> {
+  public on(): never {
+    throw new NoRouterError()
+  }
+
+  public off(): never {
+    throw new NoRouterError()
+  }
+
+  public emit(): never {
+    throw new NoRouterError()
+  }
+}
+
 export class ServerRouter implements NextRouter {
   public readonly route: string
   public readonly pathname: string
@@ -33,6 +56,7 @@ export class ServerRouter implements NextRouter {
   public readonly domainLocales: DomainLocale[] | undefined
   public readonly isPreview: boolean
   public readonly isLocaleDomain: boolean
+  public readonly events = new ServerRouterEvents()
 
   public constructor({
     pathname,
@@ -61,10 +85,6 @@ export class ServerRouter implements NextRouter {
     this.domainLocales = domainLocales
     this.isPreview = isPreview
     this.isLocaleDomain = isLocaleDomain
-  }
-
-  public get events(): never {
-    throw new NoRouterError()
   }
 
   public push(): never {
