@@ -34,9 +34,7 @@ createNextDescribe(
     startCommand: (global as any).isNextDev ? 'yarn dev' : 'yarn start',
     buildCommand: 'yarn build',
   },
-  ({ next, isNextDev }) => {
-    const distDir = path.join(next.testDir, '.next')
-
+  ({ next, isNextDev, isNextStart }) => {
     it('should correctly render page returning null', async () => {
       const homeHTML = await next.render('/return-null/page')
       const $ = cheerio.load(homeHTML)
@@ -456,12 +454,10 @@ createNextDescribe(
       ).toBe('count: 1')
     })
 
-    if (!isNextDev) {
+    if (isNextStart) {
       it('should generate edge SSR manifests for Node.js', async () => {
-        const distServerDir = path.join(distDir, 'server')
-
-        const requiredServerFiles = (
-          await fs.readJSON(path.join(distDir, 'required-server-files.json'))
+        const requiredServerFiles = JSON.parse(
+          await next.readFile('.next/required-server-files.json')
         ).files
 
         const files = [
@@ -470,15 +466,15 @@ createNextDescribe(
           'client-reference-manifest.json',
         ]
 
-        files.forEach((file) => {
-          const filepath = path.join(distServerDir, file)
-          expect(fs.existsSync(filepath)).toBe(true)
+        let promises = files.map(async (file) => {
+          expect(await next.hasFile(path.join('.next/server', file))).toBe(true)
         })
+        await Promise.all(promises)
 
-        requiredServerFiles.forEach((file) => {
-          const requiredFilePath = path.join(next.testDir, file)
-          expect(fs.existsSync(requiredFilePath)).toBe(true)
+        promises = requiredServerFiles.map(async (file) => {
+          expect(await next.hasFile(file)).toBe(true)
         })
+        await Promise.all(promises)
       })
     }
   }
