@@ -16,18 +16,13 @@ createNextDescribe(
 
       await browser.elementByCss('#push').click()
 
-      await check(
-        async () => {
-          const newParams = await browser.waitForElementByCss('#params').text()
+      await check(async () => {
+        const newParams = await browser.waitForElementByCss('#params').text()
 
-          const count = await browser.waitForElementByCss('#count').text()
+        const count = await browser.waitForElementByCss('#count').text()
 
-          return newParams !== params && count === '2' ? 'success' : 'retry'
-        },
-        'success',
-        true,
-        3
-      )
+        return newParams !== params && count === '2' ? 'success' : 'retry'
+      }, 'success')
     })
   }
 )
