@@ -2,7 +2,7 @@
 description: Turbopack, an incremental bundler built with Rust, can be used with Next.js 13 using the --turbo flag for faster local development.
 ---
 
-# Turbopack (alpha)
+# Turbopack (beta)
 
 [Turbopack](https://turbo.build/pack) is an incremental bundler optimized for JavaScript and TypeScript, written in Rust, and built into Next.js 13.
 

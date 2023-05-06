@@ -6,7 +6,7 @@ import type {
 } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 
-import zod from 'next/dist/compiled/zod'
+import zod from 'zod'
 
 export type DynamicParamTypes = 'catchall' | 'optional-catchall' | 'dynamic'
 

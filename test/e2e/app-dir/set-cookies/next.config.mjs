@@ -9,7 +9,6 @@ const headers = nextConfigHeaders.map((header) => ({
  * @type {import('next').NextConfig}
  */
 const config = {
-  experimental: { appDir: true },
   async headers() {
     return [
       {

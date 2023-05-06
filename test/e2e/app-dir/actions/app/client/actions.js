@@ -11,6 +11,7 @@ export async function dec(value) {
 }
 
 export default async function (value) {
+  console.log('this_is_sensitive_info')
   return value * 2
 }
 

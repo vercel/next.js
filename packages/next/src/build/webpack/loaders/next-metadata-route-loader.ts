@@ -53,9 +53,10 @@ const resourceUrl = new URL(import.meta.url)
 const filePath = fileURLToPath(resourceUrl).replace(${JSON.stringify(
     METADATA_RESOURCE_QUERY
   )}, '')
-const buffer = fs.readFileSync(filePath)
 
+let buffer
 export function GET() {
+  if (!buffer) { buffer = fs.readFileSync(filePath) }
   return new NextResponse(buffer, {
     headers: {
       'Content-Type': contentType,
