@@ -12,15 +12,14 @@ import {
   fetchViaHTTP,
   waitFor,
   getPageFileFromPagesManifest,
+  check,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 const pages404 = join(appDir, 'pages/404.js')
-const nextConfig = join(appDir, 'next.config.js')
 const gip404Err =
   /`pages\/404` can not have getInitialProps\/getServerSideProps/
 
-let nextConfigContent
 let appPort
 let app
 
@@ -90,29 +89,6 @@ describe('404 Page Support', () => {
     afterAll(() => killApp(app))
 
     runTests('server')
-  })
-
-  describe('serverless mode', () => {
-    beforeAll(async () => {
-      nextConfigContent = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(
-        nextConfig,
-        `
-        module.exports = {
-          target: 'serverless'
-        }
-      `
-      )
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await fs.writeFile(nextConfig, nextConfigContent)
-      await killApp(app)
-    })
-
-    runTests('serverless')
   })
 
   it('should not cache for custom 404 page with gssp and revalidate disabled', async () => {
@@ -231,14 +207,14 @@ describe('404 Page Support', () => {
       },
     })
     await renderViaHTTP(appPort, '/abc')
-    await waitFor(1000)
+    try {
+      await check(() => stderr, gip404Err)
+    } finally {
+      await killApp(app)
 
-    await killApp(app)
-
-    await fs.remove(pages404)
-    await fs.move(`${pages404}.bak`, pages404)
-
-    expect(stderr).toMatch(gip404Err)
+      await fs.remove(pages404)
+      await fs.move(`${pages404}.bak`, pages404)
+    }
   })
 
   it('does not show error with getStaticProps in pages/404 build', async () => {

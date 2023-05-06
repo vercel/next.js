@@ -29,17 +29,23 @@
 
 import RefreshRuntime from 'react-refresh/runtime'
 
+type ModuleHotStatus =
+  | 'idle'
+  | 'check'
+  | 'prepare'
+  | 'ready'
+  | 'dispose'
+  | 'apply'
+  | 'abort'
+  | 'fail'
+
+type ModuleHotStatusHandler = (status: ModuleHotStatus) => void
+
 declare const module: {
   hot: {
-    status: () =>
-      | 'idle'
-      | 'check'
-      | 'prepare'
-      | 'ready'
-      | 'dispose'
-      | 'apply'
-      | 'abort'
-      | 'fail'
+    status: () => ModuleHotStatus
+    addStatusHandler: (handler: ModuleHotStatusHandler) => void
+    removeStatusHandler: (handler: ModuleHotStatusHandler) => void
   }
 }
 
@@ -48,7 +54,6 @@ function isSafeExport(key: string): boolean {
     key === '__esModule' ||
     key === '__N_SSG' ||
     key === '__N_SSP' ||
-    key === '__N_RSC' ||
     // TODO: remove this key from page config instead of allow listing it
     key === 'config'
   )
@@ -134,34 +139,46 @@ function shouldInvalidateReactRefreshBoundary(
 }
 
 var isUpdateScheduled: boolean = false
+// This function aggregates updates from multiple modules into a single React Refresh call.
 function scheduleUpdate() {
   if (isUpdateScheduled) {
     return
   }
+  isUpdateScheduled = true
 
-  function canApplyUpdate() {
-    return module.hot.status() === 'idle'
+  function canApplyUpdate(status: ModuleHotStatus) {
+    return status === 'idle'
   }
 
-  isUpdateScheduled = true
-  setTimeout(function () {
+  function applyUpdate() {
     isUpdateScheduled = false
-
-    // Only trigger refresh if the webpack HMR state is idle
-    if (canApplyUpdate()) {
-      try {
-        RefreshRuntime.performReactRefresh()
-      } catch (err) {
-        console.warn(
-          'Warning: Failed to re-render. We will retry on the next Fast Refresh event.\n' +
-            err
-        )
-      }
-      return
+    try {
+      RefreshRuntime.performReactRefresh()
+    } catch (err) {
+      console.warn(
+        'Warning: Failed to re-render. We will retry on the next Fast Refresh event.\n' +
+          err
+      )
     }
+  }
 
-    return scheduleUpdate()
-  }, 30)
+  if (canApplyUpdate(module.hot.status())) {
+    // Apply update on the next tick.
+    Promise.resolve().then(() => {
+      applyUpdate()
+    })
+    return
+  }
+
+  const statusHandler = (status) => {
+    if (canApplyUpdate(status)) {
+      module.hot.removeStatusHandler(statusHandler)
+      applyUpdate()
+    }
+  }
+
+  // Apply update once the HMR runtime's status is idle.
+  module.hot.addStatusHandler(statusHandler)
 }
 
 // Needs to be compatible with IE11

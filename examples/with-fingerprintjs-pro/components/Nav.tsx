@@ -20,8 +20,9 @@ const CustomLink: React.FC<PropsWithChildren<{ to: string }>> = ({
           query: { cacheStrategy },
         }}
         scroll={false}
+        className={className}
       >
-        <a className={className}>{children}</a>
+        {children}
       </Link>
     </div>
   )

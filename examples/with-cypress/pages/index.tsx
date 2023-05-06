@@ -23,11 +23,9 @@ export default function Home() {
         </p>
 
         <div className={styles.grid}>
-          <Link href="/about">
-            <a className={styles.card}>
-              <h2>About Page &rarr;</h2>
-              <p>Cypress will test if this link is working.</p>
-            </a>
+          <Link href="/about" className={styles.card}>
+            <h2>About Page &rarr;</h2>
+            <p>Cypress will test if this link is working.</p>
           </Link>
 
           <a href="https://nextjs.org/docs" className={styles.card}>
@@ -50,6 +48,8 @@ export default function Home() {
 
           <a
             href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
+            target="_blank"
+            rel="noopener noreferrer"
             className={styles.card}
           >
             <h2>Deploy &rarr;</h2>

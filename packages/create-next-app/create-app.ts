@@ -1,9 +1,7 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import retry from 'async-retry'
 import chalk from 'chalk'
-import cpy from 'cpy'
 import fs from 'fs'
-import os from 'os'
 import path from 'path'
 import {
   downloadAndExtractExample,
@@ -21,6 +19,13 @@ import { getOnline } from './helpers/is-online'
 import { isWriteable } from './helpers/is-writeable'
 import type { PackageManager } from './helpers/get-pkg-manager'
 
+import {
+  getTemplateFile,
+  installTemplate,
+  TemplateMode,
+  TemplateType,
+} from './templates'
+
 export class DownloadError extends Error {}
 
 export async function createApp({
@@ -29,15 +34,32 @@ export async function createApp({
   example,
   examplePath,
   typescript,
+  tailwind,
+  eslint,
+  appRouter,
+  srcDir,
+  importAlias,
 }: {
   appPath: string
   packageManager: PackageManager
   example?: string
   examplePath?: string
-  typescript?: boolean
+  typescript: boolean
+  tailwind: boolean
+  eslint: boolean
+  appRouter: boolean
+  srcDir: boolean
+  importAlias: string
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
-  const template = typescript ? 'typescript' : 'default'
+  const mode: TemplateMode = typescript ? 'ts' : 'js'
+  const template: TemplateType = appRouter
+    ? tailwind
+      ? 'app-tw'
+      : 'app'
+    : tailwind
+    ? 'default-tw'
+    : 'default'
 
   if (example) {
     let repoUrl: URL | undefined
@@ -170,20 +192,20 @@ export async function createApp({
         isErrorLike(reason) ? reason.message : reason + ''
       )
     }
-    // Copy our default `.gitignore` if the application did not provide one
+    // Copy `.gitignore` if the application did not provide one
     const ignorePath = path.join(root, '.gitignore')
     if (!fs.existsSync(ignorePath)) {
       fs.copyFileSync(
-        path.join(__dirname, 'templates', template, 'gitignore'),
+        getTemplateFile({ template, mode, file: 'gitignore' }),
         ignorePath
       )
     }
 
-    // Copy default `next-env.d.ts` to any example that is typescript
+    // Copy `next-env.d.ts` to any example that is typescript
     const tsconfigPath = path.join(root, 'tsconfig.json')
     if (fs.existsSync(tsconfigPath)) {
       fs.copyFileSync(
-        path.join(__dirname, 'templates', 'typescript', 'next-env.d.ts'),
+        getTemplateFile({ template, mode: 'ts', file: 'next-env.d.ts' }),
         path.join(root, 'next-env.d.ts')
       )
     }
@@ -198,104 +220,20 @@ export async function createApp({
     }
   } else {
     /**
-     * Otherwise, if an example repository is not provided for cloning, proceed
+     * If an example repository is not provided for cloning, proceed
      * by installing from a template.
      */
-    console.log(chalk.bold(`Using ${packageManager}.`))
-    /**
-     * Create a package.json for the new project.
-     */
-    const packageJson = {
-      name: appName,
-      version: '0.1.0',
-      private: true,
-      scripts: {
-        dev: 'next dev',
-        build: 'next build',
-        start: 'next start',
-        lint: 'next lint',
-      },
-    }
-    /**
-     * Write it to disk.
-     */
-    fs.writeFileSync(
-      path.join(root, 'package.json'),
-      JSON.stringify(packageJson, null, 2) + os.EOL
-    )
-    /**
-     * These flags will be passed to `install()`.
-     */
-    const installFlags = { packageManager, isOnline }
-    /**
-     * Default dependencies.
-     */
-    const dependencies = ['react', 'react-dom', 'next']
-    /**
-     * Default devDependencies.
-     */
-    const devDependencies = ['eslint', 'eslint-config-next']
-    /**
-     * TypeScript projects will have type definitions and other devDependencies.
-     */
-    if (typescript) {
-      devDependencies.push(
-        'typescript',
-        '@types/react',
-        '@types/node',
-        '@types/react-dom'
-      )
-    }
-    /**
-     * Install package.json dependencies if they exist.
-     */
-    if (dependencies.length) {
-      console.log()
-      console.log('Installing dependencies:')
-      for (const dependency of dependencies) {
-        console.log(`- ${chalk.cyan(dependency)}`)
-      }
-      console.log()
-
-      await install(root, dependencies, installFlags)
-    }
-    /**
-     * Install package.json devDependencies if they exist.
-     */
-    if (devDependencies.length) {
-      console.log()
-      console.log('Installing devDependencies:')
-      for (const devDependency of devDependencies) {
-        console.log(`- ${chalk.cyan(devDependency)}`)
-      }
-      console.log()
-
-      const devInstallFlags = { devDependencies: true, ...installFlags }
-      await install(root, devDependencies, devInstallFlags)
-    }
-    console.log()
-    /**
-     * Copy the template files to the target directory.
-     */
-    await cpy('**', root, {
-      parents: true,
-      cwd: path.join(__dirname, 'templates', template),
-      rename: (name) => {
-        switch (name) {
-          case 'gitignore':
-          case 'eslintrc.json': {
-            return '.'.concat(name)
-          }
-          // README.md is ignored by webpack-asset-relocator-loader used by ncc:
-          // https://github.com/vercel/webpack-asset-relocator-loader/blob/e9308683d47ff507253e37c9bcbb99474603192b/src/asset-relocator.js#L227
-          case 'README-template.md': {
-            return 'README.md'
-          }
-          default: {
-            return name
-          }
-        }
-      },
+    await installTemplate({
+      appName,
+      root,
+      template,
+      mode,
+      packageManager,
+      isOnline,
+      tailwind,
+      eslint,
+      srcDir,
+      importAlias,
     })
   }
 

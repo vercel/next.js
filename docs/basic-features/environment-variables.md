@@ -4,9 +4,7 @@ description: Learn to add and access environment variables in your Next.js appli
 
 # Environment Variables
 
-> This document is for Next.js versions 9.4 and up. If you’re using an older version of Next.js, upgrade or refer to [Environment Variables in next.config.js](/docs/api-reference/next.config.js/environment-variables.md).
-
-<details open>
+<details>
   <summary><b>Examples</b></summary>
   <ul>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/environment-variables">Environment Variables</a></li>
@@ -172,4 +170,4 @@ Environment variables are looked up in the following places, in order, stopping 
 
 For example, if `NODE_ENV` is `development` and you define a variable in both `.env.development.local` and `.env`, the value in `.env.development.local` will be used.
 
-> **Note:** The allowed values for `NODE_ENV` are `production`, `development` and `test`.
+> **Note**: The allowed values for `NODE_ENV` are `production`, `development` and `test`.

@@ -4,14 +4,9 @@ description: Learn how to share components and state between Next.js pages with 
 
 # Layouts
 
-<details open>
-  <summary><b>Examples</b></summary>
-  <ul>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/layout-component">layout-component</a></li>
-  </ul>
-</details>
-
-> **Note:** We are introducing improved layouts support in Next.js. Read the [Layouts RFC](https://nextjs.org/blog/layouts-rfc) for more details and to provide feedback.
+> **Note**: Next.js 13 introduces the `app/` directory (beta). This new directory has support for layouts, nested routes, and uses Server Components by default. Inside `app/`, you can fetch data for your entire application inside layouts, including support for more granular nested layouts (with [colocated data fetching](https://beta.nextjs.org/docs/data-fetching/fundamentals)).
+>
+> [Learn more about incrementally adopting `app/`](https://beta.nextjs.org/docs/upgrade-guide).
 
 The React model allows us to deconstruct a [page](/docs/basic-features/pages.md) into a series of components. Many of these components are often reused between pages. For example, you might have the same navigation bar and footer on every page.
 
@@ -63,9 +58,9 @@ import Layout from '../components/layout'
 import NestedLayout from '../components/nested-layout'
 
 export default function Page() {
-  return {
+  return (
     /** Your content */
-  }
+  )
 }
 
 Page.getLayout = function getLayout(page) {
@@ -92,7 +87,7 @@ When navigating between pages, we want to *persist* page state (input values, 
 
 This layout pattern enables state persistence because the React component tree is maintained between page transitions. With the component tree, React can understand which elements have changed to preserve state.
 
-> **Note**: This process is called [reconciliation](https://reactjs.org/docs/reconciliation.html), which is how React understands which elements have changed.
+> **Note**: This process is called [reconciliation](https://react.dev/learn/preserving-and-resetting-state), which is how React understands which elements have changed.
 
 ### With TypeScript
 
@@ -183,6 +178,6 @@ For more information on what to do next, we recommend the following sections:
 <div class="card">
   <a href="/docs/advanced-features/custom-app.md">
     <b>Custom App:</b>
-    <small>Learn more about how Next.js initialize pages.</small>
+    <small>Learn more about how Next.js initializes pages.</small>
   </a>
 </div>

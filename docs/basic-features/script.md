@@ -1,8 +1,8 @@
 ---
-description: Next.js helps you optimize loading third-party scripts with the built-in next/script component.
+description: Optimize your third-party scripts with the built-in `next/script` component.
 ---
 
-# Script Component
+# Optimizing Scripts
 
 <details>
   <summary><b>Examples</b></summary>
@@ -16,140 +16,87 @@ description: Next.js helps you optimize loading third-party scripts with the bui
   </ul>
 </details>
 
-<details>
-  <summary><b>Version History</b></summary>
+The **Script component**, [`next/script`](/docs/api-reference/next/script.md), allows you to optimally load third-party scripts anywhere in your Next.js application. It is an extension of the HTML `<script>` element and enables you to choose between multiple loading strategies to fit your use case.
 
-| Version   | Changes                   |
-| --------- | ------------------------- |
-| `v12.2.4` | `onReady` prop added.     |
-| `v11.0.0` | `next/script` introduced. |
+## Overview
 
-</details>
+Websites often use third-party scripts to add functionality like analytics, ads, customer support widgets, and consent management. However, this can introduce problems that impact both user and developer experience:
 
-The Next.js Script component, [`next/script`](/docs/api-reference/next/script.md), is an extension of the HTML `<script>` element. It enables developers to set the loading priority of third-party scripts anywhere in their application, outside `next/head`, saving developer time while improving loading performance.
+- Some third-party scripts decrease loading performance and can degrade the user experience, especially if they are blocking the page content from being displayed.
+- Developers are often unsure where and how to load third-party scripts in an application without impacting page performance.
+
+Browsers load and execute `<script>` elements based on the order of placement in HTML and the usage of `async` and `defer` attributes. However, using the native `<script>` element creates some challenges:
+
+- As your application grows in size and complexity, it becomes increasingly difficult to manage the loading order of third-party scripts.
+- [Streaming and Suspense](https://beta.nextjs.org/docs/data-fetching/streaming-and-suspense) improve page performance by rendering and hydrating new content as soon as possible, but `<script>` attributes (like `defer`) are incompatible without additional work.
+
+The Script component solves these problems by providing a declarative API for loading third-party scripts. It provides a set of built-in loading strategies that can be used to optimize the loading sequence of scripts with support for streaming. Each of the strategies provided by the Script component uses the best possible combination of React and Web APIs to ensure that scripts are loaded with minimal impact to page performance.
+
+## Usage
+
+To get started, import the [`next/script`](/docs/api-reference/next/script.md) component:
+
+```jsx
+import Script from 'next/script'
+```
+
+### Page Scripts
+
+To load a third-party script in a single route, import `next/script` and include the script directly in your page component:
 
 ```jsx
 import Script from 'next/script'
 
-export default function Home() {
+export default function Dashboard() {
   return (
     <>
-      <Script src="https://www.google-analytics.com/analytics.js" />
+      <Script src="https://example.com/script.js" />
     </>
   )
 }
 ```
 
-## Overview
+The script will only be fetched and executed when this specific page is loaded on the browser.
 
-Websites often use third-party scripts to include different types of functionality into their site, such as analytics, ads, customer support widgets, and consent management. However, this can introduce problems that impact both user and developer experience:
+### Application Scripts
 
-- Some third-party scripts are heavy on loading performance and can drag down the user experience, especially if they are render-blocking and delay any page content from loading
-- Developers often struggle to decide where to place third-party scripts in an application to ensure optimal loading
-
-The Script component makes it easier for developers to place a third-party script anywhere in their application while taking care of optimizing its loading strategy.
-
-## Usage
-
-To add a third-party script to your application, import the `next/script` component:
+To load a third-party script for all routes, import `next/script` and include the script directly in `pages/_app.js`:
 
 ```jsx
 import Script from 'next/script'
-```
 
-### Strategy
-
-With `next/script`, you decide when to load your third-party script by using the `strategy` property:
-
-```jsx
-<Script src="https://connect.facebook.net/en_US/sdk.js" strategy="lazyOnload" />
-```
-
-There are four different loading strategies that can be used:
-
-- `beforeInteractive`: Load before the page is interactive
-- `afterInteractive`: (**default**) Load immediately after the page becomes interactive
-- `lazyOnload`: Load during idle time
-- `worker`: (experimental) Load in a web worker
-
-#### beforeInteractive
-
-Scripts that load with the `beforeInteractive` strategy are injected into the initial HTML from the server and run before self-bundled JavaScript is executed. This strategy should be used for any critical scripts that need to be fetched and executed before any page becomes interactive. This strategy only works inside **\_document.js** and is designed to load scripts that are needed by the entire site (i.e. the script will load when any page in the application has been loaded server-side).
-
-The reason `beforeInteractive` was designed to work only inside `\_document.js` is to support streaming and Suspense functionality. Outside of the `_document`, it's not possible to guarantee the timing or ordering of `beforeInteractive` scripts.
-
-```jsx
-// In _document.js
-import { Html, Head, Main, NextScript } from 'next/document'
-import Script from 'next/script'
-
-export default function Document() {
+export default function MyApp({ Component, pageProps }) {
   return (
-    <Html>
-      <Head />
-      <body>
-        <Main />
-        <NextScript />
-        <Script
-          src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js"
-          strategy="beforeInteractive"
-        ></Script>
-      </body>
-    </Html>
+    <>
+      <Script src="https://example.com/script.js" />
+      <Component {...pageProps} />
+    </>
   )
 }
 ```
 
-> **Note**: Scripts with `beforeInteractive` will always be injected inside the `head` of the HTML document regardless of where it's placed in `_document.js`.
+This script will load and execute when _any_ route in your application is accessed. Next.js will ensure the script will **only load once**, even if a user navigates between multiple pages.
 
-Examples of scripts that should be loaded as soon as possible with this strategy include:
+> **Note**: You should rarely need to load a third-party script for every page of your application. We recommend only including third-party scripts in specific pages in order to minimize any unnecessary impact to performance.
 
-- Bot detectors
-- Cookie consent managers
+### Strategy
 
-#### afterInteractive
+Although the default behavior of `next/script` allows you to load third-party scripts in any page, you can fine-tune its loading behavior by using the `strategy` property:
 
-Scripts that use the `afterInteractive` strategy are injected client-side and will run after Next.js hydrates the page. This strategy should be used for scripts that do not need to load as soon as possible and can be fetched and executed immediately after the page is interactive.
+- `beforeInteractive`: Load the script before any Next.js code and before any page hydration occurs.
+- `afterInteractive`: (**default**) Load the script early but after some hydration on the page occurs.
+- `lazyOnload`: Load the script later during browser idle time.
+- `worker`: (experimental) Load the script in a web worker.
 
-```jsx
-<Script
-  id="google-analytics"
-  strategy="afterInteractive"
-  dangerouslySetInnerHTML={{
-    __html: `
-    (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-    })(window,document,'script','dataLayer', 'GTM-XXXXXX');
-  `,
-  }}
-/>
-```
+Refer to the [`next/script`](/docs/api-reference/next/script.md#strategy) API reference documentation to learn more about each strategy and their use cases.
 
-Examples of scripts that are good candidates to load immediately after the page becomes interactive include:
+> **Note**: Once a `next/script` component has been loaded by the browser, it will stay in the DOM and client-side navigations won't re-execute the script.
 
-- Tag managers
-- Analytics
+### Offloading Scripts To A Web Worker (experimental)
 
-#### lazyOnload
+> **Note**: The `worker` strategy is not yet stable and does not yet work with the [`app/`](https://beta.nextjs.org/docs/routing/defining-routes) directory. Use with caution.
 
-Scripts that use the `lazyOnload` strategy are loaded late after all resources have been fetched and during idle time. This strategy should be used for background or low priority scripts that do not need to load before or immediately after a page becomes interactive.
-
-```jsx
-<Script src="https://connect.facebook.net/en_US/sdk.js" strategy="lazyOnload" />
-```
-
-Examples of scripts that do not need to load immediately and can be lazy-loaded include:
-
-- Chat support plugins
-- Social media widgets
-
-### Off-loading Scripts To A Web Worker (experimental)
-
-> **Note: The `worker` strategy is not yet stable and can cause unexpected issues in your application. Use with caution.**
-
-Scripts that use the `worker` strategy are relocated and executed in a web worker with [Partytown](https://partytown.builder.io/). This can improve the performance of your site by dedicating the main thread to the rest of your application code.
+Scripts that use the `worker` strategy are offloaded and executed in a web worker with [Partytown](https://partytown.builder.io/). This can improve the performance of your site by dedicating the main thread to the rest of your application code.
 
 This strategy is still experimental and can only be used if the `nextScriptWorkers` flag is enabled in `next.config.js`:
 
@@ -175,63 +122,28 @@ npm run dev
 # ...
 ```
 
-Once setup is complete, defining `strategy="worker"` will automatically instantiate Partytown in your application and off-load the script to a web worker.
+Once setup is complete, defining `strategy="worker"` will automatically instantiate Partytown in your application and offload the script to a web worker.
 
 ```jsx
-<Script src="https://example.com/analytics.js" strategy="worker" />
-```
+import Script from 'next/script'
 
-There are a number of trade-offs that need to be considered when loading a third-party script in a web worker. Please see Partytown's [Trade-Offs](https://partytown.builder.io/trade-offs) documentation for more information.
-
-#### Configuration
-
-Although the `worker` strategy does not require any additional configuration to work, Partytown supports the use of a config object to modify some of its settings, including enabling `debug` mode and forwarding events and triggers.
-
-If you would like to add additional configuration options, you can include it within the `<Head />` component used in a [custom `_document.js`](/docs/advanced-features/custom-document.md):
-
-```jsx
-import { Html, Head, Main, NextScript } from 'next/document'
-
-export default function Document() {
+export default function Home() {
   return (
-    <Html>
-      <Head>
-        <script
-          data-partytown-config
-          dangerouslySetInnerHTML={{
-            __html: `
-              partytown = {
-                lib: "/_next/static/~partytown/",
-                debug: true
-              };
-            `,
-          }}
-        />
-      </Head>
-      <body>
-        <Main />
-        <NextScript />
-      </body>
-    </Html>
+    <>
+      <Script src="https://example.com/script.js" strategy="worker" />
+    </>
   )
 }
 ```
 
-In order to modify Partytown's configuration, the following conditions must be met:
-
-1. The `data-partytown-config` attribute must be used in order to overwrite the default configuration used by Next.js
-2. Unless you decide to save Partytown's library files in a separate directory, the `lib: "/_next/static/~partytown/"` property and value must be included in the configuration object in order to let Partytown know where Next.js stores the necessary static files.
-
-> **Note**: If you are using an [asset prefix](/docs/api-reference/next.config.js/cdn-support-with-asset-prefix.md) and would like to modify Partytown's default configuration, you must include it as part of the `lib` path.
-
-Take a look at Partytown's [configuration options](https://partytown.builder.io/configuration) to see the full list of other properties that can be added.
+There are a number of trade-offs that need to be considered when loading a third-party script in a web worker. Please see Partytown's [tradeoffs](https://partytown.builder.io/trade-offs) documentation for more information.
 
 ### Inline Scripts
 
 Inline scripts, or scripts not loaded from an external file, are also supported by the Script component. They can be written by placing the JavaScript within curly braces:
 
 ```jsx
-<Script id="show-banner" strategy="lazyOnload">
+<Script id="show-banner" strategy="afterInteractive">
   {`document.getElementById('banner').classList.remove('hidden')`}
 </Script>
 ```
@@ -241,35 +153,33 @@ Or by using the `dangerouslySetInnerHTML` property:
 ```jsx
 <Script
   id="show-banner"
-  strategy="lazyOnload"
+  strategy="afterInteractive"
   dangerouslySetInnerHTML={{
     __html: `document.getElementById('banner').classList.remove('hidden')`,
   }}
 />
 ```
 
-The `id` property is required for **inline scripts** in order for Next.js to track and optimize the script.
+> **Note**: An `id` property must be assigned for inline scripts in order for Next.js to track and optimize the script.
 
-### Executing Code After Loading (`onLoad`)
+### Executing Additional Code
 
-> **Note: `onLoad` cannot be used with the `beforeInteractive` loading strategy. Consider using `onReady` instead.**
+Event handlers can be used with the Script component to execute additional code after a certain event occurs:
 
-Some third-party scripts require users to run JavaScript code once after the script has finished loading in order to instantiate content or call a function. If you are loading a script with either `afterInteractive` or `lazyOnload` as a loading strategy, you can execute code after it has loaded using the `onLoad` property:
+- `onLoad`: Execute code after the script has finished loading.
+- `onReady`: Execute code after the script has finished loading and every time the component is mounted.
+- `onError`: Execute code if the script fails to load.
 
 ```jsx
-import { useState } from 'react'
 import Script from 'next/script'
 
-export default function Home() {
-  const [stripe, setStripe] = useState(null)
-
+export default function Page() {
   return (
     <>
       <Script
-        id="stripe-js"
-        src="https://js.stripe.com/v3/"
+        src="https://example.com/script.js"
         onLoad={() => {
-          setStripe({ stripe: window.Stripe('pk_test_12345') })
+          console.log('Script has loaded')
         }}
       />
     </>
@@ -277,75 +187,34 @@ export default function Home() {
 }
 ```
 
-### Executing Code After Mounting (`onReady`)
-
-Some third-party scripts require users to run JavaScript code after the script has finished loading and every time the component is mounted (after a route navigation for example). You can execute code after the script's `load` event when it first loads and then after every subsequent component re-mount using the `onReady` property:
-
-```jsx
-import { useRef } from 'react'
-import Script from 'next/script'
-
-export default function Home() {
-  const mapRef = useRef()
-  return (
-    <>
-      <div ref={mapRef}></div>
-      <Script
-        id="google-maps"
-        src="https://maps.googleapis.com/maps/api/js"
-        onReady={() => {
-          new google.maps.Map(mapRef.current, {
-            center: { lat: -34.397, lng: 150.644 },
-            zoom: 8,
-          })
-        }}
-      />
-    </>
-  )
-}
-```
-
-### Handling errors (`onError`)
-
-> **Note: `onError` cannot be used with the `beforeInteractive` loading strategy.**
-
-Sometimes it is helpful to catch when a script fails to load. These errors can be handled with the `onError` property:
-
-```jsx
-import Script from 'next/script'
-
-export default function Home() {
-  return (
-    <>
-      <Script
-        id="will-fail"
-        src="https://example.com/non-existant-script.js"
-        onError={(e) => {
-          console.error('Script failed to load', e)
-        }}
-      />
-    </>
-  )
-}
-```
+Refer to the [`next/script`](/docs/api-reference/next/script.md#onload) API reference to learn more about each event handler and view examples.
 
 ### Additional Attributes
 
-There are many DOM attributes that can be assigned to a `<script>` element that are not used by the Script component, like [`nonce`](https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/nonce) or [custom data attributes](https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/data-*). Including any additional attributes will automatically forward it to the final, optimized `<script>` element that is outputted to the page.
+There are many DOM attributes that can be assigned to a `<script>` element that are not used by the Script component, like [`nonce`](https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/nonce) or [custom data attributes](https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/data-*). Including any additional attributes will automatically forward it to the final, optimized `<script>` element that is included in the HTML.
 
 ```jsx
 import Script from 'next/script'
 
-export default function Home() {
+export default function Page() {
   return (
     <>
       <Script
-        src="https://www.google-analytics.com/analytics.js"
-        id="analytics"
+        src="https://example.com/script.js"
+        id="example-script"
         nonce="XUENAJFW"
-        data-test="analytics"
+        data-test="script"
       />
     </>
   )
 }
 ```
+
+## Next Steps
+
+<div class="card">
+  <a href="/docs/api-reference/next/script.md">
+    <b>next/script API Reference</b>
+    <small>View the API for the Script component.</small>
+  </a>
+</div>

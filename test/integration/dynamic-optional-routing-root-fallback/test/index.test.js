@@ -81,29 +81,4 @@ describe('Dynamic Optional Routing Root Fallback', () => {
 
     runTests()
   })
-
-  describe('serverless mode', () => {
-    let origNextConfig
-
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-
-      origNextConfig = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(
-        nextConfig,
-        `module.exports = { target: 'serverless' }`
-      )
-
-      await nextBuild(appDir)
-
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await fs.writeFile(nextConfig, origNextConfig)
-      await killApp(app)
-    })
-
-    runTests()
-  })
 })

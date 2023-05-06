@@ -4,6 +4,7 @@ const exec = require('../util/exec')
 const { remove } = require('fs-extra')
 const logger = require('../util/logger')
 const semver = require('semver')
+const execa = require('execa')
 
 module.exports = (actionInfo) => {
   return {
@@ -53,7 +54,7 @@ module.exports = (actionInfo) => {
         }
       }
     },
-    async linkPackages(repoDir = '', nextSwcPkg) {
+    async linkPackages({ repoDir, nextSwcVersion }) {
       const pkgPaths = new Map()
       const pkgDatas = new Map()
       let pkgs
@@ -62,7 +63,7 @@ module.exports = (actionInfo) => {
         pkgs = await fs.readdir(path.join(repoDir, 'packages'))
       } catch (err) {
         if (err.code === 'ENOENT') {
-          console.log('no packages to link')
+          require('console').log('no packages to link')
           return pkgPaths
         }
         throw err
@@ -74,7 +75,7 @@ module.exports = (actionInfo) => {
 
         const pkgDataPath = path.join(pkgPath, 'package.json')
         if (!fs.existsSync(pkgDataPath)) {
-          console.log(`Skipping ${pkgDataPath}`)
+          require('console').log(`Skipping ${pkgDataPath}`)
           continue
         }
         const pkgData = require(pkgDataPath)
@@ -97,29 +98,41 @@ module.exports = (actionInfo) => {
           if (!pkgData.dependencies || !pkgData.dependencies[pkg]) continue
           pkgData.dependencies[pkg] = packedPkgPath
         }
+
         // make sure native binaries are included in local linking
         if (pkg === '@next/swc') {
           if (!pkgData.files) {
             pkgData.files = []
           }
-          pkgData.files.push('native')
-          console.log(
+          pkgData.files.push('native/*')
+          require('console').log(
             'using swc binaries: ',
             await exec(`ls ${path.join(path.dirname(pkgDataPath), 'native')}`)
           )
         }
+
         if (pkg === 'next') {
-          if (nextSwcPkg) {
-            Object.assign(pkgData.dependencies, nextSwcPkg)
+          if (nextSwcVersion) {
+            Object.assign(pkgData.dependencies, {
+              '@next/swc-linux-x64-gnu': nextSwcVersion,
+            })
           } else {
             if (pkgDatas.get('@next/swc')) {
               pkgData.dependencies['@next/swc'] =
                 pkgDatas.get('@next/swc').packedPkgPath
             } else {
-              pkgData.files.push('native')
+              pkgData.files.push('native/*')
             }
           }
         }
+
+        if (pkgData?.scripts?.prepublishOnly) {
+          // There's a bug in `pnpm pack` where it will run
+          // the prepublishOnly script and that will fail.
+          // See https://github.com/pnpm/pnpm/issues/2941
+          delete pkgData.scripts.prepublishOnly
+        }
+
         await fs.writeFile(
           pkgDataPath,
           JSON.stringify(pkgData, null, 2),
@@ -129,10 +142,23 @@ module.exports = (actionInfo) => {
 
       // wait to pack packages until after dependency paths have been updated
       // to the correct versions
-      for (const pkgName of pkgDatas.keys()) {
-        const { pkg, pkgPath } = pkgDatas.get(pkgName)
-        await exec(`cd ${pkgPath} && yarn pack -f ${pkg}-packed.tgz`, true)
-      }
+      await Promise.all(
+        Array.from(pkgDatas.keys()).map(async (pkgName) => {
+          const { pkg, pkgPath, pkgData, packedPkgPath } = pkgDatas.get(pkgName)
+          // Copied from pnpm source: https://github.com/pnpm/pnpm/blob/5a5512f14c47f4778b8d2b6d957fb12c7ef40127/releasing/plugin-commands-publishing/src/pack.ts#L96
+          const tmpTarball = path.join(
+            pkgPath,
+            `${pkgData.name.replace('@', '').replace('/', '-')}-${
+              pkgData.version
+            }.tgz`
+          )
+          await execa('pnpm', ['pack'], {
+            cwd: pkgPath,
+          })
+          await fs.copyFile(tmpTarball, packedPkgPath)
+        })
+      )
+
       return pkgPaths
     },
   }

@@ -1,4 +1,4 @@
-import rule from '@next/eslint-plugin-next/lib/rules/no-before-interactive-script-outside-document'
+import rule from '@next/eslint-plugin-next/dist/rules/no-before-interactive-script-outside-document'
 import { RuleTester } from 'eslint'
 ;(RuleTester as any).setDefaultConfig({
   parserOptions: {
@@ -103,7 +103,72 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
       `,
       filename: 'pages/_document.tsx',
     },
-  ],
+    {
+      code: `
+      import Script from "next/script";
+
+      export default function Index() {
+        return (
+          <Script
+            id="scriptBeforeInteractive"
+            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
+            strategy="beforeInteractive"
+          ></Script>
+        );
+      }`,
+      filename: 'app/deep/root/layout.tsx',
+    },
+    {
+      code: `
+      import Script from "next/script";
+
+      export default function Index() {
+        return (
+          <Script
+            id="scriptBeforeInteractive"
+            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
+            strategy="beforeInteractive"
+          ></Script>
+        );
+      }`,
+      filename: 'app/deep/page.tsx',
+    },
+    {
+      code: `
+      import Script from "next/script";
+
+      export default function Index() {
+        return (
+          <Script
+            id="scriptBeforeInteractive"
+            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
+            strategy="beforeInteractive"
+          ></Script>
+        );
+      }`,
+      filename: 'app/deep/randomFile.tsx',
+    },
+    {
+      code: `
+      import Script from "next/script";
+
+      export default function Index() {
+        return (
+          <Script
+            id="scriptBeforeInteractive"
+            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
+            strategy="beforeInteractive"
+          ></Script>
+        );
+      }`,
+      filename: 'src/app/deep/randomFile.tsx',
+    },
+  ].map((obj, idx) => ({
+    ...obj,
+    code: `// valid-${idx}
+      ${obj.code}
+    `,
+  })),
 
   invalid: [
     {
@@ -128,5 +193,32 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
         },
       ],
     },
-  ],
+    {
+      code: `
+      import Head from "next/head";
+      import Script from "next/script";
+
+      export default function Index() {
+        return (
+          <Script
+            id="scriptBeforeInteractive"
+            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
+            strategy="beforeInteractive"
+          ></Script>
+        );
+      }`,
+      filename: 'components/outside-known-dirs.js',
+      errors: [
+        {
+          message:
+            "`next/script`'s `beforeInteractive` strategy should not be used outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document",
+        },
+      ],
+    },
+  ].map((obj, idx) => ({
+    ...obj,
+    code: `// invalid-${idx}
+      ${obj.code}
+    `,
+  })),
 })

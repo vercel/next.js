@@ -24,7 +24,7 @@ Create a file named `.vscode/launch.json` at the root of your project with the f
     },
     {
       "name": "Next.js: debug client-side",
-      "type": "pwa-chrome",
+      "type": "chrome",
       "request": "launch",
       "url": "http://localhost:3000"
     },
@@ -33,7 +33,6 @@ Create a file named `.vscode/launch.json` at the root of your project with the f
       "type": "node-terminal",
       "request": "launch",
       "command": "npm run dev",
-      "console": "integratedTerminal",
       "serverReadyAction": {
         "pattern": "started server on .+, url: (https?://.+)",
         "uriFormat": "%s",
@@ -97,6 +96,8 @@ Windows users may run into an issue when using `NODE_OPTIONS='--inspect'` as tha
 ```
 
 `cross-env` will set the `NODE_OPTIONS` environment variable regardless of which platform you are on (including Mac, Linux, and Windows) and allow you to debug consistently across devices and operating systems.
+
+> **Note**: Ensure Windows Defender is disabled on your machine. This external service will check _every file read_, which has been reported to greatly increase Fast Refresh time with `next dev`. This is a known issue, not related to Next.js, but it does affect Next.js development.
 
 ## More information
 

@@ -2,6 +2,8 @@
 import { NextRequest, NextResponse, URLPattern } from 'next/server'
 import magicValue from 'shared-package'
 
+export const config = { regions: 'auto' }
+
 const PATTERNS = [
   [
     new URLPattern({ pathname: '/:locale/:id' }),
@@ -45,6 +47,12 @@ export async function middleware(request) {
   // this is needed for tests to get the BUILD_ID
   if (url.pathname.startsWith('/_next/static/__BUILD_ID')) {
     return NextResponse.next()
+  }
+
+  if (
+    url.pathname.includes('/_next/static/chunks/pages/_app-non-existent.js')
+  ) {
+    return NextResponse.rewrite('https://example.vercel.sh')
   }
 
   if (url.pathname === '/api/edge-search-params') {

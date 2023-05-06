@@ -78,15 +78,11 @@ export default function Home() {
 import Link from 'next/link'
 
 export default function Home() {
-  return (
-    <Link href="/blog">
-      <a>blog</a>
-    </Link>
-  )
+  return <Link href="/blog">blog</Link>
 }
 ```
 
-Update any import statements, switch `to` to `href`, and add an `<a>` tag as a child of the element.
+Update any import statements, switch `to` to `href`.
 
 ## Data Fetching
 
@@ -185,11 +181,11 @@ This means you can remove common Gatsby plugins like:
 
 Instead, use the built-in [`next/image`](/docs/api-reference/next/image.md) component and [Automatic Image Optimization](/docs/basic-features/image-optimization.md).
 
-> The `next/image` component's default loader is not supported when using [`next export`](/docs/advanced-features/static-html-export.md). However, other loader options will work.
+> The `next/image` component's default loader is not supported when using [`output: 'export'`](/docs/advanced-features/static-html-export.md). However, other loader options will work.
 
 ```jsx
 import Image from 'next/image'
-import profilePic from '../public/me.png'
+import profilePic from '../assets/me.png'
 
 export default function Home() {
   return (

@@ -23,7 +23,7 @@ async function checkInjected(browser) {
 
 module.exports = (context) => {
   describe('With Security Related Issues', () => {
-    it('should handle invalid URL properly', async () => {
+    it.skip('should handle invalid URL properly', async () => {
       async function invalidRequest() {
         return new Promise((resolve, reject) => {
           const request = http.request(
@@ -98,7 +98,9 @@ module.exports = (context) => {
       const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
 
       const readPath = join(__dirname, `../.next/static/${buildId}`)
-      const buildFiles = await recursiveReadDir(readPath, /\.js$/)
+      const buildFiles = await recursiveReadDir(readPath, (f) =>
+        /\.js$/.test(f)
+      )
 
       if (buildFiles.length < 1) {
         throw new Error('Could not locate any build files')

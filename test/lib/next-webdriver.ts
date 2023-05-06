@@ -61,6 +61,7 @@ export default async function webdriver(
     disableCache?: boolean
     beforePageLoad?: (page: any) => void
     locale?: string
+    disableJavaScript?: boolean
   }
 ): Promise<BrowserInterface> {
   let CurrentInterface: typeof BrowserInterface
@@ -77,12 +78,17 @@ export default async function webdriver(
     disableCache,
     beforePageLoad,
     locale,
+    disableJavaScript,
   } = options
 
   // we import only the needed interface
   if (USE_SELENIUM) {
     const { Selenium, quit } = await import('./browsers/selenium')
     CurrentInterface = Selenium
+    browserQuit = quit
+  } else if (process.env.RECORD_REPLAY === 'true') {
+    const { Replay, quit } = await require('./browsers/replay')
+    CurrentInterface = Replay
     browserQuit = quit
   } else {
     const { Playwright, quit } = await import('./browsers/playwright')
@@ -92,7 +98,7 @@ export default async function webdriver(
 
   const browser = new CurrentInterface()
   const browserName = process.env.BROWSER_NAME || 'chrome'
-  await browser.setup(browserName, locale)
+  await browser.setup(browserName, locale, !disableJavaScript)
   ;(global as any).browserName = browserName
 
   const fullUrl = getFullUrl(
@@ -116,7 +122,7 @@ export default async function webdriver(
 
         // if it's not a Next.js app return
         if (
-          document.documentElement.innerHTML.indexOf('__NEXT_DATA__') === -1 &&
+          !document.documentElement.innerHTML.includes('__NEXT_DATA__') &&
           // @ts-ignore next exists on window if it's a Next.js page.
           typeof ((window as any).next && (window as any).next.version) ===
             'undefined'

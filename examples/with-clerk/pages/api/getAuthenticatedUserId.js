@@ -1,10 +1,9 @@
-import { withSession } from '@clerk/nextjs/api'
+import { getAuth } from '@clerk/nextjs/server'
 
-export default withSession((req, res) => {
-  res.statusCode = 200
-  if (req.session) {
-    res.json({ id: req.session.userId })
-  } else {
-    res.json({ id: null })
+export default function handler(req, res) {
+  const { sessionId, userId } = getAuth(req)
+  if (!sessionId) {
+    return res.status(401).json({ id: null })
   }
-})
+  return res.status(200).json({ id: userId })
+}

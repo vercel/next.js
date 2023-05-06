@@ -105,7 +105,7 @@ function runTest() {
       expect(isNaN(parseFloat(beacon.value))).toBe(false)
     }
 
-    expect(stdout).toMatch('Next.js Analytics')
+    expect(stdout).toMatch('Next.js Speed Insights')
     await browser.close()
   })
 
@@ -127,5 +127,22 @@ function runTest() {
       return 'success'
     }, 'success')
     await browser.close()
+  })
+
+  it('reports attribution', async () => {
+    const browser = await webdriver(appPort, '/')
+    // trigger paint
+    await browser.elementByCss('button').click()
+    await browser.waitForCondition(
+      `window.__metricsWithAttribution?.length > 0`
+    )
+    const str = await browser.eval(
+      `JSON.stringify(window.__metricsWithAttribution)`
+    )
+    const metrics = JSON.parse(str)
+    const LCP = metrics.find((m) => m.name === 'LCP')
+    expect(LCP).toBeDefined()
+    expect(LCP.attribution).toBeDefined()
+    expect(LCP.attribution.element).toBe('#__next>div>h1')
   })
 }

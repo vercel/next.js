@@ -63,18 +63,14 @@ function Home() {
   return (
     <ul>
       <li>
-        <Link href="/post/abc">
-          <a>Go to pages/post/[pid].js</a>
-        </Link>
+        <Link href="/post/abc">Go to pages/post/[pid].js</Link>
       </li>
       <li>
-        <Link href="/post/abc?foo=bar">
-          <a>Also goes to pages/post/[pid].js</a>
-        </Link>
+        <Link href="/post/abc?foo=bar">Also goes to pages/post/[pid].js</Link>
       </li>
       <li>
         <Link href="/post/abc/a-comment">
-          <a>Go to pages/post/[pid]/[comment].js</a>
+          Go to pages/post/[pid]/[comment].js
         </Link>
       </li>
     </ul>
@@ -97,7 +93,8 @@ Read our docs for [Linking between pages](/docs/routing/introduction.md#linking-
 
 Dynamic routes can be extended to catch all paths by adding three dots (`...`) inside the brackets. For example:
 
-- `pages/post/[...slug].js` matches `/post/a`, but also `/post/a/b`, `/post/a/b/c` and so on.
+- `pages/post/[...slug].js` not only matches `/post/a`, but also `/post/a/b`, `/post/a/b/c`, and so on.
+- `pages/post/[...slug].js` does not match `/post`.
 
 > **Note**: You can use names other than `slug`, such as: `[...param]`
 

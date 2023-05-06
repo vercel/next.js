@@ -57,5 +57,25 @@ export const config = {
         },
       ],
     },
+    {
+      source: '/missing-match-1',
+      missing: [
+        {
+          type: 'header',
+          key: 'hello',
+          value: '(.*)',
+        },
+      ],
+    },
+    {
+      source: '/missing-match-2',
+      missing: [
+        {
+          type: 'query',
+          key: 'test',
+          value: 'value',
+        },
+      ],
+    },
   ],
 }

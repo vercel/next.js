@@ -23,68 +23,68 @@ export default class extends Component {
   render() {
     return (
       <div className="nav-home">
-        <Link href="/nav/about">
-          <a id="about-link" style={linkStyle}>
-            About
-          </a>
+        <Link href="/nav/about" id="about-link" style={linkStyle}>
+          About
         </Link>
-        <Link href="/empty-get-initial-props">
-          <a id="empty-props" style={linkStyle}>
-            Empty Props
-          </a>
+        <Link
+          href="/empty-get-initial-props"
+          id="empty-props"
+          style={linkStyle}
+        >
+          Empty Props
         </Link>
-        <Link href="/nav/self-reload">
-          <a id="self-reload-link" style={linkStyle}>
-            Self Reload
-          </a>
+        <Link href="/nav/self-reload" id="self-reload-link" style={linkStyle}>
+          Self Reload
         </Link>
-        <Link href="/nav/shallow-routing">
-          <a id="shallow-routing-link" style={linkStyle}>
-            Shallow Routing
-          </a>
+        <Link
+          href="/nav/shallow-routing"
+          id="shallow-routing-link"
+          style={linkStyle}
+        >
+          Shallow Routing
         </Link>
-        <Link href="/nav/redirect">
-          <a id="redirect-link" style={linkStyle}>
-            Redirect
-          </a>
+        <Link href="/nav/redirect" id="redirect-link" style={linkStyle}>
+          Redirect
         </Link>
         <Link
           href={{ pathname: '/nav/querystring', query: { id: 10 } }}
           as={{ pathname: '/nav/querystring/10', hash: '10' }}
+          id="query-string-link"
+          style={linkStyle}
         >
-          <a id="query-string-link" style={linkStyle}>
-            QueryString
-          </a>
+          QueryString
         </Link>
-        <Link href="/nav/about" replace>
-          <a id="about-replace-link" style={linkStyle}>
-            Replace state
-          </a>
+        <Link
+          href="/nav/about"
+          replace
+          id="about-replace-link"
+          style={linkStyle}
+        >
+          Replace state
         </Link>
-        <Link href="/nav/as-path" as="/as/path">
-          <a id="as-path-link" style={linkStyle}>
-            As Path
-          </a>
+        <Link
+          href="/nav/as-path"
+          as="/as/path"
+          id="as-path-link"
+          style={linkStyle}
+        >
+          As Path
         </Link>
-        <Link href="/nav/as-path">
-          <a id="as-path-link-no-as" style={linkStyle}>
-            As Path (No as)
-          </a>
+        <Link href="/nav/as-path" id="as-path-link-no-as" style={linkStyle}>
+          As Path (No as)
         </Link>
-        <Link href="/nav/as-path-using-router">
-          <a id="as-path-using-router-link" style={linkStyle}>
-            As Path (Using Router)
-          </a>
+        <Link
+          href="/nav/as-path-using-router"
+          id="as-path-using-router-link"
+          style={linkStyle}
+        >
+          As Path (Using Router)
         </Link>
-        <Link href="/nav/on-click?count=1">
-          <a id="on-click-link" style={linkStyle}>
-            An element with onClick
-          </a>
+        <Link href="/nav/on-click?count=1" id="on-click-link" style={linkStyle}>
+          An element with onClick
         </Link>
-        <Link href="/nav/about">
-          <a id="target-link" target="_blank">
-            An element with target
-          </a>
+        <Link href="/nav/about" id="target-link" target="_blank">
+          An element with target
         </Link>
 
         <svg
@@ -93,15 +93,13 @@ export default class extends Component {
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
         >
-          <Link href="/nav/about">
-            <a id="in-svg-link" style={{ display: 'block' }}>
-              <path
-                fillRule="evenodd"
-                clipRule="evenodd"
-                d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0Zm4.5 18a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"
-                fill="#335BF1"
-              />
-            </a>
+          <Link href="/nav/about" id="in-svg-link" style={{ display: 'block' }}>
+            <path
+              fillRule="evenodd"
+              clipRule="evenodd"
+              d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0Zm4.5 18a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"
+              fill="#335BF1"
+            />
           </Link>
         </svg>
 
@@ -118,11 +116,11 @@ export default class extends Component {
         <button id="increase" onClick={() => this.increase()}>
           Increase
         </button>
-        <Link href="/nav/hash-changes#item-400">
-          <a id="scroll-to-hash">Scroll to hash</a>
+        <Link href="/nav/hash-changes#item-400" id="scroll-to-hash">
+          Scroll to hash
         </Link>
-        <Link href="/nav/hash-changes#中文">
-          <a id="scroll-to-cjk-hash">Scroll to CJK hash</a>
+        <Link href="/nav/hash-changes#中文" id="scroll-to-cjk-hash">
+          Scroll to CJK hash
         </Link>
       </div>
     )

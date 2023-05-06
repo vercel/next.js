@@ -4,16 +4,16 @@ export default function Page(props) {
   return (
     <>
       <p id="props">{JSON.stringify(props)}</p>
-      <Link href="/first?a=b" shallow>
-        <a id="add-query-shallow">add query shallow</a>
+      <Link href="/first?a=b" shallow id="add-query-shallow">
+        add query shallow
       </Link>
       <br />
-      <Link href="/first" shallow>
-        <a id="remove-query-shallow">remove query shallow</a>
+      <Link href="/first" shallow id="remove-query-shallow">
+        remove query shallow
       </Link>
       <br />
-      <Link href="/another">
-        <a id="to-another">to /another non-shallow</a>
+      <Link href="/another" id="to-another">
+        to /another non-shallow
       </Link>
     </>
   )

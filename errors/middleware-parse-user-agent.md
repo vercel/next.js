@@ -29,6 +29,6 @@ export function middleware(request: NextRequest) {
   const viewport = device.type === 'mobile' ? 'mobile' : 'desktop'
 
   request.nextUrl.searchParams.set('viewport', viewport)
-  return NextResponse.rewrites(request.nextUrl)
+  return NextResponse.rewrite(request.nextUrl)
 }
 ```

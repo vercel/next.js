@@ -8,6 +8,7 @@ export type ReadyRuntimeError = {
   runtime: true
   error: Error
   frames: OriginalStackFrame[]
+  componentStack?: string[]
 }
 
 export async function getErrorByType(
@@ -17,7 +18,7 @@ export async function getErrorByType(
   switch (event.type) {
     case TYPE_UNHANDLED_ERROR:
     case TYPE_UNHANDLED_REJECTION: {
-      return {
+      const readyRuntimeError: ReadyRuntimeError = {
         id,
         runtime: true,
         error: event.reason,
@@ -27,6 +28,10 @@ export async function getErrorByType(
           event.reason.toString()
         ),
       }
+      if (event.type === TYPE_UNHANDLED_ERROR) {
+        readyRuntimeError.componentStack = event.componentStack
+      }
+      return readyRuntimeError
     }
     default: {
       break

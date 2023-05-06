@@ -7,115 +7,182 @@ const { randomBytes } = require('crypto')
 const { linkPackages } =
   require('../../.github/actions/next-stats-action/src/prepare/repo-setup')()
 
-async function createNextInstall(
-  dependencies,
-  installCommand,
+async function createNextInstall({
+  parentSpan = null,
+  dependencies = null,
+  installCommand = null,
   packageJson = {},
-  packageLockPath = ''
-) {
-  const tmpDir = await fs.realpath(process.env.NEXT_TEST_DIR || os.tmpdir())
-  const origRepoDir = path.join(__dirname, '../../')
-  const installDir = path.join(
-    tmpDir,
-    `next-install-${randomBytes(32).toString('hex')}`
-  )
-  const tmpRepoDir = path.join(
-    tmpDir,
-    `next-repo-${randomBytes(32).toString('hex')}`
-  )
+  dirSuffix = '',
+  onlyPackages = false,
+  keepRepoDir = false,
+}) {
+  return await parentSpan
+    .traceChild('createNextInstall')
+    .traceAsyncFn(async (rootSpan) => {
+      const tmpDir = await fs.realpath(process.env.NEXT_TEST_DIR || os.tmpdir())
+      const origRepoDir = path.join(__dirname, '../../')
+      const installDir = path.join(
+        tmpDir,
+        `next-install-${randomBytes(32).toString('hex')}${dirSuffix}`
+      )
+      let tmpRepoDir
+      require('console').log('Creating next instance in:')
+      require('console').log(installDir)
 
-  // ensure swc binary is present in the native folder if
-  // not already built
-  for (const folder of await fs.readdir(
-    path.join(origRepoDir, 'node_modules/@next')
-  )) {
-    if (folder.startsWith('swc-')) {
-      const swcPkgPath = path.join(origRepoDir, 'node_modules/@next', folder)
-      const outputPath = path.join(origRepoDir, 'packages/next-swc/native')
-      await fs.copy(swcPkgPath, outputPath, {
-        filter: (item) => {
-          return (
-            item === swcPkgPath ||
-            (item.endsWith('.node') &&
-              !fs.pathExistsSync(path.join(outputPath, path.basename(item))))
-          )
-        },
-      })
-    }
-  }
+      let pkgPaths = process.env.NEXT_TEST_PKG_PATHS
 
-  for (const item of ['package.json', 'packages']) {
-    await fs.copy(path.join(origRepoDir, item), path.join(tmpRepoDir, item), {
-      filter: (item) => {
-        return (
-          !item.includes('node_modules') &&
-          !item.includes('.DS_Store') &&
-          // Exclude Rust compilation files
-          !/next[\\/]build[\\/]swc[\\/]target/.test(item)
+      if (pkgPaths) {
+        pkgPaths = new Map(JSON.parse(pkgPaths))
+        require('console').log('using provided pkg paths')
+      } else {
+        tmpRepoDir = path.join(
+          tmpDir,
+          `next-repo-${randomBytes(32).toString('hex')}${dirSuffix}`
         )
-      },
+        require('console').log('Creating temp repo dir', tmpRepoDir)
+
+        await rootSpan
+          .traceChild('ensure swc binary')
+          .traceAsyncFn(async () => {
+            // ensure swc binary is present in the native folder if
+            // not already built
+            for (const folder of await fs.readdir(
+              path.join(origRepoDir, 'node_modules/@next')
+            )) {
+              if (folder.startsWith('swc-')) {
+                const swcPkgPath = path.join(
+                  origRepoDir,
+                  'node_modules/@next',
+                  folder
+                )
+                const outputPath = path.join(
+                  origRepoDir,
+                  'packages/next-swc/native'
+                )
+                await fs.copy(swcPkgPath, outputPath, {
+                  filter: (item) => {
+                    return (
+                      item === swcPkgPath ||
+                      (item.endsWith('.node') &&
+                        !fs.pathExistsSync(
+                          path.join(outputPath, path.basename(item))
+                        ))
+                    )
+                  },
+                })
+              }
+            }
+          })
+
+        for (const item of ['package.json', 'packages']) {
+          await rootSpan
+            .traceChild(`copy ${item} to temp dir`)
+            .traceAsyncFn(async () => {
+              await fs.copy(
+                path.join(origRepoDir, item),
+                path.join(tmpRepoDir, item),
+                {
+                  filter: (item) => {
+                    return (
+                      !item.includes('node_modules') &&
+                      !item.includes('pnpm-lock.yaml') &&
+                      !item.includes('.DS_Store') &&
+                      // Exclude Rust compilation files
+                      !/next[\\/]build[\\/]swc[\\/]target/.test(item) &&
+                      !/next-swc[\\/]target/.test(item)
+                    )
+                  },
+                }
+              )
+            })
+        }
+
+        pkgPaths = await rootSpan.traceChild('linkPackages').traceAsyncFn(() =>
+          linkPackages({
+            repoDir: tmpRepoDir,
+          })
+        )
+      }
+      let combinedDependencies = dependencies
+
+      if (onlyPackages) {
+        return pkgPaths
+      }
+      if (!(packageJson && packageJson.nextParamateSkipLocalDeps)) {
+        combinedDependencies = {
+          next: pkgPaths.get('next'),
+          ...Object.keys(dependencies).reduce((prev, pkg) => {
+            const pkgPath = pkgPaths.get(pkg)
+            prev[pkg] = pkgPath || dependencies[pkg]
+            return prev
+          }, {}),
+        }
+      }
+
+      await fs.ensureDir(installDir)
+      await fs.writeFile(
+        path.join(installDir, 'package.json'),
+        JSON.stringify(
+          {
+            ...packageJson,
+            dependencies: combinedDependencies,
+            private: true,
+          },
+          null,
+          2
+        )
+      )
+
+      if (installCommand) {
+        const installString =
+          typeof installCommand === 'function'
+            ? installCommand({ dependencies: combinedDependencies })
+            : installCommand
+
+        console.log('running install command', installString)
+        rootSpan.traceChild('run custom install').traceFn(() => {
+          childProcess.execSync(installString, {
+            cwd: installDir,
+            stdio: ['ignore', 'inherit', 'inherit'],
+          })
+        })
+      } else {
+        await rootSpan
+          .traceChild('run generic install command')
+          .traceAsyncFn(async () => {
+            const args = [
+              'install',
+              '--strict-peer-dependencies=false',
+              '--no-frozen-lockfile',
+            ]
+
+            if (process.env.NEXT_TEST_PREFER_OFFLINE === '1') {
+              args.push('--prefer-offline')
+            }
+
+            await execa('pnpm', args, {
+              cwd: installDir,
+              stdio: ['ignore', 'inherit', 'inherit'],
+              env: process.env,
+            })
+          })
+      }
+
+      if (!keepRepoDir && tmpRepoDir) {
+        await fs.remove(tmpRepoDir)
+      }
+      if (keepRepoDir) {
+        return {
+          installDir,
+          pkgPaths,
+          tmpRepoDir,
+        }
+      }
+      return installDir
     })
-  }
-
-  let combinedDependencies = dependencies
-
-  if (!(packageJson && packageJson.nextPrivateSkipLocalDeps)) {
-    const pkgPaths = await linkPackages(tmpRepoDir)
-    combinedDependencies = {
-      next: pkgPaths.get('next'),
-      ...Object.keys(dependencies).reduce((prev, pkg) => {
-        const pkgPath = pkgPaths.get(pkg)
-        prev[pkg] = pkgPath || dependencies[pkg]
-        return prev
-      }, {}),
-    }
-  }
-
-  await fs.ensureDir(installDir)
-  await fs.writeFile(
-    path.join(installDir, 'package.json'),
-    JSON.stringify(
-      {
-        ...packageJson,
-        dependencies: combinedDependencies,
-        private: true,
-      },
-      null,
-      2
-    )
-  )
-
-  if (packageLockPath) {
-    await fs.copy(
-      packageLockPath,
-      path.join(installDir, path.basename(packageLockPath))
-    )
-  }
-
-  if (installCommand) {
-    const installString =
-      typeof installCommand === 'function'
-        ? installCommand({ dependencies: combinedDependencies })
-        : installCommand
-
-    console.log('running install command', installString)
-
-    childProcess.execSync(installString, {
-      cwd: installDir,
-      stdio: ['ignore', 'inherit', 'inherit'],
-    })
-  } else {
-    await execa('pnpm', ['install', '--strict-peer-dependencies=false'], {
-      cwd: installDir,
-      stdio: ['ignore', 'inherit', 'inherit'],
-      env: process.env,
-    })
-  }
-
-  await fs.remove(tmpRepoDir)
-  return installDir
 }
 
 module.exports = {
   createNextInstall,
+  getPkgPaths: linkPackages,
 }

@@ -9,6 +9,7 @@ import {
   TEST_TOKEN,
 } from '../../../scripts/reset-vercel-project.mjs'
 import fetch from 'node-fetch'
+import { Span } from 'next/src/trace'
 
 export class NextDeployInstance extends NextInstance {
   private _cliOutput: string
@@ -20,8 +21,8 @@ export class NextDeployInstance extends NextInstance {
     return this._buildId
   }
 
-  public async setup() {
-    await super.createTestDir({ skipInstall: true })
+  public async setup(parentSpan: Span) {
+    await super.createTestDir({ parentSpan, skipInstall: true })
 
     // ensure Vercel CLI is installed
     try {
@@ -51,7 +52,7 @@ export class NextDeployInstance extends NextInstance {
     // link the project
     const linkRes = await execa(
       'vercel',
-      ['link', '-p', TEST_PROJECT_NAME, '--confirm', ...vercelFlags],
+      ['link', '-p', TEST_PROJECT_NAME, '--yes', ...vercelFlags],
       {
         cwd: this.testDir,
         env: vercelEnv,
@@ -74,10 +75,10 @@ export class NextDeployInstance extends NextInstance {
       additionalEnv.push(`${key}=${this.env[key]}`)
     }
 
-    if (process.env.VERCEL_CLI_VERSION) {
-      additionalEnv.push('--build-env')
-      additionalEnv.push(`VERCEL_CLI_VERSION=${process.env.VERCEL_CLI_VERSION}`)
-    }
+    additionalEnv.push('--build-env')
+    additionalEnv.push(
+      `VERCEL_CLI_VERSION=${process.env.VERCEL_CLI_VERSION || 'vercel@latest'}`
+    )
 
     const deployRes = await execa(
       'vercel',

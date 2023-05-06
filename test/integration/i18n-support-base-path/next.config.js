@@ -1,5 +1,4 @@
 module.exports = {
-  // target: 'experimental-serverless-trace',
   basePath: '/docs',
   i18n: {
     // localeDetection: false,

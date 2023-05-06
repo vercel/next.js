@@ -4,18 +4,18 @@ description: Next.js pages are React Components exported in a file in the pages 
 
 # Pages
 
-> **Note:** We are introducing improved routing support in Next.js. Read the [Layouts RFC](https://nextjs.org/blog/layouts-rfc) for more details and to provide feedback.
+> **Note**: Next.js 13 introduces the `app/` directory (beta). This new directory has support for layouts, nested routes, and uses Server Components by default. Inside `app/`, you can fetch data for your entire application inside layouts, including support for more granular nested layouts (with [colocated data fetching](https://beta.nextjs.org/docs/data-fetching/fundamentals)).
+>
+> [Learn more about incrementally adopting `app/`](https://beta.nextjs.org/docs/upgrade-guide).
 
-In Next.js, a **page** is a [React Component](https://reactjs.org/docs/components-and-props.html) exported from a `.js`, `.jsx`, `.ts`, or `.tsx` file in the `pages` directory. Each page is associated with a route based on its file name.
+In Next.js, a **page** is a [React Component](https://react.dev/learn/your-first-component) exported from a `.js`, `.jsx`, `.ts`, or `.tsx` file in the `pages` directory. Each page is associated with a route based on its file name.
 
 **Example**: If you create `pages/about.js` that exports a React component like below, it will be accessible at `/about`.
 
 ```jsx
-function About() {
+export default function About() {
   return <div>About</div>
 }
-
-export default About
 ```
 
 ### Pages with Dynamic Routes
@@ -34,7 +34,7 @@ Each generated HTML is associated with minimal JavaScript code necessary for tha
 
 Next.js has two forms of pre-rendering: **Static Generation** and **Server-side Rendering**. The difference is in **when** it generates the HTML for a page.
 
-- [**Static Generation (Recommended)**](#static-generation-recommended): The HTML is generated at **build time** and will be reused on each request.
+- [**Static Generation (Recommended)**](#static-generation): The HTML is generated at **build time** and will be reused on each request.
 - [**Server-side Rendering**](#server-side-rendering): The HTML is generated on **each request**.
 
 Importantly, Next.js lets you **choose** which pre-rendering form you'd like to use for each page. You can create a "hybrid" Next.js app by using Static Generation for most pages and using Server-side Rendering for others.
@@ -43,9 +43,9 @@ We **recommend** using **Static Generation** over Server-side Rendering for perf
 
 You can also use **Client-side data fetching** along with Static Generation or Server-side Rendering. That means some parts of a page can be rendered entirely by client side JavaScript. To learn more, take a look at the [Data Fetching](/docs/basic-features/data-fetching/client-side.md) documentation.
 
-## Static Generation (Recommended)
+## Static Generation
 
-<details open>
+<details>
   <summary><b>Examples</b></summary>
   <ul>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-wordpress">WordPress Example</a> (<a href="https://next-blog-wordpress.vercel.app">Demo</a>)</li>
@@ -66,6 +66,7 @@ You can also use **Client-side data fetching** along with Static Generation or S
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-builder-io">Builder.io Example</a> (<a href="https://cms-builder-io.vercel.app/">Demo</a>)</li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-tina">TinaCMS Example</a> (<a href="https://cms-tina-example.vercel.app/">Demo</a>)</li>
     <li><a href="https://static-tweet.vercel.app/">Static Tweet (Demo)</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-enterspeed">Enterspeed Example</a> (<a href="https://next-blog-demo.enterspeed.com/">Demo</a>)</li>
   </ul>
 </details>
 
@@ -101,7 +102,7 @@ Some pages require fetching external data for pre-rendering. There are two scena
 ```jsx
 // TODO: Need to fetch `posts` (by calling some API endpoint)
 //       before this page can be pre-rendered.
-function Blog({ posts }) {
+export default function Blog({ posts }) {
   return (
     <ul>
       {posts.map((post) => (
@@ -110,14 +111,12 @@ function Blog({ posts }) {
     </ul>
   )
 }
-
-export default Blog
 ```
 
 To fetch this data on pre-render, Next.js allows you to `export` an `async` function called `getStaticProps` from the same file. This function gets called at build time and lets you pass fetched data to the page's `props` on pre-render.
 
 ```jsx
-function Blog({ posts }) {
+export default function Blog({ posts }) {
   // Render posts...
 }
 
@@ -135,8 +134,6 @@ export async function getStaticProps() {
     },
   }
 }
-
-export default Blog
 ```
 
 To learn more about how `getStaticProps` works, check out the [Data Fetching documentation](/docs/basic-features/data-fetching/get-static-props.md).
@@ -176,7 +173,7 @@ export async function getStaticPaths() {
 Also in `pages/posts/[id].js`, you need to export `getStaticProps` so that you can fetch the data about the post with this `id` and use it to pre-render the page:
 
 ```jsx
-function Post({ post }) {
+export default function Post({ post }) {
   // Render post...
 }
 
@@ -194,8 +191,6 @@ export async function getStaticProps({ params }) {
   // Pass post data to the page via props
   return { props: { post } }
 }
-
-export default Post
 ```
 
 To learn more about how `getStaticPaths` works, check out the [Data Fetching documentation](/docs/basic-features/data-fetching/get-static-paths.md).
@@ -231,7 +226,7 @@ To use Server-side Rendering for a page, you need to `export` an `async` functio
 For example, suppose that your page needs to pre-render frequently updated data (fetched from an external API). You can write `getServerSideProps` which fetches this data and passes it to `Page` like below:
 
 ```jsx
-function Page({ data }) {
+export default function Page({ data }) {
   // Render data...
 }
 
@@ -244,8 +239,6 @@ export async function getServerSideProps() {
   // Pass data to the page via props
   return { props: { data } }
 }
-
-export default Page
 ```
 
 As you can see, `getServerSideProps` is similar to `getStaticProps`, but the difference is that `getServerSideProps` is run on every request instead of on build time.

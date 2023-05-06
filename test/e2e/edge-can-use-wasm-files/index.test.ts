@@ -49,7 +49,7 @@ describe('edge api endpoints can use wasm files', () => {
             const value = await increment(input);
             return new Response(null, { headers: { data: JSON.stringify({ input, value }) } });
           }
-          export const config = { runtime: 'experimental-edge' };
+          export const config = { runtime: 'edge' };
         `,
         'src/add.wasm': new FileRef(path.join(__dirname, './add.wasm')),
         'src/add.js': `

@@ -1,16 +1,21 @@
+import { useUser } from '@auth0/nextjs-auth0'
 import Layout from '../components/layout'
-import { useFetchUser } from '../lib/user'
 
 const About = () => {
-  const { user, loading } = useFetchUser()
+  const { user, isLoading } = useUser()
 
   return (
-    <Layout user={user} loading={loading}>
+    <Layout user={user} loading={isLoading}>
       <h1>About</h1>
       <p>
-        This is the about page, navigating between this page and <i>Home</i> is
-        always pretty fast. However, when you navigate to the <i>Profile</i>{' '}
-        page it takes more time because it uses SSR to fetch the user first;
+        This project shows different ways to display Profile info: using{' '}
+        <i>Client rendered</i>, <i>Server rendered</i>, and <i>API rendered</i>
+      </p>
+      <p>
+        Navigating between this page and <i>Home</i> is always pretty fast.
+        However, when you navigate to the <i>Server rendered profile</i> page it
+        takes more time because it uses SSR to fetch the user and then to
+        display it
       </p>
     </Layout>
   )

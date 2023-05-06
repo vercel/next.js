@@ -67,6 +67,23 @@ export const config = {
 }
 ```
 
+The matcher config also allows full regex so matching like negative lookaheads or character matching is supported. An example of a negative lookahead to match all except specific paths can be seen here:
+
+```typescript
+// <root>/middleware.js
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - favicon.ico (favicon file)
+     */
+    '/((?!api|_next/static|favicon.ico).*)',
+  ],
+}
+```
+
 While the config option is preferred since it doesn't get invoked on every request, you can also use conditional statements to only run the Middleware when it matches specific paths. One advantage of using conditionals is defining explicit ordering for when Middleware executes. The following example shows how you can merge two previously nested Middleware:
 
 ```typescript
@@ -158,7 +175,7 @@ If you were previously using Middleware to forward headers to an external API, y
 import { type NextRequest } from 'next/server'
 
 export const config = {
-  runtime: 'experimental-edge',
+  runtime: 'edge',
 }
 
 export default async function handler(req: NextRequest) {
@@ -177,11 +194,11 @@ export default async function handler(req: NextRequest) {
 
 ### Summary of changes
 
-| Added                   | Removed       |
-| ----------------------- | ------------- |
-| `cookie.set`            | `cookie`      |
-| `cookie.delete`         | `clearCookie` |
-| `cookie.getWithOptions` | `cookies`     |
+| Added                    | Removed       |
+| ------------------------ | ------------- |
+| `cookies.set`            | `cookie`      |
+| `cookies.delete`         | `clearCookie` |
+| `cookies.getWithOptions` | `cookies`     |
 
 ### Explanation
 
@@ -191,9 +208,9 @@ Based on beta feedback, we are changing the Cookies API in `NextRequest` and `Ne
 
 `NextResponse` now has a `cookies` instance with:
 
-- `cookie.delete`
-- `cookie.set`
-- `cookie.getWithOptions`
+- `cookies.delete`
+- `cookies.set`
+- `cookies.getWithOptions`
 
 As well as other extended methods from `Map`.
 
@@ -241,15 +258,12 @@ export function middleware() {
   response.cookies.set('nextjs', 'awesome', { path: '/test' })
 
   // get all the details of a cookie
-  const { value, options } = response.cookies.getWithOptions('vercel')
+  const { value, ...options } = response.cookies.getWithOptions('vercel')
   console.log(value) // => 'fast'
-  console.log(options) // => { Path: '/test' }
+  console.log(options) // => { name: 'vercel', Path: '/test' }
 
   // deleting a cookie will mark it as expired
   response.cookies.delete('vercel')
-
-  // clear all cookies means mark all of them as expired
-  response.cookies.clear()
 
   return response
 }

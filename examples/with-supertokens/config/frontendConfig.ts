@@ -1,4 +1,5 @@
 import ThirdPartyEmailPasswordReact from 'supertokens-auth-react/recipe/thirdpartyemailpassword'
+import EmailVerificationReact from 'supertokens-auth-react/recipe/emailverification'
 import SessionReact from 'supertokens-auth-react/recipe/session'
 import { appInfo } from './appInfo'
 import Router from 'next/router'
@@ -7,10 +8,10 @@ export let frontendConfig = () => {
   return {
     appInfo,
     recipeList: [
+      EmailVerificationReact.init({
+        mode: 'REQUIRED',
+      }),
       ThirdPartyEmailPasswordReact.init({
-        emailVerificationFeature: {
-          mode: 'REQUIRED',
-        },
         signInAndUpFeature: {
           providers: [
             ThirdPartyEmailPasswordReact.Google.init(),

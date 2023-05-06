@@ -1,17 +1,17 @@
+use std::{cell::RefCell, mem::take, rc::Rc};
+
 use easy_error::{bail, Error};
 use fxhash::FxHashSet;
-use std::cell::RefCell;
-use std::mem::take;
-use std::rc::Rc;
-
-use swc_core::{
+use turbo_binding::swc::core::{
     common::{
         errors::HANDLER,
         pass::{Repeat, Repeated},
         DUMMY_SP,
     },
-    ecma::ast::*,
-    ecma::visit::{noop_fold_type, Fold, FoldWith},
+    ecma::{
+        ast::*,
+        visit::{noop_fold_type, Fold, FoldWith},
+    },
 };
 
 static SSG_EXPORTS: &[&str; 3] = &["getStaticProps", "getStaticPaths", "getServerSideProps"];
@@ -495,12 +495,12 @@ impl Fold for NextSsg {
                         if let Some(var) = var.take() {
                             new.push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
                                 span: DUMMY_SP,
-                                decl: Decl::Var(VarDecl {
+                                decl: Decl::Var(Box::new(VarDecl {
                                     span: DUMMY_SP,
                                     kind: VarDeclKind::Var,
                                     declare: Default::default(),
                                     decls: vec![var],
-                                }),
+                                })),
                             })))
                         }
                     }

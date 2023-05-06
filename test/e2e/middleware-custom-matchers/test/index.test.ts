@@ -21,6 +21,28 @@ describe('Middleware custom matchers', () => {
   afterAll(() => next.destroy())
 
   const runTests = () => {
+    it('should match missing header correctly', async () => {
+      const res = await fetchViaHTTP(next.url, '/missing-match-1')
+      expect(res.headers.get('x-from-middleware')).toBeDefined()
+
+      const res2 = await fetchViaHTTP(next.url, '/missing-match-1', undefined, {
+        headers: {
+          hello: 'world',
+        },
+      })
+      expect(res2.headers.get('x-from-middleware')).toBeFalsy()
+    })
+
+    it('should match missing query correctly', async () => {
+      const res = await fetchViaHTTP(next.url, '/missing-match-2')
+      expect(res.headers.get('x-from-middleware')).toBeDefined()
+
+      const res2 = await fetchViaHTTP(next.url, '/missing-match-2', {
+        test: 'value',
+      })
+      expect(res2.headers.get('x-from-middleware')).toBeFalsy()
+    })
+
     it('should match source path', async () => {
       const res = await fetchViaHTTP(next.url, '/source-match')
       expect(res.status).toBe(200)
