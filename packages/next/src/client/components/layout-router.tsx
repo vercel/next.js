@@ -502,7 +502,7 @@ export default function OuterLayoutRouter({
   error: ErrorComponent
   errorStyles: React.ReactNode | undefined
   templateStyles: React.ReactNode | undefined
-  template?: React.ReactNode
+  template: React.ReactNode
   loading: React.ReactNode | undefined
   loadingStyles: React.ReactNode | undefined
   hasLoading: boolean
@@ -552,60 +552,60 @@ export default function OuterLayoutRouter({
         )
         const preservedSegmentValue = getSegmentValue(preservedSegment)
         const cacheKey = createRouterCacheKey(preservedSegment)
-        /*
-          - Error boundary
-            - Only renders error boundary if error component is provided.
-            - Rendered for each segment to ensure they have their own error state.
-          - Loading boundary
-            - Only renders suspense boundary if loading components is provided.
-            - Rendered for each segment to ensure they have their own loading state.
-            - Passed to the router during rendering to ensure it can be immediately rendered when suspending on a Flight fetch.
-        */
-        const children = (
-          <ScrollAndFocusHandler segmentPath={segmentPath}>
-            <ErrorBoundary errorComponent={error} errorStyles={errorStyles}>
-              <LoadingBoundary
-                hasLoading={hasLoading}
-                loading={loading}
-                loadingStyles={loadingStyles}
-              >
-                <NotFoundBoundary
-                  notFound={notFound}
-                  notFoundStyles={notFoundStyles}
-                  asNotFound={asNotFound}
-                >
-                  <RedirectBoundary>
-                    <InnerLayoutRouter
-                      parallelRouterKey={parallelRouterKey}
-                      url={url}
-                      tree={tree}
-                      childNodes={childNodesForParallelRouter!}
-                      childProp={isChildPropSegment ? childProp : null}
-                      segmentPath={segmentPath}
-                      cacheKey={cacheKey}
-                      isActive={
-                        currentChildSegmentValue === preservedSegmentValue
-                      }
-                    />
-                  </RedirectBoundary>
-                </NotFoundBoundary>
-              </LoadingBoundary>
-            </ErrorBoundary>
-          </ScrollAndFocusHandler>
-        )
 
-        return template ? (
+        const currentChildSegment = Array.isArray(preservedSegment)
+          ? treeSegment[1]
+          : treeSegment
+        return (
+          /*
+            - Error boundary
+              - Only renders error boundary if error component is provided.
+              - Rendered for each segment to ensure they have their own error state.
+            - Loading boundary
+              - Only renders suspense boundary if loading components is provided.
+              - Rendered for each segment to ensure they have their own loading state.
+              - Passed to the router during rendering to ensure it can be immediately rendered when suspending on a Flight fetch.
+          */
           <TemplateContext.Provider
-            key={createRouterCacheKey(preservedSegment, true)}
-            value={children}
+            key={currentChildSegment as string}
+            value={
+              <ScrollAndFocusHandler segmentPath={segmentPath}>
+                <ErrorBoundary errorComponent={error} errorStyles={errorStyles}>
+                  <LoadingBoundary
+                    hasLoading={hasLoading}
+                    loading={loading}
+                    loadingStyles={loadingStyles}
+                  >
+                    <NotFoundBoundary
+                      notFound={notFound}
+                      notFoundStyles={notFoundStyles}
+                      asNotFound={asNotFound}
+                    >
+                      <RedirectBoundary>
+                        <InnerLayoutRouter
+                          parallelRouterKey={parallelRouterKey}
+                          url={url}
+                          tree={tree}
+                          childNodes={childNodesForParallelRouter!}
+                          childProp={isChildPropSegment ? childProp : null}
+                          segmentPath={segmentPath}
+                          cacheKey={cacheKey}
+                          isActive={
+                            currentChildSegmentValue === preservedSegmentValue
+                          }
+                        />
+                      </RedirectBoundary>
+                    </NotFoundBoundary>
+                  </LoadingBoundary>
+                </ErrorBoundary>
+              </ScrollAndFocusHandler>
+            }
           >
             <>
               {templateStyles}
               {template}
             </>
           </TemplateContext.Provider>
-        ) : (
-          children
         )
       })}
     </>

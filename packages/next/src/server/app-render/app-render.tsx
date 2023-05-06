@@ -581,7 +581,7 @@ export async function renderToHTMLOrFlight(
             shouldPreload: true,
             injectedCSS: injectedCSSWithCurrentLayout,
           })
-        : []
+        : [React.Fragment]
 
       const [ErrorComponent, errorStyles] = error
         ? await createComponentAndStyles({
@@ -780,11 +780,9 @@ export async function renderToHTMLOrFlight(
                   error={ErrorComponent}
                   errorStyles={errorStyles}
                   template={
-                    Template ? (
-                      <Template>
-                        <RenderFromTemplateContext />
-                      </Template>
-                    ) : undefined
+                    <Template>
+                      <RenderFromTemplateContext />
+                    </Template>
                   }
                   templateStyles={templateStyles}
                   notFound={NotFound ? <NotFound /> : undefined}
@@ -834,11 +832,9 @@ export async function renderToHTMLOrFlight(
                 // TODO-APP: Add test for loading returning `undefined`. This currently can't be tested as the `webdriver()` tab will wait for the full page to load before returning.
                 hasLoading={Boolean(Loading)}
                 template={
-                  Template ? (
-                    <Template>
-                      <RenderFromTemplateContext />
-                    </Template>
-                  ) : undefined
+                  <Template>
+                    <RenderFromTemplateContext />
+                  </Template>
                 }
                 templateStyles={templateStyles}
                 notFound={NotFound ? <NotFound /> : undefined}
