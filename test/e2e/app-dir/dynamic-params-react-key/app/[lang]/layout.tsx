@@ -11,9 +11,11 @@ export default function Layout({
   return (
     <html>
       <head></head>
-      <div id="params">{JSON.stringify(params)}</div>
-      <ClientComponent lang={params.lang} />
-      <body>{children}</body>
+      <body>
+        <div id="params">{JSON.stringify(params)}</div>
+        <ClientComponent lang={params.lang} />
+        {children}
+      </body>
     </html>
   )
 }
