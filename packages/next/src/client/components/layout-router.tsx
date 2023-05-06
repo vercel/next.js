@@ -545,7 +545,7 @@ export default function OuterLayoutRouter({
   return (
     <>
       {styles}
-      {preservedSegments.map((preservedSegment) => {
+      {preservedSegments.map((preservedSegment, i) => {
         const isChildPropSegment = matchSegment(
           preservedSegment,
           childPropSegment
@@ -553,9 +553,6 @@ export default function OuterLayoutRouter({
         const preservedSegmentValue = getSegmentValue(preservedSegment)
         const cacheKey = createRouterCacheKey(preservedSegment)
 
-        const currentChildSegment = Array.isArray(preservedSegment)
-          ? treeSegment[1]
-          : treeSegment
         return (
           /*
             - Error boundary
@@ -567,7 +564,7 @@ export default function OuterLayoutRouter({
               - Passed to the router during rendering to ensure it can be immediately rendered when suspending on a Flight fetch.
           */
           <TemplateContext.Provider
-            key={currentChildSegment as string}
+            key={i}
             value={
               <ScrollAndFocusHandler segmentPath={segmentPath}>
                 <ErrorBoundary errorComponent={error} errorStyles={errorStyles}>
