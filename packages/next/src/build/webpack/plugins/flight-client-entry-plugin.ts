@@ -261,7 +261,7 @@ export class ClientReferenceEntryPlugin {
         if (!this.useServerActions) {
           compilation.errors.push(
             new Error(
-              'Server Actions require `experimental.serverActions` option to be enabled in your Next.js config.'
+              'Server Actions require `experimental.serverActions` option to be enabled in your Next.js config: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions'
             )
           )
         } else {
