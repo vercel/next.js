@@ -1,9 +1,9 @@
 function _defaults(obj, defaults) {
-  var keys = Object.getOwnPropertyNames(defaults);
+  const keys = Object.getOwnPropertyNames(defaults);
 
-  for (var i = 0; i < keys.length; i++) {
-    var key = keys[i];
-    var value = Object.getOwnPropertyDescriptor(defaults, key);
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i];
+    const value = Object.getOwnPropertyDescriptor(defaults, key);
 
     if (value && value.configurable && obj[key] === undefined) {
       Object.defineProperty(obj, key, value);

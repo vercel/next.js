@@ -26,7 +26,7 @@ export type pagesQuery = {
 }
 
 const node: ConcreteRequest = (function () {
-  var v0 = {
+  const v0 = {
       alias: null,
       args: null,
       kind: 'ScalarField',

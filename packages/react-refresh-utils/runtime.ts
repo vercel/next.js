@@ -18,8 +18,8 @@ self.$RefreshHelpers$ = RefreshHelpers
 
 // Register a helper for module execution interception
 self.$RefreshInterceptModuleExecution$ = function (webpackModuleId) {
-  var prevRefreshReg = self.$RefreshReg$
-  var prevRefreshSig = self.$RefreshSig$
+  const prevRefreshReg = self.$RefreshReg$
+  const prevRefreshSig = self.$RefreshSig$
 
   self.$RefreshReg$ = function (type, id) {
     RefreshRuntime.register(type, webpackModuleId + ' ' + id)

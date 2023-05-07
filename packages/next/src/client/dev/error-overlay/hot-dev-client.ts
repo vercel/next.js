@@ -84,9 +84,9 @@ export default function connect() {
 }
 
 // Remember some state related to hot module replacement.
-var isFirstCompilation = true
-var mostRecentCompilationHash: string | null = null
-var hasCompileErrors = false
+let isFirstCompilation = true
+let mostRecentCompilationHash: string | null = null
+let hasCompileErrors = false
 
 function clearOutdatedErrors() {
   // Clean up outdated compile errors, if any.
@@ -158,7 +158,7 @@ function handleErrors(errors: any) {
   hasCompileErrors = true
 
   // "Massage" webpack messages.
-  var formatted = formatWebpackMessages({
+  const formatted = formatWebpackMessages({
     errors: errors,
     warnings: [],
   })
@@ -168,7 +168,7 @@ function handleErrors(errors: any) {
 
   // Also log them to the console.
   if (typeof console !== 'undefined' && typeof console.error === 'function') {
-    for (var i = 0; i < formatted.errors.length; i++) {
+    for (let i = 0; i < formatted.errors.length; i++) {
       console.error(stripAnsi(formatted.errors[i]))
     }
   }

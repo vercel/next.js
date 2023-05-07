@@ -88,8 +88,8 @@ function getProxiedLanguageService() {
     }
 
     getScriptFileNames(): string[] {
-      const names: Set<string> = new Set()
-      for (var name in this.files) {
+      const names = new Set<string>()
+      for (let name in this.files) {
         if (this.files.hasOwnProperty(name)) {
           names.add(name)
         }

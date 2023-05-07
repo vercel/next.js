@@ -370,7 +370,7 @@ export class Playwright extends BrowserInterface {
       fn = fn.toString()
     }
 
-    if (fn.includes(`var callback = arguments[arguments.length - 1]`)) {
+    if (fn.includes(`const callback = arguments[arguments.length - 1]`)) {
       fn = `(function() {
         return new Promise((resolve, reject) => {
           const origFunc = ${fn}

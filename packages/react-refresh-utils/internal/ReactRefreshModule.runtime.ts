@@ -28,9 +28,9 @@ export default function () {
       '$RefreshHelpers$' in self
     ) {
       // @ts-ignore __webpack_module__ is global
-      var currentExports = __webpack_module__.exports
+      const currentExports = __webpack_module__.exports
       // @ts-ignore __webpack_module__ is global
-      var prevExports = __webpack_module__.hot.data?.prevExports ?? null
+      const prevExports = __webpack_module__.hot.data?.prevExports ?? null
 
       // This cannot happen in MainTemplate because the exports mismatch between
       // templating and execution.
@@ -79,7 +79,7 @@ export default function () {
         // new exports made it ineligible for being a boundary.
         // We only care about the case when we were _previously_ a boundary,
         // because we already accepted this update (accidental side effect).
-        var isNoLongerABoundary = prevExports !== null
+        const isNoLongerABoundary = prevExports !== null
         if (isNoLongerABoundary) {
           __webpack_module__.hot.invalidate()
         }

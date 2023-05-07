@@ -13,7 +13,7 @@ export async function executeGraphQLForBlogPosts(
 }
 
 export async function getAllPostSlugsFromCms(): Promise<string[]> {
-  var query = `
+  const query = `
         query {
             posts {
                 itemDefaultUrl
@@ -54,7 +54,7 @@ function mapCmsBlog(source: CmsPost): PostType {
 
 export async function getPostBySlugFromCms(slug: string): Promise<PostType> {
   const modifiedSlug = slug
-  var query = `
+  const query = `
         query {
             posts(_filter: {itemDefaultUrl: {_eq: "${modifiedSlug}"}}) {
                 id
@@ -88,7 +88,7 @@ export async function getPostBySlugFromCms(slug: string): Promise<PostType> {
 }
 
 export async function getAllPostsFromCms(): Promise<PostType[]> {
-  var query = `
+  const query = `
         query {
             posts {
                 id

@@ -20,7 +20,7 @@ export function displayContent(): Promise<void> {
   return new Promise((resolve) => {
     safeCallbackQueue(function () {
       for (
-        var x = document.querySelectorAll('[data-next-hide-fouc]'),
+        let x = document.querySelectorAll('[data-next-hide-fouc]'),
           i = x.length;
         i--;
 
