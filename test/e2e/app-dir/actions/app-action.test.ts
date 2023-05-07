@@ -80,6 +80,17 @@ createNextDescribe(
       }, '/header?name=test&constructor=FormData')
     })
 
+    it('should support .bind', async () => {
+      const browser = await next.browser('/server')
+
+      await browser.eval(`document.getElementById('n').value = '123'`)
+      await browser.elementByCss('#minus-one').click()
+
+      await check(() => {
+        return browser.eval('window.location.pathname + window.location.search')
+      }, '/header?result=122')
+    })
+
     it('should support notFound (javascript disabled)', async () => {
       const browser = await next.browser('/server', {
         // TODO we should also test this with javascript on but not-found is not implemented yet.

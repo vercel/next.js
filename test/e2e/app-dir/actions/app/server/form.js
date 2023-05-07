@@ -26,6 +26,11 @@ async function file(formData) {
   console.log('File name:', file.name, 'size:', file.size)
 }
 
+async function add(a, formData) {
+  'use server'
+  redirect('/header?result=' + (a + Number(formData.get('n'))))
+}
+
 export default function Form() {
   return (
     <>
@@ -50,6 +55,13 @@ export default function Form() {
         <input type="file" name="file" id="file" required />
         <button type="submit" id="upload">
           Upload file
+        </button>
+      </form>
+      <hr />
+      <form>
+        <input type="text" name="n" id="n" required />
+        <button type="submit" id="minus-one" formAction={add.bind(null, -1)}>
+          -1
         </button>
       </form>
     </>

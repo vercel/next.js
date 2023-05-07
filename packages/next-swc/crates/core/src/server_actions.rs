@@ -45,9 +45,10 @@ pub fn server_actions<C: Comments>(
         in_action_fn: false,
         in_action_closure: false,
         closure_idents: Default::default(),
-        action_idents: Default::default(),
+        action_closure_idents: Default::default(),
         exported_idents: Default::default(),
-        inlined_action_idents: Default::default(),
+        inlined_action_closure_idents: Default::default(),
+        actions: Default::default(),
 
         annotations: Default::default(),
         extra_items: Default::default(),
@@ -73,8 +74,11 @@ struct ServerActions<C: Comments> {
     in_action_fn: bool,
     in_action_closure: bool,
     closure_idents: Vec<Id>,
-    action_idents: Vec<Name>,
-    inlined_action_idents: Vec<(Id, Id)>,
+    action_closure_idents: Vec<Name>,
+    inlined_action_closure_idents: Vec<(Id, Id)>,
+
+    // (action_outer_id, action_inner_id)
+    actions: Vec<(Ident, Ident)>,
 
     // (ident, export name)
     exported_idents: Vec<(Id, String)>,
@@ -132,8 +136,10 @@ impl<C: Comments> ServerActions<C> {
         let action_name: JsWord = gen_ident(&mut self.ident_cnt);
         let action_ident = private_ident!(action_name.clone());
 
+        self.actions.push((ident.clone(), action_ident.clone()));
+
         if !self.in_action_file {
-            self.inlined_action_idents
+            self.inlined_action_closure_idents
                 .push((ident.to_id(), action_ident.to_id()));
         }
 
@@ -153,7 +159,8 @@ impl<C: Comments> ServerActions<C> {
                 ident.clone(),
                 Vec::new(),
                 self.file_name.to_string(),
-                export_name.to_string(),
+                Some(export_name.to_string()),
+                None,
                 false,
                 None,
             );
@@ -179,7 +186,7 @@ impl<C: Comments> ServerActions<C> {
             // first Collect all the identifiers defined in the closure and used
             // in the action function. Dedup the identifiers.
             let mut added_ids = Vec::new();
-            let mut ids_from_closure = self.action_idents.clone();
+            let mut ids_from_closure = self.action_closure_idents.clone();
             ids_from_closure.retain(|id| {
                 if added_ids.contains(id) {
                     false
@@ -211,7 +218,8 @@ impl<C: Comments> ServerActions<C> {
                         .map(|id| Some(id.as_arg()))
                         .collect(),
                     self.file_name.to_string(),
-                    export_name.to_string(),
+                    Some(export_name.to_string()),
+                    None,
                     true,
                     None,
                 );
@@ -304,7 +312,8 @@ impl<C: Comments> ServerActions<C> {
                         .map(|id| Some(id.as_arg()))
                         .collect(),
                     self.file_name.to_string(),
-                    export_name.to_string(),
+                    Some(export_name.to_string()),
+                    None,
                     true,
                     None,
                 );
@@ -593,10 +602,123 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         if self.in_action_fn && self.in_action_closure {
             if let Ok(name) = Name::try_from(&*n) {
                 self.in_action_closure = false;
-                self.action_idents.push(name);
+                self.action_closure_idents.push(name);
                 n.visit_mut_children_with(self);
                 self.in_action_closure = true;
                 return;
+            }
+        }
+
+        // TODO-APP: Support .bind for file-level actions too.
+        if !self.in_action_file {
+            if let Expr::Call(CallExpr {
+                callee:
+                    Callee::Expr(box Expr::Member(MemberExpr {
+                        obj: box Expr::Ident(ident),
+                        prop: MemberProp::Ident(prop),
+                        ..
+                    })),
+                args,
+                ..
+            }) = &*n
+            {
+                if prop.sym == *"bind" {
+                    let maybe_target_action =
+                        self.actions.iter().find(|i| i.0.to_id() == ident.to_id());
+                    if let Some((action_inner_id, action_outer_id)) = maybe_target_action {
+                        // We need to give a name to the arrow function
+                        // action and hoist it to the top.
+                        let action_name = gen_ident(&mut self.ident_cnt);
+                        let new_action_ident = private_ident!(action_name);
+
+                        let mut bind_annotations = Vec::new();
+                        annotate_ident_as_action(
+                            &mut bind_annotations,
+                            new_action_ident.clone(),
+                            args.iter()
+                                // Skip the first argument, which is the target
+                                // action.
+                                .skip(1)
+                                .map(|arg| match arg {
+                                    ExprOrSpread { spread: None, expr } => {
+                                        Some(expr.clone().as_arg())
+                                    }
+                                    // TODO-APP: Support other argument types.
+                                    _ => None,
+                                })
+                                .collect(),
+                            self.file_name.to_string(),
+                            None,
+                            Some(Expr::Member(MemberExpr {
+                                span: DUMMY_SP,
+                                obj: Box::new(Expr::Ident(action_inner_id.clone())),
+                                prop: MemberProp::Ident(Ident {
+                                    sym: "$$id".into(),
+                                    span: DUMMY_SP,
+                                    optional: false,
+                                }),
+                            })),
+                            true,
+                            None,
+                        );
+
+                        let call = CallExpr {
+                            span: DUMMY_SP,
+                            callee: action_outer_id.clone().as_callee(),
+                            args: vec![new_action_ident
+                                .clone()
+                                .make_member(quote_ident!("$$bound"))
+                                .as_arg()],
+                            type_args: Default::default(),
+                        };
+
+                        let new_arrow = ArrowExpr {
+                            span: DUMMY_SP,
+                            params: vec![],
+                            body: Box::new(BlockStmtOrExpr::Expr(Box::new(Expr::Call(call)))),
+                            is_async: true,
+                            is_generator: false,
+                            type_params: Default::default(),
+                            return_type: Default::default(),
+                        };
+
+                        // Create a paren expr to wrap all annotations:
+                        // ($ACTION = async () => {}, $ACTION.$$id = "..", ..,
+                        // $ACTION)
+                        let mut exprs = vec![Box::new(Expr::Assign(AssignExpr {
+                            span: DUMMY_SP,
+                            left: PatOrExpr::Pat(Box::new(Pat::Ident(
+                                new_action_ident.clone().into(),
+                            ))),
+                            op: op!("="),
+                            right: Box::new(Expr::Arrow(new_arrow)),
+                        }))];
+                        exprs.extend(bind_annotations.into_iter().map(|a| {
+                            if let Stmt::Expr(ExprStmt { expr, .. }) = a {
+                                expr
+                            } else {
+                                unreachable!()
+                            }
+                        }));
+                        exprs.push(Box::new(Expr::Ident(new_action_ident.clone())));
+
+                        let new_paren = ParenExpr {
+                            span: DUMMY_SP,
+                            expr: Box::new(Expr::Seq(SeqExpr {
+                                span: DUMMY_SP,
+                                exprs,
+                            })),
+                        };
+
+                        // Create the new action ident varible declaration, and replace the
+                        // original call expression with the paren expr.
+                        *n = attach_name_to_expr(
+                            new_action_ident,
+                            Expr::Paren(new_paren),
+                            &mut self.extra_items,
+                        );
+                    }
+                }
             }
         }
 
@@ -930,7 +1052,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         ident.clone(),
                         Vec::new(),
                         self.file_name.to_string(),
-                        export_name.to_string(),
+                        Some(export_name.to_string()),
+                        None,
                         false,
                         None,
                     );
@@ -1179,7 +1302,8 @@ fn annotate_ident_as_action(
     ident: Ident,
     bound: Vec<Option<ExprOrSpread>>,
     file_name: String,
-    export_name: String,
+    export_name: Option<String>,
+    id_expr: Option<Expr>,
     has_bound: bool,
     re_annotate_action: Option<Ident>,
 ) {
@@ -1198,12 +1322,18 @@ fn annotate_ident_as_action(
         .into(),
     ));
 
-    // Convert result to hex string
-    annotations.push(annotate(
-        &ident,
-        "$$id",
-        generate_action_id(file_name, export_name).into(),
-    ));
+    // Annotation for the action id.
+    if let Some(id_expr) = id_expr {
+        // myAction.$$id = expr;
+        annotations.push(annotate(&ident, "$$id", Box::new(id_expr)));
+    } else if let Some(export_name) = export_name {
+        // myAction.$$id = "...";
+        annotations.push(annotate(
+            &ident,
+            "$$id",
+            generate_action_id(file_name, export_name).into(),
+        ));
+    }
 
     // myAction.$$bound = [arg1, arg2, arg3];
     // or myAction.$$bound = null; if there are no bound values.
