@@ -1870,7 +1870,7 @@ export default class DevServer extends Server {
     const untrustedFilePath = pathResolve(decodedUntrustedFilePath)
 
     // don't allow null bytes anywhere in the file path
-    if (untrustedFilePath.indexOf('\0') !== -1) {
+    if (untrustedFilePath.includes('\0')) {
       return false
     }
 

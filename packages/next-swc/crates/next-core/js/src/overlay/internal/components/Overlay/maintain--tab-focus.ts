@@ -1149,8 +1149,8 @@ function hasCssOverflowScroll(style) {
   })
 }
 
-function hasCssDisplayFlex(style) {
-  return style.display.indexOf('flex') > -1
+function hasCssDisplayFlex(style: CSSStyleDeclaration) {
+  return style.display.includes('flex')
 }
 
 function isScrollableContainer(element, nodeName, parentNodeName, parentStyle) {
@@ -1484,7 +1484,7 @@ function findIndex(array, callback) {
     return array.findIndex(callback)
   }
 
-  var length = array.length
+  const length = array.length
 
   // shortcut if the array is empty
   if (length === 0) {
@@ -3230,7 +3230,7 @@ function queryTabsequence() {
 // (e.g. "*" is "Shift +" on a German Mac keyboard)
 // (e.g. "@" is "Alt L" on a German Mac keyboard)
 
-var keycode = {
+const keycode = {
   // Element Focus
   tab: 9,
 
@@ -3297,19 +3297,19 @@ for (var _n2 = 0; _n2 < 26; _n2++) {
   keycode[name$1] = _code
 }
 
-var modifier = {
+const modifier = {
   alt: 'altKey',
   ctrl: 'ctrlKey',
   meta: 'metaKey',
   shift: 'shiftKey',
 }
 
-var modifierSequence = Object.keys(modifier).map(function (name) {
+const modifierSequence = Object.keys(modifier).map(function (name) {
   return modifier[name]
 })
 
-function createExpectedModifiers(ignoreModifiers) {
-  var value = ignoreModifiers ? null : false
+function createExpectedModifiers(ignoreModifiers: boolean) {
+  const value = ignoreModifiers ? null : false
   return {
     altKey: value,
     ctrlKey: value,
@@ -3318,9 +3318,9 @@ function createExpectedModifiers(ignoreModifiers) {
   }
 }
 
-function resolveModifiers(modifiers) {
-  var ignoreModifiers = modifiers.indexOf('*') !== -1
-  var expected = createExpectedModifiers(ignoreModifiers)
+function resolveModifiers(modifiers: string[]) {
+  const ignoreModifiers = modifiers.includes('*')
+  const expected = createExpectedModifiers(ignoreModifiers)
 
   modifiers.forEach(function (token) {
     if (token === '*') {
@@ -3344,7 +3344,7 @@ function resolveModifiers(modifiers) {
       token = token.slice(1)
     }
 
-    var propertyName = modifier[token]
+    const propertyName = modifier[token]
     if (!propertyName) {
       throw new TypeError('Unknown modifier "' + token + '"')
     }
@@ -3356,7 +3356,7 @@ function resolveModifiers(modifiers) {
 }
 
 function resolveKey(key) {
-  var code = keycode[key] || parseInt(key, 10)
+  const code = keycode[key] || parseInt(key, 10)
   if (!code || typeof code !== 'number' || isNaN(code)) {
     throw new TypeError('Unknown key "' + key + '"')
   }
@@ -3375,11 +3375,11 @@ function matchModifiers(expected, event) {
   })
 }
 
-function keyBinding(text) {
+function keyBinding(text: string) {
   return text.split(/\s+/).map(function (_text) {
-    var tokens = _text.split('+')
-    var _modifiers = resolveModifiers(tokens.slice(0, -1))
-    var _keyCodes = resolveKey(tokens.slice(-1))
+    const tokens = _text.split('+')
+    const _modifiers = resolveModifiers(tokens.slice(0, -1))
+    const _keyCodes = resolveKey(tokens.slice(-1))
     return {
       keyCodes: _keyCodes,
       modifiers: _modifiers,
@@ -3442,12 +3442,12 @@ function whenKey() {
   var filter = nodeArray(map.filter)
   delete map.filter
 
-  var mapKeys = Object.keys(map)
+  const mapKeys = Object.keys(map)
   if (!mapKeys.length) {
     throw new TypeError('when/key requires at least one option key')
   }
 
-  var registerBinding = function registerBinding(event) {
+  const registerBinding = function registerBinding(event) {
     event.keyCodes.forEach(function (code) {
       if (!bindings[code]) {
         bindings[code] = []
@@ -3464,7 +3464,7 @@ function whenKey() {
       )
     }
 
-    var addCallback = function addCallback(event) {
+    const addCallback = function addCallback(event) {
       event.callback = map[text]
       return event
     }

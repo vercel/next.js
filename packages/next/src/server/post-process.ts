@@ -119,8 +119,8 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
       const [url, nonce] = fontDef
       const fallBackLinkTag = `<link rel="stylesheet" href="${url}"/>`
       if (
-        result.indexOf(`<style data-href="${url}">`) > -1 ||
-        result.indexOf(fallBackLinkTag) > -1
+        result.includes(`<style data-href="${url}">`) ||
+        result.includes(fallBackLinkTag)
       ) {
         // The font is already optimized and probably the response is cached
         return

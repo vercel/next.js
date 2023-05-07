@@ -1998,7 +1998,7 @@ export default class NextNodeServer extends BaseServer {
     const untrustedFilePath = resolve(decodedUntrustedFilePath)
 
     // don't allow null bytes anywhere in the file path
-    if (untrustedFilePath.indexOf('\0') !== -1) {
+    if (untrustedFilePath.includes('\0')) {
       return false
     }
 

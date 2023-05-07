@@ -54,15 +54,15 @@ async function tryApplyUpdates() {
       Array.isArray(jsonData.c) ? jsonData.c : Object.keys(jsonData.c)
     ).some((mod: string) => {
       return (
-        mod.indexOf(
+        mod.includes(
           `pages${curPage.startsWith('/') ? curPage : `/${curPage}`}`
-        ) !== -1 ||
-        mod.indexOf(
+        ) ||
+        mod.includes(
           `pages${curPage.startsWith('/') ? curPage : `/${curPage}`}`.replace(
             /\//g,
             '\\'
           )
-        ) !== -1
+        )
       )
     })
 

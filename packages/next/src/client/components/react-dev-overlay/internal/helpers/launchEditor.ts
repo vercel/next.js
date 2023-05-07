@@ -226,7 +226,7 @@ function guessEditor(): string[] {
       const processNames = Object.keys(COMMON_EDITORS_MACOS)
       for (let i = 0; i < processNames.length; i++) {
         const processName = processNames[i]
-        if (output.indexOf(processName) !== -1) {
+        if (output.includes(processName)) {
           return [(COMMON_EDITORS_MACOS as any)[processName]]
         }
       }
@@ -242,7 +242,7 @@ function guessEditor(): string[] {
       for (let i = 0; i < runningProcesses.length; i++) {
         const processPath = runningProcesses[i].trim()
         const processName = path.basename(processPath)
-        if (COMMON_EDITORS_WIN.indexOf(processName) !== -1) {
+        if (COMMON_EDITORS_WIN.includes(processName)) {
           return [processPath]
         }
       }
@@ -256,7 +256,7 @@ function guessEditor(): string[] {
       const processNames = Object.keys(COMMON_EDITORS_LINUX)
       for (let i = 0; i < processNames.length; i++) {
         const processName = processNames[i]
-        if (output.indexOf(processName) !== -1) {
+        if (output.includes(processName)) {
           return [(COMMON_EDITORS_LINUX as any)[processName] as string]
         }
       }
