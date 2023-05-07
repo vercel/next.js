@@ -8,7 +8,11 @@ import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import path from 'path'
-import type { NextConfig, NextConfigComplete } from '../server/config-shared'
+import {
+  defaultConfig,
+  NextConfig,
+  NextConfigComplete,
+} from '../server/config-shared'
 import { traceGlobals } from '../trace/shared'
 import { Telemetry } from '../telemetry/storage'
 import loadConfig from '../server/config'
@@ -239,7 +243,9 @@ const nextDev: CliCommand = async (argv) => {
     const distDir = path.join(dir, rawNextConfig.distDir || '.next')
     const { pagesDir, appDir } = findPagesDir(
       dir,
-      !!rawNextConfig.experimental?.appDir
+      typeof rawNextConfig?.experimental?.appDir === 'undefined'
+        ? !!defaultConfig.experimental?.appDir
+        : !!rawNextConfig.experimental?.appDir
     )
     const telemetry = new Telemetry({
       distDir,
@@ -265,21 +271,11 @@ const nextDev: CliCommand = async (argv) => {
       )
     }
 
-    const turboJson = findUp.sync('turbo.json', { cwd: dir })
-    // eslint-disable-next-line no-shadow
-    const packagePath = findUp.sync('package.json', { cwd: dir })
-
     let bindings: any = await loadBindings()
     let server = bindings.turbo.startDev({
       ...devServerOptions,
       showAll: args['--show-all'] ?? false,
-      root:
-        args['--root'] ??
-        (turboJson
-          ? path.dirname(turboJson)
-          : packagePath
-          ? path.dirname(packagePath)
-          : undefined),
+      root: args['--root'] ?? rawNextConfig.experimental?.outputFileTracingRoot,
     })
     // Start preflight after server is listening and ignore errors:
     preflight().catch(() => {})

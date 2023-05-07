@@ -3,41 +3,40 @@ import { img } from '../components/img'
 import broken from '../public/broken.jpeg'
 import svg from '../public/test.svg'
 import brokenSvg from '../public/broken.svg'
-import { useEffect } from 'react'
+import { useTestHarness } from '@turbo/pack-test-harness'
 
 export default function Home() {
-  useEffect(() => {
-    // Only run on client
-    import('@turbo/pack-test-harness').then(runTests)
-  })
+  useTestHarness(runTests)
 
-  return [
-    <Image
-      id="imported"
-      alt="test imported image"
-      src={img}
-      placeholder="blur"
-    />,
-    <Image id="svg" alt="test svg image" src={svg} />,
-    <Image
-      id="local"
-      alt="test src image"
-      src="/triangle-black.png"
-      width="116"
-      height="100"
-    />,
-    <Image
-      id="broken"
-      alt="test imported broken image"
-      src={broken}
-      placeholder="blur"
-    />,
-    <Image
-      id="broken-svg"
-      alt="test imported broken svg image"
-      src={brokenSvg}
-    />,
-  ]
+  return (
+    <>
+      <Image
+        id="imported"
+        alt="test imported image"
+        src={img}
+        placeholder="blur"
+      />
+      <Image id="svg" alt="test svg image" src={svg} />
+      <Image
+        id="local"
+        alt="test src image"
+        src="/triangle-black.png"
+        width="116"
+        height="100"
+      />
+      <Image
+        id="broken"
+        alt="test imported broken image"
+        src={broken}
+        placeholder="blur"
+      />
+      <Image
+        id="broken-svg"
+        alt="test imported broken svg image"
+        src={brokenSvg}
+      />
+    </>
+  )
 }
 
 console.log(img)

@@ -25,6 +25,7 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.swcFileReading',
   'experimental.forceSwcTransforms',
   // options below are not really supported, but ignored
+  'webpack',
   'devIndicators',
   'onDemandEntries',
   'experimental.cpus',
@@ -90,13 +91,16 @@ export async function validateTurboNextConfig({
     isTTY
       ? '\x1B[38;2;0;0;255m>\x1B[39m\x1B[38;2;23;0;232m>\x1B[39m\x1B[38;2;46;0;209m>\x1B[39m \x1B[38;2;70;0;185mT\x1B[39m\x1B[38;2;93;0;162mU\x1B[39m\x1B[38;2;116;0;139mR\x1B[39m\x1B[38;2;139;0;116mB\x1B[39m\x1B[38;2;162;0;93mO\x1B[39m\x1B[38;2;185;0;70mP\x1B[39m\x1B[38;2;209;0;46mA\x1B[39m\x1B[38;2;232;0;23mC\x1B[39m\x1B[38;2;255;0;0mK\x1B[39m'
       : '>>> TURBOPACK'
-  )} ${chalk.dim('(alpha)')}\n\n`
+  )} ${chalk.dim('(beta)')}\n\n`
 
-  let thankYouMsg = `Thank you for trying Next.js v13 with Turbopack! As a reminder,\nTurbopack is currently in alpha and not yet ready for production.\nWe appreciate your ongoing support as we work to make it ready\nfor everyone.\n`
+  let thankYouMsg = `Thank you for trying Next.js v13 with Turbopack! As a reminder,\nTurbopack is currently in beta and not yet ready for production.\nWe appreciate your ongoing support as we work to make it ready\nfor everyone.\n`
 
   let unsupportedParts = ''
   let babelrc = await getBabelConfigFile(dir)
   if (babelrc) babelrc = path.basename(babelrc)
+
+  let hasWebpack = false
+  let hasTurbo = false
 
   let unsupportedConfig: string[] = []
   let rawNextConfig: NextConfig = {}
@@ -116,7 +120,7 @@ export async function validateTurboNextConfig({
       let keys: string[] = []
 
       for (const key in obj) {
-        if (typeof obj[key] === 'undefined') {
+        if (typeof obj?.[key] === 'undefined') {
           continue
         }
 
@@ -141,9 +145,9 @@ export async function validateTurboNextConfig({
         keys = keys.split('.')
       }
       if (keys.length === 1) {
-        return obj[keys[0]]
+        return obj?.[keys?.[0]]
       }
-      return getDeepValue(obj[keys[0]], keys.slice(1))
+      return getDeepValue(obj?.[keys?.[0]], keys.slice(1))
     }
 
     const customKeys = flattenKeys(rawNextConfig)
@@ -156,6 +160,13 @@ export async function validateTurboNextConfig({
       : supportedTurbopackNextConfigOptions
 
     for (const key of customKeys) {
+      if (key.startsWith('webpack')) {
+        hasWebpack = true
+      }
+      if (key.startsWith('experimental.turbo')) {
+        hasTurbo = true
+      }
+
       let isSupported =
         supportedKeys.some((supportedKey) => key.startsWith(supportedKey)) ||
         getDeepValue(rawNextConfig, key) === getDeepValue(defaultConfig, key)
@@ -183,6 +194,17 @@ export async function validateTurboNextConfig({
 
   if (!hasWarningOrError) {
     feedbackMessage = chalk.dim(feedbackMessage)
+  }
+
+  if (hasWebpack && !hasTurbo) {
+    console.warn(
+      `\n${chalk.yellow(
+        'Warning:'
+      )} Webpack is configured while Turbopack is not, which may cause problems.\n
+  ${chalk.dim(
+    `See instructions if you need to configure Turbopack:\n  https://turbo.build/pack/docs/features/customizing-turbopack\n`
+  )}`
+    )
   }
 
   if (babelrc) {

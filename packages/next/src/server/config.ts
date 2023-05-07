@@ -45,11 +45,6 @@ const experimentalWarning = execOnce(
       `Experimental features are not covered by semver, and may cause unexpected or broken application behavior. ` +
         `Use at your own risk.`
     )
-    if (features.includes('appDir')) {
-      Log.info(
-        `Thank you for testing \`appDir\` please leave your feedback at https://nextjs.link/app-feedback`
-      )
-    }
 
     console.warn()
   }
@@ -140,17 +135,6 @@ function assignDefaults(
           for (const featureName of Object.keys(
             value
           ) as (keyof ExperimentalConfig)[]) {
-            const featureValue = value[featureName]
-            if (featureName === 'appDir' && featureValue === true) {
-              // auto enable clientRouterFilter if not manually set
-              // when appDir is enabled
-              if (
-                typeof userConfig.experimental.clientRouterFilter ===
-                'undefined'
-              ) {
-                userConfig.experimental.clientRouterFilter = true
-              }
-            }
             if (
               value[featureName] !== defaultConfig.experimental[featureName]
             ) {
@@ -462,6 +446,13 @@ function assignDefaults(
   )
 
   if (
+    typeof userConfig.experimental?.clientRouterFilter === 'undefined' &&
+    result.experimental?.appDir
+  ) {
+    result.experimental.clientRouterFilter = true
+  }
+
+  if (
     result.experimental?.outputFileTracingRoot &&
     !isAbsolute(result.experimental.outputFileTracingRoot)
   ) {
@@ -689,6 +680,10 @@ export default async function loadConfig(
   rawConfig?: boolean,
   silent?: boolean
 ): Promise<NextConfigComplete> {
+  if (process.env.__NEXT_PRIVATE_STANDALONE_CONFIG) {
+    return JSON.parse(process.env.__NEXT_PRIVATE_STANDALONE_CONFIG)
+  }
+
   const curLog = silent
     ? {
         warn: () => {},

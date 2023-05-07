@@ -20,7 +20,7 @@ var util = require('util');
 var async_hooks = require('async_hooks');
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-experimental-6eadbe0c4-20230425';
+var ReactVersion = '18.3.0-experimental-aef7ce554-20230503';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -1976,6 +1976,16 @@ function describeDifferencesForPreinitOverScript(newProps, currentProps) {
   return description;
 }
 
+// same object across all transitions.
+
+var sharedNotPendingObject = {
+  pending: false,
+  data: null,
+  method: null,
+  action: null
+};
+var NotPending = Object.freeze(sharedNotPendingObject) ;
+
 var ReactDOMSharedInternals = ReactDOM.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
 var ReactDOMCurrentDispatcher = ReactDOMSharedInternals.Dispatcher;
@@ -2014,6 +2024,7 @@ var startInlineScript = stringToPrecomputedChunk('<script>');
 var endInlineScript = stringToPrecomputedChunk('</script>');
 var startScriptSrc = stringToPrecomputedChunk('<script src="');
 var startModuleSrc = stringToPrecomputedChunk('<script type="module" src="');
+var scriptNonce = stringToPrecomputedChunk('" nonce="');
 var scriptIntegirty = stringToPrecomputedChunk('" integrity="');
 var endAsyncScript = stringToPrecomputedChunk('" async=""></script>');
 /**
@@ -2048,7 +2059,7 @@ function createResponseState(identifierPrefix, nonce, bootstrapScriptContent, bo
   var idPrefix = identifierPrefix === undefined ? '' : identifierPrefix;
   var inlineScriptWithNonce = nonce === undefined ? startInlineScript : stringToPrecomputedChunk('<script nonce="' + escapeTextForBrowser(nonce) + '">');
   var bootstrapChunks = [];
-  var externalRuntimeDesc = null;
+  var externalRuntimeScript = null;
   var streamingFormat = ScriptStreamingFormat;
 
   if (bootstrapScriptContent !== undefined) {
@@ -2061,12 +2072,27 @@ function createResponseState(identifierPrefix, nonce, bootstrapScriptContent, bo
       streamingFormat = DataStreamingFormat;
 
       if (typeof externalRuntimeConfig === 'string') {
-        externalRuntimeDesc = {
+        externalRuntimeScript = {
           src: externalRuntimeConfig,
-          integrity: undefined
+          chunks: []
         };
+        pushScriptImpl(externalRuntimeScript.chunks, {
+          src: externalRuntimeConfig,
+          async: true,
+          integrity: undefined,
+          nonce: nonce
+        });
       } else {
-        externalRuntimeDesc = externalRuntimeConfig;
+        externalRuntimeScript = {
+          src: externalRuntimeConfig.src,
+          chunks: []
+        };
+        pushScriptImpl(externalRuntimeScript.chunks, {
+          src: externalRuntimeConfig.src,
+          async: true,
+          integrity: externalRuntimeConfig.integrity,
+          nonce: nonce
+        });
       }
     }
   }
@@ -2077,6 +2103,10 @@ function createResponseState(identifierPrefix, nonce, bootstrapScriptContent, bo
       var src = typeof scriptConfig === 'string' ? scriptConfig : scriptConfig.src;
       var integrity = typeof scriptConfig === 'string' ? undefined : scriptConfig.integrity;
       bootstrapChunks.push(startScriptSrc, stringToChunk(escapeTextForBrowser(src)));
+
+      if (nonce) {
+        bootstrapChunks.push(scriptNonce, stringToChunk(escapeTextForBrowser(nonce)));
+      }
 
       if (integrity) {
         bootstrapChunks.push(scriptIntegirty, stringToChunk(escapeTextForBrowser(integrity)));
@@ -2096,6 +2126,10 @@ function createResponseState(identifierPrefix, nonce, bootstrapScriptContent, bo
 
       bootstrapChunks.push(startModuleSrc, stringToChunk(escapeTextForBrowser(_src)));
 
+      if (nonce) {
+        bootstrapChunks.push(scriptNonce, stringToChunk(escapeTextForBrowser(nonce)));
+      }
+
       if (_integrity) {
         bootstrapChunks.push(scriptIntegirty, stringToChunk(escapeTextForBrowser(_integrity)));
       }
@@ -2114,7 +2148,7 @@ function createResponseState(identifierPrefix, nonce, bootstrapScriptContent, bo
     streamingFormat: streamingFormat,
     startInlineScript: inlineScriptWithNonce,
     instructions: NothingSent,
-    externalRuntimeConfig: externalRuntimeDesc,
+    externalRuntimeScript: externalRuntimeScript,
     htmlChunks: null,
     headChunks: null,
     hasBody: false,
@@ -2122,7 +2156,8 @@ function createResponseState(identifierPrefix, nonce, bootstrapScriptContent, bo
     preconnectChunks: [],
     preloadChunks: [],
     hoistableChunks: [],
-    stylesToHoist: false
+    stylesToHoist: false,
+    nonce: nonce
   };
 } // Constants for the insertion mode we're currently writing in. We don't encode all HTML5 insertion
 // modes. We only include the variants as they matter for the sake of our purposes.
@@ -2363,14 +2398,44 @@ function pushStringAttribute(target, name, value) // not null or undefined
   if (typeof value !== 'function' && typeof value !== 'symbol' && typeof value !== 'boolean') {
     target.push(attributeSeparator, stringToChunk(name), attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
   }
+}
+
+function makeFormFieldPrefix(responseState) {
+  // I'm just reusing this counter. It's not really the same namespace as "name".
+  // It could just be its own counter.
+  var id = responseState.nextSuspenseID++;
+  return responseState.idPrefix + id;
 } // Since this will likely be repeated a lot in the HTML, we use a more concise message
 // than on the client and hopefully it's googleable.
 
 
 var actionJavaScriptURL = stringToPrecomputedChunk(escapeTextForBrowser( // eslint-disable-next-line no-script-url
 "javascript:throw new Error('A React form was unexpectedly submitted.')"));
+var startHiddenInputChunk = stringToPrecomputedChunk('<input type="hidden"');
+
+function pushAdditionalFormField(value, key) {
+  var target = this;
+  target.push(startHiddenInputChunk);
+
+  if (typeof value !== 'string') {
+    throw new Error('File/Blob fields are not yet supported in progressive forms. ' + 'It probably means you are closing over binary data or FormData in a Server Action.');
+  }
+
+  pushStringAttribute(target, 'name', key);
+  pushStringAttribute(target, 'value', value);
+  target.push(endOfStartTagSelfClosing);
+}
+
+function pushAdditionalFormFields(target, formData) {
+  if (formData !== null) {
+    // $FlowFixMe[prop-missing]: FormData has forEach.
+    formData.forEach(pushAdditionalFormField, target);
+  }
+}
 
 function pushFormActionAttribute(target, responseState, formAction, formEncType, formMethod, formTarget, name) {
+  var formData = null;
+
   if (typeof formAction === 'function') {
     // Function form actions cannot control the form properties
     {
@@ -2391,37 +2456,58 @@ function pushFormActionAttribute(target, responseState, formAction, formEncType,
 
         error('Cannot specify a formTarget for a button that specifies a function as a formAction. ' + 'The function will always be executed in the same window.');
       }
-    } // Set a javascript URL that doesn't do anything. We don't expect this to be invoked
-    // because we'll preventDefault in the Fizz runtime, but it can happen if a form is
-    // manually submitted or if someone calls stopPropagation before React gets the event.
-    // If CSP is used to block javascript: URLs that's fine too. It just won't show this
-    // error message but the URL will be logged.
-
-
-    target.push(attributeSeparator, stringToChunk('formAction'), attributeAssign, actionJavaScriptURL, attributeEnd);
-    injectFormReplayingRuntime(responseState);
-  } else {
-    // Plain form actions support all the properties, so we have to emit them.
-    if (name !== null) {
-      pushAttribute(target, 'name', name);
     }
 
-    if (formAction !== null) {
-      pushAttribute(target, 'formAction', formAction);
-    }
+    var customAction = formAction.$$FORM_ACTION;
 
-    if (formEncType !== null) {
-      pushAttribute(target, 'formEncType', formEncType);
-    }
-
-    if (formMethod !== null) {
-      pushAttribute(target, 'formMethod', formMethod);
-    }
-
-    if (formTarget !== null) {
-      pushAttribute(target, 'formTarget', formTarget);
+    if (typeof customAction === 'function') {
+      // This action has a custom progressive enhancement form that can submit the form
+      // back to the server if it's invoked before hydration. Such as a Server Action.
+      var prefix = makeFormFieldPrefix(responseState);
+      var customFields = formAction.$$FORM_ACTION(prefix);
+      name = customFields.name;
+      formAction = customFields.action || '';
+      formEncType = customFields.encType;
+      formMethod = customFields.method;
+      formTarget = customFields.target;
+      formData = customFields.data;
+    } else {
+      // Set a javascript URL that doesn't do anything. We don't expect this to be invoked
+      // because we'll preventDefault in the Fizz runtime, but it can happen if a form is
+      // manually submitted or if someone calls stopPropagation before React gets the event.
+      // If CSP is used to block javascript: URLs that's fine too. It just won't show this
+      // error message but the URL will be logged.
+      target.push(attributeSeparator, stringToChunk('formAction'), attributeAssign, actionJavaScriptURL, attributeEnd);
+      name = null;
+      formAction = null;
+      formEncType = null;
+      formMethod = null;
+      formTarget = null;
+      injectFormReplayingRuntime(responseState);
     }
   }
+
+  if (name != null) {
+    pushAttribute(target, 'name', name);
+  }
+
+  if (formAction != null) {
+    pushAttribute(target, 'formAction', formAction);
+  }
+
+  if (formEncType != null) {
+    pushAttribute(target, 'formEncType', formEncType);
+  }
+
+  if (formMethod != null) {
+    pushAttribute(target, 'formMethod', formMethod);
+  }
+
+  if (formTarget != null) {
+    pushAttribute(target, 'formTarget', formTarget);
+  }
+
+  return formData;
 }
 
 function pushAttribute(target, name, value) // not null or undefined
@@ -2929,7 +3015,7 @@ function injectFormReplayingRuntime(responseState) {
   // If we haven't sent it yet, inject the runtime that tracks submitted JS actions
   // for later replaying by Fiber. If we use an external runtime, we don't need
   // to emit anything. It's always used.
-  if ((responseState.instructions & SentFormReplayingRuntime) === NothingSent && (!responseState.externalRuntimeConfig)) {
+  if ((responseState.instructions & SentFormReplayingRuntime) === NothingSent && (!responseState.externalRuntimeScript)) {
     responseState.instructions |= SentFormReplayingRuntime;
     responseState.bootstrapChunks.unshift(responseState.startInlineScript, formReplayingRuntimeScript, endInlineScript);
   }
@@ -2984,6 +3070,9 @@ function pushStartForm(target, props, responseState) {
     }
   }
 
+  var formData = null;
+  var formActionName = null;
+
   if (typeof formAction === 'function') {
     // Function form actions cannot control the form properties
     {
@@ -2998,35 +3087,61 @@ function pushStartForm(target, props, responseState) {
 
         error('Cannot specify a target for a form that specifies a function as the action. ' + 'The function will always be executed in the same window.');
       }
-    } // Set a javascript URL that doesn't do anything. We don't expect this to be invoked
-    // because we'll preventDefault in the Fizz runtime, but it can happen if a form is
-    // manually submitted or if someone calls stopPropagation before React gets the event.
-    // If CSP is used to block javascript: URLs that's fine too. It just won't show this
-    // error message but the URL will be logged.
-
-
-    target.push(attributeSeparator, stringToChunk('action'), attributeAssign, actionJavaScriptURL, attributeEnd);
-    injectFormReplayingRuntime(responseState);
-  } else {
-    // Plain form actions support all the properties, so we have to emit them.
-    if (formAction !== null) {
-      pushAttribute(target, 'action', formAction);
     }
 
-    if (formEncType !== null) {
-      pushAttribute(target, 'encType', formEncType);
-    }
+    var customAction = formAction.$$FORM_ACTION;
 
-    if (formMethod !== null) {
-      pushAttribute(target, 'method', formMethod);
-    }
-
-    if (formTarget !== null) {
-      pushAttribute(target, 'target', formTarget);
+    if (typeof customAction === 'function') {
+      // This action has a custom progressive enhancement form that can submit the form
+      // back to the server if it's invoked before hydration. Such as a Server Action.
+      var prefix = makeFormFieldPrefix(responseState);
+      var customFields = formAction.$$FORM_ACTION(prefix);
+      formAction = customFields.action || '';
+      formEncType = customFields.encType;
+      formMethod = customFields.method;
+      formTarget = customFields.target;
+      formData = customFields.data;
+      formActionName = customFields.name;
+    } else {
+      // Set a javascript URL that doesn't do anything. We don't expect this to be invoked
+      // because we'll preventDefault in the Fizz runtime, but it can happen if a form is
+      // manually submitted or if someone calls stopPropagation before React gets the event.
+      // If CSP is used to block javascript: URLs that's fine too. It just won't show this
+      // error message but the URL will be logged.
+      target.push(attributeSeparator, stringToChunk('action'), attributeAssign, actionJavaScriptURL, attributeEnd);
+      formAction = null;
+      formEncType = null;
+      formMethod = null;
+      formTarget = null;
+      injectFormReplayingRuntime(responseState);
     }
   }
 
+  if (formAction != null) {
+    pushAttribute(target, 'action', formAction);
+  }
+
+  if (formEncType != null) {
+    pushAttribute(target, 'encType', formEncType);
+  }
+
+  if (formMethod != null) {
+    pushAttribute(target, 'method', formMethod);
+  }
+
+  if (formTarget != null) {
+    pushAttribute(target, 'target', formTarget);
+  }
+
   target.push(endOfStartTag);
+
+  if (formActionName !== null) {
+    target.push(startHiddenInputChunk);
+    pushStringAttribute(target, 'name', formActionName);
+    target.push(endOfStartTagSelfClosing);
+    pushAdditionalFormFields(target, formData);
+  }
+
   pushInnerHTML(target, innerHTML, children);
 
   if (typeof children === 'string') {
@@ -3119,7 +3234,7 @@ function pushInput(target, props, responseState) {
     }
   }
 
-  pushFormActionAttribute(target, responseState, formAction, formEncType, formMethod, formTarget, name);
+  var formData = pushFormActionAttribute(target, responseState, formAction, formEncType, formMethod, formTarget, name);
 
   {
     if (checked !== null && defaultChecked !== null && !didWarnDefaultChecked) {
@@ -3147,7 +3262,9 @@ function pushInput(target, props, responseState) {
     pushAttribute(target, 'value', defaultValue);
   }
 
-  target.push(endOfStartTagSelfClosing);
+  target.push(endOfStartTagSelfClosing); // We place any additional hidden form fields after the input.
+
+  pushAdditionalFormFields(target, formData);
   return null;
 }
 
@@ -3213,8 +3330,10 @@ function pushStartButton(target, props, responseState) {
     }
   }
 
-  pushFormActionAttribute(target, responseState, formAction, formEncType, formMethod, formTarget, name);
-  target.push(endOfStartTag);
+  var formData = pushFormActionAttribute(target, responseState, formAction, formEncType, formMethod, formTarget, name);
+  target.push(endOfStartTag); // We place any additional hidden form fields we need to include inside the button itself.
+
+  pushAdditionalFormFields(target, formData);
   pushInnerHTML(target, innerHTML, children);
 
   if (typeof children === 'string') {
@@ -5175,16 +5294,16 @@ function preloadLateStyles(set, precedence) {
 
 function writePreamble(destination, resources, responseState, willFlushAllSegments) {
   // This function must be called exactly once on every request
-  if (!willFlushAllSegments && responseState.externalRuntimeConfig) {
+  if (!willFlushAllSegments && responseState.externalRuntimeScript) {
     // If the root segment is incomplete due to suspended tasks
     // (e.g. willFlushAllSegments = false) and we are using data
     // streaming format, ensure the external runtime is sent.
     // (User code could choose to send this even earlier by calling
     //  preinit(...), if they know they will suspend).
-    var _responseState$extern = responseState.externalRuntimeConfig,
+    var _responseState$extern = responseState.externalRuntimeScript,
         src = _responseState$extern.src,
-        integrity = _responseState$extern.integrity;
-    internalPreinitScript(resources, src, integrity);
+        chunks = _responseState$extern.chunks;
+    internalPreinitScript(resources, src, chunks);
   }
 
   var htmlChunks = responseState.htmlChunks;
@@ -5239,10 +5358,10 @@ function writePreamble(destination, resources, responseState, willFlushAllSegmen
     var key = getResourceKey(resource.props.as, resource.props.href);
 
     if (resources.stylesMap.has(key)) ; else {
-      var chunks = resource.chunks;
+      var _chunks = resource.chunks;
 
-      for (i = 0; i < chunks.length; i++) {
-        writeChunk(destination, chunks[i]);
+      for (i = 0; i < _chunks.length; i++) {
+        writeChunk(destination, _chunks[i]);
       }
     }
   });
@@ -6171,29 +6290,21 @@ function preinit(href, options) {
         }
     }
   }
-} // This method is trusted. It must only be called from within this codebase and it assumes the arguments
-// conform to the types because no user input is being passed in. It also assumes that it is being called as
-// part of a work or flush loop and therefore does not need to request Fizz to flush Resources.
+}
 
-
-function internalPreinitScript(resources, src, integrity) {
+function internalPreinitScript(resources, src, chunks) {
   var key = getResourceKey('script', src);
   var resource = resources.scriptsMap.get(key);
 
   if (!resource) {
     resource = {
       type: 'script',
-      chunks: [],
+      chunks: chunks,
       state: NoState,
       props: null
     };
     resources.scriptsMap.set(key, resource);
     resources.scripts.add(resource);
-    pushScriptImpl(resource.chunks, {
-      async: true,
-      src: src,
-      integrity: integrity
-    });
   }
 
   return;
@@ -6261,7 +6372,8 @@ function scriptPropsFromPreinitOptions(src, options) {
     src: src,
     async: true,
     crossOrigin: options.crossOrigin,
-    integrity: options.integrity
+    integrity: options.integrity,
+    nonce: options.nonce
   };
 }
 
@@ -6337,6 +6449,8 @@ function getAsResourceDEV(resource) {
     return null;
   }
 }
+
+var NotPendingTransition = NotPending;
 
 var requestStorage = new async_hooks.AsyncLocalStorage();
 
@@ -8337,6 +8451,20 @@ function useTransition() {
   return [false, unsupportedStartTransition];
 }
 
+function useHostTransitionStatus() {
+  resolveCurrentlyRenderingComponent();
+  return NotPendingTransition;
+}
+
+function unsupportedSetOptimisticState() {
+  throw new Error('Cannot update optimistic state while rendering.');
+}
+
+function useOptimistic(passthrough, reducer) {
+  resolveCurrentlyRenderingComponent();
+  return [passthrough, unsupportedSetOptimisticState];
+}
+
 function useId() {
   var task = currentlyRenderingTask;
   var treeId = getTreeId(task.treeContext);
@@ -8433,6 +8561,14 @@ var HooksDispatcher = {
 
 {
   HooksDispatcher.useMemoCache = useMemoCache;
+}
+
+{
+  HooksDispatcher.useHostTransitionStatus = useHostTransitionStatus;
+}
+
+{
+  HooksDispatcher.useOptimistic = useOptimistic;
 }
 
 var currentResponseState = null;
@@ -9498,10 +9634,13 @@ function spawnNewSuspendedTask(request, task, thenableState, x) {
 
 
 function renderNode(request, task, node) {
-  // TODO: Store segment.children.length here and reset it in case something
+  // Store how much we've pushed at this point so we can reset it in case something
   // suspended partially through writing something.
-  // Snapshot the current context in case something throws to interrupt the
+  var segment = task.blockedSegment;
+  var childrenLength = segment.children.length;
+  var chunkLength = segment.chunks.length; // Snapshot the current context in case something throws to interrupt the
   // process.
+
   var previousFormatContext = task.blockedSegment.formatContext;
   var previousLegacyContext = task.legacyContext;
   var previousContext = task.context;
@@ -9514,7 +9653,10 @@ function renderNode(request, task, node) {
   try {
     return renderNodeDestructive(request, task, null, node);
   } catch (thrownValue) {
-    resetHooksState();
+    resetHooksState(); // Reset the write pointers to where we started.
+
+    segment.children.length = childrenLength;
+    segment.chunks.length = chunkLength;
     var x = thrownValue === SuspenseException ? // This is a special type of exception used for Suspense. For historical
     // reasons, the rest of the Suspense implementation expects the thrown
     // value to be a thenable, because before `use` existed that was the
@@ -9786,6 +9928,9 @@ function retryTask(request, task) {
     currentTaskInDEV = task;
   }
 
+  var childrenLength = segment.children.length;
+  var chunkLength = segment.chunks.length;
+
   try {
     // We call the destructive form that mutates this task. That way if something
     // suspends again, we can reuse the same task instead of spawning a new one.
@@ -9800,7 +9945,10 @@ function retryTask(request, task) {
     segment.status = COMPLETED;
     finishedTask(request, task.blockedBoundary, segment);
   } catch (thrownValue) {
-    resetHooksState();
+    resetHooksState(); // Reset the write pointers to where we started.
+
+    segment.children.length = childrenLength;
+    segment.chunks.length = chunkLength;
     var x = thrownValue === SuspenseException ? // This is a special type of exception used for Suspense. For historical
     // reasons, the rest of the Suspense implementation expects the thrown
     // value to be a thenable, because before `use` existed that was the

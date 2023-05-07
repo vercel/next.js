@@ -61,6 +61,7 @@ export default async function webdriver(
     disableCache?: boolean
     beforePageLoad?: (page: any) => void
     locale?: string
+    disableJavaScript?: boolean
   }
 ): Promise<BrowserInterface> {
   let CurrentInterface: typeof BrowserInterface
@@ -77,6 +78,7 @@ export default async function webdriver(
     disableCache,
     beforePageLoad,
     locale,
+    disableJavaScript,
   } = options
 
   // we import only the needed interface
@@ -96,7 +98,7 @@ export default async function webdriver(
 
   const browser = new CurrentInterface()
   const browserName = process.env.BROWSER_NAME || 'chrome'
-  await browser.setup(browserName, locale)
+  await browser.setup(browserName, locale, !disableJavaScript)
   ;(global as any).browserName = browserName
 
   const fullUrl = getFullUrl(

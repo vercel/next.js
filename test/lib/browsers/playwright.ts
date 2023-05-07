@@ -15,6 +15,7 @@ import path from 'path'
 let page: Page
 let browser: Browser
 let context: BrowserContext
+let contextHasJSEnabled: boolean = true
 let pageLogs: Array<{ source: string; message: string }> = []
 let websocketFrames: Array<{ payload: string | Buffer }> = []
 
@@ -47,8 +48,7 @@ export class Playwright extends BrowserInterface {
     this.eventCallbacks[event]?.delete(cb)
   }
 
-  async setup(browserName: string, locale?: string) {
-    if (browser) return
+  async setup(browserName: string, locale: string, javaScriptEnabled: boolean) {
     const headless = !!process.env.HEADLESS
     let device
 
@@ -62,8 +62,23 @@ export class Playwright extends BrowserInterface {
       }
     }
 
+    if (browser) {
+      if (contextHasJSEnabled !== javaScriptEnabled) {
+        // If we have switched from having JS enable/disabled we need to recreate the context.
+        await context?.close()
+        context = await browser.newContext({
+          locale,
+          javaScriptEnabled,
+          ...device,
+        })
+        contextHasJSEnabled = javaScriptEnabled
+      }
+      return
+    }
+
     browser = await this.launchBrowser(browserName, { headless })
-    context = await browser.newContext({ locale, ...device })
+    context = await browser.newContext({ locale, javaScriptEnabled, ...device })
+    contextHasJSEnabled = javaScriptEnabled
   }
 
   async launchBrowser(browserName: string, launchOptions: Record<string, any>) {

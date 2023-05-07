@@ -52,7 +52,7 @@ const nextInfo: CliCommand = async (argv) => {
       `
       Description
         Prints relevant details about the current system which can be used to report Next.js bugs
-        
+
       Usage
         $ next info
 
@@ -80,6 +80,7 @@ const nextInfo: CliCommand = async (argv) => {
       eslint-config-next: ${getPackageVersion('eslint-config-next')}
       react: ${getPackageVersion('react')}
       react-dom: ${getPackageVersion('react-dom')}
+      typescript: ${getPackageVersion('typescript')}
 `)
 
   try {
