@@ -159,8 +159,7 @@ impl<C: Comments> ServerActions<C> {
                 ident.clone(),
                 Vec::new(),
                 self.file_name.to_string(),
-                Some(export_name.to_string()),
-                None,
+                (Some(export_name.to_string()), None),
                 false,
                 None,
             );
@@ -218,8 +217,7 @@ impl<C: Comments> ServerActions<C> {
                         .map(|id| Some(id.as_arg()))
                         .collect(),
                     self.file_name.to_string(),
-                    Some(export_name.to_string()),
-                    None,
+                    (Some(export_name.to_string()), None),
                     true,
                     None,
                 );
@@ -312,8 +310,7 @@ impl<C: Comments> ServerActions<C> {
                         .map(|id| Some(id.as_arg()))
                         .collect(),
                     self.file_name.to_string(),
-                    Some(export_name.to_string()),
-                    None,
+                    (Some(export_name.to_string()), None),
                     true,
                     None,
                 );
@@ -648,19 +645,60 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 })
                                 .collect(),
                             self.file_name.to_string(),
-                            None,
-                            Some(Expr::Member(MemberExpr {
-                                span: DUMMY_SP,
-                                obj: Box::new(Expr::Ident(action_inner_id.clone())),
-                                prop: MemberProp::Ident(Ident {
-                                    sym: "$$id".into(),
+                            (
+                                None,
+                                Some(Expr::Member(MemberExpr {
                                     span: DUMMY_SP,
-                                    optional: false,
-                                }),
-                            })),
+                                    obj: Box::new(Expr::Ident(action_inner_id.clone())),
+                                    prop: MemberProp::Ident(Ident {
+                                        sym: "$$id".into(),
+                                        span: DUMMY_SP,
+                                        optional: false,
+                                    }),
+                                })),
+                            ),
                             true,
                             None,
                         );
+
+                        // new_action_ident.$$bound = (action_inner_id.$$bound ||
+                        // []).concat(new_action_ident.$$bound)
+                        bind_annotations.push(annotate(
+                            &new_action_ident,
+                            "$$bound",
+                            Box::new(Expr::Call(CallExpr {
+                                span: DUMMY_SP,
+                                callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
+                                    span: DUMMY_SP,
+                                    obj: Box::new(Expr::Bin(BinExpr {
+                                        span: DUMMY_SP,
+                                        op: op!("||"),
+                                        left: Box::new(
+                                            action_inner_id
+                                                .clone()
+                                                .make_member(quote_ident!("$$bound")),
+                                        ),
+                                        right: Box::new(
+                                            ArrayLit {
+                                                span: DUMMY_SP,
+                                                elems: vec![],
+                                            }
+                                            .into(),
+                                        ),
+                                    })),
+                                    prop: MemberProp::Ident(Ident {
+                                        sym: "concat".into(),
+                                        span: DUMMY_SP,
+                                        optional: false,
+                                    }),
+                                }))),
+                                args: vec![new_action_ident
+                                    .clone()
+                                    .make_member(quote_ident!("$$bound"))
+                                    .as_arg()],
+                                type_args: Default::default(),
+                            })),
+                        ));
 
                         let call = CallExpr {
                             span: DUMMY_SP,
@@ -1052,8 +1090,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         ident.clone(),
                         Vec::new(),
                         self.file_name.to_string(),
-                        Some(export_name.to_string()),
-                        None,
+                        (Some(export_name.to_string()), None),
                         false,
                         None,
                     );
@@ -1302,8 +1339,7 @@ fn annotate_ident_as_action(
     ident: Ident,
     bound: Vec<Option<ExprOrSpread>>,
     file_name: String,
-    export_name: Option<String>,
-    id_expr: Option<Expr>,
+    export_name_or_id_expr: (Option<String>, Option<Expr>),
     has_bound: bool,
     re_annotate_action: Option<Ident>,
 ) {
@@ -1323,10 +1359,10 @@ fn annotate_ident_as_action(
     ));
 
     // Annotation for the action id.
-    if let Some(id_expr) = id_expr {
+    if let (_, Some(id_expr)) = export_name_or_id_expr {
         // myAction.$$id = expr;
         annotations.push(annotate(&ident, "$$id", Box::new(id_expr)));
-    } else if let Some(export_name) = export_name {
+    } else if let (Some(export_name), _) = export_name_or_id_expr {
         // myAction.$$id = "...";
         annotations.push(annotate(
             &ident,

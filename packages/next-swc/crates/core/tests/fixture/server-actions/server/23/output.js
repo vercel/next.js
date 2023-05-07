@@ -4,15 +4,17 @@
     }
     action.$$typeof = Symbol.for("react.server.reference");
     action.$$id = "6d53ce510b2e36499b8f56038817b9bad86cabb4";
-    action.$$bound = null;
+    action.$$bound = [
+        x
+    ];
     return $$ACTION_1 = async ()=>$$ACTION_0($$ACTION_1.$$bound), $$ACTION_1.$$typeof = Symbol.for("react.server.reference"), $$ACTION_1.$$id = action.$$id, $$ACTION_1.$$bound = [
         foo[0],
         foo[1],
         foo.x,
         foo[y]
-    ], $$ACTION_1;
+    ], $$ACTION_1.$$bound = (action.$$bound || []).concat($$ACTION_1.$$bound), $$ACTION_1;
 }
-export async function $$ACTION_0(closure, a = closure[0], b = closure[1], c = closure[2], d = closure[3]) {
-    console.log(a, b, c, d);
+export async function $$ACTION_0(closure, a = closure[1], b = closure[2], c = closure[3], d = closure[4]) {
+    console.log(a, b, closure[0], c, d);
 }
 var $$ACTION_1;
