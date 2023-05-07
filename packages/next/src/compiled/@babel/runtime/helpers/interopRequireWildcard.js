@@ -2,8 +2,8 @@ var _typeof = require("next/dist/compiled/@babel/runtime/helpers/typeof")["defau
 
 function _getRequireWildcardCache(nodeInterop) {
   if (typeof WeakMap !== "function") return null;
-  const cacheBabelInterop = new WeakMap();
-  const cacheNodeInterop = new WeakMap();
+  var cacheBabelInterop = new WeakMap();
+  var cacheNodeInterop = new WeakMap();
   return (_getRequireWildcardCache = function _getRequireWildcardCache(nodeInterop) {
     return nodeInterop ? cacheNodeInterop : cacheBabelInterop;
   })(nodeInterop);
@@ -20,13 +20,13 @@ function _interopRequireWildcard(obj, nodeInterop) {
     };
   }
 
-  const cache = _getRequireWildcardCache(nodeInterop);
+  var cache = _getRequireWildcardCache(nodeInterop);
 
   if (cache && cache.has(obj)) {
     return cache.get(obj);
   }
 
-  const newObj = {};
+  var newObj = {};
   var hasPropertyDescriptor = Object.defineProperty && Object.getOwnPropertyDescriptor;
 
   for (var key in obj) {
