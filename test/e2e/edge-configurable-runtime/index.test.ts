@@ -2,15 +2,18 @@ import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { fetchViaHTTP, File, nextBuild } from 'next-test-utils'
 import { join } from 'path'
+import stripAnsi from 'strip-ansi'
 
-const appDir = join(__dirname, './app')
 const pagePath = 'pages/index.jsx'
 const apiPath = 'pages/api/edge.js'
-const page = new File(join(appDir, pagePath))
-const api = new File(join(appDir, apiPath))
 
-describe('Configurable runtime for pages and API routes', () => {
+describe.each([
+  { appDir: join(__dirname, './app/src'), title: 'src/pages and API routes' },
+  { appDir: join(__dirname, './app'), title: 'pages and API routes' },
+])('Configurable runtime for $title', ({ appDir }) => {
   let next: NextInstance
+  const page = new File(join(appDir, pagePath))
+  const api = new File(join(appDir, apiPath))
 
   if ((global as any).isNextDev) {
     describe('In dev mode', () => {
@@ -50,8 +53,8 @@ describe('Configurable runtime for pages and API routes', () => {
         const res = await fetchViaHTTP(next.url, `/api/edge`)
         expect(res.status).toEqual(200)
         expect(next.cliOutput).not.toInclude('error')
-        expect(next.cliOutput).toInclude(
-          `warn  - /pages/api/edge provided runtime 'experimental-edge'. It can be updated to 'edge' instead.`
+        expect(stripAnsi(next.cliOutput)).toInclude(
+          `- warn /pages/api/edge provided runtime 'experimental-edge'. It can be updated to 'edge' instead.`
         )
       })
       it('warns about page using edge runtime', async () => {
@@ -66,8 +69,8 @@ describe('Configurable runtime for pages and API routes', () => {
         const res = await fetchViaHTTP(next.url, `/`)
         expect(res.status).toEqual(200)
         expect(next.cliOutput).not.toInclude('error')
-        expect(next.cliOutput).toInclude(
-          `warn  - You are using an experimental edge runtime, the API might change.`
+        expect(stripAnsi(next.cliOutput)).toInclude(
+          `- warn You are using an experimental edge runtime, the API might change.`
         )
       })
 
@@ -82,8 +85,8 @@ describe('Configurable runtime for pages and API routes', () => {
         await next.start()
         const res = await fetchViaHTTP(next.url, `/`)
         expect(res.status).toEqual(200)
-        expect(next.cliOutput).toInclude(
-          `error - Page /pages provided runtime 'edge', the edge runtime for rendering is currently experimental. Use runtime 'experimental-edge' instead.`
+        expect(stripAnsi(next.cliOutput)).toInclude(
+          `- error Page /pages provided runtime 'edge', the edge runtime for rendering is currently experimental. Use runtime 'experimental-edge' instead.`
         )
         expect(next.cliOutput).not.toInclude('warn')
       })
@@ -121,7 +124,7 @@ describe('Configurable runtime for pages and API routes', () => {
         })
         expect(output.code).toBe(1)
         expect(output.stderr).not.toContain(`Build failed`)
-        expect(output.stderr).toContain(
+        expect(stripAnsi(output.stderr)).toContain(
           `Error: Page / provided runtime 'edge', the edge runtime for rendering is currently experimental. Use runtime 'experimental-edge' instead.`
         )
       })

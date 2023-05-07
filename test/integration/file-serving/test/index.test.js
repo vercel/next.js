@@ -26,7 +26,12 @@ const expectStatus = async (path) => {
       const parsedUrl = url.parse(redirectDest, true)
       expect(parsedUrl.hostname).toBe('localhost')
     } else {
-      expect(res.status === 400 || res.status === 404).toBe(true)
+      try {
+        expect(res.status === 400 || res.status === 404).toBe(true)
+      } catch (err) {
+        require('console').error({ path, status: res.status })
+        throw err
+      }
       expect(await res.text()).toMatch(containRegex)
     }
   }

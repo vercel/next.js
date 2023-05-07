@@ -17,7 +17,6 @@ import { writeConfigurationDefaults } from './typescript/writeConfigurationDefau
 import { installDependencies } from './install-dependencies'
 import { isCI } from '../telemetry/ci-info'
 import { missingDepsError } from './typescript/missingDependencyError'
-import { writeVscodeConfigurations } from './typescript/writeVscodeConfigurations'
 
 const requiredPackages = [
   {
@@ -45,7 +44,8 @@ export async function verifyTypeScriptSetup({
   tsconfigPath,
   typeCheckPreflight,
   disableStaticImages,
-  isAppDirEnabled,
+  hasAppDir,
+  hasPagesDir,
 }: {
   dir: string
   distDir: string
@@ -54,7 +54,8 @@ export async function verifyTypeScriptSetup({
   intentDirs: string[]
   typeCheckPreflight: boolean
   disableStaticImages: boolean
-  isAppDirEnabled: boolean
+  hasAppDir: boolean
+  hasPagesDir: boolean
 }): Promise<{ result?: TypeCheckResult; version: string | null }> {
   const resolvedTsConfigPath = path.join(dir, tsconfigPath)
 
@@ -110,9 +111,9 @@ export async function verifyTypeScriptSetup({
       require(tsPath)
     )) as typeof import('typescript')
 
-    if (semver.lt(ts.version, '4.3.2')) {
+    if (semver.lt(ts.version, '4.5.2')) {
       log.warn(
-        `Minimum recommended TypeScript version is v4.3.2, older versions can potentially be incompatible with Next.js. Detected: ${ts.version}`
+        `Minimum recommended TypeScript version is v4.5.2, older versions can potentially be incompatible with Next.js. Detected: ${ts.version}`
       )
     }
 
@@ -121,16 +122,18 @@ export async function verifyTypeScriptSetup({
       ts,
       resolvedTsConfigPath,
       intent.firstTimeSetup,
-      isAppDirEnabled,
-      distDir
+      hasAppDir,
+      distDir,
+      hasPagesDir
     )
     // Write out the necessary `next-env.d.ts` file to correctly register
     // Next.js' types:
-    await writeAppTypeDeclarations(dir, !disableStaticImages)
-
-    if (isAppDirEnabled && !isCI) {
-      await writeVscodeConfigurations(dir, tsPath)
-    }
+    await writeAppTypeDeclarations({
+      baseDir: dir,
+      imageImportsEnabled: !disableStaticImages,
+      hasPagesDir,
+      isAppDirEnabled: hasAppDir,
+    })
 
     let result
     if (typeCheckPreflight) {
@@ -143,7 +146,7 @@ export async function verifyTypeScriptSetup({
         distDir,
         resolvedTsConfigPath,
         cacheDir,
-        isAppDirEnabled
+        hasAppDir
       )
     }
     return { result, version: ts.version }

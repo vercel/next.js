@@ -6,7 +6,7 @@ description: Next.js allows you to serve static files, like images, in the publi
 
 Next.js can serve static files, like images, under a folder called `public` in the root directory. Files inside `public` can then be referenced by your code starting from the base URL (`/`).
 
-For example, if you add an image to `public/me.png`, the following code will access the image:
+For example, if you add `me.png` inside `public`, the following code will access the image:
 
 ```jsx
 import Image from 'next/image'
@@ -18,7 +18,7 @@ function Avatar() {
 export default Avatar
 ```
 
-> Note: `next/image` requires Next.js 10 or later.
+> **Note**: `next/image` requires Next.js 10 or later.
 
 This folder is also useful for `robots.txt`, `favicon.ico`, Google Site Verification, and any other static files (including `.html`)!
 

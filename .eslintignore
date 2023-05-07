@@ -1,6 +1,7 @@
 node_modules
 **/.next/**
 **/_next/**
+**/.vscode/**
 **/dist/**
 e2e-tests/**
 examples/with-eslint/**
@@ -11,6 +12,7 @@ examples/with-flow/**
 examples/with-jest/**
 examples/with-mobx-state-tree/**
 examples/with-mobx/**
+examples/with-tigris/db/models/todoItems.ts
 packages/next/src/bundles/webpack/packages/*.runtime.js
 packages/next/src/bundles/webpack/packages/lazy-compilation-*.js
 packages/next/src/compiled/**/*
@@ -19,6 +21,7 @@ packages/react-dev-overlay/lib/**
 **/__tmp__/**
 .github/actions/next-stats-action/.work
 .github/actions/issue-validator/index.mjs
+.github/actions/issue-labeler/lib/index.js
 packages/next-codemod/transforms/__testfixtures__/**/*
 packages/next-codemod/transforms/__tests__/**/*
 packages/next-codemod/**/*.js

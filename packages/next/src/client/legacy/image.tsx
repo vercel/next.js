@@ -559,6 +559,15 @@ const ImageElement = ({
         <noscript>
           <img
             {...rest}
+            // @ts-ignore - TODO: upgrade to `@types/react@17`
+            loading={loading}
+            decoding="async"
+            data-nimg={layout}
+            style={imgStyle}
+            className={className}
+            // It's intended to keep `loading` before `src` because React updates
+            // props in order which causes Safari/Firefox to not lazy load properly.
+            // See https://github.com/facebook/react/issues/25883
             {...generateImgAttrs({
               config,
               src: srcString,
@@ -569,12 +578,6 @@ const ImageElement = ({
               sizes: noscriptSizes,
               loader,
             })}
-            decoding="async"
-            data-nimg={layout}
-            style={imgStyle}
-            className={className}
-            // @ts-ignore - TODO: upgrade to `@types/react@17`
-            loading={loading}
           />
         </noscript>
       )}
@@ -973,7 +976,6 @@ export default function Image({
     React.LinkHTMLAttributes<HTMLLinkElement>,
     HTMLLinkElement
   > = {
-    // @ts-expect-error upgrade react types to react 18
     imageSrcSet: imgAttributes.srcSet,
     imageSizes: imgAttributes.sizes,
     crossOrigin: rest.crossOrigin,

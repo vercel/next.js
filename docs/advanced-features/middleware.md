@@ -21,7 +21,7 @@ Middleware allows you to run code before a request is completed, then based on t
 
 Middleware runs _before_ cached content, so you can personalize static files and pages. Common examples of Middleware would be authentication, A/B testing, localized pages, bot protection, and more. Regarding localized pages, you can start with [i18n routing](/docs/advanced-features/i18n-routing) and implement Middleware for more advanced use cases.
 
-> **Note:** If you were using Middleware prior to `12.2`, please see the [upgrade guide](https://nextjs.org/docs/messages/middleware-upgrade-guide).
+> **Note**: If you were using Middleware prior to `12.2`, please see the [upgrade guide](https://nextjs.org/docs/messages/middleware-upgrade-guide).
 
 ## Using Middleware
 
@@ -33,7 +33,7 @@ To begin using Middleware, follow the steps below:
 npm install next@latest
 ```
 
-2. Create a `middleware.ts` (or `.js`) file at the root or in the `src` directory (same level as your `pages`)
+2. Create a `middleware.ts` (or `.js`) file at the same level as your `pages` (in the root or `src` directory)
 3. Export a middleware function from the `middleware.ts` file:
 
 ```typescript
@@ -105,7 +105,7 @@ export const config = {
 }
 ```
 
-> **Note:** The `matcher` values need to be constants so they can be statically analyzed at build-time. Dynamic values such as variables will be ignored.
+> **Note**: The `matcher` values need to be constants so they can be statically analyzed at build-time. Dynamic values such as variables will be ignored.
 
 Configured matchers:
 
@@ -116,7 +116,7 @@ Configured matchers:
 
 Read more details on [path-to-regexp](https://github.com/pillarjs/path-to-regexp#path-to-regexp-1) documentation.
 
-> **Note:** For backward compatibility, Next.js always considers `/public` as `/public/index`. Therefore, a matcher of `/public/:path` will match.
+> **Note**: For backward compatibility, Next.js always considers `/public` as `/public/index`. Therefore, a matcher of `/public/:path` will match.
 
 ### Conditional Statements
 
@@ -147,7 +147,10 @@ The [`NextResponse`](#nextresponse) API allows you to:
 - Set response cookies
 - Set response headers
 
-To produce a response from Middleware, you should `rewrite` to a route ([Page](/docs/basic-features/pages.md) or [Edge API Route](/docs/api-routes/edge-api-routes.md)) that produces a response.
+To produce a response from Middleware, you can:
+
+1. `rewrite` to a route ([Page](/docs/basic-features/pages.md) or [Edge API Route](/docs/api-routes/edge-api-routes.md)) that produces a response
+2. return a `NextResponse` directly. See [Producing a Response](/docs/advanced-features/middleware#producing-a-response)
 
 ## Using Cookies
 
@@ -164,7 +167,7 @@ import type { NextRequest } from 'next/server'
 export function middleware(request: NextRequest) {
   // Assume a "Cookie:nextjs=fast" header to be present on the incoming request
   // Getting cookies from the request using the `RequestCookies` API
-  const cookie = request.cookies.get('nextjs')?.value
+  let cookie = request.cookies.get('nextjs')?.value
   console.log(cookie) // => 'fast'
   const allCookies = request.cookies.getAll()
   console.log(allCookies) // => [{ name: 'nextjs', value: 'fast' }]
@@ -181,7 +184,7 @@ export function middleware(request: NextRequest) {
     value: 'fast',
     path: '/test',
   })
-  const cookie = response.cookies.get('vercel')
+  cookie = response.cookies.get('vercel')
   console.log(cookie) // => { name: 'vercel', value: 'fast', Path: '/test' }
   // The outgoing response will have a `Set-Cookie:vercel=fast;path=/test` header.
 
@@ -218,13 +221,11 @@ export function middleware(request: NextRequest) {
 }
 ```
 
-> **Note:** Avoid setting large headers as it might cause [431 Request Header Fields Too Large](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/431) error depending on your backend web server configuration.
+> **Note**: Avoid setting large headers as it might cause [431 Request Header Fields Too Large](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/431) error depending on your backend web server configuration.
 
 ## Producing a Response
 
-You can respond to middleware directly by returning a `NextResponse` (responding from middleware is available since Next.js v13.1.0).
-
-Once enabled, you can provide a response from middleware using the `Response` or `NextResponse` API:
+You can respond from Middleware directly by returning a `Response` or `NextResponse` instance. (This is available since [Next.js v13.1.0](https://nextjs.org/blog/next-13-1#nextjs-advanced-middleware))
 
 ```ts
 // middleware.ts

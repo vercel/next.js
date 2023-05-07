@@ -10,7 +10,7 @@ If the issue does not reproduce with the `canary` version, then it has already b
 
 ### **How can I quickly verify if my issue has been fixed in `canary`?**
 
-The safest way is to install `next@canary` in your project and test it, but you can also search through [closed Next.js issues](https://github.com/vercel/next.js/issues?q=is%3Aissue+is%3Aclosed) for duplicates or check the [Next.js releases](https://github.com/vercel/next.js/releases). You can also use the GitHub [template](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template) (preferred), or the [CodeSandbox](https://codesandbox.io/s/github/vercel/next.js/tree/canary/examples/reproduction-template) or [StackBlitz](https://stackblitz.com/fork/github/vercel/next.js/tree/canary/examples/reproduction-template) templates to create a reproduction with `canary` from scratch.
+The safest way is to install `next@canary` in your project and test it, but you can also search through [closed Next.js issues](https://github.com/vercel/next.js/issues?q=is%3Aissue+is%3Aclosed) for duplicates or check the [Next.js releases](https://github.com/vercel/next.js/releases). You can also use the GitHub templates (preferred) for [pages](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template) and [App Router](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template-app-dir), or the [CodeSandbox: `pages`](https://codesandbox.io/s/github/vercel/next.js/tree/canary/examples/reproduction-template) or [CodeSandbox: App Router](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template-app-dir) templates to create a reproduction with `canary` from scratch.
 
 ### **My issue has been open for a long time, why do I need to verify `canary` now?**
 
@@ -24,7 +24,7 @@ If your issue has not been resolved in that time and it has been closed/locked, 
 
 ### **I did not open this issue, but it is relevant to me, what can I do to help?**
 
-Anyone experiencing the same issue is welcome to provide a minimal reproduction following the above steps. Furthermore, you can upvote the issue using the :+1: reaction on the topmost comment (please **do not** comment "I have the same issue" without repro steps). Then, we can sort issues by votes to prioritize.
+Anyone experiencing the same issue is welcome to provide a minimal reproduction following the above steps. Furthermore, you can upvote the issue using the :+1: reaction on the topmost comment (please **do not** comment "I have the same issue" without reproduction steps). Then, we can sort issues by votes to prioritize.
 
 ### **I think my reproduction is good enough, why aren't you looking into it quicker?**
 

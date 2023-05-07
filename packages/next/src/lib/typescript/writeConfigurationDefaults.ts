@@ -48,15 +48,21 @@ function getDesiredCompilerOptions(
         ts.ModuleKind.ESNext,
         ts.ModuleKind.CommonJS,
         ts.ModuleKind.AMD,
+        ts.ModuleKind.NodeNext,
+        ts.ModuleKind.Node16,
       ],
       value: 'esnext',
       reason: 'for dynamic import() support',
     },
     moduleResolution: {
-      parsedValue: ts.ModuleResolutionKind.NodeJs,
+      // In TypeScript 5.0, `NodeJs` has renamed to `Node10`
+      parsedValue:
+        (ts.ModuleResolutionKind as any).Node10 ??
+        ts.ModuleResolutionKind.NodeJs,
       // All of these values work:
       parsedValues: [
-        ts.ModuleResolutionKind.NodeJs,
+        (ts.ModuleResolutionKind as any).Node10 ??
+          ts.ModuleResolutionKind.NodeJs,
         // only newer TypeScript versions have this field, it
         // will be filtered for new versions of TypeScript
         (ts.ModuleResolutionKind as any).Node12,
@@ -103,7 +109,8 @@ export async function writeConfigurationDefaults(
   tsConfigPath: string,
   isFirstTimeSetup: boolean,
   isAppDirEnabled: boolean,
-  distDir: string
+  distDir: string,
+  hasPagesDir: boolean
 ): Promise<void> {
   if (isFirstTimeSetup) {
     await fs.writeFile(tsConfigPath, '{}' + os.EOL)
@@ -188,22 +195,60 @@ export async function writeConfigurationDefaults(
 
   // Enable the Next.js typescript plugin.
   if (isAppDirEnabled) {
-    if (userTsConfig.compilerOptions) {
+    // Check if the config or the resolved config has the plugin already.
+    const plugins = [
+      ...(Array.isArray(tsOptions.plugins) ? tsOptions.plugins : []),
+      ...(userTsConfig.compilerOptions &&
+      Array.isArray(userTsConfig.compilerOptions.plugins)
+        ? userTsConfig.compilerOptions.plugins
+        : []),
+    ]
+    const hasNextPlugin = plugins.some(
+      ({ name }: { name: string }) => name === 'next'
+    )
+
+    // If the TS config extends on another config, we can't add the `plugin` field
+    // because that will override the parent config's plugins.
+    // Instead we have to show a message to the user to add the plugin manually.
+    if (
+      !userTsConfig.compilerOptions ||
+      (plugins.length &&
+        !hasNextPlugin &&
+        'extends' in rawConfig &&
+        (!rawConfig.compilerOptions || !rawConfig.compilerOptions.plugins))
+    ) {
+      console.log(
+        `\nYour ${chalk.cyan(
+          'tsconfig.json'
+        )} extends another configuration, which means we cannot add the Next.js TypeScript plugin automatically. To improve your development experience, we recommend adding the Next.js plugin (\`${chalk.cyan(
+          '"plugins": [{ "name": "next" }]'
+        )}\`) manually to your TypeScript configuration. Learn more: https://beta.nextjs.org/docs/configuring/typescript#using-the-typescript-plugin\n`
+      )
+    } else if (!hasNextPlugin) {
       if (!('plugins' in userTsConfig.compilerOptions)) {
         userTsConfig.compilerOptions.plugins = []
       }
-      if (
-        !userTsConfig.compilerOptions.plugins.some(
-          (plugin: { name: string }) => plugin.name === 'next'
-        )
-      ) {
-        userTsConfig.compilerOptions.plugins.push({ name: 'next' })
-        suggestedActions.push(
-          chalk.cyan('plugins') +
-            ' was updated to add ' +
-            chalk.bold(`{ name: 'next' }`)
-        )
-      }
+      userTsConfig.compilerOptions.plugins.push({ name: 'next' })
+      suggestedActions.push(
+        chalk.cyan('plugins') +
+          ' was updated to add ' +
+          chalk.bold(`{ name: 'next' }`)
+      )
+    }
+
+    // If `strict` is set to `false` or `strictNullChecks` is set to `false`,
+    // then set `strictNullChecks` to `true`.
+    if (
+      hasPagesDir &&
+      isAppDirEnabled &&
+      userTsConfig.compilerOptions &&
+      !userTsConfig.compilerOptions.strict &&
+      !('strictNullChecks' in userTsConfig.compilerOptions)
+    ) {
+      userTsConfig.compilerOptions.strictNullChecks = true
+      suggestedActions.push(
+        chalk.cyan('strictNullChecks') + ' was set to ' + chalk.bold(`true`)
+      )
     }
   }
 

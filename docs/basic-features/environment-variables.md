@@ -170,4 +170,4 @@ Environment variables are looked up in the following places, in order, stopping 
 
 For example, if `NODE_ENV` is `development` and you define a variable in both `.env.development.local` and `.env`, the value in `.env.development.local` will be used.
 
-> **Note:** The allowed values for `NODE_ENV` are `production`, `development` and `test`.
+> **Note**: The allowed values for `NODE_ENV` are `production`, `development` and `test`.

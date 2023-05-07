@@ -1,9 +1,10 @@
 module.exports = {
   experimental: {
-    appDir: true,
+    clientRouterFilterRedirects: true,
     sri: {
       algorithm: 'sha256',
     },
+    webpackBuildWorker: true,
   },
   // output: 'standalone',
   rewrites: async () => {
@@ -23,28 +24,40 @@ module.exports = {
           destination:
             '/search-params-prop/server?first=value&second=other%20value&third',
         },
-        {
-          source: '/rewritten-use-search-params',
-          destination:
-            '/hooks/use-search-params?first=value&second=other%20value&third',
-        },
-        {
-          source: '/rewritten-use-pathname',
-          destination: '/hooks/use-pathname',
-        },
-        {
-          source: '/hooks/use-selected-layout-segment/rewritten',
-          destination:
-            '/hooks/use-selected-layout-segment/first/slug3/second/catch/all',
-        },
       ],
     }
   },
-  redirects: () => {
+
+  redirects: async () => {
     return [
       {
-        source: '/redirect/a',
-        destination: '/dashboard',
+        source: '/redirect-1',
+        destination: 'https://example.vercel.sh',
+        permanent: false,
+      },
+      {
+        source: '/redirect-2',
+        destination: 'https://example.vercel.sh',
+        permanent: false,
+      },
+      {
+        source: '/blog/old-post',
+        destination: 'https://example.vercel.sh',
+        permanent: false,
+      },
+      {
+        source: '/redirect-3/some',
+        destination: 'https://example.vercel.sh',
+        permanent: false,
+      },
+      {
+        source: '/redirect-4',
+        destination: 'https://example.vercel.sh',
+        permanent: false,
+      },
+      {
+        source: '/:path/to-redirect',
+        destination: 'https://example.vercel.sh',
         permanent: false,
       },
     ]

@@ -13,13 +13,14 @@ import {
   EDGE_RUNTIME_WEBPACK,
   EDGE_UNSUPPORTED_NODE_APIS,
   MIDDLEWARE_BUILD_MANIFEST,
-  FLIGHT_MANIFEST,
+  CLIENT_REFERENCE_MANIFEST,
   MIDDLEWARE_MANIFEST,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
   NEXT_CLIENT_SSR_ENTRY_SUFFIX,
   FLIGHT_SERVER_CSS_MANIFEST,
   SUBRESOURCE_INTEGRITY_MANIFEST,
-  FONT_LOADER_MANIFEST,
+  NEXT_FONT_MANIFEST,
+  SERVER_REFERENCE_MANIFEST,
 } from '../../../shared/lib/constants'
 import {
   getPageStaticInfo,
@@ -29,6 +30,8 @@ import { Telemetry } from '../../../telemetry/storage'
 import { traceGlobals } from '../../../trace/shared'
 import { EVENT_BUILD_FEATURE_USAGE } from '../../../telemetry/events'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
+import { INSTRUMENTATION_HOOK_FILENAME } from '../../../lib/constants'
+import { NextBuildContext } from '../../build-context'
 
 export interface EdgeFunctionDefinition {
   env: string[]
@@ -90,12 +93,15 @@ function isUsingIndirectEvalAndUsedByExports(args: {
 function getEntryFiles(
   entryFiles: string[],
   meta: EntryMetadata,
-  opts: { sriEnabled: boolean; hasFontLoaders: boolean }
+  opts: {
+    sriEnabled: boolean
+  }
 ) {
   const files: string[] = []
   if (meta.edgeSSR) {
     if (meta.edgeSSR.isServerComponent) {
-      files.push(`server/${FLIGHT_MANIFEST}.js`)
+      files.push(`server/${SERVER_REFERENCE_MANIFEST}.js`)
+      files.push(`server/${CLIENT_REFERENCE_MANIFEST}.js`)
       files.push(`server/${FLIGHT_SERVER_CSS_MANIFEST}.js`)
       if (opts.sriEnabled) {
         files.push(`server/${SUBRESOURCE_INTEGRITY_MANIFEST}.js`)
@@ -120,9 +126,11 @@ function getEntryFiles(
       `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`
     )
 
-    if (opts.hasFontLoaders) {
-      files.push(`server/${FONT_LOADER_MANIFEST}.js`)
-    }
+    files.push(`server/${NEXT_FONT_MANIFEST}.js`)
+  }
+
+  if (NextBuildContext!.hasInstrumentationHook) {
+    files.push(`server/edge-${INSTRUMENTATION_HOOK_FILENAME}.js`)
   }
 
   files.push(
@@ -136,7 +144,9 @@ function getEntryFiles(
 function getCreateAssets(params: {
   compilation: webpack.Compilation
   metadataByEntry: Map<string, EntryMetadata>
-  opts: { sriEnabled: boolean; hasFontLoaders: boolean }
+  opts: {
+    sriEnabled: boolean
+  }
 }) {
   const { compilation, metadataByEntry, opts } = params
   return (assets: any) => {
@@ -161,14 +171,20 @@ function getCreateAssets(params: {
         continue
       }
 
-      const { namedRegex } = getNamedMiddlewareRegex(
-        metadata.edgeSSR?.isAppDir ? normalizeAppPath(page) : page,
-        {
-          catchAll: !metadata.edgeSSR && !metadata.edgeApiFunction,
-        }
-      )
+      const matcherSource = metadata.edgeSSR?.isAppDir
+        ? normalizeAppPath(page)
+        : page
+
+      const catchAll = !metadata.edgeSSR && !metadata.edgeApiFunction
+
+      const { namedRegex } = getNamedMiddlewareRegex(matcherSource, {
+        catchAll,
+      })
       const matchers = metadata?.edgeMiddleware?.matchers ?? [
-        { regexp: namedRegex },
+        {
+          regexp: namedRegex,
+          originalSource: page === '/' && catchAll ? '/:path*' : matcherSource,
+        },
       ]
 
       const edgeFunctionDefinition: EdgeFunctionDefinition = {
@@ -589,6 +605,7 @@ async function findEntryEdgeFunctionConfig(
             nextConfig: {},
             pageFilePath,
             isDev: false,
+            pageType: 'root',
           })
         ).middleware,
       }
@@ -607,7 +624,7 @@ function getExtractMetadata(params: {
   return async () => {
     metadataByEntry.clear()
     const resolver = compilation.resolverFactory.get('normal')
-    const telemetry: Telemetry = traceGlobals.get('telemetry')
+    const telemetry: Telemetry | undefined = traceGlobals.get('telemetry')
 
     for (const [entryName, entry] of compilation.entries) {
       if (entry.options.runtime !== EDGE_RUNTIME_WEBPACK) {
@@ -619,7 +636,7 @@ function getExtractMetadata(params: {
         entryDependency,
         resolver
       )
-      const { rootDir } = getModuleBuildInfo(
+      const { rootDir, route } = getModuleBuildInfo(
         compilation.moduleGraph.getResolvedModule(entryDependency)
       )
 
@@ -652,7 +669,7 @@ function getExtractMetadata(params: {
           const resource = module.resource
           const hasOGImageGeneration =
             resource &&
-            /[\\/]node_modules[\\/]@vercel[\\/]og[\\/]dist[\\/]index.js$/.test(
+            /[\\/]node_modules[\\/]@vercel[\\/]og[\\/]dist[\\/]index\.(edge|node)\.js$|[\\/]next[\\/]dist[\\/]server[\\/]web[\\/]spec-extension[\\/]image-response\.js$/.test(
               resource
             )
 
@@ -683,7 +700,7 @@ function getExtractMetadata(params: {
           }
 
           if (edgeFunctionConfig?.config?.unstable_allowDynamicGlobs) {
-            telemetry.record({
+            telemetry?.record({
               eventName: 'NEXT_EDGE_ALLOW_DYNAMIC_USED',
               payload: {
                 ...edgeFunctionConfig,
@@ -720,6 +737,15 @@ function getExtractMetadata(params: {
 
         if (edgeFunctionConfig?.config?.regions) {
           entryMetadata.regions = edgeFunctionConfig.config.regions
+        }
+
+        if (route?.preferredRegion) {
+          const preferredRegion = route.preferredRegion
+          entryMetadata.regions =
+            // Ensures preferredRegion is always an array in the manifest.
+            typeof preferredRegion === 'string'
+              ? [preferredRegion]
+              : preferredRegion
         }
 
         /**
@@ -773,7 +799,7 @@ function getExtractMetadata(params: {
         }
       }
 
-      telemetry.record({
+      telemetry?.record({
         eventName: EVENT_BUILD_FEATURE_USAGE,
         payload: {
           featureName: 'vercelImageGeneration',
@@ -787,20 +813,10 @@ function getExtractMetadata(params: {
 export default class MiddlewarePlugin {
   private readonly dev: boolean
   private readonly sriEnabled: boolean
-  private readonly hasFontLoaders: boolean
 
-  constructor({
-    dev,
-    sriEnabled,
-    hasFontLoaders,
-  }: {
-    dev: boolean
-    sriEnabled: boolean
-    hasFontLoaders: boolean
-  }) {
+  constructor({ dev, sriEnabled }: { dev: boolean; sriEnabled: boolean }) {
     this.dev = dev
     this.sriEnabled = sriEnabled
-    this.hasFontLoaders = hasFontLoaders
   }
 
   public apply(compiler: webpack.Compiler) {
@@ -845,12 +861,30 @@ export default class MiddlewarePlugin {
           metadataByEntry,
           opts: {
             sriEnabled: this.sriEnabled,
-            hasFontLoaders: this.hasFontLoaders,
           },
         })
       )
     })
   }
+}
+
+export const SUPPORTED_NATIVE_MODULES = [
+  'buffer',
+  'events',
+  'assert',
+  'util',
+  'async_hooks',
+] as const
+
+const supportedEdgePolyfills = new Set<string>(SUPPORTED_NATIVE_MODULES)
+
+export function getEdgePolyfilledModules() {
+  const records: Record<string, string> = {}
+  for (const mod of SUPPORTED_NATIVE_MODULES) {
+    records[mod] = `commonjs node:${mod}`
+    records[`node:${mod}`] = `commonjs node:${mod}`
+  }
+  return records
 }
 
 export async function handleWebpackExternalForEdgeRuntime({
@@ -864,7 +898,11 @@ export async function handleWebpackExternalForEdgeRuntime({
   contextInfo: any
   getResolve: () => any
 }) {
-  if (contextInfo.issuerLayer === 'middleware' && isNodeJsModule(request)) {
+  if (
+    contextInfo.issuerLayer === 'middleware' &&
+    isNodeJsModule(request) &&
+    !supportedEdgePolyfills.has(request)
+  ) {
     // allows user to provide and use their polyfills, as we do with buffer.
     try {
       await getResolve()(context, request)

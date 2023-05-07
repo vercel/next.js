@@ -1,44 +1,30 @@
 ---
-description: Optimizing loading web fonts with the built-in `@next/font` loaders.
+description: Optimizing loading web fonts with the built-in `next/font` loaders.
 ---
 
 # Optimizing Fonts
 
-[**`@next/font`**](/docs/api-reference/next/font.md) will automatically optimize your fonts (including custom fonts) and remove external network requests for improved privacy and performance.
+[**`next/font`**](/docs/api-reference/next/font.md) will automatically optimize your fonts (including custom fonts) and remove external network requests for improved privacy and performance.
 
-> **🎥 Watch:** Learn more about how to use `@next/font` → [YouTube (6 minutes)](https://www.youtube.com/watch?v=L8_98i_bMMA).
+> **🎥 Watch:** Learn more about how to use `next/font` → [YouTube (6 minutes)](https://www.youtube.com/watch?v=L8_98i_bMMA).
 
 ## Overview
 
-`@next/font` includes **built-in automatic self-hosting** for _any_ font file. This means you can optimally load web fonts with zero layout shift, thanks to the underlying CSS `size-adjust` property used.
+`next/font` includes **built-in automatic self-hosting** for _any_ font file. This means you can optimally load web fonts with zero layout shift, thanks to the underlying CSS `size-adjust` property used.
 
 This new font system also allows you to conveniently use all Google Fonts with performance and privacy in mind. CSS and font files are downloaded at build time and self-hosted with the rest of your static assets. **No requests are sent to Google by the browser.**
-
-## Usage
-
-To get started, install `@next/font`:
-
-```bash
-npm install @next/font
-```
-
-### Choosing font-display
-
-[`font-display`](https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display) lets you to control how your font is displayed while it's loading. `@next/font` uses `font-display: optional` by default. When the primary font used by `@next/font` does not load within 100ms, the auto generated fallback font will be displayed in the browser. While it is automatically generated to be as visually similar to the primary font as possible to reduce layout shift, it does come with the tradeoff that your intended font might not be shown on slower networks unless it's cached.
-
-If you want guarantees around your intended font always showing, and accept the tradeoff of minimal layout shift from swapping your fallback font for the primary font, you can [use `font-display: swap`](/docs/api-reference/next/font.md#display).
 
 ### Google Fonts
 
 Automatically self-host any Google Font. Fonts are included in the deployment and served from the same domain as your deployment. **No requests are sent to Google by the browser.**
 
-Import the font you would like to use from `@next/font/google` as a function. We recommend using [**variable fonts**](https://fonts.google.com/variablefonts) for the best performance and flexibility.
+To get started, import the font you would like to use from `next/font/google` as a function. We recommend using [**variable fonts**](https://fonts.google.com/variablefonts) for the best performance and flexibility.
 
 To use the font in all your pages, add it to [`_app.js` file](https://nextjs.org/docs/advanced-features/custom-app) under `/pages` as shown below:
 
 ```js
 // pages/_app.js
-import { Inter } from '@next/font/google'
+import { Inter } from 'next/font/google'
 
 // If loading a variable font, you don't need to specify the font weight
 const inter = Inter({ subsets: ['latin'] })
@@ -56,7 +42,7 @@ If you can't use a variable font, you will **need to specify a weight**:
 
 ```js
 // pages/_app.js
-import { Roboto } from '@next/font/google'
+import { Roboto } from 'next/font/google'
 
 const roboto = Roboto({
   weight: '400',
@@ -82,13 +68,15 @@ const roboto = Roboto({
 })
 ```
 
+> **Note**: You can use `_` for fonts with spaces in the name. For example `Titillium Web` should be `Titillium_Web`.
+
 #### Apply the font in `<head>`
 
 You can also use the font without a wrapper and `className` by injecting it inside the `<head>` as follows:
 
 ```js
 // pages/_app.js
-import { Inter } from '@next/font/google'
+import { Inter } from 'next/font/google'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -112,7 +100,7 @@ To use the font on a single page, add it to the specific page as shown below:
 
 ```js
 // pages/index.js
-import { Inter } from '@next/font/google'
+import { Inter } from 'next/font/google'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -129,39 +117,20 @@ export default function Home() {
 
 Google Fonts are automatically [subset](https://fonts.google.com/knowledge/glossary/subsetting). This reduces the size of the font file and improves performance. You'll need to define which of these subsets you want to preload. Failing to specify any subsets while [`preload`](/docs/api-reference/next/font.md#preload) is true will result in a warning.
 
-This can be done in 2 ways:
-
-- On a font per font basis by adding it to the function call
-
-  ```js
-  // pages/_app.js
-  const inter = Inter({ subsets: ['latin'] })
-  ```
-
-- Globally for all your fonts in your `next.config.js`
-
-  ```js
-  // next.config.js
-  module.exports = {
-    experimental: {
-      fontLoaders: [
-        { loader: '@next/font/google', options: { subsets: ['latin'] } },
-      ],
-    },
-  }
-  ```
-
-  - If both are configured, the subset in the function call is used.
+```js
+// pages/_app.js
+const inter = Inter({ subsets: ['latin'] })
+```
 
 View the [Font API Reference](/docs/api-reference/next/font.md#nextfontgoogle) for more information.
 
 ### Local Fonts
 
-Import `@next/font/local` and specify the `src` of your local font file. We recommend using [**variable fonts**](https://fonts.google.com/variablefonts) for the best performance and flexibility.
+Import `next/font/local` and specify the `src` of your local font file. We recommend using [**variable fonts**](https://fonts.google.com/variablefonts) for the best performance and flexibility.
 
 ```js
 // pages/_app.js
-import localFont from '@next/font/local'
+import localFont from 'next/font/local'
 
 // Font files can be colocated inside of `pages`
 const myFont = localFont({ src: './my-font.woff2' })
@@ -208,13 +177,13 @@ View the [Font API Reference](/docs/api-reference/next/font.md#nextfontlocal) fo
 
 ## With Tailwind CSS
 
-`@next/font` can be used with Tailwind CSS through a [CSS variable](/docs/api-reference/next/font#css-variables).
+`next/font` can be used with Tailwind CSS through a [CSS variable](/docs/api-reference/next/font#css-variables).
 
-In the example below, we use the font `Inter` from `@next/font/google` (You can use any font from Google or Local Fonts). Load your font with the `variable` option to define your CSS variable name and assign it to `inter`. Then, use `inter.variable` to add the CSS variable to your HTML document.
+In the example below, we use the font `Inter` from `next/font/google` (You can use any font from Google or Local Fonts). Load your font with the `variable` option to define your CSS variable name and assign it to `inter`. Then, use `inter.variable` to add the CSS variable to your HTML document.
 
 ```js
 // pages/_app.js
-import { Inter } from '@next/font/google'
+import { Inter } from 'next/font/google'
 
 const inter = Inter({
   subsets: ['latin'],

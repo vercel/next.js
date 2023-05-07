@@ -36,7 +36,7 @@ non-interactively. See `create-next-app --help`:
 Usage: create-next-app <project-directory> [options]
 
 Options:
-  -V, --version                      output the version number
+  -V, --version                        output the version number
   --ts, --typescript
 
     Initialize as a TypeScript project. (default)
@@ -45,17 +45,29 @@ Options:
 
     Initialize as a JavaScript project.
 
+  --tailwind
+
+    Initialize with Tailwind CSS config. (default)
+
+  --no-tailwind
+
+    Initialize without Tailwind CSS config.
+
   --eslint
 
-    Initialize with eslint config.
+    Initialize with ESLint config.
 
-  --experimental-app
+  --app
 
-    Initialize as a `app/` directory project.
+    Initialize as an App Router project.
 
   --src-dir
 
     Initialize inside a `src/` directory.
+
+  --import-alias <alias-to-configure>
+
+    Specify import alias to use (default "@/*").
 
   --use-npm
 
@@ -78,7 +90,11 @@ Options:
     In this case, you must specify the path to the example separately:
     --example-path foo/bar
 
-  -h, --help                         output usage information
+  --reset-preferences
+
+    Explicitly tell the CLI to reset any stored preferences
+
+  -h, --help                           output usage information
 ```
 
 ### Why use Create Next App?

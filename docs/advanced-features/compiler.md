@@ -118,6 +118,7 @@ module.exports = {
       src: './',
       artifactDirectory: './__generated__',
       language: 'typescript',
+      eagerEsModules: false,
     },
   },
 }
@@ -440,28 +441,6 @@ import lodash from 'lodash'
 ```
 
 ## Experimental Features
-
-### Minifier debug options
-
-While the minifier is experimental, we are making the following options available for debugging purposes. They will not be available once the minifier is made stable.
-
-```js
-// next.config.js
-
-module.exports = {
-  experimental: {
-    swcMinifyDebugOptions: {
-      compress: {
-        defaults: true,
-        side_effects: false,
-      },
-    },
-  },
-}
-```
-
-If your app works with the options above, it means `side_effects` is the problematic option.
-See [the SWC documentation](https://swc.rs/docs/configuration/minification#jscminifycompress) for detailed options.
 
 ### SWC Trace profiling
 

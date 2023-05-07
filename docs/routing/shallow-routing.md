@@ -40,7 +40,7 @@ export default Page
 
 The URL will get updated to `/?counter=10`. and the page won't get replaced, only the state of the route is changed.
 
-You can also watch for URL changes via [`componentDidUpdate`](https://reactjs.org/docs/react-component.html#componentdidupdate) as shown below:
+You can also watch for URL changes via [`componentDidUpdate`](https://react.dev/reference/react/Component#componentdidupdate) as shown below:
 
 ```jsx
 componentDidUpdate(prevProps) {

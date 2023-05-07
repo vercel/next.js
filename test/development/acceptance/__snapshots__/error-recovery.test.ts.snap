@@ -1,0 +1,51 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`ReactRefreshLogBox default syntax > runtime error 1`] = `
+"index.js (6:16) @ Error
+
+  4 | setInterval(() => {
+  5 |   i++
+> 6 |   throw Error('no ' + i)
+    |        ^
+  7 | }, 1000)
+  8 | export default function FunctionNamed() {
+  9 |   return <div />"
+`;
+
+exports[`ReactRefreshLogBox default syntax > runtime error 2`] = `
+"./index.js
+Error: 
+  x Expected '}', got '<eof>'
+   ,-[5:1]
+ 5 |           i++
+ 6 |           throw Error('no ' + i)
+ 7 |         }, 1000)
+ 8 |         export default function FunctionNamed() {
+   :                                                 ^
+   \`----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./index.js"
+`;
+
+exports[`ReactRefreshLogBox default syntax > runtime error 3`] = `
+"./index.js
+Error: 
+  x Expected '}', got '<eof>'
+   ,-[5:1]
+ 5 |           i++
+ 6 |           throw Error('no ' + i)
+ 7 |         }, 1000)
+ 8 |         export default function FunctionNamed() {
+   :                                                 ^
+   \`----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./index.js"
+`;

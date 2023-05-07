@@ -20,10 +20,8 @@ export = defineRule({
         const paths = context.getFilename()
 
         const isInAppDir = () =>
-          (paths.includes(`app${path.sep}`) ||
-            paths.includes(`app${path.posix.sep}`)) &&
-          !paths.includes(`pages${path.sep}`) &&
-          !paths.includes(`pages${path.posix.sep}`)
+          paths.includes(`app${path.sep}`) ||
+          paths.includes(`app${path.posix.sep}`)
         // Only lint the <head> element in pages directory
         if (node.name.name !== 'head' || isInAppDir()) {
           return

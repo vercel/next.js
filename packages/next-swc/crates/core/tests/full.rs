@@ -1,22 +1,25 @@
-use next_binding::swc::{
+use std::path::{Path, PathBuf};
+
+use next_swc::{custom_before_pass, TransformOptions};
+use serde::de::DeserializeOwned;
+use turbo_binding::swc::{
     core::{
         base::Compiler,
         common::comments::SingleThreadedComments,
-        ecma::parser::{Syntax, TsConfig},
-        ecma::transforms::base::pass::noop,
+        ecma::{
+            parser::{Syntax, TsConfig},
+            transforms::base::pass::noop,
+        },
     },
     testing::{NormalizedOutput, Tester},
 };
-use next_swc::{custom_before_pass, TransformOptions};
-use serde::de::DeserializeOwned;
-use std::path::{Path, PathBuf};
 
-#[next_binding::swc::testing::fixture("tests/full/**/input.js")]
+#[turbo_binding::swc::testing::fixture("tests/full/**/input.js")]
 fn full(input: PathBuf) {
     test(&input, true);
 }
 
-#[next_binding::swc::testing::fixture("tests/loader/**/input.js")]
+#[turbo_binding::swc::testing::fixture("tests/loader/**/input.js")]
 fn loader(input: PathBuf) {
     test(&input, false);
 }
@@ -31,14 +34,16 @@ fn test(input: &Path, minify: bool) {
             let fm = cm.load_file(input).expect("failed to load file");
 
             let options = TransformOptions {
-                swc: next_binding::swc::core::base::config::Options {
+                swc: turbo_binding::swc::core::base::config::Options {
                     swcrc: true,
                     output_path: Some(output.clone()),
 
-                    config: next_binding::swc::core::base::config::Config {
-                        is_module: next_binding::swc::core::base::config::IsModule::Bool(true),
+                    config: turbo_binding::swc::core::base::config::Config {
+                        is_module: Some(turbo_binding::swc::core::base::config::IsModule::Bool(
+                            true,
+                        )),
 
-                        jsc: next_binding::swc::core::base::config::JscConfig {
+                        jsc: turbo_binding::swc::core::base::config::JscConfig {
                             minify: if minify {
                                 Some(assert_json("{ \"compress\": true, \"mangle\": true }"))
                             } else {
@@ -70,6 +75,8 @@ fn test(input: &Path, minify: bool) {
                 emotion: Some(assert_json("{}")),
                 modularize_imports: None,
                 font_loaders: None,
+                app_dir: None,
+                server_actions: None,
             };
 
             let options = options.patch(&fm);
