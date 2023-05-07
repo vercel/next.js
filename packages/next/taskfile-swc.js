@@ -32,6 +32,7 @@ module.exports = function (task) {
         module: {
           type: esm ? 'es6' : 'commonjs',
           ignoreDynamic: true,
+          exportInteropAnnotation: true,
         },
         env: {
           targets: MODERN_BROWSERSLIST_TARGET,
@@ -65,11 +66,13 @@ module.exports = function (task) {
         module: {
           type: esm ? 'es6' : 'commonjs',
           ignoreDynamic: true,
+          exportInteropAnnotation: true,
         },
         env: {
           targets: {
-            // follow the version defined in packages/next/package.json#engine
-            node: '14.18.0',
+            // Follows version defined in packages/next/package.json#engine
+            // Currently a few minors behind due to babel class transpiling
+            node: '16.8.0',
           },
         },
         jsc: {

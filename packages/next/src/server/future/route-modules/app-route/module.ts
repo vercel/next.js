@@ -21,7 +21,7 @@ import {
   handleInternalServerErrorResponse,
 } from '../helpers/response-handlers'
 import { type HTTP_METHOD, HTTP_METHODS, isHTTPMethod } from '../../../web/http'
-import { patchFetch } from '../../../lib/patch-fetch'
+import { addImplicitTags, patchFetch } from '../../../lib/patch-fetch'
 import { getTracer } from '../../../lib/trace/tracer'
 import { AppRouteRouteHandlersSpan } from '../../../lib/trace/constants'
 import { getPathnameFromAbsolutePath } from './helpers/get-pathname-from-absolute-path'
@@ -34,6 +34,7 @@ import { getNonStaticMethods } from './helpers/get-non-static-methods'
 import { SYMBOL_MODIFY_COOKIE_VALUES } from '../../../web/spec-extension/adapters/request-cookies'
 import { ResponseCookies } from '../../../web/spec-extension/cookies'
 import { HeadersAdapter } from '../../../web/spec-extension/adapters/headers'
+import { PrerenderManifest } from '../../../../build'
 
 /**
  * AppRouteRouteHandlerContext is the context that is passed to the route
@@ -41,6 +42,7 @@ import { HeadersAdapter } from '../../../web/spec-extension/adapters/headers'
  */
 export interface AppRouteRouteHandlerContext extends RouteModuleHandleContext {
   staticGenerationContext: StaticGenerationContext['renderOpts']
+  prerenderManifest: PrerenderManifest
 }
 
 /**
@@ -235,6 +237,11 @@ export class AppRouteRouteModule extends RouteModule<
       req: request,
     }
 
+    // TODO: types for renderOpts should include previewProps
+    ;(requestContext as any).renderOpts = {
+      previewProps: context.prerenderManifest.preview,
+    }
+
     // Get the context for the static generation.
     const staticGenerationContext: StaticGenerationContext = {
       pathname: this.definition.pathname,
@@ -338,10 +345,15 @@ export class AppRouteRouteModule extends RouteModule<
                     const res = await handler(wrappedRequest, {
                       params: context.params,
                     })
+                    ;(context.staticGenerationContext as any).fetchMetrics =
+                      staticGenerationStore.fetchMetrics
 
                     await Promise.all(
                       staticGenerationStore.pendingRevalidates || []
                     )
+                    addImplicitTags(staticGenerationStore)
+                    ;(context.staticGenerationContext as any).fetchTags =
+                      staticGenerationStore.tags?.join(',')
 
                     // It's possible cookies were set in the handler, so we need
                     // to merge the modified cookies and the returned response
@@ -351,7 +363,9 @@ export class AppRouteRouteModule extends RouteModule<
                     if (requestStore && requestStore.mutableCookies) {
                       const modifiedCookieValues = (
                         requestStore.mutableCookies as any
-                      )[SYMBOL_MODIFY_COOKIE_VALUES] as [string, string][]
+                      )[SYMBOL_MODIFY_COOKIE_VALUES] as NonNullable<
+                        ReturnType<InstanceType<typeof ResponseCookies>['get']>
+                      >[]
                       if (modifiedCookieValues.length) {
                         // Return a new response that extends the response with
                         // the modified cookies as fallbacks. `res`' cookies
@@ -359,22 +373,39 @@ export class AppRouteRouteModule extends RouteModule<
                         const resCookies = new ResponseCookies(
                           HeadersAdapter.from(res.headers)
                         )
-                        const finalCookies = resCookies.getAll()
+                        const returnedCookies = resCookies.getAll()
 
                         // Set the modified cookies as fallbacks.
-                        modifiedCookieValues.forEach((cookie) =>
-                          resCookies.set(cookie[0], cookie[1])
-                        )
+                        for (const cookie of modifiedCookieValues) {
+                          resCookies.set(cookie)
+                        }
                         // Set the original cookies as the final values.
-                        finalCookies.forEach((cookie) => resCookies.set(cookie))
+                        for (const cookie of returnedCookies) {
+                          resCookies.set(cookie)
+                        }
+
+                        const responseHeaders = new Headers({})
+                        // Set all the headers except for the cookies.
+                        res.headers.forEach((value, key) => {
+                          if (key.toLowerCase() !== 'set-cookie') {
+                            responseHeaders.append(key, value)
+                          }
+                        })
+                        // Set the final cookies, need to append cookies one
+                        // at a time otherwise it might not work in some browsers.
+                        resCookies.getAll().forEach((cookie) => {
+                          const tempCookies = new ResponseCookies(new Headers())
+                          tempCookies.set(cookie)
+                          responseHeaders.append(
+                            'Set-Cookie',
+                            tempCookies.toString()
+                          )
+                        })
 
                         return new Response(res.body, {
                           status: res.status,
                           statusText: res.statusText,
-                          headers: {
-                            ...res.headers,
-                            'Set-Cookie': resCookies.toString(),
-                          },
+                          headers: responseHeaders,
                         })
                       }
                     }

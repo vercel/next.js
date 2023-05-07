@@ -2,11 +2,10 @@
 
 import { useState } from 'react'
 
-import double, { inc, dec } from './actions'
+import double, { inc, dec, redirectAction } from './actions'
 
 export default function Counter() {
   const [count, setCount] = useState(0)
-
   return (
     <div>
       <h1>{count}</h1>
@@ -37,6 +36,22 @@ export default function Counter() {
       >
         *2
       </button>
+      <form>
+        <button
+          id="redirect"
+          formAction={() => redirectAction('/redirect-target')}
+        >
+          redirect
+        </button>
+      </form>
+      <form>
+        <button
+          id="redirect-external"
+          formAction={() => redirectAction('https://example.com')}
+        >
+          redirect external
+        </button>
+      </form>
     </div>
   )
 }

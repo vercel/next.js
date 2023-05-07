@@ -11,7 +11,7 @@ export default async function handler(
   res: NextApiResponse<Data>
 ) {
   const innerRes = await fetch(
-    `http://[::]:${process.env.PORT}/api/basic?input=test`
+    `http://[::1]:${process.env.PORT}/api/basic?input=test`
   )
   const json = await innerRes.json()
   res.status(200).json(json)

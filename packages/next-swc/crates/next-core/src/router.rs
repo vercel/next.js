@@ -45,7 +45,8 @@ use turbo_tasks::{
 use turbo_tasks_fs::json::parse_json_with_source_context;
 
 use crate::{
-    embed_js::{next_asset, next_js_file},
+    asset_helpers::as_es_module_asset,
+    embed_js::next_asset,
     next_config::NextConfigVc,
     next_edge::{
         context::{get_edge_compile_time_info, get_edge_resolve_options_context},
@@ -154,19 +155,6 @@ async fn get_config(
         FindContextFileResult::NotFound(_) => None,
     };
     Ok(OptionEcmascriptModuleAssetVc::cell(config_asset))
-}
-
-fn as_es_module_asset(asset: AssetVc, context: AssetContextVc) -> EcmascriptModuleAssetVc {
-    EcmascriptModuleAssetVc::new(
-        asset,
-        context,
-        Value::new(EcmascriptModuleAssetType::Typescript),
-        EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
-            use_define_for_class_fields: false,
-        }]),
-        Default::default(),
-        context.compile_time_info(),
-    )
 }
 
 #[turbo_tasks::function]
@@ -299,7 +287,7 @@ fn edge_transition_map(
         edge_resolve_options_context,
         output_path: output_path.root(),
         base_path: project_path,
-        bootstrap_file: next_js_file("entry/edge-bootstrap.ts"),
+        bootstrap_asset: next_asset("entry/edge-bootstrap.ts"),
         entry_name: "middleware".to_string(),
     }
     .cell()

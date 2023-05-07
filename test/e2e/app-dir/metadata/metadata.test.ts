@@ -535,6 +535,7 @@ createNextDescribe(
           'https://example.com/icon.png',
         ])
         await checkLink(browser, 'apple-touch-icon', [
+          '/icon2.png',
           '/apple-icon.png',
           '/apple-icon-x3.png',
         ])
@@ -744,7 +745,7 @@ createNextDescribe(
         expect(invalidRobotsResponse.status).toBe(404)
       })
 
-      it('should support root dir sitemap.xml', async () => {
+      it('should support sitemap.xml under every routes', async () => {
         const res = await next.fetch('/sitemap.xml')
         expect(res.headers.get('content-type')).toBe('application/xml')
         const sitemap = await res.text()
@@ -753,7 +754,7 @@ createNextDescribe(
           '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
         )
         const invalidSitemapResponse = await next.fetch('/title/sitemap.xml')
-        expect(invalidSitemapResponse.status).toBe(404)
+        expect(invalidSitemapResponse.status).toBe(200)
       })
 
       it('should support static manifest.webmanifest', async () => {

@@ -9,7 +9,8 @@ import {
   IncrementalCacheEntry,
 } from '../../response-cache'
 import { encode } from '../../../shared/lib/bloom-filter/base64-arraybuffer'
-import { encodeText } from '../../node-web-streams-helper'
+import { encodeText } from '../../stream-utils/encode-decode'
+import { CACHE_ONE_YEAR } from '../../../lib/constants'
 
 function toRoute(pathname: string): string {
   return pathname.replace(/\/$/, '').replace(/\/index$/, '') || '/'
@@ -21,9 +22,11 @@ export interface CacheHandlerContext {
   flushToDisk?: boolean
   serverDistDir?: string
   maxMemoryCacheSize?: number
+  fetchCacheKeyPrefix?: string
+  prerenderManifest?: PrerenderManifest
+  revalidatedTags: string[]
   _appDir: boolean
   _requestHeaders: IncrementalCache['requestHeaders']
-  fetchCacheKeyPrefix?: string
 }
 
 export interface CacheHandlerValue {
@@ -66,6 +69,7 @@ export class IncrementalCache {
   allowedRevalidateHeaderKeys?: string[]
   minimalMode?: boolean
   fetchCacheKeyPrefix?: string
+  revalidatedTags?: string[]
 
   constructor({
     fs,
@@ -118,6 +122,16 @@ export class IncrementalCache {
     this.allowedRevalidateHeaderKeys = allowedRevalidateHeaderKeys
     this.prerenderManifest = getPrerenderManifest()
     this.fetchCacheKeyPrefix = fetchCacheKeyPrefix
+    let revalidatedTags: string[] = []
+
+    if (
+      minimalMode &&
+      typeof requestHeaders['x-next-revalidated-tags'] === 'string' &&
+      requestHeaders['x-next-revalidats-tag-token'] ===
+        this.prerenderManifest?.preview?.previewModeId
+    ) {
+      revalidatedTags = requestHeaders['x-next-revalidated-tags'].split(',')
+    }
 
     if (CurCacheHandler) {
       this.cacheHandler = new CurCacheHandler({
@@ -125,6 +139,7 @@ export class IncrementalCache {
         fs,
         flushToDisk,
         serverDistDir,
+        revalidatedTags,
         maxMemoryCacheSize,
         _appDir: !!appDir,
         _requestHeaders: requestHeaders,
@@ -327,15 +342,24 @@ export class IncrementalCache {
 
     const curRevalidate =
       this.prerenderManifest.routes[toRoute(pathname)]?.initialRevalidateSeconds
-    const revalidateAfter = this.calculateRevalidate(
-      pathname,
-      cacheData?.lastModified || Date.now(),
-      this.dev && !fetchCache
-    )
-    const isStale =
-      revalidateAfter !== false && revalidateAfter < Date.now()
-        ? true
-        : undefined
+
+    let isStale: boolean | -1 | undefined
+    let revalidateAfter: false | number
+
+    if (cacheData?.lastModified === -1) {
+      isStale = -1
+      revalidateAfter = -1 * CACHE_ONE_YEAR
+    } else {
+      revalidateAfter = this.calculateRevalidate(
+        pathname,
+        cacheData?.lastModified || Date.now(),
+        this.dev && !fetchCache
+      )
+      isStale =
+        revalidateAfter !== false && revalidateAfter < Date.now()
+          ? true
+          : undefined
+    }
 
     if (cacheData) {
       entry = {

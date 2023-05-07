@@ -71,6 +71,12 @@ declare module 'ROUTE_MODULE' {
   }
 }
 
+declare module 'BOOTSTRAP_CONFIG' {
+  export const NAME: string
+  export const PAGE: string
+  export const PATHNAME: string
+}
+
 declare module 'CLIENT_MODULE' {
   export const __turbopack_module_id__: string
 }

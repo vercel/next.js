@@ -20,7 +20,7 @@ describe('svgo-webpack with Image Component', () => {
       const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
       const errors = stderr
         .split('\n')
-        .filter((line) => line && !line.startsWith('warn  -'))
+        .filter((line) => line && !line.startsWith('- warn'))
       expect(errors).toEqual([])
       expect(code).toBe(0)
     })
@@ -45,7 +45,7 @@ describe('svgo-webpack with Image Component', () => {
       await renderViaHTTP(appPort, '/', {})
       const errors = devOutput.stderr
         .split('\n')
-        .filter((line) => line && !line.startsWith('warn  -'))
+        .filter((line) => line && !line.startsWith('- warn'))
       expect(errors).toEqual([])
     })
   })

@@ -17,8 +17,8 @@ export class ImageResponse {
             (
               await import(
                 process.env.NEXT_RUNTIME === 'edge'
-                  ? 'next/dist/compiled/@vercel/og/index.edge'
-                  : 'next/dist/compiled/@vercel/og/index.node'
+                  ? 'next/dist/compiled/@vercel/og/index.edge.js'
+                  : 'next/dist/compiled/@vercel/og/index.node.js'
               )
             ).ImageResponse
           const imageResponse = new OGImageResponse(...args) as Response

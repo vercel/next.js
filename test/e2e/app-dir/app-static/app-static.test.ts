@@ -32,6 +32,22 @@ createNextDescribe(
       }
     })
 
+    it('should not have cache tags header for non-minimal mode', async () => {
+      for (const path of [
+        '/ssr-forced',
+        '/ssr-forced',
+        '/variable-revalidate/revalidate-3',
+        '/variable-revalidate/revalidate-360',
+        '/variable-revalidate/revalidate-360-isr',
+      ]) {
+        const res = await fetchViaHTTP(next.url, path, undefined, {
+          redirect: 'manual',
+        })
+        expect(res.status).toBe(200)
+        expect(res.headers.get('x-next-cache-tags')).toBeFalsy()
+      }
+    })
+
     if (isDev) {
       it('should error correctly for invalid params from generateStaticParams', async () => {
         await next.patchFile(
@@ -154,7 +170,7 @@ createNextDescribe(
 
     // On-Demand Revalidate has not effect in dev since app routes
     // aren't considered static until prerendering
-    if (!(global as any).isNextDev) {
+    if (!(global as any).isNextDev && !process.env.CUSTOM_CACHE_HANDLER) {
       it.each([
         {
           type: 'edge route handler',
@@ -205,7 +221,9 @@ createNextDescribe(
     // On-Demand Revalidate has not effect in dev
     if (!(global as any).isNextDev && !process.env.CUSTOM_CACHE_HANDLER) {
       it('should revalidate all fetches during on-demand revalidate', async () => {
-        const initRes = await next.fetch('/variable-revalidate/revalidate-360')
+        const initRes = await next.fetch(
+          '/variable-revalidate/revalidate-360-isr'
+        )
         const html = await initRes.text()
         const $ = cheerio.load(html)
         const initLayoutData = $('#layout-data').text()
@@ -410,14 +428,15 @@ createNextDescribe(
           'partial-gen-params/[lang]/[slug]/page.js',
           'route-handler-edge/revalidate-360/route.js',
           'route-handler/post/route.js',
+          'route-handler/revalidate-360-isr/route.js',
           'route-handler/revalidate-360/route.js',
-          'ssg-preview.html',
-          'ssg-preview.rsc',
-          'ssg-preview/[[...route]]/page.js',
-          'ssg-preview/test-2.html',
-          'ssg-preview/test-2.rsc',
-          'ssg-preview/test.html',
-          'ssg-preview/test.rsc',
+          'ssg-draft-mode.html',
+          'ssg-draft-mode.rsc',
+          'ssg-draft-mode/[[...route]]/page.js',
+          'ssg-draft-mode/test-2.html',
+          'ssg-draft-mode/test-2.rsc',
+          'ssg-draft-mode/test.html',
+          'ssg-draft-mode/test.rsc',
           'ssr-auto/cache-no-store/page.js',
           'ssr-auto/fetch-revalidate-zero/page.js',
           'ssr-forced/page.js',
@@ -603,6 +622,21 @@ createNextDescribe(
             initialRevalidateSeconds: false,
             srcRoute: '/partial-gen-params-no-additional-slug/[lang]/[slug]',
           },
+          '/ssg-draft-mode': {
+            dataRoute: '/ssg-draft-mode.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/ssg-draft-mode/[[...route]]',
+          },
+          '/ssg-draft-mode/test': {
+            dataRoute: '/ssg-draft-mode/test.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/ssg-draft-mode/[[...route]]',
+          },
+          '/ssg-draft-mode/test-2': {
+            dataRoute: '/ssg-draft-mode/test-2.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/ssg-draft-mode/[[...route]]',
+          },
           '/force-static/first': {
             dataRoute: '/force-static/first.rsc',
             initialRevalidateSeconds: false,
@@ -618,20 +652,15 @@ createNextDescribe(
             initialRevalidateSeconds: 3,
             srcRoute: '/gen-params-dynamic-revalidate/[slug]',
           },
-          '/ssg-preview': {
-            dataRoute: '/ssg-preview.rsc',
+          '/route-handler/revalidate-360-isr': {
+            dataRoute: null,
+            initialHeaders: {
+              'content-type': 'application/json',
+              'x-next-cache-tags':
+                'thankyounext,/route-handler/revalidate-360-isr/route',
+            },
             initialRevalidateSeconds: false,
-            srcRoute: '/ssg-preview/[[...route]]',
-          },
-          '/ssg-preview/test': {
-            dataRoute: '/ssg-preview/test.rsc',
-            initialRevalidateSeconds: false,
-            srcRoute: '/ssg-preview/[[...route]]',
-          },
-          '/ssg-preview/test-2': {
-            dataRoute: '/ssg-preview/test-2.rsc',
-            initialRevalidateSeconds: false,
-            srcRoute: '/ssg-preview/[[...route]]',
+            srcRoute: '/route-handler/revalidate-360-isr',
           },
           '/variable-config-revalidate/revalidate-3': {
             dataRoute: '/variable-config-revalidate/revalidate-3.rsc',
@@ -734,6 +763,12 @@ createNextDescribe(
               '^\\/partial\\-gen\\-params\\-no\\-additional\\-slug\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
             ),
           },
+          '/ssg-draft-mode/[[...route]]': {
+            dataRoute: '/ssg-draft-mode/[[...route]].rsc',
+            dataRouteRegex: '^\\/ssg\\-draft\\-mode(?:\\/(.+?))?\\.rsc$',
+            fallback: null,
+            routeRegex: '^\\/ssg\\-draft\\-mode(?:\\/(.+?))?(?:\\/)?$',
+          },
           '/force-static/[slug]': {
             dataRoute: '/force-static/[slug].rsc',
             dataRouteRegex: normalizeRegEx(
@@ -742,16 +777,6 @@ createNextDescribe(
             fallback: null,
             routeRegex: normalizeRegEx(
               '^\\/force\\-static\\/([^\\/]+?)(?:\\/)?$'
-            ),
-          },
-          '/ssg-preview/[[...route]]': {
-            dataRoute: '/ssg-preview/[[...route]].rsc',
-            dataRouteRegex: normalizeRegEx(
-              '^\\/ssg\\-preview(?:\\/(.+?))?\\.rsc$'
-            ),
-            fallback: null,
-            routeRegex: normalizeRegEx(
-              '^\\/ssg\\-preview(?:\\/(.+?))?(?:\\/)?$'
             ),
           },
           '/static-to-dynamic-error-forced/[id]': {
@@ -1324,14 +1349,14 @@ createNextDescribe(
       }, 'success')
     })
 
-    it('Should not throw Dynamic Server Usage error when using generateStaticParams with previewData', async () => {
-      const browserOnIndexPage = await next.browser('/ssg-preview')
+    it('should not throw Dynamic Server Usage error when using generateStaticParams with draftMode', async () => {
+      const browserOnIndexPage = await next.browser('/ssg-draft-mode')
 
       const content = await browserOnIndexPage
-        .elementByCss('#preview-data')
+        .elementByCss('#draft-mode')
         .text()
 
-      expect(content).toContain('previewData')
+      expect(content).toBe('{"isEnabled":false}')
     })
 
     it('should force SSR correctly for headers usage', async () => {
@@ -1851,14 +1876,6 @@ createNextDescribe(
         )
       })
     })
-
-    if (!(global as any).isNextDeploy) {
-      it('should show a message to leave feedback for `appDir`', async () => {
-        expect(next.cliOutput).toContain(
-          `Thank you for testing \`appDir\` please leave your feedback at https://nextjs.link/app-feedback`
-        )
-      })
-    }
 
     it('should keep querystring on static page', async () => {
       const browser = await next.browser('/blog/tim?message=hello-world')

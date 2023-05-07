@@ -2,18 +2,18 @@ import {
   StaticGenerationAsyncStorage,
   StaticGenerationStore,
 } from '../../../client/components/static-generation-async-storage'
+import { addImplicitTags } from '../../lib/patch-fetch'
 
 type Callback = (...args: any[]) => Promise<any>
 
-// TODO: generic callback type?
-export function unstable_cache(
-  cb: Callback,
+export function unstable_cache<T extends Callback>(
+  cb: T,
   keyParts: string[],
   options: {
     revalidate: number | false
     tags?: string[]
   }
-): Callback {
+): T {
   const joinedKey = cb.toString() + '-' + keyParts.join(', ')
   const staticGenerationAsyncStorage = (
     fetch as any
@@ -34,7 +34,7 @@ export function unstable_cache(
     )
   }
 
-  return async (...args: any[]) => {
+  const cachedCb = async (...args: any[]) => {
     // We override the default fetch cache handling inside of the
     // cache callback so that we only cache the specific values returned
     // from the callback instead of also caching any fetches done inside
@@ -55,6 +55,15 @@ export function unstable_cache(
             options.revalidate as number
           ))
 
+        const tags = options.tags || []
+        const implicitTags = addImplicitTags(store)
+
+        for (const tag of implicitTags) {
+          if (!tags.includes(tag)) {
+            tags.push(tag)
+          }
+        }
+
         const invokeCallback = async () => {
           const result = await cb(...args)
 
@@ -68,7 +77,7 @@ export function unstable_cache(
                   // TODO: handle non-JSON values?
                   body: JSON.stringify(result),
                   status: 200,
-                  tags: options.tags,
+                  tags,
                 },
                 revalidate: options.revalidate as number,
               },
@@ -107,15 +116,12 @@ export function unstable_cache(
               console.error(`revalidating cache with key: ${joinedKey}`, err)
             )
           )
-        } else if (
-          options.tags &&
-          !options.tags.every((tag) => currentTags?.includes(tag))
-        ) {
+        } else if (tags && !tags.every((tag) => currentTags?.includes(tag))) {
           if (!cacheEntry.value.data.tags) {
             cacheEntry.value.data.tags = []
           }
 
-          for (const tag of options.tags) {
+          for (const tag of tags) {
             if (!cacheEntry.value.data.tags.includes(tag)) {
               cacheEntry.value.data.tags.push(tag)
             }
@@ -131,4 +137,6 @@ export function unstable_cache(
       }
     )
   }
+  // TODO: once AsyncLocalStorage.run() returns the correct types this override will no longer be necessary
+  return cachedCb as unknown as T
 }
