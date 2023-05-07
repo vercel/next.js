@@ -1,5 +1,6 @@
 import './require-hook'
 import './node-polyfill-fetch'
+import './node-polyfill-form'
 import './node-polyfill-web-streams'
 
 import type { TLSSocket } from 'tls'
@@ -89,7 +90,6 @@ import ResponseCache from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
-import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render/app-render'
 import { setHttpClientAndAgentOptions } from './config'
 import { RouteKind } from './future/route-kind'
 
@@ -340,8 +340,7 @@ export default class NextNodeServer extends BaseServer {
           'server',
           INSTRUMENTATION_HOOK_FILENAME
         ))
-
-        instrumentationHook.register?.()
+        await instrumentationHook.register?.()
       } catch (err: any) {
         if (err.code !== 'MODULE_NOT_FOUND') {
           err.message = `An error occurred while loading instrumentation hook: ${err.message}`
@@ -964,6 +963,8 @@ export default class NextNodeServer extends BaseServer {
     renderOpts.nextFontManifest = this.nextFontManifest
 
     if (this.hasAppDir && renderOpts.isAppPath) {
+      const { renderToHTMLOrFlight: appRenderToHTMLOrFlight } =
+        require('./app-render/app-render') as typeof import('./app-render/app-render')
       return appRenderToHTMLOrFlight(
         req.originalRequest,
         res.originalResponse,
@@ -1381,27 +1382,31 @@ export default class NextNodeServer extends BaseServer {
 
         if (this.isRouterWorker) {
           let page = pathname
-          let matched = false
+          let matchedExistingRoute = false
 
           if (!(await this.hasPage(page))) {
             for (const route of this.dynamicRoutes || []) {
               if (route.match(pathname)) {
                 page = route.page
-                matched = true
+                matchedExistingRoute = true
                 break
               }
             }
           } else {
-            matched = true
+            matchedExistingRoute = true
           }
 
-          let renderKind: 'app' | 'pages' = this.appPathRoutes?.[page]
-            ? 'app'
-            : 'pages'
+          let renderKind: 'app' | 'pages' =
+            this.appPathRoutes?.[page] ||
+            // Possible that it's a dynamic app route or behind routing rules
+            // such as i18n. In that case, we need to check the route kind directly.
+            match?.definition.kind === RouteKind.APP_PAGE
+              ? 'app'
+              : 'pages'
 
           // Handle app dir's /not-found feature: for 404 pages, they should be
           // routed to the app renderer.
-          if (!matched && this.appPathRoutes) {
+          if (!matchedExistingRoute && this.appPathRoutes) {
             if (
               this.appPathRoutes[
                 this.renderOpts.dev ? '/not-found' : '/_not-found'

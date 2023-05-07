@@ -2,7 +2,12 @@ import { redirect, notFound } from 'next/navigation'
 
 async function action(formData) {
   'use server'
-  redirect('/header?name=' + formData.get('name'))
+  redirect(
+    '/header?name=' +
+      formData.get('name') +
+      '&constructor=' +
+      formData.constructor.name
+  )
 }
 
 async function nowhere() {

@@ -37,7 +37,7 @@ const nextExport: CliCommand = (argv) => {
   if (args['--help']) {
     console.log(`
       Description
-        Exports a static version of the application for production deployment
+        [DEPRECATED] Exports a static version of the application for production deployment
 
       Usage
         $ next export [options] <dir>
@@ -51,6 +51,7 @@ const nextExport: CliCommand = (argv) => {
        --threads     Max number of threads to use
        --help, -h    List this help
 
+      The "next export" command is deprecated in favor of "output: export" in next.config.js
       Learn more: ${chalk.cyan(
         'https://nextjs.org/docs/advanced-features/static-html-export'
       )}

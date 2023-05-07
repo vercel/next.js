@@ -1,15 +1,15 @@
 ---
-description: Measure and track page performance using Next.js Analytics
+description: Measure and track page performance using Next.js Speed Insights
 ---
 
 # Measuring performance
 
-[Next.js Analytics](https://nextjs.org/analytics) allows you to analyze and measure the performance of
+[Next.js Speed Insights](https://nextjs.org/analytics) allows you to analyze and measure the performance of
 pages using different metrics.
 
-You can start collecting your [Real Experience Score](https://vercel.com/docs/concepts/analytics/web-vitals?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) with zero-configuration on [Vercel deployments](https://vercel.com/docs/analytics?utm_source=next-site&utm_medium=docs&utm_campaign=next-website). There's also support for Analytics if you're [self-hosting](https://vercel.com/docs/concepts/analytics#self-hosted?utm_source=next-site&utm_medium=docs&utm_campaign=next-website).
+You can start collecting your [Real Experience Score](https://vercel.com/docs/concepts/speed-insights#core-web-vitals?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) with zero-configuration on [Vercel deployments](https://vercel.com/docs/concepts/speed-insights?utm_source=next-site&utm_medium=docs&utm_campaign=next-website).
 
-The rest of this documentation describes the built-in relayer Next.js Analytics uses.
+The rest of this documentation describes the built-in relayer Next.js Speed Insights uses.
 
 ## Build Your Own
 
@@ -142,9 +142,9 @@ export function reportWebVitals(metric) {
 
 These metrics work in all browsers that support the [User Timing API](https://caniuse.com/#feat=user-timing).
 
-## Sending results to analytics
+## Sending results to external systems
 
-With the relay function, you can send any of results to an analytics endpoint to measure and track
+With the relay function, you can send results to any endpoint to measure and track
 real user performance on your site. For example:
 
 ```js
