@@ -586,6 +586,35 @@ createNextDescribe(
             await next.patchFile(filePath, origContent)
           }
         })
+
+        it('should not create duplicate link tags during HMR', async () => {
+          const filePath = 'app/hmr/global.css'
+          const origContent = await next.readFile(filePath)
+
+          const browser = await next.browser('/hmr')
+          try {
+            await next.patchFile(
+              filePath,
+              origContent.replace('background: gray;', 'background: red;')
+            )
+            await check(
+              () =>
+                browser.eval(
+                  `window.getComputedStyle(document.querySelector('body')).backgroundColor`
+                ),
+              'rgb(255, 0, 0)'
+            )
+            await check(
+              () =>
+                browser.eval(
+                  `document.querySelectorAll('link[rel="stylesheet"][href*="/page.css"]').length`
+                ),
+              1
+            )
+          } finally {
+            await next.patchFile(filePath, origContent)
+          }
+        })
       }
     })
 
