@@ -912,7 +912,9 @@ export default class HotReloader {
                   modsIterable.forEach((mod: any) => {
                     if (
                       mod.resource &&
-                      mod.resource.replace(/\\/g, '/').includes(key)
+                      mod.resource.replace(/\\/g, '/').includes(key) &&
+                      // Shouldn't match CSS modules, etc.
+                      /\.(tsx|ts|js|cjs|mjs|jsx)$/.test(mod.resource)
                     ) {
                       // use original source to calculate hash since mod.hash
                       // includes the source map in development which changes
