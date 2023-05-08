@@ -5,7 +5,7 @@ use std::{
     env,
     fmt::Write,
     future::{pending, Future},
-    net::SocketAddr,
+    net::{IpAddr, Ipv4Addr, SocketAddr},
     panic::{catch_unwind, resume_unwind, AssertUnwindSafe},
     path::{Path, PathBuf},
     time::Duration,
@@ -227,6 +227,8 @@ async fn run_test(resource: PathBuf) -> JestRunResult {
     .await
     .unwrap();
 
+    let local_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), server.addr.port());
+
     println!(
         "{event_type} - server started at http://{address}",
         event_type = "ready".green(),
@@ -234,7 +236,7 @@ async fn run_test(resource: PathBuf) -> JestRunResult {
     );
 
     if *DEBUG_START {
-        webbrowser::open(&server.addr.to_string()).unwrap();
+        webbrowser::open(&local_addr.to_string()).unwrap();
         tokio::select! {
             _ = mock_server_future => {},
             _ = pending() => {},
@@ -246,7 +248,7 @@ async fn run_test(resource: PathBuf) -> JestRunResult {
     let result = tokio::select! {
         // Poll the mock_server first to add the env var
         _ = mock_server_future => panic!("Never resolves"),
-        r = run_browser(server.addr) => r.expect("error while running browser"),
+        r = run_browser(local_addr) => r.expect("error while running browser"),
         _ = server.future => panic!("Never resolves"),
     };
 
