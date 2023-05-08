@@ -7,9 +7,16 @@ createNextDescribe(
   },
   ({ next }) => {
     it('should work when using GET to an external url', async () => {
-      const res = await next.fetch('/test')
+      const res = await next.fetch('/test', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
       const json = await res.json()
-      expect(json.quickstart).toBe('https://pipedream.com/quickstart/')
+
+      expect(json.receivedMethod).toBe('GET')
     })
     it('should work when using POST to an external url', async () => {
       const res = await next.fetch('/test', {
@@ -19,8 +26,10 @@ createNextDescribe(
         },
         body: JSON.stringify({ a: 'a', b: 'b', c: 'c', d: 'd', e: 'e' }),
       })
+
       const json = await res.json()
-      expect(json.quickstart).toBe('https://pipedream.com/quickstart/')
+
+      expect(json.receivedBody.a).toBe('a')
     })
   }
 )
