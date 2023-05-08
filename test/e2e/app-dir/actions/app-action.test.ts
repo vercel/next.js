@@ -68,6 +68,8 @@ createNextDescribe(
         logs.push(log)
       })
 
+      const currentTimestamp = Date.now()
+
       const browser = await next.browser('/client')
       await browser.elementByCss('#get-header').click()
       await check(() => {
@@ -77,6 +79,10 @@ createNextDescribe(
           ? 'yes'
           : ''
       }, 'yes')
+
+      expect(
+        await browser.eval('+document.cookie.match(/test-cookie=(d+)/)[1]')
+      ).toBeGreaterThanOrEqual(currentTimestamp)
     })
 
     it('should support setting cookies in route handlers with the correct overrides', async () => {
