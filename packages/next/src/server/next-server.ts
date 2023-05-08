@@ -368,7 +368,12 @@ export default class NextNodeServer extends BaseServer {
     loadEnvConfig(
       this.dir,
       dev,
-      silent ? { info: () => {}, error: () => {} } : Log,
+      silent
+        ? {
+            info: () => {},
+            error: () => {},
+          }
+        : Log,
       forceReload
     )
   }
@@ -726,6 +731,7 @@ export default class NextNodeServer extends BaseServer {
   }
 
   private _validFilesystemPathSet: Set<string> | null = null
+
   protected getFilesystemPaths(): Set<string> {
     if (this._validFilesystemPathSet) {
       return this._validFilesystemPathSet
@@ -2233,6 +2239,7 @@ export default class NextNodeServer extends BaseServer {
    * so that we can run it.
    */
   protected async ensureMiddleware() {}
+
   protected async ensureEdgeFunction(_params: {
     page: string
     appPaths: string[] | null
@@ -2495,11 +2502,11 @@ export default class NextNodeServer extends BaseServer {
                     }
                   }
 
-                  //we want to proxy the rewrite later, do skip this
                   const rewrite = result.response.headers.get(
                     'x-middleware-rewrite'
                   )
 
+                  //we want to proxy the rewrite later, do nothing here
                   if (!rewrite) {
                     res.statusCode = result.response.status
                     for await (const chunk of result.response.body ||
@@ -2706,6 +2713,7 @@ export default class NextNodeServer extends BaseServer {
   }
 
   private _cachedPreviewManifest: PrerenderManifest | undefined
+
   protected getPrerenderManifest(): PrerenderManifest {
     if (this._cachedPreviewManifest) {
       return this._cachedPreviewManifest
