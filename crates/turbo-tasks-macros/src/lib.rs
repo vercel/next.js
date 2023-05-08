@@ -35,6 +35,11 @@ pub fn derive_deterministic_hash(input: TokenStream) -> TokenStream {
     derive::derive_deterministic_hash(input)
 }
 
+#[proc_macro_derive(TaskInput, attributes(turbo_tasks))]
+pub fn derive_task_input(input: TokenStream) -> TokenStream {
+    derive::derive_task_input(input)
+}
+
 /// Creates a ValueVc struct for a `struct` or `enum` that represent
 /// that type placed into a cell in a Task.
 ///

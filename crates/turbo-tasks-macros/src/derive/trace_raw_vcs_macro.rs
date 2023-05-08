@@ -6,8 +6,8 @@ use turbo_tasks_macros_shared::{generate_destructuring, match_expansion};
 
 use super::FieldAttributes;
 
-fn ignore_field(field: &Field) -> bool {
-    FieldAttributes::from(field.attrs.as_slice()).trace_ignore
+fn filter_field(field: &Field) -> bool {
+    !FieldAttributes::from(field.attrs.as_slice()).trace_ignore
 }
 
 pub fn derive_trace_raw_vcs(input: TokenStream) -> TokenStream {
@@ -28,7 +28,7 @@ pub fn derive_trace_raw_vcs(input: TokenStream) -> TokenStream {
 }
 
 fn trace_named(_ident: &Ident, fields: &FieldsNamed) -> (TokenStream2, TokenStream2) {
-    let (captures, fields_idents) = generate_destructuring(fields.named.iter(), &ignore_field);
+    let (captures, fields_idents) = generate_destructuring(fields.named.iter(), &filter_field);
     (
         captures,
         quote! {
@@ -40,7 +40,7 @@ fn trace_named(_ident: &Ident, fields: &FieldsNamed) -> (TokenStream2, TokenStre
 }
 
 fn trace_unnamed(_ident: &Ident, fields: &FieldsUnnamed) -> (TokenStream2, TokenStream2) {
-    let (captures, fields_idents) = generate_destructuring(fields.unnamed.iter(), &ignore_field);
+    let (captures, fields_idents) = generate_destructuring(fields.unnamed.iter(), &filter_field);
     (
         captures,
         quote! {

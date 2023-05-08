@@ -944,3 +944,165 @@ tuple_impls! { A B C D E F G H I }
 tuple_impls! { A B C D E F G H I J }
 tuple_impls! { A B C D E F G H I J K }
 tuple_impls! { A B C D E F G H I J K L }
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+    use turbo_tasks_macros::TaskInput;
+
+    use super::*;
+    // This is necessary for the derive macro to work, as its expansion refers to
+    // the crate name directly.
+    use crate as turbo_tasks;
+
+    fn conversion<T>(t: T) -> Result<T>
+    where
+        T: for<'a> FromTaskInput<'a, Error = anyhow::Error>,
+        TaskInput: From<T>,
+    {
+        FromTaskInput::try_from(&TaskInput::from(t))
+    }
+
+    macro_rules! test_conversion {
+        ($input:expr) => {
+            assert_eq!(conversion($input)?, $input);
+        };
+    }
+
+    #[test]
+    fn test_no_fields() -> Result<()> {
+        #[derive(Clone, TaskInput, Eq, PartialEq, Debug)]
+        struct NoFields;
+
+        test_conversion!(NoFields);
+        Ok(())
+    }
+
+    #[test]
+    fn test_one_unnamed_field() -> Result<()> {
+        #[derive(Clone, TaskInput, Eq, PartialEq, Debug)]
+        struct OneUnnamedField(u32);
+
+        test_conversion!(OneUnnamedField(42));
+        Ok(())
+    }
+
+    #[test]
+    fn test_multiple_unnamed_fields() -> Result<()> {
+        #[derive(Clone, TaskInput, Eq, PartialEq, Debug)]
+        struct MultipleUnnamedFields(u32, String);
+
+        test_conversion!(MultipleUnnamedFields(42, "42".into()));
+        Ok(())
+    }
+
+    #[test]
+    fn test_one_named_field() -> Result<()> {
+        #[derive(Clone, TaskInput, Eq, PartialEq, Debug)]
+        struct OneNamedField {
+            named: u32,
+        }
+
+        test_conversion!(OneNamedField { named: 42 });
+        Ok(())
+    }
+
+    #[test]
+    fn test_multiple_named_fields() -> Result<()> {
+        #[derive(Clone, TaskInput, Eq, PartialEq, Debug)]
+        struct MultipleNamedFields {
+            named: u32,
+            other: String,
+        }
+
+        test_conversion!(MultipleNamedFields {
+            named: 42,
+            other: "42".into()
+        });
+        Ok(())
+    }
+
+    #[test]
+    fn test_generic_field() -> Result<()> {
+        #[derive(Clone, TaskInput, Eq, PartialEq, Debug)]
+        struct GenericField<T>(T);
+
+        test_conversion!(GenericField(42));
+        test_conversion!(GenericField("42".to_string()));
+        Ok(())
+    }
+
+    #[test]
+    fn test_no_variant() -> Result<()> {
+        // This can't actually be tested at runtime because such an enum can't be
+        // constructed. However, the macro expansion is tested.
+        #[derive(Clone, TaskInput)]
+        enum NoVariants {}
+        Ok(())
+    }
+
+    #[derive(Clone, TaskInput, Eq, PartialEq, Debug)]
+    enum OneVariant {
+        Variant,
+    }
+
+    #[test]
+    fn test_one_variant() -> Result<()> {
+        test_conversion!(OneVariant::Variant);
+        Ok(())
+    }
+
+    #[test]
+    fn test_multiple_variants() -> Result<()> {
+        #[derive(Clone, TaskInput, PartialEq, Eq, Debug)]
+        enum MultipleVariants {
+            Variant1,
+            Variant2,
+        }
+
+        test_conversion!(MultipleVariants::Variant2);
+        Ok(())
+    }
+
+    #[derive(Clone, TaskInput, Eq, PartialEq, Debug)]
+    enum MultipleVariantsAndHeterogeneousFields {
+        Variant1,
+        Variant2(u32),
+        Variant3 { named: u32 },
+        Variant4(u32, String),
+        Variant5 { named: u32, other: String },
+    }
+
+    #[test]
+    fn test_multiple_variants_and_heterogeneous_fields() -> Result<()> {
+        test_conversion!(MultipleVariantsAndHeterogeneousFields::Variant5 {
+            named: 42,
+            other: "42".into()
+        });
+        Ok(())
+    }
+
+    #[test]
+    fn test_nested_variants() -> Result<()> {
+        #[derive(Clone, TaskInput, Eq, PartialEq, Debug)]
+        enum NestedVariants {
+            Variant1,
+            Variant2(MultipleVariantsAndHeterogeneousFields),
+            Variant3 { named: OneVariant },
+            Variant4(OneVariant, String),
+            Variant5 { named: OneVariant, other: String },
+        }
+
+        test_conversion!(NestedVariants::Variant5 {
+            named: OneVariant::Variant,
+            other: "42".into()
+        });
+        test_conversion!(NestedVariants::Variant2(
+            MultipleVariantsAndHeterogeneousFields::Variant5 {
+                named: 42,
+                other: "42".into()
+            }
+        ));
+        Ok(())
+    }
+}

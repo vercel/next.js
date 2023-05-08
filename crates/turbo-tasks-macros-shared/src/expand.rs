@@ -82,17 +82,20 @@ pub fn match_expansion<
 }
 
 /// Formats the fields of any structure or enum variant.
-fn expand_fields<
-    EN: Fn(&Ident, &FieldsNamed) -> (TokenStream, TokenStream),
-    EU: Fn(&Ident, &FieldsUnnamed) -> (TokenStream, TokenStream),
-    U: Fn(&Ident) -> (TokenStream, TokenStream),
+pub fn expand_fields<
+    'ident,
+    'fields,
+    EN: Fn(&'ident Ident, &'fields FieldsNamed) -> R,
+    EU: Fn(&'ident Ident, &'fields FieldsUnnamed) -> R,
+    U: Fn(&'ident Ident) -> R,
+    R,
 >(
-    ident: &Ident,
-    fields: &Fields,
-    expand_named: &EN,
-    expand_unnamed: &EU,
-    expand_unit: &U,
-) -> (TokenStream, TokenStream) {
+    ident: &'ident Ident,
+    fields: &'fields Fields,
+    expand_named: EN,
+    expand_unnamed: EU,
+    expand_unit: U,
+) -> R {
     match fields {
         Fields::Named(named) => expand_named(ident, named),
         Fields::Unnamed(unnamed) => expand_unnamed(ident, unnamed),
@@ -102,15 +105,22 @@ fn expand_fields<
 
 /// Generates a match arm destructuring pattern for the given fields.
 ///
+/// If no `filter_field` function is provided, all fields are included in the
+/// pattern. If a `filter_field` function is provided, only fields for which
+/// the function returns `true` are included in the pattern. If any field is
+/// ignored, a wildcard pattern is added to the end of the pattern, making it
+/// non-exhaustive.
+///
 /// Returns both the capture pattern token stream and the name of the bound
 /// identifiers corresponding to the input fields.
 pub fn generate_destructuring<'a, I: Fn(&Field) -> bool>(
-    fields: impl Iterator<Item = &'a Field>,
-    ignore_field: &I,
+    fields: impl Iterator<Item = &'a Field> + ExactSizeIterator,
+    filter_field: &I,
 ) -> (TokenStream, Vec<TokenStream>) {
+    let fields_len = fields.len();
     let (captures, fields_idents): (Vec<_>, Vec<_>) = fields
+        .filter(|field| filter_field(field))
         .enumerate()
-        .filter(|(_i, field)| !ignore_field(field))
         .map(|(i, field)| match &field.ident {
             Some(ident) => (quote! { #ident }, quote! { #ident }),
             None => {
@@ -120,10 +130,28 @@ pub fn generate_destructuring<'a, I: Fn(&Field) -> bool>(
             }
         })
         .unzip();
+    // Only add the wildcard pattern if we're ignoring some fields.
+    let wildcard = if fields_idents.len() != fields_len {
+        quote! { .. }
+    } else {
+        quote! {}
+    };
     (
         quote! {
-            { #(#captures,)* .. }
+            { #(#captures,)* #wildcard }
         },
         fields_idents,
     )
+}
+
+/// Generates an exhaustive match arm destructuring pattern for the given
+/// fields. This is equivalent to calling [`generate_destructuring`] with a
+/// `filter_field` function that always returns `true`.
+///
+/// Returns both the capture pattern token stream and the name of the bound
+/// identifiers corresponding to the input fields.
+pub fn generate_exhaustive_destructuring<'a>(
+    fields: impl Iterator<Item = &'a Field> + ExactSizeIterator,
+) -> (TokenStream, Vec<TokenStream>) {
+    generate_destructuring(fields, &|_| true)
 }
