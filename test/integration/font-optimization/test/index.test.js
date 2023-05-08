@@ -314,7 +314,7 @@ describe('Font Optimization', () => {
     })
   })
   describe('invalid configuration', () => {
-    it('should an error if assetPrefix starts with .', async () => {
+    it('should show a proper error if assetPrefix starts with .', async () => {
       const appDir = join(fixturesDir, 'invalid-assertprefix')
       const { stderr } = await nextBuild(appDir, undefined, {
         stderr: true,
