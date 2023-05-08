@@ -1,4 +1,5 @@
 [
+  "@mux/blurhash",
   "@prisma/client",
   "@sentry/nextjs",
   "@sentry/node",
