@@ -577,19 +577,21 @@ export async function createEntrypoints(
               filename: `../${INSTRUMENTATION_HOOK_FILENAME}.js`,
             }
           } else if (!isAPIRoute(page)) {
-            server[serverBundlePath] = getRouteModuleLoader({
-              config,
-              buildId: params.buildId,
-              definition: {
-                kind: RouteKind.PAGES,
-                page,
-                pathname: denormalizePagePath(page),
-                filename: mappings[page],
-              },
-              pages,
-              runtime: 'nodejs',
-              preferredRegion: staticInfo.preferredRegion,
-            })
+            server[serverBundlePath] = [
+              getRouteModuleLoader({
+                config,
+                buildId: params.buildId,
+                definition: {
+                  kind: RouteKind.PAGES,
+                  page,
+                  pathname: denormalizePagePath(page),
+                  filename: mappings[page],
+                },
+                pages,
+                runtime: 'nodejs',
+                preferredRegion: staticInfo.preferredRegion,
+              }).import,
+            ]
           } else {
             server[serverBundlePath] = [mappings[page]]
           }
