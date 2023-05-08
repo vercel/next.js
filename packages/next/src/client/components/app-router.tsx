@@ -264,7 +264,7 @@ function Router({
         if (isExternalURL(url)) {
           return
         }
-        // @ts-ignore startTransition exists
+
         React.startTransition(() => {
           dispatch({
             type: ACTION_PREFETCH,
@@ -274,19 +274,16 @@ function Router({
         })
       },
       replace: (href, options = {}) => {
-        // @ts-ignore startTransition exists
         React.startTransition(() => {
           navigate(href, 'replace', Boolean(options.forceOptimisticNavigation))
         })
       },
       push: (href, options = {}) => {
-        // @ts-ignore startTransition exists
         React.startTransition(() => {
           navigate(href, 'push', Boolean(options.forceOptimisticNavigation))
         })
       },
       refresh: () => {
-        // @ts-ignore startTransition exists
         React.startTransition(() => {
           dispatch({
             type: ACTION_REFRESH,
@@ -308,7 +305,6 @@ function Router({
             'fastRefresh can only be used in development mode. Please use refresh instead.'
           )
         } else {
-          // @ts-ignore startTransition exists
           React.startTransition(() => {
             dispatch({
               type: ACTION_FAST_REFRESH,
