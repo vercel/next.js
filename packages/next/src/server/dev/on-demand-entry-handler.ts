@@ -444,15 +444,15 @@ async function findPagePathData(
     }
   }
 
+  // If the page being requested is the `/_error` page but the user doesn't
+  // define one, we just need to return `null` here. Ideally, we'd want this not
+  // to be called at all but that's a bit tricky since we don't know if the
+  // user has a file defined or not.
   if (page === '/_error') {
-    return {
-      absolutePagePath: require.resolve('next/dist/pages/_error'),
-      bundlePath: page,
-      page: normalizePathSep(page),
-    }
-  } else {
-    throw new PageNotFoundError(normalizedPagePath)
+    return null
   }
+
+  throw new PageNotFoundError(normalizedPagePath)
 }
 
 async function findRoutePathData(
@@ -710,6 +710,11 @@ export function onDemandEntryHandler({
           appDir,
           match
         )
+        // If no page path data was found and it didn't throw, it implies that
+        // the route cannot be ensured and we should return early.
+        if (!pagePathData) {
+          return
+        }
 
         const isInsideAppDir =
           !!appDir && pagePathData.absolutePagePath.startsWith(appDir)

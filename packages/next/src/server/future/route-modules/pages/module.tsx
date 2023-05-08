@@ -584,7 +584,7 @@ export class PagesRouteModule extends RouteModule<
       request,
       result,
       {
-        basePath: this.config?.basePath,
+        basePath: this.config?.basePath ?? '',
         definition: this.definition,
         hasGetStaticProps: typeof this.userland.getStaticProps === 'function',
         poweredByHeader: this.config?.poweredByHeader,

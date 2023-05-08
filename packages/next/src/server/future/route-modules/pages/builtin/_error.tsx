@@ -2,8 +2,9 @@ import path from '../../../../../shared/lib/isomorphic/path'
 
 import App from '../../../../../pages/_app'
 import Document from '../../../../../pages/_document'
-import * as moduleError from '../../../../../pages/_error'
 import { RouteKind } from '../../../route-kind'
+
+import * as moduleError from '../../../../../pages/_error'
 
 import PagesRouteModule from '../module'
 
