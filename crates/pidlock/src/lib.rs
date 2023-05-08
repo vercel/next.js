@@ -12,7 +12,7 @@ use log::warn;
 #[derive(Debug, thiserror::Error, PartialEq)]
 pub enum PidlockError {
     /// A lock already exists
-    #[error("lock exists at {0}")]
+    #[error("lock exists at \"{0}\", please remove it")]
     LockExists(PathBuf),
     /// An operation was attempted in the wrong state, e.g. releasing before
     /// acquiring.
