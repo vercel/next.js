@@ -89,7 +89,7 @@ const babelIncludeRegexes: RegExp[] = [
 const reactPackagesRegex = /^(react|react-dom|react-server-dom-webpack)($|\/)/
 
 const asyncStoragesRegex =
-  /next[\\/]dist[\\/]client[\\/]components[\\/](static-generation-async-storage|action-async-storage)/
+  /next[\\/]dist[\\/]client[\\/]components[\\/](static-generation-async-storage|action-async-storage|request-async-storage)/
 
 const mainFieldsPerCompiler: Record<CompilerNameValues, string[]> = {
   [COMPILER_NAMES.server]: ['main', 'module'],
