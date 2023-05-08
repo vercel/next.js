@@ -313,4 +313,15 @@ describe('Font Optimization', () => {
       )
     })
   })
+  describe('invalid configuration', () => {
+    it('should show a proper error if assetPrefix starts with .', async () => {
+      const appDir = join(fixturesDir, 'invalid-assertprefix')
+      const { stderr } = await nextBuild(appDir, undefined, {
+        stderr: true,
+      })
+      expect(stderr).toContain(
+        'assetPrefix must start with a leading slash or be an absolute URL(http:// or https://)'
+      )
+    })
+  })
 })
