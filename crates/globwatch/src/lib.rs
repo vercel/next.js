@@ -62,7 +62,7 @@ impl GlobWatcher {
         std::fs::create_dir_all(&flush_dir).ok();
         let flush_dir = flush_dir.canonicalize()?;
 
-        let mut watcher = notify::recommended_watcher(move |event: Result<Event, Error>| {
+        let watcher = notify::recommended_watcher(move |event: Result<Event, Error>| {
             let span = span!(tracing::Level::TRACE, "watcher");
             let _ = span.enter();
 
@@ -83,9 +83,24 @@ impl GlobWatcher {
             }
         })?;
 
-        watcher.watch(flush_dir.as_path(), notify::RecursiveMode::Recursive)?;
-
         let watcher = Arc::new(Mutex::new(watcher));
+
+        // registering to watch this directory takes a few ms,
+        // so we just fire and forget a thread to do it in the
+        // background, to cut our startup time in half.
+        let flush = watcher.clone();
+        let path = flush_dir.as_path().to_owned();
+        tokio::task::spawn_blocking(move || {
+            if let Err(e) = flush
+                .lock()
+                .expect("only fails if poisoned")
+                .watch(&path, notify::RecursiveMode::Recursive)
+            {
+                warn!("failed to watch flush dir: {}", e);
+            } else {
+                trace!("watching flush dir: {:?}", path);
+            }
+        });
 
         Ok((
             Self {
