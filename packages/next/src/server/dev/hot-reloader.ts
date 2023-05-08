@@ -4,7 +4,7 @@ import type { CustomRoutes } from '../../lib/load-custom-routes'
 import { getOverlayMiddleware } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
 import { IncomingMessage, ServerResponse } from 'http'
 import { WebpackHotMiddleware } from './hot-middleware'
-import { join, relative, isAbsolute, posix, extname } from 'path'
+import { join, relative, isAbsolute, posix } from 'path'
 import { UrlObject } from 'url'
 import {
   createEntrypoints,
@@ -912,10 +912,7 @@ export default class HotReloader {
                   modsIterable.forEach((mod: any) => {
                     if (
                       mod.resource &&
-                      mod.resource
-                        .replace(/\\/g, '/')
-                        .slice(0, -extname(mod.resource).length)
-                        .endsWith(key) &&
+                      mod.resource.replace(/\\/g, '/').includes(key) &&
                       // Shouldn't match CSS modules, etc.
                       /\.(tsx|ts|js|cjs|mjs|jsx)$/.test(mod.resource)
                     ) {
