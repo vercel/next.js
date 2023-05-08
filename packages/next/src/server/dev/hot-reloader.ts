@@ -914,7 +914,9 @@ export default class HotReloader {
                       mod.resource &&
                       mod.resource.replace(/\\/g, '/').includes(key) &&
                       // Shouldn't match CSS modules, etc.
-                      /\.(tsx|ts|js|cjs|mjs|jsx)$/.test(mod.resource)
+                      this.config.pageExtensions.some((extension) =>
+                        mod.resource.endsWith('.' + extension)
+                      )
                     ) {
                       // use original source to calculate hash since mod.hash
                       // includes the source map in development which changes
