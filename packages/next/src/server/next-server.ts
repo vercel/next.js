@@ -2492,33 +2492,6 @@ export default class NextNodeServer extends BaseServer {
                   parsedUrl: parsedUrl,
                   parsed: parsed,
                 })
-
-                if (isMiddlewareInvoke && 'response' in result) {
-                  for (const [key, value] of Object.entries(
-                    toNodeHeaders(result.response.headers)
-                  )) {
-                    if (key !== 'content-encoding' && value !== undefined) {
-                      res.setHeader(key, value as string | string[])
-                    }
-                  }
-
-                  const rewrite = result.response.headers.get(
-                    'x-middleware-rewrite'
-                  )
-
-                  //we want to proxy the rewrite later, do nothing here
-                  if (!rewrite) {
-                    res.statusCode = result.response.status
-                    for await (const chunk of result.response.body ||
-                      ([] as any)) {
-                      this.streamResponseChunk(res as NodeNextResponse, chunk)
-                    }
-                    res.send()
-                    return {
-                      finished: true,
-                    }
-                  }
-                }
               }
             } catch (err) {
               if (isError(err) && err.code === 'ENOENT') {
@@ -2596,6 +2569,7 @@ export default class NextNodeServer extends BaseServer {
 
             result.response.headers.delete('x-middleware-next')
 
+            // skip middleware headers because we don´t want them to be set in response headers
             for (const [key, value] of Object.entries(
               toNodeHeaders(result.response.headers)
             )) {
@@ -2620,14 +2594,16 @@ export default class NextNodeServer extends BaseServer {
             res.statusCode = result.response.status
             res.statusMessage = result.response.statusText
 
-            const location = result.response.headers.get('Location')
-            if (location) {
-              res.statusCode = result.response.status
+            // If the `Location` header is set we need to send the new Location
+            if (result.response.headers.has('Location')) {
+              const location = result.response.headers.get('Location')!
+
               if (res.statusCode === 308) {
                 res.setHeader('Refresh', `0;url=${location}`)
               }
 
               res.body(location).send()
+
               return {
                 finished: true,
               }
@@ -2639,6 +2615,7 @@ export default class NextNodeServer extends BaseServer {
               const rewritePath = result.response.headers.get(
                 'x-middleware-rewrite'
               )!
+
               const parsedDestination = parseUrl(rewritePath)
               const newUrl = parsedDestination.pathname
 
@@ -2681,23 +2658,23 @@ export default class NextNodeServer extends BaseServer {
             }
 
             if (result.response.headers.has('x-middleware-refresh')) {
-              res.statusCode = result.response.status
-
               if ((result.response as any).invokeRes) {
                 for await (const chunk of (result.response as any).invokeRes) {
                   this.streamResponseChunk(res as NodeNextResponse, chunk)
                 }
                 ;(res as NodeNextResponse).originalResponse.end()
-              } else {
-                for await (const chunk of result.response.body || ([] as any)) {
-                  this.streamResponseChunk(res as NodeNextResponse, chunk)
+
+                return {
+                  finished: true,
                 }
-                res.send()
-              }
-              return {
-                finished: true,
               }
             }
+
+            //if none of the above returned we just want to send the response body
+            for await (const chunk of result.response.body || ([] as any)) {
+              this.streamResponseChunk(res as NodeNextResponse, chunk)
+            }
+            res.send()
 
             return {
               finished: false,
