@@ -173,12 +173,8 @@ export function patchFetch({
         if (['no-cache', 'no-store'].includes(_cache || '')) {
           curRevalidate = 0
         }
-        if (typeof curRevalidate === 'number') {
+        if (typeof curRevalidate === 'number' || curRevalidate === false) {
           revalidate = curRevalidate
-        }
-
-        if (curRevalidate === false) {
-          revalidate = CACHE_ONE_YEAR
         }
 
         const _headers = getRequestMeta('headers')
@@ -229,7 +225,7 @@ export function patchFetch({
             revalidate =
               typeof staticGenerationStore.revalidate === 'boolean' ||
               typeof staticGenerationStore.revalidate === 'undefined'
-                ? CACHE_ONE_YEAR
+                ? false
                 : staticGenerationStore.revalidate
           }
         }
@@ -240,18 +236,19 @@ export function patchFetch({
           !autoNoCache &&
           (typeof staticGenerationStore.revalidate === 'undefined' ||
             (typeof revalidate === 'number' &&
-              typeof staticGenerationStore.revalidate === 'number' &&
-              revalidate < staticGenerationStore.revalidate))
+              (staticGenerationStore.revalidate === false ||
+                (typeof staticGenerationStore.revalidate === 'number' &&
+                  revalidate < staticGenerationStore.revalidate))))
         ) {
           staticGenerationStore.revalidate = revalidate
         }
 
+        const isCacheableRevalidate =
+          (typeof revalidate === 'number' && revalidate > 0) ||
+          revalidate === false
+
         let cacheKey: string | undefined
-        if (
-          staticGenerationStore.incrementalCache &&
-          typeof revalidate === 'number' &&
-          revalidate > 0
-        ) {
+        if (staticGenerationStore.incrementalCache && isCacheableRevalidate) {
           try {
             cacheKey =
               await staticGenerationStore.incrementalCache.fetchCacheKey(
@@ -304,6 +301,8 @@ export function patchFetch({
         const fetchIdx = staticGenerationStore.nextFetchId ?? 1
         staticGenerationStore.nextFetchId = fetchIdx + 1
 
+        const normalizedRevalidate = !revalidate ? CACHE_ONE_YEAR : revalidate
+
         const doOriginalFetch = async (isStale?: boolean) => {
           // add metadata to init without editing the original
           const clonedInit = {
@@ -325,8 +324,7 @@ export function patchFetch({
               res.status === 200 &&
               staticGenerationStore.incrementalCache &&
               cacheKey &&
-              typeof revalidate === 'number' &&
-              revalidate > 0
+              isCacheableRevalidate
             ) {
               const bodyBuffer = Buffer.from(await res.arrayBuffer())
 
@@ -341,9 +339,9 @@ export function patchFetch({
                       status: res.status,
                       tags,
                     },
-                    revalidate,
+                    revalidate: normalizedRevalidate,
                   },
-                  revalidate,
+                  normalizedRevalidate,
                   true,
                   fetchUrl,
                   fetchIdx
@@ -367,7 +365,7 @@ export function patchFetch({
             : await staticGenerationStore.incrementalCache.get(
                 cacheKey,
                 true,
-                revalidate,
+                normalizedRevalidate,
                 fetchUrl,
                 fetchIdx
               )
