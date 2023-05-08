@@ -1,4 +1,5 @@
-/* __next_internal_action_entry_do_not_use__ $$ACTION_0 */ import f, { f1, f2 } from 'foo';
+/* __next_internal_action_entry_do_not_use__ $$ACTION_0 */ import __create_action_proxy__ from "private-next-rsc-action-proxy";
+import f, { f1, f2 } from 'foo';
 const f3 = 1;
 var f4;
 let f5;
@@ -17,8 +18,8 @@ export function y(p, [p1, { p2  }], ...p3) {
     if (true) {
         const f8 = 1;
     }
-    async function action() {
-        return $$ACTION_0(action.$$bound);
+    async function action(...args) {
+        return $$ACTION_0((action.$$bound || []).concat(args));
     }
     action.$$typeof = Symbol.for("react.server.reference");
     action.$$id = "6d53ce510b2e36499b8f56038817b9bad86cabb4";
@@ -30,6 +31,7 @@ export function y(p, [p1, { p2  }], ...p3) {
         p2,
         p3
     ];
+    __create_action_proxy__(action, $$ACTION_0);
     return <Button action={action}>Delete</Button>;
 }
 export async function $$ACTION_0(closure) {
