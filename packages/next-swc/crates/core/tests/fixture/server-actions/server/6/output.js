@@ -21,17 +21,14 @@ export function y(p, [p1, { p2  }], ...p3) {
     async function action(...args) {
         return $$ACTION_0((action.$$bound || []).concat(args));
     }
-    action.$$typeof = Symbol.for("react.server.reference");
-    action.$$id = "6d53ce510b2e36499b8f56038817b9bad86cabb4";
-    action.$$bound = [
+    __create_action_proxy__("6d53ce510b2e36499b8f56038817b9bad86cabb4", [
         f2,
         f11,
         p,
         p1,
         p2,
         p3
-    ];
-    __create_action_proxy__(action, $$ACTION_0);
+    ], action, $$ACTION_0);
     return <Button action={action}>Delete</Button>;
 }
 export async function $$ACTION_0(closure) {

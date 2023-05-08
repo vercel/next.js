@@ -12,18 +12,9 @@ ensureServerEntryExports([
     bar,
     qux
 ]);
-foo.$$typeof = Symbol.for("react.server.reference");
-foo.$$id = "ab21efdafbe611287bc25c0462b1e0510d13e48b";
-foo.$$bound = null;
 foo.$$with_bound = false;
-__create_action_proxy__(foo);
-bar.$$typeof = Symbol.for("react.server.reference");
-bar.$$id = "050e3854b72b19e3c7e3966a67535543a90bf7e0";
-bar.$$bound = null;
+__create_action_proxy__("ab21efdafbe611287bc25c0462b1e0510d13e48b", null, foo);
 bar.$$with_bound = false;
-__create_action_proxy__(bar);
-qux.$$typeof = Symbol.for("react.server.reference");
-qux.$$id = "c18c215a6b7cdc64bf709f3a714ffdef1bf9651d";
-qux.$$bound = null;
+__create_action_proxy__("050e3854b72b19e3c7e3966a67535543a90bf7e0", null, bar);
 qux.$$with_bound = false;
-__create_action_proxy__(qux);
+__create_action_proxy__("c18c215a6b7cdc64bf709f3a714ffdef1bf9651d", null, qux);

@@ -1,4 +1,13 @@
-export default function createActionProxy(action: any, originalAction: any) {
+export default function createActionProxy(
+  id: string,
+  bound: null | any[],
+  action: any,
+  originalAction?: any
+) {
+  action.$$typeof = Symbol.for('react.server.reference')
+  action.$$id = id
+  action.$$bound = bound
+
   action.bind = function (_: any, ...boundArgs: any[]) {
     const newAction = async function (...args: any[]) {
       if (originalAction) {
@@ -9,13 +18,10 @@ export default function createActionProxy(action: any, originalAction: any) {
       }
     }
 
-    for (const key of Object.keys(action)) {
-      if (key.startsWith('$$')) {
-        // @ts-ignore
-        newAction[key] = action[key]
-      }
+    for (const key of ['$$typeof', '$$id', '$$with_bound', '$$FORM_ACTION']) {
+      // @ts-ignore
+      newAction[key] = action[key]
     }
-
     // Rebind args
     newAction.$$bound = (action.$$bound || []).concat(boundArgs)
 

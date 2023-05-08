@@ -2,10 +2,7 @@
 async function myAction(...args) {
     return $$ACTION_0((myAction.$$bound || []).concat(args));
 }
-myAction.$$typeof = Symbol.for("react.server.reference");
-myAction.$$id = "6d53ce510b2e36499b8f56038817b9bad86cabb4";
-myAction.$$bound = null;
-__create_action_proxy__(myAction, $$ACTION_0);
+__create_action_proxy__("6d53ce510b2e36499b8f56038817b9bad86cabb4", null, myAction, $$ACTION_0);
 export async function $$ACTION_0(closure, a = closure[0], b = closure[1], c = closure[2]) {
     console.log('a');
 }

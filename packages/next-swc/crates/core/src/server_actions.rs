@@ -208,7 +208,7 @@ impl<C: Comments> ServerActions<C> {
                     .map(|id| Some(id.as_arg()))
                     .collect(),
                 self.file_name.to_string(),
-                (Some(export_name.to_string()), None),
+                export_name.to_string(),
                 true,
                 Some(action_ident.clone()),
             );
@@ -309,7 +309,7 @@ impl<C: Comments> ServerActions<C> {
                     .map(|id| Some(id.as_arg()))
                     .collect(),
                 self.file_name.to_string(),
-                (Some(export_name.to_string()), None),
+                export_name.to_string(),
                 true,
                 Some(action_ident.clone()),
             );
@@ -944,7 +944,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         ident.clone(),
                         Vec::new(),
                         self.file_name.to_string(),
-                        (Some(export_name.to_string()), None),
+                        export_name.to_string(),
                         false,
                         None,
                     );
@@ -1209,82 +1209,57 @@ fn annotate_ident_as_action(
     ident: Ident,
     bound: Vec<Option<ExprOrSpread>>,
     file_name: String,
-    export_name_or_id_expr: (Option<String>, Option<Expr>),
+    export_name: String,
     has_bound: bool,
     maybe_orig_action_ident: Option<Ident>,
 ) {
-    // myAction.$$typeof = Symbol.for('react.server.reference');
-    annotations.push(annotate(
-        &ident,
-        "$$typeof",
-        CallExpr {
-            span: DUMMY_SP,
-            callee: quote_ident!("Symbol")
-                .make_member(quote_ident!("for"))
-                .as_callee(),
-            args: vec!["react.server.reference".as_arg()],
-            type_args: Default::default(),
-        }
-        .into(),
-    ));
-
-    // Annotation for the action id.
-    if let (_, Some(id_expr)) = export_name_or_id_expr {
-        // myAction.$$id = expr;
-        annotations.push(annotate(&ident, "$$id", Box::new(id_expr)));
-    } else if let (Some(export_name), _) = export_name_or_id_expr {
-        // myAction.$$id = "...";
-        annotations.push(annotate(
-            &ident,
-            "$$id",
-            generate_action_id(file_name, export_name).into(),
-        ));
-    }
-
-    // myAction.$$bound = [arg1, arg2, arg3];
-    // or myAction.$$bound = null; if there are no bound values.
-    annotations.push(annotate(
-        &ident,
-        "$$bound",
-        if bound.is_empty() {
-            Lit::Null(Null { span: DUMMY_SP }).into()
-        } else {
-            ArrayLit {
-                span: DUMMY_SP,
-                elems: bound,
-            }
-            .into()
-        },
-    ));
-
     // If an action doesn't have any bound values, we add a special property
     // to mark that all parameters are just passed through.
     if !has_bound {
         annotations.push(annotate(&ident, "$$with_bound", Lit::from(false).into()));
     }
 
-    // Add the proxy wrapper call `__create_action_proxy__(myAction)`.
+    // Add the proxy wrapper call `__create_action_proxy__($$id, $$bound, myAction,
+    // maybe_orig_action)`.
+    let mut args = vec![
+        // $$id
+        ExprOrSpread {
+            spread: None,
+            expr: Box::new(generate_action_id(file_name, export_name).into()),
+        },
+        // myAction.$$bound = [arg1, arg2, arg3];
+        // or myAction.$$bound = null; if there are no bound values.
+        ExprOrSpread {
+            spread: None,
+            expr: Box::new(if bound.is_empty() {
+                Lit::Null(Null { span: DUMMY_SP }).into()
+            } else {
+                ArrayLit {
+                    span: DUMMY_SP,
+                    elems: bound,
+                }
+                .into()
+            }),
+        },
+        ExprOrSpread {
+            spread: None,
+            expr: Box::new(Expr::Ident(ident)),
+        },
+    ];
+
     annotations.push(Stmt::Expr(ExprStmt {
         span: DUMMY_SP,
         expr: Box::new(Expr::Call(CallExpr {
             span: DUMMY_SP,
             callee: quote_ident!("__create_action_proxy__").as_callee(),
             args: if let Some(orig_action_ident) = maybe_orig_action_ident {
-                vec![
-                    ExprOrSpread {
-                        spread: None,
-                        expr: Box::new(Expr::Ident(ident)),
-                    },
-                    ExprOrSpread {
-                        spread: None,
-                        expr: Box::new(Expr::Ident(orig_action_ident)),
-                    },
-                ]
-            } else {
-                vec![ExprOrSpread {
+                args.push(ExprOrSpread {
                     spread: None,
-                    expr: Box::new(Expr::Ident(ident)),
-                }]
+                    expr: Box::new(Expr::Ident(orig_action_ident)),
+                });
+                args
+            } else {
+                args
             },
             type_args: Default::default(),
         })),

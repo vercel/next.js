@@ -6,13 +6,10 @@ export function Item({ id1 , id2  }) {
     async function deleteItem(...args) {
         return $$ACTION_0((deleteItem.$$bound || []).concat(args));
     }
-    deleteItem.$$typeof = Symbol.for("react.server.reference");
-    deleteItem.$$id = "6d53ce510b2e36499b8f56038817b9bad86cabb4";
-    deleteItem.$$bound = [
+    __create_action_proxy__("6d53ce510b2e36499b8f56038817b9bad86cabb4", [
         id1,
         v2
-    ];
-    __create_action_proxy__(deleteItem, $$ACTION_0);
+    ], deleteItem, $$ACTION_0);
     return <Button action={deleteItem}>Delete</Button>;
 }
 export async function $$ACTION_0(closure) {

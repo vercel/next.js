@@ -3,12 +3,9 @@ export default function Page({ foo , x , y  }) {
     async function action(...args) {
         return $$ACTION_0((action.$$bound || []).concat(args));
     }
-    action.$$typeof = Symbol.for("react.server.reference");
-    action.$$id = "6d53ce510b2e36499b8f56038817b9bad86cabb4";
-    action.$$bound = [
+    __create_action_proxy__("6d53ce510b2e36499b8f56038817b9bad86cabb4", [
         x
-    ];
-    __create_action_proxy__(action, $$ACTION_0);
+    ], action, $$ACTION_0);
     return action.bind(null, foo[0], foo[1], foo.x, foo[y]);
 }
 export async function $$ACTION_0(closure, a = closure[1], b = closure[2], c = closure[3], d = closure[4]) {

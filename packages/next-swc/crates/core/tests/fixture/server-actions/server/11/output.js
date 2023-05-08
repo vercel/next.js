@@ -4,8 +4,5 @@ import ensureServerEntryExports from "private-next-rsc-action-validate";
 ensureServerEntryExports([
     $$ACTION_0
 ]);
-$$ACTION_0.$$typeof = Symbol.for("react.server.reference");
-$$ACTION_0.$$id = "c18c215a6b7cdc64bf709f3a714ffdef1bf9651d";
-$$ACTION_0.$$bound = null;
 $$ACTION_0.$$with_bound = false;
-__create_action_proxy__($$ACTION_0);
+__create_action_proxy__("c18c215a6b7cdc64bf709f3a714ffdef1bf9651d", null, $$ACTION_0);

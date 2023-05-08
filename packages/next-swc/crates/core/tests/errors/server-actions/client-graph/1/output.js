@@ -3,10 +3,7 @@ export default function App() {
     async function fn(...args) {
         return $$ACTION_0((fn.$$bound || []).concat(args));
     }
-    fn.$$typeof = Symbol.for("react.server.reference");
-    fn.$$id = "6d53ce510b2e36499b8f56038817b9bad86cabb4";
-    fn.$$bound = null;
-    __create_action_proxy__(fn, $$ACTION_0);
+    __create_action_proxy__("6d53ce510b2e36499b8f56038817b9bad86cabb4", null, fn, $$ACTION_0);
     return <div>App</div>;
 }
 export async function $$ACTION_0(closure) {}

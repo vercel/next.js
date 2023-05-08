@@ -8,13 +8,7 @@ ensureServerEntryExports([
     foo,
     bar
 ]);
-foo.$$typeof = Symbol.for("react.server.reference");
-foo.$$id = "c18c215a6b7cdc64bf709f3a714ffdef1bf9651d";
-foo.$$bound = null;
 foo.$$with_bound = false;
-__create_action_proxy__(foo);
-bar.$$typeof = Symbol.for("react.server.reference");
-bar.$$id = "ac840dcaf5e8197cb02b7f3a43c119b7a770b272";
-bar.$$bound = null;
+__create_action_proxy__("c18c215a6b7cdc64bf709f3a714ffdef1bf9651d", null, foo);
 bar.$$with_bound = false;
-__create_action_proxy__(bar);
+__create_action_proxy__("ac840dcaf5e8197cb02b7f3a43c119b7a770b272", null, bar);
