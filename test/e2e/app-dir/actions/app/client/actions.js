@@ -1,6 +1,11 @@
 'use server'
 
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
+
+export async function getHeaders() {
+  console.log('accept header:', headers().get('accept'))
+}
 
 export async function inc(value) {
   return value + 1

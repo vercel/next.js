@@ -59,6 +59,26 @@ createNextDescribe(
       }, 'same')
     })
 
+    it('should support headers in client imported actions', async () => {
+      const logs: string[] = []
+      next.on('stdout', (log) => {
+        logs.push(log)
+      })
+      next.on('stderr', (log) => {
+        logs.push(log)
+      })
+
+      const browser = await next.browser('/client')
+      await browser.elementByCss('#get-header').click()
+      await check(() => {
+        return logs.some((log) =>
+          log.includes('accept header: text/x-component')
+        )
+          ? 'yes'
+          : ''
+      }, 'yes')
+    })
+
     it('should support setting cookies in route handlers with the correct overrides', async () => {
       const res = await next.fetch('/handler')
       const setCookieHeader = res.headers.get('set-cookie') as string[]
