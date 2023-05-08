@@ -227,7 +227,7 @@ impl<C: Comments> ServerActions<C> {
                     Pat::Rest(RestPat {
                         span: DUMMY_SP,
                         dot3_token: DUMMY_SP,
-                        arg: Box::new(Pat::Ident(args_arg.clone().into())),
+                        arg: Box::new(Pat::Ident(args_arg.into())),
                         type_ann: Default::default(),
                     }),
                 ],
@@ -328,7 +328,7 @@ impl<C: Comments> ServerActions<C> {
                         pat: Pat::Rest(RestPat {
                             span: DUMMY_SP,
                             dot3_token: DUMMY_SP,
-                            arg: Box::new(Pat::Ident(args_arg.clone().into())),
+                            arg: Box::new(Pat::Ident(args_arg.into())),
                             type_ann: Default::default(),
                         }),
                     },
