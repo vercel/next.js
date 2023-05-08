@@ -6,7 +6,7 @@ let ranOnce = false
 /**
  * Run a callback once the test harness is loaded.
  */
-export async function useTestHarness<T extends (harness: Harness) => void>(
+export function useTestHarness<T extends (harness: Harness) => void>(
   callback: T
 ) {
   useEffect(() => {
