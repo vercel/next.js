@@ -191,9 +191,11 @@ createNextDescribe(
           await waitFor(500)
         }
 
-        expect(next.cliOutput.substring(buildCliOutputIndex)).not.toContain(
-          'rendering index'
-        )
+        if (isNextStart) {
+          expect(next.cliOutput.substring(buildCliOutputIndex)).not.toContain(
+            'rendering index'
+          )
+        }
       })
 
       it.each([

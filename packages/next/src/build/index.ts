@@ -289,7 +289,11 @@ export default async function build(
       hasAppDir = Boolean(appDir)
 
       if (isAppDirEnabled && hasAppDir) {
-        if (!process.env.__NEXT_TEST_MODE && ciEnvironment.hasNextSupport) {
+        if (
+          (!process.env.__NEXT_TEST_MODE ||
+            process.env.__NEXT_TEST_MODE === 'e2e') &&
+          ciEnvironment.hasNextSupport
+        ) {
           const requireHook = require.resolve('../server/require-hook')
           const contents = await promises.readFile(requireHook, 'utf8')
           await promises.writeFile(
