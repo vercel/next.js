@@ -81,7 +81,7 @@ createNextDescribe(
       }, 'yes')
 
       expect(
-        await browser.eval('+document.cookie.match(/test-cookie=(d+)/)[1]')
+        await browser.eval('+document.cookie.match(/test-cookie=(\\d+)/)[1]')
       ).toBeGreaterThanOrEqual(currentTimestamp)
     })
 
