@@ -1558,9 +1558,10 @@ export class PagesRouteModule extends RouteModule<
           query, // querystring parsed / passed by the user
           buildId, // buildId is used to facilitate caching of page bundles, we send it to the client so that pageloader knows where to load bundles
           assetPrefix:
+            this.config?.assetPrefix === undefined ||
             this.config?.assetPrefix === ''
               ? undefined
-              : this.config?.assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
+              : this.config.assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
           runtimeConfig:
             this.config?.publicRuntimeConfig &&
             Object.keys(this.config.publicRuntimeConfig).length > 0
@@ -1601,7 +1602,7 @@ export class PagesRouteModule extends RouteModule<
         isDevelopment: process.env.NODE_ENV === 'development',
         hybridAmp,
         dynamicImports: Array.from(dynamicImports),
-        assetPrefix: this.config?.assetPrefix,
+        assetPrefix: this.config?.assetPrefix ?? '',
         // Only enabled in production as development mode has features relying on HMR (style injection for example)
         unstable_runtimeJS:
           process.env.NODE_ENV === 'production'
@@ -1695,7 +1696,7 @@ export class PagesRouteModule extends RouteModule<
               : undefined,
           fontManifest: context.manifests.font,
           distDir: context.renderOpts.distDir,
-          assetPrefix: this.config?.assetPrefix,
+          assetPrefix: this.config?.assetPrefix ?? '',
         },
         {
           inAmpMode,

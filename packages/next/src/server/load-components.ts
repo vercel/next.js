@@ -48,23 +48,6 @@ export type LoadComponentsReturnType = {
   pathname: string
 }
 
-async function loadDefaultErrorComponentsImpl(distDir: string) {
-  // Load the compiled route module for this builtin error.
-  // TODO: (wyattjoh) replace this with just exporting the route module when the transition is complete
-  const ComponentMod = require('./future/route-modules/pages/builtin/_error')
-
-  return {
-    App: ComponentMod.routeModule.application.components.App,
-    Document: ComponentMod.routeModule.application.components.Document,
-    Component: ComponentMod.routeModule.userland.default,
-    ComponentMod,
-    pageConfig: {},
-    buildManifest: require(join(distDir, `fallback-${BUILD_MANIFEST}`)),
-    reactLoadableManifest: {},
-    pathname: '/_error',
-  }
-}
-
 /**
  * Load manifest file with retries, defaults to 3 attempts.
  */
@@ -77,6 +60,25 @@ async function loadManifest<T>(manifestPath: string, attempts = 3): Promise<T> {
       if (attempts <= 0) throw err
       await new Promise((resolve) => setTimeout(resolve, 100))
     }
+  }
+}
+
+async function loadDefaultErrorComponentsImpl(distDir: string) {
+  // Load the compiled route module for this builtin error.
+  // TODO: (wyattjoh) replace this with just exporting the route module when the transition is complete
+  const ComponentMod = require('./future/route-modules/pages/builtin/_error')
+
+  return {
+    App: ComponentMod.routeModule.application.components.App,
+    Document: ComponentMod.routeModule.application.components.Document,
+    Component: ComponentMod.routeModule.userland.default,
+    ComponentMod,
+    pageConfig: {},
+    buildManifest: await loadManifest<BuildManifest>(
+      join(distDir, BUILD_MANIFEST)
+    ),
+    reactLoadableManifest: {},
+    pathname: '/_error',
   }
 }
 
