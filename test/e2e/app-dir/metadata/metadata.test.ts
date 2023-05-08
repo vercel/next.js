@@ -7,7 +7,6 @@ createNextDescribe(
   'app dir - metadata',
   {
     files: __dirname,
-    skipDeployment: false,
   },
   ({ next, isNextDev, isNextStart }) => {
     const getTitle = (browser: BrowserInterface) =>
@@ -603,6 +602,15 @@ createNextDescribe(
         // No apple icon if it's not provided
         const $appleIcon = $('head > link[rel="apple-touch-icon"]')
         expect($appleIcon.length).toBe(0)
+
+        const $dynamic = await next.render$('/icons/static/dynamic-routes/123')
+        const $dynamicIcon = $dynamic('head > link[rel="icon"]')
+        const dynamicIconHref = $dynamicIcon.attr('href')
+        expect(dynamicIconHref).toMatch(
+          /\/icons\/static\/dynamic-routes\/123\/icon\.png\?b76e8f0282c93c8e/
+        )
+        const dynamicIconRes = await next.fetch(dynamicIconHref)
+        expect(dynamicIconRes.status).toBe(200)
       })
 
       if (isNextDev) {
