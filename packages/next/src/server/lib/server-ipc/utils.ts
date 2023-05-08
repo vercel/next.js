@@ -1,4 +1,4 @@
-const forbiddenHeaders = [
+export const forbiddenHeaders = [
   'accept-encoding',
   'content-length',
   'keepalive',

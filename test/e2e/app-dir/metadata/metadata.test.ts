@@ -1,6 +1,8 @@
 import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import { BrowserInterface } from 'test/lib/browsers/base'
+import fs from 'fs/promises'
+import path from 'path'
 import cheerio from 'cheerio'
 
 createNextDescribe(
@@ -8,7 +10,7 @@ createNextDescribe(
   {
     files: __dirname,
   },
-  ({ next, isNextDev, isNextStart }) => {
+  ({ next, isNextDev, isNextStart, isNextDeploy }) => {
     const getTitle = (browser: BrowserInterface) =>
       browser.elementByCss('title').text()
 
@@ -469,9 +471,10 @@ createNextDescribe(
         const browser = await next.browser('/opengraph/article')
         const matchMultiDom = createMultiDomMatcher(browser)
         await matchMultiDom('meta', 'property', 'content', {
-          'og:title': 'My custom title',
+          'og:title': 'My custom title | Layout open graph title',
           'og:description': 'My custom description',
           'og:type': 'article',
+          'og:image': 'https://example.com/og-image.jpg',
           'article:published_time': '2023-01-01T00:00:00.000Z',
           'article:author': ['author1', 'author2', 'author3'],
         })
@@ -567,6 +570,18 @@ createNextDescribe(
         const icon = $('link[rel="icon"]')
         expect(icon.attr('href')).toBe('/favicon.ico')
         expect(icon.attr('sizes')).toBe('any')
+
+        if (!isNextDeploy) {
+          const faviconFileBuffer = await fs.readFile(
+            path.join(next.testDir, 'app/favicon.ico')
+          )
+          const faviconResponse = Buffer.from(
+            await next.fetch('/favicon.ico').then((res) => res.arrayBuffer())
+          )
+          return expect(
+            Buffer.compare(faviconResponse, faviconFileBuffer)
+          ).toBe(0)
+        }
       })
     })
 
