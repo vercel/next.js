@@ -779,12 +779,6 @@ export default async function loadConfig(
       }
     }
 
-    if (Object.keys(userConfig).length === 0) {
-      curLog.warn(
-        `Detected ${configFileName}, no exported configuration found. https://nextjs.org/docs/messages/empty-configuration`
-      )
-    }
-
     if (userConfig.target && userConfig.target !== 'server') {
       throw new Error(
         `The "target" property is no longer supported in ${configFileName}.\n` +
