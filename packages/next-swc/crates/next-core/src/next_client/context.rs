@@ -26,6 +26,7 @@ use turbo_binding::{
             condition::ContextCondition,
             module_options::{
                 module_options_context::{ModuleOptionsContext, ModuleOptionsContextVc},
+                CustomEcmascriptTransformPlugins, CustomEcmascriptTransformPluginsVc,
                 JsxTransformOptions, PostCssTransformOptions, TypescriptTransformOptions,
                 WebpackLoadersOptions,
             },
@@ -50,7 +51,9 @@ use crate::{
         get_next_client_fallback_import_map, get_next_client_import_map,
         get_next_client_resolved_map,
     },
-    next_shared::resolve::UnsupportedModulesResolvePluginVc,
+    next_shared::{
+        resolve::UnsupportedModulesResolvePluginVc, transforms::get_relay_transform_plugin,
+    },
     transform_options::{
         get_decorators_transform_options, get_emotion_compiler_config, get_jsx_transform_options,
         get_styled_components_compiler_config, get_typescript_transform_options,
@@ -193,6 +196,18 @@ pub async fn get_client_module_options_context(
 
     let enable_emotion = *get_emotion_compiler_config(next_config).await?;
 
+    let mut source_transforms = vec![];
+    if let Some(relay_transform_plugin) = *get_relay_transform_plugin(next_config).await? {
+        source_transforms.push(relay_transform_plugin);
+    }
+
+    let custom_ecma_transform_plugins = Some(CustomEcmascriptTransformPluginsVc::cell(
+        CustomEcmascriptTransformPlugins {
+            source_transforms,
+            output_transforms: vec![],
+        },
+    ));
+
     let module_options_context = ModuleOptionsContext {
         custom_ecmascript_transforms: vec![EcmascriptInputTransform::ServerDirective(
             // ServerDirective is not implemented yet and always reports an issue.
@@ -201,6 +216,7 @@ pub async fn get_client_module_options_context(
         )],
         preset_env_versions: Some(env),
         execution_context: Some(execution_context),
+        custom_ecma_transform_plugins,
         ..Default::default()
     };
 
