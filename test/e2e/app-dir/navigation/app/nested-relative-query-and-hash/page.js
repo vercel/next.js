@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { RouterPushButton } from './client-component'
 
 export default function Page() {
   return (
@@ -20,6 +21,8 @@ export default function Page() {
           To #h2, with both relative hash and query
         </Link>
       </h2>
+
+      <RouterPushButton />
     </>
   )
 }
