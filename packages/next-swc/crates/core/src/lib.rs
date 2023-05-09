@@ -36,6 +36,7 @@ use auto_cjs::contains_cjs;
 use either::Either;
 use fxhash::FxHashSet;
 use next_transform_font::next_font_loaders;
+use next_transform_page_config::page_config;
 use serde::Deserialize;
 use turbo_binding::swc::core::{
     common::{chain, comments::Comments, pass::Optional, FileName, SourceFile, SourceMap},
@@ -49,7 +50,6 @@ mod auto_cjs;
 pub mod disallow_re_export_all_in_page;
 pub mod next_dynamic;
 pub mod next_ssg;
-pub mod page_config;
 pub mod react_remove_properties;
 pub mod react_server_components;
 pub mod remove_console;
@@ -220,7 +220,7 @@ where
             opts.pages_dir.clone()
         ),
         Optional::new(
-            page_config::page_config(opts.is_development, opts.is_page_file),
+            page_config(opts.is_development, opts.is_page_file),
             !opts.disable_page_config
         ),
         relay_plugin,

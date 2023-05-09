@@ -11,6 +11,7 @@ members = [
   "packages/next-swc/crates/next-transform-font",
   "packages/next-swc/crates/next-transform-dynamic",
   "packages/next-swc/crates/next-transform-strip-page-exports",
+  "packages/next-swc/crates/next-transform-page-config",
 ]
 
 [profile.dev.package.swc_css_prefixer]
@@ -34,6 +35,7 @@ next-dev-tests = { path = "packages/next-swc/crates/next-dev-tests" }
 next-transform-font = { path = "packages/next-swc/crates/next-transform-font" }
 next-transform-dynamic = { path = "packages/next-swc/crates/next-transform-dynamic" }
 next-transform-strip-page-exports = { path = "packages/next-swc/crates/next-transform-strip-page-exports" }
+next-transform-page-config = { path = "packages/next-swc/crates/next-transform-page-config" }
 
 # SWC crates
 # Keep consistent with preset_env_base through swc_core

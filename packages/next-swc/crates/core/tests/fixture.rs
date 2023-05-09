@@ -4,7 +4,6 @@ use next_swc::{
     amp_attributes::amp_attributes,
     next_dynamic::next_dynamic,
     next_ssg::next_ssg,
-    page_config::page_config_test,
     react_remove_properties::remove_properties,
     react_server_components::server_components,
     remove_console::remove_console,
@@ -12,6 +11,7 @@ use next_swc::{
     shake_exports::{shake_exports, Config as ShakeExportsConfig},
 };
 use next_transform_font::{next_font_loaders, Config as FontLoaderConfig};
+use next_transform_page_config::page_config_test;
 use turbo_binding::swc::{
     core::{
         common::{chain, comments::SingleThreadedComments, FileName, Mark},
