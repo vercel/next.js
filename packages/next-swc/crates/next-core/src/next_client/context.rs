@@ -196,15 +196,15 @@ pub async fn get_client_module_options_context(
 
     let enable_emotion = *get_emotion_compiler_config(next_config).await?;
 
-    let mut before_core_transform_plugins = vec![];
+    let mut source_transforms = vec![];
     if let Some(relay_transform_plugin) = *get_relay_transform_plugin(next_config).await? {
-        before_core_transform_plugins.push(relay_transform_plugin);
+        source_transforms.push(relay_transform_plugin);
     }
 
-    let custom_ecma_transform_plugins = Some(CustomEcmaTransformPluginsVc::cell(
-        CustomEcmaTransformPlugins {
-            before: before_core_transform_plugins,
-            after: vec![],
+    let custom_ecma_transform_plugins = Some(CustomEcmascriptTransformPluginsVc::cell(
+        CustomEcmascriptTransformPlugins {
+            source_transforms,
+            output_transforms: vec![],
         },
     ));
 

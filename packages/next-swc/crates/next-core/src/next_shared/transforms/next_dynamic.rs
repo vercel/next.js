@@ -59,15 +59,15 @@ impl CustomTransformer for NextJsDynamic {
         &self,
         program: &mut Program,
         ctx: &TransformContext<'_>,
-    ) -> Option<Program> {
+    ) -> Result<Option<Program>> {
         let module_program = unwrap_module_program(program);
-        Some(module_program.fold_with(&mut next_dynamic(
+        Ok(Some(module_program.fold_with(&mut next_dynamic(
             self.is_development,
             self.is_server,
             self.is_server_components,
             NextDynamicMode::Turbo,
             FileName::Real(ctx.file_path_str.into()),
             self.pages_dir.clone(),
-        )))
+        ))))
     }
 }

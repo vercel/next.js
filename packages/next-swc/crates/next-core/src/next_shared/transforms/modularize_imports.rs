@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use anyhow::Result;
 use async_trait::async_trait;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
@@ -80,7 +81,7 @@ impl CustomTransformer for ModularizeImportsTransformer {
         &self,
         program: &mut Program,
         _ctx: &TransformContext<'_>,
-    ) -> Option<Program> {
+    ) -> Result<Option<Program>> {
         let p = std::mem::replace(program, Program::Module(Module::dummy()));
         *program = p.fold_with(&mut modularize_imports(
             turbo_binding::swc::custom_transform::modularize_imports::Config {
@@ -88,6 +89,6 @@ impl CustomTransformer for ModularizeImportsTransformer {
             },
         ));
 
-        None
+        Ok(None)
     }
 }

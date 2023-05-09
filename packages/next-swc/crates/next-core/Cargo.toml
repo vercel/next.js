@@ -25,6 +25,7 @@ futures = { workspace = true }
 lazy_static = { workspace = true }
 turbo-binding = { workspace = true, features = [
   "__swc_transform_modularize_imports",
+  "__swc_transform_relay",
   "__feature_auto_hash_map",
   "__turbo_tasks",
   "__turbo_tasks_bytes",

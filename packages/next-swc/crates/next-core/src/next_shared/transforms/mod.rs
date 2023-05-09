@@ -17,6 +17,7 @@ use turbo_binding::turbopack::{
     core::reference_type::{ReferenceType, UrlReferenceSubType},
     turbopack::module_options::{ModuleRule, ModuleRuleCondition, ModuleRuleEffect, ModuleType},
 };
+use turbo_tasks::Value;
 
 use crate::next_image::{module::BlurPlaceholderMode, StructuredImageModuleTypeVc};
 

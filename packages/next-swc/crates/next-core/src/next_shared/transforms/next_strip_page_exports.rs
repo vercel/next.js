@@ -59,16 +59,13 @@ impl CustomTransformer for NextJsStripPageExports {
         &self,
         program: &mut Program,
         _ctx: &TransformContext<'_>,
-    ) -> Option<Program> {
+    ) -> Result<Option<Program>> {
         // TODO(alexkirsz) Connect the eliminated_packages to telemetry.
         let eliminated_packages = Default::default();
 
         let module_program = unwrap_module_program(program);
-        Some(
-            module_program.fold_with(&mut next_transform_strip_page_exports(
-                self.export_filter,
-                eliminated_packages,
-            )),
-        )
+        Ok(Some(module_program.fold_with(
+            &mut next_transform_strip_page_exports(self.export_filter, eliminated_packages),
+        )))
     }
 }
