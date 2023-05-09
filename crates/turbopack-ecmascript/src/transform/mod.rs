@@ -4,6 +4,7 @@ mod util;
 use std::{fmt::Debug, hash::Hash, path::PathBuf, sync::Arc};
 
 use anyhow::Result;
+use async_trait::async_trait;
 use swc_core::{
     base::SwcComments,
     common::{chain, util::take::Take, FileName, Mark, SourceMap},
@@ -77,8 +78,13 @@ pub enum EcmascriptInputTransform {
 
 /// The CustomTransformer trait allows you to implement your own custom SWC
 /// transformer to run over all ECMAScript files imported in the graph.
+#[async_trait]
 pub trait CustomTransformer: Debug {
-    fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Option<Program>;
+    async fn transform(
+        &self,
+        program: &mut Program,
+        ctx: &TransformContext<'_>,
+    ) -> Result<Option<Program>>;
 }
 
 /// A wrapper around a TransformPlugin instance, allowing it to operate with
@@ -93,9 +99,23 @@ pub trait CustomTransformer: Debug {
 #[derive(Debug)]
 pub struct TransformPlugin(#[turbo_tasks(trace_ignore)] Box<dyn CustomTransformer + Send + Sync>);
 
+#[turbo_tasks::value(transparent)]
+pub struct OptionTransformPlugin(Option<TransformPluginVc>);
+
+impl Default for OptionTransformPluginVc {
+    fn default() -> Self {
+        OptionTransformPluginVc::cell(None)
+    }
+}
+
+#[async_trait]
 impl CustomTransformer for TransformPlugin {
-    fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Option<Program> {
-        self.0.transform(program, ctx)
+    async fn transform(
+        &self,
+        program: &mut Program,
+        ctx: &TransformContext<'_>,
+    ) -> Result<Option<Program>> {
+        self.0.transform(program, ctx).await
     }
 }
 
@@ -323,7 +343,7 @@ impl EcmascriptInputTransform {
                 }
             }
             EcmascriptInputTransform::Plugin(transform) => {
-                if let Some(output) = transform.await?.transform(program, ctx) {
+                if let Some(output) = transform.await?.transform(program, ctx).await? {
                     *program = output;
                 }
             }
