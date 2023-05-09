@@ -1,8 +1,9 @@
 import type { NextConfigComplete } from '../config-shared'
 import type { AppRouteUserlandModule } from '../future/route-modules/app-route/module'
 
-import '../../server/require-hook'
+import '../require-hook'
 import '../node-polyfill-fetch'
+import '../node-environment'
 import {
   buildAppStaticPaths,
   buildStaticPaths,
@@ -17,10 +18,6 @@ import { staticGenerationAsyncStorage } from '../../client/components/static-gen
 
 type RuntimeConfig = any
 
-// expose AsyncLocalStorage on globalThis for react usage
-const { AsyncLocalStorage } = require('async_hooks')
-;(globalThis as any).AsyncLocalStorage = AsyncLocalStorage
-
 // we call getStaticPaths in a separate process to ensure
 // side-effects aren't relied on in dev that will break
 // during a production build
@@ -29,7 +26,6 @@ export async function loadStaticPaths({
   pathname,
   config,
   httpAgentOptions,
-  enableUndici,
   locales,
   defaultLocale,
   isAppPath,
@@ -44,7 +40,6 @@ export async function loadStaticPaths({
   pathname: string
   config: RuntimeConfig
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
-  enableUndici: NextConfigComplete['enableUndici']
   locales?: string[]
   defaultLocale?: string
   isAppPath?: boolean
@@ -63,7 +58,6 @@ export async function loadStaticPaths({
   require('../../shared/lib/runtime-config').setConfig(config)
   setHttpClientAndAgentOptions({
     httpAgentOptions,
-    experimental: { enableUndici },
   })
 
   const components = await loadComponents({

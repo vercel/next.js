@@ -2,6 +2,7 @@
 /// <reference types="react" />
 /// <reference types="react/experimental" />
 /// <reference types="react-dom" />
+/// <reference types="react-dom/experimental" />
 
 import React from 'react'
 import { ParsedUrlQuery } from 'querystring'
@@ -152,6 +153,7 @@ export type GetStaticPropsContext<
   params?: Params
   preview?: boolean
   previewData?: Preview
+  draftMode?: boolean
   locale?: string
   locales?: string[]
   defaultLocale?: string

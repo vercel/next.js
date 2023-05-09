@@ -636,7 +636,7 @@ function getExtractMetadata(params: {
         entryDependency,
         resolver
       )
-      const { rootDir } = getModuleBuildInfo(
+      const { rootDir, route } = getModuleBuildInfo(
         compilation.moduleGraph.getResolvedModule(entryDependency)
       )
 
@@ -737,6 +737,15 @@ function getExtractMetadata(params: {
 
         if (edgeFunctionConfig?.config?.regions) {
           entryMetadata.regions = edgeFunctionConfig.config.regions
+        }
+
+        if (route?.preferredRegion) {
+          const preferredRegion = route.preferredRegion
+          entryMetadata.regions =
+            // Ensures preferredRegion is always an array in the manifest.
+            typeof preferredRegion === 'string'
+              ? [preferredRegion]
+              : preferredRegion
         }
 
         /**

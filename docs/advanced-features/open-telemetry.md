@@ -56,26 +56,25 @@ If our wrapper `@vercel/otel` doesn't suit your needs, you can configure OpenTel
 Firstly you need to install OpenTelemetry packages:
 
 ```bash
-npm install @opentelemetry/sdk-node @opentelemetry/resources @opentelemetry/semantic-conventions @opentelemetry/sdk-trace-base @opentelemetry/exporter-trace-otlp-http
+npm install @opentelemetry/sdk-node @opentelemetry/resources @opentelemetry/semantic-conventions @opentelemetry/sdk-trace-base @opentelemetry/exporter-trace-otlp-grpc
 ```
 
 Now you can initialize `NodeSDK` in your `instrumentation.ts`.
-OpenTelemetry APIs are not compatible with edge runtime, so you need to make sure that you are importing them only when `process.env.NEXT_RUNTIME === 'nodejs'`. Conditionally importing with an `require` doesn't play well with typescript. We recommend using a conditionally `require`ing new file `instrumentation.node.ts` which can use normal `import`s:
+OpenTelemetry APIs are not compatible with edge runtime, so you need to make sure that you are importing them only when `process.env.NEXT_RUNTIME === 'nodejs'`. We recommend creating a new file `instrumentation.node.ts` which you conditionally import only when using node:
 
 ```ts
 // instrumentation.ts
-export function register() {
+export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
-    require('./instrumentation.node.ts')
+    await import('./instrumentation.node.ts')
   }
 }
 ```
 
 ```ts
 // instrumentation.node.ts
-import { trace, context } from '@opentelemetry/api'
 import { NodeSDK } from '@opentelemetry/sdk-node'
-import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http'
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc'
 import { Resource } from '@opentelemetry/resources'
 import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions'
 import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace-node'
@@ -90,7 +89,7 @@ sdk.start()
 ```
 
 Doing this is equivalent to using `@vercel/otel`, but it's possible to modify and extend.
-For example, you could use `@opentelemetry/exporter-trace-otlp-grpc` instead of `@opentelemetry/exporter-trace-otlp-http`.
+For example, you could use `@opentelemetry/exporter-trace-otlp-http` instead of `@opentelemetry/exporter-trace-otlp-grpc` or you can specify more resource attributes.
 
 ## Testing your instrumentation
 

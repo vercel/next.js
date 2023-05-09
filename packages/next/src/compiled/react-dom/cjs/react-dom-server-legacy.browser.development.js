@@ -17,7 +17,7 @@ if (process.env.NODE_ENV !== "production") {
 var React = require("next/dist/compiled/react");
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-next-1f248bdd7-20230419';
+var ReactVersion = '18.3.0-canary-16d053d59-20230506';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -207,7 +207,7 @@ function checkHtmlStringCoercion(value) {
 }
 
 // -----------------------------------------------------------------------------
-var enableFloat = true;
+var enableFloat = true; // Enables unstable_useMemoCache hook, intended as a compilation target for
 
 // $FlowFixMe[method-unbinding]
 var hasOwnProperty = Object.prototype.hasOwnProperty;
@@ -981,7 +981,7 @@ function validateProperty(tagName, name, value, eventRegistry) {
 
       warnedProperties[name] = true;
       return true;
-    } // We can't rely on the event system being injected on the server.
+    }
 
 
     if (eventRegistry != null) {
@@ -1407,14 +1407,14 @@ function escapeHtml(string) {
     }
 
     if (lastIndex !== index) {
-      html += str.substring(lastIndex, index);
+      html += str.slice(lastIndex, index);
     }
 
     lastIndex = index + 1;
     html += escape;
   }
 
-  return lastIndex !== index ? html + str.substring(lastIndex, index) : html;
+  return lastIndex !== index ? html + str.slice(lastIndex, index) : html;
 } // end code copied and modified from escape-html
 
 /**
@@ -1810,19 +1810,9 @@ var ReactDOMServerDispatcher = {
   preconnect: preconnect,
   preload: preload,
   preinit: preinit
-} ;
-var currentResources = null;
-var currentResourcesStack = [];
-function prepareToRender(resources) {
-  currentResourcesStack.push(currentResources);
-  currentResources = resources;
-  var previousHostDispatcher = ReactDOMCurrentDispatcher.current;
+};
+function prepareHostDispatcher() {
   ReactDOMCurrentDispatcher.current = ReactDOMServerDispatcher;
-  return previousHostDispatcher;
-}
-function cleanupAfterRender(previousDispatcher) {
-  currentResources = currentResourcesStack.pop();
-  ReactDOMCurrentDispatcher.current = previousDispatcher;
 } // Used to distinguish these contexts from ones used in other renderers.
 var ScriptStreamingFormat = 0;
 var DataStreamingFormat = 1;
@@ -1840,13 +1830,14 @@ var SentClientRenderFunction
 = 4;
 var SentStyleInsertionFunction
 /*       */
-= 8; // Per response, global state that is not contextual to the rendering subtree.
+= 8;
 
 var dataElementQuotedEnd = stringToPrecomputedChunk('"></template>');
 var startInlineScript = stringToPrecomputedChunk('<script>');
 var endInlineScript = stringToPrecomputedChunk('</script>');
 var startScriptSrc = stringToPrecomputedChunk('<script src="');
 var startModuleSrc = stringToPrecomputedChunk('<script type="module" src="');
+var scriptNonce = stringToPrecomputedChunk('" nonce="');
 var scriptIntegirty = stringToPrecomputedChunk('" integrity="');
 var endAsyncScript = stringToPrecomputedChunk('" async=""></script>');
 /**
@@ -1881,7 +1872,7 @@ function createResponseState$1(identifierPrefix, nonce, bootstrapScriptContent, 
   var idPrefix = identifierPrefix === undefined ? '' : identifierPrefix;
   var inlineScriptWithNonce = nonce === undefined ? startInlineScript : stringToPrecomputedChunk('<script nonce="' + escapeTextForBrowser(nonce) + '">');
   var bootstrapChunks = [];
-  var externalRuntimeDesc = null;
+  var externalRuntimeScript = null;
   var streamingFormat = ScriptStreamingFormat;
 
   if (bootstrapScriptContent !== undefined) {
@@ -1894,12 +1885,27 @@ function createResponseState$1(identifierPrefix, nonce, bootstrapScriptContent, 
       streamingFormat = DataStreamingFormat;
 
       if (typeof externalRuntimeConfig === 'string') {
-        externalRuntimeDesc = {
+        externalRuntimeScript = {
           src: externalRuntimeConfig,
-          integrity: undefined
+          chunks: []
         };
+        pushScriptImpl(externalRuntimeScript.chunks, {
+          src: externalRuntimeConfig,
+          async: true,
+          integrity: undefined,
+          nonce: nonce
+        });
       } else {
-        externalRuntimeDesc = externalRuntimeConfig;
+        externalRuntimeScript = {
+          src: externalRuntimeConfig.src,
+          chunks: []
+        };
+        pushScriptImpl(externalRuntimeScript.chunks, {
+          src: externalRuntimeConfig.src,
+          async: true,
+          integrity: externalRuntimeConfig.integrity,
+          nonce: nonce
+        });
       }
     }
   }
@@ -1910,6 +1916,10 @@ function createResponseState$1(identifierPrefix, nonce, bootstrapScriptContent, 
       var src = typeof scriptConfig === 'string' ? scriptConfig : scriptConfig.src;
       var integrity = typeof scriptConfig === 'string' ? undefined : scriptConfig.integrity;
       bootstrapChunks.push(startScriptSrc, stringToChunk(escapeTextForBrowser(src)));
+
+      if (nonce) {
+        bootstrapChunks.push(scriptNonce, stringToChunk(escapeTextForBrowser(nonce)));
+      }
 
       if (integrity) {
         bootstrapChunks.push(scriptIntegirty, stringToChunk(escapeTextForBrowser(integrity)));
@@ -1929,6 +1939,10 @@ function createResponseState$1(identifierPrefix, nonce, bootstrapScriptContent, 
 
       bootstrapChunks.push(startModuleSrc, stringToChunk(escapeTextForBrowser(_src)));
 
+      if (nonce) {
+        bootstrapChunks.push(scriptNonce, stringToChunk(escapeTextForBrowser(nonce)));
+      }
+
       if (_integrity) {
         bootstrapChunks.push(scriptIntegirty, stringToChunk(escapeTextForBrowser(_integrity)));
       }
@@ -1947,7 +1961,7 @@ function createResponseState$1(identifierPrefix, nonce, bootstrapScriptContent, 
     streamingFormat: streamingFormat,
     startInlineScript: inlineScriptWithNonce,
     instructions: NothingSent,
-    externalRuntimeConfig: externalRuntimeDesc,
+    externalRuntimeScript: externalRuntimeScript,
     htmlChunks: null,
     headChunks: null,
     hasBody: false,
@@ -1955,7 +1969,8 @@ function createResponseState$1(identifierPrefix, nonce, bootstrapScriptContent, 
     preconnectChunks: [],
     preloadChunks: [],
     hoistableChunks: [],
-    stylesToHoist: false
+    stylesToHoist: false,
+    nonce: nonce
   };
 } // Constants for the insertion mode we're currently writing in. We don't encode all HTML5 insertion
 // modes. We only include the variants as they matter for the sake of our purposes.
@@ -2192,6 +2207,58 @@ function pushStringAttribute(target, name, value) // not null or undefined
     target.push(attributeSeparator, stringToChunk(name), attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
   }
 }
+// than on the client and hopefully it's googleable.
+
+
+stringToPrecomputedChunk(escapeTextForBrowser( // eslint-disable-next-line no-script-url
+"javascript:throw new Error('A React form was unexpectedly submitted.')"));
+var startHiddenInputChunk = stringToPrecomputedChunk('<input type="hidden"');
+
+function pushAdditionalFormField(value, key) {
+  var target = this;
+  target.push(startHiddenInputChunk);
+
+  if (typeof value !== 'string') {
+    throw new Error('File/Blob fields are not yet supported in progressive forms. ' + 'It probably means you are closing over binary data or FormData in a Server Action.');
+  }
+
+  pushStringAttribute(target, 'name', key);
+  pushStringAttribute(target, 'value', value);
+  target.push(endOfStartTagSelfClosing);
+}
+
+function pushAdditionalFormFields(target, formData) {
+  if (formData !== null) {
+    // $FlowFixMe[prop-missing]: FormData has forEach.
+    formData.forEach(pushAdditionalFormField, target);
+  }
+}
+
+function pushFormActionAttribute(target, responseState, formAction, formEncType, formMethod, formTarget, name) {
+  var formData = null;
+
+  if (name != null) {
+    pushAttribute(target, 'name', name);
+  }
+
+  if (formAction != null) {
+    pushAttribute(target, 'formAction', formAction);
+  }
+
+  if (formEncType != null) {
+    pushAttribute(target, 'formEncType', formEncType);
+  }
+
+  if (formMethod != null) {
+    pushAttribute(target, 'formMethod', formMethod);
+  }
+
+  if (formTarget != null) {
+    pushAttribute(target, 'formTarget', formTarget);
+  }
+
+  return formData;
+}
 
 function pushAttribute(target, name, value) // not null or undefined
 {
@@ -2229,12 +2296,12 @@ function pushAttribute(target, name, value) // not null or undefined
 
     case 'src':
     case 'href':
-    case 'action':
-
     // Fall through to the last case which shouldn't remove empty strings.
 
+    case 'action':
     case 'formAction':
       {
+        // TODO: Consider only special casing these for each tag.
         if (value == null || typeof value === 'function' || typeof value === 'symbol' || typeof value === 'boolean') {
           return;
         }
@@ -2473,6 +2540,7 @@ var didWarnDefaultTextareaValue = false;
 var didWarnInvalidOptionChildren = false;
 var didWarnInvalidOptionInnerHTML = false;
 var didWarnSelectedSetOnOption = false;
+var didWarnFormActionType = false;
 
 function checkSelectProp(props, propName) {
   {
@@ -2673,24 +2741,96 @@ function pushStartOption(target, props, formatContext) {
   return children;
 }
 
-function pushInput(target, props) {
-  {
-    checkControlledValueProps('input', props);
+function pushStartForm(target, props, responseState) {
+  target.push(startChunkForTag('form'));
+  var children = null;
+  var innerHTML = null;
+  var formAction = null;
+  var formEncType = null;
+  var formMethod = null;
+  var formTarget = null;
 
-    if (props.checked !== undefined && props.defaultChecked !== undefined && !didWarnDefaultChecked) {
-      error('%s contains an input of type %s with both checked and defaultChecked props. ' + 'Input elements must be either controlled or uncontrolled ' + '(specify either the checked prop, or the defaultChecked prop, but not ' + 'both). Decide between using a controlled or uncontrolled input ' + 'element and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components', 'A component', props.type);
+  for (var propKey in props) {
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
 
-      didWarnDefaultChecked = true;
-    }
+      if (propValue == null) {
+        continue;
+      }
 
-    if (props.value !== undefined && props.defaultValue !== undefined && !didWarnDefaultInputValue) {
-      error('%s contains an input of type %s with both value and defaultValue props. ' + 'Input elements must be either controlled or uncontrolled ' + '(specify either the value prop, or the defaultValue prop, but not ' + 'both). Decide between using a controlled or uncontrolled input ' + 'element and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components', 'A component', props.type);
+      switch (propKey) {
+        case 'children':
+          children = propValue;
+          break;
 
-      didWarnDefaultInputValue = true;
+        case 'dangerouslySetInnerHTML':
+          innerHTML = propValue;
+          break;
+
+        case 'action':
+          formAction = propValue;
+          break;
+
+        case 'encType':
+          formEncType = propValue;
+          break;
+
+        case 'method':
+          formMethod = propValue;
+          break;
+
+        case 'target':
+          formTarget = propValue;
+          break;
+
+        default:
+          pushAttribute(target, propKey, propValue);
+          break;
+      }
     }
   }
 
+  if (formAction != null) {
+    pushAttribute(target, 'action', formAction);
+  }
+
+  if (formEncType != null) {
+    pushAttribute(target, 'encType', formEncType);
+  }
+
+  if (formMethod != null) {
+    pushAttribute(target, 'method', formMethod);
+  }
+
+  if (formTarget != null) {
+    pushAttribute(target, 'target', formTarget);
+  }
+
+  target.push(endOfStartTag);
+
+  pushInnerHTML(target, innerHTML, children);
+
+  if (typeof children === 'string') {
+    // Special case children as a string to avoid the unnecessary comment.
+    // TODO: Remove this special case after the general optimization is in place.
+    target.push(stringToChunk(encodeHTMLTextNode(children)));
+    return null;
+  }
+
+  return children;
+}
+
+function pushInput(target, props, responseState) {
+  {
+    checkControlledValueProps('input', props);
+  }
+
   target.push(startChunkForTag('input'));
+  var name = null;
+  var formAction = null;
+  var formEncType = null;
+  var formMethod = null;
+  var formTarget = null;
   var value = null;
   var defaultValue = null;
   var checked = null;
@@ -2708,6 +2848,26 @@ function pushInput(target, props) {
         case 'children':
         case 'dangerouslySetInnerHTML':
           throw new Error('input' + " is a self-closing tag and must neither have `children` nor " + 'use `dangerouslySetInnerHTML`.');
+
+        case 'name':
+          name = propValue;
+          break;
+
+        case 'formAction':
+          formAction = propValue;
+          break;
+
+        case 'formEncType':
+          formEncType = propValue;
+          break;
+
+        case 'formMethod':
+          formMethod = propValue;
+          break;
+
+        case 'formTarget':
+          formTarget = propValue;
+          break;
 
         case 'defaultChecked':
           defaultChecked = propValue;
@@ -2732,6 +2892,30 @@ function pushInput(target, props) {
     }
   }
 
+  {
+    if (formAction !== null && props.type !== 'image' && props.type !== 'submit' && !didWarnFormActionType) {
+      didWarnFormActionType = true;
+
+      error('An input can only specify a formAction along with type="submit" or type="image".');
+    }
+  }
+
+  var formData = pushFormActionAttribute(target, responseState, formAction, formEncType, formMethod, formTarget, name);
+
+  {
+    if (checked !== null && defaultChecked !== null && !didWarnDefaultChecked) {
+      error('%s contains an input of type %s with both checked and defaultChecked props. ' + 'Input elements must be either controlled or uncontrolled ' + '(specify either the checked prop, or the defaultChecked prop, but not ' + 'both). Decide between using a controlled or uncontrolled input ' + 'element and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components', 'A component', props.type);
+
+      didWarnDefaultChecked = true;
+    }
+
+    if (value !== null && defaultValue !== null && !didWarnDefaultInputValue) {
+      error('%s contains an input of type %s with both value and defaultValue props. ' + 'Input elements must be either controlled or uncontrolled ' + '(specify either the value prop, or the defaultValue prop, but not ' + 'both). Decide between using a controlled or uncontrolled input ' + 'element and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components', 'A component', props.type);
+
+      didWarnDefaultInputValue = true;
+    }
+  }
+
   if (checked !== null) {
     pushBooleanAttribute(target, 'checked', checked);
   } else if (defaultChecked !== null) {
@@ -2744,8 +2928,88 @@ function pushInput(target, props) {
     pushAttribute(target, 'value', defaultValue);
   }
 
-  target.push(endOfStartTagSelfClosing);
+  target.push(endOfStartTagSelfClosing); // We place any additional hidden form fields after the input.
+
+  pushAdditionalFormFields(target, formData);
   return null;
+}
+
+function pushStartButton(target, props, responseState) {
+  target.push(startChunkForTag('button'));
+  var children = null;
+  var innerHTML = null;
+  var name = null;
+  var formAction = null;
+  var formEncType = null;
+  var formMethod = null;
+  var formTarget = null;
+
+  for (var propKey in props) {
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
+
+      if (propValue == null) {
+        continue;
+      }
+
+      switch (propKey) {
+        case 'children':
+          children = propValue;
+          break;
+
+        case 'dangerouslySetInnerHTML':
+          innerHTML = propValue;
+          break;
+
+        case 'name':
+          name = propValue;
+          break;
+
+        case 'formAction':
+          formAction = propValue;
+          break;
+
+        case 'formEncType':
+          formEncType = propValue;
+          break;
+
+        case 'formMethod':
+          formMethod = propValue;
+          break;
+
+        case 'formTarget':
+          formTarget = propValue;
+          break;
+
+        default:
+          pushAttribute(target, propKey, propValue);
+          break;
+      }
+    }
+  }
+
+  {
+    if (formAction !== null && props.type != null && props.type !== 'submit' && !didWarnFormActionType) {
+      didWarnFormActionType = true;
+
+      error('A button can only specify a formAction along with type="submit" or no type.');
+    }
+  }
+
+  var formData = pushFormActionAttribute(target, responseState, formAction, formEncType, formMethod, formTarget, name);
+  target.push(endOfStartTag); // We place any additional hidden form fields we need to include inside the button itself.
+
+  pushAdditionalFormFields(target, formData);
+  pushInnerHTML(target, innerHTML, children);
+
+  if (typeof children === 'string') {
+    // Special case children as a string to avoid the unnecessary comment.
+    // TODO: Remove this special case after the general optimization is in place.
+    target.push(stringToChunk(encodeHTMLTextNode(children)));
+    return null;
+  }
+
+  return children;
 }
 
 function pushStartTextArea(target, props) {
@@ -2976,18 +3240,23 @@ function pushLink(target, props, responseState, resources, textEmbedded, inserti
         if (!_resource) {
           var resourceProps = stylesheetPropsFromRawProps(props);
           var preloadResource = resources.preloadsMap.get(key);
+          var state = NoState;
 
           if (preloadResource) {
             // If we already had a preload we don't want that resource to flush directly.
             // We let the newly created resource govern flushing.
             preloadResource.state |= Blocked;
             adoptPreloadPropsForStylesheetProps(resourceProps, preloadResource.props);
+
+            if (preloadResource.state & Flushed) {
+              state = PreloadFlushed;
+            }
           }
 
           _resource = {
             type: 'stylesheet',
             chunks: [],
-            state: NoState,
+            state: state,
             props: resourceProps
           };
           resources.stylesMap.set(key, _resource);
@@ -3798,7 +4067,13 @@ function pushStartInstance(target, type, props, resources, responseState, format
       return pushStartTextArea(target, props);
 
     case 'input':
-      return pushInput(target, props);
+      return pushInput(target, props, responseState);
+
+    case 'button':
+      return pushStartButton(target, props, responseState);
+
+    case 'form':
+      return pushStartForm(target, props);
 
     case 'menuitem':
       return pushStartMenuItem(target, props);
@@ -3853,7 +4128,7 @@ function pushStartInstance(target, type, props, resources, responseState, format
     case 'font-face-name':
     case 'missing-glyph':
       {
-        return pushStartGenericElement(target, props, type);
+        break;
       }
     // Preamble start tags
 
@@ -3936,7 +4211,8 @@ function pushEndInstance(target, type, props, responseState, formatContext) {
 
   target.push(endTag1, stringToChunk(type), endTag2);
 }
-function writeCompletedRoot(destination, responseState) {
+
+function writeBootstrap(destination, responseState) {
   var bootstrapChunks = responseState.bootstrapChunks;
   var i = 0;
 
@@ -3945,10 +4221,16 @@ function writeCompletedRoot(destination, responseState) {
   }
 
   if (i < bootstrapChunks.length) {
-    return writeChunkAndReturn(destination, bootstrapChunks[i]);
+    var lastChunk = bootstrapChunks[i];
+    bootstrapChunks.length = 0;
+    return writeChunkAndReturn(destination, lastChunk);
   }
 
   return true;
+}
+
+function writeCompletedRoot(destination, responseState) {
+  return writeBootstrap(destination, responseState);
 } // Structural Nodes
 // A placeholder is a node inside a hidden partial tree that can be filled in later, but before
 // display. It's never visible to users. We use the template tag because it can be used in every
@@ -4300,11 +4582,15 @@ function writeCompletedBoundaryInstruction(destination, responseState, boundaryI
     }
   }
 
+  var writeMore;
+
   if (scriptFormat) {
-    return writeChunkAndReturn(destination, completeBoundaryScriptEnd);
+    writeMore = writeChunkAndReturn(destination, completeBoundaryScriptEnd);
   } else {
-    return writeChunkAndReturn(destination, completeBoundaryDataEnd);
+    writeMore = writeChunkAndReturn(destination, completeBoundaryDataEnd);
   }
+
+  return writeBootstrap(destination, responseState) && writeMore;
 }
 var clientRenderScript1Full = stringToPrecomputedChunk(clientRenderBoundary + ';$RX("');
 var clientRenderScript1Partial = stringToPrecomputedChunk('$RX("');
@@ -4620,10 +4906,9 @@ function flushAllStylesInPreamble(set, precedence) {
 }
 
 function preloadLateStyle(resource) {
-  {
-    if (resource.state & PreloadFlushed) {
-      error('React encountered a Stylesheet Resource that already flushed a Preload when it was not expected to. This is a bug in React.');
-    }
+  if (resource.state & PreloadFlushed) {
+    // This resource has already had a preload flushed
+    return;
   }
 
   if (resource.type === 'style') {
@@ -4654,19 +4939,16 @@ function preloadLateStyles(set, precedence) {
 
 function writePreamble(destination, resources, responseState, willFlushAllSegments) {
   // This function must be called exactly once on every request
-  if (!willFlushAllSegments && responseState.externalRuntimeConfig) {
+  if (!willFlushAllSegments && responseState.externalRuntimeScript) {
     // If the root segment is incomplete due to suspended tasks
     // (e.g. willFlushAllSegments = false) and we are using data
     // streaming format, ensure the external runtime is sent.
     // (User code could choose to send this even earlier by calling
     //  preinit(...), if they know they will suspend).
-    var _responseState$extern = responseState.externalRuntimeConfig,
+    var _responseState$extern = responseState.externalRuntimeScript,
         src = _responseState$extern.src,
-        integrity = _responseState$extern.integrity;
-    preinitImpl(resources, src, {
-      as: 'script',
-      integrity: integrity
-    });
+        chunks = _responseState$extern.chunks;
+    internalPreinitScript(resources, src, chunks);
   }
 
   var htmlChunks = responseState.htmlChunks;
@@ -4721,10 +5003,10 @@ function writePreamble(destination, resources, responseState, willFlushAllSegmen
     var key = getResourceKey(resource.props.as, resource.props.href);
 
     if (resources.stylesMap.has(key)) ; else {
-      var chunks = resource.chunks;
+      var _chunks = resource.chunks;
 
-      for (i = 0; i < chunks.length; i++) {
-        writeChunk(destination, chunks[i]);
+      for (i = 0; i < _chunks.length; i++) {
+        writeChunk(destination, _chunks[i]);
       }
     }
   });
@@ -5254,17 +5536,19 @@ function getResourceKey(as, href) {
 }
 
 function prefetchDNS(href, options) {
-  if (!currentResources) {
-    // While we expect that preconnect calls are primarily going to be observed
-    // during render because effects and events don't run on the server it is
-    // still possible that these get called in module scope. This is valid on
-    // the client since there is still a document to interact with but on the
-    // server we need a request to associate the call to. Because of this we
-    // simply return and do not warn.
+
+  var request = resolveRequest();
+
+  if (!request) {
+    // In async contexts we can sometimes resolve resources from AsyncLocalStorage. If we can't we can also
+    // possibly get them from the stack if we are not in an async context. Since we were not able to resolve
+    // the resources for this call in either case we opt to do nothing. We can consider making this a warning
+    // but there may be times where calling a function outside of render is intentional (i.e. to warm up data
+    // fetching) and we don't want to warn in those cases.
     return;
   }
 
-  var resources = currentResources;
+  var resources = getResources(request);
 
   {
     if (typeof href !== 'string' || !href) {
@@ -5297,20 +5581,23 @@ function prefetchDNS(href, options) {
     }
 
     resources.preconnects.add(resource);
+    flushResources(request);
   }
 }
 function preconnect(href, options) {
-  if (!currentResources) {
-    // While we expect that preconnect calls are primarily going to be observed
-    // during render because effects and events don't run on the server it is
-    // still possible that these get called in module scope. This is valid on
-    // the client since there is still a document to interact with but on the
-    // server we need a request to associate the call to. Because of this we
-    // simply return and do not warn.
+
+  var request = resolveRequest();
+
+  if (!request) {
+    // In async contexts we can sometimes resolve resources from AsyncLocalStorage. If we can't we can also
+    // possibly get them from the stack if we are not in an async context. Since we were not able to resolve
+    // the resources for this call in either case we opt to do nothing. We can consider making this a warning
+    // but there may be times where calling a function outside of render is intentional (i.e. to warm up data
+    // fetching) and we don't want to warn in those cases.
     return;
   }
 
-  var resources = currentResources;
+  var resources = getResources(request);
 
   {
     if (typeof href !== 'string' || !href) {
@@ -5343,20 +5630,23 @@ function preconnect(href, options) {
     }
 
     resources.preconnects.add(resource);
+    flushResources(request);
   }
 }
 function preload(href, options) {
-  if (!currentResources) {
-    // While we expect that preload calls are primarily going to be observed
-    // during render because effects and events don't run on the server it is
-    // still possible that these get called in module scope. This is valid on
-    // the client since there is still a document to interact with but on the
-    // server we need a request to associate the call to. Because of this we
-    // simply return and do not warn.
+
+  var request = resolveRequest();
+
+  if (!request) {
+    // In async contexts we can sometimes resolve resources from AsyncLocalStorage. If we can't we can also
+    // possibly get them from the stack if we are not in an async context. Since we were not able to resolve
+    // the resources for this call in either case we opt to do nothing. We can consider making this a warning
+    // but there may be times where calling a function outside of render is intentional (i.e. to warm up data
+    // fetching) and we don't want to warn in those cases.
     return;
   }
 
-  var resources = currentResources;
+  var resources = getResources(request);
 
   {
     if (typeof href !== 'string' || !href) {
@@ -5447,25 +5737,26 @@ function preload(href, options) {
           resources.explicitOtherPreloads.add(resource);
         }
     }
+
+    flushResources(request);
   }
 }
+
 function preinit(href, options) {
-  if (!currentResources) {
-    // While we expect that preinit calls are primarily going to be observed
-    // during render because effects and events don't run on the server it is
-    // still possible that these get called in module scope. This is valid on
-    // the client since there is still a document to interact with but on the
-    // server we need a request to associate the call to. Because of this we
-    // simply return and do not warn.
+
+  var request = resolveRequest();
+
+  if (!request) {
+    // In async contexts we can sometimes resolve resources from AsyncLocalStorage. If we can't we can also
+    // possibly get them from the stack if we are not in an async context. Since we were not able to resolve
+    // the resources for this call in either case we opt to do nothing. We can consider making this a warning
+    // but there may be times where calling a function outside of render is intentional (i.e. to warm up data
+    // fetching) and we don't want to warn in those cases.
     return;
   }
 
-  preinitImpl(currentResources, href, options);
-} // On the server, preinit may be called outside of render when sending an
-// external SSR runtime as part of the initial resources payload. Since this
-// is an internal React call, we do not need to use the resources stack.
+  var resources = getResources(request);
 
-function preinitImpl(resources, href, options) {
   {
     if (typeof href !== 'string' || !href) {
       error('ReactDOM.preinit(): Expected the `href` argument (first) to be a non-empty string but encountered %s instead.', getValueDescriptorExpectingObjectForWarning(href));
@@ -5525,10 +5816,17 @@ function preinitImpl(resources, href, options) {
           }
 
           if (!resource) {
+            var state = NoState;
+            var preloadResource = resources.preloadsMap.get(key);
+
+            if (preloadResource && preloadResource.state & Flushed) {
+              state = PreloadFlushed;
+            }
+
             resource = {
               type: 'stylesheet',
               chunks: [],
-              state: NoState,
+              state: state,
               props: stylesheetPropsFromPreinitOptions(href, precedence, options)
             };
             resources.stylesMap.set(key, resource);
@@ -5565,6 +5863,7 @@ function preinitImpl(resources, href, options) {
             }
 
             precedenceSet.add(resource);
+            flushResources(request);
           }
 
           return;
@@ -5629,12 +5928,31 @@ function preinitImpl(resources, href, options) {
 
             resources.scripts.add(_resource3);
             pushScriptImpl(_resource3.chunks, _resourceProps);
+            flushResources(request);
           }
 
           return;
         }
     }
   }
+}
+
+function internalPreinitScript(resources, src, chunks) {
+  var key = getResourceKey('script', src);
+  var resource = resources.scriptsMap.get(key);
+
+  if (!resource) {
+    resource = {
+      type: 'script',
+      chunks: chunks,
+      state: NoState,
+      props: null
+    };
+    resources.scriptsMap.set(key, resource);
+    resources.scripts.add(resource);
+  }
+
+  return;
 }
 
 function preloadPropsFromPreloadOptions(href, as, options) {
@@ -5699,7 +6017,8 @@ function scriptPropsFromPreinitOptions(src, options) {
     src: src,
     async: true,
     crossOrigin: options.crossOrigin,
-    integrity: options.integrity
+    integrity: options.integrity,
+    nonce: options.nonce
   };
 }
 
@@ -5789,7 +6108,7 @@ function createResponseState(generateStaticMarkup, identifierPrefix, externalRun
     streamingFormat: responseState.streamingFormat,
     startInlineScript: responseState.startInlineScript,
     instructions: responseState.instructions,
-    externalRuntimeConfig: responseState.externalRuntimeConfig,
+    externalRuntimeScript: responseState.externalRuntimeScript,
     htmlChunks: responseState.htmlChunks,
     headChunks: responseState.headChunks,
     hasBody: responseState.hasBody,
@@ -7899,6 +8218,7 @@ function noop$1() {}
 
 var HooksDispatcher = {
   readContext: readContext,
+  use: use,
   useContext: useContext,
   useMemo: useMemo,
   useReducer: useReducer,
@@ -7923,10 +8243,6 @@ var HooksDispatcher = {
 
 {
   HooksDispatcher.useCacheRefresh = useCacheRefresh;
-}
-
-{
-  HooksDispatcher.use = use;
 }
 
 var currentResponseState = null;
@@ -8014,11 +8330,13 @@ function defaultErrorHandler(error) {
 function noop() {}
 
 function createRequest(children, responseState, rootFormatContext, progressiveChunkSize, onError, onAllReady, onShellReady, onShellError, onFatalError) {
+  prepareHostDispatcher();
   var pingedTasks = [];
   var abortSet = new Set();
   var resources = createResources();
   var request = {
     destination: null,
+    flushScheduled: false,
     responseState: responseState,
     progressiveChunkSize: progressiveChunkSize === undefined ? DEFAULT_PROGRESSIVE_CHUNK_SIZE : progressiveChunkSize,
     status: OPEN,
@@ -8048,12 +8366,19 @@ function createRequest(children, responseState, rootFormatContext, progressiveCh
   pingedTasks.push(rootTask);
   return request;
 }
+var currentRequest = null;
+function resolveRequest() {
+  if (currentRequest) return currentRequest;
+
+  return null;
+}
 
 function pingTask(request, task) {
   var pingedTasks = request.pingedTasks;
   pingedTasks.push(task);
 
-  if (pingedTasks.length === 1) {
+  if (request.pingedTasks.length === 1) {
+    request.flushScheduled = request.destination !== null;
     scheduleWork(function () {
       return performWork(request);
     });
@@ -8978,10 +9303,13 @@ function spawnNewSuspendedTask(request, task, thenableState, x) {
 
 
 function renderNode(request, task, node) {
-  // TODO: Store segment.children.length here and reset it in case something
+  // Store how much we've pushed at this point so we can reset it in case something
   // suspended partially through writing something.
-  // Snapshot the current context in case something throws to interrupt the
+  var segment = task.blockedSegment;
+  var childrenLength = segment.children.length;
+  var chunkLength = segment.chunks.length; // Snapshot the current context in case something throws to interrupt the
   // process.
+
   var previousFormatContext = task.blockedSegment.formatContext;
   var previousLegacyContext = task.legacyContext;
   var previousContext = task.context;
@@ -8994,7 +9322,10 @@ function renderNode(request, task, node) {
   try {
     return renderNodeDestructive(request, task, null, node);
   } catch (thrownValue) {
-    resetHooksState();
+    resetHooksState(); // Reset the write pointers to where we started.
+
+    segment.children.length = childrenLength;
+    segment.chunks.length = chunkLength;
     var x = thrownValue === SuspenseException ? // This is a special type of exception used for Suspense. For historical
     // reasons, the rest of the Suspense implementation expects the thrown
     // value to be a thenable, because before `use` existed that was the
@@ -9266,6 +9597,9 @@ function retryTask(request, task) {
     currentTaskInDEV = task;
   }
 
+  var childrenLength = segment.children.length;
+  var chunkLength = segment.chunks.length;
+
   try {
     // We call the destructive form that mutates this task. That way if something
     // suspends again, we can reuse the same task instead of spawning a new one.
@@ -9280,7 +9614,10 @@ function retryTask(request, task) {
     segment.status = COMPLETED;
     finishedTask(request, task.blockedBoundary, segment);
   } catch (thrownValue) {
-    resetHooksState();
+    resetHooksState(); // Reset the write pointers to where we started.
+
+    segment.children.length = childrenLength;
+    segment.chunks.length = chunkLength;
     var x = thrownValue === SuspenseException ? // This is a special type of exception used for Suspense. For historical
     // reasons, the rest of the Suspense implementation expects the thrown
     // value to be a thenable, because before `use` existed that was the
@@ -9324,7 +9661,8 @@ function performWork(request) {
     ReactCurrentCache.current = DefaultCacheDispatcher;
   }
 
-  var previousHostDispatcher = prepareToRender(request.resources);
+  var prevRequest = currentRequest;
+  currentRequest = request;
   var prevGetCurrentStackImpl;
 
   {
@@ -9360,8 +9698,6 @@ function performWork(request) {
       ReactCurrentCache.current = prevCacheDispatcher;
     }
 
-    cleanupAfterRender(previousHostDispatcher);
-
     {
       ReactDebugCurrentFrame.getCurrentStack = prevGetCurrentStackImpl;
     }
@@ -9376,6 +9712,8 @@ function performWork(request) {
       // we'll to restore the context to what it was before returning.
       switchContext(prevContext);
     }
+
+    currentRequest = prevRequest;
   }
 }
 
@@ -9688,6 +10026,8 @@ function flushCompletedQueues(request, destination) {
     if (request.allPendingTasks === 0 && request.pingedTasks.length === 0 && request.clientRenderedBoundaries.length === 0 && request.completedBoundaries.length === 0 // We don't need to check any partially completed segments because
     // either they have pending task or they're complete.
     ) {
+        request.flushScheduled = false;
+
         {
           writePostamble(destination, request.responseState);
         }
@@ -9705,10 +10045,28 @@ function flushCompletedQueues(request, destination) {
 }
 
 function startWork(request) {
-  scheduleWork(function () {
-    return performWork(request);
-  });
+  request.flushScheduled = request.destination !== null;
+
+  {
+    scheduleWork(function () {
+      return performWork(request);
+    });
+  }
 }
+
+function enqueueFlush(request) {
+  if (request.flushScheduled === false && // If there are pinged tasks we are going to flush anyway after work completes
+  request.pingedTasks.length === 0 && // If there is no destination there is nothing we can flush to. A flush will
+  // happen when we start flowing again
+  request.destination !== null) {
+    var destination = request.destination;
+    request.flushScheduled = true;
+    scheduleWork(function () {
+      return flushCompletedQueues(request, destination);
+    });
+  }
+}
+
 function startFlowing(request, destination) {
   if (request.status === CLOSING) {
     request.status = CLOSED;
@@ -9754,6 +10112,12 @@ function abort(request, reason) {
     logRecoverableError(request, error);
     fatalError(request, error);
   }
+}
+function flushResources(request) {
+  enqueueFlush(request);
+}
+function getResources(request) {
+  return request.resources;
 }
 
 function onError() {// Non-fatal errors are ignored.

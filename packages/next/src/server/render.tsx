@@ -25,7 +25,7 @@ import type {
   ServerRuntime,
 } from 'next/types'
 import type { UnwrapPromise } from '../lib/coalesced-function'
-import type { ReactReadableStream } from './node-web-streams-helper'
+import type { ReactReadableStream } from './stream-utils/node-web-streams-helper'
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 
@@ -78,7 +78,7 @@ import {
   createBufferedTransformStream,
   renderToInitialStream,
   continueFromInitialStream,
-} from './node-web-streams-helper'
+} from './stream-utils/node-web-streams-helper'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { stripInternalQueries } from './internal-utils'
@@ -807,7 +807,7 @@ export async function renderToHTML(
               ? { params: query as ParsedUrlQuery }
               : undefined),
             ...(isPreview
-              ? { preview: true, previewData: previewData }
+              ? { draftMode: true, preview: true, previewData: previewData }
               : undefined),
             locales: renderOpts.locales,
             locale: renderOpts.locale,
@@ -1023,7 +1023,7 @@ export async function renderToHTML(
               ? { params: params as ParsedUrlQuery }
               : undefined),
             ...(previewData !== false
-              ? { preview: true, previewData: previewData }
+              ? { draftMode: true, preview: true, previewData: previewData }
               : undefined),
             locales: renderOpts.locales,
             locale: renderOpts.locale,

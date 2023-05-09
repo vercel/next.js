@@ -1,19 +1,18 @@
-import { encodeReply } from 'next/dist/compiled/react-server-dom-webpack/client'
+import { getServerActionDispatcher } from './components/app-router'
 
-export async function callServer(id: string, args: any[]) {
-  const actionId = id
+export async function callServer(actionId: string, actionArgs: any[]) {
+  const actionDispatcher = getServerActionDispatcher()
 
-  // Fetching the current url with the action header.
-  // TODO: Refactor this to look up from a manifest.
-  const res = await fetch('', {
-    method: 'POST',
-    headers: { Accept: 'text/x-component', 'Next-Action': actionId },
-    body: await encodeReply(args),
-  })
-
-  if (!res.ok) {
-    throw new Error(await res.text())
+  if (!actionDispatcher) {
+    throw new Error('Invariant: missing action dispatcher.')
   }
 
-  return (await res.json())[0]
+  return new Promise((resolve, reject) => {
+    actionDispatcher({
+      actionId,
+      actionArgs,
+      resolve,
+      reject,
+    })
+  })
 }

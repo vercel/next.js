@@ -41,7 +41,7 @@ When deploying to Vercel, the platform [automatically detects Next.js](https://v
 
 In addition, Vercel provides features like:
 
-- Automatic performance monitoring with [Next.js Analytics](https://vercel.com/analytics?utm_source=next-site&utm_medium=docs&utm_campaign=next-website)
+- Automatic performance monitoring with [Next.js Speed Insights](https://vercel.com/analytics?utm_source=next-site&utm_medium=docs&utm_campaign=next-website)
 - Automatic HTTPS and SSL certificates
 - Automatic CI/CD (through GitHub, GitLab, Bitbucket, etc.)
 - Support for [Environment Variables](https://vercel.com/docs/environment-variables?utm_source=next-site&utm_medium=docs&utm_campaign=next-website)
@@ -49,7 +49,7 @@ In addition, Vercel provides features like:
 - Support for [Image Optimization](/docs/basic-features/image-optimization.md) with `next/image`
 - Instant global deployments via `git push`
 
-[Deploy a Next.js application to Vercel](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/hello-world&project-name=hello-world&repository-name=hello-world&utm_source=next-site&utm_medium=docs&utm_campaign=next-website) for free to try it out.
+[Deploy a Next.js application to Vercel](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/hello-world&project-name=hello-world&repository-name=hello-world&utm_source=next-site&utm_medium=docs&utm_campaign=next-website) for free to try it out.
 
 ## Self-Hosting
 

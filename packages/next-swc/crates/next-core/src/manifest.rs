@@ -26,7 +26,7 @@ use turbo_tasks::{
 use crate::{
     embed_js::next_js_file,
     next_config::{NextConfigVc, RewritesReadRef},
-    util::get_asset_path_from_route,
+    util::get_asset_path_from_pathname,
 };
 
 /// A content source which creates the next.js `_devPagesManifest.json` and
@@ -67,26 +67,18 @@ impl DevManifestContentSourceVc {
             Ok(content_source.get_children().await?.clone_value())
         }
 
-        let routes = GraphTraversal::<NonDeterministic<_>>::visit(
-            this.page_roots.iter().copied(),
-            get_content_source_children,
-        )
-        .await
-        .completed()?
-        .into_iter()
-        .map(content_source_to_pathname)
-        .try_join()
-        .await?;
+        let routes = NonDeterministic::new()
+            .visit(this.page_roots.iter().copied(), get_content_source_children)
+            .await
+            .completed()?
+            .into_iter()
+            .map(content_source_to_pathname)
+            .try_join()
+            .await?;
         let mut routes = routes
             .into_iter()
             .flatten()
-            .map(|s| {
-                if !s.starts_with('/') {
-                    format!("/{}", s)
-                } else {
-                    s.to_string()
-                }
-            })
+            .map(|route| route.clone_value())
             .collect::<Vec<_>>();
 
         routes.sort_by_cached_key(|s| s.split('/').map(PageSortKey::from).collect::<Vec<_>>());
@@ -119,12 +111,12 @@ impl DevManifestContentSourceVc {
         let sorted_pages = &*self.find_pages().await?;
         let routes = sorted_pages
             .iter()
-            .map(|p| {
+            .map(|pathname| {
                 (
-                    p,
+                    pathname,
                     vec![format!(
-                        "_next/static/chunks/pages/{}",
-                        get_asset_path_from_route(p, ".js")
+                        "_next/static/chunks/pages{}",
+                        get_asset_path_from_pathname(pathname, ".js")
                     )],
                 )
             })
