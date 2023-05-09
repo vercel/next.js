@@ -49,7 +49,11 @@ import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 import { fileExists } from '../../lib/file-exists'
-import { difference, isMiddlewareFilename } from '../../build/utils'
+import {
+  difference,
+  isMiddlewareFile,
+  isMiddlewareFilename,
+} from '../../build/utils'
 import { DecodeError } from '../../shared/lib/utils'
 import { Span, trace } from '../../trace'
 import { getProperError } from '../../lib/is-error'
@@ -706,7 +710,7 @@ export default class HotReloader {
                     preferredRegion: staticInfo.preferredRegion,
                     config: this.config,
                   }).import
-                } else if (!isAPIRoute(page)) {
+                } else if (!isAPIRoute(page) && !isMiddlewareFile(page)) {
                   appDirLoader = getRouteModuleLoader({
                     config: this.config,
                     buildId: this.buildId,
@@ -808,7 +812,7 @@ export default class HotReloader {
                     preferredRegion: staticInfo.preferredRegion,
                     config: this.config,
                   })
-                } else if (isAPIRoute(page)) {
+                } else if (isAPIRoute(page) || isMiddlewareFile(page)) {
                   value = relativeRequest
                 } else {
                   value = getRouteModuleLoader({
