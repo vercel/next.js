@@ -301,6 +301,40 @@ createNextDescribe(
           }
         })
 
+        it('should reload @import styles during HMR', async () => {
+          const filePath = 'app/hmr/import/actual-styles.css'
+          const origContent = await next.readFile(filePath)
+
+          // background should be red
+          const browser = await next.browser('/hmr/import')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('body')).backgroundColor`
+            )
+          ).toBe('rgb(255, 0, 0)')
+
+          try {
+            await next.patchFile(
+              filePath,
+              origContent.replace(
+                'background-color: red;',
+                'background-color: blue;'
+              )
+            )
+
+            // Wait for HMR to trigger
+            await check(
+              () =>
+                browser.eval(
+                  `window.getComputedStyle(document.querySelector('body')).backgroundColor`
+                ),
+              'rgb(0, 0, 255)'
+            )
+          } finally {
+            await next.patchFile(filePath, origContent)
+          }
+        })
+
         describe('multiple entries', () => {
           it('should only inject the same style once if used by different layers', async () => {
             const browser = await next.browser('/css/css-duplicate-2/client')
