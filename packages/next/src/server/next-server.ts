@@ -860,7 +860,12 @@ export default class NextNodeServer extends BaseServer {
             }
           })
         })
-        proxy.web(req.originalRequest, res.originalResponse)
+        proxy.web(req.originalRequest, res.originalResponse, {
+          buffer: getRequestMeta(
+            req,
+            '__NEXT_CLONABLE_BODY'
+          )?.cloneBodyStream(),
+        })
       }
     })
 
