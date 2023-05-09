@@ -43,7 +43,7 @@ export function resolveImages(
 ):
   | NonNullable<ResolvedMetadata['twitter']>['images']
   | NonNullable<ResolvedMetadata['openGraph']>['images'] {
-  return resolveAsArrayOrUndefined(images)?.map((item, index) => {
+  return resolveAsArrayOrUndefined(images)?.map((item) => {
     if (isStringOrURL(item)) {
       return {
         url: resolveUrl(item, metadataBase)!,
