@@ -958,7 +958,7 @@ export default class HotReloader {
                       // components are tracked.
                       if (
                         key.startsWith('app/') &&
-                        mod.resource?.endsWith('.css')
+                        /\.(css|scss|sass)$/.test(mod.resource || '')
                       ) {
                         const resourceKey = mod.layer + ':' + mod.resource
                         const prevHash =
