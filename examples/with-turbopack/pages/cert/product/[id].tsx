@@ -6,12 +6,7 @@ import {
 import { Product } from '#/ui/page-directory/product'
 import { Reviews } from '#/ui/page-directory/reviews'
 import { SimilarProducts } from '#/ui/page-directory/similar-products'
-import {
-  GetStaticProps,
-  GetStaticPaths,
-  GetServerSideProps,
-  InferGetStaticPropsType,
-} from 'next'
+import { GetStaticProps, GetStaticPaths, InferGetStaticPropsType } from 'next'
 
 // ====================
 // 1. Static Data (SSG)

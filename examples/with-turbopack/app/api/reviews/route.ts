@@ -1,25 +1,5 @@
 import { Review } from '#/app/api/reviews/review'
 
-export const runtime = 'edge'
-
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-
-  // We sometimes artificially delay a reponse for demo purposes.
-  // Don't do this in real life :)
-  const delay = searchParams.get('delay')
-  if (delay) {
-    await new Promise((resolve) => setTimeout(resolve, Number(delay)))
-  }
-
-  return new Response(JSON.stringify(reviews), {
-    status: 200,
-    headers: {
-      'content-type': 'application/json',
-    },
-  })
-}
-
 const reviews: Review[] = [
   {
     id: '1',
@@ -40,3 +20,23 @@ const reviews: Review[] = [
     text: 'Pellentesque faucibus quam eu vehicula pulvinar. Integer cursus fringilla metus.',
   },
 ]
+
+export const runtime = 'edge'
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+
+  // We sometimes artificially delay a reponse for demo purposes.
+  // Don't do this in real life :)
+  const delay = searchParams.get('delay')
+  if (delay) {
+    await new Promise((resolve) => setTimeout(resolve, Number(delay)))
+  }
+
+  return new Response(JSON.stringify(reviews), {
+    status: 200,
+    headers: {
+      'content-type': 'application/json',
+    },
+  })
+}

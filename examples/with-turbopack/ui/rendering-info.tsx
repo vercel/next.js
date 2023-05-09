@@ -19,6 +19,8 @@ export function RenderingInfo({
     case 'ssr':
       msg = 'Dynamically rendered at request time'
       break
+    default:
+      msg = ''
   }
 
   return (
