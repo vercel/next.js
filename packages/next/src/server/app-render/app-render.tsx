@@ -143,8 +143,7 @@ export async function renderToHTMLOrFlight(
   renderOpts: RenderOpts
 ): Promise<RenderResult> {
   const isFlight = req.headers[RSC.toLowerCase()] !== undefined
-  const initialCanonicalUrl = validateURL(req.url)
-  const pathname = new URL(req.url!, 'http://n').pathname
+  const pathname = validateURL(req.url)
 
   const {
     buildManifest,
@@ -1297,7 +1296,7 @@ export async function renderToHTMLOrFlight(
             {styles}
             <AppRouter
               assetPrefix={assetPrefix}
-              initialCanonicalUrl={initialCanonicalUrl}
+              initialCanonicalUrl={pathname}
               initialTree={initialTree}
               initialHead={
                 <>
