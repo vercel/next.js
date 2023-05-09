@@ -1,11 +1,11 @@
 export async function getStaticPaths() {
-  return [];
+  return []
 }
 
 export async function getStaticProps() {
-  return { props: {} };
+  return { props: {} }
 }
 
 export default function Test() {
-  return <div />;
+  return <div />
 }

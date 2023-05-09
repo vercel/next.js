@@ -74,9 +74,6 @@ export async function runTests({
   dynamicApiRoute?: string
   expectedErrMsg?: string
 }) {
-  if ((isDev && !process.env.TEST_DEV) || (!isDev && process.env.TEST_DEV)) {
-    return
-  }
   if (trailingSlash) {
     nextConfig.replace(
       'trailingSlash: true,',

@@ -16,7 +16,7 @@ export function proxyRequest(
     readonly headerHooks: typeof HeaderHooks
     readonly staticGenerationBailout: typeof StaticGenerationBailout
   }
-): Request {
+): NextRequest {
   function handleNextUrlBailout(prop: string | symbol) {
     switch (prop) {
       case 'search':

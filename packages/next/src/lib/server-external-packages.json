@@ -19,6 +19,7 @@
   "mongodb",
   "next-mdx-remote",
   "next-seo",
+  "pg",
   "postcss",
   "prettier",
   "prisma",

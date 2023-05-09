@@ -1,6 +1,5 @@
 import type { RouteDefinition } from '../route-definitions/route-definition'
 import type { NextRequest } from '../../web/spec-extension/request'
-import type { Params } from '../../../shared/lib/router/utils/route-matcher'
 
 // These are imported weirdly like this because of the way that the bundling
 // works. We need to import the built files from the dist directory, but we
@@ -16,6 +15,8 @@ const headerHooks =
   require('next/dist/client/components/headers') as typeof import('../../../client/components/headers')
 const { staticGenerationBailout } =
   require('next/dist/client/components/static-generation-bailout') as typeof import('../../../client/components/static-generation-bailout')
+const { actionAsyncStorage } =
+  require('next/dist/client/components/action-async-storage') as typeof import('../../../client/components/action-async-storage')
 
 /**
  * RouteModuleOptions is the options that are passed to the route module, other
@@ -34,7 +35,7 @@ export interface RouteModuleHandleContext {
    * Any matched parameters for the request. This is only defined for dynamic
    * routes.
    */
-  params: Params | undefined
+  params: Record<string, string | string[]> | undefined
 }
 
 /**
@@ -72,6 +73,12 @@ export abstract class RouteModule<
    * the underlying static generation storage.
    */
   public readonly staticGenerationBailout = staticGenerationBailout
+
+  /**
+   * A reference to the mutation related async storage, such as mutations of
+   * cookies.
+   */
+  public readonly actionAsyncStorage = actionAsyncStorage
 
   /**
    * The userland module. This is the module that is exported from the user's

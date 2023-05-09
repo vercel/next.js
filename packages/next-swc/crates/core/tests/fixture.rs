@@ -106,6 +106,7 @@ fn next_ssg_fixture(input: PathBuf) {
         syntax(),
         &|tr| {
             let top_level_mark = Mark::fresh(Mark::root());
+            let unresolved_mark = Mark::fresh(Mark::root());
             let jsx = jsx::<SingleThreadedComments>(
                 tr.cm.clone(),
                 None,
@@ -121,8 +122,13 @@ fn next_ssg_fixture(input: PathBuf) {
                     ..Default::default()
                 },
                 top_level_mark,
+                unresolved_mark,
             );
-            chain!(next_ssg(Default::default()), jsx)
+            chain!(
+                resolver(unresolved_mark, top_level_mark, true),
+                next_ssg(Default::default()),
+                jsx
+            )
         },
         &input,
         &output,
@@ -158,6 +164,7 @@ fn relay_no_artifact_dir_fixture(input: PathBuf) {
                 FileName::Real(PathBuf::from("input.tsx")),
                 current_dir().unwrap(),
                 Some(PathBuf::from("src/pages")),
+                None,
             )
         },
         &input,

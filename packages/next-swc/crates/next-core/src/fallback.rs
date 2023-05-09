@@ -5,7 +5,6 @@ use turbo_binding::{
     turbo::{tasks_env::ProcessEnvVc, tasks_fs::FileSystemPathVc},
     turbopack::{
         core::{
-            chunk::ChunkGroupVc,
             compile_time_info::CompileTimeInfoVc,
             context::AssetContextVc,
             resolve::{options::ImportMap, origin::PlainResolveOriginVc},
@@ -85,10 +84,10 @@ pub async fn get_fallback_page(
 
     Ok(DevHtmlAssetVc::new(
         dev_server_root.join("fallback.html"),
-        vec![ChunkGroupVc::evaluated(
-            chunking_context,
+        vec![(
             module.into(),
-            runtime_entries,
+            chunking_context,
+            Some(runtime_entries.with_entry(module.into())),
         )],
     ))
 }

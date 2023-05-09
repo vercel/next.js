@@ -6,7 +6,7 @@ This example shows how to use Next.js along with [HLS.js](https://github.com/vid
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-hls-js)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-hls-js&project-name=with-hls-js&repository-name=with-hls-js)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-hls-js&project-name=with-hls-js&repository-name=with-hls-js)
 
 ## How to use
 

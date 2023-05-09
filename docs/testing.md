@@ -117,7 +117,7 @@ You can use `cy.visit("/")` instead of `cy.visit("http://localhost:3000/")` if y
 
 Component tests build and mount a specific component without having to bundle your whole application or launch a server. This allows for more performant tests that still provide visual feedback and the same API used for Cypress E2E tests.
 
-> **Note:** Since component tests do not launch a Next.js server, capabilities like `<Image />` and `getServerSideProps` which rely on a server being available will not function out-of-the-box. See the [Cypress Next.js docs](https://docs.cypress.io/guides/component-testing/react/overview#Nextjs) for examples of getting these features working within component tests.
+> **Note**: Since component tests do not launch a Next.js server, capabilities like `<Image />` and `getServerSideProps` which rely on a server being available will not function out-of-the-box. See the [Cypress Next.js docs](https://docs.cypress.io/guides/component-testing/react/overview#Nextjs) for examples of getting these features working within component tests.
 
 Assuming the same components from the previous section, add a test to validate a component is rendering the expected output:
 
@@ -148,7 +148,7 @@ Since Cypress E2E tests are testing a real Next.js application they require the 
 
 Run `npm run build` and `npm run start`, then run `npm run cypress -- --e2e` in another terminal window to start Cypress and run your E2E testing suite.
 
-> **Note:** Alternatively, you can install the `start-server-and-test` package and add it to the `package.json` scripts field: `"test": "start-server-and-test start http://localhost:3000 cypress"` to start the Next.js production server in conjunction with Cypress. Remember to rebuild your application after new changes.
+> **Note**: Alternatively, you can install the `start-server-and-test` package and add it to the `package.json` scripts field: `"test": "start-server-and-test start http://localhost:3000 cypress"` to start the Next.js production server in conjunction with Cypress. Remember to rebuild your application after new changes.
 
 #### Component Tests
 
@@ -264,7 +264,7 @@ Since Playwright is testing a real Next.js application, it requires the Next.js 
 
 Run `npm run build` and `npm run start`, then run `npm run test:e2e` in another terminal window to run the Playwright tests.
 
-> **Note:** Alternatively, you can use the [`webServer`](https://playwright.dev/docs/test-advanced#launching-a-development-web-server-during-the-tests) feature to let Playwright start the development server and wait until it's fully available.
+> **Note**: Alternatively, you can use the [`webServer`](https://playwright.dev/docs/test-advanced#launching-a-development-web-server-during-the-tests) feature to let Playwright start the development server and wait until it's fully available.
 
 ### Running Playwright on Continuous Integration (CI)
 

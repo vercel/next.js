@@ -27,11 +27,13 @@ export type AppLoaderOptions = {
   pagePath: string
   appDir: string
   appPaths: readonly string[] | null
+  preferredRegion: string | string[] | undefined
   pageExtensions: string[]
   assetPrefix: string
   rootDir?: string
   tsconfigPath?: string
   isDev?: boolean
+  basePath: string
   nextConfigOutput?: NextConfig['output']
 }
 type AppLoader = webpack.LoaderDefinitionFunction<AppLoaderOptions>
@@ -51,7 +53,8 @@ const PAGE_SEGMENT = 'page$'
 
 type PathResolver = (
   pathname: string,
-  resolveDir?: boolean
+  resolveDir?: boolean,
+  internal?: boolean
 ) => Promise<string | undefined>
 
 export type ComponentsType = {
@@ -97,6 +100,7 @@ async function createAppRouteCode({
   const filename = path.parse(resolvedPagePath).name
   if (isMetadataRoute(name) && filename !== 'route') {
     resolvedPagePath = `next-metadata-route-loader?${stringify({
+      page,
       pageExtensions,
     })}!${resolvedPagePath + METADATA_RESOURCE_QUERY}`
   }
@@ -140,6 +144,8 @@ async function createAppRouteCode({
       staticGenerationBailout
     } = routeModule
 
+    const originalPathname = "${page}"
+
     export {
       routeModule,
       requestAsyncStorage,
@@ -147,6 +153,7 @@ async function createAppRouteCode({
       serverHooks,
       headerHooks,
       staticGenerationBailout,
+      originalPathname
     }`
 }
 
@@ -170,17 +177,16 @@ async function createTreeCodeFromPath(
     resolveParallelSegments,
     loaderContext,
     pageExtensions,
+    basePath,
   }: {
-    resolver: (
-      pathname: string,
-      resolveDir?: boolean
-    ) => Promise<string | undefined>
+    resolver: PathResolver
     resolvePath: (pathname: string) => Promise<string>
     resolveParallelSegments: (
       pathname: string
     ) => [key: string, segment: string | string[]][]
     loaderContext: webpack.LoaderContext<AppLoaderOptions>
     pageExtensions: string[]
+    basePath: string
   }
 ) {
   const splittedPath = pagePath.split(/[\\/]/)
@@ -237,6 +243,7 @@ async function createTreeCodeFromPath(
     // Existing tree are the children of the current segment
     const props: Record<string, string> = {}
     const isRootLayer = segments.length === 0
+    const isRootLayoutOrRootPage = segments.length <= 1
 
     // We need to resolve all parallel routes in this level.
     const parallelSegments: [key: string, segment: string | string[]][] = []
@@ -254,9 +261,10 @@ async function createTreeCodeFromPath(
 
       if (resolvedRouteDir) {
         metadata = await createStaticMetadataFromRoute(resolvedRouteDir, {
+          basePath,
           segment: segmentPath,
           resolvePath,
-          isRootLayer,
+          isRootLayoutOrRootPage,
           loaderContext,
           pageExtensions,
         })
@@ -364,7 +372,11 @@ async function createTreeCodeFromPath(
           (await resolver(
             `${appDirPrefix}${segmentPath}/${actualSegment}/default`
           )) ??
-          (await resolver(`next/dist/client/components/parallel-route-default`))
+          (await resolver(
+            `next/dist/client/components/parallel-route-default`,
+            false,
+            true
+          ))
 
         props[normalizeParallelKey(adjacentParallelSegment)] = `[
           '__DEFAULT__',
@@ -418,6 +430,8 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     tsconfigPath,
     isDev,
     nextConfigOutput,
+    preferredRegion,
+    basePath,
   } = loaderOptions
 
   const buildInfo = getModuleBuildInfo((this as any)._module)
@@ -425,6 +439,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   buildInfo.route = {
     page,
     absolutePagePath: createAbsolutePath(appDir, pagePath),
+    preferredRegion,
   }
 
   const extensions = pageExtensions.map((extension) => `.${extension}`)
@@ -435,6 +450,13 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   }
 
   const resolve = this.getResolve(resolveOptions)
+
+  // a resolver for internal next files. We need to override the extensions, in case
+  // a project doesn't have the same ones as used by next.
+  const internalResolve = this.getResolve({
+    ...resolveOptions,
+    extensions: [...extensions, '.js', '.jsx', '.ts', '.tsx'],
+  })
 
   const normalizedAppPaths =
     typeof appPaths === 'string' ? [appPaths] : appPaths || []
@@ -470,13 +492,16 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
     return Object.entries(matched)
   }
-  const resolver: PathResolver = async (pathname, resolveDir) => {
+  const resolver: PathResolver = async (pathname, resolveDir, internal) => {
     if (resolveDir) {
       return createAbsolutePath(appDir, pathname)
     }
 
     try {
-      const resolved = await resolve(this.rootContext, pathname)
+      const resolved = await (internal ? internalResolve : resolve)(
+        this.rootContext,
+        pathname
+      )
       this.addDependency(resolved)
       return resolved
     } catch (err: any) {
@@ -515,6 +540,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     resolveParallelSegments,
     loaderContext: this,
     pageExtensions,
+    basePath,
   })
 
   if (!rootLayout) {
@@ -568,6 +594,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     export { staticGenerationAsyncStorage } from 'next/dist/client/components/static-generation-async-storage'
 
     export { requestAsyncStorage } from 'next/dist/client/components/request-async-storage'
+    export { actionAsyncStorage } from 'next/dist/client/components/action-async-storage'
 
     export { staticGenerationBailout } from 'next/dist/client/components/static-generation-bailout'
     export { default as StaticGenerationSearchParamsBailoutProvider } from 'next/dist/client/components/static-generation-searchparams-bailout-provider'
@@ -575,8 +602,11 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
     export * as serverHooks from 'next/dist/client/components/hooks-server-context'
 
-    export { renderToReadableStream, decodeReply } from 'next/dist/compiled/react-server-dom-webpack/server.edge'
+    export { renderToReadableStream, decodeReply, decodeAction } from 'react-server-dom-webpack/server.edge'
     export const __next_app_webpack_require__ = __webpack_require__
+    export { preloadStyle, preloadFont, preconnect } from 'next/dist/server/app-render/rsc/preloads'
+
+    export const originalPathname = "${page}"
   `
 
   return result

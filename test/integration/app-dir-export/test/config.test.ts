@@ -52,7 +52,7 @@ describe('app dir with output export (next dev / next build)', () => {
       }
     )
     expect(stderr).toContain(
-      'warn  - "next export" is no longer needed when "output: export" is configured in next.config.js'
+      '- warn "next export" is no longer needed when "output: export" is configured in next.config.js'
     )
     expect(stdout).toContain('Export successful. Files written to')
     expect(await getFiles()).toEqual(expectedFiles)
@@ -85,7 +85,7 @@ describe('app dir with output export (next dev / next build)', () => {
       }
       expect(error).toBeDefined()
       expect(stderr).toContain(
-        'error - "next export" does not work with App Router. Please use "output: export" in next.config.js'
+        '- error "next export" does not work with App Router. Please use "output: export" in next.config.js'
       )
       expect(stdout).not.toContain('Export successful. Files written to')
       expect(await getFiles()).toEqual([])

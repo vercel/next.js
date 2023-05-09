@@ -19,11 +19,11 @@ describe('app dir - metadata missing metadataBase', () => {
 
   it('should fallback to localhost if metadataBase is missing for absolute urls resolving', async () => {
     await next.start()
-    await fetchViaHTTP(next.url, '/blog')
+    await fetchViaHTTP(next.url, '/')
     expect(next.cliOutput).toInclude(
-      'metadata.metadataBase is not set for resolving url "/blog/opengraph-image?'
+      'metadata.metadataBase is not set for resolving social open graph or twitter images, fallbacks to'
     )
-    expect(next.cliOutput).toInclude(', fallbacks to "http://localhost:')
+    expect(next.cliOutput).toInclude('"http://localhost:')
     expect(next.cliOutput).toInclude(
       '. See https://beta.nextjs.org/docs/api-reference/metadata#metadatabase'
     )

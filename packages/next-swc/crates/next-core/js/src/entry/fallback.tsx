@@ -1,12 +1,9 @@
-import '@vercel/turbopack-next/internal/shims-client'
+import '../internal/shims-client'
 
 import { createRoot } from 'react-dom/client'
 
-import {
-  initializeHMR,
-  ReactDevOverlay,
-} from '@vercel/turbopack-next/dev/client'
-import { subscribeToUpdate } from '@vercel/turbopack-next/dev/hmr-client'
+import { initializeHMR, ReactDevOverlay } from '../dev/client'
+import { subscribeToUpdate } from '@vercel/turbopack-dev/client/hmr-client'
 
 const pageChunkPath = location.pathname.slice(1)
 

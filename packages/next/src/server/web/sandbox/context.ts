@@ -117,7 +117,7 @@ function createProcessPolyfill(options: Pick<ModuleContextOptions, 'env'>) {
     if (key === 'env') continue
     Object.defineProperty(processPolyfill, key, {
       get() {
-        if (overridenValue[key]) {
+        if (overridenValue[key] !== undefined) {
           return overridenValue[key]
         }
         if (typeof (process as any)[key] === 'function') {
@@ -235,6 +235,7 @@ async function createModuleContext(options: ModuleContextOptions) {
         ? { strings: true, wasm: true }
         : undefined,
     extend: (context) => {
+      context.WebSocket = require('next/dist/compiled/ws').WebSocket
       context.process = createProcessPolyfill(options)
 
       Object.defineProperty(context, 'require', {

@@ -64,7 +64,7 @@ export default async function transformSource(
 
       let esmSource = `\
 import { createProxy } from "${moduleProxy}"
-const proxy = createProxy("${this.resourcePath}")
+const proxy = createProxy(String.raw\`${this.resourcePath}\`)
 
 // Accessing the __esModule property and exporting $$typeof are required here.
 // The __esModule getter forces the proxy target to create the default export
