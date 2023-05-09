@@ -1709,6 +1709,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               })()
 
           if (response) {
+            ;(req as any).fetchMetrics = (
+              context.staticGenerationContext as any
+            ).fetchMetrics
+
             const cacheTags = (context.staticGenerationContext as any).fetchTags
 
             // If the request is for a static response, we can cache it so long
@@ -1878,6 +1882,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           'x-next-cache-tags': cacheTags,
         }
       }
+      ;(req as any).fetchMetrics = (renderOpts as any).fetchMetrics
 
       // we don't throw static to dynamic errors in dev as isSSG
       // is a best guess in dev since we don't have the prerender pass

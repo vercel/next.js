@@ -186,6 +186,7 @@ async function createTreeCodeFromPath(
     resolveParallelSegments,
     loaderContext,
     pageExtensions,
+    basePath,
   }: {
     resolver: PathResolver
     resolvePath: (pathname: string) => Promise<string>
@@ -194,6 +195,7 @@ async function createTreeCodeFromPath(
     ) => [key: string, segment: string | string[]][]
     loaderContext: webpack.LoaderContext<AppLoaderOptions>
     pageExtensions: string[]
+    basePath: string
   }
 ) {
   const splittedPath = pagePath.split(/[\\/]/)
@@ -268,6 +270,7 @@ async function createTreeCodeFromPath(
 
       if (resolvedRouteDir) {
         metadata = await createStaticMetadataFromRoute(resolvedRouteDir, {
+          basePath,
           segment: segmentPath,
           resolvePath,
           isRootLayoutOrRootPage,
@@ -442,6 +445,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   const config: NextConfigComplete = JSON.parse(
     Buffer.from(configBase64, 'base64').toString('utf-8')
   )
+  const basePath = config.basePath
 
   const buildInfo = getModuleBuildInfo((this as any)._module)
   const page = name.replace(/^app/, '')
@@ -549,6 +553,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     resolveParallelSegments,
     loaderContext: this,
     pageExtensions,
+    basePath,
   })
 
   if (!rootLayout) {
@@ -610,10 +615,10 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
     export * as serverHooks from 'next/dist/client/components/hooks-server-context'
 
-    export { renderToReadableStream, decodeReply } from 'react-server-dom-webpack/server.edge'
+    export { renderToReadableStream, decodeReply, decodeAction } from 'react-server-dom-webpack/server.edge'
     export const __next_app_webpack_require__ = __webpack_require__
     export { preloadStyle, preloadFont, preconnect } from 'next/dist/server/app-render/rsc/preloads'
-    
+
     export const originalPathname = "${page}"
   `
 

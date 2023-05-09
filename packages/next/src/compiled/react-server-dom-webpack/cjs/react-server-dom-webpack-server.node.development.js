@@ -2662,11 +2662,11 @@ function resolveModelChunk(chunk, value) {
   }
 }
 
-function bindArgs(fn, args) {
+function bindArgs$1(fn, args) {
   return fn.bind.apply(fn, [null].concat(args));
 }
 
-function loadServerReference(response, id, bound, parentChunk, parentObject, key) {
+function loadServerReference$1(response, id, bound, parentChunk, parentObject, key) {
   var serverReference = resolveServerReference(response._bundlerConfig, id); // We expect most servers to not really need this because you'd just have all
   // the relevant modules already loaded but it allows for lazy loading of code
   // if needed.
@@ -2677,7 +2677,7 @@ function loadServerReference(response, id, bound, parentChunk, parentObject, key
   if (bound) {
     promise = Promise.all([bound, preloadPromise]).then(function (_ref) {
       var args = _ref[0];
-      return bindArgs(requireModule(serverReference), args);
+      return bindArgs$1(requireModule(serverReference), args);
     });
   } else {
     if (preloadPromise) {
@@ -2848,7 +2848,7 @@ function parseModelString(response, parentObject, key, value) {
 
 
           var metaData = _chunk.value;
-          return loadServerReference(response, metaData.id, metaData.bound, initializingChunk, parentObject, key);
+          return loadServerReference$1(response, metaData.id, metaData.bound, initializingChunk, parentObject, key);
         }
 
       case 'K':
@@ -3012,6 +3012,83 @@ function close(response) {
   reportGlobalError(response, new Error('Connection closed.'));
 }
 
+function bindArgs(fn, args) {
+  return fn.bind.apply(fn, [null].concat(args));
+}
+
+function loadServerReference(bundlerConfig, id, bound) {
+  var serverReference = resolveServerReference(bundlerConfig, id); // We expect most servers to not really need this because you'd just have all
+  // the relevant modules already loaded but it allows for lazy loading of code
+  // if needed.
+
+  var preloadPromise = preloadModule(serverReference);
+
+  if (bound) {
+    return Promise.all([bound, preloadPromise]).then(function (_ref) {
+      var args = _ref[0];
+      return bindArgs(requireModule(serverReference), args);
+    });
+  } else if (preloadPromise) {
+    return Promise.resolve(preloadPromise).then(function () {
+      return requireModule(serverReference);
+    });
+  } else {
+    // Synchronously available
+    return Promise.resolve(requireModule(serverReference));
+  }
+}
+
+function decodeAction(body, serverManifest) {
+  // We're going to create a new formData object that holds all the fields except
+  // the implementation details of the action data.
+  var formData = new FormData();
+  var action = null; // $FlowFixMe[prop-missing]
+
+  body.forEach(function (value, key) {
+    if (!key.startsWith('$ACTION_')) {
+      formData.append(key, value);
+      return;
+    } // Later actions may override earlier actions if a button is used to override the default
+    // form action.
+
+
+    if (key.startsWith('$ACTION_REF_')) {
+      var formFieldPrefix = '$ACTION_' + key.slice(12) + ':'; // The data for this reference is encoded in multiple fields under this prefix.
+
+      var actionResponse = createResponse(serverManifest, formFieldPrefix, body);
+      close(actionResponse);
+      var refPromise = getRoot(actionResponse); // Force it to initialize
+      // $FlowFixMe
+
+      refPromise.then(function () {});
+
+      if (refPromise.status !== 'fulfilled') {
+        // $FlowFixMe
+        throw refPromise.reason;
+      }
+
+      var metaData = refPromise.value;
+      action = loadServerReference(serverManifest, metaData.id, metaData.bound);
+      return;
+    }
+
+    if (key.startsWith('$ACTION_ID_')) {
+      var id = key.slice(11);
+      action = loadServerReference(serverManifest, id, null);
+      return;
+    }
+  });
+
+  if (action === null) {
+    return null;
+  } // Return the action with the remaining FormData bound to the first argument.
+
+
+  return action.then(function (fn) {
+    return fn.bind(null, formData);
+  });
+}
+
 function createDrainHandler(destination, request) {
   return function () {
     return startFlowing(request, destination);
@@ -3102,6 +3179,7 @@ function decodeReply(body, webpackMap) {
   return getRoot(response);
 }
 
+exports.decodeAction = decodeAction;
 exports.decodeReply = decodeReply;
 exports.decodeReplyFromBusboy = decodeReplyFromBusboy;
 exports.renderToPipeableStream = renderToPipeableStream;

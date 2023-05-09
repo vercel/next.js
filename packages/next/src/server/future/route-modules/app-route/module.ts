@@ -348,6 +348,8 @@ export class AppRouteRouteModule extends RouteModule<
                     const res = await handler(wrappedRequest, {
                       params: context.params,
                     })
+                    ;(context.staticGenerationContext as any).fetchMetrics =
+                      staticGenerationStore.fetchMetrics
 
                     await Promise.all(
                       staticGenerationStore.pendingRevalidates || []
