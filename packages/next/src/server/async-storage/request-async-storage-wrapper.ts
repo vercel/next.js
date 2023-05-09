@@ -1,5 +1,5 @@
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
-import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'http'
+import { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'http'
 import type { AsyncLocalStorage } from 'async_hooks'
 import type { RequestStore } from '../../client/components/request-async-storage'
 import type { RenderOpts } from '../app-render/types'
@@ -16,6 +16,8 @@ import {
   RequestCookiesAdapter,
   type ReadonlyRequestCookies,
 } from '../web/spec-extension/adapters/request-cookies'
+import { NextURL } from '../../server/web/next-url'
+import { NextIncomingMessage, getRequestMeta } from '../../server/request-meta'
 import { RequestCookies, ResponseCookies } from '../web/spec-extension/cookies'
 import { __ApiPreviewProps } from '../api-utils'
 import { DraftModeProvider } from './draft-mode-provider'
@@ -79,6 +81,7 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
       headers?: ReadonlyHeaders
       cookies?: ReadonlyRequestCookies
       mutableCookies?: ResponseCookies
+      url?: NextURL
       draftMode?: DraftModeProvider
     } = {}
 
@@ -106,6 +109,18 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
           cache.mutableCookies = getMutableCookies(req.headers, res)
         }
         return cache.mutableCookies
+      },
+      get url() {
+        if (!cache.url) {
+          if (req instanceof IncomingMessage) {
+            cache.url = new NextURL(
+              getRequestMeta(req as NextIncomingMessage, '__NEXT_INIT_URL')!
+            )
+          } else {
+            cache.url = new NextURL(req.url)
+          }
+        }
+        return cache.url
       },
       get draftMode() {
         if (!cache.draftMode) {
