@@ -47,6 +47,7 @@ pub async fn get_fallback_page(
         client_compile_time_info.environment(),
         ty,
         next_config,
+        None,
     );
     let chunking_context = get_client_chunking_context(
         project_path,

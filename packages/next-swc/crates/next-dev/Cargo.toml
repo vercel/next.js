@@ -70,6 +70,8 @@ turbo-binding = { workspace = true, features = [
   "__turbopack_cli_utils",
   "__turbopack_node",
   "__turbopack_dev_server",
+  "__swc_core",
+  "__swc_core_next_core",
 ]}
 turbo-tasks = { workspace = true }
 webbrowser = { workspace = true }

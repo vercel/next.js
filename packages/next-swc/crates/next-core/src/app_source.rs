@@ -151,6 +151,7 @@ async fn next_client_transition(
         client_compile_time_info.environment(),
         ty,
         next_config,
+        None,
     );
     let client_runtime_entries =
         get_client_runtime_entries(project_path, env, ty, next_config, execution_context);

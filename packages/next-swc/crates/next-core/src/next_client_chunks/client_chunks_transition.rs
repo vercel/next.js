@@ -57,6 +57,7 @@ impl NextClientChunksTransitionVc {
             client_compile_time_info.environment(),
             ty,
             next_config,
+            None,
         );
         NextClientChunksTransition {
             client_chunking_context,

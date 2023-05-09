@@ -2,6 +2,7 @@ pub(crate) mod modularize_imports;
 pub(crate) mod next_dynamic;
 pub(crate) mod next_font;
 pub(crate) mod next_strip_page_exports;
+pub(crate) mod page_config;
 pub(crate) mod relay;
 
 pub use modularize_imports::{get_next_modularize_imports_rule, ModularizeImportPackageConfig};

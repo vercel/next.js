@@ -49,6 +49,7 @@ turbo-tasks-fs = { workspace = true }
 next-transform-strip-page-exports = { workspace = true }
 next-transform-font = { workspace = true }
 next-transform-dynamic = { workspace = true }
+next-transform-page-config = { workspace = true }
 
 swc_core = { workspace = true, features = [
   "ecma_ast",

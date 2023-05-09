@@ -54,6 +54,8 @@ turbo-binding = { workspace = true, features = [
   "__turbopack_core_issue_path",
   "__turbopack_node",
   "__turbopack_dev_server",
+  "__swc_core",
+  "__swc_core_next_core",
   "__swc_transform_relay"
 ]}
 turbo-tasks = { workspace = true }

@@ -19,7 +19,7 @@ use turbo_binding::{
             free_var_references,
         },
         dev::{react_refresh::assert_can_resolve_react_refresh, DevChunkingContextVc},
-        ecmascript::EcmascriptInputTransform,
+        ecmascript::{EcmascriptInputTransform, TransformPluginVc},
         env::ProcessEnvAssetVc,
         node::execution_context::ExecutionContextVc,
         turbopack::{
@@ -165,6 +165,7 @@ pub async fn get_client_module_options_context(
     env: EnvironmentVc,
     ty: Value<ClientContextType>,
     next_config: NextConfigVc,
+    source_transforms: Option<Vec<TransformPluginVc>>,
 ) -> Result<ModuleOptionsContextVc> {
     let custom_rules = get_next_client_transforms_rules(next_config, ty.into_value()).await?;
     let resolve_options_context =
@@ -196,7 +197,11 @@ pub async fn get_client_module_options_context(
 
     let enable_emotion = *get_emotion_compiler_config(next_config).await?;
 
-    let mut source_transforms = vec![];
+    let mut source_transforms = if let Some(source_transforms) = source_transforms {
+        source_transforms
+    } else {
+        vec![]
+    };
     if let Some(relay_transform_plugin) = *get_relay_transform_plugin(next_config).await? {
         source_transforms.push(relay_transform_plugin);
     }
@@ -280,6 +285,7 @@ pub fn get_client_asset_context(
         compile_time_info.environment(),
         ty,
         next_config,
+        None,
     );
 
     let context: AssetContextVc = ModuleAssetContextVc::new(

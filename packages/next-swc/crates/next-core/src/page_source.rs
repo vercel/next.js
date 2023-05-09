@@ -27,7 +27,7 @@ use turbo_binding::{
         },
         ecmascript::{
             EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
-            EcmascriptModuleAssetVc, InnerAssetsVc,
+            EcmascriptModuleAssetVc, InnerAssetsVc, TransformPluginVc,
         },
         env::ProcessEnvAssetVc,
         node::{
@@ -74,6 +74,7 @@ use crate::{
         get_server_compile_time_info, get_server_module_options_context,
         get_server_resolve_options_context, ServerContextType,
     },
+    next_shared::transforms::page_config::PageConfigTransformer,
     page_loader::create_page_loader,
     pages_structure::{
         OptionPagesStructureVc, PagesStructure, PagesStructureItem, PagesStructureVc,
@@ -115,6 +116,9 @@ pub async fn create_page_source(
         client_compile_time_info.environment(),
         client_ty,
         next_config,
+        Some(vec![TransformPluginVc::cell(Box::new(
+            PageConfigTransformer::new(true),
+        ))]),
     );
     let client_resolve_options_context =
         get_client_resolve_options_context(project_path, client_ty, next_config, execution_context);
