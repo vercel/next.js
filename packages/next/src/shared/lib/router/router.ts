@@ -221,7 +221,12 @@ function getMiddlewareData<T extends FetchDataOutput>(
         ) {
           const parsedSource = getNextPathnameInfo(
             parseRelativeUrl(source).pathname,
-            { parseData: true }
+            {
+              nextConfig: process.env.__NEXT_HAS_REWRITES
+                ? undefined
+                : nextConfig,
+              parseData: true,
+            }
           )
 
           as = addBasePath(parsedSource.pathname)

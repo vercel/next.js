@@ -860,7 +860,12 @@ export default class NextNodeServer extends BaseServer {
             }
           })
         })
-        proxy.web(req.originalRequest, res.originalResponse)
+        proxy.web(req.originalRequest, res.originalResponse, {
+          buffer: getRequestMeta(
+            req,
+            '__NEXT_CLONABLE_BODY'
+          )?.cloneBodyStream(),
+        })
       }
     })
 
@@ -1789,7 +1794,7 @@ export default class NextNodeServer extends BaseServer {
               )
             }
             process.stdout.write('\n')
-          } else {
+          } else if (this.nextConfig.experimental.logging === 'verbose') {
             process.stdout.write(
               `- ${chalk.cyan(req.method || 'GET')} ${req.url} ${
                 res.statusCode

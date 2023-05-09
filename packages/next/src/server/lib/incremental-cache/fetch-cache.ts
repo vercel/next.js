@@ -2,6 +2,7 @@ import LRUCache from 'next/dist/compiled/lru-cache'
 import { FETCH_CACHE_HEADER } from '../../../client/components/app-router-headers'
 import { CACHE_ONE_YEAR } from '../../../lib/constants'
 import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
+import { getDerivedTags } from './utils'
 
 let memoryCache: LRUCache<string, CacheHandlerValue> | undefined
 
@@ -16,10 +17,12 @@ export default class FetchCache implements CacheHandler {
   private headers: Record<string, string>
   private cacheEndpoint?: string
   private debug: boolean
+  private revalidatedTags: string[]
 
   constructor(ctx: CacheHandlerContext) {
     this.debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
     this.headers = {}
+    this.revalidatedTags = ctx.revalidatedTags
     this.headers['Content-Type'] = 'application/json'
 
     if (FETCH_CACHE_HEADER in ctx._requestHeaders) {
@@ -189,6 +192,21 @@ export default class FetchCache implements CacheHandler {
         }
       }
     }
+
+    // if a tag was revalidated we don't return stale data
+    if (data?.value?.kind === 'FETCH') {
+      const innerData = data.value.data
+      const derivedTags = getDerivedTags(innerData.tags || [])
+
+      if (
+        derivedTags.some((tag) => {
+          return this.revalidatedTags.includes(tag)
+        })
+      ) {
+        data = undefined
+      }
+    }
+
     return data || null
   }
 

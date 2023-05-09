@@ -144,6 +144,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  logging?: 'verbose'
   appDocumentPreloading?: boolean
   strictNextHead?: boolean
   clientRouterFilter?: boolean

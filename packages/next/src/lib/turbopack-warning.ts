@@ -8,6 +8,7 @@ const supportedTurbopackNextConfigOptions = [
   'env',
   'modularizeImports',
   'compiler.emotion',
+  'compiler.relay',
   'compiler.styledComponents',
   'images',
   'pageExtensions',
@@ -120,7 +121,7 @@ export async function validateTurboNextConfig({
       let keys: string[] = []
 
       for (const key in obj) {
-        if (typeof obj[key] === 'undefined') {
+        if (typeof obj?.[key] === 'undefined') {
           continue
         }
 
@@ -145,9 +146,9 @@ export async function validateTurboNextConfig({
         keys = keys.split('.')
       }
       if (keys.length === 1) {
-        return obj[keys[0]]
+        return obj?.[keys?.[0]]
       }
-      return getDeepValue(obj[keys[0]], keys.slice(1))
+      return getDeepValue(obj?.[keys?.[0]], keys.slice(1))
     }
 
     const customKeys = flattenKeys(rawNextConfig)

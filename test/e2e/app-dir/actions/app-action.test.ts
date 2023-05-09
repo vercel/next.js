@@ -1,6 +1,8 @@
 import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import { Request } from 'playwright-chromium'
+import fs from 'fs-extra'
+import { join } from 'path'
 
 const GENERIC_RSC_ERROR =
   'Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
@@ -10,7 +12,7 @@ createNextDescribe(
   {
     files: __dirname,
   },
-  ({ next, isNextDev }) => {
+  ({ next, isNextDev, isNextStart }) => {
     it('should handle basic actions correctly', async () => {
       const browser = await next.browser('/server')
 
@@ -57,6 +59,32 @@ createNextDescribe(
       }, 'same')
     })
 
+    it('should support headers in client imported actions', async () => {
+      const logs: string[] = []
+      next.on('stdout', (log) => {
+        logs.push(log)
+      })
+      next.on('stderr', (log) => {
+        logs.push(log)
+      })
+
+      const currentTimestamp = Date.now()
+
+      const browser = await next.browser('/client')
+      await browser.elementByCss('#get-header').click()
+      await check(() => {
+        return logs.some((log) =>
+          log.includes('accept header: text/x-component')
+        )
+          ? 'yes'
+          : ''
+      }, 'yes')
+
+      expect(
+        await browser.eval('+document.cookie.match(/test-cookie=(\\d+)/)[1]')
+      ).toBeGreaterThanOrEqual(currentTimestamp)
+    })
+
     it('should support setting cookies in route handlers with the correct overrides', async () => {
       const res = await next.fetch('/handler')
       const setCookieHeader = res.headers.get('set-cookie') as string[]
@@ -76,6 +104,17 @@ createNextDescribe(
       await check(() => {
         return browser.eval('window.location.pathname + window.location.search')
       }, '/header?name=test&constructor=FormData')
+    })
+
+    it('should support .bind', async () => {
+      const browser = await next.browser('/server')
+
+      await browser.eval(`document.getElementById('n').value = '123'`)
+      await browser.elementByCss('#minus-one').click()
+
+      await check(() => {
+        return browser.eval('window.location.pathname + window.location.search')
+      }, '/header?result=122')
     })
 
     it('should support notFound (javascript disabled)', async () => {
@@ -169,6 +208,24 @@ createNextDescribe(
       await browser.elementByCss('#dec').click()
       await check(() => browser.elementByCss('h1').text(), '3')
     })
+
+    if (isNextStart) {
+      it('should not expose action content in sourcemaps', async () => {
+        const sourcemap = (
+          await fs.readdir(
+            join(next.testDir, '.next', 'static', 'chunks', 'app', 'client')
+          )
+        ).find((f) => f.endsWith('.js.map'))
+
+        expect(sourcemap).toBeDefined()
+
+        expect(
+          await next.readFile(
+            join('.next', 'static', 'chunks', 'app', 'client', sourcemap)
+          )
+        ).not.toContain('this_is_sensitive_info')
+      })
+    }
 
     if (isNextDev) {
       describe('HMR', () => {
