@@ -1,5 +1,6 @@
 /* eslint-env jest */
 
+import { check } from 'next-test-utils'
 import { findPort, killApp, launchApp, renderViaHTTP } from 'next-test-utils'
 import { join } from 'path'
 import waitPort from 'wait-port'
@@ -33,8 +34,8 @@ describe('Handles a broken webpack plugin (precompile)', () => {
 
   it('should render error correctly', async () => {
     const text = await renderViaHTTP(appPort, '/')
-    expect(text).toContain('Internal Server Error')
 
-    expect(stderr).toMatch('Error: oops')
+    expect(text).toContain('Internal Server Error')
+    await check(() => stderr, /Error: oops/, true, 3)
   })
 })
