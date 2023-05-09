@@ -7,6 +7,7 @@ use crate::{self as turbo_tasks};
 
 #[doc(hidden)]
 pub mod internal;
+mod vdbg;
 
 use internal::PassthroughDebug;
 
