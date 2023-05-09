@@ -56,6 +56,20 @@ export class MockedRequest extends Stream.Readable implements IncomingMessage {
     }
   }
 
+  public get headersDistinct(): NodeJS.Dict<string[]> {
+    const headers: NodeJS.Dict<string[]> = {}
+    for (const key in this.headers) {
+      const value = this.headers[key]
+      if (Array.isArray(value)) {
+        headers[key] = value
+      } else if (value) {
+        headers[key] = [value]
+      }
+    }
+
+    return headers
+  }
+
   public _read(): void {
     this.emit('end')
     this.emit('close')
@@ -82,6 +96,10 @@ export class MockedRequest extends Stream.Readable implements IncomingMessage {
   }
 
   public get trailers(): NodeJS.Dict<string> {
+    throw new Error('Method not implemented')
+  }
+
+  public get trailersDistinct(): NodeJS.Dict<string[]> {
     throw new Error('Method not implemented')
   }
 
@@ -147,6 +165,18 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
       this.on('end', () => resolve(true))
       this.on('error', (err) => reject(err))
     })
+  }
+
+  public appendHeader(name: string, value: string | string[]): this {
+    if (Array.isArray(value)) {
+      for (const v of value) {
+        this.headers.append(name, v)
+      }
+    } else {
+      this.headers.append(name, value)
+    }
+
+    return this
   }
 
   /**
@@ -276,7 +306,7 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
     return Array.from(this.headers.keys())
   }
 
-  public setHeader(name: string, value: OutgoingHttpHeader): void {
+  public setHeader(name: string, value: OutgoingHttpHeader) {
     if (Array.isArray(value)) {
       // Because `set` here should override any existing values, we need to
       // delete the existing values before setting the new ones via `append`.
@@ -290,6 +320,8 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
     } else {
       this.headers.set(name, value)
     }
+
+    return this
   }
 
   public removeHeader(name: string): void {
@@ -298,6 +330,18 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
 
   // The following methods are not implemented as they are not used in the
   // Next.js codebase.
+
+  public get strictContentLength(): boolean {
+    throw new Error('Method not implemented.')
+  }
+
+  public writeEarlyHints() {
+    throw new Error('Method not implemented.')
+  }
+
+  public get req(): IncomingMessage {
+    throw new Error('Method not implemented.')
+  }
 
   public assignSocket() {
     throw new Error('Method not implemented.')
