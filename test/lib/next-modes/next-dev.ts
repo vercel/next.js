@@ -25,7 +25,7 @@ export class NextDevInstance extends NextInstance {
     const useTurbo = !process.env.TEST_WASM && (this as any).turbo
 
     let startArgs = [
-      'yarn',
+      'pnpm',
       'next',
       useTurbo ? '--turbo' : undefined,
       useDirArg && this.testDir,

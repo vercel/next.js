@@ -19,6 +19,21 @@ export class NextStartInstance extends NextInstance {
 
   public async setup(parentSpan: Span) {
     await super.createTestDir({ parentSpan })
+
+    this._cliOutput = ''
+
+    this.spawnOpts = {
+      cwd: this.testDir,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: false,
+      env: {
+        ...process.env,
+        ...this.env,
+        NODE_ENV: '' as any,
+        PORT: this.forcedPort || '0',
+        __NEXT_TEST_MODE: '1',
+      },
+    }
   }
 
   private handleStdio = (childProcess) => {
@@ -40,21 +55,8 @@ export class NextStartInstance extends NextInstance {
     if (this.childProcess) {
       throw new Error('next already started')
     }
-    this._cliOutput = ''
-    this.spawnOpts = {
-      cwd: this.testDir,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      shell: false,
-      env: {
-        ...process.env,
-        ...this.env,
-        NODE_ENV: '' as any,
-        PORT: this.forcedPort || '0',
-        __NEXT_TEST_MODE: 'e2e',
-      },
-    }
-    let buildArgs = ['yarn', 'next', 'build']
-    let startArgs = ['yarn', 'next', 'start']
+    let buildArgs = ['pnpm', 'next', 'build']
+    let startArgs = ['pnpm', 'next', 'start']
 
     if (this.buildCommand) {
       buildArgs = this.buildCommand.split(' ')
