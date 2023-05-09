@@ -7,7 +7,6 @@ import {
   killApp,
   findPort,
   nextBuild,
-  initNextServerScript,
   renderViaHTTP,
   nextStart,
   waitFor,
@@ -15,7 +14,6 @@ import {
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
-const nextConfigPath = join(appDir, 'next.config.js')
 let appPort
 let buildId
 let app
@@ -29,13 +27,7 @@ const checkAsPath = async (urlPath, expectedAsPath) => {
   expect(asPath).toBe(expectedAsPath)
 }
 
-const runTests = (isServerless) => {
-  if (isServerless) {
-    it('should render with correct asPath with /index requested', async () => {
-      await checkAsPath('/index', '/')
-    })
-  }
-
+const runTests = () => {
   it('should render with correct asPath with /_next/data /index requested', async () => {
     stdout = ''
     const path = `/_next/data/${buildId}/index.json`
@@ -78,45 +70,6 @@ const runTests = (isServerless) => {
 }
 
 describe('Revalidate asPath Normalizing', () => {
-  describe('raw serverless mode', () => {
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      await fs.writeFile(
-        nextConfigPath,
-        `
-          module.exports = {
-            target: 'experimental-serverless-trace'
-          }
-        `
-      )
-      appPort = await findPort()
-      await nextBuild(appDir)
-
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-
-      app = await initNextServerScript(
-        join(appDir, 'server.js'),
-        /ready on/,
-        {
-          ...process.env,
-          PORT: appPort,
-          BUILD_ID: buildId,
-        },
-        /error/,
-        {
-          onStdout(msg) {
-            stdout += msg || ''
-          },
-        }
-      )
-    })
-    afterAll(async () => {
-      await killApp(app)
-      await fs.remove(nextConfigPath)
-    })
-    runTests()
-  })
-
   describe('server mode', () => {
     beforeAll(async () => {
       await fs.remove(join(appDir, '.next'))

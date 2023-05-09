@@ -70,7 +70,7 @@ describe('Client Navigation', () => {
 
     it('should not throw error when one number type child is provided', async () => {
       const browser = await webdriver(context.appPort, '/link-number-child')
-      expect(await hasRedbox(browser)).toBe(false)
+      expect(await hasRedbox(browser, false)).toBe(false)
       if (browser) await browser.close()
     })
 
@@ -234,6 +234,18 @@ describe('Client Navigation', () => {
       expect(counterText).toBe('Counter: 1')
       await browser.close()
     })
+
+    it('should not reload when link in svg is clicked', async () => {
+      const browser = await webdriver(context.appPort, '/nav')
+      await browser.eval('window.hello = true')
+      await browser
+        .elementByCss('#in-svg-link')
+        .click()
+        .waitForElementByCss('.nav-about')
+
+      expect(await browser.eval('window.hello')).toBe(true)
+      await browser.close()
+    })
   })
 
   describe('with unexpected <a/> nested tag', () => {
@@ -270,7 +282,7 @@ describe('Client Navigation', () => {
       try {
         browser = await webdriver(context.appPort, '/nav')
         await browser.elementByCss('#empty-props').click()
-        expect(await hasRedbox(browser)).toBe(true)
+        expect(await hasRedbox(browser, true)).toBe(true)
         expect(await getRedboxHeader(browser)).toMatch(
           /should resolve to an object\. But found "null" instead\./
         )
@@ -1362,7 +1374,7 @@ describe('Client Navigation', () => {
       let browser
       try {
         browser = await webdriver(context.appPort, '/error-inside-browser-page')
-        expect(await hasRedbox(browser)).toBe(true)
+        expect(await hasRedbox(browser, true)).toBe(true)
         const text = await getRedboxSource(browser)
         expect(text).toMatch(/An Expected error occurred/)
         expect(text).toMatch(/pages[\\/]error-inside-browser-page\.js \(5:12\)/)
@@ -1380,7 +1392,7 @@ describe('Client Navigation', () => {
           context.appPort,
           '/error-in-the-browser-global-scope'
         )
-        expect(await hasRedbox(browser)).toBe(true)
+        expect(await hasRedbox(browser, true)).toBe(true)
         const text = await getRedboxSource(browser)
         expect(text).toMatch(/An Expected error occurred/)
         expect(text).toMatch(/error-in-the-browser-global-scope\.js \(2:8\)/)
@@ -1658,7 +1670,7 @@ describe('Client Navigation', () => {
         await browser.waitForElementByCss('.nav-about')
         await browser.back()
         await waitFor(1000)
-        expect(await hasRedbox(browser)).toBe(false)
+        expect(await hasRedbox(browser, false)).toBe(false)
       } finally {
         if (browser) {
           await browser.close()
@@ -1678,7 +1690,7 @@ describe('Client Navigation', () => {
         await browser.waitForElementByCss('.nav-about')
         await browser.back()
         await waitFor(1000)
-        expect(await hasRedbox(browser)).toBe(false)
+        expect(await hasRedbox(browser, false)).toBe(false)
       } finally {
         if (browser) {
           await browser.close()
@@ -1696,7 +1708,7 @@ describe('Client Navigation', () => {
         await browser.waitForElementByCss('.nav-about')
         await browser.back()
         await waitFor(1000)
-        expect(await hasRedbox(browser)).toBe(false)
+        expect(await hasRedbox(browser, false)).toBe(false)
       } finally {
         if (browser) {
           await browser.close()
@@ -1741,7 +1753,7 @@ describe('Client Navigation', () => {
 
     await browser.eval(`(function() {
       window.routeErrors = []
-      
+
       window.next.router.events.on('routeChangeError', function (err) {
         window.routeErrors.push(err)
       })

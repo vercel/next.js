@@ -18,13 +18,9 @@ describe('next.config.js validation', () => {
         }
       `,
       outputs: [
-        '/images/loader',
-        'must be equal to one of the allowed values',
-        'imgix',
-        '/rewrites',
-        'must pass \\"isFunction\\" keyword validation',
-        '/swcMinify',
-        'must be boolean',
+        'The value at .images.loader must be one of',
+        'The value at .rewrites must be a function that returns a Promise',
+        'The value at .swcMinify must be a boolean but it was a string',
       ],
     },
     {
@@ -38,10 +34,8 @@ describe('next.config.js validation', () => {
         }
       `,
       outputs: [
-        'nonExistent',
-        'must NOT have additional properties',
-        'anotherNonExistent',
-        'must NOT have additional properties',
+        'The root value has an unexpected property, nonExistent,',
+        'The value at .experimental has an unexpected property, anotherNonExistent',
       ],
     },
   ])(

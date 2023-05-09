@@ -1,4 +1,4 @@
-import rule from '@next/eslint-plugin-next/lib/rules/google-font-display'
+import rule from '@next/eslint-plugin-next/dist/rules/google-font-display'
 import { RuleTester } from 'eslint'
 ;(RuleTester as any).setDefaultConfig({
   parserOptions: {
@@ -47,6 +47,27 @@ ruleTester.run('google-font-display', rule, {
               <link
                 href="https://fonts.googleapis.com/css?family=Krona+One&display=swap"
                 rel="stylesheet"
+              />
+            </Head>
+          </Html>
+        );
+      }
+     }
+
+     export default MyDocument;
+    `,
+
+    `import Document, { Html, Head } from "next/document";
+
+     class MyDocument extends Document {
+      render() {
+        return (
+          <Html>
+            <Head>
+              <link
+                href="https://fonts.googleapis.com/css?family=Krona+One&display=swap"
+                rel="stylesheet"
+                crossOrigin=""
               />
             </Head>
           </Html>

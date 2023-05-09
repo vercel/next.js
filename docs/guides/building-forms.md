@@ -13,7 +13,7 @@ This guide will teach you how to create a web form with Next.js.
 
 HTML forms are built using the `<form>` tag. It takes a set of attributes and fields to structure the form for features like text fields, checkboxes, dropdown menus, buttons, radio buttons, etc.
 
-Here's the syntax of a HTML form:
+Here's the syntax of an HTML form:
 
 ```html
 <!-- Basic HTML Form -->
@@ -217,9 +217,9 @@ If you submit this form, it will submit the data to the forms API endpoint `/api
 
 ## Part 4: Configuring Forms in Next.js
 
-You have created a Next.js API Route for form submission. Now it's time to configure the client (the form itself) inside Next.js using React. The first step will be extending your knowledge of HTML forms and converting it into React (using [JSX](https://reactjs.org/docs/introducing-jsx.html)).
+You have created a Next.js API Route for form submission. Now it's time to configure the client (the form itself) inside Next.js using React. The first step will be extending your knowledge of HTML forms and converting it into React (using [JSX](https://react.dev/learn/writing-markup-with-jsx)).
 
-Here's the same form in a [React function component](https://reactjs.org/docs/components-and-props.html) written using [JSX](https://reactjs.org/docs/introducing-jsx.html).
+Here's the same form in a [React function component](https://react.dev/reference/react/Component) written using [JSX](https://react.dev/learn/writing-markup-with-jsx).
 
 ```js
 export default function Form() {

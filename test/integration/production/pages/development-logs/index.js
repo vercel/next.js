@@ -4,7 +4,7 @@ export default function IndexPage() {
   return (
     <div>
       <Link href="/about" prefetch>
-        <a>To About Page</a>
+        To About Page
       </Link>
     </div>
   )

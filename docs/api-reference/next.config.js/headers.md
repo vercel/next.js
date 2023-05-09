@@ -54,6 +54,7 @@ module.exports = {
 - `basePath`: `false` or `undefined` - if false the basePath won't be included when matching, can be used for external rewrites only.
 - `locale`: `false` or `undefined` - whether the locale should not be included when matching.
 - `has` is an array of [has objects](#header-cookie-and-query-matching) with the `type`, `key` and `value` properties.
+- `missing` is an array of [missing objects](#header-cookie-and-query-matching) with the `type`, `key` and `value` properties.
 
 Headers are checked before the filesystem which includes pages and `/public` files.
 
@@ -185,9 +186,9 @@ module.exports = {
 
 ## Header, Cookie, and Query Matching
 
-To only apply a header when either header, cookie, or query values also match the `has` field can be used. Both the `source` and all `has` items must match for the header to be applied.
+To only apply a header when header, cookie, or query values also match the `has` field or don't match the `missing` field can be used. Both the `source` and all `has` items must match and all `missing` items must not match for the header to be applied.
 
-`has` items have the following fields:
+`has` and `missing` items can have the following fields:
 
 - `type`: `String` - must be either `header`, `cookie`, `host`, or `query`.
 - `key`: `String` - the key from the selected type to match against.
@@ -205,6 +206,23 @@ module.exports = {
           {
             type: 'header',
             key: 'x-add-header',
+          },
+        ],
+        headers: [
+          {
+            key: 'x-another-header',
+            value: 'hello',
+          },
+        ],
+      },
+      // if the header `x-no-header` is not present,
+      // the `x-another-header` header will be applied
+      {
+        source: '/:path*',
+        missing: [
+          {
+            type: 'header',
+            key: 'x-no-header',
           },
         ],
         headers: [
@@ -398,6 +416,6 @@ For more information, we recommend the following sections:
 <div class="card">
   <a href="/docs/advanced-features/security-headers.md">
     <b>Security Headers:</b>
-    <small>Improve the security of your Next.js application by add HTTP response headers.</small>
+    <small>Improve the security of your Next.js application by adding HTTP response headers.</small>
   </a>
 </div>

@@ -1,0 +1,11 @@
+/**
+ * @license React
+ * react-dom-server-rendering-stub.production.min.js
+ *
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+'use strict';var d={usingClientEntryPoint:!1,Events:null,Dispatcher:{current:null}};function e(c){for(var b="https://reactjs.org/docs/error-decoder.html?invariant="+c,a=1;a<arguments.length;a++)b+="&args[]="+encodeURIComponent(arguments[a]);return"Minified React error #"+c+"; visit "+b+" for the full message or use the non-minified dev environment for full errors and additional helpful warnings."}var f=d.Dispatcher;exports.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED=d;
+exports.createPortal=function(){throw Error(e(448));};exports.experimental_useFormStatus=function(){throw Error(e(248));};exports.flushSync=function(){throw Error(e(449));};exports.preconnect=function(c,b){var a=f.current;a&&a.preconnect(c,b)};exports.prefetchDNS=function(c){var b=f.current;b&&b.prefetchDNS(c)};exports.preinit=function(c,b){var a=f.current;a&&a.preinit(c,b)};exports.preload=function(c,b){var a=f.current;a&&a.preload(c,b)};exports.version="18.3.0-canary-16d053d59-20230506";

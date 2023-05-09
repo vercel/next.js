@@ -8,7 +8,6 @@ description: Next.js supports API Routes, which allow you to build your API with
   <summary><b>Examples</b></summary>
   <ul>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/api-routes">Basic API Routes</a></li>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/api-routes-middleware">API Routes with middleware</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/api-routes-graphql">API Routes with GraphQL</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/api-routes-rest">API Routes with REST</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/api-routes-cors">API Routes with CORS</a></li>
@@ -31,7 +30,7 @@ export default function handler(req, res) {
 
 For an API route to work, you need to export a function as default (a.k.a **request handler**), which then receives the following parameters:
 
-- `req`: An instance of [http.IncomingMessage](https://nodejs.org/api/http.html#class-httpincomingmessage), plus some [pre-built middlewares](/docs/api-routes/api-middlewares.md)
+- `req`: An instance of [http.IncomingMessage](https://nodejs.org/api/http.html#class-httpincomingmessage), plus some [pre-built middlewares](/docs/api-routes/request-helpers.md)
 - `res`: An instance of [http.ServerResponse](https://nodejs.org/api/http.html#class-httpserverresponse), plus some [helper functions](/docs/api-routes/response-helpers.md)
 
 To handle different HTTP methods in an API route, you can use `req.method` in your request handler, like so:
@@ -57,17 +56,17 @@ For new projects, you can build your entire API with API Routes. If you have an 
 
 ## Caveats
 
-- API Routes [do not specify CORS headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS), meaning they are **same-origin only** by default. You can customize such behavior by wrapping the request handler with the [CORS middleware](/docs/api-routes/api-middlewares.md#connectexpress-middleware-support).
-- API Routes can't be used with [`next export`](/docs/advanced-features/static-html-export.md)
+- API Routes [do not specify CORS headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS), meaning they are **same-origin only** by default. You can customize such behavior by wrapping the request handler with the [CORS request helpers](https://github.com/vercel/next.js/tree/canary/examples/api-routes-cors).
+- API Routes can't be used with [`output: 'export'`](/docs/advanced-features/static-html-export.md)
 
 ## Related
 
 For more information on what to do next, we recommend the following sections:
 
 <div class="card">
-  <a href="/docs/api-routes/api-middlewares.md">
-    <b>API Middlewares:</b>
-    <small>learn about the built-in middlewares for the request.</small>
+  <a href="/docs/api-routes/request-helpers.md">
+    <b>API Routes Request Helpers:</b>
+    <small>learn about the built-in helpers for the request.</small>
   </a>
 </div>
 

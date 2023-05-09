@@ -1,0 +1,29 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`basic HMR, basePath: "" Error Recovery should recover after loader parse error in an imported file 2`] = `
+"./components/parse-error.js
+Error: 
+  x Expression expected
+   ,-[1:1]
+ 1 | This
+ 2 | is
+ 3 | }}}
+   : ^
+ 4 | invalid
+ 5 | js
+   "
+`;
+
+exports[`basic HMR, basePath: "/docs" Error Recovery should recover after loader parse error in an imported file 2`] = `
+"./components/parse-error.js
+Error: 
+  x Expression expected
+   ,-[1:1]
+ 1 | This
+ 2 | is
+ 3 | }}}
+   : ^
+ 4 | invalid
+ 5 | js
+   "
+`;

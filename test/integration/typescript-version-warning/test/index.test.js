@@ -4,7 +4,7 @@ import { join } from 'path'
 import { nextBuild, findPort, launchApp, killApp } from 'next-test-utils'
 
 const appDir = join(__dirname, '../app')
-const tsFile = join(appDir, 'node_modules/typescript/index.js')
+const tsFile = join(appDir, 'node_modules/typescript/lib/typescript.js')
 
 describe('Minimum TypeScript Warning', () => {
   it('should show warning during next build with old version', async () => {
@@ -34,7 +34,7 @@ describe('Minimum TypeScript Warning', () => {
 
   it('should not show warning during next build with new version', async () => {
     const content = await fs.readFile(tsFile, 'utf8')
-    await fs.writeFile(tsFile, content.replace('3.8.3', '4.3.4'))
+    await fs.writeFile(tsFile, content.replace('3.8.3', '4.5.2'))
     const res = await nextBuild(appDir, [], {
       stderr: true,
       stdout: true,
@@ -53,7 +53,7 @@ describe('Minimum TypeScript Warning', () => {
       output += msg
     }
     const content = await fs.readFile(tsFile, 'utf8')
-    await fs.writeFile(tsFile, content.replace('3.8.3', '4.3.4'))
+    await fs.writeFile(tsFile, content.replace('3.8.3', '4.5.2'))
     const app = await launchApp(appDir, await findPort(), {
       onStdout: handleOutput,
       onStderr: handleOutput,

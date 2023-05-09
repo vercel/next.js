@@ -1,4 +1,4 @@
-export const config = { runtime: 'experimental-edge' }
+export const config = { runtime: 'edge' }
 
 /**
  * @param {import('next/server').NextRequest} req
@@ -38,20 +38,14 @@ const handlers = new Map([
     'remote-full',
     async () => {
       const url = new URL('https://example.vercel.sh')
-      const response = await fetch(url)
-      const headers = new Headers(response.headers)
-      headers.delete('content-encoding')
-      return new Response(response.body, { headers, status: response.status })
+      return fetch(url)
     },
   ],
   [
     'remote-with-base',
     async () => {
       const url = new URL('/', 'https://example.vercel.sh')
-      const response = await fetch(url)
-      const headers = new Headers(response.headers)
-      headers.delete('content-encoding')
-      return new Response(response.body, { headers, status: response.status })
+      return fetch(url)
     },
   ],
 ])

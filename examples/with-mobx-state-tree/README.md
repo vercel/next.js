@@ -1,4 +1,4 @@
-# MobX State Tree example
+# MobX State Tree with TypeScript example
 
 Usually splitting your app state into `pages` feels natural but sometimes you'll want to have global state for your app. This is an example on how you can use mobx that also works with our universal rendering approach.
 
@@ -14,7 +14,7 @@ The clock, under `components/Clock.js`, has access to the state using the `injec
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-mobx-state-tree)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-mobx-state-tree&project-name=with-mobx-state-tree&repository-name=with-mobx-state-tree)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-mobx-state-tree&project-name=with-mobx-state-tree&repository-name=with-mobx-state-tree)
 
 ## How to use
 

@@ -20,6 +20,15 @@ module.exports = {
           source: '/afterfiles-rewrite-ssg',
           destination: '/fallback-true-blog/first',
         },
+        {
+          source: '/config-rewrite-to-dynamic-static/:rewriteSlug',
+          destination: '/ssg',
+        },
+        {
+          source: '/external-rewrite-body',
+          destination:
+            'https://next-data-api-endpoint.vercel.app/api/echo-body',
+        },
       ],
       fallback: [],
     }

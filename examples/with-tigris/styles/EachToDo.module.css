@@ -1,0 +1,58 @@
+.each {
+  display: flex;
+  flex-direction: row;
+  border-bottom: 1px solid #dddddd;
+  padding: 10px 25px;
+  animation: fadeInAnimation 0.4s cubic-bezier(0.62, 0.57, 0, 1.02);
+}
+.each:last-child {
+  border-bottom: none;
+}
+
+.eachButton {
+  background-color: transparent !important;
+  width: 100%;
+  text-align: left;
+  vertical-align: middle;
+  padding: 0 !important;
+}
+
+.eachButton:hover img {
+  content: url('/circle-checked.svg');
+}
+
+.eachButton:hover span {
+  text-decoration: line-through;
+}
+
+.each span {
+  vertical-align: middle;
+  padding-left: 10px;
+  font-size: 14px;
+}
+
+.deleteBtn {
+  background-color: transparent !important;
+  text-align: center !important;
+  min-width: 20px !important;
+  padding: 10px !important;
+}
+
+.deleteBtn:hover,
+.deleteBtn:focus,
+.deleteBtn:active,
+.deleteBtn:focus-visible {
+  filter: brightness(0) saturate(100%) invert(98%) sepia(27%) saturate(4410%)
+    hue-rotate(308deg) brightness(115%) contrast(98%);
+}
+
+@keyframes fadeInAnimation {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

@@ -2,45 +2,27 @@ import crypto from 'crypto'
 import { getClient } from './api'
 import { CMS_LANG, CMS_CHANNEL } from './constants'
 
-//Validates whether the incoming preview request is valid
-export async function validatePreview({ agilityPreviewKey, slug, contentID }) {
-  //Validate the preview key
-  if (!agilityPreviewKey) {
-    return {
-      error: true,
-      message: `Missing agilitypreviewkey.`,
-    }
+//Generates a preview key to compare against
+export function generatePreviewKey() {
+  //the string we want to encode
+  const str = `-1_${process.env.AGILITY_CMS_SECURITY_KEY}_Preview`
+
+  //build our byte array
+  let data = []
+  for (var i = 0; i < str.length; ++i) {
+    data.push(str.charCodeAt(i))
+    data.push(0)
   }
 
-  //sanitize incoming key (replace spaces with '+')
-  if (agilityPreviewKey.indexOf(` `) > -1) {
-    agilityPreviewKey = agilityPreviewKey.split(` `).join(`+`)
-  }
+  //convert byte array to buffer
+  const strBuffer = Buffer.from(data)
+  //encode it!
+  const previewKey = crypto
+    .createHash('sha512')
+    .update(strBuffer)
+    .digest('base64')
 
-  //compare the preview key being used
-  const correctPreviewKey = generatePreviewKey()
-
-  if (agilityPreviewKey !== correctPreviewKey) {
-    return {
-      error: true,
-      message: `Invalid agilitypreviewkey.`,
-      //message: `Invalid agilitypreviewkey. Incoming key is=${agilityPreviewKey} compared to=${correctPreviewKey}...`
-    }
-  }
-
-  const validateSlugResponse = await validateSlugForPreview({ slug, contentID })
-
-  if (validateSlugResponse.error) {
-    //kickout
-    return validateSlugResponse
-  }
-
-  //return success
-  return {
-    error: false,
-    message: null,
-    slug: validateSlugResponse.slug,
-  }
+  return previewKey
 }
 
 //Checks that the requested page exists, if not return a 401
@@ -95,25 +77,43 @@ export async function validateSlugForPreview({ slug, contentID }) {
   }
 }
 
-//Generates a preview key to compare against
-export function generatePreviewKey() {
-  //the string we want to encode
-  const str = `-1_${process.env.AGILITY_CMS_SECURITY_KEY}_Preview`
-
-  //build our byte array
-  let data = []
-  for (var i = 0; i < str.length; ++i) {
-    data.push(str.charCodeAt(i))
-    data.push(0)
+//Validates whether the incoming preview request is valid
+export async function validatePreview({ agilityPreviewKey, slug, contentID }) {
+  //Validate the preview key
+  if (!agilityPreviewKey) {
+    return {
+      error: true,
+      message: `Missing agilitypreviewkey.`,
+    }
   }
 
-  //convert byte array to buffer
-  const strBuffer = Buffer.from(data)
-  //encode it!
-  const previewKey = crypto
-    .createHash('sha512')
-    .update(strBuffer)
-    .digest('base64')
+  //sanitize incoming key (replace spaces with '+')
+  if (agilityPreviewKey.includes(` `)) {
+    agilityPreviewKey = agilityPreviewKey.split(` `).join(`+`)
+  }
 
-  return previewKey
+  //compare the preview key being used
+  const correctPreviewKey = generatePreviewKey()
+
+  if (agilityPreviewKey !== correctPreviewKey) {
+    return {
+      error: true,
+      message: `Invalid agilitypreviewkey.`,
+      //message: `Invalid agilitypreviewkey. Incoming key is=${agilityPreviewKey} compared to=${correctPreviewKey}...`
+    }
+  }
+
+  const validateSlugResponse = await validateSlugForPreview({ slug, contentID })
+
+  if (validateSlugResponse.error) {
+    //kickout
+    return validateSlugResponse
+  }
+
+  //return success
+  return {
+    error: false,
+    message: null,
+    slug: validateSlugResponse.slug,
+  }
 }

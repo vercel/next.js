@@ -27,7 +27,7 @@ let buildId
 const appDir = join(__dirname, '../')
 const buildIdPath = join(appDir, '.next/BUILD_ID')
 
-function runTests({ dev, serverless }) {
+function runTests({ dev }) {
   if (!dev) {
     it('should have correct cache entries on prefetch', async () => {
       const browser = await webdriver(appPort, '/')
@@ -53,7 +53,6 @@ function runTests({ dev, serverless }) {
               '/_next/data/BUILD_ID/added-later/first.json?name=added-later&comment=first',
               '/_next/data/BUILD_ID/blog/321/comment/123.json?name=321&id=123',
               '/_next/data/BUILD_ID/d/dynamic-1.json?id=dynamic-1',
-              '/_next/data/BUILD_ID/index.json',
               '/_next/data/BUILD_ID/on-mount/test-w-hash.json?post=test-w-hash',
               '/_next/data/BUILD_ID/p1/p2/all-ssg/hello.json?rest=hello',
               '/_next/data/BUILD_ID/p1/p2/all-ssg/hello1/hello2.json?rest=hello1&rest=hello2',
@@ -117,7 +116,16 @@ function runTests({ dev, serverless }) {
         await browser.waitForElementByCss(linkSelector)
       }
       const newCacheKeys = await getCacheKeys()
-      expect(newCacheKeys).toEqual(cacheKeys)
+      expect(newCacheKeys).toEqual(
+        [
+          ...(process.env.__MIDDLEWARE_TEST
+            ? // data route is fetched with middleware due to query hydration
+              // since middleware matches the index route
+              ['/_next/data/BUILD_ID/index.json']
+            : []),
+          ...cacheKeys,
+        ].sort()
+      )
     })
   }
 
@@ -1122,7 +1130,13 @@ function runTests({ dev, serverless }) {
         found++
       }
     }
-    expect(found).toBe(0)
+
+    try {
+      expect(found).toBe(0)
+    } catch (err) {
+      require('console').error(html)
+      throw err
+    }
   })
 
   if (dev) {
@@ -1165,7 +1179,7 @@ function runTests({ dev, serverless }) {
         await browser
           .elementByCss('#view-post-1-interpolated-incorrectly')
           .click()
-        expect(await hasRedbox(browser)).toBe(true)
+        expect(await hasRedbox(browser, true)).toBe(true)
         const header = await getRedboxHeader(browser)
         expect(header).toContain(
           'The provided `href` (/[name]?another=value) value is missing query values (name) to be interpolated properly.'
@@ -1243,10 +1257,10 @@ function runTests({ dev, serverless }) {
             )}\\/b\\/([^\\/]+?)\\.json$`,
             namedDataRouteRegex: `^/_next/data/${escapeRegex(
               buildId
-            )}/b/(?<a>[^/]+?)\\.json$`,
+            )}/b/(?<nxtP123>[^/]+?)\\.json$`,
             page: '/b/[123]',
             routeKeys: {
-              a: '123',
+              nxtP123: 'nxtP123',
             },
           },
           {
@@ -1258,13 +1272,13 @@ function runTests({ dev, serverless }) {
             )}/c/(?<a>[^/]+?)\\.json$`,
             page: '/c/[alongparamnameshouldbeallowedeventhoughweird]',
             routeKeys: {
-              a: 'alongparamnameshouldbeallowedeventhoughweird',
+              a: 'nxtPalongparamnameshouldbeallowedeventhoughweird',
             },
           },
           {
             namedDataRouteRegex: `^/_next/data/${escapeRegex(
               buildId
-            )}/p1/p2/all\\-ssg/(?<rest>.+?)\\.json$`,
+            )}/p1/p2/all\\-ssg/(?<nxtPrest>.+?)\\.json$`,
             dataRouteRegex: normalizeRegEx(
               `^\\/_next\\/data\\/${escapeRegex(
                 buildId
@@ -1272,13 +1286,13 @@ function runTests({ dev, serverless }) {
             ),
             page: '/p1/p2/all-ssg/[...rest]',
             routeKeys: {
-              rest: 'rest',
+              nxtPrest: 'nxtPrest',
             },
           },
           {
             namedDataRouteRegex: `^/_next/data/${escapeRegex(
               buildId
-            )}/p1/p2/nested\\-all\\-ssg/(?<rest>.+?)\\.json$`,
+            )}/p1/p2/nested\\-all\\-ssg/(?<nxtPrest>.+?)\\.json$`,
             dataRouteRegex: normalizeRegEx(
               `^\\/_next\\/data\\/${escapeRegex(
                 buildId
@@ -1286,13 +1300,13 @@ function runTests({ dev, serverless }) {
             ),
             page: '/p1/p2/nested-all-ssg/[...rest]',
             routeKeys: {
-              rest: 'rest',
+              nxtPrest: 'nxtPrest',
             },
           },
           {
             namedDataRouteRegex: `^/_next/data/${escapeRegex(
               buildId
-            )}/p1/p2/predefined\\-ssg/(?<rest>.+?)\\.json$`,
+            )}/p1/p2/predefined\\-ssg/(?<nxtPrest>.+?)\\.json$`,
             dataRouteRegex: normalizeRegEx(
               `^\\/_next\\/data\\/${escapeRegex(
                 buildId
@@ -1300,28 +1314,28 @@ function runTests({ dev, serverless }) {
             ),
             page: '/p1/p2/predefined-ssg/[...rest]',
             routeKeys: {
-              rest: 'rest',
+              nxtPrest: 'nxtPrest',
             },
           },
         ],
         dynamicRoutes: [
           {
-            namedRegex: '^/b/(?<a>[^/]+?)(?:/)?$',
+            namedRegex: '^/b/(?<nxtP123>[^/]+?)(?:/)?$',
             page: '/b/[123]',
             regex: normalizeRegEx('^\\/b\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
-              a: '123',
+              nxtP123: 'nxtP123',
             },
           },
           {
-            namedRegex: `^/blog/(?<name>[^/]+?)/comment/(?<id>[^/]+?)(?:/)?$`,
+            namedRegex: `^/blog/(?<nxtPname>[^/]+?)/comment/(?<nxtPid>[^/]+?)(?:/)?$`,
             page: '/blog/[name]/comment/[id]',
             regex: normalizeRegEx(
               '^\\/blog\\/([^\\/]+?)\\/comment\\/([^\\/]+?)(?:\\/)?$'
             ),
             routeKeys: {
-              name: 'name',
-              id: 'id',
+              nxtPname: 'nxtPname',
+              nxtPid: 'nxtPid',
             },
           },
           {
@@ -1329,160 +1343,163 @@ function runTests({ dev, serverless }) {
             page: '/c/[alongparamnameshouldbeallowedeventhoughweird]',
             regex: normalizeRegEx('^\\/c\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
-              a: 'alongparamnameshouldbeallowedeventhoughweird',
+              a: 'nxtPalongparamnameshouldbeallowedeventhoughweird',
             },
           },
           {
-            namedRegex: '^/catchall\\-dash/(?<helloworld>.+?)(?:/)?$',
+            namedRegex: '^/catchall\\-dash/(?<nxtPhelloworld>.+?)(?:/)?$',
             page: '/catchall-dash/[...hello-world]',
             regex: normalizeRegEx('^\\/catchall\\-dash\\/(.+?)(?:\\/)?$'),
             routeKeys: {
-              helloworld: 'hello-world',
+              nxtPhelloworld: 'nxtPhello-world',
             },
           },
           {
-            namedRegex: '^/d/(?<id>[^/]+?)(?:/)?$',
+            namedRegex: '^/d/(?<nxtPid>[^/]+?)(?:/)?$',
             page: '/d/[id]',
             regex: normalizeRegEx('^\\/d\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
-              id: 'id',
+              nxtPid: 'nxtPid',
             },
           },
           {
-            namedRegex: '^/dash/(?<helloworld>[^/]+?)(?:/)?$',
+            namedRegex: '^/dash/(?<nxtPhelloworld>[^/]+?)(?:/)?$',
             page: '/dash/[hello-world]',
             regex: normalizeRegEx('^\\/dash\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
-              helloworld: 'hello-world',
+              nxtPhelloworld: 'nxtPhello-world',
             },
           },
           {
-            namedRegex: '^/index/(?<slug>.+?)(?:/)?$',
+            namedRegex: '^/index/(?<nxtPslug>.+?)(?:/)?$',
             page: '/index/[...slug]',
             regex: normalizeRegEx('^/index/(.+?)(?:/)?$'),
             routeKeys: {
-              slug: 'slug',
+              nxtPslug: 'nxtPslug',
             },
           },
           {
-            namedRegex: `^/on\\-mount/(?<post>[^/]+?)(?:/)?$`,
+            namedRegex: `^/on\\-mount/(?<nxtPpost>[^/]+?)(?:/)?$`,
             page: '/on-mount/[post]',
             regex: normalizeRegEx('^\\/on\\-mount\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
-              post: 'post',
+              nxtPpost: 'nxtPpost',
             },
           },
           {
-            namedRegex: `^/p1/p2/all\\-ssg/(?<rest>.+?)(?:/)?$`,
+            namedRegex: `^/p1/p2/all\\-ssg/(?<nxtPrest>.+?)(?:/)?$`,
             page: '/p1/p2/all-ssg/[...rest]',
             regex: normalizeRegEx('^\\/p1\\/p2\\/all\\-ssg\\/(.+?)(?:\\/)?$'),
             routeKeys: {
-              rest: 'rest',
+              nxtPrest: 'nxtPrest',
             },
           },
           {
-            namedRegex: `^/p1/p2/all\\-ssr/(?<rest>.+?)(?:/)?$`,
+            namedRegex: `^/p1/p2/all\\-ssr/(?<nxtPrest>.+?)(?:/)?$`,
             page: '/p1/p2/all-ssr/[...rest]',
             regex: normalizeRegEx('^\\/p1\\/p2\\/all\\-ssr\\/(.+?)(?:\\/)?$'),
             routeKeys: {
-              rest: 'rest',
+              nxtPrest: 'nxtPrest',
             },
           },
           {
-            namedRegex: `^/p1/p2/nested\\-all\\-ssg/(?<rest>.+?)(?:/)?$`,
+            namedRegex: `^/p1/p2/nested\\-all\\-ssg/(?<nxtPrest>.+?)(?:/)?$`,
             page: '/p1/p2/nested-all-ssg/[...rest]',
             regex: normalizeRegEx(
               '^\\/p1\\/p2\\/nested\\-all\\-ssg\\/(.+?)(?:\\/)?$'
             ),
             routeKeys: {
-              rest: 'rest',
+              nxtPrest: 'nxtPrest',
             },
           },
           {
-            namedRegex: `^/p1/p2/predefined\\-ssg/(?<rest>.+?)(?:/)?$`,
+            namedRegex: `^/p1/p2/predefined\\-ssg/(?<nxtPrest>.+?)(?:/)?$`,
             page: '/p1/p2/predefined-ssg/[...rest]',
             regex: normalizeRegEx(
               '^\\/p1\\/p2\\/predefined\\-ssg\\/(.+?)(?:\\/)?$'
             ),
             routeKeys: {
-              rest: 'rest',
+              nxtPrest: 'nxtPrest',
             },
           },
           {
-            namedRegex: `^/(?<name>[^/]+?)(?:/)?$`,
+            namedRegex: `^/(?<nxtPname>[^/]+?)(?:/)?$`,
             page: '/[name]',
             regex: normalizeRegEx('^\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
-              name: 'name',
+              nxtPname: 'nxtPname',
             },
           },
           {
-            namedRegex: `^/(?<name>[^/]+?)/comments(?:/)?$`,
+            namedRegex: `^/(?<nxtPname>[^/]+?)/comments(?:/)?$`,
             page: '/[name]/comments',
             regex: normalizeRegEx('^\\/([^\\/]+?)\\/comments(?:\\/)?$'),
             routeKeys: {
-              name: 'name',
+              nxtPname: 'nxtPname',
             },
           },
           {
-            namedRegex: `^/(?<name>[^/]+?)/on\\-mount\\-redir(?:/)?$`,
+            namedRegex: `^/(?<nxtPname>[^/]+?)/on\\-mount\\-redir(?:/)?$`,
             page: '/[name]/on-mount-redir',
             regex: normalizeRegEx(
               '^\\/([^\\/]+?)\\/on\\-mount\\-redir(?:\\/)?$'
             ),
             routeKeys: {
-              name: 'name',
+              nxtPname: 'nxtPname',
             },
           },
           {
-            namedRegex: `^/(?<name>[^/]+?)/(?<comment>[^/]+?)(?:/)?$`,
+            namedRegex: `^/(?<nxtPname>[^/]+?)/(?<nxtPcomment>[^/]+?)(?:/)?$`,
             page: '/[name]/[comment]',
             regex: normalizeRegEx('^\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
-              name: 'name',
-              comment: 'comment',
+              nxtPname: 'nxtPname',
+              nxtPcomment: 'nxtPcomment',
             },
           },
         ],
+        rsc: {
+          header: 'RSC',
+          contentTypeHeader: 'text/x-component',
+          varyHeader: 'RSC, Next-Router-State-Tree, Next-Router-Prefetch',
+        },
       })
     })
 
-    if (!serverless) {
-      it('should output a pages-manifest correctly', async () => {
-        const manifest = await fs.readJson(
-          join(appDir, '.next/server/pages-manifest.json')
-        )
+    it('should output a pages-manifest correctly', async () => {
+      const manifest = await fs.readJson(
+        join(appDir, '.next/server/pages-manifest.json')
+      )
 
-        expect(manifest).toEqual({
-          '/[name]/[comment]': 'pages/[name]/[comment].js',
-          '/[name]/comments': 'pages/[name]/comments.js',
-          '/[name]': 'pages/[name].js',
-          '/[name]/on-mount-redir': 'pages/[name]/on-mount-redir.html',
-          '/another': 'pages/another.html',
-          '/b/[123]': 'pages/b/[123].js',
-          '/blog/[name]/comment/[id]': 'pages/blog/[name]/comment/[id].js',
-          '/c/[alongparamnameshouldbeallowedeventhoughweird]':
-            'pages/c/[alongparamnameshouldbeallowedeventhoughweird].js',
-          '/catchall-dash/[...hello-world]':
-            'pages/catchall-dash/[...hello-world].html',
-          '/d/[id]': 'pages/d/[id].html',
-          '/dash/[hello-world]': 'pages/dash/[hello-world].html',
-          '/': 'pages/index.html',
-          '/index/[...slug]': 'pages/index/[...slug].html',
-          '/on-mount/[post]': 'pages/on-mount/[post].html',
-          '/p1/p2/all-ssg/[...rest]': 'pages/p1/p2/all-ssg/[...rest].js',
-          '/p1/p2/all-ssr/[...rest]': 'pages/p1/p2/all-ssr/[...rest].js',
-          '/p1/p2/nested-all-ssg/[...rest]':
-            'pages/p1/p2/nested-all-ssg/[...rest].js',
-          '/p1/p2/predefined-ssg/[...rest]':
-            'pages/p1/p2/predefined-ssg/[...rest].js',
-          '/_app': 'pages/_app.js',
-          '/_error': 'pages/_error.js',
-          '/_document': 'pages/_document.js',
-          '/404': 'pages/404.html',
-        })
+      expect(manifest).toEqual({
+        '/[name]/[comment]': 'pages/[name]/[comment].js',
+        '/[name]/comments': 'pages/[name]/comments.js',
+        '/[name]': 'pages/[name].js',
+        '/[name]/on-mount-redir': 'pages/[name]/on-mount-redir.html',
+        '/another': 'pages/another.html',
+        '/b/[123]': 'pages/b/[123].js',
+        '/blog/[name]/comment/[id]': 'pages/blog/[name]/comment/[id].js',
+        '/c/[alongparamnameshouldbeallowedeventhoughweird]':
+          'pages/c/[alongparamnameshouldbeallowedeventhoughweird].js',
+        '/catchall-dash/[...hello-world]':
+          'pages/catchall-dash/[...hello-world].html',
+        '/d/[id]': 'pages/d/[id].html',
+        '/dash/[hello-world]': 'pages/dash/[hello-world].html',
+        '/': 'pages/index.html',
+        '/index/[...slug]': 'pages/index/[...slug].html',
+        '/on-mount/[post]': 'pages/on-mount/[post].html',
+        '/p1/p2/all-ssg/[...rest]': 'pages/p1/p2/all-ssg/[...rest].js',
+        '/p1/p2/all-ssr/[...rest]': 'pages/p1/p2/all-ssr/[...rest].js',
+        '/p1/p2/nested-all-ssg/[...rest]':
+          'pages/p1/p2/nested-all-ssg/[...rest].js',
+        '/p1/p2/predefined-ssg/[...rest]':
+          'pages/p1/p2/predefined-ssg/[...rest].js',
+        '/_app': 'pages/_app.js',
+        '/_error': 'pages/_error.js',
+        '/_document': 'pages/_document.js',
+        '/404': 'pages/404.html',
       })
-    }
+    })
   }
 }
 
@@ -1516,7 +1533,7 @@ describe('Dynamic Routing', () => {
     })
     afterAll(() => killApp(app))
 
-    runTests({ dev: true, serverless: false })
+    runTests({ dev: true })
   })
 
   describe('production mode', () => {
@@ -1531,6 +1548,6 @@ describe('Dynamic Routing', () => {
     })
     afterAll(() => killApp(app))
 
-    runTests({ dev: false, serverless: false })
+    runTests({ dev: false })
   })
 })

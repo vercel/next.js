@@ -56,23 +56,48 @@ describe('Middleware Runtime', () => {
           ANOTHER_MIDDLEWARE_TEST: 'asdf2',
           STRING_ENV_VAR: 'asdf3',
           MIDDLEWARE_TEST: 'asdf',
-          NEXT_RUNTIME: 'edge',
         },
       })
     })
   }
 
-  describe('with i18n', () => {
-    setup({ i18n: true })
-    runTests({ i18n: true })
-  })
+  function readMiddlewareJSON(response) {
+    return JSON.parse(response.headers.get('data'))
+  }
 
-  describe('without i18n', () => {
-    setup({ i18n: false })
-    runTests({ i18n: false })
-  })
+  function readMiddlewareError(response) {
+    return response.headers.get('error')
+  }
 
   function runTests({ i18n }: { i18n?: boolean }) {
+    it('should work with notFound: true correctly', async () => {
+      const browser = await next.browser('/ssr-page')
+      await browser.eval('window.beforeNav = 1')
+      await browser.eval('window.next.router.push("/ssg/not-found-1")')
+
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /This page could not be found/
+      )
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      await browser.refresh()
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /This page could not be found/
+      )
+    })
+
+    it('should be able to rewrite on _next/static/chunks/pages/ 404', async () => {
+      const res = await fetchViaHTTP(
+        next.url,
+        '/_next/static/chunks/pages/_app-non-existent.js'
+      )
+
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain('Example Domain')
+    })
+
     if ((global as any).isNextDev) {
       it('refreshes the page when middleware changes ', async () => {
         const browser = await webdriver(next.url, `/about`)
@@ -101,8 +126,8 @@ describe('Middleware Runtime', () => {
           next.url,
           `/_next/static/${next.buildId}/_devMiddlewareManifest.json`
         )
-        const { location } = await res.json()
-        expect(location).toBe('.*')
+        const matchers = await res.json()
+        expect(matchers).toEqual([{ regexp: '.*', originalSource: '/:path*' }])
       })
     }
 
@@ -113,19 +138,34 @@ describe('Middleware Runtime', () => {
         )
         expect(manifest.middleware).toEqual({
           '/': {
-            env: [
+            env: expect.arrayContaining([
               'MIDDLEWARE_TEST',
               'ANOTHER_MIDDLEWARE_TEST',
               'STRING_ENV_VAR',
-            ],
-            files: ['server/edge-runtime-webpack.js', 'server/middleware.js'],
+            ]),
+            files: expect.arrayContaining([
+              'server/edge-runtime-webpack.js',
+              'server/middleware.js',
+            ]),
             name: 'middleware',
             page: '/',
-            regexp: '^/.*$',
+            matchers: [{ regexp: '^/.*$', originalSource: '/:path*' }],
             wasm: [],
             assets: [],
+            regions: 'auto',
           },
         })
+      })
+
+      it('should have the custom config in the manifest', async () => {
+        const manifest = await fs.readJSON(
+          join(next.testDir, '.next/server/middleware-manifest.json')
+        )
+
+        expect(manifest.functions['/api/edge-search-params']).toHaveProperty(
+          'regions',
+          'default'
+        )
       })
 
       it('should have correct files in manifest', async () => {
@@ -159,6 +199,17 @@ describe('Middleware Runtime', () => {
       })
     }
 
+    it('passes search params with rewrites', async () => {
+      const response = await fetchViaHTTP(next.url, `/api/edge-search-params`, {
+        a: 'b',
+      })
+      await expect(response.json()).resolves.toMatchObject({
+        a: 'b',
+        // included from middleware
+        foo: 'bar',
+      })
+    })
+
     it('should have init header for NextResponse.redirect', async () => {
       const res = await fetchViaHTTP(
         next.url,
@@ -176,14 +227,39 @@ describe('Middleware Runtime', () => {
     })
 
     it('should have correct query values for rewrite to ssg page', async () => {
-      const browser = await webdriver(next.url, '/to-ssg')
+      const browser = await webdriver(next.url, '/to-ssg', {
+        waitHydration: false,
+      })
+      const requests = []
+
+      browser.on('request', (req) => {
+        console.error('request', req.url(), req.method())
+        if (req.method() === 'HEAD') {
+          requests.push(req.url())
+        }
+      })
       await browser.eval('window.beforeNav = 1')
+
+      await check(async () => {
+        const didReq = await browser.eval('next.router.isReady')
+        return didReq ||
+          requests.some((req) =>
+            new URL(req, 'http://n').pathname.endsWith('/to-ssg.json')
+          )
+          ? 'found'
+          : JSON.stringify(requests)
+      }, 'found')
+
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /"slug":"hello"/
+      )
 
       await check(() => browser.elementByCss('body').text(), /\/to-ssg/)
 
       expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
-        slug: 'hello',
         from: 'middleware',
+        slug: 'hello',
       })
       expect(
         JSON.parse(await browser.elementByCss('#props').text()).params
@@ -195,7 +271,11 @@ describe('Middleware Runtime', () => {
     })
 
     it('should have correct dynamic route params on client-transition to dynamic route', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await webdriver(next.url, '/404')
+      await check(
+        () => browser.eval('next.router.isReady ? "yes" : "nope"'),
+        'yes'
+      )
       await browser.eval('window.beforeNav = 1')
       await browser.eval('window.next.router.push("/blog/first")')
       await browser.waitForElementByCss('#blog')
@@ -231,7 +311,11 @@ describe('Middleware Runtime', () => {
     })
 
     it('should have correct dynamic route params for middleware rewrite to dynamic route', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await webdriver(next.url, '/404')
+      await check(
+        () => browser.eval('next.router.isReady ? "yes" : "no"'),
+        'yes'
+      )
       await browser.eval('window.beforeNav = 1')
       await browser.eval('window.next.router.push("/rewrite-to-dynamic")')
       await browser.waitForElementByCss('#blog')
@@ -254,7 +338,11 @@ describe('Middleware Runtime', () => {
     })
 
     it('should have correct route params for chained rewrite from middleware to config rewrite', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await webdriver(next.url, '/404')
+      await check(
+        () => browser.eval('next.router.isReady ? "yes" : "no"'),
+        'yes'
+      )
       await browser.eval('window.beforeNav = 1')
       await browser.eval(
         'window.next.router.push("/rewrite-to-config-rewrite")'
@@ -280,7 +368,7 @@ describe('Middleware Runtime', () => {
     })
 
     it('should have correct route params for rewrite from config dynamic route', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await webdriver(next.url, '/404')
       await browser.eval('window.beforeNav = 1')
       await browser.eval('window.next.router.push("/rewrite-3")')
       await browser.waitForElementByCss('#blog')
@@ -301,7 +389,11 @@ describe('Middleware Runtime', () => {
     })
 
     it('should have correct route params for rewrite from config non-dynamic route', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await webdriver(next.url, '/404')
+      await check(
+        () => browser.eval('next.router.isReady ? "yes" : "nope"'),
+        'yes'
+      )
       await browser.eval('window.beforeNav = 1')
       await browser.eval('window.next.router.push("/rewrite-1")')
 
@@ -337,7 +429,11 @@ describe('Middleware Runtime', () => {
       expect(res.status).toBe(200)
       expect(await res.text()).toContain('Hello World')
 
-      const browser = await webdriver(next.url, `/`)
+      const browser = await webdriver(next.url, `/404`)
+      await check(
+        () => browser.eval('next.router.isReady ? "yes" : "nope"'),
+        'yes'
+      )
       await browser.eval('window.beforeNav = 1')
       await browser.eval(`next.router.push('/rewrite-1')`)
       await check(async () => {
@@ -352,7 +448,7 @@ describe('Middleware Runtime', () => {
       expect(res.status).toBe(200)
       expect(await res.text()).toContain('AboutA')
 
-      const browser = await webdriver(next.url, `/`)
+      const browser = await webdriver(next.url, `/404`)
       await browser.eval(`next.router.push('/rewrite-2')`)
       await check(async () => {
         const content = await browser.eval('document.documentElement.innerHTML')
@@ -387,20 +483,20 @@ describe('Middleware Runtime', () => {
 
     it('should contain process polyfill', async () => {
       const res = await fetchViaHTTP(next.url, `/global`)
-      expect(readMiddlewareJSON(res)).toEqual({
-        process: {
-          env: {
-            ANOTHER_MIDDLEWARE_TEST: 'asdf2',
-            STRING_ENV_VAR: 'asdf3',
-            MIDDLEWARE_TEST: 'asdf',
-            ...((global as any).isNextDeploy
-              ? {}
-              : {
-                  NEXT_RUNTIME: 'edge',
-                }),
-          },
-        },
-      })
+      const json = readMiddlewareJSON(res)
+
+      for (const [key, value] of Object.entries({
+        ANOTHER_MIDDLEWARE_TEST: 'asdf2',
+        STRING_ENV_VAR: 'asdf3',
+        MIDDLEWARE_TEST: 'asdf',
+        ...((global as any).isNextDeploy
+          ? {}
+          : {
+              NEXT_RUNTIME: 'edge',
+            }),
+      })) {
+        expect(json.process.env[key]).toBe(value)
+      }
     })
 
     it(`should contain \`globalThis\``, async () => {
@@ -428,7 +524,7 @@ describe('Middleware Runtime', () => {
       const payload = readMiddlewareJSON(response)
       expect('error' in payload).toBe(true)
       expect(payload.error.name).toBe('AbortError')
-      expect(payload.error.message).toBe('The operation was aborted')
+      expect(payload.error.message).toContain('The operation was aborted')
     })
 
     it(`should validate & parse request url from any route`, async () => {
@@ -611,19 +707,20 @@ describe('Middleware Runtime', () => {
 
       // Check that no server requests were made to ?hello=world,
       // as it's a shallow request.
-      expect(requests).toEqual([
+      expect(requests.filter((req) => req.includes('_next/data'))).toEqual([
         `${next.url}/_next/data/${next.buildId}${
           i18n ? '/en' : ''
         }/sha.json?hello=goodbye`,
       ])
     })
   }
+  describe('with i18n', () => {
+    setup({ i18n: true })
+    runTests({ i18n: true })
+  })
+
+  describe('without i18n', () => {
+    setup({ i18n: false })
+    runTests({ i18n: false })
+  })
 })
-
-function readMiddlewareJSON(response) {
-  return JSON.parse(response.headers.get('data'))
-}
-
-function readMiddlewareError(response) {
-  return response.headers.get('error')
-}

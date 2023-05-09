@@ -6,7 +6,7 @@ description: The complete Next.js runtime is now Strict Mode-compliant, learn ho
 
 > **Suggested**: We strongly suggest you enable Strict Mode in your Next.js application to better prepare your application for the future of React.
 
-React's [Strict Mode](https://reactjs.org/docs/strict-mode.html) is a development mode only feature for highlighting potential problems in an application. It helps to identify unsafe lifecycles, legacy API usage, and a number of other features.
+React's [Strict Mode](https://react.dev/reference/react/StrictMode) is a development mode only feature for highlighting potential problems in an application. It helps to identify unsafe lifecycles, legacy API usage, and a number of other features.
 
 The Next.js runtime is Strict Mode-compliant. To opt-in to Strict Mode, configure the following option in your `next.config.js`:
 

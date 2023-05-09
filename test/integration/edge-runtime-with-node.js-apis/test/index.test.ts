@@ -22,7 +22,7 @@ const unsupportedFunctions = [
   'process.cpuUsage',
   'process.getuid',
 ]
-const undefinedPropertoes = [
+const undefinedProperties = [
   // no need to test all of the process properties
   'process.arch',
   'process.version',
@@ -40,8 +40,6 @@ const unsupportedClasses = [
   'ReadableByteStreamController',
   'ReadableStreamBYOBRequest',
   'ReadableStreamDefaultController',
-  'TextDecoderStream',
-  'TextEncoderStream',
   'TransformStreamDefaultController',
   'WritableStreamDefaultController',
 ]
@@ -83,7 +81,7 @@ describe.each([
 
     afterAll(() => killApp(app))
 
-    it.each(undefinedPropertoes.map((api) => ({ api })))(
+    it.each(undefinedProperties.map((api) => ({ api })))(
       'does not throw on using $api',
       async ({ api }) => {
         const res = await fetchViaHTTP(appPort, computeRoute(api))
@@ -125,16 +123,14 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
     })
 
     it.each(
-      ['Buffer', ...unsupportedFunctions, ...unsupportedClasses].map(
-        (api, index) => ({
-          api,
-        })
-      )
+      [...unsupportedFunctions, ...unsupportedClasses].map((api, index) => ({
+        api,
+      }))
     )(`warns for $api during build`, ({ api }) => {
       expect(buildResult.stderr).toContain(`A Node.js API is used (${api}`)
     })
 
-    it.each(undefinedPropertoes.map((api) => ({ api })))(
+    it.each([...undefinedProperties].map((api) => ({ api })))(
       'does not warn on using $api',
       ({ api }) => {
         expect(buildResult.stderr).toContain(`A Node.js API is used (${api}`)

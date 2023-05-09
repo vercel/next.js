@@ -15,6 +15,11 @@ describe('Prerender prefetch', () => {
     optimisticClientCache?: boolean
   }) => {
     it('should not revalidate during prefetching', async () => {
+      // restart revalidate period
+      for (const path of ['/blog/first', '/blog/second']) {
+        await fetchViaHTTP(next.url, path)
+      }
+
       const reqs = {}
 
       // get initial values
@@ -126,6 +131,52 @@ describe('Prerender prefetch', () => {
       await check(() => browser.eval('window.prefetchDone'), 'yes')
 
       await browser.elementByCss('#to-blog-first').click()
+      await check(() => browser.elementByCss('#page').text(), 'blog/[slug]')
+
+      const newTime = JSON.parse(
+        await browser.elementByCss('#props').text()
+      ).now
+      expect(newTime).not.toBe(startTime)
+      expect(isNaN(newTime)).toBe(false)
+    })
+
+    it('should update cache using router.push with unstable_skipClientCache', async () => {
+      const browser = await webdriver(next.url, '/')
+      const timeRes = await fetchViaHTTP(
+        next.url,
+        `/_next/data/${next.buildId}/blog/first.json`,
+        undefined,
+        {
+          headers: {
+            purpose: 'prefetch',
+          },
+        }
+      )
+      const startTime = (await timeRes.json()).pageProps.now
+
+      // ensure stale data is used by default
+      await browser.elementByCss('#to-blog-first').click()
+      const outputIndex = next.cliOutput.length
+
+      await check(() => browser.elementByCss('#page').text(), 'blog/[slug]')
+
+      expect(JSON.parse(await browser.elementByCss('#props').text()).now).toBe(
+        startTime
+      )
+      await browser.back().waitForElementByCss('#to-blog-first')
+
+      // trigger revalidation of /blog/first
+      await check(async () => {
+        await renderViaHTTP(next.url, '/blog/first')
+        return next.cliOutput.substring(outputIndex)
+      }, /revalidating \/blog first/)
+
+      // now trigger cache update and navigate again
+      await browser.eval(
+        'next.router.push("/blog/first", undefined, { unstable_skipClientCache: true }).finally(() => { window.prefetchDone = "yes" })'
+      )
+      await check(() => browser.eval('window.prefetchDone'), 'yes')
+
       await check(() => browser.elementByCss('#page').text(), 'blog/[slug]')
 
       const newTime = JSON.parse(

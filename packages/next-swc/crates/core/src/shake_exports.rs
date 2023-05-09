@@ -1,10 +1,13 @@
 use serde::Deserialize;
-use swc_atoms::js_word;
-use swc_atoms::JsWord;
-use swc_common::Mark;
-use swc_ecmascript::ast::*;
-use swc_ecmascript::transforms::optimization::simplify::dce::{dce, Config as DCEConfig};
-use swc_ecmascript::visit::{Fold, FoldWith};
+use turbo_binding::swc::core::{
+    common::Mark,
+    ecma::{
+        ast::*,
+        atoms::{js_word, JsWord},
+        transforms::optimization::simplify::dce::{dce, Config as DCEConfig},
+        visit::{Fold, FoldWith},
+    },
+};
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Config {

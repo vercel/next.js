@@ -16,7 +16,7 @@ description: Next.js supports TypeScript by default and has built-in types for p
 
 Next.js provides an integrated [TypeScript](https://www.typescriptlang.org/) experience, including zero-configuration set up and built-in types for Pages, APIs, and more.
 
-- [Clone and deploy the TypeScript starter](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-typescript&project-name=with-typescript&repository-name=with-typescript)
+- [Clone and deploy the TypeScript starter](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-typescript&project-name=with-typescript&repository-name=with-typescript&utm_source=next-site&utm_medium=docs&utm_campaign=next-website)
 - [View an example application](https://github.com/vercel/next.js/tree/canary/examples/with-typescript)
 
 ## `create-next-app` support
@@ -103,7 +103,7 @@ The following is an example of how to use the built-in types for API routes:
 ```ts
 import type { NextApiRequest, NextApiResponse } from 'next'
 
-export default (req: NextApiRequest, res: NextApiResponse) => {
+export default function handler(req: NextApiRequest, res: NextApiResponse) {
   res.status(200).json({ name: 'John Doe' })
 }
 ```
@@ -117,7 +117,10 @@ type Data = {
   name: string
 }
 
-export default (req: NextApiRequest, res: NextApiResponse<Data>) => {
+export default function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<Data>
+) {
   res.status(200).json({ name: 'John Doe' })
 }
 ```
@@ -161,7 +164,9 @@ module.exports = nextConfig
 
 Since `v10.2.1` Next.js supports [incremental type checking](https://www.typescriptlang.org/tsconfig#incremental) when enabled in your `tsconfig.json`, this can help speed up type checking in larger applications.
 
-It is highly recommended to be on at least `v4.3.2` of TypeScript to experience the [best performance](https://devblogs.microsoft.com/typescript/announcing-typescript-4-3/#lazier-incremental) when leveraging this feature.
+## Minimum TypeScript Version
+
+It is highly recommended to be on at least `v4.5.2` of TypeScript to get syntax features such as [type modifiers on import names](https://devblogs.microsoft.com/typescript/announcing-typescript-4-5/#type-on-import-names) and [performance improvements](https://devblogs.microsoft.com/typescript/announcing-typescript-4-5/#real-path-sync-native).
 
 ## Ignoring TypeScript Errors
 

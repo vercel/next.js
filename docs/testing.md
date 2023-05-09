@@ -18,7 +18,7 @@ Learn how to set up Next.js with commonly used testing tools: [Cypress](https://
 
 ## Cypress
 
-Cypress is a test runner used for **End-to-End (E2E)** and **Integration Testing**.
+Cypress is a test runner used for **End-to-End (E2E)** and **Component Testing**.
 
 ### Quickstart
 
@@ -55,7 +55,11 @@ npm run cypress
 
 You can look through the generated examples and the [Writing Your First Test](https://docs.cypress.io/guides/getting-started/writing-your-first-test) section of the Cypress Documentation to help you get familiar with Cypress.
 
-### Creating your first Cypress integration test
+### Should I use E2E or Component Tests?
+
+The [Cypress docs contain a guide](https://docs.cypress.io/guides/core-concepts/testing-types) on the difference between these two types of tests and when it is appropriate to use each.
+
+### Creating your first Cypress E2E test
 
 Assuming the following two Next.js pages:
 
@@ -66,9 +70,8 @@ import Link from 'next/link'
 export default function Home() {
   return (
     <nav>
-      <Link href="/about">
-        <a>About</a>
-      </Link>
+      <h1>Homepage</h1>
+      <Link href="/about">About</Link>
     </nav>
   )
 }
@@ -80,6 +83,7 @@ export default function About() {
   return (
     <div>
       <h1>About Page</h1>
+      <Link href="/">Homepage</Link>
     </div>
   )
 }
@@ -88,7 +92,7 @@ export default function About() {
 Add a test to check your navigation is working correctly:
 
 ```jsx
-// cypress/integration/app.spec.js
+// cypress/e2e/app.cy.js
 
 describe('Navigation', () => {
   it('should navigate to the about page', () => {
@@ -107,15 +111,48 @@ describe('Navigation', () => {
 })
 ```
 
-You can use `cy.visit("/")` instead of `cy.visit("http://localhost:3000/")` if you add `"baseUrl": "http://localhost:3000"` to the `cypress.json` configuration file.
+You can use `cy.visit("/")` instead of `cy.visit("http://localhost:3000/")` if you add `baseUrl: 'http://localhost:3000'` to the `cypress.config.js` configuration file.
+
+### Creating your first Cypress component test
+
+Component tests build and mount a specific component without having to bundle your whole application or launch a server. This allows for more performant tests that still provide visual feedback and the same API used for Cypress E2E tests.
+
+> **Note**: Since component tests do not launch a Next.js server, capabilities like `<Image />` and `getServerSideProps` which rely on a server being available will not function out-of-the-box. See the [Cypress Next.js docs](https://docs.cypress.io/guides/component-testing/react/overview#Nextjs) for examples of getting these features working within component tests.
+
+Assuming the same components from the previous section, add a test to validate a component is rendering the expected output:
+
+```jsx
+// pages/about.cy.js
+import AboutPage from './about.js'
+
+describe('<AboutPage />', () => {
+  it('should render and display expected content', () => {
+    // Mount the React component for the About page
+    cy.mount(<AboutPage />)
+
+    // The new page should contain an h1 with "About page"
+    cy.get('h1').contains('About Page')
+
+    // Validate that a link with the expected URL is present
+    // *Following* the link is better suited to an E2E test
+    cy.get('a[href="/"]').should('be.visible')
+  })
+})
+```
 
 ### Running your Cypress tests
 
-Since Cypress is testing a real Next.js application, it requires the Next.js server to be running prior to starting Cypress. We recommend running your tests against your production code to more closely resemble how your application will behave.
+#### E2E Tests
 
-Run `npm run build` and `npm run start`, then run `npm run cypress` in another terminal window to start Cypress.
+Since Cypress E2E tests are testing a real Next.js application they require the Next.js server to be running prior to starting Cypress. We recommend running your tests against your production code to more closely resemble how your application will behave.
 
-> **Note:** Alternatively, you can install the `start-server-and-test` package and add it to the `package.json` scripts field: `"test": "start-server-and-test start http://localhost:3000 cypress"` to start the Next.js production server in conjunction with Cypress. Remember to rebuild your application after new changes.
+Run `npm run build` and `npm run start`, then run `npm run cypress -- --e2e` in another terminal window to start Cypress and run your E2E testing suite.
+
+> **Note**: Alternatively, you can install the `start-server-and-test` package and add it to the `package.json` scripts field: `"test": "start-server-and-test start http://localhost:3000 cypress"` to start the Next.js production server in conjunction with Cypress. Remember to rebuild your application after new changes.
+
+#### Component Tests
+
+Run `npm run cypress -- --component` to start Cypress and execute your component testing suite.
 
 ### Getting ready for Continuous Integration (CI)
 
@@ -126,10 +163,10 @@ You will have noticed that running Cypress so far has opened an interactive brow
 
 "scripts": {
   //...
-  "cypress": "cypress open",
-  "cypress:headless": "cypress run",
-  "e2e": "start-server-and-test start http://localhost:3000 cypress",
-  "e2e:headless": "start-server-and-test start http://localhost:3000 cypress:headless"
+  "e2e": "start-server-and-test dev http://localhost:3000 \"cypress open --e2e\"",
+  "e2e:headless": "start-server-and-test dev http://localhost:3000 \"cypress run --e2e\"",
+  "component": "cypress open --component",
+  "component:headless": "cypress run --component"
 }
 ```
 
@@ -145,7 +182,7 @@ Playwright is a testing framework that lets you automate Chromium, Firefox, and 
 
 ### Quickstart
 
-The fastest way to get started, is to use `create-next-app` with the [with-playwright example](https://github.com/vercel/next.js/tree/canary/examples/with-playwright). This will create a Next.js project complete with Playwright all set up.
+The fastest way to get started is to use `create-next-app` with the [with-playwright example](https://github.com/vercel/next.js/tree/canary/examples/with-playwright). This will create a Next.js project complete with Playwright all set up.
 
 ```bash
 npx create-next-app@latest --example with-playwright with-playwright-app
@@ -183,9 +220,7 @@ import Link from 'next/link'
 export default function Home() {
   return (
     <nav>
-      <Link href="/about">
-        <a>About</a>
-      </Link>
+      <Link href="/about">About</Link>
     </nav>
   )
 }
@@ -214,7 +249,7 @@ test('should navigate to the about page', async ({ page }) => {
   await page.goto('http://localhost:3000/')
   // Find an element with the text 'About Page' and click on it
   await page.click('text=About')
-  // The new url should be "/about" (baseURL is used there)
+  // The new URL should be "/about" (baseURL is used there)
   await expect(page).toHaveURL('http://localhost:3000/about')
   // The new page should contain an h1 with "About Page"
   await expect(page.locator('h1')).toContainText('About Page')
@@ -229,7 +264,7 @@ Since Playwright is testing a real Next.js application, it requires the Next.js 
 
 Run `npm run build` and `npm run start`, then run `npm run test:e2e` in another terminal window to run the Playwright tests.
 
-> **Note:** Alternatively, you can use the [`webServer`](https://playwright.dev/docs/test-advanced#launching-a-development-web-server-during-the-tests) feature to let Playwright start the development server and wait until it's fully available.
+> **Note**: Alternatively, you can use the [`webServer`](https://playwright.dev/docs/test-advanced#launching-a-development-web-server-during-the-tests) feature to let Playwright start the development server and wait until it's fully available.
 
 ### Running Playwright on Continuous Integration (CI)
 
@@ -269,11 +304,11 @@ To set up Jest, install `jest`, `jest-environment-jsdom`, `@testing-library/reac
 npm install --save-dev jest jest-environment-jsdom @testing-library/react @testing-library/jest-dom
 ```
 
-Create a `jest.config.js` file in your project's root directory and add the following:
+Create a `jest.config.mjs` file in your project's root directory and add the following:
 
 ```jsx
-// jest.config.js
-const nextJest = require('next/jest')
+// jest.config.mjs
+import nextJest from 'next/jest.js'
 
 const createJestConfig = nextJest({
   // Provide the path to your Next.js app to load next.config.js and .env files in your test environment
@@ -281,22 +316,22 @@ const createJestConfig = nextJest({
 })
 
 // Add any custom config to be passed to Jest
-const customJestConfig = {
+/** @type {import('jest').Config} */
+const config = {
   // Add more setup options before each test is run
   // setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
-  // if using TypeScript with a baseUrl set to the root directory then you need the below for alias' to work
-  moduleDirectories: ['node_modules', '<rootDir>/'],
+
   testEnvironment: 'jest-environment-jsdom',
 }
 
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async
-module.exports = createJestConfig(customJestConfig)
+export default createJestConfig(config)
 ```
 
 Under the hood, `next/jest` is automatically configuring Jest for you, including:
 
 - Setting up `transform` using [SWC](https://nextjs.org/docs/advanced-features/compiler)
-- Auto mocking stylesheets (`.css`, `.module.css`, and their scss variants) and image imports
+- Auto mocking stylesheets (`.css`, `.module.css`, and their scss variants), image imports and [`next/font`](https://nextjs.org/docs/basic-features/font-optimization)
 - Loading `.env` (and all variants) into `process.env`
 - Ignoring `node_modules` from test resolving and transforms
 - Ignoring `.next` from test resolving
@@ -306,7 +341,7 @@ Under the hood, `next/jest` is automatically configuring Jest for you, including
 
 ### Setting up Jest (with Babel)
 
-If you opt-out of the [Rust Compiler](https://nextjs.org/docs/advanced-features/compiler), you will need to manually configure Jest and install `babel-jest` and `identity-obj-proxy` in addition to the packages above.
+If you opt out of the [Rust Compiler](https://nextjs.org/docs/advanced-features/compiler), you will need to manually configure Jest and install `babel-jest` and `identity-obj-proxy` in addition to the packages above.
 
 Here are the recommended options to configure Jest for Next.js:
 
@@ -439,7 +474,7 @@ Add the Jest executable in watch mode to the `package.json` scripts:
 
 **Create your first tests**
 
-Your project is now ready to run tests. Follow Jests convention by adding tests to the `__tests__` folder in your project's root directory.
+Your project is now ready to run tests. Follow Jest's convention by adding tests to the `__tests__` folder in your project's root directory.
 
 For example, we can add a test to check if the `<Home />` component successfully renders a heading:
 

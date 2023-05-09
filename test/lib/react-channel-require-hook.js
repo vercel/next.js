@@ -1,10 +1,7 @@
 const mod = require('module')
 
-// The value will be '17' or 'exp' to alias the actual react channel
-const reactVersion = process.env.__NEXT_REACT_CHANNEL
-
-const reactDir = `react-${reactVersion}`
-const reactDomDir = `react-dom-${reactVersion}`
+const reactDir = 'react'
+const reactDomDir = 'react-dom'
 
 const hookPropertyMap = new Map([
   ['react', reactDir],
@@ -16,6 +13,7 @@ const hookPropertyMap = new Map([
   ['react-dom/client', `${reactDomDir}/client`],
   ['react-dom/server', `${reactDomDir}/server`],
   ['react-dom/server.browser', `${reactDomDir}/server.browser`],
+  ['react-dom/server.edge', `${reactDomDir}/server.edge`],
 ])
 
 const resolveFilename = mod._resolveFilename

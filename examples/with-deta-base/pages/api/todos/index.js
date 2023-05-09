@@ -9,7 +9,7 @@ const handler = async (req, res) => {
   let respBody = {}
 
   if (method === 'GET') {
-    const { value: items } = await base.fetch([]).next()
+    const { items } = await base.fetch([])
     respBody = items
     res.statusCode = 200
   } else if (method === 'POST') {

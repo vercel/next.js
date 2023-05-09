@@ -2,10 +2,15 @@ import os from 'os'
 import path from 'path'
 import fs from 'fs-extra'
 import treeKill from 'tree-kill'
-import { NextConfig } from 'next'
+import type { NextConfig } from 'next'
 import { FileRef } from '../e2e-utils'
 import { ChildProcess } from 'child_process'
 import { createNextInstall } from '../create-next-install'
+import { Span } from 'next/src/trace'
+import webdriver from '../next-webdriver'
+import { renderViaHTTP, fetchViaHTTP } from 'next-test-utils'
+import cheerio from 'cheerio'
+import { BrowserInterface } from '../browsers/base'
 
 type Event = 'stdout' | 'stderr' | 'error' | 'destroy'
 export type InstallCommand =
@@ -13,160 +18,87 @@ export type InstallCommand =
   | ((ctx: { dependencies: { [key: string]: string } }) => string)
 
 export type PackageJson = {
+  dependencies?: { [key: string]: string }
   [key: string]: unknown
 }
+export interface NextInstanceOpts {
+  files: FileRef | string | { [filename: string]: string | FileRef }
+  dependencies?: { [name: string]: string }
+  packageJson?: PackageJson
+  nextConfig?: NextConfig
+  installCommand?: InstallCommand
+  buildCommand?: string
+  startCommand?: string
+  env?: Record<string, string>
+  dirSuffix?: string
+  turbo?: boolean
+}
+
+/**
+ * Omit the first argument of a function
+ */
+type OmitFirstArgument<F> = F extends (
+  firstArgument: any,
+  ...args: infer P
+) => infer R
+  ? (...args: P) => R
+  : never
+
 export class NextInstance {
-  protected files:
-    | FileRef
-    | {
-        [filename: string]: string | FileRef
-      }
+  protected files: FileRef | { [filename: string]: string | FileRef }
   protected nextConfig?: NextConfig
   protected installCommand?: InstallCommand
   protected buildCommand?: string
   protected startCommand?: string
-  protected dependencies?: { [name: string]: string }
-  protected events: { [eventName: string]: Set<any> }
+  protected dependencies?: PackageJson['dependencies'] = {}
+  protected events: { [eventName: string]: Set<any> } = {}
   public testDir: string
-  protected isStopping: boolean
-  protected isDestroyed: boolean
+  protected isStopping: boolean = false
+  protected isDestroyed: boolean = false
   protected childProcess: ChildProcess
   protected _url: string
   protected _parsedUrl: URL
-  protected packageJson: PackageJson
-  protected packageLockPath?: string
+  protected packageJson?: PackageJson = {}
   protected basePath?: string
   protected env?: Record<string, string>
   public forcedPort?: string
+  public dirSuffix: string = ''
 
-  constructor({
-    files,
-    dependencies,
-    nextConfig,
-    installCommand,
-    buildCommand,
-    startCommand,
-    packageJson = {},
-    packageLockPath,
-    env,
-  }: {
-    files:
-      | FileRef
-      | {
-          [filename: string]: string | FileRef
-        }
-    dependencies?: {
-      [name: string]: string
+  constructor(opts: NextInstanceOpts) {
+    Object.assign(this, opts)
+
+    if (!(global as any).isNextDeploy) {
+      this.env = {
+        ...this.env,
+        // remove node_modules/.bin repo path from env
+        // to match CI $PATH value and isolate further
+        PATH: process.env.PATH.split(path.delimiter)
+          .filter((part) => {
+            return !part.includes(path.join('node_modules', '.bin'))
+          })
+          .join(path.delimiter),
+      }
     }
-    packageJson?: PackageJson
-    packageLockPath?: string
-    nextConfig?: NextConfig
-    installCommand?: InstallCommand
-    buildCommand?: string
-    startCommand?: string
-    env?: Record<string, string>
-  }) {
-    this.files = files
-    this.dependencies = dependencies
-    this.nextConfig = nextConfig
-    this.installCommand = installCommand
-    this.buildCommand = buildCommand
-    this.startCommand = startCommand
-    this.packageJson = packageJson
-    this.packageLockPath = packageLockPath
-    this.events = {}
-    this.isDestroyed = false
-    this.isStopping = false
-    this.env = env
   }
 
-  protected async createTestDir({
-    skipInstall = false,
-  }: { skipInstall?: boolean } = {}) {
-    if (this.isDestroyed) {
-      throw new Error('next instance already destroyed')
-    }
-    require('console').log(`Creating test directory with isolated next...`)
-
-    const skipIsolatedNext = !!process.env.NEXT_SKIP_ISOLATE
-    const tmpDir = skipIsolatedNext
-      ? path.join(__dirname, '../../tmp')
-      : process.env.NEXT_TEST_DIR || (await fs.realpath(os.tmpdir()))
-    this.testDir = path.join(
-      tmpDir,
-      `next-test-${Date.now()}-${(Math.random() * 1000) | 0}`
-    )
-
-    const reactVersion = process.env.NEXT_TEST_REACT_VERSION || 'latest'
-    const finalDependencies = {
-      react: reactVersion,
-      'react-dom': reactVersion,
-      ...this.dependencies,
-      ...((this.packageJson.dependencies as object | undefined) || {}),
-    }
-
-    if (skipInstall) {
-      const pkgScripts = (this.packageJson['scripts'] as {}) || {}
-      await fs.ensureDir(this.testDir)
-      await fs.writeFile(
-        path.join(this.testDir, 'package.json'),
-        JSON.stringify(
-          {
-            ...this.packageJson,
-            dependencies: {
-              ...finalDependencies,
-              next:
-                process.env.NEXT_TEST_VERSION ||
-                require('next/package.json').version,
-            },
-            scripts: {
-              ...pkgScripts,
-              build:
-                (pkgScripts['build'] || this.buildCommand || 'next build') +
-                ' && yarn post-build',
-              // since we can't get the build id as a build artifact, make it
-              // available under the static files
-              'post-build': 'cp .next/BUILD_ID .next/static/__BUILD_ID',
-            },
-          },
-          null,
-          2
-        )
-      )
-    } else {
-      if (
-        process.env.NEXT_TEST_STARTER &&
-        !this.dependencies &&
-        !this.installCommand &&
-        !this.packageJson &&
-        !(global as any).isNextDeploy
-      ) {
-        await fs.copy(process.env.NEXT_TEST_STARTER, this.testDir)
-      } else if (!skipIsolatedNext) {
-        this.testDir = await createNextInstall(
-          finalDependencies,
-          this.installCommand,
-          this.packageJson,
-          this.packageLockPath
-        )
-      }
-      require('console').log('created next.js install, writing test files')
-    }
-
-    if (this.files instanceof FileRef) {
+  protected async writeInitialFiles() {
+    // Handle case where files is a directory string
+    const files =
+      typeof this.files === 'string' ? new FileRef(this.files) : this.files
+    if (files instanceof FileRef) {
       // if a FileRef is passed directly to `files` we copy the
       // entire folder to the test directory
-      const stats = await fs.stat(this.files.fsPath)
+      const stats = await fs.stat(files.fsPath)
 
       if (!stats.isDirectory()) {
         throw new Error(
-          `FileRef passed to "files" in "createNext" is not a directory ${this.files.fsPath}`
+          `FileRef passed to "files" in "createNext" is not a directory ${files.fsPath}`
         )
       }
-      await fs.copy(this.files.fsPath, this.testDir)
+      await fs.copy(files.fsPath, this.testDir)
     } else {
-      for (const filename of Object.keys(this.files)) {
-        const item = this.files[filename]
+      for (const filename of Object.keys(files)) {
+        const item = files[filename]
         const outputFilename = path.join(this.testDir, filename)
 
         if (typeof item === 'string') {
@@ -177,71 +109,176 @@ export class NextInstance {
         }
       }
     }
+  }
 
-    const nextConfigFile = Object.keys(this.files).find((file) =>
-      file.startsWith('next.config.')
-    )
-
-    if (nextConfigFile && this.nextConfig) {
-      throw new Error(
-        `nextConfig provided on "createNext()" and as a file "${nextConfigFile}", use one or the other to continue`
-      )
+  protected async createTestDir({
+    skipInstall = false,
+    parentSpan,
+  }: {
+    skipInstall?: boolean
+    parentSpan: Span
+  }) {
+    if (this.isDestroyed) {
+      throw new Error('next instance already destroyed')
     }
+    require('console').log(`Creating test directory with isolated next...`)
 
-    if (this.nextConfig || ((global as any).isNextDeploy && !nextConfigFile)) {
-      const functions = []
+    await parentSpan
+      .traceChild('createTestDir')
+      .traceAsyncFn(async (rootSpan) => {
+        const skipIsolatedNext = !!process.env.NEXT_SKIP_ISOLATE
+        const tmpDir = skipIsolatedNext
+          ? path.join(__dirname, '../../tmp')
+          : process.env.NEXT_TEST_DIR || (await fs.realpath(os.tmpdir()))
+        this.testDir = path.join(
+          tmpDir,
+          `next-test-${Date.now()}-${(Math.random() * 1000) | 0}${
+            this.dirSuffix
+          }`
+        )
 
-      await fs.writeFile(
-        path.join(this.testDir, 'next.config.js'),
-        `
-        module.exports = ` +
-          JSON.stringify(
-            {
-              ...this.nextConfig,
-            } as NextConfig,
-            (key, val) => {
-              if (typeof val === 'function') {
-                functions.push(
-                  val
-                    .toString()
-                    .replace(new RegExp(`${val.name}[\\s]{0,}\\(`), 'function(')
-                )
-                return `__func_${functions.length - 1}`
-              }
-              return val
-            },
-            2
-          ).replace(/"__func_[\d]{1,}"/g, function (str) {
-            return functions.shift()
+        const reactVersion = process.env.NEXT_TEST_REACT_VERSION || 'latest'
+        const finalDependencies = {
+          react: reactVersion,
+          'react-dom': reactVersion,
+          '@types/react': reactVersion,
+          '@types/react-dom': reactVersion,
+          typescript: 'latest',
+          '@types/node': 'latest',
+          ...this.dependencies,
+          ...this.packageJson?.dependencies,
+        }
+
+        if (skipInstall) {
+          const pkgScripts = (this.packageJson['scripts'] as {}) || {}
+          await fs.ensureDir(this.testDir)
+          await fs.writeFile(
+            path.join(this.testDir, 'package.json'),
+            JSON.stringify(
+              {
+                ...this.packageJson,
+                dependencies: {
+                  ...finalDependencies,
+                  next:
+                    process.env.NEXT_TEST_VERSION ||
+                    require('next/package.json').version,
+                },
+                scripts: {
+                  // since we can't get the build id as a build artifact, make it
+                  // available under the static files
+                  'post-build': 'cp .next/BUILD_ID .next/static/__BUILD_ID',
+                  ...pkgScripts,
+                  build:
+                    (pkgScripts['build'] || this.buildCommand || 'next build') +
+                    ' && pnpm post-build',
+                },
+              },
+              null,
+              2
+            )
+          )
+        } else {
+          if (
+            process.env.NEXT_TEST_STARTER &&
+            !this.dependencies &&
+            !this.installCommand &&
+            !this.packageJson &&
+            !(global as any).isNextDeploy
+          ) {
+            await fs.copy(process.env.NEXT_TEST_STARTER, this.testDir)
+          } else if (!skipIsolatedNext) {
+            this.testDir = await createNextInstall({
+              parentSpan: rootSpan,
+              dependencies: finalDependencies,
+              installCommand: this.installCommand,
+              packageJson: this.packageJson,
+              dirSuffix: this.dirSuffix,
+            })
+          }
+          require('console').log('created next.js install, writing test files')
+        }
+
+        await rootSpan
+          .traceChild('writeInitialFiles')
+          .traceAsyncFn(async () => {
+            await this.writeInitialFiles()
           })
-      )
-    }
 
-    if ((global as any).isNextDeploy) {
-      const fileName = path.join(
-        this.testDir,
-        nextConfigFile || 'next.config.js'
-      )
-      const content = await fs.readFile(fileName, 'utf8')
+        let nextConfigFile = Object.keys(this.files).find((file) =>
+          file.startsWith('next.config.')
+        )
 
-      if (content.includes('basePath')) {
-        this.basePath =
-          content.match(/['"`]?basePath['"`]?:.*?['"`](.*?)['"`]/)?.[1] || ''
-      }
+        if (await fs.pathExists(path.join(this.testDir, 'next.config.js'))) {
+          nextConfigFile = 'next.config.js'
+        }
 
-      await fs.writeFile(
-        fileName,
-        `${content}\n` +
-          `
+        if (nextConfigFile && this.nextConfig) {
+          throw new Error(
+            `nextConfig provided on "createNext()" and as a file "${nextConfigFile}", use one or the other to continue`
+          )
+        }
+
+        if (
+          this.nextConfig ||
+          ((global as any).isNextDeploy && !nextConfigFile)
+        ) {
+          const functions = []
+
+          await fs.writeFile(
+            path.join(this.testDir, 'next.config.js'),
+            `
+        module.exports = ` +
+              JSON.stringify(
+                {
+                  ...this.nextConfig,
+                } as NextConfig,
+                (key, val) => {
+                  if (typeof val === 'function') {
+                    functions.push(
+                      val
+                        .toString()
+                        .replace(
+                          new RegExp(`${val.name}[\\s]{0,}\\(`),
+                          'function('
+                        )
+                    )
+                    return `__func_${functions.length - 1}`
+                  }
+                  return val
+                },
+                2
+              ).replace(/"__func_[\d]{1,}"/g, function (str) {
+                return functions.shift()
+              })
+          )
+        }
+
+        if ((global as any).isNextDeploy) {
+          const fileName = path.join(
+            this.testDir,
+            nextConfigFile || 'next.config.js'
+          )
+          const content = await fs.readFile(fileName, 'utf8')
+
+          if (content.includes('basePath')) {
+            this.basePath =
+              content.match(/['"`]?basePath['"`]?:.*?['"`](.*?)['"`]/)?.[1] ||
+              ''
+          }
+
+          await fs.writeFile(
+            fileName,
+            `${content}\n` +
+              `
           // alias __NEXT_TEST_MODE for next-deploy as "_" is not a valid
           // env variable during deploy
           if (process.env.NEXT_PRIVATE_TEST_MODE) {
             process.env.__NEXT_TEST_MODE = process.env.NEXT_PRIVATE_TEST_MODE
           }
         `
-      )
-    }
-    require('console').log(`Test directory created at ${this.testDir}`)
+          )
+        }
+      })
   }
 
   public async clean() {
@@ -249,18 +286,29 @@ export class NextInstance {
       throw new Error(`stop() must be called before cleaning`)
     }
 
-    const keptFiles = ['node_modules', 'package.json', 'yarn.lock']
+    const keptFiles = [
+      'node_modules',
+      'package.json',
+      'yarn.lock',
+      'pnpm-lock.yaml',
+    ]
     for (const file of await fs.readdir(this.testDir)) {
       if (!keptFiles.includes(file)) {
         await fs.remove(path.join(this.testDir, file))
       }
     }
+    await this.writeInitialFiles()
   }
 
-  public async export(): Promise<{ exitCode?: number; cliOutput?: string }> {
-    return {}
+  public async build(): Promise<{ exitCode?: number; cliOutput?: string }> {
+    throw new Error('Not implemented')
   }
-  public async setup(): Promise<void> {}
+  public async export(args?: {
+    outdir?: string
+  }): Promise<{ exitCode?: number; cliOutput?: string }> {
+    throw new Error('Not implemented')
+  }
+  public async setup(parentSpan: Span): Promise<void> {}
   public async start(useDirArg: boolean = false): Promise<void> {}
   public async stop(): Promise<void> {
     this.isStopping = true
@@ -337,8 +385,14 @@ export class NextInstance {
   }
 
   // TODO: block these in deploy mode
+  public async hasFile(filename: string) {
+    return fs.pathExists(path.join(this.testDir, filename))
+  }
   public async readFile(filename: string) {
     return fs.readFile(path.join(this.testDir, filename), 'utf8')
+  }
+  public async readJSON(filename: string) {
+    return fs.readJSON(path.join(this.testDir, filename))
   }
   public async patchFile(filename: string, content: string) {
     const outputPath = path.join(this.testDir, filename)
@@ -351,8 +405,56 @@ export class NextInstance {
       path.join(this.testDir, newFilename)
     )
   }
+  public async renameFolder(foldername: string, newFoldername: string) {
+    return fs.move(
+      path.join(this.testDir, foldername),
+      path.join(this.testDir, newFoldername)
+    )
+  }
   public async deleteFile(filename: string) {
     return fs.remove(path.join(this.testDir, filename))
+  }
+
+  /**
+   * Create new browser window for the Next.js app.
+   */
+  public async browser(
+    ...args: Parameters<OmitFirstArgument<typeof webdriver>>
+  ): Promise<BrowserInterface> {
+    return webdriver(this.url, ...args)
+  }
+
+  /**
+   * Fetch the HTML for the provided page. This is a shortcut for `renderViaHTTP().then(html => cheerio.load(html))`.
+   */
+  public async render$(
+    ...args: Parameters<OmitFirstArgument<typeof renderViaHTTP>>
+  ): Promise<ReturnType<typeof cheerio.load>> {
+    const html = await renderViaHTTP(this.url, ...args)
+    return cheerio.load(html)
+  }
+
+  /**
+   * Fetch the HTML for the provided page. This is a shortcut for `fetchViaHTTP().then(res => res.text())`.
+   */
+  public async render(
+    ...args: Parameters<OmitFirstArgument<typeof renderViaHTTP>>
+  ) {
+    return renderViaHTTP(this.url, ...args)
+  }
+
+  /**
+   * Performs a fetch request to the NextInstance with the options provided.
+   *
+   * @param pathname the pathname on the NextInstance to fetch
+   * @param opts the optional options to pass to the underlying fetch
+   * @returns the fetch response
+   */
+  public async fetch(
+    pathname: string,
+    opts?: import('node-fetch').RequestInit
+  ) {
+    return fetchViaHTTP(this.url, pathname, null, opts)
   }
 
   public on(event: Event, cb: (...args: any[]) => any) {

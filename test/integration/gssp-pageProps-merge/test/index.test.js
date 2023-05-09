@@ -1,6 +1,5 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import {
@@ -13,7 +12,6 @@ import {
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
-const nextConfig = join(appDir, 'next.config.js')
 
 let appPort
 let app
@@ -52,28 +50,6 @@ describe('pageProps GSSP conflict', () => {
       app = await nextStart(appDir, appPort)
     })
     afterAll(() => killApp(app))
-
-    runTests()
-  })
-
-  describe('serverless mode', () => {
-    beforeAll(async () => {
-      await fs.writeFile(
-        nextConfig,
-        `module.exports = {
-        target: 'experimental-serverless-trace'
-      }`
-      )
-      const { code } = await nextBuild(appDir)
-      if (code !== 0) throw new Error(`build failed with code ${code}`)
-
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await fs.remove(nextConfig)
-      await killApp(app)
-    })
 
     runTests()
   })

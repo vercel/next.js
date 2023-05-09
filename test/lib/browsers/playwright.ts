@@ -15,6 +15,7 @@ import path from 'path'
 let page: Page
 let browser: Browser
 let context: BrowserContext
+let contextHasJSEnabled: boolean = true
 let pageLogs: Array<{ source: string; message: string }> = []
 let websocketFrames: Array<{ payload: string | Buffer }> = []
 
@@ -27,7 +28,7 @@ export async function quit() {
   browser = undefined
 }
 
-class Playwright extends BrowserInterface {
+export class Playwright extends BrowserInterface {
   private activeTrace?: string
   private eventCallbacks: Record<Event, Set<(...args: any[]) => void>> = {
     request: new Set(),
@@ -37,7 +38,7 @@ class Playwright extends BrowserInterface {
     if (!this.eventCallbacks[event]) {
       throw new Error(
         `Invalid event passed to browser.on, received ${event}. Valid events are ${Object.keys(
-          event
+          this.eventCallbacks
         )}`
       )
     }
@@ -47,8 +48,7 @@ class Playwright extends BrowserInterface {
     this.eventCallbacks[event]?.delete(cb)
   }
 
-  async setup(browserName: string, locale?: string) {
-    if (browser) return
+  async setup(browserName: string, locale: string, javaScriptEnabled: boolean) {
     const headless = !!process.env.HEADLESS
     let device
 
@@ -62,14 +62,36 @@ class Playwright extends BrowserInterface {
       }
     }
 
-    if (browserName === 'safari') {
-      browser = await webkit.launch({ headless })
-    } else if (browserName === 'firefox') {
-      browser = await firefox.launch({ headless })
-    } else {
-      browser = await chromium.launch({ headless, devtools: !headless })
+    if (browser) {
+      if (contextHasJSEnabled !== javaScriptEnabled) {
+        // If we have switched from having JS enable/disabled we need to recreate the context.
+        await context?.close()
+        context = await browser.newContext({
+          locale,
+          javaScriptEnabled,
+          ...device,
+        })
+        contextHasJSEnabled = javaScriptEnabled
+      }
+      return
     }
-    context = await browser.newContext({ locale, ...device })
+
+    browser = await this.launchBrowser(browserName, { headless })
+    context = await browser.newContext({ locale, javaScriptEnabled, ...device })
+    contextHasJSEnabled = javaScriptEnabled
+  }
+
+  async launchBrowser(browserName: string, launchOptions: Record<string, any>) {
+    if (browserName === 'safari') {
+      return await webkit.launch(launchOptions)
+    } else if (browserName === 'firefox') {
+      return await firefox.launch(launchOptions)
+    } else {
+      return await chromium.launch({
+        devtools: !launchOptions.headless,
+        ...launchOptions,
+      })
+    }
   }
 
   async get(url: string): Promise<void> {
@@ -103,6 +125,12 @@ class Playwright extends BrowserInterface {
       await oldPage.close()
     }
     page = await context.newPage()
+
+    // in development compilation can take longer due to
+    // lower CPU availability in GH actions
+    page.setDefaultTimeout(60 * 1000)
+    page.setDefaultNavigationTimeout(60 * 1000)
+
     pageLogs = []
     websocketFrames = []
 
@@ -270,12 +298,12 @@ class Playwright extends BrowserInterface {
     }) as any
   }
 
-  async getAttribute(attr) {
-    return this.chain((el) => el.getAttribute(attr))
+  async getAttribute<T = any>(attr) {
+    return this.chain((el) => el.getAttribute(attr)) as T
   }
 
-  async hasElementByCssSelector(selector: string) {
-    return this.eval(`!!document.querySelector('${selector}')`) as any
+  hasElementByCssSelector(selector: string) {
+    return this.eval<boolean>(`!!document.querySelector('${selector}')`)
   }
 
   keydown(key: string): BrowserInterface {
@@ -337,30 +365,30 @@ class Playwright extends BrowserInterface {
     })
   }
 
-  async eval(snippet) {
-    // TODO: should this and evalAsync be chained? Might lead
-    // to bad chains
-    return page
-      .evaluate(snippet)
-      .catch((err) => {
-        console.error('eval error:', err)
-        return null
-      })
-      .then(async (val) => {
-        await page.waitForLoadState()
-        return val
-      })
+  eval<T = any>(fn: any, ...args: any[]): Promise<T> {
+    return this.chainWithReturnValue(() =>
+      page
+        .evaluate(fn, ...args)
+        .catch((err) => {
+          console.error('eval error:', err)
+          return null
+        })
+        .then(async (val) => {
+          await page.waitForLoadState()
+          return val as T
+        })
+    )
   }
 
-  async evalAsync(snippet) {
-    if (typeof snippet === 'function') {
-      snippet = snippet.toString()
+  async evalAsync<T = any>(fn: any, ...args: any[]) {
+    if (typeof fn === 'function') {
+      fn = fn.toString()
     }
 
-    if (snippet.includes(`var callback = arguments[arguments.length - 1]`)) {
-      snippet = `(function() {
+    if (fn.includes(`var callback = arguments[arguments.length - 1]`)) {
+      fn = `(function() {
         return new Promise((resolve, reject) => {
-          const origFunc = ${snippet}
+          const origFunc = ${fn}
           try {
             origFunc(resolve)
           } catch (err) {
@@ -370,7 +398,7 @@ class Playwright extends BrowserInterface {
       })()`
     }
 
-    return page.evaluate(snippet).catch(() => null)
+    return page.evaluate<T>(fn).catch(() => null)
   }
 
   async log() {
@@ -384,6 +412,10 @@ class Playwright extends BrowserInterface {
   async url() {
     return this.chain(() => page.evaluate('window.location.href')) as any
   }
-}
 
-export default Playwright
+  async waitForIdleNetwork(): Promise<void> {
+    return this.chain(() => {
+      return page.waitForLoadState('networkidle')
+    })
+  }
+}

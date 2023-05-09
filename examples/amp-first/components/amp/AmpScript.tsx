@@ -10,6 +10,13 @@ type AmpScriptProps = {
   src?: string
 }
 
+const generateInlineScript = (script: Function | string) => {
+  if (typeof script === 'function') {
+    return `${script.toString()}()`
+  }
+  return String(script)
+}
+
 /**
  * Embeds an AMP Script by either linking to a TS `src` file or embedding inline
  * AMP Script via the `script` property. The inline script hash will automatically
@@ -42,10 +49,3 @@ const AmpScript: React.FC<AmpScriptProps> = ({
 }
 
 export default AmpScript
-
-const generateInlineScript = (script: Function | string) => {
-  if (typeof script === 'function') {
-    return `${script.toString()}()`
-  }
-  return String(script)
-}

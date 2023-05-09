@@ -31,21 +31,43 @@ DEALINGS IN THE SOFTWARE.
 
 #[macro_use]
 extern crate napi_derive;
-/// Explicit extern crate to use allocator.
-extern crate swc_node_base;
+
+use std::{
+    env,
+    panic::set_hook,
+    sync::{Arc, Once},
+};
 
 use backtrace::Backtrace;
 use fxhash::FxHashSet;
-use napi::{CallContext, Env, JsObject, JsUndefined};
-use std::{env, panic::set_hook, sync::Arc};
-use swc::{Compiler, TransformOutput};
-use swc_common::{self, sync::Lazy, FilePathMapping, SourceMap};
+use napi::bindgen_prelude::*;
+use turbo_binding::swc::core::{
+    base::{Compiler, TransformOutput},
+    common::{sync::Lazy, FilePathMapping, SourceMap},
+};
 
-mod bundle;
-mod minify;
-mod parse;
-mod transform;
-mod util;
+pub mod app_structure;
+pub mod mdx;
+pub mod minify;
+pub mod parse;
+pub mod transform;
+pub mod turbopack;
+pub mod turbotrace;
+pub mod util;
+
+// don't use turbo malloc (`mimalloc`) on linux-musl-aarch64 because of the
+// compile error
+#[cfg(not(any(
+    all(target_os = "linux", target_env = "musl", target_arch = "aarch64"),
+    feature = "__internal_dhat-heap",
+    feature = "__internal_dhat-ad-hoc"
+)))]
+#[global_allocator]
+static ALLOC: turbo_binding::turbo::malloc::TurboMalloc = turbo_binding::turbo::malloc::TurboMalloc;
+
+#[cfg(feature = "__internal_dhat-heap")]
+#[global_allocator]
+static ALLOC: dhat::Alloc = dhat::Alloc;
 
 static COMPILER: Lazy<Arc<Compiler>> = Lazy::new(|| {
     let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));
@@ -53,53 +75,26 @@ static COMPILER: Lazy<Arc<Compiler>> = Lazy::new(|| {
     Arc::new(Compiler::new(cm))
 });
 
-#[module_exports]
-fn init(mut exports: JsObject) -> napi::Result<()> {
+#[napi::module_init]
+fn init() {
     if cfg!(debug_assertions) || env::var("SWC_DEBUG").unwrap_or_default() == "1" {
         set_hook(Box::new(|panic_info| {
             let backtrace = Backtrace::new();
             println!("Panic: {:?}\nBacktrace: {:?}", panic_info, backtrace);
         }));
     }
-
-    exports.create_named_method("bundle", bundle::bundle)?;
-
-    exports.create_named_method("transform", transform::transform)?;
-    exports.create_named_method("transformSync", transform::transform_sync)?;
-
-    exports.create_named_method("minify", minify::minify)?;
-    exports.create_named_method("minifySync", minify::minify_sync)?;
-
-    exports.create_named_method("parse", parse::parse)?;
-
-    exports.create_named_method("getTargetTriple", util::get_target_triple)?;
-    exports.create_named_method(
-        "initCustomTraceSubscriber",
-        util::init_custom_trace_subscriber,
-    )?;
-    exports.create_named_method("teardownTraceSubscriber", util::teardown_trace_subscriber)?;
-
-    exports.create_named_method("initCrashReporter", util::init_crash_reporter)?;
-    exports.create_named_method("teardownCrashReporter", util::teardown_crash_reporter)?;
-
-    Ok(())
 }
 
-fn get_compiler(_ctx: &CallContext) -> Arc<Compiler> {
+#[inline]
+fn get_compiler() -> Arc<Compiler> {
     COMPILER.clone()
-}
-
-#[js_function]
-fn construct_compiler(ctx: CallContext) -> napi::Result<JsUndefined> {
-    // TODO: Assign swc::Compiler
-    ctx.env.get_undefined()
 }
 
 pub fn complete_output(
     env: &Env,
     output: TransformOutput,
     eliminated_packages: FxHashSet<String>,
-) -> napi::Result<JsObject> {
+) -> napi::Result<Object> {
     let mut js_output = env.create_object()?;
     js_output.set_named_property("code", env.create_string_from_std(output.code)?)?;
     if let Some(map) = output.map {
@@ -108,12 +103,25 @@ pub fn complete_output(
     if !eliminated_packages.is_empty() {
         js_output.set_named_property(
             "eliminatedPackages",
-            env.create_string_from_std(serde_json::to_string(
-                &eliminated_packages.into_iter().collect::<Vec<String>>(),
-            )?)?,
+            env.create_string_from_std(serde_json::to_string(&eliminated_packages)?)?,
         )?;
     }
     Ok(js_output)
 }
 
 pub type ArcCompiler = Arc<Compiler>;
+
+static REGISTER_ONCE: Once = Once::new();
+
+fn register() {
+    REGISTER_ONCE.call_once(|| {
+        next_core::register();
+        include!(concat!(env!("OUT_DIR"), "/register.rs"));
+    });
+}
+
+#[cfg(all(feature = "native-tls", feature = "rustls-tls"))]
+compile_error!("You can't enable both `native-tls` and `rustls-tls`");
+
+#[cfg(all(not(feature = "native-tls"), not(feature = "rustls-tls")))]
+compile_error!("You have to enable one of the TLS backends: `native-tls` or `rustls-tls`");
