@@ -5,7 +5,7 @@ use semver::Version as SemVerVersion;
 use serde::Deserialize;
 use thiserror::Error as ThisError;
 use update_informer::{
-    http_client::{HttpClient, SendRequest},
+    http_client::{GenericHttpClient, HeaderMap, HttpClient},
     Check, Package, Registry, Result as UpdateResult,
 };
 
@@ -51,8 +51,8 @@ struct NPMRegistry;
 
 impl Registry for NPMRegistry {
     const NAME: &'static str = "npm-registry";
-    fn get_latest_version<T: SendRequest>(
-        http: HttpClient<T>,
+    fn get_latest_version<T: HttpClient>(
+        http: GenericHttpClient<T>,
         pkg: &Package,
     ) -> UpdateResult<Option<String>> {
         // determine tag to request
@@ -76,19 +76,19 @@ impl Registry for NPMRegistry {
 // Vendored here until update-informer allows us to control tls implementation
 pub struct ReqwestHttpClient;
 
-impl SendRequest for ReqwestHttpClient {
+impl HttpClient for ReqwestHttpClient {
     fn get<T: serde::de::DeserializeOwned>(
         url: &str,
         timeout: Duration,
-        headers: Option<(&str, &str)>,
+        headers: HeaderMap,
     ) -> Result<T, Box<dyn std::error::Error>> {
         let mut req = reqwest::blocking::Client::builder()
             .timeout(timeout)
             .build()?
             .get(url);
 
-        if let Some((key, val)) = headers {
-            req = req.header(key, val)
+        for (key, value) in headers {
+            req = req.header(key, value);
         }
 
         let json = req.send()?.json()?;
