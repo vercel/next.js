@@ -12,6 +12,7 @@ export default function Counter() {
       <button
         id="inc"
         onClick={async () => {
+          console.log(inc)
           const newCount = await inc(count)
           setCount(newCount)
         }}

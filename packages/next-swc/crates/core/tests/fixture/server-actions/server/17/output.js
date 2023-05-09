@@ -7,7 +7,5 @@ ensureServerEntryExports([
     foo,
     bar
 ]);
-foo.$$with_bound = false;
 __create_action_proxy__("ab21efdafbe611287bc25c0462b1e0510d13e48b", null, foo);
-bar.$$with_bound = false;
 __create_action_proxy__("ac840dcaf5e8197cb02b7f3a43c119b7a770b272", null, bar);

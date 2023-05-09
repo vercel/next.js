@@ -7,5 +7,4 @@ import ensureServerEntryExports from "private-next-rsc-action-validate";
 ensureServerEntryExports([
     myAction
 ]);
-myAction.$$with_bound = false;
 __create_action_proxy__("e10665baac148856374b2789aceb970f66fec33e", null, myAction);

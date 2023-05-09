@@ -4,5 +4,4 @@ import ensureServerEntryExports from "private-next-rsc-action-validate";
 ensureServerEntryExports([
     foo
 ]);
-foo.$$with_bound = false;
 __create_action_proxy__("c18c215a6b7cdc64bf709f3a714ffdef1bf9651d", null, foo);

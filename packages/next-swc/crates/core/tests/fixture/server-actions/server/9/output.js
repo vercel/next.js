@@ -12,9 +12,6 @@ ensureServerEntryExports([
     bar,
     qux
 ]);
-foo.$$with_bound = false;
 __create_action_proxy__("ab21efdafbe611287bc25c0462b1e0510d13e48b", null, foo);
-bar.$$with_bound = false;
 __create_action_proxy__("050e3854b72b19e3c7e3966a67535543a90bf7e0", null, bar);
-qux.$$with_bound = false;
 __create_action_proxy__("c18c215a6b7cdc64bf709f3a714ffdef1bf9651d", null, qux);

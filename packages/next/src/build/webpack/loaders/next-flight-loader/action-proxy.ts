@@ -18,7 +18,7 @@ export default function createActionProxy(
       }
     }
 
-    for (const key of ['$$typeof', '$$id', '$$with_bound', '$$FORM_ACTION']) {
+    for (const key of ['$$typeof', '$$id', '$$FORM_ACTION']) {
       // @ts-ignore
       newAction[key] = action[key]
     }

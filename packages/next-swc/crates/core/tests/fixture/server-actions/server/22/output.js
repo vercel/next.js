@@ -8,7 +8,5 @@ ensureServerEntryExports([
     action,
     $$ACTION_0
 ]);
-action.$$with_bound = false;
 __create_action_proxy__("f14702b5a021dd117f7ec7a3c838f397c2046d3b", null, action);
-$$ACTION_0.$$with_bound = false;
 __create_action_proxy__("c18c215a6b7cdc64bf709f3a714ffdef1bf9651d", null, $$ACTION_0);
