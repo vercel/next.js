@@ -66,6 +66,12 @@ fn register() {
     include!(concat!(env!("OUT_DIR"), "/register_test_integration.rs"));
 }
 
+#[derive(Debug)]
+struct JsResult {
+    uncaught_exceptions: Vec<String>,
+    run_result: JestRunResult,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct JestRunResult {
@@ -125,7 +131,17 @@ fn test(resource: PathBuf) {
         return;
     }
 
-    let run_result = run_async_test(run_test(resource));
+    let JsResult {
+        uncaught_exceptions,
+        run_result,
+    } = run_async_test(run_test(resource));
+
+    if !uncaught_exceptions.is_empty() {
+        panic!(
+            "Uncaught exception(s) in test:\n{}",
+            uncaught_exceptions.join("\n")
+        )
+    }
 
     assert!(
         !run_result.test_results.is_empty(),
@@ -158,7 +174,11 @@ fn test(resource: PathBuf) {
 #[should_panic]
 fn test_skipped_fails(resource: PathBuf) {
     let resource = resource.parent().unwrap().to_path_buf();
-    let run_result = run_async_test(run_test(resource));
+    let JsResult {
+        // Ignore uncaught exceptions for skipped tests.
+        uncaught_exceptions: _,
+        run_result,
+    } = run_async_test(run_test(resource));
 
     // Assert that this skipped test itself has at least one browser test which
     // fails.
@@ -194,7 +214,7 @@ fn copy_recursive(from: &Path, to: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
-async fn run_test(resource: PathBuf) -> JestRunResult {
+async fn run_test(resource: PathBuf) -> JsResult {
     register();
 
     let resource = canonicalize(resource).unwrap();
@@ -374,7 +394,7 @@ const BINDINGS: [&str; 3] = [
     TURBOPACK_CHANGE_FILE_BINDING,
 ];
 
-async fn run_browser(addr: SocketAddr, project_dir: &Path) -> Result<JestRunResult> {
+async fn run_browser(addr: SocketAddr, project_dir: &Path) -> Result<JsResult> {
     let is_debugging = *DEBUG_BROWSER;
     let (browser, mut handle) = create_browser(is_debugging).await?;
 
@@ -432,6 +452,7 @@ async fn run_browser(addr: SocketAddr, project_dir: &Path) -> Result<JestRunResu
     let mut bindings_next = binding_events.next();
     let mut console_next = console_events.next();
     let mut network_next = network_response_events.next();
+    let mut uncaught_exceptions = vec![];
 
     loop {
         tokio::select! {
@@ -471,10 +492,7 @@ async fn run_browser(addr: SocketAddr, project_dir: &Path) -> Result<JestRunResu
                     let message = message.trim_end();
                     if !is_debugging {
                         if !expected_error {
-                            return Err(anyhow!(
-                                "Exception throw in page: {}",
-                                message
-                            ))
+                            uncaught_exceptions.push(message.to_string());
                         }
                     } else if expected_error {
                         println!("Exception throw in page:\n{}", message);
@@ -489,7 +507,10 @@ async fn run_browser(addr: SocketAddr, project_dir: &Path) -> Result<JestRunResu
             event = &mut bindings_next => {
                 if let Some(event) = event {
                     if let Some(run_result) = handle_binding(&page, &*event, project_dir, is_debugging).await? {
-                        return Ok(run_result);
+                        return Ok(JsResult {
+                            uncaught_exceptions,
+                            run_result,
+                        });
                     }
                 } else {
                     return Err(anyhow!("Binding events channel ended unexpectedly"));
