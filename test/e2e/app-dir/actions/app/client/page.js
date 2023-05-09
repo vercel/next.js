@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 
-import double, { inc, dec, redirectAction } from './actions'
+import double, { inc, dec, redirectAction, getHeaders } from './actions'
 
 export default function Counter() {
   const [count, setCount] = useState(0)
@@ -51,6 +51,11 @@ export default function Counter() {
           formAction={() => redirectAction('https://example.com')}
         >
           redirect external
+        </button>
+      </form>
+      <form action={getHeaders}>
+        <button type="submit" id="get-header">
+          submit
         </button>
       </form>
     </div>

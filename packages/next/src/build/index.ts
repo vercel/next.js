@@ -289,7 +289,11 @@ export default async function build(
       hasAppDir = Boolean(appDir)
 
       if (isAppDirEnabled && hasAppDir) {
-        if (!process.env.__NEXT_TEST_MODE && ciEnvironment.hasNextSupport) {
+        if (
+          (!process.env.__NEXT_TEST_MODE ||
+            process.env.__NEXT_TEST_MODE === 'e2e') &&
+          ciEnvironment.hasNextSupport
+        ) {
           const requireHook = require.resolve('../server/require-hook')
           const contents = await promises.readFile(requireHook, 'utf8')
           await promises.writeFile(
@@ -3056,6 +3060,10 @@ export default async function build(
       if (config.output === 'export') {
         const exportApp: typeof import('../export').default =
           require('../export').default
+
+        const pagesWorker = createStaticWorker('pages')
+        const appWorker = createStaticWorker('app')
+
         const options: ExportOptions = {
           isInvokedFromCli: false,
           nextConfig: config,
@@ -3063,8 +3071,25 @@ export default async function build(
           silent: true,
           threads: config.experimental.cpus,
           outdir: path.join(dir, configOutDir),
+          exportAppPageWorker: sharedPool
+            ? appWorker.exportPage.bind(appWorker)
+            : undefined,
+          exportPageWorker: sharedPool
+            ? pagesWorker.exportPage.bind(pagesWorker)
+            : undefined,
+          endWorker: sharedPool
+            ? async () => {
+                await pagesWorker.end()
+                await appWorker.end()
+              }
+            : undefined,
         }
+
         await exportApp(dir, options, nextBuildSpan)
+
+        // ensure the worker is not left hanging
+        pagesWorker.close()
+        appWorker.close()
       }
 
       await nextBuildSpan
