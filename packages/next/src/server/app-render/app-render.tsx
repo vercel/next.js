@@ -138,7 +138,7 @@ function findDynamicParamFromRouterState(
 export async function renderToHTMLOrFlight(
   req: IncomingMessage,
   res: ServerResponse,
-  page: string,
+  pagePath: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts
 ): Promise<RenderResult> {
@@ -1181,7 +1181,7 @@ export async function renderToHTMLOrFlight(
               injectedCSS: new Set(),
               injectedFontPreloadTags: new Set(),
               rootLayoutIncluded: false,
-              asNotFound: page === '/404' || options?.asNotFound,
+              asNotFound: pagePath === '/404' || options?.asNotFound,
             })
           ).map((path) => path.slice(1)) // remove the '' (root) segment
 
@@ -1361,13 +1361,13 @@ export async function renderToHTMLOrFlight(
       )
     }
 
-    getTracer().getRootSpanAttributes()?.set('next.route', page)
+    getTracer().getRootSpanAttributes()?.set('next.route', pagePath)
     const bodyResult = getTracer().wrap(
       AppRenderSpan.getBodyResult,
       {
-        spanName: `render route (app) ${page}`,
+        spanName: `render route (app) ${pagePath}`,
         attributes: {
-          'next.route': page,
+          'next.route': pagePath,
         },
       },
       async ({
@@ -1497,8 +1497,8 @@ export async function renderToHTMLOrFlight(
           }
           if (err.digest === NEXT_DYNAMIC_NO_SSR_CODE) {
             warn(
-              `Entire page ${page} deopted into client-side rendering. https://nextjs.org/docs/messages/deopted-into-client-rendering`,
-              page
+              `Entire page ${pagePath} deopted into client-side rendering. https://nextjs.org/docs/messages/deopted-into-client-rendering`,
+              pagePath
             )
           }
           if (isNotFoundError(err)) {
@@ -1571,7 +1571,7 @@ export async function renderToHTMLOrFlight(
 
     const renderResult = new RenderResult(
       await bodyResult({
-        asNotFound: page === '/404',
+        asNotFound: pagePath === '/404',
       })
     )
 
@@ -1625,7 +1625,7 @@ export async function renderToHTMLOrFlight(
     () =>
       StaticGenerationAsyncStorageWrapper.wrap(
         staticGenerationAsyncStorage,
-        { pathname: page, renderOpts },
+        { pathname: pagePath, renderOpts },
         () => wrappedRender()
       )
   )
