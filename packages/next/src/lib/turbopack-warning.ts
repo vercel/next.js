@@ -8,6 +8,7 @@ const supportedTurbopackNextConfigOptions = [
   'env',
   'modularizeImports',
   'compiler.emotion',
+  'compiler.relay',
   'compiler.styledComponents',
   'images',
   'pageExtensions',
