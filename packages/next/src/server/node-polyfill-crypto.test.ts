@@ -1,8 +1,8 @@
 /* eslint-env jest */
-import 'next/dist/server/node-polyfill-crypto'
+import './node-polyfill-crypto'
 
 describe('node-polyfill-crypto', () => {
-  test('overwrite crypto', () => {
+  test('overwrite crypto', async () => {
     expect(global.crypto).not.toBeUndefined()
     const a = {} as Crypto
     global.crypto = a
