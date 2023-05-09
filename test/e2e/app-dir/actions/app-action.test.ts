@@ -12,7 +12,7 @@ createNextDescribe(
   {
     files: __dirname,
   },
-  ({ next, isNextDev }) => {
+  ({ next, isNextDev, isNextStart }) => {
     it('should handle basic actions correctly', async () => {
       const browser = await next.browser('/server')
 
@@ -172,7 +172,7 @@ createNextDescribe(
       await check(() => browser.elementByCss('h1').text(), '3')
     })
 
-    if (!isNextDev) {
+    if (isNextStart) {
       it('should not expose action content in sourcemaps', async () => {
         const sourcemap = (
           await fs.readdir(

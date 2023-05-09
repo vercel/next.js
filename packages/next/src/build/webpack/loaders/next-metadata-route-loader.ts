@@ -51,13 +51,11 @@ const contentType = ${JSON.stringify(getContentType(resourcePath))}
 const buffer = Buffer.from(${JSON.stringify(
     (
       await fs.promises.readFile(
-        resourcePath.replace(METADATA_RESOURCE_QUERY, ''),
-        {
-          encoding: 'utf-8',
-        }
+        resourcePath.replace(METADATA_RESOURCE_QUERY, '')
       )
-    ).toString()
-  )})
+    ).toString('base64')
+  )}, 'base64'
+  )
 
 export function GET() {
   return new NextResponse(buffer, {
