@@ -12,7 +12,7 @@ createNextDescribe(
   {
     files: __dirname,
   },
-  ({ next, isNextDev }) => {
+  ({ next, isNextDev, isNextStart }) => {
     it('should handle basic actions correctly', async () => {
       const browser = await next.browser('/server')
 
@@ -57,6 +57,32 @@ createNextDescribe(
           ? 'same'
           : 'different'
       }, 'same')
+    })
+
+    it('should support headers in client imported actions', async () => {
+      const logs: string[] = []
+      next.on('stdout', (log) => {
+        logs.push(log)
+      })
+      next.on('stderr', (log) => {
+        logs.push(log)
+      })
+
+      const currentTimestamp = Date.now()
+
+      const browser = await next.browser('/client')
+      await browser.elementByCss('#get-header').click()
+      await check(() => {
+        return logs.some((log) =>
+          log.includes('accept header: text/x-component')
+        )
+          ? 'yes'
+          : ''
+      }, 'yes')
+
+      expect(
+        await browser.eval('+document.cookie.match(/test-cookie=(\\d+)/)[1]')
+      ).toBeGreaterThanOrEqual(currentTimestamp)
     })
 
     it('should support setting cookies in route handlers with the correct overrides', async () => {
@@ -172,7 +198,7 @@ createNextDescribe(
       await check(() => browser.elementByCss('h1').text(), '3')
     })
 
-    if (!isNextDev) {
+    if (isNextStart) {
       it('should not expose action content in sourcemaps', async () => {
         const sourcemap = (
           await fs.readdir(
