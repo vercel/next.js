@@ -649,6 +649,59 @@ createNextDescribe(
             await next.patchFile(filePath, origContent)
           }
         })
+
+        it('should support HMR with sass/scss', async () => {
+          const filePath1 = 'app/css/sass/global.scss'
+          const origContent1 = await next.readFile(filePath1)
+          const filePath2 = 'app/css/sass/global.sass'
+          const origContent2 = await next.readFile(filePath2)
+
+          const browser = await next.browser('/css/sass/inner')
+          // .scss
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#scss-server-layout')).color`
+            )
+          ).toBe('rgb(222, 184, 135)')
+          // .sass
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#sass-server-layout')).color`
+            )
+          ).toBe('rgb(165, 42, 42)')
+
+          try {
+            await next.patchFile(
+              filePath1,
+              origContent1.replace('color: burlywood;', 'color: red;')
+            )
+            await check(
+              () =>
+                browser.eval(
+                  `window.getComputedStyle(document.querySelector('#scss-server-layout')).color`
+                ),
+              'rgb(255, 0, 0)'
+            )
+          } finally {
+            await next.patchFile(filePath1, origContent1)
+          }
+
+          try {
+            await next.patchFile(
+              filePath2,
+              origContent2.replace('color: brown', 'color: red')
+            )
+            await check(
+              () =>
+                browser.eval(
+                  `window.getComputedStyle(document.querySelector('#sass-server-layout')).color`
+                ),
+              'rgb(255, 0, 0)'
+            )
+          } finally {
+            await next.patchFile(filePath2, origContent2)
+          }
+        })
       }
     })
 
