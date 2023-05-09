@@ -6,7 +6,6 @@ import type {
 import path from 'path'
 import { stringify } from 'querystring'
 import { STATIC_METADATA_IMAGES } from '../../../../lib/metadata/is-metadata-route'
-import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
 
 const METADATA_TYPE = 'metadata'
 
@@ -65,12 +64,14 @@ export async function createStaticMetadataFromRoute(
     isRootLayoutOrRootPage,
     loaderContext,
     pageExtensions,
+    basePath,
   }: {
     segment: string
     resolvePath: (pathname: string) => Promise<string>
     isRootLayoutOrRootPage: boolean
     loaderContext: webpack.LoaderContext<any>
     pageExtensions: string[]
+    basePath: string
   }
 ) {
   let hasStaticMetadataFiles = false
@@ -125,7 +126,7 @@ export async function createStaticMetadataFromRoute(
           {
             type,
             segment,
-            route: normalizeAppPath(segment),
+            basePath,
             pageExtensions,
           }
         )}!${filepath}${METADATA_RESOURCE_QUERY}`

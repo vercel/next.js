@@ -46,7 +46,7 @@ export class Selenium extends BrowserInterface {
   private browserName: string
 
   // TODO: support setting locale
-  async setup(browserName: string, locale?: string) {
+  async setup(browserName: string, locale: string, javaScriptEnabled: boolean) {
     if (browser) return
     this.browserName = browserName
 

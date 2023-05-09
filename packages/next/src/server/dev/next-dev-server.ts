@@ -1,4 +1,3 @@
-import type { __ApiPreviewProps } from '../api-utils'
 import type { CustomRoutes } from '../../lib/load-custom-routes'
 import type { FindComponentsResult } from '../next-server'
 import type { LoadComponentsReturnType } from '../load-components'
@@ -14,7 +13,6 @@ import type { MiddlewareMatcher } from '../../build/analysis/get-page-static-inf
 import type { FunctionComponent } from 'react'
 import type { RouteMatch } from '../future/route-matches/route-match'
 
-import crypto from 'crypto'
 import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import findUp from 'next/dist/compiled/find-up'
@@ -70,9 +68,11 @@ import * as Log from '../../build/output/log'
 import isError, { getProperError } from '../../lib/is-error'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import { getSortedRoutes } from '../../shared/lib/router/utils'
-import { runDependingOnPageType } from '../../build/entries'
+import {
+  getStaticInfoIncludingLayouts,
+  runDependingOnPageType,
+} from '../../build/entries'
 import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
-import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import {
@@ -105,7 +105,7 @@ import { IncrementalCache } from '../lib/incremental-cache'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import { NextUrlWithParsedQuery } from '../request-meta'
 import { deserializeErr, errorToJSON } from '../render'
-import { invokeRequest } from '../lib/server-ipc'
+import { invokeRequest } from '../lib/server-ipc/invoke-request'
 import { generateInterceptionRoutesRewrites } from '../../lib/generate-interception-routes-rewrites'
 
 // Load ReactDevOverlay only when needed
@@ -500,12 +500,14 @@ export default class DevServer extends Server {
             pagesType: 'root',
           })
 
-          const staticInfo = await getPageStaticInfo({
+          const staticInfo = await getStaticInfoIncludingLayouts({
             pageFilePath: fileName,
-            nextConfig: this.nextConfig,
+            config: this.nextConfig,
+            appDir: this.appDir,
             page: rootFile,
             isDev: true,
-            pageType: isAppPath ? 'app' : 'pages',
+            isInsideAppDir: isAppPath,
+            pageExtensions: this.nextConfig.pageExtensions,
           })
 
           if (isMiddlewareFile(rootFile)) {
@@ -878,7 +880,7 @@ export default class DevServer extends Server {
         typeCheckPreflight: false,
         tsconfigPath: this.nextConfig.typescript.tsconfigPath,
         disableStaticImages: this.nextConfig.images.disableStaticImages,
-        isAppDirEnabled: !!this.appDir,
+        hasAppDir: !!this.appDir,
         hasPagesDir: !!this.pagesDir,
       })
 
@@ -917,7 +919,7 @@ export default class DevServer extends Server {
         pagesDir: this.pagesDir,
         distDir: this.distDir,
         config: this.nextConfig,
-        previewProps: this.getPreviewProps(),
+        previewProps: this.getPrerenderManifest().preview,
         buildId: this.buildId,
         rewrites,
         appDir: this.appDir,
@@ -1273,9 +1275,10 @@ export default class DevServer extends Server {
 
   private async invokeIpcMethod(method: string, args: any[]): Promise<any> {
     const ipcPort = process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT
+    const ipcKey = process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY
     if (ipcPort) {
       const res = await invokeRequest(
-        `http://${this.hostname}:${ipcPort}?method=${
+        `http://${this.hostname}:${ipcPort}?key=${ipcKey}&method=${
           method as string
         }&args=${encodeURIComponent(JSON.stringify(args))}`,
         {
@@ -1425,18 +1428,6 @@ export default class DevServer extends Server {
       rewrites: { beforeFiles: [], afterFiles: [], fallback: [] },
       headers: [],
     }
-  }
-
-  private _devCachedPreviewProps: __ApiPreviewProps | undefined
-  protected getPreviewProps() {
-    if (this._devCachedPreviewProps) {
-      return this._devCachedPreviewProps
-    }
-    return (this._devCachedPreviewProps = {
-      previewModeId: crypto.randomBytes(16).toString('hex'),
-      previewModeSigningKey: crypto.randomBytes(32).toString('hex'),
-      previewModeEncryptionKey: crypto.randomBytes(32).toString('hex'),
-    })
   }
 
   protected getPagesManifest(): PagesManifest | undefined {
@@ -1657,7 +1648,6 @@ export default class DevServer extends Server {
         publicRuntimeConfig,
         serverRuntimeConfig,
         httpAgentOptions,
-        experimental: { enableUndici },
       } = this.nextConfig
       const { locales, defaultLocale } = this.nextConfig.i18n || {}
       const staticPathsWorker = this.getStaticPathsWorker()
@@ -1672,7 +1662,6 @@ export default class DevServer extends Server {
             serverRuntimeConfig,
           },
           httpAgentOptions,
-          enableUndici,
           locales,
           defaultLocale,
           originalAppPath,

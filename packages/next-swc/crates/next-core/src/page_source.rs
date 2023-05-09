@@ -22,7 +22,7 @@ use turbo_binding::{
                 asset_graph::AssetGraphContentSourceVc,
                 combined::{CombinedContentSource, CombinedContentSourceVc},
                 specificity::SpecificityVc,
-                ContentSourceData, ContentSourceVc, NoContentSourceVc,
+                ContentSourceData, ContentSourceVc,
             },
         },
         ecmascript::{
@@ -43,13 +43,13 @@ use turbo_binding::{
     },
 };
 use turbo_tasks::{
-    primitives::{OptionStringVc, StringVc, StringsVc},
+    primitives::{JsonValueVc, OptionStringVc, StringVc, StringsVc},
     trace::TraceRawVcs,
     Value,
 };
 
 use crate::{
-    embed_js::{next_asset, next_js_file},
+    embed_js::next_asset,
     env::env_for_js,
     fallback::get_fallback_page,
     next_client::{
@@ -78,7 +78,7 @@ use crate::{
     pages_structure::{
         OptionPagesStructureVc, PagesStructure, PagesStructureItem, PagesStructureVc,
     },
-    util::{parse_config_from_source, pathname_for_path, NextRuntime},
+    util::{parse_config_from_source, pathname_for_path, render_data, NextRuntime},
 };
 
 /// Create a content source serving the `pages` or `src/pages` directory as
@@ -95,10 +95,14 @@ pub async fn create_page_source(
     next_config: NextConfigVc,
     server_addr: ServerAddrVc,
 ) -> Result<ContentSourceVc> {
-    let Some(pages_structure) = *pages_structure.await? else {
-        return Ok(NoContentSourceVc::new().into());
+    let (pages_dir, pages_structure) = if let Some(pages_structure) = *pages_structure.await? {
+        (
+            pages_structure.directory().resolve().await?,
+            Some(pages_structure),
+        )
+    } else {
+        (project_path.join("pages"), None)
     };
-    let pages_dir = pages_structure.directory().resolve().await?;
 
     let client_ty = Value::new(ClientContextType::Pages { pages_dir });
     let server_ty = Value::new(ServerContextType::Pages { pages_dir });
@@ -164,7 +168,7 @@ pub async fn create_page_source(
         edge_resolve_options_context,
         output_path,
         base_path: project_path,
-        bootstrap_file: next_js_file("entry/edge-bootstrap.ts"),
+        bootstrap_asset: next_asset("entry/edge-bootstrap.ts"),
         entry_name: "edge".to_string(),
     }
     .cell()
@@ -245,65 +249,74 @@ pub async fn create_page_source(
         next_config,
     );
 
+    let render_data = render_data(next_config);
     let page_extensions = next_config.page_extensions();
-    let force_not_found_source = create_not_found_page_source(
-        project_path,
-        env,
-        server_context,
-        client_context,
-        pages_dir,
-        page_extensions,
-        fallback_runtime_entries,
-        fallback_page,
-        server_root,
-        output_path.join("force_not_found"),
-        SpecificityVc::exact(),
-        NextExactMatcherVc::new(StringVc::cell("_next/404".to_string())).into(),
-    );
-    let fallback_not_found_source = create_not_found_page_source(
-        project_path,
-        env,
-        server_context,
-        client_context,
-        pages_dir,
-        page_extensions,
-        fallback_runtime_entries,
-        fallback_page,
-        server_root,
-        output_path.join("fallback_not_found"),
-        SpecificityVc::not_found(),
-        NextFallbackMatcherVc::new().into(),
-    );
-    let page_source = create_page_source_for_directory(
-        pages_structure,
-        project_path,
-        env,
-        server_context,
-        server_data_context,
-        client_context,
-        pages_dir,
-        server_runtime_entries,
-        fallback_page,
-        server_root,
-        output_path,
-    );
-    let fallback_source =
-        AssetGraphContentSourceVc::new_eager(server_root, fallback_page.as_asset());
 
-    let source = CombinedContentSource {
-        sources: vec![
-            // Match _next/404 first to ensure rewrites work properly.
-            force_not_found_source.issue_context(pages_dir, "Next.js pages directory not found"),
-            page_source,
-            fallback_source
-                .as_content_source()
-                .issue_context(pages_dir, "Next.js pages directory fallback"),
-            fallback_not_found_source
-                .issue_context(pages_dir, "Next.js pages directory not found fallback"),
-        ],
+    let mut sources = vec![];
+
+    // Match _next/404 first to ensure rewrites work properly.
+    sources.push(
+        create_not_found_page_source(
+            project_path,
+            env,
+            server_context,
+            client_context,
+            pages_dir,
+            page_extensions,
+            fallback_runtime_entries,
+            fallback_page,
+            server_root,
+            output_path.join("force_not_found"),
+            SpecificityVc::exact(),
+            NextExactMatcherVc::new(StringVc::cell("_next/404".to_string())).into(),
+            render_data,
+        )
+        .issue_context(pages_dir, "Next.js pages directory not found"),
+    );
+
+    if let Some(pages_structure) = pages_structure {
+        sources.push(create_page_source_for_directory(
+            pages_structure,
+            project_path,
+            env,
+            server_context,
+            server_data_context,
+            client_context,
+            pages_dir,
+            server_runtime_entries,
+            fallback_page,
+            server_root,
+            output_path,
+            render_data,
+        ));
     }
-    .cell()
-    .into();
+
+    sources.push(
+        AssetGraphContentSourceVc::new_eager(server_root, fallback_page.as_asset())
+            .as_content_source()
+            .issue_context(pages_dir, "Next.js pages directory fallback"),
+    );
+
+    sources.push(
+        create_not_found_page_source(
+            project_path,
+            env,
+            server_context,
+            client_context,
+            pages_dir,
+            page_extensions,
+            fallback_runtime_entries,
+            fallback_page,
+            server_root,
+            output_path.join("fallback_not_found"),
+            SpecificityVc::not_found(),
+            NextFallbackMatcherVc::new().into(),
+            render_data,
+        )
+        .issue_context(pages_dir, "Next.js pages directory not found fallback"),
+    );
+
+    let source = CombinedContentSource { sources }.cell().into();
     Ok(source)
 }
 
@@ -325,6 +338,7 @@ async fn create_page_source_for_file(
     is_api_path: bool,
     intermediate_output_path: FileSystemPathVc,
     output_root: FileSystemPathVc,
+    render_data: JsonValueVc,
 ) -> Result<ContentSourceVc> {
     let server_chunking_context = DevChunkingContextVc::builder(
         project_path,
@@ -384,6 +398,7 @@ async fn create_page_source_for_file(
             }
             .cell()
             .into(),
+            render_data,
         )
     } else {
         let data_pathname = pathname_for_path(server_root, server_path, true, true);
@@ -426,6 +441,7 @@ async fn create_page_source_for_file(
                 pathname,
                 ssr_entry,
                 fallback_page,
+                render_data,
             ),
             create_node_rendered_source(
                 project_path,
@@ -436,6 +452,7 @@ async fn create_page_source_for_file(
                 pathname,
                 ssr_data_entry,
                 fallback_page,
+                render_data,
             ),
             create_page_loader(
                 server_root,
@@ -478,6 +495,7 @@ async fn create_not_found_page_source(
     intermediate_output_path: FileSystemPathVc,
     specificity: SpecificityVc,
     route_matcher: RouteMatcherVc,
+    render_data: JsonValueVc,
 ) -> Result<ContentSourceVc> {
     let server_chunking_context = DevChunkingContextVc::builder(
         project_path,
@@ -502,14 +520,14 @@ async fn create_not_found_page_source(
     let (page_asset, pathname) =
         if let Some(not_found_page_asset) = get_not_found_page(pages_dir, page_extensions).await? {
             // If a 404 page is defined, the pathname should be 404.
-            (not_found_page_asset, StringVc::cell("404".to_string()))
+            (not_found_page_asset, StringVc::cell("/404".to_string()))
         } else {
             (
                 // The error page asset must be within the context path so it can depend on the
                 // Next.js module.
                 next_asset("entry/error.tsx"),
                 // If no 404 page is defined, the pathname should be _error.
-                StringVc::cell("_error".to_string()),
+                StringVc::cell("/_error".to_string()),
             )
         };
 
@@ -549,6 +567,7 @@ async fn create_not_found_page_source(
             pathname,
             ssr_entry,
             fallback_page,
+            render_data,
         ),
         page_loader,
     ])
@@ -571,6 +590,7 @@ async fn create_page_source_for_directory(
     fallback_page: DevHtmlAssetVc,
     server_root: FileSystemPathVc,
     output_root: FileSystemPathVc,
+    render_data: JsonValueVc,
 ) -> Result<ContentSourceVc> {
     let PagesStructure {
         ref items,
@@ -601,6 +621,7 @@ async fn create_page_source_for_directory(
                 false,
                 output_root,
                 output_root,
+                render_data,
             )
             .issue_context(page, "Next.js pages directory"),
             PagesStructureItem::Api {
@@ -623,6 +644,7 @@ async fn create_page_source_for_directory(
                 true,
                 output_root,
                 output_root,
+                render_data,
             )
             .issue_context(api, "Next.js pages api directory"),
         };
@@ -642,6 +664,7 @@ async fn create_page_source_for_directory(
             fallback_page,
             server_root,
             output_root,
+            render_data,
         ))
     }
 

@@ -83,7 +83,7 @@ describe('i18n Support', () => {
           'utf8'
         )
         expect(content).toContain('500')
-        expect(content).toMatch(/internal server error/i)
+        expect(content).toMatch(/Internal Server Error/i)
       }
     })
   })
