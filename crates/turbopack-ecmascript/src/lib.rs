@@ -42,8 +42,9 @@ use swc_core::{
     },
 };
 pub use transform::{
-    CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransformsVc, TransformContext,
-    TransformPlugin, TransformPluginVc,
+    CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransformsVc,
+    OptionTransformPlugin, OptionTransformPluginVc, TransformContext, TransformPlugin,
+    TransformPluginVc,
 };
 use turbo_tasks::{
     primitives::StringVc, trace::TraceRawVcs, RawVc, ReadRef, TryJoinIterExt, Value, ValueToString,

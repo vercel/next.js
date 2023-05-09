@@ -2,7 +2,7 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::trace::TraceRawVcs;
 use turbopack_core::{environment::EnvironmentVc, resolve::options::ImportMappingVc};
-use turbopack_ecmascript::EcmascriptInputTransform;
+use turbopack_ecmascript::{EcmascriptInputTransform, TransformPluginVc};
 use turbopack_ecmascript_plugins::transform::emotion::EmotionTransformConfigVc;
 use turbopack_node::{
     execution_context::ExecutionContextVc, transforms::webpack::WebpackLoaderConfigItemsVc,
@@ -156,6 +156,18 @@ impl Default for StyledComponentsTransformConfigVc {
     }
 }
 
+/// Configuration options for the custom ecma transform to be applied.
+#[turbo_tasks::value(shared)]
+#[derive(Default, Clone)]
+pub struct CustomEcmascriptTransformPlugins {
+    /// List of plugins to be applied before the main transform.
+    /// Transform will be applied in the order of the list.
+    pub source_transforms: Vec<TransformPluginVc>,
+    /// List of plugins to be applied after the main transform.
+    /// Transform will be applied in the order of the list.
+    pub output_transforms: Vec<TransformPluginVc>,
+}
+
 #[turbo_tasks::value(shared)]
 #[derive(Default, Clone)]
 pub struct ModuleOptionsContext {
@@ -187,10 +199,14 @@ pub struct ModuleOptionsContext {
     pub enable_mdx_rs: bool,
     #[serde(default)]
     pub preset_env_versions: Option<EnvironmentVc>,
+    #[deprecated(note = "use custom_ecma_transform_plugins instead")]
     #[serde(default)]
     pub custom_ecmascript_app_transforms: Vec<EcmascriptInputTransform>,
+    #[deprecated(note = "use custom_ecma_transform_plugins instead")]
     #[serde(default)]
     pub custom_ecmascript_transforms: Vec<EcmascriptInputTransform>,
+    #[serde(default)]
+    pub custom_ecma_transform_plugins: Option<CustomEcmascriptTransformPluginsVc>,
     #[serde(default)]
     /// Custom rules to be applied after all default rules.
     pub custom_rules: Vec<ModuleRule>,
