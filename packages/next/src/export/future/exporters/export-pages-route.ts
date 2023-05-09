@@ -103,7 +103,7 @@ export async function exportPagesRoute({
     htmlBasename =
       !isBuiltIn && extensions.pathname === '.html'
         ? getHTMLFilename(pathname, { subFolders })
-        : pathname + '.html'
+        : pathname
   }
 
   // The path to the HTML file that we're going to render.

@@ -553,8 +553,9 @@ export default async function exportApp(
       return
     }
 
+    // Validate that if there is no fallback: true pages while we are exporting.
     if (prerenderManifest && !options.buildExport) {
-      const fallbackEnabledPages = new Set()
+      const fallbackEnabledPages = new Set<string>()
 
       for (const path of Object.keys(exportPathMap)) {
         const page = exportPathMap[path].page
@@ -565,7 +566,7 @@ export default async function exportApp(
         }
       }
 
-      if (fallbackEnabledPages.size) {
+      if (fallbackEnabledPages.size > 0) {
         throw new ExportError(
           `Found pages with \`fallback\` enabled:\n${[
             ...fallbackEnabledPages,
