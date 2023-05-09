@@ -119,8 +119,10 @@ pub fn generate_destructuring<'a, I: Fn(&Field) -> bool>(
 ) -> (TokenStream, Vec<TokenStream>) {
     let fields_len = fields.len();
     let (captures, fields_idents): (Vec<_>, Vec<_>) = fields
-        .filter(|field| filter_field(field))
+        // We need to enumerate first to capture the indexes of the fields before filtering has
+        // changed them.
         .enumerate()
+        .filter(|(_i, field)| filter_field(field))
         .map(|(i, field)| match &field.ident {
             Some(ident) => (quote! { #ident }, quote! { #ident }),
             None => {
