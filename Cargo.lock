@@ -3245,6 +3245,7 @@ dependencies = [
  "mime",
  "next-transform-dynamic",
  "next-transform-font",
+ "next-transform-page-config",
  "next-transform-strip-page-exports",
  "once_cell",
  "qstring",
@@ -3329,6 +3330,7 @@ dependencies = [
  "fxhash",
  "hex",
  "next-transform-font",
+ "next-transform-page-config",
  "once_cell",
  "pathdiff",
  "regex",
@@ -3384,6 +3386,14 @@ dependencies = [
  "serde",
  "serde_json",
  "swc_core",
+]
+
+[[package]]
+name = "next-transform-page-config"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "turbo-binding",
 ]
 
 [[package]]
