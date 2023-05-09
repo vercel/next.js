@@ -118,6 +118,12 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     fn mark_own_task_as_finished(&self, task: TaskId);
 
     fn connect_task(&self, task: TaskId);
+
+    /// Wraps the given future in the current task.
+    fn detached(
+        &self,
+        f: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
+    ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>;
 }
 
 /// The type of stats reporting.
@@ -979,6 +985,20 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
     fn mark_own_task_as_finished(&self, task: TaskId) {
         self.backend.mark_own_task_as_finished(task, self);
     }
+
+    fn detached(
+        &self,
+        f: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
+    ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>> {
+        let current_task_id = CURRENT_TASK_ID.get();
+        Box::pin(TURBO_TASKS.scope(
+            turbo_tasks(),
+            CURRENT_TASK_ID.scope(
+                current_task_id,
+                self.backend.execution_scope(current_task_id, f),
+            ),
+        ))
+    }
 }
 
 impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
@@ -1298,6 +1318,14 @@ pub fn with_turbo_tasks_for_testing<T>(
         tt,
         CURRENT_TASK_ID.scope(current_task, CELL_COUNTERS.scope(Default::default(), f)),
     )
+}
+
+/// Spawns the given future within the context of the current task.
+///
+/// Beware: this method is not safe to use in production code. It is only
+/// intended for use in tests and for debugging purposes.
+pub fn spawn_detached(f: impl Future<Output = Result<()>> + Send + 'static) {
+    tokio::spawn(turbo_tasks().detached(Box::pin(f)));
 }
 
 pub fn current_task_for_testing() -> TaskId {
