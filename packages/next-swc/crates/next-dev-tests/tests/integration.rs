@@ -50,7 +50,7 @@ use turbo_binding::{
         },
         tasks_fs::{DiskFileSystemVc, FileSystem, FileSystemPathVc},
         tasks_memory::MemoryBackend,
-        tasks_testing::retry::retry_async,
+        tasks_testing::retry::{retry, retry_async},
     },
     turbopack::{
         core::issue::{
@@ -314,7 +314,15 @@ async fn run_test(resource: PathBuf) -> JestRunResult {
     });
     tt.wait_task_completion(task, true).await.unwrap();
 
-    std::fs::remove_dir_all(&resource_temp).expect("failed to remove temporary test directory");
+    // This sometimes fails for the following test:
+    // test_tests__integration__next__webpack_loaders__no_options__input
+    retry(
+        (),
+        |()| std::fs::remove_dir_all(&resource_temp),
+        3,
+        Duration::from_millis(100),
+    )
+    .expect("failed to remove temporary directory");
 
     result
 }
