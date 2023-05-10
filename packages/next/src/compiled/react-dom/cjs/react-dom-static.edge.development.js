@@ -1,6 +1,6 @@
 /**
  * @license React
- * react-dom-server.node.development.js
+ * react-dom-static.edge.development.js
  *
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
@@ -15,8 +15,6 @@ if (process.env.NODE_ENV !== "production") {
 'use strict';
 
 var React = require("next/dist/compiled/react");
-var util = require('util');
-var async_hooks = require('async_hooks');
 var ReactDOM = require('react-dom');
 
 var ReactVersion = '18.3.0-experimental-a70b134c2-20230508';
@@ -77,77 +75,23 @@ function printWarning(level, format, args) {
 }
 
 function scheduleWork(callback) {
-  setImmediate(callback);
+  setTimeout(callback, 0);
 }
-function flushBuffered(destination) {
-  // If we don't have any more data to send right now.
-  // Flush whatever is in the buffer to the wire.
-  if (typeof destination.flush === 'function') {
-    // By convention the Zlib streams provide a flush function for this purpose.
-    // For Express, compression middleware adds this method.
-    destination.flush();
-  }
-}
-var VIEW_SIZE = 2048;
+var VIEW_SIZE = 512;
 var currentView = null;
 var writtenBytes = 0;
-var destinationHasCapacity$1 = true;
 function beginWriting(destination) {
   currentView = new Uint8Array(VIEW_SIZE);
   writtenBytes = 0;
-  destinationHasCapacity$1 = true;
 }
-
-function writeStringChunk(destination, stringChunk) {
-  if (stringChunk.length === 0) {
-    return;
-  } // maximum possible view needed to encode entire string
-
-
-  if (stringChunk.length * 3 > VIEW_SIZE) {
-    if (writtenBytes > 0) {
-      writeToDestination(destination, currentView.subarray(0, writtenBytes));
-      currentView = new Uint8Array(VIEW_SIZE);
-      writtenBytes = 0;
-    }
-
-    writeToDestination(destination, textEncoder.encode(stringChunk));
+function writeChunk(destination, chunk) {
+  if (chunk.length === 0) {
     return;
   }
 
-  var target = currentView;
-
-  if (writtenBytes > 0) {
-    target = currentView.subarray(writtenBytes);
-  }
-
-  var _textEncoder$encodeIn = textEncoder.encodeInto(stringChunk, target),
-      read = _textEncoder$encodeIn.read,
-      written = _textEncoder$encodeIn.written;
-
-  writtenBytes += written;
-
-  if (read < stringChunk.length) {
-    writeToDestination(destination, currentView.subarray(0, writtenBytes));
-    currentView = new Uint8Array(VIEW_SIZE);
-    writtenBytes = textEncoder.encodeInto(stringChunk.slice(read), currentView).written;
-  }
-
-  if (writtenBytes === VIEW_SIZE) {
-    writeToDestination(destination, currentView);
-    currentView = new Uint8Array(VIEW_SIZE);
-    writtenBytes = 0;
-  }
-}
-
-function writeViewChunk(destination, chunk) {
-  if (chunk.byteLength === 0) {
-    return;
-  }
-
-  if (chunk.byteLength > VIEW_SIZE) {
+  if (chunk.length > VIEW_SIZE) {
     {
-      if (precomputedChunkSet && precomputedChunkSet.has(chunk)) {
+      if (precomputedChunkSet.has(chunk)) {
         error('A large precomputed chunk was passed to writeChunk without being copied.' + ' Large chunks get enqueued directly and are not copied. This is incompatible with precomputed chunks because you cannot enqueue the same precomputed chunk twice.' + ' Use "cloneChunk" to make a copy of this large precomputed chunk before writing it. This is a bug in React.');
       }
     } // this chunk may overflow a single view which implies it was not
@@ -156,30 +100,30 @@ function writeViewChunk(destination, chunk) {
 
 
     if (writtenBytes > 0) {
-      writeToDestination(destination, currentView.subarray(0, writtenBytes));
+      destination.enqueue(new Uint8Array(currentView.buffer, 0, writtenBytes));
       currentView = new Uint8Array(VIEW_SIZE);
       writtenBytes = 0;
     }
 
-    writeToDestination(destination, chunk);
+    destination.enqueue(chunk);
     return;
   }
 
   var bytesToWrite = chunk;
   var allowableBytes = currentView.length - writtenBytes;
 
-  if (allowableBytes < bytesToWrite.byteLength) {
+  if (allowableBytes < bytesToWrite.length) {
     // this chunk would overflow the current view. We enqueue a full view
     // and start a new view with the remaining chunk
     if (allowableBytes === 0) {
       // the current view is already full, send it
-      writeToDestination(destination, currentView);
+      destination.enqueue(currentView);
     } else {
       // fill up the current view and apply the remaining chunk bytes
       // to a new view.
-      currentView.set(bytesToWrite.subarray(0, allowableBytes), writtenBytes);
-      writtenBytes += allowableBytes;
-      writeToDestination(destination, currentView);
+      currentView.set(bytesToWrite.subarray(0, allowableBytes), writtenBytes); // writtenBytes += allowableBytes; // this can be skipped because we are going to immediately reset the view
+
+      destination.enqueue(currentView);
       bytesToWrite = bytesToWrite.subarray(allowableBytes);
     }
 
@@ -188,56 +132,33 @@ function writeViewChunk(destination, chunk) {
   }
 
   currentView.set(bytesToWrite, writtenBytes);
-  writtenBytes += bytesToWrite.byteLength;
-
-  if (writtenBytes === VIEW_SIZE) {
-    writeToDestination(destination, currentView);
-    currentView = new Uint8Array(VIEW_SIZE);
-    writtenBytes = 0;
-  }
+  writtenBytes += bytesToWrite.length;
 }
-
-function writeChunk(destination, chunk) {
-  if (typeof chunk === 'string') {
-    writeStringChunk(destination, chunk);
-  } else {
-    writeViewChunk(destination, chunk);
-  }
-}
-
-function writeToDestination(destination, view) {
-  var currentHasCapacity = destination.write(view);
-  destinationHasCapacity$1 = destinationHasCapacity$1 && currentHasCapacity;
-}
-
 function writeChunkAndReturn(destination, chunk) {
-  writeChunk(destination, chunk);
-  return destinationHasCapacity$1;
+  writeChunk(destination, chunk); // in web streams there is no backpressure so we can alwas write more
+
+  return true;
 }
 function completeWriting(destination) {
   if (currentView && writtenBytes > 0) {
-    destination.write(currentView.subarray(0, writtenBytes));
+    destination.enqueue(new Uint8Array(currentView.buffer, 0, writtenBytes));
+    currentView = null;
+    writtenBytes = 0;
   }
-
-  currentView = null;
-  writtenBytes = 0;
-  destinationHasCapacity$1 = true;
 }
 function close(destination) {
-  destination.end();
+  destination.close();
 }
-var textEncoder = new util.TextEncoder();
+var textEncoder = new TextEncoder();
 function stringToChunk(content) {
-  return content;
+  return textEncoder.encode(content);
 }
 var precomputedChunkSet = new Set() ;
 function stringToPrecomputedChunk(content) {
   var precomputedChunk = textEncoder.encode(content);
 
   {
-    if (precomputedChunkSet) {
-      precomputedChunkSet.add(precomputedChunk);
-    }
+    precomputedChunkSet.add(precomputedChunk);
   }
 
   return precomputedChunk;
@@ -246,8 +167,19 @@ function clonePrecomputedChunk(precomputedChunk) {
   return precomputedChunk.length > VIEW_SIZE ? precomputedChunk.slice() : precomputedChunk;
 }
 function closeWithError(destination, error) {
-  // $FlowFixMe[incompatible-call]: This is an Error object or the destination accepts other types.
-  destination.destroy(error);
+  // $FlowFixMe[method-unbinding]
+  if (typeof destination.error === 'function') {
+    // $FlowFixMe[incompatible-call]: This is an Error object or the destination accepts other types.
+    destination.error(error);
+  } else {
+    // Earlier implementations doesn't support this method. In that environment you're
+    // supposed to throw from a promise returned but we don't return a promise in our
+    // approach. We could fork this implementation but this is environment is an edge
+    // case to begin with. It's even less common to run this in an older environment.
+    // Even then, this is not where errors are supposed to happen and they get reported
+    // to a global callback in addition to this anyway. So it's fine just to close this.
+    destination.close();
+  }
 }
 
 function _defineProperty(obj, key, value) {
@@ -6451,7 +6383,8 @@ function getAsResourceDEV(resource) {
 
 var NotPendingTransition = NotPending;
 
-var requestStorage = new async_hooks.AsyncLocalStorage();
+var supportsRequestStorage = typeof AsyncLocalStorage === 'function';
+var requestStorage = supportsRequestStorage ? new AsyncLocalStorage() : null;
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -8695,7 +8628,7 @@ var currentRequest = null;
 function resolveRequest() {
   if (currentRequest) return currentRequest;
 
-  {
+  if (supportsRequestStorage) {
     var store = requestStorage.getStore();
     if (store) return store;
   }
@@ -10364,7 +10297,6 @@ function flushCompletedQueues(request, destination) {
         }
 
         completeWriting(destination);
-        flushBuffered(destination);
 
         {
           if (request.abortableTasks.size !== 0) {
@@ -10376,7 +10308,6 @@ function flushCompletedQueues(request, destination) {
         close(destination);
       } else {
       completeWriting(destination);
-      flushBuffered(destination);
     }
   }
 }
@@ -10384,9 +10315,13 @@ function flushCompletedQueues(request, destination) {
 function startWork(request) {
   request.flushScheduled = request.destination !== null;
 
-  {
+  if (supportsRequestStorage) {
     scheduleWork(function () {
       return requestStorage.run(request, performWork, request);
+    });
+  } else {
+    scheduleWork(function () {
+      return performWork(request);
     });
   }
 }
@@ -10457,47 +10392,48 @@ function getResources(request) {
   return request.resources;
 }
 
-function createDrainHandler(destination, request) {
-  return function () {
-    return startFlowing(request, destination);
-  };
-}
+function prerender(children, options) {
+  return new Promise(function (resolve, reject) {
+    var onFatalError = reject;
 
-function createAbortHandler(request, reason) {
-  // eslint-disable-next-line react-internal/prod-error-codes
-  return function () {
-    return abort(request, new Error(reason));
-  };
-}
-
-function createRequestImpl(children, options) {
-  return createRequest(children, createResponseState(options ? options.identifierPrefix : undefined, options ? options.nonce : undefined, options ? options.bootstrapScriptContent : undefined, options ? options.bootstrapScripts : undefined, options ? options.bootstrapModules : undefined, options ? options.unstable_externalRuntimeSrc : undefined), createRootFormatContext(options ? options.namespaceURI : undefined), options ? options.progressiveChunkSize : undefined, options ? options.onError : undefined, options ? options.onAllReady : undefined, options ? options.onShellReady : undefined, options ? options.onShellError : undefined, undefined);
-}
-
-function renderToPipeableStream(children, options) {
-  var request = createRequestImpl(children, options);
-  var hasStartedFlowing = false;
-  startWork(request);
-  return {
-    pipe: function (destination) {
-      if (hasStartedFlowing) {
-        throw new Error('React currently only supports piping to one writable stream.');
-      }
-
-      hasStartedFlowing = true;
-      startFlowing(request, destination);
-      destination.on('drain', createDrainHandler(destination, request));
-      destination.on('error', createAbortHandler(request, 'The destination stream errored while writing data.'));
-      destination.on('close', createAbortHandler(request, 'The destination stream closed early.'));
-      return destination;
-    },
-    abort: function (reason) {
-      abort(request, reason);
+    function onAllReady() {
+      var stream = new ReadableStream({
+        type: 'bytes',
+        pull: function (controller) {
+          startFlowing(request, controller);
+        }
+      }, // $FlowFixMe[prop-missing] size() methods are not allowed on byte streams.
+      {
+        highWaterMark: 0
+      });
+      var result = {
+        prelude: stream
+      };
+      resolve(result);
     }
-  };
+
+    var request = createRequest(children, createResponseState(options ? options.identifierPrefix : undefined, undefined, options ? options.bootstrapScriptContent : undefined, options ? options.bootstrapScripts : undefined, options ? options.bootstrapModules : undefined, options ? options.unstable_externalRuntimeSrc : undefined), createRootFormatContext(options ? options.namespaceURI : undefined), options ? options.progressiveChunkSize : undefined, options ? options.onError : undefined, onAllReady, undefined, undefined, onFatalError);
+
+    if (options && options.signal) {
+      var signal = options.signal;
+
+      if (signal.aborted) {
+        abort(request, signal.reason);
+      } else {
+        var listener = function () {
+          abort(request, signal.reason);
+          signal.removeEventListener('abort', listener);
+        };
+
+        signal.addEventListener('abort', listener);
+      }
+    }
+
+    startWork(request);
+  });
 }
 
-exports.renderToPipeableStream = renderToPipeableStream;
+exports.prerender = prerender;
 exports.version = ReactVersion;
   })();
 }

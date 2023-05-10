@@ -2391,7 +2391,6 @@ function importServerContexts(contexts) {
   return rootContextSnapshot;
 }
 
-// eslint-disable-next-line no-unused-vars
 function resolveServerReference(bundlerConfig, id) {
   var idx = id.lastIndexOf('#');
   var specifier = id.slice(0, idx);

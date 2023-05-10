@@ -2391,7 +2391,6 @@ function importServerContexts(contexts) {
   return rootContextSnapshot;
 }
 
-// eslint-disable-next-line no-unused-vars
 function resolveServerReference(bundlerConfig, id) {
   var name = '';
   var resolvedModuleData = bundlerConfig[id];
@@ -2441,17 +2440,16 @@ function preloadModule(metadata) {
   var promises = [];
 
   for (var i = 0; i < chunks.length; i++) {
-    var chunkId = chunks[i];
-    var entry = chunkCache.get(chunkId);
+    var chunk = chunks[i];
+    var entry = chunkCache.get(chunk);
 
     if (entry === undefined) {
-      var thenable = globalThis.__next_chunk_load__(chunkId);
-
+      var thenable = loadChunk();
       promises.push(thenable); // $FlowFixMe[method-unbinding]
 
-      var resolve = chunkCache.set.bind(chunkCache, chunkId, null);
+      var resolve = chunkCache.set.bind(chunkCache, chunk, null);
       thenable.then(resolve, ignoreReject);
-      chunkCache.set(chunkId, thenable);
+      chunkCache.set(chunk, thenable);
     } else if (entry !== null) {
       promises.push(entry);
     }
@@ -2520,6 +2518,10 @@ function requireModule(metadata) {
   }
 
   return moduleExports[metadata.name];
+}
+
+function loadChunk(chunkFile) {
+  return Promise.resolve();
 }
 
 // The server acts as a Client of itself when resolving Server References.

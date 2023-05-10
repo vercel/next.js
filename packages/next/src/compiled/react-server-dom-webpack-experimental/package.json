@@ -47,8 +47,8 @@
     "loose-envify": "^1.1.0"
   },
   "peerDependencies": {
-    "react": "0.0.0-experimental-16d053d59-20230506",
-    "react-dom": "0.0.0-experimental-16d053d59-20230506",
+    "react": "https://react-builds.vercel.app/api/commits/a70b134c2d143de5c0a5ec19f6dc6fb53cba2ec4/packages/react",
+    "react-dom": "https://react-builds.vercel.app/api/commits/a70b134c2d143de5c0a5ec19f6dc6fb53cba2ec4/packages/react-dom",
     "webpack": "^5.59.0"
   }
 }

@@ -34,10 +34,9 @@ function parseModel(response, json) {
   return JSON.parse(json, response._fromJSON);
 }
 
-// eslint-disable-next-line no-unused-vars
 function resolveClientReference(bundlerConfig, metadata) {
   if (bundlerConfig) {
-    var moduleExports = bundlerConfig[metadata.id];
+    var moduleExports = bundlerConfig.ssrManifest[metadata.id];
     var resolvedModuleData = moduleExports[metadata.name];
     var name;
 
@@ -53,6 +52,14 @@ function resolveClientReference(bundlerConfig, metadata) {
       }
 
       name = metadata.name;
+    }
+
+    var prefix = bundlerConfig.chunkLoading.prefix;
+    var crossOrigin = bundlerConfig.chunkLoading.crossOrigin;
+    var chunkFiles = metadata.chunks;
+
+    for (var i = 0; i < chunkFiles.length; i++) {
+      preinitModulesForSSR(prefix + chunkFiles[i], crossOrigin);
     }
 
     return {
@@ -82,17 +89,16 @@ function preloadModule(metadata) {
   var promises = [];
 
   for (var i = 0; i < chunks.length; i++) {
-    var chunkId = chunks[i];
-    var entry = chunkCache.get(chunkId);
+    var chunk = chunks[i];
+    var entry = chunkCache.get(chunk);
 
     if (entry === undefined) {
-      var thenable = globalThis.__next_chunk_load__(chunkId);
-
+      var thenable = loadChunk(chunk);
       promises.push(thenable); // $FlowFixMe[method-unbinding]
 
-      var resolve = chunkCache.set.bind(chunkCache, chunkId, null);
+      var resolve = chunkCache.set.bind(chunkCache, chunk, null);
       thenable.then(resolve, ignoreReject);
-      chunkCache.set(chunkId, thenable);
+      chunkCache.set(chunk, thenable);
     } else if (entry !== null) {
       promises.push(entry);
     }
@@ -163,6 +169,87 @@ function requireModule(metadata) {
   return moduleExports[metadata.name];
 }
 
+// When passing user input into querySelector(All) the embedded string must not alter
+// the semantics of the query. This escape function is safe to use when we know the
+// provided value is going to be wrapped in double quotes as part of an attribute selector
+// Do not use it anywhere else
+// we escape double quotes and backslashes
+var escapeSelectorAttributeValueInsideDoubleQuotesRegex = /[\n\"\\]/g;
+function escapeSelectorAttributeValueInsideDoubleQuotes(value) {
+  return value.replace(escapeSelectorAttributeValueInsideDoubleQuotesRegex, function (ch) {
+    return '\\' + ch.charCodeAt(0).toString(16) + ' ';
+  });
+}
+
+var chunkLoadingMap = new Map();
+function loadChunk(chunkFile) {
+  var chunkPromise = chunkLoadingMap.get(chunkFile);
+
+  if (chunkPromise) {
+    return chunkPromise;
+  }
+
+  var publicPath = __webpack_public_path__ || '';
+  var src = publicPath + chunkFile;
+  chunkPromise = new Promise(function (resolve, reject) {
+    var limitedEscapedSrc = escapeSelectorAttributeValueInsideDoubleQuotes(src);
+    var existing = document.querySelector("script[src=\"" + limitedEscapedSrc + "\"]");
+    var script = document.createElement('script');
+    script.setAttribute('src', src);
+
+    if (__webpack_nonce__) {
+      script.setAttribute('nonce', __webpack_nonce__);
+    }
+
+    if ( // This global is is true when config.output.crossOriginLoading is 'use-credentials'
+    __WEBPACK_FLIGHT_CROSS_ORIGIN_CREDENTIALS__) {
+      script.setAttribute('crossorigin', 'use-credentials');
+    } else if ( // This global is is true when config.output.crossOriginLoading is any other string
+    __WEBPACK_FLIGHT_CROSS_ORIGIN_ANONYMOUS__ && // Webpack JSONP loading has this check so I copied it. It's possible to do same-origin CORS
+    // requests but maybe that's uncommon.
+    !script.src.startsWith(window.location.origin + '/')) {
+      script.setAttribute('crossorigin', '');
+    }
+
+    function cleanup() {
+      script.onload = null;
+      script.onerror = null;
+
+      if (existing) {
+        existing.onload = null;
+        existing.onerror = null;
+      }
+    }
+
+    function onLoad() {
+      cleanup();
+      resolve();
+    }
+
+    function onError() {
+      cleanup();
+      reject();
+    }
+
+    if (existing) {
+      var onExistingError = function () {
+        existing.onload = null;
+        existing.onerror = null;
+      };
+
+      existing.onload = onLoad;
+      existing.onerror = onExistingError;
+    }
+
+    script.onload = onLoad;
+    script.onerror = onError;
+    document.head.appendChild(script);
+    document.head.removeChild(script);
+  });
+  chunkLoadingMap.set(chunkFile, chunkPromise);
+  return chunkPromise;
+}
+
 var ReactDOMSharedInternals = ReactDOM.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
 // This client file is in the shared folder because it applies to both SSR and browser contexts.
@@ -210,6 +297,22 @@ function dispatchHint(code, model) {
           dispatcher.preinit(href, options);
           return;
         }
+    }
+  }
+}
+function preinitModulesForSSR(href, crossOrigin) {
+  var dispatcher = ReactDOMCurrentDispatcher.current;
+
+  if (dispatcher) {
+    if (crossOrigin === null) {
+      dispatcher.preinit(href, {
+        as: 'script'
+      });
+    } else {
+      dispatcher.preinit(href, {
+        as: 'script',
+        crossOrigin: crossOrigin
+      });
     }
   }
 }

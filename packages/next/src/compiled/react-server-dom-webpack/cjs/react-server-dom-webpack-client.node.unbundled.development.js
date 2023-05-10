@@ -35,9 +35,9 @@ function parseModel(response, json) {
   return JSON.parse(json, response._fromJSON);
 }
 
-// eslint-disable-next-line no-unused-vars
 function resolveClientReference(bundlerConfig, metadata) {
-  var moduleExports = bundlerConfig[metadata.id];
+  var ssrManifest = bundlerConfig.ssrManifest;
+  var moduleExports = ssrManifest[metadata.id];
   var resolvedModuleData = moduleExports[metadata.name];
   var name;
 
@@ -53,6 +53,14 @@ function resolveClientReference(bundlerConfig, metadata) {
     }
 
     name = metadata.name;
+  }
+
+  var prefix = bundlerConfig.chunkLoading.prefix;
+  var crossOrigin = bundlerConfig.chunkLoading.crossOrigin;
+  var chunkFiles = metadata.chunks;
+
+  for (var i = 0; i < chunkFiles.length; i++) {
+    preinitModulesForSSR(prefix + chunkFiles[i], crossOrigin);
   }
 
   return {
@@ -160,6 +168,22 @@ function dispatchHint(code, model) {
           dispatcher.preinit(href, options);
           return;
         }
+    }
+  }
+}
+function preinitModulesForSSR(href, crossOrigin) {
+  var dispatcher = ReactDOMCurrentDispatcher.current;
+
+  if (dispatcher) {
+    if (crossOrigin === null) {
+      dispatcher.preinit(href, {
+        as: 'script'
+      });
+    } else {
+      dispatcher.preinit(href, {
+        as: 'script',
+        crossOrigin: crossOrigin
+      });
     }
   }
 }
@@ -1673,8 +1697,8 @@ function createServerReference(id, callServer) {
   return noServerCall;
 }
 
-function createFromNodeStream(stream, moduleMap) {
-  var response = createResponse(moduleMap, noServerCall);
+function createFromNodeStream(stream, bundleConfig) {
+  var response = createResponse(bundleConfig, noServerCall);
   stream.on('data', function (chunk) {
     if (typeof chunk === 'string') {
       processStringChunk(response, chunk, 0);

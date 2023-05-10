@@ -24,11 +24,16 @@ export function useFlightResponse(
     createFromReadableStream,
   } = require(`react-server-dom-webpack/client.edge`)
 
-  const [renderStream, forwardStream] = readableStreamTee(req)
-  const res = createFromReadableStream(renderStream, {
-    moduleMap: isEdgeRuntime
+  const bundleConfig = {
+    chunkLoading: clientReferenceManifest.chunkLoading,
+    ssrManifest: isEdgeRuntime
       ? clientReferenceManifest.edgeSSRModuleMapping
       : clientReferenceManifest.ssrModuleMapping,
+  }
+
+  const [renderStream, forwardStream] = readableStreamTee(req)
+  const res = createFromReadableStream(renderStream, {
+    bundleConfig,
   })
   flightResponseRef.current = res
 

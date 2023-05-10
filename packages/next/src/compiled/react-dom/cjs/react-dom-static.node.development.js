@@ -1,6 +1,6 @@
 /**
  * @license React
- * react-dom-server.node.development.js
+ * react-dom-static.node.development.js
  *
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
@@ -14,6 +14,7 @@ if (process.env.NODE_ENV !== "production") {
   (function() {
 'use strict';
 
+var stream = require('stream');
 var React = require("next/dist/compiled/react");
 var util = require('util');
 var async_hooks = require('async_hooks');
@@ -10457,47 +10458,61 @@ function getResources(request) {
   return request.resources;
 }
 
-function createDrainHandler(destination, request) {
-  return function () {
-    return startFlowing(request, destination);
-  };
-}
-
-function createAbortHandler(request, reason) {
-  // eslint-disable-next-line react-internal/prod-error-codes
-  return function () {
-    return abort(request, new Error(reason));
-  };
-}
-
-function createRequestImpl(children, options) {
-  return createRequest(children, createResponseState(options ? options.identifierPrefix : undefined, options ? options.nonce : undefined, options ? options.bootstrapScriptContent : undefined, options ? options.bootstrapScripts : undefined, options ? options.bootstrapModules : undefined, options ? options.unstable_externalRuntimeSrc : undefined), createRootFormatContext(options ? options.namespaceURI : undefined), options ? options.progressiveChunkSize : undefined, options ? options.onError : undefined, options ? options.onAllReady : undefined, options ? options.onShellReady : undefined, options ? options.onShellError : undefined, undefined);
-}
-
-function renderToPipeableStream(children, options) {
-  var request = createRequestImpl(children, options);
-  var hasStartedFlowing = false;
-  startWork(request);
+function createFakeWritable(readable) {
+  // The current host config expects a Writable so we create
+  // a fake writable for now to push into the Readable.
   return {
-    pipe: function (destination) {
-      if (hasStartedFlowing) {
-        throw new Error('React currently only supports piping to one writable stream.');
-      }
-
-      hasStartedFlowing = true;
-      startFlowing(request, destination);
-      destination.on('drain', createDrainHandler(destination, request));
-      destination.on('error', createAbortHandler(request, 'The destination stream errored while writing data.'));
-      destination.on('close', createAbortHandler(request, 'The destination stream closed early.'));
-      return destination;
+    write: function (chunk) {
+      return readable.push(chunk);
     },
-    abort: function (reason) {
-      abort(request, reason);
+    end: function () {
+      readable.push(null);
+    },
+    destroy: function (error) {
+      readable.destroy(error);
     }
   };
 }
 
-exports.renderToPipeableStream = renderToPipeableStream;
+function prerenderToNodeStreams(children, options) {
+  return new Promise(function (resolve, reject) {
+    var onFatalError = reject;
+
+    function onAllReady() {
+      var readable = new stream.Readable({
+        read: function () {
+          startFlowing(request, writable);
+        }
+      });
+      var writable = createFakeWritable(readable);
+      var result = {
+        prelude: readable
+      };
+      resolve(result);
+    }
+
+    var request = createRequest(children, createResponseState(options ? options.identifierPrefix : undefined, undefined, options ? options.bootstrapScriptContent : undefined, options ? options.bootstrapScripts : undefined, options ? options.bootstrapModules : undefined, options ? options.unstable_externalRuntimeSrc : undefined), createRootFormatContext(options ? options.namespaceURI : undefined), options ? options.progressiveChunkSize : undefined, options ? options.onError : undefined, onAllReady, undefined, undefined, onFatalError);
+
+    if (options && options.signal) {
+      var signal = options.signal;
+
+      if (signal.aborted) {
+        abort(request, signal.reason);
+      } else {
+        var listener = function () {
+          abort(request, signal.reason);
+          signal.removeEventListener('abort', listener);
+        };
+
+        signal.addEventListener('abort', listener);
+      }
+    }
+
+    startWork(request);
+  });
+}
+
+exports.prerenderToNodeStreams = prerenderToNodeStreams;
 exports.version = ReactVersion;
   })();
 }

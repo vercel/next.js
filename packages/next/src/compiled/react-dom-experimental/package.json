@@ -37,10 +37,10 @@
   },
   "dependencies": {
     "loose-envify": "^1.1.0",
-    "scheduler": "0.0.0-experimental-16d053d59-20230506"
+    "scheduler": "https://react-builds.vercel.app/api/commits/a70b134c2d143de5c0a5ec19f6dc6fb53cba2ec4/packages/scheduler"
   },
   "peerDependencies": {
-    "react": "0.0.0-experimental-16d053d59-20230506"
+    "react": "https://react-builds.vercel.app/api/commits/a70b134c2d143de5c0a5ec19f6dc6fb53cba2ec4/packages/react"
   },
   "browser": {
     "./server.js": "./server.browser.js",

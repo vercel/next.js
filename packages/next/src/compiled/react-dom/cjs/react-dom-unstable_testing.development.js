@@ -1,6 +1,6 @@
 /**
  * @license React
- * react-dom.development.js
+ * react-dom-unstable_testing.development.js
  *
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
@@ -12,18 +12,9 @@
 
 if (process.env.NODE_ENV !== "production") {
   (function() {
+'use strict';
 
-          'use strict';
-
-/* global __REACT_DEVTOOLS_GLOBAL_HOOK__ */
-if (
-  typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ !== 'undefined' &&
-  typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart ===
-    'function'
-) {
-  __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
-}
-          var React = require("next/dist/compiled/react");
+var React = require("next/dist/compiled/react");
 var Scheduler = require("next/dist/compiled/scheduler");
 
 var Internals = {
@@ -2201,7 +2192,7 @@ function getClosestInstanceFromNode(targetNode) {
  * instance, or null if the node was not rendered by this React.
  */
 
-function getInstanceFromNode(node) {
+function getInstanceFromNode$1(node) {
   var inst = node[internalInstanceKey] || node[internalContainerInstanceKey];
 
   if (inst) {
@@ -2269,6 +2260,153 @@ function markNodeAsHoistable(node) {
 }
 function isOwnedInstance(node) {
   return !!(node[internalHoistableMarker] || node[internalInstanceKey]);
+}
+
+// Below code forked from dom-accessibility-api
+var tagToRoleMappings = {
+  ARTICLE: 'article',
+  ASIDE: 'complementary',
+  BODY: 'document',
+  BUTTON: 'button',
+  DATALIST: 'listbox',
+  DD: 'definition',
+  DETAILS: 'group',
+  DIALOG: 'dialog',
+  DT: 'term',
+  FIELDSET: 'group',
+  FIGURE: 'figure',
+  // WARNING: Only with an accessible name
+  FORM: 'form',
+  FOOTER: 'contentinfo',
+  H1: 'heading',
+  H2: 'heading',
+  H3: 'heading',
+  H4: 'heading',
+  H5: 'heading',
+  H6: 'heading',
+  HEADER: 'banner',
+  HR: 'separator',
+  LEGEND: 'legend',
+  LI: 'listitem',
+  MATH: 'math',
+  MAIN: 'main',
+  MENU: 'list',
+  NAV: 'navigation',
+  OL: 'list',
+  OPTGROUP: 'group',
+  // WARNING: Only in certain context
+  OPTION: 'option',
+  OUTPUT: 'status',
+  PROGRESS: 'progressbar',
+  // WARNING: Only with an accessible name
+  SECTION: 'region',
+  SUMMARY: 'button',
+  TABLE: 'table',
+  TBODY: 'rowgroup',
+  TEXTAREA: 'textbox',
+  TFOOT: 'rowgroup',
+  // WARNING: Only in certain context
+  TD: 'cell',
+  TH: 'columnheader',
+  THEAD: 'rowgroup',
+  TR: 'row',
+  UL: 'list'
+};
+
+function getImplicitRole(element) {
+  var mappedByTag = tagToRoleMappings[element.tagName];
+
+  if (mappedByTag !== undefined) {
+    return mappedByTag;
+  }
+
+  switch (element.tagName) {
+    case 'A':
+    case 'AREA':
+    case 'LINK':
+      if (element.hasAttribute('href')) {
+        return 'link';
+      }
+
+      break;
+
+    case 'IMG':
+      if ((element.getAttribute('alt') || '').length > 0) {
+        return 'img';
+      }
+
+      break;
+
+    case 'INPUT':
+      {
+        var type = element.type;
+
+        switch (type) {
+          case 'button':
+          case 'image':
+          case 'reset':
+          case 'submit':
+            return 'button';
+
+          case 'checkbox':
+          case 'radio':
+            return type;
+
+          case 'range':
+            return 'slider';
+
+          case 'email':
+          case 'tel':
+          case 'text':
+          case 'url':
+            if (element.hasAttribute('list')) {
+              return 'combobox';
+            }
+
+            return 'textbox';
+
+          case 'search':
+            if (element.hasAttribute('list')) {
+              return 'combobox';
+            }
+
+            return 'searchbox';
+
+          default:
+            return null;
+        }
+      }
+
+    case 'SELECT':
+      if (element.hasAttribute('multiple') || element.size > 1) {
+        return 'listbox';
+      }
+
+      return 'combobox';
+  }
+
+  return null;
+}
+
+function getExplicitRoles(element) {
+  var role = element.getAttribute('role');
+
+  if (role) {
+    return role.trim().split(' ');
+  }
+
+  return null;
+} // https://w3c.github.io/html-aria/#document-conformance-requirements-for-use-of-aria-attributes-in-html
+
+
+function hasRole(element, role) {
+  var explicitRoles = getExplicitRoles(element);
+
+  if (explicitRoles !== null && explicitRoles.indexOf(role) >= 0) {
+    return true;
+  }
+
+  return role === getImplicitRole(element);
 }
 
 var allNativeEvents = new Set();
@@ -5789,7 +5927,7 @@ var restoreQueue = null;
 function restoreStateOfTarget(target) {
   // We perform this translation at the end of the event loop so that we
   // always receive the correct fiber here
-  var internalInstance = getInstanceFromNode(target);
+  var internalInstance = getInstanceFromNode$1(target);
 
   if (!internalInstance) {
     // Unmounted
@@ -23710,13 +23848,399 @@ var DefaultCacheDispatcher = {
   getCacheForType: getCacheForType
 };
 
+var COMPONENT_TYPE = 0;
+var HAS_PSEUDO_CLASS_TYPE = 1;
+var ROLE_TYPE = 2;
+var TEST_NAME_TYPE = 3;
+var TEXT_TYPE = 4;
+
 if (typeof Symbol === 'function' && Symbol.for) {
   var symbolFor = Symbol.for;
-  symbolFor('selector.component');
-  symbolFor('selector.has_pseudo_class');
-  symbolFor('selector.role');
-  symbolFor('selector.test_id');
-  symbolFor('selector.text');
+  COMPONENT_TYPE = symbolFor('selector.component');
+  HAS_PSEUDO_CLASS_TYPE = symbolFor('selector.has_pseudo_class');
+  ROLE_TYPE = symbolFor('selector.role');
+  TEST_NAME_TYPE = symbolFor('selector.test_id');
+  TEXT_TYPE = symbolFor('selector.text');
+}
+
+function createComponentSelector(component) {
+  return {
+    $$typeof: COMPONENT_TYPE,
+    value: component
+  };
+}
+function createHasPseudoClassSelector(selectors) {
+  return {
+    $$typeof: HAS_PSEUDO_CLASS_TYPE,
+    value: selectors
+  };
+}
+function createRoleSelector(role) {
+  return {
+    $$typeof: ROLE_TYPE,
+    value: role
+  };
+}
+function createTextSelector(text) {
+  return {
+    $$typeof: TEXT_TYPE,
+    value: text
+  };
+}
+function createTestNameSelector(id) {
+  return {
+    $$typeof: TEST_NAME_TYPE,
+    value: id
+  };
+}
+
+function findFiberRootForHostRoot(hostRoot) {
+  var maybeFiber = getInstanceFromNode(hostRoot);
+
+  if (maybeFiber != null) {
+    if (typeof maybeFiber.memoizedProps['data-testname'] !== 'string') {
+      throw new Error('Invalid host root specified. Should be either a React container or a node with a testname attribute.');
+    }
+
+    return maybeFiber;
+  } else {
+    var fiberRoot = findFiberRoot(hostRoot);
+
+    if (fiberRoot === null) {
+      throw new Error('Could not find React container within specified host subtree.');
+    } // The Flow type for FiberRoot is a little funky.
+    // createFiberRoot() cheats this by treating the root as :any and adding stateNode lazily.
+
+
+    return fiberRoot.stateNode.current;
+  }
+}
+
+function matchSelector(fiber, selector) {
+  var tag = fiber.tag;
+
+  switch (selector.$$typeof) {
+    case COMPONENT_TYPE:
+      if (fiber.type === selector.value) {
+        return true;
+      }
+
+      break;
+
+    case HAS_PSEUDO_CLASS_TYPE:
+      return hasMatchingPaths(fiber, selector.value);
+
+    case ROLE_TYPE:
+      if (tag === HostComponent || tag === HostHoistable || tag === HostSingleton) {
+        var node = fiber.stateNode;
+
+        if (matchAccessibilityRole(node, selector.value)) {
+          return true;
+        }
+      }
+
+      break;
+
+    case TEXT_TYPE:
+      if (tag === HostComponent || tag === HostText || tag === HostHoistable || tag === HostSingleton) {
+        var textContent = getTextContent(fiber);
+
+        if (textContent !== null && textContent.indexOf(selector.value) >= 0) {
+          return true;
+        }
+      }
+
+      break;
+
+    case TEST_NAME_TYPE:
+      if (tag === HostComponent || tag === HostHoistable || tag === HostSingleton) {
+        var dataTestID = fiber.memoizedProps['data-testname'];
+
+        if (typeof dataTestID === 'string' && dataTestID.toLowerCase() === selector.value.toLowerCase()) {
+          return true;
+        }
+      }
+
+      break;
+
+    default:
+      throw new Error('Invalid selector type specified.');
+  }
+
+  return false;
+}
+
+function selectorToString(selector) {
+  switch (selector.$$typeof) {
+    case COMPONENT_TYPE:
+      var displayName = getComponentNameFromType(selector.value) || 'Unknown';
+      return "<" + displayName + ">";
+
+    case HAS_PSEUDO_CLASS_TYPE:
+      return ":has(" + (selectorToString(selector) || '') + ")";
+
+    case ROLE_TYPE:
+      return "[role=\"" + selector.value + "\"]";
+
+    case TEXT_TYPE:
+      return "\"" + selector.value + "\"";
+
+    case TEST_NAME_TYPE:
+      return "[data-testname=\"" + selector.value + "\"]";
+
+    default:
+      throw new Error('Invalid selector type specified.');
+  }
+}
+
+function findPaths(root, selectors) {
+  var matchingFibers = [];
+  var stack = [root, 0];
+  var index = 0;
+
+  while (index < stack.length) {
+    var fiber = stack[index++];
+    var tag = fiber.tag;
+    var selectorIndex = stack[index++];
+    var selector = selectors[selectorIndex];
+
+    if ((tag === HostComponent || tag === HostHoistable || tag === HostSingleton) && isHiddenSubtree(fiber)) {
+      continue;
+    } else {
+      while (selector != null && matchSelector(fiber, selector)) {
+        selectorIndex++;
+        selector = selectors[selectorIndex];
+      }
+    }
+
+    if (selectorIndex === selectors.length) {
+      matchingFibers.push(fiber);
+    } else {
+      var child = fiber.child;
+
+      while (child !== null) {
+        stack.push(child, selectorIndex);
+        child = child.sibling;
+      }
+    }
+  }
+
+  return matchingFibers;
+} // Same as findPaths but with eager bailout on first match
+
+
+function hasMatchingPaths(root, selectors) {
+  var stack = [root, 0];
+  var index = 0;
+
+  while (index < stack.length) {
+    var fiber = stack[index++];
+    var tag = fiber.tag;
+    var selectorIndex = stack[index++];
+    var selector = selectors[selectorIndex];
+
+    if ((tag === HostComponent || tag === HostHoistable || tag === HostSingleton) && isHiddenSubtree(fiber)) {
+      continue;
+    } else {
+      while (selector != null && matchSelector(fiber, selector)) {
+        selectorIndex++;
+        selector = selectors[selectorIndex];
+      }
+    }
+
+    if (selectorIndex === selectors.length) {
+      return true;
+    } else {
+      var child = fiber.child;
+
+      while (child !== null) {
+        stack.push(child, selectorIndex);
+        child = child.sibling;
+      }
+    }
+  }
+
+  return false;
+}
+
+function findAllNodes(hostRoot, selectors) {
+
+  var root = findFiberRootForHostRoot(hostRoot);
+  var matchingFibers = findPaths(root, selectors);
+  var instanceRoots = [];
+  var stack = Array.from(matchingFibers);
+  var index = 0;
+
+  while (index < stack.length) {
+    var node = stack[index++];
+    var tag = node.tag;
+
+    if (tag === HostComponent || tag === HostHoistable || tag === HostSingleton) {
+      if (isHiddenSubtree(node)) {
+        continue;
+      }
+
+      instanceRoots.push(node.stateNode);
+    } else {
+      var child = node.child;
+
+      while (child !== null) {
+        stack.push(child);
+        child = child.sibling;
+      }
+    }
+  }
+
+  return instanceRoots;
+}
+function getFindAllNodesFailureDescription(hostRoot, selectors) {
+
+  var root = findFiberRootForHostRoot(hostRoot);
+  var maxSelectorIndex = 0;
+  var matchedNames = []; // The logic of this loop should be kept in sync with findPaths()
+
+  var stack = [root, 0];
+  var index = 0;
+
+  while (index < stack.length) {
+    var fiber = stack[index++];
+    var tag = fiber.tag;
+    var selectorIndex = stack[index++];
+    var selector = selectors[selectorIndex];
+
+    if ((tag === HostComponent || tag === HostHoistable || tag === HostSingleton) && isHiddenSubtree(fiber)) {
+      continue;
+    } else if (matchSelector(fiber, selector)) {
+      matchedNames.push(selectorToString(selector));
+      selectorIndex++;
+
+      if (selectorIndex > maxSelectorIndex) {
+        maxSelectorIndex = selectorIndex;
+      }
+    }
+
+    if (selectorIndex < selectors.length) {
+      var child = fiber.child;
+
+      while (child !== null) {
+        stack.push(child, selectorIndex);
+        child = child.sibling;
+      }
+    }
+  }
+
+  if (maxSelectorIndex < selectors.length) {
+    var unmatchedNames = [];
+
+    for (var i = maxSelectorIndex; i < selectors.length; i++) {
+      unmatchedNames.push(selectorToString(selectors[i]));
+    }
+
+    return 'findAllNodes was able to match part of the selector:\n' + ("  " + matchedNames.join(' > ') + "\n\n") + 'No matching component was found for:\n' + ("  " + unmatchedNames.join(' > '));
+  }
+
+  return null;
+}
+function findBoundingRects(hostRoot, selectors) {
+
+  var instanceRoots = findAllNodes(hostRoot, selectors);
+  var boundingRects = [];
+
+  for (var i = 0; i < instanceRoots.length; i++) {
+    boundingRects.push(getBoundingRect(instanceRoots[i]));
+  }
+
+  for (var _i = boundingRects.length - 1; _i > 0; _i--) {
+    var targetRect = boundingRects[_i];
+    var targetLeft = targetRect.x;
+    var targetRight = targetLeft + targetRect.width;
+    var targetTop = targetRect.y;
+    var targetBottom = targetTop + targetRect.height;
+
+    for (var j = _i - 1; j >= 0; j--) {
+      if (_i !== j) {
+        var otherRect = boundingRects[j];
+        var otherLeft = otherRect.x;
+        var otherRight = otherLeft + otherRect.width;
+        var otherTop = otherRect.y;
+        var otherBottom = otherTop + otherRect.height; // Merging all rects to the minimums set would be complicated,
+        // but we can handle the most common cases:
+        // 1. completely overlapping rects
+        // 2. adjacent rects that are the same width or height (e.g. items in a list)
+        //
+        // Even given the above constraints,
+        // we still won't end up with the fewest possible rects without doing multiple passes,
+        // but it's good enough for this purpose.
+
+        if (targetLeft >= otherLeft && targetTop >= otherTop && targetRight <= otherRight && targetBottom <= otherBottom) {
+          // Complete overlapping rects; remove the inner one.
+          boundingRects.splice(_i, 1);
+          break;
+        } else if (targetLeft === otherLeft && targetRect.width === otherRect.width && !(otherBottom < targetTop) && !(otherTop > targetBottom)) {
+          // Adjacent vertical rects; merge them.
+          if (otherTop > targetTop) {
+            otherRect.height += otherTop - targetTop;
+            otherRect.y = targetTop;
+          }
+
+          if (otherBottom < targetBottom) {
+            otherRect.height = targetBottom - otherTop;
+          }
+
+          boundingRects.splice(_i, 1);
+          break;
+        } else if (targetTop === otherTop && targetRect.height === otherRect.height && !(otherRight < targetLeft) && !(otherLeft > targetRight)) {
+          // Adjacent horizontal rects; merge them.
+          if (otherLeft > targetLeft) {
+            otherRect.width += otherLeft - targetLeft;
+            otherRect.x = targetLeft;
+          }
+
+          if (otherRight < targetRight) {
+            otherRect.width = targetRight - otherLeft;
+          }
+
+          boundingRects.splice(_i, 1);
+          break;
+        }
+      }
+    }
+  }
+
+  return boundingRects;
+}
+function focusWithin(hostRoot, selectors) {
+
+  var root = findFiberRootForHostRoot(hostRoot);
+  var matchingFibers = findPaths(root, selectors);
+  var stack = Array.from(matchingFibers);
+  var index = 0;
+
+  while (index < stack.length) {
+    var fiber = stack[index++];
+    var tag = fiber.tag;
+
+    if (isHiddenSubtree(fiber)) {
+      continue;
+    }
+
+    if (tag === HostComponent || tag === HostHoistable || tag === HostSingleton) {
+      var node = fiber.stateNode;
+
+      if (setFocusIfFocusable(node)) {
+        return true;
+      }
+    }
+
+    var child = fiber.child;
+
+    while (child !== null) {
+      stack.push(child);
+      child = child.sibling;
+    }
+  }
+
+  return false;
 }
 var commitHooks = [];
 function onCommitRoot() {
@@ -23725,6 +24249,45 @@ function onCommitRoot() {
       return commitHook();
     });
   }
+}
+function observeVisibleRects(hostRoot, selectors, callback, options) {
+
+  var instanceRoots = findAllNodes(hostRoot, selectors);
+
+  var _setupIntersectionObs = setupIntersectionObserver(instanceRoots, callback, options),
+      disconnect = _setupIntersectionObs.disconnect,
+      observe = _setupIntersectionObs.observe,
+      unobserve = _setupIntersectionObs.unobserve; // When React mutates the host environment, we may need to change what we're listening to.
+
+
+  var commitHook = function () {
+    var nextInstanceRoots = findAllNodes(hostRoot, selectors);
+    instanceRoots.forEach(function (target) {
+      if (nextInstanceRoots.indexOf(target) < 0) {
+        unobserve(target);
+      }
+    });
+    nextInstanceRoots.forEach(function (target) {
+      if (instanceRoots.indexOf(target) < 0) {
+        observe(target);
+      }
+    });
+  };
+
+  commitHooks.push(commitHook);
+  return {
+    disconnect: function () {
+      // Stop listening for React mutations:
+      var index = commitHooks.indexOf(commitHook);
+
+      if (index >= 0) {
+        commitHooks.splice(index, 1);
+      } // Disconnect the host observer:
+
+
+      disconnect();
+    }
+  };
 }
 
 var ReactCurrentActQueue$1 = ReactSharedInternals.ReactCurrentActQueue;
@@ -29183,7 +29746,7 @@ function accumulateOrCreateContinuousQueuedReplayableEvent(existingQueuedEvent, 
     var queuedEvent = createQueuedReplayableEvent(blockedOn, domEventName, eventSystemFlags, targetContainer, nativeEvent);
 
     if (blockedOn !== null) {
-      var fiber = getInstanceFromNode(blockedOn);
+      var fiber = getInstanceFromNode$1(blockedOn);
 
       if (fiber !== null) {
         // Attempt to increase the priority of this target.
@@ -29338,7 +29901,7 @@ function attemptReplayContinuousQueuedEvent(queuedEvent) {
       resetReplayingEvent();
     } else {
       // We're still blocked. Try again later.
-      var fiber = getInstanceFromNode(nextBlockedOn);
+      var fiber = getInstanceFromNode$1(nextBlockedOn);
 
       if (fiber !== null) {
         attemptContinuousHydration(fiber);
@@ -29422,7 +29985,7 @@ function replayUnblockedFormActions(formReplayingQueue) {
       }
     }
 
-    var formInst = getInstanceFromNode(form);
+    var formInst = getInstanceFromNode$1(form);
 
     if (formInst !== null) {
       // This is part of our instance.
@@ -29656,7 +30219,7 @@ function dispatchEvent(domEventName, eventSystemFlags, targetContainer, nativeEv
 
   if (eventSystemFlags & IS_CAPTURE_PHASE && isDiscreteEventThatRequiresHydration(domEventName)) {
     while (blockedOn !== null) {
-      var fiber = getInstanceFromNode(blockedOn);
+      var fiber = getInstanceFromNode$1(blockedOn);
 
       if (fiber !== null) {
         attemptSynchronousHydration(fiber);
@@ -35159,6 +35722,9 @@ var scheduleTimeout = typeof setTimeout === 'function' ? setTimeout : undefined;
 var cancelTimeout = typeof clearTimeout === 'function' ? clearTimeout : undefined;
 var noTimeout = -1;
 var localPromise = typeof Promise === 'function' ? Promise : undefined;
+function getInstanceFromNode(node) {
+  return getClosestInstanceFromNode(node) || null;
+}
 function preparePortalMount(portalInstance) {
   listenToAllSupportedEvents(portalInstance);
 }
@@ -35821,6 +36387,138 @@ function errorHydratingContainer(parentContainer) {
     error('An error occurred during hydration. The server HTML was replaced with client content in <%s>.', parentContainer.nodeName.toLowerCase());
   }
 } // -------------------
+function findFiberRoot(node) {
+  var stack = [node];
+  var index = 0;
+
+  while (index < stack.length) {
+    var current = stack[index++];
+
+    if (isContainerMarkedAsRoot(current)) {
+      return getInstanceFromNode$1(current);
+    }
+
+    stack.push.apply(stack, current.children);
+  }
+
+  return null;
+}
+function getBoundingRect(node) {
+  var rect = node.getBoundingClientRect();
+  return {
+    x: rect.left,
+    y: rect.top,
+    width: rect.width,
+    height: rect.height
+  };
+}
+function matchAccessibilityRole(node, role) {
+  if (hasRole(node, role)) {
+    return true;
+  }
+
+  return false;
+}
+function getTextContent(fiber) {
+  switch (fiber.tag) {
+    case HostHoistable:
+    case HostSingleton:
+    case HostComponent:
+      var textContent = '';
+      var childNodes = fiber.stateNode.childNodes;
+
+      for (var i = 0; i < childNodes.length; i++) {
+        var childNode = childNodes[i];
+
+        if (childNode.nodeType === Node.TEXT_NODE) {
+          textContent += childNode.textContent;
+        }
+      }
+
+      return textContent;
+
+    case HostText:
+      return fiber.stateNode.textContent;
+  }
+
+  return null;
+}
+function isHiddenSubtree(fiber) {
+  return fiber.tag === HostComponent && fiber.memoizedProps.hidden === true;
+}
+function setFocusIfFocusable(node) {
+  // The logic for determining if an element is focusable is kind of complex,
+  // and since we want to actually change focus anyway- we can just skip it.
+  // Instead we'll just listen for a "focus" event to verify that focus was set.
+  //
+  // We could compare the node to document.activeElement after focus,
+  // but this would not handle the case where application code managed focus to automatically blur.
+  var didFocus = false;
+
+  var handleFocus = function () {
+    didFocus = true;
+  };
+
+  var element = node;
+
+  try {
+    element.addEventListener('focus', handleFocus); // $FlowFixMe[method-unbinding]
+
+    (element.focus || HTMLElement.prototype.focus).call(element);
+  } finally {
+    element.removeEventListener('focus', handleFocus);
+  }
+
+  return didFocus;
+}
+function setupIntersectionObserver(targets, callback, options) {
+  var rectRatioCache = new Map();
+  targets.forEach(function (target) {
+    rectRatioCache.set(target, {
+      rect: getBoundingRect(target),
+      ratio: 0
+    });
+  });
+
+  var handleIntersection = function (entries) {
+    entries.forEach(function (entry) {
+      var boundingClientRect = entry.boundingClientRect,
+          intersectionRatio = entry.intersectionRatio,
+          target = entry.target;
+      rectRatioCache.set(target, {
+        rect: {
+          x: boundingClientRect.left,
+          y: boundingClientRect.top,
+          width: boundingClientRect.width,
+          height: boundingClientRect.height
+        },
+        ratio: intersectionRatio
+      });
+    });
+    callback(Array.from(rectRatioCache.values()));
+  };
+
+  var observer = new IntersectionObserver(handleIntersection, options);
+  targets.forEach(function (target) {
+    observer.observe(target);
+  });
+  return {
+    disconnect: function () {
+      return observer.disconnect();
+    },
+    observe: function (target) {
+      rectRatioCache.set(target, {
+        rect: getBoundingRect(target),
+        ratio: 0
+      });
+      observer.observe(target);
+    },
+    unobserve: function (target) {
+      rectRatioCache.delete(target);
+      observer.unobserve(target);
+    }
+  };
+}
 function isHostSingletonType(type) {
   return type === 'html' || type === 'head' || type === 'body';
 }
@@ -35877,7 +36575,7 @@ function resolveSingletonInstance(type, props, rootContainerInstance, hostContex
 }
 function acquireSingletonInstance(type, props, instance, internalInstanceHandle) {
   {
-    var currentInstanceHandle = getInstanceFromNode(instance);
+    var currentInstanceHandle = getInstanceFromNode$1(instance);
 
     if (currentInstanceHandle) {
       var tagName = instance.tagName.toLowerCase();
@@ -37408,7 +38106,7 @@ var topLevelUpdateWarnings;
 
     var isRootRenderedBySomeReact = !!container._reactRootContainer;
     var rootEl = getReactRootElementInContainer(container);
-    var hasNonRootReactChild = !!(rootEl && getInstanceFromNode(rootEl));
+    var hasNonRootReactChild = !!(rootEl && getInstanceFromNode$1(rootEl));
 
     if (hasNonRootReactChild && !isRootRenderedBySomeReact) {
       error('render(...): Replacing React-rendered children with a new root ' + 'component. If you intended to update the children of this node, ' + 'you should instead have the existing children update their state ' + 'and render the new components instead of calling ReactDOM.render.');
@@ -37626,7 +38324,7 @@ function unmountComponentAtNode(container) {
   if (container._reactRootContainer) {
     {
       var rootEl = getReactRootElementInContainer(container);
-      var renderedByDifferentReact = rootEl && !getInstanceFromNode(rootEl);
+      var renderedByDifferentReact = rootEl && !getInstanceFromNode$1(rootEl);
 
       if (renderedByDifferentReact) {
         error("unmountComponentAtNode(): The node you're attempting to unmount " + 'was rendered by another copy of React.');
@@ -37648,7 +38346,7 @@ function unmountComponentAtNode(container) {
     {
       var _rootEl = getReactRootElementInContainer(container);
 
-      var hasNonRootReactChild = !!(_rootEl && getInstanceFromNode(_rootEl)); // Check if the container itself is a React root node.
+      var hasNonRootReactChild = !!(_rootEl && getInstanceFromNode$1(_rootEl)); // Check if the container itself is a React root node.
 
       var isContainerReactRoot = container.nodeType === ELEMENT_NODE && isValidContainerLegacy(container.parentNode) && // $FlowFixMe[prop-missing]
       // $FlowFixMe[incompatible-use]
@@ -37663,7 +38361,9 @@ function unmountComponentAtNode(container) {
   }
 }
 
-var Dispatcher = Internals.Dispatcher;
+var ReactDOMSharedInternals = Internals;
+
+var Dispatcher = ReactDOMSharedInternals.Dispatcher;
 function prefetchDNS(href) {
   var passedOptionArg;
 
@@ -37782,7 +38482,7 @@ function flushSync(fn) {
 }
 // This is an array for better minification.
 
-Internals.Events = [getInstanceFromNode, getNodeFromInstance, getFiberCurrentPropsFromNode, enqueueStateRestore, restoreStateIfNeeded, batchedUpdates$1];
+Internals.Events = [getInstanceFromNode$1, getNodeFromInstance, getFiberCurrentPropsFromNode, enqueueStateRestore, restoreStateIfNeeded, batchedUpdates$1];
 var foundDevTools = injectIntoDevTools({
   findFiberByHostInstance: getClosestInstanceFromNode,
   bundleType: 1 ,
@@ -37805,13 +38505,23 @@ var foundDevTools = injectIntoDevTools({
 }
 
 exports.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = Internals;
+exports.createComponentSelector = createComponentSelector;
+exports.createHasPseudoClassSelector = createHasPseudoClassSelector;
 exports.createPortal = createPortal;
+exports.createRoleSelector = createRoleSelector;
 exports.createRoot = createRoot;
+exports.createTestNameSelector = createTestNameSelector;
+exports.createTextSelector = createTextSelector;
 exports.experimental_useFormStatus = useFormStatus;
+exports.findAllNodes = findAllNodes;
+exports.findBoundingRects = findBoundingRects;
 exports.findDOMNode = findDOMNode;
 exports.flushSync = flushSync;
+exports.focusWithin = focusWithin;
+exports.getFindAllNodesFailureDescription = getFindAllNodesFailureDescription;
 exports.hydrate = hydrate;
 exports.hydrateRoot = hydrateRoot;
+exports.observeVisibleRects = observeVisibleRects;
 exports.preconnect = preconnect;
 exports.prefetchDNS = prefetchDNS;
 exports.preinit = preinit;
@@ -37822,14 +38532,5 @@ exports.unstable_batchedUpdates = batchedUpdates$1;
 exports.unstable_renderSubtreeIntoContainer = renderSubtreeIntoContainer;
 exports.unstable_runWithPriority = runWithPriority;
 exports.version = ReactVersion;
-          /* global __REACT_DEVTOOLS_GLOBAL_HOOK__ */
-if (
-  typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ !== 'undefined' &&
-  typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop ===
-    'function'
-) {
-  __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop(new Error());
-}
-        
   })();
 }

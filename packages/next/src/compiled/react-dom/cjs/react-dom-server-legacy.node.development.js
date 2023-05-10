@@ -18,7 +18,7 @@ var React = require("next/dist/compiled/react");
 var ReactDOM = require('react-dom');
 var stream = require('stream');
 
-var ReactVersion = '18.3.0-canary-16d053d59-20230506';
+var ReactVersion = '18.3.0-experimental-a70b134c2-20230508';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -990,6 +990,23 @@ function validateProperty(tagName, name, value, eventRegistry) {
       return true;
     }
 
+    {
+      // Actions are special because unlike events they can have other value types.
+      if (typeof value === 'function') {
+        if (tagName === 'form' && name === 'action') {
+          return true;
+        }
+
+        if (tagName === 'input' && name === 'formAction') {
+          return true;
+        }
+
+        if (tagName === 'button' && name === 'formAction') {
+          return true;
+        }
+      }
+    } // We can't rely on the event system being injected on the server.
+
 
     if (eventRegistry != null) {
       var registrationNameDependencies = eventRegistry.registrationNameDependencies,
@@ -1090,6 +1107,13 @@ function validateProperty(tagName, name, value, eventRegistry) {
 
       case 'defaultChecked':
       case 'innerHTML':
+        {
+          return true;
+        }
+
+      case 'innerText': // Properties
+
+      case 'textContent':
         {
           return true;
         }
@@ -1504,6 +1528,7 @@ var clientRenderBoundary = '$RX=function(b,c,d,e){var a=document.getElementById(
 var completeBoundary = '$RC=function(b,c,e){c=document.getElementById(c);c.parentNode.removeChild(c);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var d=a.data;if("/$"===d)if(0===f)break;else f--;else"$"!==d&&"$?"!==d&&"$!"!==d||f++}d=a.nextSibling;e.removeChild(a);a=d}while(a);for(;c.firstChild;)e.insertBefore(c.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};';
 var completeBoundaryWithStyles = '$RM=new Map;\n$RR=function(r,t,w){for(var u=$RC,n=$RM,p=new Map,q=document,g,b,h=q.querySelectorAll("link[data-precedence],style[data-precedence]"),v=[],k=0;b=h[k++];)"not all"===b.getAttribute("media")?v.push(b):("LINK"===b.tagName&&n.set(b.getAttribute("href"),b),p.set(b.dataset.precedence,g=b));b=0;h=[];var l,a;for(k=!0;;){if(k){var f=w[b++];if(!f){k=!1;b=0;continue}var c=!1,m=0;var d=f[m++];if(a=n.get(d)){var e=a._p;c=!0}else{a=q.createElement("link");a.href=d;a.rel="stylesheet";for(a.dataset.precedence=\nl=f[m++];e=f[m++];)a.setAttribute(e,f[m++]);e=a._p=new Promise(function(x,y){a.onload=x;a.onerror=y});n.set(d,a)}d=a.getAttribute("media");!e||"l"===e.s||d&&!matchMedia(d).matches||h.push(e);if(c)continue}else{a=v[b++];if(!a)break;l=a.getAttribute("data-precedence");a.removeAttribute("media")}c=p.get(l)||g;c===g&&(g=a);p.set(l,a);c?c.parentNode.insertBefore(a,c.nextSibling):(c=q.head,c.insertBefore(a,c.firstChild))}Promise.all(h).then(u.bind(null,r,t,""),u.bind(null,r,t,"Resource failed to load"))};';
 var completeSegment = '$RS=function(a,b){a=document.getElementById(a);b=document.getElementById(b);for(a.parentNode.removeChild(a);a.firstChild;)b.parentNode.insertBefore(a.firstChild,b);b.parentNode.removeChild(b)};';
+var formReplaying = 'addEventListener("submit",function(a){if(!a.defaultPrevented){var c=a.target,d=a.submitter,e=c.action,b=d;if(d){var f=d.getAttribute("formAction");null!=f&&(e=f,b=null)}"javascript:throw new Error(\'A React form was unexpectedly submitted.\')"===e&&(a.preventDefault(),b?(a=document.createElement("input"),a.name=b.name,a.value=b.value,b.parentNode.insertBefore(a,b),b=new FormData(c),a.parentNode.removeChild(a)):b=new FormData(c),a=c.getRootNode(),(a.$$reactFormReplay=a.$$reactFormReplay||[]).push(c,\nd,b))}});';
 
 function getValueDescriptorExpectingObjectForWarning(thing) {
   return thing === null ? '`null`' : thing === undefined ? '`undefined`' : thing === '' ? 'an empty string' : "something with type \"" + typeof thing + "\"";
@@ -1809,6 +1834,16 @@ function describeDifferencesForPreinitOverScript(newProps, currentProps) {
   return description;
 }
 
+// same object across all transitions.
+
+var sharedNotPendingObject = {
+  pending: false,
+  data: null,
+  method: null,
+  action: null
+};
+var NotPending = Object.freeze(sharedNotPendingObject) ;
+
 var ReactDOMSharedInternals = ReactDOM.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
 var ReactDOMCurrentDispatcher = ReactDOMSharedInternals.Dispatcher;
@@ -1838,6 +1873,9 @@ var SentClientRenderFunction
 var SentStyleInsertionFunction
 /*       */
 = 8;
+var SentFormReplayingRuntime
+/*         */
+= 16; // Per response, global state that is not contextual to the rendering subtree.
 
 var dataElementQuotedEnd = stringToPrecomputedChunk('"></template>');
 var startInlineScript = stringToPrecomputedChunk('<script>');
@@ -2214,10 +2252,17 @@ function pushStringAttribute(target, name, value) // not null or undefined
     target.push(attributeSeparator, stringToChunk(name), attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
   }
 }
+
+function makeFormFieldPrefix(responseState) {
+  // I'm just reusing this counter. It's not really the same namespace as "name".
+  // It could just be its own counter.
+  var id = responseState.nextSuspenseID++;
+  return responseState.idPrefix + id;
+} // Since this will likely be repeated a lot in the HTML, we use a more concise message
 // than on the client and hopefully it's googleable.
 
 
-stringToPrecomputedChunk(escapeTextForBrowser( // eslint-disable-next-line no-script-url
+var actionJavaScriptURL = stringToPrecomputedChunk(escapeTextForBrowser( // eslint-disable-next-line no-script-url
 "javascript:throw new Error('A React form was unexpectedly submitted.')"));
 var startHiddenInputChunk = stringToPrecomputedChunk('<input type="hidden"');
 
@@ -2243,6 +2288,57 @@ function pushAdditionalFormFields(target, formData) {
 
 function pushFormActionAttribute(target, responseState, formAction, formEncType, formMethod, formTarget, name) {
   var formData = null;
+
+  if (typeof formAction === 'function') {
+    // Function form actions cannot control the form properties
+    {
+      if (name !== null && !didWarnFormActionName) {
+        didWarnFormActionName = true;
+
+        error('Cannot specify a "name" prop for a button that specifies a function as a formAction. ' + 'React needs it to encode which action should be invoked. It will get overridden.');
+      }
+
+      if ((formEncType !== null || formMethod !== null) && !didWarnFormActionMethod) {
+        didWarnFormActionMethod = true;
+
+        error('Cannot specify a formEncType or formMethod for a button that specifies a ' + 'function as a formAction. React provides those automatically. They will get overridden.');
+      }
+
+      if (formTarget !== null && !didWarnFormActionTarget) {
+        didWarnFormActionTarget = true;
+
+        error('Cannot specify a formTarget for a button that specifies a function as a formAction. ' + 'The function will always be executed in the same window.');
+      }
+    }
+
+    var customAction = formAction.$$FORM_ACTION;
+
+    if (typeof customAction === 'function') {
+      // This action has a custom progressive enhancement form that can submit the form
+      // back to the server if it's invoked before hydration. Such as a Server Action.
+      var prefix = makeFormFieldPrefix(responseState);
+      var customFields = formAction.$$FORM_ACTION(prefix);
+      name = customFields.name;
+      formAction = customFields.action || '';
+      formEncType = customFields.encType;
+      formMethod = customFields.method;
+      formTarget = customFields.target;
+      formData = customFields.data;
+    } else {
+      // Set a javascript URL that doesn't do anything. We don't expect this to be invoked
+      // because we'll preventDefault in the Fizz runtime, but it can happen if a form is
+      // manually submitted or if someone calls stopPropagation before React gets the event.
+      // If CSP is used to block javascript: URLs that's fine too. It just won't show this
+      // error message but the URL will be logged.
+      target.push(attributeSeparator, stringToChunk('formAction'), attributeAssign, actionJavaScriptURL, attributeEnd);
+      name = null;
+      formAction = null;
+      formEncType = null;
+      formMethod = null;
+      formTarget = null;
+      injectFormReplayingRuntime(responseState);
+    }
+  }
 
   if (name != null) {
     pushAttribute(target, 'name', name);
@@ -2303,6 +2399,21 @@ function pushAttribute(target, name, value) // not null or undefined
 
     case 'src':
     case 'href':
+      {
+        {
+          if (value === '') {
+            {
+              if (name === 'src') {
+                error('An empty string ("") was passed to the %s attribute. ' + 'This may cause the browser to download the whole page again over the network. ' + 'To fix this, either do not render the element at all ' + 'or pass null to %s instead of an empty string.', name, name);
+              } else {
+                error('An empty string ("") was passed to the %s attribute. ' + 'To fix this, either do not render the element at all ' + 'or pass null to %s instead of an empty string.', name, name);
+              }
+            }
+
+            return;
+          }
+        }
+      }
     // Fall through to the last case which shouldn't remove empty strings.
 
     case 'action':
@@ -2548,6 +2659,9 @@ var didWarnInvalidOptionChildren = false;
 var didWarnInvalidOptionInnerHTML = false;
 var didWarnSelectedSetOnOption = false;
 var didWarnFormActionType = false;
+var didWarnFormActionName = false;
+var didWarnFormActionTarget = false;
+var didWarnFormActionMethod = false;
 
 function checkSelectProp(props, propName) {
   {
@@ -2748,6 +2862,18 @@ function pushStartOption(target, props, formatContext) {
   return children;
 }
 
+var formReplayingRuntimeScript = stringToPrecomputedChunk(formReplaying);
+
+function injectFormReplayingRuntime(responseState) {
+  // If we haven't sent it yet, inject the runtime that tracks submitted JS actions
+  // for later replaying by Fiber. If we use an external runtime, we don't need
+  // to emit anything. It's always used.
+  if ((responseState.instructions & SentFormReplayingRuntime) === NothingSent && (!responseState.externalRuntimeScript)) {
+    responseState.instructions |= SentFormReplayingRuntime;
+    responseState.bootstrapChunks.unshift(responseState.startInlineScript, formReplayingRuntimeScript, endInlineScript);
+  }
+}
+
 function pushStartForm(target, props, responseState) {
   target.push(startChunkForTag('form'));
   var children = null;
@@ -2797,6 +2923,53 @@ function pushStartForm(target, props, responseState) {
     }
   }
 
+  var formData = null;
+  var formActionName = null;
+
+  if (typeof formAction === 'function') {
+    // Function form actions cannot control the form properties
+    {
+      if ((formEncType !== null || formMethod !== null) && !didWarnFormActionMethod) {
+        didWarnFormActionMethod = true;
+
+        error('Cannot specify a encType or method for a form that specifies a ' + 'function as the action. React provides those automatically. ' + 'They will get overridden.');
+      }
+
+      if (formTarget !== null && !didWarnFormActionTarget) {
+        didWarnFormActionTarget = true;
+
+        error('Cannot specify a target for a form that specifies a function as the action. ' + 'The function will always be executed in the same window.');
+      }
+    }
+
+    var customAction = formAction.$$FORM_ACTION;
+
+    if (typeof customAction === 'function') {
+      // This action has a custom progressive enhancement form that can submit the form
+      // back to the server if it's invoked before hydration. Such as a Server Action.
+      var prefix = makeFormFieldPrefix(responseState);
+      var customFields = formAction.$$FORM_ACTION(prefix);
+      formAction = customFields.action || '';
+      formEncType = customFields.encType;
+      formMethod = customFields.method;
+      formTarget = customFields.target;
+      formData = customFields.data;
+      formActionName = customFields.name;
+    } else {
+      // Set a javascript URL that doesn't do anything. We don't expect this to be invoked
+      // because we'll preventDefault in the Fizz runtime, but it can happen if a form is
+      // manually submitted or if someone calls stopPropagation before React gets the event.
+      // If CSP is used to block javascript: URLs that's fine too. It just won't show this
+      // error message but the URL will be logged.
+      target.push(attributeSeparator, stringToChunk('action'), attributeAssign, actionJavaScriptURL, attributeEnd);
+      formAction = null;
+      formEncType = null;
+      formMethod = null;
+      formTarget = null;
+      injectFormReplayingRuntime(responseState);
+    }
+  }
+
   if (formAction != null) {
     pushAttribute(target, 'action', formAction);
   }
@@ -2814,6 +2987,13 @@ function pushStartForm(target, props, responseState) {
   }
 
   target.push(endOfStartTag);
+
+  if (formActionName !== null) {
+    target.push(startHiddenInputChunk);
+    pushStringAttribute(target, 'name', formActionName);
+    target.push(endOfStartTagSelfClosing);
+    pushAdditionalFormFields(target, formData);
+  }
 
   pushInnerHTML(target, innerHTML, children);
 
@@ -3903,6 +4083,27 @@ function pushStartCustomElement(target, props, tag) {
         continue;
       }
 
+      if ((typeof propValue === 'function' || typeof propValue === 'object')) {
+        // It is normal to render functions and objects on custom elements when
+        // client rendering, but when server rendering the output isn't useful,
+        // so skip it.
+        continue;
+      }
+
+      if (propValue === false) {
+        continue;
+      }
+
+      if (propValue === true) {
+        propValue = '';
+      }
+
+      if (propKey === 'className') {
+        // className gets rendered as class on the client, so it should be
+        // rendered as class on the server.
+        propKey = 'class';
+      }
+
       switch (propKey) {
         case 'children':
           children = propValue;
@@ -4080,7 +4281,7 @@ function pushStartInstance(target, type, props, resources, responseState, format
       return pushStartButton(target, props, responseState);
 
     case 'form':
-      return pushStartForm(target, props);
+      return pushStartForm(target, props, responseState);
 
     case 'menuitem':
       return pushStartMenuItem(target, props);
@@ -6184,6 +6385,7 @@ function writeEndClientRenderedSuspenseBoundary(destination, responseState) {
 
   return writeEndClientRenderedSuspenseBoundary$1(destination);
 }
+var NotPendingTransition = NotPending;
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -6208,6 +6410,7 @@ var REACT_OFFSCREEN_TYPE = Symbol.for('react.offscreen');
 var REACT_LEGACY_HIDDEN_TYPE = Symbol.for('react.legacy_hidden');
 var REACT_CACHE_TYPE = Symbol.for('react.cache');
 var REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
+var REACT_MEMO_CACHE_SENTINEL = Symbol.for('react.memo_cache_sentinel');
 var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 var FAUX_ITERATOR_SYMBOL = '@@iterator';
 function getIteratorFn(maybeIterable) {
@@ -8142,6 +8345,15 @@ function useCallback(callback, deps) {
     return callback;
   }, deps);
 }
+
+function throwOnUseEffectEventCall() {
+  throw new Error("A function wrapped in useEffectEvent can't be called during rendering.");
+}
+
+function useEffectEvent(callback) {
+  // $FlowIgnore[incompatible-return]
+  return throwOnUseEffectEventCall;
+} // TODO Decide on how to implement this hook for server rendering.
 // If a mutation occurs during render, consider triggering a Suspense boundary
 // and falling back to client rendering.
 
@@ -8170,6 +8382,20 @@ function unsupportedStartTransition() {
 function useTransition() {
   resolveCurrentlyRenderingComponent();
   return [false, unsupportedStartTransition];
+}
+
+function useHostTransitionStatus() {
+  resolveCurrentlyRenderingComponent();
+  return NotPendingTransition;
+}
+
+function unsupportedSetOptimisticState() {
+  throw new Error('Cannot update optimistic state while rendering.');
+}
+
+function useOptimistic(passthrough, reducer) {
+  resolveCurrentlyRenderingComponent();
+  return [passthrough, unsupportedSetOptimisticState];
 }
 
 function useId() {
@@ -8221,6 +8447,16 @@ function useCacheRefresh() {
   return unsupportedRefresh;
 }
 
+function useMemoCache(size) {
+  var data = new Array(size);
+
+  for (var i = 0; i < size; i++) {
+    data[i] = REACT_MEMO_CACHE_SENTINEL;
+  }
+
+  return data;
+}
+
 function noop$1() {}
 
 var HooksDispatcher = {
@@ -8250,6 +8486,22 @@ var HooksDispatcher = {
 
 {
   HooksDispatcher.useCacheRefresh = useCacheRefresh;
+}
+
+{
+  HooksDispatcher.useEffectEvent = useEffectEvent;
+}
+
+{
+  HooksDispatcher.useMemoCache = useMemoCache;
+}
+
+{
+  HooksDispatcher.useHostTransitionStatus = useHostTransitionStatus;
+}
+
+{
+  HooksDispatcher.useOptimistic = useOptimistic;
 }
 
 var currentResponseState = null;

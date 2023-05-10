@@ -39,15 +39,6 @@ declare global {
   const __webpack_require__: any
 }
 
-// eslint-disable-next-line no-undef
-const getChunkScriptFilename = __webpack_require__.u
-const chunkFilenameMap: any = {}
-
-// eslint-disable-next-line no-undef
-__webpack_require__.u = (chunkId: any) => {
-  return encodeURI(chunkFilenameMap[chunkId] || getChunkScriptFilename(chunkId))
-}
-
 // Ignore the module ID transform in client.
 // eslint-disable-next-line no-undef
 // @ts-expect-error TODO: fix type
@@ -68,17 +59,6 @@ self.__next_require__ =
         return mod
       }
     : __webpack_require__
-
-// eslint-disable-next-line no-undef
-;(self as any).__next_chunk_load__ = (chunk: string) => {
-  if (!chunk) return Promise.resolve()
-  const [chunkId, chunkFilePath] = chunk.split(':')
-  chunkFilenameMap[chunkId] = chunkFilePath
-
-  // @ts-ignore
-  // eslint-disable-next-line no-undef
-  return __webpack_chunk_load__(chunkId)
-}
 
 const appElement: HTMLElement | Document | null = document
 

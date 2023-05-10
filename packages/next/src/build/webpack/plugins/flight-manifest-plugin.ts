@@ -61,7 +61,12 @@ export interface ManifestNode {
   }
 }
 
+type ChunkLoading = {
+  prefix: string
+  crossOrigin: string | null
+}
 export type ClientReferenceManifest = {
+  chunkLoading: ChunkLoading
   clientModules: ManifestNode
   ssrModuleMapping: {
     [moduleId: string]: ManifestNode
@@ -97,6 +102,25 @@ export class ClientReferenceManifestPlugin {
   }
 
   apply(compiler: webpack.Compiler) {
+    const DefinePlugin = webpack.DefinePlugin
+
+    const configuredCrossOriginLoading =
+      compiler.options.output.crossOriginLoading
+    const crossOriginMode =
+      typeof configuredCrossOriginLoading === 'string'
+        ? configuredCrossOriginLoading === 'use-credentials'
+          ? configuredCrossOriginLoading
+          : 'anonymous'
+        : null
+
+    const definePlugin = new DefinePlugin({
+      __WEBPACK_FLIGHT_CROSS_ORIGIN_CREDENTIALS__:
+        crossOriginMode === 'use-credentials' ? 'true' : 'false',
+      __WEBPACK_FLIGHT_CROSS_ORIGIN_ANONYMOUS__:
+        crossOriginMode === 'anonymous' ? 'true' : 'false',
+    })
+    definePlugin.apply(compiler)
+
     compiler.hooks.compilation.tap(
       PLUGIN_NAME,
       (compilation, { normalModuleFactory }) => {
@@ -119,7 +143,13 @@ export class ClientReferenceManifestPlugin {
           // asset hash via extract mini css plugin.
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
         },
-        (assets) => this.createAsset(assets, compilation, compiler.context)
+        (assets) =>
+          this.createAsset(
+            assets,
+            compilation,
+            compiler.context,
+            crossOriginMode
+          )
       )
     })
   }
@@ -127,9 +157,21 @@ export class ClientReferenceManifestPlugin {
   createAsset(
     assets: webpack.Compilation['assets'],
     compilation: webpack.Compilation,
-    context: string
+    context: string,
+    crossOriginLoading: string | null
   ) {
+    if (typeof compilation.outputOptions.publicPath === 'function') {
+      throw new Error(
+        'Next.js expected the webpack publicPath to be a string but a function was found instead.'
+      )
+    }
+    const prefix = compilation.outputOptions.publicPath || ''
+
     const manifest: ClientReferenceManifest = {
+      chunkLoading: {
+        prefix,
+        crossOrigin: crossOriginLoading,
+      },
       ssrModuleMapping: {},
       edgeSSRModuleMapping: {},
       cssFiles: {},
@@ -150,7 +192,24 @@ export class ClientReferenceManifestPlugin {
 
     traverseModules(compilation, (mod) => collectClientRequest(mod))
 
+    let runtimeChunkFiles = new Set()
+    compilation.entrypoints.forEach((entrypoint) => {
+      const runtimeChunk = entrypoint.getRuntimeChunk()
+      if (runtimeChunk) {
+        runtimeChunk.files.forEach((runtimeChunkFile) => {
+          if (!runtimeChunkFile.endsWith('.js')) return null
+          runtimeChunkFiles.add(runtimeChunkFile)
+        })
+      }
+    })
+
+    console.log('runtimeChunkFiles', runtimeChunkFiles)
+
     compilation.chunkGroups.forEach((chunkGroup) => {
+      console.log('chunkGroup', chunkGroup.name)
+
+      let requiredChunks: null | string[] = null
+
       const recordModule = (
         id: ModuleId,
         mod: webpack.NormalModule,
@@ -251,30 +310,35 @@ export class ClientReferenceManifestPlugin {
           ),
         ]
 
-        function getAppPathRequiredChunks() {
-          return chunkGroup.chunks
-            .map((requiredChunk: webpack.Chunk) => {
-              if (SYSTEM_ENTRYPOINTS.has(requiredChunk.name)) {
-                return null
-              }
+        // We only need to compute required chunks for a chunk group once. We do it here
+        // lazily if we end up register modules within this chunk group.
+        let chunks: string[]
+        if (requiredChunks) {
+          chunks = requiredChunks
+        } else {
+          chunks = requiredChunks = []
+          chunkGroup.chunks.forEach((requiredChunk: webpack.Chunk) => {
+            console.log('chunk', requiredChunk.name)
+            if (SYSTEM_ENTRYPOINTS.has(requiredChunk.name)) {
+              return null
+            }
 
-              // Get the actual chunk file names from the chunk file list.
-              // It's possible that the chunk is generated via `import()`, in
-              // that case the chunk file name will be '[name].[contenthash]'
-              // instead of '[name]-[chunkhash]'.
-              return [...requiredChunk.files].map((file) => {
-                // It's possible that a chunk also emits CSS files, that will
-                // be handled separatedly.
-                if (!file.endsWith('.js')) return null
-                if (file.endsWith('.hot-update.js')) return null
+            // Get the actual chunk file names from the chunk file list.
+            // It's possible that the chunk is generated via `import()`, in
+            // that case the chunk file name will be '[name].[contenthash]'
+            // instead of '[name]-[chunkhash]'.
+            requiredChunk.files.forEach((file) => {
+              console.log('file', file)
+              // It's possible that a chunk also emits CSS files, that will
+              // be handled separatedly.
+              if (!file.endsWith('.js')) return
+              if (runtimeChunkFiles.has(file)) return
+              if (file.endsWith('.hot-update.js')) return
 
-                return requiredChunk.id + ':' + file
-              })
+              chunks.push(file)
             })
-            .flat()
-            .filter(nonNullable)
+          })
         }
-        const requiredChunks = getAppPathRequiredChunks()
 
         // The client compiler will always use the CJS Next.js build, so here we
         // also add the mapping for the ESM build (Edge runtime) to consume.
@@ -290,7 +354,7 @@ export class ClientReferenceManifestPlugin {
           manifest.clientModules[exportName] = {
             id,
             name,
-            chunks: requiredChunks,
+            chunks,
             async: isAsyncModule,
           }
           if (esmResource) {

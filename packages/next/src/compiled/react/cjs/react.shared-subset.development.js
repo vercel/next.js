@@ -100,7 +100,6 @@ function setExtraStackFrame(stack) {
 // -----------------------------------------------------------------------------
 
 var enableScopeAPI = false; // Experimental Create Event Handle API.
-var enableCacheElement = false;
 var enableTransitionTracing = false; // No known bugs, but needs performance testing
 
 var enableLegacyHidden = false; // Enables unstable_avoidThisFallback feature in Fiber
@@ -305,7 +304,7 @@ function generateCacheKey(request) {
   }
 }
 
-var ReactVersion = '18.3.0-canary-16d053d59-20230506';
+var ReactVersion = '18.3.0-experimental-a70b134c2-20230508';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -324,6 +323,7 @@ var REACT_SUSPENSE_TYPE = Symbol.for('react.suspense');
 var REACT_SUSPENSE_LIST_TYPE = Symbol.for('react.suspense_list');
 var REACT_MEMO_TYPE = Symbol.for('react.memo');
 var REACT_LAZY_TYPE = Symbol.for('react.lazy');
+var REACT_DEBUG_TRACING_MODE_TYPE = Symbol.for('react.debug_trace_mode');
 var REACT_OFFSCREEN_TYPE = Symbol.for('react.offscreen');
 var REACT_CACHE_TYPE = Symbol.for('react.cache');
 var REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
@@ -1556,7 +1556,7 @@ function isValidElementType(type) {
   } // Note: typeof might be other than 'symbol' or 'number' (e.g. if it's a polyfill).
 
 
-  if (type === REACT_FRAGMENT_TYPE || type === REACT_PROFILER_TYPE || enableDebugTracing  || type === REACT_STRICT_MODE_TYPE || type === REACT_SUSPENSE_TYPE || type === REACT_SUSPENSE_LIST_TYPE || enableLegacyHidden  || type === REACT_OFFSCREEN_TYPE || enableScopeAPI  || enableCacheElement  || enableTransitionTracing ) {
+  if (type === REACT_FRAGMENT_TYPE || type === REACT_PROFILER_TYPE || enableDebugTracing  || type === REACT_STRICT_MODE_TYPE || type === REACT_SUSPENSE_TYPE || type === REACT_SUSPENSE_LIST_TYPE || enableLegacyHidden  || type === REACT_OFFSCREEN_TYPE || enableScopeAPI  || type === REACT_CACHE_TYPE || enableTransitionTracing ) {
     return true;
   }
 
@@ -1731,6 +1731,35 @@ function resolveDispatcher() {
 
 
   return dispatcher;
+}
+
+function getCacheSignal() {
+  var dispatcher = ReactCurrentCache.current;
+
+  if (!dispatcher) {
+    // If we have no cache to associate with this call, then we don't know
+    // its lifetime. We abort early since that's safer than letting it live
+    // for ever. Unlike just caching which can be a functional noop outside
+    // of React, these should generally always be associated with some React
+    // render but we're not limiting quite as much as making it a Hook.
+    // It's safer than erroring early at runtime.
+    var controller = new AbortController();
+    var reason = new Error('This CacheSignal was requested outside React which means that it is ' + 'immediately aborted.');
+    controller.abort(reason);
+    return controller.signal;
+  }
+
+  return dispatcher.getCacheSignal();
+}
+function getCacheForType(resourceType) {
+  var dispatcher = ReactCurrentCache.current;
+
+  if (!dispatcher) {
+    // If there is no dispatcher, then we treat this as not being cached.
+    return resourceType();
+  }
+
+  return dispatcher.getCacheForType(resourceType);
 }
 function useContext(Context) {
   var dispatcher = resolveDispatcher();
@@ -2615,6 +2644,7 @@ exports.Fragment = REACT_FRAGMENT_TYPE;
 exports.Profiler = REACT_PROFILER_TYPE;
 exports.StrictMode = REACT_STRICT_MODE_TYPE;
 exports.Suspense = REACT_SUSPENSE_TYPE;
+exports.SuspenseList = REACT_SUSPENSE_LIST_TYPE;
 exports.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = ReactSharedInternals;
 exports.cache = cache;
 exports.cloneElement = cloneElement;
@@ -2626,6 +2656,9 @@ exports.isValidElement = isValidElement;
 exports.lazy = lazy;
 exports.memo = memo;
 exports.startTransition = startTransition;
+exports.unstable_DebugTracingMode = REACT_DEBUG_TRACING_MODE_TYPE;
+exports.unstable_getCacheForType = getCacheForType;
+exports.unstable_getCacheSignal = getCacheSignal;
 exports.use = use;
 exports.useCallback = useCallback;
 exports.useContext = useContext;
