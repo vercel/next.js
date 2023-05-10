@@ -49,6 +49,15 @@ export default async function nextFontLoader(this: any) {
       postcss: getPostcss,
     } = this.getOptions()
 
+    if (assetPrefix && !/^\/|https?:\/\//.test(assetPrefix)) {
+      const err = new Error(
+        'assetPrefix must start with a leading slash or be an absolute URL(http:// or https://)'
+      )
+      err.name = 'NextFontError'
+      callback(err)
+      return
+    }
+
     /**
      * Emit font files to .next/static/media as [hash].[ext].
      *

@@ -23,12 +23,14 @@ createNextDescribe(
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
     let prerenderManifest
+    let buildCliOutputIndex = 0
 
     beforeAll(async () => {
       if (isNextStart) {
         prerenderManifest = JSON.parse(
           await next.readFile('.next/prerender-manifest.json')
         )
+        buildCliOutputIndex = next.cliOutput.length
       }
     })
 
@@ -171,6 +173,31 @@ createNextDescribe(
     // On-Demand Revalidate has not effect in dev since app routes
     // aren't considered static until prerendering
     if (!(global as any).isNextDev && !process.env.CUSTOM_CACHE_HANDLER) {
+      it('should not revalidate / when revalidate is not used', async () => {
+        let prevData
+
+        for (let i = 0; i < 5; i++) {
+          const res = await next.fetch('/')
+          const html = await res.text()
+          const $ = cheerio.load(html)
+          const data = $('#page-data').text()
+
+          expect(res.status).toBe(200)
+
+          if (prevData) {
+            expect(prevData).toBe(data)
+            prevData = data
+          }
+          await waitFor(500)
+        }
+
+        if (isNextStart) {
+          expect(next.cliOutput.substring(buildCliOutputIndex)).not.toContain(
+            'rendering index'
+          )
+        }
+      })
+
       it.each([
         {
           type: 'edge route handler',
@@ -399,6 +426,9 @@ createNextDescribe(
           'hooks/use-search-params/with-suspense.html',
           'hooks/use-search-params/with-suspense.rsc',
           'hooks/use-search-params/with-suspense/page.js',
+          'index.html',
+          'index.rsc',
+          'page.js',
           'partial-gen-params-no-additional-lang/[lang]/[slug]/page.js',
           'partial-gen-params-no-additional-lang/en/RAND.html',
           'partial-gen-params-no-additional-lang/en/RAND.rsc',
@@ -507,6 +537,11 @@ createNextDescribe(
 
         expect(curManifest.version).toBe(4)
         expect(curManifest.routes).toEqual({
+          '/': {
+            initialRevalidateSeconds: false,
+            srcRoute: '/',
+            dataRoute: '/index.rsc',
+          },
           '/blog/tim': {
             initialRevalidateSeconds: 10,
             srcRoute: '/blog/[author]',
@@ -659,7 +694,7 @@ createNextDescribe(
               'x-next-cache-tags':
                 'thankyounext,/route-handler/revalidate-360-isr/route',
             },
-            initialRevalidateSeconds: false,
+            initialRevalidateSeconds: 10,
             srcRoute: '/route-handler/revalidate-360-isr',
           },
           '/variable-config-revalidate/revalidate-3': {
