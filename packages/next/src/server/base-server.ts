@@ -1071,6 +1071,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           | 'https',
       })
       addRequestMeta(req, '_nextIncrementalCache', incrementalCache)
+      ;(globalThis as any).__incrementalCache = incrementalCache
     }
 
     try {
