@@ -4,8 +4,11 @@ use anyhow::Result;
 use async_trait::async_trait;
 use next_transform_dynamic::{next_dynamic, NextDynamicMode};
 use swc_core::{
-    common::FileName,
-    ecma::{ast::Program, visit::FoldWith},
+    common::{util::take::Take, FileName},
+    ecma::{
+        ast::{Module, Program},
+        visit::FoldWith,
+    },
 };
 use turbo_binding::{
     turbo::tasks_fs::FileSystemPathVc,
@@ -18,7 +21,7 @@ use turbo_binding::{
     },
 };
 
-use super::{module_rule_match_js_no_url, unwrap_module_program};
+use super::module_rule_match_js_no_url;
 
 /// Returns a rule which applies the Next.js dynamic transform.
 pub async fn get_next_dynamic_transform_rule(
@@ -55,19 +58,17 @@ struct NextJsDynamic {
 
 #[async_trait]
 impl CustomTransformer for NextJsDynamic {
-    async fn transform(
-        &self,
-        program: &mut Program,
-        ctx: &TransformContext<'_>,
-    ) -> Result<Option<Program>> {
-        let module_program = unwrap_module_program(program);
-        Ok(Some(module_program.fold_with(&mut next_dynamic(
+    async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
+        let p = std::mem::replace(program, Program::Module(Module::dummy()));
+        *program = p.fold_with(&mut next_dynamic(
             self.is_development,
             self.is_server,
             self.is_server_components,
             NextDynamicMode::Turbo,
             FileName::Real(ctx.file_path_str.into()),
             self.pages_dir.clone(),
-        ))))
+        ));
+
+        Ok(())
     }
 }
