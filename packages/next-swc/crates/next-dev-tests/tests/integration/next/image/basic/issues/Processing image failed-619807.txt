@@ -1,0 +1,21 @@
+PlainIssue {
+    severity: Error,
+    context: "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/image/basic/input/public/broken.jpeg",
+    category: "image",
+    title: "Processing image failed",
+    description: "unable to decode image data\n\nCaused by:\n- failed to fill whole buffer",
+    detail: "",
+    documentation_link: "",
+    source: None,
+    sub_issues: [],
+    processing_path: Some(
+        [
+            PlainIssueProcessingPathItem {
+                context: Some(
+                    "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/image/basic/input/pages/index.js",
+                ),
+                description: "Next.js pages directory",
+            },
+        ],
+    ),
+}
