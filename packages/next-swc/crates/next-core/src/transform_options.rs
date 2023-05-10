@@ -1,21 +1,24 @@
 use anyhow::Result;
-use turbo_binding::turbopack::{
-    core::{
-        asset::AssetVc,
-        resolve::{find_context_file, node::node_cjs_resolve_options, FindContextFileResult},
-        source_asset::SourceAssetVc,
-    },
-    ecmascript::typescript::resolve::{read_from_tsconfigs, read_tsconfigs, tsconfig},
-    ecmascript_plugin::transform::emotion::{
-        EmotionTransformConfig, EmotionTransformConfigVc, OptionEmotionTransformConfigVc,
-    },
-    turbopack::module_options::{
-        DecoratorsKind, DecoratorsOptions, DecoratorsOptionsVc, JsxTransformOptions,
-        JsxTransformOptionsVc, OptionStyledComponentsTransformConfigVc,
-        StyledComponentsTransformConfig, TypescriptTransformOptions, TypescriptTransformOptionsVc,
+use turbo_binding::{
+    turbo::tasks_fs::{FileJsonContentVc, FileSystemPathVc},
+    turbopack::{
+        core::{
+            asset::AssetVc,
+            resolve::{find_context_file, node::node_cjs_resolve_options, FindContextFileResult},
+            source_asset::SourceAssetVc,
+        },
+        ecmascript::typescript::resolve::{read_from_tsconfigs, read_tsconfigs, tsconfig},
+        ecmascript_plugin::transform::emotion::{
+            EmotionTransformConfig, EmotionTransformConfigVc, OptionEmotionTransformConfigVc,
+        },
+        turbopack::module_options::{
+            DecoratorsKind, DecoratorsOptions, DecoratorsOptionsVc, JsxTransformOptions,
+            JsxTransformOptionsVc, OptionStyledComponentsTransformConfigVc,
+            StyledComponentsTransformConfig, TypescriptTransformOptions,
+            TypescriptTransformOptionsVc,
+        },
     },
 };
-use turbo_tasks_fs::{FileJsonContentVc, FileSystemPathVc};
 
 use crate::next_config::{
     EmotionTransformOptionsOrBoolean, NextConfigVc, StyledComponentsTransformOptionsOrBoolean,

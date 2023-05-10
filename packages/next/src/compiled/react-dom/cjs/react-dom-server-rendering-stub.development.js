@@ -14,7 +14,7 @@ if (process.env.NODE_ENV !== "production") {
   (function() {
 'use strict';
 
-var ReactVersion = '18.3.0-canary-aef7ce554-20230503';
+var ReactVersion = '18.3.0-canary-16d053d59-20230506';
 
 var Internals = {
   usingClientEntryPoint: false,
@@ -84,6 +84,12 @@ function preinit(href, options) {
 
 }
 
+function useFormStatus() {
+  {
+    throw new Error('Not implemented.');
+  }
+}
+
 function createPortal() {
   throw new Error('createPortal was called on the server. Portals are not currently' + ' supported on the server. Update your program to conditionally call' + ' createPortal on the client only.');
 }
@@ -93,6 +99,7 @@ function flushSync() {
 
 exports.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = Internals;
 exports.createPortal = createPortal;
+exports.experimental_useFormStatus = useFormStatus;
 exports.flushSync = flushSync;
 exports.preconnect = preconnect;
 exports.prefetchDNS = prefetchDNS;
