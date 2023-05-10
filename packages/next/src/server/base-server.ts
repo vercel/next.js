@@ -1055,7 +1055,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // be passed down for edge functions and the fetch disk
     // cache can be leveraged locally
     if (
-      !(globalThis as any).__incrementalCache &&
+      !(this.serverOptions as any).webServerConfig &&
       !getRequestMeta(req, '_nextIncrementalCache')
     ) {
       let protocol: 'http:' | 'https:' = 'https:'
@@ -1075,6 +1075,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           | 'https',
       })
       addRequestMeta(req, '_nextIncrementalCache', incrementalCache)
+      ;(globalThis as any).__incrementalCache = incrementalCache
     }
 
     try {

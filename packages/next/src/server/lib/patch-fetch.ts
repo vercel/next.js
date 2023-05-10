@@ -303,7 +303,8 @@ export function patchFetch({
         const fetchIdx = staticGenerationStore.nextFetchId ?? 1
         staticGenerationStore.nextFetchId = fetchIdx + 1
 
-        const normalizedRevalidate = !revalidate ? CACHE_ONE_YEAR : revalidate
+        const normalizedRevalidate =
+          typeof revalidate !== 'number' ? CACHE_ONE_YEAR : revalidate
 
         const doOriginalFetch = async (isStale?: boolean) => {
           // add metadata to init without editing the original
@@ -343,7 +344,7 @@ export function patchFetch({
                     },
                     revalidate: normalizedRevalidate,
                   },
-                  normalizedRevalidate,
+                  revalidate,
                   true,
                   fetchUrl,
                   fetchIdx
@@ -367,7 +368,7 @@ export function patchFetch({
             : await staticGenerationStore.incrementalCache.get(
                 cacheKey,
                 true,
-                normalizedRevalidate,
+                revalidate,
                 fetchUrl,
                 fetchIdx
               )

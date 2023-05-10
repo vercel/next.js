@@ -2828,7 +2828,9 @@ export default class NextNodeServer extends BaseServer {
       },
       useCache: true,
       onWarning: params.onWarning,
-      incrementalCache: getRequestMeta(params.req, '_nextIncrementalCache'),
+      incrementalCache:
+        (globalThis as any).__incrementalCache ||
+        getRequestMeta(params.req, '_nextIncrementalCache'),
     })
 
     params.res.statusCode = result.response.status
