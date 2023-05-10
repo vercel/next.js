@@ -672,7 +672,6 @@ jobs:
     name: Test Codemods
     runs-on: ubuntu-latest
     needs: [build]
-    if: ${{ needs.build.outputs.codemodChange == 'yup' }}
     timeout-minutes: 5
     env:
       NEXT_TELEMETRY_DISABLED: 1
@@ -683,9 +682,11 @@ jobs:
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
+        if: ${{ needs.build.outputs.codemodChange == 'yup' }}
         run: sudo ethtool -K eth0 tx off rx off
 
       - uses: actions/cache@v3
+        if: ${{ needs.build.outputs.codemodChange == 'yup' }}
         timeout-minutes: 5
         id: restore-build
         with:
@@ -693,6 +694,7 @@ jobs:
           key: ${{ github.sha }}-${{ github.run_number }}
 
       - name: Run tests
+        if: ${{ needs.build.outputs.codemodChange == 'yup' }}
         run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-jammy /bin/bash -c "cd /work && NODE_VERSION=${{ env.NODE_LTS_VERSION }} ./scripts/setup-node.sh && npm i -g pnpm@${PNPM_VERSION} > /dev/null && cd ./packages/next-codemod && pnpm build && pnpm test >> /proc/1/fd/1"
 
   testIntegration:
