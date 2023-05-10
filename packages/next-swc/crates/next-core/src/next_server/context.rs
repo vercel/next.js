@@ -19,6 +19,7 @@ use turbo_binding::{
         turbopack::{
             condition::ContextCondition,
             module_options::{
+                CustomEcmascriptTransformPlugins, CustomEcmascriptTransformPluginsVc,
                 JsxTransformOptions, ModuleOptionsContext, ModuleOptionsContextVc,
                 PostCssTransformOptions, TypescriptTransformOptions, WebpackLoadersOptions,
             },
@@ -38,7 +39,10 @@ use crate::{
     next_build::{get_external_next_compiled_package_mapping, get_postcss_package_mapping},
     next_config::NextConfigVc,
     next_import_map::get_next_server_import_map,
-    next_shared::resolve::UnsupportedModulesResolvePluginVc,
+    next_server::resolve::ExternalPredicate,
+    next_shared::{
+        resolve::UnsupportedModulesResolvePluginVc, transforms::get_relay_transform_plugin,
+    },
     transform_options::{
         get_decorators_transform_options, get_emotion_compiler_config, get_jsx_transform_options,
         get_styled_components_compiler_config, get_typescript_transform_options,
@@ -69,12 +73,16 @@ pub async fn get_server_resolve_options_context(
     let foreign_code_context_condition = foreign_code_context_condition(next_config).await?;
     let root_dir = project_path.root().resolve().await?;
     let unsupported_modules_resolve_plugin = UnsupportedModulesResolvePluginVc::new(project_path);
+    let server_component_externals_plugin = ExternalCjsModulesResolvePluginVc::new(
+        project_path,
+        ExternalPredicate::Only(next_config.server_component_externals()).cell(),
+    );
 
     Ok(match ty.into_value() {
         ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
             let external_cjs_modules_plugin = ExternalCjsModulesResolvePluginVc::new(
                 project_path,
-                next_config.transpile_packages(),
+                ExternalPredicate::AllExcept(next_config.transpile_packages()).cell(),
             );
 
             let resolve_options_context = ResolveOptionsContext {
@@ -108,7 +116,10 @@ pub async fn get_server_resolve_options_context(
                 module: true,
                 custom_conditions: vec!["development".to_string()],
                 import_map: Some(next_server_import_map),
-                plugins: vec![unsupported_modules_resolve_plugin.into()],
+                plugins: vec![
+                    server_component_externals_plugin.into(),
+                    unsupported_modules_resolve_plugin.into(),
+                ],
                 ..Default::default()
             };
             ResolveOptionsContext {
@@ -129,7 +140,10 @@ pub async fn get_server_resolve_options_context(
                 module: true,
                 custom_conditions: vec!["development".to_string(), "react-server".to_string()],
                 import_map: Some(next_server_import_map),
-                plugins: vec![unsupported_modules_resolve_plugin.into()],
+                plugins: vec![
+                    server_component_externals_plugin.into(),
+                    unsupported_modules_resolve_plugin.into(),
+                ],
                 ..Default::default()
             };
             ResolveOptionsContext {
@@ -148,7 +162,10 @@ pub async fn get_server_resolve_options_context(
                 module: true,
                 custom_conditions: vec!["development".to_string()],
                 import_map: Some(next_server_import_map),
-                plugins: vec![unsupported_modules_resolve_plugin.into()],
+                plugins: vec![
+                    server_component_externals_plugin.into(),
+                    unsupported_modules_resolve_plugin.into(),
+                ],
                 ..Default::default()
             };
             ResolveOptionsContext {
@@ -267,6 +284,18 @@ pub async fn get_server_module_options_context(
     let enable_emotion = *get_emotion_compiler_config(next_config).await?;
     let enable_styled_components = *get_styled_components_compiler_config(next_config).await?;
 
+    let mut source_transforms = vec![];
+    if let Some(relay_transform_plugin) = *get_relay_transform_plugin(next_config).await? {
+        source_transforms.push(relay_transform_plugin);
+    }
+
+    let custom_ecma_transform_plugins = Some(CustomEcmascriptTransformPluginsVc::cell(
+        CustomEcmascriptTransformPlugins {
+            source_transforms,
+            output_transforms: vec![],
+        },
+    ));
+
     let module_options_context = match ty.into_value() {
         ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
             let module_options_context = ModuleOptionsContext {
@@ -301,6 +330,7 @@ pub async fn get_server_module_options_context(
                     ),
                 ],
                 custom_rules,
+                custom_ecma_transform_plugins,
                 ..module_options_context
             }
         }
@@ -340,6 +370,7 @@ pub async fn get_server_module_options_context(
                     ),
                 ],
                 custom_rules,
+                custom_ecma_transform_plugins,
                 ..module_options_context
             }
         }
@@ -383,6 +414,7 @@ pub async fn get_server_module_options_context(
                     ),
                 ],
                 custom_rules,
+                custom_ecma_transform_plugins,
                 ..module_options_context
             }
         }
@@ -412,6 +444,7 @@ pub async fn get_server_module_options_context(
                     ),
                 ],
                 custom_rules,
+                custom_ecma_transform_plugins,
                 ..module_options_context
             }
         }
@@ -445,6 +478,7 @@ pub async fn get_server_module_options_context(
                     ),
                 ],
                 custom_rules,
+                custom_ecma_transform_plugins,
                 ..module_options_context
             }
         }

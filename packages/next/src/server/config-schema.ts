@@ -484,6 +484,9 @@ const configSchema = {
             },
           },
         },
+        logging: {
+          type: 'string',
+        },
       },
       type: 'object',
     },

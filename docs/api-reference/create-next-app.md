@@ -77,6 +77,10 @@ Options:
 
     Explicitly tell the CLI to bootstrap the app using pnpm
 
+  --use-yarn
+
+    Explicitly tell the CLI to bootstrap the app using Yarn
+
   -e, --example [name]|[github-url]
 
     An example to bootstrap the app with. You can use an example name

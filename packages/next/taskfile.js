@@ -352,15 +352,6 @@ export async function compile_config_schema(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-externals['zod'] = 'next/dist/compiled/zod'
-export async function ncc_zod(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('zod')))
-    .ncc({ packageName: 'zod', externals })
-    .target('src/compiled/zod')
-}
-
-// eslint-disable-next-line camelcase
 externals['acorn'] = 'next/dist/compiled/acorn'
 export async function ncc_acorn(task, opts) {
   await task
@@ -503,7 +494,7 @@ export async function ncc_next__react_dev_overlay(task, opts) {
       precompiled: false,
       packageName: '@next/react-dev-overlay',
       externals: overlayExternals,
-      target: 'es2018',
+      target: 'es5',
     })
     .target('dist/compiled/@next/react-dev-overlay/dist')
 
@@ -2193,7 +2184,6 @@ export async function ncc(task, opts) {
         'ncc_node_shell_quote',
         'ncc_undici',
         'ncc_acorn',
-        'ncc_zod',
         'ncc_amphtml_validator',
         'ncc_arg',
         'ncc_async_retry',

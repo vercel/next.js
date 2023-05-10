@@ -13,6 +13,7 @@ import {
   WEBPACK_LAYERS,
   RSC_ACTION_PROXY_ALIAS,
   RSC_ACTION_CLIENT_WRAPPER_ALIAS,
+  RSC_ACTION_VALIDATE_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
@@ -88,8 +89,8 @@ const babelIncludeRegexes: RegExp[] = [
 
 const reactPackagesRegex = /^(react|react-dom|react-server-dom-webpack)($|\/)/
 
-const staticGenerationAsyncStorageRegex =
-  /next[\\/]dist[\\/]client[\\/]components[\\/]static-generation-async-storage/
+const asyncStoragesRegex =
+  /next[\\/]dist[\\/]client[\\/]components[\\/](static-generation-async-storage|action-async-storage|request-async-storage)/
 
 const mainFieldsPerCompiler: Record<CompilerNameValues, string[]> = {
   [COMPILER_NAMES.server]: ['main', 'module'],
@@ -1058,11 +1059,14 @@ export default async function getBaseWebpackConfig(
       ...(isClient || isEdgeServer ? getOptimizedAliases() : {}),
       ...getReactProfilingInProduction(),
 
-      [RSC_ACTION_PROXY_ALIAS]:
-        'next/dist/build/webpack/loaders/next-flight-loader/action-proxy',
+      [RSC_ACTION_VALIDATE_ALIAS]:
+        'next/dist/build/webpack/loaders/next-flight-loader/action-validate',
 
       [RSC_ACTION_CLIENT_WRAPPER_ALIAS]:
         'next/dist/build/webpack/loaders/next-flight-loader/action-client-wrapper',
+
+      [RSC_ACTION_PROXY_ALIAS]:
+        'next/dist/build/webpack/loaders/next-flight-loader/action-proxy',
 
       ...(isClient || isEdgeServer
         ? {
@@ -1279,7 +1283,7 @@ export default async function getBaseWebpackConfig(
       }
 
       const notExternalModules =
-        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|legacy\/image|constants|dynamic|script|navigation|headers)$)|string-hash|private-next-rsc-action-proxy|private-next-rsc-action-client-wrapper$)/
+        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|legacy\/image|constants|dynamic|script|navigation|headers)$)|string-hash|private-next-rsc-action-validate|private-next-rsc-action-client-wrapper|private-next-rsc-action-proxy$)/
       if (notExternalModules.test(request)) {
         return
       }
@@ -1434,7 +1438,7 @@ export default async function getBaseWebpackConfig(
         config.transpilePackages,
         resolvedExternalPackageDirs
       ) ||
-      (isEsm && config.experimental.appDir)
+      (isEsm && isAppLayer)
 
     if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
       if (layer === WEBPACK_LAYERS.server) {
@@ -1841,10 +1845,7 @@ export default async function getBaseWebpackConfig(
                   and: [
                     codeCondition.test,
                     {
-                      not: [
-                        optOutBundlingPackageRegex,
-                        staticGenerationAsyncStorageRegex,
-                      ],
+                      not: [optOutBundlingPackageRegex, asyncStoragesRegex],
                     },
                   ],
                 },
@@ -1866,7 +1867,7 @@ export default async function getBaseWebpackConfig(
                 // Make sure that AsyncLocalStorage module instance is shared between server and client
                 // layers.
                 layer: WEBPACK_LAYERS.shared,
-                test: staticGenerationAsyncStorageRegex,
+                test: asyncStoragesRegex,
               },
             ]
           : []),
@@ -1900,7 +1901,7 @@ export default async function getBaseWebpackConfig(
                 // Alias react for switching between default set and share subset.
                 oneOf: [
                   {
-                    exclude: [staticGenerationAsyncStorageRegex],
+                    exclude: [asyncStoragesRegex],
                     issuerLayer: {
                       or: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.action],
                     },
@@ -1974,7 +1975,7 @@ export default async function getBaseWebpackConfig(
                     issuerLayer: {
                       or: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.action],
                     },
-                    exclude: [staticGenerationAsyncStorageRegex],
+                    exclude: [asyncStoragesRegex],
                     use: swcLoaderForServerLayer,
                   },
                   {
@@ -1987,10 +1988,7 @@ export default async function getBaseWebpackConfig(
                     issuerLayer: {
                       or: [WEBPACK_LAYERS.client, WEBPACK_LAYERS.appClient],
                     },
-                    exclude: [
-                      staticGenerationAsyncStorageRegex,
-                      codeCondition.exclude,
-                    ],
+                    exclude: [asyncStoragesRegex, codeCondition.exclude],
                     use: [
                       ...(dev && isClient
                         ? [

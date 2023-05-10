@@ -17,11 +17,12 @@ interface Options {
   segment: string
   type: PossibleImageFileNameConvention
   pageExtensions: string[]
+  basePath: string
 }
 
 async function nextMetadataImageLoader(this: any, content: Buffer) {
   const options: Options = this.getOptions()
-  const { type, segment, pageExtensions } = options
+  const { type, segment, pageExtensions, basePath } = options
   const numericSizes = type === 'twitter' || type === 'openGraph'
   const { resourcePath, rootContext: context } = this
   const { name: fileNameBase, ext } = path.parse(resourcePath)
@@ -48,6 +49,7 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
   const isDynamicResource = pageExtensions.includes(extension)
   const pageSegment = isDynamicResource ? fileNameBase : interpolatedName
   const hashQuery = contentHash ? '?' + contentHash : ''
+  const pathnamePrefix = path.join(basePath, segment)
 
   if (isDynamicResource) {
     // re-export and spread as `exportedImageData` to avoid non-exported error
@@ -59,7 +61,7 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
     export default async function (props) {
       const { __metadata_id__: _, ...params } = props.params
       const imageUrl = fillMetadataSegment(${JSON.stringify(
-        segment
+        pathnamePrefix
       )}, params, ${JSON.stringify(pageSegment)})
 
       const { generateImageMetadata } = imageModule
@@ -136,7 +138,7 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
   export default (props) => {
     const imageData = ${JSON.stringify(imageData)}
     const imageUrl = fillMetadataSegment(${JSON.stringify(
-      segment
+      pathnamePrefix
     )}, props.params, ${JSON.stringify(pageSegment)})
 
     return [{

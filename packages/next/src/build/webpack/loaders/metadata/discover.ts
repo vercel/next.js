@@ -64,12 +64,14 @@ export async function createStaticMetadataFromRoute(
     isRootLayoutOrRootPage,
     loaderContext,
     pageExtensions,
+    basePath,
   }: {
     segment: string
     resolvePath: (pathname: string) => Promise<string>
     isRootLayoutOrRootPage: boolean
     loaderContext: webpack.LoaderContext<any>
     pageExtensions: string[]
+    basePath: string
   }
 ) {
   let hasStaticMetadataFiles = false
@@ -124,6 +126,7 @@ export async function createStaticMetadataFromRoute(
           {
             type,
             segment,
+            basePath,
             pageExtensions,
           }
         )}!${filepath}${METADATA_RESOURCE_QUERY}`

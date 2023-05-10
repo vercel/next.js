@@ -24,8 +24,12 @@ import {
   ACTION_PREFETCH,
   ACTION_REFRESH,
   ACTION_RESTORE,
+  ACTION_SERVER_ACTION,
   ACTION_SERVER_PATCH,
   PrefetchKind,
+  RouterChangeByServerResponse,
+  RouterNavigate,
+  ServerActionDispatcher,
 } from './router-reducer/router-reducer-types'
 import { createHrefFromUrl } from './router-reducer/create-href-from-url'
 import {
@@ -52,6 +56,12 @@ const isServer = typeof window === 'undefined'
 let initialParallelRoutes: CacheNode['parallelRoutes'] = isServer
   ? null!
   : new Map()
+
+let globalServerActionDispatcher = null as ServerActionDispatcher | null
+
+export function getServerActionDispatcher() {
+  return globalServerActionDispatcher
+}
 
 export function urlToUrlWithoutFlightMarker(url: string): URL {
   const urlWithoutFlightParameters = new URL(url, location.origin)
@@ -170,34 +180,33 @@ function Router({
   /**
    * Server response that only patches the cache and tree.
    */
-  const changeByServerResponse = useCallback(
+  const changeByServerResponse: RouterChangeByServerResponse = useCallback(
     (
       previousTree: FlightRouterState,
       flightData: FlightData,
       overrideCanonicalUrl: URL | undefined
     ) => {
-      dispatch({
-        type: ACTION_SERVER_PATCH,
-        flightData,
-        previousTree,
-        overrideCanonicalUrl,
-        cache: {
-          status: CacheStates.LAZY_INITIALIZED,
-          data: null,
-          subTreeData: null,
-          parallelRoutes: new Map(),
-        },
-        mutable: {},
+      React.startTransition(() => {
+        dispatch({
+          type: ACTION_SERVER_PATCH,
+          flightData,
+          previousTree,
+          overrideCanonicalUrl,
+          cache: {
+            status: CacheStates.LAZY_INITIALIZED,
+            data: null,
+            subTreeData: null,
+            parallelRoutes: new Map(),
+          },
+          mutable: {},
+        })
       })
     },
     [dispatch]
   )
 
-  /**
-   * The app router that is exposed through `useRouter`. It's only concerned with dispatching actions to the reducer, does not hold state.
-   */
-  const appRouter = useMemo<AppRouterInstance>(() => {
-    const navigate = (
+  const navigate: RouterNavigate = useCallback(
+    (
       href: string,
       navigateType: 'push' | 'replace',
       forceOptimisticNavigation: boolean
@@ -219,8 +228,31 @@ function Router({
         },
         mutable: {},
       })
-    }
+    },
+    [dispatch]
+  )
 
+  const serverActionDispatcher: ServerActionDispatcher = useCallback(
+    (actionPayload) => {
+      React.startTransition(() => {
+        dispatch({
+          ...actionPayload,
+          type: ACTION_SERVER_ACTION,
+          mutable: {},
+          navigate,
+          changeByServerResponse,
+        })
+      })
+    },
+    [changeByServerResponse, dispatch, navigate]
+  )
+
+  globalServerActionDispatcher = serverActionDispatcher
+
+  /**
+   * The app router that is exposed through `useRouter`. It's only concerned with dispatching actions to the reducer, does not hold state.
+   */
+  const appRouter = useMemo<AppRouterInstance>(() => {
     const routerInstance: AppRouterInstance = {
       back: () => window.history.back(),
       forward: () => window.history.forward(),
@@ -297,13 +329,18 @@ function Router({
     }
 
     return routerInstance
-  }, [dispatch])
+  }, [dispatch, navigate])
 
   // Add `window.nd` for debugging purposes.
   // This is not meant for use in applications as concurrent rendering will affect the cache/tree/router.
   if (typeof window !== 'undefined') {
     // @ts-ignore this is for debugging
-    window.nd = { router: appRouter, cache, prefetchCache, tree }
+    window.nd = {
+      router: appRouter,
+      cache,
+      prefetchCache,
+      tree,
+    }
   }
 
   // When mpaNavigation flag is set do a hard navigation to the new url.

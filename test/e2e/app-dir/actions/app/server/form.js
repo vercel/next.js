@@ -15,6 +15,11 @@ async function nowhere() {
   notFound()
 }
 
+async function here() {
+  'use server'
+  // nothing
+}
+
 async function file(formData) {
   'use server'
   const file = formData.get('file')
@@ -22,21 +27,29 @@ async function file(formData) {
 }
 
 export default function Form() {
+  const b = 1
+  async function add(a, formData) {
+    'use server'
+    // Bind variable, closure variable, and argument.
+    redirect('/header?result=' + (a + b + Number(formData.get('n'))))
+  }
+
   return (
     <>
       <hr />
-      <form method="POST" action="">
-        <input type="text" name="$$id" value={action.$$id} hidden readOnly />
+      <form action={action}>
         <input type="text" name="name" id="name" required />
         <button type="submit" id="submit">
           Submit
         </button>
       </form>
       <hr />
-      <form method="POST" action="">
-        <input type="text" name="$$id" value={nowhere.$$id} hidden readOnly />
-        <button type="submit" id="nowhere">
+      <form>
+        <button formAction={nowhere} type="submit" id="nowhere">
           Go nowhere
+        </button>
+        <button formAction={here} type="submit" id="here">
+          Go here
         </button>
       </form>
       <hr />
@@ -44,6 +57,13 @@ export default function Form() {
         <input type="file" name="file" id="file" required />
         <button type="submit" id="upload">
           Upload file
+        </button>
+      </form>
+      <hr />
+      <form>
+        <input type="text" name="n" id="n" required />
+        <button type="submit" id="minus-one" formAction={add.bind(null, -2)}>
+          -1
         </button>
       </form>
     </>

@@ -11,7 +11,7 @@ function IconDescriptorLink({ icon }: { icon: IconDescriptor }) {
 
 function IconLink({ rel, icon }: { rel?: string; icon: Icon }) {
   if (typeof icon === 'object' && !(icon instanceof URL)) {
-    if (rel) icon.rel = rel
+    if (!icon.rel && rel) icon.rel = rel
     return <IconDescriptorLink icon={icon} />
   } else {
     const href = icon.toString()

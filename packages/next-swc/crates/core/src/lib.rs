@@ -101,7 +101,7 @@ pub struct TransformOptions {
 
     #[serde(default)]
     #[cfg(not(target_arch = "wasm32"))]
-    pub relay: Option<swc_relay::Config>,
+    pub relay: Option<turbo_binding::swc::custom_transform::relay::Config>,
 
     #[allow(unused)]
     #[serde(default)]
@@ -142,7 +142,7 @@ where
     #[cfg(not(target_arch = "wasm32"))]
     let relay_plugin = {
         if let Some(config) = &opts.relay {
-            Either::Left(swc_relay::relay(
+            Either::Left(turbo_binding::swc::custom_transform::relay::relay(
                 config,
                 file.name.clone(),
                 current_dir().unwrap(),

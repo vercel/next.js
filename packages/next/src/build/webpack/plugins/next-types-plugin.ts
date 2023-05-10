@@ -51,7 +51,7 @@ ${
     : `import type { ResolvingMetadata } from 'next/dist/lib/metadata/types/metadata-interface.js'`
 }
 
-type TEntry = typeof entry
+type TEntry = typeof import('${relativePath}.js')
 
 // Check that the entry is a valid entry
 checkFields<Diff<{
