@@ -148,6 +148,11 @@ function runTests(mode) {
           .getAttribute('loading')
       ).toBe(null)
       expect(
+        await browser
+          .elementById('basic-image-with-referrerpolicy')
+          .getAttribute('loading')
+      ).toBe(null)
+      expect(
         await browser.elementById('load-eager').getAttribute('loading')
       ).toBe(null)
       expect(
@@ -168,6 +173,13 @@ function runTests(mode) {
       expect(
         await browser.elementsByCss(
           'link[rel=preload][as=image][crossorigin=anonymous][imagesrcset*="test.jpg"]'
+        )
+      ).toHaveLength(1)
+
+      // should preload with referrerpolicy
+      expect(
+        await browser.elementsByCss(
+          'link[rel=preload][as=image][referrerpolicy="no-referrer"][imagesrcset*="test.png"]'
         )
       ).toHaveLength(1)
     } finally {
