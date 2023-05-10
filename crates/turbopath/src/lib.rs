@@ -8,7 +8,7 @@ mod relative_unix_path_buf;
 
 use std::{
     io,
-    path::{Path, PathBuf},
+    path::{Path, PathBuf, StripPrefixError},
 };
 
 pub use absolute_system_path_buf::AbsoluteSystemPathBuf;
@@ -24,6 +24,16 @@ pub enum PathError {
     PathValidationError(#[from] PathValidationError),
     #[error("IO Error {0}")]
     IO(#[from] io::Error),
+    #[error("Path prefix error: {0}")]
+    PrefixError(#[from] StripPrefixError),
+    #[error("Invalid UTF8: {0:?}")]
+    Utf8Error(Vec<u8>),
+}
+
+impl From<std::string::FromUtf8Error> for PathError {
+    fn from(value: std::string::FromUtf8Error) -> Self {
+        PathError::Utf8Error(value.into_bytes())
+    }
 }
 
 impl PathError {
@@ -43,11 +53,20 @@ pub enum PathValidationError {
     #[error("Path is not absolute: {0}")]
     NotAbsolute(PathBuf),
     #[error("Path is not relative: {0}")]
-    NotRelative(PathBuf),
+    NotRelative(String),
     #[error("Path {0} is not parent of {1}")]
     NotParent(String, String),
     #[error("Path {0} is not a unix path")]
     NotUnix(String),
+    #[error("{0} is not a prefix for {1}")]
+    PrefixError(String, String),
+}
+
+impl PathValidationError {
+    pub(crate) fn not_relative_error(bytes: &[u8]) -> PathValidationError {
+        let s = String::from_utf8_lossy(bytes).to_string();
+        PathValidationError::NotRelative(s)
+    }
 }
 
 trait IntoSystem {

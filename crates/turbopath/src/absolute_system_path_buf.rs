@@ -163,12 +163,24 @@ impl AbsoluteSystemPathBuf {
         AbsoluteSystemPathBuf(self.0.join(Path::new(segment)))
     }
 
+    pub fn join_unix_path_literal<S: AsRef<str>>(
+        &self,
+        unix_path: S,
+    ) -> Result<AbsoluteSystemPathBuf, PathError> {
+        let tail = Path::new(unix_path.as_ref()).into_system()?;
+        Ok(AbsoluteSystemPathBuf(self.0.join(tail)))
+    }
+
     pub fn ensure_dir(&self) -> Result<(), io::Error> {
         if let Some(parent) = self.0.parent() {
             fs::create_dir_all(parent)
         } else {
             Ok(())
         }
+    }
+
+    pub fn create_dir_all(&self) -> Result<(), io::Error> {
+        fs::create_dir_all(self.0.as_path())
     }
 
     pub fn remove(&self) -> Result<(), io::Error> {
@@ -244,6 +256,11 @@ impl AbsoluteSystemPathBuf {
 
     pub fn open(&self) -> Result<fs::File, PathError> {
         Ok(fs::File::open(&self.0)?)
+    }
+
+    pub fn to_realpath(&self) -> Result<Self, PathError> {
+        let realpath = fs::canonicalize(&self.0)?;
+        Ok(Self(realpath))
     }
 }
 
