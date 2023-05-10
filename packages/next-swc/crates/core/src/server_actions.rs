@@ -714,6 +714,15 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 self.exported_idents.extend(
                                     ids.into_iter().map(|id| (id.clone(), id.0.to_string())),
                                 );
+
+                                for decl in &mut var.decls {
+                                    if let Some(init) = &decl.init {
+                                        if let Expr::Lit(_) = &**init {
+                                            // It's not allowed to export any literal.
+                                            disallowed_export_span = *span;
+                                        }
+                                    }
+                                }
                             }
                             _ => {
                                 disallowed_export_span = *span;
