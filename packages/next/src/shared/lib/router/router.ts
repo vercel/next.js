@@ -221,7 +221,12 @@ function getMiddlewareData<T extends FetchDataOutput>(
         ) {
           const parsedSource = getNextPathnameInfo(
             parseRelativeUrl(source).pathname,
-            { parseData: true }
+            {
+              nextConfig: process.env.__NEXT_HAS_REWRITES
+                ? undefined
+                : nextConfig,
+              parseData: true,
+            }
           )
 
           as = addBasePath(parsedSource.pathname)
@@ -1323,7 +1328,7 @@ export default class Router implements BaseRouter {
     // if we detected the path as app route during prefetching
     // trigger hard navigation
     if ((this.components[pathname] as any)?.__appRouter) {
-      handleHardNavigation({ url, router: this })
+      handleHardNavigation({ url: as, router: this })
       return new Promise(() => {})
     }
 

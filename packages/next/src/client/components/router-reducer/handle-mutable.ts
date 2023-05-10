@@ -1,3 +1,4 @@
+import { computeChangedPath } from './compute-changed-path'
 import {
   Mutable,
   ReadonlyReducerState,
@@ -29,8 +30,8 @@ export function handleMutable(
     // All navigation requires scroll and focus management to trigger.
     focusAndScrollRef: {
       apply:
-        typeof mutable.applyFocusAndScroll !== 'undefined'
-          ? mutable.applyFocusAndScroll
+        mutable?.scrollableSegments !== undefined
+          ? true
           : state.focusAndScrollRef.apply,
       hashFragment:
         // Empty hash should trigger default behavior of scrolling layout into view.
@@ -38,7 +39,9 @@ export function handleMutable(
         mutable.hashFragment && mutable.hashFragment !== ''
           ? // Remove leading # and decode hash to make non-latin hashes work.
             decodeURIComponent(mutable.hashFragment.slice(1))
-          : null,
+          : state.focusAndScrollRef.hashFragment,
+      segmentPaths:
+        mutable?.scrollableSegments ?? state.focusAndScrollRef.segmentPaths,
     },
     // Apply cache.
     cache: mutable.cache ? mutable.cache : state.cache,
@@ -50,5 +53,10 @@ export function handleMutable(
       typeof mutable.patchedTree !== 'undefined'
         ? mutable.patchedTree
         : state.tree,
+    nextUrl:
+      typeof mutable.patchedTree !== 'undefined'
+        ? computeChangedPath(state.tree, mutable.patchedTree) ??
+          state.canonicalUrl
+        : state.nextUrl,
   }
 }

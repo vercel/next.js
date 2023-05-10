@@ -9,11 +9,10 @@ import {
 } from '../../shared/lib/app-router-context'
 import {
   SearchParamsContext,
-  // ParamsContext,
   PathnameContext,
-  // LayoutSegmentsContext,
 } from '../../shared/lib/hooks-client-context'
 import { clientHookInServerComponentError } from './client-hook-in-server-component-error'
+import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
 
 const INTERNAL_URLSEARCHPARAMS_INSTANCE = Symbol(
   'internal for urlsearchparams readonly'
@@ -158,12 +157,12 @@ function getSelectedParams(
  */
 export function useParams(): Params {
   clientHookInServerComponentError('useParams')
-  const { tree } = useContext(GlobalLayoutRouterContext)
-  if (!tree) {
+  const globalLayoutRouterContext = useContext(GlobalLayoutRouterContext)
+  if (!globalLayoutRouterContext) {
     // This only happens in `pages`. Type is overwritten in navigation.d.ts
     return null!
   }
-  return getSelectedParams(tree)
+  return getSelectedParams(globalLayoutRouterContext.tree)
 }
 
 // TODO-APP: handle parallel routes
@@ -188,7 +187,8 @@ function getSelectedLayoutSegmentPath(
 
   if (!node) return segmentPath
   const segment = node[0]
-  const segmentValue = Array.isArray(segment) ? segment[1] : segment
+
+  const segmentValue = getSegmentValue(segment)
   if (!segmentValue || segmentValue.startsWith('__PAGE__')) return segmentPath
 
   segmentPath.push(segmentValue)

@@ -44,6 +44,21 @@ describe('app type checking', () => {
       )
     })
 
+    it('should generate route types correctly and report router API errors', async () => {
+      // Make sure all errors were reported and other links passed type checking
+      const errorLines = [
+        ...errors.matchAll(
+          /\.\/src\/app\/type-checks\/router\/page\.tsx:(\d+):/g
+        ),
+      ].map(([, line]) => +line)
+
+      const ST = 11
+      const ED = 13
+      expect(errorLines).toEqual(
+        Array.from({ length: ED - ST + 1 }, (_, i) => i + ST)
+      )
+    })
+
     it('should type check invalid entry exports', () => {
       // Can't export arbitrary things.
       expect(errors).toContain(`"foo" is not a valid Page export field.`)

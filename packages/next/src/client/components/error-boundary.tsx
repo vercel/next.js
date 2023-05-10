@@ -31,6 +31,7 @@ export type ErrorComponent = React.ComponentType<{
 }>
 
 export interface ErrorBoundaryProps {
+  children?: React.ReactNode
   errorComponent: ErrorComponent
   errorStyles?: React.ReactNode | undefined
 }

@@ -51,7 +51,7 @@ ${
     : `import type { ResolvingMetadata } from 'next/dist/lib/metadata/types/metadata-interface.js'`
 }
 
-type TEntry = typeof entry
+type TEntry = typeof import('${relativePath}.js')
 
 // Check that the entry is a valid entry
 checkFields<Diff<{
@@ -66,12 +66,8 @@ checkFields<Diff<{
   dynamic?: 'auto' | 'force-dynamic' | 'error' | 'force-static'
   dynamicParams?: boolean
   fetchCache?: 'auto' | 'force-no-store' | 'only-no-store' | 'default-no-store' | 'default-cache' | 'only-cache' | 'force-cache'
-  preferredRegion?: 'auto' | 'home' | 'edge'
-  ${
-    options.type === 'page' || options.type === 'route'
-      ? "runtime?: 'nodejs' | 'experimental-edge' | 'edge'"
-      : ''
-  }
+  preferredRegion?: 'auto' | 'global' | 'home' | string | string[]
+  runtime?: 'nodejs' | 'experimental-edge' | 'edge'
   ${
     options.type === 'route'
       ? ''
@@ -432,7 +428,32 @@ declare module 'next/link' {
   }
 
   export default function Link<RouteType>(props: LinkProps<RouteType>): JSX.Element
-}`
+}
+
+declare module 'next/navigation' {
+  export * from 'next/dist/client/components/navigation'
+
+  import type { NavigateOptions, AppRouterInstance as OriginalAppRouterInstance } from 'next/dist/shared/lib/app-router-context'
+  interface AppRouterInstance extends OriginalAppRouterInstance {
+    /**
+     * Navigate to the provided href.
+     * Pushes a new history entry.
+     */
+    push<RouteType>(href: __next_route_internal_types__.RouteImpl<RouteType>, options?: NavigateOptions): void
+    /**
+     * Navigate to the provided href.
+     * Replaces the current history entry.
+     */
+    replace<RouteType>(href: __next_route_internal_types__.RouteImpl<RouteType>, options?: NavigateOptions): void
+    /**
+     * Prefetch the provided href.
+     */
+    prefetch<RouteType>(href: __next_route_internal_types__.RouteImpl<RouteType>): void
+  }
+
+  export declare function useRouter(): AppRouterInstance;
+}
+`
 }
 
 const appTypesBasePath = path.join('types', 'app')
@@ -563,11 +584,13 @@ export class NextTypesPlugin {
         appTypesBasePath,
         relativePathToApp.replace(/\.(js|jsx|ts|tsx|mjs)$/, '.ts')
       )
-      const relativeImportPath = path
-        .join(this.getRelativePathFromAppTypesDir(relativePathToApp))
-        .replace(/\.(js|jsx|ts|tsx|mjs)$/, '')
-        .replace(/\\/g, '/')
-      const assetPath = assetDirRelative + '/' + normalizePathSep(typePath)
+      const relativeImportPath = normalizePathSep(
+        path
+          .join(this.getRelativePathFromAppTypesDir(relativePathToApp))
+          .replace(/\.(js|jsx|ts|tsx|mjs)$/, '')
+      )
+
+      const assetPath = path.join(assetDirRelative, typePath)
 
       if (IS_LAYOUT) {
         const slots = await collectNamedSlots(mod.resource)
@@ -648,6 +671,17 @@ export class NextTypesPlugin {
 
           await Promise.all(promises)
 
+          // Support `"moduleResolution": "Node16" | "NodeNext"` with `"type": "module"`
+
+          const packageJsonAssetPath = path.join(
+            assetDirRelative,
+            'types/package.json'
+          )
+
+          assets[packageJsonAssetPath] = new sources.RawSource(
+            '{"type": "module"}'
+          ) as unknown as webpack.sources.RawSource
+
           if (this.typedRoutes) {
             if (this.dev && !this.isEdgeServer) {
               devPageFiles.forEach((file) => {
@@ -655,17 +689,8 @@ export class NextTypesPlugin {
               })
             }
 
-            // Support tsconfig values for "moduleResolution": "Node16" or "NodeNext"
-            const packageJsonTypePath = path.join('types', 'package.json')
-            const packageJsonAssetPath =
-              assetDirRelative + '/' + normalizePathSep(packageJsonTypePath)
-            assets[packageJsonAssetPath] = new sources.RawSource(
-              '{"type": "module"}'
-            ) as unknown as webpack.sources.RawSource
+            const linkAssetPath = path.join(assetDirRelative, 'types/link.d.ts')
 
-            const linkTypePath = path.join('types', 'link.d.ts')
-            const linkAssetPath =
-              assetDirRelative + '/' + normalizePathSep(linkTypePath)
             assets[linkAssetPath] = new sources.RawSource(
               createRouteDefinitions()
             ) as unknown as webpack.sources.RawSource

@@ -72,9 +72,9 @@ const nextExport: CliCommand = (argv) => {
       nextExportCliSpan.stop()
       printAndExit(`Export successful. Files written to ${options.outdir}`, 0)
     })
-    .catch((err: unknown) => {
+    .catch((err: any) => {
       nextExportCliSpan.stop()
-      if (err instanceof ExportError) {
+      if (err instanceof ExportError || err.code === 'NEXT_EXPORT_ERROR') {
         Log.error(err.message)
       } else {
         console.error(err)

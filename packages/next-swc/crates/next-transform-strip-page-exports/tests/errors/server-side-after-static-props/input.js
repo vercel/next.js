@@ -1,2 +1,2 @@
-export const getStaticProps = async () => {};
-export { a as getServerSideProps };
+export const getStaticProps = async () => {}
+export { a as getServerSideProps }

@@ -824,6 +824,15 @@ function runTests(mode) {
       )
     })
 
+    it('should show error when invalid Infinity width prop', async () => {
+      const browser = await webdriver(appPort, '/invalid-Infinity-width')
+
+      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        `Image with src "/test.jpg" has invalid "width" property. Expected a numeric value in pixels but received "Infinity".`
+      )
+    })
+
     it('should show error when invalid height prop', async () => {
       const browser = await webdriver(appPort, '/invalid-height')
 

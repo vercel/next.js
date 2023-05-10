@@ -93,7 +93,8 @@ const loadScript = (props: ScriptProps): void => {
   })
 
   if (dangerouslySetInnerHTML) {
-    el.innerHTML = dangerouslySetInnerHTML.__html || ''
+    // Casting since lib.dom.d.ts doesn't have TrustedHTML yet.
+    el.innerHTML = (dangerouslySetInnerHTML.__html as string) || ''
 
     afterLoad()
   } else if (children) {
@@ -266,7 +267,9 @@ function Script(props: ScriptProps): JSX.Element | null {
       if (!src) {
         // For inlined scripts, we put the content in `children`.
         if (restProps.dangerouslySetInnerHTML) {
-          restProps.children = restProps.dangerouslySetInnerHTML.__html
+          // Casting since lib.dom.d.ts doesn't have TrustedHTML yet.
+          restProps.children = restProps.dangerouslySetInnerHTML
+            .__html as string
           delete restProps.dangerouslySetInnerHTML
         }
 

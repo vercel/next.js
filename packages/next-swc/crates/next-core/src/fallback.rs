@@ -5,7 +5,6 @@ use turbo_binding::{
     turbo::{tasks_env::ProcessEnvVc, tasks_fs::FileSystemPathVc},
     turbopack::{
         core::{
-            chunk::ChunkGroupVc,
             compile_time_info::CompileTimeInfoVc,
             context::AssetContextVc,
             resolve::{options::ImportMap, origin::PlainResolveOriginVc},
@@ -83,10 +82,12 @@ pub async fn get_fallback_page(
         bail!("fallback runtime entry is not an ecmascript module");
     };
 
-    let chunk = module.as_evaluated_chunk(chunking_context, Some(runtime_entries));
-
     Ok(DevHtmlAssetVc::new(
         dev_server_root.join("fallback.html"),
-        vec![ChunkGroupVc::from_chunk(chunk)],
+        vec![(
+            module.into(),
+            chunking_context,
+            Some(runtime_entries.with_entry(module.into())),
+        )],
     ))
 }

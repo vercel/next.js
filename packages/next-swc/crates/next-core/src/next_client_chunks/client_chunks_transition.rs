@@ -110,7 +110,6 @@ impl Transition for NextClientChunksTransition {
             if let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? {
                 WithChunksAsset {
                     asset: placeable,
-                    server_root: self.server_root,
                     chunking_context: self.client_chunking_context,
                 }
                 .cell()

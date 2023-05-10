@@ -5,7 +5,7 @@ use std::{
     env,
     fmt::Write,
     future::{pending, Future},
-    net::SocketAddr,
+    net::{IpAddr, Ipv4Addr, SocketAddr},
     panic::{catch_unwind, resume_unwind, AssertUnwindSafe},
     path::{Path, PathBuf},
     time::Duration,
@@ -108,8 +108,9 @@ fn run_async_test<'a, T>(future: impl Future<Output = T> + Send + 'a) -> T {
     }
 }
 
-#[testing::fixture("tests/integration/*/*/*")]
+#[testing::fixture("tests/integration/*/*/*/input")]
 fn test(resource: PathBuf) {
+    let resource = resource.parent().unwrap().to_path_buf();
     if resource.ends_with("__skipped__") || resource.ends_with("__flakey__") {
         // "Skip" directories named `__skipped__`, which include test directories to
         // skip. These tests are not considered truly skipped by `cargo test`, but they
@@ -152,9 +153,10 @@ fn test(resource: PathBuf) {
     };
 }
 
-#[testing::fixture("tests/integration/*/*/__skipped__/*")]
+#[testing::fixture("tests/integration/*/*/__skipped__/*/input")]
 #[should_panic]
 fn test_skipped_fails(resource: PathBuf) {
+    let resource = resource.parent().unwrap().to_path_buf();
     let run_result = run_async_test(run_test(resource));
 
     // Assert that this skipped test itself has at least one browser test which
@@ -172,8 +174,6 @@ fn test_skipped_fails(resource: PathBuf) {
 
 async fn run_test(resource: PathBuf) -> JestRunResult {
     register();
-
-    let is_debug_start = *DEBUG_START;
 
     let resource = canonicalize(resource).unwrap();
     assert!(resource.exists(), "{} does not exist", resource.display());
@@ -195,11 +195,7 @@ async fn run_test(resource: PathBuf) -> JestRunResult {
     let test_dir = resource.to_path_buf();
     let workspace_root = cargo_workspace_root.parent().unwrap().parent().unwrap();
     let project_dir = test_dir.join("input");
-    let requested_addr = if is_debug_start {
-        "127.0.0.1:3000".parse().unwrap()
-    } else {
-        get_free_local_addr().unwrap()
-    };
+    let requested_addr = get_free_local_addr().unwrap();
 
     let mock_dir = resource.join("__httpmock__");
     let mock_server_future = get_mock_server_future(&mock_dir);
@@ -215,7 +211,7 @@ async fn run_test(resource: PathBuf) -> JestRunResult {
     )
     .entry_request(EntryRequest::Module(
         "@turbo/pack-test-harness".to_string(),
-        "".to_string(),
+        "/harness".to_string(),
     ))
     .entry_request(EntryRequest::Relative("index.js".to_owned()))
     .eager_compile(false)
@@ -231,6 +227,8 @@ async fn run_test(resource: PathBuf) -> JestRunResult {
     .await
     .unwrap();
 
+    let local_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), server.addr.port());
+
     println!(
         "{event_type} - server started at http://{address}",
         event_type = "ready".green(),
@@ -238,7 +236,7 @@ async fn run_test(resource: PathBuf) -> JestRunResult {
     );
 
     if *DEBUG_START {
-        webbrowser::open(&server.addr.to_string()).unwrap();
+        webbrowser::open(&local_addr.to_string()).unwrap();
         tokio::select! {
             _ = mock_server_future => {},
             _ = pending() => {},
@@ -250,7 +248,7 @@ async fn run_test(resource: PathBuf) -> JestRunResult {
     let result = tokio::select! {
         // Poll the mock_server first to add the env var
         _ = mock_server_future => panic!("Never resolves"),
-        r = run_browser(server.addr) => r.expect("error while running browser"),
+        r = run_browser(local_addr) => r.expect("error while running browser"),
         _ = server.future => panic!("Never resolves"),
     };
 
@@ -411,7 +409,7 @@ async fn run_browser(addr: SocketAddr) -> Result<JestRunResult> {
                             writeln!(message, "    at {} ({}:{}:{})", frame.function_name, frame.url, frame.line_number, frame.column_number)?;
                         }
                     }
-                    let expected_error = !message.contains("(expected error)");
+                    let expected_error = message.contains("(expected error)");
                     let message = message.trim_end();
                     if !is_debugging {
                         if !expected_error {
@@ -475,8 +473,8 @@ async fn run_browser(addr: SocketAddr) -> Result<JestRunResult> {
 }
 
 fn get_free_local_addr() -> Result<SocketAddr, std::io::Error> {
-    let socket = TcpSocket::new_v4()?;
-    socket.bind("127.0.0.1:0".parse().unwrap())?;
+    let socket = TcpSocket::new_v6()?;
+    socket.bind("[::]:0".parse().unwrap())?;
     socket.local_addr()
 }
 

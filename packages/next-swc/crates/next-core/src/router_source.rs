@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Context, Result};
+use futures::{Stream, TryStreamExt};
 use indexmap::IndexSet;
 use turbo_binding::turbopack::{
     core::{
@@ -65,6 +66,7 @@ fn need_data(source: ContentSourceVc, path: &str) -> ContentSourceResultVc {
                 method: true,
                 raw_headers: true,
                 raw_query: true,
+                body: true,
                 ..Default::default()
             },
         }
@@ -107,16 +109,26 @@ impl ContentSource for NextRouterContentSource {
             method: Some(method),
             raw_headers: Some(raw_headers),
             raw_query: Some(raw_query),
+            body: Some(body),
             ..
         } = &*data else {
             return Ok(need_data(self_vc.into(), path))
         };
+
+        // TODO: change router so we can stream the request body to it
+        let mut body_stream = body.await?.read();
+
+        let mut body = Vec::with_capacity(body_stream.size_hint().0);
+        while let Some(data) = body_stream.try_next().await? {
+            body.push(data);
+        }
 
         let request = RouterRequest {
             pathname: format!("/{path}"),
             method: method.clone(),
             raw_headers: raw_headers.clone(),
             raw_query: raw_query.clone(),
+            body,
         }
         .cell();
 
@@ -135,7 +147,7 @@ impl ContentSource for NextRouterContentSource {
         Ok(match &*res {
             RouterResult::Error(e) => {
                 return Err(anyhow!(e.clone()).context(format!(
-                    "error during Next.js routing for /{path}{}: {e}",
+                    "error during Next.js routing for /{path}{}",
                     formated_query(raw_query)
                 )))
             }

@@ -1,29 +1,31 @@
 // This is a comment.
 
-"use strict";
+'use strict'
 
 /**
  * This is a comment.
  */
 
-"use client";
+'use client'
 
 // This is a comment.
 
-"random-directive";
+'random-directive'
 
-import "fs"
+import 'fs'
 
-"qwerty";
+// prettier-ignore
+'qwerty'
 
 // This is a comment.
 
-1 + 1;
+1 + 1
 
-"sasaya";
+// prettier-ignore
+'sasaya'
 
 export default function () {
-  return null;
+  return null
 }
 
 export const a = 1

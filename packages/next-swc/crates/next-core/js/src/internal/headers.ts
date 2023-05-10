@@ -4,20 +4,20 @@
 export function headersFromEntries(
   entries: Array<[string, string]>
 ): Record<string, string | string[]> {
-  const headers: Record<string, string | string[]> = Object.create(null);
+  const headers: Record<string, string | string[]> = Object.create(null)
   for (const [key, value] of entries) {
     if (key in headers) {
-      const prevValue = headers[key];
-      if (typeof prevValue === "string") {
-        headers[key] = [prevValue, value];
+      const prevValue = headers[key]
+      if (typeof prevValue === 'string') {
+        headers[key] = [prevValue, value]
       } else {
-        prevValue.push(value);
+        prevValue.push(value)
       }
     } else {
-      headers[key] = value;
+      headers[key] = value
     }
   }
-  return headers;
+  return headers
 }
 
 /**
@@ -31,13 +31,13 @@ export function headersFromEntries(
  */
 export function toPairs<T>(arr: T[]): Array<[T, T]> {
   if (arr.length % 2 !== 0) {
-    throw new Error("toPairs: expected an even number of elements");
+    throw new Error('toPairs: expected an even number of elements')
   }
 
-  const pairs: Array<[T, T]> = [];
+  const pairs: Array<[T, T]> = []
   for (let i = 0; i < arr.length; i += 2) {
-    pairs.push([arr[i], arr[i + 1]]);
+    pairs.push([arr[i], arr[i + 1]])
   }
 
-  return pairs;
+  return pairs
 }

@@ -1,29 +1,31 @@
 // This is a comment.
 
-"use strict";
+'use strict'
 
 /**
  * This is a comment.
  */
 
-"use client";
+'use client'
 
 // This is a comment.
 
-"foo";
+'foo'
 
-"use client";
+'use client'
 
-import "fs"
+import 'fs'
 
-"bar";
+// prettier-ignore
+'bar'
 
 // This is a comment.
 
-1 + 1;
+1 + 1
 
-"baz";
+// prettier-ignore
+'baz'
 
 export default function () {
-  return null;
+  return null
 }

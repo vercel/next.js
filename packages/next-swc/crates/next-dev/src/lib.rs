@@ -18,24 +18,25 @@ use std::{
 use anyhow::{Context, Result};
 use devserver_options::DevServerOptions;
 use dunce::canonicalize;
+use indexmap::IndexMap;
 use next_core::{
     app_structure::find_app_dir_if_enabled, create_app_source, create_page_source,
-    create_web_entry_source, env::load_env, manifest::DevManifestContentSource,
-    next_config::load_next_config, next_image::NextImageContentSourceVc,
-    pages_structure::find_pages_structure, router_source::NextRouterContentSourceVc,
-    source_map::NextSourceMapTraceContentSourceVc,
+    create_web_entry_source, manifest::DevManifestContentSource, next_config::load_next_config,
+    next_image::NextImageContentSourceVc, pages_structure::find_pages_structure,
+    router_source::NextRouterContentSourceVc, source_map::NextSourceMapTraceContentSourceVc,
 };
 use owo_colors::OwoColorize;
 use turbo_binding::{
     turbo::{
         malloc::TurboMalloc,
+        tasks_env::{CustomProcessEnvVc, EnvMapVc, ProcessEnvVc},
         tasks_fs::{DiskFileSystemVc, FileSystem, FileSystemVc},
         tasks_memory::MemoryBackend,
     },
     turbopack::{
         cli_utils::issue::{ConsoleUiVc, LogOptions},
         core::{
-            environment::ServerAddr,
+            environment::{ServerAddr, ServerAddrVc},
             issue::{IssueReporterVc, IssueSeverity},
             resolve::{parse::RequestVc, pattern::QueryMapVc},
             server_fs::ServerFileSystemVc,
@@ -51,6 +52,7 @@ use turbo_binding::{
             },
             DevServer, DevServerBuilder,
         },
+        env::dotenv::load_env,
         node::execution_context::ExecutionContextVc,
         turbopack::evaluate_context::node_build_environment,
     },
@@ -260,6 +262,19 @@ async fn output_fs(project_dir: &str) -> Result<FileSystemVc> {
     Ok(disk_fs.into())
 }
 
+#[turbo_tasks::function]
+async fn server_env(env: ProcessEnvVc, server_addr: ServerAddrVc) -> Result<ProcessEnvVc> {
+    let mut map = IndexMap::new();
+    let addr = server_addr.await?;
+    if let Some(port) = addr.port() {
+        map.insert("PORT".to_string(), port.to_string());
+    }
+    if map.is_empty() {
+        return Ok(env);
+    }
+    Ok(CustomProcessEnvVc::new(env, EnvMapVc::cell(map)).into())
+}
+
 #[allow(clippy::too_many_arguments)]
 #[turbo_tasks::function]
 async fn source(
@@ -280,7 +295,10 @@ async fn source(
         .replace(MAIN_SEPARATOR, "/");
     let project_path = fs.root().join(&project_relative);
 
+    let server_addr = ServerAddr::new(*server_addr).cell();
+
     let env = load_env(project_path);
+    let env = server_env(env, server_addr);
     let build_output_root = output_fs.root().join(".next/build");
 
     let build_chunking_context = DevChunkingContextVc::builder(
@@ -297,7 +315,6 @@ async fn source(
     let next_config = load_next_config(execution_context.with_layer("next_config"));
 
     let output_root = output_fs.root().join(".next/server");
-    let server_addr = ServerAddr::new(*server_addr).cell();
 
     let dev_server_fs = ServerFileSystemVc::new().as_file_system();
     let dev_server_root = dev_server_fs.root();
@@ -352,7 +369,7 @@ async fn source(
     let static_source =
         StaticAssetsContentSourceVc::new(String::new(), project_path.join("public")).into();
     let manifest_source = DevManifestContentSource {
-        page_roots: vec![app_source, page_source],
+        page_roots: vec![page_source],
         next_config,
     }
     .cell()
@@ -372,10 +389,7 @@ async fn source(
     let main_source = main_source.into();
     let source_maps = SourceMapContentSourceVc::new(main_source).into();
     let source_map_trace = NextSourceMapTraceContentSourceVc::new(main_source).into();
-    let img_source = NextImageContentSourceVc::new(
-        CombinedContentSourceVc::new(vec![static_source, page_source]).into(),
-    )
-    .into();
+    let img_source = NextImageContentSourceVc::new(main_source).into();
     let router_source = NextRouterContentSourceVc::new(
         main_source,
         execution_context,
@@ -474,10 +488,9 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
     {
         let index_uri = ServerAddr::new(server.addr).to_string()?;
         println!(
-            "{} - started server on {}:{}, url: {}",
+            "{} - started server on {}, url: {}",
             "ready".green(),
-            server.addr.ip(),
-            server.addr.port(),
+            server.addr,
             index_uri
         );
         if !options.no_open {
@@ -492,12 +505,6 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
                 event_type = "event".purple(),
                 start = FormatDuration(start.elapsed()),
                 memory = FormatBytes(TurboMalloc::memory_usage())
-            );
-        } else {
-            println!(
-                "{event_type} - startup {start}",
-                event_type = "event".purple(),
-                start = FormatDuration(start.elapsed()),
             );
         }
 

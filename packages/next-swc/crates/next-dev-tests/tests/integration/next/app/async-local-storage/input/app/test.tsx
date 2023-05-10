@@ -1,12 +1,10 @@
-"use client";
+'use client'
 
-import { useEffect } from "react";
+import { useEffect } from 'react'
+import { useTestHarness } from '@turbo/pack-test-harness'
 
 export default function Test() {
-  useEffect(() => {
-    import("@turbo/pack-test-harness").then(() => {
-      it("should run", () => {});
-    });
-    return () => {};
-  }, []);
+  useTestHarness(() => {
+    it('should run', () => {})
+  })
 }

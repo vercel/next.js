@@ -3,6 +3,7 @@ on:
     branches: ['canary', 'trunk-merge/*']
   pull_request:
     types: [opened, synchronize]
+  merge_group:
 
 name: Build, test, and deploy
 
@@ -190,7 +191,6 @@ jobs:
           cargo fmt -- --check
           cargo clippy --all -- -D warnings -A deprecated
           cargo check -p next-dev --no-default-features --features cli,custom_allocator,rustls-tls,__internal_nextjs_integration_test
-        working-directory: packages/next-swc
 
   checkPrecompiled:
     name: Check Pre-compiled
@@ -822,16 +822,12 @@ jobs:
       TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
       # Enabling backtrace will makes snapshot tests fail
       RUST_BACKTRACE: 0
-      # Path to the custom next-swc bindings located in **docker container** image.
+      # Path to the custom next-swc bindings.
       NEXT_BINDINGS_BIN: /work/packages/next-swc/native/next-swc.linux-x64-gnu.node
       # Glob pattern to run specific tests with --turbo.
       NEXT_DEV_TEST_GLOB: '*'
-      # List of test files to run with turbopack as blocking CI check.
-      # [TODO]: as list grows we should consider different way to manage this.
-      TEST_FILES_LIST: |
-        test/development/acceptance-app/dynamic-error.test.ts \
-        test/development/acceptance-app/unsupported-app-features.test.ts \
-        test/development/acceptance-app/ReactRefresh.test.ts
+      NEXT_EXTERNAL_TESTS_FILTERS: /work/packages/next-swc/crates/next-dev-tests/tests-manifest.json
+
     strategy:
       fail-fast: false
     steps:
@@ -855,7 +851,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-jammy /bin/bash -c "cd /work && NODE_VERSION=${{ env.NODE_LTS_VERSION }} ./scripts/setup-node.sh && node -v && npm i -g pnpm@${PNPM_VERSION} > /dev/null && __INTERNAL_NEXT_DEV_TEST_TURBO_DEV=TRUE __INTERNAL_CUSTOM_TURBOPACK_BINDINGS=${NEXT_BINDINGS_BIN} __INTERNAL_NEXT_DEV_TEST_TURBO_GLOB_MATCH=${NEXT_DEV_TEST_GLOB} NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_JOB=1 NEXT_TEST_MODE=dev TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} xvfb-run node run-tests.js --type development --timings -c 1 $TEST_FILES_LIST >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-jammy /bin/bash -c "cd /work && NODE_VERSION=${{ env.NODE_LTS_VERSION }} ./scripts/setup-node.sh && node -v && npm i -g pnpm@${PNPM_VERSION} > /dev/null && NEXT_EXTERNAL_TESTS_FILTERS=${NEXT_EXTERNAL_TESTS_FILTERS} __INTERNAL_NEXT_DEV_TEST_TURBO_DEV=TRUE __INTERNAL_CUSTOM_TURBOPACK_BINDINGS=${NEXT_BINDINGS_BIN} __INTERNAL_NEXT_DEV_TEST_TURBO_GLOB_MATCH=${NEXT_DEV_TEST_GLOB} NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_JOB=1 NEXT_TEST_MODE=dev TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} xvfb-run node run-tests.js --type development --timings -c 1 >> /proc/1/fd/1"
         name: Run test/development
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
@@ -966,6 +962,9 @@ jobs:
       - build
       - build-wasm
       - build-native
+    permissions:
+      contents: write
+      id-token: write
     env:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
     steps:
@@ -997,6 +996,7 @@ jobs:
           name: wasm-binaries
           path: packages/next-swc/crates/wasm
 
+      - run: npm i -g npm@9 # need latest version for provenance
       - run: npm i -g pnpm@${PNPM_VERSION}
       - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
       - run: ./scripts/publish-native.js
@@ -1097,7 +1097,7 @@ jobs:
 
   build-native-test:
     name: Build native binary for tests and metrics
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-16-core-oss
     env:
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
       TURBO_TEAM: 'vercel'
@@ -1151,6 +1151,10 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         run: node scripts/normalize-version-bump.js
 
+      - name: Make more disk space
+        continue-on-error: true
+        run: sudo rm -rf /usr/local/lib/android
+
       - name: Build in docker
         uses: addnab/docker-run-action@v3
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
@@ -1161,6 +1165,8 @@ jobs:
           run: |
             set -e &&
             export CARGO_PROFILE_DEV_OPT_LEVEL=1 &&
+            export CARGO_PROFILE_DEV_INCREMENTAL=false &&
+            export CARGO_PROFILE_DEV_STRIP=true &&
             rustup toolchain install "${RUST_TOOLCHAIN}" &&
             rustup default "${RUST_TOOLCHAIN}" &&
             rustup target add x86_64-unknown-linux-gnu &&
@@ -1184,7 +1190,7 @@ jobs:
 
   test-native:
     name: Unit Test Native Code
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-8-core-oss
 
     steps:
       - uses: actions/checkout@v3
@@ -1242,6 +1248,47 @@ jobs:
       - name: Run tests
         timeout-minutes: 20
         run: cd packages/next-swc && cargo nextest run -p next-dev-tests --release --no-fail-fast
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+
+  test-bench-native-integration:
+    name: Bench Integration Test Native Code
+    runs-on: ubuntu-latest-16-core-oss
+    needs: build
+
+    env:
+      CARGO_PROFILE_RELEASE_LTO: false
+      TURBOPACK_BENCH_COUNTS: 10
+      TURBOPACK_BENCH_CACHED: 1
+      TURBOPACK_BENCH_PROGRESS: 1
+
+    steps:
+      - uses: actions/cache@v3
+        timeout-minutes: 5
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}
+
+      - run: echo "${{needs.build.outputs.docsChange == 'nope'}}"
+
+      - name: Install Rust toolchain
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          profile: minimal
+
+      - name: Install nextest
+        uses: taiki-e/install-action@nextest
+
+      - name: Build tests
+        timeout-minutes: 60
+        run: cd packages/next-swc && cargo test --benches -p next-dev --release --no-run
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+
+      - name: Run tests
+        timeout-minutes: 60
+        run: cd packages/next-swc && cargo test --benches -p next-dev --release --no-fail-fast
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
   test-wasm:

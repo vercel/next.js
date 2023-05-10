@@ -25,6 +25,7 @@ import {
 } from '../shared/lib/utils'
 import type { PreviewData, ServerRuntime } from 'next/types'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
+import type { OutgoingHttpHeaders } from 'http2'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PayloadOptions } from './send-payload'
 import type { PrerenderManifest } from '../build'
@@ -100,6 +101,7 @@ import { sendResponse } from './send-response'
 import { RouteKind } from './future/route-kind'
 import { handleInternalServerErrorResponse } from './future/route-modules/helpers/response-handlers'
 import { fromNodeHeaders, toNodeHeaders } from './web/utils'
+import { NEXT_QUERY_PARAM_PREFIX } from '../lib/constants'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -235,7 +237,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     distDir: string
     runtime?: ServerRuntime
     serverComponents?: boolean
-    crossOrigin?: string
+    crossOrigin?: 'anonymous' | 'use-credentials' | '' | undefined
     supportsDynamicHTML?: boolean
     isBot?: boolean
     clientReferenceManifest?: ClientReferenceManifest
@@ -246,6 +248,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     serverComponentProps?: any
     largePageDataBytes?: number
     appDirDevErrorLogger?: (err: any) => Promise<void>
+    strictNextHead: boolean
   }
   protected serverOptions: ServerOptions
   private responseCache: ResponseCacheBase
@@ -326,6 +329,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
   protected abstract getIncrementalCache(options: {
     requestHeaders: Record<string, undefined | string | string[]>
+    requestProtocol: 'http' | 'https'
   }): import('./lib/incremental-cache').IncrementalCache
 
   protected abstract getResponseCache(options: {
@@ -411,11 +415,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.nextFontManifest = this.getNextFontManifest()
 
     this.renderOpts = {
+      strictNextHead: !!this.nextConfig.experimental.strictNextHead,
       poweredByHeader: this.nextConfig.poweredByHeader,
       canonicalBase: this.nextConfig.amp.canonicalBase || '',
       buildId: this.buildId,
       generateEtags,
-      previewProps: this.getPreviewProps(),
+      previewProps: this.getPrerenderManifest().preview,
       customServer: customServer === true ? true : undefined,
       ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
       basePath: this.nextConfig.basePath,
@@ -533,6 +538,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     res: BaseNextResponse,
     parsedUrl?: NextUrlWithParsedQuery
   ): Promise<void> {
+    await this.prepare()
     const method = req.method.toUpperCase()
     return getTracer().trace(
       BaseServerSpan.handleRequest,
@@ -544,7 +550,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           'http.target': req.url,
         },
         // We will fire this from the renderer worker
-        hideSpan: this.serverOptions.dev && this.isRouterWorker,
+        hideSpan: this.isRouterWorker,
       },
       async (span) =>
         this.handleRequestImpl(req, res, parsedUrl).finally(() => {
@@ -778,6 +784,24 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             addRequestMeta(req, '_nextRewroteUrl', parsedUrl.pathname!)
             addRequestMeta(req, '_nextDidRewrite', true)
           }
+          const routeParamKeys = new Set<string>()
+
+          for (const key of Object.keys(parsedUrl.query)) {
+            const value = parsedUrl.query[key]
+
+            if (
+              key !== NEXT_QUERY_PARAM_PREFIX &&
+              key.startsWith(NEXT_QUERY_PARAM_PREFIX)
+            ) {
+              const normalizedKey = key.substring(
+                NEXT_QUERY_PARAM_PREFIX.length
+              )
+              parsedUrl.query[normalizedKey] = value
+
+              routeParamKeys.add(normalizedKey)
+              delete parsedUrl.query[key]
+            }
+          }
 
           // interpolate dynamic params and normalize URL if needed
           if (pageIsDynamic) {
@@ -856,7 +880,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               matchedPath = utils.interpolateDynamicPath(srcPathname, params)
               req.url = utils.interpolateDynamicPath(req.url!, params)
             }
-            Object.assign(parsedUrl.query, params)
           }
 
           if (pageIsDynamic || didRewrite) {
@@ -864,6 +887,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               ...rewriteParamKeys,
               ...Object.keys(utils.defaultRouteRegex?.groups || {}),
             ])
+          }
+          for (const key of routeParamKeys) {
+            delete parsedUrl.query[key]
           }
           parsedUrl.pathname = `${this.nextConfig.basePath || ''}${
             matchedPath === '/' && this.nextConfig.basePath ? '' : matchedPath
@@ -966,15 +992,21 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.renderOpts.assetPrefix = prefix ? prefix.replace(/\/$/, '') : ''
   }
 
-  // Backwards compatibility
-  public async prepare(): Promise<void> {}
+  protected preparedPromise: Promise<void> | null = null
+  /**
+   * Runs async initialization of server.
+   * It is idempotent, won't fire underlying initialization more than once.
+   */
+  public async prepare(): Promise<void> {
+    if (this.preparedPromise === null) {
+      this.preparedPromise = this.prepareImpl()
+    }
+    return this.preparedPromise
+  }
+  protected async prepareImpl(): Promise<void> {}
 
   // Backwards compatibility
   protected async close(): Promise<void> {}
-
-  protected getPreviewProps(): __ApiPreviewProps {
-    return this.getPrerenderManifest().preview
-  }
 
   protected async _beforeCatchAllRender(
     _req: BaseNextRequest,
@@ -1022,8 +1054,21 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       !(globalThis as any).__incrementalCache &&
       !getRequestMeta(req, '_nextIncrementalCache')
     ) {
+      let protocol: 'http:' | 'https:' = 'https:'
+
+      try {
+        const parsedFullUrl = new URL(
+          getRequestMeta(req, '__NEXT_INIT_URL') || '/',
+          'http://n'
+        )
+        protocol = parsedFullUrl.protocol as 'https:' | 'http:'
+      } catch (_) {}
+
       const incrementalCache = this.getIncrementalCache({
         requestHeaders: Object.assign({}, req.headers),
+        requestProtocol: protocol.substring(0, protocol.length - 1) as
+          | 'http'
+          | 'https',
       })
       addRequestMeta(req, '_nextIncrementalCache', incrementalCache)
     }
@@ -1522,15 +1567,25 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       ssgCacheKey =
         ssgCacheKey === '/index' && pathname === '/' ? '/' : ssgCacheKey
     }
+    let protocol: 'http:' | 'https:' = 'https:'
+
+    try {
+      const parsedFullUrl = new URL(
+        getRequestMeta(req, '__NEXT_INIT_URL') || '/',
+        'http://n'
+      )
+      protocol = parsedFullUrl.protocol as 'https:' | 'http:'
+    } catch (_) {}
 
     // use existing incrementalCache instance if available
     const incrementalCache =
       (globalThis as any).__incrementalCache ||
       this.getIncrementalCache({
         requestHeaders: Object.assign({}, req.headers),
+        requestProtocol: protocol.substring(0, protocol.length - 1) as
+          | 'http'
+          | 'https',
       })
-
-    let isRevalidate = false
 
     const doRender: () => Promise<ResponseCacheEntry | null> = async () => {
       // In development, we always want to generate dynamic HTML.
@@ -1545,9 +1600,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       if (match) {
         const context: RouteHandlerManagerContext = {
           params: match.params,
+          prerenderManifest: this.getPrerenderManifest(),
           staticGenerationContext: {
+            originalPathname: components.ComponentMod.originalPathname,
             supportsDynamicHTML,
             incrementalCache,
+            isRevalidate: isSSG,
           },
         }
 
@@ -1555,6 +1613,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           // Handle the match and collect the response if it's a static response.
           const response = await this.handlers.handle(match, req, context)
           if (response) {
+            ;(req as any).fetchMetrics = (
+              context.staticGenerationContext as any
+            ).fetchMetrics
+
+            const cacheTags = (context.staticGenerationContext as any).fetchTags
+
             // If the request is for a static response, we can cache it so long
             // as it's not edge.
             if (isSSG && process.env.NEXT_RUNTIME !== 'edge') {
@@ -1562,6 +1626,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
               // Copy the headers from the response.
               const headers = toNodeHeaders(response.headers)
+
+              if (cacheTags) {
+                headers['x-next-cache-tags'] = cacheTags
+              }
+
               if (!headers['content-type'] && blob.type) {
                 headers['content-type'] = blob.type
               }
@@ -1612,6 +1681,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       let isrRevalidate: number | false
       let isNotFound: boolean | undefined
       let isRedirect: boolean | undefined
+      let headers: OutgoingHttpHeaders | undefined
 
       const origQuery = parseUrl(req.url || '', true).query
 
@@ -1637,7 +1707,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         ...(isAppPath && this.nextConfig.experimental.appDir
           ? {
               incrementalCache,
-              isRevalidate: this.minimalMode || isRevalidate,
+              isRevalidate: isSSG,
+              originalPathname: components.ComponentMod.originalPathname,
             }
           : {}),
         isDataReq,
@@ -1679,6 +1750,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       isNotFound = renderResultMeta.isNotFound
       isRedirect = renderResultMeta.isRedirect
 
+      const cacheTags = (renderOpts as any).fetchTags
+
+      if (cacheTags) {
+        headers = {
+          'x-next-cache-tags': cacheTags,
+        }
+      }
+      ;(req as any).fetchMetrics = (renderOpts as any).fetchMetrics
+
       // we don't throw static to dynamic errors in dev as isSSG
       // is a best guess in dev since we don't have the prerender pass
       // to know whether the path is actually static or not
@@ -1714,7 +1794,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         if (body.isNull()) {
           return null
         }
-        value = { kind: 'PAGE', html: body, pageData }
+        value = { kind: 'PAGE', html: body, pageData, headers }
       }
       return { revalidate: isrRevalidate, value }
     }
@@ -1725,10 +1805,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         const isProduction = !this.renderOpts.dev
         const isDynamicPathname = isDynamicRoute(pathname)
         const didRespond = hasResolved || res.sent
-
-        if (hadCache) {
-          isRevalidate = true
-        }
 
         if (!staticPaths) {
           ;({ staticPaths, fallbackMode } = hasStaticPaths
@@ -1756,6 +1832,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         ) {
           await this.render404(req, res)
           return null
+        }
+
+        if (hadCache?.isStale === -1) {
+          isOnDemandRevalidate = true
         }
 
         // only allow on-demand revalidate for fallback: true/blocking
@@ -1933,17 +2013,33 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     } else if (cachedData.kind === 'IMAGE') {
       throw new Error('invariant SSG should not return an image cache value')
     } else if (cachedData.kind === 'ROUTE') {
+      const headers = { ...cachedData.headers }
+
+      if (!(this.minimalMode && isSSG)) {
+        delete headers['x-next-cache-tags']
+      }
+
       await sendResponse(
         req,
         res,
         new Response(cachedData.body, {
-          headers: fromNodeHeaders(cachedData.headers),
+          headers: fromNodeHeaders(headers),
           status: cachedData.status || 200,
         })
       )
       return null
     } else {
       if (isAppPath) {
+        if (
+          this.minimalMode &&
+          isSSG &&
+          cachedData.headers?.['x-next-cache-tags']
+        ) {
+          res.setHeader(
+            'x-next-cache-tags',
+            cachedData.headers['x-next-cache-tags'] as string
+          )
+        }
         if (isDataReq && typeof cachedData.pageData !== 'string') {
           throw new Error(
             'invariant: Expected pageData to be a string for app data request but received ' +
@@ -1957,6 +2053,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           body: isDataReq
             ? RenderResult.fromStatic(cachedData.pageData as string)
             : cachedData.html,
+          revalidateOptions,
         }
       }
 
@@ -2010,8 +2107,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     let page = pathname
     if (isAppPath) {
-      // When it's an array, we need to pass all parallel routes to the loader.
-      page = appPaths[0]
+      // the last item in the array is the root page, if there are parallel routes
+      page = appPaths[appPaths.length - 1]
     }
 
     const result = await this.findPageComponents({
@@ -2072,7 +2169,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         const result = await this.renderPageComponent(
           {
             ...ctx,
-            pathname: match.definition.pathname,
+            // Use the overridden pathname if available, otherwise use the
+            // original pathname.
+            pathname:
+              match.definition.pathnameOverride || match.definition.pathname,
             renderOpts: {
               ...ctx.renderOpts,
               params: match.params,

@@ -9,8 +9,8 @@ use turbo_binding::{
             chunk::ChunkingContextVc,
             compile_time_defines,
             compile_time_info::{
-                CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc, FreeVarReference,
-                FreeVarReferencesVc,
+                CompileTimeDefines, CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc,
+                FreeVarReference, FreeVarReferencesVc,
             },
             context::AssetContextVc,
             environment::{
@@ -18,13 +18,17 @@ use turbo_binding::{
             },
             free_var_references,
         },
-        dev::DevChunkingContextVc,
+        dev::{react_refresh::assert_can_resolve_react_refresh, DevChunkingContextVc},
+        ecmascript::EcmascriptInputTransform,
         env::ProcessEnvAssetVc,
         node::execution_context::ExecutionContextVc,
         turbopack::{
+            condition::ContextCondition,
             module_options::{
                 module_options_context::{ModuleOptionsContext, ModuleOptionsContextVc},
-                PostCssTransformOptions, WebpackLoadersOptions,
+                CustomEcmascriptTransformPlugins, CustomEcmascriptTransformPluginsVc,
+                JsxTransformOptions, PostCssTransformOptions, TypescriptTransformOptions,
+                WebpackLoadersOptions,
             },
             resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
             transition::TransitionsByNameVc,
@@ -33,10 +37,12 @@ use turbo_binding::{
     },
 };
 use turbo_tasks::{primitives::StringVc, Value};
+use turbo_tasks_fs::FileSystem;
 
 use super::transforms::get_next_client_transforms_rules;
 use crate::{
     babel::maybe_add_babel_loader,
+    embed_js::next_js_fs,
     env::env_for_js,
     next_build::{get_external_next_compiled_package_mapping, get_postcss_package_mapping},
     next_client::runtime_entry::{RuntimeEntriesVc, RuntimeEntry},
@@ -45,25 +51,37 @@ use crate::{
         get_next_client_fallback_import_map, get_next_client_import_map,
         get_next_client_resolved_map,
     },
-    react_refresh::assert_can_resolve_react_refresh,
+    next_shared::{
+        resolve::UnsupportedModulesResolvePluginVc, transforms::get_relay_transform_plugin,
+    },
     transform_options::{
-        get_decorators_transform_options, get_jsx_transform_options,
-        get_typescript_transform_options,
+        get_decorators_transform_options, get_emotion_compiler_config, get_jsx_transform_options,
+        get_styled_components_compiler_config, get_typescript_transform_options,
     },
     util::foreign_code_context_condition,
 };
 
-pub fn next_client_defines() -> CompileTimeDefinesVc {
+fn defines() -> CompileTimeDefines {
     compile_time_defines!(
         process.turbopack = true,
         process.env.NODE_ENV = "development",
-        process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false
+        process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false,
+        process.env.__NEXT_HAS_REWRITES = true,
+        process.env.__NEXT_I18N_SUPPORT = false,
     )
-    .cell()
+    // TODO(WEB-937) there are more defines needed, see
+    // packages/next/src/build/webpack-config.ts
 }
 
-pub fn next_client_free_vars() -> FreeVarReferencesVc {
-    free_var_references!(
+#[turbo_tasks::function]
+pub fn next_client_defines() -> CompileTimeDefinesVc {
+    defines().cell()
+}
+
+#[turbo_tasks::function]
+pub async fn next_client_free_vars() -> Result<FreeVarReferencesVc> {
+    Ok(free_var_references!(
+        ..defines().into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
             request: "node:buffer".to_string(),
             context: None,
@@ -75,7 +93,7 @@ pub fn next_client_free_vars() -> FreeVarReferencesVc {
             export: Some("default".to_string()),
         }
     )
-    .cell()
+    .cell())
 }
 
 #[turbo_tasks::function]
@@ -125,6 +143,7 @@ pub async fn get_client_resolve_options_context(
         resolved_map: Some(next_client_resolved_map),
         browser: true,
         module: true,
+        plugins: vec![UnsupportedModulesResolvePluginVc::new(project_path).into()],
         ..Default::default()
     };
     Ok(ResolveOptionsContext {
@@ -147,7 +166,7 @@ pub async fn get_client_module_options_context(
     ty: Value<ClientContextType>,
     next_config: NextConfigVc,
 ) -> Result<ModuleOptionsContextVc> {
-    let custom_rules = get_next_client_transforms_rules(ty.into_value()).await?;
+    let custom_rules = get_next_client_transforms_rules(next_config, ty.into_value()).await?;
     let resolve_options_context =
         get_client_resolve_options_context(project_path, ty, next_config, execution_context);
     let enable_react_refresh =
@@ -157,6 +176,7 @@ pub async fn get_client_module_options_context(
 
     let tsconfig = get_typescript_transform_options(project_path);
     let decorators_options = get_decorators_transform_options(project_path);
+    let mdx_rs_options = *next_config.mdx_rs().await?;
     let jsx_runtime_options = get_jsx_transform_options(project_path);
     let enable_webpack_loaders = {
         let options = &*next_config.webpack_loaders_options().await?;
@@ -174,20 +194,42 @@ pub async fn get_client_module_options_context(
             .clone_if()
     };
 
+    let enable_emotion = *get_emotion_compiler_config(next_config).await?;
+
+    let mut source_transforms = vec![];
+    if let Some(relay_transform_plugin) = *get_relay_transform_plugin(next_config).await? {
+        source_transforms.push(relay_transform_plugin);
+    }
+
+    let custom_ecma_transform_plugins = Some(CustomEcmascriptTransformPluginsVc::cell(
+        CustomEcmascriptTransformPlugins {
+            source_transforms,
+            output_transforms: vec![],
+        },
+    ));
+
     let module_options_context = ModuleOptionsContext {
+        custom_ecmascript_transforms: vec![EcmascriptInputTransform::ServerDirective(
+            // ServerDirective is not implemented yet and always reports an issue.
+            // We don't have to pass a valid transition name yet, but the API is prepared.
+            StringVc::cell("TODO".to_string()),
+        )],
         preset_env_versions: Some(env),
         execution_context: Some(execution_context),
+        custom_ecma_transform_plugins,
         ..Default::default()
     };
+
+    let enable_styled_components = *get_styled_components_compiler_config(next_config).await?;
 
     let module_options_context = ModuleOptionsContext {
         // We don't need to resolve React Refresh for each module. Instead,
         // we try resolve it once at the root and pass down a context to all
         // the modules.
         enable_jsx: Some(jsx_runtime_options),
-        enable_emotion: true,
+        enable_emotion,
         enable_react_refresh,
-        enable_styled_components: true,
+        enable_styled_components,
         enable_styled_jsx: true,
         enable_postcss_transform: Some(PostCssTransformOptions {
             postcss_package: Some(get_postcss_package_mapping(project_path)),
@@ -195,11 +237,25 @@ pub async fn get_client_module_options_context(
         }),
         enable_webpack_loaders,
         enable_typescript_transform: Some(tsconfig),
+        enable_mdx_rs: mdx_rs_options,
         decorators: Some(decorators_options),
-        rules: vec![(
-            foreign_code_context_condition(next_config).await?,
-            module_options_context.clone().cell(),
-        )],
+        rules: vec![
+            (
+                foreign_code_context_condition(next_config).await?,
+                module_options_context.clone().cell(),
+            ),
+            // If the module is an internal asset (i.e overlay, fallback) coming from the embedded
+            // FS, don't apply user defined transforms.
+            (
+                ContextCondition::InPath(next_js_fs().root()),
+                ModuleOptionsContext {
+                    enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
+                    enable_jsx: Some(JsxTransformOptions::default().cell()),
+                    ..module_options_context.clone()
+                }
+                .cell(),
+            ),
+        ],
         custom_rules,
         ..module_options_context
     }

@@ -551,7 +551,7 @@ export async function check(
   for (let tries = 0; tries < maxRetries; tries++) {
     try {
       content = await contentFn()
-      if (typeof regex === 'string') {
+      if (typeof regex !== typeof /regex/) {
         if (regex === content) {
           return true
         }

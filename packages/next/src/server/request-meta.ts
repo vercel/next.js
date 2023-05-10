@@ -38,6 +38,7 @@ export interface RequestMeta {
   _nextDataNormalizing?: boolean
   _nextMatch?: RouteMatch
   _nextIncrementalCache?: any
+  _nextMinimalMode?: boolean
 }
 
 export function getRequestMeta(

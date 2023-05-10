@@ -1,4 +1,4 @@
-import { BaseIcon, IconProps } from "./BaseIcon";
+import { BaseIcon, IconProps } from './BaseIcon'
 
 export const AlertTriangle = (props: IconProps) => {
   return (
@@ -7,5 +7,5 @@ export const AlertTriangle = (props: IconProps) => {
       <line x1="12" y1="9" x2="12" y2="13"></line>
       <line x1="12" y1="17" x2="12.01" y2="17"></line>
     </BaseIcon>
-  );
-};
+  )
+}

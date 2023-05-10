@@ -3,5 +3,5 @@ export default function RootLayout({ children }: { children: any }) {
     <html>
       <body>{children}</body>
     </html>
-  );
+  )
 }
