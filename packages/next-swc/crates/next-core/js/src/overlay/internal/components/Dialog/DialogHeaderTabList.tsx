@@ -1,23 +1,23 @@
-import * as React from "react";
+import * as React from 'react'
 
-import { noop as css } from "../../helpers/noop-template";
-import { clsx } from "../../helpers/clsx";
-import { TabList } from "../Tabs";
+import { noop as css } from '../../helpers/noop-template'
+import { clsx } from '../../helpers/clsx'
+import { TabList } from '../Tabs'
 
 export type DialogHeaderTabListProps = {
-  className?: string;
-  children: React.ReactNode;
-};
+  className?: string
+  children: React.ReactNode
+}
 
 export function DialogHeaderTabList({
   className,
   children,
 }: DialogHeaderTabListProps) {
   return (
-    <TabList className={clsx("dialog-header-tab-list", className)}>
+    <TabList className={clsx('dialog-header-tab-list', className)}>
       {children}
     </TabList>
-  );
+  )
 }
 
 export const styles = css`
@@ -46,7 +46,6 @@ export const styles = css`
     padding-bottom: calc(var(--local-padding) - var(--size-border));
 
     height: 100%;
-    min-width: 250px;
 
     border-top: none;
     border-bottom: var(--border);
@@ -69,17 +68,17 @@ export const styles = css`
 
     border-top: var(--size-border-double) solid transparent;
 
-    content: " ";
+    content: ' ';
   }
 
   .dialog-header-tab-list > .tab:hover {
     background-color: var(--color-bg-secondary-hover);
   }
 
-  .dialog-header-tab-list > .tab[aria-selected="true"] {
+  .dialog-header-tab-list > .tab[aria-selected='true'] {
     color: var(--color-text);
     background-color: var(--color-bg);
 
     border-bottom-color: transparent;
   }
-`;
+`

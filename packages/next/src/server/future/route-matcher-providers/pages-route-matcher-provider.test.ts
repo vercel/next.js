@@ -1,5 +1,5 @@
 import { PAGES_MANIFEST, SERVER_DIRECTORY } from '../../../shared/lib/constants'
-import { LocaleRouteNormalizer } from '../normalizers/locale-route-normalizer'
+import { I18NProvider } from '../helpers/i18n-provider'
 import { PagesRouteDefinition } from '../route-definitions/pages-route-definition'
 import { RouteKind } from '../route-kind'
 import { ManifestLoader } from './helpers/manifest-loaders/manifest-loader'
@@ -17,7 +17,7 @@ describe('PagesRouteMatcherProvider', () => {
     describe.each<{
       manifest: Record<string, string>
       routes: ReadonlyArray<PagesRouteDefinition>
-      i18n: { locales: ReadonlyArray<string>; defaultLocale: string }
+      i18n: { locales: Array<string>; defaultLocale: string }
     }>([
       {
         manifest: {
@@ -116,7 +116,7 @@ describe('PagesRouteMatcherProvider', () => {
         const provider = new PagesRouteMatcherProvider(
           '<root>',
           loader,
-          new LocaleRouteNormalizer(i18n.locales, i18n.defaultLocale)
+          new I18NProvider(i18n)
         )
         const matchers = await provider.matchers()
 

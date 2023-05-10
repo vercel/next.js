@@ -126,8 +126,13 @@ describe('next/font/google loader', () => {
         })
         const { css } = await nextFontGoogleFontLoader({
           functionName,
-          data: [{ adjustFontFallback: false, ...fontFunctionArguments }],
-          config: { subsets: [] },
+          data: [
+            {
+              adjustFontFallback: false,
+              subsets: [],
+              ...fontFunctionArguments,
+            },
+          ],
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
           loaderContext: {} as any,

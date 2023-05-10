@@ -56,7 +56,7 @@ Component state will be retained if the error did not occur during rendering. If
 the error did occur during rendering, React will remount your application using
 the updated code.
 
-If you have [error boundaries](https://reactjs.org/docs/error-boundaries.html)
+If you have [error boundaries](https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary)
 in your app (which is a good idea for graceful failures in production), they
 will retry rendering on the next edit after a rendering error. This means having
 an error boundary can prevent you from always getting reset to the root app

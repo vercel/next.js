@@ -1,18 +1,21 @@
-use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, Value};
-use turbopack::ecmascript::chunk::{
-    EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkVc,
-    EcmascriptExportsVc,
-};
-use turbopack_core::{
-    asset::{Asset, AssetContentVc, AssetVc},
-    chunk::{
-        availability_info::AvailabilityInfo, ChunkVc, ChunkableAsset, ChunkableAssetVc,
-        ChunkingContext, ChunkingContextVc,
+use anyhow::{Context, Result};
+use turbo_binding::turbopack::{
+    core::{
+        asset::{Asset, AssetContentVc, AssetVc},
+        chunk::{
+            availability_info::AvailabilityInfo, ChunkVc, ChunkableAsset, ChunkableAssetVc,
+            ChunkingContext, ChunkingContextVc,
+        },
+        ident::AssetIdentVc,
+        reference::AssetReferencesVc,
     },
-    ident::AssetIdentVc,
-    reference::AssetReferencesVc,
+    ecmascript::chunk::EcmascriptChunkingContextVc,
+    turbopack::ecmascript::chunk::{
+        EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc,
+        EcmascriptChunkVc, EcmascriptExportsVc,
+    },
 };
+use turbo_tasks::{primitives::StringVc, Value};
 
 #[turbo_tasks::function]
 fn modifier() -> StringVc {
@@ -63,8 +66,18 @@ impl ChunkableAsset for WithChunkingContextScopeAsset {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for WithChunkingContextScopeAsset {
     #[turbo_tasks::function]
-    fn as_chunk_item(&self, context: ChunkingContextVc) -> EcmascriptChunkItemVc {
-        self.asset.as_chunk_item(context.with_layer(&self.layer))
+    async fn as_chunk_item(
+        &self,
+        context: EcmascriptChunkingContextVc,
+    ) -> Result<EcmascriptChunkItemVc> {
+        Ok(self.asset.as_chunk_item(
+            EcmascriptChunkingContextVc::resolve_from(context.with_layer(&self.layer))
+                .await?
+                .context(
+                    "ChunkingContextVc::with_layer should not return a different kind of chunking \
+                     context",
+                )?,
+        ))
     }
 
     #[turbo_tasks::function]

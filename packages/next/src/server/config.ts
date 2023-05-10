@@ -27,15 +27,9 @@ import {
 import { loadWebpackHook } from './config-utils'
 import { ImageConfig, imageConfigDefault } from '../shared/lib/image-config'
 import { loadEnvConfig } from '@next/env'
-import { gte as semverGte } from 'next/dist/compiled/semver'
 import { flushAndExit } from '../telemetry/flush-and-exit'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
-
-const NODE_16_VERSION = '16.8.0'
-const NODE_18_VERSION = '18.0.0'
-const isAboveNodejs16 = semverGte(process.version, NODE_16_VERSION)
-const isAboveNodejs18 = semverGte(process.version, NODE_18_VERSION)
 
 const experimentalWarning = execOnce(
   (configFileName: string, features: string[]) => {
@@ -51,36 +45,14 @@ const experimentalWarning = execOnce(
       `Experimental features are not covered by semver, and may cause unexpected or broken application behavior. ` +
         `Use at your own risk.`
     )
-    if (features.includes('appDir')) {
-      Log.info(
-        `Thank you for testing \`appDir\` please leave your feedback at https://nextjs.link/app-feedback`
-      )
-    }
 
     console.warn()
   }
 )
 
-export function setHttpClientAndAgentOptions(
-  config: {
-    httpAgentOptions?: NextConfig['httpAgentOptions']
-    experimental?: {
-      enableUndici?: boolean
-    }
-  },
-  silent = false
-) {
-  if (isAboveNodejs16) {
-    // Node.js 18 has undici built-in.
-    if (config.experimental?.enableUndici && !isAboveNodejs18) {
-      // When appDir is enabled undici is the default because of Response.clone() issues in node-fetch
-      ;(globalThis as any).__NEXT_USE_UNDICI = config.experimental?.enableUndici
-    }
-  } else if (config.experimental?.enableUndici && !silent) {
-    Log.warn(
-      `\`enableUndici\` option requires Node.js v${NODE_16_VERSION} or greater. Falling back to \`node-fetch\``
-    )
-  }
+export function setHttpClientAndAgentOptions(config: {
+  httpAgentOptions?: NextConfig['httpAgentOptions']
+}) {
   if ((globalThis as any).__NEXT_HTTP_AGENT) {
     // We only need to assign once because we want
     // to reuse the same agent for all requests.
@@ -163,22 +135,6 @@ function assignDefaults(
           for (const featureName of Object.keys(
             value
           ) as (keyof ExperimentalConfig)[]) {
-            const featureValue = value[featureName]
-            if (featureName === 'appDir' && featureValue === true) {
-              if (!isAboveNodejs16) {
-                throw new Error(
-                  `experimental.appDir requires Node v${NODE_16_VERSION} or later.`
-                )
-              }
-              // auto enable clientRouterFilter if not manually set
-              // when appDir is enabled
-              if (
-                typeof userConfig.experimental.clientRouterFilter ===
-                'undefined'
-              ) {
-                userConfig.experimental.clientRouterFilter = true
-              }
-            }
             if (
               value[featureName] !== defaultConfig.experimental[featureName]
             ) {
@@ -263,22 +219,22 @@ function assignDefaults(
   if (result.output === 'export') {
     if (result.i18n) {
       throw new Error(
-        'Specified "i18n" cannot but used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+        'Specified "i18n" cannot be used with "output: export". See more info here: https://nextjs.org/docs/messages/export-no-i18n'
       )
     }
     if (result.rewrites) {
       throw new Error(
-        'Specified "rewrites" cannot but used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+        'Specified "rewrites" cannot be used with "output: export". See more info here: https://nextjs.org/docs/messages/export-no-custom-routes'
       )
     }
     if (result.redirects) {
       throw new Error(
-        'Specified "redirects" cannot but used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+        'Specified "redirects" cannot be used with "output: export". See more info here: https://nextjs.org/docs/messages/export-no-custom-routes'
       )
     }
     if (result.headers) {
       throw new Error(
-        'Specified "headers" cannot but used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+        'Specified "headers" cannot be used with "output: export". See more info here: https://nextjs.org/docs/messages/export-no-custom-routes'
       )
     }
   }
@@ -312,10 +268,6 @@ function assignDefaults(
     Log.warn(
       `\`outputFileTracingIgnores\` has been moved to \`experimental.outputFileTracingExcludes\`. Please update your ${configFileName} file accordingly.`
     )
-  }
-
-  if (result.experimental?.appDir) {
-    result.experimental.enableUndici = true
   }
 
   if (result.basePath !== '') {
@@ -494,6 +446,13 @@ function assignDefaults(
   )
 
   if (
+    typeof userConfig.experimental?.clientRouterFilter === 'undefined' &&
+    result.experimental?.appDir
+  ) {
+    result.experimental.clientRouterFilter = true
+  }
+
+  if (
     result.experimental?.outputFileTracingRoot &&
     !isAbsolute(result.experimental.outputFileTracingRoot)
   ) {
@@ -538,7 +497,7 @@ function assignDefaults(
     result.output = undefined
   }
 
-  setHttpClientAndAgentOptions(result || defaultConfig, silent)
+  setHttpClientAndAgentOptions(result || defaultConfig)
 
   if (result.i18n) {
     const { i18n } = result
@@ -721,6 +680,10 @@ export default async function loadConfig(
   rawConfig?: boolean,
   silent?: boolean
 ): Promise<NextConfigComplete> {
+  if (process.env.__NEXT_PRIVATE_STANDALONE_CONFIG) {
+    return JSON.parse(process.env.__NEXT_PRIVATE_STANDALONE_CONFIG)
+  }
+
   const curLog = silent
     ? {
         warn: () => {},
@@ -730,10 +693,7 @@ export default async function loadConfig(
     : Log
 
   await loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, curLog)
-
-  if (!customConfig) {
-    loadWebpackHook()
-  }
+  loadWebpackHook()
 
   let configFileName = 'next.config.js'
 
@@ -819,12 +779,6 @@ export default async function loadConfig(
       }
     }
 
-    if (Object.keys(userConfig).length === 0) {
-      curLog.warn(
-        `Detected ${configFileName}, no exported configuration found. https://nextjs.org/docs/messages/empty-configuration`
-      )
-    }
-
     if (userConfig.target && userConfig.target !== 'server') {
       throw new Error(
         `The "target" property is no longer supported in ${configFileName}.\n` +
@@ -880,6 +834,6 @@ export default async function loadConfig(
     silent
   ) as NextConfigComplete
   completeConfig.configFileName = configFileName
-  setHttpClientAndAgentOptions(completeConfig, silent)
+  setHttpClientAndAgentOptions(completeConfig)
   return completeConfig
 }

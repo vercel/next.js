@@ -1,6 +1,8 @@
 /// <reference types="node" />
 /// <reference types="react" />
+/// <reference types="react/experimental" />
 /// <reference types="react-dom" />
+/// <reference types="react-dom/experimental" />
 
 import React from 'react'
 import { ParsedUrlQuery } from 'querystring'
@@ -28,8 +30,12 @@ export type ServerRuntime = 'nodejs' | 'experimental-edge' | 'edge' | undefined
 // @ts-ignore This path is generated at build time and conflicts otherwise
 export { NextConfig } from '../dist/server/config'
 
-// @ts-ignore This path is generated at build time and conflicts otherwise
-export { Metadata } from '../dist/lib/metadata/types/metadata-interface'
+export type {
+  Metadata,
+  MetadataRoute,
+  ResolvedMetadata,
+  ResolvingMetadata, // @ts-ignore This path is generated at build time and conflicts otherwise
+} from '../dist/lib/metadata/types/metadata-interface'
 
 // Extend the React types with missing properties
 declare module 'react' {
@@ -38,13 +44,11 @@ declare module 'react' {
     amp?: string
   }
 
-  // <link nonce=""> support
-  interface LinkHTMLAttributes<T> extends HTMLAttributes<T> {
-    nonce?: string
+  // <img fetchPriority=""> support
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- It's actually required for module augmentation to work.
+  interface ImgHTMLAttributes<T> {
+    fetchPriority?: 'high' | 'low' | 'auto' | undefined
   }
-
-  function use<T>(promise: Promise<T> | React.Context<T>): T
-  function cache<T extends Function>(fn: T): T
 }
 
 export type Redirect =
@@ -149,6 +153,7 @@ export type GetStaticPropsContext<
   params?: Params
   preview?: boolean
   previewData?: Preview
+  draftMode?: boolean
   locale?: string
   locales?: string[]
   defaultLocale?: string

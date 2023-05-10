@@ -5,7 +5,7 @@ import { RuleSetConditionAbsolute } from 'webpack'
 
 type WithMDX = (config: NextConfig) => NextConfig
 
-interface NextMDXOptions {
+export interface NextMDXOptions {
   /**
    * A webpack rule test to match files to treat as MDX.
    *

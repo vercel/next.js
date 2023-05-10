@@ -66,6 +66,7 @@ describe('config telemetry', () => {
     expect(event1).toMatch(/"imageRemotePatternsCount": 1/)
     expect(event1).toMatch(/"imageSizes": "64,128,256,512,1024"/)
     expect(event1).toMatch(/"imageFormats": "image\/avif,image\/webp"/)
+    expect(event1).toMatch(/"nextConfigOutput": null/)
     expect(event1).toMatch(/"trailingSlashEnabled": false/)
     expect(event1).toMatch(/"reactStrictMode": false/)
     expect(event1).toMatch(/"turboFlag": false/)
@@ -105,8 +106,30 @@ describe('config telemetry', () => {
     expect(event2).toMatch(/"imageDomainsCount": 2/)
     expect(event2).toMatch(/"imageRemotePatternsCount": 1/)
     expect(event2).toMatch(/"imageSizes": "64,128,256,512,1024"/)
+    expect(event2).toMatch(/"nextConfigOutput": null/)
     expect(event2).toMatch(/"trailingSlashEnabled": false/)
     expect(event2).toMatch(/"reactStrictMode": false/)
+  })
+
+  it('detects output config for session start', async () => {
+    await fs.writeFile(
+      './next.config.js',
+      'module.exports = { output: "export" }'
+    )
+    try {
+      const { stderr } = await nextBuild(appDir, [], {
+        stderr: true,
+        env: { NEXT_TELEMETRY_DEBUG: 1 },
+      })
+
+      const event1 = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
+        .exec(stderr)
+        .pop()
+
+      expect(event1).toContain('"nextConfigOutput": "export"')
+    } finally {
+      await fs.remove('./next.config.js')
+    }
   })
 
   it('emits telemetry for lint during build', async () => {

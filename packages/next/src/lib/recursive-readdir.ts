@@ -12,6 +12,7 @@ export async function recursiveReadDir(
   filter: (absoluteFilePath: string) => boolean,
   /** Filter for the file path */
   ignore?: (absoluteFilePath: string) => boolean,
+  ignorePart?: (partName: string) => boolean,
   /** This doesn't have to be provided, it's used for the recursion */
   arr: string[] = [],
   /** Used to replace the initial path, only the relative path is left, it's faster than path.relative. */
@@ -24,6 +25,7 @@ export async function recursiveReadDir(
       const absolutePath = join(dir, part.name)
       const relativePath = absolutePath.replace(rootDir, '')
       if (ignore && ignore(absolutePath)) return
+      if (ignorePart && ignorePart(part.name)) return
 
       // readdir does not follow symbolic links
       // if part is a symbolic link, follow it using stat
@@ -34,7 +36,14 @@ export async function recursiveReadDir(
       }
 
       if (isDirectory) {
-        await recursiveReadDir(absolutePath, filter, ignore, arr, rootDir)
+        await recursiveReadDir(
+          absolutePath,
+          filter,
+          ignore,
+          ignorePart,
+          arr,
+          rootDir
+        )
         return
       }
 

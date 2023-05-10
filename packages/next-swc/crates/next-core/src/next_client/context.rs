@@ -2,28 +2,42 @@ use core::{default::Default, result::Result::Ok};
 use std::collections::HashMap;
 
 use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, Value};
-use turbo_tasks_env::ProcessEnvVc;
-use turbo_tasks_fs::{FileSystem, FileSystemPathVc};
-use turbopack::{
-    module_options::{
-        module_options_context::{ModuleOptionsContext, ModuleOptionsContextVc},
-        PostCssTransformOptions, WebpackLoadersOptions,
+use turbo_binding::{
+    turbo::{tasks_env::ProcessEnvVc, tasks_fs::FileSystemPathVc},
+    turbopack::{
+        core::{
+            chunk::ChunkingContextVc,
+            compile_time_defines,
+            compile_time_info::{
+                CompileTimeDefines, CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc,
+                FreeVarReference, FreeVarReferencesVc,
+            },
+            context::AssetContextVc,
+            environment::{
+                BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment,
+            },
+            free_var_references,
+        },
+        dev::{react_refresh::assert_can_resolve_react_refresh, DevChunkingContextVc},
+        ecmascript::EcmascriptInputTransform,
+        env::ProcessEnvAssetVc,
+        node::execution_context::ExecutionContextVc,
+        turbopack::{
+            condition::ContextCondition,
+            module_options::{
+                module_options_context::{ModuleOptionsContext, ModuleOptionsContextVc},
+                CustomEcmascriptTransformPlugins, CustomEcmascriptTransformPluginsVc,
+                JsxTransformOptions, PostCssTransformOptions, TypescriptTransformOptions,
+                WebpackLoadersOptions,
+            },
+            resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
+            transition::TransitionsByNameVc,
+            ModuleAssetContextVc,
+        },
     },
-    resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
-    transition::TransitionsByNameVc,
-    ModuleAssetContextVc,
 };
-use turbopack_core::{
-    chunk::{dev::DevChunkingContextVc, ChunkingContextVc},
-    compile_time_defines,
-    compile_time_info::{CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc},
-    context::AssetContextVc,
-    environment::{BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment},
-    resolve::{parse::RequestVc, pattern::Pattern},
-};
-use turbopack_env::ProcessEnvAssetVc;
-use turbopack_node::execution_context::ExecutionContextVc;
+use turbo_tasks::{primitives::StringVc, Value};
+use turbo_tasks_fs::FileSystem;
 
 use super::transforms::get_next_client_transforms_rules;
 use crate::{
@@ -37,37 +51,67 @@ use crate::{
         get_next_client_fallback_import_map, get_next_client_import_map,
         get_next_client_resolved_map,
     },
-    react_refresh::assert_can_resolve_react_refresh,
-    typescript::get_typescript_transform_options,
+    next_shared::{
+        resolve::UnsupportedModulesResolvePluginVc, transforms::get_relay_transform_plugin,
+    },
+    transform_options::{
+        get_decorators_transform_options, get_emotion_compiler_config, get_jsx_transform_options,
+        get_styled_components_compiler_config, get_typescript_transform_options,
+    },
     util::foreign_code_context_condition,
 };
 
-pub fn next_client_defines() -> CompileTimeDefinesVc {
+fn defines() -> CompileTimeDefines {
     compile_time_defines!(
         process.turbopack = true,
         process.env.NODE_ENV = "development",
-        process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false
+        process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false,
+        process.env.__NEXT_HAS_REWRITES = true,
+        process.env.__NEXT_I18N_SUPPORT = false,
     )
-    .cell()
+    // TODO(WEB-937) there are more defines needed, see
+    // packages/next/src/build/webpack-config.ts
+}
+
+#[turbo_tasks::function]
+pub fn next_client_defines() -> CompileTimeDefinesVc {
+    defines().cell()
+}
+
+#[turbo_tasks::function]
+pub async fn next_client_free_vars() -> Result<FreeVarReferencesVc> {
+    Ok(free_var_references!(
+        ..defines().into_iter(),
+        Buffer = FreeVarReference::EcmaScriptModule {
+            request: "node:buffer".to_string(),
+            context: None,
+            export: Some("Buffer".to_string()),
+        },
+        process = FreeVarReference::EcmaScriptModule {
+            request: "node:process".to_string(),
+            context: None,
+            export: Some("default".to_string()),
+        }
+    )
+    .cell())
 }
 
 #[turbo_tasks::function]
 pub fn get_client_compile_time_info(browserslist_query: &str) -> CompileTimeInfoVc {
-    CompileTimeInfo {
-        environment: EnvironmentVc::new(
-            Value::new(ExecutionEnvironment::Browser(
-                BrowserEnvironment {
-                    dom: true,
-                    web_worker: false,
-                    service_worker: false,
-                    browserslist_query: browserslist_query.to_owned(),
-                }
-                .into(),
-            )),
-            Value::new(EnvironmentIntention::Client),
-        ),
-        defines: next_client_defines(),
-    }
+    CompileTimeInfo::builder(EnvironmentVc::new(
+        Value::new(ExecutionEnvironment::Browser(
+            BrowserEnvironment {
+                dom: true,
+                web_worker: false,
+                service_worker: false,
+                browserslist_query: browserslist_query.to_owned(),
+            }
+            .into(),
+        )),
+        Value::new(EnvironmentIntention::Client),
+    ))
+    .defines(next_client_defines())
+    .free_var_references(next_client_free_vars())
     .cell()
 }
 
@@ -99,6 +143,7 @@ pub async fn get_client_resolve_options_context(
         resolved_map: Some(next_client_resolved_map),
         browser: true,
         module: true,
+        plugins: vec![UnsupportedModulesResolvePluginVc::new(project_path).into()],
         ..Default::default()
     };
     Ok(ResolveOptionsContext {
@@ -121,7 +166,7 @@ pub async fn get_client_module_options_context(
     ty: Value<ClientContextType>,
     next_config: NextConfigVc,
 ) -> Result<ModuleOptionsContextVc> {
-    let custom_rules = get_next_client_transforms_rules(ty.into_value()).await?;
+    let custom_rules = get_next_client_transforms_rules(next_config, ty.into_value()).await?;
     let resolve_options_context =
         get_client_resolve_options_context(project_path, ty, next_config, execution_context);
     let enable_react_refresh =
@@ -130,6 +175,9 @@ pub async fn get_client_module_options_context(
             .is_found();
 
     let tsconfig = get_typescript_transform_options(project_path);
+    let decorators_options = get_decorators_transform_options(project_path);
+    let mdx_rs_options = *next_config.mdx_rs().await?;
+    let jsx_runtime_options = get_jsx_transform_options(project_path);
     let enable_webpack_loaders = {
         let options = &*next_config.webpack_loaders_options().await?;
         let loaders_options = WebpackLoadersOptions {
@@ -146,20 +194,42 @@ pub async fn get_client_module_options_context(
             .clone_if()
     };
 
+    let enable_emotion = *get_emotion_compiler_config(next_config).await?;
+
+    let mut source_transforms = vec![];
+    if let Some(relay_transform_plugin) = *get_relay_transform_plugin(next_config).await? {
+        source_transforms.push(relay_transform_plugin);
+    }
+
+    let custom_ecma_transform_plugins = Some(CustomEcmascriptTransformPluginsVc::cell(
+        CustomEcmascriptTransformPlugins {
+            source_transforms,
+            output_transforms: vec![],
+        },
+    ));
+
     let module_options_context = ModuleOptionsContext {
+        custom_ecmascript_transforms: vec![EcmascriptInputTransform::ServerDirective(
+            // ServerDirective is not implemented yet and always reports an issue.
+            // We don't have to pass a valid transition name yet, but the API is prepared.
+            StringVc::cell("TODO".to_string()),
+        )],
         preset_env_versions: Some(env),
         execution_context: Some(execution_context),
+        custom_ecma_transform_plugins,
         ..Default::default()
     };
+
+    let enable_styled_components = *get_styled_components_compiler_config(next_config).await?;
 
     let module_options_context = ModuleOptionsContext {
         // We don't need to resolve React Refresh for each module. Instead,
         // we try resolve it once at the root and pass down a context to all
         // the modules.
-        enable_jsx: true,
-        enable_emotion: true,
+        enable_jsx: Some(jsx_runtime_options),
+        enable_emotion,
         enable_react_refresh,
-        enable_styled_components: true,
+        enable_styled_components,
         enable_styled_jsx: true,
         enable_postcss_transform: Some(PostCssTransformOptions {
             postcss_package: Some(get_postcss_package_mapping(project_path)),
@@ -167,10 +237,25 @@ pub async fn get_client_module_options_context(
         }),
         enable_webpack_loaders,
         enable_typescript_transform: Some(tsconfig),
-        rules: vec![(
-            foreign_code_context_condition(next_config).await?,
-            module_options_context.clone().cell(),
-        )],
+        enable_mdx_rs: mdx_rs_options,
+        decorators: Some(decorators_options),
+        rules: vec![
+            (
+                foreign_code_context_condition(next_config).await?,
+                module_options_context.clone().cell(),
+            ),
+            // If the module is an internal asset (i.e overlay, fallback) coming from the embedded
+            // FS, don't apply user defined transforms.
+            (
+                ContextCondition::InPath(next_js_fs().root()),
+                ModuleOptionsContext {
+                    enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
+                    enable_jsx: Some(JsxTransformOptions::default().cell()),
+                    ..module_options_context.clone()
+                }
+                .cell(),
+            ),
+        ],
         custom_rules,
         ..module_options_context
     }
@@ -219,10 +304,10 @@ pub fn get_client_chunking_context(
         project_path,
         server_root,
         match ty.into_value() {
-            ClientContextType::Pages { .. } | ClientContextType::App { .. } => {
-                server_root.join("/_next/static/chunks")
-            }
-            ClientContextType::Fallback | ClientContextType::Other => server_root.join("/_chunks"),
+            ClientContextType::Pages { .. }
+            | ClientContextType::App { .. }
+            | ClientContextType::Fallback => server_root.join("/_next/static/chunks"),
+            ClientContextType::Other => server_root.join("/_chunks"),
         },
         get_client_assets_path(server_root, ty),
         environment,
@@ -237,10 +322,10 @@ pub fn get_client_assets_path(
     ty: Value<ClientContextType>,
 ) -> FileSystemPathVc {
     match ty.into_value() {
-        ClientContextType::Pages { .. } | ClientContextType::App { .. } => {
-            server_root.join("/_next/static/assets")
-        }
-        ClientContextType::Fallback | ClientContextType::Other => server_root.join("/_assets"),
+        ClientContextType::Pages { .. }
+        | ClientContextType::App { .. }
+        | ClientContextType::Fallback => server_root.join("/_next/static/assets"),
+        ClientContextType::Other => server_root.join("/_assets"),
     }
 }
 
@@ -259,10 +344,19 @@ pub async fn get_client_runtime_entries(
             .await?
             .as_request();
 
-    let mut runtime_entries = vec![RuntimeEntry::Ecmascript(
-        ProcessEnvAssetVc::new(project_root, env_for_js(env, true, next_config)).into(),
-    )
-    .cell()];
+    let mut runtime_entries = vec![];
+
+    if matches!(
+        *ty,
+        ClientContextType::App { .. } | ClientContextType::Pages { .. },
+    ) {
+        runtime_entries.push(
+            RuntimeEntry::Source(
+                ProcessEnvAssetVc::new(project_root, env_for_js(env, true, next_config)).into(),
+            )
+            .cell(),
+        );
+    }
 
     // It's important that React Refresh come before the regular bootstrap file,
     // because the bootstrap contains JSX which requires Refresh's global
@@ -270,17 +364,6 @@ pub async fn get_client_runtime_entries(
     if let Some(request) = enable_react_refresh {
         runtime_entries.push(RuntimeEntry::Request(request, project_root.join("_")).cell())
     };
-    if matches!(ty.into_value(), ClientContextType::Other) {
-        runtime_entries.push(
-            RuntimeEntry::Request(
-                RequestVc::parse(Value::new(Pattern::Constant(
-                    "./dev/bootstrap.ts".to_string(),
-                ))),
-                next_js_fs().root().join("_"),
-            )
-            .cell(),
-        );
-    }
 
     Ok(RuntimeEntriesVc::cell(runtime_entries))
 }

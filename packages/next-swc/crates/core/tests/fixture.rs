@@ -1,27 +1,32 @@
-use next_binding::swc::{
-    core::{
-        common::{chain, comments::SingleThreadedComments, FileName, Mark},
-        ecma::parser::{EsConfig, Syntax},
-        ecma::transforms::base::resolver,
-        ecma::transforms::react::jsx,
-        ecma::transforms::testing::{test, test_fixture},
-    },
-    testing::fixture,
-};
+use std::{env::current_dir, path::PathBuf};
+
 use next_swc::{
     amp_attributes::amp_attributes,
     next_dynamic::next_dynamic,
-    next_font_loaders::{next_font_loaders, Config as FontLoaderConfig},
     next_ssg::next_ssg,
     page_config::page_config_test,
     react_remove_properties::remove_properties,
     react_server_components::server_components,
-    relay::{relay, Config as RelayConfig, RelayLanguageConfig},
     remove_console::remove_console,
     server_actions::{self, server_actions},
     shake_exports::{shake_exports, Config as ShakeExportsConfig},
 };
-use std::path::PathBuf;
+use next_transform_font::{next_font_loaders, Config as FontLoaderConfig};
+use turbo_binding::swc::{
+    core::{
+        common::{chain, comments::SingleThreadedComments, FileName, Mark},
+        ecma::{
+            parser::{EsConfig, Syntax},
+            transforms::{
+                base::resolver,
+                react::jsx,
+                testing::{test, test_fixture},
+            },
+        },
+    },
+    custom_transform::relay::{relay, RelayLanguageConfig},
+    testing::fixture,
+};
 
 fn syntax() -> Syntax {
     Syntax::Es(EsConfig {
@@ -101,10 +106,11 @@ fn next_ssg_fixture(input: PathBuf) {
         syntax(),
         &|tr| {
             let top_level_mark = Mark::fresh(Mark::root());
+            let unresolved_mark = Mark::fresh(Mark::root());
             let jsx = jsx::<SingleThreadedComments>(
                 tr.cm.clone(),
                 None,
-                next_binding::swc::core::ecma::transforms::react::Options {
+                turbo_binding::swc::core::ecma::transforms::react::Options {
                     next: false.into(),
                     runtime: None,
                     import_source: Some("".into()),
@@ -112,13 +118,17 @@ fn next_ssg_fixture(input: PathBuf) {
                     pragma_frag: Some("__jsxFrag".into()),
                     throw_if_namespace: false.into(),
                     development: false.into(),
-                    use_builtins: true.into(),
-                    use_spread: true.into(),
                     refresh: Default::default(),
+                    ..Default::default()
                 },
                 top_level_mark,
+                unresolved_mark,
             );
-            chain!(next_ssg(Default::default()), jsx)
+            chain!(
+                resolver(unresolved_mark, top_level_mark, true),
+                next_ssg(Default::default()),
+                jsx
+            )
         },
         &input,
         &output,
@@ -141,7 +151,7 @@ fn page_config_fixture(input: PathBuf) {
 #[fixture("tests/fixture/relay/**/input.ts*")]
 fn relay_no_artifact_dir_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
-    let config = RelayConfig {
+    let config = turbo_binding::swc::custom_transform::relay::Config {
         language: RelayLanguageConfig::TypeScript,
         artifact_directory: Some(PathBuf::from("__generated__")),
         ..Default::default()
@@ -152,7 +162,9 @@ fn relay_no_artifact_dir_fixture(input: PathBuf) {
             relay(
                 &config,
                 FileName::Real(PathBuf::from("input.tsx")),
+                current_dir().unwrap(),
                 Some(PathBuf::from("src/pages")),
+                None,
             )
         },
         &input,
@@ -301,8 +313,8 @@ fn next_font_loaders_fixture(input: PathBuf) {
     );
 }
 
-#[fixture("tests/fixture/server-actions/**/input.js")]
-fn server_actions_fixture(input: PathBuf) {
+#[fixture("tests/fixture/server-actions/server/**/input.js")]
+fn server_actions_server_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
@@ -312,6 +324,27 @@ fn server_actions_fixture(input: PathBuf) {
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
                     server_actions::Config { is_server: true },
+                    _tr.comments.as_ref().clone(),
+                )
+            )
+        },
+        &input,
+        &output,
+        Default::default(),
+    );
+}
+
+#[fixture("tests/fixture/server-actions/client/**/input.js")]
+fn server_actions_client_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            chain!(
+                resolver(Mark::new(), Mark::new(), false),
+                server_actions(
+                    &FileName::Real("/app/item.js".into()),
+                    server_actions::Config { is_server: false },
                     _tr.comments.as_ref().clone(),
                 )
             )

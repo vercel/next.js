@@ -1,19 +1,69 @@
-import { redirect } from 'next/navigation'
+import { redirect, notFound } from 'next/navigation'
 
 async function action(formData) {
   'use server'
-  redirect('/header?name=' + formData.get('name'))
+  redirect(
+    '/header?name=' +
+      formData.get('name') +
+      '&constructor=' +
+      formData.constructor.name
+  )
+}
+
+async function nowhere() {
+  'use server'
+  notFound()
+}
+
+async function here() {
+  'use server'
+  // nothing
+}
+
+async function file(formData) {
+  'use server'
+  const file = formData.get('file')
+  console.log('File name:', file.name, 'size:', file.size)
 }
 
 export default function Form() {
+  const b = 1
+  async function add(a, formData) {
+    'use server'
+    // Bind variable, closure variable, and argument.
+    redirect('/header?result=' + (a + b + Number(formData.get('n'))))
+  }
+
   return (
     <>
       <hr />
-      <form action="" method="POST">
+      <form action={action}>
         <input type="text" name="name" id="name" required />
-        <input type="text" name="$$id" value={action.$$id} hidden readOnly />
         <button type="submit" id="submit">
           Submit
+        </button>
+      </form>
+      <hr />
+      <form>
+        <button formAction={nowhere} type="submit" id="nowhere">
+          Go nowhere
+        </button>
+        <button formAction={here} type="submit" id="here">
+          Go here
+        </button>
+      </form>
+      <hr />
+      <form action={file}>
+        <input type="file" name="file" id="file" required />
+        <button type="submit" id="upload">
+          Upload file
+        </button>
+      </form>
+      <hr />
+      <form>
+        <input type="text" name="n" id="n" required />
+        <button type="submit" id="minus-one" formAction={add.bind(null, -2)}>
+          -1
         </button>
       </form>
     </>

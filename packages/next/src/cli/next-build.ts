@@ -17,6 +17,8 @@ const nextBuild: CliCommand = (argv) => {
     '--no-lint': Boolean,
     '--no-mangling': Boolean,
     '--experimental-app-only': Boolean,
+    '--experimental-turbo': Boolean,
+    '--build-mode': String,
     // Aliases
     '-h': '--help',
     '-d': '--debug',
@@ -76,7 +78,9 @@ const nextBuild: CliCommand = (argv) => {
     args['--debug'] || process.env.NEXT_DEBUG_BUILD,
     !args['--no-lint'],
     args['--no-mangling'],
-    args['--experimental-app-only']
+    args['--experimental-app-only'],
+    args['--experimental-turbo'],
+    args['--build-mode'] || 'default'
   ).catch((err) => {
     console.error('')
     if (
@@ -84,6 +88,8 @@ const nextBuild: CliCommand = (argv) => {
       (err.code === 'INVALID_RESOLVE_ALIAS' ||
         err.code === 'WEBPACK_ERRORS' ||
         err.code === 'BUILD_OPTIMIZATION_FAILED' ||
+        err.code === 'NEXT_EXPORT_ERROR' ||
+        err.code === 'NEXT_STATIC_GEN_BAILOUT' ||
         err.code === 'EDGE_RUNTIME_UNSUPPORTED_API')
     ) {
       printAndExit(`> ${err.message}`)

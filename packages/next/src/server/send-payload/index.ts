@@ -65,7 +65,7 @@ export async function sendRenderResult({
 
   const payload = result.isDynamic() ? null : await result.toUnchunkedString()
 
-  if (payload) {
+  if (payload !== null) {
     const etag = generateEtags ? generateETag(payload) : undefined
     if (sendEtagResponse(req, res, etag)) {
       return
@@ -97,7 +97,7 @@ export async function sendRenderResult({
 
   if (req.method === 'HEAD') {
     res.end(null)
-  } else if (payload) {
+  } else if (payload !== null) {
     res.end(payload)
   } else {
     await result.pipe(res)

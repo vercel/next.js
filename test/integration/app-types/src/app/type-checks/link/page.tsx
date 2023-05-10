@@ -31,6 +31,7 @@ export default function page() {
       <Link href="/rewrite-one-or-more">test</Link>
       <Link href="/rewrite-param/page">test</Link>
       <Link href="/rewrite-param/x/page1">test</Link>
+      <Link href="/redirect/v2/guides/x/page">test</Link>
     </>
   )
 
@@ -58,6 +59,8 @@ export default function page() {
       <Link href="/rewrite-all/x/y/z">test</Link>
       <Link href="/rewrite-param/x/page?1">test</Link>
       <Link href="/redirect">test</Link>
+      <Link href="/redirect/v1/guides/x/page">test</Link>
+      <Link href="/redirect/guides/x/page">test</Link>
       <Link href={new URL('/about')}>test</Link>
     </>
   )

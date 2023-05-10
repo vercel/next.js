@@ -84,4 +84,4 @@ The page above is a hybrid AMP page, which means:
 - The page is rendered as traditional HTML (default) and AMP HTML (by adding `?amp=1` to the URL)
 - The AMP version of the page only has valid optimizations applied with AMP Optimizer so that it is indexable by search-engines
 
-The page uses `useAmp` to differentiate between modes, it's a [React Hook](https://reactjs.org/docs/hooks-intro.html) that returns `true` if the page is using AMP, and `false` otherwise.
+The page uses `useAmp` to differentiate between modes, it's a [React Hook](https://react.dev/reference/react) that returns `true` if the page is using AMP, and `false` otherwise.

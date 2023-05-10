@@ -28,7 +28,6 @@ function escapeStringRegexp(str: string) {
 const nextFontGoogleFontLoader: FontLoader = async ({
   functionName,
   data,
-  config,
   emitFontFile,
   isDev,
   isServer,
@@ -44,7 +43,7 @@ const nextFontGoogleFontLoader: FontLoader = async ({
     adjustFontFallback,
     variable,
     subsets,
-  } = validateGoogleFontFunctionCall(functionName, data[0], config)
+  } = validateGoogleFontFunctionCall(functionName, data[0])
 
   // Validate and get the font axes required to generated the URL
   const fontAxes = getFontAxes(

@@ -1,5 +1,5 @@
 import { createOptimisticTree } from './create-optimistic-tree'
-import type { FlightRouterState } from '../../../server/app-render'
+import type { FlightRouterState } from '../../../server/app-render/types'
 
 const getInitialRouterStateTree = (): FlightRouterState => [
   '',

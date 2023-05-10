@@ -17,16 +17,14 @@ import WebResponseCache from './response-cache/web'
 import { isAPIRoute } from '../lib/is-api-route'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
-import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { isDynamicRoute } from '../shared/lib/router/utils'
-import {
-  interpolateDynamicPath,
-  normalizeVercelUrl,
-} from '../build/webpack/loaders/next-serverless-loader/utils'
+import { interpolateDynamicPath, normalizeVercelUrl } from './server-utils'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { IncrementalCache } from './lib/incremental-cache'
+import { PrerenderManifest } from '../build'
+
 interface WebServerOptions extends Options {
   webServerConfig: {
     page: string
@@ -37,8 +35,9 @@ interface WebServerOptions extends Options {
     extendRenderOpts: Partial<BaseServer['renderOpts']> &
       Pick<BaseServer['renderOpts'], 'buildId'>
     pagesRenderToHTML?: typeof import('./render').renderToHTML
-    appRenderToHTML?: typeof import('./app-render').renderToHTMLOrFlight
+    appRenderToHTML?: typeof import('./app-render/app-render').renderToHTMLOrFlight
     incrementalCacheHandler?: any
+    prerenderManifest: PrerenderManifest | undefined
   }
 }
 
@@ -66,7 +65,10 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     return new IncrementalCache({
       dev,
       requestHeaders,
+      requestProtocol: 'https',
       appDir: this.hasAppDir,
+      allowedRevalidateHeaderKeys:
+        this.nextConfig.experimental.allowedRevalidateHeaderKeys,
       minimalMode: this.minimalMode,
       fetchCache: this.nextConfig.experimental.appDir,
       fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
@@ -74,19 +76,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       flushToDisk: false,
       CurCacheHandler:
         this.serverOptions.webServerConfig.incrementalCacheHandler,
-      getPrerenderManifest: () => {
-        if (dev) {
-          return {
-            version: -1 as any, // letting us know this doesn't conform to spec
-            routes: {},
-            dynamicRoutes: {},
-            notFoundRoutes: [],
-            preview: null as any, // `preview` is special case read in next-dev-server
-          }
-        } else {
-          return this.getPrerenderManifest()
-        }
-      },
+      getPrerenderManifest: () => this.getPrerenderManifest(),
     })
   }
   protected getResponseCache() {
@@ -156,21 +146,23 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
   }
   protected getPrerenderManifest() {
-    return {
-      version: 4 as const,
-      routes: {},
-      dynamicRoutes: {},
-      notFoundRoutes: [],
-      preview: {
-        previewModeId: '',
-        previewModeSigningKey: '',
-        previewModeEncryptionKey: '',
-      },
+    const { prerenderManifest } = this.serverOptions.webServerConfig
+    if (this.renderOpts?.dev || !prerenderManifest) {
+      return {
+        version: -1 as any, // letting us know this doesn't conform to spec
+        routes: {},
+        dynamicRoutes: {},
+        notFoundRoutes: [],
+        preview: {
+          previewModeId: 'development-id',
+        } as any, // `preview` is special case read in next-dev-server
+      }
     }
+    return prerenderManifest
   }
   protected getServerComponentManifest() {
     return this.serverOptions.webServerConfig.extendRenderOpts
-      .serverComponentManifest
+      .clientReferenceManifest
   }
   protected getServerCSSManifest() {
     return this.serverOptions.webServerConfig.extendRenderOpts.serverCSSManifest
@@ -214,7 +206,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
           pathname = getRouteFromAssetPath(pathname, '.json')
 
           // ensure trailing slash is normalized per config
-          if (this.router.catchAllMiddleware[0]) {
+          if (this.router.hasMiddleware) {
             if (this.nextConfig.trailingSlash && !pathname.endsWith('/')) {
               pathname += '/'
             }
@@ -235,8 +227,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
               pathname,
               this.nextConfig.i18n.locales
             )
-            const { defaultLocale } =
-              detectDomainLocale(this.nextConfig.i18n.domains, hostname) || {}
+            const domainLocale = this.i18nProvider?.detectDomainLocale(hostname)
 
             let detectedLocale = ''
 
@@ -247,9 +238,9 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
 
             _parsedUrl.query.__nextLocale = detectedLocale
             _parsedUrl.query.__nextDefaultLocale =
-              defaultLocale || this.nextConfig.i18n.defaultLocale
+              domainLocale?.defaultLocale || this.nextConfig.i18n.defaultLocale
 
-            if (!detectedLocale && !this.router.catchAllMiddleware[0]) {
+            if (!detectedLocale && !this.router.hasMiddleware) {
               _parsedUrl.query.__nextLocale =
                 _parsedUrl.query.__nextDefaultLocale
               await this.render404(req, res, _parsedUrl)
@@ -295,7 +286,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
           pathname = this.serverOptions.webServerConfig.page
 
           if (isDynamicRoute(pathname)) {
-            const routeRegex = getNamedRouteRegex(pathname)
+            const routeRegex = getNamedRouteRegex(pathname, false)
             pathname = interpolateDynamicPath(pathname, query, routeRegex)
             normalizeVercelUrl(
               req,
@@ -310,16 +301,13 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
         // next.js core assumes page path without trailing slash
         pathname = removeTrailingSlash(pathname)
 
-        if (this.nextConfig.i18n) {
-          const localePathResult = normalizeLocalePath(
-            pathname,
-            this.nextConfig.i18n?.locales
-          )
-
-          if (localePathResult.detectedLocale) {
-            parsedUrl.query.__nextLocale = localePathResult.detectedLocale
+        if (this.i18nProvider) {
+          const { detectedLocale } = await this.i18nProvider.analyze(pathname)
+          if (detectedLocale) {
+            parsedUrl.query.__nextLocale = detectedLocale
           }
         }
+
         const bubbleNoFallback = !!query._nextBubbleNoFallback
 
         if (isAPIRoute(pathname)) {
@@ -373,23 +361,19 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
 
   protected async renderHTML(
     req: WebNextRequest,
-    _res: WebNextResponse,
+    res: WebNextResponse,
     pathname: string,
     query: NextParsedUrlQuery,
     renderOpts: RenderOpts
-  ): Promise<RenderResult | null> {
+  ): Promise<RenderResult> {
     const { pagesRenderToHTML, appRenderToHTML } =
       this.serverOptions.webServerConfig
     const curRenderToHTML = pagesRenderToHTML || appRenderToHTML
 
     if (curRenderToHTML) {
       return await curRenderToHTML(
-        {
-          url: req.url,
-          cookies: req.cookies,
-          headers: req.headers,
-        } as any,
-        {} as any,
+        req as any,
+        res as any,
         pathname,
         query,
         Object.assign(renderOpts, {

@@ -7,6 +7,8 @@ import loadJsConfig from '../load-jsconfig'
 import * as Log from '../output/log'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import { loadBindings, lockfilePatchPromise } from '../swc'
+import type { JestTransformerConfig } from '../swc/jest-transformer'
+import type { Config } from '@jest/types'
 
 async function getConfig(dir: string) {
   const conf = await loadConfig(PHASE_TEST, dir)
@@ -55,10 +57,14 @@ module.exports = createJestConfig(customJestConfig)
 */
 export default function nextJest(options: { dir?: string } = {}) {
   // createJestConfig
-  return (customJestConfig?: any) => {
+  return (
+    customJestConfig?:
+      | Config.InitialProjectOptions
+      | (() => Promise<Config.InitialProjectOptions>)
+  ) => {
     // Function that is provided as the module.exports of jest.config.js
     // Will be called and awaited by Jest
-    return async () => {
+    return async (): Promise<Config.InitialProjectOptions> => {
       let nextConfig
       let jsConfig
       let resolvedBaseUrl
@@ -96,6 +102,17 @@ export default function nextJest(options: { dir?: string } = {}) {
       }
 
       const transpiled = (nextConfig?.transpilePackages ?? []).join('|')
+
+      const jestTransformerConfig: JestTransformerConfig = {
+        modularizeImports: nextConfig?.modularizeImports,
+        swcPlugins: nextConfig?.experimental?.swcPlugins,
+        compilerOptions: nextConfig?.compiler,
+        jsConfig,
+        resolvedBaseUrl,
+        hasServerComponents,
+        isEsmProject,
+        pagesDir,
+      }
       return {
         ...resolvedJestConfig,
 
@@ -140,14 +157,7 @@ export default function nextJest(options: { dir?: string } = {}) {
           // Use SWC to compile tests
           '^.+\\.(js|jsx|ts|tsx|mjs)$': [
             require.resolve('../swc/jest-transformer'),
-            {
-              nextConfig,
-              jsConfig,
-              resolvedBaseUrl,
-              hasServerComponents,
-              isEsmProject,
-              pagesDir,
-            },
+            jestTransformerConfig,
           ],
           // Allow for appending/overriding the default transforms
           ...(resolvedJestConfig.transform || {}),

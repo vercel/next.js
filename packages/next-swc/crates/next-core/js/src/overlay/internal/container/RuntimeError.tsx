@@ -1,65 +1,65 @@
-import * as React from "react";
-import { StackFrame } from "@vercel/turbopack-next/compiled/stacktrace-parser";
+import * as React from 'react'
+import { StackFrame } from '@vercel/turbopack-next/compiled/stacktrace-parser'
 
-import { CodeFrame } from "../components/CodeFrame";
-import { DialogBody, DialogBodyProps } from "../components/Dialog";
-import { LeftRightDialogHeader } from "../components/LeftRightDialogHeader";
-import { clsx } from "../helpers/clsx";
-import { getErrorSource } from "../helpers/nodeStackFrames";
-import { noop as css } from "../helpers/noop-template";
-import { ReadyRuntimeError } from "../helpers/getErrorByType";
-import { decodeMagicIdentifiers } from "../helpers/magic-identifier";
-import { getFrameSource, OriginalStackFrame } from "../helpers/stack-frame";
-import { usePagination } from "../hooks/usePagination";
-import { ExternalLink } from "../icons";
+import { CodeFrame } from '../components/CodeFrame'
+import { DialogBody, DialogBodyProps } from '../components/Dialog'
+import { LeftRightDialogHeader } from '../components/LeftRightDialogHeader'
+import { clsx } from '../helpers/clsx'
+import { getErrorSource } from '../helpers/nodeStackFrames'
+import { noop as css } from '../helpers/noop-template'
+import { ReadyRuntimeError } from '../helpers/getErrorByType'
+import { decodeMagicIdentifiers } from '../helpers/magic-identifier'
+import { getFrameSource, OriginalStackFrame } from '../helpers/stack-frame'
+import { usePagination } from '../hooks/usePagination'
+import { ExternalLink } from '../icons'
 
 function CallStackFrame({ frame }: { frame: OriginalStackFrame }) {
   // TODO: ability to expand resolved frames
   // TODO: render error or external indicator
 
-  const f: StackFrame = frame.originalStackFrame ?? frame.sourceStackFrame;
-  const hasSource = Boolean(frame.originalCodeFrame);
+  const f: StackFrame = frame.originalStackFrame ?? frame.sourceStackFrame
+  const hasSource = Boolean(frame.originalCodeFrame)
 
   const open = React.useCallback(() => {
-    if (!hasSource) return;
+    if (!hasSource) return
 
-    const params = new URLSearchParams();
+    const params = new URLSearchParams()
     for (const key in f) {
-      params.append(key, ((f as any)[key] ?? "").toString());
+      params.append(key, ((f as any)[key] ?? '').toString())
     }
 
     self
       .fetch(
         `${
-          process.env.__NEXT_ROUTER_BASEPATH ?? ""
+          process.env.__NEXT_ROUTER_BASEPATH ?? ''
         }/__nextjs_launch-editor?${params.toString()}`
       )
       .then(
         () => {},
         () => {
-          console.error("There was an issue opening this code in your editor.");
+          console.error('There was an issue opening this code in your editor.')
         }
-      );
-  }, [hasSource, f]);
+      )
+  }, [hasSource, f])
 
   return (
     <li className="call-stack-frame" data-expanded={Boolean(frame.expanded)}>
       <h6>{f.methodName}</h6>
       <div
-        data-has-source={hasSource ? "true" : undefined}
+        data-has-source={hasSource ? 'true' : undefined}
         tabIndex={hasSource ? 10 : undefined}
-        role={hasSource ? "link" : undefined}
+        role={hasSource ? 'link' : undefined}
         onClick={open}
-        title={hasSource ? "Click to open in your editor" : undefined}
+        title={hasSource ? 'Click to open in your editor' : undefined}
       >
         <span>{getFrameSource(f)}</span>
         <ExternalLink />
       </div>
     </li>
-  );
+  )
 }
 
-export type RuntimeErrorProps = { error: ReadyRuntimeError };
+export type RuntimeErrorProps = { error: ReadyRuntimeError }
 
 export function RuntimeError({ error }: RuntimeErrorProps) {
   const firstFirstPartyFrameIndex = React.useMemo<number>(() => {
@@ -68,11 +68,11 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
         entry.expanded &&
         Boolean(entry.originalCodeFrame) &&
         Boolean(entry.originalStackFrame)
-    );
-  }, [error.frames]);
+    )
+  }, [error.frames])
   const firstFrame = React.useMemo<OriginalStackFrame | null>(() => {
-    return error.frames[firstFirstPartyFrameIndex] ?? null;
-  }, [error.frames, firstFirstPartyFrameIndex]);
+    return error.frames[firstFirstPartyFrameIndex] ?? null
+  }, [error.frames, firstFirstPartyFrameIndex])
 
   const allLeadingFrames = React.useMemo<OriginalStackFrame[]>(
     () =>
@@ -80,37 +80,37 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
         ? []
         : error.frames.slice(0, firstFirstPartyFrameIndex),
     [error.frames, firstFirstPartyFrameIndex]
-  );
+  )
 
-  const [all, setAll] = React.useState(firstFrame == null);
+  const [all, setAll] = React.useState(firstFrame == null)
   const toggleAll = React.useCallback(() => {
-    setAll((v) => !v);
-  }, []);
+    setAll((v) => !v)
+  }, [])
 
   const leadingFrames = React.useMemo(
     () => allLeadingFrames.filter((f) => f.expanded || all),
     [all, allLeadingFrames]
-  );
+  )
   const allCallStackFrames = React.useMemo<OriginalStackFrame[]>(
     () => error.frames.slice(firstFirstPartyFrameIndex + 1),
     [error.frames, firstFirstPartyFrameIndex]
-  );
+  )
   const visibleCallStackFrames = React.useMemo<OriginalStackFrame[]>(
     () => allCallStackFrames.filter((f) => f.expanded || all),
     [all, allCallStackFrames]
-  );
+  )
 
   const canShowMore = React.useMemo<boolean>(() => {
     return (
       allCallStackFrames.length !== visibleCallStackFrames.length ||
       (all && firstFrame != null)
-    );
+    )
   }, [
     all,
     allCallStackFrames.length,
     firstFrame,
     visibleCallStackFrames.length,
-  ]);
+  ])
 
   return (
     <>
@@ -152,24 +152,24 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
             onClick={toggleAll}
             className="runtime-error-collapsed-action"
           >
-            {all ? "Hide" : "Show"} collapsed frames
+            {all ? 'Hide' : 'Show'} collapsed frames
           </button>
         </>
       ) : undefined}
     </>
-  );
+  )
 }
 
 function HotlinkedText(props: { text: string }) {
-  const { text } = props;
+  const { text } = props
 
-  const linkRegex = /https?:\/\/[^\s/$.?#].[^\s)'"]*/i;
+  const linkRegex = /https?:\/\/[^\s/$.?#].[^\s)'"]*/i
   return (
     <>
       {linkRegex.test(text)
-        ? text.split(" ").map((word, index, array) => {
+        ? text.split(' ').map((word, index, array) => {
             if (linkRegex.test(word)) {
-              const link = linkRegex.exec(word);
+              const link = linkRegex.exec(word)
               return (
                 <React.Fragment key={`link-${index}`}>
                   {link && (
@@ -177,73 +177,59 @@ function HotlinkedText(props: { text: string }) {
                       {word}
                     </a>
                   )}
-                  {index === array.length - 1 ? "" : " "}
+                  {index === array.length - 1 ? '' : ' '}
                 </React.Fragment>
-              );
+              )
             }
             return index === array.length - 1 ? (
               <React.Fragment key={`text-${index}`}>{word}</React.Fragment>
             ) : (
               <React.Fragment key={`text-${index}`}>{word} </React.Fragment>
-            );
+            )
           })
         : text}
     </>
-  );
+  )
 }
 
 type RuntimeErrorsDialogBodyProps = {
-  isLoading: boolean;
-  readyErrors: ReadyRuntimeError[];
-  "data-hidden"?: boolean;
-};
+  items: ReadyRuntimeError[]
+  message: string
+  'data-hidden'?: boolean
+}
 
 export function RuntimeErrorsDialogBody({
-  isLoading,
-  readyErrors,
-  "data-hidden": hidden = false,
+  items: readyErrors,
+  message,
+  'data-hidden': hidden = false,
   className,
   ...rest
-}: RuntimeErrorsDialogBodyProps & Omit<DialogBodyProps, "children">) {
+}: RuntimeErrorsDialogBodyProps & Omit<DialogBodyProps, 'children'>) {
   const [activeError, { previous, next }, activeIdx] =
-    usePagination(readyErrors);
-
-  if (isLoading) {
-    return (
-      <DialogBody
-        {...rest}
-        data-hidden={hidden}
-        className={clsx("runtime-errors", className)}
-      >
-        <h1 id="nextjs__container_errors_label">Resolving Source Maps...</h1>
-      </DialogBody>
-    );
-  }
+    usePagination(readyErrors)
 
   if (readyErrors.length < 1 || activeError == null) {
     return (
       <DialogBody
         {...rest}
         data-hidden={hidden}
-        className={clsx("runtime-errors", className)}
+        className={clsx('runtime-errors', className)}
       />
-    );
+    )
   }
 
-  const isServerError = ["server", "edge-server"].includes(
-    getErrorSource(activeError.error) || ""
-  );
+  const isServerError = ['server', 'edge-server'].includes(
+    getErrorSource(activeError.error) || ''
+  )
 
   return (
     <DialogBody
       {...rest}
       data-hidden={hidden}
-      className={clsx("runtime-errors", className)}
+      className={clsx('runtime-errors', className)}
     >
       <div className="title-pagination">
-        <h1 id="nextjs__container_errors_label">
-          {isServerError ? "Server Error" : "Unhandled Runtime Error"}
-        </h1>
+        <h1 id="nextjs__container_errors_label">{message}</h1>
         <LeftRightDialogHeader
           hidden={hidden}
           previous={activeIdx > 0 ? previous : null}
@@ -260,7 +246,7 @@ export function RuntimeErrorsDialogBody({
         id="nextjs__container_errors_desc"
         data-severity="error"
       >
-        {activeError.error.name}:{" "}
+        {activeError.error.name}:{' '}
         <HotlinkedText
           text={decodeMagicIdentifiers(activeError.error.message)}
         />
@@ -275,7 +261,7 @@ export function RuntimeErrorsDialogBody({
       ) : undefined}
       <RuntimeError key={activeError.id.toString()} error={activeError} />
     </DialogBody>
-  );
+  )
 }
 
 export const styles = css`
@@ -305,7 +291,7 @@ export const styles = css`
     color: #666;
   }
 
-  .call-stack-frame[data-expanded="true"] > h6 {
+  .call-stack-frame[data-expanded='true'] > h6 {
     color: #222;
   }
 
@@ -336,4 +322,4 @@ export const styles = css`
   .call-stack-frame > div[data-has-source] > svg {
     display: unset;
   }
-`;
+`

@@ -1,6 +1,5 @@
 export default {
   experimental: {
-    appDir: true,
     typedRoutes: true,
   },
   async rewrites() {
@@ -31,6 +30,11 @@ export default {
     return [
       {
         source: '/redirect',
+        destination: 'https://nextjs.org',
+        permanent: false,
+      },
+      {
+        source: '/redirect(/v1)?/guides/:param/page',
         destination: 'https://nextjs.org',
         permanent: false,
       },

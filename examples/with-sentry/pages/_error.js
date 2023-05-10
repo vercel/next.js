@@ -8,7 +8,7 @@
  * See:
  *  - https://nextjs.org/docs/basic-features/data-fetching/overview
  *  - https://nextjs.org/docs/api-reference/data-fetching/get-initial-props
- *  - https://reactjs.org/docs/error-boundaries.html
+ *  - https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary
  */
 
 import * as Sentry from '@sentry/nextjs'

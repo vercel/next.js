@@ -10,6 +10,22 @@ export function printAndExit(message: string, code = 1) {
   process.exit(code)
 }
 
+export const genExecArgv = (enabled: boolean | 'brk', debugPort: number) => {
+  const execArgv = process.execArgv.filter((localArg) => {
+    return (
+      !localArg.startsWith('--inspect') && !localArg.startsWith('--inspect-brk')
+    )
+  })
+
+  if (enabled) {
+    execArgv.push(
+      `--inspect${enabled === 'brk' ? '-brk' : ''}=${debugPort + 1}`
+    )
+  }
+
+  return execArgv
+}
+
 export function getNodeOptionsWithoutInspect() {
   const NODE_INSPECT_RE = /--inspect(-brk)?(=\S+)?( |$)/
   return (process.env.NODE_OPTIONS || '').replace(NODE_INSPECT_RE, '')

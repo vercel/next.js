@@ -25,6 +25,7 @@ fn run_test(input: &Path, output: &Path, mode: ExportFilter) {
         syntax(),
         &|tr| {
             let top_level_mark = Mark::fresh(Mark::root());
+            let unresolved_mark = Mark::fresh(Mark::root());
             let jsx = jsx::<SingleThreadedComments>(
                 tr.cm.clone(),
                 None,
@@ -36,13 +37,13 @@ fn run_test(input: &Path, output: &Path, mode: ExportFilter) {
                     pragma_frag: Some("__jsxFrag".into()),
                     throw_if_namespace: false.into(),
                     development: false.into(),
-                    use_builtins: true.into(),
-                    use_spread: true.into(),
-                    refresh: Default::default(),
+                    ..Default::default()
                 },
                 top_level_mark,
+                unresolved_mark,
             );
             chain!(
+                swc_core::ecma::transforms::base::resolver(unresolved_mark, top_level_mark, true),
                 next_transform_strip_page_exports(mode, Default::default()),
                 jsx
             )

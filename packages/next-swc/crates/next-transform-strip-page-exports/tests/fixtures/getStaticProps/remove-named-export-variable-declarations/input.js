@@ -1,11 +1,11 @@
 export const getStaticPaths = () => {
-  return [];
-};
+  return []
+}
 
 export const getStaticProps = function () {
-  return { props: {} };
-};
+  return { props: {} }
+}
 
 export default function Test() {
-  return <div />;
+  return <div />
 }

@@ -33,9 +33,6 @@ describe('next/font/google with-font-declarations-file', () => {
         'my-font.woff2': new FileRef(
           join(__dirname, 'with-font-declarations-file/my-font.woff2')
         ),
-        'next.config.js': new FileRef(
-          join(__dirname, 'with-font-declarations-file/next.config.js')
-        ),
       },
       env: {
         NEXT_FONT_GOOGLE_MOCKED_RESPONSES: mockedGoogleFontResponses,

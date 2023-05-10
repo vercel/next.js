@@ -3,8 +3,6 @@ import { AppPageRouteDefinition } from '../route-definitions/app-page-route-defi
 
 export class AppPageRouteMatcher extends RouteMatcher<AppPageRouteDefinition> {
   public get identity(): string {
-    return `${
-      this.definition.pathname
-    }?__nextParallelPaths=${this.definition.appPaths.join(',')}}`
+    return `${this.definition.pathname}?__nextPage=${this.definition.page}}`
   }
 }

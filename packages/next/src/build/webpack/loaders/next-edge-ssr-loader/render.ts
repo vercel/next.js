@@ -3,6 +3,7 @@ import type { NextConfigComplete } from '../../../../server/config-shared'
 import type { DocumentType, AppType } from '../../../../shared/lib/utils'
 import type { BuildManifest } from '../../../../server/get-page-files'
 import type { ReactLoadableManifest } from '../../../../server/load-components'
+import type { ClientReferenceManifest } from '../../plugins/flight-manifest-plugin'
 import type { NextFontManifestPlugin } from '../../plugins/next-font-manifest-plugin'
 
 import WebServer from '../../../../server/web-server'
@@ -11,6 +12,7 @@ import {
   WebNextResponse,
 } from '../../../../server/base-http/web'
 import { SERVER_RUNTIME } from '../../../../lib/constants'
+import { PrerenderManifest } from '../../..'
 
 export function getRender({
   dev,
@@ -22,10 +24,11 @@ export function getRender({
   pagesType,
   Document,
   buildManifest,
+  prerenderManifest,
   reactLoadableManifest,
   appRenderToHTML,
   pagesRenderToHTML,
-  serverComponentManifest,
+  clientReferenceManifest,
   subresourceIntegrityManifest,
   serverCSSManifest,
   serverActionsManifest,
@@ -45,9 +48,10 @@ export function getRender({
   pagesRenderToHTML: any
   Document: DocumentType
   buildManifest: BuildManifest
+  prerenderManifest: PrerenderManifest
   reactLoadableManifest: ReactLoadableManifest
   subresourceIntegrityManifest?: Record<string, string>
-  serverComponentManifest: any
+  clientReferenceManifest?: ClientReferenceManifest
   serverCSSManifest: any
   serverActionsManifest: any
   appServerMod: any
@@ -60,6 +64,7 @@ export function getRender({
   const baseLoadComponentResult = {
     dev,
     buildManifest,
+    prerenderManifest,
     reactLoadableManifest,
     subresourceIntegrityManifest,
     nextFontManifest,
@@ -74,12 +79,13 @@ export function getRender({
     webServerConfig: {
       page,
       pagesType,
+      prerenderManifest,
       extendRenderOpts: {
         buildId,
         runtime: SERVER_RUNTIME.experimentalEdge,
         supportsDynamicHTML: true,
         disableOptimizedLoading: true,
-        serverComponentManifest,
+        clientReferenceManifest,
         serverCSSManifest,
         serverActionsManifest,
       },

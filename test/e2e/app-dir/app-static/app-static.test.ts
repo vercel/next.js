@@ -23,12 +23,30 @@ createNextDescribe(
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
     let prerenderManifest
+    let buildCliOutputIndex = 0
 
     beforeAll(async () => {
       if (isNextStart) {
         prerenderManifest = JSON.parse(
           await next.readFile('.next/prerender-manifest.json')
         )
+        buildCliOutputIndex = next.cliOutput.length
+      }
+    })
+
+    it('should not have cache tags header for non-minimal mode', async () => {
+      for (const path of [
+        '/ssr-forced',
+        '/ssr-forced',
+        '/variable-revalidate/revalidate-3',
+        '/variable-revalidate/revalidate-360',
+        '/variable-revalidate/revalidate-360-isr',
+      ]) {
+        const res = await fetchViaHTTP(next.url, path, undefined, {
+          redirect: 'manual',
+        })
+        expect(res.status).toBe(200)
+        expect(res.headers.get('x-next-cache-tags')).toBeFalsy()
       }
     })
 
@@ -48,7 +66,298 @@ createNextDescribe(
           'A required parameter (slug) was not provided as a string received object'
         )
       })
+
+      it('should correctly handle multi-level generateStaticParams when some levels are missing', async () => {
+        const browser = await next.browser('/flight/foo/bar')
+        const v = ~~(Math.random() * 1000)
+        await browser.eval(`document.cookie = "test-cookie=${v}"`)
+        await browser.elementByCss('button').click()
+        await check(async () => {
+          return await browser.elementByCss('h1').text()
+        }, v.toString())
+      })
     }
+
+    it('should correctly skip caching POST fetch for POST handler', async () => {
+      const res = await next.fetch('/route-handler/post', {
+        method: 'POST',
+      })
+      expect(res.status).toBe(200)
+
+      const data = await res.json()
+      expect(data).toBeTruthy()
+
+      for (let i = 0; i < 5; i++) {
+        const res2 = await next.fetch('/route-handler/post', {
+          method: 'POST',
+        })
+        expect(res2.status).toBe(200)
+        const newData = await res2.json()
+        expect(newData).toBeTruthy()
+        expect(newData).not.toEqual(data)
+      }
+    })
+
+    if (!process.env.CUSTOM_CACHE_HANDLER) {
+      it.each([
+        {
+          type: 'edge route handler',
+          revalidateApi: '/api/revalidate-tag-edge',
+        },
+        {
+          type: 'node route handler',
+          revalidateApi: '/api/revalidate-tag-node',
+        },
+      ])(
+        'it should revalidate tag correctly with $type',
+        async ({ revalidateApi }) => {
+          const initRes = await next.fetch(
+            '/variable-revalidate/revalidate-360'
+          )
+          const html = await initRes.text()
+          const $ = cheerio.load(html)
+          const initLayoutData = $('#layout-data').text()
+          const initPageData = $('#page-data').text()
+
+          const routeHandlerRes = await next.fetch(
+            '/route-handler/revalidate-360'
+          )
+          const initRouteHandlerData = await routeHandlerRes.json()
+
+          const edgeRouteHandlerRes = await next.fetch(
+            '/route-handler-edge/revalidate-360'
+          )
+          const initEdgeRouteHandlerRes = await edgeRouteHandlerRes.json()
+
+          expect(initLayoutData).toBeTruthy()
+          expect(initPageData).toBeTruthy()
+
+          await check(async () => {
+            const revalidateRes = await next.fetch(
+              `${revalidateApi}?tag=thankyounext`
+            )
+            expect((await revalidateRes.json()).revalidated).toBe(true)
+
+            const newRes = await next.fetch(
+              '/variable-revalidate/revalidate-360'
+            )
+            const newHtml = await newRes.text()
+            const new$ = cheerio.load(newHtml)
+            const newLayoutData = new$('#layout-data').text()
+            const newPageData = new$('#page-data').text()
+
+            const newRouteHandlerRes = await next.fetch(
+              '/route-handler/revalidate-360'
+            )
+            const newRouteHandlerData = await newRouteHandlerRes.json()
+
+            const newEdgeRouteHandlerRes = await next.fetch(
+              '/route-handler-edge/revalidate-360'
+            )
+            const newEdgeRouteHandlerData = await newEdgeRouteHandlerRes.json()
+
+            expect(newLayoutData).toBeTruthy()
+            expect(newPageData).toBeTruthy()
+            expect(newRouteHandlerData).toBeTruthy()
+            expect(newEdgeRouteHandlerData).toBeTruthy()
+            expect(newLayoutData).not.toBe(initLayoutData)
+            expect(newPageData).not.toBe(initPageData)
+            expect(newRouteHandlerData).not.toEqual(initRouteHandlerData)
+            expect(newEdgeRouteHandlerData).not.toEqual(initEdgeRouteHandlerRes)
+            return 'success'
+          }, 'success')
+        }
+      )
+    }
+
+    // On-Demand Revalidate has not effect in dev since app routes
+    // aren't considered static until prerendering
+    if (!(global as any).isNextDev && !process.env.CUSTOM_CACHE_HANDLER) {
+      it('should not revalidate / when revalidate is not used', async () => {
+        let prevData
+
+        for (let i = 0; i < 5; i++) {
+          const res = await next.fetch('/')
+          const html = await res.text()
+          const $ = cheerio.load(html)
+          const data = $('#page-data').text()
+
+          expect(res.status).toBe(200)
+
+          if (prevData) {
+            expect(prevData).toBe(data)
+            prevData = data
+          }
+          await waitFor(500)
+        }
+
+        if (isNextStart) {
+          expect(next.cliOutput.substring(buildCliOutputIndex)).not.toContain(
+            'rendering index'
+          )
+        }
+      })
+
+      it.each([
+        {
+          type: 'edge route handler',
+          revalidateApi: '/api/revalidate-path-edge',
+        },
+        {
+          type: 'node route handler',
+          revalidateApi: '/api/revalidate-path-node',
+        },
+      ])(
+        'it should revalidate correctly with $type',
+        async ({ revalidateApi }) => {
+          const initRes = await next.fetch(
+            '/variable-revalidate/revalidate-360-isr'
+          )
+          const html = await initRes.text()
+          const $ = cheerio.load(html)
+          const initLayoutData = $('#layout-data').text()
+          const initPageData = $('#page-data').text()
+
+          expect(initLayoutData).toBeTruthy()
+          expect(initPageData).toBeTruthy()
+
+          await check(async () => {
+            const revalidateRes = await next.fetch(
+              `${revalidateApi}?path=/variable-revalidate/revalidate-360-isr`
+            )
+            expect((await revalidateRes.json()).revalidated).toBe(true)
+
+            const newRes = await next.fetch(
+              '/variable-revalidate/revalidate-360-isr'
+            )
+            const newHtml = await newRes.text()
+            const new$ = cheerio.load(newHtml)
+            const newLayoutData = new$('#layout-data').text()
+            const newPageData = new$('#page-data').text()
+
+            expect(newLayoutData).toBeTruthy()
+            expect(newPageData).toBeTruthy()
+            expect(newLayoutData).not.toBe(initLayoutData)
+            expect(newPageData).not.toBe(initPageData)
+            return 'success'
+          }, 'success')
+        }
+      )
+    }
+
+    // On-Demand Revalidate has not effect in dev
+    if (!(global as any).isNextDev && !process.env.CUSTOM_CACHE_HANDLER) {
+      it('should revalidate all fetches during on-demand revalidate', async () => {
+        const initRes = await next.fetch(
+          '/variable-revalidate/revalidate-360-isr'
+        )
+        const html = await initRes.text()
+        const $ = cheerio.load(html)
+        const initLayoutData = $('#layout-data').text()
+        const initPageData = $('#page-data').text()
+
+        expect(initLayoutData).toBeTruthy()
+        expect(initPageData).toBeTruthy()
+
+        await check(async () => {
+          const revalidateRes = await next.fetch(
+            '/api/revalidate-path-node?path=/variable-revalidate/revalidate-360-isr'
+          )
+          expect((await revalidateRes.json()).revalidated).toBe(true)
+
+          const newRes = await next.fetch(
+            '/variable-revalidate/revalidate-360-isr'
+          )
+          const newHtml = await newRes.text()
+          const new$ = cheerio.load(newHtml)
+          const newLayoutData = new$('#layout-data').text()
+          const newPageData = new$('#page-data').text()
+
+          expect(newLayoutData).toBeTruthy()
+          expect(newPageData).toBeTruthy()
+          expect(newLayoutData).not.toBe(initLayoutData)
+          expect(newPageData).not.toBe(initPageData)
+          return 'success'
+        }, 'success')
+      })
+    }
+
+    it('should correctly handle fetchCache = "force-no-store"', async () => {
+      const initRes = await next.fetch('/force-no-store')
+      const html = await initRes.text()
+      const $ = cheerio.load(html)
+      const initPageData = $('#page-data').text()
+      expect(initPageData).toBeTruthy()
+
+      const newRes = await next.fetch('/force-no-store')
+      const newHtml = await newRes.text()
+      const new$ = cheerio.load(newHtml)
+      const newPageData = new$('#page-data').text()
+
+      expect(newPageData).toBeTruthy()
+      expect(newPageData).not.toBe(initPageData)
+    })
+
+    if (!process.env.CUSTOM_CACHE_HANDLER) {
+      it('should revalidate correctly with config and fetch revalidate', async () => {
+        const initial$ = await next.render$(
+          '/variable-config-revalidate/revalidate-3'
+        )
+        const initialDate = initial$('#date').text()
+        const initialRandomData = initial$('#random-data').text()
+
+        expect(initialDate).toBeTruthy()
+        expect(initialRandomData).toBeTruthy()
+
+        let prevInitialDate
+        let prevInitialRandomData
+
+        // wait for a fresh revalidation
+        await check(async () => {
+          const $ = await next.render$(
+            '/variable-config-revalidate/revalidate-3'
+          )
+          prevInitialDate = $('#date').text()
+          prevInitialRandomData = $('#random-data').text()
+
+          expect(prevInitialDate).not.toBe(initialDate)
+          expect(prevInitialRandomData).not.toBe(initialRandomData)
+          return 'success'
+        }, 'success')
+
+        // the date should revalidate first after 3 seconds
+        // while the fetch data stays in place for 9 seconds
+        await check(async () => {
+          const $ = await next.render$(
+            '/variable-config-revalidate/revalidate-3'
+          )
+          const curDate = $('#date').text()
+          const curRandomData = $('#random-data').text()
+
+          expect(curDate).not.toBe(prevInitialDate)
+          expect(curRandomData).not.toBe(prevInitialRandomData)
+
+          prevInitialDate = curDate
+          prevInitialRandomData = curRandomData
+          return 'success'
+        }, 'success')
+      })
+    }
+
+    it('should not cache non-ok statusCode', async () => {
+      await check(async () => {
+        const $ = await next.render$('/variable-revalidate/status-code')
+        const origData = JSON.parse($('#page-data').text())
+
+        expect(origData.status).toBe(404)
+
+        const new$ = await next.render$('/variable-revalidate/status-code')
+        const newData = JSON.parse(new$('#page-data').text())
+        expect(newData.status).toBe(origData.status)
+        expect(newData.text).not.toBe(origData.text)
+        return 'success'
+      }, 'success')
+    })
 
     if (isNextStart) {
       it('should output HTML/RSC files for static paths', async () => {
@@ -67,6 +376,10 @@ createNextDescribe(
 
         expect(files).toEqual([
           '(new)/custom/page.js',
+          'api/revalidate-path-edge/route.js',
+          'api/revalidate-path-node/route.js',
+          'api/revalidate-tag-edge/route.js',
+          'api/revalidate-tag-node/route.js',
           'blog/[author]/[slug]/page.js',
           'blog/[author]/page.js',
           'blog/seb.html',
@@ -86,7 +399,11 @@ createNextDescribe(
           'dynamic-error/[id]/page.js',
           'dynamic-no-gen-params-ssr/[slug]/page.js',
           'dynamic-no-gen-params/[slug]/page.js',
+          'flight/[slug]/[slug2]/page.js',
+          'force-dynamic-catch-all/[slug]/[[...id]]/page.js',
           'force-dynamic-no-prerender/[id]/page.js',
+          'force-dynamic-prerender/[slug]/page.js',
+          'force-no-store/page.js',
           'force-static/[slug]/page.js',
           'force-static/first.html',
           'force-static/first.rsc',
@@ -109,6 +426,9 @@ createNextDescribe(
           'hooks/use-search-params/with-suspense.html',
           'hooks/use-search-params/with-suspense.rsc',
           'hooks/use-search-params/with-suspense/page.js',
+          'index.html',
+          'index.rsc',
+          'page.js',
           'partial-gen-params-no-additional-lang/[lang]/[slug]/page.js',
           'partial-gen-params-no-additional-lang/en/RAND.html',
           'partial-gen-params-no-additional-lang/en/RAND.rsc',
@@ -136,18 +456,26 @@ createNextDescribe(
           'partial-gen-params-no-additional-slug/fr/second.html',
           'partial-gen-params-no-additional-slug/fr/second.rsc',
           'partial-gen-params/[lang]/[slug]/page.js',
-          'ssg-preview.html',
-          'ssg-preview.rsc',
-          'ssg-preview/[[...route]]/page.js',
-          'ssg-preview/test-2.html',
-          'ssg-preview/test-2.rsc',
-          'ssg-preview/test.html',
-          'ssg-preview/test.rsc',
+          'route-handler-edge/revalidate-360/route.js',
+          'route-handler/post/route.js',
+          'route-handler/revalidate-360-isr/route.js',
+          'route-handler/revalidate-360/route.js',
+          'ssg-draft-mode.html',
+          'ssg-draft-mode.rsc',
+          'ssg-draft-mode/[[...route]]/page.js',
+          'ssg-draft-mode/test-2.html',
+          'ssg-draft-mode/test-2.rsc',
+          'ssg-draft-mode/test.html',
+          'ssg-draft-mode/test.rsc',
           'ssr-auto/cache-no-store/page.js',
           'ssr-auto/fetch-revalidate-zero/page.js',
           'ssr-forced/page.js',
           'static-to-dynamic-error-forced/[id]/page.js',
           'static-to-dynamic-error/[id]/page.js',
+          'variable-config-revalidate/revalidate-3.html',
+          'variable-config-revalidate/revalidate-3.rsc',
+          'variable-config-revalidate/revalidate-3/page.js',
+          'variable-revalidate-edge/body/page.js',
           'variable-revalidate-edge/encoding/page.js',
           'variable-revalidate-edge/no-store/page.js',
           'variable-revalidate-edge/post-method-request/page.js',
@@ -170,6 +498,11 @@ createNextDescribe(
           'variable-revalidate/revalidate-3.html',
           'variable-revalidate/revalidate-3.rsc',
           'variable-revalidate/revalidate-3/page.js',
+          'variable-revalidate/revalidate-360-isr.html',
+          'variable-revalidate/revalidate-360-isr.rsc',
+          'variable-revalidate/revalidate-360-isr/page.js',
+          'variable-revalidate/revalidate-360/page.js',
+          'variable-revalidate/status-code/page.js',
         ])
       })
 
@@ -204,6 +537,11 @@ createNextDescribe(
 
         expect(curManifest.version).toBe(4)
         expect(curManifest.routes).toEqual({
+          '/': {
+            initialRevalidateSeconds: false,
+            srcRoute: '/',
+            dataRoute: '/index.rsc',
+          },
           '/blog/tim': {
             initialRevalidateSeconds: 10,
             srcRoute: '/blog/[author]',
@@ -319,6 +657,21 @@ createNextDescribe(
             initialRevalidateSeconds: false,
             srcRoute: '/partial-gen-params-no-additional-slug/[lang]/[slug]',
           },
+          '/ssg-draft-mode': {
+            dataRoute: '/ssg-draft-mode.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/ssg-draft-mode/[[...route]]',
+          },
+          '/ssg-draft-mode/test': {
+            dataRoute: '/ssg-draft-mode/test.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/ssg-draft-mode/[[...route]]',
+          },
+          '/ssg-draft-mode/test-2': {
+            dataRoute: '/ssg-draft-mode/test-2.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/ssg-draft-mode/[[...route]]',
+          },
           '/force-static/first': {
             dataRoute: '/force-static/first.rsc',
             initialRevalidateSeconds: false,
@@ -334,20 +687,20 @@ createNextDescribe(
             initialRevalidateSeconds: 3,
             srcRoute: '/gen-params-dynamic-revalidate/[slug]',
           },
-          '/ssg-preview': {
-            dataRoute: '/ssg-preview.rsc',
-            initialRevalidateSeconds: false,
-            srcRoute: '/ssg-preview/[[...route]]',
+          '/route-handler/revalidate-360-isr': {
+            dataRoute: null,
+            initialHeaders: {
+              'content-type': 'application/json',
+              'x-next-cache-tags':
+                'thankyounext,/route-handler/revalidate-360-isr/route',
+            },
+            initialRevalidateSeconds: 10,
+            srcRoute: '/route-handler/revalidate-360-isr',
           },
-          '/ssg-preview/test': {
-            dataRoute: '/ssg-preview/test.rsc',
-            initialRevalidateSeconds: false,
-            srcRoute: '/ssg-preview/[[...route]]',
-          },
-          '/ssg-preview/test-2': {
-            dataRoute: '/ssg-preview/test-2.rsc',
-            initialRevalidateSeconds: false,
-            srcRoute: '/ssg-preview/[[...route]]',
+          '/variable-config-revalidate/revalidate-3': {
+            dataRoute: '/variable-config-revalidate/revalidate-3.rsc',
+            initialRevalidateSeconds: 3,
+            srcRoute: '/variable-config-revalidate/revalidate-3',
           },
           '/variable-revalidate/authorization': {
             dataRoute: '/variable-revalidate/authorization.rsc',
@@ -373,6 +726,11 @@ createNextDescribe(
             dataRoute: '/variable-revalidate/revalidate-3.rsc',
             initialRevalidateSeconds: 3,
             srcRoute: '/variable-revalidate/revalidate-3',
+          },
+          '/variable-revalidate/revalidate-360-isr': {
+            dataRoute: '/variable-revalidate/revalidate-360-isr.rsc',
+            initialRevalidateSeconds: 10,
+            srcRoute: '/variable-revalidate/revalidate-360-isr',
           },
         })
         expect(curManifest.dynamicRoutes).toEqual({
@@ -440,15 +798,11 @@ createNextDescribe(
               '^\\/partial\\-gen\\-params\\-no\\-additional\\-slug\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
             ),
           },
-          '/partial-gen-params/[lang]/[slug]': {
-            dataRoute: '/partial-gen-params/[lang]/[slug].rsc',
-            dataRouteRegex: normalizeRegEx(
-              '^\\/partial\\-gen\\-params\\/([^\\/]+?)\\/([^\\/]+?)\\.rsc$'
-            ),
+          '/ssg-draft-mode/[[...route]]': {
+            dataRoute: '/ssg-draft-mode/[[...route]].rsc',
+            dataRouteRegex: '^\\/ssg\\-draft\\-mode(?:\\/(.+?))?\\.rsc$',
             fallback: null,
-            routeRegex: normalizeRegEx(
-              '^\\/partial\\-gen\\-params\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
-            ),
+            routeRegex: '^\\/ssg\\-draft\\-mode(?:\\/(.+?))?(?:\\/)?$',
           },
           '/force-static/[slug]': {
             dataRoute: '/force-static/[slug].rsc',
@@ -458,16 +812,6 @@ createNextDescribe(
             fallback: null,
             routeRegex: normalizeRegEx(
               '^\\/force\\-static\\/([^\\/]+?)(?:\\/)?$'
-            ),
-          },
-          '/ssg-preview/[[...route]]': {
-            dataRoute: '/ssg-preview/[[...route]].rsc',
-            dataRouteRegex: normalizeRegEx(
-              '^\\/ssg\\-preview(?:\\/(.+?))?\\.rsc$'
-            ),
-            fallback: null,
-            routeRegex: normalizeRegEx(
-              '^\\/ssg\\-preview(?:\\/(.+?))?(?:\\/)?$'
             ),
           },
           '/static-to-dynamic-error-forced/[id]': {
@@ -1011,14 +1355,43 @@ createNextDescribe(
       }, 'success')
     })
 
-    it('Should not throw Dynamic Server Usage error when using generateStaticParams with previewData', async () => {
-      const browserOnIndexPage = await next.browser('/ssg-preview')
+    it('should cache correctly handle JSON body', async () => {
+      await check(async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate-edge/body'
+        )
+        expect(res.status).toBe(200)
+        const html = await res.text()
+        const $ = cheerio.load(html)
+
+        const layoutData = $('#layout-data').text()
+        const pageData = $('#page-data').text()
+
+        expect(pageData).toBe('{"hello":"world"}')
+
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate-edge/body'
+        )
+        expect(res2.status).toBe(200)
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+
+        expect($2('#layout-data').text()).toBe(layoutData)
+        expect($2('#page-data').text()).toBe(pageData)
+        return 'success'
+      }, 'success')
+    })
+
+    it('should not throw Dynamic Server Usage error when using generateStaticParams with draftMode', async () => {
+      const browserOnIndexPage = await next.browser('/ssg-draft-mode')
 
       const content = await browserOnIndexPage
-        .elementByCss('#preview-data')
+        .elementByCss('#draft-mode')
         .text()
 
-      expect(content).toContain('previewData')
+      expect(content).toBe('{"isEnabled":false}')
     })
 
     it('should force SSR correctly for headers usage', async () => {
@@ -1055,6 +1428,26 @@ createNextDescribe(
       }
     })
 
+    it('should allow dynamic routes to access cookies', async () => {
+      for (const slug of ['books', 'frameworks']) {
+        for (let i = 0; i < 2; i++) {
+          let $ = await next.render$(
+            `/force-dynamic-prerender/${slug}`,
+            {},
+            { headers: { cookie: 'session=value' } }
+          )
+
+          expect($('#slug').text()).toBe(slug)
+          expect($('#cookie-result').text()).toBe('has cookie')
+
+          $ = await next.render$(`/force-dynamic-prerender/${slug}`)
+
+          expect($('#slug').text()).toBe(slug)
+          expect($('#cookie-result').text()).toBe('no cookie')
+        }
+      }
+    })
+
     it('should not error with generateStaticParams and dynamic data', async () => {
       const res = await next.fetch('/gen-params-dynamic/one')
       const html = await res.text()
@@ -1073,6 +1466,14 @@ createNextDescribe(
             .text()
         ).not.toBe(data)
       }
+    })
+
+    it('should not error with force-dynamic and catch-all routes', async () => {
+      // Regression test for https://github.com/vercel/next.js/issues/45603
+      const res = await next.fetch('/force-dynamic-catch-all/slug/a')
+      const html = await res.text()
+      expect(res.status).toBe(200)
+      expect(html).toContain('Dynamic catch-all route')
     })
 
     it('should not error with generateStaticParams and authed data on revalidate', async () => {
@@ -1095,49 +1496,51 @@ createNextDescribe(
       }, 'success')
     })
 
-    it('should honor dynamic = "force-static" correctly', async () => {
-      const res = await next.fetch('/force-static/first')
-      expect(res.status).toBe(200)
+    if (!process.env.CUSTOM_CACHE_HANDLER) {
+      it('should honor dynamic = "force-static" correctly', async () => {
+        const res = await next.fetch('/force-static/first')
+        expect(res.status).toBe(200)
 
-      const html = await res.text()
-      const $ = cheerio.load(html)
+        const html = await res.text()
+        const $ = cheerio.load(html)
 
-      expect(JSON.parse($('#params').text())).toEqual({ slug: 'first' })
-      expect(JSON.parse($('#headers').text())).toEqual([])
-      expect(JSON.parse($('#cookies').text())).toEqual([])
+        expect(JSON.parse($('#params').text())).toEqual({ slug: 'first' })
+        expect(JSON.parse($('#headers').text())).toEqual([])
+        expect(JSON.parse($('#cookies').text())).toEqual([])
 
-      const firstTime = $('#now').text()
+        const firstTime = $('#now').text()
 
-      if (!(global as any).isNextDev) {
-        const res2 = await next.fetch('/force-static/first')
-        expect(res2.status).toBe(200)
+        if (!(global as any).isNextDev) {
+          const res2 = await next.fetch('/force-static/first')
+          expect(res2.status).toBe(200)
 
-        const $2 = cheerio.load(await res2.text())
-        expect(firstTime).toBe($2('#now').text())
-      }
-    })
+          const $2 = cheerio.load(await res2.text())
+          expect(firstTime).toBe($2('#now').text())
+        }
+      })
 
-    it('should honor dynamic = "force-static" correctly (lazy)', async () => {
-      const res = await next.fetch('/force-static/random')
-      expect(res.status).toBe(200)
+      it('should honor dynamic = "force-static" correctly (lazy)', async () => {
+        const res = await next.fetch('/force-static/random')
+        expect(res.status).toBe(200)
 
-      const html = await res.text()
-      const $ = cheerio.load(html)
+        const html = await res.text()
+        const $ = cheerio.load(html)
 
-      expect(JSON.parse($('#params').text())).toEqual({ slug: 'random' })
-      expect(JSON.parse($('#headers').text())).toEqual([])
-      expect(JSON.parse($('#cookies').text())).toEqual([])
+        expect(JSON.parse($('#params').text())).toEqual({ slug: 'random' })
+        expect(JSON.parse($('#headers').text())).toEqual([])
+        expect(JSON.parse($('#cookies').text())).toEqual([])
 
-      const firstTime = $('#now').text()
+        const firstTime = $('#now').text()
 
-      if (!(global as any).isNextDev) {
-        const res2 = await next.fetch('/force-static/random')
-        expect(res2.status).toBe(200)
+        if (!(global as any).isNextDev) {
+          const res2 = await next.fetch('/force-static/random')
+          expect(res2.status).toBe(200)
 
-        const $2 = cheerio.load(await res2.text())
-        expect(firstTime).toBe($2('#now').text())
-      }
-    })
+          const $2 = cheerio.load(await res2.text())
+          expect(firstTime).toBe($2('#now').text())
+        }
+      })
+    }
 
     // since we aren't leveraging fs cache with custom handler
     // then these will 404 as they are cache misses
@@ -1508,14 +1911,6 @@ createNextDescribe(
         )
       })
     })
-
-    if (!(global as any).isNextDeploy) {
-      it('should show a message to leave feedback for `appDir`', async () => {
-        expect(next.cliOutput).toContain(
-          `Thank you for testing \`appDir\` please leave your feedback at https://nextjs.link/app-feedback`
-        )
-      })
-    }
 
     it('should keep querystring on static page', async () => {
       const browser = await next.browser('/blog/tim?message=hello-world')

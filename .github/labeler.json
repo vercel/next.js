@@ -3,15 +3,9 @@
     "area: create-next-app": ["packages/create-next-app/**"],
     "area: documentation": ["docs/**", "errors/**"],
     "area: examples": ["examples/**"],
-    "area: next/image": [
-      "**/*image*",
-      "**/*image*/**",
-      "packages/next/src/client/use-intersection.tsx",
-      "packages/next/src/server/lib/squoosh/",
-      "packages/next/src/server/serve-static.ts"
-    ],
     "area: Font Optimization": ["**/*font*"],
     "area: tests": ["test/**", "bench/**"],
+    "area: Turbopack": ["packages/next-swc/crates/next-*/**"],
     "created-by: Chrome Aurora": [
       { "type": "user", "pattern": "atcastle" },
       { "type": "user", "pattern": "devknoll" },
@@ -24,21 +18,15 @@
     "created-by: Next.js team": [
       { "type": "user", "pattern": "acdlite" },
       { "type": "user", "pattern": "balazsorban44" },
-      { "type": "user", "pattern": "Brooooooklyn" },
       { "type": "user", "pattern": "feedthejim" },
-      { "type": "user", "pattern": "ForsakenHarmony" },
       { "type": "user", "pattern": "gnoff" },
       { "type": "user", "pattern": "hanneslund" },
       { "type": "user", "pattern": "huozhi" },
       { "type": "user", "pattern": "ijjk" },
       { "type": "user", "pattern": "JanKaifer" },
-      { "type": "user", "pattern": "kdy1" },
-      { "type": "user", "pattern": "kwonoj" },
       { "type": "user", "pattern": "leerob" },
-      { "type": "user", "pattern": "padmaia" },
       { "type": "user", "pattern": "sebmarkbage" },
       { "type": "user", "pattern": "shuding" },
-      { "type": "user", "pattern": "sokra" },
       { "type": "user", "pattern": "styfle" },
       { "type": "user", "pattern": "timneutkens" },
       { "type": "user", "pattern": "wyattjoh" }
@@ -47,6 +35,17 @@
       { "type": "user", "pattern": "ismaelrumzan" },
       { "type": "user", "pattern": "MaedahBatool" },
       { "type": "user", "pattern": "molebox" }
+    ],
+    "created-by: web-tooling team": [
+      { "type": "user", "pattern": "alexkirsz" },
+      { "type": "user", "pattern": "Brooooooklyn" },
+      { "type": "user", "pattern": "ForsakenHarmony" },
+      { "type": "user", "pattern": "jridgewell" },
+      { "type": "user", "pattern": "kdy1" },
+      { "type": "user", "pattern": "kwonoj" },
+      { "type": "user", "pattern": "padmaia" },
+      { "type": "user", "pattern": "sokra" },
+      { "type": "user", "pattern": "wbinnssmith" }
     ],
     "type: next": [
       "packages/eslint-config-next/**",

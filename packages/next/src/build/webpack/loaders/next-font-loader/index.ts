@@ -1,20 +1,19 @@
 import type { FontLoader } from '../../../../../font'
 
-import { promises as fs } from 'fs'
 import path from 'path'
 import chalk from 'next/dist/compiled/chalk'
 import loaderUtils from 'next/dist/compiled/loader-utils3'
 import postcssNextFontPlugin from './postcss-next-font'
 import { promisify } from 'util'
-import { CONFIG_FILES } from '../../../../shared/lib/constants'
 
 export default async function nextFontLoader(this: any) {
-  const fontLoaderSpan = this.currentTraceSpan.traceChild('next-font-loader')
-  return fontLoaderSpan.traceAsyncFn(async () => {
+  const nextFontLoaderSpan =
+    this.currentTraceSpan.traceChild('next-font-loader')
+  return nextFontLoaderSpan.traceAsyncFn(async () => {
     const callback = this.async()
 
     /**
-     * The next-swc plugin next_font_loaders turns font function calls into CSS imports.
+     * The next-swc plugin next-transform-font turns font function calls into CSS imports.
      * At the end of the import, it adds the call arguments and some additional data as a resourceQuery.
      * e.g:
      * const inter = Inter({ subset: ['latin'] })
@@ -47,27 +46,17 @@ export default async function nextFontLoader(this: any) {
       isServer,
       assetPrefix,
       fontLoaderPath,
-      fontLoaderOptions,
       postcss: getPostcss,
     } = this.getOptions()
 
-    const nextConfigPaths = CONFIG_FILES.map((config) =>
-      path.join(this.rootContext, config)
-    )
-    // Add next.config.js as a dependency, loaders must rerun in case options changed
-    await Promise.all(
-      nextConfigPaths.map(async (configPath) => {
-        const hasConfig = await fs.access(configPath).then(
-          () => true,
-          () => false
-        )
-        if (hasConfig) {
-          this.addDependency(configPath)
-        } else {
-          this.addMissingDependency(configPath)
-        }
-      })
-    )
+    if (assetPrefix && !/^\/|https?:\/\//.test(assetPrefix)) {
+      const err = new Error(
+        'assetPrefix must start with a leading slash or be an absolute URL(http:// or https://)'
+      )
+      err.name = 'NextFontError'
+      callback(err)
+      return
+    }
 
     /**
      * Emit font files to .next/static/media as [hash].[ext].
@@ -111,7 +100,6 @@ export default async function nextFontLoader(this: any) {
           functionName,
           variableName,
           data,
-          config: fontLoaderOptions,
           emitFontFile,
           resolve: (src: string) =>
             promisify(this.resolve)(
@@ -138,7 +126,7 @@ export default async function nextFontLoader(this: any) {
         6
       )
 
-      // Add CSS classes, exports and make the font-family localy scoped by turning it unguessable
+      // Add CSS classes, exports and make the font-family locally scoped by turning it unguessable
       const result = await postcss(
         postcssNextFontPlugin({
           exports,

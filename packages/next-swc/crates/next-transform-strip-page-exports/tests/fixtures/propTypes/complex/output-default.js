@@ -1,4 +1,4 @@
-import { PropTypes } from "react";
+import { PropTypes } from 'react';
 export default function Page() {
     return __jsx("div", null);
 }
