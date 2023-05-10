@@ -1,5 +1,5 @@
 'use client'
-import React, { useEffect } from 'react'
+import React, { use } from 'react'
 import { AppRouterInstance } from '../../shared/lib/app-router-context'
 import { useRouter } from './navigation'
 import {
@@ -8,6 +8,7 @@ import {
   getURLFromRedirectError,
   isRedirectError,
 } from './redirect'
+import { createInfinitePromise } from './infinite-promise'
 
 interface RedirectBoundaryProps {
   router: AppRouterInstance
@@ -26,17 +27,21 @@ function RedirectHandler({
   const router = useRouter()
   const didRedirect = React.useRef(false)
 
-  useEffect(() => {
-    if (redirect !== null && redirectType !== null && !didRedirect.current) {
-      didRedirect.current = true
+  // useEffect(() => {
+  if (redirect !== null && redirectType !== null && !didRedirect.current) {
+    didRedirect.current = true
+    setTimeout(() => {
       if (redirectType === RedirectType.push) {
         router.push(redirect, {})
       } else {
         router.replace(redirect, {})
       }
       reset()
-    }
-  }, [redirect, redirectType, reset, router])
+    }, 0)
+  }
+
+  use(createInfinitePromise())
+  // }, [redirect, redirectType, reset, router])
 
   return null
 }
@@ -62,7 +67,6 @@ export class RedirectErrorBoundary extends React.Component<
 
   render() {
     const { redirect, redirectType } = this.state
-
     return (
       <>
         {this.props.children}
