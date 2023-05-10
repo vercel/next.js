@@ -29,6 +29,9 @@ export const staticGenerationBailout: StaticGenerationBailout = (
   }
 
   if (staticGenerationStore) {
+    if (reason === 'headers' || reason === 'cookies') {
+      staticGenerationStore.usedHeaders = true
+    }
     staticGenerationStore.revalidate = 0
   }
 

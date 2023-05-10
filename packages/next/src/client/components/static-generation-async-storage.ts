@@ -42,6 +42,9 @@ export interface StaticGenerationStore {
     status: number
     cacheStatus: 'hit' | 'miss'
   }>
+
+  usedHeaders?: boolean
+  isNonStaticMethod?: boolean
 }
 
 export type StaticGenerationAsyncStorage =

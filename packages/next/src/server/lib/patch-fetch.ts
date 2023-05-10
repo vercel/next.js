@@ -44,6 +44,7 @@ function trackFetchMetric(
 
   // don't add metric if one already exists for the fetch
   if (
+    ctx.cacheStatus !== 'miss' &&
     staticGenerationStore.fetchMetrics.some((metric) => {
       return dedupeFields.every(
         (field) => (metric as any)[field] === (ctx as any)[field]
@@ -195,7 +196,8 @@ export function patchFetch({
         // e.g. if cookies() is used before an authed/POST fetch
         const autoNoCache =
           (hasUnCacheableHeader || isUnCacheableMethod) &&
-          staticGenerationStore.revalidate === 0
+          (staticGenerationStore.usedHeaders ||
+            staticGenerationStore.isNonStaticMethod)
 
         if (isForceNoStore) {
           revalidate = 0
@@ -223,6 +225,7 @@ export function patchFetch({
             revalidate = 0
           } else {
             revalidate =
+              staticGenerationStore.revalidate === 0 ||
               typeof staticGenerationStore.revalidate === 'boolean' ||
               typeof staticGenerationStore.revalidate === 'undefined'
                 ? false

@@ -275,6 +275,7 @@ export class AppRouteRouteModule extends RouteModule<
                 // Check to see if we should bail out of static generation based on
                 // having non-static methods.
                 if (this.nonStaticMethods) {
+                  staticGenerationStore.isNonStaticMethod = true
                   this.staticGenerationBailout(
                     `non-static methods used ${this.nonStaticMethods.join(
                       ', '

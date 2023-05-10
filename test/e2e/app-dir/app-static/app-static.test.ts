@@ -428,6 +428,7 @@ createNextDescribe(
           'hooks/use-search-params/with-suspense/page.js',
           'index.html',
           'index.rsc',
+          'mixed-no-cache/page.js',
           'page.js',
           'partial-gen-params-no-additional-lang/[lang]/[slug]/page.js',
           'partial-gen-params-no-additional-lang/en/RAND.html',
@@ -838,6 +839,29 @@ createNextDescribe(
         )
       })
     }
+
+    it('should properly cache with no-store fetch', async () => {
+      const res = await next.fetch('/mixed-no-cache')
+      expect(res.status).toBe(200)
+
+      let prevHtml = await res.text()
+      let prev$ = cheerio.load(prevHtml)
+
+      await check(async () => {
+        const curRes = await next.fetch('/mixed-no-cache')
+        expect(curRes.status).toBe(200)
+
+        const curHtml = await curRes.text()
+        const cur$ = cheerio.load(curHtml)
+
+        expect(prev$('#data1').text()).toBe(cur$('#data1').text())
+        expect(prev$('#data2').text()).not.toBe(cur$('#data2').text())
+        expect(prev$('#data3').text()).toBe(cur$('#data3').text())
+        expect(prev$('#data4').text()).toBe(cur$('#data4').text())
+
+        return 'success'
+      }, 'success')
+    })
 
     if (isDev) {
       it('should bypass fetch cache with cache-control: no-cache', async () => {
