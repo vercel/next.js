@@ -138,11 +138,12 @@ function findDynamicParamFromRouterState(
 export async function renderToHTMLOrFlight(
   req: IncomingMessage,
   res: ServerResponse,
-  pathname: string,
+  pagePath: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts
 ): Promise<RenderResult> {
   const isFlight = req.headers[RSC.toLowerCase()] !== undefined
+  const pathname = validateURL(req.url)
 
   const {
     buildManifest,
@@ -700,7 +701,7 @@ export async function renderToHTMLOrFlight(
           !isValidElementType(Component)
         ) {
           throw new Error(
-            `The default export is not a React Component in page: "${pathname}"`
+            `The default export is not a React Component in page: "${page}"`
           )
         }
 
@@ -1180,7 +1181,7 @@ export async function renderToHTMLOrFlight(
               injectedCSS: new Set(),
               injectedFontPreloadTags: new Set(),
               rootLayoutIncluded: false,
-              asNotFound: pathname === '/404' || options?.asNotFound,
+              asNotFound: pagePath === '/404' || options?.asNotFound,
             })
           ).map((path) => path.slice(1)) // remove the '' (root) segment
 
@@ -1216,8 +1217,6 @@ export async function renderToHTMLOrFlight(
       Uint8Array,
       Uint8Array
     > = new TransformStream()
-
-    const initialCanonicalUrl = validateURL(req.url)
 
     // Get the nonce from the incoming request if it has one.
     const csp = req.headers['content-security-policy']
@@ -1298,7 +1297,7 @@ export async function renderToHTMLOrFlight(
             {styles}
             <AppRouter
               assetPrefix={assetPrefix}
-              initialCanonicalUrl={initialCanonicalUrl}
+              initialCanonicalUrl={pathname}
               initialTree={initialTree}
               initialHead={
                 <>
@@ -1362,13 +1361,13 @@ export async function renderToHTMLOrFlight(
       )
     }
 
-    getTracer().getRootSpanAttributes()?.set('next.route', pathname)
+    getTracer().getRootSpanAttributes()?.set('next.route', pagePath)
     const bodyResult = getTracer().wrap(
       AppRenderSpan.getBodyResult,
       {
-        spanName: `render route (app) ${pathname}`,
+        spanName: `render route (app) ${pagePath}`,
         attributes: {
-          'next.route': pathname,
+          'next.route': pagePath,
         },
       },
       async ({
@@ -1498,8 +1497,8 @@ export async function renderToHTMLOrFlight(
           }
           if (err.digest === NEXT_DYNAMIC_NO_SSR_CODE) {
             warn(
-              `Entire page ${pathname} deopted into client-side rendering. https://nextjs.org/docs/messages/deopted-into-client-rendering`,
-              pathname
+              `Entire page ${pagePath} deopted into client-side rendering. https://nextjs.org/docs/messages/deopted-into-client-rendering`,
+              pagePath
             )
           }
           if (isNotFoundError(err)) {
@@ -1572,7 +1571,7 @@ export async function renderToHTMLOrFlight(
 
     const renderResult = new RenderResult(
       await bodyResult({
-        asNotFound: pathname === '/404',
+        asNotFound: pagePath === '/404',
       })
     )
 
@@ -1626,7 +1625,7 @@ export async function renderToHTMLOrFlight(
     () =>
       StaticGenerationAsyncStorageWrapper.wrap(
         staticGenerationAsyncStorage,
-        { pathname, renderOpts },
+        { pathname: pagePath, renderOpts },
         () => wrappedRender()
       )
   )

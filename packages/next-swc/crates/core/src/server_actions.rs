@@ -717,13 +717,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
                                 for decl in &mut var.decls {
                                     if let Some(init) = &decl.init {
-                                        match &**init {
-                                            Expr::Fn(_f) => {}
-                                            Expr::Arrow(_a) => {}
-                                            Expr::Call(_c) => {}
-                                            _ => {
-                                                disallowed_export_span = *span;
-                                            }
+                                        if let Expr::Lit(_) = &**init {
+                                            // It's not allowed to export any literal.
+                                            disallowed_export_span = *span;
                                         }
                                     }
                                 }
