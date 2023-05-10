@@ -36,7 +36,8 @@ impl RelativeSystemPathBuf {
     pub fn new(unchecked_path: impl Into<PathBuf>) -> Result<Self, PathValidationError> {
         let unchecked_path = unchecked_path.into();
         if unchecked_path.is_absolute() {
-            return Err(PathValidationError::NotRelative(unchecked_path));
+            let bad_path = unchecked_path.display().to_string();
+            return Err(PathValidationError::NotRelative(bad_path));
         }
 
         let system_path = unchecked_path.into_system()?;

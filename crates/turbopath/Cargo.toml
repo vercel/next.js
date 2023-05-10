@@ -7,6 +7,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+bstr = "1.4.0"
 path-slash = "0.2.1"
 # TODO: Make this a crate feature
 serde = { workspace = true }
