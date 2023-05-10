@@ -94,11 +94,7 @@ impl EmotionTransformer {
 
 #[async_trait]
 impl CustomTransformer for EmotionTransformer {
-    async fn transform(
-        &self,
-        program: &mut Program,
-        ctx: &TransformContext<'_>,
-    ) -> Result<Option<Program>> {
+    async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         #[cfg(feature = "transform_emotion")]
         {
             let p = std::mem::replace(program, Program::Module(Module::dummy()));
@@ -117,7 +113,7 @@ impl CustomTransformer for EmotionTransformer {
             ));
         }
 
-        Ok(None)
+        Ok(())
     }
 }
 

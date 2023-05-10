@@ -24,11 +24,7 @@ impl RelayTransformer {
 
 #[async_trait]
 impl CustomTransformer for RelayTransformer {
-    async fn transform(
-        &self,
-        program: &mut Program,
-        ctx: &TransformContext<'_>,
-    ) -> Result<Option<Program>> {
+    async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         // If user supplied artifact_directory, it should be resolvable already.
         // Otherwise, supply default relative path (./__generated__)
         let (root, config) = if self.config.artifact_directory.is_some() {
@@ -52,6 +48,6 @@ impl CustomTransformer for RelayTransformer {
             Some(ctx.unresolved_mark),
         ));
 
-        Ok(None)
+        Ok(())
     }
 }
