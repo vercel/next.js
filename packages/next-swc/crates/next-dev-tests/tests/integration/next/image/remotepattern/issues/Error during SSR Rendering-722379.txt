@@ -1,0 +1,27 @@
+PlainIssue {
+    severity: Error,
+    context: "[root of the server]/invalid",
+    category: "rendering",
+    title: "Error during SSR Rendering",
+    description: "Error: Invalid src prop (https://image-optimization-test.vercel.app/test.webp) on `next/image`, hostname \"image-optimization-test.vercel.app\" is not configured under images in your `next.config.js`\n\nDebug info:\n- Error: Invalid src prop (https://image-optimization-test.vercel.app/test.webp) on `next/image`, hostname \"image-optimization-test.vercel.app\" is not configured under images in your `next.config.js`\n  See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host",
+    detail: "",
+    documentation_link: "",
+    source: None,
+    sub_issues: [],
+    processing_path: Some(
+        [
+            PlainIssueProcessingPathItem {
+                context: Some(
+                    "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/image/remotepattern/input/pages/invalid.js",
+                ),
+                description: "Next.js pages directory",
+            },
+            PlainIssueProcessingPathItem {
+                context: Some(
+                    "[next]/entry/server-renderer.tsx",
+                ),
+                description: "server-side rendering /invalid",
+            },
+        ],
+    ),
+}
