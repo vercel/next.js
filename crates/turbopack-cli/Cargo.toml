@@ -46,6 +46,8 @@ mime = { workspace = true }
 owo-colors = { workspace = true }
 serde = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
 turbo-malloc = { workspace = true, default-features = false }
 turbo-tasks = { workspace = true }
 turbo-tasks-env = { workspace = true }
@@ -70,3 +72,6 @@ turbopack-bench = { workspace = true }
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+tracing-signpost = { workspace = true }
