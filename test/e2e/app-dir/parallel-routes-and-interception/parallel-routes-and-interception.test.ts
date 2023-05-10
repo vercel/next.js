@@ -503,6 +503,20 @@ createNextDescribe(
           next.url + '/intercepting-parallel-modal/photo/2'
         )
       })
+
+      it('should support intercepting with beforeFiles rewrites', async () => {
+        const browser = await next.browser('/foo')
+
+        await check(
+          () =>
+            browser
+              .elementByCss('[href="/photos"]')
+              .click()
+              .waitForElementByCss('#intercepted')
+              .text(),
+          'intercepted'
+        )
+      })
     })
   }
 )
