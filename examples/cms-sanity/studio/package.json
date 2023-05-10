@@ -8,7 +8,7 @@
     "deploy": "sanity deploy",
     "prestart": "npm run env",
     "predeploy": "npm run env",
-    "env": "shx cp ../.env .env.development || shx cp ../.env.local .env.development"
+    "env": "node -e \"const fs=require('node:fs');fs.existsSync('../.env')?fs.copyFileSync('../.env', '.env.development'):fs.copyFileSync('../.env.local', '.env.development');\""
   },
   "dependencies": {
     "sanity": "^3.2.6",
@@ -22,7 +22,6 @@
   "devDependencies": {
     "autoprefixer": "^10.4.13",
     "postcss": "^8.4.21",
-    "shx": "^0.3.4",
     "tailwindcss": "^3.2.4"
   }
 }
