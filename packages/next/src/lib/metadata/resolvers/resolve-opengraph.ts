@@ -29,32 +29,33 @@ const OgTypeFields = {
   ],
 } as const
 
-function resolveImages(
+export function resolveImages(
   images: Twitter['images'],
   metadataBase: ResolvedMetadata['metadataBase']
 ): NonNullable<ResolvedMetadata['twitter']>['images']
-function resolveImages(
+export function resolveImages(
   images: OpenGraph['images'],
   metadataBase: ResolvedMetadata['metadataBase']
 ): NonNullable<ResolvedMetadata['openGraph']>['images']
-function resolveImages(
+export function resolveImages(
   images: OpenGraph['images'] | Twitter['images'],
   metadataBase: ResolvedMetadata['metadataBase']
 ):
   | NonNullable<ResolvedMetadata['twitter']>['images']
   | NonNullable<ResolvedMetadata['openGraph']>['images'] {
-  const resolvedImages = resolveAsArrayOrUndefined(images)
-  resolvedImages?.forEach((item, index, array) => {
+  return resolveAsArrayOrUndefined(images)?.map((item) => {
     if (isStringOrURL(item)) {
-      array[index] = {
+      return {
         url: resolveUrl(item, metadataBase)!,
       }
     } else {
-      // Update image descriptor url
-      item.url = resolveUrl(item.url, metadataBase)!
+      return {
+        ...item,
+        // Update image descriptor url
+        url: resolveUrl(item.url, metadataBase)!,
+      }
     }
   })
-  return resolvedImages
 }
 
 function getFieldsByOgType(ogType: OpenGraphType | undefined) {

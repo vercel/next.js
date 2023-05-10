@@ -536,6 +536,79 @@ describe('create next app', () => {
     })
   })
 
+  it('should use Yarn as the package manager on supplying --use-yarn', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'use-yarn'
+      const res = await run(
+        [
+          projectName,
+          '--js',
+          '--no-tailwind',
+          '--eslint',
+          '--use-yarn',
+          '--no-src-dir',
+          '--app',
+          `--import-alias=@/*`,
+        ],
+        {
+          cwd,
+        }
+      )
+
+      expect(res.exitCode).toBe(0)
+      projectFilesShouldExist({
+        cwd,
+        projectName,
+        files: [
+          'package.json',
+          'app/page.js',
+          '.gitignore',
+          '.eslintrc.json',
+          'yarn.lock',
+          'node_modules/next',
+        ],
+      })
+    })
+  })
+
+  it('should use Yarn as the package manager on supplying --use-yarn with example', async () => {
+    try {
+      await execa('yarn', ['--version'])
+    } catch (_) {
+      // install yarn if not available
+      await execa('npm', ['i', '-g', 'yarn'])
+    }
+
+    await useTempDir(async (cwd) => {
+      const projectName = 'use-yarn'
+      const res = await run(
+        [
+          projectName,
+          '--js',
+          '--no-tailwind',
+          '--eslint',
+          '--use-yarn',
+          '--example',
+          `${exampleRepo}/${examplePath}`,
+        ],
+        { cwd }
+      )
+
+      expect(res.exitCode).toBe(0)
+      projectFilesShouldExist({
+        cwd,
+        projectName,
+        files: [
+          'package.json',
+          'pages/index.tsx',
+          '.gitignore',
+          'yarn.lock',
+          'node_modules/next',
+        ],
+      })
+    })
+  })
+
   it('should use pnpm as the package manager on supplying --use-pnpm', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'use-pnpm'

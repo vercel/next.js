@@ -1,0 +1,21 @@
+PlainIssue {
+    severity: Error,
+    context: "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/image/basic/input/public/broken.svg",
+    category: "image",
+    title: "Processing image failed",
+    description: "Input image is not valid utf-8\n\nCaused by:\n- invalid utf-8 sequence of 1 bytes from index 0",
+    detail: "",
+    documentation_link: "",
+    source: None,
+    sub_issues: [],
+    processing_path: Some(
+        [
+            PlainIssueProcessingPathItem {
+                context: Some(
+                    "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/image/basic/input/pages/index.js",
+                ),
+                description: "Next.js pages directory",
+            },
+        ],
+    ),
+}
