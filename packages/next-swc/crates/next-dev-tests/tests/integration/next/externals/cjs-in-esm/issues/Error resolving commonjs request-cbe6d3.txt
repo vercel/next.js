@@ -1,0 +1,35 @@
+PlainIssue {
+    severity: Error,
+    context: "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/externals/cjs-in-esm/input/node_modules/package/cjs/index.js",
+    category: "resolve",
+    title: "Error resolving commonjs request",
+    description: "unable to resolve module \"fail\"",
+    detail: "It was not possible to find the requested file.\nParsed request as written in source code: module \"fail\"\nPath where resolving has started: [project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/externals/cjs-in-esm/input/node_modules/package/cjs/index.js\nType of request: commonjs request\nImport map: No import map entry\n",
+    documentation_link: "",
+    source: Some(
+        PlainIssueSource {
+            asset: PlainAsset {
+                ident: "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/externals/cjs-in-esm/input/node_modules/package/cjs/index.js",
+            },
+            start: SourcePos {
+                line: 2,
+                column: 24,
+            },
+            end: SourcePos {
+                line: 2,
+                column: 39,
+            },
+        },
+    ),
+    sub_issues: [],
+    processing_path: Some(
+        [
+            PlainIssueProcessingPathItem {
+                context: Some(
+                    "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/externals/cjs-in-esm/input/pages/index.js",
+                ),
+                description: "Next.js pages directory",
+            },
+        ],
+    ),
+}

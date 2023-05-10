@@ -186,18 +186,20 @@ function Router({
       flightData: FlightData,
       overrideCanonicalUrl: URL | undefined
     ) => {
-      dispatch({
-        type: ACTION_SERVER_PATCH,
-        flightData,
-        previousTree,
-        overrideCanonicalUrl,
-        cache: {
-          status: CacheStates.LAZY_INITIALIZED,
-          data: null,
-          subTreeData: null,
-          parallelRoutes: new Map(),
-        },
-        mutable: {},
+      React.startTransition(() => {
+        dispatch({
+          type: ACTION_SERVER_PATCH,
+          flightData,
+          previousTree,
+          overrideCanonicalUrl,
+          cache: {
+            status: CacheStates.LAZY_INITIALIZED,
+            data: null,
+            subTreeData: null,
+            parallelRoutes: new Map(),
+          },
+          mutable: {},
+        })
       })
     },
     [dispatch]

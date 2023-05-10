@@ -463,7 +463,7 @@ pub struct RelayConfig {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
-#[serde(untagged, rename_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
 pub enum RelayLanguage {
     TypeScript,
     Flow,
