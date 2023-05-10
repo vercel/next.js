@@ -1338,12 +1338,12 @@ jobs:
             target: 'x86_64-apple-darwin'
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
-              turbo run build-native -- --release --target x86_64-apple-darwin
+              turbo run build-native-release -- --target x86_64-apple-darwin --release
               strip -x packages/next-swc/native/next-swc.*.node
           - host: windows-latest
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
-              turbo run build-native -- --release --target x86_64-pc-windows-msvc
+              turbo run build-native-release -- --target x86_64-pc-windows-msvc
             target: 'x86_64-pc-windows-msvc'
           - host: windows-latest
             build: |
@@ -1360,7 +1360,7 @@ jobs:
               rustup target add x86_64-unknown-linux-gnu &&
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
               unset CC_x86_64_unknown_linux_gnu && unset CC &&
-              turbo run build-native -- --release --target x86_64-unknown-linux-gnu &&
+              turbo run build-native-release -- --target x86_64-unknown-linux-gnu &&
               strip packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
             target: 'x86_64-unknown-linux-musl'
@@ -1372,7 +1372,7 @@ jobs:
               rustup default "${RUST_TOOLCHAIN}" &&
               rustup target add x86_64-unknown-linux-musl &&
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
-              turbo run build-native -- --release --target x86_64-unknown-linux-musl &&
+              turbo run build-native-release -- --target x86_64-unknown-linux-musl &&
               strip packages/next-swc/native/next-swc.*.node
           - host: macos-latest
             target: 'aarch64-apple-darwin'
@@ -1383,7 +1383,7 @@ jobs:
               SYSROOT=$(xcrun --sdk macosx --show-sdk-path);
               export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
-              turbo run build-native -- --release --target aarch64-apple-darwin
+              turbo run build-native-release -- --target aarch64-apple-darwin
               strip -x packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
             target: 'aarch64-unknown-linux-gnu'
@@ -1396,7 +1396,7 @@ jobs:
               rustup target add aarch64-unknown-linux-gnu &&
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
               export CC_aarch64_unknown_linux_gnu=/usr/aarch64-unknown-linux-gnu/bin/aarch64-unknown-linux-gnu-gcc &&
-              turbo run build-native -- --release --target aarch64-unknown-linux-gnu &&
+              turbo run build-native-release -- --target aarch64-unknown-linux-gnu &&
               llvm-strip -x packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
             target: 'aarch64-unknown-linux-musl'
@@ -1409,13 +1409,13 @@ jobs:
               rustup toolchain install "${RUST_TOOLCHAIN}" &&
               rustup default "${RUST_TOOLCHAIN}" &&
               rustup target add aarch64-unknown-linux-musl &&
-              turbo run build-native -- --release --target aarch64-unknown-linux-musl &&
+              turbo run build-native-release -- --target aarch64-unknown-linux-musl &&
               llvm-strip -x packages/next-swc/native/next-swc.*.node
           - host: windows-latest
             target: 'aarch64-pc-windows-msvc'
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
-              turbo run build-native-no-plugin-woa -- --release --target aarch64-pc-windows-msvc --cargo-flags=--no-default-features
+              turbo run build-native-no-plugin-woa-release -- --target aarch64-pc-windows-msvc
     if: ${{ needs.build.outputs.isRelease == 'true' || (needs.build.outputs.turboToken != 'empty') }}
     needs: build
     name: stable - ${{ matrix.settings.target }} - node@16
