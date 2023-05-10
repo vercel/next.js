@@ -61,11 +61,7 @@ struct NextJsStripPageExports {
 
 #[async_trait]
 impl CustomTransformer for NextJsStripPageExports {
-    async fn transform(
-        &self,
-        program: &mut Program,
-        _ctx: &TransformContext<'_>,
-    ) -> Result<Option<Program>> {
+    async fn transform(&self, program: &mut Program, _ctx: &TransformContext<'_>) -> Result<()> {
         // TODO(alexkirsz) Connect the eliminated_packages to telemetry.
         let eliminated_packages = Default::default();
 
@@ -75,6 +71,6 @@ impl CustomTransformer for NextJsStripPageExports {
             eliminated_packages,
         ));
 
-        Ok(None)
+        Ok(())
     }
 }

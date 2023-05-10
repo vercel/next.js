@@ -58,11 +58,7 @@ struct NextJsDynamic {
 
 #[async_trait]
 impl CustomTransformer for NextJsDynamic {
-    async fn transform(
-        &self,
-        program: &mut Program,
-        ctx: &TransformContext<'_>,
-    ) -> Result<Option<Program>> {
+    async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         let p = std::mem::replace(program, Program::Module(Module::dummy()));
         *program = p.fold_with(&mut next_dynamic(
             self.is_development,
@@ -73,6 +69,6 @@ impl CustomTransformer for NextJsDynamic {
             self.pages_dir.clone(),
         ));
 
-        Ok(None)
+        Ok(())
     }
 }
