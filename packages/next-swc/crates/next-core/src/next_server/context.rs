@@ -289,7 +289,7 @@ pub async fn get_server_module_options_context(
     let webpack_rules = maybe_add_sass_loader(next_config.sass_config(), webpack_rules).await?;
     let enable_webpack_loaders = webpack_rules.map(|rules| {
         WebpackLoadersOptions {
-            rules: rules.clone(),
+            rules,
             loader_runner_package: Some(get_external_next_compiled_package_mapping(
                 StringVc::cell("loader-runner".to_owned()),
             )),
