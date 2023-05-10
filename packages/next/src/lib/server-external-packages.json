@@ -23,6 +23,7 @@
   "postcss",
   "prettier",
   "prisma",
+  "puppeteer",
   "rimraf",
   "sharp",
   "shiki",
