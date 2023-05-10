@@ -19,7 +19,7 @@ function runTests() {
     expect(source2).toBe('}}} Hello World')
   })
   it('runs a loader with "as" continue (to other match)', () => {
-    expect(source3).toBe('export default \"Hello World\";')
+    expect(source3).toBe('export default "Hello World";')
   })
   it('runs a loader with "as" continue (to default js match)', () => {
     expect(source4).toBe('Hello World')

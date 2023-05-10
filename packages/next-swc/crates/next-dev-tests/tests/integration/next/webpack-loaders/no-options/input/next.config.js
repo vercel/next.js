@@ -4,12 +4,12 @@ module.exports = {
       rules: {
         '*.raw.*': {
           loaders: ['raw-loader'],
-          as: "*"
+          as: '*',
         },
         '*.raw': ['raw-loader'],
         '*.jraw': {
           loaders: ['raw-as-json-loader'],
-          as: "*.json"
+          as: '*.json',
         },
         './raw/**': ['raw-loader'],
       },
