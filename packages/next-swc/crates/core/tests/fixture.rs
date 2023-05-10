@@ -12,7 +12,6 @@ use next_swc::{
     shake_exports::{shake_exports, Config as ShakeExportsConfig},
 };
 use next_transform_font::{next_font_loaders, Config as FontLoaderConfig};
-use swc_relay::{relay, RelayLanguageConfig};
 use turbo_binding::swc::{
     core::{
         common::{chain, comments::SingleThreadedComments, FileName, Mark},
@@ -25,6 +24,7 @@ use turbo_binding::swc::{
             },
         },
     },
+    custom_transform::relay::{relay, RelayLanguageConfig},
     testing::fixture,
 };
 
@@ -151,7 +151,7 @@ fn page_config_fixture(input: PathBuf) {
 #[fixture("tests/fixture/relay/**/input.ts*")]
 fn relay_no_artifact_dir_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
-    let config = swc_relay::Config {
+    let config = turbo_binding::swc::custom_transform::relay::Config {
         language: RelayLanguageConfig::TypeScript,
         artifact_directory: Some(PathBuf::from("__generated__")),
         ..Default::default()

@@ -1,0 +1,6 @@
+[
+  "test/development/acceptance-app/dynamic-error.test.ts",
+  "test/development/basic/legacy-decorators.test.ts",
+  "test/integration/plugin-mdx-rs/test/index.test.js",
+  "test/e2e/app-dir/underscore-ignore-app-paths/underscore-ignore-app-paths.test.ts"
+]

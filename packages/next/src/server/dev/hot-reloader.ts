@@ -885,6 +885,10 @@ export default class HotReloader {
     const prevEdgeServerPageHashes = new Map<string, string>()
     const prevCSSImportModuleHashes = new Map<string, string>()
 
+    const pageExtensionRegex = new RegExp(
+      `\\.(?:${this.config.pageExtensions.join('|')})$`
+    )
+
     const trackPageChanges =
       (
         pageHashMap: Map<string, string>,
@@ -912,7 +916,9 @@ export default class HotReloader {
                   modsIterable.forEach((mod: any) => {
                     if (
                       mod.resource &&
-                      mod.resource.replace(/\\/g, '/').includes(key)
+                      mod.resource.replace(/\\/g, '/').includes(key) &&
+                      // Shouldn't match CSS modules, etc.
+                      pageExtensionRegex.test(mod.resource)
                     ) {
                       // use original source to calculate hash since mod.hash
                       // includes the source map in development which changes
@@ -952,7 +958,7 @@ export default class HotReloader {
                       // components are tracked.
                       if (
                         key.startsWith('app/') &&
-                        mod.resource?.endsWith('.css')
+                        /\.(css|scss|sass)$/.test(mod.resource || '')
                       ) {
                         const resourceKey = mod.layer + ':' + mod.resource
                         const prevHash =

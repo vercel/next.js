@@ -11,6 +11,7 @@ bench = false
 [dependencies]
 anyhow = { workspace = true }
 async-recursion = "1.0.2"
+async-trait = { workspace = true }
 once_cell = { workspace = true }
 qstring = { workspace = true }
 regex = { workspace = true }
@@ -24,6 +25,7 @@ futures = { workspace = true }
 lazy_static = { workspace = true }
 turbo-binding = { workspace = true, features = [
   "__swc_transform_modularize_imports",
+  "__swc_transform_relay",
   "__feature_auto_hash_map",
   "__turbo_tasks",
   "__turbo_tasks_bytes",
@@ -50,6 +52,7 @@ next-transform-dynamic = { workspace = true }
 
 swc_core = { workspace = true, features = [
   "ecma_ast",
+  "ecma_transforms",
   "common",
 ] }
 
