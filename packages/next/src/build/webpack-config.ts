@@ -13,6 +13,7 @@ import {
   WEBPACK_LAYERS,
   RSC_ACTION_PROXY_ALIAS,
   RSC_ACTION_CLIENT_WRAPPER_ALIAS,
+  RSC_ACTION_VALIDATE_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
@@ -1058,11 +1059,14 @@ export default async function getBaseWebpackConfig(
       ...(isClient || isEdgeServer ? getOptimizedAliases() : {}),
       ...getReactProfilingInProduction(),
 
-      [RSC_ACTION_PROXY_ALIAS]:
-        'next/dist/build/webpack/loaders/next-flight-loader/action-proxy',
+      [RSC_ACTION_VALIDATE_ALIAS]:
+        'next/dist/build/webpack/loaders/next-flight-loader/action-validate',
 
       [RSC_ACTION_CLIENT_WRAPPER_ALIAS]:
         'next/dist/build/webpack/loaders/next-flight-loader/action-client-wrapper',
+
+      [RSC_ACTION_PROXY_ALIAS]:
+        'next/dist/build/webpack/loaders/next-flight-loader/action-proxy',
 
       ...(isClient || isEdgeServer
         ? {
@@ -1279,7 +1283,7 @@ export default async function getBaseWebpackConfig(
       }
 
       const notExternalModules =
-        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|legacy\/image|constants|dynamic|script|navigation|headers)$)|string-hash|private-next-rsc-action-proxy|private-next-rsc-action-client-wrapper$)/
+        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|legacy\/image|constants|dynamic|script|navigation|headers)$)|string-hash|private-next-rsc-action-validate|private-next-rsc-action-client-wrapper|private-next-rsc-action-proxy$)/
       if (notExternalModules.test(request)) {
         return
       }
