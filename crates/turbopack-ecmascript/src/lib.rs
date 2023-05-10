@@ -22,7 +22,6 @@ pub mod tree_shake;
 pub mod typescript;
 pub mod utils;
 pub mod webpack;
-
 use anyhow::Result;
 use chunk::{
     EcmascriptChunkItem, EcmascriptChunkItemVc, EcmascriptChunkPlaceablesVc, EcmascriptChunkVc,
@@ -34,6 +33,7 @@ use parse::{parse, ParseResult};
 pub use parse::{ParseResultSourceMap, ParseResultSourceMapVc};
 use path_visitor::ApplyVisitors;
 use references::AnalyzeEcmascriptModuleResult;
+pub use references::TURBOPACK_HELPER;
 use swc_core::{
     common::GLOBALS,
     ecma::{
@@ -44,7 +44,7 @@ use swc_core::{
 pub use transform::{
     CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransformsVc,
     OptionTransformPlugin, OptionTransformPluginVc, TransformContext, TransformPlugin,
-    TransformPluginVc,
+    TransformPluginVc, UnsupportedServerActionIssue,
 };
 use turbo_tasks::{
     primitives::StringVc, trace::TraceRawVcs, RawVc, ReadRef, TryJoinIterExt, Value, ValueToString,

@@ -80,11 +80,7 @@ pub enum EcmascriptInputTransform {
 /// transformer to run over all ECMAScript files imported in the graph.
 #[async_trait]
 pub trait CustomTransformer: Debug {
-    async fn transform(
-        &self,
-        program: &mut Program,
-        ctx: &TransformContext<'_>,
-    ) -> Result<Option<Program>>;
+    async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()>;
 }
 
 /// A wrapper around a TransformPlugin instance, allowing it to operate with
@@ -110,11 +106,7 @@ impl Default for OptionTransformPluginVc {
 
 #[async_trait]
 impl CustomTransformer for TransformPlugin {
-    async fn transform(
-        &self,
-        program: &mut Program,
-        ctx: &TransformContext<'_>,
-    ) -> Result<Option<Program>> {
+    async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         self.0.transform(program, ctx).await
     }
 }
@@ -319,6 +311,7 @@ impl EcmascriptInputTransform {
                     inject_helpers(unresolved_mark)
                 ));
             }
+            // [TODO]: WEB-940 - use ClientDirectiveTransformer in next-swc
             EcmascriptInputTransform::ClientDirective(transition_name) => {
                 if is_client_module(program) {
                     let transition_name = &*transition_name.await?;
@@ -326,6 +319,7 @@ impl EcmascriptInputTransform {
                     program.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
                 }
             }
+            // [TODO]: WEB-940 - use ServerDirectiveTransformer in next-swc
             EcmascriptInputTransform::ServerDirective(_transition_name) => {
                 if is_server_module(program) {
                     let stmt = quote!(
@@ -343,9 +337,7 @@ impl EcmascriptInputTransform {
                 }
             }
             EcmascriptInputTransform::Plugin(transform) => {
-                if let Some(output) = transform.await?.transform(program, ctx).await? {
-                    *program = output;
-                }
+                transform.await?.transform(program, ctx).await?
             }
         }
         Ok(())
