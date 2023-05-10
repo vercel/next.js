@@ -711,7 +711,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             Decl::Var(var) => {
                                 // export const foo = 1
                                 let ids: Vec<Id> = collect_idents_in_var_decls(&var.decls);
-                                println!("exported_idents: {:?}", ids);
                                 self.exported_idents.extend(
                                     ids.into_iter().map(|id| (id.clone(), id.0.to_string())),
                                 );
