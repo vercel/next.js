@@ -8,7 +8,7 @@
     "deploy": "sanity deploy",
     "prestart": "npm run env",
     "predeploy": "npm run env",
-    "env": "node -e \"const fs=require('node:fs');const path=require('path');fs.existsSync(path.resolve('../.env'))?fs.copyFileSync(path.resolve('../.env'), path.resolve('.env.development')):fs.copyFileSync(path.resolve('../.env.local'), path.resolve('.env.development'));\""
+    "env": "node -e \"const fs=require('fs');fs.existsSync('../.env')?fs.copyFileSync('../.env'), '.env.development'):fs.copyFileSync('../.env.local','.env.development');\""
   },
   "dependencies": {
     "sanity": "^3.2.6",
