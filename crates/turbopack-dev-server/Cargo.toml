@@ -9,6 +9,9 @@ autobenches = false
 [lib]
 bench = false
 
+[features]
+log_request_stats = []
+
 [dependencies]
 anyhow = { workspace = true }
 async-compression = { workspace = true }
@@ -28,6 +31,7 @@ socket2 = "0.4.9"
 tokio = { workspace = true }
 tokio-stream = "0.1.9"
 tokio-util = { workspace = true }
+tracing = { workspace = true }
 urlencoding = "2.1.2"
 
 turbo-tasks = { workspace = true }
@@ -41,6 +45,3 @@ turbopack-cli-utils = { workspace = true }
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }
-
-[features]
-log_request_stats = []
