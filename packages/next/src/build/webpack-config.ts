@@ -1729,7 +1729,13 @@ export default async function getBaseWebpackConfig(
     output: {
       // we must set publicPath to an empty value to override the default of
       // auto which doesn't work in IE11
-      publicPath: `${config.assetPrefix || ''}/_next/`,
+      publicPath: `${
+        config.assetPrefix
+          ? config.assetPrefix.endsWith('/')
+            ? config.assetPrefix.slice(0, -1)
+            : config.assetPrefix
+          : ''
+      }/_next/`,
       path: !dev && isNodeServer ? path.join(outputPath, 'chunks') : outputPath,
       // On the server we don't use hashes
       filename:
