@@ -430,6 +430,21 @@ createNextDescribe(
             : 'failure'
         }, 'success')
       })
+
+      it('should revalidate when cookies.set is called', async () => {
+        const browser = await next.browser('/revalidate')
+        const randomNumber = await browser.elementByCss('#random-cookie').text()
+
+        await browser.elementByCss('#set-cookie').click()
+
+        await check(async () => {
+          const newRandomNumber = await browser
+            .elementByCss('#random-cookie')
+            .text()
+
+          return newRandomNumber !== randomNumber ? 'success' : 'failure'
+        }, 'success')
+      })
     })
   }
 )
