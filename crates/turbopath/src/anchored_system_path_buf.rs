@@ -2,9 +2,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    AbsoluteSystemPathBuf, IntoSystem, PathError, PathValidationError, RelativeUnixPathBuf,
-};
+use crate::{AbsoluteSystemPath, IntoSystem, PathError, PathValidationError, RelativeUnixPathBuf};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Serialize, Deserialize)]
 pub struct AnchoredSystemPathBuf(PathBuf);
@@ -24,9 +22,11 @@ impl TryFrom<&Path> for AnchoredSystemPathBuf {
 
 impl AnchoredSystemPathBuf {
     pub fn new(
-        root: &AbsoluteSystemPathBuf,
-        path: &AbsoluteSystemPathBuf,
+        root: impl AsRef<AbsoluteSystemPath>,
+        path: impl AsRef<AbsoluteSystemPath>,
     ) -> Result<Self, PathError> {
+        let root = root.as_ref();
+        let path = path.as_ref();
         let stripped_path = path
             .as_path()
             .strip_prefix(root.as_path())
