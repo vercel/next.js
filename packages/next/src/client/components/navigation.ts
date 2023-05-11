@@ -129,26 +129,29 @@ export function useRouter(): import('../../shared/lib/app-router-context').AppRo
 interface Params {
   [key: string]: string
 }
-// TODO-APP: handle parallel routes
+
+// this function performs a depth-first search of the tree to find the selected
+// params
 function getSelectedParams(
   tree: FlightRouterState,
   params: Params = {}
 ): Params {
-  // After first parallel route prefer children, if there's no children pick the first parallel route.
   const parallelRoutes = tree[1]
-  const node = parallelRoutes.children ?? Object.values(parallelRoutes)[0]
 
-  if (!node) return params
-  const segment = node[0]
-  const isDynamicParameter = Array.isArray(segment)
-  const segmentValue = isDynamicParameter ? segment[1] : segment
-  if (!segmentValue || segmentValue.startsWith('__PAGE__')) return params
+  for (const parallelRoute of Object.values(parallelRoutes)) {
+    const segment = parallelRoute[0]
+    const isDynamicParameter = Array.isArray(segment)
+    const segmentValue = isDynamicParameter ? segment[1] : segment
+    if (!segmentValue || segmentValue.startsWith('__PAGE__')) continue
 
-  if (isDynamicParameter) {
-    params[segment[0]] = segment[1]
+    if (isDynamicParameter) {
+      params[segment[0]] = segment[1]
+    }
+
+    params = getSelectedParams(parallelRoute, params)
   }
 
-  return getSelectedParams(node, params)
+  return params
 }
 
 /**
