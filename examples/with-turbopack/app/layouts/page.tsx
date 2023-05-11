@@ -17,7 +17,7 @@ export default function Page() {
       <div>
         <a
           className="font-medium text-zinc-300 hover:text-white"
-          href="https://beta.nextjs.org/docs/routing/pages-and-layouts"
+          href="https://nextjs.org/docs/routing/pages-and-layouts"
         >
           Learn more
         </a>

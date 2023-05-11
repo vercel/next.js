@@ -2,7 +2,7 @@
 
 #### Why This Error Occurred
 
-Your [layout](https://beta.nextjs.org/docs/api-reference/file-conventions/layout) or [page](https://beta.nextjs.org/docs/api-reference/file-conventions/page) inside the app directory exports an invalid field. In these files, you're only allowed to export a default React component, or [Segment Configuration Options](https://beta.nextjs.org/docs/api-reference/segment-config) for layout and pages, such as `revalidate`, `generateStaticParams`, etc.
+Your [layout](https://nextjs.org/docs/api-reference/file-conventions/layout) or [page](https://nextjs.org/docs/api-reference/file-conventions/page) inside the app directory exports an invalid field. In these files, you're only allowed to export a default React component, or [Segment Configuration Options](https://nextjs.org/docs/api-reference/segment-config) for layout and pages, such as `revalidate`, `generateStaticParams`, etc.
 
 Other custom exports are not allowed to catch misspelt configuration options and prevent conflicts with future options.
 

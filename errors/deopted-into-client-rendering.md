@@ -2,9 +2,9 @@
 
 #### Why This Error Occurred
 
-During static rendering the entire page was deopted into client-side rendering by `useSearchParams` as there was no [Suspense boundary](https://beta.nextjs.org/docs/data-fetching/streaming-and-suspense#example-using-suspense-boundaries) that caught it.
+During static rendering the entire page was deopted into client-side rendering by `useSearchParams` as there was no [Suspense boundary](https://nextjs.org/docs/app/building-your-application/routing/loading-ui-and-streaming#example-using-suspense-boundaries) that caught it.
 
-If a route is statically rendered, calling `useSearchParams()` will cause the tree up to the closest [Suspense boundary](https://beta.nextjs.org/docs/data-fetching/streaming-and-suspense#example-using-suspense-boundaries) to be client-side rendered.
+If a route is statically rendered, calling `useSearchParams()` will cause the tree up to the closest [Suspense boundary](https://nextjs.org/docs/app/building-your-application/routing/loading-ui-and-streaming#example-using-suspense-boundaries) to be client-side rendered.
 
 This allows a part of the page to be statically rendered while the dynamic part that uses `searchParams` can be client-side rendered.
 
@@ -12,7 +12,7 @@ This allows a part of the page to be statically rendered while the dynamic part 
 
 You can reduce the portion of the route that is client-side rendered by wrapping the component that uses useSearchParams in a Suspense boundary.
 
-For example if `app/dashboard/search-bar.tsx` uses `useSearchParams` wrap the component in a [Suspense boundary](https://beta.nextjs.org/docs/data-fetching/streaming-and-suspense#example-using-suspense-boundaries) as shown in `app/dashboard/page.tsx`.
+For example if `app/dashboard/search-bar.tsx` uses `useSearchParams` wrap the component in a [Suspense boundary](https://nextjs.org/docs/app/building-your-application/routing/loading-ui-and-streaming#example-using-suspense-boundaries) as shown in `app/dashboard/page.tsx`.
 
 ```js
 // app/dashboard/search-bar.tsx
@@ -61,4 +61,4 @@ export default function Page() {
 
 ### Useful Links
 
-- [`useSearchParams` static rendering documentation](https://beta.nextjs.org/docs/api-reference/use-search-params#static-rendering)
+- [`useSearchParams` static rendering documentation](https://nextjs.org/docs/api-reference/use-search-params#static-rendering)

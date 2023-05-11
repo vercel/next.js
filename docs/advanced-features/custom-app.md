@@ -4,9 +4,9 @@ description: Control page initialization and add a layout that persists for all 
 
 # Custom `App`
 
-> **Note**: Next.js 13 introduces the `app/` directory (beta). This new directory has support for layouts, nested routes, and uses Server Components by default. Inside `app/`, you can fetch data for your entire application inside layouts, including support for more granular nested layouts (with [colocated data fetching](https://beta.nextjs.org/docs/data-fetching/fundamentals)).
+> **Note**: Next.js 13 introduces the `app/` directory. This new directory has support for layouts, nested routes, and uses Server Components by default. Inside `app/`, you can fetch data for your entire application inside layouts, including support for more granular nested layouts (with [colocated data fetching](https://nextjs.org/docs/app/building-your-application/data-fetching)).
 >
-> [Learn more about incrementally adopting `app/`](https://beta.nextjs.org/docs/upgrade-guide).
+> [Learn more about incrementally adopting `app/`](https://nextjs.org/docs/app/building-your-application/upgrading/app-router-migration).
 
 Next.js uses the `App` component to initialize pages. You can override it and control the page initialization and:
 
@@ -34,7 +34,7 @@ The `App.getInitialProps` receives a single argument called `context.ctx`. It's 
 - If your app is running and you added a custom `App`, you'll need to restart the development server. Only required if `pages/_app.js` didn't exist before.
 - Adding a custom [`getInitialProps`](/docs/api-reference/data-fetching/get-initial-props.md) in your `App` will disable [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) in pages without [Static Generation](/docs/basic-features/data-fetching/get-static-props.md).
 - When you add `getInitialProps` in your custom app, you must `import App from "next/app"`, call `App.getInitialProps(appContext)` inside `getInitialProps` and merge the returned object into the return value.
-- `App` does not support Next.js [Data Fetching methods](/docs/basic-features/data-fetching/overview.md) like [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) or [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props.md). If you need global data fetching, consider [incrementally adopting the `app/` directory](https://beta.nextjs.org/docs/upgrade-guide).
+- `App` does not support Next.js [Data Fetching methods](/docs/basic-features/data-fetching/overview.md) like [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) or [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props.md). If you need global data fetching, consider [incrementally adopting the `app/` directory](https://nextjs.org/docs/app/building-your-application/upgrading/app-router-migration).
 
 ### TypeScript
 

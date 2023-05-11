@@ -2,26 +2,26 @@
 
 Next.js 13 requires using React 18, unlocking:
 
-- [Streaming SSR](#streaming-ssr)
-- [React Server Components](#react-server-components)
-- [Edge and Node.js Runtimes](#edge-and-nodejs-runtimes)
-- New APIs like `startTransition` and more.
+- [React 18](#react-18)
+  - [Streaming SSR](#streaming-ssr)
+  - [React Server Components](#react-server-components)
+  - [Edge and Node.js Runtimes](#edge-and-nodejs-runtimes)
 
 ## Streaming SSR
 
-In Next.js 13, you can start using the `app/` directory (beta) to take advantage of streaming server-rendering. Learn more by reading the `app/` directory (beta) documentation:
+In Next.js 13, you can start using the `app/` directory to take advantage of streaming server-rendering. Learn more by reading the `app/` directory documentation:
 
-- [Streaming and Suspense](https://beta.nextjs.org/docs/data-fetching/streaming-and-suspense)
-- [Instant Loading UI](https://beta.nextjs.org/docs/routing/loading-ui)
+- [Streaming and Suspense](https://nextjs.org/docs/app/building-your-application/routing/loading-ui-and-streaming)
+- [Instant Loading UI](https://nextjs.org/docs/app/building-your-application/routing/loading-ui-and-streaming)
 
 [Deploy the `app/` directory example](https://vercel.com/templates/next.js/app-directory) to try Streaming SSR.
 
 ## React Server Components
 
-In Next.js 13, you can start using the `app/` directory (beta) which use Server Components by default. Learn more by reading the `app/` directory (beta) documentation:
+In Next.js 13, you can start using the `app/` directory which use Server Components by default. Learn more by reading the `app/` directory documentation:
 
-- [Rendering Fundamentals](https://beta.nextjs.org/docs/rendering/fundamentals)
-- [Server and Client Components](https://beta.nextjs.org/docs/rendering/server-and-client-components)
+- [Rendering Fundamentals](https://nextjs.org/docs/app/building-your-application/rendering)
+- [Server and Client Components](https://nextjs.org/docs/getting-started/react-essentials)
 
 [Deploy the `app/` directory example](https://vercel.com/templates/next.js/app-directory) to try Server Components.
 

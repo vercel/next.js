@@ -14,9 +14,9 @@ description: API reference for `getServerSideProps`. Learn how to fetch data on 
 
 </details>
 
-> **Note**: Next.js 13 introduces the `app/` directory (beta). This new directory has support for [colocated data fetching](https://beta.nextjs.org/docs/data-fetching/fundamentals) at the component level, using the new React `use` hook and an extended `fetch` Web API.
+> **Note**: Next.js 13 introduces the `app/` directory. This new directory has support for [colocated data fetching](https://nextjs.org/docs/app/building-your-application/data-fetching) at the component level, using the new React `use` hook and an extended `fetch` Web API.
 >
-> [Learn more about incrementally adopting `app/`](https://beta.nextjs.org/docs/upgrade-guide).
+> [Learn more about incrementally adopting `app/`](https://nextjs.org/docs/app/building-your-application/upgrading/app-router-migration).
 
 When exporting a function called `getServerSideProps` (Server-Side Rendering) from a page, Next.js will pre-render this page on each request using the data returned by `getServerSideProps`. This is useful if you want to fetch data that changes often, and have the page update to show the most current data.
 

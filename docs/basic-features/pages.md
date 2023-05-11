@@ -4,9 +4,9 @@ description: Next.js pages are React Components exported in a file in the pages 
 
 # Pages
 
-> **Note**: Next.js 13 introduces the `app/` directory (beta). This new directory has support for layouts, nested routes, and uses Server Components by default. Inside `app/`, you can fetch data for your entire application inside layouts, including support for more granular nested layouts (with [colocated data fetching](https://beta.nextjs.org/docs/data-fetching/fundamentals)).
+> **Note**: Next.js 13 introduces the `app/` directory. This new directory has support for layouts, nested routes, and uses Server Components by default. Inside `app/`, you can fetch data for your entire application inside layouts, including support for more granular nested layouts (with [colocated data fetching](https://nextjs.org/docs/app/building-your-application/data-fetching)).
 >
-> [Learn more about incrementally adopting `app/`](https://beta.nextjs.org/docs/upgrade-guide).
+> [Learn more about incrementally adopting `app/`](https://nextjs.org/docs/app/building-your-application/upgrading/app-router-migration).
 
 In Next.js, a **page** is a [React Component](https://react.dev/learn/your-first-component) exported from a `.js`, `.jsx`, `.ts`, or `.tsx` file in the `pages` directory. Each page is associated with a route based on its file name.
 

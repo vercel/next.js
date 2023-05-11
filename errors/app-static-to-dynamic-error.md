@@ -14,5 +14,5 @@ Leverage `export const dynamic = 'force-static'` to ensure the page is handled s
 
 ### Useful Links
 
-- [static/dynamic rendering](https://beta.nextjs.org/docs/rendering/static-and-dynamic-rendering)
-- [dynamic server value methods](https://beta.nextjs.org/docs/data-fetching/fetching#server-component-functions)
+- [static/dynamic rendering](https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic-rendering)
+- [dynamic server value methods](https://nextjs.org/docs/app/building-your-application/data-fetching/fetching#server-component-functions)

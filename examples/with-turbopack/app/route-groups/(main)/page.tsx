@@ -25,7 +25,7 @@ export default function Page() {
       <div>
         <a
           className="font-medium text-zinc-300 hover:text-white"
-          href="https://beta.nextjs.org/docs/routing/defining-routes#route-groups"
+          href="https://nextjs.org/docs/app/building-your-application/routing/defining-routes#route-groups"
         >
           Learn more
         </a>

@@ -24,4 +24,4 @@ If you do not want to use the new `app/` directory features yet, but have a dire
 ### Useful Links
 
 - [Next.js 13 App directory (Beta)](https://nextjs.org/blog/next-13#new-app-directory-beta)
-- [App directory (Beta) documentation](https://beta.nextjs.org/docs)
+- [App directory (Beta) documentation](https://nextjs.org/docs)

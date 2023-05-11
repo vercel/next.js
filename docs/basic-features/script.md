@@ -28,7 +28,7 @@ Websites often use third-party scripts to add functionality like analytics, ads,
 Browsers load and execute `<script>` elements based on the order of placement in HTML and the usage of `async` and `defer` attributes. However, using the native `<script>` element creates some challenges:
 
 - As your application grows in size and complexity, it becomes increasingly difficult to manage the loading order of third-party scripts.
-- [Streaming and Suspense](https://beta.nextjs.org/docs/data-fetching/streaming-and-suspense) improve page performance by rendering and hydrating new content as soon as possible, but `<script>` attributes (like `defer`) are incompatible without additional work.
+- [Streaming and Suspense](https://nextjs.org/docs/app/building-your-application/routing/loading-ui-and-streaming) improve page performance by rendering and hydrating new content as soon as possible, but `<script>` attributes (like `defer`) are incompatible without additional work.
 
 The Script component solves these problems by providing a declarative API for loading third-party scripts. It provides a set of built-in loading strategies that can be used to optimize the loading sequence of scripts with support for streaming. Each of the strategies provided by the Script component uses the best possible combination of React and Web APIs to ensure that scripts are loaded with minimal impact to page performance.
 
@@ -94,7 +94,7 @@ Refer to the [`next/script`](/docs/api-reference/next/script.md#strategy) API re
 
 ### Offloading Scripts To A Web Worker (experimental)
 
-> **Note**: The `worker` strategy is not yet stable and does not yet work with the [`app/`](https://beta.nextjs.org/docs/routing/defining-routes) directory. Use with caution.
+> **Note**: The `worker` strategy is not yet stable and does not yet work with the [`app/`](https://nextjs.org/docs/app/building-your-application/routing/defining-routes) directory. Use with caution.
 
 Scripts that use the `worker` strategy are offloaded and executed in a web worker with [Partytown](https://partytown.builder.io/). This can improve the performance of your site by dedicating the main thread to the rest of your application code.
 

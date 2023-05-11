@@ -4,9 +4,9 @@ description: Learn how to share components and state between Next.js pages with 
 
 # Layouts
 
-> **Note**: Next.js 13 introduces the `app/` directory (beta). This new directory has support for layouts, nested routes, and uses Server Components by default. Inside `app/`, you can fetch data for your entire application inside layouts, including support for more granular nested layouts (with [colocated data fetching](https://beta.nextjs.org/docs/data-fetching/fundamentals)).
+> **Note**: Next.js 13 introduces the `app/` directory. This new directory has support for layouts, nested routes, and uses Server Components by default. Inside `app/`, you can fetch data for your entire application inside layouts, including support for more granular nested layouts (with [colocated data fetching](https://nextjs.org/docs/app/building-your-application/data-fetching)).
 >
-> [Learn more about incrementally adopting `app/`](https://beta.nextjs.org/docs/upgrade-guide).
+> [Learn more about incrementally adopting `app/`](https://nextjs.org/docs/app/building-your-application/upgrading/app-router-migration).
 
 The React model allows us to deconstruct a [page](/docs/basic-features/pages.md) into a series of components. Many of these components are often reused between pages. For example, you might have the same navigation bar and footer on every page.
 

@@ -9,7 +9,7 @@ description: Optimize third-party script loading with the built-in Script compon
 
 | Version   | Changes                                                                                                                     |
 | --------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `v13.0.0` | `beforeInteractive` and `afterInteractive` is modified to support [`app/`](https://beta.nextjs.org/docs/optimizing/scripts) |
+| `v13.0.0` | `beforeInteractive` and `afterInteractive` is modified to support [`app/`](https://nextjs.org/docs/app/building-your-application/optimizing/scripts) |
 | `v12.2.4` | `onReady` prop added.                                                                                                       |
 | `v12.2.2` | Allow `next/script` with `beforeInteractive` to be placed in `_document`.                                                   |
 | `v11.0.0` | `next/script` introduced.                                                                                                   |
@@ -181,7 +181,7 @@ export default function Home() {
 
 ### `onLoad`
 
-> **Note**: `onLoad` can't be used with `beforeInteractive` – consider using `onReady` instead. Learn more about usage of `onLoad` in the [`app/` directory](https://beta.nextjs.org/docs/optimizing/scripts#onload).
+> **Note**: `onLoad` can't be used with `beforeInteractive` – consider using `onReady` instead. Learn more about usage of `onLoad` in the [`app/` directory](https://nextjs.org/docs/app/building-your-application/optimizing/scripts#onload).
 
 Some third-party scripts require users to run JavaScript code once after the script has finished loading in order to instantiate content or call a function. If you are loading a script with either afterInteractive or lazyOnload as a loading strategy, you can execute code after it has loaded using the onLoad property.
 
@@ -206,7 +206,7 @@ export default function Page() {
 
 ### `onReady`
 
-> **Note**: Learn more about usage of `onReady` in the [`app/` directory](https://beta.nextjs.org/docs/optimizing/scripts#onready).
+> **Note**: Learn more about usage of `onReady` in the [`app/` directory](https://nextjs.org/docs/app/building-your-application/optimizing/scripts#onready).
 
 Some third-party scripts require users to run JavaScript code after the script has finished loading and every time the component is mounted (after a route navigation for example). You can execute code after the script's load event when it first loads and then after every subsequent component re-mount using the onReady property.
 
@@ -239,7 +239,7 @@ export default function Page() {
 
 ### `onError`
 
-> **Note**: `onError` cannot be used with the `beforeInteractive` loading strategy. Learn more about usage of `onError` in the [`app/` directory](https://beta.nextjs.org/docs/optimizing/scripts#onError).
+> **Note**: `onError` cannot be used with the `beforeInteractive` loading strategy. Learn more about usage of `onError` in the [`app/` directory](https://nextjs.org/docs/app/building-your-application/optimizing/scripts#onError).
 
 Sometimes it is helpful to catch when a script fails to load. These errors can be handled with the onError property:
 

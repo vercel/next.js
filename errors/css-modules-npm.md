@@ -25,4 +25,4 @@ If this is **first party code**, try
 
 ---
 
-This limitation does not exist when using the `app` directory: [beta.nextjs.org/docs](https://beta.nextjs.org/docs).
+This limitation does not exist when using the `app` directory: [nextjs.org/docs](https://nextjs.org/docs).

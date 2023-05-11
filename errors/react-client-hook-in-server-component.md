@@ -37,4 +37,4 @@ export default function Page() {
 
 ### Useful Links
 
-[Server and Client Components](https://beta.nextjs.org/docs/rendering/server-and-client-components)
+[Server and Client Components](https://nextjs.org/docs/rendering/server-and-client-components)

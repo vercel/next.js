@@ -33,4 +33,4 @@ Or
 
 ### Useful Links
 
-[`next/link` documentation](https://beta.nextjs.org/docs/api-reference/components/link#href)
+[`next/link` documentation](https://nextjs.org/docs/app/api-reference/components/link#hreff)

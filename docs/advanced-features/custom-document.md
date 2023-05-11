@@ -4,9 +4,9 @@ description: Extend the default document markup added by Next.js.
 
 # Custom `Document`
 
-> **Note**: Next.js 13 introduces the `app/` directory (beta). This new directory has support for layouts, nested routes, and uses Server Components by default. Inside `app/`, you can modify the initial `html` and `body` tags using a root layout.
+> **Note**: Next.js 13 introduces the `app/` directory. This new directory has support for layouts, nested routes, and uses Server Components by default. Inside `app/`, you can modify the initial `html` and `body` tags using a root layout.
 >
-> [Learn more about incrementally adopting `app/`](https://beta.nextjs.org/docs/upgrade-guide).
+> [Learn more about incrementally adopting `app/`](https://nextjs.org/docs/app/building-your-application/upgrading/app-router-migration).
 
 A custom `Document` can update the `<html>` and `<body>` tags used to render a [Page](/docs/basic-features/pages.md). This file is only rendered on the server, so event handlers like `onClick` cannot be used in `_document`.
 

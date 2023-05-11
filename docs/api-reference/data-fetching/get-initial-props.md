@@ -4,9 +4,9 @@ description: Enable Server-Side Rendering in a page and do initial data populati
 
 # getInitialProps
 
-> **Note**: Next.js 13 introduces the `app/` directory (beta). This new directory has support for [colocated data fetching](https://beta.nextjs.org/docs/data-fetching/fundamentals) at the component level, using the new React `use` hook and an extended `fetch` Web API.
+> **Note**: Next.js 13 introduces the `app/` directory. This new directory has support for [colocated data fetching](https://nextjs.org/docs/app/building-your-application/data-fetching) at the component level, using the new React `use` hook and an extended `fetch` Web API.
 >
-> [Learn more about incrementally adopting `app/`](https://beta.nextjs.org/docs/upgrade-guide).
+> [Learn more about incrementally adopting `app/`](https://nextjs.org/docs/app/building-your-application/upgrading/app-router-migration).
 
 `getInitialProps` enables [server-side rendering](/docs/basic-features/pages.md#server-side-rendering) in a page and allows you to do **initial data population**, it means sending the [page](/docs/basic-features/pages.md) with the data already populated from the server. This is especially useful for [SEO](https://en.wikipedia.org/wiki/Search_engine_optimization).
 

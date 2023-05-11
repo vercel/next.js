@@ -29,7 +29,7 @@ export default function Page() {
       <div>
         <a
           className="font-medium text-zinc-300 hover:text-white"
-          href="https://beta.nextjs.org/docs/routing/loading-ui"
+          href="https://nextjs.org/docs/app/building-your-application/routing/loading-ui-and-streaming"
         >
           Learn more
         </a>
