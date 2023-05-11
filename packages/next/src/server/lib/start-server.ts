@@ -287,7 +287,7 @@ export async function startServer({
       handlersReady()
     } else {
       // when not using a worker start next in main process
-      const { default: next } = require('../next') as typeof import('../next')
+      const next = require('../next') as typeof import('../next').default
       const addr = server.address()
       const app = next({
         dir,

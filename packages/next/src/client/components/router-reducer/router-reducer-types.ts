@@ -12,6 +12,19 @@ export const ACTION_RESTORE = 'restore'
 export const ACTION_SERVER_PATCH = 'server-patch'
 export const ACTION_PREFETCH = 'prefetch'
 export const ACTION_FAST_REFRESH = 'fast-refresh'
+export const ACTION_SERVER_ACTION = 'server-action'
+
+export type RouterChangeByServerResponse = (
+  previousTree: FlightRouterState,
+  flightData: FlightData,
+  overrideCanonicalUrl: URL | undefined
+) => void
+
+export type RouterNavigate = (
+  href: string,
+  navigateType: 'push' | 'replace',
+  forceOptimisticNavigation: boolean
+) => void
 
 export interface Mutable {
   mpaNavigation?: boolean
@@ -23,6 +36,12 @@ export interface Mutable {
   cache?: CacheNode
   prefetchCache?: AppRouterState['prefetchCache']
   hashFragment?: string
+}
+
+export interface ServerActionMutable {
+  inFlightServerAction?: Promise<any> | null
+  serverActionApplied?: boolean
+  previousTree?: FlightRouterState
 }
 
 /**
@@ -42,6 +61,24 @@ export interface FastRefreshAction {
   cache: CacheNode
   mutable: Mutable
   origin: Location['origin']
+}
+
+export type ServerActionDispatcher = (
+  args: Omit<
+    ServerActionAction,
+    'type' | 'mutable' | 'navigate' | 'changeByServerResponse'
+  >
+) => void
+
+export interface ServerActionAction {
+  type: typeof ACTION_SERVER_ACTION
+  actionId: string
+  actionArgs: any[]
+  resolve: (value: any) => void
+  reject: (reason?: any) => void
+  mutable: ServerActionMutable
+  navigate: RouterNavigate
+  changeByServerResponse: RouterChangeByServerResponse
 }
 
 /**
@@ -118,6 +155,19 @@ export interface ServerPatchAction {
 }
 
 /**
+ * PrefetchKind defines the type of prefetching that should be done.
+ * - `auto` - if the page is dynamic, prefetch the page data partially, if static prefetch the page data fully.
+ * - `full` - prefetch the page data fully.
+ * - `temporary` - a temporary prefetch entry is added to the cache, this is used when prefetch={false} is used in next/link or when you push a route programmatically.
+ */
+
+export enum PrefetchKind {
+  AUTO = 'auto',
+  FULL = 'full',
+  TEMPORARY = 'temporary',
+}
+
+/**
  * Prefetch adds the provided FlightData to the prefetch cache
  * - Creates the router state tree based on the patch in FlightData
  * - Adds the FlightData to the prefetch cache
@@ -126,6 +176,7 @@ export interface ServerPatchAction {
 export interface PrefetchAction {
   type: typeof ACTION_PREFETCH
   url: URL
+  kind: PrefetchKind
 }
 
 interface PushRef {
@@ -154,6 +205,14 @@ export type FocusAndScrollRef = {
   segmentPaths: FlightSegmentPath[]
 }
 
+export type PrefetchCacheEntry = {
+  treeAtTimeOfPrefetch: FlightRouterState
+  data: ReturnType<typeof fetchServerResponse> | null
+  kind: PrefetchKind
+  prefetchTime: number
+  lastUsedTime: number | null
+}
+
 /**
  * Handles keeping the state of app-router.
  */
@@ -173,13 +232,7 @@ export type AppRouterState = {
   /**
    * Cache that holds prefetched Flight responses keyed by url.
    */
-  prefetchCache: Map<
-    string,
-    {
-      treeAtTimeOfPrefetch: FlightRouterState
-      data: ReturnType<typeof fetchServerResponse> | null
-    }
-  >
+  prefetchCache: Map<string, PrefetchCacheEntry>
   /**
    * Decides if the update should create a new history entry and if the navigation has to trigger a browser navigation.
    */
@@ -208,4 +261,5 @@ export type ReducerActions = Readonly<
   | ServerPatchAction
   | PrefetchAction
   | FastRefreshAction
+  | ServerActionAction
 >

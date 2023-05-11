@@ -1,15 +1,16 @@
 import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import { BrowserInterface } from 'test/lib/browsers/base'
+import fs from 'fs/promises'
+import path from 'path'
 import cheerio from 'cheerio'
 
 createNextDescribe(
   'app dir - metadata',
   {
     files: __dirname,
-    skipDeployment: false,
   },
-  ({ next, isNextDev, isNextStart }) => {
+  ({ next, isNextDev, isNextStart, isNextDeploy }) => {
     const getTitle = (browser: BrowserInterface) =>
       browser.elementByCss('title').text()
 
@@ -336,6 +337,11 @@ createNextDescribe(
           rel: 'alternate',
           href: 'https://example.com/alternates/child/de-DE',
         })
+
+        await browser.loadPage(next.url + '/alternates/child/123')
+        await matchDom('link', 'rel="canonical"', {
+          href: 'https://example.com/alternates/child/123',
+        })
       })
 
       it('should support robots tags', async () => {
@@ -470,9 +476,10 @@ createNextDescribe(
         const browser = await next.browser('/opengraph/article')
         const matchMultiDom = createMultiDomMatcher(browser)
         await matchMultiDom('meta', 'property', 'content', {
-          'og:title': 'My custom title',
+          'og:title': 'My custom title | Layout open graph title',
           'og:description': 'My custom description',
           'og:type': 'article',
+          'og:image': 'https://example.com/og-image.jpg',
           'article:published_time': '2023-01-01T00:00:00.000Z',
           'article:author': ['author1', 'author2', 'author3'],
         })
@@ -487,13 +494,19 @@ createNextDescribe(
           'og:image:height': '114',
           'og:image:type': 'image/png',
           'og:image:alt': 'A alt txt for og',
-          'og:image':
-            'https://example.com/opengraph/static/opengraph-image.png?b76e8f0282c93c8e',
+          'og:image': isNextDev
+            ? expect.stringMatching(
+                /http:\/\/localhost:\d+\/opengraph\/static\/opengraph-image.png\?b76e8f0282c93c8e/
+              )
+            : 'https://example.com/opengraph/static/opengraph-image.png?b76e8f0282c93c8e',
         })
 
         await match('meta', 'name', 'content', {
-          'twitter:image':
-            'https://example.com/opengraph/static/twitter-image.png?b76e8f0282c93c8e',
+          'twitter:image': isNextDev
+            ? expect.stringMatching(
+                /http:\/\/localhost:\d+\/opengraph\/static\/twitter-image.png\?b76e8f0282c93c8e/
+              )
+            : 'https://example.com/opengraph/static/twitter-image.png?b76e8f0282c93c8e',
           'twitter:image:alt': 'A alt txt for twitter',
           'twitter:card': 'summary_large_image',
         })
@@ -529,6 +542,7 @@ createNextDescribe(
           'https://example.com/icon.png',
         ])
         await checkLink(browser, 'apple-touch-icon', [
+          '/icon2.png',
           '/apple-icon.png',
           '/apple-icon-x3.png',
         ])
@@ -561,6 +575,18 @@ createNextDescribe(
         const icon = $('link[rel="icon"]')
         expect(icon.attr('href')).toBe('/favicon.ico')
         expect(icon.attr('sizes')).toBe('any')
+
+        if (!isNextDeploy) {
+          const faviconFileBuffer = await fs.readFile(
+            path.join(next.testDir, 'app/favicon.ico')
+          )
+          const faviconResponse = Buffer.from(
+            await next.fetch('/favicon.ico').then((res) => res.arrayBuffer())
+          )
+          return expect(
+            Buffer.compare(faviconResponse, faviconFileBuffer)
+          ).toBe(0)
+        }
       })
     })
 
@@ -596,6 +622,15 @@ createNextDescribe(
         // No apple icon if it's not provided
         const $appleIcon = $('head > link[rel="apple-touch-icon"]')
         expect($appleIcon.length).toBe(0)
+
+        const $dynamic = await next.render$('/icons/static/dynamic-routes/123')
+        const $dynamicIcon = $dynamic('head > link[rel="icon"]')
+        const dynamicIconHref = $dynamicIcon.attr('href')
+        expect(dynamicIconHref).toMatch(
+          /\/icons\/static\/dynamic-routes\/123\/icon\.png\?b76e8f0282c93c8e/
+        )
+        const dynamicIconRes = await next.fetch(dynamicIconHref)
+        expect(dynamicIconRes.status).toBe(200)
       })
 
       if (isNextDev) {
@@ -738,7 +773,7 @@ createNextDescribe(
         expect(invalidRobotsResponse.status).toBe(404)
       })
 
-      it('should support root dir sitemap.xml', async () => {
+      it('should support sitemap.xml under every routes', async () => {
         const res = await next.fetch('/sitemap.xml')
         expect(res.headers.get('content-type')).toBe('application/xml')
         const sitemap = await res.text()
@@ -747,7 +782,7 @@ createNextDescribe(
           '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
         )
         const invalidSitemapResponse = await next.fetch('/title/sitemap.xml')
-        expect(invalidSitemapResponse.status).toBe(404)
+        expect(invalidSitemapResponse.status).toBe(200)
       })
 
       it('should support static manifest.webmanifest', async () => {
@@ -781,6 +816,28 @@ createNextDescribe(
         })
       }
     })
+
+    if (isNextStart) {
+      describe('static optimization', () => {
+        it('should build static files into static route', async () => {
+          expect(
+            await next.hasFile(
+              '.next/server/app/opengraph/static/opengraph-image.png.meta'
+            )
+          ).toBe(true)
+          expect(
+            await next.hasFile(
+              '.next/server/app/opengraph/static/opengraph-image.png.body'
+            )
+          ).toBe(true)
+          expect(
+            await next.hasFile(
+              '.next/server/app/opengraph/static/opengraph-image.png/[[...__metadata_id__]]/route.js'
+            )
+          ).toBe(false)
+        })
+      })
+    }
 
     describe('react cache', () => {
       it('should have same title and page value on initial load', async () => {

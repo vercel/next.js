@@ -1,5 +1,6 @@
 import { createNextDescribe } from 'e2e-utils'
 import imageSize from 'image-size'
+import { check } from 'next-test-utils'
 
 const CACHE_HEADERS = {
   NONE: 'no-cache, no-store',
@@ -13,7 +14,6 @@ createNextDescribe(
   'app dir - metadata dynamic routes',
   {
     files: __dirname,
-    skipDeployment: true,
   },
   ({ next, isNextDev, isNextStart, isNextDeploy }) => {
     describe('text routes', () => {
@@ -158,6 +158,22 @@ createNextDescribe(
         ])
       })
 
+      it('should support generate multi sitemaps with generateSitemaps', async () => {
+        const ids = [0, 1, 2]
+        function fetchSitemap(id) {
+          return next
+            .fetch(
+              isNextDev ? `/gsp/sitemap.xml/${id}` : `/gsp/sitemap/${id}.xml`
+            )
+            .then((res) => res.text())
+        }
+
+        for (const id of ids) {
+          const text = await fetchSitemap(id)
+          expect(text).toContain(`<loc>https://example.com/dynamic/${id}</loc>`)
+        }
+      })
+
       it('should fill params into dynamic routes url of metadata images', async () => {
         const $ = await next.render$('/dynamic/big')
         const ogImageUrl = $('meta[property="og:image"]').attr('content')
@@ -237,6 +253,12 @@ createNextDescribe(
       expect(resTwitter.status).toBe(200)
     })
 
+    it('should pick configured metadataBase instead of deployment url for canonical url', async () => {
+      const $ = await next.render$('/')
+      const canonicalUrl = $('link[rel="canonical"]').attr('href')
+      expect(canonicalUrl).toBe('https://mydomain.com/')
+    })
+
     it('should inject dynamic metadata properly to head', async () => {
       const $ = await next.render$('/')
       const $icon = $('link[rel="icon"]')
@@ -269,21 +291,24 @@ createNextDescribe(
       expect(twitterTitle).toBe('Twitter - Next.js App')
       expect(twitterDescription).toBe('Twitter - This is a Next.js App')
 
+      // Should prefer to pick up deployment url for metadata routes
+      let ogImageUrlPattern
+      let twitterImageUrlPattern
       if (isNextDeploy) {
         // absolute urls
-        expect(ogImageUrl).toMatch(
-          /https:\/\/\w+.vercel.app\/opengraph-image\?/
-        )
-        expect(twitterImageUrl).toMatch(
-          /https:\/\/\w+.vercel.app\/twitter-image\?/
-        )
+        ogImageUrlPattern = /https:\/\/[\w-]+.vercel.app\/opengraph-image\?/
+        twitterImageUrlPattern = /https:\/\/[\w-]+.vercel.app\/twitter-image\?/
+      } else if (isNextStart) {
+        // configured metadataBase for next start
+        ogImageUrlPattern = /https:\/\/mydomain.com\/opengraph-image\?/
+        twitterImageUrlPattern = /https:\/\/mydomain.com\/twitter-image\?/
       } else {
-        // absolute urls
-        expect(ogImageUrl).toMatch(/http:\/\/localhost:\d+\/opengraph-image\?/)
-        expect(twitterImageUrl).toMatch(
-          /http:\/\/localhost:\d+\/twitter-image\?/
-        )
+        // localhost for dev
+        ogImageUrlPattern = /http:\/\/localhost:\d+\/opengraph-image\?/
+        twitterImageUrlPattern = /http:\/\/localhost:\d+\/twitter-image\?/
       }
+      expect(ogImageUrl).toMatch(ogImageUrlPattern)
+      expect(twitterImageUrl).toMatch(twitterImageUrlPattern)
       expect(ogImageUrl).toMatch(hashRegex)
       expect(twitterImageUrl).toMatch(hashRegex)
 
@@ -296,6 +321,98 @@ createNextDescribe(
       )
     })
 
+    it('should use localhost for local prod and fallback to deployment url when metadataBase is falsy', async () => {
+      const $ = await next.render$('/metadata-base/unset')
+      const twitterImage = $('meta[name="twitter:image"]').attr('content')
+      const ogImages = $('meta[property="og:image"]')
+
+      expect(ogImages.length).toBe(2)
+      ogImages.each((_, ogImage) => {
+        const ogImageUrl = $(ogImage).attr('content')
+        expect(ogImageUrl).toMatch(
+          isNextDeploy
+            ? /https:\/\/[\w-]+.vercel.app/
+            : /http:\/\/localhost:\d+/
+        )
+        expect(ogImageUrl).toMatch(
+          /\/metadata-base\/unset\/opengraph-image2\/10\d/
+        )
+      })
+
+      expect(twitterImage).toMatch(
+        isNextDeploy ? /https:\/\/[\w-]+.vercel.app/ : /http:\/\/localhost:\d+/
+      )
+      expect(twitterImage).toMatch(/\/metadata-base\/unset\/twitter-image\.png/)
+    })
+
+    if (isNextDev) {
+      it('should error when id is missing in generateImageMetadata', async () => {
+        const iconFilePath = 'app/metadata-base/unset/icon.tsx'
+        const contentMissingIdProperty = `
+        import { ImageResponse } from 'next/server'
+        export async function generateImageMetadata() {
+          return [
+            {
+              contentType: 'image/png',
+              size: { width: 48, height: 48 },
+              // id: 100,
+            },
+            {
+              contentType: 'image/png',
+              size: { width: 48, height: 48 },
+              id: 101,
+            },
+          ]
+        }
+
+        export default function icon() {
+          return new ImageResponse(<div>icon</div>)
+        }
+        `
+        await next.patchFile(iconFilePath, contentMissingIdProperty)
+        await next.fetch('/metadata-base/unset/icon/100')
+        await next.deleteFile(iconFilePath) // revert
+
+        await check(async () => {
+          expect(next.cliOutput).toContain(
+            `id is required for every item returned from generateImageMetadata`
+          )
+          return 'success'
+        }, /success/)
+      })
+
+      it('should error when id is missing in generateSitemaps', async () => {
+        const sitemapFilePath = 'app/metadata-base/unset/sitemap.tsx'
+        const contentMissingIdProperty = `
+        import { MetadataRoute } from 'next'
+
+        export async function generateSitemaps() {
+          return [
+            { id: 0 },
+          ]
+        }
+
+        export default function sitemap({ id }): MetadataRoute.Sitemap {
+          return [
+            {
+              url: 'https://example.com/',
+              lastModified: '2021-01-01',
+            },
+          ]
+        }`
+        await next.patchFile(sitemapFilePath, contentMissingIdProperty)
+        await next.fetch('/metadata-base/unset/sitemap.xml/0')
+        await next.deleteFile(sitemapFilePath) // revert
+
+        await check(async () => {
+          expect(next.cliOutput).toContain(
+            `id is required for every item returned from generateImageMetadata`
+          )
+          return 'success'
+        }, /success/)
+      })
+    }
+
     if (isNextStart) {
       it('should support edge runtime of image routes', async () => {
         const middlewareManifest = JSON.parse(
@@ -305,9 +422,49 @@ createNextDescribe(
         const edgeRoute = functionRoutes.find((route) =>
           route.startsWith('/(group)/twitter-image-')
         )
-        expect(edgeRoute).toMatch(
-          /\/\(group\)\/twitter-image-\w{6}\/\[\[\.\.\.__metadata_id__\]\]\/route/
+        expect(edgeRoute).toMatch(/\/\(group\)\/twitter-image-\w{6}\/route/)
+      })
+
+      it('should optimize routes without multiple generation API as static routes', async () => {
+        const appPathsManifest = JSON.parse(
+          await next.readFile('.next/server/app-paths-manifest.json')
         )
+
+        expect(appPathsManifest).toMatchObject({
+          // static routes
+          '/twitter-image/route': 'app/twitter-image/route.js',
+          '/sitemap.xml/route': 'app/sitemap.xml/route.js',
+
+          // dynamic
+          '/gsp/sitemap/[__metadata_id__]/route':
+            'app/gsp/sitemap/[__metadata_id__]/route.js',
+          '/(group)/dynamic/[size]/apple-icon-48jo90/[[...__metadata_id__]]/route':
+            'app/(group)/dynamic/[size]/apple-icon-48jo90/[[...__metadata_id__]]/route.js',
+        })
+      })
+
+      it('should generate static paths of dynamic sitemap in production', async () => {
+        const sitemapPaths = [0, 1, 2].map(
+          (id) => `.next/server/app/gsp/sitemap/${id}.xml.meta`
+        )
+        const promises = sitemapPaths.map(async (filePath) => {
+          expect(await next.hasFile(filePath)).toBe(true)
+        })
+        await Promise.all(promises)
+      })
+
+      it('should include default og font files in file trace', async () => {
+        const fileTrace = JSON.parse(
+          await next.readFile(
+            '.next/server/app/metadata-base/unset/opengraph-image2/[[...__metadata_id__]]/route.js.nft.json'
+          )
+        )
+
+        // @vercel/og default font should be traced
+        const isTraced = fileTrace.files.some((filePath) =>
+          filePath.includes('/noto-sans-v27-latin-regular.ttf')
+        )
+        expect(isTraced).toBe(true)
       })
     }
   }

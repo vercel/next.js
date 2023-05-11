@@ -369,7 +369,7 @@ async fn source(
     let static_source =
         StaticAssetsContentSourceVc::new(String::new(), project_path.join("public")).into();
     let manifest_source = DevManifestContentSource {
-        page_roots: vec![app_source, page_source],
+        page_roots: vec![page_source],
         next_config,
     }
     .cell()
@@ -389,10 +389,7 @@ async fn source(
     let main_source = main_source.into();
     let source_maps = SourceMapContentSourceVc::new(main_source).into();
     let source_map_trace = NextSourceMapTraceContentSourceVc::new(main_source).into();
-    let img_source = NextImageContentSourceVc::new(
-        CombinedContentSourceVc::new(vec![static_source, page_source]).into(),
-    )
-    .into();
+    let img_source = NextImageContentSourceVc::new(main_source).into();
     let router_source = NextRouterContentSourceVc::new(
         main_source,
         execution_context,
@@ -491,10 +488,9 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
     {
         let index_uri = ServerAddr::new(server.addr).to_string()?;
         println!(
-            "{} - started server on {}:{}, url: {}",
+            "{} - started server on {}, url: {}",
             "ready".green(),
-            server.addr.ip(),
-            server.addr.port(),
+            server.addr,
             index_uri
         );
         if !options.no_open {
@@ -509,12 +505,6 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
                 event_type = "event".purple(),
                 start = FormatDuration(start.elapsed()),
                 memory = FormatBytes(TurboMalloc::memory_usage())
-            );
-        } else {
-            println!(
-                "{event_type} - startup {start}",
-                event_type = "event".purple(),
-                start = FormatDuration(start.elapsed()),
             );
         }
 

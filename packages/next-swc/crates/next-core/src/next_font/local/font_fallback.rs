@@ -106,7 +106,7 @@ async fn get_font_adjustment(
         ))?
         .units_per_em as f64;
 
-    let fallback_avg_width = fallback_font.az_avg_width / fallback_font.units_per_em as f64;
+    let fallback_avg_width = fallback_font.x_width_avg / fallback_font.units_per_em as f64;
     let size_adjust = match az_avg_width {
         Some(az_avg_width) => az_avg_width as f64 / units_per_em / fallback_avg_width,
         None => 1.0,

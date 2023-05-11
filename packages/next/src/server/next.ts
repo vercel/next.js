@@ -3,7 +3,9 @@ import type { NodeRequestHandler } from './next-server'
 import type { UrlWithParsedQuery } from 'url'
 import type { NextConfigComplete } from './config-shared'
 
+import './require-hook'
 import './node-polyfill-fetch'
+import './node-polyfill-crypto'
 import { default as Server } from './next-server'
 import * as log from '../build/output/log'
 import loadConfig from './config'
@@ -13,14 +15,8 @@ import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { IncomingMessage, ServerResponse } from 'http'
 import { NextUrlWithParsedQuery } from './request-meta'
-import {
-  loadRequireHook,
-  overrideBuiltInReactPackages,
-} from '../build/webpack/require-hook'
 import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
-
-loadRequireHook()
 
 let ServerImpl: typeof Server
 
@@ -173,19 +169,29 @@ export class NextServer {
       this.serverPromise = this.loadConfig().then(async (conf) => {
         if (!this.options.dev) {
           if (conf.output === 'standalone') {
-            log.warn(
-              `"next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.`
-            )
+            if (!process.env.__NEXT_PRIVATE_STANDALONE_CONFIG) {
+              log.warn(
+                `"next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.`
+              )
+            }
           } else if (conf.output === 'export') {
             throw new Error(
               `"next start" does not work with "output: export" configuration. Use "npx serve@latest out" instead.`
             )
           }
         }
-        if (conf.experimental.appDir) {
-          process.env.NEXT_PREBUNDLED_REACT = '1'
-          overrideBuiltInReactPackages()
+
+        if (this.options.customServer !== false) {
+          // When running as a custom server with app dir, we must set this env
+          // to correctly alias the React versions.
+          if (conf.experimental.appDir) {
+            process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = conf.experimental
+              .serverActions
+              ? 'experimental'
+              : 'next'
+          }
         }
+
         this.server = await this.createServer({
           ...this.options,
           conf,
@@ -249,7 +255,7 @@ function createServer(options: NextServerOptions): NextServer {
 
 // Support commonjs `require('next')`
 module.exports = createServer
-exports = module.exports
+// exports = module.exports
 
 // Support `import next from 'next'`
 export default createServer

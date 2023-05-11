@@ -10,11 +10,16 @@ import type {
   CustomRoutes,
 } from '../lib/load-custom-routes'
 import type { UnwrapPromise } from '../lib/coalesced-function'
-import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
+import type {
+  EdgeFunctionDefinition,
+  MiddlewareManifest,
+} from './webpack/plugins/middleware-plugin'
 import type { AppRouteUserlandModule } from '../server/future/route-modules/app-route/module'
 import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage'
 
+import '../server/require-hook'
 import '../server/node-polyfill-fetch'
+import '../server/node-polyfill-crypto'
 import chalk from 'next/dist/compiled/chalk'
 import getGzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
@@ -52,24 +57,13 @@ import { Sema } from 'next/dist/compiled/async-sema'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getRuntimeContext } from '../server/web/sandbox'
-import {
-  loadRequireHook,
-  overrideBuiltInReactPackages,
-} from './webpack/require-hook'
 import { isClientReference } from '../lib/client-reference'
 import { StaticGenerationAsyncStorageWrapper } from '../server/async-storage/static-generation-async-storage-wrapper'
 import { IncrementalCache } from '../server/lib/incremental-cache'
 import { patchFetch } from '../server/lib/patch-fetch'
 import { nodeFs } from '../server/lib/node-fs-methods'
-
-loadRequireHook()
-if (process.env.NEXT_PREBUNDLED_REACT) {
-  overrideBuiltInReactPackages()
-}
-
-// expose AsyncLocalStorage on global for react usage
-const { AsyncLocalStorage } = require('async_hooks')
-;(globalThis as any).AsyncLocalStorage = AsyncLocalStorage
+import '../server/node-environment'
+import * as ciEnvironment from '../telemetry/ci-info'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -1223,6 +1217,7 @@ export async function buildAppStaticPaths({
     }),
     CurCacheHandler: CacheHandler,
     requestHeaders,
+    minimalMode: ciEnvironment.hasNextSupport,
   })
 
   return StaticGenerationAsyncStorageWrapper.wrap(
@@ -1230,6 +1225,7 @@ export async function buildAppStaticPaths({
     {
       pathname: page,
       renderOpts: {
+        originalPathname: page,
         incrementalCache,
         supportsDynamicHTML: true,
         isRevalidate: false,
@@ -1331,7 +1327,6 @@ export async function isPageStatic({
   configFileName,
   runtimeEnvConfig,
   httpAgentOptions,
-  enableUndici,
   locales,
   defaultLocale,
   parentId,
@@ -1349,7 +1344,6 @@ export async function isPageStatic({
   configFileName: string
   runtimeEnvConfig: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
-  enableUndici?: NextConfigComplete['experimental']['enableUndici']
   locales?: string[]
   defaultLocale?: string
   parentId?: any
@@ -1382,7 +1376,6 @@ export async function isPageStatic({
       require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
       setHttpClientAndAgentOptions({
         httpAgentOptions,
-        experimental: { enableUndici },
       })
 
       let componentsResult: LoadComponentsReturnType
@@ -1790,7 +1783,8 @@ export async function copyTracedFiles(
   appPageKeys: readonly string[] | undefined,
   tracingRoot: string,
   serverConfig: { [key: string]: any },
-  middlewareManifest: MiddlewareManifest
+  middlewareManifest: MiddlewareManifest,
+  hasInstrumentationHook: boolean
 ) {
   const outputPath = path.join(distDir, 'standalone')
   let moduleType = false
@@ -1843,23 +1837,8 @@ export async function copyTracedFiles(
     )
   }
 
-  for (const middleware of Object.values(middlewareManifest.middleware) || []) {
-    if (isMiddlewareFilename(middleware.name)) {
-      for (const file of middleware.files) {
-        const originalPath = path.join(distDir, file)
-        const fileOutputPath = path.join(
-          outputPath,
-          path.relative(tracingRoot, distDir),
-          file
-        )
-        await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
-        await fs.copyFile(originalPath, fileOutputPath)
-      }
-    }
-  }
-
-  for (const page of Object.values(middlewareManifest.functions)) {
-    for (const file of page.files) {
+  async function handleEdgeFunction(page: EdgeFunctionDefinition) {
+    async function handleFile(file: string) {
       const originalPath = path.join(distDir, file)
       const fileOutputPath = path.join(
         outputPath,
@@ -1869,17 +1848,26 @@ export async function copyTracedFiles(
       await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
       await fs.copyFile(originalPath, fileOutputPath)
     }
-    for (const file of [...(page.wasm ?? []), ...(page.assets ?? [])]) {
-      const originalPath = path.join(distDir, file.filePath)
-      const fileOutputPath = path.join(
-        outputPath,
-        path.relative(tracingRoot, distDir),
-        file.filePath
-      )
-      await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
-      await fs.copyFile(originalPath, fileOutputPath)
+    await Promise.all([
+      page.files.map(handleFile),
+      page.wasm?.map((file) => handleFile(file.filePath)),
+      page.assets?.map((file) => handleFile(file.filePath)),
+    ])
+  }
+
+  const edgeFunctionHandlers: Promise<any>[] = []
+
+  for (const middleware of Object.values(middlewareManifest.middleware)) {
+    if (isMiddlewareFilename(middleware.name)) {
+      edgeFunctionHandlers.push(handleEdgeFunction(middleware))
     }
   }
+
+  for (const page of Object.values(middlewareManifest.functions)) {
+    edgeFunctionHandlers.push(handleEdgeFunction(page))
+  }
+
+  await Promise.all(edgeFunctionHandlers)
 
   for (const page of pageKeys) {
     if (middlewareManifest.functions.hasOwnProperty(page)) {
@@ -1896,6 +1884,7 @@ export async function copyTracedFiles(
       Log.warn(`Failed to copy traced files for ${pageFile}`, err)
     })
   }
+
   if (appPageKeys) {
     for (const page of appPageKeys) {
       if (middlewareManifest.functions.hasOwnProperty(page)) {
@@ -1908,6 +1897,13 @@ export async function copyTracedFiles(
       })
     }
   }
+
+  if (hasInstrumentationHook) {
+    await handleTraceFiles(
+      path.join(distDir, 'server', 'instrumentation.js.nft.json')
+    )
+  }
+
   await handleTraceFiles(path.join(distDir, 'next-server.js.nft.json'))
   const serverOutputPath = path.join(
     outputPath,
@@ -1919,17 +1915,20 @@ export async function copyTracedFiles(
     serverOutputPath,
     `${
       moduleType
-        ? `import Server from 'next/dist/server/next-server.js'
-import http from 'http'
+        ? `import http from 'http'
 import path from 'path'
 import { fileURLToPath } from 'url'
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
-const NextServer = Server.default`
+import { createServerHandler } from 'next/dist/server/lib/render-server-standalone.js'
+`
         : `
-const NextServer = require('next/dist/server/next-server').default
 const http = require('http')
-const path = require('path')`
+const path = require('path')
+const { createServerHandler } = require('next/dist/server/lib/render-server-standalone')`
     }
+
+const dir = path.join(__dirname)
+
 process.env.NODE_ENV = 'production'
 process.chdir(__dirname)
 
@@ -1942,18 +1941,25 @@ if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
 
 let handler
 
+const currentPort = parseInt(process.env.PORT, 10) || 3000
+const hostname = process.env.HOSTNAME || 'localhost'
+const keepAliveTimeout = parseInt(process.env.KEEP_ALIVE_TIMEOUT, 10);
+const nextConfig = ${JSON.stringify({
+      ...serverConfig,
+      distDir: `./${path.relative(dir, distDir)}`,
+    })}
+
+process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(nextConfig)
+
 const server = http.createServer(async (req, res) => {
   try {
     await handler(req, res)
   } catch (err) {
     console.error(err);
     res.statusCode = 500
-    res.end('internal server error')
+    res.end('Internal Server Error')
   }
 })
-const currentPort = parseInt(process.env.PORT, 10) || 3000
-const hostname = process.env.HOSTNAME || 'localhost'
-const keepAliveTimeout = parseInt(process.env.KEEP_ALIVE_TIMEOUT, 10);
 
 if (
   !Number.isNaN(keepAliveTimeout) &&
@@ -1962,23 +1968,18 @@ if (
 ) {
   server.keepAliveTimeout = keepAliveTimeout
 }
-server.listen(currentPort, (err) => {
+server.listen(currentPort, async (err) => {
   if (err) {
     console.error("Failed to start server", err)
     process.exit(1)
   }
-  const nextServer = new NextServer({
-    hostname,
+
+  handler = await createServerHandler({
     port: currentPort,
-    dir: path.join(__dirname),
-    dev: false,
-    customServer: false,
-    conf: ${JSON.stringify({
-      ...serverConfig,
-      distDir: `./${path.relative(dir, distDir)}`,
-    })},
+    hostname,
+    dir,
+    conf: nextConfig,
   })
-  handler = nextServer.getRequestHandler()
 
   console.log(
     'Listening on port',

@@ -6,7 +6,6 @@ import {
   ImageConfigComplete,
   imageConfigDefault,
 } from '../shared/lib/image-config'
-import { ServerRuntime } from 'next/types'
 import { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/subresource-integrity-plugin'
 import { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
@@ -145,6 +144,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  logging?: 'verbose'
   appDocumentPreloading?: boolean
   strictNextHead?: boolean
   clientRouterFilter?: boolean
@@ -195,7 +195,6 @@ export interface ExperimentalConfig {
   craCompat?: boolean
   esmExternals?: boolean | 'loose'
   isrMemoryCacheSize?: number
-  runtime?: Exclude<ServerRuntime, undefined>
   fullySpecified?: boolean
   urlImports?: NonNullable<webpack.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
@@ -217,7 +216,6 @@ export interface ExperimentalConfig {
    * [webpack/webpack#ModuleNotoundError.js#L13-L42](https://github.com/webpack/webpack/blob/2a0536cf510768111a3a6dceeb14cb79b9f59273/lib/ModuleNotFoundError.js#L13-L42)
    */
   fallbackNodePolyfills?: false
-  enableUndici?: boolean
   sri?: {
     algorithm?: SubresourceIntegrityAlgorithm
   }
@@ -273,6 +271,11 @@ export interface ExperimentalConfig {
    *
    */
   instrumentationHook?: boolean
+
+  /**
+   * Enable `react@experimental` channel for the `app` directory.
+   */
+  serverActions?: boolean
 }
 
 export type ExportPathMap = {
@@ -414,11 +417,11 @@ export interface NextConfig extends Record<string, any> {
   compress?: boolean
 
   /**
-   * The field should only be used when a Next.js project is not hosted on Vercel while using Vercel Analytics.
-   * Vercel provides zero-configuration analytics for Next.js projects hosted on Vercel.
+   * The field should only be used when a Next.js project is not hosted on Vercel while using Vercel Speed Insights.
+   * Vercel provides zero-configuration insights for Next.js projects hosted on Vercel.
    *
    * @default ''
-   * @see [Next.js Analytics](https://nextjs.org/analytics)
+   * @see [Next.js Speed Insights](https://nextjs.org/analytics)
    */
   analyticsId?: string
 
@@ -662,7 +665,6 @@ export const defaultConfig: NextConfig = {
     fetchCacheKeyPrefix: '',
     middlewarePrefetch: 'flexible',
     optimisticClientCache: true,
-    runtime: undefined,
     manualClientBasePath: false,
     legacyBrowsers: false,
     newNextLinkBehavior: true,
@@ -685,7 +687,7 @@ export const defaultConfig: NextConfig = {
     swcFileReading: true,
     craCompat: false,
     esmExternals: true,
-    appDir: false,
+    appDir: true,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
     incrementalCacheHandlerPath: undefined,
@@ -698,7 +700,6 @@ export const defaultConfig: NextConfig = {
     disablePostcssPresetEnv: undefined,
     amp: undefined,
     urlImports: undefined,
-    enableUndici: false,
     adjustFontFallbacks: false,
     adjustFontFallbacksWithSizeAdjust: false,
     turbo: undefined,

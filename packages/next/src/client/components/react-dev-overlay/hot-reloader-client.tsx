@@ -4,7 +4,6 @@ import React, {
   useEffect,
   useReducer,
   useMemo,
-  // @ts-expect-error TODO-APP: startTransition exists
   startTransition,
 } from 'react'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
@@ -470,9 +469,9 @@ export default function HotReload({
   useEffect(() => {
     const handler = (event: MessageEvent<PongEvent>) => {
       if (
-        event.data.indexOf('action') === -1 &&
+        !event.data.includes('action') &&
         // TODO-APP: clean this up for consistency
-        event.data.indexOf('pong') === -1
+        !event.data.includes('pong')
       ) {
         return
       }

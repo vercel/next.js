@@ -50,7 +50,7 @@ export class NextStartInstance extends NextInstance {
         ...this.env,
         NODE_ENV: '' as any,
         PORT: this.forcedPort || '0',
-        __NEXT_TEST_MODE: '1',
+        __NEXT_TEST_MODE: 'e2e',
       },
     }
     let buildArgs = ['yarn', 'next', 'build']

@@ -22,6 +22,7 @@ rustls-tls = ["next-dev/rustls-tls"]
 
 # Internal only. Enabled when building for the Next.js integration test suite.
 __internal_nextjs_integration_test = [
+  "next-core/__internal_nextjs_integration_test",
   "next-dev/__internal_nextjs_integration_test",
   "next-dev/serializable"
 ]
@@ -53,7 +54,7 @@ turbo-tasks = { workspace = true }
 once_cell = { workspace = true }
 serde = "1"
 serde_json = "1"
-tracing = { version = "0.1.37", features = ["release_max_level_info"] }
+tracing = { version = "0.1.37" }
 tracing-futures = "0.2.5"
 tracing-subscriber = "0.3.9"
 tracing-chrome = "0.5.0"

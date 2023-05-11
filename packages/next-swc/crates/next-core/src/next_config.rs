@@ -23,6 +23,7 @@ use turbo_binding::{
         ecmascript::{
             EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc,
         },
+        ecmascript_plugin::transform::emotion::EmotionTransformConfig,
         node::{
             evaluate::evaluate,
             execution_context::{ExecutionContext, ExecutionContextVc},
@@ -30,7 +31,7 @@ use turbo_binding::{
         },
         turbopack::{
             evaluate_context::node_evaluate_asset_context,
-            module_options::{EmotionTransformConfig, StyledComponentsTransformConfig},
+            module_options::StyledComponentsTransformConfig,
         },
     },
 };
@@ -41,7 +42,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::json::parse_json_with_source_context;
 
-use crate::embed_js::next_asset;
+use crate::{embed_js::next_asset, next_shared::transforms::ModularizeImportPackageConfig};
 
 #[turbo_tasks::value(serialization = "custom", eq = "manual")]
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -50,16 +51,19 @@ pub struct NextConfig {
     pub config_file: Option<String>,
     pub config_file_name: String,
 
-    pub env: IndexMap<String, String>,
+    pub env: IndexMap<String, JsonValue>,
     pub experimental: ExperimentalConfig,
     pub images: ImageConfig,
     pub page_extensions: Vec<String>,
     pub react_strict_mode: Option<bool>,
     pub rewrites: Rewrites,
     pub transpile_packages: Option<Vec<String>>,
+    pub modularize_imports: Option<IndexMap<String, ModularizeImportPackageConfig>>,
 
     // Partially supported
     pub compiler: Option<CompilerConfig>,
+
+    pub output: Option<OutputType>,
 
     // unsupported
     cross_origin: Option<String>,
@@ -83,7 +87,6 @@ pub struct NextConfig {
     i18n: Option<I18NConfig>,
     on_demand_entries: OnDemandEntriesConfig,
     optimize_fonts: bool,
-    output: Option<OutputType>,
     output_file_tracing: bool,
     powered_by_header: bool,
     production_browser_source_maps: bool,
@@ -163,8 +166,9 @@ struct I18NConfig {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "kebab-case")]
-enum OutputType {
+pub enum OutputType {
     Standalone,
+    Export,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -385,7 +389,6 @@ pub struct ExperimentalConfig {
     legacy_browsers: Option<bool>,
     manual_client_base_path: Option<bool>,
     middleware_prefetch: Option<MiddlewarePrefetchType>,
-    modularize_imports: Option<serde_json::Value>,
     new_next_link_behavior: Option<bool>,
     next_script_workers: Option<bool>,
     optimistic_client_cache: Option<bool>,
@@ -460,7 +463,7 @@ pub struct RelayConfig {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
-#[serde(untagged, rename_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
 pub enum RelayLanguage {
     TypeScript,
     Flow,
@@ -506,7 +509,27 @@ impl NextConfigVc {
 
     #[turbo_tasks::function]
     pub async fn env(self) -> Result<EnvMapVc> {
-        Ok(EnvMapVc::cell(self.await?.env.clone()))
+        // The value expected for env is Record<String, String>, but config itself
+        // allows arbitary object (https://github.com/vercel/next.js/blob/25ba8a74b7544dfb6b30d1b67c47b9cb5360cb4e/packages/next/src/server/config-schema.ts#L203)
+        // then stringifies it. We do the interop here as well.
+        let env = self
+            .await?
+            .env
+            .iter()
+            .map(|(k, v)| {
+                (
+                    k.clone(),
+                    if let JsonValue::String(s) = v {
+                        // A string value is kept, calling `to_string` would wrap in to quotes.
+                        s.clone()
+                    } else {
+                        v.to_string()
+                    },
+                )
+            })
+            .collect();
+
+        Ok(EnvMapVc::cell(env))
     }
 
     #[turbo_tasks::function]
