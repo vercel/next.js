@@ -42,7 +42,7 @@ use turbopack_core::{
 };
 
 #[global_allocator]
-static ALLOC: turbo_malloc::TurboMalloc = turbo_malloc::TurboMalloc;
+static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 
 #[template]
 #[rstest]

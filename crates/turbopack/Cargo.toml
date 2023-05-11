@@ -36,8 +36,6 @@ turbopack-json = { workspace = true }
 turbopack-mdx = { workspace = true }
 turbopack-node = { workspace = true }
 turbopack-static = { workspace = true }
-# turbo-tasks-rocksdb could be a dev dependencies, but optional dev dependencies are not allowed
-# turbo-tasks-rocksdb = { path = "../turbo-tasks-rocksdb", optional = true }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
@@ -46,7 +44,7 @@ futures = { workspace = true }
 rstest = { workspace = true }
 rstest_reuse = "0.5.0"
 tokio = { workspace = true }
-turbo-malloc = { workspace = true, default-features = false }
+turbo-tasks-malloc = { workspace = true, default-features = false }
 turbo-tasks-memory = { workspace = true }
 
 [build-dependencies]

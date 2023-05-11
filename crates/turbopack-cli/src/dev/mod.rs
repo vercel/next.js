@@ -12,12 +12,12 @@ use std::{
 use anyhow::{Context, Result};
 use dunce::canonicalize;
 use owo_colors::OwoColorize;
-use turbo_malloc::TurboMalloc;
 use turbo_tasks::{
     util::{FormatBytes, FormatDuration},
     StatsType, TransientInstance, TurboTasks, TurboTasksBackendApi, UpdateInfo, Value,
 };
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystem, FileSystemVc};
+use turbo_tasks_malloc::TurboMalloc;
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::evaluate_context::node_build_environment;
 use turbopack_cli_utils::issue::{ConsoleUiVc, LogOptions};

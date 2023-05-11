@@ -243,7 +243,7 @@ impl MemoryBackend {
 
             let mem_limit = self.memory_limit;
 
-            let usage = turbo_malloc::TurboMalloc::memory_usage();
+            let usage = turbo_tasks_malloc::TurboMalloc::memory_usage();
             let target = if idle {
                 mem_limit * 3 / 4
             } else {

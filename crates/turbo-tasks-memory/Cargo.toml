@@ -21,9 +21,9 @@ parking_lot = { workspace = true }
 priority-queue = "1.3.0"
 rustc-hash = { workspace = true }
 tokio = { workspace = true }
-turbo-malloc = { workspace = true, default-features = false }
 turbo-tasks = { workspace = true }
 turbo-tasks-hash = { workspace = true }
+turbo-tasks-malloc = { workspace = true, default-features = false }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
