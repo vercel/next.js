@@ -74,8 +74,6 @@ impl ModuleOptionsVc {
             ref enable_postcss_transform,
             ref enable_webpack_loaders,
             preset_env_versions,
-            ref custom_ecmascript_app_transforms,
-            ref custom_ecmascript_transforms,
             ref custom_ecma_transform_plugins,
             ref custom_rules,
             execution_context,
@@ -114,8 +112,6 @@ impl ModuleOptionsVc {
             };
 
         let mut transforms = before_transform_plugins;
-        transforms.extend(custom_ecmascript_app_transforms.iter().cloned());
-        transforms.extend(custom_ecmascript_transforms.iter().cloned());
 
         // Order of transforms is important. e.g. if the React transform occurs before
         // Styled JSX, there won't be JSX nodes for Styled JSX to transform.
@@ -183,15 +179,13 @@ impl ModuleOptionsVc {
             None
         };
 
-        let vendor_transforms =
-            EcmascriptInputTransformsVc::cell(custom_ecmascript_transforms.clone());
+        let vendor_transforms = EcmascriptInputTransformsVc::cell(vec![]);
         let ts_app_transforms = if let Some(transform) = &ts_transform {
-            let mut base_transforms = if let Some(decorators_transform) = &decorators_transform {
+            let base_transforms = if let Some(decorators_transform) = &decorators_transform {
                 vec![decorators_transform.clone(), transform.clone()]
             } else {
                 vec![transform.clone()]
             };
-            base_transforms.extend(custom_ecmascript_transforms.iter().cloned());
             EcmascriptInputTransformsVc::cell(
                 base_transforms
                     .iter()
