@@ -510,6 +510,7 @@ createNextDescribe(
           'route-handler/post/route.js',
           'route-handler/revalidate-360-isr/route.js',
           'route-handler/revalidate-360/route.js',
+          'route-handler/static-cookies/route.js',
           'ssg-draft-mode.html',
           'ssg-draft-mode.rsc',
           'ssg-draft-mode/[[...route]]/page.js',
@@ -751,6 +752,15 @@ createNextDescribe(
             },
             initialRevalidateSeconds: 10,
             srcRoute: '/route-handler/revalidate-360-isr',
+          },
+          '/route-handler/static-cookies': {
+            dataRoute: null,
+            initialHeaders: {
+              'set-cookie': 'theme=light; Path=/,my_company=ACME; Path=/',
+              'x-next-cache-tags': '/route-handler/static-cookies/route',
+            },
+            initialRevalidateSeconds: false,
+            srcRoute: '/route-handler/static-cookies',
           },
           '/variable-config-revalidate/revalidate-3': {
             dataRoute: '/variable-config-revalidate/revalidate-3.rsc',
