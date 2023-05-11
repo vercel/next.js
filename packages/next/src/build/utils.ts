@@ -1939,8 +1939,6 @@ if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
   process.on('SIGINT', () => process.exit(0))
 }
 
-let handler
-
 const currentPort = parseInt(process.env.PORT, 10) || 3000
 const hostname = process.env.HOSTNAME || 'localhost'
 const keepAliveTimeout = parseInt(process.env.KEEP_ALIVE_TIMEOUT, 10);
@@ -1951,42 +1949,46 @@ const nextConfig = ${JSON.stringify({
 
 process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(nextConfig)
 
-const server = http.createServer(async (req, res) => {
-  try {
-    await handler(req, res)
-  } catch (err) {
-    console.error(err);
-    res.statusCode = 500
-    res.end('Internal Server Error')
-  }
-})
-
-if (
-  !Number.isNaN(keepAliveTimeout) &&
-    Number.isFinite(keepAliveTimeout) &&
-    keepAliveTimeout >= 0
-) {
-  server.keepAliveTimeout = keepAliveTimeout
-}
-server.listen(currentPort, async (err) => {
-  if (err) {
-    console.error("Failed to start server", err)
-    process.exit(1)
-  }
-
-  handler = await createServerHandler({
-    port: currentPort,
-    hostname,
-    dir,
-    conf: nextConfig,
+createServerHandler({
+  port: currentPort,
+  hostname,
+  dir,
+  conf: nextConfig,
+}).then((nextHandler) => {
+  const server = http.createServer(async (req, res) => {
+    try {
+      await nextHandler(req, res)
+    } catch (err) {
+      console.error(err);
+      res.statusCode = 500
+      res.end('Internal Server Error')
+    }
   })
+  
+  if (
+    !Number.isNaN(keepAliveTimeout) &&
+      Number.isFinite(keepAliveTimeout) &&
+      keepAliveTimeout >= 0
+  ) {
+    server.keepAliveTimeout = keepAliveTimeout
+  }
+  server.listen(currentPort, async (err) => {
+    if (err) {
+      console.error("Failed to start server", err)
+      process.exit(1)
+    }
+  
+    console.log(
+      'Listening on port',
+      currentPort,
+      'url: http://' + hostname + ':' + currentPort
+    )
+  });
 
-  console.log(
-    'Listening on port',
-    currentPort,
-    'url: http://' + hostname + ':' + currentPort
-  )
-})`
+}).catch(err => {
+  console.error(err);
+  process.exit(1);
+});`
   )
 }
 
