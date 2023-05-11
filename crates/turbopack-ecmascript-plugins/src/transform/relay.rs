@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
 use swc_core::{
     common::{util::take::Take, FileName},
     ecma::{
@@ -9,7 +10,25 @@ use swc_core::{
         visit::FoldWith,
     },
 };
+use swc_relay::RelayLanguageConfig;
+use turbo_tasks::trace::TraceRawVcs;
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(rename_all = "camelCase")]
+pub struct RelayConfig {
+    pub src: String,
+    pub artifact_directory: Option<String>,
+    pub language: Option<RelayLanguage>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(rename_all = "lowercase")]
+pub enum RelayLanguage {
+    TypeScript,
+    Flow,
+    JavaScript,
+}
 
 #[derive(Debug)]
 pub struct RelayTransformer {
@@ -17,8 +36,20 @@ pub struct RelayTransformer {
 }
 
 impl RelayTransformer {
-    pub fn new(config: swc_relay::Config) -> Self {
-        Self { config }
+    pub fn new(config: &RelayConfig) -> Self {
+        let options = swc_relay::Config {
+            artifact_directory: config.artifact_directory.as_ref().map(PathBuf::from),
+            language: config.language.as_ref().map_or(
+                RelayLanguageConfig::TypeScript,
+                |v| match v {
+                    RelayLanguage::JavaScript => RelayLanguageConfig::JavaScript,
+                    RelayLanguage::TypeScript => RelayLanguageConfig::TypeScript,
+                    RelayLanguage::Flow => RelayLanguageConfig::Flow,
+                },
+            ),
+            ..Default::default()
+        };
+        Self { config: options }
     }
 }
 
