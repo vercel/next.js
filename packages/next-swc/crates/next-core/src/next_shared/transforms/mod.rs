@@ -1,3 +1,4 @@
+pub(crate) mod emotion;
 pub(crate) mod modularize_imports;
 pub(crate) mod next_dynamic;
 pub(crate) mod next_font;

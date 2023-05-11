@@ -53,10 +53,11 @@ use crate::{
         get_next_client_resolved_map,
     },
     next_shared::{
-        resolve::UnsupportedModulesResolvePluginVc, transforms::get_relay_transform_plugin,
+        resolve::UnsupportedModulesResolvePluginVc,
+        transforms::{emotion::get_emotion_transform_plugin, get_relay_transform_plugin},
     },
     transform_options::{
-        get_decorators_transform_options, get_emotion_compiler_config, get_jsx_transform_options,
+        get_decorators_transform_options, get_jsx_transform_options,
         get_styled_components_compiler_config, get_typescript_transform_options,
     },
     util::foreign_code_context_condition,
@@ -192,10 +193,9 @@ pub async fn get_client_module_options_context(
             .clone_if()
     };
 
-    let enable_emotion = *get_emotion_compiler_config(next_config).await?;
-
     let source_transforms = vec![
         *get_relay_transform_plugin(next_config).await?,
+	        *get_emotion_transform_plugin(next_config).await?,
         Some(TransformPluginVc::cell(Box::new(
             ServerDirectiveTransformer::new(
                 // ServerDirective is not implemented yet and always reports an issue.
@@ -236,7 +236,6 @@ pub async fn get_client_module_options_context(
         // we try resolve it once at the root and pass down a context to all
         // the modules.
         enable_jsx: Some(jsx_runtime_options),
-        enable_emotion,
         enable_styled_components,
         enable_styled_jsx: true,
         enable_postcss_transform: postcss_transform_options,

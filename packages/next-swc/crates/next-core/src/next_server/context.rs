@@ -44,10 +44,11 @@ use crate::{
     next_import_map::get_next_server_import_map,
     next_server::resolve::ExternalPredicate,
     next_shared::{
-        resolve::UnsupportedModulesResolvePluginVc, transforms::get_relay_transform_plugin,
+        resolve::UnsupportedModulesResolvePluginVc,
+        transforms::{emotion::get_emotion_transform_plugin, get_relay_transform_plugin},
     },
     transform_options::{
-        get_decorators_transform_options, get_emotion_compiler_config, get_jsx_transform_options,
+        get_decorators_transform_options, get_jsx_transform_options,
         get_styled_components_compiler_config, get_typescript_transform_options,
     },
     util::foreign_code_context_condition,
@@ -295,13 +296,16 @@ pub async fn get_server_module_options_context(
     let decorators_options = get_decorators_transform_options(project_path);
     let mdx_rs_options = *next_config.mdx_rs().await?;
     let jsx_runtime_options = get_jsx_transform_options(project_path, None);
-    let enable_emotion = *get_emotion_compiler_config(next_config).await?;
     let enable_styled_components = *get_styled_components_compiler_config(next_config).await?;
 
-    let mut source_transforms = vec![];
-    if let Some(relay_transform_plugin) = *get_relay_transform_plugin(next_config).await? {
-        source_transforms.push(relay_transform_plugin);
-    }
+    let source_transforms: Vec<TransformPluginVc> = vec![
+        *get_relay_transform_plugin(next_config).await?,
+        *get_emotion_transform_plugin(next_config).await?,
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
+
     let output_transforms = vec![];
 
     let custom_ecma_transform_plugins = Some(CustomEcmascriptTransformPluginsVc::cell(
@@ -327,7 +331,6 @@ pub async fn get_server_module_options_context(
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
                 enable_styled_jsx: true,
-                enable_emotion,
                 enable_styled_components,
                 enable_postcss_transform,
                 enable_webpack_loaders,
@@ -385,7 +388,6 @@ pub async fn get_server_module_options_context(
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
                 enable_styled_jsx: true,
-                enable_emotion,
                 enable_styled_components,
                 enable_postcss_transform,
                 enable_webpack_loaders,
@@ -443,7 +445,6 @@ pub async fn get_server_module_options_context(
             };
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
-                enable_emotion,
                 enable_styled_components,
                 enable_postcss_transform,
                 enable_webpack_loaders,
@@ -506,7 +507,6 @@ pub async fn get_server_module_options_context(
             };
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
-                enable_emotion,
                 enable_styled_jsx: true,
                 enable_styled_components,
                 enable_postcss_transform,

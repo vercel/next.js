@@ -9,13 +9,8 @@ use turbopack_binding::{
         },
         dev::react_refresh::assert_can_resolve_react_refresh,
         ecmascript::typescript::resolve::{read_from_tsconfigs, read_tsconfigs, tsconfig},
-        ecmascript_plugin::transform::{
-            emotion::{
-                EmotionTransformConfig, EmotionTransformConfigVc, OptionEmotionTransformConfigVc,
-            },
-            styled_components::{
-                OptionStyledComponentsTransformConfigVc, StyledComponentsTransformConfig,
-            },
+        ecmascript_plugin::transform::styled_components::{
+            OptionStyledComponentsTransformConfigVc, StyledComponentsTransformConfig,
         },
         turbopack::{
             module_options::{
@@ -27,9 +22,7 @@ use turbopack_binding::{
     },
 };
 
-use crate::next_config::{
-    EmotionTransformOptionsOrBoolean, NextConfigVc, StyledComponentsTransformOptionsOrBoolean,
-};
+use crate::next_config::{NextConfigVc, StyledComponentsTransformOptionsOrBoolean};
 
 async fn get_typescript_options(
     project_path: FileSystemPathVc,
@@ -175,40 +168,6 @@ pub async fn get_jsx_transform_options(
     };
 
     Ok(react_transform_options.cell())
-}
-
-#[turbo_tasks::function]
-pub async fn get_emotion_compiler_config(
-    next_config: NextConfigVc,
-) -> Result<OptionEmotionTransformConfigVc> {
-    let emotion_compiler_config = next_config
-        .await?
-        .compiler
-        .as_ref()
-        .map(|value| {
-            value
-                .emotion
-                .as_ref()
-                .map(|value| {
-                    let options = match value {
-                        EmotionTransformOptionsOrBoolean::Boolean(true) => {
-                            Some(EmotionTransformConfigVc::cell(EmotionTransformConfig {
-                                ..Default::default()
-                            }))
-                        }
-                        EmotionTransformOptionsOrBoolean::Boolean(false) => None,
-                        EmotionTransformOptionsOrBoolean::Options(value) => {
-                            Some(EmotionTransformConfigVc::cell(value.clone()))
-                        }
-                    };
-
-                    OptionEmotionTransformConfigVc::cell(options)
-                })
-                .unwrap_or_else(|| OptionEmotionTransformConfigVc::cell(None))
-        })
-        .unwrap_or_else(|| OptionEmotionTransformConfigVc::cell(None));
-
-    Ok(emotion_compiler_config)
 }
 
 #[turbo_tasks::function]
