@@ -1,6 +1,7 @@
 import type { RequestCookies } from '../cookies'
 import type { BaseNextResponse } from '../../../base-http'
 import type { ServerResponse } from 'http'
+import { StaticGenerationStore } from '../../../../client/components/static-generation-async-storage'
 
 import { ResponseCookies } from '../cookies'
 import { ReflectAdapter } from './reflect'
@@ -61,6 +62,14 @@ export class MutableRequestCookiesAdapter {
     let modifiedValues: ResponseCookie[] = []
     const modifiedCookies = new Set<string>()
     const updateResponseCookies = () => {
+      // TODO-APP: change method of getting staticGenerationAsyncStore
+      const staticGenerationAsyncStore = (fetch as any)
+        .__nextGetStaticStore?.()
+        ?.getStore() as undefined | StaticGenerationStore
+      if (staticGenerationAsyncStore) {
+        staticGenerationAsyncStore.pathWasRevalidated = true
+      }
+
       const allCookies = responseCookes.getAll()
       modifiedValues = allCookies.filter((c) => modifiedCookies.has(c.name))
       if (res) {
