@@ -91,7 +91,7 @@ export { e${cnt++} as ${ref} };`
   if (buildInfo.rsc?.type !== RSC_MODULE_TYPES.client) {
     if (noopHeadPath === this.resourcePath) {
       warnOnce(
-        `Warning: You're using \`next/head\` inside the \`app\` directory, please migrate to the Metadata API. See https://beta.nextjs.org/docs/api-reference/metadata for more details.`
+        `Warning: You're using \`next/head\` inside the \`app\` directory, please migrate to the Metadata API. See https://nextjs.org/docs/app/api-reference/file-conventions/metadata for more details.`
       )
     }
   }

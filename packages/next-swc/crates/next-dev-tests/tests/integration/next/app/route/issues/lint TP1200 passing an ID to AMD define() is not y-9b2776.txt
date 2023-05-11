@@ -1,0 +1,35 @@
+PlainIssue {
+    severity: Warning,
+    context: "[project]/packages/next/dist/compiled/@edge-runtime/primitives/crypto.js",
+    category: "parse",
+    title: "lint TP1200 passing an ID to AMD define() is not yet fully supported",
+    description: "",
+    detail: "",
+    documentation_link: "",
+    source: Some(
+        PlainIssueSource {
+            asset: PlainAsset {
+                ident: "[project]/packages/next/dist/compiled/@edge-runtime/primitives/crypto.js",
+            },
+            start: SourcePos {
+                line: 70,
+                column: 8,
+            },
+            end: SourcePos {
+                line: 70,
+                column: 8,
+            },
+        },
+    ),
+    sub_issues: [],
+    processing_path: Some(
+        [
+            PlainIssueProcessingPathItem {
+                context: Some(
+                    "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/app/route/input/app",
+                ),
+                description: "Next.js App Route /[slug]",
+            },
+        ],
+    ),
+}

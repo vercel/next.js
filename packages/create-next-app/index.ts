@@ -102,6 +102,13 @@ const program = new Commander.Command(packageJson.name)
 `
   )
   .option(
+    '--use-yarn',
+    `
+
+  Explicitly tell the CLI to bootstrap the application using Yarn
+`
+  )
+  .option(
     '-e, --example [name]|[github-url]',
     `
 
@@ -134,6 +141,8 @@ const packageManager = !!program.useNpm
   ? 'npm'
   : !!program.usePnpm
   ? 'pnpm'
+  : !!program.useYarn
+  ? 'yarn'
   : getPkgManager()
 
 async function run(): Promise<void> {
