@@ -430,6 +430,47 @@ createNextDescribe(
             : 'failure'
         }, 'success')
       })
+
+      it('should store revalidation data in the prefetch cache', async () => {
+        const browser = await next.browser('/client')
+        await browser.elementByCss('#navigate-revalidate').click()
+        const justPutIt = await browser.elementByCss('#justputit').text()
+        await browser.elementByCss('#revalidate-justputit').click()
+        await check(async () => {
+          const newJustPutIt = await browser.elementByCss('#justputit').text()
+          return newJustPutIt !== justPutIt ? 'success' : 'failure'
+        }, 'success')
+
+        const newJustPutIt = await browser.elementByCss('#justputit').text()
+
+        await browser
+          .elementByCss('#navigate-client')
+          .click()
+          .waitForElementByCss('#inc')
+        await browser
+          .elementByCss('#navigate-revalidate')
+          .click()
+          .waitForElementByCss('#revalidate-justputit')
+
+        const newJustPutIt2 = await browser.elementByCss('#justputit').text()
+
+        expect(newJustPutIt).toEqual(newJustPutIt2)
+      })
+
+      it('should revalidate when cookies.set is called', async () => {
+        const browser = await next.browser('/revalidate')
+        const randomNumber = await browser.elementByCss('#random-cookie').text()
+
+        await browser.elementByCss('#set-cookie').click()
+
+        await check(async () => {
+          const newRandomNumber = await browser
+            .elementByCss('#random-cookie')
+            .text()
+
+          return newRandomNumber !== randomNumber ? 'success' : 'failure'
+        }, 'success')
+      })
     })
   }
 )

@@ -5,12 +5,20 @@
       "dependsOn": ["^build-native"],
       "outputs": ["native/*.node"]
     },
+    "build-native-release": {
+      "dependsOn": ["^build-native-release"],
+      "outputs": ["native/*.node"]
+    },
     "build-native-no-plugin": {
       "dependsOn": ["^build-native-no-plugin"],
       "outputs": ["native/*.node"]
     },
     "build-native-no-plugin-woa": {
       "dependsOn": ["^build-native-no-plugin-woa"],
+      "outputs": ["native/*.node"]
+    },
+    "build-native-no-plugin-woa-release": {
+      "dependsOn": ["^build-native-no-plugin-woa-release"],
       "outputs": ["native/*.node"]
     },
     "build-wasm": {
