@@ -1,33 +1,25 @@
-/* eslint-env jest */
-
 import { join } from 'path'
 import cheerio from 'cheerio'
 import {
-  stopApp,
-  startApp,
   nextBuild,
-  nextServer,
   renderViaHTTP,
+  findPort,
+  nextStart,
+  killApp,
 } from 'next-test-utils'
 
-const appDir = join(__dirname, '../')
-let appPort
-let server
-let app
-
 describe('Custom Document Fragment Styles', () => {
+  const appDir = join(__dirname, '../')
+  let appPort
+  let app
   beforeAll(async () => {
     await nextBuild(appDir)
-    app = nextServer({
-      dir: join(__dirname, '../'),
-      dev: false,
-      quiet: true,
-    })
-
-    server = await startApp(app)
-    appPort = server.address().port
+    appPort = await findPort()
+    app = await nextStart(appDir, appPort)
   })
-  afterAll(() => stopApp(server))
+  afterAll(async () => {
+    await killApp(app)
+  })
 
   it('correctly adds styles from fragment styles key', async () => {
     const html = await renderViaHTTP(appPort, '/')
