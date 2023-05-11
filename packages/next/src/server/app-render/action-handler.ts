@@ -21,6 +21,7 @@ import { StaticGenerationStore } from '../../client/components/static-generation
 import { FlightRenderResult } from './flight-render-result'
 import { ActionResult } from './types'
 import { ActionAsyncStorage } from '../../client/components/action-async-storage'
+import { filterReqHeaders, forbiddenHeaders } from '../lib/server-ipc/utils'
 
 function nodeToWebReadableStream(nodeReadable: import('stream').Readable) {
   if (process.env.NEXT_RUNTIME !== 'edge') {
@@ -90,10 +91,10 @@ function getForwardedHeaders(
   })
 
   // Merge request and response headers
-  const mergedHeaders = {
+  const mergedHeaders = filterReqHeaders({
     ...nodeHeadersToRecord(requestHeaders),
     ...nodeHeadersToRecord(responseHeaders),
-  }
+  }) as Record<string, string>
 
   // Merge cookies
   const mergedCookies = requestCookies.split('; ').concat(setCookies).join('; ')
@@ -177,13 +178,16 @@ async function createRedirectRenderResult(
         })
         // copy the headers from the redirect response to the response we're sending
         for (const [key, value] of response.headers) {
-          res.setHeader(key, value)
+          if (!forbiddenHeaders.includes(key)) {
+            res.setHeader(key, value)
+          }
         }
 
         return new FlightRenderResult(response.body!)
       }
     } catch (err) {
       // we couldn't stream the redirect response, so we'll just do a normal redirect
+      console.error(`failed to get redirect response`, err)
     }
   }
   return new RenderResult(JSON.stringify({}))

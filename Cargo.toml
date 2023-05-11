@@ -38,15 +38,14 @@ next-transform-strip-page-exports = { path = "packages/next-swc/crates/next-tran
 # SWC crates
 # Keep consistent with preset_env_base through swc_core
 swc_core = { version = "0.75.41" }
-swc_relay = { version = "0.2.7" }
-testing = { version = "0.33.6" }
+testing = { version = "0.33.4" }
 
 # Turbo crates
-turbo-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230504.3" }
+turbo-binding = { package = "turbopack-binding", git = "https://github.com/vercel/turbo.git", tag = "turbopack-230511.2" }
 # [TODO]: need to refactor embed_directory! macro usages, as well as resolving turbo_tasks::function, macros..
-turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230504.3" }
+turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230511.2" }
 # [TODO]: need to refactor embed_directory! macro usage in next-core
-turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230504.3" }
+turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230511.2" }
 
 # General Deps
 

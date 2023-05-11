@@ -1,4 +1,5 @@
 import type webpack from 'webpack'
+import fs from 'fs'
 import path from 'path'
 import { METADATA_RESOURCE_QUERY } from './metadata/discover'
 import { imageExtMimeTypeMap } from '../../../lib/mime-type'
@@ -36,27 +37,27 @@ function getContentType(resourcePath: string) {
 }
 
 // Strip metadata resource query string from `import.meta.url` to make sure the fs.readFileSync get the right path.
-function getStaticRouteCode(resourcePath: string, fileBaseName: string) {
+async function getStaticRouteCode(resourcePath: string, fileBaseName: string) {
   const cache =
     fileBaseName === 'favicon'
       ? 'public, max-age=0, must-revalidate'
       : process.env.NODE_ENV !== 'production'
       ? cacheHeader.none
       : cacheHeader.longCache
-  return `\
-import fs from 'fs'
-import { fileURLToPath } from 'url'
+  const code = `\
 import { NextResponse } from 'next/server'
 
 const contentType = ${JSON.stringify(getContentType(resourcePath))}
-const resourceUrl = new URL(import.meta.url)
-const filePath = fileURLToPath(resourceUrl).replace(${JSON.stringify(
-    METADATA_RESOURCE_QUERY
-  )}, '')
+const buffer = Buffer.from(${JSON.stringify(
+    (
+      await fs.promises.readFile(
+        resourcePath.replace(METADATA_RESOURCE_QUERY, '')
+      )
+    ).toString('base64')
+  )}, 'base64'
+  )
 
-let buffer
 export function GET() {
-  if (!buffer) { buffer = fs.readFileSync(filePath) }
   return new NextResponse(buffer, {
     headers: {
       'Content-Type': contentType,
@@ -67,6 +68,7 @@ export function GET() {
 
 export const dynamic = 'force-static'
 `
+  return code
 }
 
 function getDynamicTextRouteCode(resourcePath: string) {
@@ -201,7 +203,7 @@ ${staticGenerationCode}
 // When it's static route, it could be favicon.ico, sitemap.xml, robots.txt etc.
 // TODO-METADATA: improve the cache control strategy
 const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLoaderOptions> =
-  function () {
+  async function () {
     const { resourcePath } = this
     const { pageExtensions, page } = this.getOptions()
 
@@ -218,7 +220,7 @@ const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLo
         code = getDynamicImageRouteCode(resourcePath)
       }
     } else {
-      code = getStaticRouteCode(resourcePath, fileBaseName)
+      code = await getStaticRouteCode(resourcePath, fileBaseName)
     }
 
     return code

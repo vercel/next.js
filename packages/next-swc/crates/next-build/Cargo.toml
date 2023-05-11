@@ -9,7 +9,7 @@ autobenches = false
 [features]
 native-tls = ["next-core/native-tls"]
 rustls-tls = ["next-core/rustls-tls"]
-custom_allocator = ["turbo-binding/__turbo_malloc", "turbo-binding/__turbo_malloc_custom_allocator"]
+custom_allocator = ["turbo-binding/__turbo_tasks_malloc", "turbo-binding/__turbo_tasks_malloc_custom_allocator"]
 
 [dependencies]
 anyhow = "1.0.47"

@@ -672,7 +672,6 @@ jobs:
     name: Test Codemods
     runs-on: ubuntu-latest
     needs: [build]
-    if: ${{ needs.build.outputs.codemodChange == 'yup' }}
     timeout-minutes: 5
     env:
       NEXT_TELEMETRY_DISABLED: 1
@@ -683,9 +682,11 @@ jobs:
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
+        if: ${{ needs.build.outputs.codemodChange == 'yup' }}
         run: sudo ethtool -K eth0 tx off rx off
 
       - uses: actions/cache@v3
+        if: ${{ needs.build.outputs.codemodChange == 'yup' }}
         timeout-minutes: 5
         id: restore-build
         with:
@@ -693,6 +694,7 @@ jobs:
           key: ${{ github.sha }}-${{ github.run_number }}
 
       - name: Run tests
+        if: ${{ needs.build.outputs.codemodChange == 'yup' }}
         run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-jammy /bin/bash -c "cd /work && NODE_VERSION=${{ env.NODE_LTS_VERSION }} ./scripts/setup-node.sh && npm i -g pnpm@${PNPM_VERSION} > /dev/null && cd ./packages/next-codemod && pnpm build && pnpm test >> /proc/1/fd/1"
 
   testIntegration:
@@ -822,16 +824,12 @@ jobs:
       TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
       # Enabling backtrace will makes snapshot tests fail
       RUST_BACKTRACE: 0
-      # Path to the custom next-swc bindings located in **docker container** image.
+      # Path to the custom next-swc bindings.
       NEXT_BINDINGS_BIN: /work/packages/next-swc/native/next-swc.linux-x64-gnu.node
       # Glob pattern to run specific tests with --turbo.
       NEXT_DEV_TEST_GLOB: '*'
-      # List of test files to run with turbopack as blocking CI check.
-      # [TODO]: as list grows we should consider different way to manage this.
-      TEST_FILES_LIST: |
-        test/development/acceptance-app/dynamic-error.test.ts \
-        test/development/acceptance-app/unsupported-app-features.test.ts \
-        test/development/acceptance-app/ReactRefresh.test.ts
+      NEXT_EXTERNAL_TESTS_FILTERS: /work/packages/next-swc/crates/next-dev-tests/tests-manifest.json
+
     strategy:
       fail-fast: false
     steps:
@@ -855,7 +853,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-jammy /bin/bash -c "cd /work && NODE_VERSION=${{ env.NODE_LTS_VERSION }} ./scripts/setup-node.sh && node -v && npm i -g pnpm@${PNPM_VERSION} > /dev/null && __INTERNAL_NEXT_DEV_TEST_TURBO_DEV=TRUE __INTERNAL_CUSTOM_TURBOPACK_BINDINGS=${NEXT_BINDINGS_BIN} __INTERNAL_NEXT_DEV_TEST_TURBO_GLOB_MATCH=${NEXT_DEV_TEST_GLOB} NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_JOB=1 NEXT_TEST_MODE=dev TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} xvfb-run node run-tests.js --type development --timings -c 1 $TEST_FILES_LIST >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-jammy /bin/bash -c "cd /work && NODE_VERSION=${{ env.NODE_LTS_VERSION }} ./scripts/setup-node.sh && node -v && npm i -g pnpm@${PNPM_VERSION} > /dev/null && NEXT_EXTERNAL_TESTS_FILTERS=${NEXT_EXTERNAL_TESTS_FILTERS} __INTERNAL_NEXT_DEV_TEST_TURBO_DEV=TRUE __INTERNAL_CUSTOM_TURBOPACK_BINDINGS=${NEXT_BINDINGS_BIN} __INTERNAL_NEXT_DEV_TEST_TURBO_GLOB_MATCH=${NEXT_DEV_TEST_GLOB} NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_JOB=1 NEXT_TEST_MODE=dev TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} xvfb-run node run-tests.js --type development --timings -c 1 >> /proc/1/fd/1"
         name: Run test/development
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
@@ -1340,12 +1338,12 @@ jobs:
             target: 'x86_64-apple-darwin'
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
-              turbo run build-native -- --release --target x86_64-apple-darwin
+              turbo run build-native-release -- --target x86_64-apple-darwin --release
               strip -x packages/next-swc/native/next-swc.*.node
           - host: windows-latest
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
-              turbo run build-native -- --release --target x86_64-pc-windows-msvc
+              turbo run build-native-release -- --target x86_64-pc-windows-msvc
             target: 'x86_64-pc-windows-msvc'
           - host: windows-latest
             build: |
@@ -1362,7 +1360,7 @@ jobs:
               rustup target add x86_64-unknown-linux-gnu &&
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
               unset CC_x86_64_unknown_linux_gnu && unset CC &&
-              turbo run build-native -- --release --target x86_64-unknown-linux-gnu &&
+              turbo run build-native-release -- --target x86_64-unknown-linux-gnu &&
               strip packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
             target: 'x86_64-unknown-linux-musl'
@@ -1374,7 +1372,7 @@ jobs:
               rustup default "${RUST_TOOLCHAIN}" &&
               rustup target add x86_64-unknown-linux-musl &&
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
-              turbo run build-native -- --release --target x86_64-unknown-linux-musl &&
+              turbo run build-native-release -- --target x86_64-unknown-linux-musl &&
               strip packages/next-swc/native/next-swc.*.node
           - host: macos-latest
             target: 'aarch64-apple-darwin'
@@ -1385,7 +1383,7 @@ jobs:
               SYSROOT=$(xcrun --sdk macosx --show-sdk-path);
               export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
-              turbo run build-native -- --release --target aarch64-apple-darwin
+              turbo run build-native-release -- --target aarch64-apple-darwin
               strip -x packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
             target: 'aarch64-unknown-linux-gnu'
@@ -1398,7 +1396,7 @@ jobs:
               rustup target add aarch64-unknown-linux-gnu &&
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
               export CC_aarch64_unknown_linux_gnu=/usr/aarch64-unknown-linux-gnu/bin/aarch64-unknown-linux-gnu-gcc &&
-              turbo run build-native -- --release --target aarch64-unknown-linux-gnu &&
+              turbo run build-native-release -- --target aarch64-unknown-linux-gnu &&
               llvm-strip -x packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
             target: 'aarch64-unknown-linux-musl'
@@ -1411,13 +1409,13 @@ jobs:
               rustup toolchain install "${RUST_TOOLCHAIN}" &&
               rustup default "${RUST_TOOLCHAIN}" &&
               rustup target add aarch64-unknown-linux-musl &&
-              turbo run build-native -- --release --target aarch64-unknown-linux-musl &&
+              turbo run build-native-release -- --target aarch64-unknown-linux-musl &&
               llvm-strip -x packages/next-swc/native/next-swc.*.node
           - host: windows-latest
             target: 'aarch64-pc-windows-msvc'
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
-              turbo run build-native-no-plugin-woa -- --release --target aarch64-pc-windows-msvc --cargo-flags=--no-default-features
+              turbo run build-native-no-plugin-woa-release -- --target aarch64-pc-windows-msvc
     if: ${{ needs.build.outputs.isRelease == 'true' || (needs.build.outputs.turboToken != 'empty') }}
     needs: build
     name: stable - ${{ matrix.settings.target }} - node@16
