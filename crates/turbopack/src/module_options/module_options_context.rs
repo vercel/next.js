@@ -157,12 +157,6 @@ pub struct ModuleOptionsContext {
     pub enable_mdx_rs: bool,
     #[serde(default)]
     pub preset_env_versions: Option<EnvironmentVc>,
-    #[deprecated(note = "use custom_ecma_transform_plugins instead")]
-    #[serde(default)]
-    pub custom_ecmascript_app_transforms: Vec<EcmascriptInputTransform>,
-    #[deprecated(note = "use custom_ecma_transform_plugins instead")]
-    #[serde(default)]
-    pub custom_ecmascript_transforms: Vec<EcmascriptInputTransform>,
     #[serde(default)]
     pub custom_ecma_transform_plugins: Option<CustomEcmascriptTransformPluginsVc>,
     #[serde(default)]
