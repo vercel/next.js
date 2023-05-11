@@ -305,6 +305,20 @@ createNextDescribe(
           'parallel for foo'
         )
       })
+
+      it('should display all parallel route params with useParams', async () => {
+        const browser = await next.browser('/parallel-dynamic/foo/bar')
+
+        await check(
+          () => browser.waitForElementByCss('#foo').text(),
+          `{"slug":"foo","id":"bar"}`
+        )
+
+        await check(
+          () => browser.waitForElementByCss('#bar').text(),
+          `{"slug":"foo","id":"bar"}`
+        )
+      })
     })
 
     describe('route intercepting', () => {
