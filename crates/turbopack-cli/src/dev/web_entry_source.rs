@@ -7,17 +7,14 @@ use turbo_tasks_fs::{FileSystem, FileSystemPathVc};
 use turbopack::{
     condition::ContextCondition,
     ecmascript::EcmascriptModuleAssetVc,
-    module_options::{
-        JsxTransformOptions, ModuleOptionsContext, ModuleOptionsContextVc,
-        StyledComponentsTransformConfigVc,
-    },
+    module_options::{JsxTransformOptions, ModuleOptionsContext, ModuleOptionsContextVc},
     resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
     transition::TransitionsByNameVc,
     ModuleAssetContextVc,
 };
 use turbopack_cli_utils::runtime_entry::{RuntimeEntriesVc, RuntimeEntry};
 use turbopack_core::{
-    chunk::{ChunkableAsset, ChunkableAssetVc, ChunkingContext, ChunkingContextVc},
+    chunk::{ChunkableAssetVc, ChunkingContextVc},
     compile_time_defines,
     compile_time_info::{CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc},
     context::AssetContextVc,
@@ -35,7 +32,9 @@ use turbopack_dev_server::{
     html::DevHtmlAssetVc,
     source::{asset_graph::AssetGraphContentSourceVc, ContentSourceVc},
 };
-use turbopack_ecmascript_plugins::transform::emotion::EmotionTransformConfigVc;
+use turbopack_ecmascript_plugins::transform::{
+    emotion::EmotionTransformConfigVc, styled_components::StyledComponentsTransformConfigVc,
+};
 use turbopack_node::execution_context::ExecutionContextVc;
 
 use crate::embed_js::embed_file_path;

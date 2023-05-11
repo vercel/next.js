@@ -116,13 +116,3 @@ impl CustomTransformer for EmotionTransformer {
         Ok(())
     }
 }
-
-pub async fn build_emotion_transformer(
-    config: &Option<EmotionTransformConfigVc>,
-) -> Result<Option<Box<EmotionTransformer>>> {
-    Ok(if let Some(config) = config {
-        EmotionTransformer::new(&*config.await?).map(Box::new)
-    } else {
-        None
-    })
-}

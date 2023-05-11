@@ -4,9 +4,53 @@ use anyhow::Result;
 use async_trait::async_trait;
 use swc_core::{
     common::FileName,
-    ecma::{ast::Program, visit::VisitMutWith},
+    ecma::{ast::Program, atoms::JsWord, visit::VisitMutWith},
 };
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionStyledComponentsTransformConfig(Option<StyledComponentsTransformConfigVc>);
+
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct StyledComponentsTransformConfig {
+    pub display_name: bool,
+    pub ssr: bool,
+    pub file_name: bool,
+    pub top_level_import_paths: Vec<String>,
+    pub meaningless_file_names: Vec<String>,
+    pub css_prop: bool,
+    pub namespace: Option<String>,
+}
+
+impl Default for StyledComponentsTransformConfig {
+    fn default() -> Self {
+        StyledComponentsTransformConfig {
+            display_name: true,
+            ssr: true,
+            file_name: true,
+            top_level_import_paths: vec![],
+            meaningless_file_names: vec!["index".to_string()],
+            css_prop: true,
+            namespace: None,
+        }
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl StyledComponentsTransformConfigVc {
+    #[turbo_tasks::function]
+    pub fn default() -> Self {
+        Self::cell(Default::default())
+    }
+}
+
+impl Default for StyledComponentsTransformConfigVc {
+    fn default() -> Self {
+        Self::default()
+    }
+}
 
 #[derive(Debug)]
 pub struct StyledComponentsTransformer {
@@ -14,8 +58,32 @@ pub struct StyledComponentsTransformer {
 }
 
 impl StyledComponentsTransformer {
-    pub fn new(config: styled_components::Config) -> Self {
-        Self { config }
+    pub fn new(config: &StyledComponentsTransformConfig) -> Self {
+        let mut options = styled_components::Config {
+            display_name: config.display_name,
+            ssr: config.ssr,
+            file_name: config.file_name,
+            css_prop: config.css_prop,
+            ..Default::default()
+        };
+
+        if let Some(namespace) = &config.namespace {
+            options.namespace = namespace.clone();
+        }
+
+        let top_level_import_paths = &config.top_level_import_paths;
+        if !top_level_import_paths.is_empty() {
+            options.top_level_import_paths = top_level_import_paths
+                .iter()
+                .map(|s| JsWord::from(s.clone()))
+                .collect();
+        }
+        let meaningless_file_names = &config.meaningless_file_names;
+        if !meaningless_file_names.is_empty() {
+            options.meaningless_file_names = meaningless_file_names.clone();
+        }
+
+        Self { config: options }
     }
 }
 

@@ -19,10 +19,10 @@ use turbo_tasks_fs::{
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
     condition::ContextCondition,
-    ecmascript::EcmascriptModuleAssetVc,
+    ecmascript::{EcmascriptModuleAssetVc, TransformPluginVc},
     module_options::{
-        JsxTransformOptions, JsxTransformOptionsVc, ModuleOptionsContext,
-        StyledComponentsTransformConfigVc,
+        CustomEcmascriptTransformPlugins, CustomEcmascriptTransformPluginsVc, JsxTransformOptions,
+        JsxTransformOptionsVc, ModuleOptionsContext,
     },
     resolve_options_context::ResolveOptionsContext,
     transition::TransitionsByNameVc,
@@ -43,7 +43,10 @@ use turbopack_core::{
     source_asset::SourceAssetVc,
 };
 use turbopack_dev::DevChunkingContextVc;
-use turbopack_ecmascript_plugins::transform::emotion::EmotionTransformConfig;
+use turbopack_ecmascript_plugins::transform::{
+    emotion::{EmotionTransformConfig, EmotionTransformer},
+    styled_components::StyledComponentsTransformConfigVc,
+};
 use turbopack_env::ProcessEnvAssetVc;
 use turbopack_test_utils::snapshot::{diff, expected, matches_expected, snapshot_issues};
 
@@ -213,6 +216,18 @@ async fn run_test(resource: &str) -> Result<FileSystemPathVc> {
                 }
                 .cell(),
             )],
+            custom_ecma_transform_plugins: Some(CustomEcmascriptTransformPluginsVc::cell(
+                CustomEcmascriptTransformPlugins {
+                    source_transforms: vec![TransformPluginVc::cell(Box::new(
+                        EmotionTransformer::new(&EmotionTransformConfig {
+                            sourcemap: Some(false),
+                            ..Default::default()
+                        })
+                        .unwrap(),
+                    ))],
+                    output_transforms: vec![],
+                },
+            )),
             ..Default::default()
         }
         .into(),
