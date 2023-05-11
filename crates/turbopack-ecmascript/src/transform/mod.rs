@@ -9,7 +9,7 @@ use swc_core::{
     base::SwcComments,
     common::{chain, util::take::Take, FileName, Mark, SourceMap},
     ecma::{
-        ast::{Module, ModuleItem, Program},
+        ast::{Module, ModuleItem, Program, Script},
         atoms::JsWord,
         preset_env::{self, Targets},
         transforms::{
@@ -221,7 +221,22 @@ impl EcmascriptInputTransform {
                     ..Default::default()
                 };
 
-                let module_program = unwrap_module_program(program);
+                let module_program = std::mem::replace(program, Program::Module(Module::dummy()));
+
+                let module_program = if let Program::Script(Script {
+                    span,
+                    mut body,
+                    shebang,
+                }) = module_program
+                {
+                    Program::Module(Module {
+                        span,
+                        body: body.drain(..).map(|stmt| ModuleItem::Stmt(stmt)).collect(),
+                        shebang,
+                    })
+                } else {
+                    module_program
+                };
 
                 *program = module_program.fold_with(&mut chain!(
                     preset_env::preset_env(
@@ -352,21 +367,6 @@ pub fn remove_shebang(program: &mut Program) {
         Program::Script(s) => {
             s.shebang = None;
         }
-    }
-}
-
-fn unwrap_module_program(program: &mut Program) -> Program {
-    match program {
-        Program::Module(module) => Program::Module(module.take()),
-        Program::Script(s) => Program::Module(Module {
-            span: s.span,
-            body: s
-                .body
-                .iter()
-                .map(|stmt| ModuleItem::Stmt(stmt.clone()))
-                .collect(),
-            shebang: s.shebang.clone(),
-        }),
     }
 }
 
