@@ -11,7 +11,7 @@ crate-type = ["cdylib"]
 default = ["swc_v1"]
 swc_v1 = []
 
-plugin = ["getrandom/js", "next-binding/__swc_core_binding_wasm_plugin"]
+plugin = ["getrandom/js", "turbo-binding/__swc_core_binding_wasm_plugin"]
 
 [dependencies]
 anyhow = "1.0.66"
@@ -31,10 +31,11 @@ wasm-bindgen-futures = "0.4.8"
 getrandom = { version = "0.2.5", optional = true, default-features = false }
 js-sys = "0.3.59"
 serde-wasm-bindgen = "0.4.3"
-next-binding = { path = "../next-binding", features = [
+turbo-binding = { workspace = true, features = [
   "__swc_core_binding_wasm",
   "__feature_mdx_rs",
 ] }
+swc_core = { workspace = true, features = ["ecma_ast_serde", "common"] }
 
 
 # Workaround a bug

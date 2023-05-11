@@ -7,7 +7,6 @@ createNextDescribe(
     files: __dirname,
     skipDeployment: true,
     dependencies: {
-      swr: '2.0.0-rc.0',
       '@picocss/pico': '1.5.7',
       react: 'latest',
       'react-dom': 'latest',
@@ -155,7 +154,7 @@ createNextDescribe(
           const html = await next.render('/loading-bug/hi')
           // The link tag should be included together with loading
           expect(html).toMatch(
-            /<link rel="stylesheet" href="(.+)\.css"\/><h2>Loading...<\/h2>/
+            /<link rel="stylesheet" href="(.+)\.css(\?v=\d+)?"\/><h2>Loading...<\/h2>/
           )
         })
 
@@ -195,6 +194,29 @@ createNextDescribe(
           ).toBe('rgb(255, 0, 0)')
         })
 
+        it('should include root layout css for root not-found.js', async () => {
+          const browser = await next.browser('/this-path-does-not-exist')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h1')).color`
+            )
+          ).toBe('rgb(210, 105, 30)')
+        })
+
+        it('should include css imported in root not-found.js', async () => {
+          const browser = await next.browser('/random-non-existing-path')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h1')).color`
+            )
+          ).toBe('rgb(210, 105, 30)')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h1')).backgroundColor`
+            )
+          ).toBe('rgb(0, 0, 0)')
+        })
+
         it('should include css imported in error.js', async () => {
           const browser = await next.browser('/error/client-component')
           await browser.elementByCss('button').click()
@@ -225,13 +247,94 @@ createNextDescribe(
         it('should bundle css resources into chunks', async () => {
           const html = await next.render('/dashboard')
           expect(
-            [...html.matchAll(/<link rel="stylesheet" href="[^.]+\.css"/g)]
-              .length
+            [
+              ...html.matchAll(
+                /<link rel="stylesheet" href="[^.]+\.css(\?v=\d+)?"/g
+              ),
+            ].length
           ).toBe(3)
         })
       })
 
+      describe('css ordering', () => {
+        it('should have inner layers take precedence over outer layers', async () => {
+          const browser = await next.browser('/ordering')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h1')).color`
+            )
+          ).toBe('rgb(255, 0, 0)')
+        })
+      })
+
       if (isDev) {
+        it('should not affect css orders during HMR', async () => {
+          const filePath = 'app/ordering/page.js'
+          const origContent = await next.readFile(filePath)
+
+          // h1 should be red
+          const browser = await next.browser('/ordering')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h1')).color`
+            )
+          ).toBe('rgb(255, 0, 0)')
+
+          try {
+            await next.patchFile(
+              filePath,
+              origContent.replace('<h1>Hello</h1>', '<h1>Hello!</h1>')
+            )
+
+            // Wait for HMR to trigger
+            await check(
+              () => browser.eval(`document.querySelector('h1').textContent`),
+              'Hello!'
+            )
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('h1')).color`
+              )
+            ).toBe('rgb(255, 0, 0)')
+          } finally {
+            await next.patchFile(filePath, origContent)
+          }
+        })
+
+        it('should reload @import styles during HMR', async () => {
+          const filePath = 'app/hmr/import/actual-styles.css'
+          const origContent = await next.readFile(filePath)
+
+          // background should be red
+          const browser = await next.browser('/hmr/import')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('body')).backgroundColor`
+            )
+          ).toBe('rgb(255, 0, 0)')
+
+          try {
+            await next.patchFile(
+              filePath,
+              origContent.replace(
+                'background-color: red;',
+                'background-color: blue;'
+              )
+            )
+
+            // Wait for HMR to trigger
+            await check(
+              () =>
+                browser.eval(
+                  `window.getComputedStyle(document.querySelector('body')).backgroundColor`
+                ),
+              'rgb(0, 0, 255)'
+            )
+          } finally {
+            await next.patchFile(filePath, origContent)
+          }
+        })
+
         describe('multiple entries', () => {
           it('should only inject the same style once if used by different layers', async () => {
             const browser = await next.browser('/css/css-duplicate-2/client')
@@ -248,10 +351,10 @@ createNextDescribe(
             const initialHtml = await next.render('/css/css-duplicate-2/server')
 
             // Even if it's deduped by Float, it should still only be included once in the payload.
-            // There are two matches, one for the rendered <link> and one for the flight data.
+            // There are 3 matches, one for the rendered <link>, one for float preload and one for the <link> inside flight payload.
             expect(
-              initialHtml.match(/css-duplicate-2\/layout\.css/g).length
-            ).toBe(2)
+              initialHtml.match(/css-duplicate-2\/layout\.css\?v=/g).length
+            ).toBe(3)
           })
 
           it('should only load chunks for the css module that is used by the specific entrypoint', async () => {
@@ -261,14 +364,14 @@ createNextDescribe(
             const browser = await next.browser('/css/css-duplicate/a')
             expect(
               await browser.eval(
-                `[...document.styleSheets].some(({ href }) => href.endsWith('/a/page.css'))`
+                `[...document.styleSheets].some(({ href }) => href.includes('/a/page.css'))`
               )
             ).toBe(true)
 
             // Should not load the chunk from /b
             expect(
               await browser.eval(
-                `[...document.styleSheets].some(({ href }) => href.endsWith('/b/page.css'))`
+                `[...document.styleSheets].some(({ href }) => href.includes('/b/page.css'))`
               )
             ).toBe(false)
           })
@@ -497,7 +600,122 @@ createNextDescribe(
             await next.patchFile(filePath, origContent)
           }
         })
+
+        it('should not break HMR when CSS is imported in a server component', async () => {
+          const filePath = 'app/hmr/page.js'
+          const origContent = await next.readFile(filePath)
+
+          const browser = await next.browser('/hmr')
+          await browser.eval(`window.__v = 1`)
+          try {
+            await next.patchFile(
+              filePath,
+              origContent.replace('hello!', 'hmr!')
+            )
+            await check(() => browser.elementByCss('body').text(), 'hmr!')
+
+            // Make sure it doesn't reload the page
+            expect(await browser.eval(`window.__v`)).toBe(1)
+          } finally {
+            await next.patchFile(filePath, origContent)
+          }
+        })
+
+        it('should not create duplicate link tags during HMR', async () => {
+          const filePath = 'app/hmr/global.css'
+          const origContent = await next.readFile(filePath)
+
+          const browser = await next.browser('/hmr')
+          try {
+            await next.patchFile(
+              filePath,
+              origContent.replace('background: gray;', 'background: red;')
+            )
+            await check(
+              () =>
+                browser.eval(
+                  `window.getComputedStyle(document.querySelector('body')).backgroundColor`
+                ),
+              'rgb(255, 0, 0)'
+            )
+            await check(
+              () =>
+                browser.eval(
+                  `document.querySelectorAll('link[rel="stylesheet"][href*="/page.css"]').length`
+                ),
+              1
+            )
+          } finally {
+            await next.patchFile(filePath, origContent)
+          }
+        })
+
+        it('should support HMR with sass/scss', async () => {
+          const filePath1 = 'app/css/sass/global.scss'
+          const origContent1 = await next.readFile(filePath1)
+          const filePath2 = 'app/css/sass/global.sass'
+          const origContent2 = await next.readFile(filePath2)
+
+          const browser = await next.browser('/css/sass/inner')
+          // .scss
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#scss-server-layout')).color`
+            )
+          ).toBe('rgb(222, 184, 135)')
+          // .sass
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#sass-server-layout')).color`
+            )
+          ).toBe('rgb(165, 42, 42)')
+
+          try {
+            await next.patchFile(
+              filePath1,
+              origContent1.replace('color: burlywood;', 'color: red;')
+            )
+            await check(
+              () =>
+                browser.eval(
+                  `window.getComputedStyle(document.querySelector('#scss-server-layout')).color`
+                ),
+              'rgb(255, 0, 0)'
+            )
+          } finally {
+            await next.patchFile(filePath1, origContent1)
+          }
+
+          try {
+            await next.patchFile(
+              filePath2,
+              origContent2.replace('color: brown', 'color: red')
+            )
+            await check(
+              () =>
+                browser.eval(
+                  `window.getComputedStyle(document.querySelector('#sass-server-layout')).color`
+                ),
+              'rgb(255, 0, 0)'
+            )
+          } finally {
+            await next.patchFile(filePath2, origContent2)
+          }
+        })
       }
     })
+
+    if (isDev) {
+      describe('Suspensey CSS', () => {
+        it('should suspend on CSS imports if its slow on client navigation', async () => {
+          const browser = await next.browser('/suspensey-css')
+          await browser.elementByCss('#slow').click()
+          await check(() => browser.eval(`document.body.innerText`), 'Get back')
+          await check(async () => {
+            return await browser.eval(`window.__log`)
+          }, /background = rgb\(255, 255, 0\)/)
+        })
+      })
+    }
   }
 )

@@ -1,4 +1,4 @@
-import { noop as css } from "../../helpers/noop-template";
+import { noop as css } from '../../helpers/noop-template'
 
 const styles = css`
   .dialog-overlay {
@@ -39,6 +39,6 @@ const styles = css`
     -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
   }
-`;
+`
 
-export { styles };
+export { styles }

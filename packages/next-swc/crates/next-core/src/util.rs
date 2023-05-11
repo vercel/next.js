@@ -1,26 +1,34 @@
 use anyhow::{anyhow, bail, Context, Result};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use swc_core::ecma::ast::Program;
-use turbo_tasks::{primitives::StringVc, trace::TraceRawVcs, Value, ValueToString};
-use turbo_tasks_fs::{json::parse_json_rope_with_source_context, FileContent, FileSystemPathVc};
-use turbopack::condition::ContextCondition;
-use turbopack_core::{
-    asset::{Asset, AssetVc},
-    ident::AssetIdentVc,
-    issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
-    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
-    resolve::{
-        self, handle_resolve_error, node::node_cjs_resolve_options, parse::RequestVc,
-        pattern::QueryMapVc, PrimaryResolveResult,
+use turbo_binding::{
+    turbo::tasks_fs::{json::parse_json_rope_with_source_context, FileContent, FileSystemPathVc},
+    turbopack::{
+        core::{
+            asset::{Asset, AssetVc},
+            ident::AssetIdentVc,
+            issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc, OptionIssueSourceVc},
+            reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
+            resolve::{
+                self, handle_resolve_error, node::node_cjs_resolve_options, parse::RequestVc,
+                pattern::QueryMapVc, PrimaryResolveResult,
+            },
+        },
+        ecmascript::{
+            analyzer::{JsValue, ObjectPart},
+            parse::ParseResult,
+            EcmascriptModuleAssetVc,
+        },
+        turbopack::condition::ContextCondition,
     },
 };
-use turbopack_ecmascript::{
-    analyzer::{JsValue, ObjectPart},
-    parse::ParseResult,
-    EcmascriptModuleAssetVc,
+use turbo_tasks::{
+    primitives::{JsonValue, JsonValueVc, StringVc},
+    trace::TraceRawVcs,
+    Value, ValueToString,
 };
 
-use crate::next_config::NextConfigVc;
+use crate::next_config::{NextConfigVc, OutputType};
 
 /// Converts a filename within the server root into a next pathname.
 #[turbo_tasks::function]
@@ -47,23 +55,25 @@ pub async fn pathname_for_path(
     } else {
         path
     };
+    // `get_path_to` always strips the leading `/` from the path, so we need to add
+    // it back here.
     let path = if path == "index" && !data {
-        ""
+        "/".to_string()
     } else {
-        path.strip_suffix("/index").unwrap_or(path)
+        format!("/{}", path.strip_suffix("/index").unwrap_or(path))
     };
 
-    Ok(StringVc::cell(path.to_string()))
+    Ok(StringVc::cell(path))
 }
 
 // Adapted from https://github.com/vercel/next.js/blob/canary/packages/next/shared/lib/router/utils/get-asset-path-from-route.ts
-pub fn get_asset_path_from_route(route: &str, ext: &str) -> String {
-    if route.is_empty() {
-        format!("index{}", ext)
-    } else if route == "index" || route.starts_with("index/") {
-        format!("index/{}{}", route, ext)
+pub fn get_asset_path_from_pathname(pathname: &str, ext: &str) -> String {
+    if pathname == "/" {
+        format!("/index{}", ext)
+    } else if pathname == "/index" || pathname.starts_with("/index/") {
+        format!("/index{}{}", pathname, ext)
     } else {
-        format!("{}{}", route, ext)
+        format!("{}{}", pathname, ext)
     }
 }
 
@@ -86,9 +96,11 @@ pub async fn foreign_code_context_condition(next_config: NextConfigVc) -> Result
 }
 
 #[derive(Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum NextRuntime {
     #[default]
     NodeJs,
+    #[serde(alias = "experimental-edge")]
     Edge,
 }
 
@@ -109,7 +121,7 @@ impl NextSourceConfigVc {
     }
 }
 
-/// An issue that occurred while resolving the React Refresh runtime module.
+/// An issue that occurred while parsing the page config.
 #[turbo_tasks::value(shared)]
 pub struct NextSourceConfigParsingIssue {
     ident: AssetIdentVc,
@@ -319,6 +331,8 @@ pub async fn load_next_json<T: DeserializeOwned>(
         context,
         request,
         resolve_options,
+        OptionIssueSourceVc::none(),
+        IssueSeverity::Error.cell(),
     )
     .await?;
     let resolve_result = &*resolve_result.await?;
@@ -341,4 +355,20 @@ pub async fn load_next_json<T: DeserializeOwned>(
     let result: T = parse_json_rope_with_source_context(file.content())?;
 
     Ok(result)
+}
+
+#[turbo_tasks::function]
+pub async fn render_data(next_config: NextConfigVc) -> Result<JsonValueVc> {
+    #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Data {
+        next_config_output: Option<OutputType>,
+    }
+
+    let config = next_config.await?;
+
+    let value = serde_json::to_value(Data {
+        next_config_output: config.output.clone(),
+    })?;
+    Ok(JsonValue(value).cell())
 }

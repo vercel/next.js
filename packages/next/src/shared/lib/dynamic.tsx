@@ -78,7 +78,7 @@ export default function dynamic<P = {}>(
   dynamicOptions: DynamicOptions<P> | Loader<P>,
   options?: DynamicOptions<P>
 ): React.ComponentType<P> {
-  let loadableFn: LoadableFn<P> = Loadable
+  let loadableFn = Loadable as LoadableFn<P>
 
   let loadableOptions: LoadableOptions<P> = {
     // A loading component is not required, so we default it

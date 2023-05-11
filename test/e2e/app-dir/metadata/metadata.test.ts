@@ -1,22 +1,23 @@
 import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import { BrowserInterface } from 'test/lib/browsers/base'
+import fs from 'fs/promises'
+import path from 'path'
 import cheerio from 'cheerio'
 
 createNextDescribe(
   'app dir - metadata',
   {
     files: __dirname,
-    skipDeployment: false,
   },
-  ({ next, isNextDev, isNextStart }) => {
+  ({ next, isNextDev, isNextStart, isNextDeploy }) => {
     const getTitle = (browser: BrowserInterface) =>
       browser.elementByCss('title').text()
 
     async function checkMeta(
       browser: BrowserInterface,
       queryValue: string,
-      expected: string | string[] | undefined | null,
+      expected: RegExp | string | string[] | undefined | null,
       queryKey: string = 'property',
       tag: string = 'meta',
       domAttributeField: string = 'content'
@@ -24,10 +25,14 @@ createNextDescribe(
       const values = await browser.eval(
         `[...document.querySelectorAll('${tag}[${queryKey}="${queryValue}"]')].map((el) => el.getAttribute("${domAttributeField}"))`
       )
-      if (Array.isArray(expected)) {
-        expect(values).toEqual(expected)
+      if (expected instanceof RegExp) {
+        expect(values[0]).toMatch(expected)
       } else {
-        expect(values[0]).toBe(expected)
+        if (Array.isArray(expected)) {
+          expect(values).toEqual(expected)
+        } else {
+          expect(values[0]).toBe(expected)
+        }
       }
     }
 
@@ -223,6 +228,40 @@ createNextDescribe(
         })
       })
 
+      it('should support other basic tags (edge)', async () => {
+        const browser = await next.browser('/basic-edge')
+        const matchDom = createDomMatcher(browser)
+        const matchMultiDom = createMultiDomMatcher(browser)
+
+        await matchMultiDom('meta', 'name', 'content', {
+          generator: 'next.js',
+          'application-name': 'test',
+          referrer: 'origin-when-cross-origin',
+          keywords: 'next.js,react,javascript',
+          author: ['huozhi', 'tree'],
+          'color-scheme': 'dark',
+          viewport:
+            'width=device-width, initial-scale=1, maximum-scale=1, interactive-widget=resizes-visual',
+          creator: 'shu',
+          publisher: 'vercel',
+          robots: 'index, follow',
+          'format-detection': 'telephone=no, address=no, email=no',
+        })
+
+        await matchMultiDom('link', 'rel', 'href', {
+          manifest: 'https://www.google.com/manifest',
+          author: 'https://tree.com',
+          preconnect: '/preconnect-url',
+          preload: '/preload-url',
+          'dns-prefetch': '/dns-prefetch-url',
+        })
+
+        await matchDom('meta', 'name="theme-color"', {
+          media: '(prefers-color-scheme: dark)',
+          content: 'cyan',
+        })
+      })
+
       it('should support apple related tags `itunes` and `appWebApp`', async () => {
         const browser = await next.browser('/apple')
         const matchMultiDom = createMultiDomMatcher(browser)
@@ -256,41 +295,52 @@ createNextDescribe(
       })
 
       it('should support alternate tags', async () => {
-        const browser = await next.browser('/alternate')
-        await checkLink(browser, 'canonical', 'https://example.com')
-        await checkMeta(
-          browser,
-          'en-US',
-          'https://example.com/en-US',
-          'hreflang',
-          'link',
-          'href'
-        )
-        await checkMeta(
-          browser,
-          'de-DE',
-          'https://example.com/de-DE',
-          'hreflang',
-          'link',
-          'href'
-        )
-        await checkMeta(
-          browser,
-          'only screen and (max-width: 600px)',
-          '/mobile',
-          'media',
-          'link',
-          'href'
-        )
+        const browser = await next.browser('/alternates')
         const matchDom = createDomMatcher(browser)
 
+        await matchDom('link', 'rel="canonical"', {
+          href: 'https://example.com/alternates',
+        })
         await matchDom('link', 'title="js title"', {
           type: 'application/rss+xml',
-          href: 'blog/js.rss',
+          href: 'https://example.com/blog/js.rss',
         })
         await matchDom('link', 'title="rss"', {
           type: 'application/rss+xml',
-          href: 'blog.rss',
+          href: 'https://example.com/blog.rss',
+        })
+        await matchDom('link', 'hreflang="en-US"', {
+          rel: 'alternate',
+          href: 'https://example.com/alternates/en-US',
+        })
+        await matchDom('link', 'hreflang="de-DE"', {
+          rel: 'alternate',
+          href: 'https://example.com/alternates/de-DE',
+        })
+        await matchDom('link', 'media="only screen and (max-width: 600px)"', {
+          rel: 'alternate',
+          href: 'https://example.com/mobile',
+        })
+      })
+
+      it('should relative canonical url', async () => {
+        const browser = await next.browser('/alternates/child')
+        const matchDom = createDomMatcher(browser)
+        await matchDom('link', 'rel="canonical"', {
+          href: 'https://example.com/alternates/child',
+        })
+        await matchDom('link', 'hreflang="en-US"', {
+          rel: 'alternate',
+          href: 'https://example.com/alternates/child/en-US',
+        })
+        await matchDom('link', 'hreflang="de-DE"', {
+          rel: 'alternate',
+          href: 'https://example.com/alternates/child/de-DE',
+        })
+
+        await browser.loadPage(next.url + '/alternates/child/123')
+        await matchDom('link', 'rel="canonical"', {
+          href: 'https://example.com/alternates/child/123',
         })
       })
 
@@ -364,15 +414,24 @@ createNextDescribe(
         )
       })
 
-      it('should support notFound and redirect in generateMetadata', async () => {
-        const resNotFound = await next.fetch('/async/not-found')
-        expect(resNotFound.status).toBe(404)
-        const notFoundHtml = await resNotFound.text()
-        expect(notFoundHtml).not.toBe('not-found-text')
-        expect(notFoundHtml).toContain('This page could not be found.')
+      it('should support notFound in generateMetadata', async () => {
+        // TODO-APP: support custom not-found for generateMetadata
+        const res = await next.fetch('/async/not-found')
+        expect(res.status).toBe(404)
+        const html = await res.text()
+        expect(html).toContain('root not found page')
 
-        const resRedirect = await next.fetch('/async/redirect')
-        expect(resRedirect.status).toBe(307)
+        const browser = await next.browser('/async/not-found')
+        expect(await browser.elementByCss('h2').text()).toBe(
+          'root not found page'
+        )
+      })
+
+      it('should support redirect in generateMetadata', async () => {
+        const res = await next.fetch('/async/redirect', {
+          redirect: 'manual',
+        })
+        expect(res.status).toBe(307)
       })
 
       it('should handle metadataBase for urls resolved as only URL type', async () => {
@@ -417,9 +476,10 @@ createNextDescribe(
         const browser = await next.browser('/opengraph/article')
         const matchMultiDom = createMultiDomMatcher(browser)
         await matchMultiDom('meta', 'property', 'content', {
-          'og:title': 'My custom title',
+          'og:title': 'My custom title | Layout open graph title',
           'og:description': 'My custom description',
           'og:type': 'article',
+          'og:image': 'https://example.com/og-image.jpg',
           'article:published_time': '2023-01-01T00:00:00.000Z',
           'article:author': ['author1', 'author2', 'author3'],
         })
@@ -427,21 +487,29 @@ createNextDescribe(
 
       it('should pick up opengraph-image and twitter-image as static metadata files', async () => {
         const $ = await next.render$('/opengraph/static')
-        expect($('[property="og:image"]').attr('content')).toBe(
-          'https://example.com/opengraph/static/opengraph-image.png?b76e8f0282c93c8e'
-        )
-        expect($('[property="og:image:type"]').attr('content')).toBe(
-          'image/png'
-        )
-        expect($('[property="og:image:width"]').attr('content')).toBe('114')
-        expect($('[property="og:image:height"]').attr('content')).toBe('114')
 
-        expect($('[name="twitter:image"]').attr('content')).toBe(
-          'https://example.com/opengraph/static/twitter-image.png?b76e8f0282c93c8e'
-        )
-        expect($('[name="twitter:card"]').attr('content')).toBe(
-          'summary_large_image'
-        )
+        const match = createMultiHtmlMatcher($)
+        await match('meta', 'property', 'content', {
+          'og:image:width': '114',
+          'og:image:height': '114',
+          'og:image:type': 'image/png',
+          'og:image:alt': 'A alt txt for og',
+          'og:image': isNextDev
+            ? expect.stringMatching(
+                /http:\/\/localhost:\d+\/opengraph\/static\/opengraph-image.png\?b76e8f0282c93c8e/
+              )
+            : 'https://example.com/opengraph/static/opengraph-image.png?b76e8f0282c93c8e',
+        })
+
+        await match('meta', 'name', 'content', {
+          'twitter:image': isNextDev
+            ? expect.stringMatching(
+                /http:\/\/localhost:\d+\/opengraph\/static\/twitter-image.png\?b76e8f0282c93c8e/
+              )
+            : 'https://example.com/opengraph/static/twitter-image.png?b76e8f0282c93c8e',
+          'twitter:image:alt': 'A alt txt for twitter',
+          'twitter:card': 'summary_large_image',
+        })
 
         // favicon shouldn't be overridden
         const $icon = $('link[rel="icon"]')
@@ -474,6 +542,7 @@ createNextDescribe(
           'https://example.com/icon.png',
         ])
         await checkLink(browser, 'apple-touch-icon', [
+          '/icon2.png',
           '/apple-icon.png',
           '/apple-icon-x3.png',
         ])
@@ -494,15 +563,30 @@ createNextDescribe(
 
       it('should support root level of favicon.ico', async () => {
         let $ = await next.render$('/')
-        let $icon = $('link[rel="icon"]')
-        expect($icon.attr('href')).toBe('/favicon.ico')
-        expect($icon.attr('type')).toBe('image/x-icon')
-        expect($icon.attr('sizes')).toBe('any')
+        const favIcon = $('link[rel="icon"]')
+        expect(favIcon.attr('href')).toBe('/favicon.ico')
+        expect(favIcon.attr('type')).toBe('image/x-icon')
+        expect(favIcon.attr('sizes')).toBe('any')
+
+        const iconSvg = $('link[rel="icon"][type="image/svg+xml"]')
+        expect(iconSvg.attr('href')).toBe('/icon.svg?90699bff34adba1f')
 
         $ = await next.render$('/basic')
-        $icon = $('link[rel="icon"]')
-        expect($icon.attr('href')).toBe('/favicon.ico')
-        expect($icon.attr('sizes')).toBe('any')
+        const icon = $('link[rel="icon"]')
+        expect(icon.attr('href')).toBe('/favicon.ico')
+        expect(icon.attr('sizes')).toBe('any')
+
+        if (!isNextDeploy) {
+          const faviconFileBuffer = await fs.readFile(
+            path.join(next.testDir, 'app/favicon.ico')
+          )
+          const faviconResponse = Buffer.from(
+            await next.fetch('/favicon.ico').then((res) => res.arrayBuffer())
+          )
+          return expect(
+            Buffer.compare(faviconResponse, faviconFileBuffer)
+          ).toBe(0)
+        }
       })
     })
 
@@ -538,6 +622,15 @@ createNextDescribe(
         // No apple icon if it's not provided
         const $appleIcon = $('head > link[rel="apple-touch-icon"]')
         expect($appleIcon.length).toBe(0)
+
+        const $dynamic = await next.render$('/icons/static/dynamic-routes/123')
+        const $dynamicIcon = $dynamic('head > link[rel="icon"]')
+        const dynamicIconHref = $dynamicIcon.attr('href')
+        expect(dynamicIconHref).toMatch(
+          /\/icons\/static\/dynamic-routes\/123\/icon\.png\?b76e8f0282c93c8e/
+        )
+        const dynamicIconRes = await next.fetch(dynamicIconHref)
+        expect(dynamicIconRes.status).toBe(200)
       })
 
       if (isNextDev) {
@@ -573,6 +666,7 @@ createNextDescribe(
           'twitter:creator': 'creator',
           'twitter:creator:id': 'creatorId',
           'twitter:image': 'https://twitter.com/image.png',
+          'twitter:image:secure_url': 'https://twitter.com/secure.png',
           'twitter:card': 'summary',
         })
       })
@@ -587,7 +681,7 @@ createNextDescribe(
           'twitter:site:id': 'siteId',
           'twitter:creator': 'creator',
           'twitter:creator:id': 'creatorId',
-          'twitter:image': 'https://twitter.com/image.png',
+          'twitter:image': 'https://twitter.com/large-image.png',
           'twitter:image:alt': 'image-alt',
           'twitter:card': 'summary_large_image',
         })
@@ -679,7 +773,7 @@ createNextDescribe(
         expect(invalidRobotsResponse.status).toBe(404)
       })
 
-      it('should support root dir sitemap.xml', async () => {
+      it('should support sitemap.xml under every routes', async () => {
         const res = await next.fetch('/sitemap.xml')
         expect(res.headers.get('content-type')).toBe('application/xml')
         const sitemap = await res.text()
@@ -688,7 +782,7 @@ createNextDescribe(
           '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
         )
         const invalidSitemapResponse = await next.fetch('/title/sitemap.xml')
-        expect(invalidSitemapResponse.status).toBe(404)
+        expect(invalidSitemapResponse.status).toBe(200)
       })
 
       it('should support static manifest.webmanifest', async () => {
@@ -722,6 +816,28 @@ createNextDescribe(
         })
       }
     })
+
+    if (isNextStart) {
+      describe('static optimization', () => {
+        it('should build static files into static route', async () => {
+          expect(
+            await next.hasFile(
+              '.next/server/app/opengraph/static/opengraph-image.png.meta'
+            )
+          ).toBe(true)
+          expect(
+            await next.hasFile(
+              '.next/server/app/opengraph/static/opengraph-image.png.body'
+            )
+          ).toBe(true)
+          expect(
+            await next.hasFile(
+              '.next/server/app/opengraph/static/opengraph-image.png/[[...__metadata_id__]]/route.js'
+            )
+          ).toBe(false)
+        })
+      })
+    }
 
     describe('react cache', () => {
       it('should have same title and page value on initial load', async () => {

@@ -6,14 +6,8 @@ createNextDescribe(
   'app dir - navigation',
   {
     files: __dirname,
-    dependencies: {
-      swr: 'latest',
-      react: 'latest',
-      'react-dom': 'latest',
-      sass: 'latest',
-    },
   },
-  ({ next, isNextDeploy }) => {
+  ({ next, isNextDev, isNextDeploy }) => {
     describe('query string', () => {
       it('should set query correctly', async () => {
         const browser = await webdriver(next.url, '/')
@@ -168,6 +162,36 @@ createNextDescribe(
             'Example Domain'
           )
         })
+
+        it('should redirect to external url, initiating only once', async () => {
+          const storageKey = Math.random()
+          const browser = await next.browser(
+            `/redirect/external-log/${storageKey}`
+          )
+          expect(await browser.waitForElementByCss('h1').text()).toBe(
+            'Example Domain'
+          )
+
+          // Now check the logs...
+          await browser.get(
+            `${next.url}/redirect/external-log/${storageKey}?read=1`
+          )
+          const stored = JSON.parse(await browser.elementByCss('pre').text())
+
+          if (stored['navigation-supported'] === 'false') {
+            // Old browser. Can't know how many times we navigated. Oh well.
+            return
+          }
+
+          expect(stored['navigation-supported']).toEqual('true')
+
+          // This one is a bit flaky during dev, original notes by @sophiebits:
+          // > Not actually sure why this is '2' in dev. Possibly something
+          // > related to an update triggered by <HotReload>?
+          expect(stored['navigate-https://example.vercel.sh/']).toBeOneOf(
+            isNextDev ? ['1', '2'] : ['1']
+          )
+        })
       })
 
       describe('next.config.js redirects', () => {
@@ -212,13 +236,54 @@ createNextDescribe(
 
       describe('status code', () => {
         it('should respond with 307 status code in server component', async () => {
-          const res = await next.fetch('/redirect/servercomponent')
+          const res = await next.fetch('/redirect/servercomponent', {
+            redirect: 'manual',
+          })
           expect(res.status).toBe(307)
         })
         it('should respond with 307 status code in client component', async () => {
-          const res = await next.fetch('/redirect/clientcomponent')
+          const res = await next.fetch('/redirect/clientcomponent', {
+            redirect: 'manual',
+          })
           expect(res.status).toBe(307)
         })
+      })
+    })
+
+    describe('external push', () => {
+      it('should push external url without affecting hooks', async () => {
+        // Log with sessionStorage to persist across navigations
+        const storageKey = Math.random()
+        const browser = await next.browser(`/external-push/${storageKey}`)
+        await browser.elementByCss('#go').click()
+        await browser.waitForCondition(
+          'window.location.origin === "https://example.vercel.sh"'
+        )
+
+        // Now check the logs...
+        await browser.get(`${next.url}/external-push/${storageKey}`)
+        const stored = JSON.parse(await browser.elementByCss('pre').text())
+        let expected = {
+          // Only one navigation
+          'navigate-https://example.vercel.sh/stuff?abc=123': '1',
+          'navigation-supported': 'true',
+          // Make sure /stuff?abc=123 is not logged here
+          [`path-/external-push/${storageKey}`]: 'true',
+          // isPending should have been true until the page unloads
+          lastIsPending: 'true',
+        }
+
+        if (stored['navigation-supported'] !== 'true') {
+          // Old browser. Can't know how many times we navigated. Oh well.
+          expected['navigation-supported'] = 'false'
+          for (const key in expected) {
+            if (key.startsWith('navigate-')) {
+              delete expected[key]
+            }
+          }
+        }
+
+        expect(stored).toEqual(expected)
       })
     })
 
@@ -262,9 +327,13 @@ createNextDescribe(
     describe('SEO', () => {
       it('should emit noindex meta tag for not found page when streaming', async () => {
         const noIndexTag = '<meta name="robots" content="noindex"/>'
+        const defaultViewportTag =
+          '<meta name="viewport" content="width=device-width, initial-scale=1"/>'
         const html = await next.render('/not-found/suspense')
         expect(html).toContain(noIndexTag)
-        expect(html.split(noIndexTag).length).toBe(2) // only contain once
+        // only contain once
+        expect(html.split(noIndexTag).length).toBe(2)
+        expect(html.split(defaultViewportTag).length).toBe(2)
       })
 
       it('should emit refresh meta tag for redirect page when streaming', async () => {
@@ -279,6 +348,13 @@ createNextDescribe(
         expect(html).toContain('<meta name="robots" content="noindex"/>')
         expect(html).toContain(
           '<meta name="viewport" content="width=device-width, initial-scale=1"/>'
+        )
+      })
+
+      it('should not log 404 errors in ipc server', async () => {
+        await next.fetch('/this-path-does-not-exist')
+        expect(next.cliOutput).not.toInclude(
+          'PageNotFoundError: Cannot find module for page'
         )
       })
     })

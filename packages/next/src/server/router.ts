@@ -83,7 +83,7 @@ export default class Router {
   private readonly headers: ReadonlyArray<Route>
   private readonly fsRoutes: Route[]
   private readonly redirects: ReadonlyArray<Route>
-  private readonly rewrites: {
+  private rewrites: {
     beforeFiles: ReadonlyArray<Route>
     afterFiles: ReadonlyArray<Route>
     fallback: ReadonlyArray<Route>
@@ -141,6 +141,11 @@ export default class Router {
 
   public setCatchallMiddleware(catchAllMiddleware: ReadonlyArray<Route>) {
     this.catchAllMiddleware = catchAllMiddleware
+    this.needsRecompilation = true
+  }
+
+  public setRewrites(rewrites: RouterOptions['rewrites']) {
+    this.rewrites = rewrites
     this.needsRecompilation = true
   }
 
@@ -347,7 +352,54 @@ export default class Router {
       },
     }
 
-    for (const route of this.compiledRoutes) {
+    // when x-invoke-path is specified we can short short circuit resolving
+    // we only honor this header if we are inside of a render worker to
+    // prevent external users coercing the routing path
+    const matchedPath = req.headers['x-invoke-path'] as string
+    let curRoutes = this.compiledRoutes
+
+    if (
+      process.env.NEXT_RUNTIME !== 'edge' &&
+      process.env.__NEXT_PRIVATE_RENDER_WORKER &&
+      matchedPath
+    ) {
+      curRoutes = this.compiledRoutes.filter((r) => {
+        return r.name === 'Catchall render' || r.name === '_next/data catchall'
+      })
+
+      const parsedMatchedPath = new URL(matchedPath || '/', 'http://n')
+
+      const pathnameInfo = getNextPathnameInfo(parsedMatchedPath.pathname, {
+        nextConfig: this.nextConfig,
+        parseData: false,
+      })
+
+      if (pathnameInfo.locale) {
+        parsedUrlUpdated.query.__nextLocale = pathnameInfo.locale
+      }
+
+      if (parsedUrlUpdated.pathname !== parsedMatchedPath.pathname) {
+        parsedUrlUpdated.pathname = parsedMatchedPath.pathname
+        addRequestMeta(req, '_nextRewroteUrl', pathnameInfo.pathname)
+        addRequestMeta(req, '_nextDidRewrite', true)
+      }
+
+      for (const key of Object.keys(parsedUrlUpdated.query)) {
+        if (!key.startsWith('__next') && !key.startsWith('_next')) {
+          delete parsedUrlUpdated.query[key]
+        }
+      }
+      const invokeQuery = req.headers['x-invoke-query']
+
+      if (typeof invokeQuery === 'string') {
+        Object.assign(
+          parsedUrlUpdated.query,
+          JSON.parse(decodeURIComponent(invokeQuery))
+        )
+      }
+    }
+
+    for (const route of curRoutes) {
       // only process rewrites for upgrade request
       if (upgradeHead && route.type !== 'rewrite') {
         continue

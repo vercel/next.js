@@ -1,5 +1,4 @@
 import React from 'react'
-import { DEFAULT_METADATA_TAGS } from '../../lib/metadata/default-metadata'
 
 interface NotFoundBoundaryProps {
   notFound?: React.ReactNode
@@ -29,7 +28,6 @@ class NotFoundErrorBoundary extends React.Component<
     if (this.state.notFoundTriggered) {
       return (
         <>
-          {DEFAULT_METADATA_TAGS}
           <meta name="robots" content="noindex" />
           {this.props.notFoundStyles}
           {this.props.notFound}

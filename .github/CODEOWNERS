@@ -12,19 +12,23 @@
 /.prettier*                                   @vercel/next-js @leerob
 /*.md                                         @vercel/next-js @leerob
 /packages/create-next-app/                    @vercel/next-js
-
-# SWC Build & Telemetry (@padmaia)
-
-/packages/next/build/                         @timneutkens @ijjk @shuding @padmaia @huozhi
-/packages/next/telemetry/                     @timneutkens @ijjk @shuding @padmaia
-/packages/next-swc/                           @timneutkens @ijjk @shuding @vercel/web-tooling
-/packages/next/build/swc/                     @timneutkens @ijjk @shuding @vercel/web-tooling
+/pnpm-lock.yaml                               @vercel/next-js @vercel/web-tooling
 
 # Image Component (@styfle)
 
-/**/*image*                                   @timneutkens @ijjk @shuding @styfle
-/**/*image*/**                                @timneutkens @ijjk @shuding @styfle
+/**/*image*                                   @timneutkens @ijjk @shuding @styfle @huozhi
+/**/*image*/**                                @timneutkens @ijjk @shuding @styfle @huozhi
 /packages/next/client/use-intersection.tsx    @timneutkens @ijjk @shuding @styfle
 /packages/next/server/lib/squoosh/            @timneutkens @ijjk @shuding @styfle
-/packages/next/server/serve-static.ts         @timneutkens @ijjk @shuding @styfle
-/packages/next/server/config.ts               @timneutkens @ijjk @shuding @styfle
+/packages/next/server/serve-static.ts         @timneutkens @ijjk @shuding @styfle @huozhi
+/packages/next/server/config.ts               @timneutkens @ijjk @shuding @styfle @huozhi
+
+# Tooling & Telemetry
+
+/packages/next/src/build/                     @timneutkens @ijjk @shuding @vercel/web-tooling @huozhi
+/packages/next/src/telemetry/                 @timneutkens @ijjk @shuding @padmaia
+/packages/next-swc/                           @timneutkens @ijjk @shuding @vercel/web-tooling
+Cargo.toml                                    @timneutkens @ijjk @shuding @vercel/web-tooling
+Cargo.lock                                    @timneutkens @ijjk @shuding @vercel/web-tooling
+/.cargo/config.toml                           @timneutkens @ijjk @shuding @vercel/web-tooling
+/.config/nextest.toml                         @timneutkens @ijjk @shuding @vercel/web-tooling

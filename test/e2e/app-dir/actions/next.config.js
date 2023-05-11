@@ -1,5 +1,7 @@
+/** @type {import('next').NextConfig} */
 module.exports = {
+  productionBrowserSourceMaps: true,
   experimental: {
-    appDir: true,
+    serverActions: true,
   },
 }

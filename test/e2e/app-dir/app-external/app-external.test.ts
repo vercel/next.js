@@ -21,7 +21,7 @@ createNextDescribe(
     dependencies: {
       react: 'latest',
       'react-dom': 'latest',
-      swr: '2.0.0-rc.0',
+      swr: 'latest',
     },
     packageJson: {
       scripts: {

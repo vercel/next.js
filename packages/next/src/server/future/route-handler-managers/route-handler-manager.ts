@@ -1,39 +1,46 @@
-import { BaseNextRequest, BaseNextResponse } from '../../base-http'
-import { RouteKind } from '../route-kind'
-import { RouteMatch } from '../route-matches/route-match'
-import { RouteDefinition } from '../route-definitions/route-definition'
-import { RouteHandler } from '../route-handlers/route-handler'
+import type { BaseNextRequest } from '../../base-http'
+import type { ModuleLoader } from '../helpers/module-loader/module-loader'
+import type { RouteMatch } from '../route-matches/route-match'
+import type { RouteModule } from '../route-modules/route-module'
+import type { AppRouteRouteHandlerContext } from '../route-modules/app-route/module'
+
+import { NodeModuleLoader } from '../helpers/module-loader/node-module-loader'
+import { RouteModuleLoader } from '../helpers/module-loader/route-module-loader'
+import { NextRequestAdapter } from '../../web/spec-extension/adapters/next-request'
+
+/**
+ * RouteHandlerManager is a manager for route handlers.
+ */
+export type RouteHandlerManagerContext =
+  // As new route handlers are added, their types should be '&'-ed with this
+  // type.
+  AppRouteRouteHandlerContext
 
 export class RouteHandlerManager {
-  private readonly handlers: Partial<{
-    [K in RouteKind]: RouteHandler
-  }> = {}
-
-  public set<
-    K extends RouteKind,
-    D extends RouteDefinition<K>,
-    M extends RouteMatch<D>,
-    H extends RouteHandler<M>
-  >(kind: K, handler: H) {
-    if (kind in this.handlers) {
-      throw new Error('Invariant: duplicate route handler added for kind')
-    }
-
-    this.handlers[kind] = handler
-  }
+  constructor(
+    private readonly moduleLoader: ModuleLoader = new NodeModuleLoader()
+  ) {}
 
   public async handle(
     match: RouteMatch,
     req: BaseNextRequest,
-    res: BaseNextResponse,
-    context?: any
+    context: RouteHandlerManagerContext
   ): Promise<Response | undefined> {
-    const handler = this.handlers[match.definition.kind]
-    if (!handler) return
+    // The module supports minimal mode, load the minimal module.
+    const module = RouteModuleLoader.load<RouteModule>(
+      match.definition.filename,
+      this.moduleLoader
+    )
 
-    // Get the response from the handler.
-    const response = await handler.handle(match, req, res, context)
+    // Setup the handler. It is the responsibility of the module to ensure that
+    // this is only called once. If this is in development mode, the require
+    // cache will be cleared and the module will be re-created.
+    module.setup()
 
-    return response
+    // Convert the BaseNextRequest to a NextRequest.
+    const request = NextRequestAdapter.fromBaseNextRequest(req)
+
+    // Get the response from the handler and send it back.
+    return await module.handle(request, context)
   }
 }

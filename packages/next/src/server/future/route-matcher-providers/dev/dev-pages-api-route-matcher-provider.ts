@@ -1,26 +1,17 @@
-import { Normalizer } from '../../normalizers/normalizer'
 import { FileReader } from './helpers/file-reader/file-reader'
 import {
   PagesAPILocaleRouteMatcher,
   PagesAPIRouteMatcher,
 } from '../../route-matchers/pages-api-route-matcher'
-import { AbsoluteFilenameNormalizer } from '../../normalizers/absolute-filename-normalizer'
-import { Normalizers } from '../../normalizers/normalizers'
-import { wrapNormalizerFn } from '../../normalizers/wrap-normalizer-fn'
-import { normalizePagePath } from '../../../../shared/lib/page-path/normalize-page-path'
-import { PrefixingNormalizer } from '../../normalizers/prefixing-normalizer'
 import { RouteKind } from '../../route-kind'
 import path from 'path'
 import { LocaleRouteNormalizer } from '../../normalizers/locale-route-normalizer'
 import { FileCacheRouteMatcherProvider } from './file-cache-route-matcher-provider'
+import { DevPagesNormalizers } from '../../normalizers/built/pages'
 
 export class DevPagesAPIRouteMatcherProvider extends FileCacheRouteMatcherProvider<PagesAPIRouteMatcher> {
   private readonly expression: RegExp
-  private readonly normalizers: {
-    page: Normalizer
-    pathname: Normalizer
-    bundlePath: Normalizer
-  }
+  private readonly normalizers: DevPagesNormalizers
 
   constructor(
     private readonly pagesDir: string,
@@ -34,25 +25,7 @@ export class DevPagesAPIRouteMatcherProvider extends FileCacheRouteMatcherProvid
     // pages directory.
     this.expression = new RegExp(`\\.(?:${extensions.join('|')})$`)
 
-    const pageNormalizer = new AbsoluteFilenameNormalizer(
-      pagesDir,
-      extensions,
-      'pages'
-    )
-
-    const bundlePathNormalizer = new Normalizers([
-      pageNormalizer,
-      // If the bundle path would have ended in a `/`, add a `index` to it.
-      wrapNormalizerFn(normalizePagePath),
-      // Prefix the bundle path with `pages/`.
-      new PrefixingNormalizer('pages'),
-    ])
-
-    this.normalizers = {
-      page: pageNormalizer,
-      pathname: pageNormalizer,
-      bundlePath: bundlePathNormalizer,
-    }
+    this.normalizers = new DevPagesNormalizers(pagesDir, extensions)
   }
 
   private test(filename: string): boolean {

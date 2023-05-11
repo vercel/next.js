@@ -5,7 +5,7 @@ version = "0.0.0"
 publish = false
 
 [features]
-plugin = ["next-binding/__swc_core_binding_napi_plugin"]
+plugin = ["turbo-binding/__swc_core_binding_napi_plugin"]
 
 [dependencies]
 chrono = "0.4"
@@ -14,25 +14,26 @@ either = "1"
 fxhash = "0.2.1"
 hex = "0.4.3"
 once_cell = { workspace = true }
-next-transform-font = {"workspace" = true}
+next-transform-font = {workspace = true}
 pathdiff = "0.2.0"
 regex = "1.5"
 serde = "1"
 serde_json = "1"
 sha1 = "0.10.1"
-tracing = { version = "0.1.37", features = ["release_max_level_info"] }
+tracing = { version = "0.1.37" }
 
-next-binding = { path = "../next-binding", features = [
+turbo-binding = { workspace = true, features = [
   "__swc_core",
   "__swc_core_next_core",
   "__swc_transform_styled_jsx",
   "__swc_transform_emotion",
   "__swc_transform_styled_components",
   "__swc_transform_modularize_imports",
+  "__swc_transform_relay",
 ] }
 
 [dev-dependencies]
-next-binding = { path = "../next-binding", features = [
+turbo-binding = { workspace = true, features = [
   "__swc_core_testing_transform",
   "__swc_testing",
 ] }

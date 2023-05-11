@@ -1,19 +1,21 @@
 use anyhow::{bail, Result};
-use turbo_tasks::{primitives::StringVc, Value};
-use turbopack::ecmascript::chunk::{
-    EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkVc,
-    EcmascriptExportsVc,
-};
-use turbopack_core::{
-    asset::{Asset, AssetContentVc, AssetVc},
-    chunk::{
-        availability_info::AvailabilityInfo, ChunkVc, ChunkableAsset, ChunkableAssetVc,
-        ChunkingContextVc,
+use turbo_binding::turbopack::{
+    core::{
+        asset::{Asset, AssetContentVc, AssetVc},
+        chunk::{
+            availability_info::AvailabilityInfo, ChunkVc, ChunkableAsset, ChunkableAssetVc,
+            ChunkingContextVc,
+        },
+        ident::AssetIdentVc,
+        reference::AssetReferencesVc,
     },
-    ident::AssetIdentVc,
-    reference::AssetReferencesVc,
+    ecmascript::chunk::EcmascriptChunkingContextVc,
+    turbopack::ecmascript::chunk::{
+        EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc,
+        EcmascriptChunkVc, EcmascriptExportsVc,
+    },
 };
-use turbopack_ecmascript::chunk::EcmascriptChunkingContextVc;
+use turbo_tasks::{primitives::StringVc, Value};
 
 #[turbo_tasks::function]
 fn modifier() -> StringVc {

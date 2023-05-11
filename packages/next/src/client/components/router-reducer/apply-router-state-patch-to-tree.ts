@@ -16,7 +16,7 @@ function applyPatch(
 
   // if the applied patch segment is __DEFAULT__ then we can ignore it and return the initial tree
   // this is because the __DEFAULT__ segment is used as a placeholder on navigation
-  if (patchSegment === '__DEFAULT__') {
+  if (patchSegment === '__DEFAULT__' && initialSegment !== '__DEFAULT__') {
     return initialTree
   }
 

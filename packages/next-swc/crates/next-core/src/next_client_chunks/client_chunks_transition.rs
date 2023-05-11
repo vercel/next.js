@@ -1,17 +1,19 @@
 use anyhow::Result;
+use turbo_binding::{
+    turbo::tasks_fs::FileSystemPathVc,
+    turbopack::{
+        core::{asset::AssetVc, chunk::ChunkingContextVc, compile_time_info::CompileTimeInfoVc},
+        node::execution_context::ExecutionContextVc,
+        turbopack::{
+            ecmascript::chunk::EcmascriptChunkPlaceableVc,
+            module_options::ModuleOptionsContextVc,
+            resolve_options_context::ResolveOptionsContextVc,
+            transition::{Transition, TransitionVc},
+            ModuleAssetContextVc,
+        },
+    },
+};
 use turbo_tasks::Value;
-use turbo_tasks_fs::FileSystemPathVc;
-use turbopack::{
-    ecmascript::chunk::EcmascriptChunkPlaceableVc,
-    module_options::ModuleOptionsContextVc,
-    resolve_options_context::ResolveOptionsContextVc,
-    transition::{Transition, TransitionVc},
-    ModuleAssetContextVc,
-};
-use turbopack_core::{
-    asset::AssetVc, chunk::ChunkingContextVc, compile_time_info::CompileTimeInfoVc,
-};
-use turbopack_node::execution_context::ExecutionContextVc;
 
 use super::with_chunks::WithChunksAsset;
 use crate::{
@@ -108,7 +110,6 @@ impl Transition for NextClientChunksTransition {
             if let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? {
                 WithChunksAsset {
                     asset: placeable,
-                    server_root: self.server_root,
                     chunking_context: self.client_chunking_context,
                 }
                 .cell()

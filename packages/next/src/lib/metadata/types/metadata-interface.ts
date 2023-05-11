@@ -28,6 +28,7 @@ import type {
   Verification,
   ThemeColorDescriptor,
 } from './metadata-types'
+import type { Manifest as ManifestFile } from './manifest-types'
 import type { OpenGraph, ResolvedOpenGraph } from './opengraph-types'
 import type { ResolvedTwitterMetadata, Twitter } from './twitter-types'
 
@@ -318,7 +319,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * The common verification tokens for the document.
    * @example
    * ```tsx
-   * { verification: { google: "google-site-verification=1234567890", yandex: "1234567890", "me": "1234567890" } }
+   * { verification: { google: "1234567890", yandex: "1234567890", "me": "1234567890" } }
    * <meta name="google-site-verification" content="1234567890" />
    * <meta name="yandex-verification" content="1234567890" />
    * <meta name="me" content="@me" />
@@ -554,10 +555,16 @@ type RobotsFile = {
   host?: string
 }
 
-type Sitemap = Array<{
+type SitemapFile = Array<{
   url: string
   lastModified?: string | Date
 }>
 
-export type ResolvingMetadata = Promise<ResolvedMetadata>
-export { Metadata, ResolvedMetadata, RobotsFile as Robots, Sitemap }
+type ResolvingMetadata = Promise<ResolvedMetadata>
+declare namespace MetadataRoute {
+  export type Robots = RobotsFile
+  export type Sitemap = SitemapFile
+  export type Manifest = ManifestFile
+}
+
+export { Metadata, ResolvedMetadata, ResolvingMetadata, MetadataRoute }

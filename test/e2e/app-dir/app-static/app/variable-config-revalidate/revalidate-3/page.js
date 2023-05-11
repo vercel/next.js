@@ -9,7 +9,7 @@ export default async function Page() {
     'https://next-data-api-endpoint.vercel.app/api/random',
     {
       next: {
-        revalidate: 15,
+        revalidate: 9,
       },
     }
   ).then((res) => res.text())
@@ -18,7 +18,7 @@ export default async function Page() {
     <>
       <p>/variable-config-revalidate/revalidate-3</p>
       <p id="date">{Date.now()}</p>
-      <p id="data">{data}</p>
+      <p id="random-data">{data}</p>
     </>
   )
 }

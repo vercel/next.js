@@ -31,7 +31,7 @@ const WEBPACK_BREAKING_CHANGE_POLYFILLS =
   '\n\nBREAKING CHANGE: webpack < 5 used to include polyfills for node.js core modules by default.'
 
 function isLikelyASyntaxError(message: string) {
-  return stripAnsi(message).indexOf(friendlySyntaxErrorLabel) !== -1
+  return stripAnsi(message).includes(friendlySyntaxErrorLabel)
 }
 
 let hadMissingSassError = false

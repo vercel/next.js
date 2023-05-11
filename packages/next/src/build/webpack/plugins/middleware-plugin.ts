@@ -127,10 +127,10 @@ function getEntryFiles(
     )
 
     files.push(`server/${NEXT_FONT_MANIFEST}.js`)
+  }
 
-    if (NextBuildContext!.hasInstrumentationHook) {
-      files.push(`server/edge-${INSTRUMENTATION_HOOK_FILENAME}.js`)
-    }
+  if (NextBuildContext!.hasInstrumentationHook) {
+    files.push(`server/edge-${INSTRUMENTATION_HOOK_FILENAME}.js`)
   }
 
   files.push(
@@ -605,6 +605,7 @@ async function findEntryEdgeFunctionConfig(
             nextConfig: {},
             pageFilePath,
             isDev: false,
+            pageType: 'root',
           })
         ).middleware,
       }
@@ -635,7 +636,7 @@ function getExtractMetadata(params: {
         entryDependency,
         resolver
       )
-      const { rootDir } = getModuleBuildInfo(
+      const { rootDir, route } = getModuleBuildInfo(
         compilation.moduleGraph.getResolvedModule(entryDependency)
       )
 
@@ -668,7 +669,7 @@ function getExtractMetadata(params: {
           const resource = module.resource
           const hasOGImageGeneration =
             resource &&
-            /[\\/]node_modules[\\/]@vercel[\\/]og[\\/]dist[\\/]index\.(edge|node)\.js$/.test(
+            /[\\/]node_modules[\\/]@vercel[\\/]og[\\/]dist[\\/]index\.(edge|node)\.js$|[\\/]next[\\/]dist[\\/]server[\\/]web[\\/]spec-extension[\\/]image-response\.js$/.test(
               resource
             )
 
@@ -736,6 +737,15 @@ function getExtractMetadata(params: {
 
         if (edgeFunctionConfig?.config?.regions) {
           entryMetadata.regions = edgeFunctionConfig.config.regions
+        }
+
+        if (route?.preferredRegion) {
+          const preferredRegion = route.preferredRegion
+          entryMetadata.regions =
+            // Ensures preferredRegion is always an array in the manifest.
+            typeof preferredRegion === 'string'
+              ? [preferredRegion]
+              : preferredRegion
         }
 
         /**

@@ -1,7 +1,19 @@
 import { DynamicServerError } from './hooks-server-context'
 import { staticGenerationAsyncStorage } from './static-generation-async-storage'
 
-export function staticGenerationBailout(reason: string): boolean | never {
+class StaticGenBailoutError extends Error {
+  code = 'NEXT_STATIC_GEN_BAILOUT'
+}
+
+export type StaticGenerationBailout = (
+  reason: string,
+  opts?: { dynamic?: string; link?: string }
+) => boolean | never
+
+export const staticGenerationBailout: StaticGenerationBailout = (
+  reason,
+  opts
+) => {
   const staticGenerationStore = staticGenerationAsyncStorage.getStore()
 
   if (staticGenerationStore?.forceStatic) {
@@ -9,8 +21,10 @@ export function staticGenerationBailout(reason: string): boolean | never {
   }
 
   if (staticGenerationStore?.dynamicShouldError) {
-    throw new Error(
-      `Page with \`dynamic = "error"\` couldn't be rendered statically because it used \`${reason}\``
+    const { dynamic = 'error', link } = opts || {}
+    const suffix = link ? ` See more info here: ${link}` : ''
+    throw new StaticGenBailoutError(
+      `Page with \`dynamic = "${dynamic}"\` couldn't be rendered statically because it used \`${reason}\`.${suffix}`
     )
   }
 

@@ -3,9 +3,12 @@
 #![feature(box_syntax)]
 
 mod app_render;
+mod app_segment_config;
 mod app_source;
 pub mod app_structure;
+mod asset_helpers;
 mod babel;
+mod bootstrap;
 mod embed_js;
 pub mod env;
 mod fallback;
@@ -25,27 +28,29 @@ pub mod next_shared;
 mod page_loader;
 mod page_source;
 pub mod pages_structure;
-pub mod react_refresh;
 pub mod router;
 pub mod router_source;
 mod runtime;
-mod typescript;
+mod transform_options;
 mod util;
 mod web_entry_source;
 
 pub use app_source::create_app_source;
 pub use page_source::create_page_source;
-pub use turbopack_node::source_map;
+pub use turbo_binding::{turbopack::node::source_map, *};
 pub use web_entry_source::create_web_entry_source;
 
 pub fn register() {
     turbo_tasks::register();
-    turbo_tasks_bytes::register();
-    turbo_tasks_fs::register();
-    turbo_tasks_fetch::register();
-    turbopack_dev::register();
-    turbopack_dev_server::register();
-    turbopack_node::register();
-    turbopack::register();
+    turbo::tasks_bytes::register();
+    turbo::tasks_fs::register();
+    turbo::tasks_fetch::register();
+    turbopack::dev::register();
+    turbopack::dev_server::register();
+    turbopack::node::register();
+    turbopack::turbopack::register();
+    turbopack::image::register();
+    turbopack::ecmascript::register();
+    turbopack::ecmascript_plugin::register();
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

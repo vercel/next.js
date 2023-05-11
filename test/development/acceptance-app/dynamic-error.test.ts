@@ -32,8 +32,8 @@ createNextDescribe(
 
       await session.hasRedbox(true)
       console.log(await session.getRedboxDescription())
-      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
-        `"Error: Page with \`dynamic = \\"error\\"\` couldn't be rendered statically because it used \`cookies\`"`
+      expect(await session.getRedboxDescription()).toBe(
+        `Error: Page with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies\`.`
       )
 
       await cleanup()

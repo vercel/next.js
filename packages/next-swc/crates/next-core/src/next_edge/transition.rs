@@ -1,24 +1,20 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::Result;
 use indexmap::indexmap;
-use turbo_tasks::Value;
-use turbo_tasks_fs::{rope::RopeBuilder, File, FileContent, FileContentVc, FileSystemPathVc};
-use turbopack::{
-    module_options::ModuleOptionsContextVc,
-    resolve_options_context::ResolveOptionsContextVc,
-    transition::{Transition, TransitionVc},
-    ModuleAssetContextVc,
+use turbo_binding::{
+    turbo::tasks_fs::FileSystemPathVc,
+    turbopack::{
+        core::{asset::AssetVc, chunk::ChunkingContextVc, compile_time_info::CompileTimeInfoVc},
+        ecmascript::chunk_group_files_asset::ChunkGroupFilesAsset,
+        turbopack::{
+            module_options::ModuleOptionsContextVc,
+            resolve_options_context::ResolveOptionsContextVc,
+            transition::{Transition, TransitionVc},
+            ModuleAssetContextVc,
+        },
+    },
 };
-use turbopack_core::{
-    asset::{Asset, AssetVc},
-    chunk::ChunkingContextVc,
-    compile_time_info::CompileTimeInfoVc,
-    context::AssetContext,
-    virtual_asset::VirtualAssetVc,
-};
-use turbopack_ecmascript::{
-    chunk_group_files_asset::ChunkGroupFilesAsset, utils::StringifyJs, EcmascriptInputTransform,
-    EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc, InnerAssetsVc,
-};
+
+use crate::bootstrap::{route_bootstrap, BootstrapConfigVc};
 
 #[turbo_tasks::value(shared)]
 pub struct NextEdgeTransition {
@@ -28,7 +24,7 @@ pub struct NextEdgeTransition {
     pub edge_resolve_options_context: ResolveOptionsContextVc,
     pub output_path: FileSystemPathVc,
     pub base_path: FileSystemPathVc,
-    pub bootstrap_file: FileContentVc,
+    pub bootstrap_asset: AssetVc,
     pub entry_name: String,
 }
 
@@ -64,49 +60,13 @@ impl Transition for NextEdgeTransition {
         asset: AssetVc,
         context: ModuleAssetContextVc,
     ) -> Result<AssetVc> {
-        let FileContent::Content(base) = &*self.bootstrap_file.await? else {
-            bail!("runtime code not found");
-        };
-        let path = asset.ident().path().await?;
-        let path = self
-            .base_path
-            .await?
-            .get_path_to(&path)
-            .ok_or_else(|| anyhow!("asset is not in base_path"))?;
-        let path = if let Some((name, ext)) = path.rsplit_once('.') {
-            if !ext.contains('/') {
-                name
-            } else {
-                path
-            }
-        } else {
-            path
-        };
-        let mut new_content = RopeBuilder::from(
-            format!(
-                "const NAME={};\nconst PAGE = {};\n",
-                StringifyJs(&self.entry_name),
-                StringifyJs(path)
-            )
-            .into_bytes(),
-        );
-        new_content.concat(base.content());
-        let file = File::from(new_content.build());
-        let virtual_asset = VirtualAssetVc::new(
-            asset.ident().path().join("next-edge-bootstrap.ts"),
-            FileContent::Content(file).cell().into(),
-        );
-
-        let new_asset = EcmascriptModuleAssetVc::new_with_inner_assets(
-            virtual_asset.into(),
+        let new_asset = route_bootstrap(
+            asset,
             context.into(),
-            Value::new(EcmascriptModuleAssetType::Typescript),
-            EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
-                use_define_for_class_fields: false,
-            }]),
-            context.compile_time_info(),
-            InnerAssetsVc::cell(indexmap! {
-                "ENTRY".to_string() => asset
+            self.base_path,
+            self.bootstrap_asset,
+            BootstrapConfigVc::cell(indexmap! {
+                "NAME".to_string() => self.entry_name.clone(),
             }),
         );
 

@@ -62,6 +62,11 @@ if (!foundCommand && args['--help']) {
 }
 
 const command = foundCommand ? args._[0] : defaultCommand
+
+if (['experimental-compile', 'experimental-generate'].includes(command)) {
+  args._.push('--build-mode', command)
+}
+
 const forwardedArgs = foundCommand ? args._.slice(1) : args._
 
 if (args['--inspect'])

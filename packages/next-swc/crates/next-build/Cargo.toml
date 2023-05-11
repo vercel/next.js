@@ -7,20 +7,18 @@ edition = "2021"
 autobenches = false
 
 [features]
-next-font-local = ["next-core/next-font-local"]
 native-tls = ["next-core/native-tls"]
 rustls-tls = ["next-core/rustls-tls"]
-custom_allocator = ["turbo-malloc/custom_allocator"]
+custom_allocator = ["turbo-binding/__turbo_malloc", "turbo-binding/__turbo_malloc_custom_allocator"]
 
 [dependencies]
 anyhow = "1.0.47"
 next-core = { workspace = true }
-turbo-malloc = { workspace = true, default-features = false }
-turbo-tasks = { workspace = true }
-turbo-tasks-memory = { workspace = true }
+
+turbo-binding = { workspace = true, features = ["__turbo_tasks", "__turbo_tasks_memory"] }
 
 [build-dependencies]
-turbo-tasks-build = { workspace = true }
+turbo-binding = { workspace = true, features = ["__turbo_tasks_build"] }
 vergen = { version = "7.3.2", default-features = false, features = [
   "cargo",
   "build",

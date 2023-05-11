@@ -1,32 +1,32 @@
 import type { FlightRouterState } from '../../../../server/app-render/types'
-import type { ChildSegmentMap } from '../../../../shared/lib/app-router-context'
+import type { CacheNode } from '../../../../shared/lib/app-router-context'
+import { createRouterCacheKey } from '../create-router-cache-key'
 
 export function findHeadInCache(
-  childSegmentMap: ChildSegmentMap,
+  cache: CacheNode,
   parallelRoutes: FlightRouterState[1]
 ): React.ReactNode {
-  if (!childSegmentMap) {
-    return undefined
+  const isLastItem = Object.keys(parallelRoutes).length === 0
+  if (isLastItem) {
+    return cache.head
   }
   for (const key in parallelRoutes) {
     const [segment, childParallelRoutes] = parallelRoutes[key]
-    const isLastItem = Object.keys(childParallelRoutes).length === 0
+    const childSegmentMap = cache.parallelRoutes.get(key)
+    if (!childSegmentMap) {
+      continue
+    }
 
-    const cacheKey = Array.isArray(segment) ? segment[1] : segment
+    const cacheKey = createRouterCacheKey(segment)
 
     const cacheNode = childSegmentMap.get(cacheKey)
     if (!cacheNode) {
       continue
     }
 
-    if (isLastItem && cacheNode.head) return cacheNode.head
-
-    const segmentMap = cacheNode.parallelRoutes.get(key)
-    if (segmentMap) {
-      const item = findHeadInCache(segmentMap, childParallelRoutes)
-      if (item) {
-        return item
-      }
+    const item = findHeadInCache(cacheNode, childParallelRoutes)
+    if (item) {
+      return item
     }
   }
 

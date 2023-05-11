@@ -7,6 +7,11 @@ if [ "$DEPLOY_ENVIRONMENT" = "production" ]; then
   PROD="--prod"
 fi
 
+if [ -z "$VERCEL_API_TOKEN" ]; then
+  echo "VERCEL_API_TOKEN was not providing, skipping..."
+  exit 0
+fi
+
 for CWD in $CHANGED_EXAMPLES ; do
   HYPHENS=$(echo "$CWD" | tr '/' '-')
   PROJECT="nextjs-$HYPHENS"
