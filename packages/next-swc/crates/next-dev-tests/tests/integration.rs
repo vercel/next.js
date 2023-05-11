@@ -228,6 +228,8 @@ async fn run_test(resource: PathBuf) -> JsResult {
     let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let tests_dir = package_root.join("tests");
     let integration_tests_dir = tests_dir.join("integration");
+    // We run tests from a temporary directory because tests can modify files in the
+    // test directory when testing the file watcher/HMR.
     let resource_temp: PathBuf = tests_dir.join("temp").join(
         resource
             .strip_prefix(integration_tests_dir)
