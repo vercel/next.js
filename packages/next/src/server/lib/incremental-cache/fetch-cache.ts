@@ -34,10 +34,21 @@ export default class FetchCache implements CacheHandler {
       }
       delete ctx._requestHeaders[FETCH_CACHE_HEADER]
     }
-    if (ctx._requestHeaders['x-vercel-sc-host']) {
-      this.cacheEndpoint = `https://${ctx._requestHeaders['x-vercel-sc-host']}${
-        ctx._requestHeaders['x-vercel-sc-basepath'] || ''
-      }`
+    const scHost =
+      ctx._requestHeaders['x-vercel-sc-host'] || process.env.SUSPENSE_CACHE_URL
+
+    const scBasePath =
+      ctx._requestHeaders['x-vercel-sc-basepath'] ||
+      process.env.SUSPENSE_CACHE_BASEPATH
+
+    if (process.env.SUSPENSE_CACHE_AUTH_TOKEN) {
+      this.headers[
+        'Authorization'
+      ] = `Bearer ${process.env.SUSPENSE_CACHE_AUTH_TOKEN}`
+    }
+
+    if (scHost) {
+      this.cacheEndpoint = `https://${scHost}${scBasePath || ''}`
       if (this.debug) {
         console.log('using cache endpoint', this.cacheEndpoint)
       }
