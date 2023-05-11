@@ -255,7 +255,10 @@ export async function changeFile(
   replaceWith: string
 ) {
   return new Promise((resolve, reject) => {
-    const id = unsafeUniqueId()
+    let id
+    while ((id = unsafeUniqueId())) {
+      if (!fileChangedResolvers.has(id)) break
+    }
 
     fileChangedResolvers.set(id, { resolve, reject })
 
