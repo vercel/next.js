@@ -23,6 +23,7 @@
   "postcss",
   "prettier",
   "prisma",
+  "playwright",
   "rimraf",
   "sharp",
   "shiki",
