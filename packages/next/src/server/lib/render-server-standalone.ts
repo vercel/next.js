@@ -10,11 +10,13 @@ const renderServerPath = require.resolve('./render-server')
 export const createServerHandler = async ({
   port,
   hostname,
+  dev = false,
   dir,
   minimalMode,
 }: {
   port: number
   hostname: string
+  dev?: boolean
   dir: string
   minimalMode: boolean
 }) => {
@@ -60,7 +62,7 @@ export const createServerHandler = async ({
   const { port: routerPort } = await routerWorker.initialize({
     dir,
     port,
-    dev: false,
+    dev,
     hostname,
     minimalMode,
     workerType: 'router',

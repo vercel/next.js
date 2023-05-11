@@ -122,7 +122,6 @@ export async function initialize(opts: {
           hostname,
           customServer: false,
           httpServer: server,
-          port: opts.port,
         })
 
         requestHandler = app.getRequestHandler()

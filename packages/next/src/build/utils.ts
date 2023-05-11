@@ -1978,7 +1978,6 @@ server.listen(currentPort, async (err) => {
     port: currentPort,
     hostname,
     dir,
-    conf: nextConfig,
   })
 
   console.log(
