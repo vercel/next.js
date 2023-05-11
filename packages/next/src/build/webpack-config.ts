@@ -2489,6 +2489,8 @@ export default async function getBaseWebpackConfig(
     optimizeCss: config.experimental.optimizeCss,
     nextScriptWorkers: config.experimental.nextScriptWorkers,
     scrollRestoration: config.experimental.scrollRestoration,
+    serverActions: config.experimental.serverActions,
+    typedRoutes: config.experimental.typedRoutes,
     basePath: config.basePath,
     pageEnv: config.experimental.pageEnv,
     excludeDefaultMomentLocales: config.excludeDefaultMomentLocales,
