@@ -1957,7 +1957,7 @@ createServerHandler({
 }).then((nextHandler) => {
   const server = http.createServer(async (req, res) => {
     try {
-      await handler(req, res)
+      await nextHandler(req, res)
     } catch (err) {
       console.error(err);
       res.statusCode = 500
