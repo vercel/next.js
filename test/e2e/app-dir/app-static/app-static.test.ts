@@ -14,6 +14,7 @@ createNextDescribe(
     files: __dirname,
     env: {
       NEXT_DEBUG_BUILD: '1',
+      NEXT_PRIVATE_DEBUG_CACHE: '1',
       ...(process.env.CUSTOM_CACHE_HANDLER
         ? {
             CUSTOM_CACHE_HANDLER: process.env.CUSTOM_CACHE_HANDLER,
@@ -32,6 +33,46 @@ createNextDescribe(
         )
         buildCliOutputIndex = next.cliOutput.length
       }
+    })
+
+    it.each([
+      { pathname: '/unstable-cache-node' },
+      { pathname: '/unstable-cache-edge' },
+      { pathname: '/api/unstable-cache-node' },
+      { pathname: '/api/unstable-cache-edge' },
+    ])('unstable-cache should work in pages$pathname', async ({ pathname }) => {
+      let res = await next.fetch(pathname)
+      expect(res.status).toBe(200)
+      const isApi = pathname.startsWith('/api')
+      let prevData
+
+      if (isApi) {
+        prevData = await res.json()
+      } else {
+        const initialHtml = await res.text()
+        const initial$ = isApi ? undefined : cheerio.load(initialHtml)
+        prevData = JSON.parse(initial$('#props').text())
+      }
+
+      expect(prevData.data.random).toBeTruthy()
+
+      await check(async () => {
+        res = await next.fetch(pathname)
+        expect(res.status).toBe(200)
+        let curData
+
+        if (isApi) {
+          curData = await res.json()
+        } else {
+          const curHtml = await res.text()
+          const cur$ = cheerio.load(curHtml)
+          curData = JSON.parse(cur$('#props').text())
+        }
+
+        expect(curData.data.random).toBeTruthy()
+        expect(curData.data.random).toBe(prevData.data.random)
+        return 'success'
+      }, 'success')
     })
 
     it('should not have cache tags header for non-minimal mode', async () => {
