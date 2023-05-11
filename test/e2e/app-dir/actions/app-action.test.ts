@@ -413,7 +413,7 @@ createNextDescribe(
 
             expect(newRandomNumber).not.toBe(randomNumber)
             expect(newJustPutIt).not.toBe(justPutIt)
-            expect(newThankYouNext).not.toBe(thankYouNext)
+            expect(newThankYouNext).toBe(thankYouNext)
 
             return 'success'
           }, 'success')
