@@ -9,10 +9,6 @@ pub use next_dynamic::get_next_dynamic_transform_rule;
 pub use next_font::get_next_font_transform_rule;
 pub use next_strip_page_exports::get_next_pages_transforms_rule;
 pub use relay::get_relay_transform_plugin;
-use swc_core::{
-    common::util::take::Take,
-    ecma::ast::{Module, ModuleItem, Program},
-};
 use turbo_binding::turbopack::{
     core::reference_type::{ReferenceType, UrlReferenceSubType},
     turbopack::module_options::{ModuleRule, ModuleRuleCondition, ModuleRuleEffect, ModuleType},
@@ -52,19 +48,4 @@ pub(crate) fn module_rule_match_js_no_url() -> ModuleRuleCondition {
             ModuleRuleCondition::ResourcePathEndsWith(".tsx".to_string()),
         ]),
     ])
-}
-
-pub(crate) fn unwrap_module_program(program: &mut Program) -> Program {
-    match program {
-        Program::Module(module) => Program::Module(module.take()),
-        Program::Script(s) => Program::Module(Module {
-            span: s.span,
-            body: s
-                .body
-                .iter()
-                .map(|stmt| ModuleItem::Stmt(stmt.clone()))
-                .collect(),
-            shebang: s.shebang.clone(),
-        }),
-    }
 }
