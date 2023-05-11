@@ -12,17 +12,14 @@ bench = false
 
 [features]
 default = ["cli", "custom_allocator"]
-cli = ["dep:clap", "turbo-malloc"]
-persistent_cache = [
-  # "dep:turbo-tasks-rocksdb"
-]
+cli = ["dep:clap", "turbo-tasks-malloc"]
 tokio_console = [
   "dep:console-subscriber",
   "tokio/tracing",
   "turbo-tasks/tokio_tracing",
 ]
 node-api = []
-custom_allocator = ["turbo-malloc", "turbo-malloc/custom_allocator"]
+custom_allocator = ["turbo-tasks-malloc", "turbo-tasks-malloc/custom_allocator"]
 
 [dependencies]
 anyhow = { workspace = true }
@@ -32,11 +29,10 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 
-turbo-malloc = { workspace = true, optional = true, default-features = false }
 turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }
+turbo-tasks-malloc = { workspace = true, optional = true, default-features = false }
 turbo-tasks-memory = { workspace = true }
-# turbo-tasks-rocksdb = { path = "../turbo-tasks-rocksdb", optional = true }
 turbopack = { workspace = true }
 turbopack-cli-utils = { workspace = true }
 turbopack-core = { workspace = true }

@@ -23,8 +23,6 @@ pub mod swc {
 
 #[cfg(feature = "__turbo")]
 pub mod turbo {
-    #[cfg(feature = "__turbo_malloc")]
-    pub use turbo_malloc as malloc;
     #[cfg(feature = "__turbo_tasks")]
     pub use turbo_tasks as tasks;
     #[cfg(feature = "__turbo_tasks_build")]
@@ -43,6 +41,8 @@ pub mod turbo {
     pub use turbo_tasks_macros as tasks_macros;
     #[cfg(feature = "__turbo_tasks_macros_shared")]
     pub use turbo_tasks_macros_shared as tasks_macros_shared;
+    #[cfg(feature = "__turbo_tasks_malloc")]
+    pub use turbo_tasks_malloc as malloc;
     #[cfg(feature = "__turbo_tasks_memory")]
     pub use turbo_tasks_memory as tasks_memory;
     #[cfg(feature = "__turbo_tasks_testing")]

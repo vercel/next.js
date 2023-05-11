@@ -7,10 +7,10 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilte
 use turbopack_cli::{arguments::Arguments, register};
 
 #[global_allocator]
-static ALLOC: turbo_malloc::TurboMalloc = turbo_malloc::TurboMalloc;
+static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 
 fn main() {
-    use turbo_malloc::TurboMalloc;
+    use turbo_tasks_malloc::TurboMalloc;
 
     let subscriber = Registry::default();
 

@@ -1,5 +1,5 @@
 [package]
-name = "turbo-binding"
+name = "turbopack-binding"
 version = "0.1.0"
 edition = "2021"
 license = "MPL-2.0"
@@ -74,8 +74,8 @@ __swc_core_binding_wasm_plugin = ["swc_core/plugin_transform_host_js"]
 __swc_core_testing_transform = ["swc_core/testing_transform"]
 
 __turbo = []
-__turbo_malloc = ["__turbo", "turbo-malloc"]
-__turbo_malloc_custom_allocator = ["turbo-malloc/custom_allocator"]
+__turbo_tasks_malloc = ["__turbo", "turbo-tasks-malloc"]
+__turbo_tasks_malloc_custom_allocator = ["turbo-tasks-malloc/custom_allocator"]
 __turbo_tasks = ["__turbo", "turbo-tasks"]
 __turbo_tasks_tokio_tracing = ["turbo-tasks/tokio_tracing"]
 __turbo_tasks_build = ["__turbo", "turbo-tasks-build"]
@@ -171,7 +171,6 @@ swc-ast-explorer = { optional = true, workspace = true }
 tracing-signpost = { optional = true, workspace = true }
 
 node-file-trace = { optional = true, workspace = true }
-turbo-malloc = { optional = true, workspace = true, default-features = false }
 turbo-tasks = { optional = true, workspace = true }
 turbo-tasks-build = { optional = true, workspace = true }
 turbo-tasks-bytes = { optional = true, workspace = true }
@@ -181,6 +180,7 @@ turbo-tasks-fs = { optional = true, workspace = true }
 turbo-tasks-hash = { optional = true, workspace = true }
 turbo-tasks-macros = { optional = true, workspace = true }
 turbo-tasks-macros-shared = { optional = true, workspace = true }
+turbo-tasks-malloc = { optional = true, workspace = true, default-features = false }
 turbo-tasks-memory = { optional = true, workspace = true }
 turbo-tasks-testing = { optional = true, workspace = true }
 turbo-updater = { optional = true, workspace = true }
