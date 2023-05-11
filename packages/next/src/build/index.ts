@@ -557,7 +557,7 @@ export default async function build(
       }
 
       // Interception routes are modelled as beforeFiles rewrites
-      rewrites.beforeFiles.unshift(
+      rewrites.beforeFiles.push(
         ...generateInterceptionRoutesRewrites(appPageKeys)
       )
 
