@@ -9,7 +9,7 @@
     "build-native-no-plugin": "napi build --platform -p next-swc-napi --cargo-cwd ../../ --cargo-name next_swc_napi --js false native",
     "build-native-no-plugin-woa": "napi build --platform -p next-swc-napi --cargo-cwd ../../ --cargo-name next_swc_napi --cargo-flags=--no-default-features --features native-tls --js false native",
     "build-native-no-plugin-woa-release": "napi build --platform -p next-swc-napi --cargo-cwd ../../ --cargo-name next_swc_napi --release --cargo-flags=--no-default-features --features native-tls,tracing/release_max_level_info --js false native",
-    "build-wasm": "wasm-pack build crates/wasm --scope=next",
+    "build-wasm": "wasm-pack build crates/wasm --scope=next --features tracing/release_max_level_info",
     "cache-build-native": "echo $(ls native)"
   },
   "napi": {
