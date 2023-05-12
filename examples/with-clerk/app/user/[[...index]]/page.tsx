@@ -1,5 +1,5 @@
 import { UserProfile } from '@clerk/nextjs'
 
-const UserProfilePage = () => <UserProfile path="/user" routing="path" />
+const UserProfilePage = () => <UserProfile />
 
 export default UserProfilePage
