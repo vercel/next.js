@@ -1,4 +1,5 @@
 import type { OutgoingHttpHeaders } from 'http'
+import type { ValidationErrors } from './helpers/validate-amp'
 
 export type ExportersResult =
   | {
@@ -13,6 +14,14 @@ export type ExportersResult =
         | {
             status: number | undefined
             headers: OutgoingHttpHeaders | undefined
+          }
+        | undefined
+      amp:
+        | {
+            validations: Array<{
+              page: string
+              result: ValidationErrors
+            }>
           }
         | undefined
       revalidate: number | false | undefined

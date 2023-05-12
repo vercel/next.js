@@ -96,9 +96,11 @@ export class EdgeRouteModuleWrapper {
       renderOpts: {
         query,
 
+        // FIXME: (wyattjoh) refer to base server for correct implementation
+        resolvedAsPath: url.pathname,
+
         // FIXME: (wyattjoh) implement
         isDataReq: undefined,
-        resolvedAsPath: undefined,
         resolvedUrl: '',
         locale: undefined,
         defaultLocale: undefined,

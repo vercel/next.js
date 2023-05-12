@@ -22,6 +22,7 @@ import { getStatusCode } from '../helpers/get-status-code'
 import { getHTMLFilename } from './helpers/get-html-filename'
 import { ManifestRouteModuleLoader } from '../../../server/future/helpers/module-loader/manifest-module-loader'
 import { stripInternalQueries } from '../../../server/internal-utils'
+import { type ValidationErrors, validateAmp } from './helpers/validate-amp'
 
 type ExportPagesRouteRenderOpts = Pick<
   RenderOpts,
@@ -122,7 +123,12 @@ export async function exportPagesRoute({
     writer.write(htmlFilepath, module, 'utf8')
 
     // Return that we've already built this page.
-    return { type: 'built', revalidate: undefined, metadata: undefined }
+    return {
+      type: 'built',
+      revalidate: undefined,
+      amp: undefined,
+      metadata: undefined,
+    }
   }
 
   // For AMP support, we need to render the AMP version of the page.
@@ -217,7 +223,8 @@ export async function exportPagesRoute({
       customServer: undefined,
       distDir,
       isDataReq: false,
-      resolvedAsPath: undefined,
+      // FIXME: (wyattjoh) refer to base server for correct implementation
+      resolvedAsPath: updatedPath,
       // TODO: (wyattjoh) this is mirroring the behavior of renderToHTML
       resolvedUrl: undefined as unknown as string,
       err: undefined,
@@ -274,12 +281,29 @@ export async function exportPagesRoute({
     )
   }
 
+  const amp: {
+    validations: Array<{
+      page: string
+      result: ValidationErrors
+    }>
+  } = {
+    validations: [],
+  }
+
   // Check to see if we need to render an AMP version of the page.
   const isInAmpMode =
     module.amp === true || (module.amp === 'hybrid' && Boolean(query.amp))
 
   if (isInAmpMode && !module.config?.experimental.amp?.skipValidation) {
-    // FIXME: validate if the amp validation is still required
+    if (!metadata.isNotFound) {
+      const results = await validateAmp(
+        html,
+        module.config?.experimental.amp?.validator
+      )
+      if (results) {
+        amp.validations.push({ page: pathname, result: results })
+      }
+    }
   } else if (module.amp === 'hybrid') {
     // Because we didn't render the amp page yet but it's being requested (the
     // page config indicates it's a hybrid page), we need to render the AMP
@@ -306,10 +330,18 @@ export async function exportPagesRoute({
     html = result.toUnchunkedString()
     metadata = result.metadata()
 
-    // FIXME: (wyattjoh) validate the AMP HTML if it's required
-
     // Write the AMP HTML file to disk.
     if (!metadata.isNotFound) {
+      if (!module.config?.experimental.amp?.skipValidation) {
+        const results = await validateAmp(
+          html,
+          module.config?.experimental.amp?.validator
+        )
+        if (results) {
+          amp.validations.push({ page: pathname + '?amp=1', result: results })
+        }
+      }
+
       writer.write(ampHtmlFilepath, html, 'utf8')
     }
 
@@ -324,5 +356,10 @@ export async function exportPagesRoute({
     }
   }
 
-  return { type: 'built', revalidate: metadata.revalidate, metadata: undefined }
+  return {
+    type: 'built',
+    revalidate: metadata.revalidate,
+    amp,
+    metadata: undefined,
+  }
 }

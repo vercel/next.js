@@ -38,6 +38,11 @@ describe('AMP Usage', () => {
       })
       output = result.stdout + result.stderr
 
+      if (result.code !== 0) {
+        console.log(output)
+        throw new Error(`build failed with status ${result.code}`)
+      }
+
       appPort = context.appPort = await findPort()
       app = await nextStart(appDir, context.appPort)
     })
@@ -46,7 +51,7 @@ describe('AMP Usage', () => {
         join(appDir, 'pages/invalid-amp.js.bak'),
         join(appDir, 'pages/invalid-amp.js')
       )
-      return killApp(app)
+      await killApp(app)
     })
 
     it('should have amp optimizer in trace', async () => {
@@ -89,21 +94,35 @@ describe('AMP Usage', () => {
       })
 
       it('should not output client pages for AMP only', async () => {
-        const browser = await webdriver(appPort, '/nav')
-        await browser.elementByCss('#only-amp-link').click()
+        let browser
 
-        const result = await browser.eval('window.NAV_PAGE_LOADED')
+        try {
+          browser = await webdriver(appPort, '/nav')
 
-        expect(result).toBeFalsy()
+          await browser.elementByCss('#only-amp-link').click()
+
+          const result = await browser.eval('window.NAV_PAGE_LOADED')
+
+          expect(result).toBeFalsy()
+        } finally {
+          await browser.close()
+        }
       })
 
       it('should not output client pages for AMP only with config exported after declaration', async () => {
-        const browser = await webdriver(appPort, '/nav')
-        await browser.elementByCss('#var-before-export-link').click()
+        let browser
 
-        const result = await browser.eval('window.NAV_PAGE_LOADED')
+        try {
+          browser = await webdriver(appPort, '/nav')
 
-        expect(result).toBeFalsy()
+          await browser.elementByCss('#var-before-export-link').click()
+
+          const result = await browser.eval('window.NAV_PAGE_LOADED')
+
+          expect(result).toBeFalsy()
+        } finally {
+          await browser.close()
+        }
       })
 
       it('should drop custom scripts', async () => {
@@ -244,24 +263,25 @@ describe('AMP Usage', () => {
   })
 
   describe('AMP dev no-warn', () => {
-    let dynamicAppPort
-    let ampDynamic
-
     it('should not warn on valid amp', async () => {
+      let dynamicAppPort
+      let ampDynamic
       let inspectPayload = ''
       dynamicAppPort = await findPort()
-      ampDynamic = await launchApp(join(__dirname, '../'), dynamicAppPort, {
-        onStdout(msg) {
-          inspectPayload += msg
-        },
-        onStderr(msg) {
-          inspectPayload += msg
-        },
-      })
+      try {
+        ampDynamic = await launchApp(join(__dirname, '../'), dynamicAppPort, {
+          onStdout(msg) {
+            inspectPayload += msg
+          },
+          onStderr(msg) {
+            inspectPayload += msg
+          },
+        })
 
-      await renderViaHTTP(dynamicAppPort, '/only-amp')
-
-      await killApp(ampDynamic)
+        await renderViaHTTP(dynamicAppPort, '/only-amp')
+      } finally {
+        await killApp(ampDynamic)
+      }
 
       expect(inspectPayload).not.toContain('warn')
     })
@@ -284,13 +304,21 @@ describe('AMP Usage', () => {
       })
     })
 
-    afterAll(() => killApp(ampDynamic))
+    afterAll(async () => killApp(ampDynamic))
 
     it('should navigate from non-AMP to AMP without error', async () => {
-      const browser = await webdriver(dynamicAppPort, '/normal')
-      await browser.elementByCss('#to-amp').click()
-      await browser.waitForElementByCss('#only-amp')
-      expect(await browser.elementByCss('#only-amp').text()).toMatch(/Only AMP/)
+      let browser
+      try {
+        browser = await webdriver(dynamicAppPort, '/normal')
+
+        await browser.elementByCss('#to-amp').click()
+        await browser.waitForElementByCss('#only-amp')
+        expect(await browser.elementByCss('#only-amp').text()).toMatch(
+          /Only AMP/
+        )
+      } finally {
+        await browser.close()
+      }
     })
 
     it('should add data-ampdevmode to development script tags', async () => {
@@ -384,19 +412,24 @@ describe('AMP Usage', () => {
     })
 
     it.skip('should detect changes to component and refresh an AMP page', async () => {
-      const browser = await webdriver(dynamicAppPort, '/hmr/comp')
-      await check(() => browser.elementByCss('#hello-comp').text(), /hello/)
+      let browser
+      try {
+        browser = await webdriver(dynamicAppPort, '/hmr/comp')
+        await check(() => browser.elementByCss('#hello-comp').text(), /hello/)
 
-      const testComp = join(__dirname, '../components/hello.js')
+        const testComp = join(__dirname, '../components/hello.js')
 
-      const origContent = readFileSync(testComp, 'utf8')
-      const newContent = origContent.replace('>hello<', '>hi<')
+        const origContent = readFileSync(testComp, 'utf8')
+        const newContent = origContent.replace('>hello<', '>hi<')
 
-      writeFileSync(testComp, newContent, 'utf8')
-      await check(() => browser.elementByCss('#hello-comp').text(), /hi/)
+        writeFileSync(testComp, newContent, 'utf8')
+        await check(() => browser.elementByCss('#hello-comp').text(), /hi/)
 
-      writeFileSync(testComp, origContent, 'utf8')
-      await check(() => browser.elementByCss('#hello-comp').text(), /hello/)
+        writeFileSync(testComp, origContent, 'utf8')
+        await check(() => browser.elementByCss('#hello-comp').text(), /hello/)
+      } finally {
+        await browser.close()
+      }
     })
 
     it.skip('should not reload unless the page is edited for an AMP page', async () => {

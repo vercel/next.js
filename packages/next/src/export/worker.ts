@@ -235,8 +235,7 @@ export default async function exportPage({
       }
     case 'built':
       return {
-        // TODO: (wyattjoh) add amp validation results
-        ampValidations: [],
+        ampValidations: results.amp?.validations ?? [],
         fromBuildExportRevalidate: results.revalidate,
         fromBuildExportMeta: results.metadata,
         duration,

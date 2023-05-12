@@ -128,6 +128,7 @@ export async function exportAppRouteRoute({
     return {
       type: 'built',
       revalidate: context.staticGenerationContext.store?.revalidate || false,
+      amp: undefined,
       metadata: { status: response.status, headers },
     }
   } catch (err) {

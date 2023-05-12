@@ -183,6 +183,7 @@ export async function exportAppPageRoute({
   return {
     type: 'built',
     revalidate: metadata.revalidate,
+    amp: undefined,
     metadata: {
       status: undefined,
       headers,

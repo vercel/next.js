@@ -287,7 +287,7 @@ export interface PagesRouteHandlerContext extends RouteModuleHandleContext {
     customServer: boolean | undefined
     distDir: string | undefined
     isDataReq: boolean | undefined
-    resolvedAsPath: string | undefined
+    resolvedAsPath: string
     query: NextParsedUrlQuery
     resolvedUrl: string
     err: Error | null | undefined
@@ -769,8 +769,7 @@ export class PagesRouteModule extends RouteModule<
     // Pull some values off of the request context.
     const { isLocaleDomain = false, resolvedUrl } = context.renderOpts
 
-    let { query } = context.renderOpts
-    let asPath = context.renderOpts.resolvedAsPath || request.url
+    let { query, resolvedAsPath } = context.renderOpts
 
     // We only need to perform this transformation in development because when
     // we're in production we're serving the static files that are already
@@ -783,7 +782,7 @@ export class PagesRouteModule extends RouteModule<
         // now this is just `amp`.
         query = query.amp ? { amp: query.amp } : {}
 
-        asPath = context.pathname
+        resolvedAsPath = context.pathname
 
         // Ensure trailing slash is present for non-dynamic auto-export pages.
         if (
@@ -791,7 +790,7 @@ export class PagesRouteModule extends RouteModule<
           request.url.endsWith('/') &&
           context.pathname !== '/'
         ) {
-          asPath += '/'
+          resolvedAsPath += '/'
         }
 
         // FIXME: (wyattjoh) this seems like a bug. We're mutating the request object here.
@@ -814,7 +813,7 @@ export class PagesRouteModule extends RouteModule<
     const router = new ServerRouter({
       pathname: context.pathname,
       query,
-      asPath,
+      asPath: resolvedAsPath,
       basePath: this.config?.basePath ?? '',
       isFallback: context.isFallback,
       locale: context.renderOpts.locale,
@@ -905,7 +904,7 @@ export class PagesRouteModule extends RouteModule<
       res: isAutoExport ? undefined : context.res,
       pathname: context.pathname,
       query,
-      asPath,
+      asPath: resolvedAsPath,
       locale: context.renderOpts.locale,
       locales: this.config?.i18n?.locales,
       defaultLocale: context.renderOpts.defaultLocale,
