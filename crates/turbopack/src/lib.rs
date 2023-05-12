@@ -377,14 +377,20 @@ impl AssetContext for ModuleAssetContext {
 
     #[turbo_tasks::function]
     async fn resolve_options(
-        &self,
+        self_vc: ModuleAssetContextVc,
         origin_path: FileSystemPathVc,
         _reference_type: Value<ReferenceType>,
     ) -> Result<ResolveOptionsVc> {
+        let this = self_vc.await?;
+        let context = if let Some(transition) = this.transition {
+            transition.process_context(self_vc)
+        } else {
+            self_vc
+        };
         // TODO move `apply_commonjs/esm_resolve_options` etc. to here
         Ok(resolve_options(
             origin_path.parent().resolve().await?,
-            self.resolve_options_context,
+            context.await?.resolve_options_context,
         ))
     }
 
