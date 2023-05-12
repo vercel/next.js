@@ -17,8 +17,6 @@ export async function GET(request: Request) {
 
 export const APIRequest = () => {
   useEffect(() => {
-    // @ts-expect-error added this to check if Prism library is loaded before hydration
-    console.log({prism: window.Prism})
     // @ts-expect-error
     if (window.Prism) {
       // @ts-expect-error
