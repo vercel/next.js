@@ -25,7 +25,7 @@ describe('app dir - metadata missing metadataBase', () => {
     )
     expect(next.cliOutput).toInclude('"http://localhost:')
     expect(next.cliOutput).toInclude(
-      '. See https://beta.nextjs.org/docs/api-reference/metadata#metadatabase'
+      '. See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase'
     )
   })
 })
