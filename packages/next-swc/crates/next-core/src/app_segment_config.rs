@@ -128,7 +128,10 @@ impl Issue for NextSegmentConfigParsingIssue {
 
     #[turbo_tasks::function]
     fn documentation_link(&self) -> StringVc {
-        StringVc::cell("https://beta.nextjs.org/docs/api-reference/segment-config".to_string())
+        StringVc::cell(
+            "https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config"
+                .to_string(),
+        )
     }
 
     #[turbo_tasks::function]

@@ -425,7 +425,7 @@ const metadata = {
                           file: getSource(fileName),
                           category: ts.DiagnosticCategory.Error,
                           code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
-                          messageText: `The 'metadata' export value is not typed correctly, please make sure it is typed as 'Metadata':\nhttps://beta.nextjs.org/docs/guides/seo#static-metadata`,
+                          messageText: `The 'metadata' export value is not typed correctly, please make sure it is typed as 'Metadata':\nhttps://nextjs.org/docs/app/building-your-application/optimizing/metadata#static-metadata`,
                           start: e.name.getStart(),
                           length: e.name.getWidth(),
                         },
