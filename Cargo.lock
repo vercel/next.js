@@ -4650,6 +4650,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "send-trace-to-jaeger"
+version = "0.1.0"
+dependencies = [
+ "reqwest",
+ "serde_json",
+]
+
+[[package]]
 name = "sentry"
 version = "0.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

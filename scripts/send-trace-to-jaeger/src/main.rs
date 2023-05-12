@@ -1,9 +1,12 @@
+use std::{
+    env::args,
+    fs::File,
+    io::{self, BufRead},
+    path::Path,
+};
+
 use reqwest::blocking::Client;
 use serde_json::{Map, Number, Value};
-use std::env::args;
-use std::fs::File;
-use std::io::{self, BufRead};
-use std::path::Path;
 
 /// Read individual lines from a file.
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
