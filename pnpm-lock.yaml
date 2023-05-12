@@ -11,9 +11,9 @@ overrides:
   '@types/react-dom': 18.2.3
 
 patchedDependencies:
-  webpack@5.82.1:
-    hash: lvclgyr5ppitlfku55piy7i5om
-    path: patches/webpack@5.82.1.patch
+  webpack@5.74.0:
+    hash: 5dzslx4q6shjsoftqw6lzzmrrm
+    path: patches/webpack@5.74.0.patch
 
 importers:
 
@@ -384,7 +384,7 @@ importers:
       typescript: 4.8.2
       unfetch: 4.2.0
       wait-port: 0.2.2
-      webpack: 5.74.0_@swc+core@1.3.55
+      webpack: 5.74.0_5dzslx4q6shjsoftqw6lzzmrrm_@swc+core@1.3.55
       webpack-bundle-analyzer: 4.7.0
       whatwg-fetch: 3.0.0
       ws: 8.2.3
@@ -6003,7 +6003,7 @@ packages:
     dependencies:
       '@mdx-js/mdx': 2.2.1
       source-map: 0.7.3
-      webpack: 5.74.0_@swc+core@1.3.55
+      webpack: 5.74.0_5dzslx4q6shjsoftqw6lzzmrrm_@swc+core@1.3.55
     transitivePeerDependencies:
       - supports-color
 
@@ -21290,7 +21290,7 @@ packages:
       neo-async: 2.6.2
       react: 18.2.0
       react-dom: 18.2.0_react@18.2.0
-      webpack: 5.74.0_@swc+core@1.3.55
+      webpack: 5.74.0_5dzslx4q6shjsoftqw6lzzmrrm_@swc+core@1.3.55
     dev: true
 
   /react-server-dom-webpack/18.3.0-canary-16d053d59-20230506_4ifzx734of5j5ymg4ksx54vtqi:
@@ -21306,7 +21306,7 @@ packages:
       neo-async: 2.6.1
       react: 18.2.0
       react-dom: 18.2.0_react@18.2.0
-      webpack: 5.74.0_@swc+core@1.3.55
+      webpack: 5.74.0_5dzslx4q6shjsoftqw6lzzmrrm_@swc+core@1.3.55
     dev: true
 
   /react-shallow-renderer/16.15.0_react@18.2.0:
@@ -23770,7 +23770,7 @@ packages:
       serialize-javascript: 6.0.0
       source-map: 0.6.1
       terser: 5.14.1
-      webpack: 5.74.0_@swc+core@1.3.55
+      webpack: 5.74.0_5dzslx4q6shjsoftqw6lzzmrrm_@swc+core@1.3.55
 
   /terser-webpack-plugin/5.2.4_webpack@5.74.0:
     resolution: {integrity: sha512-E2CkNMN+1cho04YpdANyRrn8CyN4yMy+WdFKZIySFZrGXZxJwJP6PMNGGc/Mcr6qygQHUUqRxnAPmi0M9f00XA==}
@@ -25138,7 +25138,7 @@ packages:
       - esbuild
       - uglify-js
 
-  /webpack/5.74.0_@swc+core@1.3.55:
+  /webpack/5.74.0_5dzslx4q6shjsoftqw6lzzmrrm_@swc+core@1.3.55:
     resolution: {integrity: sha512-A2InDwnhhGN4LYctJj6M1JEaGL7Luj6LOmyBHjcI8529cm5p6VXiTIW2sn6ffvEAKmveLzvu4jrihwXtPojlAA==}
     engines: {node: '>=10.13.0'}
     hasBin: true
@@ -25176,6 +25176,7 @@ packages:
       - '@swc/core'
       - esbuild
       - uglify-js
+    patched: true
 
   /websocket-driver/0.7.3:
     resolution: {integrity: sha512-bpxWlvbbB459Mlipc5GBzzZwhoZgGEZLuqPaR0INBGnPAY1vdBX6hPnoFXiw+3yWxDuHyQjO2oXTMyS8A5haFg==}

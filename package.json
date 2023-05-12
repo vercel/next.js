@@ -255,7 +255,7 @@
   "packageManager": "pnpm@7.24.3",
   "pnpm": {
     "patchedDependencies": {
-      "webpack@5.82.1": "patches/webpack@5.82.1.patch"
+      "webpack@5.74.0": "patches/webpack@5.74.0.patch"
     }
   }
 }
