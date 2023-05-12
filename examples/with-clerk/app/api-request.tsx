@@ -4,14 +4,15 @@ import { SignedIn, SignedOut } from "@clerk/nextjs"
 import { useEffect, useState } from "react"
 import styles from '../styles/Home.module.css'
 
-const apiSample = `import { getAuth } from '@clerk/nextjs/server'
+const apiSample = `import { auth } from "@clerk/nextjs";
+import { NextResponse } from "next/server";
 
-export default function handler(req, res) {
-  const { sessionId, userId } = getAuth(req);
-  if (!sessionId) {
-    return res.status(401).json({ id: null });
+export async function GET(request: Request) {
+  const { userId, sessionId } = auth()
+  if(!sessionId) {
+    return NextResponse.json({ id: null }, { status: 401 })
   }
-  return res.status(200).json({ id: userId });
+  return NextResponse.json({ id: userId }, { status: 200 })
 }`
 
 export const APIRequest = () => {
@@ -79,7 +80,7 @@ export const APIRequest = () => {
       <pre>
         <code className="language-js">{response}</code>
       </pre>
-      <h4>pages/api/getAuthenticatedUserId.js</h4>
+      <h4>app/api/getAuthenticatedUserId/route.ts</h4>
       <pre>
         <code className="language-js">{apiSample}</code>
       </pre>
