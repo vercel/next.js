@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
 use anyhow::{bail, Result};
-use turbo_binding::{
+use turbo_tasks::Value;
+use turbopack_binding::{
     turbo::{tasks_env::ProcessEnvVc, tasks_fs::FileSystemPathVc},
     turbopack::{
         core::{
@@ -17,7 +18,6 @@ use turbo_binding::{
         },
     },
 };
-use turbo_tasks::Value;
 
 use crate::{
     next_client::context::{

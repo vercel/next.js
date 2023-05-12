@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use turbo_binding::{
+use turbopack_binding::{
     turbo::{
         tasks::{TryJoinIterExt, Value},
         tasks_fs::FileSystemPathVc,

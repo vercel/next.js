@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use indoc::formatdoc;
-use turbo_binding::{
+use turbopack_binding::{
     turbo::{
         tasks::{
             primitives::{OptionStringVc, StringVc, U32Vc},
@@ -209,7 +209,9 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
 
         #[cfg(not(feature = "__internal_nextjs_integration_test"))]
         let stylesheet_str = {
-            use turbo_binding::{turbo::tasks_fetch::fetch, turbopack::core::issue::IssueSeverity};
+            use turbopack_binding::{
+                turbo::tasks_fetch::fetch, turbopack::core::issue::IssueSeverity,
+            };
 
             let stylesheet_res = fetch(
                 stylesheet_url,
@@ -304,7 +306,7 @@ async fn get_stylesheet_url_from_options(
     let mut css_url: Option<String> = None;
     #[cfg(debug_assertions)]
     {
-        use turbo_binding::turbo::tasks_env::{CommandLineProcessEnvVc, ProcessEnv};
+        use turbopack_binding::turbo::tasks_env::{CommandLineProcessEnvVc, ProcessEnv};
 
         let env = CommandLineProcessEnvVc::new();
         if let Some(url) = &*env.read("TURBOPACK_TEST_ONLY_MOCK_SERVER").await? {
@@ -396,7 +398,7 @@ async fn get_mock_stylesheet(
 ) -> Result<Option<String>> {
     use std::{collections::HashMap, path::Path};
 
-    use turbo_binding::{
+    use turbopack_binding::{
         turbo::{
             tasks::CompletionVc,
             tasks_bytes::stream::SingleValue,
