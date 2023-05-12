@@ -4,6 +4,10 @@ import { SignedIn, SignedOut } from "@clerk/nextjs"
 import { useEffect, useState } from "react"
 import styles from '../styles/Home.module.css'
 
+declare global {
+  interface Window { Prism: any; }
+}
+
 const apiSample = `import { auth } from "@clerk/nextjs";
 import { NextResponse } from "next/server";
 
@@ -17,9 +21,7 @@ export async function GET(request: Request) {
 
 export const APIRequest = () => {
   useEffect(() => {
-    // @ts-expect-error
     if (window.Prism) {
-      // @ts-expect-error
       window.Prism.highlightAll()
     }
   })
