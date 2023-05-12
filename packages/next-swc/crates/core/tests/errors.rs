@@ -150,8 +150,40 @@ fn next_font_loaders_errors(input: PathBuf) {
     );
 }
 
-#[fixture("tests/errors/server-actions/**/input.js")]
-fn react_server_actions_errors(input: PathBuf) {
+#[fixture("tests/errors/server-actions/server-graph/**/input.js")]
+fn react_server_actions_server_errors(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|tr| {
+            chain!(
+                resolver(Mark::new(), Mark::new(), false),
+                server_components(
+                    FileName::Real(PathBuf::from("/app/item.js")),
+                    next_swc::react_server_components::Config::WithOptions(
+                        next_swc::react_server_components::Options { is_server: true },
+                    ),
+                    tr.comments.as_ref().clone(),
+                    None,
+                ),
+                server_actions(
+                    &FileName::Real("/app/item.js".into()),
+                    server_actions::Config { is_server: true },
+                    tr.comments.as_ref().clone(),
+                )
+            )
+        },
+        &input,
+        &output,
+        FixtureTestConfig {
+            allow_error: true,
+            ..Default::default()
+        },
+    );
+}
+
+#[fixture("tests/errors/server-actions/client-graph/**/input.js")]
+fn react_server_actions_client_errors(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
@@ -168,7 +200,7 @@ fn react_server_actions_errors(input: PathBuf) {
                 ),
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
-                    server_actions::Config { is_server: true },
+                    server_actions::Config { is_server: false },
                     tr.comments.as_ref().clone(),
                 )
             )

@@ -15,6 +15,7 @@ export interface StaticGenerationStore {
   fetchCache?:
     | 'only-cache'
     | 'force-cache'
+    | 'default-cache'
     | 'force-no-store'
     | 'default-no-store'
     | 'only-no-store'
@@ -31,6 +32,17 @@ export interface StaticGenerationStore {
   pathWasRevalidated?: boolean
 
   tags?: string[]
+
+  revalidatedTags?: string[]
+  fetchMetrics?: Array<{
+    url: string
+    idx: number
+    end: number
+    start: number
+    method: string
+    status: number
+    cacheStatus: 'hit' | 'miss'
+  }>
 }
 
 export type StaticGenerationAsyncStorage =

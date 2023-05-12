@@ -793,10 +793,12 @@ export default class DevServer extends Server {
           : undefined
 
         this.customRoutes = await loadCustomRoutes(this.nextConfig)
-        this.customRoutes.rewrites.beforeFiles.unshift(
+        const { rewrites } = this.customRoutes
+
+        this.customRoutes.rewrites.beforeFiles.push(
           ...generateInterceptionRoutesRewrites(Object.keys(appPaths))
         )
-        const { rewrites } = this.customRoutes
+
         if (
           rewrites.beforeFiles.length ||
           rewrites.afterFiles.length ||
@@ -880,7 +882,7 @@ export default class DevServer extends Server {
         typeCheckPreflight: false,
         tsconfigPath: this.nextConfig.typescript.tsconfigPath,
         disableStaticImages: this.nextConfig.images.disableStaticImages,
-        isAppDirEnabled: !!this.appDir,
+        hasAppDir: !!this.appDir,
         hasPagesDir: !!this.pagesDir,
       })
 

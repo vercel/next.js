@@ -43,7 +43,7 @@ tokio = { workspace = true, features = ["full"] }
 # sync with chromiumoxide's tungstenite requirement.
 tungstenite = { workspace = true }
 turbo-binding = { workspace = true, features = [
-  "__turbo_malloc",
+  "__turbo_tasks_malloc",
   "__turbo_tasks_memory",
   "__turbo_tasks",
   "__turbo_tasks_fs",
@@ -54,6 +54,7 @@ turbo-binding = { workspace = true, features = [
   "__turbopack_core_issue_path",
   "__turbopack_node",
   "__turbopack_dev_server",
+  "__swc_transform_relay"
 ]}
 turbo-tasks = { workspace = true }
 url = { workspace = true }

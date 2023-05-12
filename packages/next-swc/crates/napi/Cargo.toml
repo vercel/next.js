@@ -54,7 +54,7 @@ turbo-tasks = { workspace = true }
 once_cell = { workspace = true }
 serde = "1"
 serde_json = "1"
-tracing = { version = "0.1.37", features = ["release_max_level_info"] }
+tracing = { version = "0.1.37" }
 tracing-futures = "0.2.5"
 tracing-subscriber = "0.3.9"
 tracing-chrome = "0.5.0"
@@ -70,7 +70,7 @@ turbo-binding = { workspace = true, features = [
 
 [target.'cfg(not(all(target_os = "linux", target_env = "musl", target_arch = "aarch64")))'.dependencies]
 turbo-binding = { workspace = true, features = [
-  "__turbo_malloc"
+  "__turbo_tasks_malloc"
 ] }
 
 # There are few build targets we can't use native-tls which default features rely on,

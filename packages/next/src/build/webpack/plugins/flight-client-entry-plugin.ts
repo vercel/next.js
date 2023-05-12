@@ -48,6 +48,10 @@ export type ActionManifest = {
       workers: {
         [name: string]: string | number
       }
+      // Record which layer the action is in (sc_server or sc_action), in the specific entry.
+      layer: {
+        [name: string]: string
+      }
     }
   }
 }
@@ -56,8 +60,21 @@ const pluginState = getProxiedPluginState({
   // A map to track "action" -> "list of bundles".
   serverActions: {} as ActionManifest['node'],
   edgeServerActions: {} as ActionManifest['edge'],
-  actionModServerId: {} as Record<string, string | number>,
-  actionModEdgeServerId: {} as Record<string, string | number>,
+
+  actionModServerId: {} as Record<
+    string,
+    {
+      server?: string | number
+      client?: string | number
+    }
+  >,
+  actionModEdgeServerId: {} as Record<
+    string,
+    {
+      server?: string | number
+      client?: string | number
+    }
+  >,
 
   // Manifest of CSS entry files for server/edge server.
   serverCSSManifest: {} as ClientCSSReferenceManifest,
@@ -170,6 +187,7 @@ export class ClientReferenceEntryPlugin {
 
     const addActionEntryList: Array<ReturnType<typeof this.injectActionEntry>> =
       []
+    const actionMapsPerEntry: Record<string, Map<string, string[]>> = {}
 
     // For each SC server compilation entry, we need to create its corresponding
     // client component entry.
@@ -243,22 +261,34 @@ export class ClientReferenceEntryPlugin {
         if (!this.useServerActions) {
           compilation.errors.push(
             new Error(
-              'Server Actions require `experimental.serverActions` option to be enabled in your Next.js config.'
+              'Server Actions require `experimental.serverActions` option to be enabled in your Next.js config: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions'
             )
           )
         } else {
-          addActionEntryList.push(
-            this.injectActionEntry({
-              compiler,
-              compilation,
-              actions: actionEntryImports,
-              entryName: name,
-              bundlePath: name,
-            })
-          )
+          if (!actionMapsPerEntry[name]) {
+            actionMapsPerEntry[name] = new Map()
+          }
+          actionMapsPerEntry[name] = new Map([
+            ...actionMapsPerEntry[name],
+            ...actionEntryImports,
+          ])
         }
       }
     })
+
+    for (const [name, actionEntryImports] of Object.entries(
+      actionMapsPerEntry
+    )) {
+      addActionEntryList.push(
+        this.injectActionEntry({
+          compiler,
+          compilation,
+          actions: actionEntryImports,
+          entryName: name,
+          bundlePath: name,
+        })
+      )
+    }
 
     // To collect all CSS imports and action imports for a specific entry
     // including the ones that are in the client graph, we need to store a
@@ -293,6 +323,7 @@ export class ClientReferenceEntryPlugin {
     // client layer.
     compilation.hooks.finishModules.tapPromise(PLUGIN_NAME, () => {
       const addedClientActionEntryList: Promise<any>[] = []
+      const actionMapsPerClientEntry: Record<string, Map<string, string[]>> = {}
 
       forEachEntryModule(compilation, ({ name, entryModule }) => {
         const actionEntryImports = new Map<string, string[]>()
@@ -324,18 +355,31 @@ export class ClientReferenceEntryPlugin {
         }
 
         if (actionEntryImports.size > 0) {
-          addedClientActionEntryList.push(
-            this.injectActionEntry({
-              compiler,
-              compilation,
-              actions: actionEntryImports,
-              entryName: name,
-              bundlePath: name,
-              fromClient: true,
-            })
-          )
+          if (!actionMapsPerClientEntry[name]) {
+            actionMapsPerClientEntry[name] = new Map()
+          }
+          actionMapsPerClientEntry[name] = new Map([
+            ...actionMapsPerClientEntry[name],
+            ...actionEntryImports,
+          ])
         }
       })
+
+      for (const [name, actionEntryImports] of Object.entries(
+        actionMapsPerClientEntry
+      )) {
+        addedClientActionEntryList.push(
+          this.injectActionEntry({
+            compiler,
+            compilation,
+            actions: actionEntryImports,
+            entryName: name,
+            bundlePath: name,
+            fromClient: true,
+          })
+        )
+      }
+
       return Promise.all(addedClientActionEntryList)
     })
 
@@ -719,6 +763,7 @@ export class ClientReferenceEntryPlugin {
     const actionsArray = Array.from(actions.entries())
     const actionLoader = `next-flight-action-entry-loader?${stringify({
       actions: JSON.stringify(actionsArray),
+      __client_imported__: fromClient,
     })}!`
 
     const currentCompilerServerActions = this.isEdgeServer
@@ -730,9 +775,13 @@ export class ClientReferenceEntryPlugin {
         if (typeof currentCompilerServerActions[id] === 'undefined') {
           currentCompilerServerActions[id] = {
             workers: {},
+            layer: {},
           }
         }
         currentCompilerServerActions[id].workers[bundlePath] = ''
+        currentCompilerServerActions[id].layer[bundlePath] = fromClient
+          ? WEBPACK_LAYERS.action
+          : WEBPACK_LAYERS.server
       }
     }
 
@@ -793,11 +842,16 @@ export class ClientReferenceEntryPlugin {
         mod.request &&
         /next-flight-action-entry-loader/.test(mod.request)
       ) {
-        if (this.isEdgeServer) {
-          pluginState.actionModEdgeServerId[chunkGroup.name] = modId
-        } else {
-          pluginState.actionModServerId[chunkGroup.name] = modId
+        const fromClient = /&__client_imported__=true/.test(mod.request)
+
+        const mapping = this.isEdgeServer
+          ? pluginState.actionModEdgeServerId
+          : pluginState.actionModServerId
+
+        if (!mapping[chunkGroup.name]) {
+          mapping[chunkGroup.name] = {}
         }
+        mapping[chunkGroup.name][fromClient ? 'client' : 'server'] = modId
       }
     })
 
@@ -805,7 +859,11 @@ export class ClientReferenceEntryPlugin {
     for (let id in pluginState.serverActions) {
       const action = pluginState.serverActions[id]
       for (let name in action.workers) {
-        action.workers[name] = pluginState.actionModServerId[name]
+        const modId =
+          pluginState.actionModServerId[name][
+            action.layer[name] === WEBPACK_LAYERS.action ? 'client' : 'server'
+          ]
+        action.workers[name] = modId!
       }
       serverActions[id] = action
     }
@@ -814,7 +872,11 @@ export class ClientReferenceEntryPlugin {
     for (let id in pluginState.edgeServerActions) {
       const action = pluginState.edgeServerActions[id]
       for (let name in action.workers) {
-        action.workers[name] = pluginState.actionModEdgeServerId[name]
+        const modId =
+          pluginState.actionModEdgeServerId[name][
+            action.layer[name] === WEBPACK_LAYERS.action ? 'client' : 'server'
+          ]
+        action.workers[name] = modId!
       }
       edgeServerActions[id] = action
     }

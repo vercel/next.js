@@ -1,0 +1,47 @@
+PlainIssue {
+    severity: Warning,
+    context: "[project]/node_modules/.pnpm/postcss@8.4.14/node_modules/postcss/lib/previous-map.js",
+    category: "parse",
+    title: "lint TP1004 fs.existsSync(???*0*) is very dynamic",
+    description: "- *0* arguments[0]\n  ⚠\u{fe0f}  function calls are not analysed yet",
+    detail: "",
+    documentation_link: "",
+    source: Some(
+        PlainIssueSource {
+            asset: PlainAsset {
+                ident: "[project]/node_modules/.pnpm/postcss@8.4.14/node_modules/postcss/lib/previous-map.js",
+            },
+            start: SourcePos {
+                line: 87,
+                column: 8,
+            },
+            end: SourcePos {
+                line: 87,
+                column: 8,
+            },
+        },
+    ),
+    sub_issues: [],
+    processing_path: Some(
+        [
+            PlainIssueProcessingPathItem {
+                context: Some(
+                    "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/tailwind/basic/input/pages/index.jsx",
+                ),
+                description: "Next.js pages directory",
+            },
+            PlainIssueProcessingPathItem {
+                context: Some(
+                    "[next]/entry/server-renderer.tsx",
+                ),
+                description: "server-side rendering /",
+            },
+            PlainIssueProcessingPathItem {
+                context: Some(
+                    "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/tailwind/basic/input/styles/globals.css",
+                ),
+                description: "PostCSS processing",
+            },
+        ],
+    ),
+}

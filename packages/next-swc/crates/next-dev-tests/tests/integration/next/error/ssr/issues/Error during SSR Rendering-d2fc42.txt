@@ -1,0 +1,27 @@
+PlainIssue {
+    severity: Error,
+    context: "[root of the server]/broken",
+    category: "rendering",
+    title: "Error during SSR Rendering",
+    description: "Error: Broken page (expected error)\n\nDebug info:\n- Error: Broken page (expected error)\n at Page (packages/next-swc/crates/next-dev-tests/tests/temp/next/error/ssr/input/pages/broken.tsx:2:9)\n       1 | export default function Page() {\n         |         v\n       2 +   throw new Error('Broken page (expected error)')\n         |         ^\n       3 | }\n       4 | \n  ",
+    detail: "",
+    documentation_link: "",
+    source: None,
+    sub_issues: [],
+    processing_path: Some(
+        [
+            PlainIssueProcessingPathItem {
+                context: Some(
+                    "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/error/ssr/input/pages/broken.tsx",
+                ),
+                description: "Next.js pages directory",
+            },
+            PlainIssueProcessingPathItem {
+                context: Some(
+                    "[next]/entry/server-renderer.tsx",
+                ),
+                description: "server-side rendering /broken",
+            },
+        ],
+    ),
+}

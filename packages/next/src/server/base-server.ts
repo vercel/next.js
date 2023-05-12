@@ -1051,7 +1051,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // be passed down for edge functions and the fetch disk
     // cache can be leveraged locally
     if (
-      !(globalThis as any).__incrementalCache &&
+      !(this.serverOptions as any).webServerConfig &&
       !getRequestMeta(req, '_nextIncrementalCache')
     ) {
       let protocol: 'http:' | 'https:' = 'https:'
@@ -1071,6 +1071,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           | 'https',
       })
       addRequestMeta(req, '_nextIncrementalCache', incrementalCache)
+      ;(globalThis as any).__incrementalCache = incrementalCache
     }
 
     try {
@@ -1613,6 +1614,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           // Handle the match and collect the response if it's a static response.
           const response = await this.handlers.handle(match, req, context)
           if (response) {
+            ;(req as any).fetchMetrics = (
+              context.staticGenerationContext as any
+            ).fetchMetrics
+
             const cacheTags = (context.staticGenerationContext as any).fetchTags
 
             // If the request is for a static response, we can cache it so long
@@ -1753,6 +1758,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           'x-next-cache-tags': cacheTags,
         }
       }
+      ;(req as any).fetchMetrics = (renderOpts as any).fetchMetrics
 
       // we don't throw static to dynamic errors in dev as isSSG
       // is a best guess in dev since we don't have the prerender pass

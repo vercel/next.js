@@ -63,7 +63,10 @@ export const getRuntimeContext = async (params: {
     edgeFunctionEntry: params.edgeFunctionEntry,
     distDir: params.distDir,
   })
-  runtime.context.globalThis.__incrementalCache = params.incrementalCache
+
+  if (params.incrementalCache) {
+    runtime.context.globalThis.__incrementalCache = params.incrementalCache
+  }
 
   for (const paramPath of params.paths) {
     evaluateInContext(paramPath)
