@@ -16,8 +16,6 @@ const TRACE_LABELS_SEAL = [
   'module assets',
   'create chunk assets',
   'asset render',
-  'asset emit',
-  'store asset',
 ]
 
 function inTraceLabelsSeal(label: string) {

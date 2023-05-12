@@ -1,0 +1,15 @@
+diff --git a/lib/Compilation.js b/lib/Compilation.js
+index 23d61065b33034beb2078bffd2dc7780bb2775b3..f5faf86ce6741414059383ab74edc53a29a8959b 100644
+--- a/lib/Compilation.js
++++ b/lib/Compilation.js
+@@ -4627,7 +4627,10 @@ This prevents using hashes of each other and should be avoided.`);
+ 									}
+ 								} else if (!source) {
+ 									// render the asset
++									const label = `asset render ${file}`
++									this.logger.time(label)
+ 									source = fileManifest.render();
++									this.logger.timeEnd(label)
+ 
+ 									// Ensure that source is a cached source to avoid additional cost because of repeated access
+ 									if (!(source instanceof CachedSource)) {
