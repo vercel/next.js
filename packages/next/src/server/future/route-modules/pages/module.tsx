@@ -82,7 +82,7 @@ import {
 import { isSerializableProps } from '../../../../lib/is-serializable-props'
 import { validateRevalidate } from './helpers/validate-revalidate'
 import { proxyResponse } from './helpers/proxy-response'
-import isError from '../../../../lib/is-error'
+import isError, { getProperError } from '../../../../lib/is-error'
 import {
   type ReactReadableStream,
   chainStreams,
@@ -803,9 +803,7 @@ export class PagesRouteModule extends RouteModule<
       // Make sure all dynamic imports are loaded.
       await Loadable.preloadAll()
     } catch (err) {
-      // An internal error occurred, let's render the 500 page.
-      // TODO: (wyattjoh) check to see if this typecast is necessary
-      return this.render500(request, context, module, err as Error)
+      return this.render500(request, context, module, getProperError(err))
     }
 
     // We can't use preview data if we're not rendering the fallback page.
@@ -898,6 +896,8 @@ export class PagesRouteModule extends RouteModule<
 
     const AppContainerWithIsomorphicFiberStructure =
       createAppContainerWithIsomorphicFiberStructure(AppContainer)
+
+    debugger
 
     const ctx = {
       err: context.renderOpts.err,
@@ -1001,9 +1001,7 @@ export class PagesRouteModule extends RouteModule<
             delete err.code
           }
 
-          // An internal error occurred, let's render the 500 page.
-          // TODO: (wyattjoh) check to see if this typecast is necessary
-          return this.render500(request, context, module, err as Error)
+          return this.render500(request, context, module, getProperError(err))
         }
 
         // Ensure that the user did not include any invalid keys in the returned
@@ -1156,9 +1154,7 @@ export class PagesRouteModule extends RouteModule<
             delete err.code
           }
 
-          // An internal error occurred, let's render the 500 page.
-          // TODO: (wyattjoh) check to see if this typecast is necessary
-          return this.render500(request, context, module, err as Error)
+          return this.render500(request, context, module, getProperError(err))
         }
 
         // If the user returned a promise, mark the response as deferred.
@@ -1706,9 +1702,7 @@ export class PagesRouteModule extends RouteModule<
 
       return new RenderResult(processed, metadata)
     } catch (err) {
-      // An internal error occurred, let's render the 500 page.
-      // TODO: (wyattjoh) check to see if this typecast is necessary
-      return this.render500(request, context, module, err as Error)
+      return this.render500(request, context, module, getProperError(err))
     }
   }
 }
