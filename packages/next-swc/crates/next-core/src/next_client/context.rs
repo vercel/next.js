@@ -19,7 +19,8 @@ use turbo_binding::{
             free_var_references,
         },
         dev::{react_refresh::assert_can_resolve_react_refresh, DevChunkingContextVc},
-        ecmascript::EcmascriptInputTransform,
+        ecmascript::TransformPluginVc,
+        ecmascript_plugin::transform::directives::server::ServerDirectiveTransformer,
         env::ProcessEnvAssetVc,
         node::execution_context::ExecutionContextVc,
         turbopack::{
@@ -196,10 +197,19 @@ pub async fn get_client_module_options_context(
 
     let enable_emotion = *get_emotion_compiler_config(next_config).await?;
 
-    let mut source_transforms = vec![];
-    if let Some(relay_transform_plugin) = *get_relay_transform_plugin(next_config).await? {
-        source_transforms.push(relay_transform_plugin);
-    }
+    let source_transforms = vec![
+        *get_relay_transform_plugin(next_config).await?,
+        Some(TransformPluginVc::cell(Box::new(
+            ServerDirectiveTransformer::new(
+                // ServerDirective is not implemented yet and always reports an issue.
+                // We don't have to pass a valid transition name yet, but the API is prepared.
+                &StringVc::cell("TODO".to_string()),
+            ),
+        ))),
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
 
     let custom_ecma_transform_plugins = Some(CustomEcmascriptTransformPluginsVc::cell(
         CustomEcmascriptTransformPlugins {
@@ -209,11 +219,6 @@ pub async fn get_client_module_options_context(
     ));
 
     let module_options_context = ModuleOptionsContext {
-        custom_ecmascript_transforms: vec![EcmascriptInputTransform::ServerDirective(
-            // ServerDirective is not implemented yet and always reports an issue.
-            // We don't have to pass a valid transition name yet, but the API is prepared.
-            StringVc::cell("TODO".to_string()),
-        )],
         preset_env_versions: Some(env),
         execution_context: Some(execution_context),
         custom_ecma_transform_plugins,
