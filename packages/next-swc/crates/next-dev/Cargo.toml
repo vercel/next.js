@@ -33,7 +33,7 @@ tokio_console = [
   "turbo-tasks/tokio_tracing",
 ]
 profile = []
-custom_allocator = ["turbo-binding/__turbo_malloc", "turbo-binding/__turbo_malloc_custom_allocator"]
+custom_allocator = ["turbo-binding/__turbo_tasks_malloc", "turbo-binding/__turbo_tasks_malloc_custom_allocator"]
 native-tls = ["next-core/native-tls"]
 rustls-tls = ["next-core/rustls-tls"]
 # Internal only. Enabled when building for the Next.js integration test suite.

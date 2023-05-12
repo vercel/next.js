@@ -139,11 +139,6 @@ export async function exportAppPageRoute({
     )
   }
 
-  if (metadata.revalidate !== 0) {
-    writer.write(htmlFilepath, html, 'utf8')
-    writer.write(htmlFilepath.replace(/\.html$/, '.rsc'), metadata.pageData)
-  }
-
   let headers: OutgoingHttpHeaders | undefined
   if (ciEnvironment.hasNextSupport) {
     const cacheTags = (context as any).fetchTags
@@ -152,6 +147,19 @@ export async function exportAppPageRoute({
         'x-next-cache-tags': cacheTags,
       }
     }
+  }
+
+  if (metadata.revalidate !== 0) {
+    writer.write(htmlFilepath, html)
+    writer.write(
+      htmlFilepath.replace(/\.html$/, '.meta'),
+      JSON.stringify({ headers })
+    )
+    writer.write(
+      htmlFilepath.replace(/\.html$/, '.rsc'),
+      // This is a string for RSC data.
+      metadata.pageData
+    )
   }
 
   // Warn about static generation failures when debug is enabled.

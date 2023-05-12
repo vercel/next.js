@@ -10,7 +10,7 @@ export default function Page() {
       <div>
         <a
           className="font-medium text-zinc-300 hover:text-white"
-          href="https://beta.nextjs.org/docs/styling/css-modules"
+          href="https://nextjs.org/docs/app/building-your-application/styling/css-modules"
         >
           Learn more
         </a>

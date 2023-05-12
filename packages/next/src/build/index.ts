@@ -560,7 +560,7 @@ export default async function build(
       }
 
       // Interception routes are modelled as beforeFiles rewrites
-      rewrites.beforeFiles.unshift(
+      rewrites.beforeFiles.push(
         ...generateInterceptionRoutesRewrites(appPageKeys)
       )
 
@@ -2497,8 +2497,29 @@ export default async function build(
                 if (exportRouteMeta.status !== 200) {
                   routeMeta.initialStatus = exportRouteMeta.status
                 }
-                if (Object.keys(exportRouteMeta.headers || {}).length) {
-                  routeMeta.initialHeaders = exportRouteMeta.headers
+                const exportHeaders = exportRouteMeta.headers
+                const headerKeys = Object.keys(exportHeaders || {})
+
+                if (exportHeaders && headerKeys.length) {
+                  routeMeta.initialHeaders = {}
+
+                  // normalize header values as initialHeaders
+                  // must be Record<string, string>
+                  for (const key of headerKeys) {
+                    let value = exportHeaders[key]
+
+                    if (Array.isArray(value)) {
+                      if (key === 'set-cookie') {
+                        value = value.join(',')
+                      } else {
+                        value = value[value.length - 1]
+                      }
+                    }
+
+                    if (typeof value === 'string') {
+                      routeMeta.initialHeaders[key] = value
+                    }
+                  }
                 }
 
                 finalPrerenderRoutes[route] = {

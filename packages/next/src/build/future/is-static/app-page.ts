@@ -17,6 +17,7 @@ import { StaticGenerationAsyncStorageWrapper } from '../../../server/async-stora
 import { IncrementalCache } from '../../../server/lib/incremental-cache'
 import { patchFetch } from '../../../server/lib/patch-fetch'
 import { nodeFs } from '../../../server/lib/node-fs-methods'
+import * as ciEnvironment from '../../../telemetry/ci-info'
 
 export type IsAppPageStaticResult = {
   isStatic?: boolean
@@ -85,6 +86,7 @@ export async function generateStaticParams({
     }),
     CurCacheHandler: CacheHandler,
     requestHeaders,
+    minimalMode: ciEnvironment.hasNextSupport,
   })
 
   return StaticGenerationAsyncStorageWrapper.wrap(

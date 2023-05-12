@@ -6,6 +6,7 @@ import {
 } from '../../server/lib/incremental-cache'
 import { interopDefault } from '../../lib/interop-default'
 import { NextConfigComplete } from '../../server/config-shared'
+import * as ciEnvironment from '../../telemetry/ci-info'
 
 type IncrementalCacheOptions = {
   distDir: string
@@ -54,5 +55,6 @@ export function getIncrementalCache({
     },
     serverDistDir: posix.join(distDir, 'server'),
     CurCacheHandler,
+    minimalMode: ciEnvironment.hasNextSupport,
   })
 }

@@ -95,7 +95,7 @@ export class IncrementalCache {
     dev: boolean
     appDir?: boolean
     fetchCache?: boolean
-    minimalMode?: boolean
+    minimalMode: boolean | undefined
     serverDistDir?: string
     flushToDisk?: boolean
     requestProtocol?: 'http' | 'https'
