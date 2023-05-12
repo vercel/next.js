@@ -41,8 +41,8 @@ export default function RootLayout({
     <ClerkProvider>
       <html lang="en">
         <body className={inter.className}>
-        <Header />
-    <main>{children}</main>
+          <Header />
+          <main>{children}</main>
         </body>
         <Script
           src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-core.min.js"
