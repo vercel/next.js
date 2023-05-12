@@ -38,21 +38,25 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <ClerkProvider>
       <html lang="en">
-        <body className={inter.className}>
-          <Header />
-          <main>{children}</main>
-        </body>
+        <head>
+          <link
+            href="https://cdn.jsdelivr.net/npm/prismjs@1/themes/prism.css"
+            rel="stylesheet"
+          />
+        </head>
+        <ClerkProvider>
+          <body className={inter.className}>
+            <Header />
+            <main>{children}</main>
+          </body>
+        </ClerkProvider>
         <Script
           src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-core.min.js"
-          strategy="beforeInteractive"
         />
         <Script
           src="https://cdn.jsdelivr.net/npm/prismjs@1/plugins/autoloader/prism-autoloader.min.js"
-          strategy="beforeInteractive"
         />
       </html>
-    </ClerkProvider>
   )
 }
