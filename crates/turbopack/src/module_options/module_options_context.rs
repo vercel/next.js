@@ -2,7 +2,7 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::trace::TraceRawVcs;
 use turbopack_core::{environment::EnvironmentVc, resolve::options::ImportMappingVc};
-use turbopack_ecmascript::{EcmascriptInputTransform, TransformPluginVc};
+use turbopack_ecmascript::TransformPluginVc;
 use turbopack_ecmascript_plugins::transform::{
     emotion::EmotionTransformConfigVc, styled_components::StyledComponentsTransformConfigVc,
 };
