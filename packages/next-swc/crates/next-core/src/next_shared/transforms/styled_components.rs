@@ -1,13 +1,15 @@
 use anyhow::Result;
 use turbopack_binding::turbopack::{
     ecmascript::{OptionTransformPluginVc, TransformPluginVc},
-    ecmascript_plugin::transform::emotion::{EmotionTransformConfig, EmotionTransformer},
+    ecmascript_plugin::transform::styled_components::{
+        StyledComponentsTransformConfig, StyledComponentsTransformer,
+    },
 };
 
-use crate::next_config::{EmotionTransformOptionsOrBoolean, NextConfigVc};
+use crate::next_config::{NextConfigVc, StyledComponentsTransformOptionsOrBoolean};
 
 #[turbo_tasks::function]
-pub async fn get_emotion_transform_plugin(
+pub async fn get_styled_components_transform_plugin(
     next_config: NextConfigVc,
 ) -> Result<OptionTransformPluginVc> {
     let transform_plugin = next_config
@@ -16,19 +18,18 @@ pub async fn get_emotion_transform_plugin(
         .as_ref()
         .map(|value| {
             value
-                .emotion
+                .styled_components
                 .as_ref()
                 .map(|value| {
                     let transformer = match value {
-                        EmotionTransformOptionsOrBoolean::Boolean(true) => {
-                            EmotionTransformer::new(&EmotionTransformConfig {
+                        StyledComponentsTransformOptionsOrBoolean::Boolean(true) => Some(
+                            StyledComponentsTransformer::new(&StyledComponentsTransformConfig {
                                 ..Default::default()
-                            })
-                        }
-                        EmotionTransformOptionsOrBoolean::Boolean(false) => None,
-
-                        EmotionTransformOptionsOrBoolean::Options(value) => {
-                            EmotionTransformer::new(value)
+                            }),
+                        ),
+                        StyledComponentsTransformOptionsOrBoolean::Boolean(false) => None,
+                        StyledComponentsTransformOptionsOrBoolean::Options(value) => {
+                            Some(StyledComponentsTransformer::new(value))
                         }
                     };
 

@@ -9,9 +9,6 @@ use turbopack_binding::{
         },
         dev::react_refresh::assert_can_resolve_react_refresh,
         ecmascript::typescript::resolve::{read_from_tsconfigs, read_tsconfigs, tsconfig},
-        ecmascript_plugin::transform::styled_components::{
-            OptionStyledComponentsTransformConfigVc, StyledComponentsTransformConfig,
-        },
         turbopack::{
             module_options::{
                 DecoratorsKind, DecoratorsOptions, DecoratorsOptionsVc, JsxTransformOptions,
@@ -21,8 +18,6 @@ use turbopack_binding::{
         },
     },
 };
-
-use crate::next_config::{NextConfigVc, StyledComponentsTransformOptionsOrBoolean};
 
 async fn get_typescript_options(
     project_path: FileSystemPathVc,
@@ -168,39 +163,4 @@ pub async fn get_jsx_transform_options(
     };
 
     Ok(react_transform_options.cell())
-}
-
-#[turbo_tasks::function]
-pub async fn get_styled_components_compiler_config(
-    next_config: NextConfigVc,
-) -> Result<OptionStyledComponentsTransformConfigVc> {
-    let styled_components_compiler_config = next_config
-        .await?
-        .compiler
-        .as_ref()
-        .map(|value| {
-            value
-                .styled_components
-                .as_ref()
-                .map(|value| {
-                    let options = match value {
-                        StyledComponentsTransformOptionsOrBoolean::Boolean(true) => Some(
-                            StyledComponentsTransformConfig {
-                                ..Default::default()
-                            }
-                            .cell(),
-                        ),
-                        StyledComponentsTransformOptionsOrBoolean::Boolean(false) => None,
-                        StyledComponentsTransformOptionsOrBoolean::Options(value) => {
-                            Some(value.clone().cell())
-                        }
-                    };
-
-                    OptionStyledComponentsTransformConfigVc::cell(options)
-                })
-                .unwrap_or_else(|| OptionStyledComponentsTransformConfigVc::cell(None))
-        })
-        .unwrap_or_else(|| OptionStyledComponentsTransformConfigVc::cell(None));
-
-    Ok(styled_components_compiler_config)
 }
