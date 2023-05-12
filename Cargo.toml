@@ -1,6 +1,7 @@
 [workspace]
 
 members = [
+  "scripts/send-trace-to-jaeger",
   "packages/next-swc/crates/core",
   "packages/next-swc/crates/napi",
   "packages/next-swc/crates/wasm",
