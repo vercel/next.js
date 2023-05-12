@@ -21,8 +21,7 @@ where
 fn log_web_url(jaeger_web_ui_url: &str, trace_id: &str) {
     println!(
         "Jaeger trace will be available on {}/trace/{}",
-        jaeger_web_ui_url.to_string(),
-        trace_id.to_string()
+        jaeger_web_ui_url, trace_id
     )
 }
 
@@ -69,39 +68,37 @@ fn main() {
     let first_arg = args().nth(1).expect("Please provide a file name");
 
     if let Ok(lines) = read_lines(first_arg) {
-        for line in lines {
-            if let Ok(json_to_parse) = line {
-                let v = match serde_json::from_str::<Vec<Value>>(&json_to_parse) {
-                    Ok(v) => v
-                        .into_iter()
-                        .map(|mut data| {
-                            if !logged_url {
-                                log_web_url(&jaeger_web_ui_url, &data["traceId"].as_str().unwrap());
-                                logged_url = true;
-                            }
-                            data["localEndpoint"] = Value::Object(local_endpoint.clone());
+        for json_to_parse in lines.flatten() {
+            let v = match serde_json::from_str::<Vec<Value>>(&json_to_parse) {
+                Ok(v) => v
+                    .into_iter()
+                    .map(|mut data| {
+                        if !logged_url {
+                            log_web_url(&jaeger_web_ui_url, data["traceId"].as_str().unwrap());
+                            logged_url = true;
+                        }
+                        data["localEndpoint"] = Value::Object(local_endpoint.clone());
 
-                            data["id"] = Value::String(pad_zeros(data["id"].as_u64().unwrap()));
-                            if data["parentId"] != Value::Null {
-                                data["parentId"] =
-                                    Value::String(pad_zeros(data["parentId"].as_u64().unwrap()));
-                            }
+                        data["id"] = Value::String(pad_zeros(data["id"].as_u64().unwrap()));
+                        if data["parentId"] != Value::Null {
+                            data["parentId"] =
+                                Value::String(pad_zeros(data["parentId"].as_u64().unwrap()));
+                        }
 
-                            data
-                        })
-                        .collect::<Value>(),
-                    Err(e) => {
-                        println!("{}", e);
-                        continue;
-                    }
-                };
+                        data
+                    })
+                    .collect::<Value>(),
+                Err(e) => {
+                    println!("{}", e);
+                    continue;
+                }
+            };
 
-                let json_map = serde_json::to_string(&v).expect("Failed to serialize");
+            let json_map = serde_json::to_string(&v).expect("Failed to serialize");
 
-                // println!("{:}", json_map);
+            // println!("{:}", json_map);
 
-                send_json_to_zipkin(&zipkin_api, json_map);
-            }
+            send_json_to_zipkin(&zipkin_api, json_map);
         }
     }
 }
