@@ -15,33 +15,48 @@ macro_rules! vdbg {
     () => {
         eprintln!("[{}:{}]", file!(), line!())
     };
-    ($val:expr ; depth = $depth:expr) => {
-        // Use of `match` here is intentional because it affects the lifetimes
-        // of temporaries - https://stackoverflow.com/a/48732525/1063961
-        match $val {
-            tmp => {
-                $crate::macro_helpers::spawn_detached(async move {
-                    use $crate::debug::ValueDebugFormat;
-                    eprintln!(
-                        "[{}:{}] {} = {}",
-                        file!(),
-                        line!(),
-                        stringify!($val),
-                        (&tmp).value_debug_format($depth).try_to_string().await?,
-                    );
-                    Ok(())
-                });
-                tmp
-            }
+
+    (__init $depth:expr ; $($val:expr),* ) => {
+        {
+            use $crate::debug::ValueDebugFormat;
+            let depth = $depth;
+            $crate::macro_helpers::spawn_detached(async move {
+                $crate::vdbg!(__expand depth ; [ $($val),* ] []);
+                Ok(())
+            });
+            ($($val),*)
         }
     };
-    ($($val:expr),+ ; depth = $depth:expr) => {
-        ($(vdbg!($val ; depth = $depth)),+,)
+
+    (__expand $depth:ident ; [ $val:expr $(, $rest:expr )* ] [ $($tt:tt)* ]) => {
+        let valstr = stringify!($val);
+        let valdbg = (&$val).value_debug_format($depth).try_to_string().await?;
+        $crate::vdbg!(__expand $depth ; [ $($rest),* ] [ $($tt)* valstr valdbg ]);
     };
-    ($val:expr $(,)?) => {
-        vdbg!($val ; depth = usize::MAX)
+    (__expand $depth:ident ; [] [ $( $valstr:ident $valdbg:ident )* ]) => {
+        // By pre-awaiting, then printing everything at once, we ensure that the
+        // output won't be interleaved with output from other threads, and that
+        // it will always appear in the order that the macro was invoked.
+        eprint!(
+            $crate::vdbg!(__repeat "[{file}:{line}] {} = {}\n" $($valstr)*),
+            $(
+                $valstr,
+                $valdbg,
+            )*
+            file = file!(),
+            line = line!(),
+        );
+    };
+
+    // Sub-macro for repeating a string N times, where N is controlled by the number of identifiers
+    // passed to the macro.
+    (__repeat $str:literal $x:ident $($rest:ident)*) => { concat!($str, $crate::vdbg!(__repeat $str $($rest)*)) };
+    (__repeat $str:literal) => { "" };
+
+    ($($val:expr),* ; depth = $depth:expr) => {
+        $crate::vdbg!(__init $depth ; $($val),*)
     };
     ($($val:expr),+ $(,)?) => {
-        ($(vdbg!($val)),+,)
+        $crate::vdbg!(__init usize::MAX ; $($val),*)
     };
 }
