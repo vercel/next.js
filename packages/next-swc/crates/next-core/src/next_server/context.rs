@@ -14,7 +14,10 @@ use turbo_binding::{
             },
             free_var_references,
         },
-        ecmascript::EcmascriptInputTransform,
+        ecmascript::TransformPluginVc,
+        ecmascript_plugin::transform::directives::{
+            client::ClientDirectiveTransformer, server::ServerDirectiveTransformer,
+        },
         node::execution_context::ExecutionContextVc,
         turbopack::{
             condition::ContextCondition,
@@ -277,6 +280,17 @@ pub async fn get_server_module_options_context(
             .clone_if()
     };
 
+    let client_directive_transform_plugin = Some(TransformPluginVc::cell(Box::new(
+        ClientDirectiveTransformer::new(&StringVc::cell("server-to-client".to_string())),
+    )));
+    let server_directive_transform_plugin = Some(TransformPluginVc::cell(Box::new(
+        ServerDirectiveTransformer::new(
+            // ServerDirective is not implemented yet and always reports an issue.
+            // We don't have to pass a valid transition name yet, but the API is prepared.
+            &StringVc::cell("TODO".to_string()),
+        ),
+    )));
+
     let tsconfig = get_typescript_transform_options(project_path);
     let decorators_options = get_decorators_transform_options(project_path);
     let mdx_rs_options = *next_config.mdx_rs().await?;
@@ -288,11 +302,12 @@ pub async fn get_server_module_options_context(
     if let Some(relay_transform_plugin) = *get_relay_transform_plugin(next_config).await? {
         source_transforms.push(relay_transform_plugin);
     }
+    let output_transforms = vec![];
 
     let custom_ecma_transform_plugins = Some(CustomEcmascriptTransformPluginsVc::cell(
         CustomEcmascriptTransformPlugins {
-            source_transforms,
-            output_transforms: vec![],
+            source_transforms: source_transforms.clone(),
+            output_transforms: output_transforms.clone(),
         },
     ));
 
@@ -335,12 +350,30 @@ pub async fn get_server_module_options_context(
             }
         }
         ServerContextType::AppSSR { .. } => {
+            let mut base_source_transforms: Vec<TransformPluginVc> =
+                vec![server_directive_transform_plugin]
+                    .into_iter()
+                    .flatten()
+                    .collect();
+
+            let base_ecma_transform_plugins = Some(CustomEcmascriptTransformPluginsVc::cell(
+                CustomEcmascriptTransformPlugins {
+                    source_transforms: base_source_transforms.clone(),
+                    output_transforms: vec![],
+                },
+            ));
+
+            base_source_transforms.extend(source_transforms.clone());
+
+            let custom_ecma_transform_plugins = Some(CustomEcmascriptTransformPluginsVc::cell(
+                CustomEcmascriptTransformPlugins {
+                    source_transforms: base_source_transforms,
+                    output_transforms,
+                },
+            ));
+
             let module_options_context = ModuleOptionsContext {
-                custom_ecmascript_transforms: vec![EcmascriptInputTransform::ServerDirective(
-                    // ServerDirective is not implemented yet and always reports an issue.
-                    // We don't have to pass a valid transition name yet, but the API is prepared.
-                    StringVc::cell("TODO".to_string()),
-                )],
+                custom_ecma_transform_plugins: base_ecma_transform_plugins,
                 execution_context: Some(execution_context),
                 ..Default::default()
             };
@@ -375,18 +408,32 @@ pub async fn get_server_module_options_context(
             }
         }
         ServerContextType::AppRSC { .. } => {
+            let mut base_source_transforms: Vec<TransformPluginVc> = vec![
+                client_directive_transform_plugin,
+                server_directive_transform_plugin,
+            ]
+            .into_iter()
+            .flatten()
+            .collect();
+
+            let base_ecma_transform_plugins = Some(CustomEcmascriptTransformPluginsVc::cell(
+                CustomEcmascriptTransformPlugins {
+                    source_transforms: base_source_transforms.clone(),
+                    output_transforms: vec![],
+                },
+            ));
+
+            base_source_transforms.extend(source_transforms.clone());
+
+            let custom_ecma_transform_plugins = Some(CustomEcmascriptTransformPluginsVc::cell(
+                CustomEcmascriptTransformPlugins {
+                    source_transforms: base_source_transforms,
+                    output_transforms,
+                },
+            ));
+
             let module_options_context = ModuleOptionsContext {
-                custom_ecmascript_transforms: vec![
-                    EcmascriptInputTransform::ClientDirective(StringVc::cell(
-                        "server-to-client".to_string(),
-                    )),
-                    EcmascriptInputTransform::ServerDirective(
-                        // ServerDirective is not implemented yet and always reports an issue.
-                        // We don't have to pass a valid transition name yet, but the API is
-                        // prepared.
-                        StringVc::cell("TODO".to_string()),
-                    ),
-                ],
+                custom_ecma_transform_plugins: base_ecma_transform_plugins,
                 execution_context: Some(execution_context),
                 ..Default::default()
             };
