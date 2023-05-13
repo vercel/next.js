@@ -8,14 +8,17 @@ use turbo_binding::{
             source_asset::SourceAssetVc,
         },
         ecmascript::typescript::resolve::{read_from_tsconfigs, read_tsconfigs, tsconfig},
-        ecmascript_plugin::transform::emotion::{
-            EmotionTransformConfig, EmotionTransformConfigVc, OptionEmotionTransformConfigVc,
+        ecmascript_plugin::transform::{
+            emotion::{
+                EmotionTransformConfig, EmotionTransformConfigVc, OptionEmotionTransformConfigVc,
+            },
+            styled_components::{
+                OptionStyledComponentsTransformConfigVc, StyledComponentsTransformConfig,
+            },
         },
         turbopack::module_options::{
             DecoratorsKind, DecoratorsOptions, DecoratorsOptionsVc, JsxTransformOptions,
-            JsxTransformOptionsVc, OptionStyledComponentsTransformConfigVc,
-            StyledComponentsTransformConfig, TypescriptTransformOptions,
-            TypescriptTransformOptionsVc,
+            JsxTransformOptionsVc, TypescriptTransformOptions, TypescriptTransformOptionsVc,
         },
     },
 };
