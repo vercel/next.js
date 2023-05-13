@@ -103,58 +103,87 @@ export function serverActionReducer(
 
   if (!action.mutable.inFlightServerAction) {
     action.mutable.previousTree = state.tree
+    action.mutable.previousUrl = state.canonicalUrl
     action.mutable.inFlightServerAction = createRecordFromThenable(
       fetchServerAction(state, action)
     )
   }
+  try {
+    // suspends until the server action is resolved.
+    const { actionResult, actionFlightData, redirectLocation } =
+      readRecordValue(
+        action.mutable.inFlightServerAction!
+      ) as Awaited<FetchServerActionResult>
 
-  // suspends until the server action is resolved.
-  const { actionResult, actionFlightData, redirectLocation } = readRecordValue(
-    action.mutable.inFlightServerAction!
-  ) as Awaited<FetchServerActionResult>
+    if (redirectLocation) {
+      // the redirection might have a flight data associated with it, so we'll populate the cache with it
+      if (actionFlightData) {
+        const href = createHrefFromUrl(redirectLocation, false)
+        const previousCacheEntry = state.prefetchCache.get(href)
+        state.prefetchCache.set(href, {
+          data: createRecordFromThenable(
+            Promise.resolve([
+              actionFlightData,
+              // TODO-APP: verify the logic around canonical URL overrides
+              undefined,
+            ])
+          ),
+          kind: previousCacheEntry?.kind ?? PrefetchKind.TEMPORARY,
+          prefetchTime: Date.now(),
+          treeAtTimeOfPrefetch: action.mutable.previousTree!,
+          lastUsedTime: null,
+        })
+      }
 
-  if (redirectLocation) {
-    // the redirection might have a flight data associated with it, so we'll populate the cache with it
-    if (actionFlightData) {
-      const href = createHrefFromUrl(
-        redirectLocation,
-        // Ensures the hash is not part of the cache key as it does not affect fetching the server
-        false
+      // we throw the redirection in the action handler so that it is caught during render
+      action.reject(
+        getRedirectError(redirectLocation.toString(), RedirectType.push)
       )
-      state.prefetchCache.set(href, {
-        data: createRecordFromThenable(
-          Promise.resolve([
+    } else {
+      if (actionFlightData) {
+        const href = createHrefFromUrl(
+          new URL(action.mutable.previousUrl!, window.location.origin),
+          false
+        )
+        const previousCacheEntry = state.prefetchCache.get(href)
+        state.prefetchCache.set(
+          createHrefFromUrl(
+            new URL(action.mutable.previousUrl!, window.location.origin),
+            false
+          ),
+          {
+            data: createRecordFromThenable(
+              Promise.resolve([
+                actionFlightData,
+                // TODO-APP: verify the logic around canonical URL overrides
+                undefined,
+              ])
+            ),
+            kind: previousCacheEntry?.kind ?? PrefetchKind.TEMPORARY,
+            prefetchTime: Date.now(),
+            treeAtTimeOfPrefetch: action.mutable.previousTree!,
+            lastUsedTime: null,
+          }
+        )
+        // this is an intentional hack around React: we want to update the tree in a new render
+        setTimeout(() => {
+          action.changeByServerResponse(
+            action.mutable.previousTree!,
             actionFlightData,
             // TODO-APP: verify the logic around canonical URL overrides
-            undefined,
-          ])
-        ),
-        kind: PrefetchKind.TEMPORARY, //TODO-APP: maybe this could cached longer?
-        prefetchTime: Date.now(),
-        treeAtTimeOfPrefetch: action.mutable.previousTree!,
-        lastUsedTime: null,
-      })
-    }
+            undefined
+          )
+        })
+      }
 
-    // we throw the redirection in the action handler so that it is caught during render
-    action.reject(
-      getRedirectError(redirectLocation.toString(), RedirectType.push)
-    )
-  } else {
-    // TODO-APP: populate the prefetch cache with the new flight data
-    if (actionFlightData) {
-      // this is an intentional hack around React: we want to update the tree in a new render
-      setTimeout(() => {
-        action.changeByServerResponse(
-          action.mutable.previousTree!,
-          actionFlightData,
-          // TODO-APP: verify the logic around canonical URL overrides
-          undefined
-        )
-      })
+      action.resolve(actionResult)
     }
-
-    action.resolve(actionResult)
+  } catch (e: any) {
+    if (e.status === 'rejected') {
+      action.reject(e.value)
+    } else {
+      throw e
+    }
   }
 
   action.mutable.serverActionApplied = true

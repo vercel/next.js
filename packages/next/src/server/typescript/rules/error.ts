@@ -22,7 +22,7 @@ const errorEntry = {
           file: source,
           category: ts.DiagnosticCategory.Error,
           code: NEXT_TS_ERRORS.INVALID_ERROR_COMPONENT,
-          messageText: `Error Components must be Client Components, please add the "use client" directive: https://beta.nextjs.org/docs/api-reference/file-conventions/error`,
+          messageText: `Error Components must be Client Components, please add the "use client" directive: https://nextjs.org/docs/app/api-reference/file-conventions/error`,
           start: 0,
           length: source.text.length,
         },
