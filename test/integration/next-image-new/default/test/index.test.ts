@@ -204,6 +204,13 @@ function runTests(mode) {
           )
         ).length
       ).toBeGreaterThanOrEqual(1)
+
+      // should preload with referrerpolicy
+      expect(
+        await browser.elementsByCss(
+          'link[rel=preload][as=image][referrerpolicy="no-referrer"][imagesrcset*="test.png"]'
+        )
+      ).toHaveLength(1)
     } finally {
       if (browser) {
         await browser.close()

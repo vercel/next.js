@@ -979,6 +979,7 @@ export default function Image({
     imageSrcSet: imgAttributes.srcSet,
     imageSizes: imgAttributes.sizes,
     crossOrigin: rest.crossOrigin,
+    referrerPolicy: rest.referrerPolicy,
   }
 
   const useLayoutEffect =
