@@ -8,7 +8,7 @@ import {
   IncrementalCacheValue,
   IncrementalCacheEntry,
 } from '../../response-cache'
-import { encode } from '../../../shared/lib/bloom-filter/base64-arraybuffer'
+import { encode } from '../../../shared/lib/base64-arraybuffer'
 import { encodeText } from '../../stream-utils/encode-decode'
 import {
   CACHE_ONE_YEAR,

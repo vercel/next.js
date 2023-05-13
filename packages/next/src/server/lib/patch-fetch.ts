@@ -446,7 +446,7 @@ export function patchFetch({
 
               if (process.env.NEXT_RUNTIME === 'edge') {
                 const { decode } =
-                  require('../../shared/lib/bloom-filter/base64-arraybuffer') as typeof import('../../shared/lib/bloom-filter/base64-arraybuffer')
+                  require('../../shared/lib/base64-arraybuffer') as typeof import('../../shared/lib/base64-arraybuffer')
                 decodedBody = decode(resData.body)
               } else {
                 decodedBody = Buffer.from(resData.body, 'base64').subarray()
