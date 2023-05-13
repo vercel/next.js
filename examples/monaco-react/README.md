@@ -91,4 +91,4 @@ You can customize the behavior and appearance of the Monaco Editor by passing di
   theme: 'vs-dark',
 });`
 
-For more information on how to customize the Monaco Editor, please refer to the official documentation: <https://microsoft.github.io/monaco-editor/api/index.html>
+For more information on how to customize the Monaco Editor, please refer to the official documentation: <https://github.com/react-monaco-editor/react-monaco-editor>
