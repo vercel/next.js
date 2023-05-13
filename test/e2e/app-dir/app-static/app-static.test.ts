@@ -69,8 +69,12 @@ createNextDescribe(
           curData = JSON.parse(cur$('#props').text())
         }
 
-        expect(curData.data.random).toBeTruthy()
-        expect(curData.data.random).toBe(prevData.data.random)
+        try {
+          expect(curData.data.random).toBeTruthy()
+          expect(curData.data.random).toBe(prevData.data.random)
+        } finally {
+          prevData = curData
+        }
         return 'success'
       }, 'success')
     })
@@ -437,10 +441,15 @@ createNextDescribe(
           'blog/tim.rsc',
           'blog/tim/first-post.html',
           'blog/tim/first-post.rsc',
+          'default-cache/page.js',
           'dynamic-error/[id]/page.js',
           'dynamic-no-gen-params-ssr/[slug]/page.js',
           'dynamic-no-gen-params/[slug]/page.js',
+          'fetch-no-cache/page.js',
           'flight/[slug]/[slug2]/page.js',
+          'force-cache.html',
+          'force-cache.rsc',
+          'force-cache/page.js',
           'force-dynamic-catch-all/[slug]/[[...id]]/page.js',
           'force-dynamic-no-prerender/[id]/page.js',
           'force-dynamic-prerender/[slug]/page.js',
@@ -501,6 +510,7 @@ createNextDescribe(
           'route-handler/post/route.js',
           'route-handler/revalidate-360-isr/route.js',
           'route-handler/revalidate-360/route.js',
+          'route-handler/static-cookies/route.js',
           'ssg-draft-mode.html',
           'ssg-draft-mode.rsc',
           'ssg-draft-mode/[[...route]]/page.js',
@@ -617,6 +627,11 @@ createNextDescribe(
             initialRevalidateSeconds: false,
             srcRoute: '/blog/[author]/[slug]',
             dataRoute: '/blog/styfle/second-post.rsc',
+          },
+          '/force-cache': {
+            dataRoute: '/force-cache.rsc',
+            initialRevalidateSeconds: 3,
+            srcRoute: '/force-cache',
           },
           '/hooks/use-pathname/slug': {
             dataRoute: '/hooks/use-pathname/slug.rsc',
@@ -737,6 +752,15 @@ createNextDescribe(
             },
             initialRevalidateSeconds: 10,
             srcRoute: '/route-handler/revalidate-360-isr',
+          },
+          '/route-handler/static-cookies': {
+            dataRoute: null,
+            initialHeaders: {
+              'set-cookie': 'theme=light; Path=/,my_company=ACME; Path=/',
+              'x-next-cache-tags': '/route-handler/static-cookies/route',
+            },
+            initialRevalidateSeconds: false,
+            srcRoute: '/route-handler/static-cookies',
           },
           '/variable-config-revalidate/revalidate-3': {
             dataRoute: '/variable-config-revalidate/revalidate-3.rsc',
@@ -879,6 +903,116 @@ createNextDescribe(
         )
       })
     }
+
+    it('should cache correctly for fetchCache = default-cache', async () => {
+      const res = await next.fetch('/default-cache')
+      expect(res.status).toBe(200)
+
+      let prevHtml = await res.text()
+      let prev$ = cheerio.load(prevHtml)
+
+      await check(async () => {
+        const curRes = await next.fetch('/default-cache')
+        expect(curRes.status).toBe(200)
+
+        const curHtml = await curRes.text()
+        const cur$ = cheerio.load(curHtml)
+
+        try {
+          expect(cur$('#data-no-cache').text()).not.toBe(
+            prev$('#data-no-cache').text()
+          )
+          expect(cur$('#data-force-cache').text()).toBe(
+            prev$('#data-force-cache').text()
+          )
+          expect(cur$('#data-revalidate-cache').text()).toBe(
+            prev$('#data-revalidate-cache').text()
+          )
+          expect(cur$('#data-revalidate-and-fetch-cache').text()).toBe(
+            prev$('#data-revalidate-and-fetch-cache').text()
+          )
+          expect(cur$('#data-revalidate-and-fetch-cache').text()).toBe(
+            prev$('#data-revalidate-and-fetch-cache').text()
+          )
+        } finally {
+          prevHtml = curHtml
+          prev$ = cur$
+        }
+        return 'success'
+      }, 'success')
+    })
+
+    it('should cache correctly for fetchCache = force-cache', async () => {
+      const res = await next.fetch('/force-cache')
+      expect(res.status).toBe(200)
+
+      let prevHtml = await res.text()
+      let prev$ = cheerio.load(prevHtml)
+
+      await check(async () => {
+        const curRes = await next.fetch('/force-cache')
+        expect(curRes.status).toBe(200)
+
+        const curHtml = await curRes.text()
+        const cur$ = cheerio.load(curHtml)
+
+        expect(cur$('#data-no-cache').text()).toBe(
+          prev$('#data-no-cache').text()
+        )
+        expect(cur$('#data-force-cache').text()).toBe(
+          prev$('#data-force-cache').text()
+        )
+        expect(cur$('#data-revalidate-cache').text()).toBe(
+          prev$('#data-revalidate-cache').text()
+        )
+        expect(cur$('#data-revalidate-and-fetch-cache').text()).toBe(
+          prev$('#data-revalidate-and-fetch-cache').text()
+        )
+        expect(cur$('#data-auto-cache').text()).toBe(
+          prev$('#data-auto-cache').text()
+        )
+
+        return 'success'
+      }, 'success')
+    })
+
+    it('should cache correctly for cache: no-store', async () => {
+      const res = await next.fetch('/fetch-no-cache')
+      expect(res.status).toBe(200)
+
+      let prevHtml = await res.text()
+      let prev$ = cheerio.load(prevHtml)
+
+      await check(async () => {
+        const curRes = await next.fetch('/fetch-no-cache')
+        expect(curRes.status).toBe(200)
+
+        const curHtml = await curRes.text()
+        const cur$ = cheerio.load(curHtml)
+
+        try {
+          expect(cur$('#data-no-cache').text()).not.toBe(
+            prev$('#data-no-cache').text()
+          )
+          expect(cur$('#data-force-cache').text()).toBe(
+            prev$('#data-force-cache').text()
+          )
+          expect(cur$('#data-revalidate-cache').text()).toBe(
+            prev$('#data-revalidate-cache').text()
+          )
+          expect(cur$('#data-revalidate-and-fetch-cache').text()).toBe(
+            prev$('#data-revalidate-and-fetch-cache').text()
+          )
+          expect(cur$('#data-auto-cache').text()).not.toBe(
+            prev$('#data-auto-cache').text()
+          )
+        } finally {
+          prevHtml = curHtml
+          prev$ = cur$
+        }
+        return 'success'
+      }, 'success')
+    })
 
     if (isDev) {
       it('should bypass fetch cache with cache-control: no-cache', async () => {

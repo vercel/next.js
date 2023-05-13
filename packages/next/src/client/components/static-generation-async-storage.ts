@@ -15,6 +15,7 @@ export interface StaticGenerationStore {
   fetchCache?:
     | 'only-cache'
     | 'force-cache'
+    | 'default-cache'
     | 'force-no-store'
     | 'default-no-store'
     | 'only-no-store'

@@ -70,7 +70,7 @@ turbo-binding = { workspace = true, features = [
 
 [target.'cfg(not(all(target_os = "linux", target_env = "musl", target_arch = "aarch64")))'.dependencies]
 turbo-binding = { workspace = true, features = [
-  "__turbo_malloc"
+  "__turbo_tasks_malloc"
 ] }
 
 # There are few build targets we can't use native-tls which default features rely on,

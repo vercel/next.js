@@ -32,6 +32,7 @@ function trackFetchMetric(
     url: string
     status: number
     method: string
+    cacheReason: string
     cacheStatus: 'hit' | 'miss'
     start: number
   }
@@ -158,6 +159,8 @@ export function patchFetch({
         }
         const isOnlyCache = staticGenerationStore.fetchCache === 'only-cache'
         const isForceCache = staticGenerationStore.fetchCache === 'force-cache'
+        const isDefaultCache =
+          staticGenerationStore.fetchCache === 'default-cache'
         const isDefaultNoStore =
           staticGenerationStore.fetchCache === 'default-no-store'
         const isOnlyNoStore =
@@ -165,9 +168,19 @@ export function patchFetch({
         const isForceNoStore =
           staticGenerationStore.fetchCache === 'force-no-store'
 
-        const _cache = getRequestMeta('cache')
+        let _cache = getRequestMeta('cache')
 
-        if (_cache === 'force-cache' || isForceCache) {
+        if (
+          typeof _cache === 'string' &&
+          typeof curRevalidate !== 'undefined'
+        ) {
+          console.warn(
+            `Warning: fetch for ${input.toString()} specified "cache: ${_cache}" and "revalidate: ${curRevalidate}", only one should be specified.`
+          )
+          _cache = undefined
+        }
+
+        if (_cache === 'force-cache') {
           curRevalidate = false
         }
         if (['no-cache', 'no-store'].includes(_cache || '')) {
@@ -177,6 +190,7 @@ export function patchFetch({
           revalidate = curRevalidate
         }
 
+        let cacheReason = ''
         const _headers = getRequestMeta('headers')
         const initHeaders: Headers =
           typeof _headers?.get === 'function'
@@ -199,6 +213,7 @@ export function patchFetch({
 
         if (isForceNoStore) {
           revalidate = 0
+          cacheReason = 'fetchCache = force-no-store'
         }
 
         if (isOnlyNoStore) {
@@ -208,26 +223,43 @@ export function patchFetch({
             )
           }
           revalidate = 0
+          cacheReason = 'fetchCache = only-no-store'
+        }
+
+        if (isOnlyCache && _cache === 'no-store') {
+          throw new Error(
+            `cache: 'no-store' used on fetch for ${input.toString()} with 'export const fetchCache = 'only-cache'`
+          )
+        }
+
+        if (
+          isForceCache &&
+          (typeof curRevalidate === 'undefined' || curRevalidate === 0)
+        ) {
+          cacheReason = 'fetchCache = force-cache'
+          revalidate = false
         }
 
         if (typeof revalidate === 'undefined') {
-          if (isOnlyCache && _cache === 'no-store') {
-            throw new Error(
-              `cache: 'no-store' used on fetch for ${input.toString()} with 'export const fetchCache = 'only-cache'`
-            )
-          }
-
-          if (autoNoCache) {
+          if (isDefaultCache) {
+            revalidate = false
+            cacheReason = 'fetchCache = default-cache'
+          } else if (autoNoCache) {
             revalidate = 0
+            cacheReason = 'auto no cache'
           } else if (isDefaultNoStore) {
             revalidate = 0
+            cacheReason = 'fetchCache = default-no-store'
           } else {
+            cacheReason = 'auto cache'
             revalidate =
               typeof staticGenerationStore.revalidate === 'boolean' ||
               typeof staticGenerationStore.revalidate === 'undefined'
                 ? false
                 : staticGenerationStore.revalidate
           }
+        } else if (!cacheReason) {
+          cacheReason = `revalidate: ${revalidate}`
         }
 
         if (
@@ -316,6 +348,7 @@ export function patchFetch({
               trackFetchMetric(staticGenerationStore, {
                 start: fetchStart,
                 url: fetchUrl,
+                cacheReason,
                 cacheStatus: 'miss',
                 status: res.status,
                 method: clonedInit.method || 'GET',
@@ -422,6 +455,7 @@ export function patchFetch({
               trackFetchMetric(staticGenerationStore, {
                 start: fetchStart,
                 url: fetchUrl,
+                cacheReason,
                 cacheStatus: 'hit',
                 status: resData.status || 200,
                 method: init?.method || 'GET',
