@@ -288,13 +288,16 @@ module.exports = {
 }
 ```
 
+### decoding
+
+Defaults to `"async"` but can be overridden [to `"auto"` or `"sync"`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/decoding) if necessary (though this may impact performance).
+
 ## Other Props
 
 Other properties on the `<Image />` component will be passed to the underlying
 `img` element with the exception of the following:
 
 - `srcSet`. Use [Device Sizes](#device-sizes) instead.
-- `decoding`. It is always `"async"`.
 
 ## Configuration Options
 

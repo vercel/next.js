@@ -412,6 +412,7 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
       setShowAltText,
       onLoad,
       onError,
+      decoding,
       ...rest
     },
     forwardedRef
@@ -424,7 +425,7 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
         loading={loading}
         width={widthInt}
         height={heightInt}
-        decoding="async"
+        decoding={decoding ?? 'async'}
         data-nimg={fill ? 'fill' : '1'}
         className={className}
         style={{ ...imgStyle, ...blurStyle }}
