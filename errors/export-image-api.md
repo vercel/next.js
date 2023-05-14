@@ -12,7 +12,7 @@ This is because Next.js optimizes images on-demand, as users request them (not a
 
 - Use [`next start`](https://nextjs.org/docs/api-reference/cli#production) to run a server, which includes the Image Optimization API.
 - Use any provider which supports Image Optimization (such as [Vercel](https://vercel.com)).
-- [Configure `loader`](https://nextjs.org/docs/api-reference/next/image#loader-configuration) in `next.config.js`.
+- [Configure `loader`](https://nextjs.org/docs/api-reference/next/image#loader) in `next.config.js`.
 - [Configure `unoptimized`](https://nextjs.org/docs/api-reference/next/image#unoptimized) in `next.config.js`.
 
 ### Useful Links
