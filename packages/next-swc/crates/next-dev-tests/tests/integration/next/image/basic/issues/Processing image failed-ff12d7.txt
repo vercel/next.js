@@ -1,9 +1,9 @@
 PlainIssue {
     severity: Error,
-    context: "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/image/basic/input/public/broken.svg",
+    context: "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/image/basic/input/public/broken.jpeg",
     category: "image",
     title: "Processing image failed",
-    description: "Input image is not valid utf-8\n\nCaused by:\n- invalid utf-8 sequence of 1 bytes from index 0",
+    description: "unable to decode image data\n\nCaused by:\n- failed to fill whole buffer",
     detail: "",
     documentation_link: "",
     source: None,
@@ -14,7 +14,7 @@ PlainIssue {
                 context: Some(
                     "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/image/basic/input/pages/index.js",
                 ),
-                description: "Next.js pages directory",
+                description: "Next.js page file",
             },
         ],
     ),
