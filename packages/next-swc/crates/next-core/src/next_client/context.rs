@@ -2,7 +2,9 @@ use core::{default::Default, result::Result::Ok};
 use std::collections::HashMap;
 
 use anyhow::Result;
-use turbo_binding::{
+use turbo_tasks::{primitives::StringVc, Value};
+use turbo_tasks_fs::FileSystem;
+use turbopack_binding::{
     turbo::{tasks_env::ProcessEnvVc, tasks_fs::FileSystemPathVc},
     turbopack::{
         core::{
@@ -37,8 +39,6 @@ use turbo_binding::{
         },
     },
 };
-use turbo_tasks::{primitives::StringVc, Value};
-use turbo_tasks_fs::FileSystem;
 
 use super::transforms::get_next_client_transforms_rules;
 use crate::{
@@ -170,15 +170,12 @@ pub async fn get_client_module_options_context(
     let custom_rules = get_next_client_transforms_rules(next_config, ty.into_value()).await?;
     let resolve_options_context =
         get_client_resolve_options_context(project_path, ty, next_config, execution_context);
-    let enable_react_refresh =
-        assert_can_resolve_react_refresh(project_path, resolve_options_context)
-            .await?
-            .is_found();
 
     let tsconfig = get_typescript_transform_options(project_path);
     let decorators_options = get_decorators_transform_options(project_path);
     let mdx_rs_options = *next_config.mdx_rs().await?;
-    let jsx_runtime_options = get_jsx_transform_options(project_path);
+    let jsx_runtime_options =
+        get_jsx_transform_options(project_path, Some(resolve_options_context));
     let enable_webpack_loaders = {
         let options = &*next_config.webpack_loaders_options().await?;
         let loaders_options = WebpackLoadersOptions {
@@ -218,10 +215,17 @@ pub async fn get_client_module_options_context(
         },
     ));
 
+    let postcss_transform_options = Some(PostCssTransformOptions {
+        postcss_package: Some(get_postcss_package_mapping(project_path)),
+        ..Default::default()
+    });
+
     let module_options_context = ModuleOptionsContext {
         preset_env_versions: Some(env),
         execution_context: Some(execution_context),
         custom_ecma_transform_plugins,
+        // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
+        enable_postcss_transform: postcss_transform_options.clone(),
         ..Default::default()
     };
 
@@ -233,13 +237,9 @@ pub async fn get_client_module_options_context(
         // the modules.
         enable_jsx: Some(jsx_runtime_options),
         enable_emotion,
-        enable_react_refresh,
         enable_styled_components,
         enable_styled_jsx: true,
-        enable_postcss_transform: Some(PostCssTransformOptions {
-            postcss_package: Some(get_postcss_package_mapping(project_path)),
-            ..Default::default()
-        }),
+        enable_postcss_transform: postcss_transform_options,
         enable_webpack_loaders,
         enable_typescript_transform: Some(tsconfig),
         enable_mdx_rs: mdx_rs_options,

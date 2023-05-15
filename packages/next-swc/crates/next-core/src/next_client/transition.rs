@@ -1,6 +1,7 @@
 use anyhow::{bail, Result};
 use indexmap::indexmap;
-use turbo_binding::turbopack::{
+use turbo_tasks::{primitives::OptionStringVc, Value};
+use turbopack_binding::turbopack::{
     core::{
         asset::AssetVc,
         chunk::{ChunkingContext, ChunkingContextVc},
@@ -19,7 +20,6 @@ use turbo_binding::turbopack::{
         ModuleAssetContextVc,
     },
 };
-use turbo_tasks::{primitives::OptionStringVc, Value};
 
 use super::runtime_entry::RuntimeEntriesVc;
 use crate::embed_js::next_asset;
