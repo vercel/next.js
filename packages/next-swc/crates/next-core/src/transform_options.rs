@@ -7,6 +7,7 @@ use turbopack_binding::{
             resolve::{find_context_file, node::node_cjs_resolve_options, FindContextFileResult},
             source_asset::SourceAssetVc,
         },
+        dev::react_refresh::assert_can_resolve_react_refresh,
         ecmascript::typescript::resolve::{read_from_tsconfigs, read_tsconfigs, tsconfig},
         ecmascript_plugin::transform::{
             emotion::{
@@ -16,9 +17,12 @@ use turbopack_binding::{
                 OptionStyledComponentsTransformConfigVc, StyledComponentsTransformConfig,
             },
         },
-        turbopack::module_options::{
-            DecoratorsKind, DecoratorsOptions, DecoratorsOptionsVc, JsxTransformOptions,
-            JsxTransformOptionsVc, TypescriptTransformOptions, TypescriptTransformOptionsVc,
+        turbopack::{
+            module_options::{
+                DecoratorsKind, DecoratorsOptions, DecoratorsOptionsVc, JsxTransformOptions,
+                JsxTransformOptionsVc, TypescriptTransformOptions, TypescriptTransformOptionsVc,
+            },
+            resolve_options_context::ResolveOptionsContextVc,
         },
     },
 };
@@ -131,8 +135,17 @@ pub async fn get_decorators_transform_options(
 #[turbo_tasks::function]
 pub async fn get_jsx_transform_options(
     project_path: FileSystemPathVc,
+    resolve_options_context: Option<ResolveOptionsContextVc>,
 ) -> Result<JsxTransformOptionsVc> {
     let tsconfig = get_typescript_options(project_path).await;
+
+    let enable_react_refresh = if let Some(resolve_options_context) = resolve_options_context {
+        assert_can_resolve_react_refresh(project_path, resolve_options_context)
+            .await?
+            .is_found()
+    } else {
+        false
+    };
 
     // [NOTE]: ref: WEB-901
     // next.js does not allow to overriding react runtime config via tsconfig /
@@ -141,6 +154,7 @@ pub async fn get_jsx_transform_options(
     let react_transform_options = JsxTransformOptions {
         import_source: None,
         runtime: Some("automatic".to_string()),
+        react_refresh: enable_react_refresh,
     };
 
     let react_transform_options = if let Some(tsconfig) = tsconfig {

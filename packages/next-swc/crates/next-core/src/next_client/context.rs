@@ -170,15 +170,12 @@ pub async fn get_client_module_options_context(
     let custom_rules = get_next_client_transforms_rules(next_config, ty.into_value()).await?;
     let resolve_options_context =
         get_client_resolve_options_context(project_path, ty, next_config, execution_context);
-    let enable_react_refresh =
-        assert_can_resolve_react_refresh(project_path, resolve_options_context)
-            .await?
-            .is_found();
 
     let tsconfig = get_typescript_transform_options(project_path);
     let decorators_options = get_decorators_transform_options(project_path);
     let mdx_rs_options = *next_config.mdx_rs().await?;
-    let jsx_runtime_options = get_jsx_transform_options(project_path);
+    let jsx_runtime_options =
+        get_jsx_transform_options(project_path, Some(resolve_options_context));
     let enable_webpack_loaders = {
         let options = &*next_config.webpack_loaders_options().await?;
         let loaders_options = WebpackLoadersOptions {
@@ -240,7 +237,6 @@ pub async fn get_client_module_options_context(
         // the modules.
         enable_jsx: Some(jsx_runtime_options),
         enable_emotion,
-        enable_react_refresh,
         enable_styled_components,
         enable_styled_jsx: true,
         enable_postcss_transform: postcss_transform_options,
