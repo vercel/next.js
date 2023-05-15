@@ -177,6 +177,13 @@ mod._resolveFilename = function (
   }
 
   const hookResolved = requestMap.get(request)
+  // if (request == 'react')
+  //   console.trace(
+  //     process.env.__NEXT_PRIVATE_PREBUNDLED_REACT,
+  //     process.env.__NEXT_PRIVATE_RENDER_WORKER,
+  //     request,
+  //     hookResolved
+  //   )
   if (hookResolved) request = hookResolved
   return originalResolveFilename.call(mod, request, parent, isMain, options)
 

@@ -2,6 +2,8 @@ import type { Options as DevServerOptions } from './dev/next-dev-server'
 import type { NodeRequestHandler } from './next-server'
 import type { UrlWithParsedQuery } from 'url'
 import type { NextConfigComplete } from './config-shared'
+import type { IncomingMessage, ServerResponse } from 'http'
+import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 
 import './require-hook'
 import './node-polyfill-fetch'
@@ -13,10 +15,10 @@ import { resolve } from 'path'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
-import { IncomingMessage, ServerResponse } from 'http'
-import { NextUrlWithParsedQuery } from './request-meta'
 import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
+import { formatUrl } from '../shared/lib/router/utils/format-url'
+import { findPagesDir } from '../lib/find-pages-dir'
 
 let ServerImpl: typeof Server
 
@@ -29,6 +31,7 @@ const getServerImpl = async () => {
 
 export type NextServerOptions = Partial<DevServerOptions> & {
   preloadedConfig?: NextConfigComplete
+  internal_setStandaloneConfig?: boolean
 }
 
 export interface RequestHandler {
@@ -127,6 +130,8 @@ export class NextServer {
   async prepare() {
     const server = await this.getServer()
 
+    if (this.options.internal_setStandaloneConfig) return
+
     // We shouldn't prepare the server in production,
     // because this code won't be executed when deployed
     if (this.options.dev) {
@@ -167,6 +172,10 @@ export class NextServer {
   private async getServer() {
     if (!this.serverPromise) {
       this.serverPromise = this.loadConfig().then(async (conf) => {
+        if (this.options.internal_setStandaloneConfig) {
+          process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(conf)
+        }
+
         if (!this.options.dev) {
           if (conf.output === 'standalone') {
             if (!process.env.__NEXT_PRIVATE_STANDALONE_CONFIG) {
@@ -181,16 +190,16 @@ export class NextServer {
           }
         }
 
-        if (this.options.customServer !== false) {
-          // When running as a custom server with app dir, we must set this env
-          // to correctly alias the React versions.
-          if (conf.experimental.appDir) {
-            process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = conf.experimental
-              .serverActions
-              ? 'experimental'
-              : 'next'
-          }
-        }
+        // if (this.options.customServer !== false) {
+        //   // When running as a custom server with app dir, we must set this env
+        //   // to correctly alias the React versions.
+        //   if (conf.experimental.appDir) {
+        //     process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = conf.experimental
+        //       .serverActions
+        //       ? 'experimental'
+        //       : 'next'
+        //   }
+        // }
 
         this.server = await this.createServer({
           ...this.options,
@@ -248,6 +257,79 @@ function createServer(options: NextServerOptions): NextServer {
     console.warn(
       "Warning: 'dev' is not a boolean which could introduce unexpected behavior. https://nextjs.org/docs/messages/invalid-server-options"
     )
+  }
+
+  if (options.customServer !== false) {
+    const dir = resolve(options.dir || '.')
+    const { appDir } = findPagesDir(dir, true)
+
+    // If the `app` dir exists, we'll need to run the standalone server to have
+    // both types of renderers (pages, app) running in separated processes,
+    // instead of having the Next server only.
+    if (appDir) {
+      const { createServerHandler } =
+        require('./lib/render-server-standalone') as typeof import('./lib/render-server-standalone')
+
+      const fallbackServer = new NextServer({
+        ...options,
+        internal_setStandaloneConfig: true,
+      })
+
+      let handlerPromise: Promise<ReturnType<typeof createServerHandler>>
+
+      const app = new Proxy(
+        {},
+        {
+          get: function (_, propKey) {
+            switch (propKey) {
+              case 'getRequestHandler': {
+                return () => {
+                  handlerPromise =
+                    handlerPromise ||
+                    createServerHandler({
+                      port: options.port || 3000,
+                      dev: options.dev,
+                      dir,
+                      hostname: options.hostname || 'localhost',
+                      minimalMode: false,
+                    })
+
+                  return async (req: IncomingMessage, res: ServerResponse) => {
+                    const handler = await handlerPromise
+                    return handler(req, res)
+                  }
+                }
+              }
+              case 'render': {
+                return async (
+                  req: IncomingMessage,
+                  res: ServerResponse,
+                  pathname: string,
+                  query?: NextParsedUrlQuery,
+                  parsedUrl?: NextUrlWithParsedQuery
+                ) => {
+                  const handler = await handlerPromise
+                  req.url = formatUrl({
+                    ...parsedUrl,
+                    pathname,
+                    query,
+                  })
+                  return handler(req, res)
+                }
+              }
+              default: {
+                const method = fallbackServer[propKey as keyof NextServer]
+                if (typeof method === 'function') {
+                  return method.bind(fallbackServer)
+                }
+              }
+            }
+          },
+        }
+      )
+
+      return app as any
+    }
   }
 
   return new NextServer(options)
