@@ -25,10 +25,17 @@ describe('getServerSideProps returns notFound: true', () => {
   afterAll(() => next.destroy())
 
   it('should not poll indefinitely', async () => {
-    const browser = await webdriver(next.url, '/')
-    await waitFor(3000)
-    await browser.close()
-    const logOccurrences = next.cliOutput.split('gssp called').length - 1
+    let browser
+    try {
+      browser = await webdriver(next.url, '/')
+      await waitFor(3000)
+    } finally {
+      await browser.close()
+    }
+
+    // Count occurrences of `gssp called` in the output.
+    const pattern = /gssp called/g
+    const logOccurrences = next.cliOutput.match(pattern)?.length ?? 0
     expect(logOccurrences).toBe(1)
   })
 })

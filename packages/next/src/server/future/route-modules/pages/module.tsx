@@ -622,6 +622,11 @@ export class PagesRouteModule extends RouteModule<
       )
     }
 
+    // Ensure that we mark the current page as the source of the 404.
+    if (process.env.NODE_ENV === 'development' && !context.notFoundSrcPage) {
+      context = { ...context, notFoundSrcPage: context.pathname }
+    }
+
     // Ensure that the pathname is set to the error page.
     if (context.pathname !== '/_error') {
       context = { ...context, pathname: '/_error' }
