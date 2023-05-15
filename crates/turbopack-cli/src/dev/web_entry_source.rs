@@ -108,10 +108,17 @@ async fn get_client_module_options_context(
             .await?
             .is_found();
 
+    let enable_jsx = Some(
+        JsxTransformOptions {
+            react_refresh: enable_react_refresh,
+            ..Default::default()
+        }
+        .cell(),
+    );
+
     let module_options_context = ModuleOptionsContext {
-        enable_jsx: Some(JsxTransformOptions::default().cell()),
+        enable_jsx,
         enable_emotion: Some(EmotionTransformConfigVc::default()),
-        enable_react_refresh,
         enable_styled_components: Some(StyledComponentsTransformConfigVc::default()),
         enable_styled_jsx: true,
         enable_postcss_transform: Some(Default::default()),

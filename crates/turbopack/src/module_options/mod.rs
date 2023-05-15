@@ -62,7 +62,6 @@ impl ModuleOptionsVc {
     ) -> Result<ModuleOptionsVc> {
         let ModuleOptionsContext {
             enable_jsx,
-            enable_react_refresh,
             enable_styled_jsx,
             ref enable_styled_components,
             enable_types,
@@ -139,7 +138,7 @@ impl ModuleOptionsVc {
             let jsx = enable_jsx.await?;
 
             transforms.push(EcmascriptInputTransform::React {
-                refresh: enable_react_refresh || jsx.react_refresh,
+                refresh: jsx.react_refresh,
                 import_source: OptionStringVc::cell(jsx.import_source.clone()),
                 runtime: OptionStringVc::cell(jsx.runtime.clone()),
             });
