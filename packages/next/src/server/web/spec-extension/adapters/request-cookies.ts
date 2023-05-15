@@ -12,7 +12,7 @@ import { ReflectAdapter } from './reflect'
 export class ReadonlyRequestCookiesError extends Error {
   constructor() {
     super(
-      'ReadonlyRequestCookies cannot be modified. Read more: https://nextjs.org/docs/api-reference/cookies'
+      'Cookies can only be modified in a Server Action or Route Handler. Read more: https://nextjs.org/docs/app/api-reference/functions/cookies#cookiessetname-value-options'
     )
   }
 
@@ -21,10 +21,7 @@ export class ReadonlyRequestCookiesError extends Error {
   }
 }
 
-export type ReadonlyRequestCookies = Omit<
-  RequestCookies,
-  'clear' | 'delete' | 'set'
->
+export type ReadonlyRequestCookies = Omit<RequestCookies, 'clear' | 'delete'>
 
 export class RequestCookiesAdapter {
   public static seal(cookies: RequestCookies): ReadonlyRequestCookies {
