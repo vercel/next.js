@@ -128,47 +128,48 @@ pub struct CustomEcmascriptTransformPlugins {
 
 #[turbo_tasks::value(shared)]
 #[derive(Default, Clone)]
+#[serde(default)]
+pub struct MdxTransformModuleOptions {
+    /// The path to a module providing Components to mdx modules.
+    /// The provider must export a useMDXComponents, which is called to access
+    /// an object of components.
+    pub provider_import_source: Option<String>,
+}
+
+#[turbo_tasks::value_impl]
+impl MdxTransformModuleOptionsVc {
+    #[turbo_tasks::function]
+    pub fn default() -> Self {
+        Self::cell(Default::default())
+    }
+}
+
+#[turbo_tasks::value(shared)]
+#[derive(Default, Clone)]
+#[serde(default)]
 pub struct ModuleOptionsContext {
-    #[serde(default)]
     pub enable_jsx: Option<JsxTransformOptionsVc>,
-    #[serde(default)]
     pub enable_emotion: Option<EmotionTransformConfigVc>,
-    #[serde(default)]
     pub enable_styled_components: Option<StyledComponentsTransformConfigVc>,
-    #[serde(default)]
     pub enable_styled_jsx: bool,
-    #[serde(default)]
     pub enable_postcss_transform: Option<PostCssTransformOptions>,
-    #[serde(default)]
     pub enable_webpack_loaders: Option<WebpackLoadersOptions>,
-    #[serde(default)]
     pub enable_types: bool,
-    #[serde(default)]
     pub enable_typescript_transform: Option<TypescriptTransformOptionsVc>,
-    #[serde(default)]
     pub decorators: Option<DecoratorsOptionsVc>,
-    #[serde(default)]
     pub enable_mdx: bool,
     // [Note]: currently mdx, and mdx_rs have different configuration entrypoint from next.config.js,
     // however we might want to unify them in the future.
-    #[serde(default)]
-    pub enable_mdx_rs: bool,
-    #[serde(default)]
+    pub enable_mdx_rs: Option<MdxTransformModuleOptionsVc>,
     pub preset_env_versions: Option<EnvironmentVc>,
-    #[serde(default)]
     pub custom_ecma_transform_plugins: Option<CustomEcmascriptTransformPluginsVc>,
-    #[serde(default)]
     /// Custom rules to be applied after all default rules.
     pub custom_rules: Vec<ModuleRule>,
-    #[serde(default)]
     pub execution_context: Option<ExecutionContextVc>,
-    #[serde(default)]
     /// A list of rules to use a different module option context for certain
     /// context paths. The first matching is used.
     pub rules: Vec<(ContextCondition, ModuleOptionsContextVc)>,
-    #[serde(default)]
     pub placeholder_for_future_extensions: (),
-    #[serde(default)]
     pub enable_tree_shaking: bool,
 }
 

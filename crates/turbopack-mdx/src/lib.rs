@@ -40,6 +40,7 @@ pub struct MdxTransformOptions {
     pub preserve_jsx: bool,
     pub jsx_runtime: Option<String>,
     pub jsx_import_source: Option<String>,
+    pub provider_import_source: Option<String>,
 }
 
 impl Default for MdxTransformOptions {
@@ -49,6 +50,7 @@ impl Default for MdxTransformOptions {
             preserve_jsx: false,
             jsx_runtime: None,
             jsx_import_source: None,
+            provider_import_source: None,
         }
     }
 }
@@ -108,6 +110,7 @@ async fn into_ecmascript_module_asset(
 
     let options = Options {
         development: transform_options.development,
+        provider_import_source: transform_options.provider_import_source.clone(),
         jsx: transform_options.preserve_jsx, // true means 'preserve' jsx syntax.
         jsx_runtime,
         jsx_import_source: transform_options
