@@ -134,8 +134,6 @@ pub struct ModuleOptionsContext {
     #[serde(default)]
     pub enable_emotion: Option<EmotionTransformConfigVc>,
     #[serde(default)]
-    pub enable_react_refresh: bool,
-    #[serde(default)]
     pub enable_styled_components: Option<StyledComponentsTransformConfigVc>,
     #[serde(default)]
     pub enable_styled_jsx: bool,
