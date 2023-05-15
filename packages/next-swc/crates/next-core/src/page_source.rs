@@ -619,24 +619,21 @@ async fn create_page_source_for_root_directory(
     ));
 
     if let Some(api) = api {
-        sources.push(
-            create_page_source_for_directory(
-                *api,
-                project_root,
-                env,
-                server_context,
-                server_data_context,
-                client_context,
-                pages_dir,
-                runtime_entries,
-                fallback_page,
-                client_root,
-                true,
-                node_root,
-                render_data,
-            )
-            .issue_context(api.await?.project_path, "Next.js pages/api directory"),
-        );
+        sources.push(create_page_source_for_directory(
+            *api,
+            project_root,
+            env,
+            server_context,
+            server_data_context,
+            client_context,
+            pages_dir,
+            runtime_entries,
+            fallback_page,
+            client_root,
+            true,
+            node_root,
+            render_data,
+        ));
     }
 
     Ok(CombinedContentSource { sources }.cell().into())
@@ -692,7 +689,14 @@ async fn create_page_source_for_directory(
             node_root,
             render_data,
         )
-        .issue_context(project_path, "Next.js pages directory");
+        .issue_context(
+            project_path,
+            if is_api_path {
+                "Next.js page API file"
+            } else {
+                "Next.js page file"
+            },
+        );
         sources.push(source);
     }
 
