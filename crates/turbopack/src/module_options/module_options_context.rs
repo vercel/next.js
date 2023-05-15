@@ -106,10 +106,10 @@ impl WebpackLoadersOptions {
     }
 }
 
-// [TODO]: should enabled_react_refresh belong to this options?
 #[turbo_tasks::value(shared)]
 #[derive(Default, Clone, Debug)]
 pub struct JsxTransformOptions {
+    pub react_refresh: bool,
     pub import_source: Option<String>,
     pub runtime: Option<String>,
 }
