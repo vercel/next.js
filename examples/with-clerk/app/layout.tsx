@@ -39,12 +39,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <head>
-        <link
-          href="https://cdn.jsdelivr.net/npm/prismjs@1/themes/prism.css"
-          rel="stylesheet"
-        />
-      </head>
+      <head></head>
       <ClerkProvider>
         <body className={inter.className}>
           <Header />

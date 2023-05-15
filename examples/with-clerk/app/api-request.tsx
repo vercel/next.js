@@ -3,6 +3,7 @@
 import { SignedIn, SignedOut } from '@clerk/nextjs'
 import { useEffect, useState } from 'react'
 import styles from '../styles/Home.module.css'
+import '../styles/prism.css'
 
 declare global {
   interface Window {
