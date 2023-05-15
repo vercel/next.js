@@ -594,42 +594,13 @@ async fn create_page_source_for_root_directory(
     render_data: JsonValueVc,
 ) -> Result<ContentSourceVc> {
     let PagesStructure {
-        ref app,
-        ref document,
-        ref error,
+        app: _,
+        document: _,
+        error: _,
         ref api,
         ref pages,
     } = *pages_structure.await?;
     let mut sources = vec![];
-
-    for (item, name) in [
-        (app, "Next.js pages/_app"),
-        (document, "Next.js pages/_document"),
-        (error, "Next.js pages/_error"),
-    ] {
-        let item = item.await?;
-        sources.push(
-            create_page_source_for_file(
-                project_root,
-                env,
-                server_context,
-                server_data_context,
-                client_context,
-                pages_dir,
-                item.specificity,
-                SourceAssetVc::new(item.project_path).into(),
-                runtime_entries,
-                fallback_page,
-                client_root,
-                item.next_router_path,
-                false,
-                node_root,
-                node_root,
-                render_data,
-            )
-            .issue_context(item.project_path, name),
-        );
-    }
 
     sources.push(
         create_page_source_for_directory(
