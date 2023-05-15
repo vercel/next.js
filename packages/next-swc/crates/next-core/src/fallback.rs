@@ -57,7 +57,13 @@ pub async fn get_fallback_page(
     let entries = get_client_runtime_entries(project_path, env, ty, next_config, execution_context);
 
     let mut import_map = ImportMap::empty();
-    insert_next_shared_aliases(&mut import_map, project_path, execution_context).await?;
+    insert_next_shared_aliases(
+        &mut import_map,
+        project_path,
+        execution_context,
+        next_config,
+    )
+    .await?;
 
     let context: AssetContextVc = ModuleAssetContextVc::new(
         TransitionsByNameVc::cell(HashMap::new()),
