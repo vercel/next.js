@@ -1,15 +1,17 @@
 use anyhow::Result;
-use turbo_binding::turbo::tasks_fs::{FileSystemEntryType, FileSystemPathVc};
-use turbo_binding::turbopack::core::{
-    issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
-    resolve::{parse::RequestVc, pattern::Pattern, resolve},
-};
-use turbo_binding::turbopack::node::transforms::webpack::{
-    WebpackLoaderConfigItem, WebpackLoaderConfigItemsVc,
-};
-use turbo_binding::turbopack::turbopack::{
-    module_options::WebpackLoadersOptionsVc, resolve_options,
-    resolve_options_context::ResolveOptionsContext,
+use turbo_binding::{
+    turbo::tasks_fs::{FileSystemEntryType, FileSystemPathVc},
+    turbopack::{
+        core::{
+            issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
+            resolve::{parse::RequestVc, pattern::Pattern, resolve},
+        },
+        node::transforms::webpack::{WebpackLoaderConfigItem, WebpackLoaderConfigItemsVc},
+        turbopack::{
+            module_options::WebpackLoadersOptionsVc, resolve_options,
+            resolve_options_context::ResolveOptionsContext,
+        },
+    },
 };
 use turbo_tasks::{
     primitives::{BoolVc, StringVc},

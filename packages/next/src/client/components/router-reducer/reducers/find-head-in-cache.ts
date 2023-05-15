@@ -1,5 +1,6 @@
 import type { FlightRouterState } from '../../../../server/app-render/types'
 import type { CacheNode } from '../../../../shared/lib/app-router-context'
+import { createRouterCacheKey } from '../create-router-cache-key'
 
 export function findHeadInCache(
   cache: CacheNode,
@@ -16,7 +17,7 @@ export function findHeadInCache(
       continue
     }
 
-    const cacheKey = Array.isArray(segment) ? segment[1] : segment
+    const cacheKey = createRouterCacheKey(segment)
 
     const cacheNode = childSegmentMap.get(cacheKey)
     if (!cacheNode) {

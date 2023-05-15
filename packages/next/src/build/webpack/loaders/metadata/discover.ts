@@ -1,7 +1,7 @@
 import type webpack from 'webpack'
 import type {
   CollectingMetadata,
-  PossibleImageFileNameConvention,
+  PossibleStaticMetadataFileNameConvention,
 } from './types'
 import path from 'path'
 import { stringify } from 'querystring'
@@ -19,17 +19,22 @@ async function enumMetadataFiles(
   {
     resolvePath,
     loaderContext,
+    // When set to true, possible filename without extension could: icon, icon0, ..., icon9
+    numericSuffix,
   }: {
     resolvePath: (pathname: string) => Promise<string>
     loaderContext: webpack.LoaderContext<any>
+    numericSuffix: boolean
   }
 ) {
   const collectedFiles: string[] = []
-  // Possible filename without extension could: icon, icon0, ..., icon9
+
   const possibleFileNames = [filename].concat(
-    Array(10)
-      .fill(0)
-      .map((_, index) => filename + index)
+    numericSuffix
+      ? Array(10)
+          .fill(0)
+          .map((_, index) => filename + index)
+      : []
   )
   for (const name of possibleFileNames) {
     for (const ext of extensions) {
@@ -54,17 +59,19 @@ async function enumMetadataFiles(
 export async function createStaticMetadataFromRoute(
   resolvedDir: string,
   {
-    route,
+    segment,
     resolvePath,
-    isRootLayer,
+    isRootLayoutOrRootPage,
     loaderContext,
     pageExtensions,
+    basePath,
   }: {
-    route: string
+    segment: string
     resolvePath: (pathname: string) => Promise<string>
-    isRootLayer: boolean
+    isRootLayoutOrRootPage: boolean
     loaderContext: webpack.LoaderContext<any>
     pageExtensions: string[]
+    basePath: string
   }
 ) {
   let hasStaticMetadataFiles = false
@@ -73,6 +80,7 @@ export async function createStaticMetadataFromRoute(
     apple: [],
     twitter: [],
     openGraph: [],
+    manifest: undefined,
   }
 
   const opts = {
@@ -81,13 +89,35 @@ export async function createStaticMetadataFromRoute(
   }
 
   async function collectIconModuleIfExists(
-    type: PossibleImageFileNameConvention
+    type: PossibleStaticMetadataFileNameConvention
   ) {
+    if (type === 'manifest') {
+      const staticManifestExtension = ['webmanifest', 'json']
+      const manifestFile = await enumMetadataFiles(
+        resolvedDir,
+        'manifest',
+        staticManifestExtension.concat(pageExtensions),
+        { ...opts, numericSuffix: false }
+      )
+      if (manifestFile.length > 0) {
+        hasStaticMetadataFiles = true
+        const { name, ext } = path.parse(manifestFile[0])
+        const extension = staticManifestExtension.includes(ext.slice(1))
+          ? ext.slice(1)
+          : 'webmanifest'
+        staticImagesMetadata.manifest = JSON.stringify(`/${name}.${extension}`)
+      }
+      return
+    }
+
     const resolvedMetadataFiles = await enumMetadataFiles(
       resolvedDir,
       STATIC_METADATA_IMAGES[type].filename,
-      pageExtensions.concat(STATIC_METADATA_IMAGES[type].extensions),
-      opts
+      [
+        ...STATIC_METADATA_IMAGES[type].extensions,
+        ...(type === 'favicon' ? [] : pageExtensions),
+      ],
+      { ...opts, numericSuffix: true }
     )
     resolvedMetadataFiles
       .sort((a, b) => a.localeCompare(b))
@@ -95,14 +125,15 @@ export async function createStaticMetadataFromRoute(
         const imageModuleImportSource = `next-metadata-image-loader?${stringify(
           {
             type,
-            route,
+            segment,
+            basePath,
             pageExtensions,
           }
         )}!${filepath}${METADATA_RESOURCE_QUERY}`
 
-        const imageModule = `() => import(/* webpackMode: "eager" */ ${JSON.stringify(
+        const imageModule = `(async (props) => (await import(/* webpackMode: "eager" */ ${JSON.stringify(
           imageModuleImportSource
-        )})`
+        )})).default(props))`
         hasStaticMetadataFiles = true
         if (type === 'favicon') {
           staticImagesMetadata.icon.unshift(imageModule)
@@ -117,7 +148,8 @@ export async function createStaticMetadataFromRoute(
     collectIconModuleIfExists('apple'),
     collectIconModuleIfExists('openGraph'),
     collectIconModuleIfExists('twitter'),
-    isRootLayer && collectIconModuleIfExists('favicon'),
+    isRootLayoutOrRootPage && collectIconModuleIfExists('favicon'),
+    isRootLayoutOrRootPage && collectIconModuleIfExists('manifest'),
   ])
 
   return hasStaticMetadataFiles ? staticImagesMetadata : null
@@ -132,6 +164,7 @@ export function createMetadataExportsCode(
     apple: [${metadata.apple.join(',')}],
     openGraph: [${metadata.openGraph.join(',')}],
     twitter: [${metadata.twitter.join(',')}],
+    manifest: ${metadata.manifest ? metadata.manifest : 'undefined'}
   }`
     : ''
 }

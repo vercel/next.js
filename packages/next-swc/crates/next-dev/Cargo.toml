@@ -33,7 +33,7 @@ tokio_console = [
   "turbo-tasks/tokio_tracing",
 ]
 profile = []
-custom_allocator = ["turbo-binding/__turbo_malloc", "turbo-binding/__turbo_malloc_custom_allocator"]
+custom_allocator = ["turbo-binding/__turbo_tasks_malloc", "turbo-binding/__turbo_tasks_malloc_custom_allocator"]
 native-tls = ["next-core/native-tls"]
 rustls-tls = ["next-core/rustls-tls"]
 # Internal only. Enabled when building for the Next.js integration test suite.
@@ -53,6 +53,7 @@ clap = { workspace = true, features = ["derive", "env"], optional = true }
 console-subscriber = { workspace = true, optional = true }
 dunce = { workspace = true }
 futures = { workspace = true }
+indexmap = { workspace = true }
 mime = { workspace = true }
 next-core = { workspace = true }
 owo-colors = { workspace = true }
@@ -60,10 +61,12 @@ serde = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 turbo-binding = { workspace = true, features = [
   "__turbo_tasks_memory",
+  "__turbo_tasks_env",
   "__turbo_tasks_fs",
   "__turbopack",
-  "__turbopack_dev",
   "__turbopack_core",
+  "__turbopack_dev",
+  "__turbopack_env",
   "__turbopack_cli_utils",
   "__turbopack_node",
   "__turbopack_dev_server",
@@ -85,8 +88,7 @@ serde_json = { workspace = true }
 tempfile = { workspace = true }
 tungstenite = { workspace = true }
 turbo-binding = { workspace = true, features = [
-  "__turbo_tasks_testing",
-  "__turbopack_create_test_app",
+  "__turbopack_bench",
 ]}
 url = { workspace = true }
 

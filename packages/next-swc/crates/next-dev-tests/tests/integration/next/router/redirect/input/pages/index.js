@@ -1,17 +1,14 @@
-import { useEffect } from "react";
+import { useTestHarness } from '@turbo/pack-test-harness'
 
 export default function Foo() {
-  useEffect(() => {
-    // Only run on client
-    import("@turbo/pack-test-harness").then(runTests);
-  });
+  useTestHarness(runTests)
 
-  return "index";
+  return 'index'
 }
 
 function runTests() {
-  it("it should display foo, not index", async () => {
-    const res = await fetch("/foo");
-    expect(res.url).toBe("https://example.vercel.sh/");
-  });
+  it('it should display foo, not index', async () => {
+    const res = await fetch('/foo')
+    expect(res.url).toBe('https://example.vercel.sh/')
+  })
 }

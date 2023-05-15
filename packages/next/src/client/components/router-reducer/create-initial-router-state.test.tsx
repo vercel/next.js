@@ -93,8 +93,9 @@ describe('createInitialRouterState', () => {
       canonicalUrl: initialCanonicalUrl,
       prefetchCache: new Map(),
       pushRef: { pendingPush: false, mpaNavigation: false },
-      focusAndScrollRef: { apply: false, hashFragment: null },
+      focusAndScrollRef: { apply: false, hashFragment: null, segmentPaths: [] },
       cache: expectedCache,
+      nextUrl: '/linking',
     }
 
     expect(state).toMatchObject(expected)

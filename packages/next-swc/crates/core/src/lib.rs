@@ -30,23 +30,18 @@ DEALINGS IN THE SOFTWARE.
 #![deny(clippy::all)]
 #![feature(box_patterns)]
 
+use std::{cell::RefCell, env::current_dir, path::PathBuf, rc::Rc, sync::Arc};
+
 use auto_cjs::contains_cjs;
 use either::Either;
 use fxhash::FxHashSet;
-
 use next_transform_font::next_font_loaders;
 use serde::Deserialize;
-use std::cell::RefCell;
-use std::env::current_dir;
-use std::rc::Rc;
-use std::{path::PathBuf, sync::Arc};
-
 use turbo_binding::swc::core::{
     common::{chain, comments::Comments, pass::Optional, FileName, SourceFile, SourceMap},
-    ecma::ast::EsVersion,
-    ecma::parser::parse_file_as_module,
-    ecma::transforms::base::pass::noop,
-    ecma::visit::Fold,
+    ecma::{
+        ast::EsVersion, parser::parse_file_as_module, transforms::base::pass::noop, visit::Fold,
+    },
 };
 
 pub mod amp_attributes;
@@ -106,7 +101,7 @@ pub struct TransformOptions {
 
     #[serde(default)]
     #[cfg(not(target_arch = "wasm32"))]
-    pub relay: Option<swc_relay::Config>,
+    pub relay: Option<turbo_binding::swc::custom_transform::relay::Config>,
 
     #[allow(unused)]
     #[serde(default)]
@@ -147,16 +142,32 @@ where
     #[cfg(not(target_arch = "wasm32"))]
     let relay_plugin = {
         if let Some(config) = &opts.relay {
-            Either::Left(swc_relay::relay(
+            Either::Left(turbo_binding::swc::custom_transform::relay::relay(
                 config,
                 file.name.clone(),
                 current_dir().unwrap(),
                 opts.pages_dir.clone(),
+                None,
             ))
         } else {
             Either::Right(noop())
         }
     };
+
+    let mut modularize_imports_config = match &opts.modularize_imports {
+        Some(config) => config.clone(),
+        None => turbo_binding::swc::custom_transform::modularize_imports::Config {
+            packages: std::collections::HashMap::new(),
+        },
+    };
+    modularize_imports_config.packages.insert(
+        "next/server".to_string(),
+        turbo_binding::swc::custom_transform::modularize_imports::PackageConfig {
+            transform: "next/dist/server/web/exports/{{ kebabCase member }}".to_string(),
+            prevent_full_import: false,
+            skip_default_conversion: false,
+        },
+    );
 
     chain!(
         disallow_re_export_all_in_page::disallow_re_export_all_in_page(opts.is_page_file),
@@ -239,6 +250,7 @@ where
                             turbo_binding::swc::custom_transform::emotion::EmotionTransformer::new(
                                 config.clone(),
                                 path,
+                                file.src_hash as u32,
                                 cm,
                                 comments.clone(),
                             ),
@@ -249,14 +261,9 @@ where
                 }
             })
             .unwrap_or_else(|| Either::Right(noop())),
-        match &opts.modularize_imports {
-            Some(config) => Either::Left(
-                turbo_binding::swc::custom_transform::modularize_imports::modularize_imports(
-                    config.clone()
-                )
-            ),
-            None => Either::Right(noop()),
-        },
+        turbo_binding::swc::custom_transform::modularize_imports::modularize_imports(
+            modularize_imports_config
+        ),
         match &opts.font_loaders {
             Some(config) => Either::Left(next_font_loaders(config.clone())),
             None => Either::Right(noop()),

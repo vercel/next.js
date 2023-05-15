@@ -1,60 +1,60 @@
-import * as React from "react";
-import { clsx } from "../../helpers/clsx";
-import { CloseIcon } from "../../icons";
-import { noop as css } from "../../helpers/noop-template";
+import * as React from 'react'
+import { clsx } from '../../helpers/clsx'
+import { CloseIcon } from '../../icons'
+import { noop as css } from '../../helpers/noop-template'
 
 export type DialogHeaderProps = {
-  close?: () => void;
-  className?: string;
-  children: React.ReactNode;
-};
+  close?: () => void
+  className?: string
+  children: React.ReactNode
+}
 
 export function DialogHeader({
   children,
   className,
   close,
 }: DialogHeaderProps) {
-  const buttonClose = React.useRef<HTMLButtonElement | null>(null);
+  const buttonClose = React.useRef<HTMLButtonElement | null>(null)
 
   React.useEffect(() => {
     if (buttonClose.current == null) {
-      return;
+      return
     }
 
-    const root = buttonClose.current.getRootNode();
-    const d = self.document;
+    const root = buttonClose.current.getRootNode()
+    const d = self.document
 
     function handler(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        e.stopPropagation();
+      if (e.key === 'Escape') {
+        e.stopPropagation()
         if (root instanceof ShadowRoot) {
-          const a = root.activeElement;
+          const a = root.activeElement
           if (a && a !== buttonClose.current && a instanceof HTMLElement) {
-            a.blur();
-            return;
+            a.blur()
+            return
           }
         }
 
         if (close) {
-          close();
+          close()
         }
       }
     }
 
-    root.addEventListener("keydown", handler as EventListener);
+    root.addEventListener('keydown', handler as EventListener)
     if (root !== d) {
-      d.addEventListener("keydown", handler);
+      d.addEventListener('keydown', handler)
     }
     return function () {
-      root.removeEventListener("keydown", handler as EventListener);
+      root.removeEventListener('keydown', handler as EventListener)
       if (root !== d) {
-        d.removeEventListener("keydown", handler);
+        d.removeEventListener('keydown', handler)
       }
-    };
-  }, [close, buttonClose]);
+    }
+  }, [close, buttonClose])
 
   return (
-    <div data-nextjs-dialog-header className={clsx("dialog-header", className)}>
+    <div data-nextjs-dialog-header className={clsx('dialog-header', className)}>
       {children}
       <div className="filler">&nbsp;</div>
       {close ? (
@@ -71,7 +71,7 @@ export function DialogHeader({
         </button>
       ) : null}
     </div>
-  );
+  )
 }
 
 export const styles = css`
@@ -148,4 +148,4 @@ export const styles = css`
   .dialog-header > button:last-of-type:hover > span {
     opacity: 0.7;
   }
-`;
+`

@@ -1,5 +1,5 @@
 [package]
-edition = "2018"
+edition = "2021"
 name = "next-swc-napi"
 version = "0.0.0"
 publish = false
@@ -22,14 +22,23 @@ rustls-tls = ["next-dev/rustls-tls"]
 
 # Internal only. Enabled when building for the Next.js integration test suite.
 __internal_nextjs_integration_test = [
+  "next-core/__internal_nextjs_integration_test",
   "next-dev/__internal_nextjs_integration_test",
   "next-dev/serializable"
 ]
+
+# Enable dhat profiling allocator for heap profiling.
+__internal_dhat-heap = ["dhat"]
+# Enable dhat profiling allocator for ad hoc profiling.
+# [Note]: we do not have any ad hoc event in the codebase yet, so enabling this
+# effectively does nothing.
+__internal_dhat-ad-hoc = ["dhat"]
 
 [dependencies]
 anyhow = "1.0.66"
 backtrace = "0.3"
 fxhash = "0.2.1"
+dhat = { workspace = true, optional = true }
 napi = { version = "2", default-features = false, features = [
   "napi3",
   "serde-json",
@@ -40,10 +49,12 @@ napi-derive = "2"
 next-swc = { version = "0.0.0", path = "../core" }
 next-dev = { workspace = true }
 next-build = { workspace = true }
+next-core = { workspace = true }
+turbo-tasks = { workspace = true }
 once_cell = { workspace = true }
 serde = "1"
 serde_json = "1"
-tracing = { version = "0.1.37", features = ["release_max_level_info"] }
+tracing = { version = "0.1.37" }
 tracing-futures = "0.2.5"
 tracing-subscriber = "0.3.9"
 tracing-chrome = "0.5.0"
@@ -51,6 +62,7 @@ turbo-binding = { workspace = true, features = [
   "__swc_core_binding_napi",
   "__feature_node_file_trace",
   "__feature_mdx_rs",
+  "__turbo",
   "__turbo_tasks",
   "__turbo_tasks_memory",
   "__turbopack"
@@ -58,7 +70,7 @@ turbo-binding = { workspace = true, features = [
 
 [target.'cfg(not(all(target_os = "linux", target_env = "musl", target_arch = "aarch64")))'.dependencies]
 turbo-binding = { workspace = true, features = [
-  "__turbo_malloc"
+  "__turbo_tasks_malloc"
 ] }
 
 # There are few build targets we can't use native-tls which default features rely on,
@@ -76,3 +88,6 @@ sentry = { version = "0.27.0", default-features = false, features = [
 napi-build = "2"
 serde = "1"
 serde_json = "1"
+turbo-binding = { workspace = true, features = [
+  "__turbo_tasks_build"
+]}

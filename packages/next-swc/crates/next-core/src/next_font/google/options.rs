@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use indexmap::{indexset, IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{primitives::StringVc, trace::TraceRawVcs, Value};
+use turbo_binding::turbo::tasks::{primitives::StringVc, trace::TraceRawVcs, Value};
 
 use super::request::{NextFontRequest, OneOrManyStrings};
 

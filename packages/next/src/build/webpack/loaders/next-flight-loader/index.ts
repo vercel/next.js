@@ -64,7 +64,7 @@ export default async function transformSource(
 
       let esmSource = `\
 import { createProxy } from "${moduleProxy}"
-const proxy = createProxy("${this.resourcePath}")
+const proxy = createProxy(String.raw\`${this.resourcePath}\`)
 
 // Accessing the __esModule property and exporting $$typeof are required here.
 // The __esModule getter forces the proxy target to create the default export
@@ -91,7 +91,7 @@ export { e${cnt++} as ${ref} };`
   if (buildInfo.rsc?.type !== RSC_MODULE_TYPES.client) {
     if (noopHeadPath === this.resourcePath) {
       warnOnce(
-        `Warning: You're using \`next/head\` inside the \`app\` directory, please migrate to the Metadata API. See https://beta.nextjs.org/docs/api-reference/metadata for more details.`
+        `Warning: You're using \`next/head\` inside the \`app\` directory, please migrate to the Metadata API. See https://nextjs.org/docs/app/api-reference/file-conventions/metadata for more details.`
       )
     }
   }

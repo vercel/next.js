@@ -1,4 +1,5 @@
 import { isAppPageRoute } from '../../../lib/is-app-page-route'
+
 import { APP_PATHS_MANIFEST } from '../../../shared/lib/constants'
 import { AppNormalizers } from '../normalizers/built/app'
 import { RouteKind } from '../route-kind'

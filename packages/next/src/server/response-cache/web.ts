@@ -22,14 +22,14 @@ export default class WebResponseCache {
     key: string | null,
     responseGenerator: ResponseGenerator,
     context: {
-      isManualRevalidate?: boolean
+      isOnDemandRevalidate?: boolean
       isPrefetch?: boolean
       incrementalCache: any
     }
   ): Promise<ResponseCacheEntry | null> {
-    // ensure manual revalidate doesn't block normal requests
+    // ensure on-demand revalidate doesn't block normal requests
     const pendingResponseKey = key
-      ? `${key}-${context.isManualRevalidate ? '1' : '0'}`
+      ? `${key}-${context.isOnDemandRevalidate ? '1' : '0'}`
       : null
 
     const pendingResponse = pendingResponseKey
@@ -84,7 +84,7 @@ export default class WebResponseCache {
     // same promise until we've fully finished our work.
     ;(async () => {
       try {
-        const cacheEntry = await responseGenerator(resolved, false)
+        const cacheEntry = await responseGenerator(resolved)
         const resolveValue =
           cacheEntry === null
             ? null
@@ -93,8 +93,8 @@ export default class WebResponseCache {
                 isMiss: true,
               }
 
-        // for manual revalidate wait to resolve until cache is set
-        if (!context.isManualRevalidate) {
+        // for on-demand revalidate wait to resolve until cache is set
+        if (!context.isOnDemandRevalidate) {
           resolve(resolveValue)
         }
 
@@ -108,7 +108,7 @@ export default class WebResponseCache {
           this.previousCacheItem = undefined
         }
 
-        if (context.isManualRevalidate) {
+        if (context.isOnDemandRevalidate) {
           resolve(resolveValue)
         }
       } catch (err) {

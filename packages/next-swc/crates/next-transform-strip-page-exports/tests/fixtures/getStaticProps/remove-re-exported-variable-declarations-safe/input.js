@@ -1,10 +1,10 @@
 const getStaticPaths = () => {
-    return [];
+    return []
   },
-  a = 2;
+  a = 2
 
-export { getStaticPaths };
+export { getStaticPaths }
 
 export default function Test() {
-  return <div />;
+  return <div />
 }

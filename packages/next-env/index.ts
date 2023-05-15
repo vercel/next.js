@@ -10,7 +10,7 @@ export type LoadedEnvFiles = Array<{
   contents: string
 }>
 
-let initialEnv: Env | undefined = undefined
+export let initialEnv: Env | undefined = undefined
 let combinedEnv: Env | undefined = undefined
 let cachedLoadedEnvFiles: LoadedEnvFiles = []
 let previousLoadedEnvFiles: LoadedEnvFiles = []

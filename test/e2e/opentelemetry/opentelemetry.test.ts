@@ -10,21 +10,13 @@ createNextDescribe(
     skipDeployment: true,
     dependencies: require('./package.json').dependencies,
   },
-  ({ next }) => {
+  ({ next, isNextDev }) => {
     const getTraces = async (): Promise<SavedSpan[]> => {
       const traces = await next.readFile(traceFile)
       return traces
         .split('\n')
         .filter(Boolean)
         .map((line) => JSON.parse(line))
-    }
-
-    const waitForRootSpan = async (numberOfRootTraces: number) => {
-      await check(async () => {
-        const spans = await getTraces()
-        const rootSpans = spans.filter((span) => !span.parentId)
-        return String(rootSpans.length)
-      }, String(numberOfRootTraces))
     }
 
     /**
@@ -40,18 +32,30 @@ createNextDescribe(
       span.parentId = span.parentId === undefined ? undefined : '[parent-id]'
       return span
     }
-    const sanitizeSpans = (spans: SavedSpan[]) =>
-      spans
+    const sanitizeSpans = (spans: SavedSpan[]) => {
+      return spans
+        .sort((a, b) =>
+          (a.attributes?.['next.span_name'] ?? '').localeCompare(
+            b.attributes?.['next.span_name'] ?? ''
+          )
+        )
         .sort((a, b) =>
           (a.attributes?.['next.span_type'] ?? '').localeCompare(
             b.attributes?.['next.span_type'] ?? ''
           )
         )
         .map(sanitizeSpan)
+    }
 
     const getSanitizedTraces = async (numberOfRootTraces: number) => {
-      await waitForRootSpan(numberOfRootTraces)
-      return sanitizeSpans(await getTraces())
+      let traces
+      await check(async () => {
+        traces = sanitizeSpans(await getTraces())
+
+        const rootSpans = traces.filter((span) => !span.parentId)
+        return String(rootSpans.length)
+      }, String(numberOfRootTraces))
+      return traces
     }
 
     const cleanTraces = async () => {
@@ -66,7 +70,8 @@ createNextDescribe(
       it('should handle RSC with fetch', async () => {
         await next.fetch('/app/param/rsc-fetch')
 
-        expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
+        await check(async () => {
+          expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
           Array [
             Object {
               "attributes": Object {
@@ -85,6 +90,7 @@ createNextDescribe(
             },
             Object {
               "attributes": Object {
+                "next.route": "/app/[param]/rsc-fetch",
                 "next.span_name": "render route (app) /app/[param]/rsc-fetch",
                 "next.span_type": "AppRender.getBodyResult",
               },
@@ -98,15 +104,15 @@ createNextDescribe(
             Object {
               "attributes": Object {
                 "http.method": "GET",
-                "http.route": "/app/[param]/rsc-fetch/page",
+                "http.route": "/app/[param]/rsc-fetch",
                 "http.status_code": 200,
                 "http.target": "/app/param/rsc-fetch",
-                "next.route": "/app/[param]/rsc-fetch/page",
-                "next.span_name": "GET /app/param/rsc-fetch",
+                "next.route": "/app/[param]/rsc-fetch",
+                "next.span_name": "GET /app/[param]/rsc-fetch",
                 "next.span_type": "BaseServer.handleRequest",
               },
               "kind": 1,
-              "name": "GET /app/[param]/rsc-fetch/page",
+              "name": "GET /app/[param]/rsc-fetch",
               "parentId": undefined,
               "status": Object {
                 "code": 0,
@@ -114,7 +120,7 @@ createNextDescribe(
             },
             Object {
               "attributes": Object {
-                "next.route": "/app/[param]/layout",
+                "next.page": "/app/[param]/layout",
                 "next.span_name": "generateMetadata /app/[param]/layout",
                 "next.span_type": "ResolveMetadata.generateMetadata",
               },
@@ -127,7 +133,7 @@ createNextDescribe(
             },
             Object {
               "attributes": Object {
-                "next.route": "/app/[param]/rsc-fetch/page",
+                "next.page": "/app/[param]/rsc-fetch/page",
                 "next.span_name": "generateMetadata /app/[param]/rsc-fetch/page",
                 "next.span_type": "ResolveMetadata.generateMetadata",
               },
@@ -140,15 +146,19 @@ createNextDescribe(
             },
           ]
         `)
+          return 'success'
+        }, 'success')
       })
 
       it('should handle route handlers in app router', async () => {
         await next.fetch('/api/app/param/data')
 
-        expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
+        await check(async () => {
+          expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
           Array [
             Object {
               "attributes": Object {
+                "next.route": "/api/app/[param]/data/route",
                 "next.span_name": "executing api route (app) /api/app/[param]/data/route",
                 "next.span_type": "AppRouteRouteHandlers.runHandler",
               },
@@ -162,15 +172,13 @@ createNextDescribe(
             Object {
               "attributes": Object {
                 "http.method": "GET",
-                "http.route": "/api/app/[param]/data/route",
                 "http.status_code": 200,
                 "http.target": "/api/app/param/data",
-                "next.route": "/api/app/[param]/data/route",
                 "next.span_name": "GET /api/app/param/data",
                 "next.span_type": "BaseServer.handleRequest",
               },
               "kind": 1,
-              "name": "GET /api/app/[param]/data/route",
+              "name": "GET /api/app/param/data",
               "parentId": undefined,
               "status": Object {
                 "code": 0,
@@ -178,6 +186,8 @@ createNextDescribe(
             },
           ]
         `)
+          return 'success'
+        }, 'success')
       })
     })
 
@@ -185,7 +195,8 @@ createNextDescribe(
       it('should handle getServerSideProps', async () => {
         await next.fetch('/pages/param/getServerSideProps')
 
-        expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
+        await check(async () => {
+          expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
           Array [
             Object {
               "attributes": Object {
@@ -194,7 +205,7 @@ createNextDescribe(
                 "http.status_code": 200,
                 "http.target": "/pages/param/getServerSideProps",
                 "next.route": "/pages/[param]/getServerSideProps",
-                "next.span_name": "GET /pages/param/getServerSideProps",
+                "next.span_name": "GET /pages/[param]/getServerSideProps",
                 "next.span_type": "BaseServer.handleRequest",
               },
               "kind": 1,
@@ -206,6 +217,7 @@ createNextDescribe(
             },
             Object {
               "attributes": Object {
+                "next.route": "/pages/[param]/getServerSideProps",
                 "next.span_name": "getServerSideProps /pages/[param]/getServerSideProps",
                 "next.span_type": "Render.getServerSideProps",
               },
@@ -218,6 +230,7 @@ createNextDescribe(
             },
             Object {
               "attributes": Object {
+                "next.route": "/pages/[param]/getServerSideProps",
                 "next.span_name": "render route (pages) /pages/[param]/getServerSideProps",
                 "next.span_type": "Render.renderDocument",
               },
@@ -230,12 +243,15 @@ createNextDescribe(
             },
           ]
         `)
+          return 'success'
+        }, 'success')
       })
 
       it("should handle getStaticProps when fallback: 'blocking'", async () => {
         await next.fetch('/pages/param/getStaticProps')
 
-        expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
+        await check(async () => {
+          expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
           Array [
             Object {
               "attributes": Object {
@@ -244,7 +260,7 @@ createNextDescribe(
                 "http.status_code": 200,
                 "http.target": "/pages/param/getStaticProps",
                 "next.route": "/pages/[param]/getStaticProps",
-                "next.span_name": "GET /pages/param/getStaticProps",
+                "next.span_name": "GET /pages/[param]/getStaticProps",
                 "next.span_type": "BaseServer.handleRequest",
               },
               "kind": 1,
@@ -256,6 +272,7 @@ createNextDescribe(
             },
             Object {
               "attributes": Object {
+                "next.route": "/pages/[param]/getStaticProps",
                 "next.span_name": "getStaticProps /pages/[param]/getStaticProps",
                 "next.span_type": "Render.getStaticProps",
               },
@@ -268,6 +285,7 @@ createNextDescribe(
             },
             Object {
               "attributes": Object {
+                "next.route": "/pages/[param]/getStaticProps",
                 "next.span_name": "render route (pages) /pages/[param]/getStaticProps",
                 "next.span_type": "Render.renderDocument",
               },
@@ -280,23 +298,28 @@ createNextDescribe(
             },
           ]
         `)
+          return 'success'
+        }, 'success')
       })
 
       it('should handle api routes in pages', async () => {
         await next.fetch('/api/pages/param/basic')
 
-        expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
+        await check(async () => {
+          expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
           Array [
             Object {
               "attributes": Object {
                 "http.method": "GET",
+                "http.route": "/api/pages/[param]/basic",
                 "http.status_code": 200,
                 "http.target": "/api/pages/param/basic",
-                "next.span_name": "GET /api/pages/param/basic",
+                "next.route": "/api/pages/[param]/basic",
+                "next.span_name": "GET /api/pages/[param]/basic",
                 "next.span_type": "BaseServer.handleRequest",
               },
               "kind": 1,
-              "name": "GET /api/pages/param/basic",
+              "name": "GET /api/pages/[param]/basic",
               "parentId": undefined,
               "status": Object {
                 "code": 0,
@@ -316,6 +339,8 @@ createNextDescribe(
             },
           ]
         `)
+          return 'success'
+        }, 'success')
       })
     })
   }

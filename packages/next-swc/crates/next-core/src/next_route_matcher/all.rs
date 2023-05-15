@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
-use turbo_binding::turbo::tasks::primitives::BoolVc;
-use turbo_binding::turbopack::node::route_matcher::{ParamsVc, RouteMatcher};
+use turbo_binding::{
+    turbo::tasks::primitives::BoolVc,
+    turbopack::node::route_matcher::{ParamsVc, RouteMatcher},
+};
 
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
 pub struct AllMatch;

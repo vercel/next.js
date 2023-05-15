@@ -1,5 +1,6 @@
-function isWhitespace(char: string) {
-  return char === ' ' || char === '\n'
+// Returns true if the given character is a whitespace character, false otherwise.
+function isWhitespace(char: string): boolean {
+  return char === ' ' || char === '\n' || char === '\t' || char === '\r'
 }
 
 /**

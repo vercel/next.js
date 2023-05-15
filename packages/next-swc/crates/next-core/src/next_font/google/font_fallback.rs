@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
 use anyhow::{Context, Result};
+use once_cell::sync::Lazy;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
-use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
-use turbo_binding::turbopack::core::issue::IssueSeverity;
+use turbo_binding::{turbo::tasks_fs::FileSystemPathVc, turbopack::core::issue::IssueSeverity};
 use turbo_tasks::{
     primitives::{StringVc, StringsVc, U32Vc},
     trace::TraceRawVcs,
@@ -26,12 +27,18 @@ use crate::{
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct FontMetricsMapEntry {
+    #[allow(unused)]
+    family_name: String,
     category: String,
+    #[allow(unused)]
+    cap_height: i32,
     ascent: i32,
     descent: i32,
     line_gap: u32,
     units_per_em: u32,
-    az_avg_width: f64,
+    #[allow(unused)]
+    x_height: i32,
+    x_width_avg: f64,
 }
 
 #[derive(Deserialize)]
@@ -54,7 +61,7 @@ pub(super) async fn get_font_fallback(
         Some(fallback) => FontFallback::Manual(StringsVc::cell(fallback.clone())).cell(),
         None => {
             let metrics_json =
-                load_next_json(context, "/dist/server/google-font-metrics.json").await;
+                load_next_json(context, "/dist/server/capsize-font-metrics.json").await;
             match metrics_json {
                 Ok(metrics_json) => {
                     let fallback = lookup_fallback(
@@ -102,14 +109,39 @@ pub(super) async fn get_font_fallback(
     })
 }
 
+static FALLBACK_FONT_NAME: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?:^\w|[A-Z]|\b\w)").unwrap());
+
+// From https://github.com/vercel/next.js/blob/1628260b88ce3052ac307a1607b6e8470188ab83/packages/next/src/server/font-utils.ts#L101
+fn format_fallback_font_name(font_family: &str) -> String {
+    let mut fallback_name = FALLBACK_FONT_NAME
+        .replace(font_family, |caps: &regex::Captures| {
+            caps.iter()
+                .enumerate()
+                .map(|(i, font_matches)| {
+                    let font_matches = font_matches.unwrap().as_str();
+                    if i == 0 {
+                        font_matches.to_lowercase()
+                    } else {
+                        font_matches.to_uppercase()
+                    }
+                })
+                .collect::<Vec<String>>()
+                .join("")
+        })
+        .to_string();
+    fallback_name.retain(|c| !c.is_whitespace());
+    fallback_name
+}
+
 fn lookup_fallback(
     font_family: &str,
     font_metrics_map: FontMetricsMap,
     adjust: bool,
 ) -> Result<Fallback> {
+    let font_family = format_fallback_font_name(font_family);
     let metrics = font_metrics_map
         .0
-        .get(font_family)
+        .get(&font_family)
         .context("Font not found in metrics")?;
 
     let fallback = if metrics.category == "serif" {
@@ -120,9 +152,9 @@ fn lookup_fallback(
 
     let metrics = if adjust {
         // Derived from
-        // https://github.com/vercel/next.js/blob/a3893bf69c83fb08e88c87bf8a21d987a0448c8e/packages/next/src/server/font-utils.ts#L121
-        let main_font_avg_width = metrics.az_avg_width / metrics.units_per_em as f64;
-        let fallback_font_avg_width = fallback.az_avg_width / fallback.units_per_em as f64;
+        // https://github.com/vercel/next.js/blob/7bfd5829999b1d203e447d30de7e29108c31934a/packages/next/src/server/font-utils.ts#L131
+        let main_font_avg_width = metrics.x_width_avg / metrics.units_per_em as f64;
+        let fallback_font_avg_width = fallback.x_width_avg / fallback.units_per_em as f64;
         let size_adjust = main_font_avg_width / fallback_font_avg_width;
 
         let ascent = metrics.ascent as f64 / (metrics.units_per_em as f64 * size_adjust);
@@ -158,15 +190,17 @@ mod tests {
         let font_metrics: FontMetricsMap = parse_json_with_source_context(
             r#"
             {
-                "Inter": {
+                "inter": {
+                    "familyName": "Inter",
                     "category": "sans-serif",
+                    "capHeight": 2048,
                     "ascent": 2728,
                     "descent": -680,
                     "lineGap": 0,
-                    "xAvgCharWidth": 1838,
                     "unitsPerEm": 2816,
-                    "azAvgWidth": 1383.0697674418604
-                }
+                    "xHeight": 1536,
+                    "xWidthAvg": 1335
+                  }
             }
         "#,
         )?;
@@ -176,10 +210,10 @@ mod tests {
             Fallback {
                 font_family: "Arial".to_owned(),
                 adjustment: Some(FontAdjustment {
-                    ascent: 0.9000259575934895,
-                    descent: -0.2243466463209578,
+                    ascent: 0.9324334770490376,
+                    descent: -0.23242476700635833,
                     line_gap: 0.0,
-                    size_adjust: 1.0763578448229054
+                    size_adjust: 1.0389481114147647
                 })
             }
         );
@@ -191,15 +225,17 @@ mod tests {
         let font_metrics: FontMetricsMap = parse_json_with_source_context(
             r#"
             {
-                "Roboto Slab": {
+                "robotoSlab": {
+                    "familyName": "Roboto Slab",
                     "category": "serif",
+                    "capHeight": 1456,
                     "ascent": 2146,
                     "descent": -555,
                     "lineGap": 0,
-                    "xAvgCharWidth": 1239,
                     "unitsPerEm": 2048,
-                    "azAvgWidth": 1005.6279069767442
-                }
+                    "xHeight": 1082,
+                    "xWidthAvg": 969
+                  }
             }
         "#,
         )?;
@@ -209,10 +245,10 @@ mod tests {
             Fallback {
                 font_family: "Times New Roman".to_owned(),
                 adjustment: Some(FontAdjustment {
-                    ascent: 0.8902691493151913,
-                    descent: -0.23024202137461844,
+                    ascent: 0.9239210539440684,
+                    descent: -0.23894510015794873,
                     line_gap: 0.0,
-                    size_adjust: 1.1770053621492147
+                    size_adjust: 1.134135387462914
                 })
             }
         );

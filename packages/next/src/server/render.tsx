@@ -25,7 +25,7 @@ import type {
   ServerRuntime,
 } from 'next/types'
 import type { UnwrapPromise } from '../lib/coalesced-function'
-import type { ReactReadableStream } from './node-web-streams-helper'
+import type { ReactReadableStream } from './stream-utils/node-web-streams-helper'
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 
@@ -78,7 +78,7 @@ import {
   createBufferedTransformStream,
   renderToInitialStream,
   continueFromInitialStream,
-} from './node-web-streams-helper'
+} from './stream-utils/node-web-streams-helper'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { stripInternalQueries } from './internal-utils'
@@ -91,6 +91,8 @@ import { AppRouterContext } from '../shared/lib/app-router-context'
 import { SearchParamsContext } from '../shared/lib/hooks-client-context'
 import { getTracer } from './lib/trace/tracer'
 import { RenderSpan } from './lib/trace/constants'
+import { PageNotFoundError } from '../shared/lib/utils'
+import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
 
 let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -261,9 +263,11 @@ export type RenderOptsPartial = {
   runtime?: ServerRuntime
   serverComponents?: boolean
   customServer?: boolean
-  crossOrigin?: string
+  crossOrigin?: 'anonymous' | 'use-credentials' | '' | undefined
   images: ImageConfigComplete
   largePageDataBytes?: number
+  isOnDemandRevalidate?: boolean
+  strictNextHead: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -330,7 +334,34 @@ function checkRedirectValues(
   }
 }
 
-function errorToJSON(err: Error) {
+export const deserializeErr = (serializedErr: any) => {
+  if (
+    !serializedErr ||
+    typeof serializedErr !== 'object' ||
+    !serializedErr.stack
+  ) {
+    return serializedErr
+  }
+  let ErrorType: any = Error
+
+  if (serializedErr.name === 'PageNotFoundError') {
+    ErrorType = PageNotFoundError
+  }
+
+  const err = new ErrorType(serializedErr.message)
+  err.stack = serializedErr.stack
+  err.name = serializedErr.name
+  ;(err as any).digest = serializedErr.digest
+
+  if (process.env.NEXT_RUNTIME !== 'edge') {
+    const { decorateServerError } =
+      require('next/dist/compiled/@next/react-dev-overlay/dist/middleware') as typeof import('next/dist/compiled/@next/react-dev-overlay/dist/middleware')
+    decorateServerError(err, serializedErr.source || 'server')
+  }
+  return err
+}
+
+export function errorToJSON(err: Error) {
   let source: typeof COMPILER_NAMES.server | typeof COMPILER_NAMES.edgeServer =
     'server'
 
@@ -346,6 +377,7 @@ function errorToJSON(err: Error) {
     source,
     message: stripAnsi(err.message),
     stack: err.stack,
+    digest: (err as any).digest,
   }
 }
 
@@ -765,6 +797,9 @@ export async function renderToHTML(
         RenderSpan.getStaticProps,
         {
           spanName: `getStaticProps ${pathname}`,
+          attributes: {
+            'next.route': pathname,
+          },
         },
         () =>
           getStaticProps!({
@@ -772,7 +807,7 @@ export async function renderToHTML(
               ? { params: query as ParsedUrlQuery }
               : undefined),
             ...(isPreview
-              ? { preview: true, previewData: previewData }
+              ? { draftMode: true, preview: true, previewData: previewData }
               : undefined),
             locales: renderOpts.locales,
             locale: renderOpts.locale,
@@ -945,7 +980,7 @@ export async function renderToHTML(
     let deferredContent = false
     if (process.env.NODE_ENV !== 'production') {
       resOrProxy = new Proxy<ServerResponse>(res, {
-        get: function (obj, prop, receiver) {
+        get: function (obj, prop) {
           if (!canAccessRes) {
             const message =
               `You should not access 'res' after getServerSideProps resolves.` +
@@ -957,15 +992,12 @@ export async function renderToHTML(
               warn(message)
             }
           }
-          const value = Reflect.get(obj, prop, receiver)
 
-          // since ServerResponse uses internal fields which
-          // proxy can't map correctly we need to ensure functions
-          // are bound correctly while being proxied
-          if (typeof value === 'function') {
-            return value.bind(obj)
+          if (typeof prop === 'symbol') {
+            return ReflectAdapter.get(obj, prop, res)
           }
-          return value
+
+          return ReflectAdapter.get(obj, prop, res)
         },
       })
     }
@@ -975,6 +1007,9 @@ export async function renderToHTML(
         RenderSpan.getServerSideProps,
         {
           spanName: `getServerSideProps ${pathname}`,
+          attributes: {
+            'next.route': pathname,
+          },
         },
         async () =>
           getServerSideProps({
@@ -988,7 +1023,7 @@ export async function renderToHTML(
               ? { params: params as ParsedUrlQuery }
               : undefined),
             ...(previewData !== false
-              ? { preview: true, previewData: previewData }
+              ? { draftMode: true, preview: true, previewData: previewData }
               : undefined),
             locales: renderOpts.locales,
             locale: renderOpts.locale,
@@ -1331,10 +1366,14 @@ export async function renderToHTML(
     }
   }
 
+  getTracer().getRootSpanAttributes()?.set('next.route', renderOpts.pathname)
   const documentResult = await getTracer().trace(
     RenderSpan.renderDocument,
     {
       spanName: `render route (pages) ${renderOpts.pathname}`,
+      attributes: {
+        'next.route': renderOpts.pathname,
+      },
     },
     async () => renderDocument()
   )
@@ -1398,6 +1437,7 @@ export async function renderToHTML(
       isPreview: isPreview === true ? true : undefined,
       notFoundSrcPage: notFoundSrcPage && dev ? notFoundSrcPage : undefined,
     },
+    strictNextHead: renderOpts.strictNextHead,
     buildManifest: filteredBuildManifest,
     docComponentsRendered,
     dangerousAsPath: router.asPath,

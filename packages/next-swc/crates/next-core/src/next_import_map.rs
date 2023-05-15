@@ -1,22 +1,24 @@
 use std::collections::{BTreeMap, HashMap};
 
 use anyhow::{Context, Result};
-use turbo_binding::turbo::tasks_fs::{glob::GlobVc, FileSystem, FileSystemPathVc};
-use turbo_binding::turbopack::core::{
-    asset::Asset,
-    resolve::{
-        options::{
-            ConditionValue, ImportMap, ImportMapVc, ImportMapping, ImportMappingVc,
-            ResolveOptionsVc, ResolvedMap, ResolvedMapVc,
+use turbo_binding::{
+    turbo::tasks_fs::{glob::GlobVc, FileSystem, FileSystemPathVc},
+    turbopack::{
+        core::{
+            asset::Asset,
+            resolve::{
+                options::{
+                    ConditionValue, ImportMap, ImportMapVc, ImportMapping, ImportMappingVc,
+                    ResolveOptionsVc, ResolvedMap, ResolvedMapVc,
+                },
+                parse::RequestVc,
+                pattern::Pattern,
+                resolve, AliasPattern, ExportsValue, ResolveAliasMapVc,
+            },
         },
-        parse::RequestVc,
-        pattern::Pattern,
-        resolve, AliasPattern, ExportsValue, ResolveAliasMapVc,
+        node::execution_context::ExecutionContextVc,
+        turbopack::{resolve_options, resolve_options_context::ResolveOptionsContext},
     },
-};
-use turbo_binding::turbopack::node::execution_context::ExecutionContextVc;
-use turbo_binding::turbopack::turbopack::{
-    resolve_options, resolve_options_context::ResolveOptionsContext,
 };
 use turbo_tasks::Value;
 
@@ -95,28 +97,34 @@ pub async fn get_next_client_import_map(
                 "react-dom/",
                 request_to_import_mapping(app_dir, "next/dist/compiled/react-dom/*"),
             );
+            import_map.insert_wildcard_alias(
+                "react-server-dom-webpack/",
+                request_to_import_mapping(app_dir, "next/dist/compiled/react-server-dom-webpack/*"),
+            );
+            import_map.insert_exact_alias(
+                "next/dynamic",
+                request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
+            );
         }
         ClientContextType::Fallback => {}
         ClientContextType::Other => {}
     }
 
     match ty.into_value() {
-        ClientContextType::Pages {
-            pages_dir: context_dir,
-        }
-        | ClientContextType::App {
-            app_dir: context_dir,
-        } => {
+        ClientContextType::Pages { .. }
+        | ClientContextType::App { .. }
+        | ClientContextType::Fallback => {
             for (original, alias) in NEXT_ALIASES {
                 import_map.insert_exact_alias(
                     format!("node:{original}"),
-                    request_to_import_mapping(context_dir, alias),
+                    request_to_import_mapping(project_path, alias),
                 );
             }
         }
-        ClientContextType::Fallback => {}
         ClientContextType::Other => {}
     }
+
+    insert_turbopack_dev_alias(&mut import_map);
 
     Ok(import_map.cell())
 }
@@ -164,6 +172,8 @@ pub fn get_next_client_fallback_import_map(ty: Value<ClientContextType>) -> Impo
         ClientContextType::Other => {}
     }
 
+    insert_turbopack_dev_alias(&mut import_map);
+
     import_map.cell()
 }
 
@@ -208,14 +218,20 @@ pub async fn get_next_server_import_map(
             import_map.insert_wildcard_alias("react-dom/", external);
             import_map.insert_exact_alias("styled-jsx", external);
             import_map.insert_wildcard_alias("styled-jsx/", external);
+            import_map.insert_exact_alias("react-server-dom-webpack/", external);
         }
         ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. } => {
-            for name in next_config.server_component_externals().await?.iter() {
-                import_map.insert_exact_alias(name, external);
-                import_map.insert_wildcard_alias(format!("{name}/"), external);
-            }
+            import_map.insert_exact_alias(
+                "next/head",
+                request_to_import_mapping(project_path, "next/dist/client/components/noop-head"),
+            );
+            import_map.insert_exact_alias(
+                "next/dynamic",
+                request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
+            );
+
             // The sandbox can't be bundled and needs to be external
             import_map.insert_exact_alias("next/dist/server/web/sandbox", external);
         }
@@ -248,6 +264,23 @@ pub async fn get_next_edge_import_map(
     let ty = ty.into_value();
 
     insert_next_server_special_aliases(&mut import_map, ty).await?;
+
+    match ty {
+        ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {}
+        ServerContextType::AppSSR { .. }
+        | ServerContextType::AppRSC { .. }
+        | ServerContextType::AppRoute { .. } => {
+            import_map.insert_exact_alias(
+                "next/head",
+                request_to_import_mapping(project_path, "next/dist/client/components/noop-head"),
+            );
+            import_map.insert_exact_alias(
+                "next/dynamic",
+                request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
+            );
+        }
+        ServerContextType::Middleware => {}
+    }
 
     Ok(import_map.cell())
 }
@@ -354,9 +387,14 @@ pub async fn insert_next_server_special_aliases(
                 "react-dom/",
                 request_to_import_mapping(app_dir, "next/dist/compiled/react-dom/*"),
             );
+            import_map.insert_wildcard_alias(
+                "react-server-dom-webpack/",
+                request_to_import_mapping(app_dir, "next/dist/compiled/react-server-dom-webpack/*"),
+            );
         }
         ServerContextType::Middleware => {}
     }
+
     Ok(())
 }
 
@@ -422,6 +460,13 @@ pub async fn insert_next_shared_aliases(
     import_map.insert_singleton_alias("next", project_path);
     import_map.insert_singleton_alias("react", project_path);
     import_map.insert_singleton_alias("react-dom", project_path);
+
+    insert_turbopack_dev_alias(import_map);
+    insert_package_alias(
+        import_map,
+        "@vercel/turbopack-node/",
+        turbo_binding::turbopack::node::embed_js::embed_fs().root(),
+    );
 
     Ok(())
 }
@@ -516,6 +561,15 @@ fn insert_package_alias(import_map: &mut ImportMap, prefix: &str, package_root: 
     import_map.insert_wildcard_alias(
         prefix,
         ImportMapping::PrimaryAlternative("./*".to_string(), Some(package_root)).cell(),
+    );
+}
+
+/// Inserts an alias to @vercel/turbopack-dev into an import map.
+fn insert_turbopack_dev_alias(import_map: &mut ImportMap) {
+    insert_package_alias(
+        import_map,
+        "@vercel/turbopack-dev/",
+        turbo_binding::turbopack::dev::embed_js::embed_fs().root(),
     );
 }
 

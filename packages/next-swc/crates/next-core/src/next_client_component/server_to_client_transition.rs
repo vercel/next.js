@@ -1,17 +1,19 @@
 use anyhow::Result;
 use indexmap::indexmap;
-use turbo_binding::turbopack::core::{
-    asset::AssetVc,
-    context::AssetContext,
-    reference_type::{EntryReferenceSubType, ReferenceType},
-};
-use turbo_binding::turbopack::ecmascript::{
-    EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
-    EcmascriptModuleAssetVc, InnerAssetsVc,
-};
-use turbo_binding::turbopack::turbopack::{
-    transition::{Transition, TransitionVc},
-    ModuleAssetContextVc,
+use turbo_binding::turbopack::{
+    core::{
+        asset::AssetVc,
+        context::AssetContext,
+        reference_type::{EntryReferenceSubType, ReferenceType},
+    },
+    ecmascript::{
+        EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
+        EcmascriptModuleAssetVc, InnerAssetsVc,
+    },
+    turbopack::{
+        transition::{Transition, TransitionVc},
+        ModuleAssetContextVc,
+    },
 };
 use turbo_tasks::{primitives::OptionStringVc, Value};
 

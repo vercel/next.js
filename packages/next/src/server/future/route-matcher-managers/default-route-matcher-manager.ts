@@ -163,7 +163,9 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
           throw new Error('Invariant: expected to find identity in indexes map')
         }
 
-        for (const index of indexes) sortedDynamicMatchers.push(dynamic[index])
+        const dynamicMatches = indexes.map((index) => dynamic[index])
+
+        sortedDynamicMatchers.push(...dynamicMatches)
       }
 
       this.matchers.dynamic = sortedDynamicMatchers

@@ -39,7 +39,7 @@ NODE_OPTIONS='-r esm' next
 NODE_OPTIONS='--inspect' next
 ```
 
-> Note: Running `next` without a command is the same as running `next dev`
+> **Note**: Running `next` without a command is the same as running `next dev`
 
 ## Build
 
@@ -82,7 +82,7 @@ Or using the `PORT` environment variable:
 PORT=4000 npx next dev
 ```
 
-> Note: `PORT` can not be set in `.env` as booting up the HTTP server happens before any other code is initialized.
+> **Note**: `PORT` cannot be set in `.env` as booting up the HTTP server happens before any other code is initialized.
 
 You can also set the hostname to be different from the default of `0.0.0.0`, this can be useful for making the application available for other devices on the network. The default hostname can be changed with `-H`, like so:
 
@@ -106,7 +106,9 @@ Or using the `PORT` environment variable:
 PORT=4000 npx next start
 ```
 
-> Note: `PORT` can not be set in `.env` as booting up the HTTP server happens before any other code is initialized.
+> **Note**: `PORT` cannot be set in `.env` as booting up the HTTP server happens before any other code is initialized.
+
+> **Note**: `next start` cannot be used with `output: 'standalone'` or `output: 'export'`.
 
 ### Keep Alive Timeout
 

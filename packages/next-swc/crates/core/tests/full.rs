@@ -1,12 +1,15 @@
+use std::path::{Path, PathBuf};
+
 use next_swc::{custom_before_pass, TransformOptions};
 use serde::de::DeserializeOwned;
-use std::path::{Path, PathBuf};
 use turbo_binding::swc::{
     core::{
         base::Compiler,
         common::comments::SingleThreadedComments,
-        ecma::parser::{Syntax, TsConfig},
-        ecma::transforms::base::pass::noop,
+        ecma::{
+            parser::{Syntax, TsConfig},
+            transforms::base::pass::noop,
+        },
     },
     testing::{NormalizedOutput, Tester},
 };

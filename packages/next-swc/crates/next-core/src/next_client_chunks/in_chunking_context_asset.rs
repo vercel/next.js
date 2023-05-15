@@ -1,8 +1,4 @@
 use anyhow::{bail, Result};
-use turbo_binding::turbopack::turbopack::ecmascript::chunk::{
-    EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkVc,
-    EcmascriptExportsVc,
-};
 use turbo_binding::turbopack::{
     core::{
         asset::{Asset, AssetContentVc, AssetVc},
@@ -14,6 +10,10 @@ use turbo_binding::turbopack::{
         reference::AssetReferencesVc,
     },
     ecmascript::chunk::EcmascriptChunkingContextVc,
+    turbopack::ecmascript::chunk::{
+        EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc,
+        EcmascriptChunkVc, EcmascriptExportsVc,
+    },
 };
 use turbo_tasks::{primitives::StringVc, Value};
 

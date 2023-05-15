@@ -4,9 +4,6 @@
   "pipeline": {
     "build": {
       "outputs": ["src/compiled/**"]
-    },
-    "dev": {
-      "outputs": ["src/compiled/**"]
     }
   }
 }

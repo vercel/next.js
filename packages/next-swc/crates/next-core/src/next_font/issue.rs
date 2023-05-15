@@ -1,5 +1,7 @@
-use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
-use turbo_binding::turbopack::core::issue::{Issue, IssueSeverityVc, IssueVc};
+use turbo_binding::{
+    turbo::tasks_fs::FileSystemPathVc,
+    turbopack::core::issue::{Issue, IssueSeverityVc, IssueVc},
+};
 use turbo_tasks::primitives::StringVc;
 
 #[turbo_tasks::value(shared)]

@@ -58,8 +58,6 @@
     "*.ts": "$(capture).test.ts, $(capture).test.tsx",
     "*.tsx": "$(capture).test.ts, $(capture).test.tsx"
   },
-  // Allow to find the cargo project for rust-analyzer.
-  "rust-analyzer.linkedProjects": ["packages/next-swc/Cargo.toml"],
   // Compile rust-analyzer in a separate directory to avoid conflicts with the main project.
   "rust-analyzer.checkOnSave.extraEnv": {
     "CARGO_TARGET_DIR": "target/rust-analyzer"
@@ -68,5 +66,21 @@
     "CARGO_TARGET_DIR": "target/rust-analyzer",
     "RUST_BACKTRACE": "0"
   },
-  "cSpell.words": ["opentelemetry", "zipkin"]
+  "rust-analyzer.cargo.extraEnv": {
+    "CARGO_TARGET_DIR": "target/rust_analyzer"
+  },
+  "cSpell.words": [
+    "Entrypoints",
+    "napi",
+    "nextjs",
+    "opentelemetry",
+    "Threadsafe",
+    "zipkin"
+  ],
+  "grammarly.selectors": [
+    {
+      "language": "markdown",
+      "scheme": "file"
+    }
+  ]
 }

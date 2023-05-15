@@ -1,43 +1,60 @@
 use anyhow::Result;
-use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
-use turbo_binding::turbopack::core::{
-    compile_time_defines,
-    compile_time_info::{
-        CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc, FreeVarReference,
-        FreeVarReferencesVc,
+use turbo_binding::{
+    turbo::tasks_fs::FileSystemPathVc,
+    turbopack::{
+        core::{
+            compile_time_defines,
+            compile_time_info::{
+                CompileTimeDefines, CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc,
+                FreeVarReference, FreeVarReferencesVc,
+            },
+            environment::{
+                EdgeWorkerEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment,
+                ServerAddrVc,
+            },
+            free_var_references,
+        },
+        node::execution_context::ExecutionContextVc,
+        turbopack::resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
     },
-    environment::{
-        EdgeWorkerEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment,
-        ServerAddrVc,
-    },
-    free_var_references,
-};
-use turbo_binding::turbopack::node::execution_context::ExecutionContextVc;
-use turbo_binding::turbopack::turbopack::resolve_options_context::{
-    ResolveOptionsContext, ResolveOptionsContextVc,
 };
 use turbo_tasks::Value;
 
 use crate::{
     next_config::NextConfigVc, next_import_map::get_next_edge_import_map,
-    next_server::context::ServerContextType, util::foreign_code_context_condition,
+    next_server::context::ServerContextType,
+    next_shared::resolve::UnsupportedModulesResolvePluginVc, util::foreign_code_context_condition,
 };
 
-pub fn next_edge_defines() -> CompileTimeDefinesVc {
+fn defines() -> CompileTimeDefines {
     compile_time_defines!(
         process.turbopack = true,
         process.env.NODE_ENV = "development",
-        process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false
+        process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false,
+        process.env.NEXT_RUNTIME = "edge"
     )
-    .cell()
+    // TODO(WEB-937) there are more defines needed, see
+    // packages/next/src/build/webpack-config.ts
 }
 
+#[turbo_tasks::function]
+pub fn next_edge_defines() -> CompileTimeDefinesVc {
+    defines().cell()
+}
+
+#[turbo_tasks::function]
 pub fn next_edge_free_vars(project_path: FileSystemPathVc) -> FreeVarReferencesVc {
     free_var_references!(
+        ..defines().into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
             request: "next/dist/compiled/buffer".to_string(),
             context: Some(project_path),
             export: Some("Buffer".to_string()),
+        },
+        process = FreeVarReference::EcmaScriptModule {
+            request: "next/dist/build/polyfills/process".to_string(),
+            context: Some(project_path),
+            export: Some("default".to_string()),
         },
     )
     .cell()
@@ -81,6 +98,7 @@ pub async fn get_edge_resolve_options_context(
         import_map: Some(next_edge_import_map),
         module: true,
         browser: true,
+        plugins: vec![UnsupportedModulesResolvePluginVc::new(project_path).into()],
         ..Default::default()
     };
 

@@ -1,4 +1,4 @@
-# `Export Custom Routes
+# Export Custom Routes
 
 #### Why This Error Occurred
 
@@ -8,7 +8,8 @@ These configs do not apply when exporting your Next.js application manually.
 
 #### Possible Ways to Fix It
 
-Disable the `rewrites`, `redirects`, and `headers` from your `next.config.js` when using `output: 'export'` (or `next export`) to deploy your application or deploy your application using [a method](https://nextjs.org/docs/deployment#managed-nextjs-with-vercel) that supports these configs.
+- Remove `rewrites`, `redirects`, and `headers` from your `next.config.js` to disable these features or
+- Remove `output: 'export'` (or `next export`) in favor of [`next start`](https://nextjs.org/docs/api-reference/cli#production) to run a production server
 
 ### Useful Links
 

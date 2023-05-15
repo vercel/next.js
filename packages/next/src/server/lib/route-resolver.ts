@@ -20,9 +20,14 @@ import {
 } from '../../shared/lib/constants'
 import type { BaseNextRequest } from '../base-http'
 
-type MiddlewareConfig = {
+export type MiddlewareConfig = {
   matcher: string[]
   files: string[]
+}
+
+export type ServerAddress = {
+  hostname: string
+  port: number
 }
 
 export type RouteResult =
@@ -78,7 +83,8 @@ class DevRouteMatcherManager extends DefaultRouteMatcherManager {
 export async function makeResolver(
   dir: string,
   nextConfig: NextConfig,
-  middleware: MiddlewareConfig
+  middleware: MiddlewareConfig,
+  serverAddr: Partial<ServerAddress>
 ) {
   const url = require('url') as typeof import('url')
   const { default: Router } = require('../router') as typeof import('../router')
@@ -126,8 +132,8 @@ export async function makeResolver(
   const devServer = new TurbopackDevServerProxy({
     dir,
     conf: nextConfig,
-    hostname: 'localhost',
-    port: 3000,
+    hostname: serverAddr.hostname || 'localhost',
+    port: serverAddr.port || 3000,
   })
 
   await devServer.matchers.reload()
@@ -159,7 +165,7 @@ export async function makeResolver(
           return {
             name: 'middleware',
             paths: middleware.files.map((file) => join(process.cwd(), file)),
-            env: [],
+            env: Object.keys(process.env),
             wasm: [],
             assets: [],
           }
@@ -176,7 +182,7 @@ export async function makeResolver(
     devServer.hasMiddleware = () => true
   }
 
-  const routes = devServer.generateRoutes()
+  const routes = devServer.generateRoutes(true)
   // @ts-expect-error protected
   const catchAllMiddleware = devServer.generateCatchAllMiddlewareRoute(true)
 
