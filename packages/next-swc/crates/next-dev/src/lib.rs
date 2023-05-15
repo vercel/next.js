@@ -5,12 +5,13 @@ pub mod devserver_options;
 mod turbo_tasks_viz;
 
 use std::{
+    borrow::Cow,
     collections::HashSet,
     env::current_dir,
     future::{join, Future},
     io::{stdout, Write},
     net::{IpAddr, SocketAddr},
-    path::{PathBuf, MAIN_SEPARATOR},
+    path::{Path, PathBuf, MAIN_SEPARATOR},
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -26,6 +27,7 @@ use next_core::{
     router_source::NextRouterContentSourceVc, source_map::NextSourceMapTraceContentSourceVc,
 };
 use owo_colors::OwoColorize;
+use tracing_subscriber::{prelude::*, EnvFilter, Registry};
 use turbo_tasks::{
     util::{FormatBytes, FormatDuration},
     StatsType, TransientInstance, TurboTasks, TurboTasksBackendApi, UpdateInfo, Value,
@@ -38,7 +40,11 @@ use turbopack_binding::{
         tasks_memory::MemoryBackend,
     },
     turbopack::{
-        cli_utils::issue::{ConsoleUiVc, LogOptions},
+        cli_utils::{
+            exit::exit_guard,
+            issue::{ConsoleUiVc, LogOptions},
+            raw_trace::RawTraceLayer,
+        },
         core::{
             environment::{ServerAddr, ServerAddrVc},
             issue::{IssueReporterVc, IssueSeverity},
@@ -430,6 +436,46 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
 
     #[cfg(feature = "tokio_console")]
     console_subscriber::init();
+
+    let subscriber = Registry::default();
+
+    let subscriber = subscriber.with(
+        EnvFilter::builder()
+            .parse(std::env::var("NEXT_TURBOPACK_TRACE").map_or_else(
+                |_| {
+                    Cow::Borrowed(
+                        "next_dev=info,next_core=info,next_font=info,turbopack=info,\
+                         turbopack_core=info,turbopack_ecmascript=info,turbopack_css=info,\
+                         turbopack_dev=info,turbopack_iamge=info,turbopack_json=info,\
+                         turbopack_mdx=info,turbopack_node=info,turbopack_static=info,\
+                         turbopack_dev_server=info,turbopack_cli_utils=info,turbopack_cli=info,\
+                         turbopack_ecmascript=info,turbo_tasks=info,turbo_tasks_fs=info,\
+                         turbo_tasks_bytes=info,turbo_tasks_env=info,turbo_tasks_fetch=info,\
+                         turbo_tasks_hash=info",
+                    )
+                },
+                |s| Cow::Owned(s),
+            ))
+            .unwrap(),
+    );
+
+    let internal_dir = options
+        .dir
+        .as_deref()
+        .unwrap_or_else(|| Path::new("."))
+        .join(".next");
+    std::fs::create_dir_all(&internal_dir)
+        .context("Unable to create .turbopack directory")
+        .unwrap();
+    let trace_file = internal_dir.join("trace.log");
+    let (writer, guard) =
+        tracing_appender::non_blocking(std::fs::File::create(trace_file).unwrap());
+    let subscriber = subscriber.with(RawTraceLayer::new(writer));
+
+    let _guard = exit_guard(guard).unwrap();
+
+    subscriber.init();
+
     register();
 
     let dir = options
