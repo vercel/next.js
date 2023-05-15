@@ -19,13 +19,15 @@ use turbo_binding::{
             free_var_references,
         },
         dev::{react_refresh::assert_can_resolve_react_refresh, DevChunkingContextVc},
-        ecmascript::EcmascriptInputTransform,
+        ecmascript::TransformPluginVc,
+        ecmascript_plugin::transform::directives::server::ServerDirectiveTransformer,
         env::ProcessEnvAssetVc,
         node::execution_context::ExecutionContextVc,
         turbopack::{
             condition::ContextCondition,
             module_options::{
                 module_options_context::{ModuleOptionsContext, ModuleOptionsContextVc},
+                CustomEcmascriptTransformPlugins, CustomEcmascriptTransformPluginsVc,
                 JsxTransformOptions, PostCssTransformOptions, TypescriptTransformOptions,
                 WebpackLoadersOptions,
             },
@@ -50,7 +52,9 @@ use crate::{
         get_next_client_fallback_import_map, get_next_client_import_map,
         get_next_client_resolved_map,
     },
-    next_shared::resolve::UnsupportedModulesResolvePluginVc,
+    next_shared::{
+        resolve::UnsupportedModulesResolvePluginVc, transforms::get_relay_transform_plugin,
+    },
     transform_options::{
         get_decorators_transform_options, get_emotion_compiler_config, get_jsx_transform_options,
         get_styled_components_compiler_config, get_typescript_transform_options,
@@ -193,14 +197,31 @@ pub async fn get_client_module_options_context(
 
     let enable_emotion = *get_emotion_compiler_config(next_config).await?;
 
+    let source_transforms = vec![
+        *get_relay_transform_plugin(next_config).await?,
+        Some(TransformPluginVc::cell(Box::new(
+            ServerDirectiveTransformer::new(
+                // ServerDirective is not implemented yet and always reports an issue.
+                // We don't have to pass a valid transition name yet, but the API is prepared.
+                &StringVc::cell("TODO".to_string()),
+            ),
+        ))),
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
+
+    let custom_ecma_transform_plugins = Some(CustomEcmascriptTransformPluginsVc::cell(
+        CustomEcmascriptTransformPlugins {
+            source_transforms,
+            output_transforms: vec![],
+        },
+    ));
+
     let module_options_context = ModuleOptionsContext {
-        custom_ecmascript_transforms: vec![EcmascriptInputTransform::ServerDirective(
-            // ServerDirective is not implemented yet and always reports an issue.
-            // We don't have to pass a valid transition name yet, but the API is prepared.
-            StringVc::cell("TODO".to_string()),
-        )],
         preset_env_versions: Some(env),
         execution_context: Some(execution_context),
+        custom_ecma_transform_plugins,
         ..Default::default()
     };
 

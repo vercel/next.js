@@ -1,13 +1,13 @@
 import chalk from '../../lib/chalk'
 
 export const prefixes = {
-  wait: chalk.cyan('wait') + '  -',
-  error: chalk.red('error') + ' -',
-  warn: chalk.yellow('warn') + '  -',
-  ready: chalk.green('ready') + ' -',
-  info: chalk.cyan('info') + '  -',
-  event: chalk.magenta('event') + ' -',
-  trace: chalk.magenta('trace') + ' -',
+  wait: '- ' + chalk.cyan('wait'),
+  error: '- ' + chalk.red('error'),
+  warn: '- ' + chalk.yellow('warn'),
+  ready: '- ' + chalk.green('ready'),
+  info: '- ' + chalk.cyan('info'),
+  event: '- ' + chalk.magenta('event'),
+  trace: '- ' + chalk.magenta('trace'),
 }
 
 export function wait(...message: any[]) {

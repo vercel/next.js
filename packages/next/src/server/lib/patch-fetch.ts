@@ -26,6 +26,44 @@ export function addImplicitTags(
   return newTags
 }
 
+function trackFetchMetric(
+  staticGenerationStore: ReturnType<StaticGenerationAsyncStorage['getStore']>,
+  ctx: {
+    url: string
+    status: number
+    method: string
+    cacheReason: string
+    cacheStatus: 'hit' | 'miss'
+    start: number
+  }
+) {
+  if (!staticGenerationStore) return
+  if (!staticGenerationStore.fetchMetrics) {
+    staticGenerationStore.fetchMetrics = []
+  }
+  const dedupeFields = ['url', 'status', 'method']
+
+  // don't add metric if one already exists for the fetch
+  if (
+    staticGenerationStore.fetchMetrics.some((metric) => {
+      return dedupeFields.every(
+        (field) => (metric as any)[field] === (ctx as any)[field]
+      )
+    })
+  ) {
+    return
+  }
+  staticGenerationStore.fetchMetrics.push({
+    url: ctx.url,
+    cacheStatus: ctx.cacheStatus,
+    status: ctx.status,
+    method: ctx.method,
+    start: ctx.start,
+    end: Date.now(),
+    idx: staticGenerationStore.nextFetchId || 0,
+  })
+}
+
 // we patch fetch to collect cache information used for
 // determining if a page is static or not
 export function patchFetch({
@@ -53,7 +91,7 @@ export function patchFetch({
       // Error caused by malformed URL should be handled by native fetch
       url = undefined
     }
-
+    const fetchStart = Date.now()
     const method = init?.method?.toUpperCase() || 'GET'
 
     return await getTracer().trace(
@@ -121,6 +159,8 @@ export function patchFetch({
         }
         const isOnlyCache = staticGenerationStore.fetchCache === 'only-cache'
         const isForceCache = staticGenerationStore.fetchCache === 'force-cache'
+        const isDefaultCache =
+          staticGenerationStore.fetchCache === 'default-cache'
         const isDefaultNoStore =
           staticGenerationStore.fetchCache === 'default-no-store'
         const isOnlyNoStore =
@@ -128,22 +168,29 @@ export function patchFetch({
         const isForceNoStore =
           staticGenerationStore.fetchCache === 'force-no-store'
 
-        const _cache = getRequestMeta('cache')
+        let _cache = getRequestMeta('cache')
 
-        if (_cache === 'force-cache' || isForceCache) {
+        if (
+          typeof _cache === 'string' &&
+          typeof curRevalidate !== 'undefined'
+        ) {
+          console.warn(
+            `Warning: fetch for ${input.toString()} specified "cache: ${_cache}" and "revalidate: ${curRevalidate}", only one should be specified.`
+          )
+          _cache = undefined
+        }
+
+        if (_cache === 'force-cache') {
           curRevalidate = false
         }
         if (['no-cache', 'no-store'].includes(_cache || '')) {
           curRevalidate = 0
         }
-        if (typeof curRevalidate === 'number') {
+        if (typeof curRevalidate === 'number' || curRevalidate === false) {
           revalidate = curRevalidate
         }
 
-        if (curRevalidate === false) {
-          revalidate = CACHE_ONE_YEAR
-        }
-
+        let cacheReason = ''
         const _headers = getRequestMeta('headers')
         const initHeaders: Headers =
           typeof _headers?.get === 'function'
@@ -166,6 +213,7 @@ export function patchFetch({
 
         if (isForceNoStore) {
           revalidate = 0
+          cacheReason = 'fetchCache = force-no-store'
         }
 
         if (isOnlyNoStore) {
@@ -175,26 +223,43 @@ export function patchFetch({
             )
           }
           revalidate = 0
+          cacheReason = 'fetchCache = only-no-store'
+        }
+
+        if (isOnlyCache && _cache === 'no-store') {
+          throw new Error(
+            `cache: 'no-store' used on fetch for ${input.toString()} with 'export const fetchCache = 'only-cache'`
+          )
+        }
+
+        if (
+          isForceCache &&
+          (typeof curRevalidate === 'undefined' || curRevalidate === 0)
+        ) {
+          cacheReason = 'fetchCache = force-cache'
+          revalidate = false
         }
 
         if (typeof revalidate === 'undefined') {
-          if (isOnlyCache && _cache === 'no-store') {
-            throw new Error(
-              `cache: 'no-store' used on fetch for ${input.toString()} with 'export const fetchCache = 'only-cache'`
-            )
-          }
-
-          if (autoNoCache) {
+          if (isDefaultCache) {
+            revalidate = false
+            cacheReason = 'fetchCache = default-cache'
+          } else if (autoNoCache) {
             revalidate = 0
+            cacheReason = 'auto no cache'
           } else if (isDefaultNoStore) {
             revalidate = 0
+            cacheReason = 'fetchCache = default-no-store'
           } else {
+            cacheReason = 'auto cache'
             revalidate =
               typeof staticGenerationStore.revalidate === 'boolean' ||
               typeof staticGenerationStore.revalidate === 'undefined'
-                ? CACHE_ONE_YEAR
+                ? false
                 : staticGenerationStore.revalidate
           }
+        } else if (!cacheReason) {
+          cacheReason = `revalidate: ${revalidate}`
         }
 
         if (
@@ -203,18 +268,19 @@ export function patchFetch({
           !autoNoCache &&
           (typeof staticGenerationStore.revalidate === 'undefined' ||
             (typeof revalidate === 'number' &&
-              typeof staticGenerationStore.revalidate === 'number' &&
-              revalidate < staticGenerationStore.revalidate))
+              (staticGenerationStore.revalidate === false ||
+                (typeof staticGenerationStore.revalidate === 'number' &&
+                  revalidate < staticGenerationStore.revalidate))))
         ) {
           staticGenerationStore.revalidate = revalidate
         }
 
+        const isCacheableRevalidate =
+          (typeof revalidate === 'number' && revalidate > 0) ||
+          revalidate === false
+
         let cacheKey: string | undefined
-        if (
-          staticGenerationStore.incrementalCache &&
-          typeof revalidate === 'number' &&
-          revalidate > 0
-        ) {
+        if (staticGenerationStore.incrementalCache && isCacheableRevalidate) {
           try {
             cacheKey =
               await staticGenerationStore.incrementalCache.fetchCacheKey(
@@ -267,7 +333,10 @@ export function patchFetch({
         const fetchIdx = staticGenerationStore.nextFetchId ?? 1
         staticGenerationStore.nextFetchId = fetchIdx + 1
 
-        const doOriginalFetch = async () => {
+        const normalizedRevalidate =
+          typeof revalidate !== 'number' ? CACHE_ONE_YEAR : revalidate
+
+        const doOriginalFetch = async (isStale?: boolean) => {
           // add metadata to init without editing the original
           const clonedInit = {
             ...init,
@@ -275,12 +344,21 @@ export function patchFetch({
           }
 
           return originFetch(input, clonedInit).then(async (res) => {
+            if (!isStale) {
+              trackFetchMetric(staticGenerationStore, {
+                start: fetchStart,
+                url: fetchUrl,
+                cacheReason,
+                cacheStatus: 'miss',
+                status: res.status,
+                method: clonedInit.method || 'GET',
+              })
+            }
             if (
               res.status === 200 &&
               staticGenerationStore.incrementalCache &&
               cacheKey &&
-              typeof revalidate === 'number' &&
-              revalidate > 0
+              isCacheableRevalidate
             ) {
               const bodyBuffer = Buffer.from(await res.arrayBuffer())
 
@@ -295,7 +373,7 @@ export function patchFetch({
                       status: res.status,
                       tags,
                     },
-                    revalidate,
+                    revalidate: normalizedRevalidate,
                   },
                   revalidate,
                   true,
@@ -336,7 +414,7 @@ export function patchFetch({
                   staticGenerationStore.pendingRevalidates = []
                 }
                 staticGenerationStore.pendingRevalidates.push(
-                  doOriginalFetch().catch(console.error)
+                  doOriginalFetch(true).catch(console.error)
                 )
               } else if (
                 tags &&
@@ -368,11 +446,20 @@ export function patchFetch({
 
               if (process.env.NEXT_RUNTIME === 'edge') {
                 const { decode } =
-                  require('../../shared/lib/bloom-filter/base64-arraybuffer') as typeof import('../../shared/lib/bloom-filter/base64-arraybuffer')
+                  require('../../shared/lib/base64-arraybuffer') as typeof import('../../shared/lib/base64-arraybuffer')
                 decodedBody = decode(resData.body)
               } else {
                 decodedBody = Buffer.from(resData.body, 'base64').subarray()
               }
+
+              trackFetchMetric(staticGenerationStore, {
+                start: fetchStart,
+                url: fetchUrl,
+                cacheReason,
+                cacheStatus: 'hit',
+                status: resData.status || 200,
+                method: init?.method || 'GET',
+              })
 
               return new Response(decodedBody, {
                 headers: resData.headers,

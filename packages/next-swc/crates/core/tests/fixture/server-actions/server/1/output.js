@@ -1,17 +1,16 @@
-/* __next_internal_action_entry_do_not_use__ $$ACTION_0 */ import deleteFromDb from 'db';
+/* __next_internal_action_entry_do_not_use__ $$ACTION_0 */ import __create_action_proxy__ from "private-next-rsc-action-proxy";
+import deleteFromDb from 'db';
 export function Item({ id1 , id2  }) {
-    async function deleteItem() {
-        return $$ACTION_0(deleteItem.$$bound);
+    async function deleteItem(...args) {
+        return $$ACTION_0.apply(null, (deleteItem.$$bound || []).concat(args));
     }
-    deleteItem.$$typeof = Symbol.for("react.server.reference");
-    deleteItem.$$id = "6d53ce510b2e36499b8f56038817b9bad86cabb4";
-    deleteItem.$$bound = [
+    __create_action_proxy__("6d53ce510b2e36499b8f56038817b9bad86cabb4", [
         id1,
         id2
-    ];
+    ], deleteItem, $$ACTION_0);
     return <Button action={deleteItem}>Delete</Button>;
 }
-export async function $$ACTION_0(closure) {
-    await deleteFromDb(closure[0]);
-    await deleteFromDb(closure[1]);
+export async function $$ACTION_0(id1, id2) {
+    await deleteFromDb(id1);
+    await deleteFromDb(id2);
 }

@@ -21,6 +21,7 @@ import { StaticGenerationStore } from '../../client/components/static-generation
 import { FlightRenderResult } from './flight-render-result'
 import { ActionResult } from './types'
 import { ActionAsyncStorage } from '../../client/components/action-async-storage'
+import { filterReqHeaders, forbiddenHeaders } from '../lib/server-ipc/utils'
 
 function nodeToWebReadableStream(nodeReadable: import('stream').Readable) {
   if (process.env.NEXT_RUNTIME !== 'edge') {
@@ -90,10 +91,10 @@ function getForwardedHeaders(
   })
 
   // Merge request and response headers
-  const mergedHeaders = {
+  const mergedHeaders = filterReqHeaders({
     ...nodeHeadersToRecord(requestHeaders),
     ...nodeHeadersToRecord(responseHeaders),
-  }
+  }) as Record<string, string>
 
   // Merge cookies
   const mergedCookies = requestCookies.split('; ').concat(setCookies).join('; ')
@@ -131,6 +132,7 @@ async function createRedirectRenderResult(
   redirectUrl: string,
   staticGenerationStore: StaticGenerationStore
 ) {
+  res.setHeader('x-action-redirect', redirectUrl)
   // if we're redirecting to a relative path, we'll try to stream the response
   if (redirectUrl.startsWith('/')) {
     const forwardedHeaders = getForwardedHeaders(req, res)
@@ -140,6 +142,18 @@ async function createRedirectRenderResult(
     const proto =
       staticGenerationStore.incrementalCache?.requestProtocol || 'https'
     const fetchUrl = new URL(`${proto}://${host}${redirectUrl}`)
+
+    if (staticGenerationStore.revalidatedTags) {
+      forwardedHeaders.set(
+        'x-next-revalidated-tags',
+        staticGenerationStore.revalidatedTags.join(',')
+      )
+      forwardedHeaders.set(
+        'x-next-revalidate-tag-token',
+        staticGenerationStore.incrementalCache?.prerenderManifest?.preview
+          ?.previewModeId || ''
+      )
+    }
 
     try {
       const headResponse = await fetchIPv4v6(fetchUrl, {
@@ -164,13 +178,16 @@ async function createRedirectRenderResult(
         })
         // copy the headers from the redirect response to the response we're sending
         for (const [key, value] of response.headers) {
-          res.setHeader(key, value)
+          if (!forbiddenHeaders.includes(key)) {
+            res.setHeader(key, value)
+          }
         }
 
         return new FlightRenderResult(response.body!)
       }
     } catch (err) {
       // we couldn't stream the redirect response, so we'll just do a normal redirect
+      console.error(`failed to get redirect response`, err)
     }
   }
   return new RenderResult(JSON.stringify({}))
@@ -349,7 +366,6 @@ export async function handleAction({
 
         // if it's a fetch action, we don't want to mess with the status code
         // and we'll handle it on the client router
-        res.setHeader('Location', redirectUrl)
         await Promise.all(staticGenerationStore.pendingRevalidates || [])
 
         if (isFetchAction) {
@@ -361,6 +377,7 @@ export async function handleAction({
           )
         }
 
+        res.setHeader('Location', redirectUrl)
         res.statusCode = 303
         return new RenderResult('')
       } else if (isNotFoundError(err)) {
