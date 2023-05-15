@@ -1,11 +1,13 @@
-"use client"
+'use client'
 
-import { SignedIn, SignedOut } from "@clerk/nextjs"
-import { useEffect, useState } from "react"
+import { SignedIn, SignedOut } from '@clerk/nextjs'
+import { useEffect, useState } from 'react'
 import styles from '../styles/Home.module.css'
 
 declare global {
-  interface Window { Prism: any; }
+  interface Window {
+    Prism: any
+  }
 }
 
 const apiSample = `import { auth } from "@clerk/nextjs";
@@ -26,9 +28,7 @@ export const APIRequest = () => {
     }
   })
 
-  const [response, setResponse] = useState(
-    '// Click above to run the request'
-  )
+  const [response, setResponse] = useState('// Click above to run the request')
 
   const makeRequest = async () => {
     setResponse('// Loading...')

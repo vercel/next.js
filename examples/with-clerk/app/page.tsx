@@ -1,8 +1,8 @@
-import { SignedIn, SignedOut } from "@clerk/nextjs";
+import { SignedIn, SignedOut } from '@clerk/nextjs'
 import styles from '../styles/Home.module.css'
-import Link from "next/link";
-import Head from "next/head";
-import { APIRequest } from "./api-request";
+import Link from 'next/link'
+import Head from 'next/head'
+import { APIRequest } from './api-request'
 
 const ClerkFeatures = () => (
   <Link href="/user" className={styles.cardContent}>
@@ -119,16 +119,16 @@ const Footer = () => (
 export default function Home() {
   return (
     <div className={styles.container}>
-    <Head>
-      <title>Create Next App</title>
-      <link rel="icon" href="/favicon.ico" />
-      <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-      ></meta>
-    </Head>
-    <Main />
-    <Footer />
-  </div>
+      <Head>
+        <title>Create Next App</title>
+        <link rel="icon" href="/favicon.ico" />
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1.0"
+        ></meta>
+      </Head>
+      <Main />
+      <Footer />
+    </div>
   )
 }
