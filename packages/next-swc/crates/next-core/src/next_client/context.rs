@@ -218,10 +218,17 @@ pub async fn get_client_module_options_context(
         },
     ));
 
+    let postcss_transform_options = Some(PostCssTransformOptions {
+        postcss_package: Some(get_postcss_package_mapping(project_path)),
+        ..Default::default()
+    });
+
     let module_options_context = ModuleOptionsContext {
         preset_env_versions: Some(env),
         execution_context: Some(execution_context),
         custom_ecma_transform_plugins,
+        // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
+        enable_postcss_transform: postcss_transform_options.clone(),
         ..Default::default()
     };
 
@@ -236,10 +243,7 @@ pub async fn get_client_module_options_context(
         enable_react_refresh,
         enable_styled_components,
         enable_styled_jsx: true,
-        enable_postcss_transform: Some(PostCssTransformOptions {
-            postcss_package: Some(get_postcss_package_mapping(project_path)),
-            ..Default::default()
-        }),
+        enable_postcss_transform: postcss_transform_options,
         enable_webpack_loaders,
         enable_typescript_transform: Some(tsconfig),
         enable_mdx_rs: mdx_rs_options,
