@@ -51,7 +51,9 @@ module.exports = withMDX({
 })
 ```
 
-Optionally you can match other file extensions for MDX compilation, as by default only `.mdx` is supported:
+By default MDX will only match and compile MDX files with the `.mdx` extension.
+However, it can also be optionally configured to handle markdown files with the `.md` extension, as shown below:
+
 
 ```js
 // next.config.js
