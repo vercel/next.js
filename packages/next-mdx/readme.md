@@ -63,19 +63,7 @@ const withMDX = require('@next/mdx')({
 module.exports = withMDX()
 ```
 
-The configuration above will load both `.md` and `.mdx` files. However, please note that even with this configuration in place, MDX will load `.md` files as Markdown (not as MDX) because by default it will auto-detect the type.
-If you want to load `.md` files as MDX content, you should in addition configure [the `format` option](https://mdxjs.com/packages/mdx/#optionsformat) and set it to `mdx`:
-
-```js
-// next.config.js
-const withMDX = require('@next/mdx')({
-  extension: /\.(md|mdx)$/,
-  options: {
-    format: 'mdx'
-  }
-})
-module.exports = withMDX()
-```
+In addition, MDX can be customized with compiler options, see the [mdx documentation](https://mdxjs.com/packages/mdx/#compilefile-options) for details on supported options.
 
 
 ## Top level .mdx pages
