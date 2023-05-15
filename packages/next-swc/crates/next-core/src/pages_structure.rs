@@ -386,7 +386,7 @@ fn page_basename<'a>(name: &'a str, page_extensions: &'a [String]) -> Option<&'a
             return Some(basename);
         }
     }
-    return None;
+    None
 }
 
 fn next_router_path_for_basename(
