@@ -139,7 +139,7 @@ impl ModuleOptionsVc {
             let jsx = enable_jsx.await?;
 
             transforms.push(EcmascriptInputTransform::React {
-                refresh: enable_react_refresh,
+                refresh: enable_react_refresh || jsx.react_refresh,
                 import_source: OptionStringVc::cell(jsx.import_source.clone()),
                 runtime: OptionStringVc::cell(jsx.runtime.clone()),
             });
