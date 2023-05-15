@@ -602,24 +602,21 @@ async fn create_page_source_for_root_directory(
     } = *pages_structure.await?;
     let mut sources = vec![];
 
-    sources.push(
-        create_page_source_for_directory(
-            *pages,
-            project_root,
-            env,
-            server_context,
-            server_data_context,
-            client_context,
-            pages_dir,
-            runtime_entries,
-            fallback_page,
-            client_root,
-            false,
-            node_root,
-            render_data,
-        )
-        .issue_context(pages.await?.project_path, "Next.js pages directory"),
-    );
+    sources.push(create_page_source_for_directory(
+        *pages,
+        project_root,
+        env,
+        server_context,
+        server_data_context,
+        client_context,
+        pages_dir,
+        runtime_entries,
+        fallback_page,
+        client_root,
+        false,
+        node_root,
+        render_data,
+    ));
 
     if let Some(api) = api {
         sources.push(
@@ -694,7 +691,8 @@ async fn create_page_source_for_directory(
             node_root,
             node_root,
             render_data,
-        );
+        )
+        .issue_context(project_path, "Next.js pages directory");
         sources.push(source);
     }
 
