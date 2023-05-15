@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_binding::{
+use turbopack_binding::{
     turbo::tasks_fs::{FileJsonContentVc, FileSystemPathVc},
     turbopack::{
         core::{

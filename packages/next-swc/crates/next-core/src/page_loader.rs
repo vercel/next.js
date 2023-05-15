@@ -2,7 +2,8 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use indexmap::indexmap;
-use turbo_binding::{
+use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value};
+use turbopack_binding::{
     turbo::tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPathVc},
     turbopack::{
         core::{
@@ -22,7 +23,6 @@ use turbo_binding::{
         },
     },
 };
-use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value};
 
 use crate::{embed_js::next_js_file_path, util::get_asset_path_from_pathname};
 

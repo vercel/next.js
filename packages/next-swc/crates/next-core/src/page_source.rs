@@ -1,7 +1,12 @@
 use anyhow::Result;
 use indexmap::indexmap;
 use serde::{Deserialize, Serialize};
-use turbo_binding::{
+use turbo_tasks::{
+    primitives::{JsonValueVc, OptionStringVc, StringVc, StringsVc},
+    trace::TraceRawVcs,
+    Value,
+};
+use turbopack_binding::{
     turbo::{
         tasks_env::{CustomProcessEnvVc, EnvMapVc, ProcessEnvVc},
         tasks_fs::{FileContent, FileSystemPathVc},
@@ -41,11 +46,6 @@ use turbo_binding::{
         },
         turbopack::{transition::TransitionsByNameVc, ModuleAssetContextVc},
     },
-};
-use turbo_tasks::{
-    primitives::{JsonValueVc, OptionStringVc, StringVc, StringsVc},
-    trace::TraceRawVcs,
-    Value,
 };
 
 use crate::{

@@ -2,7 +2,9 @@ use core::{default::Default, result::Result::Ok};
 use std::collections::HashMap;
 
 use anyhow::Result;
-use turbo_binding::{
+use turbo_tasks::{primitives::StringVc, Value};
+use turbo_tasks_fs::FileSystem;
+use turbopack_binding::{
     turbo::{tasks_env::ProcessEnvVc, tasks_fs::FileSystemPathVc},
     turbopack::{
         core::{
@@ -37,8 +39,6 @@ use turbo_binding::{
         },
     },
 };
-use turbo_tasks::{primitives::StringVc, Value};
-use turbo_tasks_fs::FileSystem;
 
 use super::transforms::get_next_client_transforms_rules;
 use crate::{
