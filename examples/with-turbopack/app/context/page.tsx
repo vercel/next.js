@@ -20,7 +20,7 @@ export default function Page() {
       <div>
         <a
           className="font-medium text-zinc-300 hover:text-white"
-          href="https://beta.nextjs.org/docs/rendering/server-and-client-components#using-context"
+          href="https://nextjs.org/docs/rendering/server-and-client-components#using-context"
         >
           Learn more
         </a>

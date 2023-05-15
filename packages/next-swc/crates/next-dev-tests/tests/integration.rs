@@ -22,6 +22,7 @@ use chromiumoxide::{
         },
     },
     error::CdpError::Ws,
+    Page,
 };
 use dunce::canonicalize;
 use futures::StreamExt;
@@ -49,7 +50,7 @@ use turbo_binding::{
         },
         tasks_fs::{DiskFileSystemVc, FileSystem, FileSystemPathVc},
         tasks_memory::MemoryBackend,
-        tasks_testing::retry::retry_async,
+        tasks_testing::retry::{retry, retry_async},
     },
     turbopack::{
         core::issue::{
@@ -63,6 +64,12 @@ use turbo_binding::{
 fn register() {
     next_dev::register();
     include!(concat!(env!("OUT_DIR"), "/register_test_integration.rs"));
+}
+
+#[derive(Debug)]
+struct JsResult {
+    uncaught_exceptions: Vec<String>,
+    run_result: JestRunResult,
 }
 
 #[derive(Debug, Deserialize)]
@@ -124,7 +131,17 @@ fn test(resource: PathBuf) {
         return;
     }
 
-    let run_result = run_async_test(run_test(resource));
+    let JsResult {
+        uncaught_exceptions,
+        run_result,
+    } = run_async_test(run_test(resource));
+
+    if !uncaught_exceptions.is_empty() {
+        panic!(
+            "Uncaught exception(s) in test:\n{}",
+            uncaught_exceptions.join("\n")
+        )
+    }
 
     assert!(
         !run_result.test_results.is_empty(),
@@ -157,7 +174,11 @@ fn test(resource: PathBuf) {
 #[should_panic]
 fn test_skipped_fails(resource: PathBuf) {
     let resource = resource.parent().unwrap().to_path_buf();
-    let run_result = run_async_test(run_test(resource));
+    let JsResult {
+        // Ignore uncaught exceptions for skipped tests.
+        uncaught_exceptions: _,
+        run_result,
+    } = run_async_test(run_test(resource));
 
     // Assert that this skipped test itself has at least one browser test which
     // fails.
@@ -172,7 +193,28 @@ fn test_skipped_fails(resource: PathBuf) {
     );
 }
 
-async fn run_test(resource: PathBuf) -> JestRunResult {
+fn copy_recursive(from: &Path, to: &Path) -> std::io::Result<()> {
+    let from = canonicalize(from)?;
+    let to = canonicalize(to)?;
+    let mut entries = vec![];
+    for entry in from.read_dir()? {
+        let entry = entry?;
+        let path = entry.path();
+        let to_path = to.join(path.file_name().unwrap());
+        if path.is_dir() {
+            std::fs::create_dir_all(&to_path)?;
+            entries.push((path, to_path));
+        } else {
+            std::fs::copy(&path, &to_path)?;
+        }
+    }
+    for (from, to) in entries {
+        copy_recursive(&from, &to)?;
+    }
+    Ok(())
+}
+
+async fn run_test(resource: PathBuf) -> JsResult {
     register();
 
     let resource = canonicalize(resource).unwrap();
@@ -184,6 +226,25 @@ async fn run_test(resource: PathBuf) -> JestRunResult {
     );
 
     let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let tests_dir = package_root.join("tests");
+    let integration_tests_dir = tests_dir.join("integration");
+    // We run tests from a temporary directory because tests can modify files in the
+    // test directory when testing the file watcher/HMR, and we have no reliable way
+    // to ensure that we can restore the original state of the test directory after
+    // running the test.
+    let resource_temp: PathBuf = tests_dir.join("temp").join(
+        resource
+            .strip_prefix(integration_tests_dir)
+            .expect("resource path must be within the integration tests directory"),
+    );
+
+    // We don't care about errors when removing the previous temp directory.
+    // It can still exist if we crashed during a previous test run.
+    let _ = std::fs::remove_dir_all(&resource_temp);
+    std::fs::create_dir_all(&resource_temp).expect("failed to create temporary directory");
+    copy_recursive(&resource, &resource_temp)
+        .expect("failed to copy test files to temporary directory");
+
     let cargo_workspace_root = canonicalize(package_root)
         .unwrap()
         .parent()
@@ -192,12 +253,12 @@ async fn run_test(resource: PathBuf) -> JestRunResult {
         .unwrap()
         .to_path_buf();
 
-    let test_dir = resource.to_path_buf();
+    let test_dir = resource_temp.to_path_buf();
     let workspace_root = cargo_workspace_root.parent().unwrap().parent().unwrap();
     let project_dir = test_dir.join("input");
     let requested_addr = get_free_local_addr().unwrap();
 
-    let mock_dir = resource.join("__httpmock__");
+    let mock_dir = resource_temp.join("__httpmock__");
     let mock_server_future = get_mock_server_future(&mock_dir);
 
     let (issue_tx, mut issue_rx) = unbounded_channel();
@@ -248,7 +309,7 @@ async fn run_test(resource: PathBuf) -> JestRunResult {
     let result = tokio::select! {
         // Poll the mock_server first to add the env var
         _ = mock_server_future => panic!("Never resolves"),
-        r = run_browser(local_addr) => r.expect("error while running browser"),
+        r = run_browser(local_addr, &project_dir) => r.expect("error while running browser"),
         _ = server.future => panic!("Never resolves"),
     };
 
@@ -257,7 +318,7 @@ async fn run_test(resource: PathBuf) -> JestRunResult {
     let task = tt.spawn_once_task(async move {
         let issues_fs = DiskFileSystemVc::new(
             "issues".to_string(),
-            test_dir.join("issues").to_string_lossy().to_string(),
+            resource.join("issues").to_string_lossy().to_string(),
         )
         .as_file_system();
 
@@ -276,6 +337,16 @@ async fn run_test(resource: PathBuf) -> JestRunResult {
         Ok(NothingVc::new().into())
     });
     tt.wait_task_completion(task, true).await.unwrap();
+
+    // This sometimes fails for the following test:
+    // test_tests__integration__next__webpack_loaders__no_options__input
+    retry(
+        (),
+        |()| std::fs::remove_dir_all(&resource_temp),
+        3,
+        Duration::from_millis(100),
+    )
+    .expect("failed to remove temporary directory");
 
     result
 }
@@ -318,7 +389,16 @@ async fn create_browser(is_debugging: bool) -> Result<(Browser, JoinSet<()>)> {
     Ok((browser, set))
 }
 
-async fn run_browser(addr: SocketAddr) -> Result<JestRunResult> {
+const TURBOPACK_READY_BINDING: &str = "TURBOPACK_READY";
+const TURBOPACK_DONE_BINDING: &str = "TURBOPACK_DONE";
+const TURBOPACK_CHANGE_FILE_BINDING: &str = "TURBOPACK_CHANGE_FILE";
+const BINDINGS: [&str; 3] = [
+    TURBOPACK_READY_BINDING,
+    TURBOPACK_DONE_BINDING,
+    TURBOPACK_CHANGE_FILE_BINDING,
+];
+
+async fn run_browser(addr: SocketAddr, project_dir: &Path) -> Result<JsResult> {
     let is_debugging = *DEBUG_BROWSER;
     let (browser, mut handle) = create_browser(is_debugging).await?;
 
@@ -334,7 +414,9 @@ async fn run_browser(addr: SocketAddr) -> Result<JestRunResult> {
     .await
     .context("Failed to create new browser page")?;
 
-    page.execute(AddBindingParams::new("READY")).await?;
+    for binding in BINDINGS {
+        page.execute(AddBindingParams::new(binding)).await?;
+    }
 
     let mut errors = page
         .event_listener::<EventExceptionThrown>()
@@ -365,7 +447,7 @@ async fn run_browser(addr: SocketAddr) -> Result<JestRunResult> {
 
     if is_debugging {
         let _ = page.evaluate(
-            r#"console.info("%cTurbopack tests:", "font-weight: bold;", "Waiting for READY to be signaled by page...");"#,
+            r#"console.info("%cTurbopack tests:", "font-weight: bold;", "Waiting for TURBOPACK_READY to be signaled by page...");"#,
         )
         .await;
     }
@@ -374,6 +456,7 @@ async fn run_browser(addr: SocketAddr) -> Result<JestRunResult> {
     let mut bindings_next = binding_events.next();
     let mut console_next = console_events.next();
     let mut network_next = network_response_events.next();
+    let mut uncaught_exceptions = vec![];
 
     loop {
         tokio::select! {
@@ -413,10 +496,7 @@ async fn run_browser(addr: SocketAddr) -> Result<JestRunResult> {
                     let message = message.trim_end();
                     if !is_debugging {
                         if !expected_error {
-                            return Err(anyhow!(
-                                "Exception throw in page: {}",
-                                message
-                            ))
+                            uncaught_exceptions.push(message.to_string());
                         }
                     } else if expected_error {
                         println!("Exception throw in page:\n{}", message);
@@ -429,19 +509,12 @@ async fn run_browser(addr: SocketAddr) -> Result<JestRunResult> {
                 errors_next = errors.next();
             }
             event = &mut bindings_next => {
-                if event.is_some() {
-                    if is_debugging {
-                        let run_tests_msg =
-                            "Entering debug mode. Run `await __jest__.run()` in the browser console to run tests.";
-                        println!("\n\n{}", run_tests_msg);
-                        page.evaluate(format!(
-                            r#"console.info("%cTurbopack tests:", "font-weight: bold;", "{}");"#,
-                            run_tests_msg
-                        ))
-                        .await?;
-                    } else {
-                        let value = page.evaluate("__jest__.run()").await?.into_value()?;
-                        return Ok(value);
+                if let Some(event) = event {
+                    if let Some(run_result) = handle_binding(&page, &*event, project_dir, is_debugging).await? {
+                        return Ok(JsResult {
+                            uncaught_exceptions,
+                            run_result,
+                        });
                     }
                 } else {
                     return Err(anyhow!("Binding events channel ended unexpectedly"));
@@ -465,7 +538,7 @@ async fn run_browser(addr: SocketAddr) -> Result<JestRunResult> {
             }
             () = tokio::time::sleep(Duration::from_secs(60)) => {
                 if !is_debugging {
-                    return Err(anyhow!("Test timeout while waiting for READY"));
+                    return Err(anyhow!("Test timeout while waiting for TURBOPACK_READY"));
                 }
             }
         };
@@ -497,6 +570,87 @@ async fn get_mock_server_future(mock_dir: &Path) -> Result<(), String> {
     } else {
         std::future::pending::<Result<(), String>>().await
     }
+}
+
+async fn handle_binding(
+    page: &Page,
+    event: &EventBindingCalled,
+    project_dir: &Path,
+    is_debugging: bool,
+) -> Result<Option<JestRunResult>, anyhow::Error> {
+    match event.name.as_str() {
+        TURBOPACK_READY_BINDING => {
+            if is_debugging {
+                let run_tests_msg = "Entering debug mode. Run `await __jest__.run()` in the \
+                                     browser console to run tests.";
+                println!("\n\n{}", run_tests_msg);
+                page.evaluate(format!(
+                    r#"console.info("%cTurbopack tests:", "font-weight: bold;", "{}");"#,
+                    run_tests_msg
+                ))
+                .await?;
+            } else {
+                page.evaluate_expression(
+                    "(() => { __jest__.run().then((runResult) => \
+                     TURBOPACK_DONE(JSON.stringify(runResult))) })()",
+                )
+                .await?;
+            }
+        }
+        TURBOPACK_DONE_BINDING => {
+            let run_result: JestRunResult = serde_json::from_str(&event.payload)?;
+            return Ok(Some(run_result));
+        }
+        TURBOPACK_CHANGE_FILE_BINDING => {
+            let change_file: ChangeFileCommand = serde_json::from_str(&event.payload)?;
+            let path = Path::new(&change_file.path);
+
+            // Ensure `change_file.path` can't escape the project directory.
+            let path = path
+                .components()
+                .filter(|c| match c {
+                    std::path::Component::Normal(_) => true,
+                    _ => false,
+                })
+                .collect::<std::path::PathBuf>();
+
+            let path: PathBuf = project_dir.join(path);
+
+            let mut file_contents = std::fs::read_to_string(&path)?;
+            if !file_contents.contains(&change_file.find) {
+                page.evaluate(format!(
+                    "__turbopackFileChanged({}, new Error({}));",
+                    serde_json::to_string(&change_file.id)?,
+                    serde_json::to_string(&format!(
+                        "TURBOPACK_CHANGE_FILE: file {} does not contain {}",
+                        path.display(),
+                        &change_file.find
+                    ))?
+                ))
+                .await?;
+            } else {
+                file_contents = file_contents.replace(&change_file.find, &change_file.replace_with);
+                std::fs::write(&path, file_contents)?;
+
+                page.evaluate(format!(
+                    "__turbopackFileChanged({});",
+                    serde_json::to_string(&change_file.id)?
+                ))
+                .await?;
+            }
+        }
+        _ => {}
+    };
+    Ok(None)
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ChangeFileCommand {
+    path: String,
+    id: String,
+    find: String,
+    replace_with: String,
 }
 
 #[turbo_tasks::value(shared)]

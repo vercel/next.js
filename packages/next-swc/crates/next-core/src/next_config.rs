@@ -23,16 +23,16 @@ use turbo_binding::{
         ecmascript::{
             EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc,
         },
-        ecmascript_plugin::transform::emotion::EmotionTransformConfig,
+        ecmascript_plugin::transform::{
+            emotion::EmotionTransformConfig, relay::RelayConfig,
+            styled_components::StyledComponentsTransformConfig,
+        },
         node::{
             evaluate::evaluate,
             execution_context::{ExecutionContext, ExecutionContextVc},
             transforms::webpack::{WebpackLoaderConfigItems, WebpackLoaderConfigItemsVc},
         },
-        turbopack::{
-            evaluate_context::node_evaluate_asset_context,
-            module_options::StyledComponentsTransformConfig,
-        },
+        turbopack::evaluate_context::node_evaluate_asset_context,
     },
 };
 use turbo_tasks::{
@@ -452,22 +452,6 @@ pub struct CompilerConfig {
 pub enum ReactRemoveProperties {
     Boolean(bool),
     Config { properties: Option<Vec<String>> },
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
-#[serde(rename_all = "camelCase")]
-pub struct RelayConfig {
-    pub src: String,
-    pub artifact_directory: Option<String>,
-    pub language: Option<RelayLanguage>,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
-#[serde(untagged, rename_all = "lowercase")]
-pub enum RelayLanguage {
-    TypeScript,
-    Flow,
-    JavaScript,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
