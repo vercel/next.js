@@ -13,6 +13,7 @@ use super::is_server_module;
 pub struct ServerDirectiveTransformer {
     // ServerDirective is not implemented yet and always reports an issue.
     // We don't have to pass a valid transition name yet, but the API is prepared.
+    #[allow(unused)]
     transition_name: StringVc,
 }
 
