@@ -294,7 +294,7 @@ pub async fn get_server_module_options_context(
     let tsconfig = get_typescript_transform_options(project_path);
     let decorators_options = get_decorators_transform_options(project_path);
     let mdx_rs_options = *next_config.mdx_rs().await?;
-    let jsx_runtime_options = get_jsx_transform_options(project_path);
+    let jsx_runtime_options = get_jsx_transform_options(project_path, None);
     let enable_emotion = *get_emotion_compiler_config(next_config).await?;
     let enable_styled_components = *get_styled_components_compiler_config(next_config).await?;
 
