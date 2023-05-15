@@ -482,8 +482,9 @@ function instantiateModule(id, source) {
       break;
   }
 
-  runModuleExecutionHooks(module, (refresh) => {
-    try {
+  // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
+  try {
+    runModuleExecutionHooks(module, (refresh) => {
       moduleFactory.call(module.exports, {
         e: module.exports,
         r: commonJsRequire.bind(null, module),
@@ -501,11 +502,11 @@ function instantiateModule(id, source) {
         k: refresh,
         __dirname: module.id.replace(/(^|\/)[\/]+$/, ""),
       });
-    } catch (error) {
-      module.error = error;
-      throw error;
-    }
-  });
+    });
+  } catch (error) {
+    module.error = error;
+    throw error;
+  }
 
   module.loaded = true;
   if (module.namespaceObject && module.exports !== module.namespaceObject) {
@@ -530,21 +531,26 @@ function runModuleExecutionHooks(module, executeModule) {
       ? globalThis.$RefreshInterceptModuleExecution$(module.id)
       : () => {};
 
-  executeModule({
-    register: globalThis.$RefreshReg$,
-    signature: globalThis.$RefreshSig$,
-  });
+  try {
+    executeModule({
+      register: globalThis.$RefreshReg$,
+      signature: globalThis.$RefreshSig$,
+    });
 
-  if ("$RefreshHelpers$" in globalThis) {
-    // This pattern can also be used to register the exports of
-    // a module with the React Refresh runtime.
-    registerExportsAndSetupBoundaryForReactRefresh(
-      module,
-      globalThis.$RefreshHelpers$
-    );
+    if ("$RefreshHelpers$" in globalThis) {
+      // This pattern can also be used to register the exports of
+      // a module with the React Refresh runtime.
+      registerExportsAndSetupBoundaryForReactRefresh(
+        module,
+        globalThis.$RefreshHelpers$
+      );
+    }
+  } catch (e) {
+    throw e;
+  } finally {
+    // Always cleanup the intercept, even if module execution failed.
+    cleanupReactRefreshIntercept();
   }
-
-  cleanupReactRefreshIntercept();
 }
 
 /**
@@ -1418,6 +1424,9 @@ function instantiateRuntimeModule(moduleId, chunkPath) {
 function getOrInstantiateRuntimeModule(moduleId, chunkPath) {
   const module = moduleCache[moduleId];
   if (module) {
+    if (module.error) {
+      throw module.error;
+    }
     return module;
   }
 
