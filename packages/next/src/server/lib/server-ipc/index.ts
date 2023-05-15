@@ -4,6 +4,7 @@ import { genExecArgv, getNodeOptionsWithoutInspect } from '../utils'
 import { deserializeErr, errorToJSON } from '../../render'
 import crypto from 'crypto'
 import isError from '../../../lib/is-error'
+import { genRenderExecArgv } from '../worker-utils'
 
 // we can't use process.send as jest-worker relies on
 // it already and can cause unexpected message errors
@@ -115,10 +116,13 @@ export const createWorker = (
             }
           : {}),
       },
-      execArgv: genExecArgv(
-        isNodeDebugging === undefined ? false : isNodeDebugging,
-        (serverPort || 0) + 1
-      ),
+      execArgv:
+        isNodeDebugging !== undefined
+          ? genExecArgv(
+              isNodeDebugging === undefined ? false : isNodeDebugging,
+              (serverPort || 0) + 1
+            )
+          : genRenderExecArgv(),
     },
     exposedMethods: [
       'initialize',

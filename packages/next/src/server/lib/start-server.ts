@@ -1,7 +1,6 @@
 import http from 'http'
 import { isIPv6 } from 'net'
 import * as Log from '../../build/output/log'
-import { getNodeOptionsWithoutInspect } from './utils'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ChildProcess } from 'child_process'
 import { normalizeRepeatedSlashes } from '../../shared/lib/utils'
@@ -187,7 +186,8 @@ export async function startServer({
           env: {
             FORCE_COLOR: '1',
             ...((initialEnv || process.env) as typeof process.env),
-            NODE_OPTIONS: getNodeOptionsWithoutInspect().trim(),
+            // We should allow NodeOptions to be passed down for render-server for debugging
+            NODE_OPTIONS: process.env.NODE_OPTIONS,
           },
         },
         exposedMethods: ['initialize'],
