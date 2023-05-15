@@ -253,8 +253,6 @@ async fn get_pages_structure_for_root_directory(
 
     // Ensure deterministic order since read_dir is not deterministic
     items.sort_by_key(|(k, _)| *k);
-
-    // Ensure deterministic order since read_dir is not deterministic
     children.sort_by_key(|(k, _)| *k);
 
     let app_item = if let Some(app_item) = app_item {

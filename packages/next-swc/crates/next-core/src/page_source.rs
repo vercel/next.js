@@ -602,74 +602,34 @@ async fn create_page_source_for_root_directory(
     } = *pages_structure.await?;
     let mut sources = vec![];
 
-    let app = app.await?;
-    sources.push(
-        create_page_source_for_file(
-            project_root,
-            env,
-            server_context,
-            server_data_context,
-            client_context,
-            pages_dir,
-            app.specificity,
-            SourceAssetVc::new(app.project_path).into(),
-            runtime_entries,
-            fallback_page,
-            client_root,
-            app.next_router_path,
-            false,
-            node_root,
-            node_root,
-            render_data,
-        )
-        .issue_context(app.project_path, "Next.js pages/_app"),
-    );
-
-    let document = document.await?;
-    sources.push(
-        create_page_source_for_file(
-            project_root,
-            env,
-            server_context,
-            server_data_context,
-            client_context,
-            pages_dir,
-            document.specificity,
-            SourceAssetVc::new(document.project_path).into(),
-            runtime_entries,
-            fallback_page,
-            client_root,
-            document.next_router_path,
-            false,
-            node_root,
-            node_root,
-            render_data,
-        )
-        .issue_context(document.project_path, "Next.js pages/_document"),
-    );
-
-    let error = error.await?;
-    sources.push(
-        create_page_source_for_file(
-            project_root,
-            env,
-            server_context,
-            server_data_context,
-            client_context,
-            pages_dir,
-            error.specificity,
-            SourceAssetVc::new(error.project_path).into(),
-            runtime_entries,
-            fallback_page,
-            client_root,
-            error.next_router_path,
-            false,
-            node_root,
-            node_root,
-            render_data,
-        )
-        .issue_context(error.project_path, "Next.js pages/_error"),
-    );
+    for (item, name) in [
+        (app, "Next.js pages/_app"),
+        (document, "Next.js pages/_document"),
+        (error, "Next.js pages/_error"),
+    ] {
+        let item = item.await?;
+        sources.push(
+            create_page_source_for_file(
+                project_root,
+                env,
+                server_context,
+                server_data_context,
+                client_context,
+                pages_dir,
+                item.specificity,
+                SourceAssetVc::new(item.project_path).into(),
+                runtime_entries,
+                fallback_page,
+                client_root,
+                item.next_router_path,
+                false,
+                node_root,
+                node_root,
+                render_data,
+            )
+            .issue_context(item.project_path, name),
+        );
+    }
 
     sources.push(
         create_page_source_for_directory(
