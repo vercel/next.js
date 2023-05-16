@@ -27,6 +27,7 @@ use next_core::{
     router_source::NextRouterContentSourceVc, source_map::NextSourceMapTraceContentSourceVc,
 };
 use owo_colors::OwoColorize;
+use tracing_appender::non_blocking::DEFAULT_BUFFERED_LINES_LIMIT;
 use tracing_subscriber::{prelude::*, EnvFilter, Registry};
 use turbo_tasks::{
     util::{FormatBytes, FormatDuration},
@@ -468,8 +469,10 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
         .context("Unable to create .turbopack directory")
         .unwrap();
     let trace_file = internal_dir.join("trace.log");
-    let (writer, guard) =
-        tracing_appender::non_blocking(std::fs::File::create(trace_file).unwrap());
+    let (writer, guard) = tracing_appender::non_blocking::NonBlockingBuilder::default()
+        .lossy(false)
+        .buffered_lines_limit(DEFAULT_BUFFERED_LINES_LIMIT * 8)
+        .finish(std::fs::File::create(trace_file).unwrap());
     let subscriber = subscriber.with(RawTraceLayer::new(writer));
 
     let _guard = exit_guard(guard).unwrap();
