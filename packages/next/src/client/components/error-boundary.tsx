@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { usePathname } from './navigation'
 
 const styles = {
   error: {
@@ -36,13 +37,17 @@ export interface ErrorBoundaryProps {
   errorStyles?: React.ReactNode | undefined
 }
 
+interface ErrorBoundaryHandlerProps extends ErrorBoundaryProps {
+  pathname: string
+}
+
 export class ErrorBoundaryHandler extends React.Component<
-  ErrorBoundaryProps,
-  { error: Error | null }
+  ErrorBoundaryHandlerProps,
+  { error: Error | null; previousPathname: string }
 > {
-  constructor(props: ErrorBoundaryProps) {
+  constructor(props: ErrorBoundaryHandlerProps) {
     super(props)
-    this.state = { error: null }
+    this.state = { error: null, previousPathname: this.props.pathname }
   }
 
   static getDerivedStateFromError(error: Error) {
@@ -55,6 +60,20 @@ export class ErrorBoundaryHandler extends React.Component<
 
   render() {
     if (this.state.error) {
+      /**
+       * Handles reset of the error boundary when a navigation happens.
+       * Ensures the error boundary does not stay enabled when navigating to a new page.
+       * Approach of setState in render is safe as it checks the previous pathname and then overrides
+       * it as outlined in https://react.dev/reference/react/useState#storing-information-from-previous-renders
+       */
+      if (this.props.pathname !== this.state.previousPathname) {
+        this.setState((_state) => {
+          return {
+            error: null,
+            previousPathname: this.props.pathname,
+          }
+        })
+      }
       return (
         <>
           {this.props.errorStyles}
@@ -105,9 +124,11 @@ export function ErrorBoundary({
   errorStyles,
   children,
 }: ErrorBoundaryProps & { children: React.ReactNode }): JSX.Element {
+  const pathname = usePathname()
   if (errorComponent) {
     return (
       <ErrorBoundaryHandler
+        pathname={pathname}
         errorComponent={errorComponent}
         errorStyles={errorStyles}
       >
