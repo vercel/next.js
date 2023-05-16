@@ -5,7 +5,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc",
-    "test": "jest",
+    "test": "jest --silent=false",
     "test:debug": "node --inspect-brk ./node_modules/jest/bin/jest.js --runInBand --watch"
   },
   "dependencies": {
@@ -28,6 +28,8 @@
     "jest-css-modules-transform": "4.4.2",
     "jest-environment-jsdom": "29.5.0",
     "jest-watch-typeahead": "2.2.2",
-    "typescript": "5.0.4"
+    "msw": "1.2.1",
+    "typescript": "5.0.4",
+    "waait": "1.0.5"
   }
 }

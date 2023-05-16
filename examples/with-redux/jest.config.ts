@@ -1,7 +1,11 @@
 /* Core */
+import React from 'react'
 import type { Config } from 'jest'
 
 const jestConfig: Config = {
+  silent: false,
+  verbose: true,
+  globals: { React },
   extensionsToTreatAsEsm: ['.ts', '.tsx'],
   testEnvironment: 'jsdom',
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
