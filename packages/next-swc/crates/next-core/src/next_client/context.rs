@@ -30,8 +30,8 @@ use turbopack_binding::{
             module_options::{
                 module_options_context::{ModuleOptionsContext, ModuleOptionsContextVc},
                 CustomEcmascriptTransformPlugins, CustomEcmascriptTransformPluginsVc,
-                JsxTransformOptions, PostCssTransformOptions, TypescriptTransformOptions,
-                WebpackLoadersOptions,
+                JsxTransformOptions, MdxTransformModuleOptions, PostCssTransformOptions,
+                TypescriptTransformOptions, WebpackLoadersOptions,
             },
             resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
             transition::TransitionsByNameVc,
@@ -50,7 +50,7 @@ use crate::{
     next_config::NextConfigVc,
     next_import_map::{
         get_next_client_fallback_import_map, get_next_client_import_map,
-        get_next_client_resolved_map,
+        get_next_client_resolved_map, mdx_import_source_file,
     },
     next_shared::{
         resolve::UnsupportedModulesResolvePluginVc,
@@ -178,7 +178,16 @@ pub async fn get_client_module_options_context(
 
     let tsconfig = get_typescript_transform_options(project_path);
     let decorators_options = get_decorators_transform_options(project_path);
-    let mdx_rs_options = *next_config.mdx_rs().await?;
+    let enable_mdx_rs = if *next_config.mdx_rs().await? {
+        Some(
+            MdxTransformModuleOptions {
+                provider_import_source: Some(mdx_import_source_file()),
+            }
+            .cell(),
+        )
+    } else {
+        None
+    };
     let jsx_runtime_options =
         get_jsx_transform_options(project_path, Some(resolve_options_context));
     let enable_webpack_loaders = {
@@ -243,7 +252,7 @@ pub async fn get_client_module_options_context(
         enable_postcss_transform: postcss_transform_options,
         enable_webpack_loaders,
         enable_typescript_transform: Some(tsconfig),
-        enable_mdx_rs: mdx_rs_options,
+        enable_mdx_rs,
         decorators: Some(decorators_options),
         rules: vec![
             (

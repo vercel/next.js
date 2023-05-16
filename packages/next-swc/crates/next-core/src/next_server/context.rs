@@ -25,8 +25,9 @@ use turbopack_binding::{
             condition::ContextCondition,
             module_options::{
                 CustomEcmascriptTransformPlugins, CustomEcmascriptTransformPluginsVc,
-                JsxTransformOptions, ModuleOptionsContext, ModuleOptionsContextVc,
-                PostCssTransformOptions, TypescriptTransformOptions, WebpackLoadersOptions,
+                JsxTransformOptions, MdxTransformModuleOptions, ModuleOptionsContext,
+                ModuleOptionsContextVc, PostCssTransformOptions, TypescriptTransformOptions,
+                WebpackLoadersOptions,
             },
             resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
         },
@@ -41,7 +42,7 @@ use crate::{
     embed_js::next_js_fs,
     next_build::{get_external_next_compiled_package_mapping, get_postcss_package_mapping},
     next_config::NextConfigVc,
-    next_import_map::get_next_server_import_map,
+    next_import_map::{get_next_server_import_map, mdx_import_source_file},
     next_server::resolve::ExternalPredicate,
     next_shared::{
         resolve::UnsupportedModulesResolvePluginVc,
@@ -303,7 +304,16 @@ pub async fn get_server_module_options_context(
     // ModuleOptionsContext related options
     let tsconfig = get_typescript_transform_options(project_path);
     let decorators_options = get_decorators_transform_options(project_path);
-    let mdx_rs_options = *next_config.mdx_rs().await?;
+    let enable_mdx_rs = if *next_config.mdx_rs().await? {
+        Some(
+            MdxTransformModuleOptions {
+                provider_import_source: Some(mdx_import_source_file()),
+            }
+            .cell(),
+        )
+    } else {
+        None
+    };
     let jsx_runtime_options = get_jsx_transform_options(project_path, None);
 
     let source_transforms: Vec<TransformPluginVc> = vec![
@@ -358,7 +368,7 @@ pub async fn get_server_module_options_context(
                 enable_postcss_transform,
                 enable_webpack_loaders,
                 enable_typescript_transform: Some(tsconfig),
-                enable_mdx_rs: mdx_rs_options,
+                enable_mdx_rs,
                 decorators: Some(decorators_options),
                 rules: vec![
                     (
@@ -416,7 +426,7 @@ pub async fn get_server_module_options_context(
                 enable_postcss_transform,
                 enable_webpack_loaders,
                 enable_typescript_transform: Some(tsconfig),
-                enable_mdx_rs: mdx_rs_options,
+                enable_mdx_rs,
                 decorators: Some(decorators_options),
                 rules: vec![
                     (
@@ -473,7 +483,7 @@ pub async fn get_server_module_options_context(
                 enable_postcss_transform,
                 enable_webpack_loaders,
                 enable_typescript_transform: Some(tsconfig),
-                enable_mdx_rs: mdx_rs_options,
+                enable_mdx_rs,
                 decorators: Some(decorators_options),
                 rules: vec![
                     (
@@ -503,7 +513,7 @@ pub async fn get_server_module_options_context(
                 enable_postcss_transform,
                 enable_webpack_loaders,
                 enable_typescript_transform: Some(tsconfig),
-                enable_mdx_rs: mdx_rs_options,
+                enable_mdx_rs,
                 decorators: Some(decorators_options),
                 rules: vec![
                     (
@@ -551,7 +561,7 @@ pub async fn get_server_module_options_context(
                 enable_postcss_transform,
                 enable_webpack_loaders,
                 enable_typescript_transform: Some(tsconfig),
-                enable_mdx_rs: mdx_rs_options,
+                enable_mdx_rs,
                 decorators: Some(decorators_options),
                 rules: vec![
                     (
