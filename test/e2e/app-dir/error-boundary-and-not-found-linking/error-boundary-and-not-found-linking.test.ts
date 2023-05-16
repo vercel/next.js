@@ -20,5 +20,20 @@ createNextDescribe(
           .text()
       ).toBe('Result Page!')
     })
+
+    it('should allow navigation on error', async () => {
+      const browser = await next.browser('/trigger-error')
+      expect(await browser.elementByCss('#error-component').text()).toBe(
+        'Error Happened!'
+      )
+
+      expect(
+        await browser
+          .elementByCss('#to-result')
+          .click()
+          .waitForElementByCss('#result-page')
+          .text()
+      ).toBe('Result Page!')
+    })
   }
 )
