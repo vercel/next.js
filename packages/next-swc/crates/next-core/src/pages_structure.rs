@@ -1,8 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{
-    primitives::{StringsVc},
-    CompletionVc,
-};
+use turbo_tasks::{primitives::StringsVc, CompletionVc};
 use turbopack_binding::{
     turbo::tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc},
     turbopack::dev_server::source::specificity::SpecificityVc,
