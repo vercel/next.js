@@ -625,7 +625,7 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
       blurDataURL = blurDataURL || staticImageData.blurDataURL
       staticSrc = staticImageData.src
 
-      if (fill) {
+      if (!fill) {
         if (!widthInt && !heightInt) {
           widthInt = staticImageData.width
           heightInt = staticImageData.height
