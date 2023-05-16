@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_tasks::{
-    primitives::{BoolVc, StringsVc},
+    primitives::{StringsVc},
     CompletionVc,
 };
 use turbopack_binding::{
