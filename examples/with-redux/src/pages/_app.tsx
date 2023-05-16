@@ -1,14 +1,18 @@
-import '../styles/globals.css'
-
+/* Core */
 import { Provider } from 'react-redux'
-import type { AppProps } from 'next/app'
+import type { AppType } from 'next/app'
 
-import store from '../store'
+/* Instruments */
+import { store } from '@/lib/redux'
+import '@/styles/globals.css'
 
-export default function MyApp({ Component, pageProps }: AppProps) {
+const App: AppType = (props) => {
   return (
     <Provider store={store}>
-      <Component {...pageProps} />
+      {/* @ts-expect-error reason: react-redux and next.js type mismatch https://github.com/vercel/next.js/issues/37421 */}
+      <props.Component {...props.pageProps} />
     </Provider>
   )
 }
+
+export default App

@@ -1,8 +1,12 @@
-import type { NextPage } from 'next'
+/* Core */
 import Head from 'next/head'
+import type { NextPage } from 'next'
 
-import Counter from '../features/counter/Counter'
-import styles from '../styles/Home.module.css'
+/* Components */
+import { Counter } from '@/components'
+
+/* Instruments */
+import styles from '@/styles/Home.module.css'
 
 const IndexPage: NextPage = () => {
   return (

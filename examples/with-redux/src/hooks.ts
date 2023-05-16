@@ -1,13 +1,18 @@
-import type { ChangeEvent } from 'react'
+/* Core */
 import { useEffect, useRef } from 'react'
-import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux'
+import {
+  useDispatch,
+  useSelector,
+  type TypedUseSelectorHook,
+} from 'react-redux'
 
-import type { AppDispatch, AppState } from './store'
+/* Instruments */
+import type { AppDispatch, AppState } from './lib/redux/store'
 
 export const useForm =
   <TContent>(defaultValues: TContent) =>
   (handler: (content: TContent) => void) =>
-  async (event: ChangeEvent<HTMLFormElement>) => {
+  async (event: React.ChangeEvent<HTMLFormElement>) => {
     event.preventDefault()
     event.persist()
 
