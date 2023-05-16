@@ -313,10 +313,7 @@ async fn source(
 
     let execution_context = ExecutionContextVc::new(project_path, build_chunking_context, env);
 
-    let next_config = load_next_config(
-        execution_context.with_layer("next_config"),
-        NextMode::Development,
-    );
+    let next_config = load_next_config(execution_context.with_layer("next_config"));
 
     let output_root = output_fs.root().join(".next/server");
 

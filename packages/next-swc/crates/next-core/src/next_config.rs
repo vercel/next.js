@@ -584,17 +584,14 @@ fn next_configs() -> StringsVc {
 }
 
 #[turbo_tasks::function]
-pub async fn load_next_config(
-    execution_context: ExecutionContextVc,
-    mode: NextMode,
-) -> Result<NextConfigVc> {
+pub async fn load_next_config(execution_context: ExecutionContextVc) -> Result<NextConfigVc> {
     let ExecutionContext { project_path, .. } = *execution_context.await?;
     let find_config_result = find_context_file(project_path, next_configs());
     let config_file = match &*find_config_result.await? {
         FindContextFileResult::Found(config_path, _) => Some(*config_path),
         FindContextFileResult::NotFound(_) => None,
     };
-    load_next_config_internal(execution_context, config_file, mode)
+    load_next_config_internal(execution_context, config_file)
         .issue_context(config_file, "Loading Next.js config")
         .await
 }
@@ -603,7 +600,6 @@ pub async fn load_next_config(
 pub async fn load_next_config_internal(
     execution_context: ExecutionContextVc,
     config_file: Option<FileSystemPathVc>,
-    mode: NextMode,
 ) -> Result<NextConfigVc> {
     let ExecutionContext {
         project_path,
@@ -617,12 +613,7 @@ pub async fn load_next_config_internal(
     import_map.insert_exact_alias("styled-jsx", ImportMapping::External(None).into());
     import_map.insert_wildcard_alias("styled-jsx/", ImportMapping::External(None).into());
 
-    let context = node_evaluate_asset_context(
-        project_path,
-        Some(import_map.cell()),
-        None,
-        mode.node_env().to_string(),
-    );
+    let context = node_evaluate_asset_context(execution_context, Some(import_map.cell()), None);
     let config_asset = config_file.map(SourceAssetVc::new);
 
     let config_changed = config_asset.map_or_else(CompletionVc::immutable, |config_asset| {

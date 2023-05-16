@@ -355,7 +355,7 @@ async fn route_internal(
     } = *execution_context.await?;
 
     let context = node_evaluate_asset_context(
-        project_path,
+        execution_context,
         Some(get_next_build_import_map()),
         Some(edge_transition_map(
             server_addr,
@@ -364,7 +364,6 @@ async fn route_internal(
             next_config,
             execution_context,
         )),
-        "development".to_string(),
     );
 
     let configs = config_assets(context, project_path, next_config.page_extensions());
