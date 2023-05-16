@@ -22,5 +22,5 @@ export type AppThunk<ReturnType = void> = ThunkAction<
   ReturnType,
   ReduxState,
   unknown,
-  Action<string>
+  Action
 >
