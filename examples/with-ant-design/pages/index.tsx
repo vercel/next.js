@@ -10,8 +10,6 @@ import {
 import type { DatePickerProps } from 'antd'
 import { SmileFilled } from '@ant-design/icons'
 import Link from 'next/link'
-import Head from 'next/head'
-
 
 const FormItem = Form.Item
 
@@ -28,10 +26,6 @@ export default function Home() {
   }
 
   return (
-<div>
-  <Head>
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/antd/dist/antd.css" />
-      </Head>
     <div style={content}>
       <div className="text-center mb-5">
         <Link href="#" className="logo mr-0">
@@ -103,6 +97,5 @@ export default function Home() {
         </Form>
       </div>
     </div>
-</div>
   )
 }
