@@ -4,7 +4,6 @@ import { Middleware } from '@reduxjs/toolkit'
 const middleware: Middleware[] = []
 
 if (process.env.NODE_ENV === 'development') {
-  // eslint-disable-next-line
   const { createLogger } = require('redux-logger')
 
   const logger = createLogger({
@@ -18,7 +17,7 @@ if (process.env.NODE_ENV === 'development') {
       nextState: () => '#A47104',
       error: () => '#ff0005',
     },
-    predicate: () => process.browser,
+    predicate: () => typeof window !== 'undefined',
   })
 
   middleware.push(logger)
