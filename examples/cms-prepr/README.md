@@ -129,7 +129,7 @@ You can go for one of the following options:
 * **Deploy from our template**</br>
   Alternatively, you can deploy using our template by clicking on the **Deploy** button below.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/cms-prepr&project-name=cms-prepr&repository-name=cms-prepr&env=PREPRIO_API,PREPRIO_PRODUCTION_TOKEN,PREPRIO_PREVIEW_TOKEN,PREPRIO_PREVIEW_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20Prepr&envLink=https://vercel.link/cms-prepr-env)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/cms-prepr&project-name=cms-prepr&repository-name=cms-prepr&env=PREPRIO_API,PREPRIO_PRODUCTION_TOKEN,PREPRIO_PREVIEW_TOKEN,PREPRIO_PREVIEW_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20Prepr&envLink=https://vercel.link/cms-prepr-env)
 
 ## Next steps
 
