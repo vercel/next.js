@@ -11,14 +11,17 @@ import './node-polyfill-crypto'
 import { default as Server } from './next-server'
 import * as log from '../build/output/log'
 import loadConfig from './config'
-import { resolve } from 'path'
+import { join, resolve } from 'path'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
-import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
+import {
+  PHASE_DEVELOPMENT_SERVER,
+  SERVER_DIRECTORY,
+} from '../shared/lib/constants'
 import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
-import { findPagesDir } from '../lib/find-pages-dir'
+import { findDir } from '../lib/find-pages-dir'
 
 let ServerImpl: typeof Server
 
@@ -42,11 +45,17 @@ export interface RequestHandler {
   ): Promise<void>
 }
 
+const SYMBOL_SET_STANDALONE_MODE = Symbol('next.set_standalone_mode')
+const SYMBOL_LOAD_CONFIG = Symbol('next.load_config')
+
 export class NextServer {
   private serverPromise?: Promise<Server>
   private server?: Server
   private reqHandlerPromise?: Promise<NodeRequestHandler>
   private preparedAssetPrefix?: string
+
+  private standaloneMode?: boolean
+
   public options: NextServerOptions
 
   constructor(options: NextServerOptions) {
@@ -59,6 +68,10 @@ export class NextServer {
 
   get port() {
     return this.options.port
+  }
+
+  [SYMBOL_SET_STANDALONE_MODE]() {
+    this.standaloneMode = true
   }
 
   getRequestHandler(): RequestHandler {
@@ -130,7 +143,7 @@ export class NextServer {
   async prepare() {
     const server = await this.getServer()
 
-    if (this.options.internal_setStandaloneConfig) return
+    if (this.standaloneMode) return
 
     // We shouldn't prepare the server in production,
     // because this code won't be executed when deployed
@@ -156,7 +169,7 @@ export class NextServer {
     return server
   }
 
-  private async loadConfig() {
+  private async [SYMBOL_LOAD_CONFIG]() {
     return (
       this.options.preloadedConfig ||
       loadConfig(
@@ -171,8 +184,8 @@ export class NextServer {
 
   private async getServer() {
     if (!this.serverPromise) {
-      this.serverPromise = this.loadConfig().then(async (conf) => {
-        if (this.options.internal_setStandaloneConfig) {
+      this.serverPromise = this[SYMBOL_LOAD_CONFIG]().then(async (conf) => {
+        if (this.standaloneMode) {
           process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(conf)
         }
 
@@ -249,30 +262,47 @@ function createServer(options: NextServerOptions): NextServer {
   }
 
   if (options.customServer !== false) {
-    const dir = resolve(options.dir || '.')
-    const { appDir } = findPagesDir(dir, true)
-
     // If the `app` dir exists, we'll need to run the standalone server to have
     // both types of renderers (pages, app) running in separated processes,
     // instead of having the Next server only.
-    if (appDir) {
-      const { createServerHandler } =
-        require('./lib/render-server-standalone') as typeof import('./lib/render-server-standalone')
+    let shouldUseStandaloneMode = false
 
-      const fallbackServer = new NextServer({
-        ...options,
-        internal_setStandaloneConfig: true,
-      })
+    const dir = resolve(options.dir || '.')
+    const server = new NextServer(options)
 
-      let handlerPromise: Promise<ReturnType<typeof createServerHandler>>
+    const { createServerHandler } =
+      require('./lib/render-server-standalone') as typeof import('./lib/render-server-standalone')
 
-      const app = new Proxy(
-        {},
-        {
-          get: function (_, propKey) {
-            switch (propKey) {
-              case 'getRequestHandler': {
-                return () => {
+    let handlerPromise: Promise<ReturnType<typeof createServerHandler>>
+
+    return new Proxy(
+      {},
+      {
+        get: function (_, propKey) {
+          switch (propKey) {
+            case 'prepare':
+              return async () => {
+                // Instead of running Next Server's `prepare`, we'll run the loadConfig first to determine
+                // if we should run the standalone server or not.
+                const config = await server[SYMBOL_LOAD_CONFIG]()
+
+                // Check if the application has app dir or not. This depends on the mode (dev or prod).
+                // For dev, `app` should be existing in the sources and for prod it should be existing
+                // in the dist folder.
+                const distDir =
+                  process.env.NEXT_RUNTIME === 'edge'
+                    ? config.distDir
+                    : join(dir, config.distDir)
+                const serverDistDir = join(distDir, SERVER_DIRECTORY)
+                const hasAppDir = !!findDir(
+                  options.dev ? dir : serverDistDir,
+                  'app'
+                )
+
+                if (hasAppDir) {
+                  shouldUseStandaloneMode = true
+                  server[SYMBOL_SET_STANDALONE_MODE]()
+
                   handlerPromise =
                     handlerPromise ||
                     createServerHandler({
@@ -282,21 +312,32 @@ function createServer(options: NextServerOptions): NextServer {
                       hostname: options.hostname || 'localhost',
                       minimalMode: false,
                     })
-
-                  return async (req: IncomingMessage, res: ServerResponse) => {
+                } else {
+                  return server.prepare()
+                }
+              }
+            case 'getRequestHandler': {
+              return () => {
+                let handler: RequestHandler
+                return async (req: IncomingMessage, res: ServerResponse) => {
+                  if (shouldUseStandaloneMode) {
                     const handler = await handlerPromise
                     return handler(req, res)
                   }
+                  handler = handler || server.getRequestHandler()
+                  return handler(req, res)
                 }
               }
-              case 'render': {
-                return async (
-                  req: IncomingMessage,
-                  res: ServerResponse,
-                  pathname: string,
-                  query?: NextParsedUrlQuery,
-                  parsedUrl?: NextUrlWithParsedQuery
-                ) => {
+            }
+            case 'render': {
+              return async (
+                req: IncomingMessage,
+                res: ServerResponse,
+                pathname: string,
+                query?: NextParsedUrlQuery,
+                parsedUrl?: NextUrlWithParsedQuery
+              ) => {
+                if (shouldUseStandaloneMode) {
                   const handler = await handlerPromise
                   req.url = formatUrl({
                     ...parsedUrl,
@@ -305,20 +346,20 @@ function createServer(options: NextServerOptions): NextServer {
                   })
                   return handler(req, res)
                 }
-              }
-              default: {
-                const method = fallbackServer[propKey as keyof NextServer]
-                if (typeof method === 'function') {
-                  return method.bind(fallbackServer)
-                }
+
+                return server.render(req, res, pathname, query, parsedUrl)
               }
             }
-          },
-        }
-      )
-
-      return app as any
-    }
+            default: {
+              const method = server[propKey as keyof NextServer]
+              if (typeof method === 'function') {
+                return method.bind(server)
+              }
+            }
+          }
+        },
+      }
+    ) as any
   }
 
   return new NextServer(options)
