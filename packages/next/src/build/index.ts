@@ -210,6 +210,7 @@ export default async function build(
   noMangling = false,
   appDirOnly = false,
   turboNextBuild = false,
+  turboNextBuildRoot = null,
   buildMode: 'default' | 'experimental-compile' | 'experimental-generate'
 ): Promise<void> {
   const isCompile = buildMode === 'experimental-compile'
@@ -548,6 +549,20 @@ export default async function build(
       const pageKeys = {
         pages: pagesPageKeys,
         app: appPageKeys.length > 0 ? appPageKeys : undefined,
+      }
+
+      if (turboNextBuild) {
+        if (process.env.NEXT_TURBO_FILTER_PAGES) {
+          const filterPages = process.env.NEXT_TURBO_FILTER_PAGES.split(',')
+          pageKeys.pages = pageKeys.pages.filter((page) => {
+            return filterPages.some((filterPage) => {
+              return isMatch(page, filterPage)
+            })
+          })
+        }
+
+        // TODO(alexkirsz) Filter out app pages entirely as they are not supported yet.
+        pageKeys.app = undefined
       }
 
       const numConflictingAppPaths = conflictingAppPagePaths.length
@@ -932,7 +947,23 @@ export default async function build(
 
       async function turbopackBuild() {
         const turboNextBuildStart = process.hrtime()
-        await binding.turbo.nextBuild(NextBuildContext)
+
+        const turboJson = findUp.sync('turbo.json', { cwd: dir })
+        // eslint-disable-next-line no-shadow
+        const packagePath = findUp.sync('package.json', { cwd: dir })
+
+        let root =
+          turboNextBuildRoot ??
+          (turboJson
+            ? path.dirname(turboJson)
+            : packagePath
+            ? path.dirname(packagePath)
+            : undefined)
+        await binding.turbo.nextBuild({
+          ...NextBuildContext,
+          root,
+        })
+
         const [duration] = process.hrtime(turboNextBuildStart)
         return { duration, turbotraceContext: null }
       }
