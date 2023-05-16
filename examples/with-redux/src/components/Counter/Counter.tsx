@@ -2,18 +2,19 @@
 import { useState } from 'react'
 
 /* Instruments */
-import { useAppSelector, useAppDispatch } from '../../hooks'
 import {
   counterSlice,
   incrementAsync,
   incrementIfOdd,
   selectCount,
+  useSelector,
+  useDispatch,
 } from '@/lib/redux'
 import styles from './Counter.module.css'
 
 export const Counter = () => {
-  const dispatch = useAppDispatch()
-  const count = useAppSelector(selectCount)
+  const dispatch = useDispatch()
+  const count = useSelector(selectCount)
   const [incrementAmount, setIncrementAmount] = useState(2)
 
   return (

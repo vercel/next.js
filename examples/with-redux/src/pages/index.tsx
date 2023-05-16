@@ -3,7 +3,7 @@ import Head from 'next/head'
 import type { NextPage } from 'next'
 
 /* Components */
-import { Counter } from '@/components'
+import { Nav, Counter } from '@/components'
 
 /* Instruments */
 import styles from '@/styles/Home.module.css'
@@ -15,6 +15,9 @@ const IndexPage: NextPage = () => {
         <title>Redux Toolkit</title>
         <link rel="icon" href="/favicon.ico" />
       </Head>
+
+      <Nav />
+
       <header className={styles.header}>
         <img src="/logo.svg" className={styles.logo} alt="logo" />
         <Counter />
