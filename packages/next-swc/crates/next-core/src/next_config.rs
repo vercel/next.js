@@ -42,9 +42,7 @@ use turbopack_binding::{
     },
 };
 
-use crate::{
-    embed_js::next_asset, mode::NextMode, next_shared::transforms::ModularizeImportPackageConfig,
-};
+use crate::{embed_js::next_asset, next_shared::transforms::ModularizeImportPackageConfig};
 
 #[turbo_tasks::value(serialization = "custom", eq = "manual")]
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
