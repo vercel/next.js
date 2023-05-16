@@ -8,15 +8,15 @@ use indexmap::{indexmap, map::Entry, IndexMap};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use turbo_binding::{
-    turbo::tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc},
-    turbopack::core::issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
-};
 use turbo_tasks::{
     debug::ValueDebugFormat,
     primitives::{StringVc, StringsVc},
     trace::TraceRawVcs,
     CompletionVc, CompletionsVc,
+};
+use turbopack_binding::{
+    turbo::tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc},
+    turbopack::core::issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
 };
 
 use crate::next_config::NextConfigVc;
@@ -36,6 +36,8 @@ pub struct Components {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub template: Option<FileSystemPathVc>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub not_found: Option<FileSystemPathVc>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub default: Option<FileSystemPathVc>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub route: Option<FileSystemPathVc>,
@@ -51,6 +53,7 @@ impl Components {
             error: self.error,
             loading: self.loading,
             template: self.template,
+            not_found: self.not_found,
             default: None,
             route: None,
             metadata: self.metadata.clone(),
@@ -64,8 +67,9 @@ impl Components {
             error: a.error.or(b.error),
             loading: a.loading.or(b.loading),
             template: a.template.or(b.template),
+            not_found: a.not_found.or(b.not_found),
             default: a.default.or(b.default),
-            route: a.default.or(b.route),
+            route: a.route.or(b.route),
             metadata: Metadata::merge(&a.metadata, &b.metadata),
         }
     }
@@ -321,6 +325,7 @@ async fn get_directory_tree(
                             "error" => components.error = Some(file),
                             "loading" => components.loading = Some(file),
                             "template" => components.template = Some(file),
+                            "not-found" => components.not_found = Some(file),
                             "default" => components.default = Some(file),
                             "route" => components.route = Some(file),
                             "manifest" => {
@@ -547,7 +552,7 @@ pub fn get_entrypoints(app_dir: FileSystemPathVc, page_extensions: StringsVc) ->
 }
 
 #[turbo_tasks::function]
-pub fn directory_tree_to_entrypoints(
+fn directory_tree_to_entrypoints(
     app_dir: FileSystemPathVc,
     directory_tree: DirectoryTreeVc,
 ) -> EntrypointsVc {

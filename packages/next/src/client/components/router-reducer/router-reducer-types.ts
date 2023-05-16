@@ -12,6 +12,19 @@ export const ACTION_RESTORE = 'restore'
 export const ACTION_SERVER_PATCH = 'server-patch'
 export const ACTION_PREFETCH = 'prefetch'
 export const ACTION_FAST_REFRESH = 'fast-refresh'
+export const ACTION_SERVER_ACTION = 'server-action'
+
+export type RouterChangeByServerResponse = (
+  previousTree: FlightRouterState,
+  flightData: FlightData,
+  overrideCanonicalUrl: URL | undefined
+) => void
+
+export type RouterNavigate = (
+  href: string,
+  navigateType: 'push' | 'replace',
+  forceOptimisticNavigation: boolean
+) => void
 
 export interface Mutable {
   mpaNavigation?: boolean
@@ -23,6 +36,13 @@ export interface Mutable {
   cache?: CacheNode
   prefetchCache?: AppRouterState['prefetchCache']
   hashFragment?: string
+}
+
+export interface ServerActionMutable {
+  inFlightServerAction?: Promise<any> | null
+  serverActionApplied?: boolean
+  previousTree?: FlightRouterState
+  previousUrl?: string
 }
 
 /**
@@ -42,6 +62,24 @@ export interface FastRefreshAction {
   cache: CacheNode
   mutable: Mutable
   origin: Location['origin']
+}
+
+export type ServerActionDispatcher = (
+  args: Omit<
+    ServerActionAction,
+    'type' | 'mutable' | 'navigate' | 'changeByServerResponse'
+  >
+) => void
+
+export interface ServerActionAction {
+  type: typeof ACTION_SERVER_ACTION
+  actionId: string
+  actionArgs: any[]
+  resolve: (value: any) => void
+  reject: (reason?: any) => void
+  mutable: ServerActionMutable
+  navigate: RouterNavigate
+  changeByServerResponse: RouterChangeByServerResponse
 }
 
 /**
@@ -224,4 +262,5 @@ export type ReducerActions = Readonly<
   | ServerPatchAction
   | PrefetchAction
   | FastRefreshAction
+  | ServerActionAction
 >

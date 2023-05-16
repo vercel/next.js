@@ -1,7 +1,4 @@
 module.exports = {
-  experimental: {
-    appDir: true,
-  },
   redirects: () => {
     return [
       {

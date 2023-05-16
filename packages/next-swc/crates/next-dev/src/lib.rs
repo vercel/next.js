@@ -26,7 +26,11 @@ use next_core::{
     router_source::NextRouterContentSourceVc, source_map::NextSourceMapTraceContentSourceVc,
 };
 use owo_colors::OwoColorize;
-use turbo_binding::{
+use turbo_tasks::{
+    util::{FormatBytes, FormatDuration},
+    StatsType, TransientInstance, TurboTasks, TurboTasksBackendApi, UpdateInfo, Value,
+};
+use turbopack_binding::{
     turbo::{
         malloc::TurboMalloc,
         tasks_env::{CustomProcessEnvVc, EnvMapVc, ProcessEnvVc},
@@ -56,10 +60,6 @@ use turbo_binding::{
         node::execution_context::ExecutionContextVc,
         turbopack::evaluate_context::node_build_environment,
     },
-};
-use turbo_tasks::{
-    util::{FormatBytes, FormatDuration},
-    StatsType, TransientInstance, TurboTasks, TurboTasksBackendApi, UpdateInfo, Value,
 };
 
 #[derive(Clone)]
@@ -389,10 +389,7 @@ async fn source(
     let main_source = main_source.into();
     let source_maps = SourceMapContentSourceVc::new(main_source).into();
     let source_map_trace = NextSourceMapTraceContentSourceVc::new(main_source).into();
-    let img_source = NextImageContentSourceVc::new(
-        CombinedContentSourceVc::new(vec![static_source, page_source]).into(),
-    )
-    .into();
+    let img_source = NextImageContentSourceVc::new(main_source).into();
     let router_source = NextRouterContentSourceVc::new(
         main_source,
         execution_context,
@@ -508,12 +505,6 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
                 event_type = "event".purple(),
                 start = FormatDuration(start.elapsed()),
                 memory = FormatBytes(TurboMalloc::memory_usage())
-            );
-        } else {
-            println!(
-                "{event_type} - startup {start}",
-                event_type = "event".purple(),
-                start = FormatDuration(start.elapsed()),
             );
         }
 

@@ -2,7 +2,13 @@ use anyhow::{Context, Result};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-use turbo_binding::{
+use turbo_tasks::{
+    primitives::{BoolVc, StringsVc},
+    trace::TraceRawVcs,
+    CompletionVc, Value,
+};
+use turbo_tasks_fs::json::parse_json_with_source_context;
+use turbopack_binding::{
     turbo::{tasks_env::EnvMapVc, tasks_fs::FileSystemPathVc},
     turbopack::{
         core::{
@@ -23,24 +29,18 @@ use turbo_binding::{
         ecmascript::{
             EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc,
         },
-        ecmascript_plugin::transform::emotion::EmotionTransformConfig,
+        ecmascript_plugin::transform::{
+            emotion::EmotionTransformConfig, relay::RelayConfig,
+            styled_components::StyledComponentsTransformConfig,
+        },
         node::{
             evaluate::evaluate,
             execution_context::{ExecutionContext, ExecutionContextVc},
             transforms::webpack::{WebpackLoaderConfigItems, WebpackLoaderConfigItemsVc},
         },
-        turbopack::{
-            evaluate_context::node_evaluate_asset_context,
-            module_options::StyledComponentsTransformConfig,
-        },
+        turbopack::evaluate_context::node_evaluate_asset_context,
     },
 };
-use turbo_tasks::{
-    primitives::{BoolVc, StringsVc},
-    trace::TraceRawVcs,
-    CompletionVc, Value,
-};
-use turbo_tasks_fs::json::parse_json_with_source_context;
 
 use crate::{embed_js::next_asset, next_shared::transforms::ModularizeImportPackageConfig};
 
@@ -51,7 +51,7 @@ pub struct NextConfig {
     pub config_file: Option<String>,
     pub config_file_name: String,
 
-    pub env: IndexMap<String, String>,
+    pub env: IndexMap<String, JsonValue>,
     pub experimental: ExperimentalConfig,
     pub images: ImageConfig,
     pub page_extensions: Vec<String>,
@@ -455,22 +455,6 @@ pub enum ReactRemoveProperties {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
-#[serde(rename_all = "camelCase")]
-pub struct RelayConfig {
-    pub src: String,
-    pub artifact_directory: Option<String>,
-    pub language: Option<RelayLanguage>,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
-#[serde(untagged, rename_all = "lowercase")]
-pub enum RelayLanguage {
-    TypeScript,
-    Flow,
-    JavaScript,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(untagged)]
 pub enum RemoveConsoleConfig {
     Boolean(bool),
@@ -509,7 +493,27 @@ impl NextConfigVc {
 
     #[turbo_tasks::function]
     pub async fn env(self) -> Result<EnvMapVc> {
-        Ok(EnvMapVc::cell(self.await?.env.clone()))
+        // The value expected for env is Record<String, String>, but config itself
+        // allows arbitary object (https://github.com/vercel/next.js/blob/25ba8a74b7544dfb6b30d1b67c47b9cb5360cb4e/packages/next/src/server/config-schema.ts#L203)
+        // then stringifies it. We do the interop here as well.
+        let env = self
+            .await?
+            .env
+            .iter()
+            .map(|(k, v)| {
+                (
+                    k.clone(),
+                    if let JsonValue::String(s) = v {
+                        // A string value is kept, calling `to_string` would wrap in to quotes.
+                        s.clone()
+                    } else {
+                        v.to_string()
+                    },
+                )
+            })
+            .collect();
+
+        Ok(EnvMapVc::cell(env))
     }
 
     #[turbo_tasks::function]
@@ -642,7 +646,7 @@ pub async fn load_next_config_internal(
     )
     .await?;
 
-    let turbo_binding::turbo::tasks_bytes::stream::SingleValue::Single(val) = config_value.try_into_single().await.context("Evaluation of Next.js config failed")? else {
+    let turbopack_binding::turbo::tasks_bytes::stream::SingleValue::Single(val) = config_value.try_into_single().await.context("Evaluation of Next.js config failed")? else {
         return Ok(NextConfig::default().cell());
     };
     let next_config: NextConfig = parse_json_with_source_context(val.to_str()?)?;

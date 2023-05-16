@@ -3,7 +3,12 @@ import fs from 'fs'
 import path from 'path'
 import * as Log from '../build/output/log'
 import tar from 'next/dist/compiled/tar'
-import fetch from 'next/dist/compiled/node-fetch'
+const { fetch } = require('next/dist/compiled/undici') as {
+  fetch: typeof global.fetch
+}
+const { WritableStream } = require('node:stream/web') as {
+  WritableStream: typeof global.WritableStream
+}
 import { fileExists } from './file-exists'
 import { getRegistry } from './helpers/get-registry'
 
@@ -97,17 +102,24 @@ export async function downloadWasmSwc(
     const registry = getRegistry()
 
     await fetch(`${registry}${pkgName}/-/${tarFileName}`).then((res) => {
-      if (!res.ok) {
+      const { ok, body } = res
+      if (!ok) {
         throw new Error(`request failed with status ${res.status}`)
       }
+      if (!body) {
+        throw new Error('request failed with empty body')
+      }
       const cacheWriteStream = fs.createWriteStream(tempFile)
-
-      return new Promise<void>((resolve, reject) => {
-        res.body
-          .pipe(cacheWriteStream)
-          .on('error', (err) => reject(err))
-          .on('finish', () => resolve())
-      }).finally(() => cacheWriteStream.close())
+      return body.pipeTo(
+        new WritableStream({
+          write(chunk) {
+            cacheWriteStream.write(chunk)
+          },
+          close() {
+            cacheWriteStream.close()
+          },
+        })
+      )
     })
     await fs.promises.rename(tempFile, path.join(cacheDirectory, tarFileName))
   }

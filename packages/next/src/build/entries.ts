@@ -85,11 +85,12 @@ export async function getStaticInfoIncludingLayouts({
       }
     : pageStaticInfo
 
-  if (isInsideAppDir) {
+  if (isInsideAppDir && appDir) {
     const layoutFiles = []
     const potentialLayoutFiles = pageExtensions.map((ext) => 'layout.' + ext)
     let dir = dirname(pageFilePath)
-    while (dir !== appDir) {
+    // Uses startsWith to not include directories further up.
+    while (dir.startsWith(appDir)) {
       for (const potentialLayoutFile of potentialLayoutFiles) {
         const layoutFile = join(dir, potentialLayoutFile)
         if (!(await fileExists(layoutFile))) {
@@ -144,7 +145,7 @@ export function getPageFromPath(pagePath: string, pageExtensions: string[]) {
   return page === '' ? '/' : page
 }
 
-function getPageFilePath({
+export function getPageFilePath({
   absolutePagePath,
   pagesDir,
   appDir,
@@ -552,6 +553,7 @@ export async function createEntrypoints(
               appDir,
               appPaths: matchedAppPaths,
               pageExtensions,
+              basePath: config.basePath,
               assetPrefix: config.assetPrefix,
               nextConfigOutput: config.output,
               preferredRegion: staticInfo.preferredRegion,
@@ -579,6 +581,7 @@ export async function createEntrypoints(
               appDir: appDir!,
               appPaths: matchedAppPaths,
               pageExtensions,
+              basePath: config.basePath,
               assetPrefix: config.assetPrefix,
               nextConfigOutput: config.output,
               // This isn't used with edge as it needs to be set on the entry module, which will be the `edgeServerEntry` instead.

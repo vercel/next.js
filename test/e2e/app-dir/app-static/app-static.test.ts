@@ -14,6 +14,7 @@ createNextDescribe(
     files: __dirname,
     env: {
       NEXT_DEBUG_BUILD: '1',
+      NEXT_PRIVATE_DEBUG_CACHE: '1',
       ...(process.env.CUSTOM_CACHE_HANDLER
         ? {
             CUSTOM_CACHE_HANDLER: process.env.CUSTOM_CACHE_HANDLER,
@@ -23,12 +24,74 @@ createNextDescribe(
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
     let prerenderManifest
+    let buildCliOutputIndex = 0
 
     beforeAll(async () => {
       if (isNextStart) {
         prerenderManifest = JSON.parse(
           await next.readFile('.next/prerender-manifest.json')
         )
+        buildCliOutputIndex = next.cliOutput.length
+      }
+    })
+
+    it.each([
+      { pathname: '/unstable-cache-node' },
+      { pathname: '/unstable-cache-edge' },
+      { pathname: '/api/unstable-cache-node' },
+      { pathname: '/api/unstable-cache-edge' },
+    ])('unstable-cache should work in pages$pathname', async ({ pathname }) => {
+      let res = await next.fetch(pathname)
+      expect(res.status).toBe(200)
+      const isApi = pathname.startsWith('/api')
+      let prevData
+
+      if (isApi) {
+        prevData = await res.json()
+      } else {
+        const initialHtml = await res.text()
+        const initial$ = isApi ? undefined : cheerio.load(initialHtml)
+        prevData = JSON.parse(initial$('#props').text())
+      }
+
+      expect(prevData.data.random).toBeTruthy()
+
+      await check(async () => {
+        res = await next.fetch(pathname)
+        expect(res.status).toBe(200)
+        let curData
+
+        if (isApi) {
+          curData = await res.json()
+        } else {
+          const curHtml = await res.text()
+          const cur$ = cheerio.load(curHtml)
+          curData = JSON.parse(cur$('#props').text())
+        }
+
+        try {
+          expect(curData.data.random).toBeTruthy()
+          expect(curData.data.random).toBe(prevData.data.random)
+        } finally {
+          prevData = curData
+        }
+        return 'success'
+      }, 'success')
+    })
+
+    it('should not have cache tags header for non-minimal mode', async () => {
+      for (const path of [
+        '/ssr-forced',
+        '/ssr-forced',
+        '/variable-revalidate/revalidate-3',
+        '/variable-revalidate/revalidate-360',
+        '/variable-revalidate/revalidate-360-isr',
+      ]) {
+        const res = await fetchViaHTTP(next.url, path, undefined, {
+          redirect: 'manual',
+        })
+        expect(res.status).toBe(200)
+        expect(res.headers.get('x-next-cache-tags')).toBeFalsy()
       }
     })
 
@@ -154,7 +217,32 @@ createNextDescribe(
 
     // On-Demand Revalidate has not effect in dev since app routes
     // aren't considered static until prerendering
-    if (!(global as any).isNextDev) {
+    if (!(global as any).isNextDev && !process.env.CUSTOM_CACHE_HANDLER) {
+      it('should not revalidate / when revalidate is not used', async () => {
+        let prevData
+
+        for (let i = 0; i < 5; i++) {
+          const res = await next.fetch('/')
+          const html = await res.text()
+          const $ = cheerio.load(html)
+          const data = $('#page-data').text()
+
+          expect(res.status).toBe(200)
+
+          if (prevData) {
+            expect(prevData).toBe(data)
+            prevData = data
+          }
+          await waitFor(500)
+        }
+
+        if (isNextStart) {
+          expect(next.cliOutput.substring(buildCliOutputIndex)).not.toContain(
+            'rendering index'
+          )
+        }
+      })
+
       it.each([
         {
           type: 'edge route handler',
@@ -205,7 +293,9 @@ createNextDescribe(
     // On-Demand Revalidate has not effect in dev
     if (!(global as any).isNextDev && !process.env.CUSTOM_CACHE_HANDLER) {
       it('should revalidate all fetches during on-demand revalidate', async () => {
-        const initRes = await next.fetch('/variable-revalidate/revalidate-360')
+        const initRes = await next.fetch(
+          '/variable-revalidate/revalidate-360-isr'
+        )
         const html = await initRes.text()
         const $ = cheerio.load(html)
         const initLayoutData = $('#layout-data').text()
@@ -351,10 +441,15 @@ createNextDescribe(
           'blog/tim.rsc',
           'blog/tim/first-post.html',
           'blog/tim/first-post.rsc',
+          'default-cache/page.js',
           'dynamic-error/[id]/page.js',
           'dynamic-no-gen-params-ssr/[slug]/page.js',
           'dynamic-no-gen-params/[slug]/page.js',
+          'fetch-no-cache/page.js',
           'flight/[slug]/[slug2]/page.js',
+          'force-cache.html',
+          'force-cache.rsc',
+          'force-cache/page.js',
           'force-dynamic-catch-all/[slug]/[[...id]]/page.js',
           'force-dynamic-no-prerender/[id]/page.js',
           'force-dynamic-prerender/[slug]/page.js',
@@ -381,6 +476,9 @@ createNextDescribe(
           'hooks/use-search-params/with-suspense.html',
           'hooks/use-search-params/with-suspense.rsc',
           'hooks/use-search-params/with-suspense/page.js',
+          'index.html',
+          'index.rsc',
+          'page.js',
           'partial-gen-params-no-additional-lang/[lang]/[slug]/page.js',
           'partial-gen-params-no-additional-lang/en/RAND.html',
           'partial-gen-params-no-additional-lang/en/RAND.rsc',
@@ -410,14 +508,16 @@ createNextDescribe(
           'partial-gen-params/[lang]/[slug]/page.js',
           'route-handler-edge/revalidate-360/route.js',
           'route-handler/post/route.js',
+          'route-handler/revalidate-360-isr/route.js',
           'route-handler/revalidate-360/route.js',
-          'ssg-preview.html',
-          'ssg-preview.rsc',
-          'ssg-preview/[[...route]]/page.js',
-          'ssg-preview/test-2.html',
-          'ssg-preview/test-2.rsc',
-          'ssg-preview/test.html',
-          'ssg-preview/test.rsc',
+          'route-handler/static-cookies/route.js',
+          'ssg-draft-mode.html',
+          'ssg-draft-mode.rsc',
+          'ssg-draft-mode/[[...route]]/page.js',
+          'ssg-draft-mode/test-2.html',
+          'ssg-draft-mode/test-2.rsc',
+          'ssg-draft-mode/test.html',
+          'ssg-draft-mode/test.rsc',
           'ssr-auto/cache-no-store/page.js',
           'ssr-auto/fetch-revalidate-zero/page.js',
           'ssr-forced/page.js',
@@ -488,6 +588,11 @@ createNextDescribe(
 
         expect(curManifest.version).toBe(4)
         expect(curManifest.routes).toEqual({
+          '/': {
+            initialRevalidateSeconds: false,
+            srcRoute: '/',
+            dataRoute: '/index.rsc',
+          },
           '/blog/tim': {
             initialRevalidateSeconds: 10,
             srcRoute: '/blog/[author]',
@@ -522,6 +627,11 @@ createNextDescribe(
             initialRevalidateSeconds: false,
             srcRoute: '/blog/[author]/[slug]',
             dataRoute: '/blog/styfle/second-post.rsc',
+          },
+          '/force-cache': {
+            dataRoute: '/force-cache.rsc',
+            initialRevalidateSeconds: 3,
+            srcRoute: '/force-cache',
           },
           '/hooks/use-pathname/slug': {
             dataRoute: '/hooks/use-pathname/slug.rsc',
@@ -603,6 +713,21 @@ createNextDescribe(
             initialRevalidateSeconds: false,
             srcRoute: '/partial-gen-params-no-additional-slug/[lang]/[slug]',
           },
+          '/ssg-draft-mode': {
+            dataRoute: '/ssg-draft-mode.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/ssg-draft-mode/[[...route]]',
+          },
+          '/ssg-draft-mode/test': {
+            dataRoute: '/ssg-draft-mode/test.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/ssg-draft-mode/[[...route]]',
+          },
+          '/ssg-draft-mode/test-2': {
+            dataRoute: '/ssg-draft-mode/test-2.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/ssg-draft-mode/[[...route]]',
+          },
           '/force-static/first': {
             dataRoute: '/force-static/first.rsc',
             initialRevalidateSeconds: false,
@@ -618,20 +743,24 @@ createNextDescribe(
             initialRevalidateSeconds: 3,
             srcRoute: '/gen-params-dynamic-revalidate/[slug]',
           },
-          '/ssg-preview': {
-            dataRoute: '/ssg-preview.rsc',
-            initialRevalidateSeconds: false,
-            srcRoute: '/ssg-preview/[[...route]]',
+          '/route-handler/revalidate-360-isr': {
+            dataRoute: null,
+            initialHeaders: {
+              'content-type': 'application/json',
+              'x-next-cache-tags':
+                'thankyounext,/route-handler/revalidate-360-isr/route',
+            },
+            initialRevalidateSeconds: 10,
+            srcRoute: '/route-handler/revalidate-360-isr',
           },
-          '/ssg-preview/test': {
-            dataRoute: '/ssg-preview/test.rsc',
+          '/route-handler/static-cookies': {
+            dataRoute: null,
+            initialHeaders: {
+              'set-cookie': 'theme=light; Path=/,my_company=ACME; Path=/',
+              'x-next-cache-tags': '/route-handler/static-cookies/route',
+            },
             initialRevalidateSeconds: false,
-            srcRoute: '/ssg-preview/[[...route]]',
-          },
-          '/ssg-preview/test-2': {
-            dataRoute: '/ssg-preview/test-2.rsc',
-            initialRevalidateSeconds: false,
-            srcRoute: '/ssg-preview/[[...route]]',
+            srcRoute: '/route-handler/static-cookies',
           },
           '/variable-config-revalidate/revalidate-3': {
             dataRoute: '/variable-config-revalidate/revalidate-3.rsc',
@@ -734,6 +863,12 @@ createNextDescribe(
               '^\\/partial\\-gen\\-params\\-no\\-additional\\-slug\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
             ),
           },
+          '/ssg-draft-mode/[[...route]]': {
+            dataRoute: '/ssg-draft-mode/[[...route]].rsc',
+            dataRouteRegex: '^\\/ssg\\-draft\\-mode(?:\\/(.+?))?\\.rsc$',
+            fallback: null,
+            routeRegex: '^\\/ssg\\-draft\\-mode(?:\\/(.+?))?(?:\\/)?$',
+          },
           '/force-static/[slug]': {
             dataRoute: '/force-static/[slug].rsc',
             dataRouteRegex: normalizeRegEx(
@@ -742,16 +877,6 @@ createNextDescribe(
             fallback: null,
             routeRegex: normalizeRegEx(
               '^\\/force\\-static\\/([^\\/]+?)(?:\\/)?$'
-            ),
-          },
-          '/ssg-preview/[[...route]]': {
-            dataRoute: '/ssg-preview/[[...route]].rsc',
-            dataRouteRegex: normalizeRegEx(
-              '^\\/ssg\\-preview(?:\\/(.+?))?\\.rsc$'
-            ),
-            fallback: null,
-            routeRegex: normalizeRegEx(
-              '^\\/ssg\\-preview(?:\\/(.+?))?(?:\\/)?$'
             ),
           },
           '/static-to-dynamic-error-forced/[id]': {
@@ -778,6 +903,116 @@ createNextDescribe(
         )
       })
     }
+
+    it('should cache correctly for fetchCache = default-cache', async () => {
+      const res = await next.fetch('/default-cache')
+      expect(res.status).toBe(200)
+
+      let prevHtml = await res.text()
+      let prev$ = cheerio.load(prevHtml)
+
+      await check(async () => {
+        const curRes = await next.fetch('/default-cache')
+        expect(curRes.status).toBe(200)
+
+        const curHtml = await curRes.text()
+        const cur$ = cheerio.load(curHtml)
+
+        try {
+          expect(cur$('#data-no-cache').text()).not.toBe(
+            prev$('#data-no-cache').text()
+          )
+          expect(cur$('#data-force-cache').text()).toBe(
+            prev$('#data-force-cache').text()
+          )
+          expect(cur$('#data-revalidate-cache').text()).toBe(
+            prev$('#data-revalidate-cache').text()
+          )
+          expect(cur$('#data-revalidate-and-fetch-cache').text()).toBe(
+            prev$('#data-revalidate-and-fetch-cache').text()
+          )
+          expect(cur$('#data-revalidate-and-fetch-cache').text()).toBe(
+            prev$('#data-revalidate-and-fetch-cache').text()
+          )
+        } finally {
+          prevHtml = curHtml
+          prev$ = cur$
+        }
+        return 'success'
+      }, 'success')
+    })
+
+    it('should cache correctly for fetchCache = force-cache', async () => {
+      const res = await next.fetch('/force-cache')
+      expect(res.status).toBe(200)
+
+      let prevHtml = await res.text()
+      let prev$ = cheerio.load(prevHtml)
+
+      await check(async () => {
+        const curRes = await next.fetch('/force-cache')
+        expect(curRes.status).toBe(200)
+
+        const curHtml = await curRes.text()
+        const cur$ = cheerio.load(curHtml)
+
+        expect(cur$('#data-no-cache').text()).toBe(
+          prev$('#data-no-cache').text()
+        )
+        expect(cur$('#data-force-cache').text()).toBe(
+          prev$('#data-force-cache').text()
+        )
+        expect(cur$('#data-revalidate-cache').text()).toBe(
+          prev$('#data-revalidate-cache').text()
+        )
+        expect(cur$('#data-revalidate-and-fetch-cache').text()).toBe(
+          prev$('#data-revalidate-and-fetch-cache').text()
+        )
+        expect(cur$('#data-auto-cache').text()).toBe(
+          prev$('#data-auto-cache').text()
+        )
+
+        return 'success'
+      }, 'success')
+    })
+
+    it('should cache correctly for cache: no-store', async () => {
+      const res = await next.fetch('/fetch-no-cache')
+      expect(res.status).toBe(200)
+
+      let prevHtml = await res.text()
+      let prev$ = cheerio.load(prevHtml)
+
+      await check(async () => {
+        const curRes = await next.fetch('/fetch-no-cache')
+        expect(curRes.status).toBe(200)
+
+        const curHtml = await curRes.text()
+        const cur$ = cheerio.load(curHtml)
+
+        try {
+          expect(cur$('#data-no-cache').text()).not.toBe(
+            prev$('#data-no-cache').text()
+          )
+          expect(cur$('#data-force-cache').text()).toBe(
+            prev$('#data-force-cache').text()
+          )
+          expect(cur$('#data-revalidate-cache').text()).toBe(
+            prev$('#data-revalidate-cache').text()
+          )
+          expect(cur$('#data-revalidate-and-fetch-cache').text()).toBe(
+            prev$('#data-revalidate-and-fetch-cache').text()
+          )
+          expect(cur$('#data-auto-cache').text()).not.toBe(
+            prev$('#data-auto-cache').text()
+          )
+        } finally {
+          prevHtml = curHtml
+          prev$ = cur$
+        }
+        return 'success'
+      }, 'success')
+    })
 
     if (isDev) {
       it('should bypass fetch cache with cache-control: no-cache', async () => {
@@ -1324,14 +1559,14 @@ createNextDescribe(
       }, 'success')
     })
 
-    it('Should not throw Dynamic Server Usage error when using generateStaticParams with previewData', async () => {
-      const browserOnIndexPage = await next.browser('/ssg-preview')
+    it('should not throw Dynamic Server Usage error when using generateStaticParams with draftMode', async () => {
+      const browserOnIndexPage = await next.browser('/ssg-draft-mode')
 
       const content = await browserOnIndexPage
-        .elementByCss('#preview-data')
+        .elementByCss('#draft-mode')
         .text()
 
-      expect(content).toContain('previewData')
+      expect(content).toBe('{"isEnabled":false}')
     })
 
     it('should force SSR correctly for headers usage', async () => {
@@ -1851,14 +2086,6 @@ createNextDescribe(
         )
       })
     })
-
-    if (!(global as any).isNextDeploy) {
-      it('should show a message to leave feedback for `appDir`', async () => {
-        expect(next.cliOutput).toContain(
-          `Thank you for testing \`appDir\` please leave your feedback at https://nextjs.link/app-feedback`
-        )
-      })
-    }
 
     it('should keep querystring on static page', async () => {
       const browser = await next.browser('/blog/tim?message=hello-world')

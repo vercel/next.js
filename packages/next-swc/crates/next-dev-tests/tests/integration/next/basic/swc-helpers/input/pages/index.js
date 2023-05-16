@@ -1,10 +1,7 @@
-import { useEffect } from 'react'
+import { useTestHarness } from '@turbo/pack-test-harness'
 
 export default function Page() {
-  useEffect(() => {
-    // Only run on client
-    import('@turbo/pack-test-harness').then(runTests)
-  })
+  useTestHarness(runTests)
 
   const props1 = { className: 'foo' }
   const props2 = { style: { color: 'red' } }

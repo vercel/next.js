@@ -286,6 +286,9 @@ const configSchema = {
         appDir: {
           type: 'boolean',
         },
+        serverActions: {
+          type: 'boolean',
+        },
         extensionAlias: {
           type: 'object',
         },
@@ -414,9 +417,6 @@ const configSchema = {
           },
           type: 'array',
         },
-        enableUndici: {
-          type: 'boolean',
-        },
         workerThreads: {
           type: 'boolean',
         },
@@ -483,6 +483,9 @@ const configSchema = {
               type: 'integer',
             },
           },
+        },
+        logging: {
+          type: 'string',
         },
       },
       type: 'object',

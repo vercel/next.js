@@ -144,6 +144,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  logging?: 'verbose'
   appDocumentPreloading?: boolean
   strictNextHead?: boolean
   clientRouterFilter?: boolean
@@ -181,7 +182,7 @@ export interface ExperimentalConfig {
   externalDir?: boolean
   /**
    * The App Router (app directory) enables support for layouts, Server Components, streaming, and colocated data fetching.
-   * @see https://beta.nextjs.org/docs/api-reference/next-config#appdir
+   * @see https://nextjs.org/docs/app/api-reference/next-config-js/appDir
    */
   appDir?: boolean
   amp?: {
@@ -215,7 +216,6 @@ export interface ExperimentalConfig {
    * [webpack/webpack#ModuleNotoundError.js#L13-L42](https://github.com/webpack/webpack/blob/2a0536cf510768111a3a6dceeb14cb79b9f59273/lib/ModuleNotFoundError.js#L13-L42)
    */
   fallbackNodePolyfills?: false
-  enableUndici?: boolean
   sri?: {
     algorithm?: SubresourceIntegrityAlgorithm
   }
@@ -224,7 +224,7 @@ export interface ExperimentalConfig {
 
   /**
    * A list of packages that should be treated as external in the RSC server build.
-   * @see https://beta.nextjs.org/docs/api-reference/next-config#servercomponentsexternalpackages
+   * @see https://nextjs.org/docs/app/api-reference/next-config-js/serverComponentsExternalPackages
    */
   serverComponentsExternalPackages?: string[]
 
@@ -251,14 +251,14 @@ export interface ExperimentalConfig {
 
   /**
    * For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
-   * @see https://beta.nextjs.org/docs/api-reference/next-config#mdxrs
+   * @see https://nextjs.org/docs/app/api-reference/next-config-js/mdxRs
    */
   mdxRs?: boolean
 
   /**
    * Generate Route types and enable type checking for Link and Router.push, etc.
    * This option requires `appDir` to be enabled first.
-   * @see https://beta.nextjs.org/docs/api-reference/next-config#typedroutes
+   * @see https://nextjs.org/docs/app/api-reference/next-config-js/typedRoutes
    */
   typedRoutes?: boolean
 
@@ -271,6 +271,11 @@ export interface ExperimentalConfig {
    *
    */
   instrumentationHook?: boolean
+
+  /**
+   * Enable `react@experimental` channel for the `app` directory.
+   */
+  serverActions?: boolean
 }
 
 export type ExportPathMap = {
@@ -682,7 +687,7 @@ export const defaultConfig: NextConfig = {
     swcFileReading: true,
     craCompat: false,
     esmExternals: true,
-    appDir: false,
+    appDir: true,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
     incrementalCacheHandlerPath: undefined,
@@ -695,7 +700,6 @@ export const defaultConfig: NextConfig = {
     disablePostcssPresetEnv: undefined,
     amp: undefined,
     urlImports: undefined,
-    enableUndici: false,
     adjustFontFallbacks: false,
     adjustFontFallbacksWithSizeAdjust: false,
     turbo: undefined,

@@ -230,7 +230,10 @@ function generateCacheKey(request) {
         url = resource;
       } else {
         // Normalize the request.
-        var request = new Request(resource, options);
+        // if resource is not a string or a URL (its an instance of Request)
+        // then do not instantiate a new Request but instead
+        // reuse the request as to not disturb the body in the event it's a ReadableStream.
+        var request = typeof resource === 'string' || resource instanceof URL ? new Request(resource, options) : resource;
 
         if (request.method !== 'GET' && request.method !== 'HEAD' || // $FlowFixMe[prop-missing]: keepalive is real
         request.keepalive) {
@@ -301,7 +304,7 @@ function generateCacheKey(request) {
   }
 }
 
-var ReactVersion = '18.3.0-experimental-6eadbe0c4-20230425';
+var ReactVersion = '18.3.0-experimental-16d053d59-20230506';
 
 // ATTENTION
 // When adding new symbols to this file,

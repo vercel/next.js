@@ -24,11 +24,16 @@ createNextDescribe(
         )
         expect(
           middlewareManifest.functions['/slow-page-no-loading/page'].regions
-        ).toEqual(['edge'])
+        ).toEqual(['global'])
 
         expect(middlewareManifest.functions['/test-page/page'].regions).toEqual(
           ['home']
         )
+
+        // Inherits from the root layout.
+        expect(
+          middlewareManifest.functions['/slow-page-with-loading/page'].regions
+        ).toEqual(['sfo1'])
       })
     }
 

@@ -83,13 +83,23 @@ function checkExports(swcAST: any): {
   ssg: boolean
   runtime?: string
   preferredRegion?: string | string[]
+  generateImageMetadata?: boolean
+  generateSitemaps?: boolean
 } {
+  const exportsSet = new Set<string>([
+    'getStaticProps',
+    'getServerSideProps',
+    'generateImageMetadata',
+    'generateSitemaps',
+  ])
   if (Array.isArray(swcAST?.body)) {
     try {
       let runtime: string | undefined
       let preferredRegion: string | string[] | undefined
       let ssr: boolean = false
       let ssg: boolean = false
+      let generateImageMetadata: boolean = false
+      let generateSitemaps: boolean = false
 
       for (const node of swcAST.body) {
         if (
@@ -122,12 +132,13 @@ function checkExports(swcAST: any): {
         if (
           node.type === 'ExportDeclaration' &&
           node.declaration?.type === 'FunctionDeclaration' &&
-          ['getStaticProps', 'getServerSideProps'].includes(
-            node.declaration.identifier?.value
-          )
+          exportsSet.has(node.declaration.identifier?.value)
         ) {
-          ssg = node.declaration.identifier.value === 'getStaticProps'
-          ssr = node.declaration.identifier.value === 'getServerSideProps'
+          const id = node.declaration.identifier.value
+          ssg = id === 'getStaticProps'
+          ssr = id === 'getServerSideProps'
+          generateImageMetadata = id === 'generateImageMetadata'
+          generateSitemaps = id === 'generateSitemaps'
         }
 
         if (
@@ -135,9 +146,11 @@ function checkExports(swcAST: any): {
           node.declaration?.type === 'VariableDeclaration'
         ) {
           const id = node.declaration?.declarations[0]?.id.value
-          if (['getStaticProps', 'getServerSideProps'].includes(id)) {
+          if (exportsSet.has(id)) {
             ssg = id === 'getStaticProps'
             ssr = id === 'getServerSideProps'
+            generateImageMetadata = id === 'generateImageMetadata'
+            generateSitemaps = id === 'generateSitemaps'
           }
         }
 
@@ -149,18 +162,36 @@ function checkExports(swcAST: any): {
               specifier.orig?.value
           )
 
-          ssg = values.some((value: any) => ['getStaticProps'].includes(value))
-          ssr = values.some((value: any) =>
-            ['getServerSideProps'].includes(value)
-          )
+          for (const value of values) {
+            if (!ssg && value === 'getStaticProps') ssg = true
+            if (!ssr && value === 'getServerSideProps') ssr = true
+            if (!generateImageMetadata && value === 'generateImageMetadata')
+              generateImageMetadata = true
+            if (!generateSitemaps && value === 'generateSitemaps')
+              generateSitemaps = true
+          }
         }
       }
 
-      return { ssr, ssg, runtime, preferredRegion }
+      return {
+        ssr,
+        ssg,
+        runtime,
+        preferredRegion,
+        generateImageMetadata,
+        generateSitemaps,
+      }
     } catch (err) {}
   }
 
-  return { ssg: false, ssr: false }
+  return {
+    ssg: false,
+    ssr: false,
+    runtime: undefined,
+    preferredRegion: undefined,
+    generateImageMetadata: false,
+    generateSitemaps: false,
+  }
 }
 
 async function tryToReadFile(filePath: string, shouldThrow: boolean) {
@@ -288,6 +319,12 @@ function getMiddlewareConfig(
 
 const apiRouteWarnings = new LRUCache({ max: 250 })
 function warnAboutExperimentalEdge(apiRoute: string | null) {
+  if (
+    process.env.NODE_ENV === 'production' &&
+    process.env.NEXT_PRIVATE_BUILD_WORKER === '1'
+  ) {
+    return
+  }
   if (apiRouteWarnings.has(apiRoute)) {
     return
   }
@@ -321,6 +358,20 @@ function warnAboutUnsupportedValue(
   )
 
   warnedUnsupportedValueMap.set(pageFilePath, true)
+}
+
+// Detect if metadata routes is a dynamic route, which containing
+// generateImageMetadata or generateSitemaps as export
+export async function isDynamicMetadataRoute(
+  pageFilePath: string
+): Promise<boolean> {
+  const fileContent = (await tryToReadFile(pageFilePath, true)) || ''
+  if (!/generateImageMetadata|generateSitemaps/.test(fileContent)) return false
+
+  const swcAST = await parseModule(pageFilePath, fileContent)
+  const exportsInfo = checkExports(swcAST)
+
+  return !exportsInfo.generateImageMetadata || !exportsInfo.generateSitemaps
 }
 
 /**
@@ -361,7 +412,7 @@ export async function getPageStaticInfo(params: {
     }
     if (pageType === 'app') {
       if (config) {
-        const message = `\`export const config\` in ${pageFilePath} is deprecated. Please change \`runtime\` property to segment export config. See https://beta.nextjs.org/docs/api-reference/segment-config`
+        const message = `\`export const config\` in ${pageFilePath} is deprecated. Please change \`runtime\` property to segment export config. See https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config`
         if (isDev) {
           Log.warnOnce(message)
         } else {

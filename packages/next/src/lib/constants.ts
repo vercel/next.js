@@ -24,6 +24,7 @@ export const DOT_NEXT_ALIAS = 'private-dot-next'
 export const ROOT_DIR_ALIAS = 'private-next-root-dir'
 export const APP_DIR_ALIAS = 'private-next-app-dir'
 export const RSC_MOD_REF_PROXY_ALIAS = 'private-next-rsc-mod-ref-proxy'
+export const RSC_ACTION_VALIDATE_ALIAS = 'private-next-rsc-action-validate'
 export const RSC_ACTION_PROXY_ALIAS = 'private-next-rsc-action-proxy'
 export const RSC_ACTION_CLIENT_WRAPPER_ALIAS =
   'private-next-rsc-action-client-wrapper'

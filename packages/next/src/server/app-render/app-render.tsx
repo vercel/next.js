@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type {
+  ActionResult,
   ChildProp,
   DynamicParamTypesShort,
   FlightData,
@@ -13,10 +14,10 @@ import type {
 import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
 import type { StaticGenerationBailout } from '../../client/components/static-generation-bailout'
 import type { RequestAsyncStorage } from '../../client/components/request-async-storage'
-// Import builtin react directly to avoid require cache conflicts
-import React from 'next/dist/compiled/react'
-import ReactDOMServer from 'next/dist/compiled/react-dom/server.edge'
+
+import React from 'react'
 import { NotFound as DefaultNotFound } from '../../client/components/error'
+import { createServerComponentRenderer } from './create-server-components-renderer'
 
 import { ParsedUrlQuery } from 'querystring'
 import { NextParsedUrlQuery } from '../request-meta'
@@ -26,14 +27,13 @@ import {
   createBufferedTransformStream,
   continueFromInitialStream,
   streamToBufferedResult,
-} from '../node-web-streams-helper'
+} from '../stream-utils/node-web-streams-helper'
 import {
   canSegmentBeOverridden,
   matchSegment,
 } from '../../client/components/match-segments'
 import { ServerInsertedHTMLContext } from '../../shared/lib/server-inserted-html'
 import { stripInternalQueries } from '../internal-utils'
-import { HeadManagerContext } from '../../shared/lib/head-manager-context'
 import {
   NEXT_ROUTER_PREFETCH,
   NEXT_ROUTER_STATE_TREE,
@@ -49,14 +49,13 @@ import {
   getURLFromRedirectError,
   isRedirectError,
 } from '../../client/components/redirect'
-import { patchFetch } from '../lib/patch-fetch'
+import { addImplicitTags, patchFetch } from '../lib/patch-fetch'
 import { AppRenderSpan } from '../lib/trace/constants'
 import { getTracer } from '../lib/trace/tracer'
 import { interopDefault } from './interop-default'
 import { preloadComponent } from './preload-component'
 import { FlightRenderResult } from './flight-render-result'
 import { createErrorHandler } from './create-error-handler'
-import { createServerComponentRenderer } from './create-server-components-renderer'
 import { getShortDynamicParamType } from './get-short-dynamic-param-type'
 import { getSegmentParam } from './get-segment-param'
 import { getCssInlinedLinkTags } from './get-css-inlined-link-tags'
@@ -139,11 +138,12 @@ function findDynamicParamFromRouterState(
 export async function renderToHTMLOrFlight(
   req: IncomingMessage,
   res: ServerResponse,
-  pathname: string,
+  pagePath: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts
 ): Promise<RenderResult> {
   const isFlight = req.headers[RSC.toLowerCase()] !== undefined
+  const pathname = validateURL(req.url)
 
   const {
     buildManifest,
@@ -218,6 +218,8 @@ export async function renderToHTMLOrFlight(
         `Invariant: Render expects to have staticGenerationAsyncStorage, none found`
       )
     }
+    staticGenerationStore.fetchMetrics = []
+    ;(renderOpts as any).fetchMetrics = staticGenerationStore.fetchMetrics
 
     // don't modify original query object
     query = { ...query }
@@ -377,23 +379,39 @@ export async function renderToHTMLOrFlight(
       )
 
       const styles = cssHrefs
-        ? cssHrefs.map((href, index) => (
-            <link
-              rel="stylesheet"
-              // In dev, Safari and Firefox will cache the resource during HMR:
-              // - https://github.com/vercel/next.js/issues/5860
-              // - https://bugs.webkit.org/show_bug.cgi?id=187726
-              // Because of this, we add a `?v=` query to bypass the cache during
-              // development. We need to also make sure that the number is always
-              // increasing.
-              href={`${assetPrefix}/_next/${href}${
-                process.env.NODE_ENV === 'development' ? `?v=${Date.now()}` : ''
-              }`}
-              // @ts-ignore
-              precedence={shouldPreload ? 'high' : undefined}
-              key={index}
-            />
-          ))
+        ? cssHrefs.map((href, index) => {
+            // In dev, Safari and Firefox will cache the resource during HMR:
+            // - https://github.com/vercel/next.js/issues/5860
+            // - https://bugs.webkit.org/show_bug.cgi?id=187726
+            // Because of this, we add a `?v=` query to bypass the cache during
+            // development. We need to also make sure that the number is always
+            // increasing.
+            const fullHref = `${assetPrefix}/_next/${href}${
+              process.env.NODE_ENV === 'development' ? `?v=${Date.now()}` : ''
+            }`
+
+            // `Precedence` is an opt-in signal for React to handle resource
+            // loading and deduplication, etc. It's also used as the key to sort
+            // resources so they will be injected in the correct order.
+            // During HMR, it's critical to use different `precedence` values
+            // for different stylesheets, so their order will be kept.
+            // https://github.com/facebook/react/pull/25060
+            const precedence = shouldPreload
+              ? process.env.NODE_ENV === 'development'
+                ? 'next_' + href
+                : 'next'
+              : undefined
+
+            return (
+              <link
+                rel="stylesheet"
+                href={fullHref}
+                // @ts-ignore
+                precedence={precedence}
+                key={index}
+              />
+            )
+          })
         : null
 
       const Comp = interopDefault(await getComponent())
@@ -454,25 +472,33 @@ export async function renderToHTMLOrFlight(
 
       const styles = stylesheets
         ? stylesheets.map((href, index) => {
+            // In dev, Safari and Firefox will cache the resource during HMR:
+            // - https://github.com/vercel/next.js/issues/5860
+            // - https://bugs.webkit.org/show_bug.cgi?id=187726
+            // Because of this, we add a `?v=` query to bypass the cache during
+            // development. We need to also make sure that the number is always
+            // increasing.
             const fullHref = `${assetPrefix}/_next/${href}${
               process.env.NODE_ENV === 'development' ? `?v=${Date.now()}` : ''
             }`
+
+            // `Precedence` is an opt-in signal for React to handle resource
+            // loading and deduplication, etc. It's also used as the key to sort
+            // resources so they will be injected in the correct order.
+            // During HMR, it's critical to use different `precedence` values
+            // for different stylesheets, so their order will be kept.
+            // https://github.com/facebook/react/pull/25060
+            const precedence =
+              process.env.NODE_ENV === 'development' ? 'next_' + href : 'next'
+
             ComponentMod.preloadStyle(fullHref)
+
             return (
               <link
                 rel="stylesheet"
-                // In dev, Safari and Firefox will cache the resource during HMR:
-                // - https://github.com/vercel/next.js/issues/5860
-                // - https://bugs.webkit.org/show_bug.cgi?id=187726
-                // Because of this, we add a `?v=` query to bypass the cache during
-                // development. We need to also make sure that the number is always
-                // increasing.
                 href={fullHref}
-                // `Precedence` is an opt-in signal for React to handle
-                // resource loading and deduplication, etc:
-                // https://github.com/facebook/react/pull/25060
                 // @ts-ignore
-                precedence="next.js"
+                precedence={precedence}
                 key={index}
               />
             )
@@ -674,7 +700,7 @@ export async function renderToHTMLOrFlight(
           !isValidElementType(Component)
         ) {
           throw new Error(
-            `The default export is not a React Component in page: "${pathname}"`
+            `The default export is not a React Component in page: "${page}"`
           )
         }
 
@@ -729,6 +755,8 @@ export async function renderToHTMLOrFlight(
             const childSegment = parallelRoute[0]
             const childSegmentParam = getDynamicParamFromSegment(childSegment)
 
+            // if we're prefetching and that there's a Loading component, we bail out
+            // otherwise we keep rendering for the prefetch
             if (isPrefetch && Loading) {
               const childProp: ChildProp = {
                 // Null indicates the tree is not fully rendered
@@ -895,12 +923,12 @@ export async function renderToHTMLOrFlight(
                 <Component {...props} />
               )}
               {/* This null is currently critical. The wrapped Component can render null and if there was not fragment
-                surrounding it this would look like a pending tree data state on the client which will cause an errror 
+                surrounding it this would look like a pending tree data state on the client which will cause an errror
                 and break the app. Long-term we need to move away from using null as a partial tree identifier since it
                 is a valid return type for the components we wrap. Once we make this change we can safely remove the
                 fragment. The reason the extra null here is required is that fragments which only have 1 child are elided.
                 If the Component above renders null the actual treedata will look like `[null, null]`. If we remove the extra
-                null it will look like `null` (the array is elided) and this is what confuses the client router.            
+                null it will look like `null` (the array is elided) and this is what confuses the client router.
                 TODO-APP update router to use a Symbol for partial tree detection */}
               {null}
             </>
@@ -911,7 +939,11 @@ export async function renderToHTMLOrFlight(
     }
 
     // Handle Flight render request. This is only used when client-side navigating. E.g. when you `router.push('/dashboard')` or `router.reload()`.
-    const generateFlight = async (): Promise<RenderResult> => {
+    const generateFlight = async (options?: {
+      actionResult: ActionResult
+      skipFlight: boolean
+      asNotFound?: boolean
+    }): Promise<RenderResult> => {
       /**
        * Use router state to decide at what common layout to render the page.
        * This can either be the common layout between two pages or a specific place to start rendering from using the "refetch" marker in the tree.
@@ -1002,48 +1034,42 @@ export async function renderToHTMLOrFlight(
                 getDynamicParamFromSegment,
                 query
               ),
-              // Check if one level down from the common layout has a loading component. If it doesn't only provide the router state as part of the Flight data.
-              isPrefetch && !Boolean(components.loading)
-                ? null
-                : // Create component tree using the slice of the loaderTree
-                  // @ts-expect-error TODO-APP: fix async component type
-                  React.createElement(async () => {
-                    const { Component } = await createComponentTree(
-                      // This ensures flightRouterPath is valid and filters down the tree
-                      {
-                        createSegmentPath,
-                        loaderTree: loaderTreeToFilter,
-                        parentParams: currentParams,
-                        firstItem: isFirst,
-                        injectedCSS,
-                        injectedFontPreloadTags,
-                        // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
-                        rootLayoutIncluded,
-                        asNotFound,
-                      }
-                    )
+              // Create component tree using the slice of the loaderTree
+              // @ts-expect-error TODO-APP: fix async component type
+              React.createElement(async () => {
+                const { Component } = await createComponentTree(
+                  // This ensures flightRouterPath is valid and filters down the tree
+                  {
+                    createSegmentPath,
+                    loaderTree: loaderTreeToFilter,
+                    parentParams: currentParams,
+                    firstItem: isFirst,
+                    injectedCSS,
+                    injectedFontPreloadTags,
+                    // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
+                    rootLayoutIncluded,
+                    asNotFound,
+                  }
+                )
 
-                    return <Component />
-                  }),
-              isPrefetch && !Boolean(components.loading)
-                ? null
-                : (() => {
-                    const { layoutOrPagePath } =
-                      parseLoaderTree(loaderTreeToFilter)
+                return <Component />
+              }),
+              (() => {
+                const { layoutOrPagePath } = parseLoaderTree(loaderTreeToFilter)
 
-                    const styles = getLayerAssets({
-                      layoutOrPagePath,
-                      injectedCSS: new Set(injectedCSS),
-                      injectedFontPreloadTags: new Set(injectedFontPreloadTags),
-                    })
+                const styles = getLayerAssets({
+                  layoutOrPagePath,
+                  injectedCSS: new Set(injectedCSS),
+                  injectedFontPreloadTags: new Set(injectedFontPreloadTags),
+                })
 
-                    return (
-                      <>
-                        {styles}
-                        {rscPayloadHead}
-                      </>
-                    )
-                  })(),
+                return (
+                  <>
+                    {styles}
+                    {rscPayloadHead}
+                  </>
+                )
+              })(),
             ],
           ]
         }
@@ -1127,39 +1153,41 @@ export async function renderToHTMLOrFlight(
 
       // Flight data that is going to be passed to the browser.
       // Currently a single item array but in the future multiple patches might be combined in a single request.
-      const flightData: FlightData = (
-        await walkTreeWithFlightRouterState({
-          createSegmentPath: (child) => child,
-          loaderTreeToFilter: loaderTree,
-          parentParams: {},
-          flightRouterState: providedFlightRouterState,
-          isFirst: true,
-          // For flight, render metadata inside leaf page
-          rscPayloadHead: (
-            <>
-              {/* Adding key={requestId} to make metadata remount for each render */}
-              {/* @ts-expect-error allow to use async server component */}
-              <MetadataTree
-                key={requestId}
-                tree={loaderTree}
-                pathname={pathname}
-                searchParams={providedSearchParams}
-                getDynamicParamFromSegment={getDynamicParamFromSegment}
-              />
-              {appUsingSizeAdjust ? <meta name="next-size-adjust" /> : null}
-            </>
-          ),
-          injectedCSS: new Set(),
-          injectedFontPreloadTags: new Set(),
-          rootLayoutIncluded: false,
-          asNotFound: pathname === '/404',
-        })
-      ).map((path) => path.slice(1)) // remove the '' (root) segment
+      const flightData: FlightData | null = options?.skipFlight
+        ? null
+        : (
+            await walkTreeWithFlightRouterState({
+              createSegmentPath: (child) => child,
+              loaderTreeToFilter: loaderTree,
+              parentParams: {},
+              flightRouterState: providedFlightRouterState,
+              isFirst: true,
+              // For flight, render metadata inside leaf page
+              rscPayloadHead: (
+                <>
+                  {/* Adding key={requestId} to make metadata remount for each render */}
+                  {/* @ts-expect-error allow to use async server component */}
+                  <MetadataTree
+                    key={requestId}
+                    tree={loaderTree}
+                    pathname={pathname}
+                    searchParams={providedSearchParams}
+                    getDynamicParamFromSegment={getDynamicParamFromSegment}
+                  />
+                  {appUsingSizeAdjust ? <meta name="next-size-adjust" /> : null}
+                </>
+              ),
+              injectedCSS: new Set(),
+              injectedFontPreloadTags: new Set(),
+              rootLayoutIncluded: false,
+              asNotFound: pagePath === '/404' || options?.asNotFound,
+            })
+          ).map((path) => path.slice(1)) // remove the '' (root) segment
 
       // For app dir, use the bundled version of Fizz renderer (renderToReadableStream)
       // which contains the subset React.
       const readable = ComponentMod.renderToReadableStream(
-        flightData,
+        options ? [options.actionResult, flightData] : flightData,
         clientReferenceManifest.clientModules,
         {
           context: serverContexts,
@@ -1180,17 +1208,14 @@ export async function renderToHTMLOrFlight(
     const AppRouter =
       ComponentMod.AppRouter as typeof import('../../client/components/app-router').default
 
-    const GlobalError = interopDefault(
+    const GlobalError =
       /** GlobalError can be either the default error boundary or the overwritten app/global-error.js **/
       ComponentMod.GlobalError as typeof import('../../client/components/error-boundary').default
-    )
 
     let serverComponentsInlinedTransformStream: TransformStream<
       Uint8Array,
       Uint8Array
     > = new TransformStream()
-
-    const initialCanonicalUrl = validateURL(req.url)
 
     // Get the nonce from the incoming request if it has one.
     const csp = req.headers['content-security-policy']
@@ -1271,7 +1296,7 @@ export async function renderToHTMLOrFlight(
             {styles}
             <AppRouter
               assetPrefix={assetPrefix}
-              initialCanonicalUrl={initialCanonicalUrl}
+              initialCanonicalUrl={pathname}
               initialTree={initialTree}
               initialHead={
                 <>
@@ -1309,10 +1334,11 @@ export async function renderToHTMLOrFlight(
       nonce
     )
 
+    const { HeadManagerContext } =
+      require('../../shared/lib/head-manager-context') as typeof import('../../shared/lib/head-manager-context')
     const serverInsertedHTMLCallbacks: Set<() => React.ReactNode> = new Set()
     function InsertedHTML({ children }: { children: JSX.Element }) {
       // Reset addInsertedHtmlCallback on each render
-      serverInsertedHTMLCallbacks.clear()
       const addInsertedHtml = React.useCallback(
         (handler: () => React.ReactNode) => {
           serverInsertedHTMLCallbacks.add(handler)
@@ -1334,13 +1360,13 @@ export async function renderToHTMLOrFlight(
       )
     }
 
-    getTracer().getRootSpanAttributes()?.set('next.route', pathname)
+    getTracer().getRootSpanAttributes()?.set('next.route', pagePath)
     const bodyResult = getTracer().wrap(
       AppRenderSpan.getBodyResult,
       {
-        spanName: `render route (app) ${pathname}`,
+        spanName: `render route (app) ${pagePath}`,
         attributes: {
-          'next.route': pathname,
+          'next.route': pagePath,
         },
       },
       async ({
@@ -1399,34 +1425,37 @@ export async function renderToHTMLOrFlight(
             }
           }
 
-          const flushed = renderToString(
-            <>
-              {Array.from(serverInsertedHTMLCallbacks).map((callback) =>
-                callback()
-              )}
-              {polyfillsFlushed
-                ? null
-                : polyfills?.map((polyfill) => {
-                    return (
-                      <script
-                        key={polyfill.src}
-                        src={polyfill.src}
-                        integrity={polyfill.integrity}
-                        noModule={true}
-                        nonce={nonce}
-                      />
-                    )
-                  })}
-              {errorMetaTags}
-            </>
-          )
+          const flushed = renderToString({
+            ReactDOMServer: require('react-dom/server.edge'),
+            element: (
+              <>
+                {Array.from(serverInsertedHTMLCallbacks).map((callback) =>
+                  callback()
+                )}
+                {polyfillsFlushed
+                  ? null
+                  : polyfills?.map((polyfill) => {
+                      return (
+                        <script
+                          key={polyfill.src}
+                          src={polyfill.src}
+                          integrity={polyfill.integrity}
+                          noModule={true}
+                          nonce={nonce}
+                        />
+                      )
+                    })}
+                {errorMetaTags}
+              </>
+            ),
+          })
           polyfillsFlushed = true
           return flushed
         }
 
         try {
           const renderStream = await renderToInitialStream({
-            ReactDOMServer,
+            ReactDOMServer: require('react-dom/server.edge'),
             element: content,
             streamOptions: {
               onError: htmlRendererErrorHandler,
@@ -1467,8 +1496,8 @@ export async function renderToHTMLOrFlight(
           }
           if (err.digest === NEXT_DYNAMIC_NO_SSR_CODE) {
             warn(
-              `Entire page ${pathname} deopted into client-side rendering. https://nextjs.org/docs/messages/deopted-into-client-rendering`,
-              pathname
+              `Entire page ${pagePath} deopted into client-side rendering. https://nextjs.org/docs/messages/deopted-into-client-rendering`,
+              pagePath
             )
           }
           if (isNotFoundError(err)) {
@@ -1480,7 +1509,7 @@ export async function renderToHTMLOrFlight(
           }
 
           const renderStream = await renderToInitialStream({
-            ReactDOMServer,
+            ReactDOMServer: require('react-dom/server.edge'),
             element: (
               <html id="__next_error__">
                 <head>
@@ -1529,7 +1558,10 @@ export async function renderToHTMLOrFlight(
       ComponentMod,
       pathname: renderOpts.pathname,
       serverActionsManifest,
+      generateFlight,
+      staticGenerationStore,
     })
+
     if (actionRequestResult === 'not-found') {
       return new RenderResult(await bodyResult({ asNotFound: true }))
     } else if (actionRequestResult) {
@@ -1538,13 +1570,15 @@ export async function renderToHTMLOrFlight(
 
     const renderResult = new RenderResult(
       await bodyResult({
-        asNotFound: pathname === '/404',
+        asNotFound: pagePath === '/404',
       })
     )
 
     if (staticGenerationStore.pendingRevalidates) {
       await Promise.all(staticGenerationStore.pendingRevalidates)
     }
+    addImplicitTags(staticGenerationStore)
+    ;(renderOpts as any).fetchTags = staticGenerationStore.tags?.join(',')
 
     if (staticGenerationStore.isStaticGeneration) {
       const htmlResult = await streamToBufferedResult(renderResult)
@@ -1590,7 +1624,7 @@ export async function renderToHTMLOrFlight(
     () =>
       StaticGenerationAsyncStorageWrapper.wrap(
         staticGenerationAsyncStorage,
-        { pathname, renderOpts },
+        { pathname: pagePath, renderOpts },
         () => wrappedRender()
       )
   )

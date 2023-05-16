@@ -2,7 +2,9 @@ use core::{default::Default, result::Result::Ok};
 use std::collections::HashMap;
 
 use anyhow::Result;
-use turbo_binding::{
+use turbo_tasks::{primitives::StringVc, Value};
+use turbo_tasks_fs::FileSystem;
+use turbopack_binding::{
     turbo::{tasks_env::ProcessEnvVc, tasks_fs::FileSystemPathVc},
     turbopack::{
         core::{
@@ -19,13 +21,17 @@ use turbo_binding::{
             free_var_references,
         },
         dev::{react_refresh::assert_can_resolve_react_refresh, DevChunkingContextVc},
-        ecmascript::EcmascriptInputTransform,
+        ecmascript::TransformPluginVc,
+        ecmascript_plugin::transform::directives::server::ServerDirectiveTransformer,
         env::ProcessEnvAssetVc,
         node::execution_context::ExecutionContextVc,
         turbopack::{
+            condition::ContextCondition,
             module_options::{
                 module_options_context::{ModuleOptionsContext, ModuleOptionsContextVc},
-                PostCssTransformOptions, WebpackLoadersOptions,
+                CustomEcmascriptTransformPlugins, CustomEcmascriptTransformPluginsVc,
+                JsxTransformOptions, MdxTransformModuleOptions, PostCssTransformOptions,
+                TypescriptTransformOptions, WebpackLoadersOptions,
             },
             resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
             transition::TransitionsByNameVc,
@@ -33,23 +39,30 @@ use turbo_binding::{
         },
     },
 };
-use turbo_tasks::{primitives::StringVc, Value};
 
 use super::transforms::get_next_client_transforms_rules;
 use crate::{
     babel::maybe_add_babel_loader,
+    embed_js::next_js_fs,
     env::env_for_js,
     next_build::{get_external_next_compiled_package_mapping, get_postcss_package_mapping},
     next_client::runtime_entry::{RuntimeEntriesVc, RuntimeEntry},
     next_config::NextConfigVc,
     next_import_map::{
         get_next_client_fallback_import_map, get_next_client_import_map,
-        get_next_client_resolved_map,
+        get_next_client_resolved_map, mdx_import_source_file,
     },
-    next_shared::resolve::UnsupportedModulesResolvePluginVc,
+    next_shared::{
+        resolve::UnsupportedModulesResolvePluginVc,
+        transforms::{
+            emotion::get_emotion_transform_plugin, get_relay_transform_plugin,
+            styled_components::get_styled_components_transform_plugin,
+            styled_jsx::get_styled_jsx_transform_plugin,
+        },
+    },
     transform_options::{
-        get_decorators_transform_options, get_emotion_compiler_config, get_jsx_transform_options,
-        get_styled_components_compiler_config, get_typescript_transform_options,
+        get_decorators_transform_options, get_jsx_transform_options,
+        get_typescript_transform_options,
     },
     util::foreign_code_context_condition,
 };
@@ -162,15 +175,21 @@ pub async fn get_client_module_options_context(
     let custom_rules = get_next_client_transforms_rules(next_config, ty.into_value()).await?;
     let resolve_options_context =
         get_client_resolve_options_context(project_path, ty, next_config, execution_context);
-    let enable_react_refresh =
-        assert_can_resolve_react_refresh(project_path, resolve_options_context)
-            .await?
-            .is_found();
 
     let tsconfig = get_typescript_transform_options(project_path);
     let decorators_options = get_decorators_transform_options(project_path);
-    let mdx_rs_options = *next_config.mdx_rs().await?;
-    let jsx_runtime_options = get_jsx_transform_options(project_path);
+    let enable_mdx_rs = if *next_config.mdx_rs().await? {
+        Some(
+            MdxTransformModuleOptions {
+                provider_import_source: Some(mdx_import_source_file()),
+            }
+            .cell(),
+        )
+    } else {
+        None
+    };
+    let jsx_runtime_options =
+        get_jsx_transform_options(project_path, Some(resolve_options_context));
     let enable_webpack_loaders = {
         let options = &*next_config.webpack_loaders_options().await?;
         let loaders_options = WebpackLoadersOptions {
@@ -187,42 +206,71 @@ pub async fn get_client_module_options_context(
             .clone_if()
     };
 
-    let enable_emotion = *get_emotion_compiler_config(next_config).await?;
+    let source_transforms = vec![
+        *get_relay_transform_plugin(next_config).await?,
+        *get_emotion_transform_plugin(next_config).await?,
+        *get_styled_components_transform_plugin(next_config).await?,
+        *get_styled_jsx_transform_plugin().await?,
+        Some(TransformPluginVc::cell(Box::new(
+            ServerDirectiveTransformer::new(
+                // ServerDirective is not implemented yet and always reports an issue.
+                // We don't have to pass a valid transition name yet, but the API is prepared.
+                &StringVc::cell("TODO".to_string()),
+            ),
+        ))),
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
+
+    let custom_ecma_transform_plugins = Some(CustomEcmascriptTransformPluginsVc::cell(
+        CustomEcmascriptTransformPlugins {
+            source_transforms,
+            output_transforms: vec![],
+        },
+    ));
+
+    let postcss_transform_options = Some(PostCssTransformOptions {
+        postcss_package: Some(get_postcss_package_mapping(project_path)),
+        ..Default::default()
+    });
 
     let module_options_context = ModuleOptionsContext {
-        custom_ecmascript_transforms: vec![EcmascriptInputTransform::ServerDirective(
-            // ServerDirective is not implemented yet and always reports an issue.
-            // We don't have to pass a valid transition name yet, but the API is prepared.
-            StringVc::cell("TODO".to_string()),
-        )],
         preset_env_versions: Some(env),
         execution_context: Some(execution_context),
+        custom_ecma_transform_plugins,
+        // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
+        enable_postcss_transform: postcss_transform_options.clone(),
         ..Default::default()
     };
-
-    let enable_styled_components = *get_styled_components_compiler_config(next_config).await?;
 
     let module_options_context = ModuleOptionsContext {
         // We don't need to resolve React Refresh for each module. Instead,
         // we try resolve it once at the root and pass down a context to all
         // the modules.
         enable_jsx: Some(jsx_runtime_options),
-        enable_emotion,
-        enable_react_refresh,
-        enable_styled_components,
-        enable_styled_jsx: true,
-        enable_postcss_transform: Some(PostCssTransformOptions {
-            postcss_package: Some(get_postcss_package_mapping(project_path)),
-            ..Default::default()
-        }),
+        enable_postcss_transform: postcss_transform_options,
         enable_webpack_loaders,
         enable_typescript_transform: Some(tsconfig),
-        enable_mdx_rs: mdx_rs_options,
+        enable_mdx_rs,
         decorators: Some(decorators_options),
-        rules: vec![(
-            foreign_code_context_condition(next_config).await?,
-            module_options_context.clone().cell(),
-        )],
+        rules: vec![
+            (
+                foreign_code_context_condition(next_config).await?,
+                module_options_context.clone().cell(),
+            ),
+            // If the module is an internal asset (i.e overlay, fallback) coming from the embedded
+            // FS, don't apply user defined transforms.
+            (
+                ContextCondition::InPath(next_js_fs().root()),
+                ModuleOptionsContext {
+                    enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
+                    enable_jsx: Some(JsxTransformOptions::default().cell()),
+                    ..module_options_context.clone()
+                }
+                .cell(),
+            ),
+        ],
         custom_rules,
         ..module_options_context
     }
