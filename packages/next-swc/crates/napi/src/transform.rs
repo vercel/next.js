@@ -38,7 +38,7 @@ use anyhow::{anyhow, bail, Context as _};
 use fxhash::FxHashSet;
 use napi::bindgen_prelude::*;
 use next_swc::{custom_before_pass, TransformOptions};
-use turbo_binding::swc::core::{
+use turbopack_binding::swc::core::{
     base::{try_with_handler, Compiler, TransformOutput},
     common::{comments::SingleThreadedComments, errors::ColorConfig, FileName, GLOBALS},
     ecma::transforms::base::pass::noop,
@@ -76,7 +76,7 @@ impl Task for TransformTask {
             let res = catch_unwind(AssertUnwindSafe(|| {
                 try_with_handler(
                     self.c.cm.clone(),
-                    turbo_binding::swc::core::base::HandlerOpts {
+                    turbopack_binding::swc::core::base::HandlerOpts {
                         color: ColorConfig::Always,
                         skip_filename: skip_filename(),
                     },
