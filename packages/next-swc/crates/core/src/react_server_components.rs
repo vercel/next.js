@@ -247,6 +247,12 @@ impl<C: Comments> ReactServerComponents<C> {
                 })) => {
                     self.export_names.push("default".to_string());
                 }
+                ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(ExportDefaultExpr {
+                    expr: _,
+                    ..
+                })) => {
+                    self.export_names.push("default".to_string());
+                }
                 ModuleItem::ModuleDecl(ModuleDecl::ExportAll(_)) => {
                     self.export_names.push("*".to_string());
                 }
