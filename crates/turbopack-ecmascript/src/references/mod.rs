@@ -2298,6 +2298,12 @@ fn for_each_ident_in_decl(decl: &Decl, f: &mut impl FnMut(String)) {
                 .iter()
                 .for_each(|VarDeclarator { name, .. }| for_each_ident_in_pat(name, f));
         }
+        Decl::Using(using_decl) => {
+            let decls = &*using_decl.decls;
+            decls
+                .iter()
+                .for_each(|VarDeclarator { name, .. }| for_each_ident_in_pat(name, f));
+        }
         Decl::TsInterface(_) | Decl::TsTypeAlias(_) | Decl::TsEnum(_) | Decl::TsModule(_) => {
             // ignore typescript for code generation
         }

@@ -267,6 +267,7 @@ async fn parse_content(
                             allow_super_outside_method: true,
                             allow_return_outside_function: true,
                             auto_accessors: true,
+                            using_decl: true,
                         }),
                         EcmascriptModuleAssetType::Typescript
                         | EcmascriptModuleAssetType::TypescriptWithTypes => {
