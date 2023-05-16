@@ -183,6 +183,11 @@ createNextDescribe(
       expect(html).toContain('hello')
     })
 
+    it('should support exporting multiple star re-exports', async () => {
+      const html = await next.render('/wildcard')
+      expect(html).toContain('Foo')
+    })
+
     if ((global as any).isNextDev) {
       it('should error for wildcard exports of client module references in esm', async () => {
         const page = 'app/esm-client-ref/page.js'
