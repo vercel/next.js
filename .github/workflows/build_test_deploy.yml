@@ -1537,7 +1537,7 @@ jobs:
         run: node scripts/normalize-version-bump.js
 
       - name: Build
-        run: turbo run build-wasm -- --target ${{ matrix.target }}
+        run: turbo run build-wasm -- --target ${{ matrix.target }} --features tracing/release_max_level_info
 
       - name: Add target to folder name
         run: '[[ -d "packages/next-swc/crates/wasm/pkg" ]] && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-${{ matrix.target }} || ls packages/next-swc/crates/wasm'
@@ -1602,7 +1602,7 @@ jobs:
 
       - name: Build
         if: ${{needs.build.outputs.docsChange == 'nope'}}
-        run: turbo run build-wasm --cache-dir=".turbo" -- --target nodejs --dev
+        run: turbo run build-wasm --cache-dir=".turbo" -- --target nodejs --dev --features tracing/release_max_level_info
 
       - name: Add target to folder name
         if: ${{needs.build.outputs.docsChange == 'nope'}}

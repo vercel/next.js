@@ -3,7 +3,8 @@ use std::{collections::HashMap, io::Write, iter::once};
 use anyhow::Result;
 use async_recursion::async_recursion;
 use indexmap::{indexmap, IndexMap};
-use turbo_binding::{
+use turbo_tasks::{primitives::JsonValueVc, TryJoinIterExt, ValueToString};
+use turbopack_binding::{
     turbo::{
         tasks::{
             primitives::{OptionStringVc, StringVc},
@@ -60,7 +61,6 @@ use turbo_binding::{
         },
     },
 };
-use turbo_tasks::{primitives::JsonValueVc, TryJoinIterExt, ValueToString};
 
 use crate::{
     app_render::next_layout_entry_transition::NextServerComponentTransition,

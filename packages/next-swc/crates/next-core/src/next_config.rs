@@ -2,7 +2,13 @@ use anyhow::{Context, Result};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-use turbo_binding::{
+use turbo_tasks::{
+    primitives::{BoolVc, StringsVc},
+    trace::TraceRawVcs,
+    CompletionVc, Value,
+};
+use turbo_tasks_fs::json::parse_json_with_source_context;
+use turbopack_binding::{
     turbo::{tasks_env::EnvMapVc, tasks_fs::FileSystemPathVc},
     turbopack::{
         core::{
@@ -35,12 +41,6 @@ use turbo_binding::{
         turbopack::evaluate_context::node_evaluate_asset_context,
     },
 };
-use turbo_tasks::{
-    primitives::{BoolVc, StringsVc},
-    trace::TraceRawVcs,
-    CompletionVc, Value,
-};
-use turbo_tasks_fs::json::parse_json_with_source_context;
 
 use crate::{embed_js::next_asset, next_shared::transforms::ModularizeImportPackageConfig};
 
@@ -646,7 +646,7 @@ pub async fn load_next_config_internal(
     )
     .await?;
 
-    let turbo_binding::turbo::tasks_bytes::stream::SingleValue::Single(val) = config_value.try_into_single().await.context("Evaluation of Next.js config failed")? else {
+    let turbopack_binding::turbo::tasks_bytes::stream::SingleValue::Single(val) = config_value.try_into_single().await.context("Evaluation of Next.js config failed")? else {
         return Ok(NextConfig::default().cell());
     };
     let next_config: NextConfig = parse_json_with_source_context(val.to_str()?)?;

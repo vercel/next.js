@@ -1,7 +1,12 @@
 use anyhow::{anyhow, bail, Context, Result};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use swc_core::ecma::ast::Program;
-use turbo_binding::{
+use turbo_tasks::{
+    primitives::{JsonValue, JsonValueVc, StringVc},
+    trace::TraceRawVcs,
+    Value, ValueToString,
+};
+use turbopack_binding::{
     turbo::tasks_fs::{json::parse_json_rope_with_source_context, FileContent, FileSystemPathVc},
     turbopack::{
         core::{
@@ -21,11 +26,6 @@ use turbo_binding::{
         },
         turbopack::condition::ContextCondition,
     },
-};
-use turbo_tasks::{
-    primitives::{JsonValue, JsonValueVc, StringVc},
-    trace::TraceRawVcs,
-    Value, ValueToString,
 };
 
 use crate::next_config::{NextConfigVc, OutputType};

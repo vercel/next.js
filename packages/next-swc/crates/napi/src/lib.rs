@@ -41,7 +41,7 @@ use std::{
 use backtrace::Backtrace;
 use fxhash::FxHashSet;
 use napi::bindgen_prelude::*;
-use turbo_binding::swc::core::{
+use turbopack_binding::swc::core::{
     base::{Compiler, TransformOutput},
     common::{sync::Lazy, FilePathMapping, SourceMap},
 };
@@ -63,7 +63,8 @@ pub mod util;
     feature = "__internal_dhat-ad-hoc"
 )))]
 #[global_allocator]
-static ALLOC: turbo_binding::turbo::malloc::TurboMalloc = turbo_binding::turbo::malloc::TurboMalloc;
+static ALLOC: turbopack_binding::turbo::malloc::TurboMalloc =
+    turbopack_binding::turbo::malloc::TurboMalloc;
 
 #[cfg(feature = "__internal_dhat-heap")]
 #[global_allocator]
