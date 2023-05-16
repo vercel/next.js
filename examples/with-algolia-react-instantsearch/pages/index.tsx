@@ -1,12 +1,8 @@
 import type { InferGetServerSidePropsType, GetServerSideProps } from 'next'
-import type { SearchState } from 'react-instantsearch-core'
-import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/router'
 import algoliasearch from 'algoliasearch/lite'
-import { findResultsState } from 'react-instantsearch-dom/server'
-import { Search } from '../components/Search'
-import { createURL, searchStateToURL, pathToSearchState } from '../utils'
-
+import { getServerState } from 'react-instantsearch-hooks-server'
+import { InstantSearchSSRProps, Search } from '../components/Search'
+import { renderToString } from 'react-dom/server'
 // Demo key provided by https://github.com/algolia/react-instantsearch
 const searchClient = algoliasearch(
   'latency',
@@ -19,66 +15,30 @@ const defaultProps = {
 }
 
 export default function Page({
-  resultsState,
-  searchState: initialState,
+  serverState,
+  serverUrl,
 }: InferGetServerSidePropsType<typeof getServerSideProps>) {
-  const router = useRouter()
-  const debouncedSetState = useRef()
-  const [searchState, setSearchState] = useState(initialState)
-
-  const onSearchStateChange = (state: SearchState) => {
-    clearTimeout(debouncedSetState.current)
-    ;(debouncedSetState as any).current = setTimeout(() => {
-      const href = searchStateToURL(state)
-
-      router.push(href, href, { shallow: true })
-    }, 700)
-
-    setSearchState(state)
-  }
-
-  useEffect(() => {
-    if (router) {
-      router.beforePopState((state: SearchState) => {
-        const { url } = state
-        setSearchState(pathToSearchState(url))
-
-        return true
-      })
-    }
-  }, [router])
-
   return (
     <Search
       {...defaultProps}
-      searchState={searchState}
-      resultsState={resultsState}
-      onSearchStateChange={onSearchStateChange}
-      createURL={createURL}
+      serverState = { serverState }
+      serverUrl = { serverUrl }
     />
   )
 }
 
-interface PageProps {
-  searchState: SearchState
-  resultsState: unknown
-}
-
-export const getServerSideProps: GetServerSideProps<PageProps> = async ({
-  resolvedUrl,
+export const getServerSideProps: GetServerSideProps<InstantSearchSSRProps> = async ({
+  req,
 }) => {
-  const searchState = pathToSearchState(resolvedUrl)
-  const resultsState = await findResultsState(Search, {
-    ...defaultProps,
-    searchState,
-  })
+  const protocol = req.headers.referer?.split('://')[0] || 'https';
+  const serverUrl = `${protocol}://${req.headers.host}${req.url}`;
 
-  // Pre-serialize `findResultsState` object return so Next.js' serialization checks pass
-  // https://github.com/vercel/next.js/issues/11993
+  const serverState = await getServerState(<Page serverUrl={serverUrl}/>, {renderToString})
+
   return {
     props: {
-      resultsState: JSON.parse(JSON.stringify(resultsState)),
-      searchState,
+      serverState,
+      serverUrl,
     },
   }
 }
