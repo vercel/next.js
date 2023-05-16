@@ -27,13 +27,13 @@ const renderApp = () => {
 }
 
 describe('<Counter />', () => {
-  it('renders the component', () => {
+  test('renders the component', () => {
     renderApp()
 
     expect(screen.getByText('0')).toBeInTheDocument()
   })
 
-  it('decrements the value', async () => {
+  test('decrements the value', async () => {
     renderApp()
 
     const decrButton = screen.getByRole('button', { name: /decrement value/i })
@@ -43,7 +43,7 @@ describe('<Counter />', () => {
     expect(screen.getByText('-1')).toBeInTheDocument()
   })
 
-  it('increments the value', async () => {
+  test('increments the value', async () => {
     renderApp()
 
     const incrButton = screen.getByRole('button', { name: /increment value/i })
@@ -53,7 +53,7 @@ describe('<Counter />', () => {
     expect(screen.getByText('1')).toBeInTheDocument()
   })
 
-  it('increments by amount', async () => {
+  test('increments by amount', async () => {
     renderApp()
 
     const setIncrAmountInput = screen.getByLabelText(/set increment amount/i)
@@ -65,7 +65,7 @@ describe('<Counter />', () => {
     expect(screen.getByText('5')).toBeInTheDocument()
   })
 
-  it('increments async', async () => {
+  test('increments async', async () => {
     renderApp()
 
     const setIncrAmountInput = screen.getByLabelText(/set increment amount/i)
@@ -76,7 +76,7 @@ describe('<Counter />', () => {
     await expect(screen.findByText('3')).resolves.toBeInTheDocument()
   })
 
-  it('increments if amount is odd', async () => {
+  test('increments if amount is odd', async () => {
     renderApp()
 
     const setIncrAmountInput = screen.getByLabelText(/set increment amount/i)
