@@ -21,9 +21,10 @@ use dunce::canonicalize;
 use indexmap::IndexMap;
 use next_core::{
     app_structure::find_app_dir_if_enabled, create_app_source, create_page_source,
-    create_web_entry_source, manifest::DevManifestContentSource, next_config::load_next_config,
-    next_image::NextImageContentSourceVc, pages_structure::find_pages_structure,
-    router_source::NextRouterContentSourceVc, source_map::NextSourceMapTraceContentSourceVc,
+    create_web_entry_source, manifest::DevManifestContentSource, mode::NextMode,
+    next_config::load_next_config, next_image::NextImageContentSourceVc,
+    pages_structure::find_pages_structure, router_source::NextRouterContentSourceVc,
+    source_map::NextSourceMapTraceContentSourceVc,
 };
 use owo_colors::OwoColorize;
 use turbo_tasks::{
@@ -312,7 +313,10 @@ async fn source(
 
     let execution_context = ExecutionContextVc::new(project_path, build_chunking_context, env);
 
-    let next_config = load_next_config(execution_context.with_layer("next_config"));
+    let next_config = load_next_config(
+        execution_context.with_layer("next_config"),
+        NextMode::Development,
+    );
 
     let output_root = output_fs.root().join(".next/server");
 

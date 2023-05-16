@@ -47,6 +47,7 @@ use turbopack_binding::{
 use crate::{
     asset_helpers::as_es_module_asset,
     embed_js::next_asset,
+    mode::NextMode,
     next_config::NextConfigVc,
     next_edge::{
         context::{get_edge_compile_time_info, get_edge_resolve_options_context},
@@ -277,6 +278,7 @@ fn edge_transition_map(
         project_path,
         execution_context,
         Value::new(ServerContextType::Middleware),
+        NextMode::Development,
         next_config,
     );
 
@@ -362,6 +364,7 @@ async fn route_internal(
             next_config,
             execution_context,
         )),
+        "development".to_string(),
     );
 
     let configs = config_assets(context, project_path, next_config.page_extensions());

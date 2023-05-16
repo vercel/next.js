@@ -40,6 +40,7 @@ use super::{
 use crate::{
     babel::maybe_add_babel_loader,
     embed_js::next_js_fs,
+    mode::NextMode,
     next_build::{get_external_next_compiled_package_mapping, get_postcss_package_mapping},
     next_config::NextConfigVc,
     next_import_map::{get_next_server_import_map, mdx_import_source_file},
@@ -74,6 +75,7 @@ pub enum ServerContextType {
 pub async fn get_server_resolve_options_context(
     project_path: FileSystemPathVc,
     ty: Value<ServerContextType>,
+    mode: NextMode,
     next_config: NextConfigVc,
     execution_context: ExecutionContextVc,
 ) -> Result<ResolveOptionsContextVc> {
@@ -99,7 +101,7 @@ pub async fn get_server_resolve_options_context(
                 enable_node_externals: true,
                 enable_node_native_modules: true,
                 module: true,
-                custom_conditions: vec!["development".to_string()],
+                custom_conditions: vec![mode.node_env().to_string()],
                 import_map: Some(next_server_import_map),
                 plugins: vec![
                     external_cjs_modules_plugin.into(),
@@ -123,7 +125,7 @@ pub async fn get_server_resolve_options_context(
                 enable_node_externals: true,
                 enable_node_native_modules: true,
                 module: true,
-                custom_conditions: vec!["development".to_string()],
+                custom_conditions: vec![mode.node_env().to_string()],
                 import_map: Some(next_server_import_map),
                 plugins: vec![
                     server_component_externals_plugin.into(),
@@ -147,7 +149,7 @@ pub async fn get_server_resolve_options_context(
                 enable_node_externals: true,
                 enable_node_native_modules: true,
                 module: true,
-                custom_conditions: vec!["development".to_string(), "react-server".to_string()],
+                custom_conditions: vec![mode.node_env().to_string(), "react-server".to_string()],
                 import_map: Some(next_server_import_map),
                 plugins: vec![
                     server_component_externals_plugin.into(),
@@ -169,7 +171,7 @@ pub async fn get_server_resolve_options_context(
             let resolve_options_context = ResolveOptionsContext {
                 enable_node_modules: Some(root_dir),
                 module: true,
-                custom_conditions: vec!["development".to_string()],
+                custom_conditions: vec![mode.node_env().to_string()],
                 import_map: Some(next_server_import_map),
                 plugins: vec![
                     server_component_externals_plugin.into(),
@@ -192,7 +194,7 @@ pub async fn get_server_resolve_options_context(
                 enable_node_modules: Some(root_dir),
                 enable_node_externals: true,
                 module: true,
-                custom_conditions: vec!["development".to_string()],
+                custom_conditions: vec![mode.node_env().to_string()],
                 plugins: vec![unsupported_modules_resolve_plugin.into()],
                 ..Default::default()
             };
@@ -210,10 +212,10 @@ pub async fn get_server_resolve_options_context(
     .cell())
 }
 
-fn defines() -> CompileTimeDefines {
+fn defines(mode: NextMode) -> CompileTimeDefines {
     compile_time_defines!(
         process.turbopack = true,
-        process.env.NODE_ENV = "development",
+        process.env.NODE_ENV = mode.node_env(),
         process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false,
         process.env.NEXT_RUNTIME = "nodejs"
     )
@@ -222,18 +224,19 @@ fn defines() -> CompileTimeDefines {
 }
 
 #[turbo_tasks::function]
-pub fn next_server_defines() -> CompileTimeDefinesVc {
-    defines().cell()
+pub fn next_server_defines(mode: NextMode) -> CompileTimeDefinesVc {
+    defines(mode).cell()
 }
 
 #[turbo_tasks::function]
-pub async fn next_server_free_vars() -> Result<FreeVarReferencesVc> {
-    Ok(free_var_references!(..defines().into_iter()).cell())
+pub async fn next_server_free_vars(mode: NextMode) -> Result<FreeVarReferencesVc> {
+    Ok(free_var_references!(..defines(mode).into_iter()).cell())
 }
 
 #[turbo_tasks::function]
 pub fn get_server_compile_time_info(
     ty: Value<ServerContextType>,
+    mode: NextMode,
     process_env: ProcessEnvVc,
     server_addr: ServerAddrVc,
 ) -> CompileTimeInfoVc {
@@ -251,8 +254,8 @@ pub fn get_server_compile_time_info(
             ServerContextType::Middleware => Value::new(EnvironmentIntention::Middleware),
         },
     ))
-    .defines(next_server_defines())
-    .free_var_references(next_server_free_vars())
+    .defines(next_server_defines(mode))
+    .free_var_references(next_server_free_vars(mode))
     .cell()
 }
 
@@ -261,6 +264,7 @@ pub async fn get_server_module_options_context(
     project_path: FileSystemPathVc,
     execution_context: ExecutionContextVc,
     ty: Value<ServerContextType>,
+    mode: NextMode,
     next_config: NextConfigVc,
 ) -> Result<ModuleOptionsContextVc> {
     let custom_rules = get_next_server_transforms_rules(next_config, ty.into_value()).await?;
@@ -314,7 +318,7 @@ pub async fn get_server_module_options_context(
     } else {
         None
     };
-    let jsx_runtime_options = get_jsx_transform_options(project_path, None);
+    let jsx_runtime_options = get_jsx_transform_options(project_path, mode, None);
 
     let source_transforms: Vec<TransformPluginVc> = vec![
         *get_relay_transform_plugin(next_config).await?,
