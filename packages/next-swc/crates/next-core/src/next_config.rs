@@ -36,8 +36,12 @@ use turbopack_binding::{
         node::{
             evaluate::evaluate,
             execution_context::{ExecutionContext, ExecutionContextVc},
+            transforms::webpack::{WebpackLoaderItem, WebpackLoaderItemsVc},
         },
-        turbopack::evaluate_context::node_evaluate_asset_context,
+        turbopack::{
+            evaluate_context::node_evaluate_asset_context,
+            module_options::{LoaderRuleItem, OptionWebpackRulesVc, WebpackRulesVc},
+        },
     },
 };
 

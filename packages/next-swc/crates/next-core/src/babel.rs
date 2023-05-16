@@ -10,7 +10,12 @@ use turbopack_binding::{
             issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
             resolve::{parse::RequestVc, pattern::Pattern, resolve},
         },
-        turbopack::{resolve_options, resolve_options_context::ResolveOptionsContext},
+        node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItemsVc},
+        turbopack::{
+            module_options::{LoaderRuleItem, OptionWebpackRulesVc, WebpackRulesVc},
+            resolve_options,
+            resolve_options_context::ResolveOptionsContext,
+        },
     },
 };
 

@@ -1,8 +1,8 @@
 use anyhow::{bail, Result};
 use turbo_tasks::primitives::JsonValueVc;
 use turbopack_binding::turbopack::{
-    node::transforms::webpack::{WebpackLoaderConfigItem, WebpackLoaderConfigItemsVc},
-    turbopack::module_options::WebpackLoadersOptionsVc,
+    node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItemsVc},
+    turbopack::module_options::{LoaderRuleItem, OptionWebpackRulesVc, WebpackRulesVc},
 };
 
 #[turbo_tasks::function]
