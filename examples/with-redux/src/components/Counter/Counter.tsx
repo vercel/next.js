@@ -14,9 +14,7 @@ import styles from './Counter.module.css'
 export const Counter = () => {
   const dispatch = useAppDispatch()
   const count = useAppSelector(selectCount)
-  const [incrementAmount, setIncrementAmount] = useState('2')
-
-  const incrementValue = Number(incrementAmount) || 0
+  const [incrementAmount, setIncrementAmount] = useState(2)
 
   return (
     <div>
@@ -42,25 +40,25 @@ export const Counter = () => {
           className={styles.textbox}
           aria-label="Set increment amount"
           value={incrementAmount}
-          onChange={(e) => setIncrementAmount(e.target.value)}
+          onChange={(e) => setIncrementAmount(Number(e.target.value ?? 0))}
         />
         <button
           className={styles.button}
           onClick={() =>
-            dispatch(counterSlice.actions.incrementByAmount(incrementValue))
+            dispatch(counterSlice.actions.incrementByAmount(incrementAmount))
           }
         >
           Add Amount
         </button>
         <button
           className={styles.asyncButton}
-          onClick={() => dispatch(incrementAsync(incrementValue))}
+          onClick={() => dispatch(incrementAsync(incrementAmount))}
         >
           Add Async
         </button>
         <button
           className={styles.button}
-          onClick={() => dispatch(incrementIfOdd(incrementValue))}
+          onClick={() => dispatch(incrementIfOdd(incrementAmount))}
         >
           Add If Odd
         </button>

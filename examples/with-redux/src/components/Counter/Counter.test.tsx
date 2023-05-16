@@ -1,5 +1,5 @@
 /* Core */
-import { screen } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 /* Components */
@@ -7,13 +7,6 @@ import { Counter } from '@/components'
 
 /* Instruments */
 import { renderApp } from '@/lib/tests'
-
-jest.mock('./counterAPI', () => ({
-  fetchCount: (amount: number) =>
-    new Promise<{ data: number }>((resolve) =>
-      setTimeout(() => resolve({ data: amount }), 500)
-    ),
-}))
 
 describe('<Counter />', () => {
   test('renders the component', () => {
@@ -62,7 +55,10 @@ describe('<Counter />', () => {
 
     await userEvent.type(setIncrAmountInput, '{backspace}3')
     await userEvent.click(addAsyncButton)
-    await expect(screen.findByText('3')).resolves.toBeInTheDocument()
+
+    await waitFor(() => {
+      expect(screen.findByText('3')).resolves.toBeInTheDocument()
+    })
   })
 
   test('increments if amount is odd', async () => {
