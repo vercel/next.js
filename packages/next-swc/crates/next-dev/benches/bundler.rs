@@ -6,7 +6,7 @@ use std::{
 
 use anyhow::{anyhow, Context, Result};
 use regex::Regex;
-use turbo_binding::turbopack::bench::{
+use turbopack_binding::turbopack::bench::{
     bundlers::{Bundler, RenderType},
     util::{
         npm::{self, NpmPackage},
