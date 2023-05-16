@@ -9,16 +9,16 @@ autobenches = false
 [features]
 native-tls = ["next-core/native-tls"]
 rustls-tls = ["next-core/rustls-tls"]
-custom_allocator = ["turbo-binding/__turbo_tasks_malloc", "turbo-binding/__turbo_tasks_malloc_custom_allocator"]
+custom_allocator = ["turbopack-binding/__turbo_tasks_malloc", "turbopack-binding/__turbo_tasks_malloc_custom_allocator"]
 
 [dependencies]
 anyhow = "1.0.47"
 next-core = { workspace = true }
 
-turbo-binding = { workspace = true, features = ["__turbo_tasks", "__turbo_tasks_memory"] }
+turbopack-binding = { workspace = true, features = ["__turbo_tasks", "__turbo_tasks_memory"] }
 
 [build-dependencies]
-turbo-binding = { workspace = true, features = ["__turbo_tasks_build"] }
+turbopack-binding = { workspace = true, features = ["__turbo_tasks_build"] }
 vergen = { version = "7.3.2", default-features = false, features = [
   "cargo",
   "build",

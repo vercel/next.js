@@ -1,6 +1,7 @@
 use anyhow::Result;
 use indexmap::indexmap;
-use turbo_binding::turbopack::{
+use turbo_tasks::{primitives::OptionStringVc, Value};
+use turbopack_binding::turbopack::{
     core::{
         asset::AssetVc,
         context::AssetContext,
@@ -15,7 +16,6 @@ use turbo_binding::turbopack::{
         ModuleAssetContextVc,
     },
 };
-use turbo_tasks::{primitives::OptionStringVc, Value};
 
 use crate::embed_js::next_asset;
 

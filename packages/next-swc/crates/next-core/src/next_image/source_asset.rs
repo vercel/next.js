@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use anyhow::{bail, Result};
-use turbo_binding::{
+use turbopack_binding::{
     turbo::{
         tasks::primitives::StringVc,
         tasks_fs::{rope::RopeBuilder, FileContent},
