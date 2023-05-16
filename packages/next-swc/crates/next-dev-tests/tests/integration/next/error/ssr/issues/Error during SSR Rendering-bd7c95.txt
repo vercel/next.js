@@ -14,7 +14,7 @@ PlainIssue {
                 context: Some(
                     "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/error/ssr/input/pages/broken.tsx",
                 ),
-                description: "Next.js pages directory",
+                description: "Next.js page file",
             },
             PlainIssueProcessingPathItem {
                 context: Some(

@@ -1,23 +1,23 @@
 PlainIssue {
     severity: Warning,
-    context: "[project]/node_modules/.pnpm/postcss@8.4.14/node_modules/postcss/lib/previous-map.js",
+    context: "[project]/node_modules/.pnpm/postcss@8.4.14/node_modules/postcss/lib/input.js",
     category: "parse",
-    title: "lint TP1004 fs.readFileSync(???*0*, \"utf-8\") is very dynamic",
-    description: "- *0* arguments[0]\n  ⚠\u{fe0f}  function calls are not analysed yet",
+    title: "lint TP1006 path.resolve(???*0*) is very dynamic",
+    description: "- *0* ???*1*[\"from\"]\n  ⚠\u{fe0f}  unknown object\n- *1* opts\n  ⚠\u{fe0f}  pattern without value",
     detail: "",
     documentation_link: "",
     source: Some(
         PlainIssueSource {
             asset: PlainAsset {
-                ident: "[project]/node_modules/.pnpm/postcss@8.4.14/node_modules/postcss/lib/previous-map.js",
+                ident: "[project]/node_modules/.pnpm/postcss@8.4.14/node_modules/postcss/lib/input.js",
             },
             start: SourcePos {
-                line: 89,
-                column: 13,
+                line: 43,
+                column: 20,
             },
             end: SourcePos {
-                line: 89,
-                column: 13,
+                line: 43,
+                column: 20,
             },
         },
     ),
@@ -28,7 +28,13 @@ PlainIssue {
                 context: Some(
                     "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/tailwind/basic/input/pages/index.jsx",
                 ),
-                description: "Next.js pages directory",
+                description: "Next.js page file",
+            },
+            PlainIssueProcessingPathItem {
+                context: Some(
+                    "[next]/entry/server-renderer.tsx",
+                ),
+                description: "server-side rendering /",
             },
             PlainIssueProcessingPathItem {
                 context: Some(

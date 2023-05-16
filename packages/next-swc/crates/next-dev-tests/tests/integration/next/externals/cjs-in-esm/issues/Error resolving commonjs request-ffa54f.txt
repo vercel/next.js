@@ -28,7 +28,7 @@ PlainIssue {
                 context: Some(
                     "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/externals/cjs-in-esm/input/pages/index.js",
                 ),
-                description: "Next.js pages directory",
+                description: "Next.js page file",
             },
         ],
     ),
