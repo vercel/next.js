@@ -1,0 +1,1 @@
+Implementation only for Next 13 version or greater with the app folder
