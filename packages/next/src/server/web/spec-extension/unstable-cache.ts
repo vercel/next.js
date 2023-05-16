@@ -1,33 +1,40 @@
 import {
-  StaticGenerationAsyncStorage,
   StaticGenerationStore,
+  staticGenerationAsyncStorage as _staticGenerationAsyncStorage,
+  StaticGenerationAsyncStorage,
 } from '../../../client/components/static-generation-async-storage'
+import { CACHE_ONE_YEAR } from '../../../lib/constants'
 import { addImplicitTags } from '../../lib/patch-fetch'
 
 type Callback = (...args: any[]) => Promise<any>
 
 export function unstable_cache<T extends Callback>(
   cb: T,
-  keyParts: string[],
+  keyParts?: string[],
   options: {
-    revalidate: number | false
+    revalidate?: number | false
     tags?: string[]
-  }
+  } = {}
 ): T {
-  const joinedKey = cb.toString() + '-' + keyParts.join(', ')
-  const staticGenerationAsyncStorage = (
-    fetch as any
-  ).__nextGetStaticStore?.() as undefined | StaticGenerationAsyncStorage
+  const joinedKey =
+    keyParts && keyParts.length > 0 ? keyParts.join(',') : cb.toString()
+
+  const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
+    (fetch as any).__nextGetStaticStore?.() || _staticGenerationAsyncStorage
 
   const store: undefined | StaticGenerationStore =
     staticGenerationAsyncStorage?.getStore()
 
-  if (!store || !store.incrementalCache) {
+  const incrementalCache:
+    | import('../../lib/incremental-cache').IncrementalCache
+    | undefined =
+    store?.incrementalCache || (globalThis as any).__incrementalCache
+
+  if (!incrementalCache) {
     throw new Error(
-      `Invariant: static generation store missing in unstable_cache ${joinedKey}`
+      `Invariant: incrementalCache missing in unstable_cache ${joinedKey}`
     )
   }
-
   if (options.revalidate === 0) {
     throw new Error(
       `Invariant revalidate: 0 can not be passed to unstable_cache(), must be "false" or "> 0" ${joinedKey}`
@@ -39,21 +46,21 @@ export function unstable_cache<T extends Callback>(
     // cache callback so that we only cache the specific values returned
     // from the callback instead of also caching any fetches done inside
     // of the callback as well
-    return staticGenerationAsyncStorage?.run(
+    return staticGenerationAsyncStorage.run(
       {
         ...store,
         fetchCache: 'only-no-store',
+        isStaticGeneration: !!store?.isStaticGeneration,
+        pathname: store?.pathname || '/',
       },
       async () => {
-        const cacheKey = await store.incrementalCache?.fetchCacheKey(joinedKey)
+        const cacheKey = await incrementalCache?.fetchCacheKey(joinedKey)
         const cacheEntry =
           cacheKey &&
-          !store.isOnDemandRevalidate &&
-          (await store.incrementalCache?.get(
-            cacheKey,
-            true,
-            options.revalidate as number
-          ))
+          !(
+            store?.isOnDemandRevalidate || incrementalCache.isOnDemandRevalidate
+          ) &&
+          (await incrementalCache?.get(cacheKey, true, options.revalidate))
 
         const tags = options.tags || []
         const implicitTags = addImplicitTags(store)
@@ -67,8 +74,8 @@ export function unstable_cache<T extends Callback>(
         const invokeCallback = async () => {
           const result = await cb(...args)
 
-          if (cacheKey && store.incrementalCache) {
-            await store.incrementalCache.set(
+          if (cacheKey && incrementalCache) {
+            await incrementalCache.set(
               cacheKey,
               {
                 kind: 'FETCH',
@@ -79,7 +86,10 @@ export function unstable_cache<T extends Callback>(
                   status: 200,
                   tags,
                 },
-                revalidate: options.revalidate as number,
+                revalidate:
+                  typeof options.revalidate !== 'number'
+                    ? CACHE_ONE_YEAR
+                    : options.revalidate,
               },
               options.revalidate,
               true
@@ -108,14 +118,18 @@ export function unstable_cache<T extends Callback>(
         const currentTags = cacheEntry.value.data.tags
 
         if (isStale) {
-          if (!store.pendingRevalidates) {
-            store.pendingRevalidates = []
-          }
-          store.pendingRevalidates.push(
-            invokeCallback().catch((err) =>
-              console.error(`revalidating cache with key: ${joinedKey}`, err)
+          if (!store) {
+            return invokeCallback()
+          } else {
+            if (!store.pendingRevalidates) {
+              store.pendingRevalidates = []
+            }
+            store.pendingRevalidates.push(
+              invokeCallback().catch((err) =>
+                console.error(`revalidating cache with key: ${joinedKey}`, err)
+              )
             )
-          )
+          }
         } else if (tags && !tags.every((tag) => currentTags?.includes(tag))) {
           if (!cacheEntry.value.data.tags) {
             cacheEntry.value.data.tags = []
@@ -126,7 +140,7 @@ export function unstable_cache<T extends Callback>(
               cacheEntry.value.data.tags.push(tag)
             }
           }
-          store.incrementalCache?.set(
+          incrementalCache?.set(
             cacheKey,
             cacheEntry.value,
             options.revalidate,

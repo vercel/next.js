@@ -3,7 +3,13 @@ use futures::StreamExt;
 use indexmap::indexmap;
 use serde::Deserialize;
 use serde_json::json;
-use turbo_binding::{
+use turbo_tasks::{
+    primitives::{JsonValueVc, StringsVc},
+    util::SharedError,
+    CompletionVc, CompletionsVc, Value,
+};
+use turbo_tasks_fs::json::parse_json_with_source_context;
+use turbopack_binding::{
     turbo::{
         tasks_bytes::{Bytes, Stream},
         tasks_fs::{to_sys_path, File, FileSystemPathVc},
@@ -37,12 +43,6 @@ use turbo_binding::{
         },
     },
 };
-use turbo_tasks::{
-    primitives::{JsonValueVc, StringsVc},
-    util::SharedError,
-    CompletionVc, CompletionsVc, Value,
-};
-use turbo_tasks_fs::json::parse_json_with_source_context;
 
 use crate::{
     asset_helpers::as_es_module_asset,

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use swc_core::ecma::{ast::Program, atoms::JsWord, visit::VisitMutWith};
-use turbo_binding::turbopack::{
+use turbopack_binding::turbopack::{
     ecmascript::{
         CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransformsVc, TransformContext,
         TransformPluginVc,

@@ -187,11 +187,7 @@ export async function startServer({
           env: {
             FORCE_COLOR: '1',
             ...((initialEnv || process.env) as typeof process.env),
-            // we don't pass down NODE_OPTIONS as it can
-            // extra memory usage
-            NODE_OPTIONS: getNodeOptionsWithoutInspect()
-              .replace(/--max-old-space-size=[\d]{1,}/, '')
-              .trim(),
+            NODE_OPTIONS: getNodeOptionsWithoutInspect().trim(),
           },
         },
         exposedMethods: ['initialize'],
