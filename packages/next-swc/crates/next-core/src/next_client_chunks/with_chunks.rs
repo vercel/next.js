@@ -2,7 +2,7 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use indoc::writedoc;
-use turbo_binding::{
+use turbopack_binding::{
     turbo::{
         tasks::{primitives::StringVc, TryJoinIterExt, Value},
         tasks_fs::rope::RopeBuilder,

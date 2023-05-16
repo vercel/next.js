@@ -1,7 +1,8 @@
 use std::collections::{BTreeMap, HashMap};
 
 use anyhow::{Context, Result};
-use turbo_binding::{
+use turbo_tasks::Value;
+use turbopack_binding::{
     turbo::tasks_fs::{glob::GlobVc, FileSystem, FileSystemPathVc},
     turbopack::{
         core::{
@@ -20,7 +21,6 @@ use turbo_binding::{
         turbopack::{resolve_options, resolve_options_context::ResolveOptionsContext},
     },
 };
-use turbo_tasks::Value;
 
 use crate::{
     embed_js::{next_js_fs, VIRTUAL_PACKAGE_NAME},
@@ -43,7 +43,13 @@ pub async fn get_next_client_import_map(
 ) -> Result<ImportMapVc> {
     let mut import_map = ImportMap::empty();
 
-    insert_next_shared_aliases(&mut import_map, project_path, execution_context).await?;
+    insert_next_shared_aliases(
+        &mut import_map,
+        project_path,
+        execution_context,
+        next_config,
+    )
+    .await?;
 
     insert_alias_option(
         &mut import_map,
@@ -187,7 +193,13 @@ pub async fn get_next_server_import_map(
 ) -> Result<ImportMapVc> {
     let mut import_map = ImportMap::empty();
 
-    insert_next_shared_aliases(&mut import_map, project_path, execution_context).await?;
+    insert_next_shared_aliases(
+        &mut import_map,
+        project_path,
+        execution_context,
+        next_config,
+    )
+    .await?;
 
     insert_alias_option(
         &mut import_map,
@@ -251,7 +263,13 @@ pub async fn get_next_edge_import_map(
 ) -> Result<ImportMapVc> {
     let mut import_map = ImportMap::empty();
 
-    insert_next_shared_aliases(&mut import_map, project_path, execution_context).await?;
+    insert_next_shared_aliases(
+        &mut import_map,
+        project_path,
+        execution_context,
+        next_config,
+    )
+    .await?;
 
     insert_alias_option(
         &mut import_map,
@@ -398,12 +416,29 @@ pub async fn insert_next_server_special_aliases(
     Ok(())
 }
 
+pub fn mdx_import_source_file() -> String {
+    format!("{VIRTUAL_PACKAGE_NAME}/mdx-import-source")
+}
+
 pub async fn insert_next_shared_aliases(
     import_map: &mut ImportMap,
     project_path: FileSystemPathVc,
     execution_context: ExecutionContextVc,
+    next_config: NextConfigVc,
 ) -> Result<()> {
     let package_root = next_js_fs().root();
+
+    if *next_config.mdx_rs().await? {
+        insert_alias_to_alternatives(
+            import_map,
+            mdx_import_source_file(),
+            vec![
+                request_to_import_mapping(project_path, "./mdx-components"),
+                request_to_import_mapping(project_path, "./src/mdx-components"),
+                external_request_to_import_mapping("@mdx-js/react"),
+            ],
+        );
+    }
 
     // we use the next.js hydration code, so we replace the error overlay with our
     // own
@@ -465,7 +500,7 @@ pub async fn insert_next_shared_aliases(
     insert_package_alias(
         import_map,
         "@vercel/turbopack-node/",
-        turbo_binding::turbopack::node::embed_js::embed_fs().root(),
+        turbopack_binding::turbopack::node::embed_js::embed_fs().root(),
     );
 
     Ok(())
@@ -569,7 +604,7 @@ fn insert_turbopack_dev_alias(import_map: &mut ImportMap) {
     insert_package_alias(
         import_map,
         "@vercel/turbopack-dev/",
-        turbo_binding::turbopack::dev::embed_js::embed_fs().root(),
+        turbopack_binding::turbopack::dev::embed_js::embed_fs().root(),
     );
 }
 
