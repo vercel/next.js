@@ -29,6 +29,7 @@
     "jest-environment-jsdom": "29.5.0",
     "jest-watch-typeahead": "2.2.2",
     "msw": "1.2.1",
+    "redux-logger": "3.0.6",
     "typescript": "5.0.4",
     "waait": "1.0.5"
   }

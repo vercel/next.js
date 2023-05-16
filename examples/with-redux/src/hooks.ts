@@ -1,13 +1,5 @@
 /* Core */
 import { useEffect, useRef } from 'react'
-import {
-  useDispatch,
-  useSelector,
-  type TypedUseSelectorHook,
-} from 'react-redux'
-
-/* Instruments */
-import type { AppDispatch, AppState } from './lib/redux/store'
 
 export const useForm =
   <TContent>(defaultValues: TContent) =>
@@ -46,8 +38,3 @@ export const useInterval = (callback: Function, delay: number) => {
     }
   }, [delay])
 }
-
-// Use throughout your app instead of plain `useDispatch` and `useSelector`
-export const useAppDispatch = () => useDispatch<AppDispatch>()
-
-export const useAppSelector: TypedUseSelectorHook<AppState> = useSelector
