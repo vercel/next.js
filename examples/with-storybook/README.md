@@ -1,6 +1,6 @@
 # Example app with Storybook
 
-This example shows a default set up of Storybook using [storybook-addon-next](https://github.com/RyanClementsHax/storybook-addon-next). Included in this example are stories that demonstrate the ability to use Next.js features in Storybook.
+This example shows a default set up of Storybook. Included in this example are stories that demonstrate the ability to use Next.js features in Storybook. As of v7.0, Storybook has built-in Next.js support, so no addon is needed. If you want to customize the default configuration, refer to the [recipes](https://storybook.js.org/recipes/next#next).
 
 ### TypeScript
 

@@ -5,10 +5,12 @@ export default {
   component: NextjsRouting,
 }
 
-export const NextjsRoutingPage = () => <NextjsRouting />
-
-NextjsRoutingPage.parameters = {
-  nextRouter: {
-    route: 'this-is-a-story-override',
+export const NextjsRoutingPage = {
+  parameters: {
+    nextjs: {
+      router: {
+        route: 'this-is-a-story-override',
+      },
+    },
   },
 }

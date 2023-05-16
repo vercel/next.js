@@ -5,4 +5,4 @@ export default {
   component: GlobalStyleImports,
 }
 
-export const GlobalStyleImportsPage = () => <GlobalStyleImports />
+export const GlobalStyleImportsPage = {}

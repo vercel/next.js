@@ -5,4 +5,4 @@ export default {
   component: ScssModules,
 }
 
-export const ScssModulesPage = () => <ScssModules />
+export const ScssModulesPage = {}

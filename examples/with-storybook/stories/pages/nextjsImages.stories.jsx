@@ -5,4 +5,4 @@ export default {
   component: NextjsImages,
 }
 
-export const NextjsImagesPage = () => <NextjsImages />
+export const NextjsImagesPage = {}

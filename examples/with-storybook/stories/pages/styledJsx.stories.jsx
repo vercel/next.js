@@ -5,4 +5,4 @@ export default {
   component: StyledJsx,
 }
 
-export const StyledJsxPage = () => <StyledJsx />
+export const StyledJsxPage = {}

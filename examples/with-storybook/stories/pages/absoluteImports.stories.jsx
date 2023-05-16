@@ -5,4 +5,4 @@ export default {
   component: AbsoluteImports,
 }
 
-export const AbsoluteImportsPage = () => <AbsoluteImports />
+export const AbsoluteImportsPage = {}

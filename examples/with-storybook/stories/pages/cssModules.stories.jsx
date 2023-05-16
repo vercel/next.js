@@ -5,4 +5,4 @@ export default {
   component: CssModules,
 }
 
-export const CssModulesPage = () => <CssModules />
+export const CssModulesPage = {}

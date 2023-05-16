@@ -5,4 +5,4 @@ export default {
   component: Typescript,
 }
 
-export const TypescriptPage = () => <Typescript />
+export const TypescriptPage = {}
