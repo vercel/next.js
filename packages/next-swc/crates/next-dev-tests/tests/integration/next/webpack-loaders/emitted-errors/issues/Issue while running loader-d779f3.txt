@@ -14,13 +14,7 @@ PlainIssue {
                 context: Some(
                     "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/webpack-loaders/emitted-errors/input/pages/index.js",
                 ),
-                description: "Next.js pages directory",
-            },
-            PlainIssueProcessingPathItem {
-                context: Some(
-                    "[next]/entry/server-renderer.tsx",
-                ),
-                description: "server-side rendering /",
+                description: "Next.js page file",
             },
         ],
     ),

@@ -1,9 +1,9 @@
 PlainIssue {
-    severity: Error,
-    context: "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/image/basic/input/public/broken.jpeg",
-    category: "image",
-    title: "Processing image failed",
-    description: "unable to decode image data\n\nCaused by:\n- failed to fill whole buffer",
+    severity: Warning,
+    context: "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/webpack-loaders/emitted-errors/input/pages/hello.emit",
+    category: "loaders",
+    title: "Issue while running loader",
+    description: "Error: Warning!",
     detail: "",
     documentation_link: "",
     source: None,
@@ -12,9 +12,9 @@ PlainIssue {
         [
             PlainIssueProcessingPathItem {
                 context: Some(
-                    "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/image/basic/input/pages/index.js",
+                    "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/webpack-loaders/emitted-errors/input/pages/index.js",
                 ),
-                description: "Next.js pages directory",
+                description: "Next.js page file",
             },
             PlainIssueProcessingPathItem {
                 context: Some(
