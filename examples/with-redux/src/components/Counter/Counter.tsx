@@ -1,17 +1,17 @@
+/* Core */
 import { useState } from 'react'
 
+/* Instruments */
 import { useAppSelector, useAppDispatch } from '../../hooks'
 import {
-  decrement,
-  increment,
-  incrementByAmount,
+  counterSlice,
   incrementAsync,
   incrementIfOdd,
   selectCount,
-} from './counterSlice'
+} from '@/lib/redux'
 import styles from './Counter.module.css'
 
-function Counter() {
+export const Counter = () => {
   const dispatch = useAppDispatch()
   const count = useAppSelector(selectCount)
   const [incrementAmount, setIncrementAmount] = useState('2')
@@ -24,7 +24,7 @@ function Counter() {
         <button
           className={styles.button}
           aria-label="Decrement value"
-          onClick={() => dispatch(decrement())}
+          onClick={() => dispatch(counterSlice.actions.decrement())}
         >
           -
         </button>
@@ -32,7 +32,7 @@ function Counter() {
         <button
           className={styles.button}
           aria-label="Increment value"
-          onClick={() => dispatch(increment())}
+          onClick={() => dispatch(counterSlice.actions.increment())}
         >
           +
         </button>
@@ -46,7 +46,9 @@ function Counter() {
         />
         <button
           className={styles.button}
-          onClick={() => dispatch(incrementByAmount(incrementValue))}
+          onClick={() =>
+            dispatch(counterSlice.actions.incrementByAmount(incrementValue))
+          }
         >
           Add Amount
         </button>
@@ -66,5 +68,3 @@ function Counter() {
     </div>
   )
 }
-
-export default Counter
