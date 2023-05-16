@@ -4,7 +4,7 @@ import { configureStore, ThunkAction, Action } from '@reduxjs/toolkit'
 /* Instruments */
 import { counterSlice } from './counterSlice'
 
-export function makeStore() {
+export const makeStore = () => {
   return configureStore({
     reducer: { counter: counterSlice.reducer },
   })

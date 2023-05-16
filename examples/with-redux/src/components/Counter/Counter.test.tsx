@@ -1,13 +1,12 @@
 /* Core */
-import { render, screen } from '@testing-library/react'
+import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { Provider } from 'react-redux'
 
 /* Components */
-import { Counter } from './Counter'
+import { Counter } from '@/components'
 
 /* Instruments */
-import { makeStore } from '@/lib/redux'
+import { renderApp } from '@/lib/tests'
 
 jest.mock('./counterAPI', () => ({
   fetchCount: (amount: number) =>
@@ -16,25 +15,15 @@ jest.mock('./counterAPI', () => ({
     ),
 }))
 
-const renderApp = () => {
-  const store = makeStore()
-
-  render(
-    <Provider store={store}>
-      <Counter />
-    </Provider>
-  )
-}
-
 describe('<Counter />', () => {
   test('renders the component', () => {
-    renderApp()
+    renderApp({ children: <Counter /> })
 
     expect(screen.getByText('0')).toBeInTheDocument()
   })
 
   test('decrements the value', async () => {
-    renderApp()
+    renderApp({ children: <Counter /> })
 
     const decrButton = screen.getByRole('button', { name: /decrement value/i })
 
@@ -44,7 +33,7 @@ describe('<Counter />', () => {
   })
 
   test('increments the value', async () => {
-    renderApp()
+    renderApp({ children: <Counter /> })
 
     const incrButton = screen.getByRole('button', { name: /increment value/i })
 
@@ -54,7 +43,7 @@ describe('<Counter />', () => {
   })
 
   test('increments by amount', async () => {
-    renderApp()
+    renderApp({ children: <Counter /> })
 
     const setIncrAmountInput = screen.getByLabelText(/set increment amount/i)
     const addAmountButton = screen.getByRole('button', { name: /add amount/i })
@@ -66,7 +55,7 @@ describe('<Counter />', () => {
   })
 
   test('increments async', async () => {
-    renderApp()
+    renderApp({ children: <Counter /> })
 
     const setIncrAmountInput = screen.getByLabelText(/set increment amount/i)
     const addAsyncButton = screen.getByRole('button', { name: /add async/i })
@@ -77,7 +66,7 @@ describe('<Counter />', () => {
   })
 
   test('increments if amount is odd', async () => {
-    renderApp()
+    renderApp({ children: <Counter /> })
 
     const setIncrAmountInput = screen.getByLabelText(/set increment amount/i)
     const addIfOddButton = screen.getByRole('button', { name: /add if odd/i })
