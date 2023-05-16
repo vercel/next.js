@@ -447,7 +447,7 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
                     Cow::Borrowed(
                         "next_dev=info,next_core=info,next_font=info,turbopack=info,\
                          turbopack_core=info,turbopack_ecmascript=info,turbopack_css=info,\
-                         turbopack_dev=info,turbopack_iamge=info,turbopack_json=info,\
+                         turbopack_dev=info,turbopack_image=info,turbopack_json=info,\
                          turbopack_mdx=info,turbopack_node=info,turbopack_static=info,\
                          turbopack_dev_server=info,turbopack_cli_utils=info,turbopack_cli=info,\
                          turbopack_ecmascript=info,turbo_tasks=info,turbo_tasks_memory=info,\
