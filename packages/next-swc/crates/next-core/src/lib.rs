@@ -13,6 +13,7 @@ mod embed_js;
 pub mod env;
 mod fallback;
 pub mod manifest;
+pub mod mode;
 mod next_build;
 pub mod next_client;
 mod next_client_chunks;

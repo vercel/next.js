@@ -52,6 +52,7 @@ use crate::{
     embed_js::next_asset,
     env::env_for_js,
     fallback::get_fallback_page,
+    mode::NextMode,
     next_client::{
         context::{
             get_client_assets_path, get_client_chunking_context, get_client_compile_time_info,
@@ -105,20 +106,27 @@ pub async fn create_page_source(
         (project_root.join("pages"), None)
     };
 
+    let mode = NextMode::Development;
     let client_ty = Value::new(ClientContextType::Pages { pages_dir });
     let server_ty = Value::new(ServerContextType::Pages { pages_dir });
     let server_data_ty = Value::new(ServerContextType::PagesData { pages_dir });
 
-    let client_compile_time_info = get_client_compile_time_info(browserslist_query);
+    let client_compile_time_info = get_client_compile_time_info(mode, browserslist_query);
     let client_module_options_context = get_client_module_options_context(
         project_root,
         execution_context,
         client_compile_time_info.environment(),
         client_ty,
+        mode,
         next_config,
     );
-    let client_resolve_options_context =
-        get_client_resolve_options_context(project_root, client_ty, next_config, execution_context);
+    let client_resolve_options_context = get_client_resolve_options_context(
+        project_root,
+        client_ty,
+        mode,
+        next_config,
+        execution_context,
+    );
 
     let client_chunking_context = get_client_chunking_context(
         project_root,
@@ -127,8 +135,14 @@ pub async fn create_page_source(
         client_ty,
     );
 
-    let client_runtime_entries =
-        get_client_runtime_entries(project_root, env, client_ty, next_config, execution_context);
+    let client_runtime_entries = get_client_runtime_entries(
+        project_root,
+        env,
+        client_ty,
+        mode,
+        next_config,
+        execution_context,
+    );
 
     let next_client_transition = NextClientTransition {
         is_app: false,
@@ -175,17 +189,28 @@ pub async fn create_page_source(
     .cell()
     .into();
 
-    let server_compile_time_info = get_server_compile_time_info(server_ty, env, server_addr);
-    let server_resolve_options_context =
-        get_server_resolve_options_context(project_root, server_ty, next_config, execution_context);
+    let server_compile_time_info = get_server_compile_time_info(server_ty, mode, env, server_addr);
+    let server_resolve_options_context = get_server_resolve_options_context(
+        project_root,
+        server_ty,
+        mode,
+        next_config,
+        execution_context,
+    );
 
-    let server_module_options_context =
-        get_server_module_options_context(project_root, execution_context, server_ty, next_config);
+    let server_module_options_context = get_server_module_options_context(
+        project_root,
+        execution_context,
+        server_ty,
+        mode,
+        next_config,
+    );
 
     let server_data_module_options_context = get_server_module_options_context(
         project_root,
         execution_context,
         server_data_ty,
+        mode,
         next_config,
     );
 
@@ -199,6 +224,7 @@ pub async fn create_page_source(
                     project_root,
                     execution_context,
                     client_ty,
+                    mode,
                     client_root,
                     client_compile_time_info,
                     next_config,
@@ -824,6 +850,8 @@ impl SsrEntryVc {
                         use_define_for_class_fields: false,
                     },
                     EcmascriptInputTransform::React {
+                        // The Page source is currently only used in the development mode.
+                        development: true,
                         refresh: false,
                         import_source: OptionStringVc::cell(None),
                         runtime: OptionStringVc::cell(None),
