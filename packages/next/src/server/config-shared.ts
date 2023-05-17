@@ -168,7 +168,7 @@ export interface ExperimentalConfig {
   swcMinify?: boolean
   swcFileReading?: boolean
   cpus?: number
-  memoryBasedWorkersCount: boolean
+  memoryBasedWorkersCount?: boolean
   sharedPool?: boolean
   proxyTimeout?: number
   isrFlushToDisk?: boolean
