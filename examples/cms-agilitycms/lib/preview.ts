@@ -8,8 +8,8 @@ export function generatePreviewKey() {
   const str = `-1_${process.env.AGILITY_CMS_SECURITY_KEY}_Preview`
 
   //build our byte array
-  let data = []
-  for (var i = 0; i < str.length; ++i) {
+  const data: number[] = []
+  for (let i = 0; i < str.length; ++i) {
     data.push(str.charCodeAt(i))
     data.push(0)
   }
