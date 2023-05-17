@@ -1937,15 +1937,7 @@ export default async function getBaseWebpackConfig(
                     },
                   },
                   {
-                    issuerLayer: {
-                      or: [
-                        WEBPACK_LAYERS.server,
-                        WEBPACK_LAYERS.action,
-                        WEBPACK_LAYERS.client,
-                        WEBPACK_LAYERS.appClient,
-                        WEBPACK_LAYERS.shared,
-                      ],
-                    },
+                    issuerLayer: WEBPACK_LAYERS.appClient,
                     test: codeCondition.test,
                     resolve: {
                       alias: {
