@@ -1,6 +1,8 @@
 use anyhow::{bail, Context, Result};
 use indexmap::{indexmap, IndexMap};
-use turbo_binding::turbopack::{
+use turbo_tasks::Value;
+use turbo_tasks_fs::{File, FileSystemPathVc};
+use turbopack_binding::turbopack::{
     core::{
         asset::{Asset, AssetVc},
         context::{AssetContext, AssetContextVc},
@@ -15,8 +17,6 @@ use turbo_binding::turbopack::{
         InnerAssetsVc,
     },
 };
-use turbo_tasks::Value;
-use turbo_tasks_fs::{File, FileSystemPathVc};
 
 use crate::asset_helpers::as_es_module_asset;
 

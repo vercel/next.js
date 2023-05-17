@@ -2,13 +2,20 @@ on:
   workflow_dispatch:
     inputs:
       releaseType:
-        description: stable or canary (case sensitive)?
+        description: stable or canary?
         required: true
-        type: string
+        type: choice
+        options:
+          - canary
+          - stable
 
       semverType:
-        description: patch, minor, or major (case sensitive)?
-        type: string
+        description: semver type?
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
 
     secrets:
       RELEASE_BOT_TOKEN:

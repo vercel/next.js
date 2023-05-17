@@ -1,3 +1,6 @@
+import type { Router } from 'next/dist/client/router'
+import type { MittEmitter } from 'next/dist/shared/lib/mitt'
+
 declare global {
   type ChunkData =
     | string
@@ -20,7 +23,9 @@ declare global {
   )[]
   var next: {
     version: string
-    appDir: boolean
+    appDir?: boolean
+    router?: Router
+    emitter?: MittEmitter<string>
   }
 
   function __turbopack_load_page_chunks__(

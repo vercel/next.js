@@ -5,6 +5,8 @@ import {
 } from 'next/cache'
 import { redirect } from 'next/navigation'
 
+import { cookies } from 'next/headers'
+
 export default async function Page() {
   const data = await fetch(
     'https://next-data-api-endpoint.vercel.app/api/random?page',
@@ -49,6 +51,23 @@ export default async function Page() {
         revalidate (tags: thankyounext, justputit):{' '}
         <span id="justputit">{data2}</span>
       </p>
+      <p>
+        random cookie:{' '}
+        <span id="random-cookie">
+          {JSON.stringify(cookies().get('random'))}
+        </span>
+      </p>
+      <form>
+        <button
+          id="set-cookie"
+          formAction={async () => {
+            'use server'
+            cookies().set('random', `${Math.random()}`)
+          }}
+        >
+          set cookie
+        </button>
+      </form>
       {/* <p>revalidate 10 (tags: thankyounext): {JSON.stringify(cachedData)}</p> */}
       <form>
         <button

@@ -371,6 +371,7 @@ export default async function exportPage({
             },
             serverDistDir: join(distDir, 'server'),
             CurCacheHandler: CacheHandler,
+            minimalMode: ciEnvironment.hasNextSupport,
           })
           ;(globalThis as any).__incrementalCache = incrementalCache
           curRenderOpts.incrementalCache = incrementalCache

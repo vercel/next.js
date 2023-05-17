@@ -860,7 +860,12 @@ export default class NextNodeServer extends BaseServer {
             }
           })
         })
-        proxy.web(req.originalRequest, res.originalResponse)
+        proxy.web(req.originalRequest, res.originalResponse, {
+          buffer: getRequestMeta(
+            req,
+            '__NEXT_CLONABLE_BODY'
+          )?.cloneBodyStream(),
+        })
       }
     })
 
@@ -2833,7 +2838,9 @@ export default class NextNodeServer extends BaseServer {
       },
       useCache: true,
       onWarning: params.onWarning,
-      incrementalCache: getRequestMeta(params.req, '_nextIncrementalCache'),
+      incrementalCache:
+        (globalThis as any).__incrementalCache ||
+        getRequestMeta(params.req, '_nextIncrementalCache'),
     })
 
     params.res.statusCode = result.response.status

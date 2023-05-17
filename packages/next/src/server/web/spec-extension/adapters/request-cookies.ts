@@ -1,6 +1,7 @@
 import type { RequestCookies } from '../cookies'
 import type { BaseNextResponse } from '../../../base-http'
 import type { ServerResponse } from 'http'
+import { StaticGenerationStore } from '../../../../client/components/static-generation-async-storage'
 
 import { ResponseCookies } from '../cookies'
 import { ReflectAdapter } from './reflect'
@@ -11,7 +12,7 @@ import { ReflectAdapter } from './reflect'
 export class ReadonlyRequestCookiesError extends Error {
   constructor() {
     super(
-      'ReadonlyRequestCookies cannot be modified. Read more: https://nextjs.org/docs/api-reference/cookies'
+      'Cookies can only be modified in a Server Action or Route Handler. Read more: https://nextjs.org/docs/app/api-reference/functions/cookies#cookiessetname-value-options'
     )
   }
 
@@ -20,10 +21,7 @@ export class ReadonlyRequestCookiesError extends Error {
   }
 }
 
-export type ReadonlyRequestCookies = Omit<
-  RequestCookies,
-  'clear' | 'delete' | 'set'
->
+export type ReadonlyRequestCookies = Omit<RequestCookies, 'clear' | 'delete'>
 
 export class RequestCookiesAdapter {
   public static seal(cookies: RequestCookies): ReadonlyRequestCookies {
@@ -61,6 +59,14 @@ export class MutableRequestCookiesAdapter {
     let modifiedValues: ResponseCookie[] = []
     const modifiedCookies = new Set<string>()
     const updateResponseCookies = () => {
+      // TODO-APP: change method of getting staticGenerationAsyncStore
+      const staticGenerationAsyncStore = (fetch as any)
+        .__nextGetStaticStore?.()
+        ?.getStore() as undefined | StaticGenerationStore
+      if (staticGenerationAsyncStore) {
+        staticGenerationAsyncStore.pathWasRevalidated = true
+      }
+
       const allCookies = responseCookes.getAll()
       modifiedValues = allCookies.filter((c) => modifiedCookies.has(c.name))
       if (res) {

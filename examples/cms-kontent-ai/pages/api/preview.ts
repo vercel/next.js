@@ -24,8 +24,8 @@ export default async function preview(
     return res.status(401).json({ message: 'Invalid slug' })
   }
 
-  // Enable Preview Mode by setting the cookies
-  res.setPreviewData({})
+  // Enable Preview Mode by setting the cookie
+  res.setDraftMode({ enable: true })
 
   // Redirect to the path from the fetched post
   // We don't redirect to req.query.slug as that might lead to open redirect vulnerabilities

@@ -2,7 +2,7 @@ use std::{collections::HashMap, path::PathBuf};
 
 use regex::Regex;
 use serde::Deserialize;
-use turbo_binding::swc::core::{
+use turbopack_binding::swc::core::{
     common::{
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
@@ -243,6 +243,12 @@ impl<C: Comments> ReactServerComponents<C> {
                 }
                 ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultDecl(ExportDefaultDecl {
                     decl: _,
+                    ..
+                })) => {
+                    self.export_names.push("default".to_string());
+                }
+                ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(ExportDefaultExpr {
+                    expr: _,
                     ..
                 })) => {
                     self.export_names.push("default".to_string());
@@ -572,6 +578,8 @@ pub fn server_components<C: Comments>(
             JsWord::from("findDOMNode"),
             JsWord::from("flushSync"),
             JsWord::from("unstable_batchedUpdates"),
+            JsWord::from("experimental_useFormStatus"),
+            JsWord::from("experimental_useOptimistic"),
         ],
         invalid_server_react_apis: vec![
             JsWord::from("Component"),

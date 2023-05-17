@@ -37,10 +37,10 @@
   },
   "dependencies": {
     "loose-envify": "^1.1.0",
-    "scheduler": "0.0.0-experimental-aef7ce554-20230503"
+    "scheduler": "0.0.0-experimental-16d053d59-20230506"
   },
   "peerDependencies": {
-    "react": "0.0.0-experimental-aef7ce554-20230503"
+    "react": "0.0.0-experimental-16d053d59-20230506"
   },
   "browser": {
     "./server.js": "./server.browser.js",
