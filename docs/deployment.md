@@ -100,6 +100,7 @@ The following services support Next.js `v12+`. Below, you’ll find examples or 
 - [Digital Ocean App Platform](https://docs.digitalocean.com/tutorials/app-nextjs-deploy/)
 - [Google Cloud Run](https://github.com/vercel/next.js/tree/canary/examples/with-docker)
 - [Heroku](https://elements.heroku.com/buildpacks/mars/heroku-nextjs)
+- [Koyeb](https://www.koyeb.com/docs/deploy/nextjs)
 - [Railway](https://docs.railway.app/getting-started)
 - [Render](https://render.com/docs/deploy-nextjs-app)
 
