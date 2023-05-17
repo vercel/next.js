@@ -59,6 +59,7 @@ import type { Telemetry } from '../../telemetry/storage'
 import { parseVersionInfo, VersionInfo } from './parse-version-info'
 import { isAPIRoute } from '../../lib/is-api-route'
 import { getRouteLoaderEntry } from '../../build/webpack/loaders/next-route-loader'
+import { isInternalPathname } from '../../lib/is-internal-pathname'
 
 function diff(a: Set<any>, b: Set<any>) {
   return new Set([...a].filter((v) => !b.has(v)))
@@ -850,7 +851,11 @@ export default class HotReloader {
                     nextConfigOutput: this.config.output,
                     preferredRegion: staticInfo.preferredRegion,
                   })
-                } else if (!isAPIRoute(page) && !isMiddlewareFile(page)) {
+                } else if (
+                  !isAPIRoute(page) &&
+                  !isMiddlewareFile(page) &&
+                  !isInternalPathname(relativeRequest)
+                ) {
                   value = getRouteLoaderEntry({
                     absolutePagePath: relativeRequest,
                   })

@@ -53,6 +53,7 @@ import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { normalizeMetadataRoute } from '../lib/metadata/get-metadata-route'
 import { fileExists } from '../lib/file-exists'
 import { getRouteLoaderEntry } from './webpack/loaders/next-route-loader'
+import { isInternalPathname } from '../lib/is-internal-pathname'
 
 export async function getStaticInfoIncludingLayouts({
   isInsideAppDir,
@@ -565,7 +566,11 @@ export async function createEntrypoints(
               // the '../' is needed to make sure the file is not chunked
               filename: `../${INSTRUMENTATION_HOOK_FILENAME}.js`,
             }
-          } else if (!isAPIRoute(page) && !isMiddlewareFile(page)) {
+          } else if (
+            !isAPIRoute(page) &&
+            !isMiddlewareFile(page) &&
+            !isInternalPathname(absolutePagePath)
+          ) {
             server[serverBundlePath] = [
               getRouteLoaderEntry({
                 absolutePagePath,
