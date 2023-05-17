@@ -443,26 +443,27 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
         // Trace presets
         match trace.as_str() {
             "next" => {
-                trace = "root=info,next_dev=info,next_core=info,next_font=info,turbopack_node=info"
+                trace = "turbo_tasks_fs=info,turbopack_dev_server=info,turbopack_node=info,\
+                         next_dev=trace,next_core=trace,next_font=trace,turbopack_node=trace"
                     .to_string();
             }
             "turbopack" => {
-                trace = "root=info,next_dev=info,next_core=info,next_font=info,turbopack=info,\
-                         turbopack_core=info,turbopack_ecmascript=info,turbopack_css=info,\
-                         turbopack_dev=info,turbopack_image=info,turbopack_dev_server=info,\
-                         turbopack_json=info,turbopack_mdx=info,turbopack_node=info,\
-                         turbopack_static=info,turbopack_cli_utils=info,turbopack_cli=info,\
-                         turbopack_ecmascript=info"
+                trace = "turbo_tasks_fs=info,next_dev=trace,next_core=trace,next_font=trace,\
+                         turbopack=trace,turbopack_core=trace,turbopack_ecmascript=trace,\
+                         turbopack_css=trace,turbopack_dev=trace,turbopack_image=trace,\
+                         turbopack_dev_server=trace,turbopack_json=trace,turbopack_mdx=trace,\
+                         turbopack_node=trace,turbopack_static=trace,turbopack_cli_utils=trace,\
+                         turbopack_cli=trace,turbopack_ecmascript=trace"
                     .to_string();
             }
             "turbo-tasks" => {
-                trace = "root=info,next_dev=info,next_core=info,next_font=info,turbopack=info,\
-                         turbopack_core=info,turbopack_ecmascript=info,turbopack_css=info,\
-                         turbopack_dev=info,turbopack_image=info,turbopack_dev_server=info,\
-                         turbopack_json=info,turbopack_mdx=info,turbopack_node=info,\
-                         turbopack_static=info,turbopack_cli_utils=info,turbopack_cli=info,\
-                         turbopack_ecmascript=info,turbo_tasks=info,turbo_tasks_viz=info,\
-                         turbo_tasks_memory=info,turbo_tasks_fs=info"
+                trace = "next_dev=trace,next_core=trace,next_font=trace,turbopack=trace,\
+                         turbopack_core=trace,turbopack_ecmascript=trace,turbopack_css=trace,\
+                         turbopack_dev=trace,turbopack_image=trace,turbopack_dev_server=trace,\
+                         turbopack_json=trace,turbopack_mdx=trace,turbopack_node=trace,\
+                         turbopack_static=trace,turbopack_cli_utils=trace,turbopack_cli=trace,\
+                         turbopack_ecmascript=trace,turbo_tasks=trace,turbo_tasks_viz=trace,\
+                         turbo_tasks_memory=trace,turbo_tasks_fs=trace"
                     .to_string();
             }
             _ => {}
