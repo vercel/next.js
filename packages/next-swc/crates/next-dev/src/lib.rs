@@ -5,7 +5,6 @@ pub mod devserver_options;
 mod turbo_tasks_viz;
 
 use std::{
-    borrow::Cow,
     collections::HashSet,
     env::current_dir,
     future::{join, Future},
@@ -438,46 +437,63 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
     #[cfg(feature = "tokio_console")]
     console_subscriber::init();
 
-    let subscriber = Registry::default();
+    let trace = std::env::var("NEXT_TURBOPACK_TRACING").ok();
 
-    let subscriber = subscriber.with(
-        EnvFilter::builder()
-            .parse(std::env::var("NEXT_TURBOPACK_TRACE").map_or_else(
-                |_| {
-                    Cow::Borrowed(
-                        "next_dev=info,next_core=info,next_font=info,turbopack=info,\
+    let _guard = if let Some(mut trace) = trace {
+        // Trace presets
+        match trace.as_str() {
+            "next" => {
+                trace = "root=info,next_dev=info,next_core=info,next_font=info".to_string();
+            }
+            "turbopack" => {
+                trace = "root=info,next_dev=info,next_core=info,next_font=info,turbopack=info,\
                          turbopack_core=info,turbopack_ecmascript=info,turbopack_css=info,\
-                         turbopack_dev=info,turbopack_image=info,turbopack_json=info,\
-                         turbopack_mdx=info,turbopack_node=info,turbopack_static=info,\
-                         turbopack_dev_server=info,turbopack_cli_utils=info,turbopack_cli=info,\
-                         turbopack_ecmascript=info,turbo_tasks=info,turbo_tasks_memory=info,\
-                         turbo_tasks_fs=info,turbo_tasks_bytes=info,turbo_tasks_env=info,\
-                         turbo_tasks_fetch=info,turbo_tasks_hash=info",
-                    )
-                },
-                |s| Cow::Owned(s),
-            ))
-            .unwrap(),
-    );
+                         turbopack_dev=info,turbopack_image=info,turbopack_dev_server=info,\
+                         turbopack_json=info,turbopack_mdx=info,turbopack_node=info,\
+                         turbopack_static=info,turbopack_cli_utils=info,turbopack_cli=info,\
+                         turbopack_ecmascript=info"
+                    .to_string();
+            }
+            "turbo-tasks" => {
+                trace = "root=info,next_dev=info,next_core=info,next_font=info,turbopack=info,\
+                         turbopack_core=info,turbopack_ecmascript=info,turbopack_css=info,\
+                         turbopack_dev=info,turbopack_image=info,turbopack_dev_server=info,\
+                         turbopack_json=info,turbopack_mdx=info,turbopack_node=info,\
+                         turbopack_static=info,turbopack_cli_utils=info,turbopack_cli=info,\
+                         turbopack_ecmascript=info,turbo_tasks=info,turbo_tasks_viz=info,\
+                         turbo_tasks_memory=info,turbo_tasks_fs=info"
+                    .to_string();
+            }
+            _ => {}
+        }
 
-    let internal_dir = options
-        .dir
-        .as_deref()
-        .unwrap_or_else(|| Path::new("."))
-        .join(".next");
-    std::fs::create_dir_all(&internal_dir)
-        .context("Unable to create .turbopack directory")
-        .unwrap();
-    let trace_file = internal_dir.join("trace.log");
-    let (writer, guard) = tracing_appender::non_blocking::NonBlockingBuilder::default()
-        .lossy(false)
-        .buffered_lines_limit(DEFAULT_BUFFERED_LINES_LIMIT * 8)
-        .finish(std::fs::File::create(trace_file).unwrap());
-    let subscriber = subscriber.with(RawTraceLayer::new(writer));
+        let subscriber = Registry::default();
 
-    let _guard = exit_guard(guard).unwrap();
+        let subscriber = subscriber.with(EnvFilter::builder().parse(trace).unwrap());
 
-    subscriber.init();
+        let internal_dir = options
+            .dir
+            .as_deref()
+            .unwrap_or_else(|| Path::new("."))
+            .join(".next");
+        std::fs::create_dir_all(&internal_dir)
+            .context("Unable to create .next directory")
+            .unwrap();
+        let trace_file = internal_dir.join("trace.log");
+        let (writer, guard) = tracing_appender::non_blocking::NonBlockingBuilder::default()
+            .lossy(false)
+            .buffered_lines_limit(DEFAULT_BUFFERED_LINES_LIMIT * 8)
+            .finish(std::fs::File::create(trace_file).unwrap());
+        let subscriber = subscriber.with(RawTraceLayer::new(writer));
+
+        let guard = exit_guard(guard).unwrap();
+
+        subscriber.init();
+
+        Some(guard)
+    } else {
+        None
+    };
 
     register();
 
