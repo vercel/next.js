@@ -3,10 +3,10 @@ import { render } from '@testing-library/react'
 import { Provider } from 'react-redux'
 
 /* Instruments */
-import { makeStore } from '@/lib/redux'
+import { makeReduxStore } from '@/lib/redux'
 
 export const renderApp = (props: React.PropsWithChildren) => {
-  const store = makeStore()
+  const store = makeReduxStore()
 
   render(<Provider store={store}>{props.children}</Provider>)
 }

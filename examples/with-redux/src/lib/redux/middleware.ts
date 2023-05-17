@@ -1,12 +1,8 @@
 /* Core */
-import { type Middleware } from '@reduxjs/toolkit'
+import { createLogger } from 'redux-logger'
 
-const middleware: Middleware[] = []
-
-if (process.env.NODE_ENV === 'development') {
-  const { createLogger } = require('redux-logger')
-
-  const logger = createLogger({
+const middleware = [
+  createLogger({
     duration: true,
     timestamp: false,
     collapsed: true,
@@ -18,9 +14,7 @@ if (process.env.NODE_ENV === 'development') {
       error: () => '#ff0005',
     },
     predicate: () => typeof window !== 'undefined',
-  })
-
-  middleware.push(logger)
-}
+  }),
+]
 
 export { middleware }
