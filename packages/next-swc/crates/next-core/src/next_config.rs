@@ -611,7 +611,7 @@ pub async fn load_next_config_internal(
     import_map.insert_exact_alias("styled-jsx", ImportMapping::External(None).into());
     import_map.insert_wildcard_alias("styled-jsx/", ImportMapping::External(None).into());
 
-    let context = node_evaluate_asset_context(project_path, Some(import_map.cell()), None);
+    let context = node_evaluate_asset_context(execution_context, Some(import_map.cell()), None);
     let config_asset = config_file.map(SourceAssetVc::new);
 
     let config_changed = config_asset.map_or_else(CompletionVc::immutable, |config_asset| {
