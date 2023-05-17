@@ -22,7 +22,7 @@ import { FlightRenderResult } from './flight-render-result'
 import { ActionResult } from './types'
 import { ActionAsyncStorage } from '../../client/components/action-async-storage'
 import { filterReqHeaders, forbiddenHeaders } from '../lib/server-ipc/utils'
-import { setCookiesOnResponse } from '../future/route-modules/app-route/set-cookies-on-response'
+import { getMutableCookieHeaders } from '../future/route-modules/app-route/get-mutable-cookie-headers'
 
 function nodeToWebReadableStream(nodeReadable: import('stream').Readable) {
   if (process.env.NEXT_RUNTIME !== 'edge') {
@@ -379,7 +379,7 @@ export async function handleAction({
         }
 
         if (err.mutableCookies) {
-          const headers = setCookiesOnResponse(
+          const headers = getMutableCookieHeaders(
             new Headers(),
             err.mutableCookies
           )

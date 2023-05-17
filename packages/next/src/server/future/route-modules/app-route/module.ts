@@ -35,7 +35,7 @@ import { SYMBOL_MODIFY_COOKIE_VALUES } from '../../../web/spec-extension/adapter
 import { ResponseCookies } from '../../../web/spec-extension/cookies'
 import { HeadersAdapter } from '../../../web/spec-extension/adapters/headers'
 import { PrerenderManifest } from '../../../../build'
-import { setCookiesOnResponse } from './set-cookies-on-response'
+import { getMutableCookieHeaders } from './get-mutable-cookie-headers'
 
 /**
  * AppRouteRouteHandlerContext is the context that is passed to the route
@@ -361,7 +361,7 @@ export class AppRouteRouteModule extends RouteModule<
                     // here.
                     const requestStore = this.requestAsyncStorage.getStore()
                     if (requestStore && requestStore.mutableCookies) {
-                      const headers = setCookiesOnResponse(
+                      const headers = getMutableCookieHeaders(
                         res.headers,
                         requestStore.mutableCookies
                       )

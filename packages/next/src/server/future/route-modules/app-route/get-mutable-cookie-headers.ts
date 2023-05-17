@@ -2,7 +2,7 @@ import { HeadersAdapter } from '../../../web/spec-extension/adapters/headers'
 import { SYMBOL_MODIFY_COOKIE_VALUES } from '../../../web/spec-extension/adapters/request-cookies'
 import { ResponseCookies } from '../../../web/spec-extension/cookies'
 
-export function setCookiesOnResponse(
+export function getMutableCookieHeaders(
   headers: Headers,
   mutableCookies: ResponseCookies
 ): Headers {

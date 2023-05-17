@@ -1,11 +1,11 @@
 import { ResponseCookies } from '../../../web/spec-extension/cookies'
-import { setCookiesOnResponse } from '../app-route/set-cookies-on-response'
+import { getMutableCookieHeaders } from '../app-route/get-mutable-cookie-headers'
 
 export function handleTemporaryRedirectResponse(
   url: string,
   mutableCookies: ResponseCookies
 ): Response {
-  const headers = setCookiesOnResponse(new Headers(), mutableCookies)
+  const headers = getMutableCookieHeaders(new Headers(), mutableCookies)
   headers.set('location', url)
 
   return new Response(null, {
