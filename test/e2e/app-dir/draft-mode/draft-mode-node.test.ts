@@ -37,9 +37,11 @@ createNextDescribe(
     })
 
     it('should have set-cookie header with redirect location', async () => {
-      const res = await next.fetch('/enable-and-redirect')
+      const res = await next.fetch('/enable-and-redirect', {
+        redirect: 'manual',
+      })
       expect(res.status).toBe(302)
-      expect(res.headers.get('location')).toBe('/')
+      expect(res.headers.get('location')).toContain('/some-other-page')
       const h = res.headers.get('set-cookie') || ''
       const c = h.split(';').find((c) => c.startsWith('__prerender_bypass'))
       expect(c).toBeDefined()

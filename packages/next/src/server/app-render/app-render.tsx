@@ -72,6 +72,8 @@ import {
 import { handleAction } from './action-handler'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
 import { warn } from '../../build/output/log'
+import { setCookiesOnResponse } from '../future/route-modules/app-route/set-cookies-on-response'
+import { forbiddenHeaders } from '../lib/server-ipc/utils'
 
 export const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -1505,6 +1507,17 @@ export async function renderToHTMLOrFlight(
           }
           if (isRedirectError(err)) {
             res.statusCode = 307
+            if (err.mutableCookies) {
+              const headers = setCookiesOnResponse(
+                new Headers(),
+                err.mutableCookies
+              )
+              for (let [key, value] of headers) {
+                if (!forbiddenHeaders.includes(key)) {
+                  res.setHeader(key, value)
+                }
+              }
+            }
             res.setHeader('Location', getURLFromRedirectError(err))
           }
 

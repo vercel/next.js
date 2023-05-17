@@ -1,10 +1,17 @@
-export function handleTemporaryRedirectResponse(url: string): Response {
+import { ResponseCookies } from '../../../web/spec-extension/cookies'
+import { setCookiesOnResponse } from '../app-route/set-cookies-on-response'
+
+export function handleTemporaryRedirectResponse(
+  url: string,
+  mutableCookies: ResponseCookies
+): Response {
+  const headers = setCookiesOnResponse(new Headers(), mutableCookies)
+  headers.set('location', url)
+
   return new Response(null, {
     status: 302,
     statusText: 'Found',
-    headers: {
-      location: url,
-    },
+    headers,
   })
 }
 

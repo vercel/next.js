@@ -35,6 +35,7 @@ import { SYMBOL_MODIFY_COOKIE_VALUES } from '../../../web/spec-extension/adapter
 import { ResponseCookies } from '../../../web/spec-extension/cookies'
 import { HeadersAdapter } from '../../../web/spec-extension/adapters/headers'
 import { PrerenderManifest } from '../../../../build'
+import { setCookiesOnResponse } from './set-cookies-on-response'
 
 /**
  * AppRouteRouteHandlerContext is the context that is passed to the route
@@ -358,54 +359,17 @@ export class AppRouteRouteModule extends RouteModule<
                     // It's possible cookies were set in the handler, so we need
                     // to merge the modified cookies and the returned response
                     // here.
-                    // TODO: Move this into a helper function.
                     const requestStore = this.requestAsyncStorage.getStore()
                     if (requestStore && requestStore.mutableCookies) {
-                      const modifiedCookieValues = (
-                        requestStore.mutableCookies as any
-                      )[SYMBOL_MODIFY_COOKIE_VALUES] as NonNullable<
-                        ReturnType<InstanceType<typeof ResponseCookies>['get']>
-                      >[]
-                      if (modifiedCookieValues.length) {
-                        // Return a new response that extends the response with
-                        // the modified cookies as fallbacks. `res`' cookies
-                        // will still take precedence.
-                        const resCookies = new ResponseCookies(
-                          HeadersAdapter.from(res.headers)
-                        )
-                        const returnedCookies = resCookies.getAll()
-
-                        // Set the modified cookies as fallbacks.
-                        for (const cookie of modifiedCookieValues) {
-                          resCookies.set(cookie)
-                        }
-                        // Set the original cookies as the final values.
-                        for (const cookie of returnedCookies) {
-                          resCookies.set(cookie)
-                        }
-
-                        const responseHeaders = new Headers({})
-                        // Set all the headers except for the cookies.
-                        res.headers.forEach((value, key) => {
-                          if (key.toLowerCase() !== 'set-cookie') {
-                            responseHeaders.append(key, value)
-                          }
-                        })
-                        // Set the final cookies, need to append cookies one
-                        // at a time otherwise it might not work in some browsers.
-                        resCookies.getAll().forEach((cookie) => {
-                          const tempCookies = new ResponseCookies(new Headers())
-                          tempCookies.set(cookie)
-                          responseHeaders.append(
-                            'Set-Cookie',
-                            tempCookies.toString()
-                          )
-                        })
-
+                      const headers = setCookiesOnResponse(
+                        res.headers,
+                        requestStore.mutableCookies
+                      )
+                      if (headers !== res.headers) {
                         return new Response(res.body, {
                           status: res.status,
                           statusText: res.statusText,
-                          headers: responseHeaders,
+                          headers,
                         })
                       }
                     }

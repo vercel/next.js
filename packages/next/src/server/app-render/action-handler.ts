@@ -22,6 +22,7 @@ import { FlightRenderResult } from './flight-render-result'
 import { ActionResult } from './types'
 import { ActionAsyncStorage } from '../../client/components/action-async-storage'
 import { filterReqHeaders, forbiddenHeaders } from '../lib/server-ipc/utils'
+import { setCookiesOnResponse } from '../future/route-modules/app-route/set-cookies-on-response'
 
 function nodeToWebReadableStream(nodeReadable: import('stream').Readable) {
   if (process.env.NEXT_RUNTIME !== 'edge') {
@@ -375,6 +376,18 @@ export async function handleAction({
             redirectUrl,
             staticGenerationStore
           )
+        }
+
+        if (err.mutableCookies) {
+          const headers = setCookiesOnResponse(
+            new Headers(),
+            err.mutableCookies
+          )
+          for (let [key, value] of headers) {
+            if (!forbiddenHeaders.includes(key)) {
+              res.setHeader(key, value)
+            }
+          }
         }
 
         res.setHeader('Location', redirectUrl)
