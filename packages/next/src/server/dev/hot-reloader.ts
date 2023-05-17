@@ -850,8 +850,7 @@ export default class HotReloader {
                     nextConfigOutput: this.config.output,
                     preferredRegion: staticInfo.preferredRegion,
                   })
-                }
-                if (!isAPIRoute(page) && !isMiddlewareFile(page)) {
+                } else if (!isAPIRoute(page) && !isMiddlewareFile(page)) {
                   value = getRouteLoaderEntry({
                     absolutePagePath: relativeRequest,
                   })

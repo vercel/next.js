@@ -559,6 +559,12 @@ export async function createEntrypoints(
               nextConfigOutput: config.output,
               preferredRegion: staticInfo.preferredRegion,
             })
+          } else if (isInstrumentationHookFile(page) && pagesType === 'root') {
+            server[serverBundlePath.replace('src/', '')] = {
+              import: absolutePagePath,
+              // the '../' is needed to make sure the file is not chunked
+              filename: `../${INSTRUMENTATION_HOOK_FILENAME}.js`,
+            }
           } else if (!isAPIRoute(page) && !isMiddlewareFile(page)) {
             server[serverBundlePath] = [
               getRouteLoaderEntry({
@@ -566,15 +572,7 @@ export async function createEntrypoints(
               }),
             ]
           } else {
-            if (isInstrumentationHookFile(page) && pagesType === 'root') {
-              server[serverBundlePath.replace('src/', '')] = {
-                import: absolutePagePath,
-                // the '../' is needed to make sure the file is not chunked
-                filename: `../${INSTRUMENTATION_HOOK_FILENAME}.js`,
-              }
-            } else {
-              server[serverBundlePath] = [absolutePagePath]
-            }
+            server[serverBundlePath] = [absolutePagePath]
           }
         },
         onEdgeServer: () => {
