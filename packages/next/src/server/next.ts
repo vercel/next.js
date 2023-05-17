@@ -321,8 +321,8 @@ function createServer(options: NextServerOptions): NextServer {
                 let handler: RequestHandler
                 return async (req: IncomingMessage, res: ServerResponse) => {
                   if (shouldUseStandaloneMode) {
-                    const handler = await handlerPromise
-                    return handler(req, res)
+                    const standaloneHandler = await handlerPromise
+                    return standaloneHandler(req, res)
                   }
                   handler = handler || server.getRequestHandler()
                   return handler(req, res)
