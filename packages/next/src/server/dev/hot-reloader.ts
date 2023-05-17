@@ -278,7 +278,7 @@ export default class HotReloader {
 
       const page = denormalizePagePath(decodedPagePath)
 
-      if (page === '/_error' || BLOCKED_PAGES.indexOf(page) === -1) {
+      if (page === '/_error' || !BLOCKED_PAGES.includes(page)) {
         try {
           await this.ensurePage({ page, clientOnly: true })
         } catch (error) {
@@ -1271,7 +1271,7 @@ export default class HotReloader {
     match?: RouteMatch
   }): Promise<void> {
     // Make sure we don't re-build or dispose prebuilt pages
-    if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
+    if (page !== '/_error' && BLOCKED_PAGES.includes(page)) {
       return
     }
     const error = clientOnly
