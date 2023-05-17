@@ -60,6 +60,9 @@ impl Transition for NextServerToClientTransition {
                     use_define_for_class_fields: false,
                 },
                 EcmascriptInputTransform::React {
+                    // The server-to-client transition is currently only used from the App source,
+                    // which are only used in the development mode.
+                    development: true,
                     refresh: false,
                     import_source: OptionStringVc::cell(None),
                     runtime: OptionStringVc::cell(None),
