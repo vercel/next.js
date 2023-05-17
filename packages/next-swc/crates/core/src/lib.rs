@@ -46,6 +46,7 @@ use turbopack_binding::swc::core::{
 
 pub mod amp_attributes;
 mod auto_cjs;
+pub mod cjs_optimizer;
 pub mod disallow_re_export_all_in_page;
 pub mod next_dynamic;
 pub mod next_ssg;
