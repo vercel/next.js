@@ -1,5 +1,10 @@
 /* Core */
-import { configureStore, type ThunkAction, type Action } from '@reduxjs/toolkit'
+import {
+  configureStore,
+  type ConfigureStoreOptions,
+  type ThunkAction,
+  type Action,
+} from '@reduxjs/toolkit'
 import {
   useSelector as useReduxSelector,
   useDispatch as useReduxDispatch,
@@ -10,7 +15,22 @@ import {
 import { reducer } from './rootReducer'
 import { middleware } from './middleware'
 
-export const store = configureStore({ reducer, middleware })
+const configreStoreDefaultOptions: ConfigureStoreOptions = { reducer }
+
+export const makeStore = (
+  options: ConfigureStoreOptions = configreStoreDefaultOptions
+) => {
+  const store = configureStore(options)
+
+  return store
+}
+
+export const store = makeStore({
+  ...configreStoreDefaultOptions,
+  middleware: (getDefaultMiddleware) => {
+    return [...getDefaultMiddleware(), ...middleware]
+  },
+})
 export const useDispatch = () => useReduxDispatch<Dispatch>()
 export const useSelector: TypedUseSelectorHook<ReduxState> = useReduxSelector
 

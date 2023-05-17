@@ -1,5 +1,5 @@
 /* Core */
-import { Middleware } from '@reduxjs/toolkit'
+import { type Middleware } from '@reduxjs/toolkit'
 
 const middleware: Middleware[] = []
 

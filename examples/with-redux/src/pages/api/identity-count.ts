@@ -2,7 +2,7 @@
 import waait from 'waait'
 import type { NextApiHandler } from 'next'
 
-const countHandler: NextApiHandler = async (request, response) => {
+const identityCountHandler: NextApiHandler = async (request, response) => {
   const { amount = 1 } = request.body
 
   // simulate IO latency
@@ -11,4 +11,4 @@ const countHandler: NextApiHandler = async (request, response) => {
   response.json({ data: amount })
 }
 
-export default countHandler
+export default identityCountHandler
