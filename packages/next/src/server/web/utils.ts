@@ -27,13 +27,13 @@ export function fromNodeHeaders(object: OutgoingHttpHeaders): Headers {
   Credits to: https://github.com/tomball for original and https://github.com/chrusart for JavaScript implementation
 */
 export function splitCookiesString(cookiesString: string) {
-  var cookiesStrings = []
-  var pos = 0
-  var start
-  var ch
-  var lastComma
-  var nextStart
-  var cookiesSeparatorFound
+  const cookiesStrings: string[] = []
+  let pos = 0
+  let start
+  let ch
+  let lastComma
+  let nextStart
+  let cookiesSeparatorFound
 
   function skipWhitespace() {
     while (pos < cookiesString.length && /\s/.test(cookiesString.charAt(pos))) {
