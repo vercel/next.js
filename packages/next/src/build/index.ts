@@ -1142,22 +1142,18 @@ export default async function build(
 
       process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
-      // We limit the number of workers used based on the number of CPUs and
-      // the current available memory. This is to prevent the system from
-      // running out of memory as well as maximize speed. We assume that
-      // each worker will consume ~1GB of memory in a production build.
-      // For example, if the system has 10 CPU cores and 8GB of remaining memory
-      // we will use 8 workers.
-      const numWorkers = Math.max(
-        config.experimental.cpus !== defaultConfig.experimental!.cpus
-          ? (config.experimental.cpus as number)
-          : Math.min(
-              config.experimental.cpus || 1,
-              Math.floor(os.freemem() / 1e9)
-            ),
-        // enforce a minimum of 4 workers
-        4
-      )
+      const numWorkers = config.experimental.memoryBasedWorkersCount
+        ? Math.max(
+            config.experimental.cpus !== defaultConfig.experimental!.cpus
+              ? (config.experimental.cpus as number)
+              : Math.min(
+                  config.experimental.cpus || 1,
+                  Math.floor(os.freemem() / 1e9)
+                ),
+            // enforce a minimum of 4 workers
+            4
+          )
+        : config.experimental.cpus || 4
 
       function createStaticWorker(type: 'app' | 'pages') {
         const numWorkersPerType = isAppDirEnabled
