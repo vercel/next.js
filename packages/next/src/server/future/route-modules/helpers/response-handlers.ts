@@ -1,5 +1,5 @@
 import { ResponseCookies } from '../../../web/spec-extension/cookies'
-import { getMutableCookieHeaders } from '../app-route/get-mutable-cookie-headers'
+import { getMutableCookieHeaders } from '../app-route/helpers/get-mutable-cookie-headers'
 
 export function handleTemporaryRedirectResponse(
   url: string,

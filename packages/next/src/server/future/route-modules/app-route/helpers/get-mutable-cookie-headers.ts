@@ -1,6 +1,6 @@
-import { HeadersAdapter } from '../../../web/spec-extension/adapters/headers'
-import { SYMBOL_MODIFY_COOKIE_VALUES } from '../../../web/spec-extension/adapters/request-cookies'
-import { ResponseCookies } from '../../../web/spec-extension/cookies'
+import { HeadersAdapter } from '../../../../web/spec-extension/adapters/headers'
+import { ResponseCookies } from '../../../../web/spec-extension/cookies'
+import { SYMBOL_MODIFY_COOKIE_VALUES } from '../../../../web/spec-extension/adapters/request-cookies'
 
 export function getMutableCookieHeaders(
   headers: Headers,

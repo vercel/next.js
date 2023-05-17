@@ -72,7 +72,7 @@ import {
 import { handleAction } from './action-handler'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
 import { warn } from '../../build/output/log'
-import { getMutableCookieHeaders } from '../future/route-modules/app-route/get-mutable-cookie-headers'
+import { getMutableCookieHeaders } from '../future/route-modules/app-route/helpers/get-mutable-cookie-headers'
 import { forbiddenHeaders } from '../lib/server-ipc/utils'
 
 export const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'

@@ -22,7 +22,7 @@ import { FlightRenderResult } from './flight-render-result'
 import { ActionResult } from './types'
 import { ActionAsyncStorage } from '../../client/components/action-async-storage'
 import { filterReqHeaders, forbiddenHeaders } from '../lib/server-ipc/utils'
-import { getMutableCookieHeaders } from '../future/route-modules/app-route/get-mutable-cookie-headers'
+import { getMutableCookieHeaders } from '../future/route-modules/app-route/helpers/get-mutable-cookie-headers'
 
 function nodeToWebReadableStream(nodeReadable: import('stream').Readable) {
   if (process.env.NEXT_RUNTIME !== 'edge') {

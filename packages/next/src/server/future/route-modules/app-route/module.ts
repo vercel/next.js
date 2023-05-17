@@ -31,11 +31,8 @@ import { RouteKind } from '../../route-kind'
 import * as Log from '../../../../build/output/log'
 import { autoImplementMethods } from './helpers/auto-implement-methods'
 import { getNonStaticMethods } from './helpers/get-non-static-methods'
-import { SYMBOL_MODIFY_COOKIE_VALUES } from '../../../web/spec-extension/adapters/request-cookies'
-import { ResponseCookies } from '../../../web/spec-extension/cookies'
-import { HeadersAdapter } from '../../../web/spec-extension/adapters/headers'
 import { PrerenderManifest } from '../../../../build'
-import { getMutableCookieHeaders } from './get-mutable-cookie-headers'
+import { getMutableCookieHeaders } from './helpers/get-mutable-cookie-headers'
 
 /**
  * AppRouteRouteHandlerContext is the context that is passed to the route
