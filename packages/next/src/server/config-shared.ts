@@ -660,7 +660,7 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
-    appDocumentPreloading: true,
+    appDocumentPreloading: undefined,
     clientRouterFilter: false,
     clientRouterFilterRedirects: false,
     fetchCacheKeyPrefix: '',
