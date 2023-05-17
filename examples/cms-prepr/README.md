@@ -51,7 +51,7 @@ cp .env.local.example .env.local
 
 The `.env.local` file will be ignored by Git.
 
-**2.2** In your environment, navigate to **Settings > Development > Access Tokens**. You will see the automatically generated access tokens for your Prepr environment.
+**2.2** In your environment, navigate to **Settings > Access Tokens**. You will see the automatically generated access tokens for your Prepr environment.
 
 ![Access tokens](https://assets-site.prepr.io//6jouln4xi3wp-default-access-tokens.png)
 
