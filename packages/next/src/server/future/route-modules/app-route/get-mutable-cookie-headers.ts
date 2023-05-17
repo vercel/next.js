@@ -18,12 +18,10 @@ export function getMutableCookieHeaders(
 
     // Set the modified cookies as fallbacks.
     for (const cookie of modifiedCookieValues) {
-      console.log('setting modified cookie', cookie) // TODO: remove
       resCookies.set(cookie)
     }
     // Set the original cookies as the final values.
     for (const cookie of returnedCookies) {
-      console.log('setting modified returned cookie', cookie) // TODO: remove
       resCookies.set(cookie)
     }
 
