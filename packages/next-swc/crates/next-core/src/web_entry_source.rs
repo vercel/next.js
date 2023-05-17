@@ -1,5 +1,4 @@
 use anyhow::{anyhow, Result};
-use turbo_tasks_fs::FileSystem;
 use turbopack_binding::{
     turbo::{
         tasks::{TryJoinIterExt, Value},
@@ -18,7 +17,8 @@ use turbopack_binding::{
             },
             free_var_references,
             reference_type::{EntryReferenceSubType, ReferenceType},
-            resolve::{origin::PlainResolveOriginVc, parse::RequestVc, pattern::Pattern},
+            resolve::{origin::PlainResolveOriginVc, parse::RequestVc},
+            source_asset::SourceAssetVc,
         },
         dev::react_refresh::assert_can_resolve_react_refresh,
         dev_server::{
