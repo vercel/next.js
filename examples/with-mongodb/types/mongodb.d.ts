@@ -1,5 +1,5 @@
-import { MongoClient } from 'mongodb'
+import { Db } from 'mongodb'
 
 declare global {
-  var _mongoClientPromise: Promise<MongoClient>
+  var _db: Db
 }
