@@ -1649,9 +1649,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             err: opts.err,
             isDataReq,
             query,
-            defaultLocale: opts.defaultLocale,
             isLocaleDomain: getRequestMeta(req, '__nextIsLocaleDomain'),
-            locale: opts.locale,
+            locale,
+            defaultLocale,
           },
         }
 
