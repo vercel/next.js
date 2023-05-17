@@ -69,29 +69,29 @@ function registerExportsForReactRefresh(
     // (This is important for legacy environments.)
     return
   }
-  for (var key in moduleExports) {
+  for (let key in moduleExports) {
     if (isSafeExport(key)) {
       continue
     }
-    var exportValue = moduleExports[key]
-    var typeID = moduleID + ' %exports% ' + key
+    const exportValue = moduleExports[key]
+    const typeID = moduleID + ' %exports% ' + key
     RefreshRuntime.register(exportValue, typeID)
   }
 }
 
 function getRefreshBoundarySignature(moduleExports: unknown): Array<unknown> {
-  var signature = []
+  const signature = []
   signature.push(RefreshRuntime.getFamilyByType(moduleExports))
   if (moduleExports == null || typeof moduleExports !== 'object') {
     // Exit if we can't iterate over exports.
     // (This is important for legacy environments.)
     return signature
   }
-  for (var key in moduleExports) {
+  for (let key in moduleExports) {
     if (isSafeExport(key)) {
       continue
     }
-    var exportValue = moduleExports[key]
+    const exportValue = moduleExports[key]
     signature.push(key)
     signature.push(RefreshRuntime.getFamilyByType(exportValue))
   }
@@ -106,14 +106,14 @@ function isReactRefreshBoundary(moduleExports: unknown): boolean {
     // Exit if we can't iterate over exports.
     return false
   }
-  var hasExports = false
-  var areAllExportsComponents = true
-  for (var key in moduleExports) {
+  let hasExports = false
+  let areAllExportsComponents = true
+  for (let key in moduleExports) {
     hasExports = true
     if (isSafeExport(key)) {
       continue
     }
-    var exportValue = moduleExports[key]
+    const exportValue = moduleExports[key]
     if (!RefreshRuntime.isLikelyComponentType(exportValue)) {
       areAllExportsComponents = false
     }
@@ -125,12 +125,12 @@ function shouldInvalidateReactRefreshBoundary(
   prevExports: unknown,
   nextExports: unknown
 ): boolean {
-  var prevSignature = getRefreshBoundarySignature(prevExports)
-  var nextSignature = getRefreshBoundarySignature(nextExports)
+  const prevSignature = getRefreshBoundarySignature(prevExports)
+  const nextSignature = getRefreshBoundarySignature(nextExports)
   if (prevSignature.length !== nextSignature.length) {
     return true
   }
-  for (var i = 0; i < nextSignature.length; i++) {
+  for (let i = 0; i < nextSignature.length; i++) {
     if (prevSignature[i] !== nextSignature[i]) {
       return true
     }
@@ -138,7 +138,7 @@ function shouldInvalidateReactRefreshBoundary(
   return false
 }
 
-var isUpdateScheduled: boolean = false
+let isUpdateScheduled: boolean = false
 // This function aggregates updates from multiple modules into a single React Refresh call.
 function scheduleUpdate() {
   if (isUpdateScheduled) {
