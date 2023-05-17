@@ -25,6 +25,7 @@ describe('DevPagesRouteMatcherProvider', () => {
         route: {
           kind: RouteKind.PAGES,
           pathname: '/',
+          isDynamic: false,
           filename: `${dir}/index.ts`,
           page: '/',
           bundlePath: 'pages/index',
@@ -35,6 +36,7 @@ describe('DevPagesRouteMatcherProvider', () => {
         route: {
           kind: RouteKind.PAGES,
           pathname: '/some/api/route',
+          isDynamic: false,
           filename: `${dir}/some/api/route.ts`,
           page: '/some/api/route',
           bundlePath: 'pages/some/api/route',
@@ -45,6 +47,7 @@ describe('DevPagesRouteMatcherProvider', () => {
         route: {
           kind: RouteKind.PAGES,
           pathname: '/some/other/route',
+          isDynamic: false,
           filename: `${dir}/some/other/route/index.ts`,
           page: '/some/other/route',
           bundlePath: 'pages/some/other/route',
@@ -55,6 +58,7 @@ describe('DevPagesRouteMatcherProvider', () => {
         route: {
           kind: RouteKind.PAGES,
           pathname: '/some/other/route/index/route',
+          isDynamic: false,
           filename: `${dir}/some/other/route/index/route.ts`,
           page: '/some/other/route/index/route',
           bundlePath: 'pages/some/other/route/index/route',

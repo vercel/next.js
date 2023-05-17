@@ -25,6 +25,7 @@ describe('DevAppRouteRouteMatcher', () => {
         route: {
           kind: RouteKind.APP_ROUTE,
           pathname: '/some/other',
+          isDynamic: false,
           filename: `${dir}/some/other/route.ts`,
           page: '/some/other/route',
           bundlePath: 'app/some/other/route',
@@ -35,6 +36,7 @@ describe('DevAppRouteRouteMatcher', () => {
         route: {
           kind: RouteKind.APP_ROUTE,
           pathname: '/',
+          isDynamic: false,
           filename: `${dir}/route.ts`,
           page: '/route',
           bundlePath: 'app/route',

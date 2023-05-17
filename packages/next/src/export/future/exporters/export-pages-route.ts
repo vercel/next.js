@@ -223,10 +223,6 @@ export async function exportPagesRoute({
       customServer: undefined,
       distDir,
       isDataReq: false,
-      // FIXME: (wyattjoh) refer to base server for correct implementation
-      resolvedAsPath: updatedPath,
-      // TODO: (wyattjoh) this is mirroring the behavior of renderToHTML
-      resolvedUrl: undefined as unknown as string,
       err: undefined,
       locale,
       defaultLocale: renderOpts.defaultLocale,

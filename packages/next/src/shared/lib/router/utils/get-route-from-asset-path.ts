@@ -8,12 +8,21 @@ export default function getRouteFromAssetPath(
   ext: string = ''
 ): string {
   assetPath = assetPath.replace(/\\/g, '/')
-  assetPath =
-    ext && assetPath.endsWith(ext) ? assetPath.slice(0, -ext.length) : assetPath
-  if (assetPath.startsWith('/index/') && !isDynamicRoute(assetPath)) {
-    assetPath = assetPath.slice(6)
-  } else if (assetPath === '/index') {
-    assetPath = '/'
+
+  // If the assetPath has the provided extension, remove it.
+  if (ext && assetPath.endsWith(ext)) {
+    assetPath = assetPath.slice(0, -ext.length)
   }
+
+  // If the assetPath starts with `/index/` and isn't a dynamic route, remove
+  // the `/index` prefix.
+  if (assetPath.startsWith('/index/') && !isDynamicRoute(assetPath)) {
+    return assetPath.slice(6)
+  }
+  // If the assetPath is `/index`, return `/`.
+  else if (assetPath === '/index') {
+    return '/'
+  }
+
   return assetPath
 }

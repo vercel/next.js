@@ -23,6 +23,7 @@ describe('AppPageRouteMatcherProvider', () => {
         route: {
           kind: RouteKind.APP_PAGE,
           pathname: '/',
+          isDynamic: false,
           filename: `<root>/${SERVER_DIRECTORY}/app/page.js`,
           page: '/page',
           bundlePath: 'app/page',
@@ -36,6 +37,7 @@ describe('AppPageRouteMatcherProvider', () => {
         route: {
           kind: RouteKind.APP_PAGE,
           pathname: '/about',
+          isDynamic: false,
           filename: `<root>/${SERVER_DIRECTORY}/app/(marketing)/about/page.js`,
           page: '/(marketing)/about/page',
           bundlePath: 'app/(marketing)/about/page',
@@ -49,6 +51,7 @@ describe('AppPageRouteMatcherProvider', () => {
         route: {
           kind: RouteKind.APP_PAGE,
           pathname: '/dashboard/users/[id]',
+          isDynamic: true,
           filename: `<root>/${SERVER_DIRECTORY}/app/dashboard/users/[id]/page.js`,
           page: '/dashboard/users/[id]/page',
           bundlePath: 'app/dashboard/users/[id]/page',
@@ -60,6 +63,7 @@ describe('AppPageRouteMatcherProvider', () => {
         route: {
           kind: RouteKind.APP_PAGE,
           pathname: '/dashboard/users',
+          isDynamic: false,
           filename: `<root>/${SERVER_DIRECTORY}/app/dashboard/users/page.js`,
           page: '/dashboard/users/page',
           bundlePath: 'app/dashboard/users/page',
@@ -75,6 +79,7 @@ describe('AppPageRouteMatcherProvider', () => {
         route: {
           kind: RouteKind.APP_PAGE,
           pathname: '/dashboard/users',
+          isDynamic: false,
           filename: `<root>/${SERVER_DIRECTORY}/app/dashboard/users/page.js`,
           page: '/dashboard/users/page',
           bundlePath: 'app/dashboard/users/page',

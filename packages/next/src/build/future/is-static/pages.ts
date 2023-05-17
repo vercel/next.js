@@ -172,7 +172,7 @@ export async function isPagesPageStatic(context: {
 
   // A page must have getStaticPaths if it's dynamic and has getStaticProps.
   if (
-    module.isDynamic &&
+    module.definition.isDynamic &&
     module.userland.getStaticProps &&
     !module.userland.getStaticPaths
   ) {
@@ -186,7 +186,7 @@ export async function isPagesPageStatic(context: {
   if (
     module.userland.getStaticProps &&
     module.userland.getStaticPaths &&
-    !module.isDynamic
+    !module.definition.isDynamic
   ) {
     throw new Error(
       `getStaticPaths can only be used with dynamic pages, not '${context.page}'.` +

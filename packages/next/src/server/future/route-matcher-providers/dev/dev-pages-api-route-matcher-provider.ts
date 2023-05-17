@@ -8,6 +8,7 @@ import path from 'path'
 import { LocaleRouteNormalizer } from '../../normalizers/locale-route-normalizer'
 import { FileCacheRouteMatcherProvider } from './file-cache-route-matcher-provider'
 import { DevPagesNormalizers } from '../../normalizers/built/pages'
+import { isDynamicRoute } from '../../../../shared/lib/router/utils'
 
 export class DevPagesAPIRouteMatcherProvider extends FileCacheRouteMatcherProvider<PagesAPIRouteMatcher> {
   private readonly expression: RegExp
@@ -67,6 +68,7 @@ export class DevPagesAPIRouteMatcherProvider extends FileCacheRouteMatcherProvid
           new PagesAPILocaleRouteMatcher({
             kind: RouteKind.PAGES_API,
             pathname,
+            isDynamic: isDynamicRoute(pathname),
             page,
             bundlePath,
             filename,
@@ -78,6 +80,7 @@ export class DevPagesAPIRouteMatcherProvider extends FileCacheRouteMatcherProvid
           new PagesAPIRouteMatcher({
             kind: RouteKind.PAGES_API,
             pathname,
+            isDynamic: isDynamicRoute(pathname),
             page,
             bundlePath,
             filename,

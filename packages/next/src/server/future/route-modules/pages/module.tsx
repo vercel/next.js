@@ -2,9 +2,11 @@ import type { IncomingMessage, ServerResponse } from 'http'
 
 import type {
   GetServerSideProps,
+  GetServerSidePropsContext,
   GetServerSidePropsResult,
   GetStaticPaths,
   GetStaticProps,
+  GetStaticPropsContext,
   GetStaticPropsResult,
   PageConfig,
   PreviewData,
@@ -51,7 +53,6 @@ import {
   type RouteModuleHandleContext,
   type RouteModuleOptions,
 } from '../route-module'
-import { isDynamicRoute } from '../../../../shared/lib/router/utils'
 import logger from '../helpers/logging'
 import { ServerRouter } from './helpers/server-router'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
@@ -113,6 +114,7 @@ import { tryGetPreviewData } from './helpers/try-get-preview-data'
 import { createAMPValidator } from './helpers/amp-validator'
 import { createMockedResponse } from '../helpers/create-mocked-response'
 import { stripInternalQueries } from '../../../internal-utils'
+import { formatUrl } from '../../../../shared/lib/router/utils/format-url'
 
 const DOCTYPE = '<!DOCTYPE html>'
 
@@ -228,13 +230,12 @@ interface RouteRenderOptions {
   readonly runtime: ServerRuntime | undefined
 }
 
-type PagesRouteConfig = Pick<
+export type PagesRouteConfig = Pick<
   NextConfigComplete,
   | 'amp'
   | 'output'
   | 'images'
   | 'i18n'
-  | 'assetPrefix'
   | 'basePath'
   | 'optimizeFonts'
   | 'poweredByHeader'
@@ -242,6 +243,7 @@ type PagesRouteConfig = Pick<
   | 'assetPrefix'
   | 'crossOrigin'
   | 'publicRuntimeConfig'
+  | 'trailingSlash'
 > & {
   experimental: Pick<
     NextConfigComplete['experimental'],
@@ -287,9 +289,7 @@ export interface PagesRouteHandlerContext extends RouteModuleHandleContext {
     customServer: boolean | undefined
     distDir: string | undefined
     isDataReq: boolean | undefined
-    resolvedAsPath: string
     query: NextParsedUrlQuery
-    resolvedUrl: string
     err: Error | null | undefined
     locale: string | undefined
     defaultLocale: string | undefined
@@ -327,7 +327,6 @@ export class PagesRouteModule extends RouteModule<
   PagesRouteDefinition,
   PagesUserlandModule
 > {
-  public readonly isDynamic: boolean
   public readonly application: PagesRouteApplication
   public readonly amp: boolean | 'hybrid'
 
@@ -343,7 +342,6 @@ export class PagesRouteModule extends RouteModule<
     super({ config, definition, userland })
 
     this.renderOpts = renderOpts
-    this.isDynamic = isDynamicRoute(definition.page)
     this.application = application
     this.amp = userland.config?.amp ?? false
   }
@@ -416,7 +414,7 @@ export class PagesRouteModule extends RouteModule<
     }
 
     // Error when there is `getStaticPaths` and the route is not dynamic.
-    if (getStaticPaths && !this.isDynamic) {
+    if (getStaticPaths && !this.definition.isDynamic) {
       throw new Error(
         `getStaticPaths is only allowed for dynamic SSG pages and was found on "${this.definition.page}".\nRead more: https://nextjs.org/docs/messages/non-dynamic-getstaticpaths-usage`
       )
@@ -431,7 +429,7 @@ export class PagesRouteModule extends RouteModule<
 
     // Error if `getStaticProps` is used without `getStaticPaths` when the page
     // is dynamic.
-    if (this.isDynamic && getStaticProps && !getStaticPaths) {
+    if (this.definition.isDynamic && getStaticProps && !getStaticPaths) {
       throw new Error(
         `getStaticPaths is required for dynamic SSG pages and is missing for ${this.definition.page}.\nRead more: https://nextjs.org/docs/messages/invalid-getstaticpaths-value`
       )
@@ -771,10 +769,47 @@ export class PagesRouteModule extends RouteModule<
       !(typeof getServerSideProps === 'function') &&
       appHasDefaultGetInitialProps
 
-    // Pull some values off of the request context.
-    const { isLocaleDomain = false, resolvedUrl } = context.renderOpts
+    // We've validated that this URL is valid above this module.
+    const url = new URL(request.url)
 
-    let { query, resolvedAsPath } = context.renderOpts
+    // Get the original query params (only) by pulling all the parameters off of
+    // the query. These after this step will contain only the query parameters
+    // that were included in the URL.
+    const searchParams = new URLSearchParams(url.searchParams)
+    if (context.params) {
+      for (const key of Object.keys(context.params)) {
+        searchParams.delete(key)
+      }
+    }
+
+    const hadTrailingSlash =
+      url.pathname !== '/' && this.config?.trailingSlash === true
+
+    const origQuery = Object.fromEntries(searchParams.entries())
+    const resolvedUrl = formatUrl({
+      pathname: `${url.pathname}${hadTrailingSlash ? '/' : ''}`,
+      // make sure to only add query values from original URL
+      query: origQuery,
+    })
+
+    // For getServerSideProps and getInitialProps we need to ensure we use the
+    // original URL and not the resolved URL to prevent a hydration mismatch
+    // on asPath.
+    let resolvedAsPath =
+      typeof getServerSideProps === 'function' ||
+      typeof getInitialProps === 'function'
+        ? formatUrl({
+            // we use the original URL pathname less the _next/data prefix if
+            // present
+            pathname: `${url.pathname}${hadTrailingSlash ? '/' : ''}`,
+            query: origQuery,
+          })
+        : resolvedUrl
+
+    // Pull some values off of the request context.
+    const { isLocaleDomain = false } = context.renderOpts
+
+    let { query } = context.renderOpts
 
     // We only need to perform this transformation in development because when
     // we're in production we're serving the static files that are already
@@ -791,7 +826,7 @@ export class PagesRouteModule extends RouteModule<
 
         // Ensure trailing slash is present for non-dynamic auto-export pages.
         if (
-          !this.isDynamic &&
+          !this.definition.isDynamic &&
           request.url.endsWith('/') &&
           context.pathname !== '/'
         ) {
@@ -888,7 +923,7 @@ export class PagesRouteModule extends RouteModule<
     AppContainer = wrapAppContainer(AppContainer, {
       router,
       isAutoExport,
-      isDynamic: this.isDynamic,
+      isDynamic: this.definition.isDynamic,
     })
 
     // The `useId` API uses the path indexes to generate an ID for each node.
@@ -900,8 +935,6 @@ export class PagesRouteModule extends RouteModule<
 
     const AppContainerWithIsomorphicFiberStructure =
       createAppContainerWithIsomorphicFiberStructure(AppContainer)
-
-    debugger
 
     const ctx = {
       err: context.renderOpts.err,
@@ -977,6 +1010,21 @@ export class PagesRouteModule extends RouteModule<
         let data: GetStaticPropsResult<unknown> | RedirectPropsResult
 
         try {
+          const ctx: GetStaticPropsContext<ParsedUrlQuery, PreviewData> = {
+            locales: this.config?.i18n?.locales,
+            locale: context.renderOpts.locale,
+            defaultLocale: context.renderOpts.defaultLocale,
+          }
+
+          if (this.definition.isDynamic) {
+            ctx.params = context.params as ParsedUrlQuery
+          }
+
+          if (isPreview) {
+            ctx.preview = true
+            ctx.previewData = previewData
+          }
+
           data = await getTracer().trace(
             RenderSpan.getStaticProps,
             {
@@ -985,18 +1033,7 @@ export class PagesRouteModule extends RouteModule<
                 'next.route': context.pathname,
               },
             },
-            () =>
-              getStaticProps({
-                ...(this.isDynamic
-                  ? { params: query as ParsedUrlQuery }
-                  : undefined),
-                ...(isPreview
-                  ? { draftMode: true, preview: true, previewData }
-                  : undefined),
-                locales: this.config?.i18n?.locales,
-                locale: context.renderOpts.locale,
-                defaultLocale: context.renderOpts.defaultLocale,
-              })
+            () => getStaticProps(ctx)
           )
         } catch (err) {
           // Remove not found error code to prevent triggering legacy
@@ -1112,6 +1149,55 @@ export class PagesRouteModule extends RouteModule<
         }
 
         try {
+          let req: IncomingMessage & {
+            cookies: Partial<{ [key: string]: string }>
+          }
+          if (context.req) {
+            // FIXME: (wyattjoh) fix this type, mirroring https://github.com/vercel/next.js/blob/d9e3803e6481f772c6a2c553330cfc6bed759977/packages/next/src/server/web-server.ts#L379-L385
+            req = context.req as any
+          } else {
+            const searchParamsString = searchParams.toString()
+            const requestURL = searchParamsString
+              ? `${url.pathname}?${searchParamsString}`
+              : url.pathname
+
+            req = {
+              url: requestURL,
+              method: request.method,
+              cookies: request.cookies,
+              headers: request.headers,
+              body: request.body,
+              // FIXME: (wyattjoh) fix this type, mirroring https://github.com/vercel/next.js/blob/d9e3803e6481f772c6a2c553330cfc6bed759977/packages/next/src/server/web-server.ts#L379-L385
+            } as any
+          }
+
+          let res: ServerResponse
+          if (context.res) {
+            res = proxyResponse(context.res, proxyCtx)
+          } else {
+            // FIXME: (wyattjoh) fix this type, mirroring https://github.com/vercel/next.js/blob/d9e3803e6481f772c6a2c553330cfc6bed759977/packages/next/src/server/web-server.ts#L386
+            res = {} as any
+          }
+
+          const ctx: GetServerSidePropsContext<ParsedUrlQuery, PreviewData> = {
+            req,
+            res,
+            query,
+            resolvedUrl,
+            locales: this.config?.i18n?.locales,
+            locale: context.renderOpts.locale,
+            defaultLocale: context.renderOpts.defaultLocale,
+          }
+
+          if (this.definition.isDynamic) {
+            ctx.params = context.params
+          }
+
+          if (previewData !== false) {
+            ctx.preview = true
+            ctx.previewData = previewData
+          }
+
           data = await getTracer().trace(
             RenderSpan.getServerSideProps,
             {
@@ -1120,31 +1206,7 @@ export class PagesRouteModule extends RouteModule<
                 'next.route': this.definition.pathname,
               },
             },
-            async () =>
-              getServerSideProps({
-                req:
-                  context.req ??
-                  ({
-                    url: request.url,
-                    method: request.method,
-                    cookies: request.cookies,
-                    headers: request.headers,
-                    body: request.body,
-                    // FIXME: (wyattjoh) fix this type, mirroring https://github.com/vercel/next.js/blob/d9e3803e6481f772c6a2c553330cfc6bed759977/packages/next/src/server/web-server.ts#L379-L385
-                  } as any),
-                res: context.res
-                  ? proxyResponse(context.res, proxyCtx)
-                  : ({} as any),
-                query,
-                resolvedUrl,
-                ...(this.isDynamic ? { params: context.params } : undefined),
-                ...(previewData !== false
-                  ? { draftMode: true, preview: true, previewData: previewData }
-                  : undefined),
-                locales: this.config?.i18n?.locales,
-                locale: context.renderOpts.locale,
-                defaultLocale: context.renderOpts.defaultLocale,
-              })
+            async () => getServerSideProps(ctx)
           )
 
           // Mark that the `getServerSideProps` has resolved. This is used to
@@ -1248,13 +1310,6 @@ export class PagesRouteModule extends RouteModule<
       return new RenderResult(JSON.stringify(props), metadata)
     }
 
-    // FIXME: (wyattjoh) this shouldn't be required
-    // // We don't call getStaticProps or getServerSideProps while generating
-    // // the fallback so make sure to set pageProps to an empty object
-    // if (isFallback) {
-    //   props.pageProps = {}
-    // }
-
     // The response might be finished on the getInitialProps call.
     if (
       context.res &&
@@ -1268,7 +1323,7 @@ export class PagesRouteModule extends RouteModule<
     // Let's preload the build manifest for auto-export dynamic pages to speed
     // up hydrating query values.
     let filteredBuildManifest = context.manifests.build
-    if (isAutoExport && this.isDynamic) {
+    if (isAutoExport && this.definition.isDynamic) {
       // This code would be much cleaner using `immer` and directly pushing into
       // the result from `getPageFiles`, we could maybe consider that in the
       // future.

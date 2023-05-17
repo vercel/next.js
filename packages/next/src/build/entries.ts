@@ -1,7 +1,6 @@
 import type { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-loader'
 import type { MiddlewareLoaderOptions } from './webpack/loaders/next-middleware-loader'
 import type { EdgeSSRLoaderQuery } from './webpack/loaders/next-edge-ssr-loader'
-import type { EdgeRouteLoaderQuery } from './webpack/loaders/next-edge-route-loader'
 import type { NextConfigComplete } from '../server/config-shared'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type {
@@ -55,6 +54,8 @@ import { fileExists } from '../lib/file-exists'
 import { getRouteModuleLoader } from './webpack/loaders/next-route-module-loader'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { RouteKind } from '../server/future/route-kind'
+import { getEdgeRouteLoader } from './webpack/loaders/next-edge-route-loader'
+import { isDynamicRoute } from '../shared/lib/router/utils'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 export type EntryDefinition = ObjectValue<webpack.EntryObject>
@@ -294,19 +295,13 @@ export function getEdgeServerEntry(opts: {
       (opts.pagesType === 'pages' && !isAPIRoute(opts.page))) &&
     opts.appDirLoader
   ) {
-    const loaderParams: EdgeRouteLoaderQuery = {
+    return getEdgeRouteLoader({
       absolutePagePath: opts.absolutePagePath,
       page: opts.page,
       appDirLoader: Buffer.from(opts.appDirLoader).toString('base64'),
-      nextConfigOutput: opts.config.output,
       preferredRegion: opts.preferredRegion,
       pagesType: opts.pagesType,
-    }
-
-    return {
-      import: `next-edge-route-loader?${stringify(loaderParams)}!`,
-      // layer: WEBPACK_LAYERS.middleware,
-    }
+    })
   }
   if (isMiddlewareFile(opts.page)) {
     const loaderParams: MiddlewareLoaderOptions = {
@@ -577,6 +572,7 @@ export async function createEntrypoints(
               filename: `../${INSTRUMENTATION_HOOK_FILENAME}.js`,
             }
           } else if (!isAPIRoute(page)) {
+            const pathname = denormalizePagePath(page)
             server[serverBundlePath] = [
               getRouteModuleLoader({
                 config,
@@ -584,7 +580,8 @@ export async function createEntrypoints(
                 definition: {
                   kind: RouteKind.PAGES,
                   page,
-                  pathname: denormalizePagePath(page),
+                  pathname,
+                  isDynamic: isDynamicRoute(pathname),
                   filename: mappings[page],
                 },
                 pages,
@@ -614,13 +611,15 @@ export async function createEntrypoints(
               config,
             }).import
           } else if (pagesType === 'pages' && !isAPIRoute(page)) {
+            const pathname = denormalizePagePath(page)
             appDirLoader = getRouteModuleLoader({
               config,
               buildId: params.buildId,
               definition: {
                 kind: RouteKind.PAGES,
                 page,
-                pathname: denormalizePagePath(page),
+                pathname,
+                isDynamic: isDynamicRoute(pathname),
                 filename: mappings[page],
               },
               pages,

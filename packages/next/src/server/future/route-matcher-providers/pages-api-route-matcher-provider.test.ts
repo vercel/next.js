@@ -22,6 +22,7 @@ describe('PagesAPIRouteMatcherProvider', () => {
         route: {
           kind: RouteKind.PAGES_API,
           pathname: '/api/users/[id]',
+          isDynamic: true,
           filename: `<root>/${SERVER_DIRECTORY}/pages/api/users/[id].js`,
           page: '/api/users/[id]',
           bundlePath: 'pages/api/users/[id]',
@@ -32,6 +33,7 @@ describe('PagesAPIRouteMatcherProvider', () => {
         route: {
           kind: RouteKind.PAGES_API,
           pathname: '/api/users',
+          isDynamic: false,
           filename: `<root>/${SERVER_DIRECTORY}/pages/api/users.js`,
           page: '/api/users',
           bundlePath: 'pages/api/users',
@@ -42,6 +44,7 @@ describe('PagesAPIRouteMatcherProvider', () => {
         route: {
           kind: RouteKind.PAGES_API,
           pathname: '/api',
+          isDynamic: false,
           filename: `<root>/${SERVER_DIRECTORY}/pages/api.js`,
           page: '/api',
           bundlePath: 'pages/api',

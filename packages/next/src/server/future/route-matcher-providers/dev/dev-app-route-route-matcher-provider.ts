@@ -5,6 +5,7 @@ import { RouteKind } from '../../route-kind'
 import { FileCacheRouteMatcherProvider } from './file-cache-route-matcher-provider'
 import { isAppRouteRoute } from '../../../../lib/is-app-route-route'
 import { DevAppNormalizers } from '../../normalizers/built/app'
+import { isDynamicRoute } from '../../../../shared/lib/router/utils'
 
 export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvider<AppRouteRouteMatcher> {
   private readonly normalizers: {
@@ -43,6 +44,7 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
         new AppRouteRouteMatcher({
           kind: RouteKind.APP_ROUTE,
           pathname,
+          isDynamic: isDynamicRoute(pathname),
           page,
           bundlePath,
           filename,

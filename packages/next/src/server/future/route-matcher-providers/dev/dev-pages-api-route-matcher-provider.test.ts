@@ -25,6 +25,7 @@ describe('DevPagesAPIRouteMatcherProvider', () => {
         route: {
           kind: RouteKind.PAGES_API,
           pathname: '/api/other/route',
+          isDynamic: false,
           filename: `${dir}/api/other/route.ts`,
           page: '/api/other/route',
           bundlePath: 'pages/api/other/route',
@@ -35,6 +36,7 @@ describe('DevPagesAPIRouteMatcherProvider', () => {
         route: {
           kind: RouteKind.PAGES_API,
           pathname: '/api/other',
+          isDynamic: false,
           filename: `${dir}/api/other/index.ts`,
           page: '/api/other',
           bundlePath: 'pages/api/other',
@@ -45,6 +47,7 @@ describe('DevPagesAPIRouteMatcherProvider', () => {
         route: {
           kind: RouteKind.PAGES_API,
           pathname: '/api',
+          isDynamic: false,
           filename: `${dir}/api.ts`,
           page: '/api',
           bundlePath: 'pages/api',
@@ -55,6 +58,7 @@ describe('DevPagesAPIRouteMatcherProvider', () => {
         route: {
           kind: RouteKind.PAGES_API,
           pathname: '/api',
+          isDynamic: false,
           filename: `${dir}/api/index.ts`,
           page: '/api',
           bundlePath: 'pages/api',

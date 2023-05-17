@@ -97,7 +97,7 @@ export type AppRouteUserlandModule = AppRouteHandlers &
 /**
  * The configuration that we need from the next.config.js file.
  */
-type AppRouteConfig = Pick<NextConfigComplete, 'output'>
+export type AppRouteConfig = Pick<NextConfigComplete, 'output'>
 
 /**
  * AppRouteRouteModuleOptions is the options that are passed to the app route

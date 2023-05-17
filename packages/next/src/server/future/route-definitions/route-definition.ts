@@ -12,6 +12,12 @@ export interface RouteDefinition<K extends RouteKind = RouteKind> {
   readonly page: string
 
   /**
+   * If true, this route is a dynamic route with placeholders. If false, this
+   * route is a static route.
+   */
+  readonly isDynamic: boolean
+
+  /**
    * The pathname (including dynamic placeholders) for a route to resolve.
    */
   readonly pathname: string

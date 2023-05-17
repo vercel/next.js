@@ -200,6 +200,8 @@ export default async function exportPage({
           pagesDataDir,
           buildExport,
           renderOpts: {
+            runtimeConfig: renderOpts.runtimeConfig,
+            locales: renderOpts.locales,
             defaultLocale: renderOpts.defaultLocale,
             locale: renderOpts.locale,
             domainLocales: renderOpts.domainLocales,

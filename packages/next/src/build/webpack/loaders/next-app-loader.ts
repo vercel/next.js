@@ -1,6 +1,10 @@
 import type webpack from 'webpack'
 import type { ValueOf } from '../../../shared/lib/constants'
 import type { ModuleReference, CollectedMetadata } from './metadata/types'
+import type {
+  AppRouteConfig,
+  AppRouteRouteModuleOptions,
+} from '../../../server/future/route-modules/app-route/module'
 
 import path from 'path'
 import { stringify } from 'querystring'
@@ -20,9 +24,9 @@ import { isAppRouteRoute } from '../../../lib/is-app-route-route'
 import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
 import { NextConfigComplete } from '../../../server/config-shared'
 import { AppPathnameNormalizer } from '../../../server/future/normalizers/built/app/app-pathname-normalizer'
-import { AppRouteRouteModuleOptions } from '../../../server/future/route-modules/app-route/module'
 import { RouteKind } from '../../../server/future/route-kind'
 import { AppBundlePathNormalizer } from '../../../server/future/normalizers/built/app/app-bundle-path-normalizer'
+import { isDynamicRoute } from '../../../shared/lib/router/utils'
 
 export type AppLoaderOptions = {
   name: string
@@ -82,7 +86,7 @@ async function createAppRouteCode({
   pagePath: string
   resolver: PathResolver
   pageExtensions: string[]
-  config: NextConfigComplete
+  config: AppRouteConfig
 }): Promise<string> {
   // routePath is the path to the route handler file,
   // but could be aliased e.g. private-next-app-dir/favicon.ico
@@ -122,6 +126,7 @@ async function createAppRouteCode({
       kind: RouteKind.APP_ROUTE,
       page,
       pathname,
+      isDynamic: isDynamicRoute(pathname),
       filename,
       bundlePath,
     },
@@ -538,7 +543,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       pagePath,
       resolver,
       pageExtensions,
-      config,
+      config: { output: config.output },
     })
   }
 

@@ -1,16 +1,20 @@
-import type { NextConfig } from '../../../server/config-shared'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 
 import { getModuleBuildInfo } from './get-module-build-info'
 import { stringifyRequest } from '../stringify-request'
+import { stringify } from 'querystring'
+import { EdgeRouteModuleWrapOptions } from '../../../server/web/edge-route-module-wrapper'
 
-export type EdgeRouteLoaderQuery = {
+type EdgeRouteLoaderQuery = {
   absolutePagePath: string
   page: string
   appDirLoader: string
   preferredRegion: string | string[] | undefined
-  nextConfigOutput: NextConfig['output']
   pagesType: 'app' | 'pages'
+}
+
+export function getEdgeRouteLoader(options: EdgeRouteLoaderQuery): string {
+  return `next-edge-route-loader?${stringify(options)}!`
 }
 
 const EdgeRouteLoader: webpack.LoaderDefinitionFunction<EdgeRouteLoaderQuery> =
@@ -47,6 +51,10 @@ const EdgeRouteLoader: webpack.LoaderDefinitionFunction<EdgeRouteLoaderQuery> =
       stringifiedPagePath.length - 1
     )}?__edge_ssr_entry__`
 
+    const options: EdgeRouteModuleWrapOptions = {
+      page,
+    }
+
     return `
     import { EdgeRouteModuleWrapper } from 'next/dist/esm/server/web/edge-route-module-wrapper'
     import * as module from ${JSON.stringify(modulePath)}
@@ -54,7 +62,10 @@ const EdgeRouteLoader: webpack.LoaderDefinitionFunction<EdgeRouteLoaderQuery> =
     export const ComponentMod = module
     export const routeModule = module.routeModule
 
-    export default EdgeRouteModuleWrapper.wrap(module.routeModule)`
+    export default EdgeRouteModuleWrapper.wrap(
+      module.routeModule,
+      ${JSON.stringify(options)},
+    )`
   }
 
 export default EdgeRouteLoader

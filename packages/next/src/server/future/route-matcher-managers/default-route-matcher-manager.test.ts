@@ -50,6 +50,7 @@ describe('DefaultRouteMatcherManager', () => {
         bundlePath: '',
         page: '',
         pathname: '/some/path',
+        isDynamic: false,
         i18n: {
           locale: 'nl-NL',
         },
@@ -70,6 +71,7 @@ describe('DefaultRouteMatcherManager', () => {
         bundlePath: '',
         page: '',
         pathname: '/some/path',
+        isDynamic: false,
         i18n: {
           locale: 'en-US',
         },
@@ -89,6 +91,7 @@ describe('DefaultRouteMatcherManager', () => {
         bundlePath: '',
         page: '',
         pathname: '/some/path',
+        isDynamic: false,
         i18n: {
           locale: 'en-US',
         },
@@ -119,6 +122,7 @@ describe('DefaultRouteMatcherManager', () => {
       bundlePath: '',
       page: '',
       pathname: '/some/path',
+      isDynamic: false,
       i18n: {
         locale: 'en-US',
       },
@@ -149,6 +153,7 @@ describe('DefaultRouteMatcherManager', () => {
       bundlePath: '',
       page: '',
       pathname: '/some/path',
+      isDynamic: false,
       appPaths: [],
     }
     const matcher = new RouteMatcher(definition)

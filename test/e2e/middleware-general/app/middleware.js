@@ -248,7 +248,7 @@ export async function middleware(request) {
     return NextResponse.rewrite(url)
   }
 
-  if (url.pathname === '/error-throw' && request.__isData) {
+  if (url.pathname === '/error-throw' && request.headers.has('x-nextjs-data')) {
     throw new Error('test error')
   }
 

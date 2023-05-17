@@ -26,16 +26,16 @@ import { normalizeRscPath } from '../shared/lib/router/utils/app-paths'
 import { NEXT_QUERY_PARAM_PREFIX } from '../lib/constants'
 
 export function normalizeVercelUrl(
-  req: BaseNextRequest | IncomingMessage,
+  url: string,
   trustQuery: boolean,
   paramKeys?: string[],
   pageIsDynamic?: boolean,
   defaultRouteRegex?: ReturnType<typeof getNamedRouteRegex> | undefined
-) {
+): string {
   // make sure to normalize req.url on Vercel to strip dynamic params
   // from the query which are added during routing
   if (pageIsDynamic && trustQuery && defaultRouteRegex) {
-    const _parsedUrl = parseUrl(req.url!, true)
+    const _parsedUrl = parseUrl(url, true)
     delete (_parsedUrl as any).search
 
     for (const key of Object.keys(_parsedUrl.query)) {
@@ -47,8 +47,10 @@ export function normalizeVercelUrl(
         delete _parsedUrl.query[key]
       }
     }
-    req.url = formatUrl(_parsedUrl)
+    return formatUrl(_parsedUrl)
   }
+
+  return url
 }
 
 export function interpolateDynamicPath(
@@ -580,14 +582,16 @@ export function getUtils({
       req: BaseNextRequest | IncomingMessage,
       trustQuery: boolean,
       paramKeys?: string[]
-    ) =>
-      normalizeVercelUrl(
-        req,
+    ) => {
+      req.url = normalizeVercelUrl(
+        // TODO: this mirrors existing behavior but we should fix this type
+        req.url!,
         trustQuery,
         paramKeys,
         pageIsDynamic,
         defaultRouteRegex
-      ),
+      )
+    },
     interpolateDynamicPath: (
       pathname: string,
       params: Record<string, undefined | string | string[]>

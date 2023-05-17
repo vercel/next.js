@@ -1277,9 +1277,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const is500Page = pathname === '/500'
     const isAppPath = components.isAppPath
     const hasGetServerSideProps = !!components.getServerSideProps
-    let hasGetStaticPaths = !!components.getStaticPaths
 
-    const hasGetInitialProps = !!components.Component?.getInitialProps
+    let hasGetStaticPaths = !!components.getStaticPaths
     let hasGetStaticProps = !!components.getStaticProps
 
     // Compute the iSSG cache key. We use the rewroteUrl since
@@ -1604,16 +1603,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const supportsDynamicHTML =
         (!isDataReq && opts.dev) || !(hasGetStaticProps || hasGetStaticPaths)
 
-      const origQuery = parseUrl(req.url || '', true).query
-
-      // clear any dynamic route params so they aren't in
-      // the resolvedUrl
-      if (opts.params) {
-        Object.keys(opts.params).forEach((key) => {
-          delete origQuery[key]
-        })
-      }
-
       // TODO: (wyattjoh) improve the match detection
       const match = getRequestMeta(req, '_nextMatch')
       if (
@@ -1623,28 +1612,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         // TODO: (wyattjoh) remove this once we've migrated to the new route manager system completely
         components.ComponentMod?.routeModule
       ) {
-        const hadTrailingSlash =
-          urlPathname !== '/' && this.nextConfig.trailingSlash
-
-        const resolvedUrl = formatUrl({
-          pathname: `${resolvedUrlPathname}${hadTrailingSlash ? '/' : ''}`,
-          // make sure to only add query values from original URL
-          query: origQuery,
-        })
-
-        // For getServerSideProps and getInitialProps we need to ensure we use the
-        // original URL and not the resolved URL to prevent a hydration mismatch
-        // on asPath.
-        const resolvedAsPath =
-          hasGetServerSideProps || hasGetInitialProps
-            ? formatUrl({
-                // we use the original URL pathname less the _next/data prefix if
-                // present
-                pathname: `${urlPathname}${hadTrailingSlash ? '/' : ''}`,
-                query: origQuery,
-              })
-            : resolvedUrl
-
         const context: RouteHandlerManagerContext = {
           params: match?.params ?? opts.params,
           export: false,
@@ -1682,8 +1649,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             err: opts.err,
             isDataReq,
             query,
-            resolvedAsPath,
-            resolvedUrl,
             defaultLocale: opts.defaultLocale,
             isLocaleDomain: getRequestMeta(req, '__nextIsLocaleDomain'),
             locale: opts.locale,

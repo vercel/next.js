@@ -8,11 +8,12 @@ import {
 } from './helpers/manifest-loaders/manifest-loader'
 import { ManifestRouteMatcherProvider } from './manifest-route-matcher-provider'
 import { AppNormalizers } from '../normalizers/built/app'
+import { isDynamicRoute } from '../../../shared/lib/router/utils'
 
 export class AppRouteRouteMatcherProvider extends ManifestRouteMatcherProvider<AppRouteRouteMatcher> {
   private readonly normalizers: AppNormalizers
 
-  constructor(distDir: string, manifestLoader: ManifestLoader) {
+  public constructor(distDir: string, manifestLoader: ManifestLoader) {
     super(APP_PATHS_MANIFEST, manifestLoader)
 
     this.normalizers = new AppNormalizers(distDir)
@@ -35,6 +36,7 @@ export class AppRouteRouteMatcherProvider extends ManifestRouteMatcherProvider<A
         new AppRouteRouteMatcher({
           kind: RouteKind.APP_ROUTE,
           pathname,
+          isDynamic: isDynamicRoute(pathname),
           page,
           bundlePath,
           filename,

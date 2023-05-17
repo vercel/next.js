@@ -23,6 +23,7 @@ describe('AppRouteRouteMatcherProvider', () => {
         route: {
           kind: RouteKind.APP_ROUTE,
           pathname: '/',
+          isDynamic: false,
           filename: `<root>/${SERVER_DIRECTORY}/app/route.js`,
           page: '/route',
           bundlePath: 'app/route',
@@ -33,6 +34,7 @@ describe('AppRouteRouteMatcherProvider', () => {
         route: {
           kind: RouteKind.APP_ROUTE,
           pathname: '/users/[id]',
+          isDynamic: true,
           filename: `<root>/${SERVER_DIRECTORY}/app/users/[id]/route.js`,
           page: '/users/[id]/route',
           bundlePath: 'app/users/[id]/route',
@@ -43,6 +45,7 @@ describe('AppRouteRouteMatcherProvider', () => {
         route: {
           kind: RouteKind.APP_ROUTE,
           pathname: '/users',
+          isDynamic: false,
           filename: `<root>/${SERVER_DIRECTORY}/app/users/route.js`,
           page: '/users/route',
           bundlePath: 'app/users/route',

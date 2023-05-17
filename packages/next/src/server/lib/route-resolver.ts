@@ -1,24 +1,24 @@
 import type { IncomingMessage, ServerResponse } from 'http'
-import { join } from 'path'
+import type { NextConfig } from '../config'
+import type { RouteDefinition } from '../future/route-definitions/route-definition'
+import type { RouteMatch } from '../future/route-matches/route-match'
+import type { PageChecker, Route } from '../router'
+import type { BaseNextRequest } from '../base-http'
 
+import { join } from 'path'
 import {
   StackFrame,
   parse as parseStackTrace,
 } from 'next/dist/compiled/stacktrace-parser'
-
-import type { NextConfig } from '../config'
-import type { RouteDefinition } from '../future/route-definitions/route-definition'
-import { RouteKind } from '../future/route-kind'
-import { DefaultRouteMatcherManager } from '../future/route-matcher-managers/default-route-matcher-manager'
-import type { RouteMatch } from '../future/route-matches/route-match'
-import type { PageChecker, Route } from '../router'
 import { getMiddlewareMatchers } from '../../build/analysis/get-page-static-info'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import {
   CLIENT_STATIC_FILES_PATH,
   DEV_CLIENT_PAGES_MANIFEST,
 } from '../../shared/lib/constants'
-import type { BaseNextRequest } from '../base-http'
+import { RouteKind } from '../future/route-kind'
+import { DefaultRouteMatcherManager } from '../future/route-matcher-managers/default-route-matcher-manager'
+import { isDynamicRoute } from '../../shared/lib/router/utils'
 
 export type MiddlewareConfig = {
   matcher: string[]
@@ -66,6 +66,7 @@ class DevRouteMatcherManager extends DefaultRouteMatcherManager {
           kind: RouteKind.PAGES,
           page: '',
           pathname,
+          isDynamic: isDynamicRoute(pathname),
           filename: '',
           bundlePath: '',
         },

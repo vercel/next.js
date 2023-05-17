@@ -4,14 +4,17 @@ import type { RouteModule } from '../future/route-modules/route-module'
 import type { NextRequest } from './spec-extension/request'
 
 import { adapter, enhanceGlobals, type AdapterOptions } from './adapter'
-import { IncrementalCache } from '../lib/incremental-cache'
+
 enhanceGlobals()
 
+import { IncrementalCache } from '../lib/incremental-cache'
 import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
 import { RouteMatcher } from '../future/route-matchers/route-matcher'
 import { ManifestLoader } from '../future/route-modules/pages/helpers/load-manifests'
+import { getNamedRouteRegex } from '../../shared/lib/router/utils/route-regex'
+import { interpolateDynamicPath } from '../server-utils'
 
-type WrapOptions = Partial<Pick<AdapterOptions, 'page'>>
+export type EdgeRouteModuleWrapOptions = Pick<AdapterOptions, 'page'>
 
 /**
  * EdgeRouteModuleWrapper is a wrapper around a route module.
@@ -45,7 +48,7 @@ export class EdgeRouteModuleWrapper {
    */
   public static wrap(
     routeModule: RouteModule<RouteDefinition>,
-    options: WrapOptions = {}
+    options: EdgeRouteModuleWrapOptions
   ) {
     // Create the module wrapper.
     const wrapper = new EdgeRouteModuleWrapper(routeModule)
@@ -53,7 +56,9 @@ export class EdgeRouteModuleWrapper {
     // Return the wrapping function.
     return (opts: AdapterOptions) => {
       return adapter({
+        // Merge in the options passed to this request...
         ...opts,
+        // Merge in the options passed to the wrap method...
         ...options,
         IncrementalCache,
         // Bind the handler method to the wrapper so it still has context.
@@ -65,12 +70,43 @@ export class EdgeRouteModuleWrapper {
   private async handler(request: NextRequest): Promise<Response> {
     const url = new URL(request.url)
 
-    // Get the pathname for the matcher. Pathnames should not have trailing
-    // slashes for matching.
-    const pathname = removeTrailingSlash(url.pathname)
-
     // Get the query string from the URL.
     const query = Object.fromEntries(url.searchParams.entries())
+
+    // Get the pathname for the matcher. Pathnames should not have trailing
+    // slashes for matching.
+    let pathname = removeTrailingSlash(url.pathname)
+
+    // Interpolate query information into page for dynamic route so that
+    // rewritten paths are handled properly.
+    if (pathname !== this.routeModule.definition.pathname) {
+      // This occurs when the pathname is rewritten by the router.
+      pathname = this.routeModule.definition.pathname
+
+      if (this.routeModule.definition.isDynamic) {
+        const routeRegex = getNamedRouteRegex(pathname, false)
+        pathname = interpolateDynamicPath(pathname, query, routeRegex)
+
+        // FIXME: (wyattjoh) we can't set the URL here, check to see if we can set it another way
+        // request.url = normalizeVercelUrl(
+        //   request.url,
+        //   true,
+        //   Object.keys(routeRegex.routeKeys),
+        //   true,
+        //   routeRegex
+        // )
+      }
+    }
+
+    // Check if this is a data request.
+    const isDataReq = request.headers.has('x-nextjs-data')
+
+    // Grab the locale information from the `nextUrl` property set in the
+    // adapter.
+    const locale: string | undefined = request.nextUrl.locale
+    const defaultLocale: string | undefined = request.nextUrl.defaultLocale
+    const isLocaleDomain: boolean | undefined =
+      request.nextUrl.domainLocale !== undefined
 
     // Get the match for this request.
     const match = this.matcher.match(pathname)
@@ -95,16 +131,10 @@ export class EdgeRouteModuleWrapper {
       headers: undefined,
       renderOpts: {
         query,
-
-        // FIXME: (wyattjoh) refer to base server for correct implementation
-        resolvedAsPath: url.pathname,
-
-        // FIXME: (wyattjoh) implement
-        isDataReq: undefined,
-        resolvedUrl: '',
-        locale: undefined,
-        defaultLocale: undefined,
-        isLocaleDomain: undefined,
+        isDataReq,
+        defaultLocale,
+        locale,
+        isLocaleDomain,
 
         // Not enabled/available in edge.
         req: undefined,

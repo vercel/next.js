@@ -1,7 +1,6 @@
 import type { RouteMatch } from '../route-matches/route-match'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 
-import { isDynamicRoute } from '../../../shared/lib/router/utils'
 import {
   getRouteMatcher,
   type RouteMatchFn,
@@ -22,8 +21,8 @@ export class RouteMatcher<D extends RouteDefinition = RouteDefinition> {
    */
   public duplicated?: Array<RouteMatcher>
 
-  constructor(public readonly definition: D) {
-    if (isDynamicRoute(definition.pathname)) {
+  public constructor(public readonly definition: Readonly<D>) {
+    if (definition.isDynamic) {
       this.dynamic = getRouteMatcher(getRouteRegex(definition.pathname))
     }
   }
@@ -35,10 +34,6 @@ export class RouteMatcher<D extends RouteDefinition = RouteDefinition> {
    */
   public get identity(): string {
     return this.definition.pathname
-  }
-
-  public get isDynamic() {
-    return this.dynamic !== undefined
   }
 
   public match(pathname: string): RouteMatch<D> | null {

@@ -4,6 +4,7 @@ import { RouteKind } from '../../route-kind'
 import { FileCacheRouteMatcherProvider } from './file-cache-route-matcher-provider'
 
 import { DevAppNormalizers } from '../../normalizers/built/app'
+import { isDynamicRoute } from '../../../../shared/lib/router/utils'
 
 export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvider<AppPageRouteMatcher> {
   private readonly expression: RegExp
@@ -69,6 +70,7 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
         new AppPageRouteMatcher({
           kind: RouteKind.APP_PAGE,
           pathname,
+          isDynamic: isDynamicRoute(pathname),
           page,
           bundlePath,
           filename,

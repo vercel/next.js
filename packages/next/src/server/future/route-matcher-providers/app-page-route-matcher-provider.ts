@@ -1,6 +1,7 @@
 import { isAppPageRoute } from '../../../lib/is-app-page-route'
 
 import { APP_PATHS_MANIFEST } from '../../../shared/lib/constants'
+import { isDynamicRoute } from '../../../shared/lib/router/utils'
 import { AppNormalizers } from '../normalizers/built/app'
 import { RouteKind } from '../route-kind'
 import { AppPageRouteMatcher } from '../route-matchers/app-page-route-matcher'
@@ -13,7 +14,7 @@ import { ManifestRouteMatcherProvider } from './manifest-route-matcher-provider'
 export class AppPageRouteMatcherProvider extends ManifestRouteMatcherProvider<AppPageRouteMatcher> {
   private readonly normalizers: AppNormalizers
 
-  constructor(distDir: string, manifestLoader: ManifestLoader) {
+  public constructor(distDir: string, manifestLoader: ManifestLoader) {
     super(APP_PATHS_MANIFEST, manifestLoader)
 
     this.normalizers = new AppNormalizers(distDir)
@@ -47,6 +48,7 @@ export class AppPageRouteMatcherProvider extends ManifestRouteMatcherProvider<Ap
         new AppPageRouteMatcher({
           kind: RouteKind.APP_PAGE,
           pathname,
+          isDynamic: isDynamicRoute(pathname),
           page,
           bundlePath,
           filename,

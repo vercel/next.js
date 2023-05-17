@@ -2,14 +2,15 @@ import type webpack from 'webpack'
 import type { PagesRouteModuleOptions } from '../../../server/future/route-modules/pages/module'
 import type { RouteDefinition } from '../../../server/future/route-definitions/route-definition'
 import type { ServerRuntime } from '../../../../types'
+import type { RouteModuleConfig } from '../../../server/future/route-modules/config'
 
 import { stringify } from 'querystring'
 import { RouteKind } from '../../../server/future/route-kind'
 import { PagesBundlePathNormalizer } from '../../../server/future/normalizers/built/pages/pages-bundle-path-normalizer'
 import { AppBundlePathNormalizer } from '../../../server/future/normalizers/built/app/app-bundle-path-normalizer'
 import { PagesRouteDefinition } from '../../../server/future/route-definitions/pages-route-definition'
-import { NextConfigComplete } from '../../../server/config-shared'
 import { getModuleBuildInfo } from './get-module-build-info'
+import { NextConfigComplete } from '../../../server/config-shared'
 
 type NextRouteModuleLoaderOptions = {
   definition: string
@@ -37,7 +38,7 @@ function getBundlePath(kind: RouteKind, page: string): string {
 
 export const getRouteModuleLoader = ({
   pages,
-  config,
+  // config,
   definition,
   ...options
 }: {
@@ -48,6 +49,35 @@ export const getRouteModuleLoader = ({
   pages: { [page: string]: string }
   preferredRegion: string | string[] | undefined
 }) => {
+  // This represents the subset of the NextConfigComplete that is needed for
+  // the route module. This is used to reduce the size of the loader. If this
+  // type is erroring, it's likely because the RouteModuleConfig or
+  // NextConfigComplete type has changed and this type needs to be updated.
+  const config: RouteModuleConfig | undefined = options.config
+    ? {
+        amp: options.config.amp,
+        output: options.config.output,
+        images: options.config.images,
+        i18n: options.config.i18n,
+        basePath: options.config.basePath,
+        optimizeFonts: options.config.optimizeFonts,
+        poweredByHeader: options.config.poweredByHeader,
+        generateEtags: options.config.generateEtags,
+        assetPrefix: options.config.assetPrefix,
+        crossOrigin: options.config.crossOrigin,
+        publicRuntimeConfig: options.config.publicRuntimeConfig,
+        trailingSlash: options.config.trailingSlash,
+        experimental: {
+          appDir: options.config.experimental.appDir,
+          optimizeCss: options.config.experimental.optimizeCss,
+          strictNextHead: options.config.experimental.strictNextHead,
+          amp: options.config.experimental.amp,
+          nextScriptWorkers: options.config.experimental.nextScriptWorkers,
+          largePageDataBytes: options.config.experimental.largePageDataBytes,
+        },
+      }
+    : undefined
+
   const params: NextRouteModuleLoaderOptions = {
     ...options,
     config: config
@@ -105,7 +135,7 @@ const loader: webpack.LoaderDefinitionFunction<NextRouteModuleLoaderOptions> =
       preferredRegion,
     } = this.getOptions()
 
-    const config: NextConfigComplete | undefined = configBase64
+    const config: RouteModuleConfig | undefined = configBase64
       ? JSON.parse(Buffer.from(configBase64, 'base64').toString('utf-8'))
       : undefined
     const definition: PagesRouteDefinition = JSON.parse(

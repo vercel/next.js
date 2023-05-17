@@ -117,10 +117,12 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
       this.previousMatchers = matchers
 
       // For matchers that are for static routes, filter them now.
-      this.matchers.static = matchers.filter((matcher) => !matcher.isDynamic)
+      this.matchers.static = matchers.filter(
+        (matcher) => !matcher.definition.isDynamic
+      )
 
       // For matchers that are for dynamic routes, filter them and sort them now.
-      const dynamic = matchers.filter((matcher) => matcher.isDynamic)
+      const dynamic = matchers.filter((matcher) => matcher.definition.isDynamic)
 
       // As `getSortedRoutes` only takes an array of strings, we need to create
       // a map of the pathnames (used for sorting) and the matchers. When we

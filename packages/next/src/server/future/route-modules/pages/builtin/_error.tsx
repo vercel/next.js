@@ -15,6 +15,7 @@ export const routeModule = new PagesRouteModule({
     page: '/_error',
     // FIXME: (wyattjoh) verify this is correct
     pathname: '/_error',
+    isDynamic: false,
     // FIXME: (wyattjoh) verify this is correct
     filename: path.join('src', 'pages', '_error.tsx'),
     bundlePath: '',

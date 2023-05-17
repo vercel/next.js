@@ -72,20 +72,24 @@ describe('Middleware Runtime', () => {
   function runTests({ i18n }: { i18n?: boolean }) {
     it('should work with notFound: true correctly', async () => {
       const browser = await next.browser('/ssr-page')
-      await browser.eval('window.beforeNav = 1')
-      await browser.eval('window.next.router.push("/ssg/not-found-1")')
+      try {
+        await browser.eval('window.beforeNav = 1')
+        await browser.eval('window.next.router.push("/ssg/not-found-1")')
 
-      await check(
-        () => browser.eval('document.documentElement.innerHTML'),
-        /This page could not be found/
-      )
-      expect(await browser.eval('window.beforeNav')).toBe(1)
+        await check(
+          () => browser.eval('document.documentElement.innerHTML'),
+          /This page could not be found/
+        )
+        expect(await browser.eval('window.beforeNav')).toBe(1)
 
-      await browser.refresh()
-      await check(
-        () => browser.eval('document.documentElement.innerHTML'),
-        /This page could not be found/
-      )
+        await browser.refresh()
+        await check(
+          () => browser.eval('document.documentElement.innerHTML'),
+          /This page could not be found/
+        )
+      } finally {
+        await browser.close()
+      }
     })
 
     it('should be able to rewrite on _next/static/chunks/pages/ 404', async () => {

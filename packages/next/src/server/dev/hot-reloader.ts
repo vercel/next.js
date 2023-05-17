@@ -66,6 +66,7 @@ import { parseVersionInfo, VersionInfo } from './parse-version-info'
 import { isAPIRoute } from '../../lib/is-api-route'
 import { getRouteModuleLoader } from '../../build/webpack/loaders/next-route-module-loader'
 import { RouteKind } from '../future/route-kind'
+import { isDynamicRoute } from '../../shared/lib/router/utils'
 
 function diff(a: Set<any>, b: Set<any>) {
   return new Set([...a].filter((v) => !b.has(v)))
@@ -711,13 +712,15 @@ export default class HotReloader {
                     config: this.config,
                   }).import
                 } else if (!isAPIRoute(page) && !isMiddlewareFile(page)) {
+                  const pathname = denormalizePagePath(page)
                   appDirLoader = getRouteModuleLoader({
                     config: this.config,
                     buildId: this.buildId,
                     definition: {
                       kind: RouteKind.PAGES,
                       page,
-                      pathname: denormalizePagePath(page),
+                      pathname,
+                      isDynamic: isDynamicRoute(pathname),
                       filename: posix.join(
                         PAGES_DIR_ALIAS,
                         relative(this.pagesDir!, entryData.absolutePagePath)
@@ -815,13 +818,15 @@ export default class HotReloader {
                 } else if (isAPIRoute(page) || isMiddlewareFile(page)) {
                   value = relativeRequest
                 } else {
+                  const pathname = denormalizePagePath(page)
                   value = getRouteModuleLoader({
                     config: this.config,
                     buildId: this.buildId,
                     definition: {
                       kind: RouteKind.PAGES,
                       page,
-                      pathname: denormalizePagePath(page),
+                      pathname,
+                      isDynamic: isDynamicRoute(pathname),
                       filename: posix.join(
                         PAGES_DIR_ALIAS,
                         relative(this.pagesDir!, entryData.absolutePagePath)

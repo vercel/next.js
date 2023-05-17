@@ -12,11 +12,12 @@ import {
 import { ManifestRouteMatcherProvider } from './manifest-route-matcher-provider'
 import { I18NProvider } from '../helpers/i18n-provider'
 import { PagesNormalizers } from '../normalizers/built/pages'
+import { isDynamicRoute } from '../../../shared/lib/router/utils'
 
 export class PagesRouteMatcherProvider extends ManifestRouteMatcherProvider<PagesRouteMatcher> {
   private readonly normalizers: PagesNormalizers
 
-  constructor(
+  public constructor(
     distDir: string,
     manifestLoader: ManifestLoader,
     private readonly i18nProvider?: I18NProvider
@@ -55,6 +56,7 @@ export class PagesRouteMatcherProvider extends ManifestRouteMatcherProvider<Page
           new PagesLocaleRouteMatcher({
             kind: RouteKind.PAGES,
             pathname,
+            isDynamic: isDynamicRoute(pathname),
             page,
             bundlePath: this.normalizers.bundlePath.normalize(page),
             filename: this.normalizers.filename.normalize(manifest[page]),
@@ -69,6 +71,7 @@ export class PagesRouteMatcherProvider extends ManifestRouteMatcherProvider<Page
             kind: RouteKind.PAGES,
             pathname: page,
             page,
+            isDynamic: isDynamicRoute(page),
             bundlePath: this.normalizers.bundlePath.normalize(page),
             filename: this.normalizers.filename.normalize(manifest[page]),
           })

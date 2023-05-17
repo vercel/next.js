@@ -25,6 +25,7 @@ describe('DevAppPageRouteMatcher', () => {
         route: {
           kind: RouteKind.APP_PAGE,
           pathname: '/about',
+          isDynamic: false,
           filename: `${dir}/(marketing)/about/page.ts`,
           page: '/(marketing)/about/page',
           bundlePath: 'app/(marketing)/about/page',
@@ -36,6 +37,7 @@ describe('DevAppPageRouteMatcher', () => {
         route: {
           kind: RouteKind.APP_PAGE,
           pathname: '/about',
+          isDynamic: false,
           filename: `${dir}/(marketing)/about/page.ts`,
           page: '/(marketing)/about/page',
           bundlePath: 'app/(marketing)/about/page',
@@ -47,6 +49,7 @@ describe('DevAppPageRouteMatcher', () => {
         route: {
           kind: RouteKind.APP_PAGE,
           pathname: '/some/other',
+          isDynamic: false,
           filename: `${dir}/some/other/page.ts`,
           page: '/some/other/page',
           bundlePath: 'app/some/other/page',
@@ -58,6 +61,7 @@ describe('DevAppPageRouteMatcher', () => {
         route: {
           kind: RouteKind.APP_PAGE,
           pathname: '/',
+          isDynamic: false,
           filename: `${dir}/page.ts`,
           page: '/page',
           bundlePath: 'app/page',

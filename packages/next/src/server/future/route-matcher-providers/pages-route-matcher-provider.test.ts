@@ -37,6 +37,7 @@ describe('PagesRouteMatcherProvider', () => {
           {
             kind: RouteKind.PAGES,
             pathname: '/blog/[slug]',
+            isDynamic: true,
             filename: `<root>/${SERVER_DIRECTORY}/pages/blog/[slug].js`,
             page: '/blog/[slug]',
             bundlePath: 'pages/blog/[slug]',
@@ -45,6 +46,7 @@ describe('PagesRouteMatcherProvider', () => {
           {
             kind: RouteKind.PAGES,
             pathname: '/',
+            isDynamic: false,
             filename: `<root>/${SERVER_DIRECTORY}/pages/en-US.html`,
             page: '/en-US',
             bundlePath: 'pages/en-US',
@@ -55,6 +57,7 @@ describe('PagesRouteMatcherProvider', () => {
           {
             kind: RouteKind.PAGES,
             pathname: '/',
+            isDynamic: false,
             filename: `<root>/${SERVER_DIRECTORY}/pages/fr.html`,
             page: '/fr',
             bundlePath: 'pages/fr',
@@ -65,6 +68,7 @@ describe('PagesRouteMatcherProvider', () => {
           {
             kind: RouteKind.PAGES,
             pathname: '/',
+            isDynamic: false,
             filename: `<root>/${SERVER_DIRECTORY}/pages/nl-NL.html`,
             page: '/nl-NL',
             bundlePath: 'pages/nl-NL',
@@ -75,6 +79,7 @@ describe('PagesRouteMatcherProvider', () => {
           {
             kind: RouteKind.PAGES,
             pathname: '/404',
+            isDynamic: false,
             filename: `<root>/${SERVER_DIRECTORY}/pages/en-US/404.html`,
             page: '/en-US/404',
             bundlePath: 'pages/en-US/404',
@@ -85,6 +90,7 @@ describe('PagesRouteMatcherProvider', () => {
           {
             kind: RouteKind.PAGES,
             pathname: '/404',
+            isDynamic: false,
             filename: `<root>/${SERVER_DIRECTORY}/pages/fr/404.html`,
             page: '/fr/404',
             bundlePath: 'pages/fr/404',
@@ -95,6 +101,7 @@ describe('PagesRouteMatcherProvider', () => {
           {
             kind: RouteKind.PAGES,
             pathname: '/404',
+            isDynamic: false,
             filename: `<root>/${SERVER_DIRECTORY}/pages/nl-NL/404.html`,
             page: '/nl-NL/404',
             bundlePath: 'pages/nl-NL/404',
@@ -138,6 +145,7 @@ describe('PagesRouteMatcherProvider', () => {
         route: {
           kind: RouteKind.PAGES,
           pathname: '/users/[id]',
+          isDynamic: true,
           filename: `<root>/${SERVER_DIRECTORY}/pages/users/[id].js`,
           page: '/users/[id]',
           bundlePath: 'pages/users/[id]',
@@ -148,6 +156,7 @@ describe('PagesRouteMatcherProvider', () => {
         route: {
           kind: RouteKind.PAGES,
           pathname: '/users',
+          isDynamic: false,
           filename: `<root>/${SERVER_DIRECTORY}/pages/users.js`,
           page: '/users',
           bundlePath: 'pages/users',
@@ -158,6 +167,7 @@ describe('PagesRouteMatcherProvider', () => {
         route: {
           kind: RouteKind.PAGES,
           pathname: '/',
+          isDynamic: false,
           filename: `<root>/${SERVER_DIRECTORY}/pages/index.js`,
           page: '/',
           bundlePath: 'pages/index',
