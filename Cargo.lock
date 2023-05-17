@@ -3252,6 +3252,7 @@ dependencies = [
  "serde",
  "serde_json",
  "swc_core",
+ "thiserror",
  "turbo-tasks",
  "turbo-tasks-fs",
  "turbopack-binding",
