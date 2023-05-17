@@ -264,6 +264,9 @@ const configSchema = {
         cpus: {
           type: 'number',
         },
+        memoryBasedWorkersCount: {
+          type: 'boolean',
+        },
         craCompat: {
           type: 'boolean',
         },
