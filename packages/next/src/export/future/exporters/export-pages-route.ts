@@ -211,7 +211,7 @@ export async function exportPagesRoute({
   const context: PagesRouteHandlerContext = {
     params: query,
     export: true,
-    manifests: ManifestLoader.load({ distDir }),
+    manifests: await ManifestLoader.load({ distDir }),
     headers: undefined,
     previewProps: undefined,
     renderOpts: {

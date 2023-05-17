@@ -125,7 +125,7 @@ export class EdgeRouteModuleWrapper {
         supportsDynamicHTML: true,
         isRevalidate: false,
       },
-      manifests: ManifestLoader.load(),
+      manifests: await ManifestLoader.load(),
 
       // There are no headers set on the response above the handler in edge.
       headers: undefined,

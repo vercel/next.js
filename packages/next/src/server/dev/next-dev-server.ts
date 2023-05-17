@@ -1804,8 +1804,13 @@ export default class DevServer extends Server {
 
   protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
     if (this.isRenderWorker) {
+      await this.invokeIpcMethod('getFallbackErrorComponents', [])
       return await loadDefaultErrorComponents(this.distDir)
     }
+    await this.hotReloader?.buildFallbackError()
+    // Build the error page to ensure the fallback is built too.
+    // TODO: See if this can be moved into hotReloader or removed.
+    await this.ensurePage({ page: '/_error', clientOnly: false })
 
     if (this.isRouterWorker) {
       return null

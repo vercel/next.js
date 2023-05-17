@@ -75,7 +75,7 @@ async function loadDefaultErrorComponentsImpl(distDir: string) {
     ComponentMod,
     pageConfig: {},
     buildManifest: await loadManifest<BuildManifest>(
-      join(distDir, BUILD_MANIFEST)
+      join(distDir, `fallback-${BUILD_MANIFEST}`)
     ),
     reactLoadableManifest: {},
     pathname: '/_error',

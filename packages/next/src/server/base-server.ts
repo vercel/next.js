@@ -1622,7 +1622,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             // TODO: (wyattjoh) investigate if we can remove this (isSSG is available internal to the module)
             isRevalidate: hasGetStaticProps,
           },
-          manifests: ManifestLoader.load({ distDir: this.distDir }),
+          manifests: await ManifestLoader.load({
+            distDir: this.distDir,
+            manifests: {
+              build: components.buildManifest,
+            },
+          }),
           previewProps: this.renderOpts.previewProps,
           // Pass in the headers that have already been set on the response.
           headers:

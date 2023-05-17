@@ -20,6 +20,9 @@ const registry = {
     variable: '__BUILD_MANIFEST',
     parts: [BUILD_MANIFEST],
   },
+  [`fallback-${BUILD_MANIFEST}`]: {
+    parts: [`fallback-${BUILD_MANIFEST}`],
+  },
   [SUBRESOURCE_INTEGRITY_MANIFEST]: {
     variable: '__SUBRESOURCE_INTEGRITY_MANIFEST',
     parts: [SERVER_DIRECTORY, `${SUBRESOURCE_INTEGRITY_MANIFEST}.json`],
@@ -47,6 +50,7 @@ type ManifestLoaderFn = (id: ManifestID, required: boolean) => any
 
 type LoadManifestsOptions = {
   distDir?: string
+  manifests?: Partial<PagesManifests>
 }
 
 /**
@@ -62,18 +66,33 @@ function createLoader(prefix?: string): ManifestLoaderFn {
         "Invariant: expected 'prefix' to be defined when not in edge"
       )
 
-    return (id, required) => {
-      try {
-        return require(path.join(prefix, ...registry[id].parts))
-      } catch (err) {
-        if (required) throw err
+    return async (id: ManifestID, required: boolean) => {
+      // We'll try to load the manifest up to 3 times in development mode, but
+      // only once in production mode. This is because we assume the files
+      // should already be available in production mode (pre-built).
+      let attemptsRemaining = process.env.NODE_ENV === 'development' ? 3 : 1
+      while (attemptsRemaining > 0) {
+        try {
+          return require(path.join(prefix, ...registry[id].parts))
+        } catch (err) {
+          attemptsRemaining--
+
+          // If we're at the last attempt, we failed to load the manifest
+          // and this is a required manifest, then throw the error.
+          if (attemptsRemaining === 0 && required) {
+            throw err
+          }
+
+          // Otherwise, we'll try again after a short delay.
+          await new Promise((resolve) => setTimeout(resolve, 100))
+        }
 
         return undefined
       }
     }
   }
 
-  return (id, required) => {
+  return (id: ManifestID, required: boolean) => {
     const entry = registry[id]
     if (!('variable' in entry)) {
       if (required) {
@@ -109,8 +128,28 @@ export class ManifestLoader {
    * @param id the ID of the required manifest to load
    * @returns the manifest
    */
-  private required<T>(id: ManifestID): T {
-    return this.load(id, true)
+  private async required<T>(id: ManifestID): Promise<T> {
+    return await this.load(id, true)
+  }
+
+  /**
+   * Loads one of the provided manifests. If none of them can be found, it will
+   * throw an error.
+   *
+   * @param ids the IDs of the manifests to load
+   * @returns the manifest
+   */
+  private async or<T>(...ids: ManifestID[]): Promise<T> {
+    for (const id of ids) {
+      const manifest = await this.load(id, false)
+      if (manifest) return manifest
+    }
+
+    throw new Error(
+      `Invariant: expected one of the manifests to be defined: ${ids.join(
+        ', '
+      )}`
+    )
   }
 
   /**
@@ -119,8 +158,8 @@ export class ManifestLoader {
    * @param id the ID of the optional manifest to load
    * @returns the manifest (if it exists) or undefined
    */
-  private optional<T>(id: ManifestID): T | undefined {
-    return this.load(id, false)
+  private async optional<T>(id: ManifestID): Promise<T | undefined> {
+    return await this.load(id, false)
   }
 
   /**
@@ -129,17 +168,55 @@ export class ManifestLoader {
    * @param options the options for loading manifests
    * @returns the loaded manifests
    */
-  public static load({ distDir }: LoadManifestsOptions = {}): PagesManifests {
+  public static async load({
+    distDir,
+    manifests = {},
+  }: LoadManifestsOptions = {}): Promise<PagesManifests> {
     const loader = new ManifestLoader(distDir)
 
+    // TODO: (wyattjoh) re-introduce this
+    // prerender: loader.optional(PRERENDER_MANIFEST),
+
+    const [build, subresourceIntegrity, reactLoadable, font, nextFont] =
+      await Promise.all([
+        // Use the provided build manifest if it exists, otherwise fallback to
+        // loading the manifest.
+        manifests.build ??
+          loader.or<PagesManifests['build']>(
+            BUILD_MANIFEST,
+            // In development, we'll use the fallback build manifest. This allows
+            // us to load the fallback when the original build manifest is not
+            // available.
+            `fallback-${BUILD_MANIFEST}`
+          ),
+        // Use the provided subresourceIntegrity manifest if it exists,
+        // otherwise fallback to loading the manifest.
+        manifests.subresourceIntegrity ??
+          loader.optional<PagesManifests['subresourceIntegrity']>(
+            SUBRESOURCE_INTEGRITY_MANIFEST
+          ),
+        // Use the provided reactLoadable manifest if it exists, otherwise
+        // fallback to loading the manifest.
+        manifests.reactLoadable ??
+          loader.required<PagesManifests['reactLoadable']>(
+            REACT_LOADABLE_MANIFEST
+          ),
+        // Use the provided font manifest if it exists, otherwise fallback to
+        // loading the manifest.
+        manifests.font ??
+          loader.optional<PagesManifests['font']>(FONT_MANIFEST),
+        // Use the provided nextFont manifest if it exists, otherwise fallback
+        // to loading the manifest.
+        manifests.nextFont ??
+          loader.optional<PagesManifests['nextFont']>(NEXT_FONT_MANIFEST),
+      ])
+
     return {
-      build: loader.required(BUILD_MANIFEST),
-      subresourceIntegrity: loader.optional(SUBRESOURCE_INTEGRITY_MANIFEST),
-      reactLoadable: loader.required(REACT_LOADABLE_MANIFEST),
-      // TODO: (wyattjoh) re-introduce this
-      // prerender: loader.optional(PRERENDER_MANIFEST),
-      font: loader.optional(FONT_MANIFEST),
-      nextFont: loader.optional(NEXT_FONT_MANIFEST),
+      build,
+      subresourceIntegrity,
+      reactLoadable,
+      font,
+      nextFont,
     }
   }
 }
