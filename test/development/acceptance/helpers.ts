@@ -41,7 +41,7 @@ export async function sandbox(
         await browser.eval(function () {
           ;(window as any).__HMR_STATE = 'pending'
 
-          var timeout = setTimeout(() => {
+          const timeout = setTimeout(() => {
             ;(window as any).__HMR_STATE = 'timeout'
           }, 30 * 1000)
           ;(window as any).__NEXT_HMR_CB = function () {
@@ -59,11 +59,11 @@ export async function sandbox(
 
             // Wait for application to re-hydrate:
             await browser.evalAsync(function () {
-              var callback = arguments[arguments.length - 1]
+              const callback = arguments[arguments.length - 1]
               if ((window as any).__NEXT_HYDRATED) {
                 callback()
               } else {
-                var timeout = setTimeout(callback, 30 * 1000)
+                const timeout = setTimeout(callback, 30 * 1000)
                 ;(window as any).__NEXT_HYDRATED_CB = function () {
                   clearTimeout(timeout)
                   callback()
