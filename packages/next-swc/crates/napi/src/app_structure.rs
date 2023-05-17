@@ -11,7 +11,7 @@ use next_core::app_structure::{
     EntrypointsVc, LoaderTree, LoaderTreeVc, MetadataWithAltItem,
 };
 use serde::{Deserialize, Serialize};
-use turbo_binding::{
+use turbopack_binding::{
     turbo::{
         tasks,
         tasks::{

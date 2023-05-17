@@ -34,6 +34,11 @@ export default function Form() {
     redirect('/header?result=' + (a + b + Number(formData.get('n'))))
   }
 
+  async function add3(a, b, c) {
+    'use server'
+    redirect('/header?result=' + (a + b + c))
+  }
+
   return (
     <>
       <hr />
@@ -64,6 +69,16 @@ export default function Form() {
         <input type="text" name="n" id="n" required />
         <button type="submit" id="minus-one" formAction={add.bind(null, -2)}>
           -1
+        </button>
+      </form>
+      <hr />
+      <form>
+        <button
+          type="submit"
+          id="add3"
+          formAction={add3.bind(null, 1).bind(null, 2).bind(null, 3)}
+        >
+          add3
         </button>
       </form>
     </>

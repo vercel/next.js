@@ -26,7 +26,11 @@ use next_core::{
     router_source::NextRouterContentSourceVc, source_map::NextSourceMapTraceContentSourceVc,
 };
 use owo_colors::OwoColorize;
-use turbo_binding::{
+use turbo_tasks::{
+    util::{FormatBytes, FormatDuration},
+    StatsType, TransientInstance, TurboTasks, TurboTasksBackendApi, UpdateInfo, Value,
+};
+use turbopack_binding::{
     turbo::{
         malloc::TurboMalloc,
         tasks_env::{CustomProcessEnvVc, EnvMapVc, ProcessEnvVc},
@@ -56,10 +60,6 @@ use turbo_binding::{
         node::execution_context::ExecutionContextVc,
         turbopack::evaluate_context::node_build_environment,
     },
-};
-use turbo_tasks::{
-    util::{FormatBytes, FormatDuration},
-    StatsType, TransientInstance, TurboTasks, TurboTasksBackendApi, UpdateInfo, Value,
 };
 
 #[derive(Clone)]

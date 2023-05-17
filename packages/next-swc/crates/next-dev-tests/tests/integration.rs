@@ -41,7 +41,7 @@ use tokio::{
     task::JoinSet,
 };
 use tungstenite::{error::ProtocolError::ResetWithoutClosingHandshake, Error::Protocol};
-use turbo_binding::{
+use turbopack_binding::{
     turbo::{
         tasks::{
             debug::{ValueDebug, ValueDebugStringReadRef},
@@ -228,6 +228,10 @@ async fn run_test(resource: PathBuf) -> JsResult {
     let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let tests_dir = package_root.join("tests");
     let integration_tests_dir = tests_dir.join("integration");
+    // We run tests from a temporary directory because tests can modify files in the
+    // test directory when testing the file watcher/HMR, and we have no reliable way
+    // to ensure that we can restore the original state of the test directory after
+    // running the test.
     let resource_temp: PathBuf = tests_dir.join("temp").join(
         resource
             .strip_prefix(integration_tests_dir)
@@ -274,7 +278,7 @@ async fn run_test(resource: PathBuf) -> JsResult {
     .eager_compile(false)
     .hostname(requested_addr.ip())
     .port(requested_addr.port())
-    .log_level(turbo_binding::turbopack::core::issue::IssueSeverity::Warning)
+    .log_level(turbopack_binding::turbopack::core::issue::IssueSeverity::Warning)
     .log_detail(true)
     .issue_reporter(Box::new(move || {
         TestIssueReporterVc::new(issue_tx.clone()).into()

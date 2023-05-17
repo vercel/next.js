@@ -1,6 +1,6 @@
 use anyhow::Result;
 use indexmap::indexmap;
-use turbo_binding::{
+use turbopack_binding::{
     turbo::tasks_env::{
         CustomProcessEnvVc, EnvMapVc, FilterProcessEnvVc, ProcessEnv, ProcessEnvVc,
     },

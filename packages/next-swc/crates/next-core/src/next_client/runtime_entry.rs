@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use turbo_binding::{
+use turbopack_binding::{
     turbo::{tasks::ValueToString, tasks_fs::FileSystemPathVc},
     turbopack::{
         core::{

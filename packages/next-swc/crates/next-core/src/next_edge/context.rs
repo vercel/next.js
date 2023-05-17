@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_binding::{
+use turbo_tasks::Value;
+use turbopack_binding::{
     turbo::tasks_fs::FileSystemPathVc,
     turbopack::{
         core::{
@@ -18,7 +19,6 @@ use turbo_binding::{
         turbopack::resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
     },
 };
-use turbo_tasks::Value;
 
 use crate::{
     next_config::NextConfigVc, next_import_map::get_next_edge_import_map,
@@ -38,12 +38,12 @@ fn defines() -> CompileTimeDefines {
 }
 
 #[turbo_tasks::function]
-pub fn next_edge_defines() -> CompileTimeDefinesVc {
+fn next_edge_defines() -> CompileTimeDefinesVc {
     defines().cell()
 }
 
 #[turbo_tasks::function]
-pub fn next_edge_free_vars(project_path: FileSystemPathVc) -> FreeVarReferencesVc {
+fn next_edge_free_vars(project_path: FileSystemPathVc) -> FreeVarReferencesVc {
     free_var_references!(
         ..defines().into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
