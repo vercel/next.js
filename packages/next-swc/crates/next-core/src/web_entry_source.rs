@@ -35,7 +35,7 @@ use crate::{
     mode::NextMode,
     next_client::{
         context::{
-            get_client_asset_context, get_client_chunking_context, get_client_compile_time_info,
+            get_client_asset_context, get_client_chunking_context,
             get_client_resolve_options_context, ClientContextType,
         },
         runtime_entry::{RuntimeEntriesVc, RuntimeEntry},
@@ -51,12 +51,12 @@ fn defines() -> CompileTimeDefines {
 }
 
 #[turbo_tasks::function]
-pub fn web_defines() -> CompileTimeDefinesVc {
+fn web_defines() -> CompileTimeDefinesVc {
     defines().cell()
 }
 
 #[turbo_tasks::function]
-pub async fn web_free_vars() -> Result<FreeVarReferencesVc> {
+async fn web_free_vars() -> Result<FreeVarReferencesVc> {
     Ok(free_var_references!(..defines().into_iter()).cell())
 }
 
@@ -123,7 +123,7 @@ pub async fn create_web_entry_source(
 ) -> Result<ContentSourceVc> {
     let ty = Value::new(ClientContextType::Other);
     let mode = NextMode::Development;
-    let compile_time_info = get_client_compile_time_info(mode, browserslist_query);
+    let compile_time_info = get_compile_time_info(browserslist_query);
     let context = get_client_asset_context(
         project_root,
         execution_context,

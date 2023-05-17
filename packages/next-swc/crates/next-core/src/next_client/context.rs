@@ -69,7 +69,7 @@ use crate::{
     util::foreign_code_context_condition,
 };
 
-pub fn defines(mode: NextMode) -> CompileTimeDefines {
+fn defines(mode: NextMode) -> CompileTimeDefines {
     compile_time_defines!(
         process.turbopack = true,
         process.env.NODE_ENV = mode.node_env(),
@@ -82,12 +82,12 @@ pub fn defines(mode: NextMode) -> CompileTimeDefines {
 }
 
 #[turbo_tasks::function]
-pub fn next_client_defines(mode: NextMode) -> CompileTimeDefinesVc {
+fn next_client_defines(mode: NextMode) -> CompileTimeDefinesVc {
     defines(mode).cell()
 }
 
 #[turbo_tasks::function]
-pub async fn next_client_free_vars(mode: NextMode) -> Result<FreeVarReferencesVc> {
+async fn next_client_free_vars(mode: NextMode) -> Result<FreeVarReferencesVc> {
     Ok(free_var_references!(
         ..defines(mode).into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {

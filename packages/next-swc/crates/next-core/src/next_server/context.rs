@@ -224,12 +224,12 @@ fn defines(mode: NextMode) -> CompileTimeDefines {
 }
 
 #[turbo_tasks::function]
-pub fn next_server_defines(mode: NextMode) -> CompileTimeDefinesVc {
+fn next_server_defines(mode: NextMode) -> CompileTimeDefinesVc {
     defines(mode).cell()
 }
 
 #[turbo_tasks::function]
-pub async fn next_server_free_vars(mode: NextMode) -> Result<FreeVarReferencesVc> {
+async fn next_server_free_vars(mode: NextMode) -> Result<FreeVarReferencesVc> {
     Ok(free_var_references!(..defines(mode).into_iter()).cell())
 }
 
