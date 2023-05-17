@@ -14,6 +14,8 @@ function createLocalMetadataBase() {
 export function getSocialImageFallbackMetadataBase(
   metadataBase: URL | null
 ): URL | null {
+  if (metadataBase) return metadataBase
+
   const isMetadataBaseMissing = !metadataBase
   const defaultMetadataBase = createLocalMetadataBase()
   const deploymentUrl =
