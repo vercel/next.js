@@ -443,7 +443,8 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
         // Trace presets
         match trace.as_str() {
             "next" => {
-                trace = "root=info,next_dev=info,next_core=info,next_font=info".to_string();
+                trace = "root=info,next_dev=info,next_core=info,next_font=info,turbopack_node=info"
+                    .to_string();
             }
             "turbopack" => {
                 trace = "root=info,next_dev=info,next_core=info,next_font=info,turbopack=info,\
