@@ -702,7 +702,6 @@ export default async function getBaseWebpackConfig(
     rewrites.fallback.length > 0
 
   const hasAppDir = !!config.experimental.appDir && !!appDir
-  const hasServerComponents = hasAppDir
   const disableOptimizedLoading = true
   const enableTypedRoutes = !!config.experimental.typedRoutes && hasAppDir
   const serverActions = !!config.experimental.serverActions && hasAppDir
@@ -765,7 +764,7 @@ export default async function getBaseWebpackConfig(
         pagesDir,
         cwd: dir,
         development: dev,
-        hasServerComponents,
+        hasServerComponents: hasAppDir,
         hasReactRefresh: dev && isClient,
         hasJsxRuntime: true,
       },
@@ -795,7 +794,7 @@ export default async function getBaseWebpackConfig(
         rootDir: dir,
         pagesDir,
         appDir,
-        hasServerComponents,
+        hasServerComponents: hasAppDir,
         hasReactRefresh: dev && isClient,
         fileReading: config.experimental.swcFileReading,
         nextConfig: config,
@@ -811,7 +810,7 @@ export default async function getBaseWebpackConfig(
     babel: useSWCLoader ? getSwcLoader() : getBabelLoader(),
   }
 
-  const swcLoaderForServerLayer = hasServerComponents
+  const swcLoaderForServerLayer = hasAppDir
     ? useSWCLoader
       ? [getSwcLoader({ isServerLayer: true })]
       : // When using Babel, we will have to add the SWC loader
@@ -820,7 +819,7 @@ export default async function getBaseWebpackConfig(
         // acceptable as Babel will not be recommended.
         [getSwcLoader({ isServerLayer: true }), getBabelLoader()]
     : []
-  const swcLoaderForClientLayer = hasServerComponents
+  const swcLoaderForClientLayer = hasAppDir
     ? useSWCLoader
       ? [getSwcLoader({ isServerLayer: false })]
       : // When using Babel, we will have to add the SWC loader
@@ -834,7 +833,7 @@ export default async function getBaseWebpackConfig(
   // have RSC transpiler enabled, so syntax checks such as invalid imports won't
   // be performed.
   const loaderForAPIRoutes =
-    hasServerComponents && useSWCLoader
+    hasAppDir && useSWCLoader
       ? {
           loader: 'next-swc-loader',
           options: {
@@ -1894,7 +1893,7 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
-        ...(hasServerComponents
+        ...(hasAppDir
           ? [
               {
                 // Alias react-dom for ReactDOM.preload usage.
@@ -1937,6 +1936,7 @@ export default async function getBaseWebpackConfig(
                     },
                   },
                   {
+                    issuerLayer: WEBPACK_LAYERS.appClient,
                     test: codeCondition.test,
                     resolve: {
                       alias: {
@@ -1968,7 +1968,7 @@ export default async function getBaseWebpackConfig(
               issuerLayer: WEBPACK_LAYERS.middleware,
               use: defaultLoaders.babel,
             },
-            ...(hasServerComponents
+            ...(hasAppDir
               ? [
                   {
                     test: codeCondition.test,
@@ -2231,7 +2231,7 @@ export default async function getBaseWebpackConfig(
             } = require('./webpack/plugins/nextjs-require-cache-hot-reloader')
             const devPlugins = [
               new NextJsRequireCacheHotReloader({
-                hasServerComponents,
+                hasServerComponents: hasAppDir,
               }),
             ]
 
@@ -2297,7 +2297,7 @@ export default async function getBaseWebpackConfig(
           },
         }),
       hasAppDir && isClient && new AppBuildManifestPlugin({ dev }),
-      hasServerComponents &&
+      hasAppDir &&
         (isClient
           ? new ClientReferenceManifestPlugin({
               dev,
@@ -2470,7 +2470,7 @@ export default async function getBaseWebpackConfig(
 
     // For Server Components, it's necessary to have provided exports collected
     // to generate the correct flight manifest.
-    if (!hasServerComponents) {
+    if (!hasAppDir) {
       webpack5Config.optimization.providedExports = false
     }
     webpack5Config.optimization.usedExports = false
