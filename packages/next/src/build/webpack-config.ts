@@ -1937,7 +1937,6 @@ export default async function getBaseWebpackConfig(
                     },
                   },
                   {
-                    // issuerLayer: WEBPACK_LAYERS.appClient,
                     test: codeCondition.test,
                     resolve: {
                       alias: {
