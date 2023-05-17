@@ -1781,6 +1781,7 @@ export default async function getBaseWebpackConfig(
         'next-middleware-asset-loader',
         'next-middleware-wasm-loader',
         'next-app-loader',
+        'next-route-loader',
         'next-font-loader',
         'next-invalid-import-error-loader',
         'next-metadata-route-loader',
