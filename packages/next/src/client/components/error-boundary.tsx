@@ -41,9 +41,14 @@ interface ErrorBoundaryHandlerProps extends ErrorBoundaryProps {
   pathname: string
 }
 
+interface ErrorBoundaryHandlerState {
+  error: Error | null
+  previousPathname: string
+}
+
 export class ErrorBoundaryHandler extends React.Component<
   ErrorBoundaryHandlerProps,
-  { error: Error | null; previousPathname: string }
+  ErrorBoundaryHandlerState
 > {
   constructor(props: ErrorBoundaryHandlerProps) {
     super(props)
@@ -52,6 +57,25 @@ export class ErrorBoundaryHandler extends React.Component<
 
   static getDerivedStateFromError(error: Error) {
     return { error }
+  }
+
+  static getDerivedStateFromProps(
+    props: ErrorBoundaryHandlerProps,
+    state: ErrorBoundaryHandlerState
+  ): ErrorBoundaryHandlerState | null {
+    /**
+     * Handles reset of the error boundary when a navigation happens.
+     * Ensures the error boundary does not stay enabled when navigating to a new page.
+     * Approach of setState in render is safe as it checks the previous pathname and then overrides
+     * it as outlined in https://react.dev/reference/react/useState#storing-information-from-previous-renders
+     */
+    if (props.pathname !== state.previousPathname && state.error) {
+      return {
+        error: null,
+        previousPathname: props.pathname,
+      }
+    }
+    return null
   }
 
   reset = () => {

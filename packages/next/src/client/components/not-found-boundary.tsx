@@ -12,9 +12,14 @@ interface NotFoundErrorBoundaryProps extends NotFoundBoundaryProps {
   pathname: string
 }
 
+interface NotFoundErrorBoundaryState {
+  notFoundTriggered: boolean
+  previousPathname: string
+}
+
 class NotFoundErrorBoundary extends React.Component<
   NotFoundErrorBoundaryProps,
-  { notFoundTriggered: boolean; previousPathname: string }
+  NotFoundErrorBoundaryState
 > {
   constructor(props: NotFoundErrorBoundaryProps) {
     super(props)
@@ -32,26 +37,27 @@ class NotFoundErrorBoundary extends React.Component<
     throw error
   }
 
+  static getDerivedStateFromProps(
+    props: NotFoundErrorBoundaryProps,
+    state: NotFoundErrorBoundaryState
+  ): NotFoundErrorBoundaryState | null {
+    /**
+     * Handles reset of the error boundary when a navigation happens.
+     * Ensures the error boundary does not stay enabled when navigating to a new page.
+     * Approach of setState in render is safe as it checks the previous pathname and then overrides
+     * it as outlined in https://react.dev/reference/react/useState#storing-information-from-previous-renders
+     */
+    if (props.pathname !== state.previousPathname && state.notFoundTriggered) {
+      return {
+        notFoundTriggered: false,
+        previousPathname: props.pathname,
+      }
+    }
+    return null
+  }
+
   render() {
     if (this.state.notFoundTriggered) {
-      /**
-       * Handles reset of the error boundary when a navigation happens.
-       * Ensures the error boundary does not stay enabled when navigating to a new page.
-       * Approach of setState in render is safe as it checks the previous pathname and then overrides
-       * it as outlined in https://react.dev/reference/react/useState#storing-information-from-previous-renders
-       */
-      if (
-        this.props.pathname !== this.state.previousPathname &&
-        this.state.notFoundTriggered
-      ) {
-        this.setState((_state) => {
-          return {
-            notFoundTriggered: false,
-            previousPathname: this.props.pathname,
-          }
-        })
-      }
-
       return (
         <>
           <meta name="robots" content="noindex" />
