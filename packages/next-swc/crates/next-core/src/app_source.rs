@@ -1039,6 +1039,7 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
                 Value::new(EcmascriptModuleAssetType::Typescript),
                 EcmascriptInputTransformsVc::cell(vec![
                     EcmascriptInputTransform::React {
+                        // The App source is currently only used in the development mode.
                         development: true,
                         refresh: false,
                         import_source: OptionStringVc::cell(None),

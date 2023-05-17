@@ -83,6 +83,8 @@ impl Transition for NextClientTransition {
                         use_define_for_class_fields: false,
                     },
                     EcmascriptInputTransform::React {
+                        // The Next Client transition is currently only used from the App and Page
+                        // sources, which are only used in the development mode.
                         development: true,
                         refresh: false,
                         import_source: OptionStringVc::cell(None),

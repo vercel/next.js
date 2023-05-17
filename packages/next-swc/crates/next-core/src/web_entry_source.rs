@@ -31,7 +31,7 @@ use turbopack_binding::{
 };
 
 use crate::{
-    embed_js::next_js_fs,
+    embed_js::next_js_file_path,
     mode::NextMode,
     next_client::{
         context::{
@@ -104,13 +104,8 @@ async fn get_web_runtime_entries(
     };
 
     runtime_entries.push(
-        RuntimeEntry::Request(
-            RequestVc::parse(Value::new(Pattern::Constant(
-                "./dev/bootstrap.ts".to_string(),
-            ))),
-            next_js_fs().root().join("_"),
-        )
-        .cell(),
+        RuntimeEntry::Source(SourceAssetVc::new(next_js_file_path("dev/bootstrap.ts")).into())
+            .cell(),
     );
 
     Ok(RuntimeEntriesVc::cell(runtime_entries))
