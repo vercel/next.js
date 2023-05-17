@@ -25,6 +25,7 @@ serde_json = { workspace = true }
 tokio = { workspace = true }
 
 turbo-tasks = { workspace = true }
+turbo-tasks-env = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbopack-core = { workspace = true }
 turbopack-css = { workspace = true }

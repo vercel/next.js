@@ -199,6 +199,7 @@ async fn run_test(resource: &str) -> Result<FileSystemPathVc> {
         compile_time_info,
         ModuleOptionsContext {
             enable_jsx: Some(JsxTransformOptionsVc::cell(JsxTransformOptions {
+                development: true,
                 ..Default::default()
             })),
             enable_emotion: Some(EmotionTransformConfig::cell(EmotionTransformConfig {

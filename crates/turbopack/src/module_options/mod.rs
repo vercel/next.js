@@ -138,6 +138,7 @@ impl ModuleOptionsVc {
             let jsx = enable_jsx.await?;
 
             transforms.push(EcmascriptInputTransform::React {
+                development: jsx.development,
                 refresh: jsx.react_refresh,
                 import_source: OptionStringVc::cell(jsx.import_source.clone()),
                 runtime: OptionStringVc::cell(jsx.runtime.clone()),
@@ -257,7 +258,7 @@ impl ModuleOptionsVc {
                         Some(ModuleRuleEffect::SourceTransforms(
                             SourceTransformsVc::cell(vec![PostCssTransformVc::new(
                                 node_evaluate_asset_context(
-                                    execution_context.project_path(),
+                                    execution_context,
                                     Some(import_map),
                                     None,
                                 ),
@@ -472,7 +473,7 @@ impl ModuleOptionsVc {
                         ModuleRuleEffect::SourceTransforms(SourceTransformsVc::cell(vec![
                             WebpackLoadersVc::new(
                                 node_evaluate_asset_context(
-                                    execution_context.project_path(),
+                                    execution_context,
                                     Some(import_map),
                                     None,
                                 ),

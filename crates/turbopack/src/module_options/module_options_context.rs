@@ -109,6 +109,7 @@ impl WebpackLoadersOptions {
 #[turbo_tasks::value(shared)]
 #[derive(Default, Clone, Debug)]
 pub struct JsxTransformOptions {
+    pub development: bool,
     pub react_refresh: bool,
     pub import_source: Option<String>,
     pub runtime: Option<String>,
