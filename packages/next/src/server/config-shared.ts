@@ -168,6 +168,7 @@ export interface ExperimentalConfig {
   swcMinify?: boolean
   swcFileReading?: boolean
   cpus?: number
+  memoryBasedWorkersCount?: boolean
   sharedPool?: boolean
   proxyTimeout?: number
   isrFlushToDisk?: boolean
@@ -673,6 +674,7 @@ export const defaultConfig: NextConfig = {
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
+    memoryBasedWorkersCount: false,
     sharedPool: true,
     isrFlushToDisk: true,
     workerThreads: false,
