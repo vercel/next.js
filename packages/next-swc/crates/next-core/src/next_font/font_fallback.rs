@@ -1,7 +1,7 @@
 use anyhow::Result;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use turbo_binding::turbo::tasks::{
+use turbopack_binding::turbo::tasks::{
     primitives::{StringVc, StringsVc},
     trace::TraceRawVcs,
 };

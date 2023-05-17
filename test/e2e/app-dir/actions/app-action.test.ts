@@ -123,6 +123,16 @@ createNextDescribe(
       }, '/header?result=122')
     })
 
+    it('should support chained .bind', async () => {
+      const browser = await next.browser('/server')
+
+      await browser.elementByCss('#add3').click()
+
+      await check(() => {
+        return browser.eval('window.location.pathname + window.location.search')
+      }, '/header?result=6')
+    })
+
     it('should support notFound (javascript disabled)', async () => {
       const browser = await next.browser('/server', {
         // TODO we should also test this with javascript on but not-found is not implemented yet.
