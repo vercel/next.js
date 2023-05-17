@@ -3,8 +3,8 @@ import { NAME, PAGE } from 'BOOTSTRAP_CONFIG'
 
 enhanceGlobals()
 
-var mod = require('ENTRY')
-var handler = mod.middleware || mod.default
+const mod = require('ENTRY')
+const handler = mod.middleware || mod.default
 
 if (typeof handler !== 'function') {
   throw new Error(
