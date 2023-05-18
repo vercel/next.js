@@ -228,7 +228,7 @@ export default async function exportApp(
       )
     }
 
-    if (nextConfig.experimental.serverActions) {
+    if (!options.buildExport && nextConfig.experimental.serverActions) {
       throw new ExportError(
         `Server Actions are not supported with static export.`
       )
