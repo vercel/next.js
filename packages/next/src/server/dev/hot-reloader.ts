@@ -857,7 +857,9 @@ export default class HotReloader {
                   !isInternalPathname(relativeRequest)
                 ) {
                   value = getRouteLoaderEntry({
+                    page,
                     absolutePagePath: relativeRequest,
+                    preferredRegion: staticInfo.preferredRegion,
                   })
                 } else {
                   value = relativeRequest

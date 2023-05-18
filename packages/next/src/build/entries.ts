@@ -573,7 +573,9 @@ export async function createEntrypoints(
           ) {
             server[serverBundlePath] = [
               getRouteLoaderEntry({
+                page,
                 absolutePagePath,
+                preferredRegion: staticInfo.preferredRegion,
               }),
             ]
           } else {

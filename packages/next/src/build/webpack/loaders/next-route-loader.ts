@@ -8,6 +8,16 @@ import { getModuleBuildInfo } from './get-module-build-info'
  */
 type RouteLoaderOptions = {
   /**
+   * The page name for this particular route.
+   */
+  page: string
+
+  /**
+   * The preferred region for this route.
+   */
+  preferredRegion: string | string[] | undefined
+
+  /**
    * The absolute path to the userland page file.
    */
   absolutePagePath: string
@@ -29,12 +39,19 @@ export function getRouteLoaderEntry(query: RouteLoaderOptions): string {
  */
 const loader: webpack.LoaderDefinitionFunction<RouteLoaderOptions> =
   function () {
-    const { absolutePagePath } = this.getOptions()
-    const buildInfo = getModuleBuildInfo(this._module as any)
+    const { page, preferredRegion, absolutePagePath } = this.getOptions()
+
+    // Ensure we only run this loader for as a module.
+    if (!this._module) {
+      throw new Error('Invariant: expected this to reference a module')
+    }
+
+    // Attach build info to the module.
+    const buildInfo = getModuleBuildInfo(this._module)
     buildInfo.route = {
-      page: '',
+      page,
       absolutePagePath,
-      preferredRegion: '',
+      preferredRegion,
     }
 
     return `
