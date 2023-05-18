@@ -69,10 +69,13 @@ describe('<Counter />', () => {
     const incrButton = screen.getByRole('button', { name: /increment value/i })
 
     await userEvent.click(addIfOddButton)
+
     expect(screen.getByText('0')).toBeInTheDocument()
+
     await userEvent.click(incrButton)
     await userEvent.type(setIncrAmountInput, '{backspace}8')
     await userEvent.click(addIfOddButton)
+
     await expect(screen.findByText('9')).resolves.toBeInTheDocument()
   })
 })

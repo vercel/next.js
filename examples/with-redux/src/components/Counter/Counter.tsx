@@ -5,12 +5,12 @@ import { useState } from 'react'
 import {
   counterSlice,
   incrementAsync,
-  incrementIfOdd,
+  incrementIfOddAsync,
   selectCount,
   useSelector,
   useDispatch,
 } from '@/lib/redux'
-import styles from './Counter.module.css'
+import styles from './counter.module.css'
 
 export const Counter = () => {
   const dispatch = useDispatch()
@@ -59,7 +59,7 @@ export const Counter = () => {
         </button>
         <button
           className={styles.button}
-          onClick={() => dispatch(incrementIfOdd(incrementAmount))}
+          onClick={() => dispatch(incrementIfOddAsync(incrementAmount))}
         >
           Add If Odd
         </button>

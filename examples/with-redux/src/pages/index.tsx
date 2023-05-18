@@ -6,7 +6,7 @@ import type { NextPage } from 'next'
 import { Nav, Counter } from '@/components'
 
 /* Instruments */
-import styles from '@/styles/Home.module.css'
+import styles from '@/styles/index-page.module.css'
 
 const IndexPage: NextPage = () => {
   return (

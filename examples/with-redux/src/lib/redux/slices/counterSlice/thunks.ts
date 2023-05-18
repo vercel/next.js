@@ -11,7 +11,7 @@ import type { ReduxThunkAction } from '@/lib/redux'
 // code can then be executed and other actions can be dispatched. Thunks are
 // typically used to make async requests.
 export const incrementAsync = createAppAsyncThunk(
-  'counter/fetchCount',
+  'counter/fetchIdentityCount',
   async (amount: number) => {
     const response = await fetchIdentityCount(amount)
 
@@ -22,7 +22,7 @@ export const incrementAsync = createAppAsyncThunk(
 
 // We can also write thunks by hand, which may contain both sync and async logic.
 // Here's an example of conditionally dispatching actions based on current state.
-export const incrementIfOdd =
+export const incrementIfOddAsync =
   (amount: number): ReduxThunkAction =>
   (dispatch, getState) => {
     const currentValue = selectCount(getState())
