@@ -673,6 +673,18 @@ importers:
         version: 3.0.0
 
   packages/eslint-config-next:
+    specifiers:
+      '@next/eslint-plugin-next': 13.4.3-canary.2
+      '@rushstack/eslint-patch': ^1.1.3
+      '@typescript-eslint/parser': ^5.42.0
+      eslint: ^7.23.0 || ^8.0.0
+      eslint-import-resolver-node: ^0.3.6
+      eslint-import-resolver-typescript: ^3.5.2
+      eslint-plugin-import: ^2.26.0
+      eslint-plugin-jsx-a11y: ^6.5.1
+      eslint-plugin-react: ^7.31.7
+      eslint-plugin-react-hooks: ^4.5.0
+      typescript: '>=3.3.1'
     dependencies:
       '@next/eslint-plugin-next':
         specifier: 13.4.3-canary.1
@@ -734,6 +746,216 @@ importers:
         version: 2.0.2
 
   packages/next:
+    specifiers:
+      '@ampproject/toolbox-optimizer': 2.8.3
+      '@babel/code-frame': 7.12.11
+      '@babel/core': 7.18.0
+      '@babel/eslint-parser': 7.18.2
+      '@babel/generator': 7.18.0
+      '@babel/plugin-proposal-class-properties': 7.14.5
+      '@babel/plugin-proposal-export-namespace-from': 7.14.5
+      '@babel/plugin-proposal-numeric-separator': 7.14.5
+      '@babel/plugin-proposal-object-rest-spread': 7.14.7
+      '@babel/plugin-syntax-bigint': 7.8.3
+      '@babel/plugin-syntax-dynamic-import': 7.8.3
+      '@babel/plugin-syntax-import-assertions': 7.16.7
+      '@babel/plugin-syntax-jsx': 7.14.5
+      '@babel/plugin-transform-modules-commonjs': 7.18.0
+      '@babel/plugin-transform-runtime': 7.18.0
+      '@babel/preset-env': 7.18.0
+      '@babel/preset-react': 7.14.5
+      '@babel/preset-typescript': 7.17.12
+      '@babel/runtime': 7.15.4
+      '@babel/traverse': 7.18.0
+      '@babel/types': 7.18.0
+      '@capsizecss/metrics': 1.1.0
+      '@edge-runtime/cookies': 3.0.6
+      '@edge-runtime/primitives': 2.1.2
+      '@hapi/accept': 5.0.2
+      '@jest/transform': 29.5.0
+      '@jest/types': 29.5.0
+      '@napi-rs/cli': 2.14.7
+      '@napi-rs/triples': 1.1.0
+      '@next/env': 13.4.3-canary.2
+      '@next/polyfill-module': 13.4.3-canary.2
+      '@next/polyfill-nomodule': 13.4.3-canary.2
+      '@next/react-dev-overlay': 13.4.3-canary.2
+      '@next/react-refresh-utils': 13.4.3-canary.2
+      '@next/swc': 13.4.3-canary.2
+      '@opentelemetry/api': 1.4.1
+      '@segment/ajv-human-errors': 2.1.2
+      '@swc/helpers': 0.5.1
+      '@taskr/clear': 1.1.0
+      '@taskr/esnext': 1.1.0
+      '@types/amphtml-validator': 1.0.0
+      '@types/babel__code-frame': 7.0.2
+      '@types/babel__core': 7.1.12
+      '@types/babel__generator': 7.6.2
+      '@types/babel__template': 7.4.0
+      '@types/babel__traverse': 7.11.0
+      '@types/bytes': 3.1.1
+      '@types/ci-info': 2.0.0
+      '@types/compression': 0.0.36
+      '@types/content-disposition': 0.5.4
+      '@types/content-type': 1.1.3
+      '@types/cookie': 0.3.3
+      '@types/cross-spawn': 6.0.0
+      '@types/debug': 4.1.5
+      '@types/express-serve-static-core': 4.17.33
+      '@types/fresh': 0.5.0
+      '@types/glob': 7.1.1
+      '@types/jsonwebtoken': 9.0.0
+      '@types/lodash': 4.14.149
+      '@types/lodash.curry': 4.1.6
+      '@types/lru-cache': 5.1.0
+      '@types/micromatch': 4.0.2
+      '@types/node-fetch': 2.6.1
+      '@types/path-to-regexp': 1.7.0
+      '@types/platform': 1.3.4
+      '@types/react': 18.2.5
+      '@types/react-dom': 18.2.3
+      '@types/react-is': 17.0.3
+      '@types/semver': 7.3.1
+      '@types/send': 0.14.4
+      '@types/shell-quote': 1.7.1
+      '@types/tar': 4.0.3
+      '@types/text-table': 0.2.1
+      '@types/ua-parser-js': 0.7.36
+      '@types/uuid': 8.3.1
+      '@types/webpack-sources1': npm:@types/webpack-sources@0.1.5
+      '@types/ws': 8.2.0
+      '@vercel/ncc': 0.34.0
+      '@vercel/nft': 0.22.6
+      acorn: 8.5.0
+      ajv: 8.11.0
+      amphtml-validator: 1.0.35
+      anser: 1.4.9
+      arg: 4.1.0
+      assert: 2.0.0
+      async-retry: 1.2.3
+      async-sema: 3.0.0
+      babel-plugin-transform-define: 2.0.0
+      babel-plugin-transform-react-remove-prop-types: 0.4.24
+      browserify-zlib: 0.2.0
+      browserslist: 4.20.2
+      buffer: 5.6.0
+      busboy: 1.6.0
+      bytes: 3.1.1
+      caniuse-lite: 1.0.30001406
+      chalk: 2.4.2
+      ci-info: watson/ci-info#f43f6a1cefff47fb361c88cf4b943fdbcaafe540
+      cli-select: 1.1.2
+      client-only: 0.0.1
+      comment-json: 3.0.3
+      compression: 1.7.4
+      conf: 5.0.0
+      constants-browserify: 1.0.0
+      content-disposition: 0.5.3
+      content-type: 1.0.4
+      cookie: 0.4.1
+      cross-spawn: 7.0.3
+      crypto-browserify: 3.12.0
+      css.escape: 1.5.1
+      cssnano-preset-default: 5.2.14
+      data-uri-to-buffer: 3.0.1
+      debug: 4.1.1
+      devalue: 2.0.1
+      domain-browser: 4.19.0
+      edge-runtime: 2.1.4
+      events: 3.3.0
+      fibers: '>= 3.1.0'
+      find-cache-dir: 3.3.1
+      find-up: 4.1.0
+      fresh: 0.5.2
+      get-orientation: 1.1.2
+      glob: 7.1.7
+      gzip-size: 5.1.1
+      http-proxy: 1.18.1
+      http-proxy-agent: 5.0.0
+      https-browserify: 1.0.0
+      https-proxy-agent: 5.0.1
+      icss-utils: 5.1.0
+      ignore-loader: 0.1.2
+      image-size: 1.0.0
+      is-docker: 2.0.0
+      is-wsl: 2.2.0
+      jest-worker: 27.0.0-next.5
+      json5: 2.2.3
+      jsonwebtoken: 9.0.0
+      loader-runner: 4.3.0
+      loader-utils2: npm:loader-utils@2.0.0
+      loader-utils3: npm:loader-utils@3.1.3
+      lodash.curry: 4.1.1
+      lru-cache: 5.1.1
+      micromatch: 4.0.4
+      mini-css-extract-plugin: 2.4.3
+      nanoid: 3.1.32
+      native-url: 0.3.4
+      neo-async: 2.6.1
+      node-fetch: 2.6.7
+      node-html-parser: 5.3.3
+      node-sass: ^6.0.0 || ^7.0.0
+      ora: 4.0.4
+      os-browserify: 0.3.0
+      p-limit: 3.1.0
+      path-browserify: 1.0.1
+      path-to-regexp: 6.1.0
+      platform: 1.3.6
+      postcss: 8.4.14
+      postcss-flexbugs-fixes: 5.0.2
+      postcss-modules-extract-imports: 3.0.0
+      postcss-modules-local-by-default: 4.0.0
+      postcss-modules-scope: 3.0.0
+      postcss-modules-values: 4.0.0
+      postcss-preset-env: 7.4.3
+      postcss-safe-parser: 6.0.0
+      postcss-scss: 4.0.3
+      postcss-value-parser: 4.2.0
+      process: 0.11.10
+      punycode: 2.1.1
+      querystring-es3: 0.2.1
+      raw-body: 2.4.1
+      react: ^18.2.0
+      react-dom: ^18.2.0
+      react-is: 18.2.0
+      react-refresh: 0.12.0
+      regenerator-runtime: 0.13.4
+      sass: ^1.3.0
+      sass-loader: 12.4.0
+      schema-utils2: npm:schema-utils@2.7.1
+      schema-utils3: npm:schema-utils@3.0.0
+      semver: 7.3.2
+      send: 0.17.1
+      server-only: 0.0.1
+      setimmediate: 1.0.5
+      shell-quote: 1.7.3
+      source-map: 0.6.1
+      stacktrace-parser: 0.1.10
+      stream-browserify: 3.0.0
+      stream-http: 3.1.1
+      string-hash: 1.1.3
+      string_decoder: 1.3.0
+      strip-ansi: 6.0.0
+      styled-jsx: 5.1.1
+      tar: 6.1.11
+      taskr: 1.1.0
+      terser: 5.14.1
+      text-table: 0.2.0
+      timers-browserify: 2.0.12
+      tty-browserify: 0.0.1
+      ua-parser-js: 0.7.28
+      undici: 5.22.0
+      unistore: 3.4.1
+      util: 0.12.4
+      uuid: 8.3.2
+      vm-browserify: 1.1.2
+      watchpack: 2.4.0
+      web-vitals: 3.0.0
+      webpack: 5.74.0
+      webpack-sources1: npm:webpack-sources@1.4.3
+      webpack-sources3: npm:webpack-sources@3.2.3
+      ws: 8.2.3
+      zod: 3.21.4
     dependencies:
       '@next/env':
         specifier: 13.4.3-canary.1
@@ -1459,40 +1681,36 @@ importers:
         version: 2.14.7
 
   packages/next-swc/crates/next-core/js:
+    specifiers:
+      '@types/node': ^18.11.11
+      '@types/platform': ^1.3.4
+      '@types/react': 18.2.5
+      '@types/react-dom': 18.2.3
+      '@vercel/ncc': ^0.36.0
+      '@vercel/turbopack-dev': https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230517.2
+      '@vercel/turbopack-node': https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js?turbopack-230517.2
+      anser: ^2.1.1
+      css.escape: ^1.5.1
+      find-up: ^6.3.0
+      next: '*'
+      platform: 1.3.6
+      react: ^18.2.0
+      react-dom: ^18.2.0
+      source-map: 0.8.0-beta.0
+      stacktrace-parser: ^0.1.10
+      strip-ansi: ^7.0.1
     dependencies:
-      '@vercel/turbopack-dev':
-        specifier: https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230516.1
-        version: '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230516.1(react-refresh@0.12.0)(webpack@5.74.0)'
-      '@vercel/turbopack-node':
-        specifier: https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js?turbopack-230516.1
-        version: '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js?turbopack-230516.1'
-      anser:
-        specifier: ^2.1.1
-        version: 2.1.1
-      css.escape:
-        specifier: ^1.5.1
-        version: 1.5.1
-      next:
-        specifier: '*'
-        version: link:../../../../next
-      platform:
-        specifier: 1.3.6
-        version: 1.3.6
-      react:
-        specifier: ^18.2.0
-        version: 18.2.0
-      react-dom:
-        specifier: ^18.2.0
-        version: 18.2.0(react@18.2.0)
-      source-map:
-        specifier: 0.8.0-beta.0
-        version: 0.8.0-beta.0
-      stacktrace-parser:
-        specifier: ^0.1.10
-        version: 0.1.10
-      strip-ansi:
-        specifier: ^7.0.1
-        version: 7.0.1
+      '@vercel/turbopack-dev': '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230517.2_react-refresh@0.12.0'
+      '@vercel/turbopack-node': '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js?turbopack-230517.2'
+      anser: 2.1.1
+      css.escape: 1.5.1
+      next: link:../../../../next
+      platform: 1.3.6
+      react: 18.2.0
+      react-dom: 18.2.0_react@18.2.0
+      source-map: 0.8.0-beta.0
+      stacktrace-parser: 0.1.10
+      strip-ansi: 7.0.1
     devDependencies:
       '@types/node':
         specifier: ^18.11.11
@@ -25995,9 +26213,9 @@ packages:
   /zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
-  '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230516.1(react-refresh@0.12.0)(webpack@5.74.0)':
-    resolution: {tarball: https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230516.1}
-    id: '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230516.1'
+  '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230517.2_react-refresh@0.12.0':
+    resolution: {tarball: https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230517.2}
+    id: '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230517.2'
     name: '@vercel/turbopack-dev'
     version: 0.0.0
     dependencies:
@@ -26007,8 +26225,8 @@ packages:
       - webpack
     dev: false
 
-  '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js?turbopack-230516.1':
-    resolution: {tarball: https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js?turbopack-230516.1}
+  '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js?turbopack-230517.2':
+    resolution: {tarball: https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js?turbopack-230517.2}
     name: '@vercel/turbopack-node'
     version: 0.0.0
     dependencies:

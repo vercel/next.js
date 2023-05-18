@@ -19,6 +19,8 @@ use turbopack_binding::{
     },
 };
 
+use crate::mode::NextMode;
+
 async fn get_typescript_options(
     project_path: FileSystemPathVc,
 ) -> Option<Vec<(FileJsonContentVc, AssetVc)>> {
@@ -123,6 +125,7 @@ pub async fn get_decorators_transform_options(
 #[turbo_tasks::function]
 pub async fn get_jsx_transform_options(
     project_path: FileSystemPathVc,
+    mode: NextMode,
     resolve_options_context: Option<ResolveOptionsContextVc>,
 ) -> Result<JsxTransformOptionsVc> {
     let tsconfig = get_typescript_options(project_path).await;
@@ -140,6 +143,7 @@ pub async fn get_jsx_transform_options(
     // jsconfig, it forces overrides into automatic runtime instead.
     // [TODO]: we need to emit / validate config message like next.js devserver does
     let react_transform_options = JsxTransformOptions {
+        development: mode.is_react_development(),
         import_source: None,
         runtime: Some("automatic".to_string()),
         react_refresh: enable_react_refresh,

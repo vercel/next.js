@@ -2,6 +2,7 @@
   "@blockfrost/blockfrost-js",
   "@jpg-store/lucid-cardano",
   "@prisma/client",
+  "@vercel/og",
   "@sentry/nextjs",
   "@sentry/node",
   "@swc/core",

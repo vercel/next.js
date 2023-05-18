@@ -8,12 +8,12 @@ export interface AppLoaderModule<M extends RouteModule = RouteModule> {
 }
 
 export class RouteModuleLoader {
-  static load<M extends RouteModule>(
+  static async load<M extends RouteModule>(
     id: string,
     loader: ModuleLoader = new NodeModuleLoader()
-  ): M {
+  ): Promise<M> {
     if (process.env.NEXT_RUNTIME !== 'edge') {
-      const { routeModule }: AppLoaderModule<M> = loader.load(id)
+      const { routeModule }: AppLoaderModule<M> = await loader.load(id)
 
       return routeModule
     }
