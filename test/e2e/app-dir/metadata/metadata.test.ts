@@ -337,6 +337,11 @@ createNextDescribe(
           rel: 'alternate',
           href: 'https://example.com/alternates/child/de-DE',
         })
+
+        await browser.loadPage(next.url + '/alternates/child/123')
+        await matchDom('link', 'rel="canonical"', {
+          href: 'https://example.com/alternates/child/123',
+        })
       })
 
       it('should support robots tags', async () => {

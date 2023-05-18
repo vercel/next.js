@@ -5,7 +5,7 @@ version = "0.0.0"
 publish = false
 
 [features]
-plugin = ["turbo-binding/__swc_core_binding_napi_plugin"]
+plugin = ["turbopack-binding/__swc_core_binding_napi_plugin"]
 
 [dependencies]
 chrono = "0.4"
@@ -20,9 +20,9 @@ regex = "1.5"
 serde = "1"
 serde_json = "1"
 sha1 = "0.10.1"
-tracing = { version = "0.1.37", features = ["release_max_level_info"] }
+tracing = { version = "0.1.37" }
 
-turbo-binding = { workspace = true, features = [
+turbopack-binding = { workspace = true, features = [
   "__swc_core",
   "__swc_core_next_core",
   "__swc_transform_styled_jsx",
@@ -33,7 +33,7 @@ turbo-binding = { workspace = true, features = [
 ] }
 
 [dev-dependencies]
-turbo-binding = { workspace = true, features = [
+turbopack-binding = { workspace = true, features = [
   "__swc_core_testing_transform",
   "__swc_testing",
 ] }

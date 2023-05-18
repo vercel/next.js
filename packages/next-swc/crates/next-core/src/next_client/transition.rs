@@ -1,6 +1,7 @@
 use anyhow::{bail, Result};
 use indexmap::indexmap;
-use turbo_binding::turbopack::{
+use turbo_tasks::{primitives::OptionStringVc, Value};
+use turbopack_binding::turbopack::{
     core::{
         asset::AssetVc,
         chunk::{ChunkingContext, ChunkingContextVc},
@@ -19,7 +20,6 @@ use turbo_binding::turbopack::{
         ModuleAssetContextVc,
     },
 };
-use turbo_tasks::{primitives::OptionStringVc, Value};
 
 use super::runtime_entry::RuntimeEntriesVc;
 use crate::embed_js::next_asset;
@@ -83,6 +83,9 @@ impl Transition for NextClientTransition {
                         use_define_for_class_fields: false,
                     },
                     EcmascriptInputTransform::React {
+                        // The Next Client transition is currently only used from the App and Page
+                        // sources, which are only used in the development mode.
+                        development: true,
                         refresh: false,
                         import_source: OptionStringVc::cell(None),
                         runtime: OptionStringVc::cell(None),

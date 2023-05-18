@@ -1,8 +1,14 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use next_transform_strip_page_exports::{next_transform_strip_page_exports, ExportFilter};
-use swc_core::ecma::{ast::Program, visit::FoldWith};
-use turbo_binding::{
+use swc_core::{
+    common::util::take::Take,
+    ecma::{
+        ast::{Module, Program},
+        visit::FoldWith,
+    },
+};
+use turbopack_binding::{
     turbo::tasks_fs::FileSystemPathVc,
     turbopack::{
         ecmascript::{
@@ -13,7 +19,7 @@ use turbo_binding::{
     },
 };
 
-use super::{module_rule_match_js_no_url, unwrap_module_program};
+use super::module_rule_match_js_no_url;
 
 /// Returns a rule which applies the Next.js page export stripping transform.
 pub async fn get_next_pages_transforms_rule(
@@ -55,17 +61,16 @@ struct NextJsStripPageExports {
 
 #[async_trait]
 impl CustomTransformer for NextJsStripPageExports {
-    async fn transform(
-        &self,
-        program: &mut Program,
-        _ctx: &TransformContext<'_>,
-    ) -> Result<Option<Program>> {
+    async fn transform(&self, program: &mut Program, _ctx: &TransformContext<'_>) -> Result<()> {
         // TODO(alexkirsz) Connect the eliminated_packages to telemetry.
         let eliminated_packages = Default::default();
 
-        let module_program = unwrap_module_program(program);
-        Ok(Some(module_program.fold_with(
-            &mut next_transform_strip_page_exports(self.export_filter, eliminated_packages),
-        )))
+        let p = std::mem::replace(program, Program::Module(Module::dummy()));
+        *program = p.fold_with(&mut next_transform_strip_page_exports(
+            self.export_filter,
+            eliminated_packages,
+        ));
+
+        Ok(())
     }
 }

@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use turbo_binding::{
+use turbopack_binding::{
     turbo::tasks::primitives::BoolVc,
     turbopack::node::route_matcher::{ParamsVc, RouteMatcher},
 };

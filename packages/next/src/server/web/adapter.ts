@@ -180,7 +180,7 @@ export async function adapter(
     ).IncrementalCache({
       appDir: true,
       fetchCache: true,
-      minimalMode: true,
+      minimalMode: process.env.NODE_ENV !== 'development',
       fetchCacheKeyPrefix: process.env.__NEXT_FETCH_CACHE_KEY_PREFIX,
       dev: process.env.NODE_ENV === 'development',
       requestHeaders: params.request.headers as any,

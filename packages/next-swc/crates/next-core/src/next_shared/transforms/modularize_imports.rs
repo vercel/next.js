@@ -11,7 +11,8 @@ use swc_core::{
         visit::FoldWith,
     },
 };
-use turbo_binding::{
+use turbo_tasks::trace::TraceRawVcs;
+use turbopack_binding::{
     swc::custom_transform::modularize_imports::{modularize_imports, PackageConfig},
     turbopack::{
         ecmascript::{
@@ -21,7 +22,6 @@ use turbo_binding::{
         turbopack::module_options::{ModuleRule, ModuleRuleEffect},
     },
 };
-use turbo_tasks::trace::TraceRawVcs;
 
 use super::module_rule_match_js_no_url;
 
@@ -77,18 +77,14 @@ impl ModularizeImportsTransformer {
 
 #[async_trait]
 impl CustomTransformer for ModularizeImportsTransformer {
-    async fn transform(
-        &self,
-        program: &mut Program,
-        _ctx: &TransformContext<'_>,
-    ) -> Result<Option<Program>> {
+    async fn transform(&self, program: &mut Program, _ctx: &TransformContext<'_>) -> Result<()> {
         let p = std::mem::replace(program, Program::Module(Module::dummy()));
         *program = p.fold_with(&mut modularize_imports(
-            turbo_binding::swc::custom_transform::modularize_imports::Config {
+            turbopack_binding::swc::custom_transform::modularize_imports::Config {
                 packages: self.packages.clone(),
             },
         ));
 
-        Ok(None)
+        Ok(())
     }
 }

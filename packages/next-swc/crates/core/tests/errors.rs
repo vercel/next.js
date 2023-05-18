@@ -8,7 +8,7 @@ use next_swc::{
     server_actions::{self, server_actions},
 };
 use next_transform_font::{next_font_loaders, Config as FontLoaderConfig};
-use turbo_binding::swc::{
+use turbopack_binding::swc::{
     core::{
         common::{chain, FileName, Mark},
         ecma::{

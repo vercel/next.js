@@ -172,7 +172,6 @@ importers:
       release: 6.3.1
       request-promise-core: 1.1.2
       resolve-from: 5.0.0
-      rimraf: 3.0.2
       sass: 1.54.0
       satori: 0.4.4
       scheduler-builtin: npm:scheduler@0.24.0-canary-16d053d59-20230506
@@ -358,7 +357,6 @@ importers:
       release: 6.3.1
       request-promise-core: 1.1.2_request@2.88.2
       resolve-from: 5.0.0
-      rimraf: 3.0.2
       sass: 1.54.0
       satori: 0.4.4
       scheduler-builtin: /scheduler/0.24.0-canary-16d053d59-20230506
@@ -416,9 +414,8 @@ importers:
       '@types/ci-info': 2.0.0
       '@types/cross-spawn': 6.0.0
       '@types/glob': 7.1.1
-      '@types/node': ^12.6.8
+      '@types/node': ^16.8.0
       '@types/prompts': 2.0.1
-      '@types/rimraf': 3.0.0
       '@types/tar': 4.0.3
       '@types/validate-npm-package-name': 3.0.0
       '@vercel/ncc': 0.34.0
@@ -441,9 +438,8 @@ importers:
       '@types/ci-info': 2.0.0
       '@types/cross-spawn': 6.0.0
       '@types/glob': 7.1.1
-      '@types/node': 12.12.24
+      '@types/node': 16.18.27
       '@types/prompts': 2.0.1
-      '@types/rimraf': 3.0.0
       '@types/tar': 4.0.3
       '@types/validate-npm-package-name': 3.0.0
       '@vercel/ncc': 0.34.0
@@ -464,7 +460,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 13.4.2-canary.3
+      '@next/eslint-plugin-next': 13.4.3-canary.2
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.42.0
       eslint: ^7.23.0 || ^8.0.0
@@ -540,12 +536,12 @@ importers:
       '@jest/types': 29.5.0
       '@napi-rs/cli': 2.14.7
       '@napi-rs/triples': 1.1.0
-      '@next/env': 13.4.2-canary.3
-      '@next/polyfill-module': 13.4.2-canary.3
-      '@next/polyfill-nomodule': 13.4.2-canary.3
-      '@next/react-dev-overlay': 13.4.2-canary.3
-      '@next/react-refresh-utils': 13.4.2-canary.3
-      '@next/swc': 13.4.2-canary.3
+      '@next/env': 13.4.3-canary.2
+      '@next/polyfill-module': 13.4.3-canary.2
+      '@next/polyfill-nomodule': 13.4.3-canary.2
+      '@next/react-dev-overlay': 13.4.3-canary.2
+      '@next/react-refresh-utils': 13.4.3-canary.2
+      '@next/swc': 13.4.3-canary.2
       '@opentelemetry/api': 1.4.1
       '@segment/ajv-human-errors': 2.1.2
       '@swc/helpers': 0.5.1
@@ -966,12 +962,10 @@ importers:
       '@vercel/ncc': 0.34.0
       dotenv: 10.0.0
       dotenv-expand: 8.0.1
-      rimraf: 3.0.2
     devDependencies:
       '@vercel/ncc': 0.34.0
       dotenv: 10.0.0
       dotenv-expand: 8.0.1
-      rimraf: 3.0.2
 
   packages/next-mdx:
     specifiers:
@@ -1020,8 +1014,8 @@ importers:
       '@types/react': 18.2.5
       '@types/react-dom': 18.2.3
       '@vercel/ncc': ^0.36.0
-      '@vercel/turbopack-dev': https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230504.3
-      '@vercel/turbopack-node': https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js?turbopack-230504.3
+      '@vercel/turbopack-dev': https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230517.2
+      '@vercel/turbopack-node': https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js?turbopack-230517.2
       anser: ^2.1.1
       css.escape: ^1.5.1
       find-up: ^6.3.0
@@ -1033,8 +1027,8 @@ importers:
       stacktrace-parser: ^0.1.10
       strip-ansi: ^7.0.1
     dependencies:
-      '@vercel/turbopack-dev': '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230504.3_react-refresh@0.12.0'
-      '@vercel/turbopack-node': '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js?turbopack-230504.3'
+      '@vercel/turbopack-dev': '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230517.2_react-refresh@0.12.0'
+      '@vercel/turbopack-node': '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js?turbopack-230517.2'
       anser: 2.1.1
       css.escape: 1.5.1
       next: link:../../../../next
@@ -5240,7 +5234,7 @@ packages:
       '@jest/schemas': 29.4.3
       '@types/istanbul-lib-coverage': 2.0.3
       '@types/istanbul-reports': 3.0.0
-      '@types/node': 14.14.31
+      '@types/node': 18.11.18
       '@types/yargs': 17.0.10
       chalk: 4.1.2
     dev: true
@@ -6895,7 +6889,7 @@ packages:
   /@types/amphtml-validator/1.0.0:
     resolution: {integrity: sha512-CJOi00fReT1JehItkgTZDI47v9WJxUH/OLX0XzkDgyEed7dGdeUQfXk5CTRM7N9FkHdv3klSjsZxo5sH1oTIGg==}
     dependencies:
-      '@types/node': 17.0.21
+      '@types/node': 18.11.18
     dev: true
 
   /@types/aria-query/5.0.1:
@@ -7020,7 +7014,7 @@ packages:
   /@types/cross-spawn/6.0.0:
     resolution: {integrity: sha512-evp2ZGsFw9YKprDbg8ySgC9NA15g3YgiI8ANkGmKKvvi0P2aDGYLPxQIC5qfeKNUOe3TjABVGuah6omPRpIYhg==}
     dependencies:
-      '@types/node': 17.0.21
+      '@types/node': 18.11.18
     dev: true
 
   /@types/debug/4.1.5:
@@ -7080,7 +7074,7 @@ packages:
   /@types/fontkit/2.0.0:
     resolution: {integrity: sha512-Qe+6szpPLTNsqkDFs2MScJyB51d5Hpobyg/T0QoUWO53WuNOTNLsV8fkE4QQPOJbhOMN5wlwmNeDdsh/e6Uqdg==}
     dependencies:
-      '@types/node': 17.0.21
+      '@types/node': 18.11.18
     dev: true
 
   /@types/fresh/0.5.0:
@@ -7090,7 +7084,7 @@ packages:
   /@types/fs-extra/8.1.0:
     resolution: {integrity: sha512-UoOfVEzAUpeSPmjm7h1uk5MH6KZma2z2O7a75onTGjnNvAvMVrPzPL/vBbT65iIGHWj6rokwfmYcmxmlSf2uwg==}
     dependencies:
-      '@types/node': 17.0.21
+      '@types/node': 18.11.18
     dev: true
 
   /@types/glob/7.1.1:
@@ -7114,7 +7108,7 @@ packages:
   /@types/html-validator/5.0.3:
     resolution: {integrity: sha512-QcKpR0cAWhLy7T3J24dwCuviRyS8xj/gVtFxcfZer9lfRgHdSAUFvE02nI/rsgIxSr71Z/2moXVYvWl2fTAzHQ==}
     dependencies:
-      '@types/node': 17.0.21
+      '@types/node': 18.11.18
     dev: true
 
   /@types/http-cache-semantics/4.0.0:
@@ -7124,7 +7118,7 @@ packages:
   /@types/http-proxy/1.17.3:
     resolution: {integrity: sha512-wIPqXANye5BbORbuh74exbwNzj+UWCwWyeEFJzUQ7Fq3W2NSAy+7x7nX1fgbEypr2/TdKqpeuxLnXWgzN533/Q==}
     dependencies:
-      '@types/node': 17.0.21
+      '@types/node': 18.11.18
     dev: true
 
   /@types/inquirer/8.1.3:
@@ -7261,7 +7255,7 @@ packages:
   /@types/node-fetch/2.6.1:
     resolution: {integrity: sha512-oMqjURCaxoSIsHSr1E47QHzbmzNR5rK8McHuNb11BOM9cHcIK3Avy0s/b2JlXHoQGTYS3NsvWzV1M0iK7l0wbA==}
     dependencies:
-      '@types/node': 17.0.21
+      '@types/node': 18.11.18
       form-data: 3.0.1
     dev: true
 
@@ -7269,15 +7263,12 @@ packages:
     resolution: {integrity: sha512-fh+pAqt4xRzPfqA6eh3Z2y6fyZavRIumvjhaCL753+TVkGKGhpPeyrJG2JftD0T9q4GF00KjefsQ+PQNDdWQaQ==}
     dev: true
 
-  /@types/node/12.12.24:
-    resolution: {integrity: sha512-1Ciqv9pqwVtW6FsIUKSZNB82E5Cu1I2bBTj1xuIHXLe/1zYLl3956Nbhg2MzSYHVfl9/rmanjbQIb7LibfCnug==}
-    dev: true
-
   /@types/node/14.14.31:
     resolution: {integrity: sha512-vFHy/ezP5qI0rFgJ7aQnjDXwAMrG0KqqIH7tQG5PPv3BWBayOPIQNBjVc/P6hhdZfMx51REc6tfDNXHUio893g==}
+    dev: true
 
-  /@types/node/17.0.21:
-    resolution: {integrity: sha512-DBZCJbhII3r90XbQxI8Y9IjjiiOGlZ0Hr32omXIZvwwZ7p4DMMXGrKXVyPfuoBOri9XNtL0UK69jYIBIsRX3QQ==}
+  /@types/node/16.18.27:
+    resolution: {integrity: sha512-GFfndd/RINWD19W+xNJ9Qh/sOZ5ieTiOSagA86ER/12i/l+MEnQxsbldGRF23azWjRfe7zUlAldyrwN84a1E5w==}
     dev: true
 
   /@types/node/18.11.18:
@@ -7366,13 +7357,6 @@ packages:
     resolution: {integrity: sha512-wWKOClTTiizcZhXnPY4wikVAwmdYHp8q6DmC+EJUzAMsycb7HB32Kh9RN4+0gExjmPmZSAQjgURXIGATPegAvA==}
     dev: true
 
-  /@types/rimraf/3.0.0:
-    resolution: {integrity: sha512-7WhJ0MdpFgYQPXlF4Dx+DhgvlPCfz/x5mHaeDQAKhcenvQP1KCpLQ18JklAqeGMYSAT2PxLpzd0g2/HE7fj7hQ==}
-    dependencies:
-      '@types/glob': 7.1.1
-      '@types/node': 17.0.21
-    dev: true
-
   /@types/scheduler/0.16.2:
     resolution: {integrity: sha512-hppQEBDmlwhFAXKJX2KnWLYu5yMfi91yazPb2l+lbJiwW+wdo1gNeRA+3RgNSO39WYX2euey41KEwnqesU2Jew==}
 
@@ -7383,14 +7367,14 @@ packages:
   /@types/semver/7.3.1:
     resolution: {integrity: sha512-ooD/FJ8EuwlDKOI6D9HWxgIgJjMg2cuziXm/42npDC8y4NjxplBUn9loewZiBNCt44450lHAU0OSb51/UqXeag==}
     dependencies:
-      '@types/node': 17.0.21
+      '@types/node': 18.11.18
     dev: true
 
   /@types/send/0.14.4:
     resolution: {integrity: sha512-SCVCRRjSbpwoKgA34wK8cq14OUPu4qrKigO85/ZH6J04NGws37khLtq7YQr17zyOH01p4T5oy8e1TxEzql01Pg==}
     dependencies:
       '@types/mime': 2.0.1
-      '@types/node': 17.0.21
+      '@types/node': 18.11.18
     dev: true
 
   /@types/serve-static/1.13.3:
@@ -7403,7 +7387,7 @@ packages:
   /@types/sharp/0.29.3:
     resolution: {integrity: sha512-83Xp05eK2hvfNnmKLr2Fz0C2A0jrr2TnSLqKRbkLTYuAu+Erj6mKQLoEMGafE73Om8p3q3ryZxtHFM/7hy4Adg==}
     dependencies:
-      '@types/node': 17.0.21
+      '@types/node': 18.11.18
     dev: true
 
   /@types/shell-quote/1.7.1:
@@ -7429,7 +7413,7 @@ packages:
     resolution: {integrity: sha512-Z7AVMMlkI8NTWF0qGhC4QIX0zkV/+y0J8x7b/RsHrN0310+YNjoJd8UrApCiGBCWtKjxS9QhNqLi2UJNToh5hA==}
     dependencies:
       '@types/minipass': 2.2.0
-      '@types/node': 17.0.21
+      '@types/node': 18.11.18
     dev: true
 
   /@types/text-table/0.2.1:
@@ -7472,7 +7456,7 @@ packages:
   /@types/ws/8.2.0:
     resolution: {integrity: sha512-cyeefcUCgJlEk+hk2h3N+MqKKsPViQgF5boi9TTHSK+PoR9KWBb/C5ccPcDyAqgsbAYHTwulch725DV84+pSpg==}
     dependencies:
-      '@types/node': 17.0.21
+      '@types/node': 18.11.18
     dev: true
 
   /@types/yargs-parser/13.1.0:
@@ -10872,7 +10856,7 @@ packages:
       '@datadog/native-metrics': 1.1.0
       '@datadog/pprof': 0.3.0
       '@datadog/sketches-js': 1.0.4
-      '@types/node': 17.0.21
+      '@types/node': 18.11.18
       crypto-randomuuid: 1.0.0
       diagnostics_channel: 1.1.0
       form-data: 3.0.1
@@ -15289,7 +15273,7 @@ packages:
       '@jest/environment': 27.5.1
       '@jest/test-result': 27.5.1
       '@jest/types': 27.5.1
-      '@types/node': 14.14.31
+      '@types/node': 18.11.18
       chalk: 4.1.2
       co: 4.6.0
       dedent: 0.7.0
@@ -15998,7 +15982,7 @@ packages:
     resolution: {integrity: sha512-mk0umAQ5lT+CaOJ+Qp01N6kz48sJG2kr2n1rX0koqKf6FIygQV0qLOdN9SCYID4IVeSigDOcPeGLozdMLYfb5g==}
     engines: {node: ^10.13.0 || ^12.13.0 || ^14.15.0 || >=15.0.0}
     dependencies:
-      '@types/node': 17.0.21
+      '@types/node': 18.11.18
       merge-stream: 2.0.0
       supports-color: 8.1.1
     dev: true
@@ -25605,9 +25589,9 @@ packages:
   /zwitch/2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
-  '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230504.3_react-refresh@0.12.0':
-    resolution: {tarball: https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230504.3}
-    id: '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230504.3'
+  '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230517.2_react-refresh@0.12.0':
+    resolution: {tarball: https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230517.2}
+    id: '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230517.2'
     name: '@vercel/turbopack-dev'
     version: 0.0.0
     dependencies:
@@ -25617,8 +25601,8 @@ packages:
       - webpack
     dev: false
 
-  '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js?turbopack-230504.3':
-    resolution: {tarball: https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js?turbopack-230504.3}
+  '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js?turbopack-230517.2':
+    resolution: {tarball: https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js?turbopack-230517.2}
     name: '@vercel/turbopack-node'
     version: 0.0.0
     dependencies:

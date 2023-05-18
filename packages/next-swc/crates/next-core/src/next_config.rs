@@ -2,7 +2,13 @@ use anyhow::{Context, Result};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-use turbo_binding::{
+use turbo_tasks::{
+    primitives::{BoolVc, StringsVc},
+    trace::TraceRawVcs,
+    CompletionVc, Value,
+};
+use turbo_tasks_fs::json::parse_json_with_source_context;
+use turbopack_binding::{
     turbo::{tasks_env::EnvMapVc, tasks_fs::FileSystemPathVc},
     turbopack::{
         core::{
@@ -23,24 +29,18 @@ use turbo_binding::{
         ecmascript::{
             EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc,
         },
-        ecmascript_plugin::transform::emotion::EmotionTransformConfig,
+        ecmascript_plugin::transform::{
+            emotion::EmotionTransformConfig, relay::RelayConfig,
+            styled_components::StyledComponentsTransformConfig,
+        },
         node::{
             evaluate::evaluate,
             execution_context::{ExecutionContext, ExecutionContextVc},
             transforms::webpack::{WebpackLoaderConfigItems, WebpackLoaderConfigItemsVc},
         },
-        turbopack::{
-            evaluate_context::node_evaluate_asset_context,
-            module_options::StyledComponentsTransformConfig,
-        },
+        turbopack::evaluate_context::node_evaluate_asset_context,
     },
 };
-use turbo_tasks::{
-    primitives::{BoolVc, StringsVc},
-    trace::TraceRawVcs,
-    CompletionVc, Value,
-};
-use turbo_tasks_fs::json::parse_json_with_source_context;
 
 use crate::{embed_js::next_asset, next_shared::transforms::ModularizeImportPackageConfig};
 
@@ -455,22 +455,6 @@ pub enum ReactRemoveProperties {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
-#[serde(rename_all = "camelCase")]
-pub struct RelayConfig {
-    pub src: String,
-    pub artifact_directory: Option<String>,
-    pub language: Option<RelayLanguage>,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
-#[serde(rename_all = "lowercase")]
-pub enum RelayLanguage {
-    TypeScript,
-    Flow,
-    JavaScript,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(untagged)]
 pub enum RemoveConsoleConfig {
     Boolean(bool),
@@ -627,7 +611,7 @@ pub async fn load_next_config_internal(
     import_map.insert_exact_alias("styled-jsx", ImportMapping::External(None).into());
     import_map.insert_wildcard_alias("styled-jsx/", ImportMapping::External(None).into());
 
-    let context = node_evaluate_asset_context(project_path, Some(import_map.cell()), None);
+    let context = node_evaluate_asset_context(execution_context, Some(import_map.cell()), None);
     let config_asset = config_file.map(SourceAssetVc::new);
 
     let config_changed = config_asset.map_or_else(CompletionVc::immutable, |config_asset| {
@@ -662,7 +646,7 @@ pub async fn load_next_config_internal(
     )
     .await?;
 
-    let turbo_binding::turbo::tasks_bytes::stream::SingleValue::Single(val) = config_value.try_into_single().await.context("Evaluation of Next.js config failed")? else {
+    let turbopack_binding::turbo::tasks_bytes::stream::SingleValue::Single(val) = config_value.try_into_single().await.context("Evaluation of Next.js config failed")? else {
         return Ok(NextConfig::default().cell());
     };
     let next_config: NextConfig = parse_json_with_source_context(val.to_str()?)?;
