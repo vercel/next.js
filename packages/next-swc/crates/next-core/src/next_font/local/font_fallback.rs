@@ -3,7 +3,7 @@ use allsorts::{
     Font,
 };
 use anyhow::{bail, Context, Result};
-use turbo_binding::turbo::{
+use turbopack_binding::turbo::{
     tasks::primitives::{StringVc, StringsVc, U32Vc},
     tasks_fs::{FileContent, FileSystemPathVc},
 };

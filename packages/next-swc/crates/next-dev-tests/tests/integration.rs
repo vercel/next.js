@@ -41,7 +41,7 @@ use tokio::{
     task::JoinSet,
 };
 use tungstenite::{error::ProtocolError::ResetWithoutClosingHandshake, Error::Protocol};
-use turbo_binding::{
+use turbopack_binding::{
     turbo::{
         tasks::{
             debug::{ValueDebug, ValueDebugStringReadRef},
@@ -278,7 +278,7 @@ async fn run_test(resource: PathBuf) -> JsResult {
     .eager_compile(false)
     .hostname(requested_addr.ip())
     .port(requested_addr.port())
-    .log_level(turbo_binding::turbopack::core::issue::IssueSeverity::Warning)
+    .log_level(turbopack_binding::turbopack::core::issue::IssueSeverity::Warning)
     .log_detail(true)
     .issue_reporter(Box::new(move || {
         TestIssueReporterVc::new(issue_tx.clone()).into()

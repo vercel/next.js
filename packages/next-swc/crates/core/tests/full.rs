@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use next_swc::{custom_before_pass, TransformOptions};
 use serde::de::DeserializeOwned;
-use turbo_binding::swc::{
+use turbopack_binding::swc::{
     core::{
         base::Compiler,
         common::comments::SingleThreadedComments,
@@ -14,12 +14,12 @@ use turbo_binding::swc::{
     testing::{NormalizedOutput, Tester},
 };
 
-#[turbo_binding::swc::testing::fixture("tests/full/**/input.js")]
+#[turbopack_binding::swc::testing::fixture("tests/full/**/input.js")]
 fn full(input: PathBuf) {
     test(&input, true);
 }
 
-#[turbo_binding::swc::testing::fixture("tests/loader/**/input.js")]
+#[turbopack_binding::swc::testing::fixture("tests/loader/**/input.js")]
 fn loader(input: PathBuf) {
     test(&input, false);
 }
@@ -34,16 +34,16 @@ fn test(input: &Path, minify: bool) {
             let fm = cm.load_file(input).expect("failed to load file");
 
             let options = TransformOptions {
-                swc: turbo_binding::swc::core::base::config::Options {
+                swc: turbopack_binding::swc::core::base::config::Options {
                     swcrc: true,
                     output_path: Some(output.clone()),
 
-                    config: turbo_binding::swc::core::base::config::Config {
-                        is_module: Some(turbo_binding::swc::core::base::config::IsModule::Bool(
-                            true,
-                        )),
+                    config: turbopack_binding::swc::core::base::config::Config {
+                        is_module: Some(
+                            turbopack_binding::swc::core::base::config::IsModule::Bool(true),
+                        ),
 
-                        jsc: turbo_binding::swc::core::base::config::JscConfig {
+                        jsc: turbopack_binding::swc::core::base::config::JscConfig {
                             minify: if minify {
                                 Some(assert_json("{ \"compress\": true, \"mangle\": true }"))
                             } else {

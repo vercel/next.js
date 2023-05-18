@@ -27,7 +27,7 @@ export class RouteHandlerManager {
     context: RouteHandlerManagerContext
   ): Promise<Response | undefined> {
     // The module supports minimal mode, load the minimal module.
-    const module = RouteModuleLoader.load<RouteModule>(
+    const module = await RouteModuleLoader.load<RouteModule>(
       match.definition.filename,
       this.moduleLoader
     )

@@ -2,7 +2,8 @@ use std::collections::HashSet;
 
 use anyhow::Result;
 use lazy_static::lazy_static;
-use turbo_binding::{
+use turbo_tasks_fs::glob::GlobVc;
+use turbopack_binding::{
     turbo::tasks_fs::FileSystemPathVc,
     turbopack::core::{
         issue::unsupported_module::UnsupportedModuleIssue,
@@ -14,7 +15,6 @@ use turbo_binding::{
         },
     },
 };
-use turbo_tasks_fs::glob::GlobVc;
 
 lazy_static! {
     static ref UNSUPPORTED_PACKAGES: HashSet<&'static str> = ["@vercel/og"].into();

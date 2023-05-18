@@ -7,7 +7,9 @@ use swc_core::{
     common::{source_map::Pos, Span, Spanned},
     ecma::ast::{Expr, Ident, Program},
 };
-use turbo_binding::turbopack::{
+use turbo_tasks::{primitives::StringVc, trace::TraceRawVcs};
+use turbo_tasks_fs::FileSystemPathVc;
+use turbopack_binding::turbopack::{
     core::{
         asset::{Asset, AssetVc},
         ident::AssetIdentVc,
@@ -21,8 +23,6 @@ use turbo_binding::turbopack::{
         EcmascriptModuleAssetVc,
     },
 };
-use turbo_tasks::{primitives::StringVc, trace::TraceRawVcs};
-use turbo_tasks_fs::FileSystemPathVc;
 
 use crate::util::NextRuntime;
 
