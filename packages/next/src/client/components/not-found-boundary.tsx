@@ -53,7 +53,10 @@ class NotFoundErrorBoundary extends React.Component<
         previousPathname: props.pathname,
       }
     }
-    return null
+    return {
+      notFoundTriggered: state.notFoundTriggered,
+      previousPathname: props.pathname,
+    }
   }
 
   render() {

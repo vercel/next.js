@@ -75,7 +75,10 @@ export class ErrorBoundaryHandler extends React.Component<
         previousPathname: props.pathname,
       }
     }
-    return null
+    return {
+      error: state.error,
+      previousPathname: props.pathname,
+    }
   }
 
   reset = () => {
