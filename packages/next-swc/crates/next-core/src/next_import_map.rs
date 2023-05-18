@@ -1,7 +1,8 @@
 use std::collections::{BTreeMap, HashMap};
 
 use anyhow::{Context, Result};
-use turbo_binding::{
+use turbo_tasks::Value;
+use turbopack_binding::{
     turbo::tasks_fs::{glob::GlobVc, FileSystem, FileSystemPathVc},
     turbopack::{
         core::{
@@ -20,7 +21,6 @@ use turbo_binding::{
         turbopack::{resolve_options, resolve_options_context::ResolveOptionsContext},
     },
 };
-use turbo_tasks::Value;
 
 use crate::{
     embed_js::{next_js_fs, VIRTUAL_PACKAGE_NAME},
@@ -465,7 +465,7 @@ pub async fn insert_next_shared_aliases(
     insert_package_alias(
         import_map,
         "@vercel/turbopack-node/",
-        turbo_binding::turbopack::node::embed_js::embed_fs().root(),
+        turbopack_binding::turbopack::node::embed_js::embed_fs().root(),
     );
 
     Ok(())
@@ -569,7 +569,7 @@ fn insert_turbopack_dev_alias(import_map: &mut ImportMap) {
     insert_package_alias(
         import_map,
         "@vercel/turbopack-dev/",
-        turbo_binding::turbopack::dev::embed_js::embed_fs().root(),
+        turbopack_binding::turbopack::dev::embed_js::embed_fs().root(),
     );
 }
 

@@ -1,5 +1,9 @@
 use anyhow::Result;
-use turbo_binding::{
+use turbo_tasks::{
+    primitives::{BoolVc, StringVc},
+    Value,
+};
+use turbopack_binding::{
     turbo::tasks_fs::{FileSystemEntryType, FileSystemPathVc},
     turbopack::{
         core::{
@@ -12,10 +16,6 @@ use turbo_binding::{
             resolve_options_context::ResolveOptionsContext,
         },
     },
-};
-use turbo_tasks::{
-    primitives::{BoolVc, StringVc},
-    Value,
 };
 
 const BABEL_CONFIG_FILES: &[&str] = &[

@@ -1,7 +1,8 @@
 use anyhow::Result;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use turbo_binding::{
+use turbo_tasks::primitives::{BoolVc, StringsVc};
+use turbopack_binding::{
     turbo::tasks_fs::{glob::GlobVc, FileJsonContent, FileSystemPathVc},
     turbopack::core::{
         asset::Asset,
@@ -16,7 +17,6 @@ use turbo_binding::{
         },
     },
 };
-use turbo_tasks::primitives::{BoolVc, StringsVc};
 
 /// The predicated based on which the [ExternalCjsModulesResolvePlugin] decides
 /// whether to mark a module as external.
