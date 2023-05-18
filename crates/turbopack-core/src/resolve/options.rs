@@ -34,7 +34,7 @@ pub enum ResolveModules {
     Registry(FileSystemPathVc, LockedVersionsVc),
 }
 
-#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum ConditionValue {
     Set,
     Unset,
@@ -51,6 +51,8 @@ impl From<bool> for ConditionValue {
     }
 }
 
+pub type ResolutionConditions = BTreeMap<String, ConditionValue>;
+
 /// The different ways to resolve a package, as described in package.json.
 #[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 pub enum ResolveIntoPackage {
@@ -58,8 +60,7 @@ pub enum ResolveIntoPackage {
     ///
     /// [exports]: https://nodejs.org/api/packages.html#exports
     ExportsField {
-        field: String,
-        conditions: BTreeMap<String, ConditionValue>,
+        conditions: ResolutionConditions,
         unspecified_conditions: ConditionValue,
     },
     /// Using a [main]-like field (e.g. [main], [module], [browser], etc.).
@@ -77,6 +78,13 @@ pub enum ResolveIntoPackage {
 pub enum ResolveInPackage {
     /// Using a alias field which allows to map requests
     AliasField(String),
+    /// Using the [imports] field.
+    ///
+    /// [imports]: https://nodejs.org/api/packages.html#imports
+    ImportsField {
+        conditions: ResolutionConditions,
+        unspecified_conditions: ConditionValue,
+    },
 }
 
 #[turbo_tasks::value(shared)]
