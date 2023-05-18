@@ -2,8 +2,8 @@ use fxhash::FxHashMap;
 use turbopack_binding::swc::core::{
     common::SyntaxContext,
     ecma::{
-        ast::{CallExpr, Callee, Expr, Id, Lit, Module, Script, VarDeclarator},
-        atoms::JsWord,
+        ast::{CallExpr, Callee, Expr, Id, Lit, Module, Pat, Script, VarDeclarator},
+        atoms::{Atom, JsWord},
         visit::{
             as_folder, noop_visit_mut_type, noop_visit_type, Fold, Visit, VisitMut, VisitMutWith,
             VisitWith,
@@ -36,8 +36,10 @@ struct Analyzer<'a> {
 
 #[derive(Debug, Default)]
 struct Data {
-    /// `(identifier) :(module_specifier, exported symbol)`
-    imports: FxHashMap<Id, (JsWord, JsWord)>,
+    /// List of `require` calls
+    ///
+    ///  `(identifier): (module_specifier)`
+    imports: FxHashMap<Id, Atom>,
 }
 
 impl VisitMut for Optimizer {
@@ -81,7 +83,13 @@ impl Visit for Analyzer<'_> {
                 if ident.sym == *"require" {
                     if let Some(arg) = args.get(0) {
                         if let Expr::Lit(Lit::Str(v)) = &*arg.expr {
-                            //
+                            // TODO: Config
+
+                            if let Pat::Ident(name) = &n.name {
+                                self.data
+                                    .imports
+                                    .insert(name.to_id(), v.value.clone().into());
+                            }
                         }
                     }
                 }
