@@ -3333,6 +3333,7 @@ dependencies = [
  "once_cell",
  "pathdiff",
  "regex",
+ "rustc-hash",
  "serde",
  "serde_json",
  "sha1 0.10.5",
