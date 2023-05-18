@@ -25,7 +25,7 @@ import type { RenderOpts } from 'next/dist/server/app-render/types'
 
 import { renderToHTMLOrFlight } from 'next/dist/server/app-render/app-render'
 import { RSC_VARY_HEADER } from 'next/dist/client/components/app-router-headers'
-import { headersFromEntries } from '../internal/headers'
+import { headersFromEntries, initProxiedHeaders } from '../internal/headers'
 import { parse, ParsedUrlQuery } from 'node:querystring'
 import { PassThrough } from 'node:stream'
 ;('TURBOPACK { transition: next-layout-entry; chunking-type: isolatedParallel }')
@@ -247,7 +247,10 @@ async function runOperation(renderData: RenderData) {
   const req: IncomingMessage = {
     url: renderData.originalUrl,
     method: renderData.method,
-    headers: headersFromEntries(renderData.rawHeaders),
+    headers: initProxiedHeaders(
+      headersFromEntries(renderData.rawHeaders),
+      renderData.data?.serverInfo
+    ),
   } as any
 
   const res = createServerResponse(req, renderData.path)
