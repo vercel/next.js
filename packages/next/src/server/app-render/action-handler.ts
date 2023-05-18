@@ -22,7 +22,7 @@ import { FlightRenderResult } from './flight-render-result'
 import { ActionResult } from './types'
 import { ActionAsyncStorage } from '../../client/components/action-async-storage'
 import { filterReqHeaders, forbiddenHeaders } from '../lib/server-ipc/utils'
-import { getMutableCookieHeaders } from '../future/route-modules/app-route/helpers/get-mutable-cookie-headers'
+import { appendMutableCookies } from '../web/spec-extension/adapters/request-cookies'
 
 function nodeToWebReadableStream(nodeReadable: import('stream').Readable) {
   if (process.env.NEXT_RUNTIME !== 'edge') {
@@ -379,14 +379,12 @@ export async function handleAction({
         }
 
         if (err.mutableCookies) {
-          const headers = getMutableCookieHeaders(
-            new Headers(),
-            err.mutableCookies
-          )
-          for (let [key, value] of headers) {
-            if (!forbiddenHeaders.includes(key)) {
-              res.setHeader(key, value)
-            }
+          const headers = new Headers()
+
+          // If there were mutable cookies set, we need to set them on the
+          // response.
+          if (appendMutableCookies(headers, err.mutableCookies)) {
+            res.setHeader('set-cookie', Array.from(headers.values()))
           }
         }
 

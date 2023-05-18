@@ -32,7 +32,7 @@ import * as Log from '../../../../build/output/log'
 import { autoImplementMethods } from './helpers/auto-implement-methods'
 import { getNonStaticMethods } from './helpers/get-non-static-methods'
 import { PrerenderManifest } from '../../../../build'
-import { getMutableCookieHeaders } from './helpers/get-mutable-cookie-headers'
+import { appendMutableCookies } from '../../../web/spec-extension/adapters/request-cookies'
 
 /**
  * AppRouteRouteHandlerContext is the context that is passed to the route
@@ -358,11 +358,13 @@ export class AppRouteRouteModule extends RouteModule<
                     // here.
                     const requestStore = this.requestAsyncStorage.getStore()
                     if (requestStore && requestStore.mutableCookies) {
-                      const headers = getMutableCookieHeaders(
-                        res.headers,
-                        requestStore.mutableCookies
-                      )
-                      if (headers !== res.headers) {
+                      const headers = new Headers(res.headers)
+                      if (
+                        appendMutableCookies(
+                          headers,
+                          requestStore.mutableCookies
+                        )
+                      ) {
                         return new Response(res.body, {
                           status: res.status,
                           statusText: res.statusText,

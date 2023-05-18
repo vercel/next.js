@@ -72,8 +72,7 @@ import {
 import { handleAction } from './action-handler'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
 import { warn } from '../../build/output/log'
-import { getMutableCookieHeaders } from '../future/route-modules/app-route/helpers/get-mutable-cookie-headers'
-import { forbiddenHeaders } from '../lib/server-ipc/utils'
+import { appendMutableCookies } from '../web/spec-extension/adapters/request-cookies'
 
 export const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -1508,14 +1507,12 @@ export async function renderToHTMLOrFlight(
           if (isRedirectError(err)) {
             res.statusCode = 307
             if (err.mutableCookies) {
-              const headers = getMutableCookieHeaders(
-                new Headers(),
-                err.mutableCookies
-              )
-              for (let [key, value] of headers) {
-                if (!forbiddenHeaders.includes(key)) {
-                  res.setHeader(key, value)
-                }
+              const headers = new Headers()
+
+              // If there were mutable cookies set, we need to set them on the
+              // response.
+              if (appendMutableCookies(headers, err.mutableCookies)) {
+                res.setHeader('set-cookie', Array.from(headers.values()))
               }
             }
             res.setHeader('Location', getURLFromRedirectError(err))
