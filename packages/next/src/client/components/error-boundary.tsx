@@ -84,20 +84,6 @@ export class ErrorBoundaryHandler extends React.Component<
 
   render() {
     if (this.state.error) {
-      /**
-       * Handles reset of the error boundary when a navigation happens.
-       * Ensures the error boundary does not stay enabled when navigating to a new page.
-       * Approach of setState in render is safe as it checks the previous pathname and then overrides
-       * it as outlined in https://react.dev/reference/react/useState#storing-information-from-previous-renders
-       */
-      if (this.props.pathname !== this.state.previousPathname) {
-        this.setState((_state) => {
-          return {
-            error: null,
-            previousPathname: this.props.pathname,
-          }
-        })
-      }
       return (
         <>
           {this.props.errorStyles}
