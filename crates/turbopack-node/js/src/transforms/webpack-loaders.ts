@@ -41,6 +41,60 @@ const toPath = (file: string) => {
   return sep !== "/" ? relPath.replaceAll(sep, "/") : relPath;
 };
 
+const LogType = Object.freeze({
+  error: "error",
+  warn: "warn",
+  info: "info",
+  log: "log",
+  debug: "debug",
+
+  trace: "trace",
+
+  group: "group",
+  groupCollapsed: "groupCollapsed",
+  groupEnd: "groupEnd",
+
+  profile: "profile",
+  profileEnd: "profileEnd",
+
+  time: "time",
+
+  clear: "clear",
+  status: "status",
+});
+
+const loaderFlag = "LOADER_EXECUTION";
+
+const cutOffByFlag = (stack, flag) => {
+  const errorStack = stack.split("\n");
+  for (let i = 0; i < errorStack.length; i++) {
+    if (errorStack[i].includes(flag)) {
+      errorStack.length = i;
+    }
+  }
+  return errorStack.join("\n");
+};
+
+/**
+ * @param {string} stack stack trace
+ * @returns {string} stack trace without the loader execution flag included
+ */
+const cutOffLoaderExecution = (stack) => cutOffByFlag(stack, loaderFlag);
+
+class DummySpan {
+  traceChild() {
+    return new DummySpan();
+  }
+
+  traceFn<T>(fn: (span: DummySpan) => T): T {
+    return fn(this);
+  }
+
+  async traceAsyncFn<T>(fn: (span: DummySpan) => T | Promise<T>): Promise<T> {
+    return await fn(this);
+  }
+}
+
 const transform = (
   ipc: Ipc,
   content: string,
@@ -59,6 +113,7 @@ const transform = (
       {
         resource,
         context: {
+          currentTraceSpan: new DummySpan(),
           rootContext: contextDir,
           getOptions() {
             const entry = this.loaders[this.loaderIndex];
@@ -66,9 +121,33 @@ const transform = (
               ? entry.options
               : {};
           },
+          getResolve: () => ({
+            // [TODO] this is incomplete
+          }),
           emitWarning: makeErrorEmitter("warning", ipc),
           emitError: makeErrorEmitter("error", ipc),
+          getLogger: (name) => (type, args) => {
+            let trace;
+            switch (type) {
+              case LogType.warn:
+              case LogType.error:
+              case LogType.trace:
+                trace = cutOffLoaderExecution(new Error("Trace").stack)
+                  .split("\n")
+                  .slice(3);
+                break;
+            }
+            const logEntry = {
+              time: Date.now(),
+              type,
+              args,
+              trace,
+            };
+
+            this.hooks.log.call(name, logEntry);
+          },
         },
+
         loaders: loadersWithOptions.map((loader) => ({
           loader: __turbopack_external_require__.resolve(loader.loader, {
             paths: [resourceDir],
