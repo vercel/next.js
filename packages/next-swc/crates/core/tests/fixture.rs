@@ -2,6 +2,7 @@ use std::{env::current_dir, path::PathBuf};
 
 use next_swc::{
     amp_attributes::amp_attributes,
+    cjs_optimizer::cjs_optimizer,
     next_dynamic::next_dynamic,
     next_ssg::next_ssg,
     page_config::page_config_test,
@@ -14,7 +15,7 @@ use next_swc::{
 use next_transform_font::{next_font_loaders, Config as FontLoaderConfig};
 use turbopack_binding::swc::{
     core::{
-        common::{chain, comments::SingleThreadedComments, FileName, Mark},
+        common::{chain, comments::SingleThreadedComments, FileName, Mark, SyntaxContext},
         ecma::{
             parser::{EsConfig, Syntax},
             transforms::{
@@ -347,6 +348,28 @@ fn server_actions_client_fixture(input: PathBuf) {
                     server_actions::Config { is_server: false },
                     _tr.comments.as_ref().clone(),
                 )
+            )
+        },
+        &input,
+        &output,
+        Default::default(),
+    );
+}
+
+#[fixture("tests/fixture/cjs-optimize/**/input.js")]
+fn cjs_optimize_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            let unresolved_mark = Mark::new();
+            let top_level_mark = Mark::new();
+
+            let unresolved_ctxt = SyntaxContext::empty().apply_mark(unresolved_mark);
+
+            chain!(
+                resolver(unresolved_mark, top_level_mark, false),
+                cjs_optimizer(next_swc::cjs_optimizer::Config {}, unresolved_ctxt)
             )
         },
         &input,
