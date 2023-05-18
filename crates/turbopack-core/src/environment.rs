@@ -1,10 +1,12 @@
 use std::{
+    fmt,
     net::SocketAddr,
     process::{Command, Stdio},
     str::FromStr,
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
+use serde::{Deserialize, Serialize};
 use swc_core::ecma::preset_env::{Version, Versions};
 use turbo_tasks::{
     primitives::{BoolVc, OptionStringVc, StringVc, StringsVc},
@@ -55,10 +57,10 @@ impl ServerAddr {
             .hostname()
             .zip(self.port())
             .context("expected some server address")?;
+        let protocol = Protocol::from(port);
         Ok(match port {
-            80 => format!("http://{hostname}"),
-            443 => format!("https://{hostname}"),
-            _ => format!("http://{hostname}:{port}"),
+            80 | 443 => format!("{protocol}://{hostname}"),
+            _ => format!("{protocol}://{hostname}:{port}"),
         })
     }
 }
@@ -68,6 +70,62 @@ impl ServerAddrVc {
     #[turbo_tasks::function]
     pub fn empty() -> Self {
         ServerAddr(None).cell()
+    }
+}
+
+/// A simple serializable structure meant to carry information about Turbopack's
+/// server to node rendering processes.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ServerInfo {
+    pub ip: String,
+    pub port: u16,
+
+    /// The protocol, either `http` or `https`
+    pub protocol: Protocol,
+
+    /// A formatted hostname (eg, "localhost") or the IP address of the server
+    pub hostname: String,
+}
+
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Protocol {
+    HTTP,
+    HTTPS,
+}
+
+impl From<u16> for Protocol {
+    fn from(value: u16) -> Self {
+        match value {
+            443 => Self::HTTPS,
+            _ => Self::HTTP,
+        }
+    }
+}
+
+impl fmt::Display for Protocol {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::HTTP => f.write_str("http"),
+            Self::HTTPS => f.write_str("https"),
+        }
+    }
+}
+
+impl TryFrom<&ServerAddr> for ServerInfo {
+    type Error = anyhow::Error;
+
+    fn try_from(addr: &ServerAddr) -> Result<Self> {
+        if addr.0.is_none() {
+            bail!("cannot unwrap ServerAddr");
+        };
+        let port = addr.port().unwrap();
+        Ok(ServerInfo {
+            ip: addr.ip().unwrap(),
+            hostname: addr.hostname().unwrap(),
+            port,
+            protocol: Protocol::from(port),
+        })
     }
 }
 
