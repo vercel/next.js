@@ -1,0 +1,79 @@
+.container {
+  display: grid;
+  grid-template-areas:
+    'nav'
+    'header'
+    'main'
+    'footer';
+  grid-template-rows: auto auto 1fr 36px;
+  align-items: center;
+  min-height: 100vh;
+
+  & nav {
+    grid-area: nav;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px;
+    font-size: calc(10px + 2vmin);
+
+    & a {
+      &:global(.active) {
+        color: #704cb6;
+      }
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+
+  header {
+    grid-area: header;
+  }
+
+  & main {
+    grid-area: main;
+  }
+
+  & header,
+  & main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  & footer {
+    grid-area: footer;
+    justify-self: center;
+  }
+}
+
+.logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+.link {
+  color: rgb(112, 76, 182);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .logo {
+    animation: logo-float infinite 3s ease-in-out;
+  }
+}
+
+@keyframes logo-float {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(10px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}

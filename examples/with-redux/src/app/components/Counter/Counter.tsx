@@ -6,13 +6,13 @@ import { useState } from 'react'
 /* Instruments */
 import {
   counterSlice,
-  incrementAsync,
-  incrementIfOddAsync,
-  selectCount,
   useSelector,
   useDispatch,
+  selectCount,
+  incrementAsync,
+  incrementIfOddAsync,
 } from '@/lib/redux'
-import styles from './counter.module.css'
+import styles from './counter.module.scss'
 
 export const Counter = () => {
   const dispatch = useDispatch()
