@@ -10,10 +10,12 @@
   },
   "dependencies": {
     "@reduxjs/toolkit": "1.9.5",
+    "classnames": "2.3.2",
     "next": "latest",
     "react": "18.2.0",
     "react-dom": "18.2.0",
-    "react-redux": "8.0.5"
+    "react-redux": "8.0.5",
+    "waait": "1.0.5"
   },
   "devDependencies": {
     "@swc/core": "1.3.58",
@@ -21,7 +23,7 @@
     "@testing-library/jest-dom": "5.16.5",
     "@testing-library/react": "14.0.0",
     "@testing-library/user-event": "14.4.3",
-    "@types/node": "20.1.7",
+    "@types/node": "20.2.0",
     "@types/react": "18.2.6",
     "@types/react-dom": "18.2.4",
     "@types/redux-logger": "3.0.9",
@@ -29,9 +31,7 @@
     "jest-css-modules-transform": "4.4.2",
     "jest-environment-jsdom": "29.5.0",
     "jest-watch-typeahead": "2.2.2",
-    "msw": "1.2.1",
     "redux-logger": "3.0.6",
-    "typescript": "5.0.4",
-    "waait": "1.0.5"
+    "typescript": "5.0.4"
   }
 }
