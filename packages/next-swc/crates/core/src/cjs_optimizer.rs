@@ -1,13 +1,13 @@
 use rustc_hash::FxHashMap;
 use turbopack_binding::swc::core::{
-    common::SyntaxContext,
+    common::{SyntaxContext, DUMMY_SP},
     ecma::{
         ast::{
-            CallExpr, Callee, Expr, Id, Lit, MemberExpr, MemberProp, Module, Pat, Script,
-            VarDeclarator,
+            CallExpr, Callee, Decl, Expr, Id, Ident, Lit, MemberExpr, MemberProp, Module, Pat,
+            Script, Stmt, VarDecl, VarDeclKind, VarDeclarator,
         },
-        atoms::Atom,
-        utils::IdentRenamer,
+        atoms::{Atom, JsWord},
+        utils::{private_ident, ExprFactory, IdentRenamer},
         visit::{
             as_folder, noop_visit_mut_type, noop_visit_type, Fold, Visit, VisitMut, VisitMutWith,
             VisitWith,
@@ -39,18 +39,61 @@ struct Data {
     ///  `(identifier): (module_specifier)`
     imports: FxHashMap<Id, Atom>,
 
+    /// `(module_specifier, property): (identifier)`
+    replaced: FxHashMap<(Atom, JsWord), Id>,
+
+    extra_stmts: Vec<Stmt>,
+
     rename_map: FxHashMap<Id, Id>,
 }
 
 impl VisitMut for Optimizer {
     noop_visit_mut_type!();
 
-    fn visit_mut_member_expr(&mut self, n: &mut MemberExpr) {
-        n.visit_mut_children_with(self);
+    fn visit_mut_expr(&mut self, e: &mut Expr) {
+        e.visit_mut_children_with(self);
 
-        if let MemberProp::Ident(prop) = &n.prop {
-            if let Expr::Ident(obj) = &*n.obj {
-                if let Some(module_specifier) = self.data.imports.get(&obj.to_id()) {}
+        if let Expr::Member(n) = e {
+            if let MemberProp::Ident(prop) = &n.prop {
+                if let Expr::Ident(obj) = &*n.obj {
+                    if let Some(module_specifier) = self.data.imports.get(&obj.to_id()) {
+                        let new_id = self
+                            .data
+                            .replaced
+                            .entry((module_specifier.clone(), prop.sym.clone()))
+                            .or_insert_with(|| private_ident!(prop.sym.clone()).to_id())
+                            .clone();
+
+                        let var = VarDeclarator {
+                            span: DUMMY_SP,
+                            name: Pat::Ident(new_id.clone().into()),
+                            init: Some(Box::new(Expr::Call(CallExpr {
+                                span: DUMMY_SP,
+                                callee: Ident::new(
+                                    "require".into(),
+                                    DUMMY_SP.with_ctxt(self.unresolved_ctxt),
+                                )
+                                .as_callee(),
+                                args: vec![
+                                    Expr::Lit(Lit::Str(module_specifier.clone().into())).as_arg()
+                                ],
+                                type_args: None,
+                            }))),
+                            definite: false,
+                        };
+
+                        self.data
+                            .extra_stmts
+                            .push(Stmt::Decl(Decl::Var(Box::new(VarDecl {
+                                span: DUMMY_SP,
+                                kind: VarDeclKind::Const,
+                                declare: false,
+                                decls: vec![var],
+                            }))));
+
+                        *e = Expr::Ident(new_id.into());
+                    }
+                }
             }
         }
     }
