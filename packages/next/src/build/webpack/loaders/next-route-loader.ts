@@ -1,6 +1,7 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 
 import { stringify } from 'querystring'
+import { getModuleBuildInfo } from './get-module-build-info'
 
 /**
  * The options for the route loader.
@@ -29,6 +30,12 @@ export function getRouteLoaderEntry(query: RouteLoaderOptions): string {
 const loader: webpack.LoaderDefinitionFunction<RouteLoaderOptions> =
   function () {
     const { absolutePagePath } = this.getOptions()
+    const buildInfo = getModuleBuildInfo(this._module as any)
+    buildInfo.route = {
+      page: '',
+      absolutePagePath,
+      preferredRegion: '',
+    }
 
     return `
         // Next.js Route Loader
