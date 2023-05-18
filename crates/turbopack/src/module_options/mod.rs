@@ -466,10 +466,15 @@ impl ModuleOptionsVc {
                         ModuleRuleCondition::not(ModuleRuleCondition::ResourceIsVirtualAsset),
                     ]),
                     vec![
-                        ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
-                            transforms: app_transforms,
-                            options: ecmascript_options.clone(),
-                        }),
+                        // [TODO]: should accept rules as an option
+                        if ext == ".scss" || ext == ".sass" {
+                            ModuleRuleEffect::ModuleType(ModuleType::Css(css_transforms))
+                        } else {
+                            ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
+                                transforms: app_transforms,
+                                options: ecmascript_options.clone(),
+                            })
+                        },
                         ModuleRuleEffect::SourceTransforms(SourceTransformsVc::cell(vec![
                             WebpackLoadersVc::new(
                                 node_evaluate_asset_context(
