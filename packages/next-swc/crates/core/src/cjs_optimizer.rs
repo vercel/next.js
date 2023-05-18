@@ -1,7 +1,9 @@
+use fxhash::FxHashMap;
 use turbopack_binding::swc::core::{
     common::SyntaxContext,
     ecma::{
-        ast::{CallExpr, Callee, Expr, Lit, Module, Script, VarDeclarator},
+        ast::{CallExpr, Callee, Expr, Id, Lit, Module, Script, VarDeclarator},
+        atoms::JsWord,
         visit::{
             as_folder, noop_visit_mut_type, noop_visit_type, Fold, Visit, VisitMut, VisitMutWith,
             VisitWith,
@@ -33,7 +35,10 @@ struct Analyzer<'a> {
 }
 
 #[derive(Debug, Default)]
-struct Data {}
+struct Data {
+    /// `(identifier) :(module_specifier, exported symbol)`
+    imports: FxHashMap<Id, (JsWord, JsWord)>,
+}
 
 impl VisitMut for Optimizer {
     noop_visit_mut_type!();
