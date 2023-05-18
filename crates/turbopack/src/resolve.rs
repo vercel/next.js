@@ -1,12 +1,10 @@
-use std::collections::BTreeMap;
-
 use anyhow::Result;
 use turbo_tasks_fs::{FileSystem, FileSystemPathVc};
 use turbopack_core::resolve::{
     find_context_file,
     options::{
-        ConditionValue, ImportMap, ImportMapping, ResolveInPackage, ResolveIntoPackage,
-        ResolveModules, ResolveOptions, ResolveOptionsVc,
+        ConditionValue, ImportMap, ImportMapping, ResolutionConditions, ResolveInPackage,
+        ResolveIntoPackage, ResolveModules, ResolveOptions, ResolveOptionsVc,
     },
     AliasMap, AliasPattern, FindContextFileResult,
 };
@@ -111,6 +109,53 @@ async fn base_resolve_options(
 
     let plugins = opt.plugins.clone();
 
+    let conditions = {
+        let mut conditions: ResolutionConditions = [
+            ("import".to_string(), ConditionValue::Unknown),
+            ("require".to_string(), ConditionValue::Unknown),
+        ]
+        .into_iter()
+        .collect();
+        if opt.browser {
+            conditions.insert("browser".to_string(), ConditionValue::Set);
+        }
+        if opt.module {
+            conditions.insert("module".to_string(), ConditionValue::Set);
+        }
+        if let Some(environment) = emulating {
+            for condition in environment.resolve_conditions().await?.iter() {
+                conditions.insert(condition.to_string(), ConditionValue::Set);
+            }
+        }
+        for condition in opt.custom_conditions.iter() {
+            conditions.insert(condition.to_string(), ConditionValue::Set);
+        }
+        // Infer some well-known conditions
+        let dev = conditions.get("development").cloned();
+        let prod = conditions.get("production").cloned();
+        if prod.is_none() {
+            conditions.insert(
+                "production".to_string(),
+                if matches!(dev, Some(ConditionValue::Set)) {
+                    ConditionValue::Unset
+                } else {
+                    ConditionValue::Unknown
+                },
+            );
+        }
+        if dev.is_none() {
+            conditions.insert(
+                "development".to_string(),
+                if matches!(prod, Some(ConditionValue::Set)) {
+                    ConditionValue::Unset
+                } else {
+                    ConditionValue::Unknown
+                },
+            );
+        }
+        conditions
+    };
+
     Ok(ResolveOptions {
         extensions: if let Some(environment) = emulating {
             environment.resolve_extensions().await?.clone_value()
@@ -152,57 +197,10 @@ async fn base_resolve_options(
             mods
         },
         into_package: {
-            let mut resolve_into = Vec::new();
-            resolve_into.push(ResolveIntoPackage::ExportsField {
-                field: "exports".to_string(),
-                conditions: {
-                    let mut conditions: BTreeMap<String, ConditionValue> = [
-                        ("import".to_string(), ConditionValue::Unknown),
-                        ("require".to_string(), ConditionValue::Unknown),
-                    ]
-                    .into_iter()
-                    .collect();
-                    if opt.browser {
-                        conditions.insert("browser".to_string(), ConditionValue::Set);
-                    }
-                    if opt.module {
-                        conditions.insert("module".to_string(), ConditionValue::Set);
-                    }
-                    if let Some(environment) = emulating {
-                        for condition in environment.resolve_conditions().await?.iter() {
-                            conditions.insert(condition.to_string(), ConditionValue::Set);
-                        }
-                    }
-                    for condition in opt.custom_conditions.iter() {
-                        conditions.insert(condition.to_string(), ConditionValue::Set);
-                    }
-                    // Infer some well-known conditions
-                    let dev = conditions.get("development").cloned();
-                    let prod = conditions.get("production").cloned();
-                    if prod.is_none() {
-                        conditions.insert(
-                            "production".to_string(),
-                            if matches!(dev, Some(ConditionValue::Set)) {
-                                ConditionValue::Unset
-                            } else {
-                                ConditionValue::Unknown
-                            },
-                        );
-                    }
-                    if dev.is_none() {
-                        conditions.insert(
-                            "development".to_string(),
-                            if matches!(prod, Some(ConditionValue::Set)) {
-                                ConditionValue::Unset
-                            } else {
-                                ConditionValue::Unknown
-                            },
-                        );
-                    }
-                    conditions
-                },
+            let mut resolve_into = vec![ResolveIntoPackage::ExportsField {
+                conditions: conditions.clone(),
                 unspecified_conditions: ConditionValue::Unset,
-            });
+            }];
             if opt.browser {
                 resolve_into.push(ResolveIntoPackage::MainField("browser".to_string()));
             }
@@ -214,7 +212,10 @@ async fn base_resolve_options(
             resolve_into
         },
         in_package: {
-            let mut resolve_in = Vec::new();
+            let mut resolve_in = vec![ResolveInPackage::ImportsField {
+                conditions,
+                unspecified_conditions: ConditionValue::Unset,
+            }];
             if opt.browser {
                 resolve_in.push(ResolveInPackage::AliasField("browser".to_string()));
             }

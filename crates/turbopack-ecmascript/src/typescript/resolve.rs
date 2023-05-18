@@ -20,8 +20,8 @@ use turbopack_core::{
         handle_resolve_error,
         node::node_cjs_resolve_options,
         options::{
-            ConditionValue, ImportMap, ImportMapVc, ImportMapping, ResolveIntoPackage,
-            ResolveModules, ResolveOptionsVc,
+            ConditionValue, ImportMap, ImportMapVc, ImportMapping, ResolveInPackage,
+            ResolveIntoPackage, ResolveModules, ResolveOptionsVc,
         },
         origin::{ResolveOrigin, ResolveOriginVc},
         parse::{Request, RequestVc},
@@ -417,14 +417,12 @@ async fn apply_typescript_types_options(
         .drain(..)
         .filter_map(|into| {
             if let ResolveIntoPackage::ExportsField {
-                field,
                 mut conditions,
                 unspecified_conditions,
             } = into
             {
                 conditions.insert("types".to_string(), ConditionValue::Set);
                 Some(ResolveIntoPackage::ExportsField {
-                    field,
                     conditions,
                     unspecified_conditions,
                 })
@@ -439,6 +437,14 @@ async fn apply_typescript_types_options(
     resolve_options
         .into_package
         .push(ResolveIntoPackage::Default("index".to_string()));
+    for item in resolve_options.in_package.iter_mut() {
+        match item {
+            ResolveInPackage::ImportsField { conditions, .. } => {
+                conditions.insert("types".to_string(), ConditionValue::Set);
+            }
+            _ => {}
+        }
+    }
     Ok(resolve_options.into())
 }
 
