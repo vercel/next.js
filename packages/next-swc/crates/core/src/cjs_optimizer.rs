@@ -1,9 +1,10 @@
-use fxhash::FxHashMap;
+use rustc_hash::FxHashMap;
 use turbopack_binding::swc::core::{
     common::SyntaxContext,
     ecma::{
         ast::{CallExpr, Callee, Expr, Id, Lit, Module, Pat, Script, VarDeclarator},
-        atoms::{Atom, JsWord},
+        atoms::Atom,
+        utils::IdentRenamer,
         visit::{
             as_folder, noop_visit_mut_type, noop_visit_type, Fold, Visit, VisitMut, VisitMutWith,
             VisitWith,
@@ -40,6 +41,8 @@ struct Data {
     ///
     ///  `(identifier): (module_specifier)`
     imports: FxHashMap<Id, Atom>,
+
+    rename_map: FxHashMap<Id, Id>,
 }
 
 impl VisitMut for Optimizer {
@@ -52,7 +55,7 @@ impl VisitMut for Optimizer {
             unresolved_ctxt: self.unresolved_ctxt,
         });
 
-        n.visit_mut_children_with(self);
+        n.visit_mut_children_with(&mut IdentRenamer::new(&self.data.rename_map));
     }
 
     fn visit_mut_script(&mut self, n: &mut Script) {
@@ -62,7 +65,7 @@ impl VisitMut for Optimizer {
             unresolved_ctxt: self.unresolved_ctxt,
         });
 
-        n.visit_mut_children_with(self);
+        n.visit_mut_children_with(&mut IdentRenamer::new(&self.data.rename_map));
     }
 }
 
@@ -80,7 +83,7 @@ impl Visit for Analyzer<'_> {
         })) = n.init.as_deref()
         {
             if let Expr::Ident(ident) = &**callee {
-                if ident.sym == *"require" {
+                if ident.span.ctxt == self.unresolved_ctxt && ident.sym == *"require" {
                     if let Some(arg) = args.get(0) {
                         if let Expr::Lit(Lit::Str(v)) = &*arg.expr {
                             // TODO: Config
