@@ -8541,6 +8541,25 @@ export declare function Inspiration<
   adjustFontFallback?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Instrument_Sans<
+  T extends CssVariable | undefined = undefined
+>(options?: {
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
+  axes?: 'wdth'[]
+}): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Instrument_Serif<
   T extends CssVariable | undefined = undefined
 >(options: {
@@ -14247,6 +14266,36 @@ export declare function Noto_Sans_Nabataean<
   adjustFontFallback?: boolean
   subsets?: Array<'nabataean'>
 }): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Noto_Sans_Nag_Mundari<
+  T extends CssVariable | undefined = undefined
+>(options?: {
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'nag-mundari'>
+}): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Noto_Sans_Nandinagari<
+  T extends CssVariable | undefined = undefined
+>(options: {
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'nandinagari'>
+}): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_New_Tai_Lue<
   T extends CssVariable | undefined = undefined
 >(options?: {
@@ -17700,7 +17749,7 @@ export declare function Radio_Canada<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
+  subsets?: Array<'canadian-aboriginal' | 'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Radley<
@@ -22308,6 +22357,48 @@ export declare function Wire_One<
   fallback?: string[]
   adjustFontFallback?: boolean
   subsets?: Array<'latin'>
+}): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Wix_Madefor_Display<
+  T extends CssVariable | undefined = undefined
+>(options?: {
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
+}): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Wix_Madefor_Text<
+  T extends CssVariable | undefined = undefined
+>(options?: {
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Work_Sans<
   T extends CssVariable | undefined = undefined
