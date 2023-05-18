@@ -1474,28 +1474,6 @@ impl VisitMut for ClosureReplacer<'_> {
             ));
         }
     }
-
-    // fn visit_mut_prop(&mut self, p: &mut Prop) {
-    //     p.visit_mut_children_with(self);
-
-    //     if let Prop::Shorthand(i) = p {
-    //         if let Some(index) = self.index_of_id(i) {
-    //             *p = Prop::KeyValue(KeyValueProp {
-    //                 key: PropName::Ident(i.clone()),
-    //                 value: MemberExpr {
-    //                     span: DUMMY_SP,
-    //                     obj: self.closure_arg.clone().into(),
-    //                     prop: MemberProp::Computed(ComputedPropName {
-    //                         span: DUMMY_SP,
-    //                         expr: index.into(),
-    //                     }),
-    //                 }
-    //                 .into(),
-    //             });
-    //         }
-    //     }
-    // }
-
     noop_visit_mut_type!();
 }
 
