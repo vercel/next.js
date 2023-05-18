@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import '../hash/global.css'
 
 export default function HashPage() {
   // Create list of 5000 items that all have unique id
