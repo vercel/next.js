@@ -7,7 +7,7 @@ use turbopack_binding::swc::core::{
             ModuleItem, Pat, Script, Stmt, VarDecl, VarDeclKind, VarDeclarator,
         },
         atoms::{Atom, JsWord},
-        utils::{private_ident, ExprFactory, IdentRenamer},
+        utils::{prepend_stmts, private_ident, ExprFactory, IdentRenamer},
         visit::{
             as_folder, noop_visit_mut_type, noop_visit_type, Fold, Visit, VisitMut, VisitMutWith,
             VisitWith,
@@ -129,8 +129,10 @@ impl VisitMut for Optimizer {
     fn visit_mut_module(&mut self, n: &mut Module) {
         n.visit_mut_children_with(self);
 
-        n.body
-            .extend(self.data.extra_stmts.drain(..).map(ModuleItem::Stmt));
+        prepend_stmts(
+            &mut n.body,
+            self.data.extra_stmts.drain(..).map(ModuleItem::Stmt),
+        );
 
         n.visit_mut_children_with(&mut IdentRenamer::new(&self.data.rename_map));
     }
@@ -138,7 +140,7 @@ impl VisitMut for Optimizer {
     fn visit_mut_script(&mut self, n: &mut Script) {
         n.visit_mut_children_with(self);
 
-        n.body.append(&mut self.data.extra_stmts);
+        prepend_stmts(&mut n.body, self.data.extra_stmts.drain(..));
 
         n.visit_mut_children_with(&mut IdentRenamer::new(&self.data.rename_map));
     }
