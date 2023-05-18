@@ -1,6 +1,6 @@
 /* Components */
-import { Nav } from './components'
 import { Providers } from '@/lib/providers'
+import { Nav } from './components'
 
 /* Instruments */
 import styles from './styles/main.module.scss'

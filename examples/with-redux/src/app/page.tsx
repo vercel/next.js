@@ -1,5 +1,5 @@
 /* Components */
-import { Counter } from '@/app/components'
+import { Counter } from './components'
 
 export default function IndexPage() {
   return <Counter />
