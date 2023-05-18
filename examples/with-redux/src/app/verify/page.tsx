@@ -1,13 +1,10 @@
-/* Core */
-import type { NextPage } from 'next'
-
 /* Components */
-import { Nav } from '@/components'
+import { Nav } from '@/app/components'
 
 /* Instruments */
-import styles from '@/styles/Home.module.css'
+import styles from '@/app/styles/index-page.module.css'
 
-const VerifyPage: NextPage = () => {
+export default function VerifyPage() {
   return (
     <div className={styles.container}>
       <Nav />
@@ -20,5 +17,3 @@ const VerifyPage: NextPage = () => {
     </div>
   )
 }
-
-export default VerifyPage

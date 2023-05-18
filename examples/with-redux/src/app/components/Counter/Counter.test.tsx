@@ -3,7 +3,7 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 /* Components */
-import { Counter } from '@/components'
+import { Counter } from '@/app/components'
 
 /* Instruments */
 import { renderApp } from '@/lib/tests'

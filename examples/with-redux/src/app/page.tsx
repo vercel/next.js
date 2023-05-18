@@ -1,21 +1,12 @@
-/* Core */
-import Head from 'next/head'
-import type { NextPage } from 'next'
-
 /* Components */
-import { Nav, Counter } from '@/components'
+import { Nav, Counter } from '@/app/components'
 
 /* Instruments */
-import styles from '@/styles/index-page.module.css'
+import styles from './styles/index-page.module.css'
 
-const IndexPage: NextPage = () => {
+export default function IndexPage() {
   return (
     <div className={styles.container}>
-      <Head>
-        <title>Redux Toolkit</title>
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
-
       <Nav />
 
       <header className={styles.header}>
@@ -67,4 +58,6 @@ const IndexPage: NextPage = () => {
   )
 }
 
-export default IndexPage
+export const metadata = {
+  title: 'Redux Toolkit',
+}

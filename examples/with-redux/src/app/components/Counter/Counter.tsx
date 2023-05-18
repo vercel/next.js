@@ -1,3 +1,5 @@
+'use client'
+
 /* Core */
 import { useState } from 'react'
 
