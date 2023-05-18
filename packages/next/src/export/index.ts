@@ -228,12 +228,6 @@ export default async function exportApp(
       )
     }
 
-    if (nextConfig.experimental.serverActions) {
-      throw new ExportError(
-        `Server Actions are not supported with static export.`
-      )
-    }
-
     const customRoutesDetected = ['rewrites', 'redirects', 'headers'].filter(
       (config) => typeof nextConfig[config] === 'function'
     )
