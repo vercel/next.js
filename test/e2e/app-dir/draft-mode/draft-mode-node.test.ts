@@ -40,7 +40,7 @@ createNextDescribe(
       const res = await next.fetch('/enable-and-redirect', {
         redirect: 'manual',
       })
-      expect(res.status).toBe(302)
+      expect(res.status).toBe(307)
       expect(res.headers.get('location')).toContain('/some-other-page')
       const h = res.headers.get('set-cookie') || ''
       const c = h.split(';').find((c) => c.startsWith('__prerender_bypass'))

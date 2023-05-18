@@ -9,7 +9,7 @@ export function handleTemporaryRedirectResponse(
   headers.set('location', url)
 
   return new Response(null, {
-    status: 302,
+    status: 307,
     statusText: 'Found',
     headers,
   })
