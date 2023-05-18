@@ -3,8 +3,8 @@ use turbopack_binding::swc::core::{
     common::{SyntaxContext, DUMMY_SP},
     ecma::{
         ast::{
-            CallExpr, Callee, Decl, Expr, Id, Ident, Lit, MemberExpr, MemberProp, Module, Pat,
-            Script, Stmt, VarDecl, VarDeclKind, VarDeclarator,
+            CallExpr, Callee, Decl, Expr, Id, Ident, Lit, MemberExpr, MemberProp, Module,
+            ModuleItem, Pat, Script, Stmt, VarDecl, VarDeclKind, VarDeclarator,
         },
         atoms::{Atom, JsWord},
         utils::{private_ident, ExprFactory, IdentRenamer},
@@ -128,11 +128,18 @@ impl VisitMut for Optimizer {
 
     fn visit_mut_module(&mut self, n: &mut Module) {
         n.visit_mut_children_with(self);
+
+        n.body
+            .extend(self.data.extra_stmts.drain(..).map(ModuleItem::Stmt));
+
         n.visit_mut_children_with(&mut IdentRenamer::new(&self.data.rename_map));
     }
 
     fn visit_mut_script(&mut self, n: &mut Script) {
         n.visit_mut_children_with(self);
+
+        n.body.append(&mut self.data.extra_stmts);
+
         n.visit_mut_children_with(&mut IdentRenamer::new(&self.data.rename_map));
     }
 }
