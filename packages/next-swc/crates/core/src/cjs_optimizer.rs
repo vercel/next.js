@@ -64,6 +64,7 @@ impl VisitMut for Optimizer {
                             .or_insert_with(|| private_ident!(prop.sym.clone()).to_id())
                             .clone();
 
+                        // TODO: Adjust module specifier
                         let var = VarDeclarator {
                             span: DUMMY_SP,
                             name: Pat::Ident(new_id.clone().into()),
