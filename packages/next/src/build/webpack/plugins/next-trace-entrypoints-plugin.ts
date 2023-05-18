@@ -285,20 +285,24 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
         // don't include the entry itself in the trace
         entryFiles.delete(nodePath.join(outputPath, `../${entrypoint.name}.js`))
 
+        const finalFiles: string[] = []
+
+        for (const file of new Set([
+          ...entryFiles,
+          ...allEntryFiles,
+          ...(this.entryTraces.get(entrypoint.name) || []),
+        ])) {
+          if (file) {
+            finalFiles.push(
+              nodePath.relative(traceOutputPath, file).replace(/\\/g, '/')
+            )
+          }
+        }
+
         assets[traceOutputName] = new sources.RawSource(
           JSON.stringify({
             version: TRACE_OUTPUT_VERSION,
-            files: [
-              ...new Set([
-                ...entryFiles,
-                ...allEntryFiles,
-                ...(this.entryTraces.get(entrypoint.name) || []),
-              ]),
-            ].map((file) => {
-              return nodePath
-                .relative(traceOutputPath, file)
-                .replace(/\\/g, '/')
-            }),
+            files: finalFiles,
           })
         )
       }
@@ -538,6 +542,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                     this.tracingRoot,
                     entry
                   )
+
                   const curExtraEntries = additionalEntries.get(entryName)
                   const finalDeps = new Set<string>()
 
