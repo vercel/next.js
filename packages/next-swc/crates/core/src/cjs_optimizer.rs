@@ -3,15 +3,12 @@ use turbopack_binding::swc::core::{
     common::{SyntaxContext, DUMMY_SP},
     ecma::{
         ast::{
-            CallExpr, Callee, Decl, Expr, Id, Ident, Lit, MemberExpr, MemberProp, Module,
-            ModuleItem, Pat, Script, Stmt, VarDecl, VarDeclKind, VarDeclarator,
+            CallExpr, Callee, Decl, Expr, Id, Ident, Lit, MemberProp, Module, ModuleItem, Pat,
+            Script, Stmt, VarDecl, VarDeclKind, VarDeclarator,
         },
         atoms::{Atom, JsWord},
         utils::{prepend_stmts, private_ident, ExprFactory, IdentRenamer},
-        visit::{
-            as_folder, noop_visit_mut_type, noop_visit_type, Fold, Visit, VisitMut, VisitMutWith,
-            VisitWith,
-        },
+        visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
     },
 };
 
