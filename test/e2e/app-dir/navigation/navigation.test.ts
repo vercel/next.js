@@ -59,7 +59,7 @@ createNextDescribe(
 
     describe('hash-link-back-to-same-page', () => {
       it('should scroll to the specified hash', async () => {
-        const browser = await next.browser('/hash')
+        const browser = await next.browser('/hash-link-back-to-same-page')
 
         const checkLink = async (
           val: number | string,
