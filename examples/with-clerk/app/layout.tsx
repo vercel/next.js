@@ -26,7 +26,7 @@ const Header = () => (
         <Link href="/sign-in">Sign in</Link>
       </SignedOut>
       <SignedIn>
-        <UserButton />
+        <UserButton afterSignOutUrl="/" />
       </SignedIn>
     </div>
   </header>
