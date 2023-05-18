@@ -30,7 +30,7 @@ export class NextResponse<Body = unknown> extends Response {
   [INTERNALS]: {
     cookies: ResponseCookies
     url?: NextURL
-    Body?: Body
+    body?: Body
   }
 
   constructor(body?: BodyInit | null, init: ResponseInit = {}) {
