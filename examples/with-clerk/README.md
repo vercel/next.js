@@ -4,13 +4,7 @@ This example shows how to use [Clerk](https://www.clerk.dev/?utm_source=github&u
 
 ## Demo
 
-A hosted demo of this example is available at [clerk-nextjs-example.vercel.app](https://clerk-nextjs-example.vercel.app)
-
-## Deploy your own
-
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/clerkinc/clerk-nextjs-starter&integration-ids=oac_7uYNbc9CdDAZmNqbt3LEkO3a)
+A hosted demo of this example is available at [nextjs-clerk-starter-navy.vercel.app](https://nextjs-clerk-starter-navy.vercel.app/)
 
 ## How to use
 
