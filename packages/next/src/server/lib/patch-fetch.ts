@@ -174,8 +174,16 @@ export function patchFetch({
           typeof _cache === 'string' &&
           typeof curRevalidate !== 'undefined'
         ) {
+          let _url: string
+          if (input instanceof URL) {
+            _url = input.href
+          } else if (input instanceof Request) {
+            _url = input.url
+          } else {
+            _url = input
+          }
           console.warn(
-            `Warning: fetch for ${input.toString()} specified "cache: ${_cache}" and "revalidate: ${curRevalidate}", only one should be specified.`
+            `Warning: fetch for ${_url} specified "cache: ${_cache}" and "revalidate: ${curRevalidate}", only one should be specified.`
           )
           _cache = undefined
         }
