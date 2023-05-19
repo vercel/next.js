@@ -766,7 +766,8 @@ describe.each([[''], ['/docs']])(
           | js
 
           Import trace for requested module:
-          ./components/parse-error.xyz"
+          ./components/parse-error.xyz
+          ./pages/hmr/about8.js"
         `)
 
           await next.patchFile(aboutPage, aboutContent)
