@@ -19,7 +19,7 @@ use turbopack_binding::swc::core::{
 
 pub fn cjs_optimizer(config: Config, unresolved_ctxt: SyntaxContext) -> impl Fold + VisitMut {
     let mut folder = CjsOptimizer {
-        data: Data::default(),
+        data: State::default(),
         renderer: handlebars::Handlebars::new(),
         packages: vec![],
         unresolved_ctxt,
@@ -73,14 +73,14 @@ struct Rewriter<'a> {
 }
 
 struct CjsOptimizer {
-    data: Data,
+    data: State,
     renderer: handlebars::Handlebars<'static>,
     packages: Vec<(CachedRegex, PackageConfig)>,
     unresolved_ctxt: SyntaxContext,
 }
 
 #[derive(Debug, Default)]
-struct Data {
+struct State {
     /// List of `require` calls **which should be replaced**.
     ///
     ///  `(identifier): (module_record)`
