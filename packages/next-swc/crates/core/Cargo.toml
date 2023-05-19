@@ -9,6 +9,7 @@ plugin = ["turbopack-binding/__swc_core_binding_napi_plugin"]
 
 [dependencies]
 chrono = "0.4"
+convert_case = "0.5.0"
 easy-error = "1.0.0"
 either = "1"
 fxhash = "0.2.1"
