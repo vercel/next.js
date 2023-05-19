@@ -27,7 +27,7 @@ createNextDescribe(
       `
       )
       try {
-        await next.build()
+        await next.start()
       } catch {}
     })
 

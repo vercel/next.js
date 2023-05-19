@@ -19,20 +19,6 @@ export class NextStartInstance extends NextInstance {
 
   public async setup(parentSpan: Span) {
     await super.createTestDir({ parentSpan })
-
-    this._cliOutput = ''
-    this.spawnOpts = {
-      cwd: this.testDir,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      shell: false,
-      env: {
-        ...process.env,
-        ...this.env,
-        NODE_ENV: '' as any,
-        PORT: this.forcedPort || '0',
-        __NEXT_TEST_MODE: 'e2e',
-      },
-    }
   }
 
   private handleStdio = (childProcess) => {
@@ -51,6 +37,20 @@ export class NextStartInstance extends NextInstance {
   }
 
   public async start() {
+    this._cliOutput = ''
+    this.spawnOpts = {
+      cwd: this.testDir,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: false,
+      env: {
+        ...process.env,
+        ...this.env,
+        NODE_ENV: '' as any,
+        PORT: this.forcedPort || '0',
+        __NEXT_TEST_MODE: 'e2e',
+      },
+    }
+
     if (this.childProcess) {
       throw new Error('next already started')
     }
