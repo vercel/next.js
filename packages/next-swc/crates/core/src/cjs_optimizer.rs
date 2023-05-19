@@ -105,7 +105,7 @@ struct ImportRecord {
 }
 
 impl<'a> Rewriter<'a> {
-    fn rewrite(&self, module_specifier: &str, member: &str) -> Atom {
+    fn rewrite(&self, member: &str) -> Atom {
         #[derive(Serialize)]
         #[serde(untagged)]
         enum Data<'a> {
@@ -177,9 +177,7 @@ impl VisitMut for CjsOptimizer {
                                     )
                                     .as_callee(),
                                     args: vec![Expr::Lit(Lit::Str(
-                                        rewriter
-                                            .rewrite(&record.module_specifier, &prop.sym)
-                                            .into(),
+                                        rewriter.rewrite(&prop.sym).into(),
                                     ))
                                     .as_arg()],
                                     type_args: None,
