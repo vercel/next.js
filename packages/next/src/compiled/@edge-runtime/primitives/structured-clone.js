@@ -25,7 +25,7 @@ __export(structured_clone_exports, {
 });
 module.exports = __toCommonJS(structured_clone_exports);
 
-// ../../node_modules/.pnpm/@ungap+structured-clone@1.0.1/node_modules/@ungap/structured-clone/esm/types.js
+// ../../node_modules/.pnpm/@ungap+structured-clone@1.0.2/node_modules/@ungap/structured-clone/esm/types.js
 var VOID = -1;
 var PRIMITIVE = 0;
 var ARRAY = 1;
@@ -37,7 +37,7 @@ var SET = 6;
 var ERROR = 7;
 var BIGINT = 8;
 
-// ../../node_modules/.pnpm/@ungap+structured-clone@1.0.1/node_modules/@ungap/structured-clone/esm/deserialize.js
+// ../../node_modules/.pnpm/@ungap+structured-clone@1.0.2/node_modules/@ungap/structured-clone/esm/deserialize.js
 var env = typeof self === "object" ? self : globalThis;
 var deserializer = /* @__PURE__ */ __name(($, _) => {
   const as = /* @__PURE__ */ __name((out, index) => {
@@ -97,7 +97,7 @@ var deserializer = /* @__PURE__ */ __name(($, _) => {
 }, "deserializer");
 var deserialize = /* @__PURE__ */ __name((serialized) => deserializer(/* @__PURE__ */ new Map(), serialized)(0), "deserialize");
 
-// ../../node_modules/.pnpm/@ungap+structured-clone@1.0.1/node_modules/@ungap/structured-clone/esm/serialize.js
+// ../../node_modules/.pnpm/@ungap+structured-clone@1.0.2/node_modules/@ungap/structured-clone/esm/serialize.js
 var EMPTY = "";
 var { toString } = {};
 var { keys } = Object;
@@ -221,7 +221,7 @@ var serialize = /* @__PURE__ */ __name((value, { json, lossy } = {}) => {
   return serializer(!(json || lossy), !!json, /* @__PURE__ */ new Map(), _)(value), _;
 }, "serialize");
 
-// ../../node_modules/.pnpm/@ungap+structured-clone@1.0.1/node_modules/@ungap/structured-clone/esm/index.js
+// ../../node_modules/.pnpm/@ungap+structured-clone@1.0.2/node_modules/@ungap/structured-clone/esm/index.js
 var esm_default = typeof structuredClone === "function" ? (any, options) => options && ("json" in options || "lossy" in options) ? deserialize(serialize(any, options)) : structuredClone(any) : (any, options) => deserialize(serialize(any, options));
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {

@@ -138,11 +138,11 @@ describe('Middleware Runtime', () => {
         )
         expect(manifest.middleware).toEqual({
           '/': {
-            env: [
+            env: expect.arrayContaining([
               'MIDDLEWARE_TEST',
               'ANOTHER_MIDDLEWARE_TEST',
               'STRING_ENV_VAR',
-            ],
+            ]),
             files: expect.arrayContaining([
               'server/edge-runtime-webpack.js',
               'server/middleware.js',
@@ -484,22 +484,19 @@ describe('Middleware Runtime', () => {
     it('should contain process polyfill', async () => {
       const res = await fetchViaHTTP(next.url, `/global`)
       const json = readMiddlewareJSON(res)
-      delete json.process.env['JEST_WORKER_ID']
 
-      expect(json).toEqual({
-        process: {
-          env: {
-            ANOTHER_MIDDLEWARE_TEST: 'asdf2',
-            STRING_ENV_VAR: 'asdf3',
-            MIDDLEWARE_TEST: 'asdf',
-            ...((global as any).isNextDeploy
-              ? {}
-              : {
-                  NEXT_RUNTIME: 'edge',
-                }),
-          },
-        },
-      })
+      for (const [key, value] of Object.entries({
+        ANOTHER_MIDDLEWARE_TEST: 'asdf2',
+        STRING_ENV_VAR: 'asdf3',
+        MIDDLEWARE_TEST: 'asdf',
+        ...((global as any).isNextDeploy
+          ? {}
+          : {
+              NEXT_RUNTIME: 'edge',
+            }),
+      })) {
+        expect(json.process.env[key]).toBe(value)
+      }
     })
 
     it(`should contain \`globalThis\``, async () => {

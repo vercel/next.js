@@ -32,6 +32,7 @@ export interface NextInstanceOpts {
   env?: Record<string, string>
   dirSuffix?: string
   turbo?: boolean
+  forcedPort?: string
 }
 
 /**
@@ -142,6 +143,7 @@ export class NextInstance {
           react: reactVersion,
           'react-dom': reactVersion,
           '@types/react': reactVersion,
+          '@types/react-dom': reactVersion,
           typescript: 'latest',
           '@types/node': 'latest',
           ...this.dependencies,
@@ -384,6 +386,9 @@ export class NextInstance {
   }
 
   // TODO: block these in deploy mode
+  public async hasFile(filename: string) {
+    return fs.pathExists(path.join(this.testDir, filename))
+  }
   public async readFile(filename: string) {
     return fs.readFile(path.join(this.testDir, filename), 'utf8')
   }

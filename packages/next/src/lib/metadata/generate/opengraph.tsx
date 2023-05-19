@@ -259,14 +259,7 @@ export function TwitterMetadata({
       <Meta name="twitter:creator:id" content={twitter.creatorId} />
       <Meta name="twitter:title" content={twitter.title?.absolute} />
       <Meta name="twitter:description" content={twitter.description} />
-      {twitter.images
-        ? twitter.images.map((image, index) => (
-            <React.Fragment key={index}>
-              <Meta name="twitter:image" content={image.url} />
-              <Meta name="twitter:image:alt" content={image.alt} />
-            </React.Fragment>
-          ))
-        : null}
+      <MultiMeta namePrefix="twitter:image" contents={twitter.images} />
       {card === 'player'
         ? twitter.players.map((player, index) => (
             <React.Fragment key={index}>

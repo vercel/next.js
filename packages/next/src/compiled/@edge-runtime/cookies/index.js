@@ -29,7 +29,7 @@ module.exports = __toCommonJS(src_exports);
 function serialize(c) {
   const attrs = [
     "path" in c && c.path && `Path=${c.path}`,
-    "expires" in c && c.expires && `Expires=${c.expires.toUTCString()}`,
+    "expires" in c && (c.expires || c.expires === 0) && `Expires=${(typeof c.expires === "number" ? new Date(c.expires) : c.expires).toUTCString()}`,
     "maxAge" in c && c.maxAge && `Max-Age=${c.maxAge}`,
     "domain" in c && c.domain && `Domain=${c.domain}`,
     "secure" in c && c.secure && "Secure",
@@ -207,6 +207,9 @@ function replace(bag, headers) {
   }
 }
 function normalizeCookie(cookie = { name: "", value: "" }) {
+  if (typeof cookie.expires === "number") {
+    cookie.expires = new Date(cookie.expires);
+  }
   if (cookie.maxAge) {
     cookie.expires = new Date(Date.now() + cookie.maxAge * 1e3);
   }

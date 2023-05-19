@@ -12,8 +12,7 @@ use next_swc::{
     shake_exports::{shake_exports, Config as ShakeExportsConfig},
 };
 use next_transform_font::{next_font_loaders, Config as FontLoaderConfig};
-use swc_relay::{relay, RelayLanguageConfig};
-use turbo_binding::swc::{
+use turbopack_binding::swc::{
     core::{
         common::{chain, comments::SingleThreadedComments, FileName, Mark},
         ecma::{
@@ -25,6 +24,7 @@ use turbo_binding::swc::{
             },
         },
     },
+    custom_transform::relay::{relay, RelayLanguageConfig},
     testing::fixture,
 };
 
@@ -106,10 +106,11 @@ fn next_ssg_fixture(input: PathBuf) {
         syntax(),
         &|tr| {
             let top_level_mark = Mark::fresh(Mark::root());
+            let unresolved_mark = Mark::fresh(Mark::root());
             let jsx = jsx::<SingleThreadedComments>(
                 tr.cm.clone(),
                 None,
-                turbo_binding::swc::core::ecma::transforms::react::Options {
+                turbopack_binding::swc::core::ecma::transforms::react::Options {
                     next: false.into(),
                     runtime: None,
                     import_source: Some("".into()),
@@ -121,8 +122,13 @@ fn next_ssg_fixture(input: PathBuf) {
                     ..Default::default()
                 },
                 top_level_mark,
+                unresolved_mark,
             );
-            chain!(next_ssg(Default::default()), jsx)
+            chain!(
+                resolver(unresolved_mark, top_level_mark, true),
+                next_ssg(Default::default()),
+                jsx
+            )
         },
         &input,
         &output,
@@ -145,7 +151,7 @@ fn page_config_fixture(input: PathBuf) {
 #[fixture("tests/fixture/relay/**/input.ts*")]
 fn relay_no_artifact_dir_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
-    let config = swc_relay::Config {
+    let config = turbopack_binding::swc::custom_transform::relay::Config {
         language: RelayLanguageConfig::TypeScript,
         artifact_directory: Some(PathBuf::from("__generated__")),
         ..Default::default()
@@ -158,6 +164,7 @@ fn relay_no_artifact_dir_fixture(input: PathBuf) {
                 FileName::Real(PathBuf::from("input.tsx")),
                 current_dir().unwrap(),
                 Some(PathBuf::from("src/pages")),
+                None,
             )
         },
         &input,

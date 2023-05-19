@@ -1,3 +1,3 @@
-import { ChunkPath } from "@vercel/turbopack-dev-runtime/types";
+import { ChunkPath } from '@vercel/turbopack-dev/types'
 
-export type ChunkGroup = ChunkPath[];
+export type ChunkGroup = ChunkPath[]

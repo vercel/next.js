@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type {
+  ActionResult,
   ChildProp,
   DynamicParamTypesShort,
   FlightData,
@@ -9,16 +10,15 @@ import type {
   RenderOpts,
   Segment,
 } from './types'
-import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
-import type { RequestAsyncStorage } from '../../client/components/request-async-storage'
-import type { MetadataItems } from '../../lib/metadata/resolve-metadata'
-// Import builtin react directly to avoid require cache conflicts
-import React from 'next/dist/compiled/react'
-import ReactDOMServer from 'next/dist/compiled/react-dom/server.browser'
-import { NotFound as DefaultNotFound } from '../../client/components/error'
 
-// this needs to be required lazily so that `next-server` can set
-// the env before we require
+import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
+import type { StaticGenerationBailout } from '../../client/components/static-generation-bailout'
+import type { RequestAsyncStorage } from '../../client/components/request-async-storage'
+
+import React from 'react'
+import { NotFound as DefaultNotFound } from '../../client/components/error'
+import { createServerComponentRenderer } from './create-server-components-renderer'
+
 import { ParsedUrlQuery } from 'querystring'
 import { NextParsedUrlQuery } from '../request-meta'
 import RenderResult, { type RenderResultMetadata } from '../render-result'
@@ -27,11 +27,13 @@ import {
   createBufferedTransformStream,
   continueFromInitialStream,
   streamToBufferedResult,
-} from '../node-web-streams-helper'
-import { matchSegment } from '../../client/components/match-segments'
+} from '../stream-utils/node-web-streams-helper'
+import {
+  canSegmentBeOverridden,
+  matchSegment,
+} from '../../client/components/match-segments'
 import { ServerInsertedHTMLContext } from '../../shared/lib/server-inserted-html'
 import { stripInternalQueries } from '../internal-utils'
-import { HeadManagerContext } from '../../shared/lib/head-manager-context'
 import {
   NEXT_ROUTER_PREFETCH,
   NEXT_ROUTER_STATE_TREE,
@@ -40,7 +42,6 @@ import {
 import { MetadataTree } from '../../lib/metadata/metadata'
 import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
 import { StaticGenerationAsyncStorageWrapper } from '../async-storage/static-generation-async-storage-wrapper'
-import { collectMetadata } from '../../lib/metadata/resolve-metadata'
 import { isClientReference } from '../../lib/client-reference'
 import { getLayoutOrPageModule, LoaderTree } from '../lib/app-dir-module'
 import { isNotFoundError } from '../../client/components/not-found'
@@ -48,19 +49,18 @@ import {
   getURLFromRedirectError,
   isRedirectError,
 } from '../../client/components/redirect'
-import { patchFetch } from '../lib/patch-fetch'
+import { addImplicitTags, patchFetch } from '../lib/patch-fetch'
 import { AppRenderSpan } from '../lib/trace/constants'
 import { getTracer } from '../lib/trace/tracer'
 import { interopDefault } from './interop-default'
 import { preloadComponent } from './preload-component'
 import { FlightRenderResult } from './flight-render-result'
 import { createErrorHandler } from './create-error-handler'
-import { createServerComponentRenderer } from './create-server-components-renderer'
 import { getShortDynamicParamType } from './get-short-dynamic-param-type'
 import { getSegmentParam } from './get-segment-param'
 import { getCssInlinedLinkTags } from './get-css-inlined-link-tags'
 import { getServerCSSForEntries } from './get-server-css-for-entries'
-import { getPreloadedFontFilesInlineLinkTags } from './get-preloaded-font-files-inline-link-tags'
+import { getPreloadableFonts } from './get-preloadable-fonts'
 import { getScriptNonceFromHeader } from './get-script-nonce-from-header'
 import { renderToString } from './render-to-string'
 import { parseAndValidateFlightRouterState } from './parse-and-validate-flight-router-state'
@@ -70,11 +70,13 @@ import {
   createFlightRouterStateFromLoaderTree,
 } from './create-flight-router-state-from-loader-tree'
 import { handleAction } from './action-handler'
-import { PAGE_SEGMENT_KEY } from '../../shared/lib/constants'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
 import { warn } from '../../build/output/log'
+import { appendMutableCookies } from '../web/spec-extension/adapters/request-cookies'
 
 export const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
+
+const emptyLoaderTree: LoaderTree = ['', {}, {}]
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -86,14 +88,65 @@ export type GetDynamicParamFromSegment = (
   type: DynamicParamTypesShort
 } | null
 
+/* This method is important for intercepted routes to function:
+ * when a route is intercepted, e.g. /blog/[slug], it will be rendered
+ * with the layout of the previous page, e.g. /profile/[id]. The problem is
+ * that the loader tree needs to know the dynamic param in order to render (id and slug in the example).
+ * Normally they are read from the path but since we are intercepting the route, the path would not contain id,
+ * so we need to read it from the router state.
+ */
+function findDynamicParamFromRouterState(
+  providedFlightRouterState: FlightRouterState | undefined,
+  segment: string
+): {
+  param: string
+  value: string | string[] | null
+  treeSegment: Segment
+  type: DynamicParamTypesShort
+} | null {
+  if (!providedFlightRouterState) {
+    return null
+  }
+
+  const treeSegment = providedFlightRouterState[0]
+
+  if (canSegmentBeOverridden(segment, treeSegment)) {
+    if (!Array.isArray(treeSegment) || Array.isArray(segment)) {
+      return null
+    }
+
+    return {
+      param: treeSegment[0],
+      value: treeSegment[1],
+      treeSegment: treeSegment,
+      type: treeSegment[2],
+    }
+  }
+
+  for (const parallelRouterState of Object.values(
+    providedFlightRouterState[1]
+  )) {
+    const maybeDynamicParam = findDynamicParamFromRouterState(
+      parallelRouterState,
+      segment
+    )
+    if (maybeDynamicParam) {
+      return maybeDynamicParam
+    }
+  }
+
+  return null
+}
+
 export async function renderToHTMLOrFlight(
   req: IncomingMessage,
   res: ServerResponse,
-  pathname: string,
+  pagePath: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts
 ): Promise<RenderResult> {
   const isFlight = req.headers[RSC.toLowerCase()] !== undefined
+  const pathname = validateURL(req.url)
 
   const {
     buildManifest,
@@ -103,7 +156,10 @@ export async function renderToHTMLOrFlight(
     dev,
     nextFontManifest,
     supportsDynamicHTML,
+    nextConfigOutput,
   } = renderOpts
+
+  const appUsingSizeAdjust = nextFontManifest?.appUsingSizeAdjust
 
   const clientReferenceManifest = renderOpts.clientReferenceManifest!
   const serverCSSManifest = renderOpts.serverCSSManifest!
@@ -154,6 +210,8 @@ export async function renderToHTMLOrFlight(
     ComponentMod.staticGenerationAsyncStorage
   const requestAsyncStorage: RequestAsyncStorage =
     ComponentMod.requestAsyncStorage
+  const staticGenerationBailout: StaticGenerationBailout =
+    ComponentMod.staticGenerationBailout
 
   // we wrap the render in an AsyncLocalStorage context
   const wrappedRender = async () => {
@@ -163,6 +221,8 @@ export async function renderToHTMLOrFlight(
         `Invariant: Render expects to have staticGenerationAsyncStorage, none found`
       )
     }
+    staticGenerationStore.fetchMetrics = []
+    ;(renderOpts as any).fetchMetrics = staticGenerationStore.fetchMetrics
 
     // don't modify original query object
     query = { ...query }
@@ -241,7 +301,13 @@ export async function renderToHTMLOrFlight(
       }
 
       const key = segmentParam.param
+
       let value = pathParams[key]
+
+      // this is a special marker that will be present for interception routes
+      if (value === '__NEXT_EMPTY_PARAM__') {
+        value = undefined
+      }
 
       if (Array.isArray(value)) {
         value = value.map((i) => encodeURIComponent(i))
@@ -261,7 +327,10 @@ export async function renderToHTMLOrFlight(
             treeSegment: [key, '', type],
           }
         }
-        return null
+        return findDynamicParamFromRouterState(
+          providedFlightRouterState,
+          segment
+        )
       }
 
       const type = getShortDynamicParamType(segmentParam.type)
@@ -278,64 +347,6 @@ export async function renderToHTMLOrFlight(
         ],
         type: type,
       }
-    }
-
-    async function resolveMetadata({
-      tree,
-      parentParams,
-      metadataItems,
-      treePrefix = [],
-    }: {
-      tree: LoaderTree
-      parentParams: { [key: string]: any }
-      metadataItems: MetadataItems
-      /** Provided tree can be nested subtree, this argument says what is the path of such subtree */
-      treePrefix?: string[]
-    }): Promise<MetadataItems> {
-      const [segment, parallelRoutes, { page }] = tree
-      const currentTreePrefix = [...treePrefix, segment]
-      const isPage = typeof page !== 'undefined'
-      // Handle dynamic segment params.
-      const segmentParam = getDynamicParamFromSegment(segment)
-      /**
-       * Create object holding the parent params and current params
-       */
-      const currentParams =
-        // Handle null case where dynamic param is optional
-        segmentParam && segmentParam.value !== null
-          ? {
-              ...parentParams,
-              [segmentParam.param]: segmentParam.value,
-            }
-          : // Pass through parent params to children
-            parentParams
-
-      const layerProps = {
-        params: currentParams,
-        ...(isPage && searchParamsProps),
-      }
-
-      await collectMetadata({
-        loaderTree: tree,
-        props: layerProps,
-        array: metadataItems,
-        route: currentTreePrefix
-          // __PAGE__ shouldn't be shown in a route
-          .filter((s) => s !== PAGE_SEGMENT_KEY)
-          .join('/'),
-      })
-
-      for (const key in parallelRoutes) {
-        const childTree = parallelRoutes[key]
-        await resolveMetadata({
-          tree: childTree,
-          parentParams: currentParams,
-          metadataItems,
-          treePrefix: currentTreePrefix,
-        })
-      }
-
-      return metadataItems
     }
 
     let defaultRevalidate: false | undefined | number = false
@@ -371,25 +382,153 @@ export async function renderToHTMLOrFlight(
       )
 
       const styles = cssHrefs
-        ? cssHrefs.map((href, index) => (
-            <link
-              rel="stylesheet"
-              // In dev, Safari will wrongly cache the resource if you preload it:
-              // - https://github.com/vercel/next.js/issues/5860
-              // - https://bugs.webkit.org/show_bug.cgi?id=187726
-              // We used to add a `?ts=` query for resources in `pages` to bypass it,
-              // but in this case it is fine as we don't need to preload the styles.
-              href={`${assetPrefix}/_next/${href}`}
-              // @ts-ignore
-              precedence={shouldPreload ? 'high' : undefined}
-              key={index}
-            />
-          ))
+        ? cssHrefs.map((href, index) => {
+            // In dev, Safari and Firefox will cache the resource during HMR:
+            // - https://github.com/vercel/next.js/issues/5860
+            // - https://bugs.webkit.org/show_bug.cgi?id=187726
+            // Because of this, we add a `?v=` query to bypass the cache during
+            // development. We need to also make sure that the number is always
+            // increasing.
+            const fullHref = `${assetPrefix}/_next/${href}${
+              process.env.NODE_ENV === 'development' ? `?v=${Date.now()}` : ''
+            }`
+
+            // `Precedence` is an opt-in signal for React to handle resource
+            // loading and deduplication, etc. It's also used as the key to sort
+            // resources so they will be injected in the correct order.
+            // During HMR, it's critical to use different `precedence` values
+            // for different stylesheets, so their order will be kept.
+            // https://github.com/facebook/react/pull/25060
+            const precedence = shouldPreload
+              ? process.env.NODE_ENV === 'development'
+                ? 'next_' + href
+                : 'next'
+              : undefined
+
+            return (
+              <link
+                rel="stylesheet"
+                href={fullHref}
+                // @ts-ignore
+                precedence={precedence}
+                key={index}
+              />
+            )
+          })
         : null
 
       const Comp = interopDefault(await getComponent())
 
       return [Comp, styles]
+    }
+
+    const getLayerAssets = ({
+      layoutOrPagePath,
+      injectedCSS: injectedCSSWithCurrentLayout,
+      injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
+    }: {
+      layoutOrPagePath: string | undefined
+      injectedCSS: Set<string>
+      injectedFontPreloadTags: Set<string>
+    }): React.ReactNode => {
+      const stylesheets: string[] = layoutOrPagePath
+        ? getCssInlinedLinkTags(
+            clientReferenceManifest,
+            serverCSSManifest!,
+            layoutOrPagePath,
+            serverCSSForEntries,
+            injectedCSSWithCurrentLayout,
+            true
+          )
+        : []
+
+      const preloadedFontFiles = layoutOrPagePath
+        ? getPreloadableFonts(
+            serverCSSManifest!,
+            nextFontManifest,
+            serverCSSForEntries,
+            layoutOrPagePath,
+            injectedFontPreloadTagsWithCurrentLayout
+          )
+        : null
+
+      if (preloadedFontFiles) {
+        if (preloadedFontFiles.length) {
+          for (let i = 0; i < preloadedFontFiles.length; i++) {
+            const fontFilename = preloadedFontFiles[i]
+            const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFilename)![1]
+            const type = `font/${ext}`
+            const href = `${assetPrefix}/_next/${fontFilename}`
+            ComponentMod.preloadFont(href, type)
+          }
+        } else {
+          try {
+            let url = new URL(assetPrefix)
+            ComponentMod.preconnect(url.origin, 'anonymous')
+          } catch (error) {
+            // assetPrefix must not be a fully qualified domain name. We assume
+            // we should preconnect to same origin instead
+            ComponentMod.preconnect('/', 'anonymous')
+          }
+        }
+      }
+
+      const styles = stylesheets
+        ? stylesheets.map((href, index) => {
+            // In dev, Safari and Firefox will cache the resource during HMR:
+            // - https://github.com/vercel/next.js/issues/5860
+            // - https://bugs.webkit.org/show_bug.cgi?id=187726
+            // Because of this, we add a `?v=` query to bypass the cache during
+            // development. We need to also make sure that the number is always
+            // increasing.
+            const fullHref = `${assetPrefix}/_next/${href}${
+              process.env.NODE_ENV === 'development' ? `?v=${Date.now()}` : ''
+            }`
+
+            // `Precedence` is an opt-in signal for React to handle resource
+            // loading and deduplication, etc. It's also used as the key to sort
+            // resources so they will be injected in the correct order.
+            // During HMR, it's critical to use different `precedence` values
+            // for different stylesheets, so their order will be kept.
+            // https://github.com/facebook/react/pull/25060
+            const precedence =
+              process.env.NODE_ENV === 'development' ? 'next_' + href : 'next'
+
+            ComponentMod.preloadStyle(fullHref)
+
+            return (
+              <link
+                rel="stylesheet"
+                href={fullHref}
+                // @ts-ignore
+                precedence={precedence}
+                key={index}
+              />
+            )
+          })
+        : null
+
+      return styles
+    }
+
+    const parseLoaderTree = (tree: LoaderTree) => {
+      const [segment, parallelRoutes, components] = tree
+      const { layout } = components
+      let { page } = components
+      // a __DEFAULT__ segment means that this route didn't match any of the
+      // segments in the route, so we should use the default page
+
+      page = segment === '__DEFAULT__' ? components.defaultPage : page
+
+      const layoutOrPagePath = layout?.[1] || page?.[1]
+
+      return {
+        page,
+        segment,
+        components,
+        layoutOrPagePath,
+        parallelRoutes,
+      }
     }
 
     /**
@@ -413,8 +552,13 @@ export async function renderToHTMLOrFlight(
       injectedCSS: Set<string>
       injectedFontPreloadTags: Set<string>
       asNotFound?: boolean
-    }): Promise<{ Component: React.ComponentType }> => {
-      const [segment, parallelRoutes, components] = tree
+    }): Promise<{
+      Component: React.ComponentType
+      styles: React.ReactNode
+    }> => {
+      const { page, layoutOrPagePath, segment, components, parallelRoutes } =
+        parseLoaderTree(tree)
+
       const {
         layout,
         template,
@@ -422,38 +566,17 @@ export async function renderToHTMLOrFlight(
         loading,
         'not-found': notFound,
       } = components
-      let { page } = components
-      // a __DEFAULT__ segment means that this route didn't match any of the
-      // segments in the route, so we should use the default page
-
-      page = segment === '__DEFAULT__' ? components.defaultPage : page
-
-      const layoutOrPagePath = layout?.[1] || page?.[1]
 
       const injectedCSSWithCurrentLayout = new Set(injectedCSS)
-      const stylesheets: string[] = layoutOrPagePath
-        ? getCssInlinedLinkTags(
-            clientReferenceManifest,
-            serverCSSManifest!,
-            layoutOrPagePath,
-            serverCSSForEntries,
-            injectedCSSWithCurrentLayout,
-            true
-          )
-        : []
-
       const injectedFontPreloadTagsWithCurrentLayout = new Set(
         injectedFontPreloadTags
       )
-      const preloadedFontFiles = layoutOrPagePath
-        ? getPreloadedFontFilesInlineLinkTags(
-            serverCSSManifest!,
-            nextFontManifest,
-            serverCSSForEntries,
-            layoutOrPagePath,
-            injectedFontPreloadTagsWithCurrentLayout
-          )
-        : []
+
+      const styles = getLayerAssets({
+        layoutOrPagePath,
+        injectedCSS: injectedCSSWithCurrentLayout,
+        injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
+      })
 
       const [Template, templateStyles] = template
         ? await createComponentAndStyles({
@@ -500,19 +623,35 @@ export async function renderToHTMLOrFlight(
             getComponent: notFound[0],
             injectedCSS: injectedCSSWithCurrentLayout,
           })
-        : rootLayoutAtThisLevel
-        ? [DefaultNotFound]
         : []
 
-      if (typeof layoutOrPageMod?.dynamic === 'string') {
+      let dynamic = layoutOrPageMod?.dynamic
+
+      if (nextConfigOutput === 'export') {
+        if (!dynamic || dynamic === 'auto') {
+          dynamic = 'error'
+        } else if (dynamic === 'force-dynamic') {
+          staticGenerationStore.forceDynamic = true
+          staticGenerationStore.dynamicShouldError = true
+          staticGenerationBailout(`output: export`, {
+            dynamic,
+            link: 'https://nextjs.org/docs/advanced-features/static-html-export',
+          })
+        }
+      }
+
+      if (typeof dynamic === 'string') {
         // the nested most config wins so we only force-static
         // if it's configured above any parent that configured
         // otherwise
-        if (layoutOrPageMod.dynamic === 'error') {
+        if (dynamic === 'error') {
           staticGenerationStore.dynamicShouldError = true
+        } else if (dynamic === 'force-dynamic') {
+          staticGenerationStore.forceDynamic = true
+          staticGenerationBailout(`force-dynamic`, { dynamic })
         } else {
           staticGenerationStore.dynamicShouldError = false
-          if (layoutOrPageMod.dynamic === 'force-static') {
+          if (dynamic === 'force-static') {
             staticGenerationStore.forceStatic = true
           } else {
             staticGenerationStore.forceStatic = false
@@ -529,7 +668,8 @@ export async function renderToHTMLOrFlight(
 
         if (
           typeof staticGenerationStore.revalidate === 'undefined' ||
-          staticGenerationStore.revalidate > defaultRevalidate
+          (typeof staticGenerationStore.revalidate === 'number' &&
+            staticGenerationStore.revalidate > defaultRevalidate)
         ) {
           staticGenerationStore.revalidate = defaultRevalidate
         }
@@ -563,7 +703,7 @@ export async function renderToHTMLOrFlight(
           !isValidElementType(Component)
         ) {
           throw new Error(
-            `The default export is not a React Component in page: "${pathname}"`
+            `The default export is not a React Component in page: "${page}"`
           )
         }
 
@@ -585,15 +725,6 @@ export async function renderToHTMLOrFlight(
         if (typeof NotFound !== 'undefined' && !isValidElementType(NotFound)) {
           throw new Error(
             `The default export of notFound is not a React Component in ${segment}`
-          )
-        }
-
-        if (
-          !isClientReference(layoutOrPageMod) &&
-          layoutOrPageMod?.config?.amp
-        ) {
-          throw new Error(
-            'AMP is not supported in the app directory. If you need to use AMP it will continue to be supported in the pages directory.'
           )
         }
       }
@@ -627,6 +758,8 @@ export async function renderToHTMLOrFlight(
             const childSegment = parallelRoute[0]
             const childSegmentParam = getDynamicParamFromSegment(childSegment)
 
+            // if we're prefetching and that there's a Loading component, we bail out
+            // otherwise we keep rendering for the prefetch
             if (isPrefetch && Loading) {
               const childProp: ChildProp = {
                 // Null indicates the tree is not fully rendered
@@ -664,17 +797,19 @@ export async function renderToHTMLOrFlight(
             }
 
             // Create the child component
-            const { Component: ChildComponent } = await createComponentTree({
-              createSegmentPath: (child) => {
-                return createSegmentPath([...currentSegmentPath, ...child])
-              },
-              loaderTree: parallelRoute,
-              parentParams: currentParams,
-              rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
-              injectedCSS: injectedCSSWithCurrentLayout,
-              injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
-              asNotFound,
-            })
+            const { Component: ChildComponent, styles: childStyles } =
+              await createComponentTree({
+                createSegmentPath: (child) => {
+                  return createSegmentPath([...currentSegmentPath, ...child])
+                },
+                loaderTree: parallelRoute,
+                parentParams: currentParams,
+                rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
+                injectedCSS: injectedCSSWithCurrentLayout,
+                injectedFontPreloadTags:
+                  injectedFontPreloadTagsWithCurrentLayout,
+                asNotFound,
+              })
 
             const childProp: ChildProp = {
               current: <ChildComponent />,
@@ -710,6 +845,7 @@ export async function renderToHTMLOrFlight(
                 notFoundStyles={notFoundStyles}
                 asNotFound={asNotFound}
                 childProp={childProp}
+                styles={childStyles}
               />,
             ]
           }
@@ -729,6 +865,7 @@ export async function renderToHTMLOrFlight(
       if (!Component) {
         return {
           Component: () => <>{parallelRouteComponents.children}</>,
+          styles,
         }
       }
 
@@ -779,7 +916,7 @@ export async function renderToHTMLOrFlight(
         Component: () => {
           return (
             <>
-              {/* <Component /> needs to be the first element because we use `findDOMONode` in layout router to locate it. */}
+              {/* <Component /> needs to be the first element because we use `findDOMNode` in layout router to locate it. */}
               {isPage && isClientComponent && isStaticGeneration ? (
                 <StaticGenerationSearchParamsBailoutProvider
                   propsForComponent={props}
@@ -788,61 +925,28 @@ export async function renderToHTMLOrFlight(
               ) : (
                 <Component {...props} />
               )}
-              {preloadedFontFiles?.length === 0 ? (
-                <link
-                  data-next-font={
-                    nextFontManifest?.appUsingSizeAdjust ? 'size-adjust' : ''
-                  }
-                  rel="preconnect"
-                  href="/"
-                  crossOrigin="anonymous"
-                />
-              ) : null}
-              {preloadedFontFiles
-                ? preloadedFontFiles.map((fontFile) => {
-                    const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFile)![1]
-                    return (
-                      <link
-                        key={fontFile}
-                        rel="preload"
-                        href={`${assetPrefix}/_next/${fontFile}`}
-                        as="font"
-                        type={`font/${ext}`}
-                        crossOrigin="anonymous"
-                        data-next-font={
-                          fontFile.includes('-s') ? 'size-adjust' : ''
-                        }
-                      />
-                    )
-                  })
-                : null}
-              {stylesheets
-                ? stylesheets.map((href, index) => (
-                    <link
-                      rel="stylesheet"
-                      // In dev, Safari will wrongly cache the resource if you preload it:
-                      // - https://github.com/vercel/next.js/issues/5860
-                      // - https://bugs.webkit.org/show_bug.cgi?id=187726
-                      // We used to add a `?ts=` query for resources in `pages` to bypass it,
-                      // but in this case it is fine as we don't need to preload the styles.
-                      href={`${assetPrefix}/_next/${href}`}
-                      // `Precedence` is an opt-in signal for React to handle
-                      // resource loading and deduplication, etc:
-                      // https://github.com/facebook/react/pull/25060
-                      // @ts-ignore
-                      precedence="next.js"
-                      key={index}
-                    />
-                  ))
-                : null}
+              {/* This null is currently critical. The wrapped Component can render null and if there was not fragment
+                surrounding it this would look like a pending tree data state on the client which will cause an errror
+                and break the app. Long-term we need to move away from using null as a partial tree identifier since it
+                is a valid return type for the components we wrap. Once we make this change we can safely remove the
+                fragment. The reason the extra null here is required is that fragments which only have 1 child are elided.
+                If the Component above renders null the actual treedata will look like `[null, null]`. If we remove the extra
+                null it will look like `null` (the array is elided) and this is what confuses the client router.
+                TODO-APP update router to use a Symbol for partial tree detection */}
+              {null}
             </>
           )
         },
+        styles,
       }
     }
 
     // Handle Flight render request. This is only used when client-side navigating. E.g. when you `router.push('/dashboard')` or `router.reload()`.
-    const generateFlight = async (): Promise<RenderResult> => {
+    const generateFlight = async (options?: {
+      actionResult: ActionResult
+      skipFlight: boolean
+      asNotFound?: boolean
+    }): Promise<RenderResult> => {
       /**
        * Use router state to decide at what common layout to render the page.
        * This can either be the common layout between two pages or a specific place to start rendering from using the "refetch" marker in the tree.
@@ -871,10 +975,11 @@ export async function renderToHTMLOrFlight(
         injectedFontPreloadTags: Set<string>
         rootLayoutIncluded: boolean
         asNotFound?: boolean
-      }): Promise<FlightDataPath> => {
+      }): Promise<FlightDataPath[]> => {
         const [segment, parallelRoutes, components] = loaderTreeToFilter
 
         const parallelRoutesKeys = Object.keys(parallelRoutes)
+
         const { layout } = components
         const isLayout = typeof layout !== 'undefined'
 
@@ -917,40 +1022,58 @@ export async function renderToHTMLOrFlight(
           flightRouterState[3] === 'refetch'
 
         if (!parentRendered && renderComponentsOnThisLevel) {
-          return [
-            actualSegment,
-            // Create router state using the slice of the loaderTree
-            createFlightRouterStateFromLoaderTree(
-              loaderTreeToFilter,
-              getDynamicParamFromSegment,
-              query
-            ),
-            // Check if one level down from the common layout has a loading component. If it doesn't only provide the router state as part of the Flight data.
-            isPrefetch && !Boolean(components.loading)
-              ? null
-              : // Create component tree using the slice of the loaderTree
-                // @ts-expect-error TODO-APP: fix async component type
-                React.createElement(async () => {
-                  const { Component } = await createComponentTree(
-                    // This ensures flightRouterPath is valid and filters down the tree
-                    {
-                      createSegmentPath: (child) => {
-                        return createSegmentPath(child)
-                      },
-                      loaderTree: loaderTreeToFilter,
-                      parentParams: currentParams,
-                      firstItem: isFirst,
-                      injectedCSS,
-                      injectedFontPreloadTags,
-                      // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
-                      rootLayoutIncluded: rootLayoutIncluded,
-                      asNotFound,
-                    }
-                  )
+          const overriddenSegment =
+            flightRouterState &&
+            canSegmentBeOverridden(actualSegment, flightRouterState[0])
+              ? flightRouterState[0]
+              : null
 
-                  return <Component />
-                }),
-            isPrefetch && !Boolean(components.loading) ? null : rscPayloadHead,
+          return [
+            [
+              overriddenSegment ?? actualSegment,
+              createFlightRouterStateFromLoaderTree(
+                // Create router state using the slice of the loaderTree
+                loaderTreeToFilter,
+                getDynamicParamFromSegment,
+                query
+              ),
+              // Create component tree using the slice of the loaderTree
+              // @ts-expect-error TODO-APP: fix async component type
+              React.createElement(async () => {
+                const { Component } = await createComponentTree(
+                  // This ensures flightRouterPath is valid and filters down the tree
+                  {
+                    createSegmentPath,
+                    loaderTree: loaderTreeToFilter,
+                    parentParams: currentParams,
+                    firstItem: isFirst,
+                    injectedCSS,
+                    injectedFontPreloadTags,
+                    // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
+                    rootLayoutIncluded,
+                    asNotFound,
+                  }
+                )
+
+                return <Component />
+              }),
+              (() => {
+                const { layoutOrPagePath } = parseLoaderTree(loaderTreeToFilter)
+
+                const styles = getLayerAssets({
+                  layoutOrPagePath,
+                  injectedCSS: new Set(injectedCSS),
+                  injectedFontPreloadTags: new Set(injectedFontPreloadTags),
+                })
+
+                return (
+                  <>
+                    {styles}
+                    {rscPayloadHead}
+                  </>
+                )
+              })(),
+            ],
           ]
         }
 
@@ -971,7 +1094,7 @@ export async function renderToHTMLOrFlight(
             injectedCSSWithCurrentLayout,
             true
           )
-          getPreloadedFontFilesInlineLinkTags(
+          getPreloadableFonts(
             serverCSSManifest!,
             nextFontManifest,
             serverCSSForEntries,
@@ -981,77 +1104,93 @@ export async function renderToHTMLOrFlight(
         }
 
         // Walk through all parallel routes.
-        for (const parallelRouteKey of parallelRoutesKeys) {
-          const parallelRoute = parallelRoutes[parallelRouteKey]
+        const paths: FlightDataPath[] = (
+          await Promise.all(
+            parallelRoutesKeys.map(async (parallelRouteKey) => {
+              // for (const parallelRouteKey of parallelRoutesKeys) {
+              const parallelRoute = parallelRoutes[parallelRouteKey]
 
-          const currentSegmentPath: FlightSegmentPath = isFirst
-            ? [parallelRouteKey]
-            : [actualSegment, parallelRouteKey]
+              const currentSegmentPath: FlightSegmentPath = isFirst
+                ? [parallelRouteKey]
+                : [actualSegment, parallelRouteKey]
 
-          const path = await walkTreeWithFlightRouterState({
-            createSegmentPath: (child) => {
-              return createSegmentPath([...currentSegmentPath, ...child])
-            },
-            loaderTreeToFilter: parallelRoute,
-            parentParams: currentParams,
-            flightRouterState:
-              flightRouterState && flightRouterState[1][parallelRouteKey],
-            parentRendered: parentRendered || renderComponentsOnThisLevel,
-            isFirst: false,
-            rscPayloadHead,
-            injectedCSS: injectedCSSWithCurrentLayout,
-            injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
-            rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
-            asNotFound,
-          })
+              const path = await walkTreeWithFlightRouterState({
+                createSegmentPath: (child) => {
+                  return createSegmentPath([...currentSegmentPath, ...child])
+                },
+                loaderTreeToFilter: parallelRoute,
+                parentParams: currentParams,
+                flightRouterState:
+                  flightRouterState && flightRouterState[1][parallelRouteKey],
+                parentRendered: parentRendered || renderComponentsOnThisLevel,
+                isFirst: false,
+                rscPayloadHead,
+                injectedCSS: injectedCSSWithCurrentLayout,
+                injectedFontPreloadTags:
+                  injectedFontPreloadTagsWithCurrentLayout,
+                rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
+                asNotFound,
+              })
 
-          if (typeof path[path.length - 1] !== 'string') {
-            return [actualSegment, parallelRouteKey, ...path]
-          }
-        }
+              return path
+                .map((item) => {
+                  // we don't need to send over default routes in the flight data
+                  // because they are always ignored by the client, unless it's a refetch
+                  if (
+                    item[0] === '__DEFAULT__' &&
+                    flightRouterState &&
+                    !!flightRouterState[1][parallelRouteKey][0] &&
+                    flightRouterState[1][parallelRouteKey][3] !== 'refetch'
+                  ) {
+                    return null
+                  }
+                  return [actualSegment, parallelRouteKey, ...item]
+                })
+                .filter(Boolean) as FlightDataPath[]
+            })
+          )
+        ).flat()
 
-        return [actualSegment]
+        return paths
       }
 
-      const metadataItems = await resolveMetadata({
-        tree: loaderTree,
-        parentParams: {},
-        metadataItems: [],
-      })
       // Flight data that is going to be passed to the browser.
       // Currently a single item array but in the future multiple patches might be combined in a single request.
-      const flightData: FlightData = [
-        (
-          await walkTreeWithFlightRouterState({
-            createSegmentPath: (child) => child,
-            loaderTreeToFilter: loaderTree,
-            parentParams: {},
-            flightRouterState: providedFlightRouterState,
-            isFirst: true,
-            // For flight, render metadata inside leaf page
-            rscPayloadHead: (
-              <>
-                {/* Adding key={requestId} to make metadata remount for each render */}
-                {/* @ts-expect-error allow to use async server component */}
-                <MetadataTree
-                  key={requestId}
-                  metadata={metadataItems}
-                  pathname={pathname}
-                />
-              </>
-            ),
-            injectedCSS: new Set(),
-            injectedFontPreloadTags: new Set(),
-            rootLayoutIncluded: false,
-            asNotFound: pathname === '/404',
-          })
-        ).slice(1),
-      ]
+      const flightData: FlightData | null = options?.skipFlight
+        ? null
+        : (
+            await walkTreeWithFlightRouterState({
+              createSegmentPath: (child) => child,
+              loaderTreeToFilter: loaderTree,
+              parentParams: {},
+              flightRouterState: providedFlightRouterState,
+              isFirst: true,
+              // For flight, render metadata inside leaf page
+              rscPayloadHead: (
+                <>
+                  {/* Adding key={requestId} to make metadata remount for each render */}
+                  {/* @ts-expect-error allow to use async server component */}
+                  <MetadataTree
+                    key={requestId}
+                    tree={loaderTree}
+                    pathname={pathname}
+                    searchParams={providedSearchParams}
+                    getDynamicParamFromSegment={getDynamicParamFromSegment}
+                  />
+                  {appUsingSizeAdjust ? <meta name="next-size-adjust" /> : null}
+                </>
+              ),
+              injectedCSS: new Set(),
+              injectedFontPreloadTags: new Set(),
+              rootLayoutIncluded: false,
+              asNotFound: pagePath === '/404' || options?.asNotFound,
+            })
+          ).map((path) => path.slice(1)) // remove the '' (root) segment
 
       // For app dir, use the bundled version of Fizz renderer (renderToReadableStream)
       // which contains the subset React.
       const readable = ComponentMod.renderToReadableStream(
-        flightData,
+        options ? [options.actionResult, flightData] : flightData,
         clientReferenceManifest.clientModules,
         {
           context: serverContexts,
@@ -1072,17 +1211,14 @@ export async function renderToHTMLOrFlight(
     const AppRouter =
       ComponentMod.AppRouter as typeof import('../../client/components/app-router').default
 
-    const GlobalError = interopDefault(
+    const GlobalError =
       /** GlobalError can be either the default error boundary or the overwritten app/global-error.js **/
       ComponentMod.GlobalError as typeof import('../../client/components/error-boundary').default
-    )
 
     let serverComponentsInlinedTransformStream: TransformStream<
       Uint8Array,
       Uint8Array
     > = new TransformStream()
-
-    const initialCanonicalUrl = validateURL(req.url)
 
     // Get the nonce from the incoming request if it has one.
     const csp = req.headers['content-security-policy']
@@ -1112,12 +1248,6 @@ export async function renderToHTMLOrFlight(
         }
       : {}
 
-    const metadataItems = await resolveMetadata({
-      tree: loaderTree,
-      parentParams: {},
-      metadataItems: [],
-    })
-
     /**
      * A new React Component that renders the provided React Component
      * using Flight which can then be rendered to HTML.
@@ -1128,13 +1258,15 @@ export async function renderToHTMLOrFlight(
       async (props) => {
         // Create full component tree from root to leaf.
         const injectedCSS = new Set<string>()
-        const { Component: ComponentTree } = await createComponentTree({
+        const injectedFontPreloadTags = new Set<string>()
+
+        const { Component: ComponentTree, styles } = await createComponentTree({
           createSegmentPath: (child) => child,
           loaderTree,
           parentParams: {},
           firstItem: true,
           injectedCSS,
-          injectedFontPreloadTags: new Set(),
+          injectedFontPreloadTags,
           rootLayoutIncluded: false,
           asNotFound: props.asNotFound,
         })
@@ -1162,32 +1294,41 @@ export async function renderToHTMLOrFlight(
           query
         )
 
+        const createMetadata = (tree: LoaderTree) => (
+          // Adding key={requestId} to make metadata remount for each render
+          // @ts-expect-error allow to use async server component
+          <MetadataTree
+            key={requestId}
+            tree={tree}
+            pathname={pathname}
+            searchParams={providedSearchParams}
+            getDynamicParamFromSegment={getDynamicParamFromSegment}
+          />
+        )
+
         return (
           <>
+            {styles}
             <AppRouter
               assetPrefix={assetPrefix}
-              initialCanonicalUrl={initialCanonicalUrl}
+              initialCanonicalUrl={pathname}
               initialTree={initialTree}
               initialHead={
                 <>
-                  {/* Adding key={requestId} to make metadata remount for each render */}
-                  {/* @ts-expect-error allow to use async server component */}
-                  <MetadataTree
-                    key={requestId}
-                    metadata={metadataItems}
-                    pathname={pathname}
-                  />
+                  {createMetadata(loaderTree)}
+                  {appUsingSizeAdjust ? <meta name="next-size-adjust" /> : null}
                 </>
               }
               globalErrorComponent={GlobalError}
               notFound={
                 NotFound && RootLayout ? (
                   <RootLayout params={{}}>
+                    {createMetadata(emptyLoaderTree)}
+                    {notFoundStyles}
                     <NotFound />
                   </RootLayout>
                 ) : undefined
               }
-              notFoundStyles={notFoundStyles}
               asNotFound={props.asNotFound}
             >
               <ComponentTree />
@@ -1201,10 +1342,11 @@ export async function renderToHTMLOrFlight(
       nonce
     )
 
+    const { HeadManagerContext } =
+      require('../../shared/lib/head-manager-context') as typeof import('../../shared/lib/head-manager-context')
     const serverInsertedHTMLCallbacks: Set<() => React.ReactNode> = new Set()
     function InsertedHTML({ children }: { children: JSX.Element }) {
       // Reset addInsertedHtmlCallback on each render
-      serverInsertedHTMLCallbacks.clear()
       const addInsertedHtml = React.useCallback(
         (handler: () => React.ReactNode) => {
           serverInsertedHTMLCallbacks.add(handler)
@@ -1226,11 +1368,14 @@ export async function renderToHTMLOrFlight(
       )
     }
 
-    getTracer().getRootSpanAttributes()?.set('next.route', pathname)
+    getTracer().getRootSpanAttributes()?.set('next.route', pagePath)
     const bodyResult = getTracer().wrap(
       AppRenderSpan.getBodyResult,
       {
-        spanName: `render route (app) ${pathname}`,
+        spanName: `render route (app) ${pagePath}`,
+        attributes: {
+          'next.route': pagePath,
+        },
       },
       async ({
         asNotFound,
@@ -1288,34 +1433,37 @@ export async function renderToHTMLOrFlight(
             }
           }
 
-          const flushed = renderToString(
-            <>
-              {Array.from(serverInsertedHTMLCallbacks).map((callback) =>
-                callback()
-              )}
-              {polyfillsFlushed
-                ? null
-                : polyfills?.map((polyfill) => {
-                    return (
-                      <script
-                        key={polyfill.src}
-                        src={polyfill.src}
-                        integrity={polyfill.integrity}
-                        noModule={true}
-                        nonce={nonce}
-                      />
-                    )
-                  })}
-              {errorMetaTags}
-            </>
-          )
+          const flushed = renderToString({
+            ReactDOMServer: require('react-dom/server.edge'),
+            element: (
+              <>
+                {Array.from(serverInsertedHTMLCallbacks).map((callback) =>
+                  callback()
+                )}
+                {polyfillsFlushed
+                  ? null
+                  : polyfills?.map((polyfill) => {
+                      return (
+                        <script
+                          key={polyfill.src}
+                          src={polyfill.src}
+                          integrity={polyfill.integrity}
+                          noModule={true}
+                          nonce={nonce}
+                        />
+                      )
+                    })}
+                {errorMetaTags}
+              </>
+            ),
+          })
           polyfillsFlushed = true
           return flushed
         }
 
         try {
           const renderStream = await renderToInitialStream({
-            ReactDOMServer,
+            ReactDOMServer: require('react-dom/server.edge'),
             element: content,
             streamOptions: {
               onError: htmlRendererErrorHandler,
@@ -1345,10 +1493,19 @@ export async function renderToHTMLOrFlight(
 
           return result
         } catch (err: any) {
+          if (
+            err.code === 'NEXT_STATIC_GEN_BAILOUT' ||
+            err.message?.includes(
+              'https://nextjs.org/docs/advanced-features/static-html-export'
+            )
+          ) {
+            // Ensure that "next dev" prints the red error overlay
+            throw err
+          }
           if (err.digest === NEXT_DYNAMIC_NO_SSR_CODE) {
             warn(
-              `Entire page ${pathname} deopted into client-side rendering. https://nextjs.org/docs/messages/deopted-into-client-rendering`,
-              pathname
+              `Entire page ${pagePath} deopted into client-side rendering. https://nextjs.org/docs/messages/deopted-into-client-rendering`,
+              pagePath
             )
           }
           if (isNotFoundError(err)) {
@@ -1356,19 +1513,32 @@ export async function renderToHTMLOrFlight(
           }
           if (isRedirectError(err)) {
             res.statusCode = 307
+            if (err.mutableCookies) {
+              const headers = new Headers()
+
+              // If there were mutable cookies set, we need to set them on the
+              // response.
+              if (appendMutableCookies(headers, err.mutableCookies)) {
+                res.setHeader('set-cookie', Array.from(headers.values()))
+              }
+            }
+            res.setHeader('Location', getURLFromRedirectError(err))
           }
 
           const renderStream = await renderToInitialStream({
-            ReactDOMServer,
+            ReactDOMServer: require('react-dom/server.edge'),
             element: (
               <html id="__next_error__">
                 <head>
                   {/* @ts-expect-error allow to use async server component */}
                   <MetadataTree
                     key={requestId}
-                    metadata={[]}
+                    tree={emptyLoaderTree}
                     pathname={pathname}
+                    searchParams={providedSearchParams}
+                    getDynamicParamFromSegment={getDynamicParamFromSegment}
                   />
+                  {appUsingSizeAdjust ? <meta name="next-size-adjust" /> : null}
                 </head>
                 <body></body>
               </html>
@@ -1405,7 +1575,10 @@ export async function renderToHTMLOrFlight(
       ComponentMod,
       pathname: renderOpts.pathname,
       serverActionsManifest,
+      generateFlight,
+      staticGenerationStore,
     })
+
     if (actionRequestResult === 'not-found') {
       return new RenderResult(await bodyResult({ asNotFound: true }))
     } else if (actionRequestResult) {
@@ -1414,13 +1587,15 @@ export async function renderToHTMLOrFlight(
 
     const renderResult = new RenderResult(
       await bodyResult({
-        asNotFound: pathname === '/404',
+        asNotFound: pagePath === '/404',
       })
     )
 
     if (staticGenerationStore.pendingRevalidates) {
       await Promise.all(staticGenerationStore.pendingRevalidates)
     }
+    addImplicitTags(staticGenerationStore)
+    ;(renderOpts as any).fetchTags = staticGenerationStore.tags?.join(',')
 
     if (staticGenerationStore.isStaticGeneration) {
       const htmlResult = await streamToBufferedResult(renderResult)
@@ -1466,7 +1641,7 @@ export async function renderToHTMLOrFlight(
     () =>
       StaticGenerationAsyncStorageWrapper.wrap(
         staticGenerationAsyncStorage,
-        { pathname, renderOpts },
+        { pathname: pagePath, renderOpts },
         () => wrappedRender()
       )
   )

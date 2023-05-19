@@ -26,8 +26,8 @@ import {
 import {
   generateActionId,
   getActions,
-  isClientComponentModule,
-  regexCSS,
+  isClientComponentEntryModule,
+  isCSSMod,
 } from '../loaders/utils'
 import { traverseModules, forEachEntryModule } from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
@@ -37,23 +37,44 @@ interface Options {
   dev: boolean
   appDir: string
   isEdgeServer: boolean
+  useServerActions: boolean
 }
 
 const PLUGIN_NAME = 'ClientEntryPlugin'
 
 export type ActionManifest = {
-  [actionId: string]: {
-    workers: {
-      [name: string]: string | number
+  [key in 'node' | 'edge']: {
+    [actionId: string]: {
+      workers: {
+        [name: string]: string | number
+      }
+      // Record which layer the action is in (sc_server or sc_action), in the specific entry.
+      layer: {
+        [name: string]: string
+      }
     }
   }
 }
 
 const pluginState = getProxiedPluginState({
   // A map to track "action" -> "list of bundles".
-  serverActions: {} as ActionManifest,
-  edgeServerActions: {} as ActionManifest,
-  actionModId: {} as Record<string, string | number>,
+  serverActions: {} as ActionManifest['node'],
+  edgeServerActions: {} as ActionManifest['edge'],
+
+  actionModServerId: {} as Record<
+    string,
+    {
+      server?: string | number
+      client?: string | number
+    }
+  >,
+  actionModEdgeServerId: {} as Record<
+    string,
+    {
+      server?: string | number
+      client?: string | number
+    }
+  >,
 
   // Manifest of CSS entry files for server/edge server.
   serverCSSManifest: {} as ClientCSSReferenceManifest,
@@ -75,12 +96,14 @@ export class ClientReferenceEntryPlugin {
   dev: boolean
   appDir: string
   isEdgeServer: boolean
+  useServerActions: boolean
   assetPrefix: string
 
   constructor(options: Options) {
     this.dev = options.dev
     this.appDir = options.appDir
     this.isEdgeServer = options.isEdgeServer
+    this.useServerActions = options.useServerActions
     this.assetPrefix = !this.dev && !this.isEdgeServer ? '../' : ''
   }
 
@@ -152,7 +175,7 @@ export class ClientReferenceEntryPlugin {
           name: PLUGIN_NAME,
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
         },
-        (assets) => this.createAsset(compilation, assets)
+        (assets) => this.createActionAssets(compilation, assets)
       )
     })
   }
@@ -164,6 +187,7 @@ export class ClientReferenceEntryPlugin {
 
     const addActionEntryList: Array<ReturnType<typeof this.injectActionEntry>> =
       []
+    const actionMapsPerEntry: Record<string, Map<string, string[]>> = {}
 
     // For each SC server compilation entry, we need to create its corresponding
     // client component entry.
@@ -234,17 +258,37 @@ export class ClientReferenceEntryPlugin {
       )
 
       if (actionEntryImports.size > 0) {
-        addActionEntryList.push(
-          this.injectActionEntry({
-            compiler,
-            compilation,
-            actions: actionEntryImports,
-            entryName: name,
-            bundlePath: name,
-          })
-        )
+        if (!this.useServerActions) {
+          compilation.errors.push(
+            new Error(
+              'Server Actions require `experimental.serverActions` option to be enabled in your Next.js config: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions'
+            )
+          )
+        } else {
+          if (!actionMapsPerEntry[name]) {
+            actionMapsPerEntry[name] = new Map()
+          }
+          actionMapsPerEntry[name] = new Map([
+            ...actionMapsPerEntry[name],
+            ...actionEntryImports,
+          ])
+        }
       }
     })
+
+    for (const [name, actionEntryImports] of Object.entries(
+      actionMapsPerEntry
+    )) {
+      addActionEntryList.push(
+        this.injectActionEntry({
+          compiler,
+          compilation,
+          actions: actionEntryImports,
+          entryName: name,
+          bundlePath: name,
+        })
+      )
+    }
 
     // To collect all CSS imports and action imports for a specific entry
     // including the ones that are in the client graph, we need to store a
@@ -279,6 +323,7 @@ export class ClientReferenceEntryPlugin {
     // client layer.
     compilation.hooks.finishModules.tapPromise(PLUGIN_NAME, () => {
       const addedClientActionEntryList: Promise<any>[] = []
+      const actionMapsPerClientEntry: Record<string, Map<string, string[]>> = {}
 
       forEachEntryModule(compilation, ({ name, entryModule }) => {
         const actionEntryImports = new Map<string, string[]>()
@@ -310,18 +355,31 @@ export class ClientReferenceEntryPlugin {
         }
 
         if (actionEntryImports.size > 0) {
-          addedClientActionEntryList.push(
-            this.injectActionEntry({
-              compiler,
-              compilation,
-              actions: actionEntryImports,
-              entryName: name,
-              bundlePath: name,
-              fromClient: true,
-            })
-          )
+          if (!actionMapsPerClientEntry[name]) {
+            actionMapsPerClientEntry[name] = new Map()
+          }
+          actionMapsPerClientEntry[name] = new Map([
+            ...actionMapsPerClientEntry[name],
+            ...actionEntryImports,
+          ])
         }
       })
+
+      for (const [name, actionEntryImports] of Object.entries(
+        actionMapsPerClientEntry
+      )) {
+        addedClientActionEntryList.push(
+          this.injectActionEntry({
+            compiler,
+            compilation,
+            actions: actionEntryImports,
+            entryName: name,
+            bundlePath: name,
+            fromClient: true,
+          })
+        )
+      }
+
       return Promise.all(addedClientActionEntryList)
     })
 
@@ -338,7 +396,7 @@ export class ClientReferenceEntryPlugin {
         const resource = mod.resource
         const modId = resource
         if (modId) {
-          if (regexCSS.test(modId)) {
+          if (isCSSMod(mod)) {
             cssImportsForChunk[entryName].add(modId)
           }
         }
@@ -408,8 +466,6 @@ export class ClientReferenceEntryPlugin {
     compilation.hooks.processAssets.tap(
       {
         name: PLUGIN_NAME,
-        // Have to be in the optimize stage to run after updating the CSS
-        // asset hash via extract mini css plugin.
         stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
       },
       (assets: webpack.Compilation['assets']) => {
@@ -492,8 +548,7 @@ export class ClientReferenceEntryPlugin {
         compilation.moduleGraph.getResolvedModule(dependencyToFilter)
       if (!mod) return
 
-      const rawRequest = mod.rawRequest
-      const isCSS = regexCSS.test(rawRequest)
+      const isCSS = isCSSMod(mod)
 
       // We have to always use the resolved request here to make sure the
       // server and client are using the same module path (required by RSC), as
@@ -512,7 +567,7 @@ export class ClientReferenceEntryPlugin {
       }
       visitedBySegment[entryRequest].add(storeKey)
 
-      const isClientComponent = isClientComponentModule(mod)
+      const isClientComponent = isClientComponentEntryModule(mod)
 
       const actions = getActions(mod)
       if (actions) {
@@ -708,6 +763,7 @@ export class ClientReferenceEntryPlugin {
     const actionsArray = Array.from(actions.entries())
     const actionLoader = `next-flight-action-entry-loader?${stringify({
       actions: JSON.stringify(actionsArray),
+      __client_imported__: fromClient,
     })}!`
 
     const currentCompilerServerActions = this.isEdgeServer
@@ -719,9 +775,13 @@ export class ClientReferenceEntryPlugin {
         if (typeof currentCompilerServerActions[id] === 'undefined') {
           currentCompilerServerActions[id] = {
             workers: {},
+            layer: {},
           }
         }
         currentCompilerServerActions[id].workers[bundlePath] = ''
+        currentCompilerServerActions[id].layer[bundlePath] = fromClient
+          ? WEBPACK_LAYERS.action
+          : WEBPACK_LAYERS.server
       }
     }
 
@@ -771,7 +831,7 @@ export class ClientReferenceEntryPlugin {
     })
   }
 
-  createAsset(
+  createActionAssets(
     compilation: webpack.Compilation,
     assets: webpack.Compilation['assets']
   ) {
@@ -782,23 +842,50 @@ export class ClientReferenceEntryPlugin {
         mod.request &&
         /next-flight-action-entry-loader/.test(mod.request)
       ) {
-        pluginState.actionModId[chunkGroup.name] = modId
+        const fromClient = /&__client_imported__=true/.test(mod.request)
+
+        const mapping = this.isEdgeServer
+          ? pluginState.actionModEdgeServerId
+          : pluginState.actionModServerId
+
+        if (!mapping[chunkGroup.name]) {
+          mapping[chunkGroup.name] = {}
+        }
+        mapping[chunkGroup.name][fromClient ? 'client' : 'server'] = modId
       }
     })
 
-    const fullServerActions = {
-      ...pluginState.serverActions,
-      ...pluginState.edgeServerActions,
-    }
-    for (let id in fullServerActions) {
-      const action = fullServerActions[id]
+    const serverActions: ActionManifest['node'] = {}
+    for (let id in pluginState.serverActions) {
+      const action = pluginState.serverActions[id]
       for (let name in action.workers) {
-        action.workers[name] = pluginState.actionModId[name]
+        const modId =
+          pluginState.actionModServerId[name][
+            action.layer[name] === WEBPACK_LAYERS.action ? 'client' : 'server'
+          ]
+        action.workers[name] = modId!
       }
+      serverActions[id] = action
+    }
+
+    const edgeServerActions: ActionManifest['edge'] = {}
+    for (let id in pluginState.edgeServerActions) {
+      const action = pluginState.edgeServerActions[id]
+      for (let name in action.workers) {
+        const modId =
+          pluginState.actionModEdgeServerId[name][
+            action.layer[name] === WEBPACK_LAYERS.action ? 'client' : 'server'
+          ]
+        action.workers[name] = modId!
+      }
+      edgeServerActions[id] = action
     }
 
     const json = JSON.stringify(
-      fullServerActions,
+      {
+        node: serverActions,
+        edge: edgeServerActions,
+      },
       null,
       this.dev ? 2 : undefined
     )

@@ -8,6 +8,7 @@ import { createContext } from 'react'
 
 export type HtmlProps = {
   __NEXT_DATA__: NEXT_DATA
+  strictNextHead: boolean
   dangerousAsPath: string
   docComponentsRendered: {
     Html?: boolean
@@ -36,7 +37,7 @@ export type HtmlProps = {
   disableOptimizedLoading?: boolean
   styles?: React.ReactElement[] | React.ReactFragment
   head?: Array<JSX.Element | null>
-  crossOrigin?: string
+  crossOrigin?: 'anonymous' | 'use-credentials' | '' | undefined
   optimizeCss?: any
   optimizeFonts?: FontConfig
   nextConfigOutput?: 'standalone' | 'export'

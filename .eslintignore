@@ -1,6 +1,7 @@
 node_modules
 **/.next/**
 **/_next/**
+**/.vscode/**
 **/dist/**
 e2e-tests/**
 examples/with-eslint/**

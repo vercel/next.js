@@ -102,7 +102,7 @@ export function toNodeHeaders(headers?: Headers): OutgoingHttpHeaders {
         // set-cookie headers. We need to merge them into one header array
         // to represent all the cookies.
         cookies.push(...splitCookiesString(value))
-        result[key] = cookies
+        result[key] = cookies.length === 1 ? cookies[0] : cookies
       } else {
         result[key] = value
       }

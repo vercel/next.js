@@ -5,6 +5,7 @@ import { getNodeOptionsWithoutInspect } from './utils'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ChildProcess } from 'child_process'
 import { normalizeRepeatedSlashes } from '../../shared/lib/utils'
+import { initialEnv } from '@next/env'
 
 export interface StartServerOptions {
   dir: string
@@ -185,12 +186,9 @@ export async function startServer({
         forkOptions: {
           env: {
             FORCE_COLOR: '1',
-            ...process.env,
-            // we don't pass down NODE_OPTIONS as it can
-            // extra memory usage
-            NODE_OPTIONS: getNodeOptionsWithoutInspect()
-              .replace(/--max-old-space-size=[\d]{1,}/, '')
-              .trim(),
+            ...((initialEnv || process.env) as typeof process.env),
+            PORT: port + '',
+            NODE_OPTIONS: getNodeOptionsWithoutInspect().trim(),
           },
         },
         exposedMethods: ['initialize'],
@@ -242,8 +240,9 @@ export async function startServer({
       didInitialize = true
 
       const getProxyServer = (pathname: string) => {
-        const targetUrl = `http://${targetHost}:${routerPort}${pathname}`
-
+        const targetUrl = `http://${
+          targetHost === 'localhost' ? '127.0.0.1' : targetHost
+        }:${routerPort}${pathname}`
         const proxyServer = httpProxy.createProxy({
           target: targetUrl,
           changeOrigin: false,
@@ -253,7 +252,7 @@ export async function startServer({
           followRedirects: false,
         })
 
-        proxyServer.on('error', () => {
+        proxyServer.on('error', (_err) => {
           // TODO?: enable verbose error logs with --debug flag?
         })
         return proxyServer
@@ -285,7 +284,7 @@ export async function startServer({
       handlersReady()
     } else {
       // when not using a worker start next in main process
-      const { default: next } = require('../next') as typeof import('../next')
+      const next = require('../next') as typeof import('../next').default
       const addr = server.address()
       const app = next({
         dir,

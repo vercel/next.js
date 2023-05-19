@@ -5,7 +5,7 @@ import {
 import { getClientReferenceModuleKey } from '../../lib/client-reference'
 
 /**
- * Get inline <link> tags based on server CSS manifest. Only used when rendering to HTML.
+ * Get external stylesheet link hrefs based on server CSS manifest.
  */
 export function getCssInlinedLinkTags(
   clientReferenceManifest: ClientReferenceManifest,
@@ -17,7 +17,7 @@ export function getCssInlinedLinkTags(
 ): string[] {
   const layoutOrPageCssModules = serverCSSManifest.cssImports[filePath]
 
-  const filePathWithoutExt = filePath.replace(/\.[^.]+$/, '')
+  const filePathWithoutExt = filePath.replace(/(\.[A-Za-z0-9]+)+$/, '')
   const cssFilesForEntry = new Set(
     clientReferenceManifest.cssFiles?.[filePathWithoutExt] || []
   )
@@ -27,13 +27,19 @@ export function getCssInlinedLinkTags(
   }
   const chunks = new Set<string>()
 
+  const isNotFoundPage = /(\/|\\)not-found/.test(filePathWithoutExt)
+
   for (const mod of layoutOrPageCssModules) {
     // We only include the CSS if it's a global CSS, or it is used by this
-    // entrypoint.
-    if (
-      serverCSSForEntries.includes(mod) ||
-      !/\.module\.(css|sass|scss)$/.test(mod)
-    ) {
+    // entrypoint (CSS files that actually affect this layer).
+    const isGlobalCSS = !/\.module\.(css|sass|scss)$/.test(mod)
+
+    // For not-found pages, it will generally match all non-existing entries so
+    // even if `serverCSSForEntries` is empty, we still want to include the CSS.
+    const isImportedByEntry =
+      serverCSSForEntries.includes(mod) || isNotFoundPage
+
+    if (isImportedByEntry || isGlobalCSS) {
       // If the CSS is already injected by a parent layer, we don't need
       // to inject it again.
       if (!injectedCSS.has(mod)) {

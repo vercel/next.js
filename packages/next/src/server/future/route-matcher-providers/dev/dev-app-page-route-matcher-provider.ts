@@ -2,6 +2,7 @@ import { FileReader } from './helpers/file-reader/file-reader'
 import { AppPageRouteMatcher } from '../../route-matchers/app-page-route-matcher'
 import { RouteKind } from '../../route-kind'
 import { FileCacheRouteMatcherProvider } from './file-cache-route-matcher-provider'
+
 import { DevAppNormalizers } from '../../normalizers/built/app'
 
 export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvider<AppPageRouteMatcher> {
@@ -75,7 +76,6 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
         })
       )
     }
-
     return matchers
   }
 }

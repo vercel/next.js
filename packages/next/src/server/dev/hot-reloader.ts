@@ -14,6 +14,7 @@ import {
   getEdgeServerEntry,
   getAppEntry,
   runDependingOnPageType,
+  getStaticInfoIncludingLayouts,
 } from '../../build/entries'
 import { watchCompilers } from '../../build/output'
 import * as Log from '../../build/output/log'
@@ -41,18 +42,24 @@ import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 import { fileExists } from '../../lib/file-exists'
-import { difference, isMiddlewareFilename } from '../../build/utils'
+import {
+  difference,
+  isMiddlewareFile,
+  isMiddlewareFilename,
+} from '../../build/utils'
 import { DecodeError } from '../../shared/lib/utils'
 import { Span, trace } from '../../trace'
 import { getProperError } from '../../lib/is-error'
 import ws from 'next/dist/compiled/ws'
 import { promises as fs } from 'fs'
-import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { UnwrapPromise } from '../../lib/coalesced-function'
 import { getRegistry } from '../../lib/helpers/get-registry'
 import { RouteMatch } from '../future/route-matches/route-match'
 import type { Telemetry } from '../../telemetry/storage'
 import { parseVersionInfo, VersionInfo } from './parse-version-info'
+import { isAPIRoute } from '../../lib/is-api-route'
+import { getRouteLoaderEntry } from '../../build/webpack/loaders/next-route-loader'
+import { isInternalPathname } from '../../lib/is-internal-pathname'
 
 function diff(a: Set<any>, b: Set<any>) {
   return new Set([...a].filter((v) => !b.has(v)))
@@ -713,11 +720,14 @@ export default class HotReloader {
             const hasAppDir = !!this.appDir
             const isAppPath = hasAppDir && bundlePath.startsWith('app/')
             const staticInfo = isEntry
-              ? await getPageStaticInfo({
+              ? await getStaticInfoIncludingLayouts({
+                  isInsideAppDir: isAppPath,
+                  pageExtensions: this.config.pageExtensions,
                   pageFilePath: entryData.absolutePagePath,
-                  nextConfig: this.config,
+                  appDir: this.appDir,
+                  config: this.config,
                   isDev: true,
-                  pageType: isAppPath ? 'app' : 'pages',
+                  page,
                 })
               : {}
             const isServerComponent =
@@ -752,8 +762,10 @@ export default class HotReloader {
                       rootDir: this.dir,
                       isDev: true,
                       tsconfigPath: this.config.typescript.tsconfigPath,
+                      basePath: this.config.basePath,
                       assetPrefix: this.config.assetPrefix,
                       nextConfigOutput: this.config.output,
+                      preferredRegion: staticInfo.preferredRegion,
                     }).import
                   : undefined
 
@@ -773,6 +785,7 @@ export default class HotReloader {
                     isServerComponent,
                     appDirLoader,
                     pagesType: isAppPath ? 'app' : 'pages',
+                    preferredRegion: staticInfo.preferredRegion,
                   }),
                   hasAppDir,
                 })
@@ -814,31 +827,49 @@ export default class HotReloader {
                 ) {
                   relativeRequest = `./${relativeRequest}`
                 }
+
+                let value: { import: string; layer?: string } | string
+                if (isAppPath) {
+                  value = getAppEntry({
+                    name: bundlePath,
+                    page,
+                    appPaths: entryData.appPaths,
+                    pagePath: posix.join(
+                      APP_DIR_ALIAS,
+                      relative(
+                        this.appDir!,
+                        entryData.absolutePagePath
+                      ).replace(/\\/g, '/')
+                    ),
+                    appDir: this.appDir!,
+                    pageExtensions: this.config.pageExtensions,
+                    rootDir: this.dir,
+                    isDev: true,
+                    tsconfigPath: this.config.typescript.tsconfigPath,
+                    basePath: this.config.basePath,
+                    assetPrefix: this.config.assetPrefix,
+                    nextConfigOutput: this.config.output,
+                    preferredRegion: staticInfo.preferredRegion,
+                  })
+                } else if (
+                  !isAPIRoute(page) &&
+                  !isMiddlewareFile(page) &&
+                  !isInternalPathname(relativeRequest)
+                ) {
+                  value = getRouteLoaderEntry({
+                    page,
+                    absolutePagePath: relativeRequest,
+                    preferredRegion: staticInfo.preferredRegion,
+                  })
+                } else {
+                  value = relativeRequest
+                }
+
                 entrypoints[bundlePath] = finalizeEntrypoint({
                   compilerType: COMPILER_NAMES.server,
                   name: bundlePath,
                   isServerComponent,
-                  value: isAppPath
-                    ? getAppEntry({
-                        name: bundlePath,
-                        page,
-                        appPaths: entryData.appPaths,
-                        pagePath: posix.join(
-                          APP_DIR_ALIAS,
-                          relative(
-                            this.appDir!,
-                            entryData.absolutePagePath
-                          ).replace(/\\/g, '/')
-                        ),
-                        appDir: this.appDir!,
-                        pageExtensions: this.config.pageExtensions,
-                        rootDir: this.dir,
-                        isDev: true,
-                        tsconfigPath: this.config.typescript.tsconfigPath,
-                        assetPrefix: this.config.assetPrefix,
-                        nextConfigOutput: this.config.output,
-                      })
-                    : relativeRequest,
+                  value,
                   hasAppDir,
                 })
               },
@@ -877,6 +908,10 @@ export default class HotReloader {
     const prevEdgeServerPageHashes = new Map<string, string>()
     const prevCSSImportModuleHashes = new Map<string, string>()
 
+    const pageExtensionRegex = new RegExp(
+      `\\.(?:${this.config.pageExtensions.join('|')})$`
+    )
+
     const trackPageChanges =
       (
         pageHashMap: Map<string, string>,
@@ -904,7 +939,9 @@ export default class HotReloader {
                   modsIterable.forEach((mod: any) => {
                     if (
                       mod.resource &&
-                      mod.resource.replace(/\\/g, '/').includes(key)
+                      mod.resource.replace(/\\/g, '/').includes(key) &&
+                      // Shouldn't match CSS modules, etc.
+                      pageExtensionRegex.test(mod.resource)
                     ) {
                       // use original source to calculate hash since mod.hash
                       // includes the source map in development which changes
@@ -944,15 +981,15 @@ export default class HotReloader {
                       // components are tracked.
                       if (
                         key.startsWith('app/') &&
-                        mod.resource?.endsWith('.css')
+                        /\.(css|scss|sass)$/.test(mod.resource || '')
                       ) {
-                        const prevHash = prevCSSImportModuleHashes.get(
-                          mod.resource
-                        )
+                        const resourceKey = mod.layer + ':' + mod.resource
+                        const prevHash =
+                          prevCSSImportModuleHashes.get(resourceKey)
                         if (prevHash && prevHash !== hash) {
                           hasCSSModuleChanges = true
                         }
-                        prevCSSImportModuleHashes.set(mod.resource, hash)
+                        prevCSSImportModuleHashes.set(resourceKey, hash)
                       }
                     }
                   })

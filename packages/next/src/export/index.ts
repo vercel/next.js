@@ -7,6 +7,8 @@ import {
   readFileSync,
   writeFileSync,
 } from 'fs'
+
+import '../server/require-hook'
 import { Worker } from '../lib/worker'
 import { dirname, join, resolve, sep } from 'path'
 import { promisify } from 'util'
@@ -47,19 +49,10 @@ import { isAPIRoute } from '../lib/is-api-route'
 import { getPagePath } from '../server/require'
 import { Span } from '../trace'
 import { FontConfig } from '../server/font-utils'
-import {
-  loadRequireHook,
-  overrideBuiltInReactPackages,
-} from '../build/webpack/require-hook'
 import { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { isAppPageRoute } from '../lib/is-app-page-route'
 import isError from '../lib/is-error'
-
-loadRequireHook()
-if (process.env.NEXT_PREBUNDLED_REACT) {
-  overrideBuiltInReactPackages()
-}
 
 const exists = promisify(existsOrig)
 
@@ -144,7 +137,7 @@ const createProgress = (total: number, label: string) => {
 }
 
 export class ExportError extends Error {
-  type = 'ExportError'
+  code = 'NEXT_EXPORT_ERROR'
 }
 
 export interface ExportOptions {
@@ -155,9 +148,10 @@ export interface ExportOptions {
   threads?: number
   debugOutput?: boolean
   pages?: string[]
-  buildExport?: boolean
+  buildExport: boolean
   statusMessage?: string
   exportPageWorker?: typeof import('./worker').default
+  exportAppPageWorker?: typeof import('./worker').default
   endWorker?: () => Promise<void>
   nextConfig?: NextConfigComplete
 }
@@ -185,9 +179,11 @@ export default async function exportApp(
 
     const threads = options.threads || nextConfig.experimental.cpus
     const distDir = join(dir, nextConfig.distDir)
+    const isExportOutput = nextConfig.output === 'export'
 
+    // Running 'next export'
     if (options.isInvokedFromCli) {
-      if (nextConfig.output === 'export') {
+      if (isExportOutput) {
         Log.warn(
           '"next export" is no longer needed when "output: export" is configured in next.config.js https://nextjs.org/docs/advanced-features/static-html-export'
         )
@@ -201,6 +197,14 @@ export default async function exportApp(
       Log.warn(
         '"next export" is deprecated in favor of "output: export" in next.config.js https://nextjs.org/docs/advanced-features/static-html-export'
       )
+    }
+    // Running 'next export' or output is set to 'export'
+    if (options.isInvokedFromCli || isExportOutput) {
+      if (nextConfig.experimental.serverActions) {
+        throw new ExportError(
+          `Server Actions are not supported with static export.`
+        )
+      }
     }
 
     const telemetry = options.buildExport ? null : new Telemetry({ distDir })
@@ -488,6 +492,7 @@ export default async function exportApp(
             )),
           }
         : {}),
+      strictNextHead: !!nextConfig.experimental.strictNextHead,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -651,9 +656,11 @@ export default async function exportApp(
     const timeout = nextConfig?.staticPageGenerationTimeout || 0
     let infoPrinted = false
     let exportPage: typeof import('./worker').default
+    let exportAppPage: undefined | typeof import('./worker').default
     let endWorker: () => Promise<void>
     if (options.exportPageWorker) {
       exportPage = options.exportPageWorker
+      exportAppPage = options.exportAppPageWorker
       endWorker = options.endWorker || (() => Promise.resolve())
     } else {
       const worker = new Worker(require.resolve('./worker'), {
@@ -695,7 +702,13 @@ export default async function exportApp(
 
         return pageExportSpan.traceAsyncFn(async () => {
           const pathMap = exportPathMap[path]
-          const result = await exportPage({
+          const exportPageOrApp = pathMap._isAppDir ? exportAppPage : exportPage
+          if (!exportPageOrApp) {
+            throw new Error(
+              'invariant: Undefined export worker for app dir, this is a bug in Next.js.'
+            )
+          }
+          const result = await exportPageOrApp({
             path,
             pathMap,
             distDir,
@@ -712,10 +725,10 @@ export default async function exportApp(
             parentSpanId: pageExportSpan.id,
             httpAgentOptions: nextConfig.httpAgentOptions,
             serverComponents: options.hasAppDir,
-            enableUndici: nextConfig.experimental.enableUndici,
             debugOutput: options.debugOutput,
             isrMemoryCacheSize: nextConfig.experimental.isrMemoryCacheSize,
             fetchCache: nextConfig.experimental.appDir,
+            fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
             incrementalCacheHandlerPath:
               nextConfig.experimental.incrementalCacheHandlerPath,
           })

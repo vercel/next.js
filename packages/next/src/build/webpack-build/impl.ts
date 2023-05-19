@@ -104,6 +104,9 @@ export async function webpackBuildImpl(
     reactProductionProfiling: NextBuildContext.reactProductionProfiling!,
     noMangling: NextBuildContext.noMangling!,
     clientRouterFilters: NextBuildContext.clientRouterFilters!,
+    previewModeId: NextBuildContext.previewModeId!,
+    allowedRevalidateHeaderKeys: NextBuildContext.allowedRevalidateHeaderKeys!,
+    fetchCacheKeyPrefix: NextBuildContext.fetchCacheKeyPrefix!,
   }
 
   const configs = await runWebpackSpan

@@ -51,7 +51,7 @@ describe('create next app', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-experimental-app',
+          '--app',
           `--import-alias=@/*`,
         ],
         {
@@ -77,14 +77,14 @@ describe('create next app', () => {
             '--no-tailwind',
             '--eslint',
             '--no-src-dir',
-            '--no-experimental-app',
+            '--app',
             `--import-alias=@/*`,
           ],
           { cwd }
         )
 
         expect(res.exitCode).toBe(0)
-        shouldBeJavascriptProject({ cwd, projectName, template: 'default' })
+        shouldBeJavascriptProject({ cwd, projectName, template: 'app' })
       })
     })
   }
@@ -312,6 +312,7 @@ describe('create next app', () => {
             '--js',
             '--no-tailwind',
             '--eslint',
+            '--app',
             '--example',
             '__internal-testing-retry',
             '--import-alias=@/*',
@@ -323,7 +324,7 @@ describe('create next app', () => {
         )
 
         expect(res.exitCode).toBe(0)
-        shouldBeJavascriptProject({ cwd, projectName, template: 'default' })
+        shouldBeJavascriptProject({ cwd, projectName, template: 'app' })
       })
     })
   }
@@ -362,7 +363,7 @@ describe('create next app', () => {
           '--eslint',
           '--example',
           '--no-src-dir',
-          '--no-experimental-app',
+          '--app',
           `--import-alias=@/*`,
         ],
         {
@@ -399,7 +400,7 @@ describe('create next app', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-experimental-app',
+          '--app',
           `--import-alias=@/*`,
         ],
         {
@@ -440,7 +441,7 @@ describe('create next app', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-experimental-app',
+          '--app',
           `--import-alias=@/*`,
         ],
         {
@@ -453,7 +454,7 @@ describe('create next app', () => {
       await fs.remove(tmpBin)
 
       expect(res.exitCode).toBe(0)
-      shouldBeJavascriptProject({ cwd, projectName: '.', template: 'default' })
+      shouldBeJavascriptProject({ cwd, projectName: '.', template: 'app' })
     })
   })
 
@@ -466,7 +467,7 @@ describe('create next app', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-experimental-app',
+          '--app',
           `--import-alias=@/*`,
         ],
         {
@@ -476,7 +477,7 @@ describe('create next app', () => {
       )
 
       expect(res.exitCode).toBe(0)
-      shouldBeJavascriptProject({ cwd, projectName, template: 'default' })
+      shouldBeJavascriptProject({ cwd, projectName, template: 'app' })
     })
   })
 
@@ -491,7 +492,7 @@ describe('create next app', () => {
           '--eslint',
           '--use-npm',
           '--no-src-dir',
-          '--no-experimental-app',
+          '--app',
           `--import-alias=@/*`,
         ],
         {
@@ -500,7 +501,7 @@ describe('create next app', () => {
       )
 
       expect(res.exitCode).toBe(0)
-      shouldBeJavascriptProject({ cwd, projectName, template: 'default' })
+      shouldBeJavascriptProject({ cwd, projectName, template: 'app' })
     })
   })
 
@@ -535,18 +536,18 @@ describe('create next app', () => {
     })
   })
 
-  it('should use pnpm as the package manager on supplying --use-pnpm', async () => {
+  it('should use Yarn as the package manager on supplying --use-yarn', async () => {
     await useTempDir(async (cwd) => {
-      const projectName = 'use-pnpm'
+      const projectName = 'use-yarn'
       const res = await run(
         [
           projectName,
           '--js',
           '--no-tailwind',
           '--eslint',
-          '--use-pnpm',
+          '--use-yarn',
           '--no-src-dir',
-          '--no-experimental-app',
+          '--app',
           `--import-alias=@/*`,
         ],
         {
@@ -560,7 +561,80 @@ describe('create next app', () => {
         projectName,
         files: [
           'package.json',
-          'pages/index.js',
+          'app/page.js',
+          '.gitignore',
+          '.eslintrc.json',
+          'yarn.lock',
+          'node_modules/next',
+        ],
+      })
+    })
+  })
+
+  it('should use Yarn as the package manager on supplying --use-yarn with example', async () => {
+    try {
+      await execa('yarn', ['--version'])
+    } catch (_) {
+      // install yarn if not available
+      await execa('npm', ['i', '-g', 'yarn'])
+    }
+
+    await useTempDir(async (cwd) => {
+      const projectName = 'use-yarn'
+      const res = await run(
+        [
+          projectName,
+          '--js',
+          '--no-tailwind',
+          '--eslint',
+          '--use-yarn',
+          '--example',
+          `${exampleRepo}/${examplePath}`,
+        ],
+        { cwd }
+      )
+
+      expect(res.exitCode).toBe(0)
+      projectFilesShouldExist({
+        cwd,
+        projectName,
+        files: [
+          'package.json',
+          'pages/index.tsx',
+          '.gitignore',
+          'yarn.lock',
+          'node_modules/next',
+        ],
+      })
+    })
+  })
+
+  it('should use pnpm as the package manager on supplying --use-pnpm', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'use-pnpm'
+      const res = await run(
+        [
+          projectName,
+          '--js',
+          '--no-tailwind',
+          '--eslint',
+          '--use-pnpm',
+          '--no-src-dir',
+          '--app',
+          `--import-alias=@/*`,
+        ],
+        {
+          cwd,
+        }
+      )
+
+      expect(res.exitCode).toBe(0)
+      projectFilesShouldExist({
+        cwd,
+        projectName,
+        files: [
+          'package.json',
+          'app/page.js',
           '.gitignore',
           '.eslintrc.json',
           'pnpm-lock.yaml',
@@ -618,7 +692,7 @@ describe('create next app', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-experimental-app',
+          '--app',
           `--import-alias=@/*`,
         ],
         {
@@ -629,7 +703,7 @@ describe('create next app', () => {
 
       const files = [
         'package.json',
-        'pages/index.js',
+        'app/page.js',
         '.gitignore',
         '.eslintrc.json',
         'package-lock.json',
@@ -686,7 +760,7 @@ describe('create next app', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-experimental-app',
+          '--app',
           `--import-alias=@/*`,
         ],
         {
@@ -697,7 +771,7 @@ describe('create next app', () => {
 
       const files = [
         'package.json',
-        'pages/index.js',
+        'app/page.js',
         '.gitignore',
         '.eslintrc.json',
         'yarn.lock',
@@ -761,7 +835,7 @@ describe('create next app', () => {
           '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-experimental-app',
+          '--app',
           `--import-alias=@/*`,
         ],
         {
@@ -772,7 +846,7 @@ describe('create next app', () => {
 
       const files = [
         'package.json',
-        'pages/index.js',
+        'app/page.js',
         '.gitignore',
         '.eslintrc.json',
         'pnpm-lock.yaml',

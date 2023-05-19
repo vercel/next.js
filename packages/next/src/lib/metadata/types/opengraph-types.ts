@@ -134,7 +134,7 @@ type OGImageDescriptor = {
 type OGAudio = string | OGAudioDescriptor | URL
 type OGAudioDescriptor = {
   url: string | URL
-  secure_url?: string | URL
+  secureUrl?: string | URL
   type?: string
 }
 type OGVideo = string | OGVideoDescriptor | URL

@@ -1,63 +1,61 @@
 use anyhow::{bail, Result};
-use turbo_binding::{
+use turbopack_binding::{
     turbo::{tasks::ValueToString, tasks_fs::FileSystemPathVc},
     turbopack::{
         core::{
-            asset::{Asset, AssetVc, AssetsVc},
+            asset::{Asset, AssetVc},
+            chunk::{EvaluatableAssetVc, EvaluatableAssetsVc},
             context::AssetContextVc,
+            issue::{IssueSeverity, OptionIssueSourceVc},
             resolve::{origin::PlainResolveOriginVc, parse::RequestVc},
         },
-        ecmascript::{
-            chunk::{EcmascriptChunkPlaceableVc, EcmascriptChunkPlaceablesVc},
-            process_runtime_entries,
-            resolve::cjs_resolve,
-        },
+        ecmascript::resolve::cjs_resolve,
     },
 };
 
 #[turbo_tasks::value(shared)]
 pub enum RuntimeEntry {
     Request(RequestVc, FileSystemPathVc),
-    Ecmascript(EcmascriptChunkPlaceableVc),
+    Evaluatable(EvaluatableAssetVc),
     Source(AssetVc),
 }
 
 #[turbo_tasks::value_impl]
 impl RuntimeEntryVc {
     #[turbo_tasks::function]
-    pub async fn resolve_entry(
-        self,
-        context: AssetContextVc,
-    ) -> Result<EcmascriptChunkPlaceablesVc> {
+    pub async fn resolve_entry(self, context: AssetContextVc) -> Result<EvaluatableAssetsVc> {
         let (request, path) = match *self.await? {
-            RuntimeEntry::Ecmascript(e) => return Ok(EcmascriptChunkPlaceablesVc::cell(vec![e])),
+            RuntimeEntry::Evaluatable(e) => return Ok(EvaluatableAssetsVc::one(e)),
             RuntimeEntry::Source(source) => {
-                return Ok(process_runtime_entries(
-                    context,
-                    AssetsVc::cell(vec![source]),
-                ))
+                return Ok(EvaluatableAssetsVc::one(EvaluatableAssetVc::from_asset(
+                    source, context,
+                )));
             }
             RuntimeEntry::Request(r, path) => (r, path),
         };
 
-        let assets = cjs_resolve(PlainResolveOriginVc::new(context, path).into(), request)
-            .primary_assets()
-            .await?;
+        let assets = cjs_resolve(
+            PlainResolveOriginVc::new(context, path).into(),
+            request,
+            OptionIssueSourceVc::none(),
+            IssueSeverity::Error.cell(),
+        )
+        .primary_assets()
+        .await?;
 
         let mut runtime_entries = Vec::with_capacity(assets.len());
         for asset in &assets {
-            if let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? {
-                runtime_entries.push(placeable);
+            if let Some(entry) = EvaluatableAssetVc::resolve_from(asset).await? {
+                runtime_entries.push(entry);
             } else {
                 bail!(
-                    "runtime reference resolved to an asset ({}) that is not placeable into an \
-                     ecmascript chunk",
+                    "runtime reference resolved to an asset ({}) that cannot be evaluated",
                     asset.ident().to_string().await?
                 );
             }
         }
 
-        Ok(EcmascriptChunkPlaceablesVc::cell(runtime_entries))
+        Ok(EvaluatableAssetsVc::cell(runtime_entries))
     }
 }
 
@@ -67,10 +65,7 @@ pub struct RuntimeEntries(Vec<RuntimeEntryVc>);
 #[turbo_tasks::value_impl]
 impl RuntimeEntriesVc {
     #[turbo_tasks::function]
-    pub async fn resolve_entries(
-        self,
-        context: AssetContextVc,
-    ) -> Result<EcmascriptChunkPlaceablesVc> {
+    pub async fn resolve_entries(self, context: AssetContextVc) -> Result<EvaluatableAssetsVc> {
         let mut runtime_entries = Vec::new();
 
         for reference in &self.await? {
@@ -78,6 +73,6 @@ impl RuntimeEntriesVc {
             runtime_entries.extend(resolved_entries.into_iter());
         }
 
-        Ok(EcmascriptChunkPlaceablesVc::cell(runtime_entries))
+        Ok(EvaluatableAssetsVc::cell(runtime_entries))
     }
 }

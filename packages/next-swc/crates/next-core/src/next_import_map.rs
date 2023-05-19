@@ -1,7 +1,8 @@
 use std::collections::{BTreeMap, HashMap};
 
 use anyhow::{Context, Result};
-use turbo_binding::{
+use turbo_tasks::Value;
+use turbopack_binding::{
     turbo::tasks_fs::{glob::GlobVc, FileSystem, FileSystemPathVc},
     turbopack::{
         core::{
@@ -13,14 +14,13 @@ use turbo_binding::{
                 },
                 parse::RequestVc,
                 pattern::Pattern,
-                resolve, AliasPattern, ExportsValue, ResolveAliasMapVc,
+                resolve, AliasPattern, ResolveAliasMapVc, SubpathValue,
             },
         },
         node::execution_context::ExecutionContextVc,
         turbopack::{resolve_options, resolve_options_context::ResolveOptionsContext},
     },
 };
-use turbo_tasks::Value;
 
 use crate::{
     embed_js::{next_js_fs, VIRTUAL_PACKAGE_NAME},
@@ -43,7 +43,13 @@ pub async fn get_next_client_import_map(
 ) -> Result<ImportMapVc> {
     let mut import_map = ImportMap::empty();
 
-    insert_next_shared_aliases(&mut import_map, project_path, execution_context).await?;
+    insert_next_shared_aliases(
+        &mut import_map,
+        project_path,
+        execution_context,
+        next_config,
+    )
+    .await?;
 
     insert_alias_option(
         &mut import_map,
@@ -73,7 +79,7 @@ pub async fn get_next_client_import_map(
             );
             insert_alias_to_alternatives(
                 &mut import_map,
-                format!("{VIRTUAL_PACKAGE_NAME}/internal/_error"),
+                format!("{VIRTUAL_PACKAGE_NAME}/pages/_error"),
                 vec![
                     request_to_import_mapping(pages_dir, "./_error"),
                     request_to_import_mapping(pages_dir, "next/error"),
@@ -97,6 +103,14 @@ pub async fn get_next_client_import_map(
                 "react-dom/",
                 request_to_import_mapping(app_dir, "next/dist/compiled/react-dom/*"),
             );
+            import_map.insert_wildcard_alias(
+                "react-server-dom-webpack/",
+                request_to_import_mapping(app_dir, "next/dist/compiled/react-server-dom-webpack/*"),
+            );
+            import_map.insert_exact_alias(
+                "next/dynamic",
+                request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
+            );
         }
         ClientContextType::Fallback => {}
         ClientContextType::Other => {}
@@ -115,6 +129,8 @@ pub async fn get_next_client_import_map(
         }
         ClientContextType::Other => {}
     }
+
+    insert_turbopack_dev_alias(&mut import_map);
 
     Ok(import_map.cell())
 }
@@ -162,6 +178,8 @@ pub fn get_next_client_fallback_import_map(ty: Value<ClientContextType>) -> Impo
         ClientContextType::Other => {}
     }
 
+    insert_turbopack_dev_alias(&mut import_map);
+
     import_map.cell()
 }
 
@@ -175,7 +193,13 @@ pub async fn get_next_server_import_map(
 ) -> Result<ImportMapVc> {
     let mut import_map = ImportMap::empty();
 
-    insert_next_shared_aliases(&mut import_map, project_path, execution_context).await?;
+    insert_next_shared_aliases(
+        &mut import_map,
+        project_path,
+        execution_context,
+        next_config,
+    )
+    .await?;
 
     insert_alias_option(
         &mut import_map,
@@ -206,14 +230,20 @@ pub async fn get_next_server_import_map(
             import_map.insert_wildcard_alias("react-dom/", external);
             import_map.insert_exact_alias("styled-jsx", external);
             import_map.insert_wildcard_alias("styled-jsx/", external);
+            import_map.insert_exact_alias("react-server-dom-webpack/", external);
         }
         ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. } => {
-            for name in next_config.server_component_externals().await?.iter() {
-                import_map.insert_exact_alias(name, external);
-                import_map.insert_wildcard_alias(format!("{name}/"), external);
-            }
+            import_map.insert_exact_alias(
+                "next/head",
+                request_to_import_mapping(project_path, "next/dist/client/components/noop-head"),
+            );
+            import_map.insert_exact_alias(
+                "next/dynamic",
+                request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
+            );
+
             // The sandbox can't be bundled and needs to be external
             import_map.insert_exact_alias("next/dist/server/web/sandbox", external);
         }
@@ -233,7 +263,13 @@ pub async fn get_next_edge_import_map(
 ) -> Result<ImportMapVc> {
     let mut import_map = ImportMap::empty();
 
-    insert_next_shared_aliases(&mut import_map, project_path, execution_context).await?;
+    insert_next_shared_aliases(
+        &mut import_map,
+        project_path,
+        execution_context,
+        next_config,
+    )
+    .await?;
 
     insert_alias_option(
         &mut import_map,
@@ -246,6 +282,23 @@ pub async fn get_next_edge_import_map(
     let ty = ty.into_value();
 
     insert_next_server_special_aliases(&mut import_map, ty).await?;
+
+    match ty {
+        ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {}
+        ServerContextType::AppSSR { .. }
+        | ServerContextType::AppRSC { .. }
+        | ServerContextType::AppRoute { .. } => {
+            import_map.insert_exact_alias(
+                "next/head",
+                request_to_import_mapping(project_path, "next/dist/client/components/noop-head"),
+            );
+            import_map.insert_exact_alias(
+                "next/dynamic",
+                request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
+            );
+        }
+        ServerContextType::Middleware => {}
+    }
 
     Ok(import_map.cell())
 }
@@ -322,7 +375,7 @@ pub async fn insert_next_server_special_aliases(
             );
             insert_alias_to_alternatives(
                 import_map,
-                format!("{VIRTUAL_PACKAGE_NAME}/internal/_error"),
+                format!("{VIRTUAL_PACKAGE_NAME}/pages/_error"),
                 vec![
                     request_to_import_mapping(pages_dir, "./_error"),
                     external_request_to_import_mapping("next/error"),
@@ -352,18 +405,40 @@ pub async fn insert_next_server_special_aliases(
                 "react-dom/",
                 request_to_import_mapping(app_dir, "next/dist/compiled/react-dom/*"),
             );
+            import_map.insert_wildcard_alias(
+                "react-server-dom-webpack/",
+                request_to_import_mapping(app_dir, "next/dist/compiled/react-server-dom-webpack/*"),
+            );
         }
         ServerContextType::Middleware => {}
     }
+
     Ok(())
+}
+
+pub fn mdx_import_source_file() -> String {
+    format!("{VIRTUAL_PACKAGE_NAME}/mdx-import-source")
 }
 
 pub async fn insert_next_shared_aliases(
     import_map: &mut ImportMap,
     project_path: FileSystemPathVc,
     execution_context: ExecutionContextVc,
+    next_config: NextConfigVc,
 ) -> Result<()> {
     let package_root = next_js_fs().root();
+
+    if *next_config.mdx_rs().await? {
+        insert_alias_to_alternatives(
+            import_map,
+            mdx_import_source_file(),
+            vec![
+                request_to_import_mapping(project_path, "./mdx-components"),
+                request_to_import_mapping(project_path, "./src/mdx-components"),
+                external_request_to_import_mapping("@mdx-js/react"),
+            ],
+        );
+    }
 
     // we use the next.js hydration code, so we replace the error overlay with our
     // own
@@ -421,6 +496,13 @@ pub async fn insert_next_shared_aliases(
     import_map.insert_singleton_alias("react", project_path);
     import_map.insert_singleton_alias("react-dom", project_path);
 
+    insert_turbopack_dev_alias(import_map);
+    insert_package_alias(
+        import_map,
+        "@vercel/turbopack-node/",
+        turbopack_binding::turbopack::node::embed_js::embed_fs().root(),
+    );
+
     Ok(())
 }
 
@@ -470,7 +552,7 @@ pub async fn insert_alias_option<const N: usize>(
 }
 
 fn export_value_to_import_mapping(
-    value: &ExportsValue,
+    value: &SubpathValue,
     conditions: &BTreeMap<String, ConditionValue>,
     project_path: FileSystemPathVc,
 ) -> Option<ImportMappingVc> {
@@ -514,6 +596,15 @@ fn insert_package_alias(import_map: &mut ImportMap, prefix: &str, package_root: 
     import_map.insert_wildcard_alias(
         prefix,
         ImportMapping::PrimaryAlternative("./*".to_string(), Some(package_root)).cell(),
+    );
+}
+
+/// Inserts an alias to @vercel/turbopack-dev into an import map.
+fn insert_turbopack_dev_alias(import_map: &mut ImportMap) {
+    insert_package_alias(
+        import_map,
+        "@vercel/turbopack-dev/",
+        turbopack_binding::turbopack::dev::embed_js::embed_fs().root(),
     );
 }
 

@@ -41,6 +41,7 @@ const CHANGE_ITEM_GROUPS = {
     'packages/next-swc',
     'scripts/normalize-version-bump.js',
     'test/integration/create-next-app',
+    'scripts/send-trace-to-jaeger',
   ],
 }
 

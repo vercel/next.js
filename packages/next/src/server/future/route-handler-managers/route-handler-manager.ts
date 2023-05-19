@@ -6,6 +6,7 @@ import type { AppRouteRouteHandlerContext } from '../route-modules/app-route/mod
 
 import { NodeModuleLoader } from '../helpers/module-loader/node-module-loader'
 import { RouteModuleLoader } from '../helpers/module-loader/route-module-loader'
+import { NextRequestAdapter } from '../../web/spec-extension/adapters/next-request'
 
 /**
  * RouteHandlerManager is a manager for route handlers.
@@ -26,7 +27,7 @@ export class RouteHandlerManager {
     context: RouteHandlerManagerContext
   ): Promise<Response | undefined> {
     // The module supports minimal mode, load the minimal module.
-    const module = RouteModuleLoader.load<RouteModule>(
+    const module = await RouteModuleLoader.load<RouteModule>(
       match.definition.filename,
       this.moduleLoader
     )
@@ -36,10 +37,10 @@ export class RouteHandlerManager {
     // cache will be cleared and the module will be re-created.
     module.setup()
 
-    // Get the response from the handler.
-    const response = await module.handle(req, context)
+    // Convert the BaseNextRequest to a NextRequest.
+    const request = NextRequestAdapter.fromBaseNextRequest(req)
 
-    // Send the response back.
-    return response
+    // Get the response from the handler and send it back.
+    return await module.handle(request, context)
   }
 }

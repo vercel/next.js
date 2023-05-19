@@ -1,9 +1,14 @@
+import type { RequestHandler } from '../next'
+
 import v8 from 'v8'
 import http from 'http'
-import next from '../next'
 import { isIPv6 } from 'net'
+
+// This is required before other imports to ensure the require hook is setup.
+import '../require-hook'
+
+import next from '../next'
 import { warn } from '../../build/output/log'
-import type { RequestHandler } from '../next'
 import {
   deleteCache as _deleteCache,
   deleteAppClientCache as _deleteAppClientCache,
@@ -37,6 +42,7 @@ export async function initialize(opts: {
   dir: string
   port: number
   dev: boolean
+  minimalMode?: boolean
   hostname?: string
   workerType: 'router' | 'render'
   keepAliveTimeout?: number
@@ -49,18 +55,24 @@ export async function initialize(opts: {
   let requestHandler: RequestHandler
 
   const server = http.createServer((req, res) => {
-    return requestHandler(req, res).finally(() => {
-      if (
-        process.memoryUsage().heapUsed / 1024 / 1024 >
-        MAXIMUM_HEAP_SIZE_ALLOWED
-      ) {
-        warn(
-          'The server is running out of memory, restarting to free up memory.'
-        )
-        server.close()
-        process.exit(WORKER_SELF_EXIT_CODE)
-      }
-    })
+    return requestHandler(req, res)
+      .catch((err) => {
+        res.statusCode = 500
+        res.end('Internal Server Error')
+        console.error(err)
+      })
+      .finally(() => {
+        if (
+          process.memoryUsage().heapUsed / 1024 / 1024 >
+          MAXIMUM_HEAP_SIZE_ALLOWED
+        ) {
+          warn(
+            'The server is running out of memory, restarting to free up memory.'
+          )
+          server.close()
+          process.exit(WORKER_SELF_EXIT_CODE)
+        }
+      })
   })
 
   if (opts.keepAliveTimeout) {

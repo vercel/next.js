@@ -11,7 +11,7 @@ export const metadata = {
     creator: 'creator',
     creatorId: 'creatorId',
     images: {
-      url: 'https://twitter.com/image.png',
+      url: 'https://twitter.com/large-image.png',
       alt: 'image-alt',
     },
   },

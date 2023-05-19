@@ -11,7 +11,7 @@ import type {
 import type { Viewport } from '../types/extra-types'
 import path from '../../../shared/lib/isomorphic/path'
 import { resolveAsArrayOrUndefined } from '../generate/utils'
-import { resolveUrl, resolveStringUrl } from './resolve-url'
+import { resolveUrl } from './resolve-url'
 import { ViewPortKeys } from '../constants'
 
 // Resolve with `metadataBase` if it's present, otherwise resolve with `pathname`.
@@ -23,10 +23,12 @@ function resolveAlternateUrl(
 ) {
   if (typeof url === 'string' && url.startsWith('./')) {
     url = path.resolve(pathname, url)
+  } else if (url instanceof URL) {
+    url = new URL(pathname, url)
   }
 
   const result = metadataBase ? resolveUrl(url, metadataBase) : url
-  return resolveStringUrl(result)
+  return result.toString()
 }
 
 export const resolveThemeColor: FieldResolver<'themeColor'> = (themeColor) => {
@@ -81,7 +83,7 @@ function resolveUrlValuesOfObject(
     if (typeof value === 'string' || value instanceof URL) {
       result[key] = [
         {
-          url: resolveAlternateUrl(value, metadataBase, pathname), // metadataBase ? resolveUrl(value, metadataBase)! : value,
+          url: resolveAlternateUrl(value, metadataBase, pathname),
         },
       ]
     } else {

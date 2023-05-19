@@ -1,5 +1,6 @@
 import { CacheNode, CacheStates } from '../../../shared/lib/app-router-context'
 import type { FlightRouterState } from '../../../server/app-render/types'
+import { createRouterCacheKey } from './create-router-cache-key'
 
 export function fillLazyItemsTillLeafWithHead(
   newCache: CacheNode,
@@ -17,9 +18,7 @@ export function fillLazyItemsTillLeafWithHead(
   for (const key in routerState[1]) {
     const parallelRouteState = routerState[1][key]
     const segmentForParallelRoute = parallelRouteState[0]
-    const cacheKey = Array.isArray(segmentForParallelRoute)
-      ? segmentForParallelRoute[1]
-      : segmentForParallelRoute
+    const cacheKey = createRouterCacheKey(segmentForParallelRoute)
 
     if (existingCache) {
       const existingParallelRoutesCacheNode =
@@ -46,7 +45,7 @@ export function fillLazyItemsTillLeafWithHead(
         // Traverse deeper to apply the head / fill lazy items till the head.
         fillLazyItemsTillLeafWithHead(
           newCacheNode,
-          wasPrefetched ? existingCacheNode : undefined,
+          existingCacheNode,
           parallelRouteState,
           head,
           wasPrefetched
