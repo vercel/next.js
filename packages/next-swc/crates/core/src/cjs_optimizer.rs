@@ -190,12 +190,14 @@ impl VisitMut for CjsOptimizer {
                             // TODO: Config
 
                             if let Pat::Ident(name) = &n.name {
-                                self.data.imports.insert(
-                                    name.to_id(),
-                                    ImportRecord {
-                                        module_specifier: v.value.clone().into(),
-                                    },
-                                );
+                                if let Some(..) = self.should_rewrite(&v.value) {
+                                    self.data.imports.insert(
+                                        name.to_id(),
+                                        ImportRecord {
+                                            module_specifier: v.value.clone().into(),
+                                        },
+                                    );
+                                }
                             }
                         }
                     }
