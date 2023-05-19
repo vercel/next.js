@@ -1,8 +1,6 @@
-import { FacebookPixel } from './components';
+import { FacebookPixel } from './components'
 
-export default function RootLayout({
-  children,
-}) {
+export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body>
@@ -10,5 +8,5 @@ export default function RootLayout({
         <FacebookPixel />
       </body>
     </html>
-  );
+  )
 }
