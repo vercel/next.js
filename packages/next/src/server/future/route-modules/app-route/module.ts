@@ -2,6 +2,7 @@ import type { NextConfig } from '../../../config-shared'
 import type { AppRouteRouteDefinition } from '../../route-definitions/app-route-route-definition'
 import type { AppConfig } from '../../../../build/utils'
 import type { NextRequest } from '../../../web/spec-extension/request'
+import type { PrerenderManifest } from '../../../../build'
 
 import {
   RouteModule,
@@ -27,11 +28,9 @@ import { AppRouteRouteHandlersSpan } from '../../../lib/trace/constants'
 import { getPathnameFromAbsolutePath } from './helpers/get-pathname-from-absolute-path'
 import { proxyRequest } from './helpers/proxy-request'
 import { resolveHandlerError } from './helpers/resolve-handler-error'
-import { RouteKind } from '../../route-kind'
 import * as Log from '../../../../build/output/log'
 import { autoImplementMethods } from './helpers/auto-implement-methods'
 import { getNonStaticMethods } from './helpers/get-non-static-methods'
-import { PrerenderManifest } from '../../../../build'
 import { appendMutableCookies } from '../../../web/spec-extension/adapters/request-cookies'
 
 /**
@@ -89,8 +88,7 @@ export type AppRouteUserlandModule = AppRouteHandlers &
  * module from the bundled code.
  */
 export interface AppRouteRouteModuleOptions
-  extends RouteModuleOptions<AppRouteUserlandModule> {
-  readonly pathname: string
+  extends RouteModuleOptions<AppRouteRouteDefinition, AppRouteUserlandModule> {
   readonly resolvedPagePath: string
   readonly nextConfigOutput: NextConfig['output']
 }
@@ -102,8 +100,6 @@ export class AppRouteRouteModule extends RouteModule<
   AppRouteRouteDefinition,
   AppRouteUserlandModule
 > {
-  public readonly definition: AppRouteRouteDefinition
-  public readonly pathname: string
   public readonly resolvedPagePath: string
   public readonly nextConfigOutput: NextConfig['output'] | undefined
 
@@ -113,22 +109,12 @@ export class AppRouteRouteModule extends RouteModule<
 
   constructor({
     userland,
-    pathname,
+    definition,
     resolvedPagePath,
     nextConfigOutput,
   }: AppRouteRouteModuleOptions) {
-    super({ userland })
+    super({ userland, definition })
 
-    this.definition = {
-      kind: RouteKind.APP_ROUTE,
-      pathname,
-      // The following aren't needed for the route handler.
-      page: '',
-      bundlePath: '',
-      filename: '',
-    }
-
-    this.pathname = pathname
     this.resolvedPagePath = resolvedPagePath
     this.nextConfigOutput = nextConfigOutput
 
@@ -146,7 +132,7 @@ export class AppRouteRouteModule extends RouteModule<
         this.dynamic = 'error'
       } else if (this.dynamic === 'force-dynamic') {
         throw new Error(
-          `export const dynamic = "force-dynamic" on page "${pathname}" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
+          `export const dynamic = "force-dynamic" on page "${definition.pathname}" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
         )
       }
     }

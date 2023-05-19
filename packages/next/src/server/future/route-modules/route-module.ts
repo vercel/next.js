@@ -23,7 +23,11 @@ const { actionAsyncStorage } =
  * route modules should extend this class to add specific options for their
  * route.
  */
-export interface RouteModuleOptions<U = unknown> {
+export interface RouteModuleOptions<
+  D extends RouteDefinition = RouteDefinition,
+  U = unknown
+> {
+  readonly definition: Readonly<D>
   readonly userland: Readonly<U>
 }
 
@@ -90,7 +94,7 @@ export abstract class RouteModule<
   /**
    * The definition of the route.
    */
-  public abstract readonly definition: D
+  public readonly definition: Readonly<D>
 
   /**
    * Setup will setup the route handler. This could patch any globals or perform
@@ -107,7 +111,8 @@ export abstract class RouteModule<
     context: RouteModuleHandleContext
   ): Promise<Response>
 
-  constructor({ userland }: RouteModuleOptions<U>) {
+  constructor({ userland, definition }: RouteModuleOptions<D, U>) {
     this.userland = userland
+    this.definition = definition
   }
 }
