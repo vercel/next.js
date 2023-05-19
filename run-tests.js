@@ -15,7 +15,7 @@ const exec = promisify(execOrig)
 // Try to read an external array-based json to filter tests to be executed.
 // If process.argv contains a test to be executed, this'll append it to the list.
 const externalTestsFilterLists = process.env.NEXT_EXTERNAL_TESTS_FILTERS
-  ? require(process.env.NEXT_EXTERNAL_TESTS_FILTERS)
+  ? require(process.env.NEXT_EXTERNAL_TESTS_FILTERS).enabledTests
   : []
 const timings = []
 const DEFAULT_NUM_RETRIES = os.platform() === 'win32' ? 2 : 1
