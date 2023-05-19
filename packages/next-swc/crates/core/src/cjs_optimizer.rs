@@ -8,7 +8,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use turbopack_binding::swc::core::{
     cached::regex::CachedRegex,
-    common::{SyntaxContext, DUMMY_SP},
+    common::{util::take::Take, SyntaxContext, DUMMY_SP},
     ecma::{
         ast::{
             CallExpr, Callee, Decl, Expr, Id, Ident, Lit, MemberExpr, MemberProp, Module,
@@ -212,39 +212,6 @@ impl VisitMut for CjsOptimizer {
         }
     }
 
-    fn visit_mut_var_declarator(&mut self, n: &mut VarDeclarator) {
-        n.visit_mut_children_with(self);
-
-        // Find `require('foo')`
-        if let Some(Expr::Call(CallExpr {
-            callee: Callee::Expr(callee),
-            args,
-            ..
-        })) = n.init.as_deref()
-        {
-            if let Expr::Ident(ident) = &**callee {
-                if ident.span.ctxt == self.unresolved_ctxt && ident.sym == *"require" {
-                    if let Some(arg) = args.get(0) {
-                        if let Expr::Lit(Lit::Str(v)) = &*arg.expr {
-                            // TODO: Config
-
-                            if let Pat::Ident(name) = &n.name {
-                                if let Some(..) = self.should_rewrite(&v.value) {
-                                    self.data.imports.insert(
-                                        name.to_id(),
-                                        ImportRecord {
-                                            module_specifier: v.value.clone().into(),
-                                        },
-                                    );
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     fn visit_mut_module(&mut self, n: &mut Module) {
         n.visit_children_with(&mut Analyzer {
             data: &mut self.data,
@@ -270,6 +237,61 @@ impl VisitMut for CjsOptimizer {
         prepend_stmts(&mut n.body, self.data.extra_stmts.drain(..));
 
         n.visit_mut_children_with(&mut IdentRenamer::new(&self.data.rename_map));
+    }
+
+    fn visit_mut_stmt(&mut self, n: &mut Stmt) {
+        n.visit_mut_children_with(self);
+
+        if let Stmt::Decl(Decl::Var(v)) = n {
+            if v.decls.is_empty() {
+                n.take();
+            }
+        }
+    }
+
+    fn visit_mut_var_declarator(&mut self, n: &mut VarDeclarator) {
+        n.visit_mut_children_with(self);
+
+        // Find `require('foo')`
+        if let Some(Expr::Call(CallExpr {
+            callee: Callee::Expr(callee),
+            args,
+            ..
+        })) = n.init.as_deref()
+        {
+            if let Expr::Ident(ident) = &**callee {
+                if ident.span.ctxt == self.unresolved_ctxt && ident.sym == *"require" {
+                    if let Some(arg) = args.get(0) {
+                        if let Expr::Lit(Lit::Str(v)) = &*arg.expr {
+                            // TODO: Config
+
+                            if let Pat::Ident(name) = &n.name {
+                                if let Some(..) = self.should_rewrite(&v.value) {
+                                    let key = name.to_id();
+
+                                    // Drop variable declarator.
+                                    n.name.take();
+
+                                    self.data.imports.insert(
+                                        key,
+                                        ImportRecord {
+                                            module_specifier: v.value.clone().into(),
+                                        },
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn visit_mut_var_declarators(&mut self, n: &mut Vec<VarDeclarator>) {
+        n.visit_mut_children_with(self);
+
+        // We make `name` invalid if we should drop it.
+        n.retain(|v| !v.name.is_invalid());
     }
 }
 
