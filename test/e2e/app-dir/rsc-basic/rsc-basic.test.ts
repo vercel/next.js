@@ -36,6 +36,7 @@ createNextDescribe(
   ({ next, isNextDev, isNextStart }) => {
     if (isNextDev) {
       it('should have correct client references keys in manifest', async () => {
+        await next.render('/')
         // Check that the client-side manifest is correct before any requests
         const clientReferenceManifest = JSON.parse(
           await next.readFile('.next/server/client-reference-manifest.json')
@@ -44,7 +45,7 @@ createNextDescribe(
           clientReferenceManifest.clientModules
         )
         clientModulesNames.every((name) => {
-          const [_, key] = name.split('#')
+          const [, key] = name.split('#')
           return key === undefined || key === '' || key === 'default'
         })
       })
