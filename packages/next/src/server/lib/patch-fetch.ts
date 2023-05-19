@@ -91,6 +91,7 @@ export function patchFetch({
       // Error caused by malformed URL should be handled by native fetch
       url = undefined
     }
+    const fetchUrl = url?.href ?? ''
     const fetchStart = Date.now()
     const method = init?.method?.toUpperCase() || 'GET'
 
@@ -98,11 +99,9 @@ export function patchFetch({
       AppRenderSpan.fetch,
       {
         kind: SpanKind.CLIENT,
-        spanName: ['fetch', method, url?.toString() ?? input.toString()]
-          .filter(Boolean)
-          .join(' '),
+        spanName: ['fetch', method, fetchUrl].filter(Boolean).join(' '),
         attributes: {
-          'http.url': url?.toString(),
+          'http.url': fetchUrl,
           'http.method': method,
           'net.peer.name': url?.hostname,
           'net.peer.port': url?.port || undefined,
@@ -175,7 +174,7 @@ export function patchFetch({
           typeof curRevalidate !== 'undefined'
         ) {
           console.warn(
-            `Warning: fetch for ${input.toString()} specified "cache: ${_cache}" and "revalidate: ${curRevalidate}", only one should be specified.`
+            `Warning: fetch for ${fetchUrl} on ${staticGenerationStore.pathname} specified "cache: ${_cache}" and "revalidate: ${curRevalidate}", only one should be specified.`
           )
           _cache = undefined
         }
@@ -219,7 +218,7 @@ export function patchFetch({
         if (isOnlyNoStore) {
           if (_cache === 'force-cache' || revalidate === 0) {
             throw new Error(
-              `cache: 'force-cache' used on fetch for ${input.toString()} with 'export const fetchCache = 'only-no-store'`
+              `cache: 'force-cache' used on fetch for ${fetchUrl} with 'export const fetchCache = 'only-no-store'`
             )
           }
           revalidate = 0
@@ -228,7 +227,7 @@ export function patchFetch({
 
         if (isOnlyCache && _cache === 'no-store') {
           throw new Error(
-            `cache: 'no-store' used on fetch for ${input.toString()} with 'export const fetchCache = 'only-cache'`
+            `cache: 'no-store' used on fetch for ${fetchUrl} with 'export const fetchCache = 'only-cache'`
           )
         }
 
@@ -284,7 +283,7 @@ export function patchFetch({
           try {
             cacheKey =
               await staticGenerationStore.incrementalCache.fetchCacheKey(
-                isRequestInput ? (input as Request).url : input.toString(),
+                fetchUrl,
                 isRequestInput ? (input as RequestInit) : init
               )
           } catch (err) {
@@ -329,7 +328,6 @@ export function patchFetch({
           }
         }
 
-        const fetchUrl = url?.toString() ?? ''
         const fetchIdx = staticGenerationStore.nextFetchId ?? 1
         staticGenerationStore.nextFetchId = fetchIdx + 1
 
