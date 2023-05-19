@@ -1,9 +1,12 @@
+use std::collections::HashMap;
+
 use convert_case::{Case, Casing};
 use handlebars::{Context, Handlebars, Helper, HelperResult, Output, RenderContext};
+use once_cell::sync::Lazy;
+use regex::{Captures, Regex};
 use rustc_hash::FxHashMap;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use turbopack_binding::swc::core::{
-    bundler::ModuleRecord,
     cached::regex::CachedRegex,
     common::{SyntaxContext, DUMMY_SP},
     ecma::{
@@ -16,6 +19,8 @@ use turbopack_binding::swc::core::{
         visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
     },
 };
+
+static DUP_SLASH_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"//").unwrap());
 
 pub fn cjs_optimizer(config: Config, unresolved_ctxt: SyntaxContext) -> impl Fold + VisitMut {
     let mut folder = CjsOptimizer {
@@ -99,6 +104,29 @@ struct ImportRecord {
     module_specifier: Atom,
 }
 
+impl<'a> Rewriter<'a> {
+    fn rewrite(&self, module_specifier: &str, member: &str) -> Atom {
+        #[derive(Serialize)]
+        #[serde(untagged)]
+        enum Data<'a> {
+            Plain(&'a str),
+            Array(&'a [&'a str]),
+        }
+        let mut ctx: FxHashMap<&str, Data> = HashMap::default();
+        ctx.insert("matches", Data::Array(&self.group[..]));
+        ctx.insert("member", Data::Plain(member));
+        let new_path = self
+            .renderer
+            .render_template(&self.config.transform, &ctx)
+            .unwrap_or_else(|e| {
+                panic!("error rendering template for '{}': {}", self.key, e);
+            });
+        let new_path = DUP_SLASH_REGEX.replace_all(&new_path, |_: &Captures| "/");
+
+        new_path.into()
+    }
+}
+
 impl CjsOptimizer {
     fn should_rewrite<'a>(&'a self, name: &'a str) -> Option<Rewriter<'a>> {
         for (regex, config) in &self.packages {
@@ -130,14 +158,14 @@ impl VisitMut for CjsOptimizer {
             if let MemberProp::Ident(prop) = &n.prop {
                 if let Expr::Ident(obj) = &*n.obj {
                     if let Some(record) = self.data.imports.get(&obj.to_id()) {
-                        if let Some(rewriter) = self.should_rewrite(&record.module_specifier) {
-                            let new_id = self
-                                .data
-                                .replaced
-                                .entry((record.module_specifier.clone(), prop.sym.clone()))
-                                .or_insert_with(|| private_ident!(prop.sym.clone()).to_id())
-                                .clone();
+                        let new_id = self
+                            .data
+                            .replaced
+                            .entry((record.module_specifier.clone(), prop.sym.clone()))
+                            .or_insert_with(|| private_ident!(prop.sym.clone()).to_id())
+                            .clone();
 
+                        if let Some(rewriter) = self.should_rewrite(&record.module_specifier) {
                             let var = VarDeclarator {
                                 span: DUMMY_SP,
                                 name: Pat::Ident(new_id.clone().into()),
@@ -149,7 +177,9 @@ impl VisitMut for CjsOptimizer {
                                     )
                                     .as_callee(),
                                     args: vec![Expr::Lit(Lit::Str(
-                                        rewriter.rewrite(record.module_specifier.clone().into()),
+                                        rewriter
+                                            .rewrite(&record.module_specifier, &prop.sym)
+                                            .into(),
                                     ))
                                     .as_arg()],
                                     type_args: None,
