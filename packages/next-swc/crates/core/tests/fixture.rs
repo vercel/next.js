@@ -13,6 +13,7 @@ use next_swc::{
     shake_exports::{shake_exports, Config as ShakeExportsConfig},
 };
 use next_transform_font::{next_font_loaders, Config as FontLoaderConfig};
+use serde::de::DeserializeOwned;
 use turbopack_binding::swc::{
     core::{
         common::{chain, comments::SingleThreadedComments, FileName, Mark, SyntaxContext},
@@ -369,11 +370,29 @@ fn cjs_optimize_fixture(input: PathBuf) {
 
             chain!(
                 resolver(unresolved_mark, top_level_mark, false),
-                cjs_optimizer(next_swc::cjs_optimizer::Config {}, unresolved_ctxt)
+                cjs_optimizer(
+                    json(
+                        r###"
+                        {
+                            "next/server": {
+                                "transform": "next/server/{{ kebabCase member }}",
+                            }
+                        }
+                        "###
+                    ),
+                    unresolved_ctxt
+                )
             )
         },
         &input,
         &output,
         Default::default(),
     );
+}
+
+fn json<T>(s: &str) -> T
+where
+    T: DeserializeOwned,
+{
+    serde_json::from_str(s).expect("failed to deserialize")
 }
