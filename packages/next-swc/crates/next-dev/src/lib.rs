@@ -26,7 +26,6 @@ use next_core::{
     router_source::NextRouterContentSourceVc, source_map::NextSourceMapTraceContentSourceVc,
 };
 use owo_colors::OwoColorize;
-use tracing_appender::non_blocking::DEFAULT_BUFFERED_LINES_LIMIT;
 use tracing_subscriber::{prelude::*, EnvFilter, Registry};
 use turbo_tasks::{
     util::{FormatBytes, FormatDuration},
@@ -44,6 +43,7 @@ use turbopack_binding::{
             exit::exit_guard,
             issue::{ConsoleUiVc, LogOptions},
             raw_trace::RawTraceLayer,
+            trace_writer::TraceWriter,
         },
         core::{
             environment::{ServerAddr, ServerAddrVc},
@@ -482,11 +482,9 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
             .context("Unable to create .next directory")
             .unwrap();
         let trace_file = internal_dir.join("trace.log");
-        let (writer, guard) = tracing_appender::non_blocking::NonBlockingBuilder::default()
-            .lossy(false)
-            .buffered_lines_limit(DEFAULT_BUFFERED_LINES_LIMIT * 8)
-            .finish(std::fs::File::create(trace_file).unwrap());
-        let subscriber = subscriber.with(RawTraceLayer::new(writer));
+        let trace_writer = std::fs::File::create(trace_file).unwrap();
+        let (trace_writer, guard) = TraceWriter::new(trace_writer);
+        let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
 
         let guard = exit_guard(guard).unwrap();
 
