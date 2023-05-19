@@ -25,6 +25,7 @@ use next_core::{
     next_image::NextImageContentSourceVc, pages_structure::find_pages_structure,
     router_source::NextRouterContentSourceVc, source_map::NextSourceMapTraceContentSourceVc,
 };
+use once_cell::sync::Lazy;
 use owo_colors::OwoColorize;
 use tracing_subscriber::{prelude::*, EnvFilter, Registry};
 use turbo_tasks::{
@@ -430,6 +431,60 @@ pub fn register() {
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }
 
+static TRACING_OVERVIEW_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
+    vec![
+        "turbo_tasks_fs=info",
+        "turbopack_dev_server=info",
+        "turbopack_node=info",
+    ]
+});
+static TRACING_NEXT_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
+    [
+        &TRACING_OVERVIEW_TARGETS[..],
+        &[
+            "next_dev=trace",
+            "next_core=trace",
+            "next_font=trace",
+            "turbopack_node=trace",
+        ],
+    ]
+    .concat()
+});
+static TRACING_TURBOPACK_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
+    [
+        &TRACING_NEXT_TARGETS[..],
+        &[
+            "turbopack=trace",
+            "turbopack_core=trace",
+            "turbopack_ecmascript=trace",
+            "turbopack_css=trace",
+            "turbopack_dev=trace",
+            "turbopack_image=trace",
+            "turbopack_dev_server=trace",
+            "turbopack_json=trace",
+            "turbopack_mdx=trace",
+            "turbopack_node=trace",
+            "turbopack_static=trace",
+            "turbopack_cli_utils=trace",
+            "turbopack_cli=trace",
+            "turbopack_ecmascript=trace",
+        ],
+    ]
+    .concat()
+});
+static TRACING_TURBO_TASKS_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
+    [
+        &TRACING_TURBOPACK_TARGETS[..],
+        &[
+            "turbo_tasks=trace",
+            "turbo_tasks_viz=trace",
+            "turbo_tasks_memory=trace",
+            "turbo_tasks_fs=trace",
+        ],
+    ]
+    .concat()
+});
+
 /// Start a devserver with the given options.
 pub async fn start_server(options: &DevServerOptions) -> Result<()> {
     let start = Instant::now();
@@ -442,29 +497,17 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
     let _guard = if let Some(mut trace) = trace {
         // Trace presets
         match trace.as_str() {
+            "overview" => {
+                trace = TRACING_OVERVIEW_TARGETS.join(",");
+            }
             "next" => {
-                trace = "turbo_tasks_fs=info,turbopack_dev_server=info,turbopack_node=info,\
-                         next_dev=trace,next_core=trace,next_font=trace,turbopack_node=trace"
-                    .to_string();
+                trace = TRACING_NEXT_TARGETS.join(",");
             }
             "turbopack" => {
-                trace = "turbo_tasks_fs=info,next_dev=trace,next_core=trace,next_font=trace,\
-                         turbopack=trace,turbopack_core=trace,turbopack_ecmascript=trace,\
-                         turbopack_css=trace,turbopack_dev=trace,turbopack_image=trace,\
-                         turbopack_dev_server=trace,turbopack_json=trace,turbopack_mdx=trace,\
-                         turbopack_node=trace,turbopack_static=trace,turbopack_cli_utils=trace,\
-                         turbopack_cli=trace,turbopack_ecmascript=trace"
-                    .to_string();
+                trace = TRACING_TURBOPACK_TARGETS.join(",");
             }
             "turbo-tasks" => {
-                trace = "next_dev=trace,next_core=trace,next_font=trace,turbopack=trace,\
-                         turbopack_core=trace,turbopack_ecmascript=trace,turbopack_css=trace,\
-                         turbopack_dev=trace,turbopack_image=trace,turbopack_dev_server=trace,\
-                         turbopack_json=trace,turbopack_mdx=trace,turbopack_node=trace,\
-                         turbopack_static=trace,turbopack_cli_utils=trace,turbopack_cli=trace,\
-                         turbopack_ecmascript=trace,turbo_tasks=trace,turbo_tasks_viz=trace,\
-                         turbo_tasks_memory=trace,turbo_tasks_fs=trace"
-                    .to_string();
+                trace = TRACING_TURBO_TASKS_TARGETS.join(",");
             }
             _ => {}
         }
