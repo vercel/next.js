@@ -12,8 +12,8 @@ export function Item({ id1 , id2  }) {
     ], deleteItem, $$ACTION_0);
     return <Button action={deleteItem}>Delete</Button>;
 }
-export async function $$ACTION_0(id1, v2) {
-    await deleteFromDb(id1);
+export async function $$ACTION_0($$ACTION_ARG_0, $$ACTION_ARG_1) {
+    await deleteFromDb($$ACTION_ARG_0);
     await deleteFromDb(v1);
-    await deleteFromDb(v2);
+    await deleteFromDb($$ACTION_ARG_1);
 }

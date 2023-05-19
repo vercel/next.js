@@ -40,14 +40,53 @@ export class RequestCookiesAdapter {
   }
 }
 
-export const SYMBOL_MODIFY_COOKIE_VALUES = Symbol.for('next.mutated.cookies')
+const SYMBOL_MODIFY_COOKIE_VALUES = Symbol.for('next.mutated.cookies')
+
+function getModifiedCookieValues(cookies: ResponseCookies): ResponseCookie[] {
+  const modified: ResponseCookie[] | undefined = (cookies as unknown as any)[
+    SYMBOL_MODIFY_COOKIE_VALUES
+  ]
+  if (!modified || !Array.isArray(modified) || modified.length === 0) {
+    return []
+  }
+
+  return modified
+}
+
+export function appendMutableCookies(
+  headers: Headers,
+  mutableCookies: ResponseCookies
+): boolean {
+  const modifiedCookieValues = getModifiedCookieValues(mutableCookies)
+  if (modifiedCookieValues.length === 0) {
+    return false
+  }
+
+  // Return a new response that extends the response with
+  // the modified cookies as fallbacks. `res`' cookies
+  // will still take precedence.
+  const resCookies = new ResponseCookies(headers)
+  const returnedCookies = resCookies.getAll()
+
+  // Set the modified cookies as fallbacks.
+  for (const cookie of modifiedCookieValues) {
+    resCookies.set(cookie)
+  }
+
+  // Set the original cookies as the final values.
+  for (const cookie of returnedCookies) {
+    resCookies.set(cookie)
+  }
+
+  return true
+}
 
 type ResponseCookie = NonNullable<
   ReturnType<InstanceType<typeof ResponseCookies>['get']>
 >
 
 export class MutableRequestCookiesAdapter {
-  public static seal(
+  public static wrap(
     cookies: RequestCookies,
     res: ServerResponse | BaseNextResponse | undefined
   ): ResponseCookies {
