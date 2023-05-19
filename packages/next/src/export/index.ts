@@ -148,7 +148,7 @@ export interface ExportOptions {
   threads?: number
   debugOutput?: boolean
   pages?: string[]
-  buildExport?: boolean
+  buildExport: boolean
   statusMessage?: string
   exportPageWorker?: typeof import('./worker').default
   exportAppPageWorker?: typeof import('./worker').default
@@ -179,9 +179,11 @@ export default async function exportApp(
 
     const threads = options.threads || nextConfig.experimental.cpus
     const distDir = join(dir, nextConfig.distDir)
+    const isExportOutput = nextConfig.output === 'export'
 
+    // Running 'next export'
     if (options.isInvokedFromCli) {
-      if (nextConfig.output === 'export') {
+      if (isExportOutput) {
         Log.warn(
           '"next export" is no longer needed when "output: export" is configured in next.config.js https://nextjs.org/docs/advanced-features/static-html-export'
         )
@@ -195,6 +197,14 @@ export default async function exportApp(
       Log.warn(
         '"next export" is deprecated in favor of "output: export" in next.config.js https://nextjs.org/docs/advanced-features/static-html-export'
       )
+    }
+    // Running 'next export' or output is set to 'export'
+    if (options.isInvokedFromCli || isExportOutput) {
+      if (nextConfig.experimental.serverActions) {
+        throw new ExportError(
+          `Server Actions are not supported with static export.`
+        )
+      }
     }
 
     const telemetry = options.buildExport ? null : new Telemetry({ distDir })
@@ -225,12 +235,6 @@ export default async function exportApp(
     if (!existsSync(buildIdFile)) {
       throw new ExportError(
         `Could not find a production build in the '${distDir}' directory. Try building your app with 'next build' before starting the static export. https://nextjs.org/docs/messages/next-export-no-build-id`
-      )
-    }
-
-    if (nextConfig.experimental.serverActions) {
-      throw new ExportError(
-        `Server Actions are not supported with static export.`
       )
     }
 

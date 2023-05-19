@@ -31,11 +31,11 @@ export function y(p, [p1, { p2  }], ...p3) {
     ], action, $$ACTION_0);
     return <Button action={action}>Delete</Button>;
 }
-export async function $$ACTION_0(f2, f11, p, p1, p2, p3) {
+export async function $$ACTION_0($$ACTION_ARG_0, $$ACTION_ARG_1, $$ACTION_ARG_2, $$ACTION_ARG_3, $$ACTION_ARG_4, $$ACTION_ARG_5) {
     const f17 = 1;
     if (true) {
         const f18 = 1;
         const f19 = 1;
     }
-    console.log(f, f1, f2, f3, f4, f5, f6, f7, f8, f2(f9), f12, f11, f16.x, f17, f18, p, p1, p2, p3, g19, g20, globalThis);
+    console.log(f, f1, $$ACTION_ARG_0, f3, f4, f5, f6, f7, f8, $$ACTION_ARG_0(f9), f12, $$ACTION_ARG_1, f16.x, f17, f18, $$ACTION_ARG_2, $$ACTION_ARG_3, $$ACTION_ARG_4, $$ACTION_ARG_5, g19, g20, globalThis);
 }
