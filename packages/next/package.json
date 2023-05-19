@@ -94,15 +94,11 @@
   "peerDependencies": {
     "@opentelemetry/api": "^1.1.0",
     "fibers": ">= 3.1.0",
-    "node-sass": "^6.0.0 || ^7.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "sass": "^1.3.0"
   },
   "peerDependenciesMeta": {
-    "node-sass": {
-      "optional": true
-    },
     "sass": {
       "optional": true
     },
