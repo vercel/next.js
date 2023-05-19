@@ -27,15 +27,15 @@ export function Item({ id1 , id2  }) {
 
     </>;
 }
-export const $$ACTION_1 = async (id1, v2)=>{
-    await deleteFromDb(id1);
+export const $$ACTION_1 = async ($$ACTION_ARG_0, $$ACTION_ARG_1)=>{
+    await deleteFromDb($$ACTION_ARG_0);
     await deleteFromDb(v1);
-    await deleteFromDb(v2);
+    await deleteFromDb($$ACTION_ARG_1);
 };
 var $$ACTION_0;
-export async function $$ACTION_3(id1, v2) {
-    await deleteFromDb(id1);
+export async function $$ACTION_3($$ACTION_ARG_0, $$ACTION_ARG_1) {
+    await deleteFromDb($$ACTION_ARG_0);
     await deleteFromDb(v1);
-    await deleteFromDb(v2);
+    await deleteFromDb($$ACTION_ARG_1);
 }
 var $$ACTION_2;
