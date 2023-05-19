@@ -74,7 +74,6 @@ turbopack-binding = { workspace = true, features = [
 ]}
 turbo-tasks = { workspace = true }
 tracing = { workspace = true }
-tracing-appender = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
 webbrowser = { workspace = true }
 
