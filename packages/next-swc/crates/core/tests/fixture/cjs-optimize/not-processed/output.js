@@ -1,5 +1,5 @@
-const Response = require("next/server/response");
 ;
 const preserved = require('next/unmatched');
-console.log(Response);
+console.log(foo.Response);
+console.log(foo['Re' + 'spawn']);
 console.log(preserved.Preserved);
