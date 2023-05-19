@@ -8,15 +8,15 @@ use indexmap::{indexmap, map::Entry, IndexMap};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use turbo_binding::{
-    turbo::tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc},
-    turbopack::core::issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
-};
 use turbo_tasks::{
     debug::ValueDebugFormat,
     primitives::{StringVc, StringsVc},
     trace::TraceRawVcs,
     CompletionVc, CompletionsVc,
+};
+use turbopack_binding::{
+    turbo::tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc},
+    turbopack::core::issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
 };
 
 use crate::next_config::NextConfigVc;

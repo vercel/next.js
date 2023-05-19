@@ -187,6 +187,7 @@ export async function startServer({
           env: {
             FORCE_COLOR: '1',
             ...((initialEnv || process.env) as typeof process.env),
+            PORT: port + '',
             NODE_OPTIONS: getNodeOptionsWithoutInspect().trim(),
           },
         },
