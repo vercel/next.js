@@ -21,14 +21,17 @@ use dunce::canonicalize;
 use indexmap::IndexMap;
 use next_core::{
     app_structure::find_app_dir_if_enabled, create_app_source, create_page_source,
-    create_web_entry_source, manifest::DevManifestContentSource, next_config::load_next_config,
-    next_image::NextImageContentSourceVc, pages_structure::find_pages_structure,
-    router_source::NextRouterContentSourceVc, source_map::NextSourceMapTraceContentSourceVc,
+    create_web_entry_source, embed_js::next_js_fs, manifest::DevManifestContentSource,
+    next_config::load_next_config, next_image::NextImageContentSourceVc,
+    pages_structure::find_pages_structure, router_source::NextRouterContentSourceVc,
+    source_map::NextSourceMapTraceContentSourceVc,
+    turbopack::dev_server::source::files::FilesContentSourceVc,
 };
 use owo_colors::OwoColorize;
 use turbo_tasks::{
     util::{FormatBytes, FormatDuration},
     StatsType, TransientInstance, TurboTasks, TurboTasksBackendApi, UpdateInfo, Value,
+    ValueToString,
 };
 use turbopack_binding::{
     turbo::{
@@ -399,6 +402,26 @@ async fn source(
         pages_structure,
     )
     .into();
+
+    let turbopack = RouterContentSource {
+        routes: vec![
+            ("[sourcemap]/".to_string(), source_maps),
+            (
+                // [project]
+                format!("[{}]", fs.to_string().await?),
+                FilesContentSourceVc::new(fs.root()).into(),
+            ),
+            (
+                // [next]
+                format!("[{}]", next_js_fs().to_string().await?),
+                FilesContentSourceVc::new(next_js_fs().root()).into(),
+            ),
+        ],
+        fallback: router_source,
+    }
+    .cell()
+    .into();
+
     let source = RouterContentSource {
         routes: vec![
             ("__turbopack__/".to_string(), introspect),
@@ -409,7 +432,7 @@ async fn source(
             ),
             // TODO: Load path from next.config.js
             ("_next/image".to_string(), img_source),
-            ("__turbopack_sourcemap__/".to_string(), source_maps),
+            ("turbopack/".to_string(), turbopack),
         ],
         fallback: router_source,
     }
