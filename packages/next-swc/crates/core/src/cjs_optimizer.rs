@@ -130,43 +130,44 @@ impl VisitMut for CjsOptimizer {
             if let MemberProp::Ident(prop) = &n.prop {
                 if let Expr::Ident(obj) = &*n.obj {
                     if let Some(record) = self.data.imports.get(&obj.to_id()) {
-                        let new_id = self
-                            .data
-                            .replaced
-                            .entry((record.module_specifier.clone(), prop.sym.clone()))
-                            .or_insert_with(|| private_ident!(prop.sym.clone()).to_id())
-                            .clone();
+                        if let Some(rewriter) = self.should_rewrite(&record.module_specifier) {
+                            let new_id = self
+                                .data
+                                .replaced
+                                .entry((record.module_specifier.clone(), prop.sym.clone()))
+                                .or_insert_with(|| private_ident!(prop.sym.clone()).to_id())
+                                .clone();
 
-                        // TODO: Adjust module specifier
-                        let var = VarDeclarator {
-                            span: DUMMY_SP,
-                            name: Pat::Ident(new_id.clone().into()),
-                            init: Some(Box::new(Expr::Call(CallExpr {
+                            let var = VarDeclarator {
                                 span: DUMMY_SP,
-                                callee: Ident::new(
-                                    "require".into(),
-                                    DUMMY_SP.with_ctxt(self.unresolved_ctxt),
-                                )
-                                .as_callee(),
-                                args: vec![Expr::Lit(Lit::Str(
-                                    record.module_specifier.clone().into(),
-                                ))
-                                .as_arg()],
-                                type_args: None,
-                            }))),
-                            definite: false,
-                        };
+                                name: Pat::Ident(new_id.clone().into()),
+                                init: Some(Box::new(Expr::Call(CallExpr {
+                                    span: DUMMY_SP,
+                                    callee: Ident::new(
+                                        "require".into(),
+                                        DUMMY_SP.with_ctxt(self.unresolved_ctxt),
+                                    )
+                                    .as_callee(),
+                                    args: vec![Expr::Lit(Lit::Str(
+                                        rewriter.rewrite(record.module_specifier.clone().into()),
+                                    ))
+                                    .as_arg()],
+                                    type_args: None,
+                                }))),
+                                definite: false,
+                            };
 
-                        self.data
-                            .extra_stmts
-                            .push(Stmt::Decl(Decl::Var(Box::new(VarDecl {
-                                span: DUMMY_SP,
-                                kind: VarDeclKind::Const,
-                                declare: false,
-                                decls: vec![var],
-                            }))));
+                            self.data
+                                .extra_stmts
+                                .push(Stmt::Decl(Decl::Var(Box::new(VarDecl {
+                                    span: DUMMY_SP,
+                                    kind: VarDeclKind::Const,
+                                    declare: false,
+                                    decls: vec![var],
+                                }))));
 
-                        *e = Expr::Ident(new_id.into());
+                            *e = Expr::Ident(new_id.into());
+                        }
                     }
                 }
             }
