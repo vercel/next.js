@@ -39,7 +39,6 @@ createNextDescribe(
           await check(
             async () => {
               const val = await browser.eval('window.pageYOffset')
-              require('console').error({ val })
               return val.toString()
             },
             expectedScroll.toString(),
@@ -55,6 +54,55 @@ createNextDescribe(
         await checkLink(300, 4230)
         await checkLink('top', 0)
         await checkLink('non-existent', 0)
+      })
+    })
+
+    describe('hash-link-back-to-same-page', () => {
+      it('should scroll to the specified hash', async () => {
+        const browser = await next.browser('/hash-link-back-to-same-page')
+
+        const checkLink = async (
+          val: number | string,
+          expectedScroll: number
+        ) => {
+          await browser.elementByCss(`#link-to-${val.toString()}`).click()
+          await check(
+            async () => {
+              const val = await browser.eval('window.pageYOffset')
+              return val.toString()
+            },
+            expectedScroll.toString(),
+            true,
+            // Try maximum of 15 seconds
+            15
+          )
+        }
+
+        await checkLink(6, 114)
+        await checkLink(50, 730)
+        await checkLink(160, 2270)
+
+        await browser
+          .elementByCss('#to-other-page')
+          // Navigate to other
+          .click()
+          // Wait for other ot load
+          .waitForElementByCss('#link-to-home')
+          // Navigate back to hash-link-back-to-same-page
+          .click()
+          // Wait for hash-link-back-to-same-page to load
+          .waitForElementByCss('#to-other-page')
+
+        await check(
+          async () => {
+            const val = await browser.eval('window.pageYOffset')
+            return val.toString()
+          },
+          (0).toString(),
+          true,
+          // Try maximum of 15 seconds
+          15
+        )
       })
     })
 
