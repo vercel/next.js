@@ -6,7 +6,7 @@ import { Span } from 'next/src/trace'
 
 export class NextStartInstance extends NextInstance {
   private _buildId: string
-  private _cliOutput: string
+  private _cliOutput: string = ''
   private spawnOpts: SpawnOptions
 
   public get buildId() {
@@ -19,6 +19,20 @@ export class NextStartInstance extends NextInstance {
 
   public async setup(parentSpan: Span) {
     await super.createTestDir({ parentSpan })
+
+    this._cliOutput = ''
+    this.spawnOpts = {
+      cwd: this.testDir,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: false,
+      env: {
+        ...process.env,
+        ...this.env,
+        NODE_ENV: '' as any,
+        PORT: this.forcedPort || '0',
+        __NEXT_TEST_MODE: 'e2e',
+      },
+    }
   }
 
   private handleStdio = (childProcess) => {
@@ -39,19 +53,6 @@ export class NextStartInstance extends NextInstance {
   public async start() {
     if (this.childProcess) {
       throw new Error('next already started')
-    }
-    this._cliOutput = ''
-    this.spawnOpts = {
-      cwd: this.testDir,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      shell: false,
-      env: {
-        ...process.env,
-        ...this.env,
-        NODE_ENV: '' as any,
-        PORT: this.forcedPort || '0',
-        __NEXT_TEST_MODE: 'e2e',
-      },
     }
     let buildArgs = ['yarn', 'next', 'build']
     let startArgs = ['yarn', 'next', 'start']

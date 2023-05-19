@@ -65,6 +65,7 @@ const nextExport: CliCommand = (argv) => {
     outdir: args['--outdir'] ? resolve(args['--outdir']) : join(dir, 'out'),
     isInvokedFromCli: true,
     hasAppDir: false,
+    buildExport: false,
   }
 
   exportApp(dir, options, nextExportCliSpan)

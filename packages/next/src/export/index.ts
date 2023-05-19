@@ -197,6 +197,15 @@ export default async function exportApp(
       )
     }
 
+    // Running next export or using output: 'export' in next.config.js
+    if (!options.buildExport || nextConfig.output === 'export') {
+      if (nextConfig.experimental.serverActions) {
+        throw new ExportError(
+          `Server Actions are not supported with static export.`
+        )
+      }
+    }
+
     const telemetry = options.buildExport ? null : new Telemetry({ distDir })
 
     if (telemetry) {
