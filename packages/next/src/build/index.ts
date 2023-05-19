@@ -3101,6 +3101,7 @@ export default async function build(
 
         const options: ExportOptions = {
           isInvokedFromCli: false,
+          buildExport: false,
           nextConfig: config,
           hasAppDir,
           silent: true,
