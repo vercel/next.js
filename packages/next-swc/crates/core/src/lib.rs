@@ -257,7 +257,7 @@ where
             .unwrap_or_else(|| Either::Right(noop())),
         match &opts.modularize_imports {
             Some(config) => Either::Left(
-                turbo_binding::swc::custom_transform::modularize_imports::modularize_imports(
+                turbopack_binding::swc::custom_transform::modularize_imports::modularize_imports(
                     config.clone()
                 )
             ),

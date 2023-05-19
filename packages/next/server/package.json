@@ -1,4 +1,6 @@
 {
+  "main": "./index.js",
+  "module": "./index.esm.js",
   "exports": {
     ".": {
       "import": "./index.esm.js",

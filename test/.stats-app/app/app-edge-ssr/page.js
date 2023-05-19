@@ -1,5 +1,7 @@
+import Link from 'next/link'
+
 export default function page() {
-  return 'app-edge-ssr'
+  return <Link href="/">home</Link>
 }
 
 export const runtime = 'experimental-edge'

@@ -31,7 +31,7 @@ const nextEdgeFunctionLoader: webpack.LoaderDefinitionFunction<EdgeFunctionLoade
 
     return `
         import { adapter, enhanceGlobals } from 'next/dist/esm/server/web/adapter'
-        import {IncrementalCache} from 'next/dist/esm/server/lib/incremental-cache'
+        import { IncrementalCache } from 'next/dist/esm/server/lib/incremental-cache'
 
         enhanceGlobals()
 
