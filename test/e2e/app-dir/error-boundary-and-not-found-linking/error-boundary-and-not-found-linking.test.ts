@@ -35,5 +35,36 @@ createNextDescribe(
           .text()
       ).toBe('Result Page!')
     })
+
+    it('should allow navigation to other routes on route that was initially not-found', async () => {
+      // Intentionally non-existent route.
+      const browser = await next.browser('/testabc')
+      expect(await browser.elementByCss('#not-found-component').text()).toBe(
+        'Not Found!'
+      )
+
+      expect(
+        await browser
+          .elementByCss('#to-result')
+          .click()
+          .waitForElementByCss('#result-page')
+          .text()
+      ).toBe('Result Page!')
+    })
+
+    it('should allow navigation back to route that was initially not-found', async () => {
+      // Intentionally non-existent route.
+      const browser = await next.browser('/testabc')
+      expect(await browser.elementByCss('#not-found-component').text()).toBe(
+        'Not Found!'
+      )
+
+      await browser
+        .elementByCss('#to-result')
+        .click()
+        .waitForElementByCss('#result-page')
+        .back()
+        .waitForElementByCss('#not-found-component')
+    })
   }
 )
