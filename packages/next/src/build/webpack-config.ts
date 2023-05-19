@@ -109,6 +109,16 @@ const mainFieldsPerCompiler: Record<CompilerNameValues, string[]> = {
   ],
 }
 
+const conditionNamesPerModuleType: Record<
+  'edge' | 'cjs' | 'esm' | 'default',
+  string[]
+> = {
+  edge: ['edge-light', 'import', 'module', 'require', 'node', 'default'],
+  cjs: ['require', 'node', 'default'],
+  esm: ['import', 'module', 'default'],
+  default: ['import', 'module', 'require', 'node', 'default'], // first esm then fallback to cjs
+}
+
 const BABEL_CONFIG_FILES = [
   '.babelrc',
   '.babelrc.json',
@@ -889,12 +899,9 @@ export default async function getBaseWebpackConfig(
 
   const reactServerCondition = [
     'react-server',
-    ...mainFieldsPerCompiler[
-      isEdgeServer ? COMPILER_NAMES.edgeServer : COMPILER_NAMES.server
-    ],
-    'node',
-    'import',
-    'require',
+    ...(isEdgeServer
+      ? conditionNamesPerModuleType.edge
+      : conditionNamesPerModuleType.default),
   ]
 
   const clientEntries = isClient
@@ -1033,36 +1040,35 @@ export default async function getBaseWebpackConfig(
     alias: {
       // Alias next/dist imports to next/dist/esm assets,
       // let this alias hit before `next` alias.
-      // ...(isEdgeServer
-      //   ? {
-      //       'next/dist/client': 'next/dist/esm/client',
-      //       'next/dist/shared': 'next/dist/esm/shared',
-      //       'next/dist/pages': 'next/dist/esm/pages',
-      //       'next/dist/lib': 'next/dist/esm/lib',
-
-      //       // Alias the usage of next public APIs
-      //       [require.resolve('next/dist/client/link')]:
-      //         'next/dist/esm/client/link',
-      //       [require.resolve('next/dist/client/image')]:
-      //         'next/dist/esm/client/image',
-      //       [require.resolve('next/dist/client/script')]:
-      //         'next/dist/esm/client/script',
-      //       [require.resolve('next/dist/client/router')]:
-      //         'next/dist/esm/client/router',
-      //       [require.resolve('next/dist/shared/lib/head')]:
-      //         'next/dist/esm/shared/lib/head',
-      //       [require.resolve('next/dist/shared/lib/dynamic')]:
-      //         'next/dist/esm/shared/lib/dynamic',
-      //       [require.resolve('next/dist/pages/_document')]:
-      //         'next/dist/esm/pages/_document',
-      //       [require.resolve('next/dist/pages/_app')]:
-      //         'next/dist/esm/pages/_app',
-      //       [require.resolve('next/dist/client/components/navigation')]:
-      //         'next/dist/client/components/navigation',
-      //       [require.resolve('next/dist/client/components/headers')]:
-      //         'next/dist/client/components/headers',
-      //     }
-      //   : undefined),
+      ...(isEdgeServer
+        ? {
+            // 'next/dist/client': 'next/dist/esm/client',
+            // 'next/dist/shared': 'next/dist/esm/shared',
+            // 'next/dist/pages': 'next/dist/esm/pages',
+            // 'next/dist/lib': 'next/dist/esm/lib',
+            //       // Alias the usage of next public APIs
+            //       [require.resolve('next/dist/client/link')]:
+            //         'next/dist/esm/client/link',
+            //       [require.resolve('next/dist/client/image')]:
+            //         'next/dist/esm/client/image',
+            //       [require.resolve('next/dist/client/script')]:
+            //         'next/dist/esm/client/script',
+            //       [require.resolve('next/dist/client/router')]:
+            //         'next/dist/esm/client/router',
+            //       [require.resolve('next/dist/shared/lib/head')]:
+            //         'next/dist/esm/shared/lib/head',
+            //       [require.resolve('next/dist/shared/lib/dynamic')]:
+            //         'next/dist/esm/shared/lib/dynamic',
+            //       [require.resolve('next/dist/pages/_document')]:
+            //         'next/dist/esm/pages/_document',
+            //       [require.resolve('next/dist/pages/_app')]:
+            //         'next/dist/esm/pages/_app',
+            //       [require.resolve('next/dist/client/components/navigation')]:
+            //         'next/dist/client/components/navigation',
+            //       [require.resolve('next/dist/client/components/headers')]:
+            //         'next/dist/client/components/headers',
+          }
+        : undefined),
 
       // For RSC server bundle
       ...(!hasExternalOtelApiPackage && {
@@ -1129,11 +1135,7 @@ export default async function getBaseWebpackConfig(
       : undefined),
     mainFields: mainFieldsPerCompiler[compilerType],
     ...(isEdgeServer && {
-      conditionNames: [
-        ...mainFieldsPerCompiler[COMPILER_NAMES.edgeServer],
-        'import',
-        'node',
-      ],
+      conditionNames: conditionNamesPerModuleType.edge,
     }),
     plugins: [],
   }
@@ -1923,6 +1925,9 @@ export default async function getBaseWebpackConfig(
               {
                 resourceQuery: /__edge_ssr_entry__/,
                 layer: WEBPACK_LAYERS.server,
+                resolve: {
+                  conditionNames: conditionNamesPerModuleType.edge,
+                },
               },
             ]
           : []),
