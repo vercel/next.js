@@ -1033,36 +1033,36 @@ export default async function getBaseWebpackConfig(
     alias: {
       // Alias next/dist imports to next/dist/esm assets,
       // let this alias hit before `next` alias.
-      ...(isEdgeServer
-        ? {
-            'next/dist/client': 'next/dist/esm/client',
-            'next/dist/shared': 'next/dist/esm/shared',
-            'next/dist/pages': 'next/dist/esm/pages',
-            'next/dist/lib': 'next/dist/esm/lib',
+      // ...(isEdgeServer
+      //   ? {
+      //       'next/dist/client': 'next/dist/esm/client',
+      //       'next/dist/shared': 'next/dist/esm/shared',
+      //       'next/dist/pages': 'next/dist/esm/pages',
+      //       'next/dist/lib': 'next/dist/esm/lib',
 
-            // Alias the usage of next public APIs
-            [require.resolve('next/dist/client/link')]:
-              'next/dist/esm/client/link',
-            [require.resolve('next/dist/client/image')]:
-              'next/dist/esm/client/image',
-            [require.resolve('next/dist/client/script')]:
-              'next/dist/esm/client/script',
-            [require.resolve('next/dist/client/router')]:
-              'next/dist/esm/client/router',
-            [require.resolve('next/dist/shared/lib/head')]:
-              'next/dist/esm/shared/lib/head',
-            [require.resolve('next/dist/shared/lib/dynamic')]:
-              'next/dist/esm/shared/lib/dynamic',
-            [require.resolve('next/dist/pages/_document')]:
-              'next/dist/esm/pages/_document',
-            [require.resolve('next/dist/pages/_app')]:
-              'next/dist/esm/pages/_app',
-            [require.resolve('next/dist/client/components/navigation')]:
-              'next/dist/client/components/navigation',
-            [require.resolve('next/dist/client/components/headers')]:
-              'next/dist/client/components/headers',
-          }
-        : undefined),
+      //       // Alias the usage of next public APIs
+      //       [require.resolve('next/dist/client/link')]:
+      //         'next/dist/esm/client/link',
+      //       [require.resolve('next/dist/client/image')]:
+      //         'next/dist/esm/client/image',
+      //       [require.resolve('next/dist/client/script')]:
+      //         'next/dist/esm/client/script',
+      //       [require.resolve('next/dist/client/router')]:
+      //         'next/dist/esm/client/router',
+      //       [require.resolve('next/dist/shared/lib/head')]:
+      //         'next/dist/esm/shared/lib/head',
+      //       [require.resolve('next/dist/shared/lib/dynamic')]:
+      //         'next/dist/esm/shared/lib/dynamic',
+      //       [require.resolve('next/dist/pages/_document')]:
+      //         'next/dist/esm/pages/_document',
+      //       [require.resolve('next/dist/pages/_app')]:
+      //         'next/dist/esm/pages/_app',
+      //       [require.resolve('next/dist/client/components/navigation')]:
+      //         'next/dist/client/components/navigation',
+      //       [require.resolve('next/dist/client/components/headers')]:
+      //         'next/dist/client/components/headers',
+      //     }
+      //   : undefined),
 
       // For RSC server bundle
       ...(!hasExternalOtelApiPackage && {

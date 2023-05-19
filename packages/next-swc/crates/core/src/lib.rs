@@ -163,21 +163,6 @@ where
         }
     };
 
-    let mut modularize_imports_config = match &opts.modularize_imports {
-        Some(config) => config.clone(),
-        None => turbopack_binding::swc::custom_transform::modularize_imports::Config {
-            packages: std::collections::HashMap::new(),
-        },
-    };
-    modularize_imports_config.packages.insert(
-        "next/server".to_string(),
-        turbopack_binding::swc::custom_transform::modularize_imports::PackageConfig {
-            transform: "next/dist/server/web/exports/{{ kebabCase member }}".to_string(),
-            prevent_full_import: false,
-            skip_default_conversion: false,
-        },
-    );
-
     chain!(
         disallow_re_export_all_in_page::disallow_re_export_all_in_page(opts.is_page_file),
         match &opts.server_components {
@@ -270,9 +255,14 @@ where
                 }
             })
             .unwrap_or_else(|| Either::Right(noop())),
-        turbopack_binding::swc::custom_transform::modularize_imports::modularize_imports(
-            modularize_imports_config
-        ),
+        match &opts.modularize_imports {
+            Some(config) => Either::Left(
+                turbo_binding::swc::custom_transform::modularize_imports::modularize_imports(
+                    config.clone()
+                )
+            ),
+            None => Either::Right(noop()),
+        },
         match &opts.font_loaders {
             Some(config) => Either::Left(next_font_loaders(config.clone())),
             None => Either::Right(noop()),
