@@ -34,6 +34,23 @@ createNextDescribe(
     buildCommand: 'yarn build',
   },
   ({ next, isNextDev, isNextStart }) => {
+    if (isNextDev) {
+      it('should have correct client references keys in manifest', async () => {
+        await next.render('/')
+        // Check that the client-side manifest is correct before any requests
+        const clientReferenceManifest = JSON.parse(
+          await next.readFile('.next/server/client-reference-manifest.json')
+        )
+        const clientModulesNames = Object.keys(
+          clientReferenceManifest.clientModules
+        )
+        clientModulesNames.every((name) => {
+          const [, key] = name.split('#')
+          return key === undefined || key === '' || key === 'default'
+        })
+      })
+    }
+
     it('should correctly render page returning null', async () => {
       const homeHTML = await next.render('/return-null/page')
       const $ = cheerio.load(homeHTML)
