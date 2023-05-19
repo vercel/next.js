@@ -3328,6 +3328,7 @@ dependencies = [
  "easy-error",
  "either",
  "fxhash",
+ "handlebars",
  "hex",
  "next-transform-font",
  "once_cell",
