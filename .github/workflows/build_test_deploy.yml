@@ -828,7 +828,7 @@ jobs:
       NEXT_BINDINGS_BIN: /work/packages/next-swc/native/next-swc.linux-x64-gnu.node
       # Glob pattern to run specific tests with --turbo.
       NEXT_DEV_TEST_GLOB: '*'
-      NEXT_EXTERNAL_TESTS_FILTERS: /work/packages/next-swc/crates/next-dev-tests/tests-manifest.json
+      NEXT_EXTERNAL_TESTS_FILTERS: /work/packages/next-swc/crates/next-dev-tests/tests-manifest.js
 
     strategy:
       fail-fast: false
