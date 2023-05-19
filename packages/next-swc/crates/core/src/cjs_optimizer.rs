@@ -4,19 +4,22 @@ use convert_case::{Case, Casing};
 use handlebars::{Context, Handlebars, Helper, HelperResult, Output, RenderContext};
 use once_cell::sync::Lazy;
 use regex::{Captures, Regex};
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use turbopack_binding::swc::core::{
     cached::regex::CachedRegex,
     common::{SyntaxContext, DUMMY_SP},
     ecma::{
         ast::{
-            CallExpr, Callee, Decl, Expr, Id, Ident, Lit, MemberProp, Module, ModuleItem, Pat,
-            Script, Stmt, VarDecl, VarDeclKind, VarDeclarator,
+            CallExpr, Callee, Decl, Expr, Id, Ident, Lit, MemberExpr, MemberProp, Module,
+            ModuleItem, Pat, Script, Stmt, VarDecl, VarDeclKind, VarDeclarator,
         },
         atoms::{Atom, JsWord},
         utils::{prepend_stmts, private_ident, ExprFactory, IdentRenamer},
-        visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
+        visit::{
+            as_folder, noop_visit_mut_type, noop_visit_type, Fold, Visit, VisitMut, VisitMutWith,
+            VisitWith,
+        },
     },
 };
 
@@ -97,6 +100,9 @@ struct State {
     extra_stmts: Vec<Stmt>,
 
     rename_map: FxHashMap<Id, Id>,
+
+    /// Ignored identifiers for `obj` of [MemberExpr].
+    ignored: FxHashSet<Id>,
 }
 
 #[derive(Debug)]
@@ -157,6 +163,10 @@ impl VisitMut for CjsOptimizer {
         if let Expr::Member(n) = e {
             if let MemberProp::Ident(prop) = &n.prop {
                 if let Expr::Ident(obj) = &*n.obj {
+                    if self.data.ignored.contains(&obj.to_id()) {
+                        return;
+                    }
+
                     if let Some(record) = self.data.imports.get(&obj.to_id()) {
                         let new_id = self
                             .data
@@ -236,6 +246,10 @@ impl VisitMut for CjsOptimizer {
     }
 
     fn visit_mut_module(&mut self, n: &mut Module) {
+        n.visit_children_with(&mut Analyzer {
+            data: &mut self.data,
+        });
+
         n.visit_mut_children_with(self);
 
         prepend_stmts(
@@ -247,11 +261,31 @@ impl VisitMut for CjsOptimizer {
     }
 
     fn visit_mut_script(&mut self, n: &mut Script) {
+        n.visit_children_with(&mut Analyzer {
+            data: &mut self.data,
+        });
+
         n.visit_mut_children_with(self);
 
         prepend_stmts(&mut n.body, self.data.extra_stmts.drain(..));
 
         n.visit_mut_children_with(&mut IdentRenamer::new(&self.data.rename_map));
+    }
+}
+
+struct Analyzer<'a> {
+    data: &'a mut State,
+}
+
+impl Visit for Analyzer<'_> {
+    noop_visit_type!();
+
+    fn visit_member_expr(&mut self, e: &MemberExpr) {
+        e.visit_children_with(self);
+
+        if let (Expr::Ident(obj), MemberProp::Computed(..)) = (&*e.obj, &e.prop) {
+            self.data.ignored.insert(obj.to_id());
+        }
     }
 }
 
