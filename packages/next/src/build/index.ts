@@ -301,23 +301,6 @@ export default async function build(
       NextBuildContext.appDir = appDir
       hasAppDir = Boolean(appDir)
 
-      if (isAppDirEnabled && hasAppDir) {
-        if (
-          (!process.env.__NEXT_TEST_MODE ||
-            process.env.__NEXT_TEST_MODE === 'e2e') &&
-          ciEnvironment.hasNextSupport
-        ) {
-          const requireHook = require.resolve('../server/require-hook')
-          const contents = await promises.readFile(requireHook, 'utf8')
-          await promises.writeFile(
-            requireHook,
-            `process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = '${
-              config.experimental.serverActions ? 'experimental' : 'next'
-            }'\n${contents}`
-          )
-        }
-      }
-
       const isSrcDir = path
         .relative(dir, pagesDir || appDir || '')
         .startsWith('src')
