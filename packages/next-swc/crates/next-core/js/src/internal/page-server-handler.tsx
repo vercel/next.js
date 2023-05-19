@@ -14,7 +14,7 @@ import { buildStaticPaths } from 'next/dist/build/utils'
 import type { BuildManifest } from 'next/dist/server/get-page-files'
 import type { ReactLoadableManifest } from 'next/dist/server/load-components'
 
-import { headersFromEntries } from './headers'
+import { headersFromEntries, initProxiedHeaders } from './headers'
 import { createServerResponse } from './http'
 import type { Ipc } from '@vercel/turbopack-node/ipc/index'
 import type { RenderData } from 'types/turbopack'
@@ -218,7 +218,10 @@ export default function startHandler({
     const req: IncomingMessage = {
       url: renderData.url,
       method: 'GET',
-      headers: headersFromEntries(renderData.rawHeaders),
+      headers: initProxiedHeaders(
+        headersFromEntries(renderData.rawHeaders),
+        renderData.data?.serverInfo
+      ),
     } as any
     const res: ServerResponse = createServerResponse(req, renderData.path)
 
