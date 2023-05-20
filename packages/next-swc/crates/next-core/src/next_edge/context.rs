@@ -38,12 +38,12 @@ fn defines() -> CompileTimeDefines {
 }
 
 #[turbo_tasks::function]
-pub fn next_edge_defines() -> CompileTimeDefinesVc {
+fn next_edge_defines() -> CompileTimeDefinesVc {
     defines().cell()
 }
 
 #[turbo_tasks::function]
-pub fn next_edge_free_vars(project_path: FileSystemPathVc) -> FreeVarReferencesVc {
+fn next_edge_free_vars(project_path: FileSystemPathVc) -> FreeVarReferencesVc {
     free_var_references!(
         ..defines().into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {

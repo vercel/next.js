@@ -40,16 +40,23 @@ use super::{
 use crate::{
     babel::maybe_add_babel_loader,
     embed_js::next_js_fs,
+    mode::NextMode,
     next_build::{get_external_next_compiled_package_mapping, get_postcss_package_mapping},
     next_config::NextConfigVc,
     next_import_map::{get_next_server_import_map, mdx_import_source_file},
     next_server::resolve::ExternalPredicate,
     next_shared::{
-        resolve::UnsupportedModulesResolvePluginVc, transforms::get_relay_transform_plugin,
+        resolve::UnsupportedModulesResolvePluginVc,
+        transforms::{
+            emotion::get_emotion_transform_plugin, get_relay_transform_plugin,
+            styled_components::get_styled_components_transform_plugin,
+            styled_jsx::get_styled_jsx_transform_plugin,
+        },
     },
+    sass::maybe_add_sass_loader,
     transform_options::{
-        get_decorators_transform_options, get_emotion_compiler_config, get_jsx_transform_options,
-        get_styled_components_compiler_config, get_typescript_transform_options,
+        get_decorators_transform_options, get_jsx_transform_options,
+        get_typescript_transform_options,
     },
     util::foreign_code_context_condition,
 };
@@ -69,6 +76,7 @@ pub enum ServerContextType {
 pub async fn get_server_resolve_options_context(
     project_path: FileSystemPathVc,
     ty: Value<ServerContextType>,
+    mode: NextMode,
     next_config: NextConfigVc,
     execution_context: ExecutionContextVc,
 ) -> Result<ResolveOptionsContextVc> {
@@ -94,7 +102,7 @@ pub async fn get_server_resolve_options_context(
                 enable_node_externals: true,
                 enable_node_native_modules: true,
                 module: true,
-                custom_conditions: vec!["development".to_string()],
+                custom_conditions: vec![mode.node_env().to_string()],
                 import_map: Some(next_server_import_map),
                 plugins: vec![
                     external_cjs_modules_plugin.into(),
@@ -118,7 +126,7 @@ pub async fn get_server_resolve_options_context(
                 enable_node_externals: true,
                 enable_node_native_modules: true,
                 module: true,
-                custom_conditions: vec!["development".to_string()],
+                custom_conditions: vec![mode.node_env().to_string()],
                 import_map: Some(next_server_import_map),
                 plugins: vec![
                     server_component_externals_plugin.into(),
@@ -142,7 +150,7 @@ pub async fn get_server_resolve_options_context(
                 enable_node_externals: true,
                 enable_node_native_modules: true,
                 module: true,
-                custom_conditions: vec!["development".to_string(), "react-server".to_string()],
+                custom_conditions: vec![mode.node_env().to_string(), "react-server".to_string()],
                 import_map: Some(next_server_import_map),
                 plugins: vec![
                     server_component_externals_plugin.into(),
@@ -164,7 +172,7 @@ pub async fn get_server_resolve_options_context(
             let resolve_options_context = ResolveOptionsContext {
                 enable_node_modules: Some(root_dir),
                 module: true,
-                custom_conditions: vec!["development".to_string()],
+                custom_conditions: vec![mode.node_env().to_string()],
                 import_map: Some(next_server_import_map),
                 plugins: vec![
                     server_component_externals_plugin.into(),
@@ -187,7 +195,7 @@ pub async fn get_server_resolve_options_context(
                 enable_node_modules: Some(root_dir),
                 enable_node_externals: true,
                 module: true,
-                custom_conditions: vec!["development".to_string()],
+                custom_conditions: vec![mode.node_env().to_string()],
                 plugins: vec![unsupported_modules_resolve_plugin.into()],
                 ..Default::default()
             };
@@ -205,10 +213,10 @@ pub async fn get_server_resolve_options_context(
     .cell())
 }
 
-fn defines() -> CompileTimeDefines {
+fn defines(mode: NextMode) -> CompileTimeDefines {
     compile_time_defines!(
         process.turbopack = true,
-        process.env.NODE_ENV = "development",
+        process.env.NODE_ENV = mode.node_env(),
         process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false,
         process.env.NEXT_RUNTIME = "nodejs"
     )
@@ -217,18 +225,19 @@ fn defines() -> CompileTimeDefines {
 }
 
 #[turbo_tasks::function]
-pub fn next_server_defines() -> CompileTimeDefinesVc {
-    defines().cell()
+fn next_server_defines(mode: NextMode) -> CompileTimeDefinesVc {
+    defines(mode).cell()
 }
 
 #[turbo_tasks::function]
-pub async fn next_server_free_vars() -> Result<FreeVarReferencesVc> {
-    Ok(free_var_references!(..defines().into_iter()).cell())
+async fn next_server_free_vars(mode: NextMode) -> Result<FreeVarReferencesVc> {
+    Ok(free_var_references!(..defines(mode).into_iter()).cell())
 }
 
 #[turbo_tasks::function]
 pub fn get_server_compile_time_info(
     ty: Value<ServerContextType>,
+    mode: NextMode,
     process_env: ProcessEnvVc,
     server_addr: ServerAddrVc,
 ) -> CompileTimeInfoVc {
@@ -246,8 +255,8 @@ pub fn get_server_compile_time_info(
             ServerContextType::Middleware => Value::new(EnvironmentIntention::Middleware),
         },
     ))
-    .defines(next_server_defines())
-    .free_var_references(next_server_free_vars())
+    .defines(next_server_defines(mode))
+    .free_var_references(next_server_free_vars(mode))
     .cell()
 }
 
@@ -256,6 +265,7 @@ pub async fn get_server_module_options_context(
     project_path: FileSystemPathVc,
     execution_context: ExecutionContextVc,
     ty: Value<ServerContextType>,
+    mode: NextMode,
     next_config: NextConfigVc,
 ) -> Result<ModuleOptionsContextVc> {
     let custom_rules = get_next_server_transforms_rules(next_config, ty.into_value()).await?;
@@ -272,15 +282,20 @@ pub async fn get_server_module_options_context(
             loader_runner_package: Some(get_external_next_compiled_package_mapping(
                 StringVc::cell("loader-runner".to_owned()),
             )),
-            placeholder_for_future_extensions: (),
+            ..Default::default()
         }
         .cell();
 
-        maybe_add_babel_loader(project_path, loaders_options)
+        let loaders_options = maybe_add_babel_loader(project_path, loaders_options);
+        maybe_add_sass_loader(next_config.sass_config(), loaders_options)
             .await?
             .clone_if()
     };
 
+    // EcmascriptTransformPlugins for custom transforms
+    let styled_components_transform_plugin =
+        *get_styled_components_transform_plugin(next_config).await?;
+    let styled_jsx_transform_plugin = *get_styled_jsx_transform_plugin().await?;
     let client_directive_transform_plugin = Some(TransformPluginVc::cell(Box::new(
         ClientDirectiveTransformer::new(&StringVc::cell("server-to-client".to_string())),
     )));
@@ -292,6 +307,7 @@ pub async fn get_server_module_options_context(
         ),
     )));
 
+    // ModuleOptionsContext related options
     let tsconfig = get_typescript_transform_options(project_path);
     let decorators_options = get_decorators_transform_options(project_path);
     let enable_mdx_rs = if *next_config.mdx_rs().await? {
@@ -304,14 +320,16 @@ pub async fn get_server_module_options_context(
     } else {
         None
     };
-    let jsx_runtime_options = get_jsx_transform_options(project_path, None);
-    let enable_emotion = *get_emotion_compiler_config(next_config).await?;
-    let enable_styled_components = *get_styled_components_compiler_config(next_config).await?;
+    let jsx_runtime_options = get_jsx_transform_options(project_path, mode, None);
 
-    let mut source_transforms = vec![];
-    if let Some(relay_transform_plugin) = *get_relay_transform_plugin(next_config).await? {
-        source_transforms.push(relay_transform_plugin);
-    }
+    let source_transforms: Vec<TransformPluginVc> = vec![
+        *get_relay_transform_plugin(next_config).await?,
+        *get_emotion_transform_plugin(next_config).await?,
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
+
     let output_transforms = vec![];
 
     let custom_ecma_transform_plugins = Some(CustomEcmascriptTransformPluginsVc::cell(
@@ -323,6 +341,23 @@ pub async fn get_server_module_options_context(
 
     let module_options_context = match ty.into_value() {
         ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
+            let mut base_source_transforms: Vec<TransformPluginVc> = vec![
+                styled_components_transform_plugin,
+                styled_jsx_transform_plugin,
+            ]
+            .into_iter()
+            .flatten()
+            .collect();
+
+            base_source_transforms.extend(source_transforms);
+
+            let custom_ecma_transform_plugins = Some(CustomEcmascriptTransformPluginsVc::cell(
+                CustomEcmascriptTransformPlugins {
+                    source_transforms: base_source_transforms,
+                    output_transforms,
+                },
+            ));
+
             let module_options_context = ModuleOptionsContext {
                 execution_context: Some(execution_context),
                 ..Default::default()
@@ -336,9 +371,6 @@ pub async fn get_server_module_options_context(
 
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
-                enable_styled_jsx: true,
-                enable_emotion,
-                enable_styled_components,
                 enable_postcss_transform,
                 enable_webpack_loaders,
                 enable_typescript_transform: Some(tsconfig),
@@ -360,11 +392,14 @@ pub async fn get_server_module_options_context(
             }
         }
         ServerContextType::AppSSR { .. } => {
-            let mut base_source_transforms: Vec<TransformPluginVc> =
-                vec![server_directive_transform_plugin]
-                    .into_iter()
-                    .flatten()
-                    .collect();
+            let mut base_source_transforms: Vec<TransformPluginVc> = vec![
+                styled_components_transform_plugin,
+                styled_jsx_transform_plugin,
+                server_directive_transform_plugin,
+            ]
+            .into_iter()
+            .flatten()
+            .collect();
 
             let base_ecma_transform_plugins = Some(CustomEcmascriptTransformPluginsVc::cell(
                 CustomEcmascriptTransformPlugins {
@@ -373,7 +408,7 @@ pub async fn get_server_module_options_context(
                 },
             ));
 
-            base_source_transforms.extend(source_transforms.clone());
+            base_source_transforms.extend(source_transforms);
 
             let custom_ecma_transform_plugins = Some(CustomEcmascriptTransformPluginsVc::cell(
                 CustomEcmascriptTransformPlugins {
@@ -394,9 +429,6 @@ pub async fn get_server_module_options_context(
 
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
-                enable_styled_jsx: true,
-                enable_emotion,
-                enable_styled_components,
                 enable_postcss_transform,
                 enable_webpack_loaders,
                 enable_typescript_transform: Some(tsconfig),
@@ -419,6 +451,7 @@ pub async fn get_server_module_options_context(
         }
         ServerContextType::AppRSC { .. } => {
             let mut base_source_transforms: Vec<TransformPluginVc> = vec![
+                styled_components_transform_plugin,
                 client_directive_transform_plugin,
                 server_directive_transform_plugin,
             ]
@@ -433,7 +466,7 @@ pub async fn get_server_module_options_context(
                 },
             ));
 
-            base_source_transforms.extend(source_transforms.clone());
+            base_source_transforms.extend(source_transforms);
 
             let custom_ecma_transform_plugins = Some(CustomEcmascriptTransformPluginsVc::cell(
                 CustomEcmascriptTransformPlugins {
@@ -453,8 +486,6 @@ pub async fn get_server_module_options_context(
             };
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
-                enable_emotion,
-                enable_styled_components,
                 enable_postcss_transform,
                 enable_webpack_loaders,
                 enable_typescript_transform: Some(tsconfig),
@@ -506,6 +537,23 @@ pub async fn get_server_module_options_context(
             }
         }
         ServerContextType::Middleware => {
+            let mut base_source_transforms: Vec<TransformPluginVc> = vec![
+                styled_components_transform_plugin,
+                styled_jsx_transform_plugin,
+            ]
+            .into_iter()
+            .flatten()
+            .collect();
+
+            base_source_transforms.extend(source_transforms);
+
+            let custom_ecma_transform_plugins = Some(CustomEcmascriptTransformPluginsVc::cell(
+                CustomEcmascriptTransformPlugins {
+                    source_transforms: base_source_transforms,
+                    output_transforms,
+                },
+            ));
+
             let module_options_context = ModuleOptionsContext {
                 execution_context: Some(execution_context),
                 ..Default::default()
@@ -516,9 +564,6 @@ pub async fn get_server_module_options_context(
             };
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
-                enable_emotion,
-                enable_styled_jsx: true,
-                enable_styled_components,
                 enable_postcss_transform,
                 enable_webpack_loaders,
                 enable_typescript_transform: Some(tsconfig),
