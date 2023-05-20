@@ -19,8 +19,10 @@ let api: typeof import('next/dist/compiled/@opentelemetry/api')
 // the API is ~stable, so this should be fine
 try {
   api = require('@opentelemetry/api')
-} catch (err) {
-  api = require('next/dist/compiled/@opentelemetry/api')
+} catch {
+  if (process.env.NEXT_RUNTIME !== 'edge') {
+    api = require('next/dist/compiled/@opentelemetry/api')
+  }
 }
 
 const { context, trace, SpanStatusCode, SpanKind } = api
