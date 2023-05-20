@@ -276,7 +276,7 @@ pub async fn create_page_source(
         next_config,
     );
 
-    let render_data = render_data(next_config);
+    let render_data = render_data(next_config, server_addr);
     let page_extensions = next_config.page_extensions();
 
     let mut sources = vec![];
