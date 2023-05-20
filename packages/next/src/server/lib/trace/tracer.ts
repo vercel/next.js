@@ -17,15 +17,17 @@ let api: typeof import('next/dist/compiled/@opentelemetry/api')
 // @opentelemetry/tracing that is used, and we don't want to force users to use
 // the version that is bundled with Next.js.
 // the API is ~stable, so this should be fine
-try {
+if (process.env.NEXT_RUNTIME !== 'edge') {
   api = require('@opentelemetry/api')
-} catch {
-  if (process.env.NEXT_RUNTIME !== 'edge') {
+} else {
+  try {
+    api = require('@opentelemetry/api')
+  } catch {
     api = require('next/dist/compiled/@opentelemetry/api')
   }
 }
 
-const { context, trace, SpanStatusCode, SpanKind } = api!
+const { context, trace, SpanStatusCode, SpanKind } = api
 
 const isPromise = <T>(p: any): p is Promise<T> => {
   return p !== null && typeof p === 'object' && typeof p.then === 'function'
