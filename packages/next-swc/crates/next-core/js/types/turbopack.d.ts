@@ -1,3 +1,4 @@
+import type { ServerInfo } from '@vercel/turbopack-next/internal/server'
 import type { RenderOptsPartial } from 'next/dist/server/render'
 
 export type RenderData = {
@@ -10,5 +11,6 @@ export type RenderData = {
   rawHeaders: Array<[string, string]>
   data?: {
     nextConfigOutput?: RenderOptsPartial['nextConfigOutput']
+    serverInfo?: ServerInfo
   }
 }

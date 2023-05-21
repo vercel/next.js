@@ -3,7 +3,7 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use turbo_tasks::{
-    primitives::{BoolVc, StringsVc},
+    primitives::{BoolVc, JsonValueVc, StringsVc},
     trace::TraceRawVcs,
     CompletionVc, Value,
 };
@@ -59,6 +59,7 @@ pub struct NextConfig {
     pub rewrites: Rewrites,
     pub transpile_packages: Option<Vec<String>>,
     pub modularize_imports: Option<IndexMap<String, ModularizeImportPackageConfig>>,
+    sass_options: Option<serde_json::Value>,
 
     // Partially supported
     pub compiler: Option<CompilerConfig>,
@@ -92,7 +93,6 @@ pub struct NextConfig {
     production_browser_source_maps: bool,
     public_runtime_config: IndexMap<String, serde_json::Value>,
     redirects: Vec<Redirect>,
-    sass_options: IndexMap<String, serde_json::Value>,
     server_runtime_config: IndexMap<String, serde_json::Value>,
     static_page_generation_timeout: f64,
     swc_minify: bool,
@@ -568,6 +568,13 @@ impl NextConfigVc {
     pub async fn mdx_rs(self) -> Result<BoolVc> {
         Ok(BoolVc::cell(
             self.await?.experimental.mdx_rs.unwrap_or(false),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn sass_config(self) -> Result<JsonValueVc> {
+        Ok(JsonValueVc::cell(
+            self.await?.sass_options.clone().unwrap_or_default(),
         ))
     }
 }
