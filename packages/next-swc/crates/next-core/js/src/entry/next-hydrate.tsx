@@ -33,7 +33,6 @@ async function loadPageChunk(assetPrefix: string, chunkData: ChunkData) {
 
   window.next = {
     version: version || '',
-    // @ts-expect-error
     get router() {
       return router
     },

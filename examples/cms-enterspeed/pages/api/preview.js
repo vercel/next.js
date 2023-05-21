@@ -9,7 +9,7 @@ export default async function preview(req, res) {
     return res.status(401).json({ message: 'Invalid token' })
   }
 
-  res.setPreviewData({})
+  res.setDraftMode({ enable: true })
 
   res.redirect('/')
 }

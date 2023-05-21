@@ -301,23 +301,6 @@ export default async function build(
       NextBuildContext.appDir = appDir
       hasAppDir = Boolean(appDir)
 
-      if (isAppDirEnabled && hasAppDir) {
-        if (
-          (!process.env.__NEXT_TEST_MODE ||
-            process.env.__NEXT_TEST_MODE === 'e2e') &&
-          ciEnvironment.hasNextSupport
-        ) {
-          const requireHook = require.resolve('../server/require-hook')
-          const contents = await promises.readFile(requireHook, 'utf8')
-          await promises.writeFile(
-            requireHook,
-            `process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = '${
-              config.experimental.serverActions ? 'experimental' : 'next'
-            }'\n${contents}`
-          )
-        }
-      }
-
       const isSrcDir = path
         .relative(dir, pagesDir || appDir || '')
         .startsWith('src')
@@ -557,7 +540,7 @@ export default async function build(
       }
 
       // Interception routes are modelled as beforeFiles rewrites
-      rewrites.beforeFiles.unshift(
+      rewrites.beforeFiles.push(
         ...generateInterceptionRoutesRewrites(appPageKeys)
       )
 
@@ -1142,22 +1125,18 @@ export default async function build(
 
       process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
-      // We limit the number of workers used based on the number of CPUs and
-      // the current available memory. This is to prevent the system from
-      // running out of memory as well as maximize speed. We assume that
-      // each worker will consume ~1GB of memory in a production build.
-      // For example, if the system has 10 CPU cores and 8GB of remaining memory
-      // we will use 8 workers.
-      const numWorkers = Math.max(
-        config.experimental.cpus !== defaultConfig.experimental!.cpus
-          ? (config.experimental.cpus as number)
-          : Math.min(
-              config.experimental.cpus || 1,
-              Math.floor(os.freemem() / 1e9)
-            ),
-        // enforce a minimum of 4 workers
-        4
-      )
+      const numWorkers = config.experimental.memoryBasedWorkersCount
+        ? Math.max(
+            config.experimental.cpus !== defaultConfig.experimental!.cpus
+              ? (config.experimental.cpus as number)
+              : Math.min(
+                  config.experimental.cpus || 1,
+                  Math.floor(os.freemem() / 1e9)
+                ),
+            // enforce a minimum of 4 workers
+            4
+          )
+        : config.experimental.cpus || 4
 
       function createStaticWorker(type: 'app' | 'pages') {
         const numWorkersPerType = isAppDirEnabled
@@ -2490,8 +2469,29 @@ export default async function build(
                 if (exportRouteMeta.status !== 200) {
                   routeMeta.initialStatus = exportRouteMeta.status
                 }
-                if (Object.keys(exportRouteMeta.headers || {}).length) {
-                  routeMeta.initialHeaders = exportRouteMeta.headers
+                const exportHeaders = exportRouteMeta.headers
+                const headerKeys = Object.keys(exportHeaders || {})
+
+                if (exportHeaders && headerKeys.length) {
+                  routeMeta.initialHeaders = {}
+
+                  // normalize header values as initialHeaders
+                  // must be Record<string, string>
+                  for (const key of headerKeys) {
+                    let value = exportHeaders[key]
+
+                    if (Array.isArray(value)) {
+                      if (key === 'set-cookie') {
+                        value = value.join(',')
+                      } else {
+                        value = value[value.length - 1]
+                      }
+                    }
+
+                    if (typeof value === 'string') {
+                      routeMeta.initialHeaders[key] = value
+                    }
+                  }
                 }
 
                 finalPrerenderRoutes[route] = {
@@ -3101,6 +3101,7 @@ export default async function build(
 
         const options: ExportOptions = {
           isInvokedFromCli: false,
+          buildExport: false,
           nextConfig: config,
           hasAppDir,
           silent: true,

@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_binding::{
+use turbo_tasks::Value;
+use turbopack_binding::{
     turbo::tasks_fs::FileSystemPathVc,
     turbopack::{
         core::{asset::AssetVc, chunk::ChunkingContextVc, compile_time_info::CompileTimeInfoVc},
@@ -13,10 +14,10 @@ use turbo_binding::{
         },
     },
 };
-use turbo_tasks::Value;
 
 use super::with_chunks::WithChunksAsset;
 use crate::{
+    mode::NextMode,
     next_client::context::{
         get_client_chunking_context, get_client_module_options_context,
         get_client_resolve_options_context, ClientContextType,
@@ -40,6 +41,7 @@ impl NextClientChunksTransitionVc {
         project_path: FileSystemPathVc,
         execution_context: ExecutionContextVc,
         ty: Value<ClientContextType>,
+        mode: NextMode,
         server_root: FileSystemPathVc,
         client_compile_time_info: CompileTimeInfoVc,
         next_config: NextConfigVc,
@@ -56,6 +58,7 @@ impl NextClientChunksTransitionVc {
             execution_context,
             client_compile_time_info.environment(),
             ty,
+            mode,
             next_config,
         );
         NextClientChunksTransition {
@@ -64,6 +67,7 @@ impl NextClientChunksTransitionVc {
             client_resolve_options_context: get_client_resolve_options_context(
                 project_path,
                 ty,
+                mode,
                 next_config,
                 execution_context,
             ),

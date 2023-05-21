@@ -1,4 +1,5 @@
-use turbo_binding::turbopack::{
+use turbo_tasks::Value;
+use turbopack_binding::turbopack::{
     core::{
         asset::AssetVc,
         context::{AssetContext, AssetContextVc},
@@ -8,7 +9,6 @@ use turbo_binding::turbopack::{
         EcmascriptModuleAssetVc,
     },
 };
-use turbo_tasks::Value;
 
 pub(crate) fn as_es_module_asset(
     asset: AssetVc,

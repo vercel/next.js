@@ -42,7 +42,11 @@ import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 import { fileExists } from '../../lib/file-exists'
-import { difference, isMiddlewareFilename } from '../../build/utils'
+import {
+  difference,
+  isMiddlewareFile,
+  isMiddlewareFilename,
+} from '../../build/utils'
 import { DecodeError } from '../../shared/lib/utils'
 import { Span, trace } from '../../trace'
 import { getProperError } from '../../lib/is-error'
@@ -53,6 +57,9 @@ import { getRegistry } from '../../lib/helpers/get-registry'
 import { RouteMatch } from '../future/route-matches/route-match'
 import type { Telemetry } from '../../telemetry/storage'
 import { parseVersionInfo, VersionInfo } from './parse-version-info'
+import { isAPIRoute } from '../../lib/is-api-route'
+import { getRouteLoaderEntry } from '../../build/webpack/loaders/next-route-loader'
+import { isInternalPathname } from '../../lib/is-internal-pathname'
 
 function diff(a: Set<any>, b: Set<any>) {
   return new Set([...a].filter((v) => !b.has(v)))
@@ -820,33 +827,49 @@ export default class HotReloader {
                 ) {
                   relativeRequest = `./${relativeRequest}`
                 }
+
+                let value: { import: string; layer?: string } | string
+                if (isAppPath) {
+                  value = getAppEntry({
+                    name: bundlePath,
+                    page,
+                    appPaths: entryData.appPaths,
+                    pagePath: posix.join(
+                      APP_DIR_ALIAS,
+                      relative(
+                        this.appDir!,
+                        entryData.absolutePagePath
+                      ).replace(/\\/g, '/')
+                    ),
+                    appDir: this.appDir!,
+                    pageExtensions: this.config.pageExtensions,
+                    rootDir: this.dir,
+                    isDev: true,
+                    tsconfigPath: this.config.typescript.tsconfigPath,
+                    basePath: this.config.basePath,
+                    assetPrefix: this.config.assetPrefix,
+                    nextConfigOutput: this.config.output,
+                    preferredRegion: staticInfo.preferredRegion,
+                  })
+                } else if (
+                  !isAPIRoute(page) &&
+                  !isMiddlewareFile(page) &&
+                  !isInternalPathname(relativeRequest)
+                ) {
+                  value = getRouteLoaderEntry({
+                    page,
+                    absolutePagePath: relativeRequest,
+                    preferredRegion: staticInfo.preferredRegion,
+                  })
+                } else {
+                  value = relativeRequest
+                }
+
                 entrypoints[bundlePath] = finalizeEntrypoint({
                   compilerType: COMPILER_NAMES.server,
                   name: bundlePath,
                   isServerComponent,
-                  value: isAppPath
-                    ? getAppEntry({
-                        name: bundlePath,
-                        page,
-                        appPaths: entryData.appPaths,
-                        pagePath: posix.join(
-                          APP_DIR_ALIAS,
-                          relative(
-                            this.appDir!,
-                            entryData.absolutePagePath
-                          ).replace(/\\/g, '/')
-                        ),
-                        appDir: this.appDir!,
-                        pageExtensions: this.config.pageExtensions,
-                        rootDir: this.dir,
-                        isDev: true,
-                        tsconfigPath: this.config.typescript.tsconfigPath,
-                        basePath: this.config.basePath,
-                        assetPrefix: this.config.assetPrefix,
-                        nextConfigOutput: this.config.output,
-                        preferredRegion: staticInfo.preferredRegion,
-                      })
-                    : relativeRequest,
+                  value,
                   hasAppDir,
                 })
               },

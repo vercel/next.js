@@ -76,7 +76,7 @@ createNextDescribe(
        * @example
        *
        * const $ = await next.render$('html')
-       * const matchHtml = createHtmlMatcher($)
+       * const matchHtml = createMultiHtmlMatcher($)
        * await matchHtml('meta', 'name', 'property', {
        *   description: 'description',
        *   og: 'og:description'
@@ -414,12 +414,42 @@ createNextDescribe(
         )
       })
 
+      it('should render root not-found with default metadata', async () => {
+        const $ = await next.render$('/does-not-exist')
+
+        // Should contain default metadata and noindex tag
+        const matchHtml = createMultiHtmlMatcher($)
+        expect($('meta[charset="utf-8"]').length).toBe(1)
+        await matchHtml('meta', 'name', 'content', {
+          viewport: 'width=device-width, initial-scale=1',
+          robots: 'noindex',
+        })
+      })
+
       it('should support notFound in generateMetadata', async () => {
-        // TODO-APP: support custom not-found for generateMetadata
         const res = await next.fetch('/async/not-found')
         expect(res.status).toBe(404)
         const html = await res.text()
-        expect(html).toContain('root not found page')
+        const $ = cheerio.load(html)
+
+        // TODO-APP: support render custom not-found in SSR for generateMetadata.
+        // Check contains root not-found payload in flight response for now.
+        let hasRootNotFoundFlight = false
+        for (const el of $('script').toArray()) {
+          const text = $(el).text()
+          if (text.includes('root not found page')) {
+            hasRootNotFoundFlight = true
+          }
+        }
+        expect(hasRootNotFoundFlight).toBe(true)
+
+        // Should contain default metadata and noindex tag
+        const matchHtml = createMultiHtmlMatcher($)
+        expect($('meta[charset="utf-8"]').length).toBe(1)
+        await matchHtml('meta', 'name', 'content', {
+          viewport: 'width=device-width, initial-scale=1',
+          robots: 'noindex',
+        })
 
         const browser = await next.browser('/async/not-found')
         expect(await browser.elementByCss('h2').text()).toBe(
