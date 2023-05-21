@@ -1519,10 +1519,6 @@ export default async function getBaseWebpackConfig(
                     '@builder.io/partytown': '{}',
                     'next/dist/compiled/etag': '{}',
                     'next/dist/compiled/chalk': '{}',
-                    './cjs/react-dom-server-legacy.browser.production.min.js':
-                      '{}',
-                    './cjs/react-dom-server-legacy.browser.development.js':
-                      '{}',
                   },
                   getEdgePolyfilledModules(),
                   handleWebpackExternalForEdgeRuntime,
@@ -1825,6 +1821,7 @@ export default async function getBaseWebpackConfig(
                     'react/jsx-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-runtime`,
                     'react/jsx-dev-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime`,
                     'react-dom/server.edge$': `next/dist/compiled/react-dom${bundledReactChannel}/server.edge`,
+                    'react-dom/server.browser$': `next/dist/compiled/react-dom${bundledReactChannel}/server.browser`,
                     'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client`,
                     'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.edge`,
                     'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.edge`,
@@ -1924,6 +1921,7 @@ export default async function getBaseWebpackConfig(
                         // Use server rendering stub for RSC
                         // x-ref: https://github.com/facebook/react/pull/25436
                         'react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}/server-rendering-stub`,
+                        'react-dom/server.browser': `next/dist/compiled/react-dom${bundledReactChannel}/server.browser`,
                       },
                     },
                   },
@@ -1934,10 +1932,12 @@ export default async function getBaseWebpackConfig(
                       alias: {
                         react: `next/dist/compiled/react${bundledReactChannel}`,
                         'react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}/server-rendering-stub`,
+                        'react-dom/server': `next/dist/compiled/react-dom${bundledReactChannel}/server`,
                       },
                     },
                   },
                   {
+                    issuerLayer: WEBPACK_LAYERS.appClient,
                     test: codeCondition.test,
                     resolve: {
                       alias: {
@@ -1946,6 +1946,7 @@ export default async function getBaseWebpackConfig(
                           ? `next/dist/compiled/react-dom${bundledReactChannel}/cjs/react-dom.profiling.min`
                           : `next/dist/compiled/react-dom${bundledReactChannel}`,
                         'react-dom/client$': `next/dist/compiled/react-dom${bundledReactChannel}/client`,
+                        'react-dom/server.browser': `next/dist/compiled/react-dom${bundledReactChannel}/server.browser`,
                       },
                     },
                   },
