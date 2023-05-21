@@ -4,7 +4,7 @@ import type { InferGetServerSidePropsType, GetServerSideProps } from 'next'
 
 
 type ConnectionStatus = {
-  isConnected: boolean;
+  isConnected: boolean
 }
 
 export const getServerSideProps: GetServerSideProps<ConnectionStatus> = async () => {
