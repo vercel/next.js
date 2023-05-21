@@ -17,7 +17,10 @@ let api: typeof import('next/dist/compiled/@opentelemetry/api')
 // @opentelemetry/tracing that is used, and we don't want to force users to use
 // the version that is bundled with Next.js.
 // the API is ~stable, so this should be fine
-if (process.env.NEXT_RUNTIME !== 'edge') {
+
+// For edge as @opentelemetry/api can be aliased to built-in version
+// if there's no user-land version installed
+if (process.env.NEXT_RUNTIME === 'edge') {
   api = require('@opentelemetry/api')
 } else {
   try {
