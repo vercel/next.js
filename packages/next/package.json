@@ -87,8 +87,10 @@
     "@swc/helpers": "0.5.1",
     "busboy": "1.6.0",
     "caniuse-lite": "^1.0.30001406",
+    "jiti": "1.18.2",
     "postcss": "8.4.14",
     "styled-jsx": "5.1.1",
+    "sucrase": "3.32.0",
     "zod": "3.21.4"
   },
   "peerDependencies": {

@@ -6,6 +6,7 @@ import { nextBuild } from 'next-test-utils'
 const appDir = join(__dirname, '..')
 const nextConfigJS = join(appDir, 'next.config.js')
 const nextConfigMJS = join(appDir, 'next.config.mjs')
+const nextConfigTS = join(appDir, 'next.config.ts')
 
 describe('Invalid config syntax', () => {
   it('should error when next.config.js contains syntax error', async () => {
@@ -45,6 +46,28 @@ describe('Invalid config syntax', () => {
 
     expect(stderr).toContain(
       '- error Failed to load next.config.mjs, see more info here https://nextjs.org/docs/messages/next-config-error'
+    )
+    expect(stderr).toContain('SyntaxError')
+  })
+
+  it('should error when next.config.ts contains syntax error', async () => {
+    await fs.writeFile(
+      nextConfigTS,
+      `
+      import type { NextConfig } from "next"
+      const config: NextConfig = {
+        reactStrictMode: true,,
+      }
+      export default config
+    `
+    )
+    const { stderr } = await nextBuild(appDir, undefined, {
+      stderr: true,
+    })
+    await fs.remove(nextConfigTS)
+
+    expect(stderr).toContain(
+      '- error Failed to load next.config.ts, see more info here https://nextjs.org/docs/messages/next-config-error'
     )
     expect(stderr).toContain('SyntaxError')
   })
