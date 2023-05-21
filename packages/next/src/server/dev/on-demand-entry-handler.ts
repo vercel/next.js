@@ -1,4 +1,4 @@
-import type ws from 'ws'
+import type ws from 'next/dist/compiled/ws'
 import origDebug from 'next/dist/compiled/debug'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { NextConfigComplete } from '../config-shared'
@@ -9,7 +9,10 @@ import type {
 
 import { EventEmitter } from 'events'
 import { findPageFile } from '../lib/find-page-file'
-import { runDependingOnPageType } from '../../build/entries'
+import {
+  getStaticInfoIncludingLayouts,
+  runDependingOnPageType,
+} from '../../build/entries'
 import { join, posix } from 'path'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
@@ -17,7 +20,6 @@ import { ensureLeadingSlash } from '../../shared/lib/page-path/ensure-leading-sl
 import { removePagePathTail } from '../../shared/lib/page-path/remove-page-path-tail'
 import { reportTrigger } from '../../build/output'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
-import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import {
   isInstrumentationHookFile,
   isInstrumentationHookFilename,
@@ -712,7 +714,6 @@ export function onDemandEntryHandler({
         const isInsideAppDir =
           !!appDir && pagePathData.absolutePagePath.startsWith(appDir)
 
-        const pageType = isInsideAppDir ? 'app' : 'pages'
         const pageBundleType = getPageBundleType(pagePathData.bundlePath)
         const addEntry = (
           compilerType: CompilerNameValues
@@ -767,12 +768,14 @@ export function onDemandEntryHandler({
           }
         }
 
-        const staticInfo = await getPageStaticInfo({
+        const staticInfo = await getStaticInfoIncludingLayouts({
           page,
           pageFilePath: pagePathData.absolutePagePath,
-          nextConfig,
+          isInsideAppDir,
+          pageExtensions: nextConfig.pageExtensions,
           isDev: true,
-          pageType,
+          config: nextConfig,
+          appDir,
         })
 
         const added = new Map<CompilerNameValues, ReturnType<typeof addEntry>>()

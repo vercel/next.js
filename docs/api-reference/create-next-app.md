@@ -57,9 +57,9 @@ Options:
 
     Initialize with ESLint config.
 
-  --experimental-app
+  --app
 
-    Initialize as a `app/` directory project.
+    Initialize as an App Router project.
 
   --src-dir
 
@@ -76,6 +76,10 @@ Options:
   --use-pnpm
 
     Explicitly tell the CLI to bootstrap the app using pnpm
+
+  --use-yarn
+
+    Explicitly tell the CLI to bootstrap the app using Yarn
 
   -e, --example [name]|[github-url]
 

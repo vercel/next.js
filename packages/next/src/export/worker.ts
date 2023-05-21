@@ -46,6 +46,7 @@ import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { toNodeHeaders } from '../server/web/utils'
 import { RouteModuleLoader } from '../server/future/helpers/module-loader/route-module-loader'
 import { NextRequestAdapter } from '../server/web/spec-extension/adapters/next-request'
+import * as ciEnvironment from '../telemetry/ci-info'
 
 const envConfig = require('../shared/lib/runtime-config')
 
@@ -79,7 +80,6 @@ interface ExportPageInput {
   parentSpanId: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   serverComponents?: boolean
-  enableUndici: NextConfigComplete['experimental']['enableUndici']
   debugOutput?: boolean
   isrMemoryCacheSize?: NextConfigComplete['experimental']['isrMemoryCacheSize']
   fetchCache?: boolean
@@ -118,6 +118,7 @@ interface RenderOpts {
   supportsDynamicHTML?: boolean
   incrementalCache?: IncrementalCache
   strictNextHead?: boolean
+  originalPathname?: string
 }
 
 export default async function exportPage({
@@ -136,7 +137,6 @@ export default async function exportPage({
   disableOptimizedLoading,
   httpAgentOptions,
   serverComponents,
-  enableUndici,
   debugOutput,
   isrMemoryCacheSize,
   fetchCache,
@@ -145,7 +145,6 @@ export default async function exportPage({
 }: ExportPageInput): Promise<ExportPageResults> {
   setHttpClientAndAgentOptions({
     httpAgentOptions,
-    experimental: { enableUndici },
   })
   const exportPageSpan = trace('export-page-worker', parentSpanId)
 
@@ -325,6 +324,12 @@ export default async function exportPage({
           fontManifest: optimizeFonts ? requireFontManifest(distDir) : null,
           locale: locale as string,
           supportsDynamicHTML: false,
+          originalPathname: page,
+          ...(ciEnvironment.hasNextSupport
+            ? {
+                isRevalidate: true,
+              }
+            : {}),
         }
       }
 
@@ -366,6 +371,7 @@ export default async function exportPage({
             },
             serverDistDir: join(distDir, 'server'),
             CurCacheHandler: CacheHandler,
+            minimalMode: ciEnvironment.hasNextSupport,
           })
           ;(globalThis as any).__incrementalCache = incrementalCache
           curRenderOpts.incrementalCache = incrementalCache
@@ -388,10 +394,27 @@ export default async function exportPage({
           // the route and the context for the request.
           const context: AppRouteRouteHandlerContext = {
             params,
+            prerenderManifest: {
+              version: 4,
+              routes: {},
+              dynamicRoutes: {},
+              preview: {
+                previewModeEncryptionKey: '',
+                previewModeId: '',
+                previewModeSigningKey: '',
+              },
+              notFoundRoutes: [],
+            },
             staticGenerationContext: {
+              originalPathname: page,
               nextExport: true,
               supportsDynamicHTML: false,
               incrementalCache: curRenderOpts.incrementalCache,
+              ...(ciEnvironment.hasNextSupport
+                ? {
+                    isRevalidate: true,
+                  }
+                : {}),
             },
           }
 
@@ -401,7 +424,9 @@ export default async function exportPage({
             const filename = posix.join(distDir, 'server', 'app', page)
 
             // Load the module for the route.
-            const module = RouteModuleLoader.load<AppRouteRouteModule>(filename)
+            const module = await RouteModuleLoader.load<AppRouteRouteModule>(
+              filename
+            )
 
             // Call the handler with the request and context from the module.
             const response = await module.handle(request, context)
@@ -421,6 +446,12 @@ export default async function exportPage({
 
               results.fromBuildExportRevalidate = revalidate
               const headers = toNodeHeaders(response.headers)
+              const cacheTags = (context.staticGenerationContext as any)
+                .fetchTags
+
+              if (cacheTags) {
+                headers['x-next-cache-tags'] = cacheTags
+              }
 
               if (!headers['content-type'] && body.type) {
                 headers['content-type'] = body.type
@@ -473,7 +504,26 @@ export default async function exportPage({
             results.fromBuildExportRevalidate = revalidate
 
             if (revalidate !== 0) {
+              const cacheTags = (curRenderOpts as any).fetchTags
+              const headers = cacheTags
+                ? {
+                    'x-next-cache-tags': cacheTags,
+                  }
+                : undefined
+
+              if (ciEnvironment.hasNextSupport) {
+                if (cacheTags) {
+                  results.fromBuildExportMeta = {
+                    headers,
+                  }
+                }
+              }
+
               await promises.writeFile(htmlFilepath, html ?? '', 'utf8')
+              await promises.writeFile(
+                htmlFilepath.replace(/\.html$/, '.meta'),
+                JSON.stringify({ headers })
+              )
               await promises.writeFile(
                 htmlFilepath.replace(/\.html$/, '.rsc'),
                 flightData

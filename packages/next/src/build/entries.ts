@@ -52,6 +52,8 @@ import { EdgeFunctionLoaderOptions } from './webpack/loaders/next-edge-function-
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { normalizeMetadataRoute } from '../lib/metadata/get-metadata-route'
 import { fileExists } from '../lib/file-exists'
+import { getRouteLoaderEntry } from './webpack/loaders/next-route-loader'
+import { isInternalPathname } from '../lib/is-internal-pathname'
 
 export async function getStaticInfoIncludingLayouts({
   isInsideAppDir,
@@ -85,11 +87,12 @@ export async function getStaticInfoIncludingLayouts({
       }
     : pageStaticInfo
 
-  if (isInsideAppDir) {
+  if (isInsideAppDir && appDir) {
     const layoutFiles = []
     const potentialLayoutFiles = pageExtensions.map((ext) => 'layout.' + ext)
     let dir = dirname(pageFilePath)
-    while (dir !== appDir) {
+    // Uses startsWith to not include directories further up.
+    while (dir.startsWith(appDir)) {
       for (const potentialLayoutFile of potentialLayoutFiles) {
         const layoutFile = join(dir, potentialLayoutFile)
         if (!(await fileExists(layoutFile))) {
@@ -144,7 +147,7 @@ export function getPageFromPath(pagePath: string, pageExtensions: string[]) {
   return page === '' ? '/' : page
 }
 
-function getPageFilePath({
+export function getPageFilePath({
   absolutePagePath,
   pagesDir,
   appDir,
@@ -537,7 +540,7 @@ export async function createEntrypoints(
             // server compiler inject them instead.
           } else {
             client[clientBundlePath] = getClientEntry({
-              absolutePagePath: mappings[page],
+              absolutePagePath,
               page,
             })
           }
@@ -548,24 +551,35 @@ export async function createEntrypoints(
             server[serverBundlePath] = getAppEntry({
               page,
               name: serverBundlePath,
-              pagePath: mappings[page],
+              pagePath: absolutePagePath,
               appDir,
               appPaths: matchedAppPaths,
               pageExtensions,
+              basePath: config.basePath,
               assetPrefix: config.assetPrefix,
               nextConfigOutput: config.output,
               preferredRegion: staticInfo.preferredRegion,
             })
-          } else {
-            if (isInstrumentationHookFile(page) && pagesType === 'root') {
-              server[serverBundlePath.replace('src/', '')] = {
-                import: mappings[page],
-                // the '../' is needed to make sure the file is not chunked
-                filename: `../${INSTRUMENTATION_HOOK_FILENAME}.js`,
-              }
-            } else {
-              server[serverBundlePath] = [mappings[page]]
+          } else if (isInstrumentationHookFile(page) && pagesType === 'root') {
+            server[serverBundlePath.replace('src/', '')] = {
+              import: absolutePagePath,
+              // the '../' is needed to make sure the file is not chunked
+              filename: `../${INSTRUMENTATION_HOOK_FILENAME}.js`,
             }
+          } else if (
+            !isAPIRoute(page) &&
+            !isMiddlewareFile(page) &&
+            !isInternalPathname(absolutePagePath)
+          ) {
+            server[serverBundlePath] = [
+              getRouteLoaderEntry({
+                page,
+                absolutePagePath,
+                preferredRegion: staticInfo.preferredRegion,
+              }),
+            ]
+          } else {
+            server[serverBundlePath] = [absolutePagePath]
           }
         },
         onEdgeServer: () => {
@@ -575,10 +589,11 @@ export async function createEntrypoints(
             appDirLoader = getAppEntry({
               name: serverBundlePath,
               page,
-              pagePath: mappings[page],
+              pagePath: absolutePagePath,
               appDir: appDir!,
               appPaths: matchedAppPaths,
               pageExtensions,
+              basePath: config.basePath,
               assetPrefix: config.assetPrefix,
               nextConfigOutput: config.output,
               // This isn't used with edge as it needs to be set on the entry module, which will be the `edgeServerEntry` instead.
@@ -593,7 +608,7 @@ export async function createEntrypoints(
           edgeServer[normalizedServerBundlePath] = getEdgeServerEntry({
             ...params,
             rootDir,
-            absolutePagePath: mappings[page],
+            absolutePagePath: absolutePagePath,
             bundlePath: clientBundlePath,
             isDev: false,
             isServerComponent,

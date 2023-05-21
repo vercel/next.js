@@ -65,8 +65,16 @@ Or, run this command with no arguments to use the most recently published versio
     )
   }
 
-  const { sha: newSha, dateString: newDateString } = newVersionInfo
-  const { sha: baseSha, dateString: baseDateString } = baseVersionInfo
+  const {
+    sha: newSha,
+    releaseLabel: newReleaseLabel,
+    dateString: newDateString,
+  } = newVersionInfo
+  const {
+    sha: baseSha,
+    releaseLabel: baseReleaseLabel,
+    dateString: baseDateString,
+  } = baseVersionInfo
 
   console.log(`Updating "react@${channel}" to ${newSha}...\n`)
   if (newSha === baseSha) {
@@ -75,10 +83,10 @@ Or, run this command with no arguments to use the most recently published versio
   }
 
   for (const [dep, version] of Object.entries(devDependencies)) {
-    if (version.endsWith(`${baseSha}-${baseDateString}`)) {
+    if (version.endsWith(`${baseReleaseLabel}-${baseSha}-${baseDateString}`)) {
       devDependencies[dep] = version.replace(
-        `${baseSha}-${baseDateString}`,
-        `${newSha}-${newDateString}`
+        `${baseReleaseLabel}-${baseSha}-${baseDateString}`,
+        `${newReleaseLabel}-${newSha}-${newDateString}`
       )
     }
   }
@@ -164,7 +172,7 @@ function readStringArg(argv, argName) {
 
 function extractInfoFromReactCanaryVersion(reactCanaryVersion) {
   const match = reactCanaryVersion.match(
-    /(?<semverVersion>.*)-(?<releaseChannel>.*)-(?<sha>.*)-(?<dateString>.*)$/
+    /(?<semverVersion>.*)-(?<releaseLabel>.*)-(?<sha>.*)-(?<dateString>.*)$/
   )
   return match ? match.groups : null
 }
@@ -202,7 +210,7 @@ async function getChangelogFromGitHub(baseSha, newSha) {
   return changelog.length > 0 ? changelog.join('\n') : null
 }
 
-sync('next')
+sync('canary')
   .then(() => sync('experimental'))
   .catch((error) => {
     console.error(error)

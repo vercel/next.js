@@ -1,8 +1,9 @@
-import { RenderOpts } from './types'
-import React, { use } from 'next/dist/compiled/react'
+import type { RenderOpts } from './types'
+import type { FlightResponseRef } from './flight-response-ref'
+
+import React, { use } from 'react'
 import { createErrorHandler } from './create-error-handler'
 import { useFlightResponse } from './use-flight-response'
-import { FlightResponseRef } from './flight-response-ref'
 
 /**
  * Create a component that renders the Flight stream.

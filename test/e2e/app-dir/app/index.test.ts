@@ -24,11 +24,16 @@ createNextDescribe(
         )
         expect(
           middlewareManifest.functions['/slow-page-no-loading/page'].regions
-        ).toEqual(['edge'])
+        ).toEqual(['global'])
 
         expect(middlewareManifest.functions['/test-page/page'].regions).toEqual(
           ['home']
         )
+
+        // Inherits from the root layout.
+        expect(
+          middlewareManifest.functions['/slow-page-with-loading/page'].regions
+        ).toEqual(['sfo1'])
       })
     }
 
@@ -277,6 +282,15 @@ createNextDescribe(
     it('should serve from app', async () => {
       const html = await next.render('/dashboard')
       expect(html).toContain('hello from app/dashboard')
+    })
+
+    it('should ensure the </body></html> suffix is at the end of the stream', async () => {
+      const html = await next.render('/dashboard')
+
+      // It must end with the suffix and not contain it anywhere else.
+      const suffix = '</body></html>'
+      expect(html).toEndWith(suffix)
+      expect(html.slice(0, -suffix.length)).not.toContain(suffix)
     })
 
     if (!isNextDeploy) {

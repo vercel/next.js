@@ -1,28 +1,32 @@
-import { mediaType } from 'next/dist/compiled/@hapi/accept'
 import { createHash } from 'crypto'
 import { promises } from 'fs'
+import type { IncomingMessage, ServerResponse } from 'http'
+import { mediaType } from 'next/dist/compiled/@hapi/accept'
+import chalk from 'next/dist/compiled/chalk'
+import contentDisposition from 'next/dist/compiled/content-disposition'
 import { getOrientation, Orientation } from 'next/dist/compiled/get-orientation'
 import imageSizeOf from 'next/dist/compiled/image-size'
-import { IncomingMessage, ServerResponse } from 'http'
 import isAnimated from 'next/dist/compiled/is-animated'
-import contentDisposition from 'next/dist/compiled/content-disposition'
 import { join } from 'path'
-import nodeUrl, { UrlWithParsedQuery } from 'url'
-import { NextConfigComplete } from './config-shared'
+import nodeUrl, { type UrlWithParsedQuery } from 'url'
+
+import { getImageBlurSvg } from '../shared/lib/image-blur-svg'
+import type { ImageConfigComplete } from '../shared/lib/image-config'
+import { hasMatch } from '../shared/lib/match-remote-pattern'
+import type { NextConfigComplete } from './config-shared'
+import { createRequestResponseMocks } from './lib/mock-request'
 // Do not import anything other than types from this module
 // because it will throw an error when using `outputFileTracing`
-// because `jest-worker` is ignored in file tracing. Use `await import`
+// as `jest-worker` is ignored in file tracing. Use `await import`
 // or `require` instead.
-import { Operation } from './lib/squoosh/main'
+import type { Operation } from './lib/squoosh/main'
+import type { NextUrlWithParsedQuery } from './request-meta'
+import type {
+  IncrementalCacheEntry,
+  IncrementalCacheValue,
+} from './response-cache'
 import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
-import chalk from 'next/dist/compiled/chalk'
-import { NextUrlWithParsedQuery } from './request-meta'
-import { IncrementalCacheEntry, IncrementalCacheValue } from './response-cache'
-import { createRequestResponseMocks } from './lib/mock-request'
-import { hasMatch } from '../shared/lib/match-remote-pattern'
-import { getImageBlurSvg } from '../shared/lib/image-blur-svg'
-import { ImageConfigComplete } from '../shared/lib/image-config'
 
 type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
 
@@ -456,7 +460,7 @@ export async function optimizeImage({
       console.error(
         `Error: 'sharp' is required to be installed in standalone mode for the image optimization to function correctly. Read more at: https://nextjs.org/docs/messages/sharp-missing-in-production`
       )
-      throw new ImageError(500, 'internal server error')
+      throw new ImageError(500, 'Internal Server Error')
     }
     // Show sharp warning in production once
     if (showSharpMissingWarning) {

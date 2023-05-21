@@ -18,8 +18,9 @@ describe('Project Directory Renaming', () => {
         `,
       },
       skipStart: true,
+      forcedPort: (await findPort()) + '',
     })
-    next.forcedPort = (await findPort()) + ''
+
     await next.start()
   })
   afterAll(() => next.destroy())

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
+use turbopack_binding::turbo::tasks_fs::FileSystemPathVc;
 
 pub mod next_layout_entry_transition;
 

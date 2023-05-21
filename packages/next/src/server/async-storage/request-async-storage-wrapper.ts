@@ -1,8 +1,6 @@
-import type { tryGetPreviewData as TryGetPreviewData } from '../api-utils/node'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'http'
 import type { AsyncLocalStorage } from 'async_hooks'
-import type { PreviewData } from '../../../types'
 import type { RequestStore } from '../../client/components/request-async-storage'
 import type { RenderOpts } from '../app-render/types'
 import type { AsyncStorageWrapper } from './async-storage-wrapper'
@@ -19,6 +17,8 @@ import {
   type ReadonlyRequestCookies,
 } from '../web/spec-extension/adapters/request-cookies'
 import { RequestCookies, ResponseCookies } from '../web/spec-extension/cookies'
+import { __ApiPreviewProps } from '../api-utils'
+import { DraftModeProvider } from './draft-mode-provider'
 
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
   const cleaned = HeadersAdapter.from(headers)
@@ -41,17 +41,8 @@ function getMutableCookies(
   res: ServerResponse | BaseNextResponse | undefined
 ): ResponseCookies {
   const cookies = new RequestCookies(HeadersAdapter.from(headers))
-  return MutableRequestCookiesAdapter.seal(cookies, res)
+  return MutableRequestCookiesAdapter.wrap(cookies, res)
 }
-
-/**
- * Tries to get the preview data on the request for the given route. This
- * isn't enabled in the edge runtime yet.
- */
-const tryGetPreviewData: typeof TryGetPreviewData | null =
-  process.env.NEXT_RUNTIME !== 'edge'
-    ? require('../api-utils/node').tryGetPreviewData
-    : null
 
 export type RequestContext = {
   req: IncomingMessage | BaseNextRequest | NextRequest
@@ -77,19 +68,18 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
     { req, res, renderOpts }: RequestContext,
     callback: (store: RequestStore) => Result
   ): Result {
-    // Reads of this are cached on the `req` object, so this should resolve
-    // instantly. There's no need to pass this data down from a previous
-    // invoke.
-    const previewData: PreviewData =
-      renderOpts && tryGetPreviewData && res
-        ? // TODO: investigate why previewProps isn't on RenderOpts
-          tryGetPreviewData(req, res, (renderOpts as any).previewProps)
-        : false
+    let previewProps: __ApiPreviewProps | undefined = undefined
+
+    if (renderOpts && 'previewProps' in renderOpts) {
+      // TODO: investigate why previewProps isn't on RenderOpts
+      previewProps = (renderOpts as any).previewProps
+    }
 
     const cache: {
       headers?: ReadonlyHeaders
       cookies?: ReadonlyRequestCookies
       mutableCookies?: ResponseCookies
+      draftMode?: DraftModeProvider
     } = {}
 
     const store: RequestStore = {
@@ -117,7 +107,18 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
         }
         return cache.mutableCookies
       },
-      previewData,
+      get draftMode() {
+        if (!cache.draftMode) {
+          cache.draftMode = new DraftModeProvider(
+            previewProps,
+            req,
+            this.cookies,
+            this.mutableCookies
+          )
+        }
+
+        return cache.draftMode
+      },
     }
 
     return storage.run(store, callback, store)

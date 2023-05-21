@@ -9,3 +9,5 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   useSelectedLayoutSegments()
   return children
 }
+
+export const runtime = 'edge'

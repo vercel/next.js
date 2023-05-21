@@ -264,6 +264,9 @@ const configSchema = {
         cpus: {
           type: 'number',
         },
+        memoryBasedWorkersCount: {
+          type: 'boolean',
+        },
         craCompat: {
           type: 'boolean',
         },
@@ -284,6 +287,9 @@ const configSchema = {
           ] as any,
         },
         appDir: {
+          type: 'boolean',
+        },
+        serverActions: {
           type: 'boolean',
         },
         extensionAlias: {
@@ -414,9 +420,6 @@ const configSchema = {
           },
           type: 'array',
         },
-        enableUndici: {
-          type: 'boolean',
-        },
         workerThreads: {
           type: 'boolean',
         },
@@ -483,6 +486,9 @@ const configSchema = {
               type: 'integer',
             },
           },
+        },
+        logging: {
+          type: 'string',
         },
       },
       type: 'object',
