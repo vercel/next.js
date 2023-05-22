@@ -995,7 +995,10 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
             turbo_tasks(),
             CURRENT_TASK_ID.scope(
                 current_task_id,
-                self.backend.execution_scope(current_task_id, f),
+                CELL_COUNTERS.scope(
+                    Default::default(),
+                    self.backend.execution_scope(current_task_id, f),
+                ),
             ),
         ))
     }
