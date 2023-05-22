@@ -1,9 +1,0 @@
-{
-  "exports": {
-    "./router": {
-      "import": "./router.esm.js",
-      "require": "./router.js",
-      "default": "./router.js"
-    }
-  }
-}

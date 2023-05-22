@@ -1,9 +1,0 @@
-{
-  "exports": {
-    "./image": {
-      "import": "./image.esm.js",
-      "require": "./image.js",
-      "default": "./image.js"
-    }
-  }
-}
