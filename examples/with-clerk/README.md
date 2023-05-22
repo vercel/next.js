@@ -10,7 +10,7 @@ A hosted demo of this example is available at [clerk-app-router.clerkpreview.com
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/clerkinc/clerk-next-app-router-starter&integration-ids=oac_7uYNbc9CdDAZmNqbt3LEkO3a)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-clerk&integration-ids=oac_7uYNbc9CdDAZmNqbt3LEkO3a)
 
 ## How to use
 
