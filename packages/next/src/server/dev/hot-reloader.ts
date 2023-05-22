@@ -1051,6 +1051,7 @@ export default class HotReloader {
       (err: Error) => {
         this.serverError = err
         this.serverStats = null
+        this.serverChunkNames = undefined
       }
     )
 
@@ -1098,22 +1099,19 @@ export default class HotReloader {
         // since react bundle is different it will effect the chunk hash.
         // So we diff the chunk changes, if there's only new app page chunk joins,
         // then we don't trigger a reload by checking pages/_document chunk change.
-        if (this.appDir) {
-          const chunkNames = new Set(compilation.namedChunks.keys())
-          if (this.serverChunkNames) {
-            const diffChunkNames = difference<string>(
-              this.serverChunkNames,
-              chunkNames
-            )
-            if (
-              diffChunkNames.length === 0 ||
-              diffChunkNames.every((chunkName) => chunkName.startsWith('app/'))
-            ) {
-              return
-            }
-          }
-          this.serverChunkNames = chunkNames
+        const chunkNames = new Set(compilation.namedChunks.keys())
+        const diffChunkNames = difference<string>(
+          this.serverChunkNames || new Set(),
+          chunkNames
+        )
+
+        if (
+          diffChunkNames.length === 0 ||
+          diffChunkNames.every((chunkName) => chunkName.startsWith('app/'))
+        ) {
+          return
         }
+        this.serverChunkNames = chunkNames
 
         // Notify reload to reload the page, as _document.js was changed (different hash)
         this.send('reloadPage')
