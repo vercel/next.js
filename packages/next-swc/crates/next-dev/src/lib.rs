@@ -45,6 +45,9 @@ use turbopack_binding::{
             issue::{ConsoleUiVc, LogOptions},
             raw_trace::RawTraceLayer,
             trace_writer::TraceWriter,
+            tracing_presets::{
+                TRACING_OVERVIEW_TARGETS, TRACING_TURBOPACK_TARGETS, TRACING_TURBO_TASKS_TARGETS,
+            },
         },
         core::{
             environment::{ServerAddr, ServerAddrVc},
@@ -431,13 +434,6 @@ pub fn register() {
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }
 
-static TRACING_OVERVIEW_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
-    vec![
-        "turbo_tasks_fs=info",
-        "turbopack_dev_server=info",
-        "turbopack_node=info",
-    ]
-});
 static TRACING_NEXT_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
     [
         &TRACING_OVERVIEW_TARGETS[..],
@@ -450,38 +446,12 @@ static TRACING_NEXT_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
     ]
     .concat()
 });
-static TRACING_TURBOPACK_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
-    [
-        &TRACING_NEXT_TARGETS[..],
-        &[
-            "turbo_tasks=info",
-            "turbopack=trace",
-            "turbopack_core=trace",
-            "turbopack_ecmascript=trace",
-            "turbopack_css=trace",
-            "turbopack_dev=trace",
-            "turbopack_image=trace",
-            "turbopack_dev_server=trace",
-            "turbopack_json=trace",
-            "turbopack_mdx=trace",
-            "turbopack_node=trace",
-            "turbopack_static=trace",
-            "turbopack_cli_utils=trace",
-            "turbopack_cli=trace",
-            "turbopack_ecmascript=trace",
-        ],
-    ]
-    .concat()
-});
-static TRACING_TURBO_TASKS_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
+static TRACING_NEXT_TURBOPACK_TARGETS: Lazy<Vec<&str>> =
+    Lazy::new(|| [&TRACING_NEXT_TARGETS[..], &TRACING_TURBOPACK_TARGETS[..]].concat());
+static TRACING_NEXT_TURBO_TASKS_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
     [
         &TRACING_TURBOPACK_TARGETS[..],
-        &[
-            "turbo_tasks=trace",
-            "turbo_tasks_viz=trace",
-            "turbo_tasks_memory=trace",
-            "turbo_tasks_fs=trace",
-        ],
+        &TRACING_TURBO_TASKS_TARGETS[..],
     ]
     .concat()
 });
@@ -505,10 +475,10 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
                 trace = TRACING_NEXT_TARGETS.join(",");
             }
             "turbopack" => {
-                trace = TRACING_TURBOPACK_TARGETS.join(",");
+                trace = TRACING_NEXT_TURBOPACK_TARGETS.join(",");
             }
             "turbo-tasks" => {
-                trace = TRACING_TURBO_TASKS_TARGETS.join(",");
+                trace = TRACING_NEXT_TURBO_TASKS_TARGETS.join(",");
             }
             _ => {}
         }
