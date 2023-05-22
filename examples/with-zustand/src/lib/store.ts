@@ -23,12 +23,12 @@ const zustandContext = createContext<StoreType | null>(null)
 
 export const Provider = zustandContext.Provider
 
-export const useStore = <T>(selector: (state: StoreInterface) => T) => {
+export const useStore = <T>(selector: (state: StoreInterface) => T, equalityFn?: (a: any, b: any) => boolean) => {
   const store = useContext(zustandContext)
 
   if (!store) throw new Error('Store is missing the provider')
 
-  return useZustandStore(store, selector)
+  return useZustandStore(store, selector, equalityFn)
 }
 
 export const initializeStore = (
