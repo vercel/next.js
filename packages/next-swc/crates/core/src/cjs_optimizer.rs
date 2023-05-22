@@ -29,7 +29,7 @@ pub fn cjs_optimizer(config: Config, unresolved_ctxt: SyntaxContext) -> impl Fol
     let mut folder = CjsOptimizer {
         data: State::default(),
         renderer: handlebars::Handlebars::new(),
-        packages: vec![],
+        packages: config.packages,
         unresolved_ctxt,
     };
     folder
@@ -44,16 +44,6 @@ pub fn cjs_optimizer(config: Config, unresolved_ctxt: SyntaxContext) -> impl Fol
     folder
         .renderer
         .register_helper("kebabCase", Box::new(helper_kebab_case));
-    for (mut k, v) in config.packages {
-        // XXX: Should we keep this hack?
-        if !k.starts_with('^') && !k.ends_with('$') {
-            k = format!("^{}$", k);
-        }
-        folder.packages.push((
-            CachedRegex::new(&k).expect("transform-imports: invalid regex"),
-            v,
-        ));
-    }
 
     as_folder(folder)
 }
@@ -66,24 +56,13 @@ pub struct Config {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PackageConfig {
-    pub transform: String,
-    #[serde(default)]
-    pub prevent_full_import: bool,
-    #[serde(default)]
-    pub skip_default_conversion: bool,
-}
-
-struct Rewriter<'a> {
-    renderer: &'a handlebars::Handlebars<'static>,
-    key: &'a str,
-    config: &'a PackageConfig,
-    group: Vec<&'a str>,
+    pub transforms: FxHashMap<JsWord, JsWord>,
 }
 
 struct CjsOptimizer {
     data: State,
     renderer: handlebars::Handlebars<'static>,
-    packages: Vec<(CachedRegex, PackageConfig)>,
+    packages: FxHashMap<String, PackageConfig>,
     unresolved_ctxt: SyntaxContext,
 }
 
@@ -110,47 +89,9 @@ struct ImportRecord {
     module_specifier: Atom,
 }
 
-impl<'a> Rewriter<'a> {
-    fn rewrite(&self, member: &str) -> Atom {
-        #[derive(Serialize)]
-        #[serde(untagged)]
-        enum Data<'a> {
-            Plain(&'a str),
-            Array(&'a [&'a str]),
-        }
-        let mut ctx: FxHashMap<&str, Data> = HashMap::default();
-        ctx.insert("matches", Data::Array(&self.group[..]));
-        ctx.insert("member", Data::Plain(member));
-        let new_path = self
-            .renderer
-            .render_template(&self.config.transform, &ctx)
-            .unwrap_or_else(|e| {
-                panic!("error rendering template for '{}': {}", self.key, e);
-            });
-        let new_path = DUP_SLASH_REGEX.replace_all(&new_path, |_: &Captures| "/");
-
-        new_path.into()
-    }
-}
-
 impl CjsOptimizer {
-    fn should_rewrite<'a>(&'a self, name: &'a str) -> Option<Rewriter<'a>> {
-        for (regex, config) in &self.packages {
-            let group = regex.captures(name);
-            if let Some(group) = group {
-                let group = group
-                    .iter()
-                    .map(|x| x.map(|x| x.as_str()).unwrap_or_default())
-                    .collect::<Vec<&str>>();
-                return Some(Rewriter {
-                    renderer: &self.renderer,
-                    key: name,
-                    config,
-                    group,
-                });
-            }
-        }
-        None
+    fn should_rewrite(&self, module_specifier: &str) -> Option<&FxHashMap<JsWord, JsWord>> {
+        self.packages.get(module_specifier).map(|v| &v.transforms)
     }
 }
 
@@ -175,36 +116,37 @@ impl VisitMut for CjsOptimizer {
                             .or_insert_with(|| private_ident!(prop.sym.clone()).to_id())
                             .clone();
 
-                        if let Some(rewriter) = self.should_rewrite(&record.module_specifier) {
-                            let var = VarDeclarator {
-                                span: DUMMY_SP,
-                                name: Pat::Ident(new_id.clone().into()),
-                                init: Some(Box::new(Expr::Call(CallExpr {
+                        if let Some(map) = self.should_rewrite(&record.module_specifier) {
+                            if let Some(renamed) = map.get(&prop.sym) {
+                                let var = VarDeclarator {
                                     span: DUMMY_SP,
-                                    callee: Ident::new(
-                                        "require".into(),
-                                        DUMMY_SP.with_ctxt(self.unresolved_ctxt),
-                                    )
-                                    .as_callee(),
-                                    args: vec![Expr::Lit(Lit::Str(
-                                        rewriter.rewrite(&prop.sym).into(),
-                                    ))
-                                    .as_arg()],
-                                    type_args: None,
-                                }))),
-                                definite: false,
-                            };
+                                    name: Pat::Ident(new_id.clone().into()),
+                                    init: Some(Box::new(Expr::Call(CallExpr {
+                                        span: DUMMY_SP,
+                                        callee: Ident::new(
+                                            "require".into(),
+                                            DUMMY_SP.with_ctxt(self.unresolved_ctxt),
+                                        )
+                                        .as_callee(),
+                                        args: vec![
+                                            Expr::Lit(Lit::Str(renamed.clone().into())).as_arg()
+                                        ],
+                                        type_args: None,
+                                    }))),
+                                    definite: false,
+                                };
 
-                            self.data
-                                .extra_stmts
-                                .push(Stmt::Decl(Decl::Var(Box::new(VarDecl {
-                                    span: DUMMY_SP,
-                                    kind: VarDeclKind::Const,
-                                    declare: false,
-                                    decls: vec![var],
-                                }))));
+                                self.data.extra_stmts.push(Stmt::Decl(Decl::Var(Box::new(
+                                    VarDecl {
+                                        span: DUMMY_SP,
+                                        kind: VarDeclKind::Const,
+                                        declare: false,
+                                        decls: vec![var],
+                                    },
+                                ))));
 
-                            *e = Expr::Ident(new_id.into());
+                                *e = Expr::Ident(new_id.into());
+                            }
                         }
                     }
                 }
