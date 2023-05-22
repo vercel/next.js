@@ -1,6 +1,5 @@
 export const forbiddenHeaders = [
   'accept-encoding',
-  'content-length',
   'keepalive',
   'content-encoding',
   'transfer-encoding',

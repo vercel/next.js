@@ -7,11 +7,7 @@ import type { EdgeRuntime } from 'next/dist/compiled/edge-runtime'
 
 export const ErrorSource = Symbol('SandboxError')
 
-const FORBIDDEN_HEADERS = [
-  'content-length',
-  'content-encoding',
-  'transfer-encoding',
-]
+const FORBIDDEN_HEADERS = ['content-encoding', 'transfer-encoding']
 
 type RunnerFn = (params: {
   name: string
