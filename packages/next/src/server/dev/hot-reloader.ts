@@ -1074,25 +1074,6 @@ export default class HotReloader {
 
         const { compilation } = stats
 
-        // As document chunk will change if new app pages are joined,
-        // since react bundle is different it will effect the chunk hash.
-        // So we diff the chunk changes, if there's only new app page chunk joins,
-        // then we don't trigger a reload by checking pages/_document chunk change.
-        const chunkNames = new Set(compilation.namedChunks.keys())
-        if (this.serverChunkNames) {
-          const diffChunkNames = difference<string>(
-            this.serverChunkNames,
-            chunkNames
-          )
-          if (
-            diffChunkNames.length === 0 ||
-            diffChunkNames.every((chunkName) => chunkName.startsWith('app/'))
-          ) {
-            return
-          }
-        }
-        this.serverChunkNames = chunkNames
-
         // We only watch `_document` for changes on the server compilation
         // the rest of the files will be triggered by the client compilation
         const documentChunk = compilation.namedChunks.get('pages/_document')
@@ -1111,6 +1092,27 @@ export default class HotReloader {
         // If _document.js didn't change we don't trigger a reload
         if (documentChunk.hash === this.serverPrevDocumentHash) {
           return
+        }
+
+        // As document chunk will change if new app pages are joined,
+        // since react bundle is different it will effect the chunk hash.
+        // So we diff the chunk changes, if there's only new app page chunk joins,
+        // then we don't trigger a reload by checking pages/_document chunk change.
+        if (this.appDir) {
+          const chunkNames = new Set(compilation.namedChunks.keys())
+          if (this.serverChunkNames) {
+            const diffChunkNames = difference<string>(
+              this.serverChunkNames,
+              chunkNames
+            )
+            if (
+              diffChunkNames.length &&
+              diffChunkNames.every((chunkName) => chunkName.startsWith('app/'))
+            ) {
+              return
+            }
+          }
+          this.serverChunkNames = chunkNames
         }
 
         // Notify reload to reload the page, as _document.js was changed (different hash)
