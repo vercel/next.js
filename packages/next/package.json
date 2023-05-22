@@ -37,7 +37,7 @@
     "server.d.ts",
     "head",
     "head.d.ts",
-    "image.js",
+    "image",
     "image.d.ts",
     "link",
     "link.d.ts",
