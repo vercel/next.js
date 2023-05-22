@@ -828,7 +828,6 @@ export default async function loadConfig(
     const nonJsPath = findUp.sync(
       [
         `${configBaseName}.jsx`,
-        `${configBaseName}.ts`,
         `${configBaseName}.tsx`,
         `${configBaseName}.json`,
       ],
