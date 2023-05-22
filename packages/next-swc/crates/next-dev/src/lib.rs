@@ -41,7 +41,7 @@ use turbopack_binding::{
     },
     turbopack::{
         cli_utils::{
-            exit::exit_guard,
+            exit::ExitGuard,
             issue::{ConsoleUiVc, LogOptions},
             raw_trace::RawTraceLayer,
             trace_writer::TraceWriter,
@@ -454,6 +454,7 @@ static TRACING_TURBOPACK_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
     [
         &TRACING_NEXT_TARGETS[..],
         &[
+            "turbo_tasks=info",
             "turbopack=trace",
             "turbopack_core=trace",
             "turbopack_ecmascript=trace",
@@ -529,7 +530,7 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
         let (trace_writer, guard) = TraceWriter::new(trace_writer);
         let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
 
-        let guard = exit_guard(guard).unwrap();
+        let guard = ExitGuard::new(guard).unwrap();
 
         subscriber.init();
 
