@@ -1,5 +1,4 @@
 import { install } from '../helpers/install'
-import { makeDir } from '../helpers/make-dir'
 
 import cpy from 'cpy'
 import globOrig from 'glob'
@@ -11,6 +10,8 @@ import util from 'util'
 import { Sema } from 'async-sema'
 
 import { GetTemplateFileArgs, InstallTemplateArgs } from './types'
+
+import { makeDir } from '../helpers/make-dir'
 
 const glob = util.promisify(globOrig)
 
