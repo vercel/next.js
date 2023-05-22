@@ -125,7 +125,11 @@ pub async fn get_server_resolve_options_context(
                 enable_node_externals: true,
                 enable_node_native_modules: true,
                 module: true,
-                custom_conditions: vec![mode.node_env().to_string(), "node".to_string()],
+                custom_conditions: vec![
+                    mode.node_env().to_string(),
+                    // TODO!
+                    "node".to_string(),
+                ],
                 import_map: Some(next_server_import_map),
                 plugins: vec![
                     server_component_externals_plugin.into(),
@@ -152,6 +156,7 @@ pub async fn get_server_resolve_options_context(
                 custom_conditions: vec![
                     mode.node_env().to_string(),
                     "react-server".to_string(),
+                    // TODO
                     "node".to_string(),
                 ],
                 import_map: Some(next_server_import_map),
@@ -198,7 +203,7 @@ pub async fn get_server_resolve_options_context(
                 enable_node_modules: Some(root_dir),
                 enable_node_externals: true,
                 module: true,
-                custom_conditions: vec![mode.node_env().to_string(), "node".to_string()],
+                custom_conditions: vec![mode.node_env().to_string()],
                 plugins: vec![unsupported_modules_resolve_plugin.into()],
                 ..Default::default()
             };
