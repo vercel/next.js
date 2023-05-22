@@ -1109,11 +1109,10 @@ export default class Router implements BaseRouter {
                 return true
               }
 
-              const nextUrl = addBasePath(
-                addLocale(as, locale || this.locale, this.defaultLocale)
-              )
               handleHardNavigation({
-                url: nextUrl,
+                url: addBasePath(
+                  addLocale(as, locale || this.locale, this.defaultLocale)
+                ),
                 router: this,
               })
               return new Promise(() => {})
@@ -2000,13 +1999,6 @@ export default class Router implements BaseRouter {
         isBackground,
       }
 
-      console.trace(
-        'pathname',
-        pathname,
-        'this.pathname',
-        this.pathname,
-        window.location.href
-      )
       let data:
         | WithMiddlewareEffectsOutput
         | (Pick<WithMiddlewareEffectsOutput, 'json'> &
