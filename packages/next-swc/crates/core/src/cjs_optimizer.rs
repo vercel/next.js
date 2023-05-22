@@ -1,13 +1,6 @@
-use std::collections::HashMap;
-
-use convert_case::{Case, Casing};
-use handlebars::{Context, Handlebars, Helper, HelperResult, Output, RenderContext};
-use once_cell::sync::Lazy;
-use regex::{Captures, Regex};
 use rustc_hash::{FxHashMap, FxHashSet};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use turbopack_binding::swc::core::{
-    cached::regex::CachedRegex,
     common::{util::take::Take, SyntaxContext, DUMMY_SP},
     ecma::{
         ast::{
@@ -23,29 +16,12 @@ use turbopack_binding::swc::core::{
     },
 };
 
-static DUP_SLASH_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"//").unwrap());
-
 pub fn cjs_optimizer(config: Config, unresolved_ctxt: SyntaxContext) -> impl Fold + VisitMut {
-    let mut folder = CjsOptimizer {
+    as_folder(CjsOptimizer {
         data: State::default(),
-        renderer: handlebars::Handlebars::new(),
         packages: config.packages,
         unresolved_ctxt,
-    };
-    folder
-        .renderer
-        .register_helper("lowerCase", Box::new(helper_lower_case));
-    folder
-        .renderer
-        .register_helper("upperCase", Box::new(helper_upper_case));
-    folder
-        .renderer
-        .register_helper("camelCase", Box::new(helper_camel_case));
-    folder
-        .renderer
-        .register_helper("kebabCase", Box::new(helper_kebab_case));
-
-    as_folder(folder)
+    })
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -61,7 +37,6 @@ pub struct PackageConfig {
 
 struct CjsOptimizer {
     data: State,
-    renderer: handlebars::Handlebars<'static>,
     packages: FxHashMap<String, PackageConfig>,
     unresolved_ctxt: SyntaxContext,
 }
@@ -251,58 +226,4 @@ impl Visit for Analyzer<'_> {
             self.data.ignored.insert(obj.to_id());
         }
     }
-}
-
-fn helper_lower_case(
-    h: &Helper<'_, '_>,
-    _: &Handlebars<'_>,
-    _: &Context,
-    _: &mut RenderContext<'_, '_>,
-    out: &mut dyn Output,
-) -> HelperResult {
-    // get parameter from helper or throw an error
-    let param = h.param(0).and_then(|v| v.value().as_str()).unwrap_or("");
-    out.write(param.to_lowercase().as_ref())?;
-    Ok(())
-}
-
-fn helper_upper_case(
-    h: &Helper<'_, '_>,
-    _: &Handlebars<'_>,
-    _: &Context,
-    _: &mut RenderContext<'_, '_>,
-    out: &mut dyn Output,
-) -> HelperResult {
-    // get parameter from helper or throw an error
-    let param = h.param(0).and_then(|v| v.value().as_str()).unwrap_or("");
-    out.write(param.to_uppercase().as_ref())?;
-    Ok(())
-}
-
-fn helper_camel_case(
-    h: &Helper<'_, '_>,
-    _: &Handlebars<'_>,
-    _: &Context,
-    _: &mut RenderContext<'_, '_>,
-    out: &mut dyn Output,
-) -> HelperResult {
-    // get parameter from helper or throw an error
-    let param = h.param(0).and_then(|v| v.value().as_str()).unwrap_or("");
-
-    out.write(param.to_case(Case::Camel).as_ref())?;
-    Ok(())
-}
-
-fn helper_kebab_case(
-    h: &Helper<'_, '_>,
-    _: &Handlebars<'_>,
-    _: &Context,
-    _: &mut RenderContext<'_, '_>,
-    out: &mut dyn Output,
-) -> HelperResult {
-    // get parameter from helper or throw an error
-    let param = h.param(0).and_then(|v| v.value().as_str()).unwrap_or("");
-
-    out.write(param.to_case(Case::Kebab).as_ref())?;
-    Ok(())
 }
