@@ -1085,6 +1085,7 @@ export default class HotReloader {
             chunkNames
           )
           if (
+            diffChunkNames.length &&
             diffChunkNames.every((chunkName) => chunkName.startsWith('app/'))
           ) {
             return
