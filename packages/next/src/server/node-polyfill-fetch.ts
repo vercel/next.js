@@ -2,18 +2,20 @@
 // Polyfill fetch() in the Node.js environment
 
 if (!(global as any).fetch) {
+  const impl: { [K: string]: any } = {}
   function getFetchImpl() {
     return require('next/dist/compiled/undici')
   }
 
   function getRequestImpl() {
+    if (impl.Request) return impl.Request
     const OriginRequest = getFetchImpl().Request
-    return class Request extends OriginRequest {
+    return (impl.Request = class Request extends OriginRequest {
       constructor(input: any, init: any) {
         super(input, init)
         this.next = init?.next
       }
-    }
+    })
   }
 
   // Due to limitation of global configuration, we have to do this resolution at runtime
@@ -37,18 +39,27 @@ if (!(global as any).fetch) {
 
   Object.defineProperties(global, {
     Headers: {
+      set(Headers) {
+        impl.Headers = Headers
+      },
       get() {
-        return getFetchImpl().Headers
+        return impl.Headers ?? (impl.Headers = getFetchImpl().Headers)
       },
     },
     Request: {
+      set(Request) {
+        impl.Request = Request
+      },
       get() {
         return getRequestImpl()
       },
     },
     Response: {
+      set(Response) {
+        impl.Response = Response
+      },
       get() {
-        return getFetchImpl().Response
+        return impl.Response ?? (impl.Response = getFetchImpl().Response)
       },
     },
   })
