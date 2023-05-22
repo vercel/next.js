@@ -397,8 +397,8 @@ function createReactAliases(
   }
 ) {
   const alias = {
-    react: `next/dist/compiled/react${bundledReactChannel}`,
-    'react-dom': `next/dist/compiled/react-dom${bundledReactChannel}`,
+    react$: `next/dist/compiled/react${bundledReactChannel}`,
+    'react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}`,
     'react/jsx-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-runtime`,
     'react/jsx-dev-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime`,
     'react-dom/server$': `next/dist/compiled/react-dom${bundledReactChannel}/server$`,
@@ -412,14 +412,14 @@ function createReactAliases(
 
   if (opts.reactSharedSubset) {
     alias[
-      'react'
+      'react$'
     ] = `next/dist/compiled/react${bundledReactChannel}/react.shared-subset`
   }
   // Use server rendering stub for RSC
   // x-ref: https://github.com/facebook/react/pull/25436
   if (opts.reactDomServerRenderingStub) {
     alias[
-      'react-dom'
+      'react-dom$'
     ] = `next/dist/compiled/react-dom${bundledReactChannel}/server-rendering-stub`
   }
 
