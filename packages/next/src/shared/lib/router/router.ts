@@ -1108,7 +1108,6 @@ export default class Router implements BaseRouter {
               if (skipNavigate) {
                 return true
               }
-
               handleHardNavigation({
                 url: addBasePath(
                   addLocale(as, locale || this.locale, this.defaultLocale)

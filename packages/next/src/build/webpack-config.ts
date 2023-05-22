@@ -66,41 +66,9 @@ import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plu
 import { getSupportedBrowsers } from './utils'
 import { METADATA_RESOURCE_QUERY } from './webpack/loaders/metadata/discover'
 
-function createReactAliases(
-  bundledReactChannel: string,
-  opts: {
-    reactSharedSubset: boolean
-    reactDomServerRenderingStub: boolean
-  }
-) {
-  const alias = {
-    react$: `next/dist/compiled/react${bundledReactChannel}`,
-    'react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}`,
-    'react/jsx-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-runtime`,
-    'react/jsx-dev-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime`,
-    'react-dom/server$': `next/dist/compiled/react-dom${bundledReactChannel}/server$`,
-    'react-dom/server.edge$': `next/dist/compiled/react-dom${bundledReactChannel}/server.edge`,
-    'react-dom/server.browser$': `next/dist/compiled/react-dom${bundledReactChannel}/server.browser`,
-    'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client`,
-    'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.edge`,
-    'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.edge`,
-    'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.node`,
-  }
-
-  if (opts.reactSharedSubset) {
-    alias[
-      'react$'
-    ] = `next/dist/compiled/react${bundledReactChannel}/react.shared-subset`
-  }
-  // Use server rendering stub for RSC
-  // x-ref: https://github.com/facebook/react/pull/25436
-  if (opts.reactDomServerRenderingStub) {
-    alias[
-      'react-dom$'
-    ] = `next/dist/compiled/react-dom${bundledReactChannel}/server-rendering-stub`
-  }
-
-  return alias
+type ExcludesFalse = <T>(x: T | false) => x is T
+type ClientEntries = {
+  [key: string]: string | string[]
 }
 
 const EXTERNAL_PACKAGES =
@@ -421,7 +389,42 @@ export function getDefineEnv({
   }
 }
 
-type ExcludesFalse = <T>(x: T | false) => x is T
+function createReactAliases(
+  bundledReactChannel: string,
+  opts: {
+    reactSharedSubset: boolean
+    reactDomServerRenderingStub: boolean
+  }
+) {
+  const alias = {
+    react$: `next/dist/compiled/react${bundledReactChannel}`,
+    'react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}`,
+    'react/jsx-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-runtime`,
+    'react/jsx-dev-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime`,
+    'react-dom/server$': `next/dist/compiled/react-dom${bundledReactChannel}/server$`,
+    'react-dom/server.edge$': `next/dist/compiled/react-dom${bundledReactChannel}/server.edge`,
+    'react-dom/server.browser$': `next/dist/compiled/react-dom${bundledReactChannel}/server.browser`,
+    'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client`,
+    'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.edge`,
+    'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.edge`,
+    'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.node`,
+  }
+
+  if (opts.reactSharedSubset) {
+    alias[
+      'react$'
+    ] = `next/dist/compiled/react${bundledReactChannel}/react.shared-subset`
+  }
+  // Use server rendering stub for RSC
+  // x-ref: https://github.com/facebook/react/pull/25436
+  if (opts.reactDomServerRenderingStub) {
+    alias[
+      'react-dom$'
+    ] = `next/dist/compiled/react-dom${bundledReactChannel}/server-rendering-stub`
+  }
+
+  return alias
+}
 
 const devtoolRevertWarning = execOnce(
   (devtool: webpack.Configuration['devtool']) => {
@@ -471,10 +474,6 @@ function getOptimizedAliases(): { [pkg: string]: string } {
       url: require.resolve('next/dist/compiled/native-url'),
     }
   )
-}
-
-type ClientEntries = {
-  [key: string]: string | string[]
 }
 
 export function attachReactRefresh(
