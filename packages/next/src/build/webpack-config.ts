@@ -1952,8 +1952,8 @@ export default async function getBaseWebpackConfig(
                       // when react is acting as dependency of compiled/react-dom.
                       alias: {
                         ...createReactAliases(bundledReactChannel, {
-                          reactSharedSubset: false,
-                          reactDomServerRenderingStub: false,
+                          reactSharedSubset: true,
+                          reactDomServerRenderingStub: true,
                         }),
                       },
                     },
