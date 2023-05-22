@@ -13,6 +13,7 @@ mod embed_js;
 pub mod env;
 mod fallback;
 pub mod manifest;
+pub mod mode;
 mod next_build;
 pub mod next_client;
 mod next_client_chunks;
@@ -31,13 +32,15 @@ pub mod pages_structure;
 pub mod router;
 pub mod router_source;
 mod runtime;
+mod sass;
 mod transform_options;
+pub mod url_node;
 mod util;
 mod web_entry_source;
 
 pub use app_source::create_app_source;
 pub use page_source::create_page_source;
-pub use turbo_binding::{turbopack::node::source_map, *};
+pub use turbopack_binding::{turbopack::node::source_map, *};
 pub use web_entry_source::create_web_entry_source;
 
 pub fn register() {

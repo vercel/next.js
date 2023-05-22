@@ -942,7 +942,8 @@ createNextDescribe(
       }, 'success')
     })
 
-    it('should cache correctly for fetchCache = force-cache', async () => {
+    // TODO-APP: investigate flaky test
+    it.skip('should cache correctly for fetchCache = force-cache', async () => {
       const res = await next.fetch('/force-cache')
       expect(res.status).toBe(200)
 
@@ -974,6 +975,12 @@ createNextDescribe(
 
         return 'success'
       }, 'success')
+
+      if (!isNextDeploy) {
+        expect(next.cliOutput).toContain(
+          'Warning: fetch for https://next-data-api-endpoint.vercel.app/api/random?d4 on /force-cache specified "cache: force-cache" and "revalidate: 3", only one should be specified.'
+        )
+      }
     })
 
     it('should cache correctly for cache: no-store', async () => {

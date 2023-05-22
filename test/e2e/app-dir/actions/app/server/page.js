@@ -4,7 +4,7 @@ import Form from './form'
 import dec, { inc } from './actions'
 
 export default function Page() {
-  const two = 2
+  const two = { value: 2 }
   return (
     <>
       <Counter
@@ -12,7 +12,7 @@ export default function Page() {
         dec={dec}
         double={async (x) => {
           'use server'
-          return x * two
+          return x * two.value
         }}
       />
       <Form />

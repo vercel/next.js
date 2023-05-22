@@ -2,7 +2,13 @@ use anyhow::{Context, Result};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-use turbo_binding::{
+use turbo_tasks::{
+    primitives::{BoolVc, JsonValueVc, StringsVc},
+    trace::TraceRawVcs,
+    CompletionVc, Value,
+};
+use turbo_tasks_fs::json::parse_json_with_source_context;
+use turbopack_binding::{
     turbo::{tasks_env::EnvMapVc, tasks_fs::FileSystemPathVc},
     turbopack::{
         core::{
@@ -35,12 +41,6 @@ use turbo_binding::{
         turbopack::evaluate_context::node_evaluate_asset_context,
     },
 };
-use turbo_tasks::{
-    primitives::{BoolVc, StringsVc},
-    trace::TraceRawVcs,
-    CompletionVc, Value,
-};
-use turbo_tasks_fs::json::parse_json_with_source_context;
 
 use crate::{embed_js::next_asset, next_shared::transforms::ModularizeImportPackageConfig};
 
@@ -59,6 +59,7 @@ pub struct NextConfig {
     pub rewrites: Rewrites,
     pub transpile_packages: Option<Vec<String>>,
     pub modularize_imports: Option<IndexMap<String, ModularizeImportPackageConfig>>,
+    sass_options: Option<serde_json::Value>,
 
     // Partially supported
     pub compiler: Option<CompilerConfig>,
@@ -92,7 +93,6 @@ pub struct NextConfig {
     production_browser_source_maps: bool,
     public_runtime_config: IndexMap<String, serde_json::Value>,
     redirects: Vec<Redirect>,
-    sass_options: IndexMap<String, serde_json::Value>,
     server_runtime_config: IndexMap<String, serde_json::Value>,
     static_page_generation_timeout: f64,
     swc_minify: bool,
@@ -570,6 +570,13 @@ impl NextConfigVc {
             self.await?.experimental.mdx_rs.unwrap_or(false),
         ))
     }
+
+    #[turbo_tasks::function]
+    pub async fn sass_config(self) -> Result<JsonValueVc> {
+        Ok(JsonValueVc::cell(
+            self.await?.sass_options.clone().unwrap_or_default(),
+        ))
+    }
 }
 
 fn next_configs() -> StringsVc {
@@ -611,7 +618,7 @@ pub async fn load_next_config_internal(
     import_map.insert_exact_alias("styled-jsx", ImportMapping::External(None).into());
     import_map.insert_wildcard_alias("styled-jsx/", ImportMapping::External(None).into());
 
-    let context = node_evaluate_asset_context(project_path, Some(import_map.cell()), None);
+    let context = node_evaluate_asset_context(execution_context, Some(import_map.cell()), None);
     let config_asset = config_file.map(SourceAssetVc::new);
 
     let config_changed = config_asset.map_or_else(CompletionVc::immutable, |config_asset| {
@@ -646,7 +653,7 @@ pub async fn load_next_config_internal(
     )
     .await?;
 
-    let turbo_binding::turbo::tasks_bytes::stream::SingleValue::Single(val) = config_value.try_into_single().await.context("Evaluation of Next.js config failed")? else {
+    let turbopack_binding::turbo::tasks_bytes::stream::SingleValue::Single(val) = config_value.try_into_single().await.context("Evaluation of Next.js config failed")? else {
         return Ok(NextConfig::default().cell());
     };
     let next_config: NextConfig = parse_json_with_source_context(val.to_str()?)?;

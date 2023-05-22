@@ -970,6 +970,7 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
               imageSrcSet={imgAttributes.srcSet}
               imageSizes={imgAttributes.sizes}
               crossOrigin={rest.crossOrigin}
+              referrerPolicy={rest.referrerPolicy}
               {...getDynamicProps(fetchPriority)}
             />
           </Head>

@@ -1,7 +1,9 @@
 [
   "@prisma/client",
+  "@vercel/og",
   "@sentry/nextjs",
   "@sentry/node",
+  "@swc/core",
   "argon2",
   "autoprefixer",
   "aws-crt",
