@@ -16,22 +16,34 @@ macro_rules! vdbg {
         eprintln!("[{}:{}]", file!(), line!())
     };
 
-    (__init $depth:expr ; $($val:expr),* ) => {
+    (__init $depth:expr ; [ $val:expr $(, $rest:expr)* ] [ $($tt:tt)* ] ) => {
+        {
+            let valstr = stringify!($val);
+            // We move the value into a new binding so we may refer to it multiple
+            // times without re-evaluating the expression.
+            let valmove = $val;
+            // We convert the value to an owned value which will be moved into the
+            // spawned thread. This is necessary in order to ensure a 'static lifetime
+            // for the value, but it may require a clone.
+            let valowned = valmove.to_owned();
+            $crate::vdbg!(__init $depth ; [ $($rest),* ] [ $($tt)* valstr valmove valowned ])
+        }
+    };
+    (__init $depth:expr ; [ ] [ $($valstr:ident $valmove:ident $valowned:ident)* ] ) => {
         {
             use $crate::debug::ValueDebugFormat;
             let depth = $depth;
             $crate::macro_helpers::spawn_detached(async move {
-                $crate::vdbg!(__expand depth ; [ $($val),* ] []);
+                $crate::vdbg!(__expand depth ; [ $($valstr $valowned)* ] []);
                 Ok(())
             });
-            ($($val),*)
+            ($($valmove),*)
         }
     };
 
-    (__expand $depth:ident ; [ $val:expr $(, $rest:expr )* ] [ $($tt:tt)* ]) => {
-        let valstr = stringify!($val);
+    (__expand $depth:ident ; [ $valstr:ident $val:ident $($rest:tt)* ] [ $($tt:tt)* ]) => {
         let valdbg = (&$val).value_debug_format($depth).try_to_string().await?;
-        $crate::vdbg!(__expand $depth ; [ $($rest),* ] [ $($tt)* valstr valdbg ]);
+        $crate::vdbg!(__expand $depth ; [ $($rest)* ] [ $($tt)* $valstr valdbg ]);
     };
     (__expand $depth:ident ; [] [ $( $valstr:ident $valdbg:ident )* ]) => {
         // By pre-awaiting, then printing everything at once, we ensure that the
@@ -57,6 +69,6 @@ macro_rules! vdbg {
         $crate::vdbg!(__init $depth ; $($val),*)
     };
     ($($val:expr),+ $(,)?) => {
-        $crate::vdbg!(__init usize::MAX ; $($val),*)
+        $crate::vdbg!(__init usize::MAX ; [ $($val),* ] [])
     };
 }
