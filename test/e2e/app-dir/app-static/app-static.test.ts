@@ -1270,6 +1270,12 @@ createNextDescribe(
         expect($2('#page-data').text()).toBe(pageData)
         return 'success'
       }, 'success')
+
+      if (isNextStart) {
+        expect(next.cliOutput).toContain(
+          `Page "/variable-revalidate-edge/revalidate-3" is using runtime = 'edge' which is currently incompatible with dynamic = 'force-static'. Please remove either "runtime" or "force-static" for correct behavior`
+        )
+      }
     })
 
     it('should honor fetch cache correctly (edge)', async () => {

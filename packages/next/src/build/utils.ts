@@ -1384,8 +1384,9 @@ export async function isPageStatic({
       let prerenderFallback: boolean | 'blocking' | undefined
       let appConfig: AppConfig = {}
       let isClientComponent: boolean = false
+      const pathIsEdgeRuntime = isEdgeRuntime(pageRuntime)
 
-      if (isEdgeRuntime(pageRuntime)) {
+      if (pathIsEdgeRuntime) {
         const runtime = await getRuntimeContext({
           paths: edgeInfo.files.map((file: string) => path.join(distDir, file)),
           env: edgeInfo.env,
@@ -1502,6 +1503,12 @@ export async function isPageStatic({
           },
           {}
         )
+
+        if (appConfig.dynamic === 'force-static' && pathIsEdgeRuntime) {
+          Log.warn(
+            `Page "${page}" is using runtime = 'edge' which is currently incompatible with dynamic = 'force-static'. Please remove either "runtime" or "force-static" for correct behavior`
+          )
+        }
 
         if (appConfig.dynamic === 'force-dynamic') {
           appConfig.revalidate = 0
