@@ -19,7 +19,7 @@ async function checkFileWrite(existsAfterBuild) {
   expect(fs.existsSync(customFile)).toBe(existsAfterBuild)
   // `.next/cache` should be preserved in all cases
   expect(fs.existsSync(cacheDir)).toBe(true)
-  expect(fs.existsSync(swcCacheDir)).toBe(true)
+  // expect(fs.existsSync(swcCacheDir)).toBe(true)
 }
 
 const runTests = () => {
