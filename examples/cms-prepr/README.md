@@ -7,7 +7,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 Check out our Blog page example:
 
 * **Live**: [https://next-blog-prepr.vercel.app/](https://next-blog-prepr.vercel.app/)
-* **Preview**: [https://next-blog-prepr.vercel.app/api/preview...](https://next-blog-prepr.vercel.app/api/preview?secret=237864ihasdhj283768&slug=discover-enjoy-amsterdam)
+* **Preview**: [https://next-blog-prepr.vercel.app/api/preview...](https://next-blog-prepr.vercel.app/api/preview?secret=237864ihasdhj283768&slug=blueberry-cheesecake)
 
 ## How to use
 
