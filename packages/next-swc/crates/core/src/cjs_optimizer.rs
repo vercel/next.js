@@ -93,20 +93,27 @@ impl VisitMut for CjsOptimizer {
 
                         if let Some(map) = self.should_rewrite(&record.module_specifier) {
                             if let Some(renamed) = map.get(&prop.sym) {
+                                // Transform as `require('foo').bar`
                                 let var = VarDeclarator {
                                     span: DUMMY_SP,
                                     name: Pat::Ident(new_id.clone().into()),
-                                    init: Some(Box::new(Expr::Call(CallExpr {
+                                    init: Some(Box::new(Expr::Member(MemberExpr {
                                         span: DUMMY_SP,
-                                        callee: Ident::new(
-                                            "require".into(),
+                                        obj: Box::new(Expr::Call(CallExpr {
+                                            span: DUMMY_SP,
+                                            callee: Ident::new(
+                                                "require".into(),
+                                                DUMMY_SP.with_ctxt(self.unresolved_ctxt),
+                                            )
+                                            .as_callee(),
+                                            args: vec![Expr::Lit(Lit::Str(renamed.clone().into()))
+                                                .as_arg()],
+                                            type_args: None,
+                                        })),
+                                        prop: MemberProp::Ident(Ident::new(
+                                            prop.sym.clone(),
                                             DUMMY_SP.with_ctxt(self.unresolved_ctxt),
-                                        )
-                                        .as_callee(),
-                                        args: vec![
-                                            Expr::Lit(Lit::Str(renamed.clone().into())).as_arg()
-                                        ],
-                                        type_args: None,
+                                        )),
                                     }))),
                                     definite: false,
                                 };

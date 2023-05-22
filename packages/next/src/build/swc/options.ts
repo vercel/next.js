@@ -330,6 +330,15 @@ export function getLoaderSWCOptions({
     ],
     relativeFilePathFromRoot,
   }
+  baseOptions.cjsRequireOptimizer = {
+    packages: {
+      'next/server': {
+        transforms: {
+          NextResponse: 'next/dist/server/web/spec-extension/response',
+        },
+      },
+    },
+  }
 
   const isNextDist = nextDistPath.test(filename)
 

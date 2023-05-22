@@ -77,6 +77,7 @@ fn test(input: &Path, minify: bool) {
                 font_loaders: None,
                 app_dir: None,
                 server_actions: None,
+                cjs_require_optimizer: None,
             };
 
             let options = options.patch(&fm);

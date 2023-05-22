@@ -1,4 +1,4 @@
-const Response = require("next/server/response");
+const Response = require("next/server/response").Response;
 ;
 const preserved = require('next/unmatched');
 console.log(Response);

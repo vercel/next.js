@@ -38,7 +38,9 @@ use fxhash::FxHashSet;
 use next_transform_font::next_font_loaders;
 use serde::Deserialize;
 use turbopack_binding::swc::core::{
-    common::{chain, comments::Comments, pass::Optional, FileName, SourceFile, SourceMap},
+    common::{
+        chain, comments::Comments, pass::Optional, FileName, SourceFile, SourceMap, SyntaxContext,
+    },
     ecma::{
         ast::EsVersion, parser::parse_file_as_module, transforms::base::pass::noop, visit::Fold,
     },
@@ -126,6 +128,9 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub server_actions: Option<server_actions::Config>,
+
+    #[serde(default)]
+    pub cjs_require_optimizer: Option<cjs_optimizer::Config>,
 }
 
 pub fn custom_before_pass<'a, C: Comments + 'a>(
@@ -278,6 +283,13 @@ where
             )),
             None => Either::Right(noop()),
         },
+        // TODO: Pass in the syntax context
+        // match &opts.cjs_require_optimizer {
+        //     Some(config) => {
+        //         Either::Left(cjs_optimizer::cjs_optimizer(config.clone(), SyntaxContext::empty()))
+        //     },
+        //     None => Either::Right(noop()),
+        // },
     )
 }
 
