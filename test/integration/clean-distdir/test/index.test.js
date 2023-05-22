@@ -7,7 +7,7 @@ import { nextBuild } from 'next-test-utils'
 const appDir = join(__dirname, '../')
 const customFile = join(appDir, '.next/extra-file.txt')
 const cacheDir = join(appDir, '.next/cache')
-const swcCacheDir = join(appDir, '.next/cache/swc')
+// const swcCacheDir = join(appDir, '.next/cache/swc')
 const nextConfig = join(appDir, 'next.config.js')
 
 let nextConfigContent
