@@ -21,11 +21,18 @@ export class ReadonlyRequestCookiesError extends Error {
   }
 }
 
-export type ReadonlyRequestCookies = Omit<RequestCookies, 'clear' | 'delete'>
+// The `cookies()` API is a mix of request and response cookies. For `.get()` methods,
+// we want to return the request cookie if it exists. For mutative methods like `.set()`,
+// we want to return the response cookie.
+export type ReadonlyRequestCookies = Omit<
+  RequestCookies,
+  'set' | 'clear' | 'delete'
+> &
+  Pick<ResponseCookies, 'set' | 'delete'>
 
 export class RequestCookiesAdapter {
   public static seal(cookies: RequestCookies): ReadonlyRequestCookies {
-    return new Proxy(cookies, {
+    return new Proxy(cookies as any, {
       get(target, prop, receiver) {
         switch (prop) {
           case 'clear':

@@ -3,6 +3,14 @@
 import { headers, cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 
+export async function setCookieWithMaxAge() {
+  cookies().set({
+    name: 'foo',
+    value: 'bar',
+    maxAge: 1000,
+  })
+}
+
 export async function getCookie(name) {
   return cookies().get(name)
 }

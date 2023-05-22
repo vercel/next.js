@@ -446,7 +446,7 @@ pub async fn create_app_source(
         client_compile_time_info,
         next_config,
     );
-    let render_data = render_data(next_config);
+    let render_data = render_data(next_config, server_addr);
 
     let entrypoints = entrypoints.await?;
     let mut sources: Vec<_> = entrypoints

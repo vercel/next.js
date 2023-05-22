@@ -20,7 +20,7 @@ use turbopack_binding::{
             changed::any_content_changed,
             chunk::ChunkingContext,
             context::{AssetContext, AssetContextVc},
-            environment::{EnvironmentIntention::Middleware, ServerAddrVc},
+            environment::{EnvironmentIntention::Middleware, ServerAddrVc, ServerInfo},
             ident::AssetIdentVc,
             issue::IssueVc,
             reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
@@ -388,10 +388,7 @@ async fn route_internal(
         vec![
             JsonValueVc::cell(request),
             JsonValueVc::cell(dir.to_string_lossy().into()),
-            JsonValueVc::cell(json!({
-                "hostname": server_addr.hostname(),
-                "port": server_addr.port(),
-            })),
+            JsonValueVc::cell(serde_json::to_value(ServerInfo::try_from(&*server_addr)?)?),
         ],
         CompletionsVc::all(vec![next_config_changed, routes_changed]),
         /* debug */ false,
