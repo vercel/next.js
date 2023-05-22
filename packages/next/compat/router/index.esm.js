@@ -1,1 +1,1 @@
-export * from '../dist/esm/client/compat/router'
+export * from '../../dist/esm/client/compat/router'
