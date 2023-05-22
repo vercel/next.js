@@ -62,8 +62,6 @@ impl ModuleOptionsVc {
     ) -> Result<ModuleOptionsVc> {
         let ModuleOptionsContext {
             enable_jsx,
-            enable_styled_jsx,
-            ref enable_styled_components,
             enable_types,
             enable_tree_shaking,
             ref enable_typescript_transform,
@@ -114,26 +112,8 @@ impl ModuleOptionsVc {
 
         // Order of transforms is important. e.g. if the React transform occurs before
         // Styled JSX, there won't be JSX nodes for Styled JSX to transform.
-        if enable_styled_jsx {
-            transforms.push(EcmascriptInputTransform::StyledJsx);
-        }
-
-        if let Some(enable_styled_components) = enable_styled_components {
-            let styled_components_transform = &*enable_styled_components.await?;
-            transforms.push(EcmascriptInputTransform::StyledComponents {
-                display_name: styled_components_transform.display_name,
-                ssr: styled_components_transform.ssr,
-                file_name: styled_components_transform.file_name,
-                top_level_import_paths: StringsVc::cell(
-                    styled_components_transform.top_level_import_paths.clone(),
-                ),
-                meaningless_file_names: StringsVc::cell(
-                    styled_components_transform.meaningless_file_names.clone(),
-                ),
-                css_prop: styled_components_transform.css_prop,
-                namespace: OptionStringVc::cell(styled_components_transform.namespace.clone()),
-            });
-        }
+        // If a custom plugin requires specific order _before_ core transform kicks in,
+        // should use `before_transform_plugins`.
         if let Some(enable_jsx) = enable_jsx {
             let jsx = enable_jsx.await?;
 

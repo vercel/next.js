@@ -150,9 +150,6 @@ impl MdxTransformModuleOptionsVc {
 #[serde(default)]
 pub struct ModuleOptionsContext {
     pub enable_jsx: Option<JsxTransformOptionsVc>,
-    pub enable_emotion: Option<EmotionTransformConfigVc>,
-    pub enable_styled_components: Option<StyledComponentsTransformConfigVc>,
-    pub enable_styled_jsx: bool,
     pub enable_postcss_transform: Option<PostCssTransformOptions>,
     pub enable_webpack_loaders: Option<WebpackLoadersOptions>,
     pub enable_types: bool,

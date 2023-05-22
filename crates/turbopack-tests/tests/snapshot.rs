@@ -45,7 +45,7 @@ use turbopack_core::{
 use turbopack_dev::DevChunkingContextVc;
 use turbopack_ecmascript_plugins::transform::{
     emotion::{EmotionTransformConfig, EmotionTransformer},
-    styled_components::StyledComponentsTransformConfigVc,
+    styled_components::{StyledComponentsTransformConfig, StyledComponentsTransformer},
 };
 use turbopack_env::ProcessEnvAssetVc;
 use turbopack_test_utils::snapshot::{diff, expected, matches_expected, snapshot_issues};
@@ -194,6 +194,23 @@ async fn run_test(resource: &str) -> Result<FileSystemPathVc> {
         )
         .cell();
 
+    let custom_ecma_transform_plugins = Some(CustomEcmascriptTransformPluginsVc::cell(
+        CustomEcmascriptTransformPlugins {
+            source_transforms: vec![
+                TransformPluginVc::cell(Box::new(
+                    EmotionTransformer::new(&EmotionTransformConfig {
+                        sourcemap: Some(false),
+                        ..Default::default()
+                    })
+                    .expect("Should be able to create emotion transformer"),
+                )),
+                TransformPluginVc::cell(Box::new(StyledComponentsTransformer::new(
+                    &StyledComponentsTransformConfig::default(),
+                ))),
+            ],
+            output_transforms: vec![],
+        },
+    ));
     let context: AssetContextVc = ModuleAssetContextVc::new(
         TransitionsByNameVc::cell(HashMap::new()),
         compile_time_info,
@@ -202,13 +219,6 @@ async fn run_test(resource: &str) -> Result<FileSystemPathVc> {
                 development: true,
                 ..Default::default()
             })),
-            enable_emotion: Some(EmotionTransformConfig::cell(EmotionTransformConfig {
-                sourcemap: Some(false),
-                ..Default::default()
-            })),
-            enable_styled_components: Some(StyledComponentsTransformConfigVc::cell(
-                Default::default(),
-            )),
             preset_env_versions: Some(env),
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".to_string()),
@@ -217,18 +227,7 @@ async fn run_test(resource: &str) -> Result<FileSystemPathVc> {
                 }
                 .cell(),
             )],
-            custom_ecma_transform_plugins: Some(CustomEcmascriptTransformPluginsVc::cell(
-                CustomEcmascriptTransformPlugins {
-                    source_transforms: vec![TransformPluginVc::cell(Box::new(
-                        EmotionTransformer::new(&EmotionTransformConfig {
-                            sourcemap: Some(false),
-                            ..Default::default()
-                        })
-                        .unwrap(),
-                    ))],
-                    output_transforms: vec![],
-                },
-            )),
+            custom_ecma_transform_plugins,
             ..Default::default()
         }
         .into(),
