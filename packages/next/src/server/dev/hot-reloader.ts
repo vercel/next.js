@@ -1122,11 +1122,12 @@ export default class HotReloader {
       }
 
       if (pageChanges.length > 0) {
+        const denormalizedChangedPages = serverOnlyChanges.map((pg) =>
+          denormalizePagePath(pg.slice('pages'.length))
+        )
         this.send({
           event: 'serverOnlyChanges',
-          pages: serverOnlyChanges.map((pg) =>
-            denormalizePagePath(pg.slice('pages'.length))
-          ),
+          pages: denormalizedChangedPages,
         })
       }
 
