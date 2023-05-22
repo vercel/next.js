@@ -1818,6 +1818,8 @@ export default async function getBaseWebpackConfig(
                     [require.resolve('next/dynamic')]: require.resolve(
                       'next/dist/shared/lib/app-dynamic'
                     ),
+                    react: `next/dist/compiled/react${bundledReactChannel}`,
+                    'react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}`,
                     'react/jsx-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-runtime`,
                     'react/jsx-dev-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime`,
                     'react-dom/server.edge$': `next/dist/compiled/react-dom${bundledReactChannel}/server.edge`,
@@ -1926,27 +1928,13 @@ export default async function getBaseWebpackConfig(
                     },
                   },
                   {
-                    issuerLayer: WEBPACK_LAYERS.client,
                     test: codeCondition.test,
+                    issuerLayer: WEBPACK_LAYERS.client,
                     resolve: {
                       alias: {
                         react: `next/dist/compiled/react${bundledReactChannel}`,
                         'react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}/server-rendering-stub`,
                         'react-dom/server': `next/dist/compiled/react-dom${bundledReactChannel}/server`,
-                      },
-                    },
-                  },
-                  {
-                    issuerLayer: WEBPACK_LAYERS.appClient,
-                    test: codeCondition.test,
-                    resolve: {
-                      alias: {
-                        react: `next/dist/compiled/react${bundledReactChannel}`,
-                        'react-dom$': reactProductionProfiling
-                          ? `next/dist/compiled/react-dom${bundledReactChannel}/cjs/react-dom.profiling.min`
-                          : `next/dist/compiled/react-dom${bundledReactChannel}`,
-                        'react-dom/client$': `next/dist/compiled/react-dom${bundledReactChannel}/client`,
-                        'react-dom/server.browser': `next/dist/compiled/react-dom${bundledReactChannel}/server.browser`,
                       },
                     },
                   },
