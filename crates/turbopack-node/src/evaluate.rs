@@ -12,7 +12,7 @@ use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use turbo_tasks::{
-    mark_finished,
+    duration_span, mark_finished,
     primitives::{JsonValueVc, StringVc},
     util::SharedError,
     CompletionVc, RawVc, TryJoinIterExt, Value, ValueToString,
@@ -415,6 +415,8 @@ async fn pull_operation(
     let mut file_dependencies = Vec::new();
     let mut dir_dependencies = Vec::new();
 
+    let guard = duration_span!("Node.js evaluation");
+
     let output = loop {
         match operation.recv().await? {
             EvalJavaScriptIncomingMessage::Error(error) => {
@@ -470,6 +472,7 @@ async fn pull_operation(
             }
         }
     };
+    drop(guard);
 
     // Read dependencies to make them a dependencies of this task. This task will
     // execute again when they change.

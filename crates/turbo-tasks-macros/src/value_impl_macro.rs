@@ -102,7 +102,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
 
                 let (native_function_code, input_raw_vc_arguments) = gen_native_function_code(
                     // use const string
-                    quote! { format!(concat!("{}::", stringify!(#ident)), std::any::type_name::<#vc_ident>()) },
+                    quote! { concat!(stringify!(#vc_ident), "::", stringify!(#ident)) },
                     quote! { #vc_ident::#inline_ident },
                     &function_ident,
                     &function_id_ident,

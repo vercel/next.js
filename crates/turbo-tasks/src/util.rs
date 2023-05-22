@@ -2,13 +2,17 @@ use std::{
     any::Provider,
     error::Error as StdError,
     fmt::{Debug, Display},
+    future::Future,
     hash::{Hash, Hasher},
     ops::Deref,
+    pin::Pin,
     sync::Arc,
+    task::{Context, Poll},
     time::Duration,
 };
 
 use anyhow::{anyhow, Error};
+use pin_project_lite::pin_project;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 pub use super::{id_factory::IdFactory, no_move_vec::NoMoveVec, once_map::*};
@@ -218,5 +222,31 @@ impl<T: ?Sized + Display + 'static> Display for StaticOrArc<T> {
 impl<T: ?Sized + Debug + 'static> Debug for StaticOrArc<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         (**self).fmt(f)
+    }
+}
+
+pin_project! {
+    /// A future that wraps another future and applies a function on every poll call.
+    pub struct WrapFuture<F, W> {
+        wrapper: W,
+        #[pin]
+        future: F,
+    }
+}
+
+impl<F: Future, W: for<'a> Fn(Pin<&mut F>, &mut Context<'a>) -> Poll<F::Output>> WrapFuture<F, W> {
+    pub fn new(wrapper: W, future: F) -> Self {
+        Self { wrapper, future }
+    }
+}
+
+impl<F: Future, W: for<'a> Fn(Pin<&mut F>, &mut Context<'a>) -> Poll<F::Output>> Future
+    for WrapFuture<F, W>
+{
+    type Output = F::Output;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = self.project();
+        (this.wrapper)(this.future, cx)
     }
 }

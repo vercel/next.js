@@ -21,6 +21,7 @@ use swc_core::{
 };
 use turbo_tasks::{
     primitives::{StringVc, U64Vc},
+    util::WrapFuture,
     Value, ValueToString,
 };
 use turbo_tasks_fs::{FileContent, FileSystemPath, FileSystemPathVc};
@@ -38,7 +39,6 @@ use super::EcmascriptModuleAssetType;
 use crate::{
     analyzer::graph::EvalContext,
     transform::{EcmascriptInputTransformsVc, TransformContext},
-    utils::WrapFuture,
     EcmascriptInputTransform,
 };
 

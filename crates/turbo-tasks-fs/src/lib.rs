@@ -51,6 +51,7 @@ use tokio::{
     fs,
     io::{AsyncBufReadExt, AsyncReadExt, BufReader},
 };
+use tracing::{instrument, Level};
 use turbo_tasks::{
     mark_stateful,
     primitives::{BoolVc, StringReadRef, StringVc},
@@ -356,6 +357,7 @@ impl DiskFileSystem {
                     }
                     event = rx.try_recv();
                 }
+                #[instrument(parent = None, level = Level::INFO, name = "DiskFileSystem file change", skip_all, fields(name = display(path.display())))]
                 fn invalidate(
                     report_invalidation_reason: &Option<(String, PathBuf)>,
                     path: &Path,

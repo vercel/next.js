@@ -1,6 +1,7 @@
 use std::future::Future;
 
 use anyhow::Result;
+use tracing::Span;
 
 use super::VisitControlFlow;
 
@@ -21,6 +22,13 @@ pub trait Visit<Node, Abort = !, Impl = ()> {
     /// Returns a future that resolves to the outgoing edges of the given
     /// `node`.
     fn edges(&mut self, node: &Node) -> Self::EdgesFuture;
+
+    /// Returns a [Span] for the given `node`, under which all edges are
+    /// processed.
+    fn span(&mut self, node: &Node) -> Span {
+        let _ = node;
+        Span::current()
+    }
 }
 
 // The different `Impl*` here are necessary in order to avoid the `Conflicting

@@ -165,8 +165,10 @@ pub fn gen_native_function_code(
         },
         (true, false) => quote! { #original_call_code.map(|v| v.into()) },
         (false, true) => quote! {
-            #original_call_code;
-            Ok(turbo_tasks::NothingVc::new().into())
+            {
+                #original_call_code;
+                Ok(turbo_tasks::NothingVc::new().into())
+            }
         },
         (false, false) => quote! { Ok(#original_call_code.into()) },
     };
@@ -184,10 +186,12 @@ pub fn gen_native_function_code(
                         #(#input_convert)*
                         Ok(Box::new(move || {
                             #(#input_clone)*
-                            Box::pin(async move {
+                            Box::pin(turbo_tasks::macro_helpers::tracing::Instrument::instrument(async move {
                                 #(#input_final)*
-                                #original_call_code
-                            })
+                                let turbo_tasks_result = #original_call_code;
+                                turbo_tasks::macro_helpers::notify_scheduled_tasks();
+                                turbo_tasks_result
+                            }, turbo_tasks::macro_helpers::tracing::trace_span!(#name_code)))
                         }))
                     }))
                 });

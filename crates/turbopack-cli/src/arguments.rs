@@ -1,4 +1,7 @@
-use std::{net::IpAddr, path::PathBuf};
+use std::{
+    net::IpAddr,
+    path::{Path, PathBuf},
+};
 
 use clap::{Args, Parser};
 use turbopack_cli_utils::issue::IssueSeverityCliOption;
@@ -7,6 +10,15 @@ use turbopack_cli_utils::issue::IssueSeverityCliOption;
 #[clap(author, version, about, long_about = None)]
 pub enum Arguments {
     Dev(DevArguments),
+}
+
+impl Arguments {
+    /// The directory of the application. see [CommonArguments]::dir
+    pub fn dir(&self) -> Option<&Path> {
+        match self {
+            Arguments::Dev(args) => args.common.dir.as_deref(),
+        }
+    }
 }
 
 #[derive(Debug, Args)]

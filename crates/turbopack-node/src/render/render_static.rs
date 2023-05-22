@@ -5,7 +5,9 @@ use futures::{
     pin_mut, SinkExt, StreamExt, TryStreamExt,
 };
 use parking_lot::Mutex;
-use turbo_tasks::{mark_finished, primitives::StringVc, util::SharedError, RawVc};
+use turbo_tasks::{
+    duration_span, mark_finished, primitives::StringVc, util::SharedError, RawVc, ValueToString,
+};
 use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::{File, FileContent, FileSystemPathVc};
@@ -296,9 +298,13 @@ async fn render_stream_internal(
             .await
             .context("sending headers to node.js process")?;
 
+        let entry = module.ident().to_string().await?;
+        let guard = duration_span!("Node.js rendering", entry = display(entry));
+
         match operation.recv().await? {
             RenderStaticIncomingMessage::Headers { data } => yield RenderItem::Headers(data),
             RenderStaticIncomingMessage::Rewrite { path } => {
+                drop(guard);
                 yield RenderItem::Response(StaticResultVc::rewrite(RewriteBuilder::new(path).build()));
                 return;
             }
@@ -307,6 +313,7 @@ async fn render_stream_internal(
                 headers,
                 body,
             } => {
+                drop(guard);
                 yield RenderItem::Response(StaticResultVc::content(
                     FileContent::Content(File::from(body)).into(),
                     status_code,
@@ -315,6 +322,7 @@ async fn render_stream_internal(
                 return;
             }
             RenderStaticIncomingMessage::Error(error) => {
+                drop(guard);
                 // If we don't get headers, then something is very wrong. Instead, we send down a
                 // 500 proxy error as if it were the proper result.
                 let trace = trace_stack(
@@ -333,7 +341,11 @@ async fn render_stream_internal(
                 );
                 return;
             }
-            v => Err(anyhow!("unexpected message during rendering: {:#?}", v))?,
+            v => {
+                drop(guard);
+                Err(anyhow!("unexpected message during rendering: {:#?}", v))?;
+                return;
+            },
         };
 
         // If we get here, then the first message was a Headers. Now we need to stream out the body
@@ -350,11 +362,18 @@ async fn render_stream_internal(
                     operation.disallow_reuse();
                     let trace =
                         trace_stack(error, intermediate_asset, intermediate_output_path, project_dir).await?;
+                        drop(guard);
                     Err(anyhow!("error during streaming render: {}", trace))?;
+                    return;
                 }
-                v => Err(anyhow!("unexpected message during rendering: {:#?}", v))?,
+                v => {
+                    drop(guard);
+                    Err(anyhow!("unexpected message during rendering: {:#?}", v))?;
+                    return;
+                },
             }
         }
+        drop(guard);
     };
 
     let mut sender = (sender.get)();

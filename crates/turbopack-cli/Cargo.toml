@@ -43,11 +43,13 @@ criterion = { workspace = true, features = ["async_tokio"] }
 dunce = { workspace = true }
 futures = { workspace = true }
 mime = { workspace = true }
+once_cell = { workspace = true }
 owo-colors = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
-tracing-subscriber = { workspace = true, features = ["env-filter"] }
+tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
 turbo-tasks = { workspace = true }
 turbo-tasks-env = { workspace = true }
 turbo-tasks-fetch = { workspace = true, default-features = false }
