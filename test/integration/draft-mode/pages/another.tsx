@@ -1,20 +1,25 @@
 import Link from 'next/link'
+import type { GetStaticProps } from 'next'
 
-export function getServerSideProps({ res, draftMode }) {
-  // test override header
-  res.setHeader('Cache-Control', 'public, max-age=3600')
+type Props = {
+  random: number
+  draftMode: string
+}
+
+export const getStaticProps: GetStaticProps<Props> = ({ draftMode }) => {
   return {
     props: {
       random: Math.random(),
       draftMode: Boolean(draftMode).toString(),
     },
+    revalidate: 100000,
   }
 }
 
-export default function SSP(props) {
+export default function Another(props: Props) {
   return (
     <>
-      <h1>Server Side Props</h1>
+      <h1>Another</h1>
       <p>
         Draft Mode: <em id="draft">{props.draftMode}</em>
       </p>
