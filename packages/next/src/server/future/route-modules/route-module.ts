@@ -5,18 +5,12 @@ import type { NextRequest } from '../../web/spec-extension/request'
 // works. We need to import the built files from the dist directory, but we
 // can't do that directly because we need types from the source files. So we
 // import the types from the source files and then import the built files.
-const { requestAsyncStorage } =
-  require('next/dist/esm/client/components/request-async-storage') as typeof import('../../../client/components/request-async-storage')
-const { staticGenerationAsyncStorage } =
-  require('next/dist/esm/client/components/static-generation-async-storage') as typeof import('../../../client/components/static-generation-async-storage')
-const serverHooks =
-  require('next/dist/esm/client/components/hooks-server-context') as typeof import('../../../client/components/hooks-server-context')
-const headerHooks =
-  require('next/dist/esm/client/components/headers') as typeof import('../../../client/components/headers')
-const { staticGenerationBailout } =
-  require('next/dist/esm/client/components/static-generation-bailout') as typeof import('../../../client/components/static-generation-bailout')
-const { actionAsyncStorage } =
-  require('next/dist/esm/client/components/action-async-storage') as typeof import('../../../client/components/action-async-storage')
+import { requestAsyncStorage } from '../../../client/components/request-async-storage'
+import { staticGenerationAsyncStorage } from '../../../client/components/static-generation-async-storage'
+import * as serverHooks from '../../../client/components/hooks-server-context'
+import * as headerHooks from '../../../client/components/headers'
+import { staticGenerationBailout } from '../../../client/components/static-generation-bailout'
+import { actionAsyncStorage } from '../../../client/components/action-async-storage'
 
 /**
  * RouteModuleOptions is the options that are passed to the route module, other

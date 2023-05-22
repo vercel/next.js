@@ -373,7 +373,7 @@ async function createTreeCodeFromPath(
             `${appDirPrefix}${segmentPath}/${actualSegment}/default`
           )) ??
           (await resolver(
-            `next/dist/client/components/parallel-route-default`,
+            `next/dist/esm/client/components/parallel-route-default`,
             false,
             true
           ))
