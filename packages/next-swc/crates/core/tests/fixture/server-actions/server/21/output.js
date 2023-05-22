@@ -9,8 +9,8 @@ export default function Page() {
         y
     ], $$ACTION_0, $$ACTION_1), $$ACTION_0))}/>;
 }
-export async function $$ACTION_1(y, z) {
-    return x + y + z;
+export async function $$ACTION_1($$ACTION_ARG_0, z) {
+    return x + $$ACTION_ARG_0 + z;
 }
 var $$ACTION_0;
 validator(($$ACTION_2 = async (...args)=>$$ACTION_3.apply(null, ($$ACTION_2.$$bound || []).concat(args)), __create_action_proxy__("56a859f462d35a297c46a1bbd1e6a9058c104ab8", null, $$ACTION_2, $$ACTION_3), $$ACTION_2));
