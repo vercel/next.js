@@ -21,6 +21,7 @@ parking_lot = { workspace = true }
 priority-queue = "1.3.0"
 rustc-hash = { workspace = true }
 tokio = { workspace = true }
+tracing = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-hash = { workspace = true }
 turbo-tasks-malloc = { workspace = true, default-features = false }

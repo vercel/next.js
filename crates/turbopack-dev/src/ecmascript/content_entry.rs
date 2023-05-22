@@ -2,6 +2,7 @@ use std::io::Write as _;
 
 use anyhow::Result;
 use indexmap::IndexMap;
+use tracing::{info_span, Instrument};
 use turbo_tasks::{
     primitives::{StringVc, U64Vc},
     TryJoinIterExt, Value, ValueToString,
@@ -64,10 +65,17 @@ impl EcmascriptDevChunkContentEntriesVc {
             .chunk_items
             .iter()
             .map(|chunk_item| async move {
-                Ok((
-                    chunk_item.id().await?,
-                    EcmascriptDevChunkContentEntry::new(*chunk_item, availability_info).await?,
+                async move {
+                    Ok((
+                        chunk_item.id().await?,
+                        EcmascriptDevChunkContentEntry::new(*chunk_item, availability_info).await?,
+                    ))
+                }
+                .instrument(info_span!(
+                    "chunk item",
+                    name = display(chunk_item.asset_ident().to_string().await?)
                 ))
+                .await
             })
             .try_join()
             .await?

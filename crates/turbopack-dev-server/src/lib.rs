@@ -25,7 +25,7 @@ use hyper::{
     Request, Response, Server,
 };
 use socket2::{Domain, Protocol, Socket, Type};
-use tracing::{event, span, Instrument, Level};
+use tracing::{event, info_span, Instrument, Level, Span};
 use turbo_tasks::{
     run_once_with_reason, trace::TraceRawVcs, util::FormatDuration, CollectiblesSource, RawVc,
     TransientInstance, TransientValue, TurboTasksApi,
@@ -146,13 +146,13 @@ impl DevServerBuilder {
             let get_issue_reporter = get_issue_reporter.clone();
             async move {
                 let handler = move |request: Request<hyper::Body>| {
-                    event!(Level::DEBUG, "request {:?}", request.uri());
-                    let request_span = span!(Level::DEBUG, "request", uri = ?request.uri());
+                    let request_span = info_span!(parent: None, "request", name = ?request.uri());
                     let start = Instant::now();
                     let tt = tt.clone();
                     let get_issue_reporter = get_issue_reporter.clone();
                     let source_provider = source_provider.clone();
                     let future = async move {
+                        event!(parent: Span::current(), Level::DEBUG, "request start");
                         let reason = ServerRequest {
                             method: request.method().clone(),
                             uri: request.uri().clone(),

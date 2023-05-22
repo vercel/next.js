@@ -10,6 +10,7 @@ pub use content_source::{NextSourceMapTraceContentSource, NextSourceMapTraceCont
 use once_cell::sync::Lazy;
 use regex::Regex;
 pub use trace::{SourceMapTrace, SourceMapTraceVc, StackFrame, TraceResult, TraceResultVc};
+use tracing::{instrument, Level};
 use turbo_tasks_fs::{
     source_context::get_source_context, to_sys_path, FileLinesContent, FileLinesContentReadRef,
     FileSystemPathReadRef, FileSystemPathVc,
@@ -311,6 +312,7 @@ impl StructuredError {
     }
 }
 
+#[instrument(level = Level::TRACE, skip_all)]
 pub async fn trace_stack(
     error: StructuredError,
     root_asset: AssetVc,

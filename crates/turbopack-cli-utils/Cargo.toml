@@ -14,9 +14,16 @@ bench = false
 [dependencies]
 anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
+crossbeam-channel = { workspace = true }
 crossterm = "0.26.0"
+ctrlc = "3.2.5"
+once_cell = { workspace = true }
 owo-colors = { workspace = true }
+postcard = { workspace = true, features = ["alloc", "use-std"] }
 serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbopack-core = { workspace = true }

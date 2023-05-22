@@ -109,7 +109,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             inline_sig.ident = inline_ident.clone();
 
             let (native_function_code, input_raw_vc_arguments) = gen_native_function_code(
-                quote! { format!(concat!("{}::", stringify!(#method_ident)), std::any::type_name::<#ref_ident>()) },
+                quote! { concat!(stringify!(#ref_ident), "::", stringify!(#method_ident)) },
                 quote! { #ref_ident::#inline_ident },
                 &function_ident,
                 &function_id_ident,
