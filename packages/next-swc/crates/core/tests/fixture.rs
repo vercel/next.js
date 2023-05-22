@@ -376,7 +376,9 @@ fn cjs_optimize_fixture(input: PathBuf) {
                         {
                             "packages": {
                                 "next/server": {
-                                    "transform": "next/server/{{ kebabCase member }}"
+                                    "transforms": {
+                                        "Response": "next/server/response"
+                                    }
                                 }
                             }
                         }
