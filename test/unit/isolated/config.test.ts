@@ -87,6 +87,18 @@ describe('config', () => {
     expect(config.customConfig).toBe(true)
   })
 
+  it('Should throw an error when next.config.js is not present', async () => {
+    await expect(
+      async () =>
+        await loadConfig(
+          PHASE_DEVELOPMENT_SERVER,
+          join(__dirname, '_resolvedata', 'invalid-config')
+        )
+    ).rejects.toThrow(
+      /Configuring Next.js via .+ is not supported. Please replace the file with 'next.config.js'/
+    )
+  })
+
   it('Should not throw an error when two versions of next.config.js are present', async () => {
     const config = await loadConfig(
       PHASE_DEVELOPMENT_SERVER,
