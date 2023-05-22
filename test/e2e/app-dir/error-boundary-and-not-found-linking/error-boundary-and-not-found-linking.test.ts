@@ -66,5 +66,39 @@ createNextDescribe(
         .back()
         .waitForElementByCss('#not-found-component')
     })
+
+    it('should allow navigating to a page calling notfound', async () => {
+      const browser = await next.browser('/')
+
+      await browser
+        .elementByCss('#trigger-404-link')
+        .click()
+        .waitForElementByCss('#not-found-component')
+
+      expect(await browser.elementByCss('#not-found-component').text()).toBe(
+        'Not Found!'
+      )
+
+      await browser.back().waitForElementByCss('#homepage')
+
+      expect(await browser.elementByCss('#homepage').text()).toBe('Home')
+    })
+
+    it('should allow navigating to a non-existent page', async () => {
+      const browser = await next.browser('/')
+
+      await browser
+        .elementByCss('#non-existent-link')
+        .click()
+        .waitForElementByCss('#not-found-component')
+
+      expect(await browser.elementByCss('#not-found-component').text()).toBe(
+        'Not Found!'
+      )
+
+      await browser.back().waitForElementByCss('#homepage')
+
+      expect(await browser.elementByCss('#homepage').text()).toBe('Home')
+    })
   }
 )
