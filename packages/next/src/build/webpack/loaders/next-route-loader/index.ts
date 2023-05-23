@@ -84,6 +84,7 @@ const loader: webpack.LoaderDefinitionFunction<RouteLoaderOptions> =
         export const getStaticPaths = hoist(userland, "getStaticPaths")
         export const getServerSideProps = hoist(userland, "getServerSideProps")
         export const config = hoist(userland, "config")
+        export const reportWebVitals = hoist(userland, "reportWebVitals")
 
         // Re-export legacy methods.
         export const unstable_getStaticProps = hoist(userland, "unstable_getStaticProps")
