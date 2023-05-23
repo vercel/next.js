@@ -273,6 +273,7 @@ export default class NextNodeServer extends BaseServer {
         hostname: this.hostname,
         minimalMode: this.minimalMode,
         dev: !!options.dev,
+        isNodeDebugging: !!options.isNodeDebugging,
       }
       const { createWorker, createIpcServer } =
         require('./lib/server-ipc') as typeof import('./lib/server-ipc')
@@ -281,8 +282,7 @@ export default class NextNodeServer extends BaseServer {
           this.renderWorkers = {}
           const { ipcPort, ipcValidationKey } = await createIpcServer(this)
           if (this.hasAppDir) {
-            this.renderWorkers.app = createWorker(
-              this.port || 0,
+            this.renderWorkers.app = await createWorker(
               ipcPort,
               ipcValidationKey,
               options.isNodeDebugging,
@@ -290,8 +290,7 @@ export default class NextNodeServer extends BaseServer {
               this.nextConfig.experimental.serverActions
             )
           }
-          this.renderWorkers.pages = createWorker(
-            this.port || 0,
+          this.renderWorkers.pages = await createWorker(
             ipcPort,
             ipcValidationKey,
             options.isNodeDebugging,

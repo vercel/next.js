@@ -5,6 +5,8 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { ChildProcess } from 'child_process'
 import { normalizeRepeatedSlashes } from '../../shared/lib/utils'
 import { initialEnv } from '@next/env'
+import { genExecArgv, getNodeOptionsWithoutInspect } from './utils'
+import { getFreePort } from './server-ipc'
 
 export interface StartServerOptions {
   dir: string
@@ -183,12 +185,17 @@ export async function startServer({
         // TODO: do we want to allow more than 10 OOM restarts?
         maxRetries: 10,
         forkOptions: {
+          execArgv: isNodeDebugging
+            ? genExecArgv(
+                isNodeDebugging === undefined ? false : isNodeDebugging,
+                await getFreePort()
+              )
+            : undefined,
           env: {
             FORCE_COLOR: '1',
             ...((initialEnv || process.env) as typeof process.env),
             PORT: port + '',
-            // We don't stub NodeOptions here so it can
-            // be passed down for render-server for debugging
+            NODE_OPTIONS: getNodeOptionsWithoutInspect(),
           },
         },
         exposedMethods: ['initialize'],
@@ -235,6 +242,7 @@ export async function startServer({
         hostname,
         dev: !!isDev,
         workerType: 'router',
+        isNodeDebugging: !!isNodeDebugging,
         keepAliveTimeout,
       })
       didInitialize = true

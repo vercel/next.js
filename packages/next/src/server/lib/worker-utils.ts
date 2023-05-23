@@ -1,6 +1,6 @@
 import * as Log from '../../build/output/log'
 
-export const genRenderExecArgv = () => {
+export const genRenderExecArgv = (type: 'pages' | 'app') => {
   const isDebugging =
     process.execArgv.some((localArg) => localArg.startsWith('--inspect')) ||
     process.env.NODE_OPTIONS?.match?.(/--inspect(=\S+)?( |$)/)
@@ -9,7 +9,7 @@ export const genRenderExecArgv = () => {
     process.execArgv.some((localArg) => localArg.startsWith('--inspect-brk')) ||
     process.env.NODE_OPTIONS?.match?.(/--inspect-brk(=\S+)?( |$)/)
 
-  const debugPort = (() => {
+  let debugPort = (() => {
     const debugPortStr =
       process.execArgv
         .find(
@@ -22,13 +22,15 @@ export const genRenderExecArgv = () => {
     return debugPortStr ? parseInt(debugPortStr, 10) : 9229
   })()
 
+  debugPort += type === 'pages' ? 2 : 3
+
   if (isDebugging || isDebuggingWithBrk) {
-    Log.warn(
+    Log.info(
       `the --inspect${
         isDebuggingWithBrk ? '-brk' : ''
-      } option was detected, the Next.js server should be inspected at port ${
-        debugPort + 1
-      }.`
+      } option was detected, the Next.js server${
+        type === 'pages' ? ' for pages' : type === 'app' ? ' for app' : ''
+      } should be inspected at port ${debugPort}.`
     )
   }
   const execArgv = process.execArgv.filter((localArg) => {
@@ -38,9 +40,7 @@ export const genRenderExecArgv = () => {
   })
 
   if (isDebugging || isDebuggingWithBrk) {
-    execArgv.push(
-      `--inspect${isDebuggingWithBrk ? '-brk' : ''}=${debugPort + 1}`
-    )
+    execArgv.push(`--inspect${isDebuggingWithBrk ? '-brk' : ''}=${debugPort}`)
   }
 
   return execArgv

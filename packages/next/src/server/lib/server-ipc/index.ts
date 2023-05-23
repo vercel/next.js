@@ -1,5 +1,6 @@
 import type NextServer from '../../next-server'
 
+import http from 'http'
 import { genExecArgv, getNodeOptionsWithoutInspect } from '../utils'
 import { deserializeErr, errorToJSON } from '../../render'
 import crypto from 'crypto'
@@ -79,8 +80,23 @@ export async function createIpcServer(
   }
 }
 
-export const createWorker = (
-  serverPort: number,
+export const getFreePort = async (): Promise<number> => {
+  return new Promise((resolve, reject) => {
+    const server = http.createServer(() => {})
+    server.listen(0, () => {
+      const address = server.address()
+      server.close()
+
+      if (address && typeof address === 'object') {
+        resolve(address.port)
+      } else {
+        reject(new Error('invalid address from server: ' + address?.toString()))
+      }
+    })
+  })
+}
+
+export const createWorker = async (
   ipcPort: number,
   ipcValidationKey: string,
   isNodeDebugging: boolean | 'brk' | undefined,
@@ -89,6 +105,7 @@ export const createWorker = (
 ) => {
   const { initialEnv } = require('@next/env') as typeof import('@next/env')
   const { Worker } = require('next/dist/compiled/jest-worker')
+
   const worker = new Worker(require.resolve('../render-server'), {
     numWorkers: 1,
     // TODO: do we want to allow more than 10 OOM restarts?
@@ -98,7 +115,7 @@ export const createWorker = (
         FORCE_COLOR: '1',
         ...initialEnv,
         // we don't pass down NODE_OPTIONS as it can
-        // extra memory usage
+        // allow more memory usage than expected
         NODE_OPTIONS: getNodeOptionsWithoutInspect()
           .replace(/--max-old-space-size=[\d]{1,}/, '')
           .trim(),
@@ -116,13 +133,7 @@ export const createWorker = (
             }
           : {}),
       },
-      execArgv:
-        isNodeDebugging !== undefined
-          ? genExecArgv(
-              isNodeDebugging === undefined ? false : isNodeDebugging,
-              (serverPort || 0) + 1
-            )
-          : genRenderExecArgv(),
+      execArgv: isNodeDebugging ? genRenderExecArgv(type) : undefined,
     },
     exposedMethods: [
       'initialize',
