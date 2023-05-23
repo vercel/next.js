@@ -1,9 +1,9 @@
 {
   "main": "./index.js",
-  "module": "./index.esm.js",
+  "module": "./index.mjs",
   "exports": {
     ".": {
-      "import": "./index.esm.js",
+      "import": "./index.mjs",
       "require": "./index.js",
       "default": "./index.js"
     }
