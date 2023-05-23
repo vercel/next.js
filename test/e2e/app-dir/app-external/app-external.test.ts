@@ -203,13 +203,6 @@ createNextDescribe(
       expect(middlewareSource).not.toContain('satori')
     })
 
-    it('should tree shake unused next/server exports in middleware', async () => {
-      const middleware = '.next/server/middleware.js'
-      const middlewareSource = await next.readFile(middleware)
-
-      expect(middlewareSource).not.toContain('satori')
-    })
-
     if (isNextDev) {
       it('should error for wildcard exports of client module references in esm', async () => {
         const page = 'app/esm-client-ref/page.js'
