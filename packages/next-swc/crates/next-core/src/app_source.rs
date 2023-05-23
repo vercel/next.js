@@ -1018,7 +1018,7 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
             project_path,
             intermediate_output_path,
             intermediate_output_path.join("chunks"),
-            server_root.join("_next/static/assets"),
+            server_root.join("_next/static/media"),
             context.compile_time_info().environment(),
         )
         .layer("ssr")
@@ -1099,7 +1099,7 @@ impl AppRouteVc {
             this.project_path,
             this.intermediate_output_path,
             this.intermediate_output_path.join("chunks"),
-            this.server_root.join("_next/static/assets"),
+            this.server_root.join("_next/static/media"),
             this.context.compile_time_info().environment(),
         )
         .layer("ssr")
