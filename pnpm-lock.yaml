@@ -460,7 +460,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 13.4.4-canary.3
+      '@next/eslint-plugin-next': 13.4.4-canary.4
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.42.0
       eslint: ^7.23.0 || ^8.0.0
@@ -536,12 +536,12 @@ importers:
       '@jest/types': 29.5.0
       '@napi-rs/cli': 2.14.7
       '@napi-rs/triples': 1.1.0
-      '@next/env': 13.4.4-canary.3
-      '@next/polyfill-module': 13.4.4-canary.3
-      '@next/polyfill-nomodule': 13.4.4-canary.3
-      '@next/react-dev-overlay': 13.4.4-canary.3
-      '@next/react-refresh-utils': 13.4.4-canary.3
-      '@next/swc': 13.4.4-canary.3
+      '@next/env': 13.4.4-canary.4
+      '@next/polyfill-module': 13.4.4-canary.4
+      '@next/polyfill-nomodule': 13.4.4-canary.4
+      '@next/react-dev-overlay': 13.4.4-canary.4
+      '@next/react-refresh-utils': 13.4.4-canary.4
+      '@next/swc': 13.4.4-canary.4
       '@opentelemetry/api': 1.4.1
       '@segment/ajv-human-errors': 2.1.2
       '@swc/helpers': 0.5.1
@@ -1012,8 +1012,8 @@ importers:
       '@types/react': 18.2.5
       '@types/react-dom': 18.2.3
       '@vercel/ncc': ^0.36.0
-      '@vercel/turbopack-dev': https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230523.2
-      '@vercel/turbopack-node': https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js?turbopack-230523.2
+      '@vercel/turbopack-dev': https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230523.3
+      '@vercel/turbopack-node': https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js?turbopack-230523.3
       anser: ^2.1.1
       css.escape: ^1.5.1
       find-up: ^6.3.0
@@ -1025,8 +1025,8 @@ importers:
       stacktrace-parser: ^0.1.10
       strip-ansi: ^7.0.1
     dependencies:
-      '@vercel/turbopack-dev': '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230523.2_react-refresh@0.12.0'
-      '@vercel/turbopack-node': '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js?turbopack-230523.2'
+      '@vercel/turbopack-dev': '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230523.3_react-refresh@0.12.0'
+      '@vercel/turbopack-node': '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js?turbopack-230523.3'
       anser: 2.1.1
       css.escape: 1.5.1
       next: link:../../../../next
@@ -5997,7 +5997,7 @@ packages:
     dependencies:
       '@mdx-js/mdx': 2.2.1
       source-map: 0.7.3
-      webpack: 5.74.0
+      webpack: 5.74.0_@swc+core@1.3.55
     transitivePeerDependencies:
       - supports-color
 
@@ -6669,7 +6669,6 @@ packages:
     cpu: [arm64]
     os: [darwin]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-darwin-x64/1.3.55:
@@ -6678,7 +6677,6 @@ packages:
     cpu: [x64]
     os: [darwin]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-linux-arm-gnueabihf/1.3.55:
@@ -6687,7 +6685,6 @@ packages:
     cpu: [arm]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-linux-arm64-gnu/1.3.55:
@@ -6696,7 +6693,6 @@ packages:
     cpu: [arm64]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-linux-arm64-musl/1.3.55:
@@ -6705,7 +6701,6 @@ packages:
     cpu: [arm64]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-linux-x64-gnu/1.3.55:
@@ -6714,7 +6709,6 @@ packages:
     cpu: [x64]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-linux-x64-musl/1.3.55:
@@ -6723,7 +6717,6 @@ packages:
     cpu: [x64]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-win32-arm64-msvc/1.3.55:
@@ -6732,7 +6725,6 @@ packages:
     cpu: [arm64]
     os: [win32]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-win32-ia32-msvc/1.3.55:
@@ -6741,7 +6733,6 @@ packages:
     cpu: [ia32]
     os: [win32]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-win32-x64-msvc/1.3.55:
@@ -6750,7 +6741,6 @@ packages:
     cpu: [x64]
     os: [win32]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core/1.3.55_@swc+helpers@0.5.1:
@@ -6775,7 +6765,6 @@ packages:
       '@swc/core-win32-arm64-msvc': 1.3.55
       '@swc/core-win32-ia32-msvc': 1.3.55
       '@swc/core-win32-x64-msvc': 1.3.55
-    dev: true
 
   /@swc/helpers/0.4.14:
     resolution: {integrity: sha512-4C7nX/dvpzB7za4Ql9K81xK3HPxCpHMgwTZVyf+9JQ6VUbn9jjZVN7/Nkdz/Ugzs2CSjqnL/UPXroiVBVHUWUw==}
@@ -23669,7 +23658,6 @@ packages:
       source-map: 0.6.1
       terser: 5.14.1
       webpack: 5.74.0_@swc+core@1.3.55
-    dev: true
 
   /terser-webpack-plugin/5.2.4_webpack@5.74.0:
     resolution: {integrity: sha512-E2CkNMN+1cho04YpdANyRrn8CyN4yMy+WdFKZIySFZrGXZxJwJP6PMNGGc/Mcr6qygQHUUqRxnAPmi0M9f00XA==}
@@ -25079,7 +25067,6 @@ packages:
       - '@swc/core'
       - esbuild
       - uglify-js
-    dev: true
 
   /websocket-driver/0.7.3:
     resolution: {integrity: sha512-bpxWlvbbB459Mlipc5GBzzZwhoZgGEZLuqPaR0INBGnPAY1vdBX6hPnoFXiw+3yWxDuHyQjO2oXTMyS8A5haFg==}
@@ -25490,9 +25477,9 @@ packages:
   /zwitch/2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
-  '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230523.2_react-refresh@0.12.0':
-    resolution: {tarball: https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230523.2}
-    id: '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230523.2'
+  '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230523.3_react-refresh@0.12.0':
+    resolution: {tarball: https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230523.3}
+    id: '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230523.3'
     name: '@vercel/turbopack-dev'
     version: 0.0.0
     dependencies:
@@ -25502,8 +25489,8 @@ packages:
       - webpack
     dev: false
 
-  '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js?turbopack-230523.2':
-    resolution: {tarball: https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js?turbopack-230523.2}
+  '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js?turbopack-230523.3':
+    resolution: {tarball: https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js?turbopack-230523.3}
     name: '@vercel/turbopack-node'
     version: 0.0.0
     dependencies:
