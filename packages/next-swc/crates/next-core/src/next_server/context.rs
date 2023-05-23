@@ -102,7 +102,7 @@ pub async fn get_server_resolve_options_context(
                 enable_node_externals: true,
                 enable_node_native_modules: true,
                 module: true,
-                custom_conditions: vec![mode.node_env().to_string()],
+                custom_conditions: vec![mode.node_env().to_string(), "node".to_string()],
                 import_map: Some(next_server_import_map),
                 plugins: vec![
                     external_cjs_modules_plugin.into(),
@@ -126,7 +126,11 @@ pub async fn get_server_resolve_options_context(
                 enable_node_externals: true,
                 enable_node_native_modules: true,
                 module: true,
-                custom_conditions: vec![mode.node_env().to_string()],
+                custom_conditions: vec![
+                    mode.node_env().to_string(),
+                    // TODO!
+                    "node".to_string(),
+                ],
                 import_map: Some(next_server_import_map),
                 plugins: vec![
                     server_component_externals_plugin.into(),
@@ -150,7 +154,12 @@ pub async fn get_server_resolve_options_context(
                 enable_node_externals: true,
                 enable_node_native_modules: true,
                 module: true,
-                custom_conditions: vec![mode.node_env().to_string(), "react-server".to_string()],
+                custom_conditions: vec![
+                    mode.node_env().to_string(),
+                    "react-server".to_string(),
+                    // TODO
+                    "node".to_string(),
+                ],
                 import_map: Some(next_server_import_map),
                 plugins: vec![
                     server_component_externals_plugin.into(),
@@ -172,7 +181,7 @@ pub async fn get_server_resolve_options_context(
             let resolve_options_context = ResolveOptionsContext {
                 enable_node_modules: Some(root_dir),
                 module: true,
-                custom_conditions: vec![mode.node_env().to_string()],
+                custom_conditions: vec![mode.node_env().to_string(), "node".to_string()],
                 import_map: Some(next_server_import_map),
                 plugins: vec![
                     server_component_externals_plugin.into(),
