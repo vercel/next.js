@@ -57,6 +57,8 @@ struct State {
 
     /// Ignored identifiers for `obj` of [MemberExpr].
     ignored: FxHashSet<Id>,
+
+    is_prepass: bool,
 }
 
 #[derive(Debug)]
@@ -73,17 +75,27 @@ impl CjsOptimizer {
 impl VisitMut for CjsOptimizer {
     noop_visit_mut_type!();
 
+    fn visit_mut_module_items(&mut self, stmts: &mut Vec<ModuleItem>) {
+        self.data.is_prepass = true;
+        stmts.visit_mut_children_with(self);
+        self.data.is_prepass = false;
+        stmts.visit_mut_children_with(self);
+    }
+
     fn visit_mut_expr(&mut self, e: &mut Expr) {
         e.visit_mut_children_with(self);
 
         if let Expr::Member(n) = e {
             if let MemberProp::Ident(prop) = &n.prop {
                 if let Expr::Ident(obj) = &*n.obj {
-                    if self.data.ignored.contains(&obj.to_id()) {
+                    let key = obj.to_id();
+                    if self.data.ignored.contains(&key) {
                         return;
                     }
 
-                    if let Some(record) = self.data.imports.get(&obj.to_id()) {
+                    if let Some(record) = self.data.imports.get(&key) {
+                        let mut replaced = false;
+
                         let new_id = self
                             .data
                             .replaced
@@ -93,42 +105,51 @@ impl VisitMut for CjsOptimizer {
 
                         if let Some(map) = self.should_rewrite(&record.module_specifier) {
                             if let Some(renamed) = map.get(&prop.sym) {
-                                // Transform as `require('foo').bar`
-                                let var = VarDeclarator {
-                                    span: DUMMY_SP,
-                                    name: Pat::Ident(new_id.clone().into()),
-                                    init: Some(Box::new(Expr::Member(MemberExpr {
+                                replaced = true;
+                                if !self.data.is_prepass {
+                                    // Transform as `require('foo').bar`
+                                    let var = VarDeclarator {
                                         span: DUMMY_SP,
-                                        obj: Box::new(Expr::Call(CallExpr {
+                                        name: Pat::Ident(new_id.clone().into()),
+                                        init: Some(Box::new(Expr::Member(MemberExpr {
                                             span: DUMMY_SP,
-                                            callee: Ident::new(
-                                                "require".into(),
-                                                DUMMY_SP.with_ctxt(self.unresolved_ctxt),
-                                            )
-                                            .as_callee(),
-                                            args: vec![Expr::Lit(Lit::Str(renamed.clone().into()))
+                                            obj: Box::new(Expr::Call(CallExpr {
+                                                span: DUMMY_SP,
+                                                callee: Ident::new(
+                                                    "require".into(),
+                                                    DUMMY_SP.with_ctxt(self.unresolved_ctxt),
+                                                )
+                                                .as_callee(),
+                                                args: vec![Expr::Lit(Lit::Str(
+                                                    renamed.clone().into(),
+                                                ))
                                                 .as_arg()],
-                                            type_args: None,
-                                        })),
-                                        prop: MemberProp::Ident(Ident::new(
-                                            prop.sym.clone(),
-                                            DUMMY_SP.with_ctxt(self.unresolved_ctxt),
-                                        )),
-                                    }))),
-                                    definite: false,
-                                };
+                                                type_args: None,
+                                            })),
+                                            prop: MemberProp::Ident(Ident::new(
+                                                prop.sym.clone(),
+                                                DUMMY_SP.with_ctxt(self.unresolved_ctxt),
+                                            )),
+                                        }))),
+                                        definite: false,
+                                    };
 
-                                self.data.extra_stmts.push(Stmt::Decl(Decl::Var(Box::new(
-                                    VarDecl {
-                                        span: DUMMY_SP,
-                                        kind: VarDeclKind::Const,
-                                        declare: false,
-                                        decls: vec![var],
-                                    },
-                                ))));
+                                    self.data.extra_stmts.push(Stmt::Decl(Decl::Var(Box::new(
+                                        VarDecl {
+                                            span: DUMMY_SP,
+                                            kind: VarDeclKind::Const,
+                                            declare: false,
+                                            decls: vec![var],
+                                        },
+                                    ))));
 
-                                *e = Expr::Ident(new_id.into());
+                                    *e = Expr::Ident(new_id.into());
+                                }
                             }
+                        }
+
+                        if !replaced {
+                            self.data.ignored.insert(key);
                         }
                     }
                 }
@@ -139,6 +160,7 @@ impl VisitMut for CjsOptimizer {
     fn visit_mut_module(&mut self, n: &mut Module) {
         n.visit_children_with(&mut Analyzer {
             data: &mut self.data,
+            in_member_or_var: false,
         });
 
         n.visit_mut_children_with(self);
@@ -154,6 +176,7 @@ impl VisitMut for CjsOptimizer {
     fn visit_mut_script(&mut self, n: &mut Script) {
         n.visit_children_with(&mut Analyzer {
             data: &mut self.data,
+            in_member_or_var: false,
         });
 
         n.visit_mut_children_with(self);
@@ -193,15 +216,19 @@ impl VisitMut for CjsOptimizer {
                                 if let Some(..) = self.should_rewrite(&v.value) {
                                     let key = name.to_id();
 
-                                    // Drop variable declarator.
-                                    n.name.take();
-
-                                    self.data.imports.insert(
-                                        key,
-                                        ImportRecord {
-                                            module_specifier: v.value.clone().into(),
-                                        },
-                                    );
+                                    if !self.data.is_prepass {
+                                        if !self.data.ignored.contains(&key) {
+                                            // Drop variable declarator.
+                                            n.name.take();
+                                        }
+                                    } else {
+                                        self.data.imports.insert(
+                                            key,
+                                            ImportRecord {
+                                                module_specifier: v.value.clone().into(),
+                                            },
+                                        );
+                                    }
                                 }
                             }
                         }
@@ -220,17 +247,33 @@ impl VisitMut for CjsOptimizer {
 }
 
 struct Analyzer<'a> {
+    in_member_or_var: bool,
     data: &'a mut State,
 }
 
 impl Visit for Analyzer<'_> {
     noop_visit_type!();
 
+    fn visit_var_declarator(&mut self, n: &VarDeclarator) {
+        self.in_member_or_var = true;
+        n.visit_children_with(self);
+        self.in_member_or_var = false;
+    }
+
     fn visit_member_expr(&mut self, e: &MemberExpr) {
+        self.in_member_or_var = true;
         e.visit_children_with(self);
+        self.in_member_or_var = false;
 
         if let (Expr::Ident(obj), MemberProp::Computed(..)) = (&*e.obj, &e.prop) {
             self.data.ignored.insert(obj.to_id());
+        }
+    }
+
+    fn visit_ident(&mut self, i: &Ident) {
+        i.visit_children_with(self);
+        if !self.in_member_or_var {
+            self.data.ignored.insert(i.to_id());
         }
     }
 }

@@ -334,7 +334,11 @@ export function getLoaderSWCOptions({
     packages: {
       'next/server': {
         transforms: {
+          NextRequest: 'next/dist/server/web/spec-extension/request',
           NextResponse: 'next/dist/server/web/spec-extension/response',
+          ImageResponse: 'next/dist/server/web/spec-extension/image-response',
+          userAgentFromString: 'next/dist/server/web/spec-extension/user-agent',
+          userAgent: 'next/dist/server/web/spec-extension/user-agent',
         },
       },
     },
