@@ -88,6 +88,7 @@ const loader: webpack.LoaderDefinitionFunction<RouteLoaderOptions> =
         // Re-export legacy methods.
         export const unstable_getStaticProps = hoist(userland, "unstable_getStaticProps")
         export const unstable_getStaticPaths = hoist(userland, "unstable_getStaticPaths")
+        export const unstable_getStaticParams = hoist(userland, "unstable_getStaticParams")
         export const unstable_getServerProps = hoist(userland, "unstable_getServerProps")
         export const unstable_getServerSideProps = hoist(userland, "unstable_getServerSideProps")
 
