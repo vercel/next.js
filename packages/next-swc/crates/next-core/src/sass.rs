@@ -10,7 +10,8 @@ pub async fn maybe_add_sass_loader(
     sass_options: JsonValueVc,
     webpack_rules: Option<WebpackRulesVc>,
 ) -> Result<OptionWebpackRulesVc> {
-    let Some(sass_options) = sass_options.await?.as_object() else {
+    let sass_options = sass_options.await?;
+    let Some(sass_options) = sass_options.as_object() else {
         bail!("sass_options must be an object");
     };
     let mut rules = if let Some(webpack_rules) = webpack_rules {
@@ -47,5 +48,7 @@ pub async fn maybe_add_sass_loader(
         }
     }
 
-    Ok(options.cell())
+    Ok(OptionWebpackRulesVc::cell(Some(WebpackRulesVc::cell(
+        rules,
+    ))))
 }
