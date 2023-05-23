@@ -1,7 +1,7 @@
 // TODO: Remove use of `any` type.
 // Polyfill fetch() in the Node.js environment
 
-if (!(global as any).fetch) {
+if (typeof fetch === 'undefined' && typeof globalThis.fetch === 'undefined') {
   function getFetchImpl() {
     return require('next/dist/compiled/undici')
   }
@@ -17,7 +17,7 @@ if (!(global as any).fetch) {
   }
 
   // Due to limitation of global configuration, we have to do this resolution at runtime
-  ;(global as any).fetch = (...args: any[]) => {
+  globalThis.fetch = (...args: any[]) => {
     const fetchImpl = getFetchImpl()
 
     // Undici does not support the `keepAlive` option,
