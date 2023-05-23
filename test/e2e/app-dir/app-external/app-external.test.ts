@@ -36,7 +36,7 @@ createNextDescribe(
     buildCommand: 'yarn build',
     skipDeployment: true,
   },
-  ({ next, isNextDev, isNextStart }) => {
+  ({ next, isNextDev }) => {
     it('should be able to opt-out 3rd party packages being bundled in server components', async () => {
       await next.fetch('/react-server/optout').then(async (response) => {
         const result = await resolveStreamResponse(response)
@@ -198,6 +198,13 @@ createNextDescribe(
 
     it('should tree shake unused next/server exports in middleware', async () => {
       const middleware = '.next/dist/server/middleware.js'
+      const middlewareSource = await next.readFile(middleware)
+
+      expect(middlewareSource).not.toContain('satori')
+    })
+
+    it('should tree shake unused next/server exports in middleware', async () => {
+      const middleware = '.next/server/middleware.js'
       const middlewareSource = await next.readFile(middleware)
 
       expect(middlewareSource).not.toContain('satori')

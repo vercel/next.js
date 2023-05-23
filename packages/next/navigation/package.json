@@ -1,9 +1,0 @@
-{
-  "exports": {
-    ".": {
-      "import": "./index.esm.js",
-      "require": "./index.js",
-      "default": "./index.js"
-    }
-  }
-}
