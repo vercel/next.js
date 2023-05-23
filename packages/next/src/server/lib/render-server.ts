@@ -14,6 +14,7 @@ import {
   deleteAppClientCache as _deleteAppClientCache,
 } from '../../build/webpack/plugins/nextjs-require-cache-hot-reloader'
 import { clearModuleContext as _clearModuleContext } from '../web/sandbox/context'
+import { getFreePort } from '../lib/worker-utils'
 export const WORKER_SELF_EXIT_CODE = 77
 
 const MAXIMUM_HEAP_SIZE_ALLOWED =
@@ -45,6 +46,7 @@ export async function initialize(opts: {
   minimalMode?: boolean
   hostname?: string
   workerType: 'router' | 'render'
+  isNodeDebugging: boolean
   keepAliveTimeout?: number
 }): Promise<NonNullable<typeof result>> {
   // if we already setup the server return as we only need to do
@@ -79,7 +81,7 @@ export async function initialize(opts: {
     server.keepAliveTimeout = opts.keepAliveTimeout
   }
 
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     server.on('error', (err: NodeJS.ErrnoException) => {
       console.error(`Invariant: failed to start render worker`, err)
       process.exit(1)
@@ -123,6 +125,7 @@ export async function initialize(opts: {
           customServer: false,
           httpServer: server,
           port: opts.port,
+          isNodeDebugging: opts.isNodeDebugging,
         })
 
         requestHandler = app.getRequestHandler()
@@ -133,6 +136,6 @@ export async function initialize(opts: {
         return reject(err)
       }
     })
-    server.listen(0, opts.hostname)
+    server.listen((await getFreePort()) + 1, opts.hostname)
   })
 }
