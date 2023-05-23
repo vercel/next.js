@@ -107,7 +107,9 @@ impl Task for TransformTask {
                                     )
                                 }
                             };
-                            let options = options.patch(&fm);
+                            let unresolved_mark = Mark::new();
+                            let mut options = options.patch(&m);
+                            options.swc.unresolved_mark = Some(unresolved_mark);
 
                             let cm = self.c.cm.clone();
                             let file = fm.clone();

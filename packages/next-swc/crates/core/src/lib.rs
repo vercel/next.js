@@ -39,7 +39,8 @@ use next_transform_font::next_font_loaders;
 use serde::Deserialize;
 use turbopack_binding::swc::core::{
     common::{
-        chain, comments::Comments, pass::Optional, FileName, SourceFile, SourceMap, SyntaxContext,
+        chain, comments::Comments, pass::Optional, FileName, Mark, SourceFile, SourceMap,
+        SyntaxContext,
     },
     ecma::{
         ast::EsVersion, parser::parse_file_as_module, transforms::base::pass::noop, visit::Fold,
@@ -139,6 +140,7 @@ pub fn custom_before_pass<'a, C: Comments + 'a>(
     opts: &'a TransformOptions,
     comments: C,
     eliminated_packages: Rc<RefCell<FxHashSet<String>>>,
+    unresolved_mark: Mark,
 ) -> impl Fold + 'a
 where
     C: Clone,
@@ -283,13 +285,12 @@ where
             )),
             None => Either::Right(noop()),
         },
-        // TODO: Pass in the syntax context
-        // match &opts.cjs_require_optimizer {
-        //     Some(config) => {
-        //         Either::Left(cjs_optimizer::cjs_optimizer(config.clone(), SyntaxContext::empty()))
-        //     },
-        //     None => Either::Right(noop()),
-        // },
+        match &opts.cjs_require_optimizer {
+            Some(config) => {
+                Either::Left(cjs_optimizer::cjs_optimizer(config.clone(), SyntaxContext::empty().apply_mark(unresolved_mark)))
+            },
+            None => Either::Right(noop()),
+        },
     )
 }
 
