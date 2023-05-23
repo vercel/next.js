@@ -17,6 +17,7 @@ import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middlew
 import {
   CLIENT_STATIC_FILES_PATH,
   DEV_CLIENT_PAGES_MANIFEST,
+  DEV_MIDDLEWARE_MANIFEST,
 } from '../../shared/lib/constants'
 import type { BaseNextRequest } from '../base-http'
 
@@ -194,20 +195,6 @@ export async function makeResolver(
   // @ts-expect-error protected
   const buildId = devServer.buildId
 
-  const pagesManifestRoute = routes.fsRoutes.find(
-    (r) =>
-      r.name ===
-      `_next/${CLIENT_STATIC_FILES_PATH}/${buildId}/${DEV_CLIENT_PAGES_MANIFEST}`
-  )
-  if (pagesManifestRoute) {
-    // make sure turbopack serves this
-    pagesManifestRoute.fn = () => {
-      return {
-        finished: true,
-      }
-    }
-  }
-
   const router = new Router({
     ...routes,
     catchAllMiddleware,
@@ -246,6 +233,8 @@ export async function makeResolver(
       route.type === 'header' ||
       route.name === 'catchall route' ||
       route.name === 'middleware catchall' ||
+      route.name ===
+        `_next/${CLIENT_STATIC_FILES_PATH}/${buildId}/${DEV_MIDDLEWARE_MANIFEST}` ||
       route.name?.includes('check')
     )
   })
