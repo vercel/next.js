@@ -1,11 +1,10 @@
 import type NextServer from '../../next-server'
 
-import http from 'http'
 import { getNodeOptionsWithoutInspect } from '../utils'
 import { deserializeErr, errorToJSON } from '../../render'
 import crypto from 'crypto'
 import isError from '../../../lib/is-error'
-import { genRenderExecArgv } from '../worker-utils'
+import { genRenderExecArgv, getFreePort } from '../worker-utils'
 
 // we can't use process.send as jest-worker relies on
 // it already and can cause unexpected message errors
@@ -78,22 +77,6 @@ export async function createIpcServer(
     ipcServer,
     ipcValidationKey,
   }
-}
-
-export const getFreePort = async (): Promise<number> => {
-  return new Promise((resolve, reject) => {
-    const server = http.createServer(() => {})
-    server.listen(0, () => {
-      const address = server.address()
-      server.close()
-
-      if (address && typeof address === 'object') {
-        resolve(address.port)
-      } else {
-        reject(new Error('invalid address from server: ' + address?.toString()))
-      }
-    })
-  })
 }
 
 export const createWorker = async (

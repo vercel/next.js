@@ -6,7 +6,7 @@ import type { ChildProcess } from 'child_process'
 import { normalizeRepeatedSlashes } from '../../shared/lib/utils'
 import { initialEnv } from '@next/env'
 import { genExecArgv, getNodeOptionsWithoutInspect } from './utils'
-import { getFreePort } from './server-ipc'
+import { getFreePort } from './worker-utils'
 
 export interface StartServerOptions {
   dir: string

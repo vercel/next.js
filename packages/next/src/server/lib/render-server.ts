@@ -14,7 +14,7 @@ import {
   deleteAppClientCache as _deleteAppClientCache,
 } from '../../build/webpack/plugins/nextjs-require-cache-hot-reloader'
 import { clearModuleContext as _clearModuleContext } from '../web/sandbox/context'
-import { getFreePort } from './server-ipc'
+import { getFreePort } from '../lib/worker-utils'
 export const WORKER_SELF_EXIT_CODE = 77
 
 const MAXIMUM_HEAP_SIZE_ALLOWED =
