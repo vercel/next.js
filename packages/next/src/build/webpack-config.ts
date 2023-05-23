@@ -401,7 +401,7 @@ function createReactAliases(
     'react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}`,
     'react/jsx-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-runtime`,
     'react/jsx-dev-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime`,
-    'react-dom/server$': `next/dist/compiled/react-dom${bundledReactChannel}/server$`,
+    'react-dom/server$': `next/dist/compiled/react-dom${bundledReactChannel}/server`,
     'react-dom/server.edge$': `next/dist/compiled/react-dom${bundledReactChannel}/server.edge`,
     'react-dom/server.browser$': `next/dist/compiled/react-dom${bundledReactChannel}/server.browser`,
     'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client`,
