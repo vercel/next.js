@@ -541,6 +541,13 @@ function assignDefaults(
         if (!item.defaultLocale) return true
         if (!item.domain || typeof item.domain !== 'string') return true
 
+        if (item.domain.includes(':')) {
+          console.warn(
+            `i18n domain: "${item.domain}" is invalid it should be a valid domain without https:// or port e.g. example.vercel.sh`
+          )
+          return true
+        }
+
         const defaultLocaleDuplicate = i18n.domains?.find(
           (altItem) =>
             altItem.defaultLocale === item.defaultLocale &&
