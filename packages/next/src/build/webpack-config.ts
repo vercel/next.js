@@ -120,7 +120,7 @@ const conditionNamesPerModuleType: Record<'edge' | 'default', string[]> = {
     'node',
     'default',
   ],
-  default: ['import', 'module', 'require', 'node', 'default'],
+  default: ['import', 'module', 'node', 'default'],
 }
 
 const BABEL_CONFIG_FILES = [
@@ -260,10 +260,7 @@ export function getDefineEnv({
           ),
         }),
 
-    // Align with turbopack to inject turbopack process env for tree-shaking
-    'process.turbopack': JSON.stringify(
-      config.experimental.turbo ? true : undefined
-    ),
+    'process.turbopack': JSON.stringify(false),
     // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
     'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production'),
     'process.env.NEXT_RUNTIME': JSON.stringify(
