@@ -1,5 +1,5 @@
 import { install } from '../helpers/install'
-import { makeDir } from "../helpers/make-dir"
+import { makeDir } from '../helpers/make-dir'
 
 import cpy from 'cpy'
 import globOrig from 'glob'
