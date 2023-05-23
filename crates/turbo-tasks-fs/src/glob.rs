@@ -50,8 +50,7 @@ impl Glob {
     pub fn execute(&self, path: &str) -> bool {
         let match_partial = path.ends_with('/');
         self.iter_matches(path, true, match_partial)
-            .next()
-            .is_some()
+            .any(|result| matches!(result, ("", _)))
     }
 
     fn iter_matches<'a>(
@@ -415,5 +414,15 @@ mod tests {
         println!("{glob:?} {path}");
 
         assert!(glob.execute(path));
+    }
+
+    #[rstest]
+    #[case::early_end("*.raw", "hello.raw.js")]
+    fn glob_not_matching(#[case] glob: &str, #[case] path: &str) {
+        let glob = Glob::parse(glob).unwrap();
+
+        println!("{glob:?} {path}");
+
+        assert!(!glob.execute(path));
     }
 }

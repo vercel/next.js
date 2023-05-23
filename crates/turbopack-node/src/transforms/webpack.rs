@@ -35,25 +35,22 @@ struct WebpackLoadersProcessingResult {
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum WebpackLoaderConfigItem {
-    LoaderName(String),
-    LoaderNameWithOptions {
-        loader: String,
-        #[turbo_tasks(trace_ignore)]
-        options: serde_json::Map<String, serde_json::Value>,
-    },
+pub struct WebpackLoaderItem {
+    pub loader: String,
+    #[turbo_tasks(trace_ignore)]
+    pub options: serde_json::Map<String, serde_json::Value>,
 }
 
 #[derive(Debug, Clone)]
 #[turbo_tasks::value(shared, transparent)]
-pub struct WebpackLoaderConfigItems(pub Vec<WebpackLoaderConfigItem>);
+pub struct WebpackLoaderItems(pub Vec<WebpackLoaderItem>);
 
 #[turbo_tasks::value]
 pub struct WebpackLoaders {
     evaluate_context: AssetContextVc,
     execution_context: ExecutionContextVc,
-    loaders: WebpackLoaderConfigItemsVc,
+    loaders: WebpackLoaderItemsVc,
+    rename_as: Option<String>,
 }
 
 #[turbo_tasks::value_impl]
@@ -62,12 +59,14 @@ impl WebpackLoadersVc {
     pub fn new(
         evaluate_context: AssetContextVc,
         execution_context: ExecutionContextVc,
-        loaders: WebpackLoaderConfigItemsVc,
+        loaders: WebpackLoaderItemsVc,
+        rename_as: Option<String>,
     ) -> Self {
         WebpackLoaders {
             evaluate_context,
             execution_context,
             loaders,
+            rename_as,
         }
         .cell()
     }
@@ -76,11 +75,9 @@ impl WebpackLoadersVc {
 #[turbo_tasks::value_impl]
 impl SourceTransform for WebpackLoaders {
     #[turbo_tasks::function]
-    fn transform(&self, source: AssetVc) -> AssetVc {
+    fn transform(self_vc: WebpackLoadersVc, source: AssetVc) -> AssetVc {
         WebpackLoadersProcessedAsset {
-            evaluate_context: self.evaluate_context,
-            execution_context: self.execution_context,
-            loaders: self.loaders,
+            transform: self_vc,
             source,
         }
         .cell()
@@ -90,17 +87,21 @@ impl SourceTransform for WebpackLoaders {
 
 #[turbo_tasks::value]
 struct WebpackLoadersProcessedAsset {
-    evaluate_context: AssetContextVc,
-    execution_context: ExecutionContextVc,
-    loaders: WebpackLoaderConfigItemsVc,
+    transform: WebpackLoadersVc,
     source: AssetVc,
 }
 
 #[turbo_tasks::value_impl]
 impl Asset for WebpackLoadersProcessedAsset {
     #[turbo_tasks::function]
-    fn ident(&self) -> AssetIdentVc {
-        self.source.ident()
+    async fn ident(&self) -> Result<AssetIdentVc> {
+        Ok(
+            if let Some(rename_as) = self.transform.await?.rename_as.as_deref() {
+                self.source.ident().rename_as(rename_as)
+            } else {
+                self.source.ident()
+            },
+        )
     }
 
     #[turbo_tasks::function]
@@ -135,12 +136,13 @@ impl WebpackLoadersProcessedAssetVc {
     #[turbo_tasks::function]
     async fn process(self) -> Result<ProcessWebpackLoadersResultVc> {
         let this = self.await?;
+        let transform = this.transform.await?;
 
         let ExecutionContext {
             project_path,
             chunking_context,
             env,
-        } = *this.execution_context.await?;
+        } = *transform.execution_context.await?;
         let source_content = this.source.content();
         let AssetContent::File(file) = *source_content.await? else {
             bail!("Webpack Loaders transform only support transforming files");
@@ -152,12 +154,12 @@ impl WebpackLoadersProcessedAssetVc {
             }.cell());
         };
         let content = content.content().to_str()?;
-        let context = this.evaluate_context;
+        let context = transform.evaluate_context;
 
         let webpack_loaders_executor = webpack_loaders_executor(context);
         let resource_fs_path = this.source.ident().path().await?;
         let resource_path = resource_fs_path.path.as_str();
-        let loaders = this.loaders.await?;
+        let loaders = transform.loaders.await?;
         let config_value = evaluate(
             webpack_loaders_executor,
             project_path,

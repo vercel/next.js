@@ -2,7 +2,7 @@ use anyhow::Result;
 use async_recursion::async_recursion;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{primitives::Regex, trace::TraceRawVcs};
-use turbo_tasks_fs::{FileSystemPath, FileSystemPathReadRef};
+use turbo_tasks_fs::{glob::GlobReadRef, FileSystemPath, FileSystemPathReadRef};
 use turbopack_core::{
     asset::AssetVc, reference_type::ReferenceType, virtual_asset::VirtualAssetVc,
 };
@@ -20,6 +20,18 @@ pub enum ModuleRuleCondition {
     ResourcePathInDirectory(String),
     ResourcePathInExactDirectory(FileSystemPathReadRef),
     ResourcePathRegex(#[turbo_tasks(trace_ignore)] Regex),
+    /// For paths that are within the same filesystem as the `base`, it need to
+    /// match the relative path from base to resource. This includes `./` or
+    /// `../` prefix. For paths in a different filesystem, it need to match
+    /// the resource path in that filesystem without any prefix. This means
+    /// any glob starting with `./` or `../` will only match paths in the
+    /// project. Globs starting with `**` can match any path.
+    ResourcePathGlob {
+        base: FileSystemPathReadRef,
+        #[turbo_tasks(trace_ignore)]
+        glob: GlobReadRef,
+    },
+    ResourceBasePathGlob(#[turbo_tasks(trace_ignore)] GlobReadRef),
 }
 
 impl ModuleRuleCondition {
@@ -89,6 +101,20 @@ impl ModuleRuleCondition {
             }
             ModuleRuleCondition::ResourceIsVirtualAsset => {
                 VirtualAssetVc::resolve_from(source).await?.is_some()
+            }
+            ModuleRuleCondition::ResourcePathGlob { glob, base } => {
+                if let Some(path) = base.get_relative_path_to(path) {
+                    glob.execute(&path)
+                } else {
+                    glob.execute(&path.path)
+                }
+            }
+            ModuleRuleCondition::ResourceBasePathGlob(glob) => {
+                let basename = path
+                    .path
+                    .rsplit_once('/')
+                    .map_or(path.path.as_str(), |(_, b)| b);
+                glob.execute(basename)
             }
             _ => todo!("not implemented yet"),
         })

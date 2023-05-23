@@ -259,113 +259,129 @@ impl ModuleAssetContextVc {
     }
 
     #[turbo_tasks::function]
-    async fn process_default(
+    fn process_default(
         self_vc: ModuleAssetContextVc,
         source: AssetVc,
         reference_type: Value<ReferenceType>,
-    ) -> Result<AssetVc> {
-        let ident = source.ident().resolve().await?;
-        let options = ModuleOptionsVc::new(ident.path().parent(), self_vc.module_options_context());
+    ) -> AssetVc {
+        process_default(self_vc, source, reference_type, Vec::new())
+    }
+}
 
-        let reference_type = reference_type.into_value();
-        let part = match &reference_type {
-            ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportPart(
-                part,
-            )) => Some(*part),
-            _ => None,
-        };
-        let mut current_source = source;
-        let mut current_module_type = None;
-        for rule in options.await?.rules.iter() {
-            if rule
-                .matches(source, &*ident.path().await?, &reference_type)
-                .await?
-            {
-                for effect in rule.effects() {
-                    match effect {
-                        ModuleRuleEffect::SourceTransforms(transforms) => {
-                            current_source = transforms.transform(current_source);
-                            if current_source.ident().resolve().await? != ident {
-                                // The ident has been changed, so we need to apply new rules.
-                                return Ok(self_vc
-                                    .process_default(current_source, Value::new(reference_type)));
+#[turbo_tasks::function]
+async fn process_default(
+    context: ModuleAssetContextVc,
+    source: AssetVc,
+    reference_type: Value<ReferenceType>,
+    processed_rules: Vec<usize>,
+) -> Result<AssetVc> {
+    let ident = source.ident().resolve().await?;
+    let options = ModuleOptionsVc::new(ident.path().parent(), context.module_options_context());
+
+    let reference_type = reference_type.into_value();
+    let part = match &reference_type {
+        ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportPart(part)) => {
+            Some(*part)
+        }
+        _ => None,
+    };
+    let mut current_source = source;
+    let mut current_module_type = None;
+    for (i, rule) in options.await?.rules.iter().enumerate() {
+        if processed_rules.contains(&i) {
+            continue;
+        }
+        if rule
+            .matches(source, &*ident.path().await?, &reference_type)
+            .await?
+        {
+            for effect in rule.effects() {
+                match effect {
+                    ModuleRuleEffect::SourceTransforms(transforms) => {
+                        current_source = transforms.transform(current_source);
+                        if current_source.ident().resolve().await? != ident {
+                            // The ident has been changed, so we need to apply new rules.
+                            let mut processed_rules = processed_rules.clone();
+                            processed_rules.push(i);
+                            return Ok(process_default(
+                                context,
+                                current_source,
+                                Value::new(reference_type),
+                                processed_rules,
+                            ));
+                        }
+                    }
+                    ModuleRuleEffect::ModuleType(module) => {
+                        current_module_type = Some(*module);
+                    }
+                    ModuleRuleEffect::AddEcmascriptTransforms(additional_transforms) => {
+                        current_module_type = match current_module_type {
+                            Some(ModuleType::Ecmascript {
+                                transforms,
+                                options,
+                            }) => Some(ModuleType::Ecmascript {
+                                transforms: transforms.extend(*additional_transforms),
+                                options,
+                            }),
+                            Some(ModuleType::Typescript {
+                                transforms,
+                                options,
+                            }) => Some(ModuleType::Typescript {
+                                transforms: transforms.extend(*additional_transforms),
+                                options,
+                            }),
+                            Some(ModuleType::TypescriptWithTypes {
+                                transforms,
+                                options,
+                            }) => Some(ModuleType::TypescriptWithTypes {
+                                transforms: transforms.extend(*additional_transforms),
+                                options,
+                            }),
+                            Some(module_type) => {
+                                ModuleIssue {
+                                    ident,
+                                    title: StringVc::cell("Invalid module type".to_string()),
+                                    description: StringVc::cell(
+                                        "The module type must be Ecmascript or Typescript to add \
+                                         Ecmascript transforms"
+                                            .to_string(),
+                                    ),
+                                }
+                                .cell()
+                                .as_issue()
+                                .emit();
+                                Some(module_type)
                             }
-                        }
-                        ModuleRuleEffect::ModuleType(module) => {
-                            current_module_type = Some(*module);
-                        }
-                        ModuleRuleEffect::AddEcmascriptTransforms(additional_transforms) => {
-                            current_module_type = match current_module_type {
-                                Some(ModuleType::Ecmascript {
-                                    transforms,
-                                    options,
-                                }) => Some(ModuleType::Ecmascript {
-                                    transforms: transforms.extend(*additional_transforms),
-                                    options,
-                                }),
-                                Some(ModuleType::Typescript {
-                                    transforms,
-                                    options,
-                                }) => Some(ModuleType::Typescript {
-                                    transforms: transforms.extend(*additional_transforms),
-                                    options,
-                                }),
-                                Some(ModuleType::TypescriptWithTypes {
-                                    transforms,
-                                    options,
-                                }) => Some(ModuleType::TypescriptWithTypes {
-                                    transforms: transforms.extend(*additional_transforms),
-                                    options,
-                                }),
-                                Some(module_type) => {
-                                    ModuleIssue {
-                                        ident,
-                                        title: StringVc::cell("Invalid module type".to_string()),
-                                        description: StringVc::cell(
-                                            "The module type must be Ecmascript or Typescript to \
-                                             add Ecmascript transforms"
-                                                .to_string(),
-                                        ),
-                                    }
-                                    .cell()
-                                    .as_issue()
-                                    .emit();
-                                    Some(module_type)
+                            None => {
+                                ModuleIssue {
+                                    ident,
+                                    title: StringVc::cell("Missing module type".to_string()),
+                                    description: StringVc::cell(
+                                        "The module type effect must be applied before adding \
+                                         Ecmascript transforms"
+                                            .to_string(),
+                                    ),
                                 }
-                                None => {
-                                    ModuleIssue {
-                                        ident,
-                                        title: StringVc::cell("Missing module type".to_string()),
-                                        description: StringVc::cell(
-                                            "The module type effect must be applied before adding \
-                                             Ecmascript transforms"
-                                                .to_string(),
-                                        ),
-                                    }
-                                    .cell()
-                                    .as_issue()
-                                    .emit();
-                                    None
-                                }
-                            };
-                        }
-                        ModuleRuleEffect::Custom => {
-                            todo!("Custom module rule effects are not yet supported");
-                        }
+                                .cell()
+                                .as_issue()
+                                .emit();
+                                None
+                            }
+                        };
                     }
                 }
             }
         }
-
-        let module_type = current_module_type.unwrap_or(ModuleType::Raw).cell();
-
-        Ok(apply_module_type(
-            current_source,
-            self_vc,
-            module_type,
-            part,
-        ))
     }
+
+    let module_type = current_module_type.unwrap_or(ModuleType::Raw).cell();
+
+    Ok(apply_module_type(
+        current_source,
+        context,
+        module_type,
+        part,
+    ))
 }
 
 #[turbo_tasks::value_impl]

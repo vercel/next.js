@@ -238,7 +238,7 @@ pub async fn resolve_options(
     if !options_context_value.rules.is_empty() {
         let context_value = &*context.await?;
         for (condition, new_options_context) in options_context_value.rules.iter() {
-            if condition.matches(context_value).await {
+            if condition.matches(context_value).await? {
                 return Ok(resolve_options(context, *new_options_context));
             }
         }

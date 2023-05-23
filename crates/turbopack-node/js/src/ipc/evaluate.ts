@@ -49,7 +49,8 @@ export const run = async (
           const value = await getValue(ipc, ...msg.args);
           await ipc.send({
             type: "end",
-            data: value === undefined ? undefined : JSON.stringify(value),
+            data:
+              value === undefined ? undefined : JSON.stringify(value, null, 2),
           });
         } catch (e) {
           await ipc.sendError(e as Error);
