@@ -1,16 +1,17 @@
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{bail, Context, Result};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use swc_core::ecma::ast::Program;
 use turbo_tasks::{
     primitives::{JsonValue, JsonValueVc, StringVc},
     trace::TraceRawVcs,
-    Value, ValueToString,
+    TaskInput, Value, ValueToString,
 };
 use turbopack_binding::{
     turbo::tasks_fs::{json::parse_json_rope_with_source_context, FileContent, FileSystemPathVc},
     turbopack::{
         core::{
             asset::{Asset, AssetVc},
+            environment::{ServerAddrVc, ServerInfo},
             ident::AssetIdentVc,
             issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc, OptionIssueSourceVc},
             reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
@@ -30,13 +31,18 @@ use turbopack_binding::{
 
 use crate::next_config::{NextConfigVc, OutputType};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, TaskInput)]
+pub enum PathType {
+    Page,
+    Data,
+}
+
 /// Converts a filename within the server root into a next pathname.
 #[turbo_tasks::function]
 pub async fn pathname_for_path(
     server_root: FileSystemPathVc,
     server_path: FileSystemPathVc,
-    has_extension: bool,
-    data: bool,
+    path_ty: PathType,
 ) -> Result<StringVc> {
     let server_path_value = &*server_path.await?;
     let path = if let Some(path) = server_root.await?.get_path_to(server_path_value) {
@@ -48,19 +54,12 @@ pub async fn pathname_for_path(
             server_root.to_string().await?
         )
     };
-    let path = if has_extension {
-        path.rsplit_once('.')
-            .ok_or_else(|| anyhow!("path ({}) has no extension", path))?
-            .0
-    } else {
-        path
-    };
-    // `get_path_to` always strips the leading `/` from the path, so we need to add
-    // it back here.
-    let path = if path == "index" && !data {
-        "/".to_string()
-    } else {
-        format!("/{}", path.strip_suffix("/index").unwrap_or(path))
+    let path = match (path_ty, path) {
+        // "/" is special-cased to "/index" for data routes.
+        (PathType::Data, "") => "/index".to_string(),
+        // `get_path_to` always strips the leading `/` from the path, so we need to add
+        // it back here.
+        (_, path) => format!("/{}", path),
     };
 
     Ok(StringVc::cell(path))
@@ -358,17 +357,23 @@ pub async fn load_next_json<T: DeserializeOwned>(
 }
 
 #[turbo_tasks::function]
-pub async fn render_data(next_config: NextConfigVc) -> Result<JsonValueVc> {
+pub async fn render_data(
+    next_config: NextConfigVc,
+    server_addr: ServerAddrVc,
+) -> Result<JsonValueVc> {
     #[derive(Serialize)]
     #[serde(rename_all = "camelCase")]
     struct Data {
         next_config_output: Option<OutputType>,
+        server_info: Option<ServerInfo>,
     }
 
     let config = next_config.await?;
+    let server_info = ServerInfo::try_from(&*server_addr.await?);
 
     let value = serde_json::to_value(Data {
         next_config_output: config.output.clone(),
+        server_info: server_info.ok(),
     })?;
     Ok(JsonValue(value).cell())
 }

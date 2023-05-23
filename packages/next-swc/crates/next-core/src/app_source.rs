@@ -74,6 +74,7 @@ use crate::{
     embed_js::{next_asset, next_js_file, next_js_file_path},
     env::env_for_js,
     fallback::get_fallback_page,
+    mode::NextMode,
     next_client::{
         context::{
             get_client_assets_path, get_client_chunking_context, get_client_compile_time_info,
@@ -139,6 +140,7 @@ async fn next_client_transition(
     next_config: NextConfigVc,
 ) -> Result<TransitionVc> {
     let ty = Value::new(ClientContextType::App { app_dir });
+    let mode = NextMode::Development;
     let client_chunking_context = get_client_chunking_context(
         project_path,
         server_root,
@@ -150,12 +152,13 @@ async fn next_client_transition(
         execution_context,
         client_compile_time_info.environment(),
         ty,
+        mode,
         next_config,
     );
     let client_runtime_entries =
-        get_client_runtime_entries(project_path, env, ty, next_config, execution_context);
+        get_client_runtime_entries(project_path, env, ty, mode, next_config, execution_context);
     let client_resolve_options_context =
-        get_client_resolve_options_context(project_path, ty, next_config, execution_context);
+        get_client_resolve_options_context(project_path, ty, mode, next_config, execution_context);
 
     Ok(NextClientTransition {
         is_app: true,
@@ -179,20 +182,23 @@ fn next_ssr_client_module_transition(
     server_addr: ServerAddrVc,
 ) -> TransitionVc {
     let ty = Value::new(ServerContextType::AppSSR { app_dir });
+    let mode = NextMode::Development;
     NextSSRClientModuleTransition {
         ssr_module_options_context: get_server_module_options_context(
             project_path,
             execution_context,
             ty,
+            mode,
             next_config,
         ),
         ssr_resolve_options_context: get_server_resolve_options_context(
             project_path,
             ty,
+            mode,
             next_config,
             execution_context,
         ),
-        ssr_environment: get_server_compile_time_info(ty, process_env, server_addr),
+        ssr_environment: get_server_compile_time_info(ty, mode, process_env, server_addr),
     }
     .cell()
     .into()
@@ -209,11 +215,12 @@ fn next_layout_entry_transition(
     server_addr: ServerAddrVc,
 ) -> TransitionVc {
     let ty = Value::new(ServerContextType::AppRSC { app_dir });
-    let rsc_compile_time_info = get_server_compile_time_info(ty, process_env, server_addr);
+    let mode = NextMode::Development;
+    let rsc_compile_time_info = get_server_compile_time_info(ty, mode, process_env, server_addr);
     let rsc_resolve_options_context =
-        get_server_resolve_options_context(project_path, ty, next_config, execution_context);
+        get_server_resolve_options_context(project_path, ty, mode, next_config, execution_context);
     let rsc_module_options_context =
-        get_server_module_options_context(project_path, execution_context, ty, next_config);
+        get_server_module_options_context(project_path, execution_context, ty, mode, next_config);
 
     NextServerComponentTransition {
         rsc_compile_time_info,
@@ -284,6 +291,7 @@ fn app_context(
     output_path: FileSystemPathVc,
 ) -> AssetContextVc {
     let next_server_to_client_transition = NextServerToClientTransition { ssr }.cell().into();
+    let mode = NextMode::Development;
 
     let mut transitions = HashMap::new();
     transitions.insert(
@@ -333,6 +341,7 @@ fn app_context(
             project_path,
             execution_context,
             client_ty,
+            mode,
             server_root,
             client_compile_time_info,
             next_config,
@@ -354,9 +363,21 @@ fn app_context(
     let ssr_ty = Value::new(ServerContextType::AppSSR { app_dir });
     ModuleAssetContextVc::new(
         TransitionsByNameVc::cell(transitions),
-        get_server_compile_time_info(ssr_ty, env, server_addr),
-        get_server_module_options_context(project_path, execution_context, ssr_ty, next_config),
-        get_server_resolve_options_context(project_path, ssr_ty, next_config, execution_context),
+        get_server_compile_time_info(ssr_ty, mode, env, server_addr),
+        get_server_module_options_context(
+            project_path,
+            execution_context,
+            ssr_ty,
+            mode,
+            next_config,
+        ),
+        get_server_resolve_options_context(
+            project_path,
+            ssr_ty,
+            mode,
+            next_config,
+            execution_context,
+        ),
     )
     .into()
 }
@@ -381,7 +402,8 @@ pub async fn create_app_source(
     let entrypoints = get_entrypoints(app_dir, next_config.page_extensions());
     let metadata = get_global_metadata(app_dir, next_config.page_extensions());
 
-    let client_compile_time_info = get_client_compile_time_info(browserslist_query);
+    let client_compile_time_info =
+        get_client_compile_time_info(NextMode::Development, browserslist_query);
 
     let context_ssr = app_context(
         project_path,
@@ -424,7 +446,7 @@ pub async fn create_app_source(
         client_compile_time_info,
         next_config,
     );
-    let render_data = render_data(next_config);
+    let render_data = render_data(next_config, server_addr);
 
     let entrypoints = entrypoints.await?;
     let mut sources: Vec<_> = entrypoints
@@ -1017,6 +1039,8 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
                 Value::new(EcmascriptModuleAssetType::Typescript),
                 EcmascriptInputTransformsVc::cell(vec![
                     EcmascriptInputTransform::React {
+                        // The App source is currently only used in the development mode.
+                        development: true,
                         refresh: false,
                         import_source: OptionStringVc::cell(None),
                         runtime: OptionStringVc::cell(None),

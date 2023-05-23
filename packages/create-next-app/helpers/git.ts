@@ -19,6 +19,14 @@ function isInMercurialRepository(): boolean {
   return false
 }
 
+function isDefaultBranchSet(): boolean {
+  try {
+    execSync('git config init.defaultBranch', { stdio: 'ignore' })
+    return true
+  } catch (_) {}
+  return false
+}
+
 export function tryGitInit(root: string): boolean {
   let didInit = false
   try {
@@ -30,7 +38,9 @@ export function tryGitInit(root: string): boolean {
     execSync('git init', { stdio: 'ignore' })
     didInit = true
 
-    execSync('git checkout -b main', { stdio: 'ignore' })
+    if (!isDefaultBranchSet()) {
+      execSync('git checkout -b main', { stdio: 'ignore' })
+    }
 
     execSync('git add -A', { stdio: 'ignore' })
     execSync('git commit -m "Initial commit from Create Next App"', {

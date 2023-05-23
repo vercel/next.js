@@ -26,10 +26,11 @@ function handleMiddlewareField(
   }
 }
 
-export class NextResponse extends Response {
+export class NextResponse<Body = unknown> extends Response {
   [INTERNALS]: {
     cookies: ResponseCookies
     url?: NextURL
+    body?: Body
   }
 
   constructor(body?: BodyInit | null, init: ResponseInit = {}) {
@@ -66,7 +67,10 @@ export class NextResponse extends Response {
     return this[INTERNALS].cookies
   }
 
-  static json(body: any, init?: ResponseInit): NextResponse {
+  static json<JsonBody>(
+    body: JsonBody,
+    init?: ResponseInit
+  ): NextResponse<JsonBody> {
     // @ts-expect-error This is not in lib/dom right now, and we can't augment it.
     const response: Response = Response.json(body, init)
     return new NextResponse(response.body, response)

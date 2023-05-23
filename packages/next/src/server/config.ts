@@ -26,7 +26,7 @@ import {
 } from './config-shared'
 import { loadWebpackHook } from './config-utils'
 import { ImageConfig, imageConfigDefault } from '../shared/lib/image-config'
-import { loadEnvConfig } from '@next/env'
+import { loadEnvConfig, updateInitialEnv } from '@next/env'
 import { flushAndExit } from '../telemetry/flush-and-exit'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
@@ -717,6 +717,8 @@ export default async function loadConfig(
     let userConfigModule: any
 
     try {
+      const envBefore = Object.assign({}, process.env)
+
       // `import()` expects url-encoded strings, so the path must be properly
       // escaped and (especially on Windows) absolute paths must pe prefixed
       // with the `file://` protocol
@@ -728,6 +730,14 @@ export default async function loadConfig(
       } else {
         userConfigModule = await import(pathToFileURL(path).href)
       }
+      const newEnv: typeof process.env = {} as any
+
+      for (const key of Object.keys(process.env)) {
+        if (envBefore[key] !== process.env[key]) {
+          newEnv[key] = process.env[key]
+        }
+      }
+      updateInitialEnv(newEnv)
 
       if (rawConfig) {
         return userConfigModule

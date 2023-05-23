@@ -186,8 +186,9 @@ export async function startServer({
           env: {
             FORCE_COLOR: '1',
             ...((initialEnv || process.env) as typeof process.env),
-            // We should allow NodeOptions to be passed down for render-server for debugging
-            NODE_OPTIONS: process.env.NODE_OPTIONS,
+            PORT: port + '',
+            // We don't stub NodeOptions here so it can
+            // be passed down for render-server for debugging
           },
         },
         exposedMethods: ['initialize'],
