@@ -427,7 +427,7 @@ createNextDescribe(
     })
 
     it('should use stable react for pages', async () => {
-      const ssrPaths = ['/pages-react', '/pages-react-edge', '/app-react']
+      const ssrPaths = ['/pages-react', '/pages-react-edge']
       const promises = ssrPaths.map(async (pathname) => {
         const resPages$ = await next.render$(pathname)
         const ssrPagesReactVersions = [
@@ -437,11 +437,7 @@ createNextDescribe(
         ]
 
         ssrPagesReactVersions.forEach((version) => {
-          if (pathname === '/app-react') {
-            expect(version).toMatch('-canary-')
-          } else {
-            expect(version).not.toMatch('-canary-')
-          }
+          expect(version).not.toMatch('-canary-')
         })
       })
       await Promise.all(promises)
@@ -475,21 +471,40 @@ createNextDescribe(
         ]
       `)
 
-      await browser.loadPage(next.url + '/app-react')
-      const browserAppReactVersions = await browser.eval(`
-        [
-          document.querySelector('#react').innerText,
-          document.querySelector('#react-dom').innerText,
-          document.querySelector('#react-dom-server').innerText,
-        ]
-      `)
-
       browserPagesReactVersions.forEach((version) =>
         expect(version).not.toMatch('-canary-')
       )
       browserEdgePagesReactVersions.forEach((version) =>
         expect(version).not.toMatch('-canary-')
       )
+    })
+
+    it('should use canary react for app', async () => {
+      const resPages$ = await next.render$('/app-react')
+      const ssrPagesReactVersions = [
+        await resPages$('#react').text(),
+        await resPages$('#react-dom').text(),
+        await resPages$('#react-dom-server').text(),
+        await resPages$('#client-react').text(),
+        await resPages$('#client-react-dom').text(),
+        await resPages$('#client-react-dom-server').text(),
+      ]
+
+      ssrPagesReactVersions.forEach((version) => {
+        expect(version).toMatch('-canary-')
+      })
+
+      const browser = await next.browser('/app-react')
+      const browserAppReactVersions = await browser.eval(`
+        [
+          document.querySelector('#react').innerText,
+          document.querySelector('#react-dom').innerText,
+          document.querySelector('#react-dom-server').innerText,
+          document.querySelector('#client-react').innerText,
+          document.querySelector('#client-react-dom').innerText,
+          document.querySelector('#client-react-dom-server').innerText,
+        ]
+      `)
       browserAppReactVersions.forEach((version) =>
         expect(version).toMatch('-canary-')
       )
