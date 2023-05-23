@@ -1,6 +1,8 @@
 {
   "main": "./index.js",
   "module": "./index.mjs",
+  "edge-light": "./index.mjs",
+  "sideEffects": false,
   "exports": {
     ".": {
       "import": "./index.mjs",
