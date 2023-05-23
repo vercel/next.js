@@ -43,7 +43,6 @@ pub enum ModuleRuleEffect {
     ModuleType(ModuleType),
     AddEcmascriptTransforms(EcmascriptInputTransformsVc),
     SourceTransforms(SourceTransformsVc),
-    Custom,
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input", shared)]

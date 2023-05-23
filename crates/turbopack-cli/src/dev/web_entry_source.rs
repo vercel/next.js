@@ -36,11 +36,8 @@ use turbopack_dev_server::{
     source::{asset_graph::AssetGraphContentSourceVc, ContentSourceVc},
 };
 use turbopack_ecmascript_plugins::transform::{
-    emotion::{EmotionTransformConfig, EmotionTransformConfigVc, EmotionTransformer},
-    styled_components::{
-        StyledComponentsTransformConfig, StyledComponentsTransformConfigVc,
-        StyledComponentsTransformer,
-    },
+    emotion::{EmotionTransformConfig, EmotionTransformer},
+    styled_components::{StyledComponentsTransformConfig, StyledComponentsTransformer},
     styled_jsx::StyledJsxTransformer,
 };
 use turbopack_node::execution_context::ExecutionContextVc;

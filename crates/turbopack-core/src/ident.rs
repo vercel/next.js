@@ -31,6 +31,16 @@ impl AssetIdent {
     pub fn add_asset(&mut self, key: StringVc, asset: AssetIdentVc) {
         self.assets.push((key, asset));
     }
+
+    pub async fn rename_as(&mut self, pattern: &str) -> Result<()> {
+        let root = self.path.root();
+        let path = self.path.await?;
+        self.path = root
+            .join(&pattern.replace("*", &path.path))
+            .resolve()
+            .await?;
+        Ok(())
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -92,6 +102,13 @@ impl AssetIdentVc {
     pub async fn with_part(self, part: ModulePartVc) -> Result<Self> {
         let mut this = self.await?.clone_value();
         this.part = Some(part);
+        Ok(Self::new(Value::new(this)))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn rename_as(self, pattern: &str) -> Result<Self> {
+        let mut this = self.await?.clone_value();
+        this.rename_as(pattern).await?;
         Ok(Self::new(Value::new(this)))
     }
 
