@@ -197,8 +197,7 @@ pub async fn get_client_module_options_context(
         get_jsx_transform_options(project_path, mode, Some(resolve_options_context));
     let webpack_rules =
         *maybe_add_babel_loader(project_path, *next_config.webpack_rules().await?).await?;
-    let webpack_rules = maybe_add_sass_loader(next_config.sass_config(), webpack_rules)
-        .await?;
+    let webpack_rules = maybe_add_sass_loader(next_config.sass_config(), webpack_rules).await?;
     let enable_webpack_loaders = webpack_rules.map(|rules| {
         WebpackLoadersOptions {
             rules,
