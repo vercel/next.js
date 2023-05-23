@@ -674,6 +674,7 @@ async fn create_app_route_source_for_route(
             project_path,
             intermediate_output_path: intermediate_output_path_root,
             output_root: intermediate_output_path_root,
+            app_dir,
         }
         .cell()
         .into(),
@@ -1018,7 +1019,7 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
             project_path,
             intermediate_output_path,
             intermediate_output_path.join("chunks"),
-            server_root.join("_next/static/media"),
+            get_client_assets_path(server_root, Value::new(ClientContextType::App { app_dir })),
             context.compile_time_info().environment(),
         )
         .layer("ssr")
@@ -1087,6 +1088,7 @@ struct AppRoute {
     project_path: FileSystemPathVc,
     server_root: FileSystemPathVc,
     output_root: FileSystemPathVc,
+    app_dir: FileSystemPathVc,
 }
 
 #[turbo_tasks::value_impl]
@@ -1099,7 +1101,12 @@ impl AppRouteVc {
             this.project_path,
             this.intermediate_output_path,
             this.intermediate_output_path.join("chunks"),
-            this.server_root.join("_next/static/media"),
+            get_client_assets_path(
+                this.server_root,
+                Value::new(ClientContextType::App {
+                    app_dir: this.app_dir,
+                }),
+            ),
             this.context.compile_time_info().environment(),
         )
         .layer("ssr")
