@@ -2,7 +2,7 @@
 
 "[project]/crates/turbopack-tests/tests/snapshot/imports/static/input/vercel.svg (static)": (({ r: __turbopack_require__, x: __turbopack_external_require__, f: __turbopack_require_context__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, n: __turbopack_export_namespace__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, k: __turbopack_refresh__, g: global, __dirname }) => (() => {
 
-__turbopack_export_value__("/crates/turbopack-tests/tests/snapshot/imports/static/static/957b9b162f8447f9.svg");
+__turbopack_export_value__("/crates/turbopack-tests/tests/snapshot/imports/static/static/vercel.957b9b16.svg");
 })()),
 "[project]/crates/turbopack-tests/tests/snapshot/imports/static/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, f: __turbopack_require_context__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, n: __turbopack_export_namespace__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, k: __turbopack_refresh__, g: global, __dirname }) => (() => {
 

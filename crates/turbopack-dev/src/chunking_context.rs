@@ -332,9 +332,25 @@ impl ChunkingContext for DevChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn asset_path(&self, content_hash: &str, extension: &str) -> FileSystemPathVc {
-        self.asset_root_path
-            .join(&format!("{content_hash}.{extension}"))
+    async fn asset_path(
+        &self,
+        content_hash: &str,
+        original_asset_ident: AssetIdentVc,
+    ) -> Result<FileSystemPathVc> {
+        let source_path = original_asset_ident.path().await?;
+        let basename = source_path.file_name();
+        let asset_path = match source_path.extension() {
+            Some(ext) => format!(
+                "{basename}.{content_hash}.{ext}",
+                basename = &basename[..basename.len() - ext.len() - 1],
+                content_hash = &content_hash[..8]
+            ),
+            None => format!(
+                "{basename}.{content_hash}",
+                content_hash = &content_hash[..8]
+            ),
+        };
+        Ok(self.asset_root_path.join(&asset_path))
     }
 
     #[turbo_tasks::function]
