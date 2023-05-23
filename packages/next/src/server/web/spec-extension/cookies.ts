@@ -1,6 +1,4 @@
-const {
+export {
   RequestCookies,
   ResponseCookies,
-} = require('next/dist/compiled/@edge-runtime/cookies')
-
-export { RequestCookies, ResponseCookies }
+} from 'next/dist/compiled/@edge-runtime/cookies'
