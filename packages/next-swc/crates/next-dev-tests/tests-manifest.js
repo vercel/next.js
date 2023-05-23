@@ -1,5 +1,5 @@
 // Tests that are currently enabled with Turbopack in CI.
-// Add new test when Turbopack updates to fix / implement a feature.
+// This list is not actively used, more of high level pictures of what tests are enabled.
 const enabledTests = [
   'test/development/acceptance-app/dynamic-error.test.ts',
   'test/development/basic/legacy-decorators.test.ts',
@@ -9,6 +9,7 @@ const enabledTests = [
 ]
 
 // Tests that are currently disabled with Turbopack in CI.
+// Any tests not listed in here are assumed to be enabled.
 const disabledTests = [
   'test/development/acceptance-app/app-hmr-changes.test.ts',
   'test/development/acceptance-app/component-stack.test.ts',
@@ -76,6 +77,7 @@ const disabledTests = [
   'test/e2e/404-page-router/index.test.ts',
   'test/e2e/app-dir-legacy-edge-runtime-config/index.test.ts',
   'test/e2e/app-dir/_allow-underscored-root-directory/_allow-underscored-root-directory.test.ts',
+  'test/e2e/app-dir/actions/app-action-export.test.ts',
   'test/e2e/app-dir/actions/app-action.test.ts',
   'test/e2e/app-dir/app-a11y/index.test.ts',
   'test/e2e/app-dir/app-alias/app-alias.test.ts',
@@ -108,6 +110,7 @@ const disabledTests = [
   'test/e2e/app-dir/dynamic-href/dynamic-href.test.ts',
   'test/e2e/app-dir/dynamic/dynamic.test.ts',
   'test/e2e/app-dir/edge-runtime-node-compatibility/edge-runtime-node-compatibility.test.ts',
+  'test/e2e/app-dir/error-boundary-and-not-found-linking/error-boundary-and-not-found-linking.test.ts',
   'test/e2e/app-dir/front-redirect-issue/front-redirect-issue.test.ts',
   'test/e2e/app-dir/global-error/global-error.test.ts',
   'test/e2e/app-dir/hooks/hooks.test.ts',
@@ -672,6 +675,7 @@ const disabledTests = [
   'test/unit/esm-interpolate/esm-interpolate.test.tsx',
   'test/unit/find-config.test.ts',
   'test/unit/find-page-file.test.ts',
+  'test/unit/get-module-build-info.test.ts',
   'test/unit/get-node-options-without-inspect.test.ts',
   'test/unit/get-page-static-infos.test.ts',
   'test/unit/get-project-dir.test.ts',
