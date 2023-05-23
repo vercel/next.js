@@ -1,6 +1,26 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`basic HMR, basePath: %p Error Recovery should recover after loader parse error in an imported file 2`] = `
+exports[`basic HMR, basePath: "" Error Recovery should recover after an error reported via SSR 1`] = `
+" 1 of 1 unhandled error
+Server Error
+
+Error: an-expected-error-in-gip
+
+This error happened while generating the page. Any console logs will be displayed in the terminal window."
+`;
+
+exports[`basic HMR, basePath: "" Error Recovery should recover after exporting an invalid page 1`] = `
+" 1 of 1 unhandled error
+Server Error
+
+Error: The default export is not a React Component in page: \\"/hmr/about5\\"
+
+This error happened while generating the page. Any console logs will be displayed in the terminal window."
+`;
+
+exports[`basic HMR, basePath: "" Error Recovery should recover after loader parse error in an imported file 1`] = `"Failed to compile"`;
+
+exports[`basic HMR, basePath: "" Error Recovery should recover after loader parse error in an imported file 2`] = `
 "./components/parse-error.js
 Error: 
   x Expression expected
@@ -12,4 +32,106 @@ Error:
  4 | invalid
  5 | js
    "
+`;
+
+exports[`basic HMR, basePath: "" Error Recovery should recover after undefined exported as default 1`] = `
+" 1 of 1 unhandled error
+Server Error
+
+Error: The default export is not a React Component in page: \\"/hmr/about7\\"
+
+This error happened while generating the page. Any console logs will be displayed in the terminal window."
+`;
+
+exports[`basic HMR, basePath: "" Error Recovery should recover after webpack parse error in an imported file 1`] = `"Failed to compile"`;
+
+exports[`basic HMR, basePath: "" Error Recovery should recover after webpack parse error in an imported file 2`] = `
+"./components/parse-error.xyz
+Module parse failed: Unexpected token (3:0)
+You may need an appropriate loader to handle this file type, currently no loaders are configured to process this file. See https://webpack.js.org/concepts#loaders
+| This
+| is
+> }}}
+| invalid
+| js
+
+Import trace for requested module:
+./components/parse-error.xyz
+./pages/hmr/about8.js"
+`;
+
+exports[`basic HMR, basePath: "" Error Recovery should recover from errors in getInitialProps in client 1`] = `
+" 1 of 1 unhandled error
+Unhandled Runtime Error
+
+Error: an-expected-error-in-gip"
+`;
+
+exports[`basic HMR, basePath: "/docs" Error Recovery should recover after an error reported via SSR 1`] = `
+" 1 of 1 unhandled error
+Server Error
+
+Error: an-expected-error-in-gip
+
+This error happened while generating the page. Any console logs will be displayed in the terminal window."
+`;
+
+exports[`basic HMR, basePath: "/docs" Error Recovery should recover after exporting an invalid page 1`] = `
+" 1 of 1 unhandled error
+Server Error
+
+Error: The default export is not a React Component in page: \\"/hmr/about5\\"
+
+This error happened while generating the page. Any console logs will be displayed in the terminal window."
+`;
+
+exports[`basic HMR, basePath: "/docs" Error Recovery should recover after loader parse error in an imported file 1`] = `"Failed to compile"`;
+
+exports[`basic HMR, basePath: "/docs" Error Recovery should recover after loader parse error in an imported file 2`] = `
+"./components/parse-error.js
+Error: 
+  x Expression expected
+   ,-[./components/parse-error.js:1:1]
+ 1 | This
+ 2 | is
+ 3 | }}}
+   : ^
+ 4 | invalid
+ 5 | js
+   "
+`;
+
+exports[`basic HMR, basePath: "/docs" Error Recovery should recover after undefined exported as default 1`] = `
+" 1 of 1 unhandled error
+Server Error
+
+Error: The default export is not a React Component in page: \\"/hmr/about7\\"
+
+This error happened while generating the page. Any console logs will be displayed in the terminal window."
+`;
+
+exports[`basic HMR, basePath: "/docs" Error Recovery should recover after webpack parse error in an imported file 1`] = `"Failed to compile"`;
+
+exports[`basic HMR, basePath: "/docs" Error Recovery should recover after webpack parse error in an imported file 2`] = `
+"./components/parse-error.xyz
+Module parse failed: Unexpected token (3:0)
+You may need an appropriate loader to handle this file type, currently no loaders are configured to process this file. See https://webpack.js.org/concepts#loaders
+| This
+| is
+> }}}
+| invalid
+| js
+
+Import trace for requested module:
+./components/parse-error.xyz
+./pages/hmr/about8.js"
+`;
+
+exports[`basic HMR, basePath: "/docs" Error Recovery should recover from errors in getInitialProps in client 1`] = `
+" 1 of 1 unhandled error
+Server Error
+
+Error: an-expected-error-in-gip
+
+This error happened while generating the page. Any console logs will be displayed in the terminal window."
 `;

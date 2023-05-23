@@ -16,7 +16,7 @@ exports[`ReactRefreshLogBox default syntax > runtime error 2`] = `
 "./index.js
 Error: 
   x Expected '}', got '<eof>'
-   ,-[5:1]
+   ,-[/private/var/folders/jm/n3311p411n5341x4p1wfj7z80000gn/T/next-install-f9a60cbfe36e2e8794631133bbfd1a7cafcdf5ded60251779cf555c651f5cb37/index.js:5:1]
  5 |           i++
  6 |           throw Error('no ' + i)
  7 |         }, 1000)
@@ -28,14 +28,15 @@ Caused by:
     Syntax Error
 
 Import trace for requested module:
-./index.js"
+./index.js
+./pages/index.js"
 `;
 
 exports[`ReactRefreshLogBox default syntax > runtime error 3`] = `
 "./index.js
 Error: 
   x Expected '}', got '<eof>'
-   ,-[5:1]
+   ,-[/private/var/folders/jm/n3311p411n5341x4p1wfj7z80000gn/T/next-install-f9a60cbfe36e2e8794631133bbfd1a7cafcdf5ded60251779cf555c651f5cb37/index.js:5:1]
  5 |           i++
  6 |           throw Error('no ' + i)
  7 |         }, 1000)
@@ -47,5 +48,6 @@ Caused by:
     Syntax Error
 
 Import trace for requested module:
-./index.js"
+./index.js
+./pages/index.js"
 `;
