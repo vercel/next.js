@@ -1,7 +1,7 @@
 import type NextServer from '../../next-server'
 
 import http from 'http'
-import { genExecArgv, getNodeOptionsWithoutInspect } from '../utils'
+import { getNodeOptionsWithoutInspect } from '../utils'
 import { deserializeErr, errorToJSON } from '../../render'
 import crypto from 'crypto'
 import isError from '../../../lib/is-error'
