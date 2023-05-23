@@ -3,7 +3,7 @@ import nodeThenEdge from 'node-then-edge'
 
 export const runtime = 'edge'
 
-export default function RouteEdge() {
+export function GET() {
   return Response.json({
     edgeThenNode,
     nodeThenEdge,
