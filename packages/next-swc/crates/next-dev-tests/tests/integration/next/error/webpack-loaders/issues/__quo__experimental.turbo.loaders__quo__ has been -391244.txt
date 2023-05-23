@@ -1,6 +1,6 @@
 PlainIssue {
     severity: Error,
-    context: "[project]/packages/next-swc/crates/next-dev-tests/tests/integration/next/error/webpack-loaders/input/next.config.js",
+    context: "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/error/webpack-loaders/input/next.config.js",
     category: "config",
     title: "\"experimental.turbo.loaders\" has been replaced by \"experimental.turbo.rules\"",
     description: "The new option is similar, but the key should be a glob instead of an extension.\nExample: loaders: { \".mdx\": [\"mdx-loader\"] } -> rules: { \"*.mdx\": [\"mdx-loader\"] }",
@@ -12,7 +12,7 @@ PlainIssue {
         [
             PlainIssueProcessingPathItem {
                 context: Some(
-                    "[project]/packages/next-swc/crates/next-dev-tests/tests/integration/next/error/webpack-loaders/input/next.config.js",
+                    "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/error/webpack-loaders/input/next.config.js",
                 ),
                 description: "Loading Next.js config",
             },
