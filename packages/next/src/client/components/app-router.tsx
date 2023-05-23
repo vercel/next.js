@@ -331,9 +331,16 @@ function Router({
     return routerInstance
   }, [dispatch, navigate])
 
-  // Add `window.nd` for debugging purposes.
-  // This is not meant for use in applications as concurrent rendering will affect the cache/tree/router.
-  if (typeof window !== 'undefined') {
+  useEffect(() => {
+    // Exists for debugging purposes. Don't use in application code.
+    if (window.next) {
+      window.next.router = appRouter
+    }
+  }, [appRouter])
+
+  useEffect(() => {
+    // Add `window.nd` for debugging purposes.
+    // This is not meant for use in applications as concurrent rendering will affect the cache/tree/router.
     // @ts-ignore this is for debugging
     window.nd = {
       router: appRouter,
@@ -341,7 +348,7 @@ function Router({
       prefetchCache,
       tree,
     }
-  }
+  }, [appRouter, cache, prefetchCache, tree])
 
   // When mpaNavigation flag is set do a hard navigation to the new url.
   // Infinitely suspend because we don't actually want to rerender any child

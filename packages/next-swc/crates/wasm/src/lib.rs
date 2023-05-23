@@ -3,6 +3,7 @@ use std::sync::Arc;
 use anyhow::{Context, Error};
 use js_sys::JsString;
 use next_swc::{custom_before_pass, TransformOptions};
+use swc_core::common::Mark;
 use turbopack_binding::swc::core::{
     base::{
         config::{JsMinifyOptions, ParseOptions},
@@ -66,7 +67,9 @@ pub fn transform_sync(s: JsValue, opts: JsValue) -> Result<JsValue, JsValue> {
     console_error_panic_hook::set_once();
 
     let c = compiler();
-    let opts: TransformOptions = serde_wasm_bindgen::from_value(opts)?;
+    let unresolved_mark = Mark::new();
+    let mut opts: TransformOptions = serde_wasm_bindgen::from_value(opts)?;
+    opts.swc.unresolved_mark = Some(unresolved_mark);
 
     let s = s.dyn_into::<js_sys::JsString>();
     let out = try_with_handler(
@@ -103,6 +106,7 @@ pub fn transform_sync(s: JsValue, opts: JsValue) -> Result<JsValue, JsValue> {
                                     &opts,
                                     comments.clone(),
                                     Default::default(),
+                                    unresolved_mark,
                                 )
                             },
                             |_| noop(),

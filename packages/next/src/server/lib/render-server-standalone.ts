@@ -66,6 +66,7 @@ export const createServerHandler = async ({
     hostname,
     minimalMode,
     workerType: 'router',
+    isNodeDebugging: false,
   })
   didInitialize = true
 
