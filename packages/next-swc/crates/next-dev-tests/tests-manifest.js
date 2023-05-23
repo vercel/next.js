@@ -378,6 +378,7 @@ const disabledTests = [
   'test/e2e/app-dir/parallel-routes-not-found/parallel-routes-not-found.test.ts',
   'test/e2e/app-dir/root-layout-redirect/root-layout-redirect.test.ts',
   'test/e2e/app-dir/root-layout/root-layout.test.ts',
+  'test/e2e/app-dir/rsc-basic/rsc-basic.test.ts',
   'test/e2e/app-dir/set-cookies/set-cookies.test.ts',
   'test/e2e/app-dir/trailingslash/trailingslash.test.ts',
   'test/e2e/app-dir/with-babel/with-babel.test.ts',
