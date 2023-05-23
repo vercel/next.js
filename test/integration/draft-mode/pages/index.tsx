@@ -1,7 +1,13 @@
 import { useState } from 'react'
 import Link from 'next/link'
+import type { GetStaticProps } from 'next'
 
-export function getStaticProps({ draftMode }) {
+type Props = {
+  random: number
+  draftMode: string
+}
+
+export const getStaticProps: GetStaticProps<Props> = ({ draftMode }) => {
   return {
     props: {
       random: Math.random(),
@@ -11,7 +17,7 @@ export function getStaticProps({ draftMode }) {
   }
 }
 
-export default function Home(props) {
+export default function Home(props: Props) {
   const [count, setCount] = useState(0)
   return (
     <>
