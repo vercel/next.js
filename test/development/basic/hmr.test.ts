@@ -594,7 +594,14 @@ describe.each([[''], ['/docs']])(
           )
 
           expect(await hasRedbox(browser, true)).toBe(true)
-          expect(await getRedboxHeader(browser)).toMatchSnapshot()
+          expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
+          " 1 of 1 unhandled error
+          Server Error
+
+          Error: The default export is not a React Component in page: \\"/hmr/about5\\"
+
+          This error happened while generating the page. Any console logs will be displayed in the terminal window."
+        `)
 
           await next.patchFile(aboutPage, aboutContent)
 
@@ -690,7 +697,14 @@ describe.each([[''], ['/docs']])(
           )
 
           expect(await hasRedbox(browser, true)).toBe(true)
-          expect(await getRedboxHeader(browser)).toMatchSnapshot()
+          expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
+          " 1 of 1 unhandled error
+          Server Error
+
+          Error: The default export is not a React Component in page: \\"/hmr/about7\\"
+
+          This error happened while generating the page. Any console logs will be displayed in the terminal window."
+        `)
 
           await next.patchFile(aboutPage, aboutContent)
 
@@ -738,8 +752,23 @@ describe.each([[''], ['/docs']])(
           )
 
           expect(await hasRedbox(browser, true)).toBe(true)
-          expect(await getRedboxHeader(browser)).toMatchSnapshot()
-          expect(await getRedboxSource(browser)).toMatchSnapshot()
+          expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(
+            `"Failed to compile"`
+          )
+          expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
+          "./components/parse-error.xyz
+          Module parse failed: Unexpected token (3:0)
+          You may need an appropriate loader to handle this file type, currently no loaders are configured to process this file. See https://webpack.js.org/concepts#loaders
+          | This
+          | is
+          > }}}
+          | invalid
+          | js
+
+          Import trace for requested module:
+          ./components/parse-error.xyz
+          ./pages/hmr/about8.js"
+        `)
 
           await next.patchFile(aboutPage, aboutContent)
 
@@ -787,7 +816,9 @@ describe.each([[''], ['/docs']])(
           )
 
           expect(await hasRedbox(browser, true)).toBe(true)
-          expect(await getRedboxHeader(browser)).toMatchSnapshot()
+          expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(
+            `"Failed to compile"`
+          )
           let redboxSource = await getRedboxSource(browser)
 
           redboxSource = redboxSource.replace(`${next.testDir}`, '.')
@@ -832,7 +863,12 @@ describe.each([[''], ['/docs']])(
           await browser.elementByCss('#error-in-gip-link').click()
 
           expect(await hasRedbox(browser, true)).toBe(true)
-          expect(await getRedboxHeader(browser)).toMatchSnapshot()
+          expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
+          " 1 of 1 unhandled error
+          Unhandled Runtime Error
+
+          Error: an-expected-error-in-gip"
+        `)
 
           await next.patchFile(
             erroredPage,
@@ -871,7 +907,14 @@ describe.each([[''], ['/docs']])(
           browser = await webdriver(next.url, basePath + '/hmr/error-in-gip')
 
           expect(await hasRedbox(browser, true)).toBe(true)
-          expect(await getRedboxHeader(browser)).toMatchSnapshot()
+          expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
+          " 1 of 1 unhandled error
+          Server Error
+
+          Error: an-expected-error-in-gip
+
+          This error happened while generating the page. Any console logs will be displayed in the terminal window."
+        `)
 
           const erroredPage = join('pages', 'hmr', 'error-in-gip.js')
 
