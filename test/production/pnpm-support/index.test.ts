@@ -51,6 +51,9 @@ describe('pnpm support', () => {
       let matchingFile
       try {
         matchingFile = manifest.files.some((file) => file.includes(ignore))
+        if (!!matchingFile) {
+          console.log('ignore', ignore, 'existed')
+        }
         expect(!!matchingFile).toBe(false)
       } catch (err) {
         require('console').error(

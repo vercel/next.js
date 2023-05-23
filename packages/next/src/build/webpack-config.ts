@@ -264,6 +264,11 @@ export function getDefineEnv({
             process.env.NEXT_EDGE_RUNTIME_PROVIDER || 'edge-runtime'
           ),
         }),
+
+    // Align with turbopack to inject turbopack process env for tree-shaking
+    'process.turbopack': JSON.stringify(
+      config.experimental.turbo ? true : undefined
+    ),
     // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
     'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production'),
     'process.env.NEXT_RUNTIME': JSON.stringify(

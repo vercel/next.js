@@ -14,7 +14,7 @@
     "app.d.ts",
     "babel.js",
     "babel.d.ts",
-    "client.js",
+    "client",
     "client.d.ts",
     "compat",
     "cache",
