@@ -2,6 +2,7 @@ use std::{env::current_dir, path::PathBuf};
 
 use next_swc::{
     amp_attributes::amp_attributes,
+    cjs_optimizer::cjs_optimizer,
     next_dynamic::next_dynamic,
     next_ssg::next_ssg,
     page_config::page_config_test,
@@ -12,9 +13,10 @@ use next_swc::{
     shake_exports::{shake_exports, Config as ShakeExportsConfig},
 };
 use next_transform_font::{next_font_loaders, Config as FontLoaderConfig};
+use serde::de::DeserializeOwned;
 use turbopack_binding::swc::{
     core::{
-        common::{chain, comments::SingleThreadedComments, FileName, Mark},
+        common::{chain, comments::SingleThreadedComments, FileName, Mark, SyntaxContext},
         ecma::{
             parser::{EsConfig, Syntax},
             transforms::{
@@ -353,4 +355,48 @@ fn server_actions_client_fixture(input: PathBuf) {
         &output,
         Default::default(),
     );
+}
+
+#[fixture("tests/fixture/cjs-optimize/**/input.js")]
+fn cjs_optimize_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            let unresolved_mark = Mark::new();
+            let top_level_mark = Mark::new();
+
+            let unresolved_ctxt = SyntaxContext::empty().apply_mark(unresolved_mark);
+
+            chain!(
+                resolver(unresolved_mark, top_level_mark, false),
+                cjs_optimizer(
+                    json(
+                        r###"
+                        {
+                            "packages": {
+                                "next/server": {
+                                    "transforms": {
+                                        "Response": "next/server/response"
+                                    }
+                                }
+                            }
+                        }
+                        "###
+                    ),
+                    unresolved_ctxt
+                )
+            )
+        },
+        &input,
+        &output,
+        Default::default(),
+    );
+}
+
+fn json<T>(s: &str) -> T
+where
+    T: DeserializeOwned,
+{
+    serde_json::from_str(s).expect("failed to deserialize")
 }
