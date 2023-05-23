@@ -19,19 +19,9 @@ createNextDescribe(
   {
     files: __dirname,
     dependencies: {
-      'styled-components': '6.0.0-beta.5',
+      'styled-components': 'latest',
       'server-only': 'latest',
     },
-    packageJson: {
-      scripts: {
-        build: 'next build',
-        dev: 'next dev',
-        start: 'next start',
-      },
-    },
-    installCommand: 'yarn',
-    startCommand: (global as any).isNextDev ? 'yarn dev' : 'yarn start',
-    buildCommand: 'yarn build',
   },
   ({ next, isNextDev, isNextStart }) => {
     if (isNextDev) {
@@ -437,18 +427,72 @@ createNextDescribe(
     })
 
     it('should use stable react for pages', async () => {
-      const resPages = await next.fetch('/pages-react')
-      const versionPages = (await resPages.text()).match(
-        /<div>version=([^<]+)<\/div>/
-      )?.[1]
+      const ssrPaths = ['/pages-react', '/pages-react-edge', '/app-react']
+      const promises = ssrPaths.map(async (pathname) => {
+        const resPages$ = await next.render$(pathname)
+        const ssrPagesReactVersions = [
+          await resPages$('#react').text(),
+          await resPages$('#react-dom').text(),
+          await resPages$('#react-dom-server').text(),
+        ]
 
-      const resApp = await next.fetch('/app-react')
-      const versionApp = (await resApp.text()).match(
-        /<div>version=([^<]+)<\/div>/
-      )?.[1]
+        ssrPagesReactVersions.forEach((version) => {
+          if (pathname === '/app-react') {
+            expect(version).toMatch('-canary-')
+          } else {
+            expect(version).not.toMatch('-canary-')
+          }
+        })
+      })
+      await Promise.all(promises)
 
-      expect(versionPages).not.toInclude('-canary-')
-      expect(versionApp).toInclude('-canary-')
+      const resApp$ = await next.render$('/app-react')
+      const ssrAppReactVersions = [
+        await resApp$('#react').text(),
+        await resApp$('#react-dom').text(),
+        await resApp$('#react-dom-server').text(),
+      ]
+
+      ssrAppReactVersions.forEach((version) =>
+        expect(version).toMatch('-canary-')
+      )
+
+      const browser = await next.browser('/pages-react')
+      const browserPagesReactVersions = await browser.eval(`
+        [
+          document.querySelector('#react').innerText,
+          document.querySelector('#react-dom').innerText,
+          document.querySelector('#react-dom-server').innerText,
+        ]
+      `)
+
+      await browser.loadPage(next.url + '/edge-pages-react')
+      const browserEdgePagesReactVersions = await browser.eval(`
+        [
+          document.querySelector('#react').innerText,
+          document.querySelector('#react-dom').innerText,
+          document.querySelector('#react-dom-server').innerText,
+        ]
+      `)
+
+      await browser.loadPage(next.url + '/app-react')
+      const browserAppReactVersions = await browser.eval(`
+        [
+          document.querySelector('#react').innerText,
+          document.querySelector('#react-dom').innerText,
+          document.querySelector('#react-dom-server').innerText,
+        ]
+      `)
+
+      browserPagesReactVersions.forEach((version) =>
+        expect(version).not.toMatch('-canary-')
+      )
+      browserEdgePagesReactVersions.forEach((version) =>
+        expect(version).not.toMatch('-canary-')
+      )
+      browserAppReactVersions.forEach((version) =>
+        expect(version).toMatch('-canary-')
+      )
     })
 
     // disable this flaky test

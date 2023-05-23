@@ -1,6 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
-import ReactDOMServer from 'react-dom/server.browser'
+import ReactDOMServer from 'react-dom/server'
 
 export default function Page() {
   return (
@@ -13,3 +13,5 @@ export default function Page() {
     </div>
   )
 }
+
+export const runtime = 'experimental-edge'
