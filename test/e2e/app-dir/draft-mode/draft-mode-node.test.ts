@@ -36,6 +36,17 @@ createNextDescribe(
       expect(Cookie).toBeDefined()
     })
 
+    it('should have set-cookie header with redirect location', async () => {
+      const res = await next.fetch('/enable-and-redirect', {
+        redirect: 'manual',
+      })
+      expect(res.status).toBe(307)
+      expect(res.headers.get('location')).toContain('/some-other-page')
+      const h = res.headers.get('set-cookie') || ''
+      const c = h.split(';').find((c) => c.startsWith('__prerender_bypass'))
+      expect(c).toBeDefined()
+    })
+
     it('should genenerate rand when draft mode enabled', async () => {
       const opts = { headers: { Cookie } }
       const $ = await next.render$('/', {}, opts)

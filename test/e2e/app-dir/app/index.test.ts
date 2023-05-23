@@ -284,6 +284,15 @@ createNextDescribe(
       expect(html).toContain('hello from app/dashboard')
     })
 
+    it('should ensure the </body></html> suffix is at the end of the stream', async () => {
+      const html = await next.render('/dashboard')
+
+      // It must end with the suffix and not contain it anywhere else.
+      const suffix = '</body></html>'
+      expect(html).toEndWith(suffix)
+      expect(html.slice(0, -suffix.length)).not.toContain(suffix)
+    })
+
     if (!isNextDeploy) {
       it('should serve /index as separate page', async () => {
         const stderr = []
