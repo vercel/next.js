@@ -113,7 +113,16 @@ const conditionNamesPerModuleType: Record<
   'edge' | 'cjs' | 'esm' | 'default',
   string[]
 > = {
-  edge: ['edge-light', 'import', 'module', 'require', 'node', 'default'],
+  edge: [
+    'edge-light',
+    'worker',
+    'browser',
+    'import',
+    'module',
+    'require',
+    'node',
+    'default',
+  ],
   cjs: ['require', 'node', 'default'],
   esm: ['import', 'module', 'default'],
   default: ['import', 'module', 'require', 'node', 'default'], // first esm then fallback to cjs
@@ -982,7 +991,9 @@ export default async function getBaseWebpackConfig(
   // using aliases to allow falling back to the default
   // version when removed or not present
   const clientResolveRewrites = require.resolve(
-    '../shared/lib/router/utils/resolve-rewrites'
+    `next/dist/${
+      isEdgeServer ? 'esm/' : ''
+    }shared/lib/router/utils/resolve-rewrites`
   )
 
   const customAppAliases: { [key: string]: string[] } = {}
@@ -1795,7 +1806,6 @@ export default async function getBaseWebpackConfig(
       }, {} as Record<string, string>),
       modules: [
         'node_modules',
-        NEXT_PROJECT_ROOT_DIST,
         ...nodePathList, // Support for NODE_PATH environment variable
       ],
       plugins: [],
@@ -1900,9 +1910,6 @@ export default async function getBaseWebpackConfig(
               {
                 resourceQuery: /__edge_ssr_entry__/,
                 layer: WEBPACK_LAYERS.server,
-                resolve: {
-                  conditionNames: conditionNamesPerModuleType.edge,
-                },
               },
             ]
           : []),
@@ -1982,9 +1989,6 @@ export default async function getBaseWebpackConfig(
               test: codeCondition.test,
               issuerLayer: WEBPACK_LAYERS.middleware,
               use: defaultLoaders.babel,
-              resolve: {
-                conditionNames: conditionNamesPerModuleType.edge,
-              },
             },
             ...(hasServerComponents
               ? [
