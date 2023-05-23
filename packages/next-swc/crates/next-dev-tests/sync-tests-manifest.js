@@ -8,10 +8,11 @@ const path = require('path')
 
 const generateManifest = (enabledTests, disabledTests) => `
 // Tests that are currently enabled with Turbopack in CI.
-// Add new test when Turbopack updates to fix / implement a feature.
+// This list is not actively used, more of high level pictures of what tests are enabled.
 const enabledTests = ${enabledTests}
 
 // Tests that are currently disabled with Turbopack in CI.
+// Any tests not listed in here are assumed to be enabled.
 const disabledTests = ${disabledTests}
 
 module.exports = {
@@ -30,7 +31,7 @@ const main = async () => {
     enabledTests = manifest.enabledTests
     disabledTests = manifest.disabledTests
   } else {
-    throw new Error('a')
+    throw new Error('Manifest should exists')
   }
 
   // Collect all test files
