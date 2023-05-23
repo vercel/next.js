@@ -1,5 +1,4 @@
 import { install } from '../helpers/install'
-import { makeDir } from '../helpers/make-dir'
 
 import cpy from 'cpy'
 import globOrig from 'glob'
@@ -112,7 +111,7 @@ export const installTemplate = async ({
   }
 
   if (srcDir) {
-    await makeDir(path.join(root, 'src'))
+    await fs.promises.mkdir(path.join(root, 'src'), { recursive: true })
     await Promise.all(
       SRC_DIR_NAMES.map(async (file) => {
         await fs.promises
