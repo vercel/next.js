@@ -3335,7 +3335,6 @@ name = "next-swc"
 version = "0.0.0"
 dependencies = [
  "chrono",
- "convert_case 0.5.0",
  "easy-error",
  "either",
  "fxhash",
@@ -3344,7 +3343,6 @@ dependencies = [
  "once_cell",
  "pathdiff",
  "regex",
- "rustc-hash",
  "serde",
  "serde_json",
  "sha1 0.10.5",
