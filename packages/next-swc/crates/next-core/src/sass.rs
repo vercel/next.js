@@ -19,7 +19,12 @@ pub async fn maybe_add_sass_loader(
     } else {
         Default::default()
     };
-    for (pattern, rename) in [("*.module.scss", ".module.css"), ("*.module.sass", ".module.css"), ("*.scss", ".css"), ("*.sass", ".css")] {
+    for (pattern, rename) in [
+        ("*.module.scss", ".module.css"),
+        ("*.module.sass", ".module.css"),
+        ("*.scss", ".css"),
+        ("*.sass", ".css"),
+    ] {
         let rule = rules.get_mut(pattern);
         let loader = WebpackLoaderItem {
             loader: "next/dist/compiled/sass-loader".to_string(),
