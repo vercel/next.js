@@ -96,7 +96,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
     const transformed = `
     import { adapter, enhanceGlobals } from 'next/dist/esm/server/web/adapter'
     import { getRender } from 'next/dist/esm/build/webpack/loaders/next-edge-ssr-loader/render'
-    import {IncrementalCache} from 'next/dist/esm/server/lib/incremental-cache'
+    import { IncrementalCache } from 'next/dist/esm/server/lib/incremental-cache'
 
     enhanceGlobals()
 
