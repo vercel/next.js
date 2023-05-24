@@ -4,7 +4,7 @@ exports[`basic HMR, basePath: "" Error Recovery should recover after loader pars
 "./components/parse-error.js
 Error: 
   x Expression expected
-   ,-[./components/parse-error.js:1:1]
+   ,-[1:1]
  1 | This
  2 | is
  3 | }}}
@@ -18,7 +18,7 @@ exports[`basic HMR, basePath: "/docs" Error Recovery should recover after loader
 "./components/parse-error.js
 Error: 
   x Expression expected
-   ,-[./components/parse-error.js:1:1]
+   ,-[1:1]
  1 | This
  2 | is
  3 | }}}
