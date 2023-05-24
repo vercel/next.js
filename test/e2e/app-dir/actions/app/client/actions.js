@@ -1,6 +1,6 @@
 'use server'
 
-import './server-only'
+import 'server-only'
 
 import { redirect } from 'next/navigation'
 import { headers, cookies } from 'next/headers'
