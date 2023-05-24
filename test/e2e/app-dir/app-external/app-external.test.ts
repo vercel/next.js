@@ -219,13 +219,5 @@ createNextDescribe(
       const middlewareBundle = await next.readFile('.next/server/middleware.js')
       expect(middlewareBundle).not.toContain('image-response')
     })
-
-    it('should have proper tree-shaking for known modules in CJS', async () => {
-      const html = await next.render('/test-middleware')
-      expect(html).toContain('it works')
-
-      const middlewareBundle = await next.readFile('.next/server/middleware.js')
-      expect(middlewareBundle).not.toContain('image-response')
-    })
   }
 )

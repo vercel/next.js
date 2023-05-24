@@ -245,6 +245,7 @@ export function getDefineEnv({
             process.env.NEXT_EDGE_RUNTIME_PROVIDER || 'edge-runtime'
           ),
         }),
+    'process.turbopack': JSON.stringify(false),
     // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
     'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production'),
     'process.env.NEXT_RUNTIME': JSON.stringify(
