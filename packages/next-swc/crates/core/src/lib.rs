@@ -38,10 +38,7 @@ use fxhash::FxHashSet;
 use next_transform_font::next_font_loaders;
 use serde::Deserialize;
 use turbopack_binding::swc::core::{
-    common::{
-        chain, comments::Comments, pass::Optional, FileName, Mark, SourceFile, SourceMap,
-        SyntaxContext,
-    },
+    common::{chain, comments::Comments, pass::Optional, FileName, SourceFile, SourceMap},
     ecma::{
         ast::EsVersion, parser::parse_file_as_module, transforms::base::pass::noop, visit::Fold,
     },
@@ -49,7 +46,6 @@ use turbopack_binding::swc::core::{
 
 pub mod amp_attributes;
 mod auto_cjs;
-pub mod cjs_optimizer;
 pub mod disallow_re_export_all_in_page;
 pub mod next_dynamic;
 pub mod next_ssg;
@@ -129,9 +125,6 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub server_actions: Option<server_actions::Config>,
-
-    #[serde(default)]
-    pub cjs_require_optimizer: Option<cjs_optimizer::Config>,
 }
 
 pub fn custom_before_pass<'a, C: Comments + 'a>(
@@ -140,7 +133,6 @@ pub fn custom_before_pass<'a, C: Comments + 'a>(
     opts: &'a TransformOptions,
     comments: C,
     eliminated_packages: Rc<RefCell<FxHashSet<String>>>,
-    unresolved_mark: Mark,
 ) -> impl Fold + 'a
 where
     C: Clone,
@@ -283,12 +275,6 @@ where
                 config.clone(),
                 comments,
             )),
-            None => Either::Right(noop()),
-        },
-        match &opts.cjs_require_optimizer {
-            Some(config) => {
-                Either::Left(cjs_optimizer::cjs_optimizer(config.clone(), SyntaxContext::empty().apply_mark(unresolved_mark)))
-            },
             None => Either::Right(noop()),
         },
     )
