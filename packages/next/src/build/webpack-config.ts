@@ -1054,6 +1054,7 @@ export default async function getBaseWebpackConfig(
             'next/dist/shared': 'next/dist/esm/shared',
             'next/dist/pages': 'next/dist/esm/pages',
             'next/dist/lib': 'next/dist/esm/lib',
+            'next/dist/server': 'next/dist/esm/server',
 
             // Alias the usage of next public APIs
             [require.resolve('next/dist/client/link')]:

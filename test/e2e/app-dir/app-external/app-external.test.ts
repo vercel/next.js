@@ -197,7 +197,7 @@ createNextDescribe(
     })
 
     it('should tree shake unused next/server exports in middleware', async () => {
-      const middleware = '.next/dist/server/middleware.js'
+      const middleware = '.next/server/middleware.js'
       const middlewareSource = await next.readFile(middleware)
 
       expect(middlewareSource).not.toContain('satori')

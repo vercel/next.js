@@ -35,8 +35,9 @@ const nextEdgeFunctionLoader: webpack.LoaderDefinitionFunction<EdgeFunctionLoade
 
         enhanceGlobals()
 
-        var mod = require(${stringifiedPagePath})
-        var handler = mod.middleware || mod.default;
+        import * as _mod from ${stringifiedPagePath}
+        const mod = { ..._mod }
+        const handler = mod.middleware || mod.default
 
         if (typeof handler !== 'function') {
           throw new Error('The Edge Function "pages${page}" must export a \`default\` function');
