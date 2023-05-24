@@ -52,7 +52,12 @@ describe('pnpm support', () => {
       try {
         matchingFile = manifest.files.some((file) => file.includes(ignore))
         if (!!matchingFile) {
-          console.log('ignore', ignore, 'existed')
+          console.log(
+            'ignore',
+            ignore,
+            'existed',
+            manifest.files.filter((file) => file.includes(ignore))
+          )
         }
         expect(!!matchingFile).toBe(false)
       } catch (err) {

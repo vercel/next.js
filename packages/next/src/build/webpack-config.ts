@@ -110,16 +110,7 @@ const mainFieldsPerCompiler: Record<CompilerNameValues, string[]> = {
 }
 
 const conditionNamesPerModuleType: Record<'edge' | 'default', string[]> = {
-  edge: [
-    'edge-light',
-    'worker',
-    'browser',
-    'import',
-    'module',
-    'require',
-    'node',
-    'default',
-  ],
+  edge: ['edge-light', 'worker', 'browser', 'import', 'module', 'default'],
   default: ['import', 'module', 'node', 'default'],
 }
 
@@ -988,9 +979,7 @@ export default async function getBaseWebpackConfig(
   // using aliases to allow falling back to the default
   // version when removed or not present
   const clientResolveRewrites = require.resolve(
-    `next/dist/${
-      isEdgeServer ? 'esm/' : ''
-    }shared/lib/router/utils/resolve-rewrites`
+    `next/dist/shared/lib/router/utils/resolve-rewrites`
   )
 
   const customAppAliases: { [key: string]: string[] } = {}
@@ -1083,6 +1072,7 @@ export default async function getBaseWebpackConfig(
               'next/dist/esm/server/web/spec-extension/index',
           }
         : undefined),
+
       // For RSC server bundle
       ...(!hasExternalOtelApiPackage && {
         '@opentelemetry/api': 'next/dist/compiled/@opentelemetry/api',
