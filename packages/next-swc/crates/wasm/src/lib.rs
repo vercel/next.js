@@ -67,9 +67,7 @@ pub fn transform_sync(s: JsValue, opts: JsValue) -> Result<JsValue, JsValue> {
     console_error_panic_hook::set_once();
 
     let c = compiler();
-    let unresolved_mark = Mark::new();
     let mut opts: TransformOptions = serde_wasm_bindgen::from_value(opts)?;
-    opts.swc.unresolved_mark = Some(unresolved_mark);
 
     let s = s.dyn_into::<js_sys::JsString>();
     let out = try_with_handler(
@@ -80,6 +78,9 @@ pub fn transform_sync(s: JsValue, opts: JsValue) -> Result<JsValue, JsValue> {
         },
         |handler| {
             GLOBALS.set(&Default::default(), || {
+                let unresolved_mark = Mark::new();
+                opts.swc.unresolved_mark = Some(unresolved_mark);
+
                 let out = match s {
                     Ok(s) => {
                         let fm = c.cm.new_source_file(
