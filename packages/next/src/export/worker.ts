@@ -371,6 +371,7 @@ export default async function exportPage({
             },
             serverDistDir: join(distDir, 'server'),
             CurCacheHandler: CacheHandler,
+            minimalMode: ciEnvironment.hasNextSupport,
           })
           ;(globalThis as any).__incrementalCache = incrementalCache
           curRenderOpts.incrementalCache = incrementalCache
@@ -423,7 +424,9 @@ export default async function exportPage({
             const filename = posix.join(distDir, 'server', 'app', page)
 
             // Load the module for the route.
-            const module = RouteModuleLoader.load<AppRouteRouteModule>(filename)
+            const module = await RouteModuleLoader.load<AppRouteRouteModule>(
+              filename
+            )
 
             // Call the handler with the request and context from the module.
             const response = await module.handle(request, context)

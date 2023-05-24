@@ -1,10 +1,8 @@
-/* __next_internal_action_entry_do_not_use__ bar */ 'use strict';
+/* __next_internal_action_entry_do_not_use__ bar */ import __create_action_proxy__ from "private-next-rsc-action-proxy";
+'use strict';
 export function bar() {}
-import ensureServerEntryExports from "private-next-rsc-action-proxy";
+import ensureServerEntryExports from "private-next-rsc-action-validate";
 ensureServerEntryExports([
     bar
 ]);
-bar.$$typeof = Symbol.for("react.server.reference");
-bar.$$id = "ac840dcaf5e8197cb02b7f3a43c119b7a770b272";
-bar.$$bound = null;
-bar.$$with_bound = false;
+__create_action_proxy__("ac840dcaf5e8197cb02b7f3a43c119b7a770b272", null, bar);

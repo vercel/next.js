@@ -5,7 +5,7 @@ use std::{
     path::Path,
 };
 
-use turbo_binding::turbo::tasks_build::generate_register;
+use turbopack_binding::turbo::tasks_build::generate_register;
 
 extern crate napi_build;
 

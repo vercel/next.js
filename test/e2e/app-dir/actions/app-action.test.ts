@@ -12,7 +12,7 @@ createNextDescribe(
   {
     files: __dirname,
   },
-  ({ next, isNextDev, isNextStart }) => {
+  ({ next, isNextDev, isNextStart, isNextDeploy }) => {
     it('should handle basic actions correctly', async () => {
       const browser = await next.browser('/server')
 
@@ -72,13 +72,19 @@ createNextDescribe(
 
       const browser = await next.browser('/client')
       await browser.elementByCss('#get-header').click()
-      await check(() => {
-        return logs.some((log) =>
-          log.includes('accept header: text/x-component')
-        )
-          ? 'yes'
-          : ''
-      }, 'yes')
+
+      // we don't have access to runtime logs on deploy
+      if (!isNextDeploy) {
+        await check(() => {
+          return logs.some((log) =>
+            log.includes('accept header: text/x-component')
+          )
+            ? 'yes'
+            : ''
+        }, 'yes')
+      }
+
+      await check(() => browser.eval('document.cookie'), /test-cookie/)
 
       expect(
         await browser.eval('+document.cookie.match(/test-cookie=(\\d+)/)[1]')
@@ -104,6 +110,27 @@ createNextDescribe(
       await check(() => {
         return browser.eval('window.location.pathname + window.location.search')
       }, '/header?name=test&constructor=FormData')
+    })
+
+    it('should support .bind', async () => {
+      const browser = await next.browser('/server')
+
+      await browser.eval(`document.getElementById('n').value = '123'`)
+      await browser.elementByCss('#minus-one').click()
+
+      await check(() => {
+        return browser.eval('window.location.pathname + window.location.search')
+      }, '/header?result=122')
+    })
+
+    it('should support chained .bind', async () => {
+      const browser = await next.browser('/server')
+
+      await browser.elementByCss('#add3').click()
+
+      await check(() => {
+        return browser.eval('window.location.pathname + window.location.search')
+      }, '/header?result=6')
     })
 
     it('should support notFound (javascript disabled)', async () => {
@@ -150,11 +177,16 @@ createNextDescribe(
 
       await browser.elementByCss('#upload').click()
 
-      await check(() => {
-        return logs.some((log) => log.includes('File name: hello.txt size: 5'))
-          ? 'yes'
-          : ''
-      }, 'yes')
+      // we don't have access to runtime logs on deploy
+      if (!isNextDeploy) {
+        await check(() => {
+          return logs.some((log) =>
+            log.includes('File name: hello.txt size: 5')
+          )
+            ? 'yes'
+            : ''
+        }, 'yes')
+      }
     })
 
     it('should support hoc auth wrappers', async () => {
@@ -378,21 +410,24 @@ createNextDescribe(
 
         await browser.elementByCss('#revalidate-justputit').click()
 
-        await check(async () => {
-          const newRandomNumber = await browser
-            .elementByCss('#random-number')
-            .text()
-          const newJustPutIt = await browser.elementByCss('#justputit').text()
-          const newThankYouNext = await browser
-            .elementByCss('#thankyounext')
-            .text()
+        // TODO: investigate flakiness when deployed
+        if (!isNextDeploy) {
+          await check(async () => {
+            const newRandomNumber = await browser
+              .elementByCss('#random-number')
+              .text()
+            const newJustPutIt = await browser.elementByCss('#justputit').text()
+            const newThankYouNext = await browser
+              .elementByCss('#thankyounext')
+              .text()
 
-          return newRandomNumber !== randomNumber &&
-            justPutIt !== newJustPutIt &&
-            thankYouNext === newThankYouNext
-            ? 'success'
-            : 'failure'
-        }, 'success')
+            expect(newRandomNumber).not.toBe(randomNumber)
+            expect(newJustPutIt).not.toBe(justPutIt)
+            expect(newThankYouNext).toBe(thankYouNext)
+
+            return 'success'
+          }, 'success')
+        }
       })
 
       it('should handle revalidateTag + redirect', async () => {
@@ -412,11 +447,56 @@ createNextDescribe(
             .elementByCss('#thankyounext')
             .text()
 
-          return newRandomNumber === randomNumber &&
-            justPutIt !== newJustPutIt &&
-            thankYouNext === newThankYouNext
-            ? 'success'
-            : 'failure'
+          expect(newRandomNumber).toBe(randomNumber)
+          expect(newJustPutIt).not.toBe(justPutIt)
+          expect(newThankYouNext).toBe(thankYouNext)
+
+          return 'success'
+        }, 'success')
+      })
+
+      it('should store revalidation data in the prefetch cache', async () => {
+        const browser = await next.browser('/revalidate')
+        const justPutIt = await browser.elementByCss('#justputit').text()
+        await browser.elementByCss('#revalidate-justputit').click()
+
+        // TODO: investigate flakiness when deployed
+        if (!isNextDeploy) {
+          await check(async () => {
+            const newJustPutIt = await browser.elementByCss('#justputit').text()
+            expect(newJustPutIt).not.toBe(justPutIt)
+            return 'success'
+          }, 'success')
+        }
+
+        const newJustPutIt = await browser.elementByCss('#justputit').text()
+
+        await browser
+          .elementByCss('#navigate-client')
+          .click()
+          .waitForElementByCss('#inc')
+        await browser
+          .elementByCss('#navigate-revalidate')
+          .click()
+          .waitForElementByCss('#revalidate-justputit')
+
+        const newJustPutIt2 = await browser.elementByCss('#justputit').text()
+
+        expect(newJustPutIt).toEqual(newJustPutIt2)
+      })
+
+      it('should revalidate when cookies.set is called', async () => {
+        const browser = await next.browser('/revalidate')
+        const randomNumber = await browser.elementByCss('#random-cookie').text()
+
+        await browser.elementByCss('#set-cookie').click()
+
+        await check(async () => {
+          const newRandomNumber = await browser
+            .elementByCss('#random-cookie')
+            .text()
+
+          return newRandomNumber !== randomNumber ? 'success' : 'failure'
         }, 'success')
       })
     })

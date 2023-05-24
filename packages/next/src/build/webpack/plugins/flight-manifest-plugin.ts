@@ -340,7 +340,7 @@ export class ClientReferenceManifestPlugin {
         ].filter((name) => name !== null)
 
         moduleExportedKeys.forEach((name) => {
-          const key = resource + '#' + name
+          const key = getClientReferenceModuleKey(resource, name)
 
           // If the chunk is from `app/` chunkGroup, use it first.
           // This make sure not to load the overlapped chunk from `pages/` chunkGroup
