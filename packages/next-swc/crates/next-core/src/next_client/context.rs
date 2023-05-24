@@ -343,7 +343,7 @@ pub fn get_client_assets_path(
     match ty.into_value() {
         ClientContextType::Pages { .. }
         | ClientContextType::App { .. }
-        | ClientContextType::Fallback => server_root.join("/_next/static/assets"),
+        | ClientContextType::Fallback => server_root.join("/_next/static/media"),
         ClientContextType::Other => server_root.join("/_assets"),
     }
 }
