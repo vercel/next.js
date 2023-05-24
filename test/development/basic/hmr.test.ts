@@ -865,11 +865,9 @@ describe.each([[''], ['/docs']])(
           expect(await hasRedbox(browser, true)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
             " 1 of 1 unhandled error
-            Server Error
+            Unhandled Runtime Error
 
-            Error: an-expected-error-in-gip
-
-            This error happened while generating the page. Any console logs will be displayed in the terminal window."
+            Error: an-expected-error-in-gip"
           `)
 
           await next.patchFile(
