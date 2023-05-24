@@ -26,7 +26,7 @@ export const invokeRequest = async (
 
       try {
         const invokeReq = http.request(
-          targetUrl,
+          parsedUrl.toString(),
           {
             headers: invokeHeaders,
             method: requestInit.method,
