@@ -14,6 +14,6 @@ export function Item(product, foo, bar) {
     ], deleteItem, $$ACTION_0);
     return <Button action={deleteItem}>Delete</Button>;
 }
-export async function $$ACTION_0(product, product, product, product, foo, bar) {
-    await deleteFromDb(product.id, product?.foo, product.bar.baz, product[foo, bar]);
+export async function $$ACTION_0($$ACTION_ARG_0, $$ACTION_ARG_1, $$ACTION_ARG_2, $$ACTION_ARG_3, $$ACTION_ARG_4, $$ACTION_ARG_5) {
+    await deleteFromDb($$ACTION_ARG_3.id, $$ACTION_ARG_3?.foo, $$ACTION_ARG_3.bar.baz, $$ACTION_ARG_3[$$ACTION_ARG_4, $$ACTION_ARG_5]);
 }

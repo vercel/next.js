@@ -23,6 +23,7 @@ indoc = { workspace = true }
 allsorts = { workspace = true }
 futures = { workspace = true }
 lazy_static = { workspace = true }
+thiserror = { workspace = true }
 turbopack-binding = { workspace = true, features = [
   "__swc_transform_modularize_imports",
   "__swc_transform_relay",

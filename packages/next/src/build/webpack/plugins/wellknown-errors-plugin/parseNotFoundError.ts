@@ -136,7 +136,7 @@ export async function getNotFoundError(
         .filter(
           (name) =>
             name &&
-            !/next-(app|middleware|client-pages|flight-(client|server|client-entry))-loader\.js/.test(
+            !/next-(app|middleware|client-pages|route|flight-(client|server|client-entry))-loader\.js/.test(
               name
             ) &&
             !/css-loader.+\.js/.test(name)

@@ -20,7 +20,7 @@ use turbopack_binding::{
             changed::any_content_changed,
             chunk::ChunkingContext,
             context::{AssetContext, AssetContextVc},
-            environment::{EnvironmentIntention::Middleware, ServerAddrVc},
+            environment::{EnvironmentIntention::Middleware, ServerAddrVc, ServerInfo},
             ident::AssetIdentVc,
             issue::IssueVc,
             reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
@@ -47,6 +47,7 @@ use turbopack_binding::{
 use crate::{
     asset_helpers::as_es_module_asset,
     embed_js::next_asset,
+    mode::NextMode,
     next_config::NextConfigVc,
     next_edge::{
         context::{get_edge_compile_time_info, get_edge_resolve_options_context},
@@ -277,6 +278,7 @@ fn edge_transition_map(
         project_path,
         execution_context,
         Value::new(ServerContextType::Middleware),
+        NextMode::Development,
         next_config,
     );
 
@@ -353,7 +355,7 @@ async fn route_internal(
     } = *execution_context.await?;
 
     let context = node_evaluate_asset_context(
-        project_path,
+        execution_context,
         Some(get_next_build_import_map()),
         Some(edge_transition_map(
             server_addr,
@@ -386,10 +388,7 @@ async fn route_internal(
         vec![
             JsonValueVc::cell(request),
             JsonValueVc::cell(dir.to_string_lossy().into()),
-            JsonValueVc::cell(json!({
-                "hostname": server_addr.hostname(),
-                "port": server_addr.port(),
-            })),
+            JsonValueVc::cell(serde_json::to_value(ServerInfo::try_from(&*server_addr)?)?),
         ],
         CompletionsVc::all(vec![next_config_changed, routes_changed]),
         /* debug */ false,

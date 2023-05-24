@@ -1,7 +1,14 @@
 import type { ClientRequest, IncomingMessage, Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import http, { ServerResponse } from 'node:http'
-import { headersFromEntries } from './headers'
+import { headersFromEntries, initProxiedHeaders } from './headers'
+
+export type ServerInfo = Partial<{
+  hostname: string
+  port: number
+  ip: string
+  protocol: string
+}>
 
 /**
  * Creates a server that listens a random port.
@@ -24,7 +31,8 @@ export function makeRequest(
   method: string,
   path: string,
   rawQuery?: string,
-  rawHeaders?: [string, string][]
+  rawHeaders?: [string, string][],
+  proxiedFor?: ServerInfo
 ): Promise<{
   clientRequest: ClientRequest
   clientResponsePromise: Promise<IncomingMessage>
@@ -101,13 +109,16 @@ export function makeRequest(
 
     const address = server.address() as AddressInfo
 
+    const headers = headersFromEntries(rawHeaders ?? [])
+    initProxiedHeaders(headers, proxiedFor)
+
     clientRequest = http.request({
       host: 'localhost',
       port: address.port,
       method,
       path:
         rawQuery != null && rawQuery.length > 0 ? `${path}?${rawQuery}` : path,
-      headers: rawHeaders != null ? headersFromEntries(rawHeaders) : undefined,
+      headers,
     })
 
     // Otherwise Node.js waits for the first chunk of data to be written before sending the request.

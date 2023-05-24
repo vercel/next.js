@@ -1,5 +1,8 @@
 [
+  "@blockfrost/blockfrost-js",
+  "@jpg-store/lucid-cardano",
   "@prisma/client",
+  "@vercel/og",
   "@sentry/nextjs",
   "@sentry/node",
   "@swc/core",
@@ -18,6 +21,7 @@
   "lodash",
   "mdx-bundler",
   "mongodb",
+  "mongoose",
   "next-mdx-remote",
   "next-seo",
   "pg",

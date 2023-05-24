@@ -26,8 +26,8 @@ export type MiddlewareConfig = {
 }
 
 export type ServerAddress = {
-  hostname: string
-  port: number
+  hostname?: string | null
+  port?: number | null
 }
 
 export type RouteResult =
