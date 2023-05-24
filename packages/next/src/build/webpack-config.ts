@@ -1999,7 +1999,7 @@ export default async function getBaseWebpackConfig(
               use: loaderForAPIRoutes,
             },
             {
-              ...codeCondition,
+              test: codeCondition.test,
               issuerLayer: WEBPACK_LAYERS.middleware,
               use: defaultLoaders.babel,
             },
