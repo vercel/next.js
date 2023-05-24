@@ -165,7 +165,6 @@ export async function makeResolver(
           return {
             name: 'middleware',
             paths: middleware.files.map((file) => join(process.cwd(), file)),
-            env: Object.keys(process.env),
             wasm: [],
             assets: [],
           }

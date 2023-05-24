@@ -255,9 +255,28 @@ impl Visit for Analyzer<'_> {
     noop_visit_type!();
 
     fn visit_var_declarator(&mut self, n: &VarDeclarator) {
-        self.in_member_or_var = true;
-        n.visit_children_with(self);
-        self.in_member_or_var = false;
+        let mut safe_to_ignore = false;
+
+        // Ignore the require itself (foo = require('foo'))
+        if let Some(Expr::Call(CallExpr {
+            callee: Callee::Expr(callee),
+            ..
+        })) = n.init.as_deref()
+        {
+            if let Expr::Ident(ident) = &**callee {
+                if ident.sym == *"require" {
+                    safe_to_ignore = true;
+                }
+            }
+        }
+
+        if safe_to_ignore {
+            self.in_member_or_var = true;
+            n.visit_children_with(self);
+            self.in_member_or_var = false;
+        } else {
+            n.visit_children_with(self);
+        }
     }
 
     fn visit_member_expr(&mut self, e: &MemberExpr) {
