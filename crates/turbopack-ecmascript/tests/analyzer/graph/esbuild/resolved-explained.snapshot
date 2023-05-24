@@ -1,5 +1,4 @@
 *arrow function 2666* = (...) => (
-  | undefined
   | [
         "node",
         [
@@ -16,7 +15,7 @@ binPath = (???*0* | ???*1* | ???*8*)
 - *0* binPath
   ⚠️  pattern without value
 - *1* require.resolve*2*(
-        `${(undefined["pkg"] | ???*3* | ???*4* | ???*5* | "esbuild-linux-64")}/${(undefined["subpath"] | ???*6* | "esbuild.exe" | "bin/esbuild" | ???*7*)}`
+        `${(???*3* | ???*4* | ???*5* | "esbuild-linux-64")}/${(???*6* | "esbuild.exe" | "bin/esbuild" | ???*7*)}`
     )
   ⚠️  require.resolve non constant
 - *2* require.resolve: The require.resolve method from CommonJS
@@ -33,15 +32,13 @@ binPath = (???*0* | ???*1* | ???*8*)
 - *9* FreeVar(downloadedBinPath)
   ⚠️  unknown global
 
-binTargetPath = `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(undefined["pkg"] | ???*0* | ???*1* | ???*2* | "esbuild-linux-64")}-${???*3*}`
+binTargetPath = `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*0* | ???*1* | ???*2* | "esbuild-linux-64")}-${???*3*}`
 - *0* pkg
   ⚠️  pattern without value
 - *1* FreeVar(undefined)
   ⚠️  unknown global
 - *2* unknown mutation
-- *3* ???*4*(
-        (undefined["subpath"] | ???*6* | "esbuild.exe" | "bin/esbuild" | ???*7*)
-    )
+- *3* ???*4*((???*6* | "esbuild.exe" | "bin/esbuild" | ???*7*))
   ⚠️  unknown callee
 - *4* path*5*["basename"]
   ⚠️  unsupported property on Node.js path module
@@ -62,7 +59,6 @@ e#15 = ???*0*
   ⚠️  pattern without value
 
 esbuildCommandAndArgs = (...) => (
-  | undefined
   | [
         "node",
         [
@@ -74,7 +70,7 @@ esbuildCommandAndArgs = (...) => (
 
 esbuildLibDir = "\"esbuild\"/resolved/lib"
 
-generateBinPath = (...) => (undefined | FreeVar(ESBUILD_BINARY_PATH) | binTargetPath | binPath)
+generateBinPath = (...) => (FreeVar(ESBUILD_BINARY_PATH) | binTargetPath | binPath)
 
 isYarnPnP = (false | true)
 
@@ -118,14 +114,14 @@ pkg#3 = (???*0* | ???*1* | ???*2* | "esbuild-linux-64")
   ⚠️  unknown global
 - *2* unknown mutation
 
-pkg#7 = (undefined["pkg"] | ???*0* | ???*1* | ???*2* | "esbuild-linux-64")
+pkg#7 = (???*0* | ???*1* | ???*2* | "esbuild-linux-64")
 - *0* pkg
   ⚠️  pattern without value
 - *1* FreeVar(undefined)
   ⚠️  unknown global
 - *2* unknown mutation
 
-pkgAndSubpathForCurrentPlatform = (...) => (undefined | {"pkg": pkg, "subpath": subpath})
+pkgAndSubpathForCurrentPlatform = (...) => {"pkg": pkg, "subpath": subpath}
 
 platformKey = "linux x64 LE"
 
@@ -133,7 +129,7 @@ subpath#3 = (???*0* | "esbuild.exe" | "bin/esbuild")
 - *0* subpath
   ⚠️  pattern without value
 
-subpath#7 = (undefined["subpath"] | ???*0* | "esbuild.exe" | "bin/esbuild" | ???*1*)
+subpath#7 = (???*0* | "esbuild.exe" | "bin/esbuild" | ???*1*)
 - *0* subpath
   ⚠️  pattern without value
 - *1* unknown mutation

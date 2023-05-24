@@ -10,20 +10,12 @@
 
 0 -> 6 free var = FreeVar(platformKey)
 
-0 -> 7 call = (...) => (undefined | {"pkg": pkg, "subpath": subpath})()
+0 -> 7 call = (...) => {"pkg": pkg, "subpath": subpath}()
 
 0 -> 9 free var = FreeVar(require)
 
 0 -> 10 member call = require*0*["resolve"](
-    `${(
-          | undefined["pkg"]
-          | ???*1*
-          | "esbuild-windows-arm64"
-          | "esbuild-windows-32"
-          | "esbuild-windows-64"
-          | ???*2*
-          | ???*4*
-        )}/${(undefined["subpath"] | ???*5* | "esbuild.exe" | ???*6*)}`
+    `${(???*1* | "esbuild-windows-arm64" | "esbuild-windows-32" | "esbuild-windows-64" | ???*2* | ???*4*)}/${(???*5* | "esbuild.exe" | ???*6*)}`
 )
 - *0* require: The require method from CommonJS
 - *1* pkg
@@ -37,4 +29,4 @@
   ⚠️  pattern without value
 - *6* unknown mutation
 
-0 -> 11 call = (...) => (undefined | binPath)()
+0 -> 11 call = (...) => binPath()

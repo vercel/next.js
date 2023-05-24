@@ -1,10 +1,8 @@
-0 -> 2 member call = ["../lib/a.js", "../lib/b.js"]["map"]((...) => (undefined | file))
+0 -> 2 member call = ["../lib/a.js", "../lib/b.js"]["map"]((...) => file)
 
-0 -> 4 member call = ["../lib/a.js", "../lib/b.js"]["map"]((...) => (undefined | [file]))
+0 -> 4 member call = ["../lib/a.js", "../lib/b.js"]["map"]((...) => [file])
 
-0 -> 6 member call = ["../lib/a.js", "../lib/b.js"]["map"](
-    (...) => (undefined | FreeVar(require)["resolve"](file))
-)
+0 -> 6 member call = ["../lib/a.js", "../lib/b.js"]["map"]((...) => FreeVar(require)["resolve"](file))
 
 6 -> 8 free var = FreeVar(require)
 

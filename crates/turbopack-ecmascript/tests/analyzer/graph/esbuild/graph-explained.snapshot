@@ -1,5 +1,4 @@
 *arrow function 2666* = (...) => (
-  | undefined
   | [
         "node",
         [
@@ -35,7 +34,7 @@ esbuildCommandAndArgs = *arrow function 2666*
 
 esbuildLibDir = path["dirname"](FreeVar(require)["resolve"]("esbuild"))
 
-generateBinPath = (...) => (undefined | FreeVar(ESBUILD_BINARY_PATH) | binTargetPath | binPath)
+generateBinPath = (...) => (FreeVar(ESBUILD_BINARY_PATH) | binTargetPath | binPath)
 
 isYarnPnP = (false | true)
 
@@ -75,7 +74,7 @@ pkg#3 = (???*0* | knownWindowsPackages[platformKey] | knownUnixlikePackages[plat
 
 pkg#7 = pkgAndSubpathForCurrentPlatform()["pkg"]
 
-pkgAndSubpathForCurrentPlatform = (...) => (undefined | {"pkg": pkg, "subpath": subpath})
+pkgAndSubpathForCurrentPlatform = (...) => {"pkg": pkg, "subpath": subpath}
 
 platformKey = `${FreeVar(process)["platform"]} ${os["arch"]()} ${os["endianness"]()}`
 

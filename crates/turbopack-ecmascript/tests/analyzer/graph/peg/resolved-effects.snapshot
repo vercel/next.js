@@ -16,10 +16,7 @@
 - *0* FreeVar(Error)
   ⚠️  unknown global
 
-0 -> 20 call = (...) => (
-  | undefined
-  | ...[...](..., ...)["replace"](/"/g, "\\\"")["replace"](/\0/g, "\\0")["replace"](/\t/g, "\\t")["replace"](/\n/g, "\\n")["replace"](/\r/g, "\\r")["replace"](/[\x00-\x0F]/g, *anonymous function 1822*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 1920*)
-)(???*0*)
+0 -> 20 call = (...) => s["replace"](/\\/g, "\\\\")["replace"](/"/g, "\\\"")["replace"](/\0/g, "\\0")["replace"](/\t/g, "\\t")["replace"](/\n/g, "\\n")["replace"](/\r/g, "\\r")["replace"](/[\x00-\x0F]/g, *anonymous function 1822*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 1920*)(???*0*)
 - *0* ???*1*["text"]
   ⚠️  unknown object
 - *1* arguments[0]
@@ -27,10 +24,7 @@
 
 0 -> 25 free var = FreeVar(Array)
 
-0 -> 29 call = (...) => (
-  | undefined
-  | ...[...](..., ...)["replace"](/-/g, "\\-")["replace"](/\0/g, "\\0")["replace"](/\t/g, "\\t")["replace"](/\n/g, "\\n")["replace"](/\r/g, "\\r")["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
-)(???*0*)
+0 -> 29 call = (...) => ...[...](..., ...)["replace"](/\^/g, "\\^")["replace"](/-/g, "\\-")["replace"](/\0/g, "\\0")["replace"](/\t/g, "\\t")["replace"](/\n/g, "\\n")["replace"](/\r/g, "\\r")["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)(???*0*)
 - *0* ???*1*[0]
   ⚠️  unknown object
 - *1* ???*2*[i]
@@ -40,10 +34,7 @@
 - *3* arguments[0]
   ⚠️  function calls are not analysed yet
 
-0 -> 33 call = (...) => (
-  | undefined
-  | ...[...](..., ...)["replace"](/-/g, "\\-")["replace"](/\0/g, "\\0")["replace"](/\t/g, "\\t")["replace"](/\n/g, "\\n")["replace"](/\r/g, "\\r")["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
-)(???*0*)
+0 -> 33 call = (...) => ...[...](..., ...)["replace"](/\^/g, "\\^")["replace"](/-/g, "\\-")["replace"](/\0/g, "\\0")["replace"](/\t/g, "\\t")["replace"](/\n/g, "\\n")["replace"](/\r/g, "\\r")["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)(???*0*)
 - *0* ???*1*[1]
   ⚠️  unknown object
 - *1* ???*2*[i]
@@ -53,10 +44,7 @@
 - *3* arguments[0]
   ⚠️  function calls are not analysed yet
 
-0 -> 36 call = (...) => (
-  | undefined
-  | ...[...](..., ...)["replace"](/-/g, "\\-")["replace"](/\0/g, "\\0")["replace"](/\t/g, "\\t")["replace"](/\n/g, "\\n")["replace"](/\r/g, "\\r")["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
-)(???*0*)
+0 -> 36 call = (...) => ...[...](..., ...)["replace"](/\^/g, "\\^")["replace"](/-/g, "\\-")["replace"](/\0/g, "\\0")["replace"](/\t/g, "\\t")["replace"](/\n/g, "\\n")["replace"](/\r/g, "\\r")["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)(???*0*)
 - *0* ???*1*[i]
   ⚠️  unknown object
 - *1* ???*2*["parts"]
@@ -134,7 +122,7 @@
 - *4* ???["replace"](/\\/g, "\\\\")
   ⚠️  unknown callee object
 
-0 -> 59 member call = ???*0*["replace"](/[\x00-\x0F]/g, (...) => (undefined | `\x0${hex(ch)}`))
+0 -> 59 member call = ???*0*["replace"](/[\x00-\x0F]/g, (...) => `\x0${hex(ch)}`)
 - *0* ???*1*["replace"](/\r/g, "\\r")
   ⚠️  unknown callee object
 - *1* ???*2*["replace"](/\n/g, "\\n")
@@ -146,14 +134,11 @@
 - *4* ???["replace"](/"/g, "\\\"")
   ⚠️  unknown callee object
 
-59 -> 60 call = (...) => (
-  | undefined
-  | ch["charCodeAt"](0)["toString"](16)["toUpperCase"]()
-)(???*0*)
+59 -> 60 call = (...) => ch["charCodeAt"](0)["toString"](16)["toUpperCase"]()(???*0*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-0 -> 61 member call = ???*0*["replace"](/[\x10-\x1F\x7F-\x9F]/g, (...) => (undefined | `\x${hex(ch)}`))
+0 -> 61 member call = ???*0*["replace"](/[\x10-\x1F\x7F-\x9F]/g, (...) => `\x${hex(ch)}`)
 - *0* ???*1*["replace"](/[\x00-\x0F]/g, *anonymous function 1822*)
   ⚠️  unknown callee object
 - *1* ???*2*["replace"](/\r/g, "\\r")
@@ -165,10 +150,7 @@
 - *4* ???["replace"](/\0/g, "\\0")
   ⚠️  unknown callee object
 
-61 -> 62 call = (...) => (
-  | undefined
-  | ch["charCodeAt"](0)["toString"](16)["toUpperCase"]()
-)(???*0*)
+61 -> 62 call = (...) => ch["charCodeAt"](0)["toString"](16)["toUpperCase"]()(???*0*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
@@ -248,7 +230,7 @@
 - *4* ???["replace"](/\^/g, "\\^")
   ⚠️  unknown callee object
 
-0 -> 81 member call = ???*0*["replace"](/[\x00-\x0F]/g, (...) => (undefined | `\x0${hex(ch)}`))
+0 -> 81 member call = ???*0*["replace"](/[\x00-\x0F]/g, (...) => `\x0${hex(ch)}`)
 - *0* ???*1*["replace"](/\r/g, "\\r")
   ⚠️  unknown callee object
 - *1* ???*2*["replace"](/\n/g, "\\n")
@@ -260,14 +242,11 @@
 - *4* ???["replace"](/-/g, "\\-")
   ⚠️  unknown callee object
 
-81 -> 82 call = (...) => (
-  | undefined
-  | ch["charCodeAt"](0)["toString"](16)["toUpperCase"]()
-)(???*0*)
+81 -> 82 call = (...) => ch["charCodeAt"](0)["toString"](16)["toUpperCase"]()(???*0*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-0 -> 83 member call = ???*0*["replace"](/[\x10-\x1F\x7F-\x9F]/g, (...) => (undefined | `\x${hex(ch)}`))
+0 -> 83 member call = ???*0*["replace"](/[\x10-\x1F\x7F-\x9F]/g, (...) => `\x${hex(ch)}`)
 - *0* ???*1*["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)
   ⚠️  unknown callee object
 - *1* ???*2*["replace"](/\r/g, "\\r")
@@ -279,19 +258,16 @@
 - *4* ???["replace"](/\0/g, "\\0")
   ⚠️  unknown callee object
 
-83 -> 84 call = (...) => (
-  | undefined
-  | ch["charCodeAt"](0)["toString"](16)["toUpperCase"]()
-)(???*0*)
+83 -> 84 call = (...) => ch["charCodeAt"](0)["toString"](16)["toUpperCase"]()(???*0*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
 0 -> 87 member call = {
-    "literal": (...) => (undefined | `"${literalEscape(expectation["text"])}"`),
-    "class": (...) => (undefined | `[${("^" | "")}${escapedParts}]`),
-    "any": (...) => (undefined | "any character"),
-    "end": (...) => (undefined | "end of input"),
-    "other": (...) => (undefined | expectation["description"])
+    "literal": (...) => `"${literalEscape(expectation["text"])}"`,
+    "class": (...) => `[${("^" | "")}${escapedParts}]`,
+    "any": (...) => "any character",
+    "end": (...) => "end of input",
+    "other": (...) => expectation["description"]
 }[???*0*](???*2*)
 - *0* ???*1*["type"]
   ⚠️  unknown object
@@ -302,10 +278,7 @@
 
 0 -> 88 free var = FreeVar(Array)
 
-0 -> 93 call = (...) => (
-  | undefined
-  | DESCRIBE_EXPECTATION_FNS[expectation["type"]](expectation)
-)(???*0*)
+0 -> 93 call = (...) => DESCRIBE_EXPECTATION_FNS[expectation["type"]](expectation)(???*0*)
 - *0* ???*1*[i]
   ⚠️  unknown object
 - *1* arguments[0]
@@ -333,10 +306,7 @@
 - *1* unknown new expression
 - *2* unsupported expression
 
-0 -> 114 call = (...) => (
-  | undefined
-  | ...[...](..., ...)["replace"](/"/g, "\\\"")["replace"](/\0/g, "\\0")["replace"](/\t/g, "\\t")["replace"](/\n/g, "\\n")["replace"](/\r/g, "\\r")["replace"](/[\x00-\x0F]/g, *anonymous function 1822*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 1920*)
-)(???*0*)
+0 -> 114 call = (...) => s["replace"](/\\/g, "\\\\")["replace"](/"/g, "\\\"")["replace"](/\0/g, "\\0")["replace"](/\t/g, "\\t")["replace"](/\n/g, "\\n")["replace"](/\r/g, "\\r")["replace"](/[\x00-\x0F]/g, *anonymous function 1822*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 1920*)(???*0*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
@@ -351,80 +321,41 @@
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
 
-0 -> 116 call = (...) => (undefined | `"${literalEscape(found)}"` | "end of input")(???*0*)
+0 -> 116 call = (...) => (`"${literalEscape(found)}"` | "end of input")(???*0*)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
-0 -> 117 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("*", false)
+0 -> 117 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("*", false)
 
-0 -> 118 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)(",", false)
+0 -> 118 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}(",", false)
 
-0 -> 119 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)(".", false)
+0 -> 119 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}(".", false)
 
-0 -> 120 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("(", false)
+0 -> 120 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("(", false)
 
-0 -> 121 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)(")", false)
+0 -> 121 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}(")", false)
 
-0 -> 122 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("{", false)
+0 -> 122 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("{", false)
 
-0 -> 123 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("}", false)
+0 -> 123 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("}", false)
 
-0 -> 124 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("[", false)
+0 -> 124 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("[", false)
 
-0 -> 125 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("]", false)
+0 -> 125 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("]", false)
 
-0 -> 126 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("undefined", false)
+0 -> 126 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("undefined", false)
 
-0 -> 127 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("-", false)
+0 -> 127 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("-", false)
 
-0 -> 128 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("0x", false)
+0 -> 128 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("0x", false)
 
-0 -> 129 call = (...) => (
-  | undefined
-  | {"type": "class", "parts": parts, "inverted": inverted, "ignoreCase": ignoreCase}
-)([["0", "9"]], false, false)
+0 -> 129 call = (...) => {"type": "class", "parts": parts, "inverted": inverted, "ignoreCase": ignoreCase}([["0", "9"]], false, false)
 
 0 -> 130 free var = FreeVar(parseInt)
 
-0 -> 131 call = (...) => (undefined | input["substring"](peg$savedPos, peg$currPos))()
+0 -> 131 call = (...) => input["substring"](peg$savedPos, peg$currPos)()
 
-0 -> 132 call = ???*0*((undefined | ???*1*), 16)
+0 -> 132 call = ???*0*(???*1*, 16)
 - *0* FreeVar(parseInt)
   ⚠️  unknown global
 - *1* ???*2*["substring"](peg$savedPos, peg$currPos)
@@ -434,9 +365,9 @@
 
 0 -> 133 free var = FreeVar(parseFloat)
 
-0 -> 134 call = (...) => (undefined | input["substring"](peg$savedPos, peg$currPos))()
+0 -> 134 call = (...) => input["substring"](peg$savedPos, peg$currPos)()
 
-0 -> 135 call = ???*0*((undefined | ???*1*))
+0 -> 135 call = ???*0*(???*1*)
 - *0* FreeVar(parseFloat)
   ⚠️  unknown global
 - *1* ???*2*["substring"](peg$savedPos, peg$currPos)
@@ -444,216 +375,99 @@
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
 
-0 -> 136 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("\"", false)
+0 -> 136 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("\"", false)
 
 0 -> 138 member call = ???*0*["join"]("")
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-0 -> 139 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("'", false)
+0 -> 139 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("'", false)
 
-0 -> 140 call = (...) => (
-  | undefined
-  | {"type": "class", "parts": parts, "inverted": inverted, "ignoreCase": ignoreCase}
-)([" ", "\t", "\n", "\r"], false, false)
+0 -> 140 call = (...) => {"type": "class", "parts": parts, "inverted": inverted, "ignoreCase": ignoreCase}([" ", "\t", "\n", "\r"], false, false)
 
-0 -> 141 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("--", false)
+0 -> 141 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("--", false)
 
-0 -> 142 call = (...) => (
-  | undefined
-  | {"type": "class", "parts": parts, "inverted": inverted, "ignoreCase": ignoreCase}
-)(["\n", "\r"], false, false)
+0 -> 142 call = (...) => {"type": "class", "parts": parts, "inverted": inverted, "ignoreCase": ignoreCase}(["\n", "\r"], false, false)
 
-0 -> 143 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("SELECT", true)
+0 -> 143 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("SELECT", true)
 
-0 -> 144 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("TOP", true)
+0 -> 144 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("TOP", true)
 
-0 -> 145 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("FROM", true)
+0 -> 145 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("FROM", true)
 
-0 -> 146 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("WHERE", true)
+0 -> 146 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("WHERE", true)
 
-0 -> 147 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("ORDER", true)
+0 -> 147 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("ORDER", true)
 
-0 -> 148 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("BY", true)
+0 -> 148 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("BY", true)
 
-0 -> 149 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("AS", true)
+0 -> 149 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("AS", true)
 
-0 -> 150 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("JOIN", true)
+0 -> 150 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("JOIN", true)
 
-0 -> 151 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("IN", true)
+0 -> 151 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("IN", true)
 
-0 -> 152 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("VALUE", true)
+0 -> 152 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("VALUE", true)
 
-0 -> 153 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("ASC", true)
+0 -> 153 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("ASC", true)
 
-0 -> 154 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("DESC", true)
+0 -> 154 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("DESC", true)
 
-0 -> 155 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("AND", true)
+0 -> 155 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("AND", true)
 
-0 -> 156 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("OR", true)
+0 -> 156 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("OR", true)
 
-0 -> 157 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("NOT", true)
+0 -> 157 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("NOT", true)
 
-0 -> 158 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("BETWEEN", true)
+0 -> 158 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("BETWEEN", true)
 
-0 -> 159 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("EXISTS", true)
+0 -> 159 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("EXISTS", true)
 
-0 -> 160 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("ARRAY", true)
+0 -> 160 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("ARRAY", true)
 
-0 -> 161 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("null", false)
+0 -> 161 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("null", false)
 
-0 -> 162 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("true", false)
+0 -> 162 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("true", false)
 
-0 -> 163 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("false", false)
+0 -> 163 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("false", false)
 
-0 -> 164 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("udf", false)
+0 -> 164 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("udf", false)
 
-0 -> 165 call = (...) => (
-  | undefined
-  | {"type": "class", "parts": parts, "inverted": inverted, "ignoreCase": ignoreCase}
-)([["a", "z"], ["A", "Z"], "_"], false, false)
+0 -> 165 call = (...) => {"type": "class", "parts": parts, "inverted": inverted, "ignoreCase": ignoreCase}([["a", "z"], ["A", "Z"], "_"], false, false)
 
-0 -> 166 call = (...) => (
-  | undefined
-  | {"type": "class", "parts": parts, "inverted": inverted, "ignoreCase": ignoreCase}
-)([["a", "z"], ["A", "Z"], ["0", "9"], "_"], false, false)
+0 -> 166 call = (...) => {"type": "class", "parts": parts, "inverted": inverted, "ignoreCase": ignoreCase}([["a", "z"], ["A", "Z"], ["0", "9"], "_"], false, false)
 
 0 -> 168 member call = ???*0*["join"]("")
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
-0 -> 169 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("@", false)
+0 -> 169 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("@", false)
 
-0 -> 170 call = (...) => (undefined | input["substring"](peg$savedPos, peg$currPos))()
+0 -> 170 call = (...) => input["substring"](peg$savedPos, peg$currPos)()
 
-0 -> 171 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("+", false)
+0 -> 171 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("+", false)
 
-0 -> 172 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("~", false)
+0 -> 172 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("~", false)
 
-0 -> 173 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("\\", false)
+0 -> 173 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("\\", false)
 
-0 -> 174 call = (...) => (undefined | input["substring"](peg$savedPos, peg$currPos))()
+0 -> 174 call = (...) => input["substring"](peg$savedPos, peg$currPos)()
 
-0 -> 175 call = (...) => (undefined | {"type": "any"})()
+0 -> 175 call = (...) => {"type": "any"}()
 
-0 -> 176 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("b", false)
+0 -> 176 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("b", false)
 
-0 -> 177 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("f", false)
+0 -> 177 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("f", false)
 
-0 -> 178 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("n", false)
+0 -> 178 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("n", false)
 
-0 -> 179 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("r", false)
+0 -> 179 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("r", false)
 
-0 -> 180 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("t", false)
+0 -> 180 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("t", false)
 
-0 -> 181 call = (...) => (undefined | input["substring"](peg$savedPos, peg$currPos))()
+0 -> 181 call = (...) => input["substring"](peg$savedPos, peg$currPos)()
 
-0 -> 182 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("u", false)
+0 -> 182 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("u", false)
 
 0 -> 184 free var = FreeVar(String)
 
@@ -673,10 +487,7 @@
 - *2* FreeVar(parseInt)
   ⚠️  unknown global
 
-0 -> 188 call = (...) => (
-  | undefined
-  | {"type": "class", "parts": parts, "inverted": inverted, "ignoreCase": ignoreCase}
-)([["0", "9"], ["a", "f"]], false, true)
+0 -> 188 call = (...) => {"type": "class", "parts": parts, "inverted": inverted, "ignoreCase": ignoreCase}([["0", "9"], ["a", "f"]], false, true)
 
 0 -> 190 member call = ???*0*["reduce"](
     (...) => {"type": "scalar_member_expression", "object": object, "property": property, "computed": computed},
@@ -687,106 +498,49 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-0 -> 191 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("?", false)
+0 -> 191 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("?", false)
 
-0 -> 192 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)(":", false)
+0 -> 192 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}(":", false)
 
-0 -> 193 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("??", false)
+0 -> 193 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("??", false)
 
-0 -> 194 call = (...) => (undefined | tail["reduce"](*arrow function 169161*, head))(???*0*, ???*1*)
+0 -> 194 call = (...) => tail["reduce"](*arrow function 169161*, head)(???*0*, ???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* arguments[1]
   ⚠️  function calls are not analysed yet
 
-0 -> 195 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("=", false)
+0 -> 195 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("=", false)
 
-0 -> 196 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("!=", false)
+0 -> 196 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("!=", false)
 
-0 -> 197 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("<>", false)
+0 -> 197 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("<>", false)
 
-0 -> 198 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("<=", false)
+0 -> 198 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("<=", false)
 
-0 -> 199 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)(">=", false)
+0 -> 199 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}(">=", false)
 
-0 -> 200 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("<", false)
+0 -> 200 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("<", false)
 
-0 -> 201 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)(">", false)
+0 -> 201 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}(">", false)
 
-0 -> 202 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("|", false)
+0 -> 202 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("|", false)
 
-0 -> 203 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("^", false)
+0 -> 203 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("^", false)
 
-0 -> 204 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("&", false)
+0 -> 204 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("&", false)
 
-0 -> 205 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("<<", false)
+0 -> 205 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("<<", false)
 
-0 -> 206 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)(">>>", false)
+0 -> 206 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}(">>>", false)
 
-0 -> 207 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)(">>", false)
+0 -> 207 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}(">>", false)
 
-0 -> 208 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("||", false)
+0 -> 208 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("||", false)
 
-0 -> 209 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("/", false)
+0 -> 209 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("/", false)
 
-0 -> 210 call = (...) => (
-  | undefined
-  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
-)("%", false)
+0 -> 210 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("%", false)
 
 0 -> 212 member call = ???*0*["reduce"](
     (...) => {
@@ -804,9 +558,9 @@
 
 0 -> 213 free var = FreeVar(Number)
 
-0 -> 214 call = (...) => (undefined | input["substring"](peg$savedPos, peg$currPos))()
+0 -> 214 call = (...) => input["substring"](peg$savedPos, peg$currPos)()
 
-0 -> 215 call = ???*0*((undefined | ???*1*))
+0 -> 215 call = ???*0*(???*1*)
 - *0* FreeVar(Number)
   ⚠️  unknown global
 - *1* ???*2*["substring"](peg$savedPos, peg$currPos)
@@ -825,27 +579,21 @@
 - *1* max number of linking steps reached
 - *2* max number of linking steps reached
 
-0 -> 224 call = (...) => (
-  | undefined
-  | {
-        "start": {"offset": startPos, "line": startPosDetails["line"], "column": startPosDetails["column"]},
-        "end": {"offset": endPos, "line": endPosDetails["line"], "column": endPosDetails["column"]}
-    }
-)(???*0*, ???*1*)
+0 -> 224 call = (...) => {
+    "start": {"offset": startPos, "line": startPosDetails["line"], "column": startPosDetails["column"]},
+    "end": {"offset": endPos, "line": endPosDetails["line"], "column": endPosDetails["column"]}
+}(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
-0 -> 225 call = (...) => (
-  | undefined
-  | {
-        "start": {"offset": startPos, "line": startPosDetails["line"], "column": startPosDetails["column"]},
-        "end": {"offset": endPos, "line": endPosDetails["line"], "column": endPosDetails["column"]}
-    }
-)(???*0*, ???*1*)
+0 -> 225 call = (...) => {
+    "start": {"offset": startPos, "line": startPosDetails["line"], "column": startPosDetails["column"]},
+    "end": {"offset": endPos, "line": endPosDetails["line"], "column": endPosDetails["column"]}
+}(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
-0 -> 226 call = (...) => (undefined | {"type": "other", "description": description})(???*0*)
+0 -> 226 call = (...) => {"type": "other", "description": description}(???*0*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
@@ -855,13 +603,7 @@
 - *1* max number of linking steps reached
 - *2* max number of linking steps reached
 
-0 -> 229 call = (...) => (undefined | ???*0*)(
-    [
-        (undefined | {"type": "other", "description": ???*1*})
-    ],
-    ???*2*,
-    ???*4*
-)
+0 -> 229 call = (...) => ???*0*([{"type": "other", "description": ???*1*}], ???*2*, ???*4*)
 - *0* unknown new expression
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
@@ -871,17 +613,14 @@
   ⚠️  function calls are not analysed yet
 - *4* max number of linking steps reached
 
-0 -> 230 call = (...) => (
-  | undefined
-  | {
-        "start": {"offset": startPos, "line": startPosDetails["line"], "column": startPosDetails["column"]},
-        "end": {"offset": endPos, "line": endPosDetails["line"], "column": endPosDetails["column"]}
-    }
-)(???*0*, ???*1*)
+0 -> 230 call = (...) => {
+    "start": {"offset": startPos, "line": startPosDetails["line"], "column": startPosDetails["column"]},
+    "end": {"offset": endPos, "line": endPosDetails["line"], "column": endPosDetails["column"]}
+}(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
-0 -> 231 call = (...) => (undefined | ???*0*)(???*1*, ???*2*)
+0 -> 231 call = (...) => ???*0*(???*1*, ???*2*)
 - *0* unknown new expression
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
@@ -933,88 +672,88 @@
 - *1* arguments[1]
   ⚠️  function calls are not analysed yet
 
-0 -> 255 call = (...) => (undefined | s0)()
+0 -> 255 call = (...) => s0()
 
 0 -> 256 conditional = ???*0*
 - *0* max number of linking steps reached
 
-256 -> 257 call = (...) => (undefined | s0)()
+256 -> 257 call = (...) => s0()
 
 256 -> 258 conditional = ???*0*
 - *0* max number of linking steps reached
 
-258 -> 259 call = (...) => (undefined | s0)()
+258 -> 259 call = (...) => s0()
 
-258 -> 260 conditional = ((???*0* | undefined | []) !== {})
+258 -> 260 conditional = ((???*0* | []) !== {})
 - *0* s3
   ⚠️  pattern without value
 
-260 -> 261 call = (...) => (undefined | {"type": "sql", "body": body})(???*0*)
+260 -> 261 call = (...) => {"type": "sql", "body": body}(???*0*)
 - *0* max number of linking steps reached
 
-0 -> 262 call = (...) => (undefined | s0)()
+0 -> 262 call = (...) => s0()
 
 0 -> 263 conditional = ???*0*
 - *0* max number of linking steps reached
 
-263 -> 264 call = (...) => (undefined | s0)()
+263 -> 264 call = (...) => s0()
 
-263 -> 265 conditional = ((???*0* | undefined | []) !== {})
+263 -> 265 conditional = ((???*0* | []) !== {})
 - *0* s2
   ⚠️  pattern without value
 
-265 -> 266 call = (...) => (undefined | s0)()
+265 -> 266 call = (...) => s0()
 
 265 -> 267 conditional = ???*0*
 - *0* max number of linking steps reached
 
-267 -> 268 call = (...) => (undefined | s0)()
+267 -> 268 call = (...) => s0()
 
 267 -> 269 conditional = ???*0*
 - *0* max number of linking steps reached
 
-269 -> 270 call = (...) => (undefined | s0)()
+269 -> 270 call = (...) => s0()
 
 269 -> 271 conditional = ???*0*
 - *0* max number of linking steps reached
 
-271 -> 272 call = (...) => (undefined | v)(???*0*)
+271 -> 272 call = (...) => v(???*0*)
 - *0* max number of linking steps reached
 
 265 -> 273 conditional = ???*0*
 - *0* max number of linking steps reached
 
-273 -> 274 call = (...) => (undefined | s0)()
+273 -> 274 call = (...) => s0()
 
 273 -> 275 conditional = ???*0*
 - *0* max number of linking steps reached
 
-275 -> 276 call = (...) => (undefined | s0)()
+275 -> 276 call = (...) => s0()
 
 275 -> 277 conditional = ???*0*
 - *0* max number of linking steps reached
 
-277 -> 278 call = (...) => (undefined | s0)()
+277 -> 278 call = (...) => s0()
 
 277 -> 279 conditional = ???*0*
 - *0* max number of linking steps reached
 
-279 -> 280 call = (...) => (undefined | s0)()
+279 -> 280 call = (...) => s0()
 
 279 -> 281 conditional = ???*0*
 - *0* max number of linking steps reached
 
-281 -> 282 call = (...) => (undefined | s0)()
+281 -> 282 call = (...) => s0()
 
 281 -> 283 conditional = ???*0*
 - *0* max number of linking steps reached
 
-283 -> 284 call = (...) => (undefined | s0)()
+283 -> 284 call = (...) => s0()
 
 283 -> 285 conditional = ???*0*
 - *0* max number of linking steps reached
 
-285 -> 286 call = (...) => (undefined | v)(???*0*, ???*1*, ???*2*)
+285 -> 286 call = (...) => v(???*0*, ???*1*, ???*2*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 - *2* max number of linking steps reached
@@ -1022,27 +761,27 @@
 279 -> 287 conditional = ???*0*
 - *0* max number of linking steps reached
 
-287 -> 288 call = (...) => (undefined | s0)()
+287 -> 288 call = (...) => s0()
 
 287 -> 289 conditional = ???*0*
 - *0* max number of linking steps reached
 
-289 -> 290 call = (...) => (undefined | s0)()
+289 -> 290 call = (...) => s0()
 
 289 -> 291 conditional = ???*0*
 - *0* max number of linking steps reached
 
-291 -> 292 call = (...) => (undefined | s0)()
+291 -> 292 call = (...) => s0()
 
 291 -> 293 conditional = ???*0*
 - *0* max number of linking steps reached
 
-293 -> 294 call = (...) => (undefined | s0)()
+293 -> 294 call = (...) => s0()
 
 293 -> 295 conditional = ???*0*
 - *0* max number of linking steps reached
 
-295 -> 296 call = (...) => (undefined | v)(???*0*, ???*1*, ???*2*, ???*3*)
+295 -> 296 call = (...) => v(???*0*, ???*1*, ???*2*, ???*3*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 - *2* max number of linking steps reached
@@ -1051,39 +790,39 @@
 289 -> 297 conditional = ???*0*
 - *0* max number of linking steps reached
 
-297 -> 298 call = (...) => (undefined | s0)()
+297 -> 298 call = (...) => s0()
 
 297 -> 299 conditional = ???*0*
 - *0* max number of linking steps reached
 
-299 -> 300 call = (...) => (undefined | s0)()
+299 -> 300 call = (...) => s0()
 
 299 -> 301 conditional = ???*0*
 - *0* max number of linking steps reached
 
-301 -> 302 call = (...) => (undefined | s0)()
+301 -> 302 call = (...) => s0()
 
-301 -> 303 conditional = ((???*0* | undefined | []) !== {})
+301 -> 303 conditional = ((???*0* | []) !== {})
 - *0* s13
   ⚠️  pattern without value
 
-303 -> 304 call = (...) => (undefined | s0)()
+303 -> 304 call = (...) => s0()
 
 303 -> 305 conditional = ???*0*
 - *0* max number of linking steps reached
 
-305 -> 306 call = (...) => (undefined | s0)()
+305 -> 306 call = (...) => s0()
 
-305 -> 307 conditional = ((???*0* | undefined | []) !== {})
+305 -> 307 conditional = ((???*0* | []) !== {})
 - *0* s15
   ⚠️  pattern without value
 
-307 -> 308 call = (...) => (undefined | s0)()
+307 -> 308 call = (...) => s0()
 
 307 -> 309 conditional = ???*0*
 - *0* max number of linking steps reached
 
-309 -> 310 call = (...) => (undefined | v)(???*0*, ???*1*, ???*2*, ???*3*, ???*4*)
+309 -> 310 call = (...) => v(???*0*, ???*1*, ???*2*, ???*3*, ???*4*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 - *2* max number of linking steps reached
@@ -1093,17 +832,14 @@
 299 -> 311 conditional = ???*0*
 - *0* max number of linking steps reached
 
-311 -> 312 call = (...) => (
-  | undefined
-  | {
-        "type": "select_query",
-        "top": top,
-        "select": select,
-        "from": from,
-        "where": where,
-        "orderBy": orderBy
-    }
-)(???*0*, ???*1*, ???*2*, ???*3*, ???*4*)
+311 -> 312 call = (...) => {
+    "type": "select_query",
+    "top": top,
+    "select": select,
+    "from": from,
+    "where": where,
+    "orderBy": orderBy
+}(???*0*, ???*1*, ???*2*, ???*3*, ???*4*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 - *2* max number of linking steps reached
@@ -1125,59 +861,53 @@
 - *0* updated with update expression
 
 316 -> 317 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "*", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "*", "ignoreCase": false}
 )
 
 0 -> 318 conditional = ???*0*
 - *0* max number of linking steps reached
 
-318 -> 319 call = (...) => (undefined | {"type": "select_specification", "*": true})()
+318 -> 319 call = (...) => {"type": "select_specification", "*": true}()
 
 0 -> 320 conditional = ???*0*
 - *0* max number of linking steps reached
 
-320 -> 321 call = (...) => (undefined | s0)()
+320 -> 321 call = (...) => s0()
 
 320 -> 322 conditional = ???*0*
 - *0* max number of linking steps reached
 
-322 -> 323 call = (...) => (
-  | undefined
-  | {"type": "select_specification", "properties": properties}
-)(???*0*)
+322 -> 323 call = (...) => {"type": "select_specification", "properties": properties}(???*0*)
 - *0* max number of linking steps reached
 
 320 -> 324 conditional = ???*0*
 - *0* max number of linking steps reached
 
-324 -> 325 call = (...) => (undefined | s0)()
+324 -> 325 call = (...) => s0()
 
 324 -> 326 conditional = ???*0*
 - *0* max number of linking steps reached
 
-326 -> 327 call = (...) => (undefined | s0)()
+326 -> 327 call = (...) => s0()
 
-326 -> 328 conditional = ((???*0* | undefined | []) !== {})
+326 -> 328 conditional = ((???*0* | []) !== {})
 - *0* s2
   ⚠️  pattern without value
 
-328 -> 329 call = (...) => (undefined | s0)()
+328 -> 329 call = (...) => s0()
 
 328 -> 330 conditional = ???*0*
 - *0* max number of linking steps reached
 
-330 -> 331 call = (...) => (undefined | {"type": "select_specification", "value": value})(???*0*)
+330 -> 331 call = (...) => {"type": "select_specification", "value": value}(???*0*)
 - *0* max number of linking steps reached
 
-0 -> 332 call = (...) => (undefined | s0)()
+0 -> 332 call = (...) => s0()
 
 0 -> 333 conditional = ???*0*
 - *0* max number of linking steps reached
 
-333 -> 334 call = (...) => (undefined | s0)()
+333 -> 334 call = (...) => s0()
 
 333 -> 335 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -1197,28 +927,25 @@
 - *0* updated with update expression
 
 339 -> 340 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": ",", "ignoreCase": false}
-    )
+    {"type": "literal", "text": ",", "ignoreCase": false}
 )
 
 335 -> 341 conditional = ((???*0* | "," | {}) !== {})
 - *0* s5
   ⚠️  pattern without value
 
-341 -> 342 call = (...) => (undefined | s0)()
+341 -> 342 call = (...) => s0()
 
-341 -> 343 conditional = ((???*0* | undefined | []) !== {})
+341 -> 343 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-343 -> 344 call = (...) => (undefined | s0)()
+343 -> 344 call = (...) => s0()
 
 343 -> 345 conditional = ???*0*
 - *0* max number of linking steps reached
 
-345 -> 346 call = (...) => (undefined | v)(???*0*, ???*1*)
+345 -> 346 call = (...) => v(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
@@ -1227,7 +954,7 @@
   ⚠️  pattern without value
 - *1* max number of linking steps reached
 
-333 -> 349 call = (...) => (undefined | s0)()
+333 -> 349 call = (...) => s0()
 
 333 -> 350 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -1247,28 +974,25 @@
 - *0* updated with update expression
 
 354 -> 355 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": ",", "ignoreCase": false}
-    )
+    {"type": "literal", "text": ",", "ignoreCase": false}
 )
 
 350 -> 356 conditional = ((???*0* | "," | {}) !== {})
 - *0* s5
   ⚠️  pattern without value
 
-356 -> 357 call = (...) => (undefined | s0)()
+356 -> 357 call = (...) => s0()
 
-356 -> 358 conditional = ((???*0* | undefined | []) !== {})
+356 -> 358 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-358 -> 359 call = (...) => (undefined | s0)()
+358 -> 359 call = (...) => s0()
 
 358 -> 360 conditional = ???*0*
 - *0* max number of linking steps reached
 
-360 -> 361 call = (...) => (undefined | v)(???*0*, ???*1*)
+360 -> 361 call = (...) => v(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
@@ -1276,42 +1000,39 @@
 - *0* s2
   ⚠️  pattern without value
 
-362 -> 363 call = (...) => (
-  | undefined
-  | {"type": "object_property_list", "properties": ???*0*}
-)(???*1*, (???*2* | []))
+362 -> 363 call = (...) => {"type": "object_property_list", "properties": ???*0*}(???*1*, (???*2* | []))
 - *0* spread is not supported
 - *1* max number of linking steps reached
 - *2* s2
   ⚠️  pattern without value
 
-0 -> 364 call = (...) => (undefined | s0)()
+0 -> 364 call = (...) => s0()
 
 0 -> 365 conditional = ???*0*
 - *0* max number of linking steps reached
 
-365 -> 366 call = (...) => (undefined | s0)()
+365 -> 366 call = (...) => s0()
 
 365 -> 367 conditional = ???*0*
 - *0* max number of linking steps reached
 
-367 -> 368 call = (...) => (undefined | s0)()
+367 -> 368 call = (...) => s0()
 
 367 -> 369 conditional = ???*0*
 - *0* max number of linking steps reached
 
-369 -> 370 call = (...) => (undefined | s0)()
+369 -> 370 call = (...) => s0()
 
-369 -> 371 conditional = ((???*0* | undefined | []) !== {})
+369 -> 371 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-371 -> 372 call = (...) => (undefined | s0)()
+371 -> 372 call = (...) => s0()
 
 371 -> 373 conditional = ???*0*
 - *0* max number of linking steps reached
 
-373 -> 374 call = (...) => (undefined | v)(???*0*, ???*1*)
+373 -> 374 call = (...) => v(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
@@ -1320,28 +1041,28 @@
   ⚠️  pattern without value
 - *1* max number of linking steps reached
 
-365 -> 377 call = (...) => (undefined | s0)()
+365 -> 377 call = (...) => s0()
 
 365 -> 378 conditional = ???*0*
 - *0* max number of linking steps reached
 
-378 -> 379 call = (...) => (undefined | s0)()
+378 -> 379 call = (...) => s0()
 
 378 -> 380 conditional = ???*0*
 - *0* max number of linking steps reached
 
-380 -> 381 call = (...) => (undefined | s0)()
+380 -> 381 call = (...) => s0()
 
-380 -> 382 conditional = ((???*0* | undefined | []) !== {})
+380 -> 382 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-382 -> 383 call = (...) => (undefined | s0)()
+382 -> 383 call = (...) => s0()
 
 382 -> 384 conditional = ???*0*
 - *0* max number of linking steps reached
 
-384 -> 385 call = (...) => (undefined | v)(???*0*, ???*1*)
+384 -> 385 call = (...) => v(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
@@ -1349,117 +1070,105 @@
 - *0* s2
   ⚠️  pattern without value
 
-386 -> 387 call = (...) => (
-  | undefined
-  | {"type": "from_specification", "source": source, "joins": joins}
-)(???*0*, (???*1* | []))
+386 -> 387 call = (...) => {"type": "from_specification", "source": source, "joins": joins}(???*0*, (???*1* | []))
 - *0* max number of linking steps reached
 - *1* s2
   ⚠️  pattern without value
 
-0 -> 388 call = (...) => (undefined | s0)()
+0 -> 388 call = (...) => s0()
 
 0 -> 389 conditional = ???*0*
 - *0* max number of linking steps reached
 
-389 -> 390 call = (...) => (undefined | s0)()
+389 -> 390 call = (...) => s0()
 
 389 -> 391 conditional = ???*0*
 - *0* max number of linking steps reached
 
-391 -> 392 call = (...) => (undefined | s0)()
+391 -> 392 call = (...) => s0()
 
 391 -> 393 conditional = ???*0*
 - *0* max number of linking steps reached
 
-393 -> 394 call = (...) => (undefined | s0)()
+393 -> 394 call = (...) => s0()
 
 393 -> 395 conditional = ???*0*
 - *0* max number of linking steps reached
 
-395 -> 396 call = (...) => (undefined | s0)()
+395 -> 396 call = (...) => s0()
 
 395 -> 397 conditional = ???*0*
 - *0* max number of linking steps reached
 
-397 -> 398 call = (...) => (
-  | undefined
-  | {"type": "from_source", "expression": expression, "alias": alias, "iteration": true}
-)(???*0*, ???*1*)
+397 -> 398 call = (...) => {"type": "from_source", "expression": expression, "alias": alias, "iteration": true}(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
 0 -> 399 conditional = ???*0*
 - *0* max number of linking steps reached
 
-399 -> 400 call = (...) => (undefined | s0)()
+399 -> 400 call = (...) => s0()
 
 399 -> 401 conditional = ???*0*
 - *0* max number of linking steps reached
 
-401 -> 402 call = (...) => (undefined | s0)()
+401 -> 402 call = (...) => s0()
 
 401 -> 403 conditional = ???*0*
 - *0* max number of linking steps reached
 
-403 -> 404 call = (...) => (undefined | s0)()
+403 -> 404 call = (...) => s0()
 
 401 -> 405 conditional = ???*0*
 - *0* max number of linking steps reached
 
-405 -> 406 call = (...) => (undefined | s0)()
+405 -> 406 call = (...) => s0()
 
 405 -> 407 conditional = ???*0*
 - *0* max number of linking steps reached
 
-407 -> 408 call = (...) => (undefined | s0)()
+407 -> 408 call = (...) => s0()
 
 407 -> 409 conditional = ???*0*
 - *0* max number of linking steps reached
 
-409 -> 410 call = (...) => (undefined | v)(???*0*, ???*1*)
+409 -> 410 call = (...) => v(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
 401 -> 411 conditional = ???*0*
 - *0* max number of linking steps reached
 
-411 -> 412 call = (...) => (
-  | undefined
-  | {"type": "from_source", "expression": expression, "alias": alias}
-)(???*0*, ???*1*)
+411 -> 412 call = (...) => {"type": "from_source", "expression": expression, "alias": alias}(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
-0 -> 413 call = (...) => (undefined | s0)()
+0 -> 413 call = (...) => s0()
 
 0 -> 414 conditional = ???*0*
 - *0* max number of linking steps reached
 
-414 -> 415 call = (...) => (undefined | s0)()
+414 -> 415 call = (...) => s0()
 
 414 -> 416 conditional = ???*0*
 - *0* max number of linking steps reached
 
-416 -> 417 call = (...) => (undefined | s0)()
+416 -> 417 call = (...) => s0()
 
-0 -> 418 call = (...) => (undefined | s0)()
+0 -> 418 call = (...) => s0()
 
 0 -> 419 conditional = ???*0*
 - *0* max number of linking steps reached
 
-419 -> 420 call = (...) => (
-  | undefined
-  | {"type": "filter_condition", "condition": condition}
-)(???*0*)
+419 -> 420 call = (...) => {"type": "filter_condition", "condition": condition}(???*0*)
 - *0* max number of linking steps reached
 
-0 -> 421 call = (...) => (undefined | s0)()
+0 -> 421 call = (...) => s0()
 
 0 -> 422 conditional = ???*0*
 - *0* max number of linking steps reached
 
-422 -> 423 call = (...) => (undefined | s0)()
+422 -> 423 call = (...) => s0()
 
 422 -> 424 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -1479,28 +1188,25 @@
 - *0* updated with update expression
 
 428 -> 429 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": ",", "ignoreCase": false}
-    )
+    {"type": "literal", "text": ",", "ignoreCase": false}
 )
 
 424 -> 430 conditional = ((???*0* | "," | {}) !== {})
 - *0* s5
   ⚠️  pattern without value
 
-430 -> 431 call = (...) => (undefined | s0)()
+430 -> 431 call = (...) => s0()
 
-430 -> 432 conditional = ((???*0* | undefined | []) !== {})
+430 -> 432 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-432 -> 433 call = (...) => (undefined | s0)()
+432 -> 433 call = (...) => s0()
 
 432 -> 434 conditional = ???*0*
 - *0* max number of linking steps reached
 
-434 -> 435 call = (...) => (undefined | v)(???*0*, ???*1*)
+434 -> 435 call = (...) => v(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
@@ -1509,7 +1215,7 @@
   ⚠️  pattern without value
 - *1* max number of linking steps reached
 
-422 -> 438 call = (...) => (undefined | s0)()
+422 -> 438 call = (...) => s0()
 
 422 -> 439 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -1529,28 +1235,25 @@
 - *0* updated with update expression
 
 443 -> 444 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": ",", "ignoreCase": false}
-    )
+    {"type": "literal", "text": ",", "ignoreCase": false}
 )
 
 439 -> 445 conditional = ((???*0* | "," | {}) !== {})
 - *0* s5
   ⚠️  pattern without value
 
-445 -> 446 call = (...) => (undefined | s0)()
+445 -> 446 call = (...) => s0()
 
-445 -> 447 conditional = ((???*0* | undefined | []) !== {})
+445 -> 447 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-447 -> 448 call = (...) => (undefined | s0)()
+447 -> 448 call = (...) => s0()
 
 447 -> 449 conditional = ???*0*
 - *0* max number of linking steps reached
 
-449 -> 450 call = (...) => (undefined | v)(???*0*, ???*1*)
+449 -> 450 call = (...) => v(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
@@ -1558,57 +1261,51 @@
 - *0* s2
   ⚠️  pattern without value
 
-451 -> 452 call = (...) => (
-  | undefined
-  | {"type": "sort_specification", "expressions": ???*0*}
-)(???*1*, (???*2* | []))
+451 -> 452 call = (...) => {"type": "sort_specification", "expressions": ???*0*}(???*1*, (???*2* | []))
 - *0* spread is not supported
 - *1* max number of linking steps reached
 - *2* s2
   ⚠️  pattern without value
 
-0 -> 453 call = (...) => (undefined | s0)()
+0 -> 453 call = (...) => s0()
 
 0 -> 454 conditional = ???*0*
 - *0* max number of linking steps reached
 
-454 -> 455 call = (...) => (undefined | s0)()
+454 -> 455 call = (...) => s0()
 
 454 -> 456 conditional = ???*0*
 - *0* max number of linking steps reached
 
-456 -> 457 call = (...) => (undefined | s0)()
+456 -> 457 call = (...) => s0()
 
 456 -> 458 conditional = ???*0*
 - *0* max number of linking steps reached
 
-458 -> 459 call = (...) => (undefined | s0)()
+458 -> 459 call = (...) => s0()
 
 456 -> 460 conditional = ???*0*
 - *0* max number of linking steps reached
 
-460 -> 461 call = (...) => (undefined | v)(???*0*, ???*1*)
+460 -> 461 call = (...) => v(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
 454 -> 462 conditional = ???*0*
 - *0* max number of linking steps reached
 
-462 -> 463 call = (...) => (
-  | undefined
-  | {"type": "sort_expression", "expression": expression, "order": order}
-)(???*0*, ???*1*)
+462 -> 463 call = (...) => {"type": "sort_expression", "expression": expression, "order": order}(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
-0 -> 464 call = (...) => (undefined | s0)()
+0 -> 464 call = (...) => s0()
 
 0 -> 465 conditional = ???*0*
 - *0* max number of linking steps reached
 
-465 -> 466 call = (...) => (undefined | s0)()
+465 -> 466 call = (...) => s0()
 
-465 -> 467 conditional = ((???*0* | undefined | []) !== {})
+465 -> 467 conditional = ((???*0* | []) !== {})
 - *0* s2
   ⚠️  pattern without value
 
@@ -1627,30 +1324,27 @@
 - *0* updated with update expression
 
 471 -> 472 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": ".", "ignoreCase": false}
-    )
+    {"type": "literal", "text": ".", "ignoreCase": false}
 )
 
 467 -> 473 conditional = ((???*0* | "." | {} | "(") !== {})
 - *0* s3
   ⚠️  pattern without value
 
-473 -> 474 call = (...) => (undefined | s0)()
+473 -> 474 call = (...) => s0()
 
-473 -> 475 conditional = ((???*0* | undefined | []) !== {})
+473 -> 475 conditional = ((???*0* | []) !== {})
 - *0* s4
   ⚠️  pattern without value
 
-475 -> 476 call = (...) => (undefined | s0)()
+475 -> 476 call = (...) => s0()
 
 475 -> 477 conditional = ???*0*
 - *0* max number of linking steps reached
 
-477 -> 478 call = (...) => (undefined | s0)()
+477 -> 478 call = (...) => s0()
 
-477 -> 479 conditional = ((???*0* | undefined | []) !== {})
+477 -> 479 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
@@ -1669,30 +1363,27 @@
 - *0* updated with update expression
 
 483 -> 484 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "(", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "(", "ignoreCase": false}
 )
 
 479 -> 485 conditional = ((???*0* | "(" | {} | ")") !== {})
 - *0* s7
   ⚠️  pattern without value
 
-485 -> 486 call = (...) => (undefined | s0)()
+485 -> 486 call = (...) => s0()
 
-485 -> 487 conditional = ((???*0* | undefined | []) !== {})
+485 -> 487 conditional = ((???*0* | []) !== {})
 - *0* s8
   ⚠️  pattern without value
 
-487 -> 488 call = (...) => (undefined | s0)()
+487 -> 488 call = (...) => s0()
 
 487 -> 489 conditional = ???*0*
 - *0* max number of linking steps reached
 
-489 -> 490 call = (...) => (undefined | s0)()
+489 -> 490 call = (...) => s0()
 
-489 -> 491 conditional = ((???*0* | undefined | []) !== {})
+489 -> 491 conditional = ((???*0* | []) !== {})
 - *0* s10
   ⚠️  pattern without value
 
@@ -1711,34 +1402,28 @@
 - *0* updated with update expression
 
 495 -> 496 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": ")", "ignoreCase": false}
-    )
+    {"type": "literal", "text": ")", "ignoreCase": false}
 )
 
 491 -> 497 conditional = ((???*0* | ")" | {}) !== {})
 - *0* s11
   ⚠️  pattern without value
 
-497 -> 498 call = (...) => (
-  | undefined
-  | {"type": "scalar_function_expression", "name": name, "arguments": args, "udf": true}
-)(???*0*, ???*1*)
+497 -> 498 call = (...) => {"type": "scalar_function_expression", "name": name, "arguments": args, "udf": true}(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
 0 -> 499 conditional = ???*0*
 - *0* max number of linking steps reached
 
-499 -> 500 call = (...) => (undefined | s0)()
+499 -> 500 call = (...) => s0()
 
 499 -> 501 conditional = ???*0*
 - *0* max number of linking steps reached
 
-501 -> 502 call = (...) => (undefined | s0)()
+501 -> 502 call = (...) => s0()
 
-501 -> 503 conditional = ((???*0* | undefined | []) !== {})
+501 -> 503 conditional = ((???*0* | []) !== {})
 - *0* s2
   ⚠️  pattern without value
 
@@ -1757,30 +1442,27 @@
 - *0* updated with update expression
 
 507 -> 508 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "(", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "(", "ignoreCase": false}
 )
 
 503 -> 509 conditional = ((???*0* | "." | {} | "(") !== {})
 - *0* s3
   ⚠️  pattern without value
 
-509 -> 510 call = (...) => (undefined | s0)()
+509 -> 510 call = (...) => s0()
 
-509 -> 511 conditional = ((???*0* | undefined | []) !== {})
+509 -> 511 conditional = ((???*0* | []) !== {})
 - *0* s4
   ⚠️  pattern without value
 
-511 -> 512 call = (...) => (undefined | s0)()
+511 -> 512 call = (...) => s0()
 
 511 -> 513 conditional = ???*0*
 - *0* max number of linking steps reached
 
-513 -> 514 call = (...) => (undefined | s0)()
+513 -> 514 call = (...) => s0()
 
-513 -> 515 conditional = ((???*0* | undefined | []) !== {})
+513 -> 515 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
@@ -1799,20 +1481,14 @@
 - *0* updated with update expression
 
 519 -> 520 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": ")", "ignoreCase": false}
-    )
+    {"type": "literal", "text": ")", "ignoreCase": false}
 )
 
 515 -> 521 conditional = ((???*0* | "(" | {} | ")") !== {})
 - *0* s7
   ⚠️  pattern without value
 
-521 -> 522 call = (...) => (
-  | undefined
-  | {"type": "scalar_function_expression", "name": name, "arguments": args}
-)(???*0*, ???*1*)
+521 -> 522 call = (...) => {"type": "scalar_function_expression", "name": name, "arguments": args}(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
@@ -1831,27 +1507,24 @@
 - *0* updated with update expression
 
 526 -> 527 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "{", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "{", "ignoreCase": false}
 )
 
 0 -> 528 conditional = ???*0*
 - *0* max number of linking steps reached
 
-528 -> 529 call = (...) => (undefined | s0)()
+528 -> 529 call = (...) => s0()
 
-528 -> 530 conditional = ((???*0* | undefined | []) !== {})
+528 -> 530 conditional = ((???*0* | []) !== {})
 - *0* s2
   ⚠️  pattern without value
 
-530 -> 531 call = (...) => (undefined | s0)()
+530 -> 531 call = (...) => s0()
 
 530 -> 532 conditional = ???*0*
 - *0* max number of linking steps reached
 
-532 -> 533 call = (...) => (undefined | s0)()
+532 -> 533 call = (...) => s0()
 
 532 -> 534 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -1871,28 +1544,25 @@
 - *0* updated with update expression
 
 538 -> 539 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": ",", "ignoreCase": false}
-    )
+    {"type": "literal", "text": ",", "ignoreCase": false}
 )
 
 534 -> 540 conditional = ((???*0* | "," | {}) !== {})
 - *0* s7
   ⚠️  pattern without value
 
-540 -> 541 call = (...) => (undefined | s0)()
+540 -> 541 call = (...) => s0()
 
-540 -> 542 conditional = ((???*0* | undefined | []) !== {})
+540 -> 542 conditional = ((???*0* | []) !== {})
 - *0* s8
   ⚠️  pattern without value
 
-542 -> 543 call = (...) => (undefined | s0)()
+542 -> 543 call = (...) => s0()
 
 542 -> 544 conditional = ???*0*
 - *0* max number of linking steps reached
 
-544 -> 545 call = (...) => (undefined | v)(???*0*, ???*1*)
+544 -> 545 call = (...) => v(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
@@ -1901,7 +1571,7 @@
   ⚠️  pattern without value
 - *1* max number of linking steps reached
 
-532 -> 548 call = (...) => (undefined | s0)()
+532 -> 548 call = (...) => s0()
 
 532 -> 549 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -1921,28 +1591,25 @@
 - *0* updated with update expression
 
 553 -> 554 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": ",", "ignoreCase": false}
-    )
+    {"type": "literal", "text": ",", "ignoreCase": false}
 )
 
 549 -> 555 conditional = ((???*0* | "," | {}) !== {})
 - *0* s7
   ⚠️  pattern without value
 
-555 -> 556 call = (...) => (undefined | s0)()
+555 -> 556 call = (...) => s0()
 
-555 -> 557 conditional = ((???*0* | undefined | []) !== {})
+555 -> 557 conditional = ((???*0* | []) !== {})
 - *0* s8
   ⚠️  pattern without value
 
-557 -> 558 call = (...) => (undefined | s0)()
+557 -> 558 call = (...) => s0()
 
 557 -> 559 conditional = ???*0*
 - *0* max number of linking steps reached
 
-559 -> 560 call = (...) => (undefined | v)(???*0*, ???*1*)
+559 -> 560 call = (...) => v(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
@@ -1950,7 +1617,7 @@
 - *0* s4
   ⚠️  pattern without value
 
-561 -> 562 call = (...) => (undefined | s0)()
+561 -> 562 call = (...) => s0()
 
 561 -> 563 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -1970,19 +1637,13 @@
 - *0* updated with update expression
 
 567 -> 568 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "}", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "}", "ignoreCase": false}
 )
 
 563 -> 569 conditional = ???*0*
 - *0* max number of linking steps reached
 
-569 -> 570 call = (...) => (
-  | undefined
-  | {"type": "scalar_object_expression", "properties": (???*0* | [])}
-)(???*1*, (???*2* | []))
+569 -> 570 call = (...) => {"type": "scalar_object_expression", "properties": (???*0* | [])}(???*1*, (???*2* | []))
 - *0* spread is not supported
 - *1* max number of linking steps reached
 - *2* s4
@@ -2003,29 +1664,26 @@
 - *0* updated with update expression
 
 574 -> 575 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "[", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "[", "ignoreCase": false}
 )
 
 0 -> 576 conditional = ???*0*
 - *0* max number of linking steps reached
 
-576 -> 577 call = (...) => (undefined | s0)()
+576 -> 577 call = (...) => s0()
 
-576 -> 578 conditional = ((???*0* | undefined | []) !== {})
+576 -> 578 conditional = ((???*0* | []) !== {})
 - *0* s2
   ⚠️  pattern without value
 
-578 -> 579 call = (...) => (undefined | s0)()
+578 -> 579 call = (...) => s0()
 
 578 -> 580 conditional = ???*0*
 - *0* max number of linking steps reached
 
-580 -> 581 call = (...) => (undefined | s0)()
+580 -> 581 call = (...) => s0()
 
-580 -> 582 conditional = ((???*0* | undefined | []) !== {})
+580 -> 582 conditional = ((???*0* | []) !== {})
 - *0* s4
   ⚠️  pattern without value
 
@@ -2044,53 +1702,47 @@
 - *0* updated with update expression
 
 586 -> 587 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "]", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "]", "ignoreCase": false}
 )
 
 582 -> 588 conditional = ((???*0* | "]" | {}) !== {})
 - *0* s5
   ⚠️  pattern without value
 
-588 -> 589 call = (...) => (
-  | undefined
-  | {"type": "scalar_array_expression", "elements": elements}
-)(???*0*)
+588 -> 589 call = (...) => {"type": "scalar_array_expression", "elements": elements}(???*0*)
 - *0* max number of linking steps reached
 
-0 -> 590 call = (...) => (undefined | s0)()
+0 -> 590 call = (...) => s0()
 
 0 -> 591 conditional = ???*0*
 - *0* max number of linking steps reached
 
-591 -> 592 call = (...) => (undefined | s0)()
+591 -> 592 call = (...) => s0()
 
 591 -> 593 conditional = ???*0*
 - *0* max number of linking steps reached
 
-593 -> 594 call = (...) => (undefined | s0)()
+593 -> 594 call = (...) => s0()
 
 593 -> 595 conditional = ???*0*
 - *0* max number of linking steps reached
 
-595 -> 596 call = (...) => (undefined | s0)()
+595 -> 596 call = (...) => s0()
 
 595 -> 597 conditional = ???*0*
 - *0* max number of linking steps reached
 
-597 -> 598 call = (...) => (undefined | s0)()
+597 -> 598 call = (...) => s0()
 
 597 -> 599 conditional = ???*0*
 - *0* max number of linking steps reached
 
-599 -> 600 call = (...) => (undefined | s0)()
+599 -> 600 call = (...) => s0()
 
 599 -> 601 conditional = ???*0*
 - *0* max number of linking steps reached
 
-601 -> 602 call = (...) => (undefined | s0)()
+601 -> 602 call = (...) => s0()
 
 0 -> 604 member call = ???*0*["substr"](???*1*, 9)
 - *0* arguments[0]
@@ -2107,41 +1759,38 @@
 - *0* updated with update expression
 
 606 -> 607 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "undefined", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "undefined", "ignoreCase": false}
 )
 
-0 -> 608 conditional = ((???*0* | "undefined" | {} | undefined | {"type": "undefined_constant"}) !== {})
+0 -> 608 conditional = ((???*0* | "undefined" | {} | {"type": "undefined_constant"}) !== {})
 - *0* s1
   ⚠️  pattern without value
 
-608 -> 609 call = (...) => (undefined | {"type": "undefined_constant"})()
+608 -> 609 call = (...) => {"type": "undefined_constant"}()
 
-0 -> 610 call = (...) => (undefined | s0)()
+0 -> 610 call = (...) => s0()
 
 0 -> 611 conditional = ???*0*
 - *0* max number of linking steps reached
 
-611 -> 612 call = (...) => (undefined | {"type": "null_constant"})()
+611 -> 612 call = (...) => {"type": "null_constant"}()
 
-0 -> 613 call = (...) => (undefined | s0)()
+0 -> 613 call = (...) => s0()
 
 0 -> 614 conditional = ???*0*
 - *0* max number of linking steps reached
 
-614 -> 615 call = (...) => (undefined | {"type": "boolean_constant", "value": false})()
+614 -> 615 call = (...) => {"type": "boolean_constant", "value": false}()
 
 0 -> 616 conditional = ???*0*
 - *0* max number of linking steps reached
 
-616 -> 617 call = (...) => (undefined | s0)()
+616 -> 617 call = (...) => s0()
 
 616 -> 618 conditional = ???*0*
 - *0* max number of linking steps reached
 
-618 -> 619 call = (...) => (undefined | {"type": "boolean_constant", "value": true})()
+618 -> 619 call = (...) => {"type": "boolean_constant", "value": true}()
 
 0 -> 621 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
@@ -2158,13 +1807,10 @@
 - *0* updated with update expression
 
 623 -> 624 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "-", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "-", "ignoreCase": false}
 )
 
-0 -> 625 conditional = ((???*0* | "-" | {} | null | undefined | {"type": "number_constant", "value": ???*1*}) !== {})
+0 -> 625 conditional = ((???*0* | "-" | {} | null | {"type": "number_constant", "value": ???*1*}) !== {})
 - *0* s1
   ⚠️  pattern without value
 - *1* ???*2*(text(), 16)
@@ -2187,10 +1833,7 @@
 - *0* updated with update expression
 
 629 -> 630 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "0x", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "0x", "ignoreCase": false}
 )
 
 625 -> 631 conditional = ((???*0* | "0x" | {} | null) !== {})
@@ -2223,10 +1866,7 @@
 - *0* updated with update expression
 
 639 -> 640 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "class", "parts": [["0", "9"]], "inverted": false, "ignoreCase": false}
-    )
+    {"type": "class", "parts": [["0", "9"]], "inverted": false, "ignoreCase": false}
 )
 
 631 -> 641 conditional = ???*0*
@@ -2263,10 +1903,7 @@
 - *0* updated with update expression
 
 651 -> 652 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "class", "parts": [["0", "9"]], "inverted": false, "ignoreCase": false}
-    )
+    {"type": "class", "parts": [["0", "9"]], "inverted": false, "ignoreCase": false}
 )
 
 631 -> 653 conditional = ((???*0* | [] | {}) !== {})
@@ -2288,10 +1925,7 @@
 - *0* updated with update expression
 
 657 -> 658 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": ".", "ignoreCase": false}
-    )
+    {"type": "literal", "text": ".", "ignoreCase": false}
 )
 
 653 -> 659 conditional = ((???*0* | "." | {} | [???*1*, (???*2* | [] | {})]) !== {})
@@ -2328,10 +1962,7 @@
 - *0* updated with update expression
 
 667 -> 668 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "class", "parts": [["0", "9"]], "inverted": false, "ignoreCase": false}
-    )
+    {"type": "class", "parts": [["0", "9"]], "inverted": false, "ignoreCase": false}
 )
 
 659 -> 669 conditional = ((???*0* | ???*1* | {}) !== {})
@@ -2378,22 +2009,16 @@
 - *0* updated with update expression
 
 679 -> 680 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "class", "parts": [["0", "9"]], "inverted": false, "ignoreCase": false}
-    )
+    {"type": "class", "parts": [["0", "9"]], "inverted": false, "ignoreCase": false}
 )
 
 653 -> 681 conditional = ???*0*
 - *0* max number of linking steps reached
 
-681 -> 682 call = (...) => (
-  | undefined
-  | {
-        "type": "number_constant",
-        "value": (FreeVar(parseInt)(text(), 16) | FreeVar(parseFloat)(text()))
-    }
-)((???*0* | "0x" | {} | null))
+681 -> 682 call = (...) => {
+    "type": "number_constant",
+    "value": (FreeVar(parseInt)(text(), 16) | FreeVar(parseFloat)(text()))
+}((???*0* | "0x" | {} | null))
 - *0* s2
   ⚠️  pattern without value
 
@@ -2412,17 +2037,13 @@
 - *0* updated with update expression
 
 686 -> 687 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "\"", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "\"", "ignoreCase": false}
 )
 
 0 -> 688 conditional = ((
   | ???*0*
   | "\""
   | {}
-  | undefined
   | {"type": "string_constant", "value": (???*1* | ???*3*)}
   | "'"
 ) !== {})
@@ -2437,14 +2058,14 @@
 - *4* []["join"]
   ⚠️  non-num constant property on array
 
-688 -> 689 call = (...) => (undefined | s0)()
+688 -> 689 call = (...) => s0()
 
 688 -> 691 member call = (???*0* | [])["push"](???*1*)
 - *0* s2
   ⚠️  pattern without value
 - *1* max number of linking steps reached
 
-688 -> 692 call = (...) => (undefined | s0)()
+688 -> 692 call = (...) => s0()
 
 688 -> 693 conditional = ((???*0* | []) !== {})
 - *0* s2
@@ -2465,19 +2086,13 @@
 - *0* updated with update expression
 
 697 -> 698 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "\"", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "\"", "ignoreCase": false}
 )
 
 693 -> 699 conditional = ???*0*
 - *0* max number of linking steps reached
 
-699 -> 700 call = (...) => (
-  | undefined
-  | {"type": "string_constant", "value": chars["join"]("")}
-)((???*0* | []))
+699 -> 700 call = (...) => {"type": "string_constant", "value": chars["join"]("")}((???*0* | []))
 - *0* s2
   ⚠️  pattern without value
 
@@ -2499,17 +2114,13 @@
 - *0* updated with update expression
 
 705 -> 706 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "'", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "'", "ignoreCase": false}
 )
 
 701 -> 707 conditional = ((
   | ???*0*
   | "\""
   | {}
-  | undefined
   | {"type": "string_constant", "value": (???*1* | ???*3*)}
   | "'"
 ) !== {})
@@ -2524,14 +2135,14 @@
 - *4* []["join"]
   ⚠️  non-num constant property on array
 
-707 -> 708 call = (...) => (undefined | s0)()
+707 -> 708 call = (...) => s0()
 
 707 -> 710 member call = (???*0* | [])["push"](???*1*)
 - *0* s2
   ⚠️  pattern without value
 - *1* max number of linking steps reached
 
-707 -> 711 call = (...) => (undefined | s0)()
+707 -> 711 call = (...) => s0()
 
 707 -> 712 conditional = ((???*0* | []) !== {})
 - *0* s2
@@ -2552,19 +2163,13 @@
 - *0* updated with update expression
 
 716 -> 717 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "'", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "'", "ignoreCase": false}
 )
 
 712 -> 718 conditional = ???*0*
 - *0* max number of linking steps reached
 
-718 -> 719 call = (...) => (
-  | undefined
-  | {"type": "string_constant", "value": chars["join"]("")}
-)((???*0* | []))
+718 -> 719 call = (...) => {"type": "string_constant", "value": chars["join"]("")}((???*0* | []))
 - *0* s2
   ⚠️  pattern without value
 
@@ -2583,27 +2188,24 @@
 - *0* updated with update expression
 
 723 -> 724 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "[", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "[", "ignoreCase": false}
 )
 
 0 -> 725 conditional = ???*0*
 - *0* max number of linking steps reached
 
-725 -> 726 call = (...) => (undefined | s0)()
+725 -> 726 call = (...) => s0()
 
-725 -> 727 conditional = ((???*0* | undefined | []) !== {})
+725 -> 727 conditional = ((???*0* | []) !== {})
 - *0* s2
   ⚠️  pattern without value
 
-727 -> 728 call = (...) => (undefined | s0)()
+727 -> 728 call = (...) => s0()
 
 727 -> 729 conditional = ???*0*
 - *0* max number of linking steps reached
 
-729 -> 730 call = (...) => (undefined | s0)()
+729 -> 730 call = (...) => s0()
 
 729 -> 731 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -2623,28 +2225,25 @@
 - *0* updated with update expression
 
 735 -> 736 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": ",", "ignoreCase": false}
-    )
+    {"type": "literal", "text": ",", "ignoreCase": false}
 )
 
 731 -> 737 conditional = ((???*0* | "," | {}) !== {})
 - *0* s7
   ⚠️  pattern without value
 
-737 -> 738 call = (...) => (undefined | s0)()
+737 -> 738 call = (...) => s0()
 
-737 -> 739 conditional = ((???*0* | undefined | []) !== {})
+737 -> 739 conditional = ((???*0* | []) !== {})
 - *0* s8
   ⚠️  pattern without value
 
-739 -> 740 call = (...) => (undefined | s0)()
+739 -> 740 call = (...) => s0()
 
 739 -> 741 conditional = ???*0*
 - *0* max number of linking steps reached
 
-741 -> 742 call = (...) => (undefined | v)(???*0*, ???*1*)
+741 -> 742 call = (...) => v(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
@@ -2653,7 +2252,7 @@
   ⚠️  pattern without value
 - *1* max number of linking steps reached
 
-729 -> 745 call = (...) => (undefined | s0)()
+729 -> 745 call = (...) => s0()
 
 729 -> 746 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -2673,28 +2272,25 @@
 - *0* updated with update expression
 
 750 -> 751 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": ",", "ignoreCase": false}
-    )
+    {"type": "literal", "text": ",", "ignoreCase": false}
 )
 
 746 -> 752 conditional = ((???*0* | "," | {}) !== {})
 - *0* s7
   ⚠️  pattern without value
 
-752 -> 753 call = (...) => (undefined | s0)()
+752 -> 753 call = (...) => s0()
 
-752 -> 754 conditional = ((???*0* | undefined | []) !== {})
+752 -> 754 conditional = ((???*0* | []) !== {})
 - *0* s8
   ⚠️  pattern without value
 
-754 -> 755 call = (...) => (undefined | s0)()
+754 -> 755 call = (...) => s0()
 
 754 -> 756 conditional = ???*0*
 - *0* max number of linking steps reached
 
-756 -> 757 call = (...) => (undefined | v)(???*0*, ???*1*)
+756 -> 757 call = (...) => v(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
@@ -2702,7 +2298,7 @@
 - *0* s4
   ⚠️  pattern without value
 
-758 -> 759 call = (...) => (undefined | s0)()
+758 -> 759 call = (...) => s0()
 
 758 -> 760 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -2722,16 +2318,13 @@
 - *0* updated with update expression
 
 764 -> 765 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "]", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "]", "ignoreCase": false}
 )
 
 760 -> 766 conditional = ???*0*
 - *0* max number of linking steps reached
 
-766 -> 767 call = (...) => (undefined | {"type": "array_constant", "elements": ???*0*})(???*1*, (???*2* | []))
+766 -> 767 call = (...) => {"type": "array_constant", "elements": ???*0*}(???*1*, (???*2* | []))
 - *0* spread is not supported
 - *1* max number of linking steps reached
 - *2* s4
@@ -2752,27 +2345,24 @@
 - *0* updated with update expression
 
 771 -> 772 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "{", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "{", "ignoreCase": false}
 )
 
 0 -> 773 conditional = ???*0*
 - *0* max number of linking steps reached
 
-773 -> 774 call = (...) => (undefined | s0)()
+773 -> 774 call = (...) => s0()
 
-773 -> 775 conditional = ((???*0* | undefined | []) !== {})
+773 -> 775 conditional = ((???*0* | []) !== {})
 - *0* s2
   ⚠️  pattern without value
 
-775 -> 776 call = (...) => (undefined | s0)()
+775 -> 776 call = (...) => s0()
 
 775 -> 777 conditional = ???*0*
 - *0* max number of linking steps reached
 
-777 -> 778 call = (...) => (undefined | s0)()
+777 -> 778 call = (...) => s0()
 
 777 -> 779 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -2792,28 +2382,25 @@
 - *0* updated with update expression
 
 783 -> 784 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": ",", "ignoreCase": false}
-    )
+    {"type": "literal", "text": ",", "ignoreCase": false}
 )
 
 779 -> 785 conditional = ((???*0* | "," | {}) !== {})
 - *0* s7
   ⚠️  pattern without value
 
-785 -> 786 call = (...) => (undefined | s0)()
+785 -> 786 call = (...) => s0()
 
-785 -> 787 conditional = ((???*0* | undefined | []) !== {})
+785 -> 787 conditional = ((???*0* | []) !== {})
 - *0* s8
   ⚠️  pattern without value
 
-787 -> 788 call = (...) => (undefined | s0)()
+787 -> 788 call = (...) => s0()
 
 787 -> 789 conditional = ???*0*
 - *0* max number of linking steps reached
 
-789 -> 790 call = (...) => (undefined | v)(???*0*, ???*1*)
+789 -> 790 call = (...) => v(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
@@ -2822,7 +2409,7 @@
   ⚠️  pattern without value
 - *1* max number of linking steps reached
 
-777 -> 793 call = (...) => (undefined | s0)()
+777 -> 793 call = (...) => s0()
 
 777 -> 794 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -2842,28 +2429,25 @@
 - *0* updated with update expression
 
 798 -> 799 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": ",", "ignoreCase": false}
-    )
+    {"type": "literal", "text": ",", "ignoreCase": false}
 )
 
 794 -> 800 conditional = ((???*0* | "," | {}) !== {})
 - *0* s7
   ⚠️  pattern without value
 
-800 -> 801 call = (...) => (undefined | s0)()
+800 -> 801 call = (...) => s0()
 
-800 -> 802 conditional = ((???*0* | undefined | []) !== {})
+800 -> 802 conditional = ((???*0* | []) !== {})
 - *0* s8
   ⚠️  pattern without value
 
-802 -> 803 call = (...) => (undefined | s0)()
+802 -> 803 call = (...) => s0()
 
 802 -> 804 conditional = ???*0*
 - *0* max number of linking steps reached
 
-804 -> 805 call = (...) => (undefined | v)(???*0*, ???*1*)
+804 -> 805 call = (...) => v(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
@@ -2871,7 +2455,7 @@
 - *0* s4
   ⚠️  pattern without value
 
-806 -> 807 call = (...) => (undefined | s0)()
+806 -> 807 call = (...) => s0()
 
 806 -> 808 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -2891,39 +2475,36 @@
 - *0* updated with update expression
 
 812 -> 813 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "}", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "}", "ignoreCase": false}
 )
 
 808 -> 814 conditional = ???*0*
 - *0* max number of linking steps reached
 
-814 -> 815 call = (...) => (undefined | {"type": "object_constant", "properties": ???*0*})(???*1*, (???*2* | []))
+814 -> 815 call = (...) => {"type": "object_constant", "properties": ???*0*}(???*1*, (???*2* | []))
 - *0* spread is not supported
 - *1* max number of linking steps reached
 - *2* s4
   ⚠️  pattern without value
 
-0 -> 816 call = (...) => (undefined | s0)()
+0 -> 816 call = (...) => s0()
 
 0 -> 817 conditional = ???*0*
 - *0* max number of linking steps reached
 
-817 -> 818 call = (...) => (undefined | s0)()
+817 -> 818 call = (...) => s0()
 
 0 -> 820 member call = (???*0* | [])["push"](???*1*)
 - *0* s0
   ⚠️  pattern without value
 - *1* max number of linking steps reached
 
-0 -> 821 call = (...) => (undefined | s0)()
+0 -> 821 call = (...) => s0()
 
 0 -> 822 conditional = ???*0*
 - *0* max number of linking steps reached
 
-822 -> 823 call = (...) => (undefined | s0)()
+822 -> 823 call = (...) => s0()
 
 0 -> 826 member call = ???*0*["charAt"](???*1*)
 - *0* arguments[0]
@@ -2951,10 +2532,7 @@
 - *0* updated with update expression
 
 831 -> 832 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "class", "parts": [" ", "\t", "\n", "\r"], "inverted": false, "ignoreCase": false}
-    )
+    {"type": "class", "parts": [" ", "\t", "\n", "\r"], "inverted": false, "ignoreCase": false}
 )
 
 0 -> 834 member call = ???*0*["substr"](???*1*, 2)
@@ -2972,10 +2550,7 @@
 - *0* updated with update expression
 
 836 -> 837 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "--", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "--", "ignoreCase": false}
 )
 
 0 -> 838 conditional = ((???*0* | "--" | {} | [???*1*, (???*2* | [])]) !== {})
@@ -3012,16 +2587,13 @@
 - *0* updated with update expression
 
 846 -> 847 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "class", "parts": ["\n", "\r"], "inverted": false, "ignoreCase": false}
-    )
+    {"type": "class", "parts": ["\n", "\r"], "inverted": false, "ignoreCase": false}
 )
 
 838 -> 848 conditional = ???*0*
 - *0* max number of linking steps reached
 
-848 -> 849 call = (...) => (undefined | s0)()
+848 -> 849 call = (...) => s0()
 
 838 -> 851 member call = (???*0* | [])["push"](???*1*)
 - *0* s2
@@ -3054,16 +2626,13 @@
 - *0* updated with update expression
 
 859 -> 860 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "class", "parts": ["\n", "\r"], "inverted": false, "ignoreCase": false}
-    )
+    {"type": "class", "parts": ["\n", "\r"], "inverted": false, "ignoreCase": false}
 )
 
 838 -> 861 conditional = ???*0*
 - *0* max number of linking steps reached
 
-861 -> 862 call = (...) => (undefined | s0)()
+861 -> 862 call = (...) => s0()
 
 0 -> 865 member call = ???*0*["substr"](???*1*, 6)
 - *0* arguments[0]
@@ -3095,16 +2664,13 @@
 - *0* updated with update expression
 
 870 -> 871 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "SELECT", "ignoreCase": true}
-    )
+    {"type": "literal", "text": "SELECT", "ignoreCase": true}
 )
 
 0 -> 872 conditional = ???*0*
 - *0* max number of linking steps reached
 
-872 -> 873 call = (...) => (undefined | s0)()
+872 -> 873 call = (...) => s0()
 
 0 -> 876 member call = ???*0*["substr"](???*1*, 3)
 - *0* arguments[0]
@@ -3136,16 +2702,13 @@
 - *0* updated with update expression
 
 881 -> 882 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "TOP", "ignoreCase": true}
-    )
+    {"type": "literal", "text": "TOP", "ignoreCase": true}
 )
 
 0 -> 883 conditional = ???*0*
 - *0* max number of linking steps reached
 
-883 -> 884 call = (...) => (undefined | s0)()
+883 -> 884 call = (...) => s0()
 
 0 -> 887 member call = ???*0*["substr"](???*1*, 4)
 - *0* arguments[0]
@@ -3177,16 +2740,13 @@
 - *0* updated with update expression
 
 892 -> 893 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "FROM", "ignoreCase": true}
-    )
+    {"type": "literal", "text": "FROM", "ignoreCase": true}
 )
 
 0 -> 894 conditional = ???*0*
 - *0* max number of linking steps reached
 
-894 -> 895 call = (...) => (undefined | s0)()
+894 -> 895 call = (...) => s0()
 
 0 -> 898 member call = ???*0*["substr"](???*1*, 5)
 - *0* arguments[0]
@@ -3218,16 +2778,13 @@
 - *0* updated with update expression
 
 903 -> 904 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "WHERE", "ignoreCase": true}
-    )
+    {"type": "literal", "text": "WHERE", "ignoreCase": true}
 )
 
 0 -> 905 conditional = ???*0*
 - *0* max number of linking steps reached
 
-905 -> 906 call = (...) => (undefined | s0)()
+905 -> 906 call = (...) => s0()
 
 0 -> 909 member call = ???*0*["substr"](???*1*, 5)
 - *0* arguments[0]
@@ -3259,16 +2816,13 @@
 - *0* updated with update expression
 
 914 -> 915 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "ORDER", "ignoreCase": true}
-    )
+    {"type": "literal", "text": "ORDER", "ignoreCase": true}
 )
 
 0 -> 916 conditional = ???*0*
 - *0* max number of linking steps reached
 
-916 -> 917 call = (...) => (undefined | s0)()
+916 -> 917 call = (...) => s0()
 
 0 -> 920 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
@@ -3300,16 +2854,13 @@
 - *0* updated with update expression
 
 925 -> 926 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "BY", "ignoreCase": true}
-    )
+    {"type": "literal", "text": "BY", "ignoreCase": true}
 )
 
 0 -> 927 conditional = ???*0*
 - *0* max number of linking steps reached
 
-927 -> 928 call = (...) => (undefined | s0)()
+927 -> 928 call = (...) => s0()
 
 0 -> 931 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
@@ -3341,16 +2892,13 @@
 - *0* updated with update expression
 
 936 -> 937 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "AS", "ignoreCase": true}
-    )
+    {"type": "literal", "text": "AS", "ignoreCase": true}
 )
 
 0 -> 938 conditional = ???*0*
 - *0* max number of linking steps reached
 
-938 -> 939 call = (...) => (undefined | s0)()
+938 -> 939 call = (...) => s0()
 
 0 -> 942 member call = ???*0*["substr"](???*1*, 4)
 - *0* arguments[0]
@@ -3382,16 +2930,13 @@
 - *0* updated with update expression
 
 947 -> 948 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "JOIN", "ignoreCase": true}
-    )
+    {"type": "literal", "text": "JOIN", "ignoreCase": true}
 )
 
 0 -> 949 conditional = ???*0*
 - *0* max number of linking steps reached
 
-949 -> 950 call = (...) => (undefined | s0)()
+949 -> 950 call = (...) => s0()
 
 0 -> 953 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
@@ -3423,16 +2968,13 @@
 - *0* updated with update expression
 
 958 -> 959 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "IN", "ignoreCase": true}
-    )
+    {"type": "literal", "text": "IN", "ignoreCase": true}
 )
 
 0 -> 960 conditional = ???*0*
 - *0* max number of linking steps reached
 
-960 -> 961 call = (...) => (undefined | s0)()
+960 -> 961 call = (...) => s0()
 
 0 -> 964 member call = ???*0*["substr"](???*1*, 5)
 - *0* arguments[0]
@@ -3464,16 +3006,13 @@
 - *0* updated with update expression
 
 969 -> 970 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "VALUE", "ignoreCase": true}
-    )
+    {"type": "literal", "text": "VALUE", "ignoreCase": true}
 )
 
 0 -> 971 conditional = ???*0*
 - *0* max number of linking steps reached
 
-971 -> 972 call = (...) => (undefined | s0)()
+971 -> 972 call = (...) => s0()
 
 0 -> 975 member call = ???*0*["substr"](???*1*, 3)
 - *0* arguments[0]
@@ -3505,13 +3044,10 @@
 - *0* updated with update expression
 
 980 -> 981 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "ASC", "ignoreCase": true}
-    )
+    {"type": "literal", "text": "ASC", "ignoreCase": true}
 )
 
-0 -> 982 conditional = ((???*0* | ???*1* | {} | undefined | "ASC") !== {})
+0 -> 982 conditional = ((???*0* | ???*1* | {} | "ASC") !== {})
 - *0* s1
   ⚠️  pattern without value
 - *1* ???*2*["substr"](peg$currPos, 3)
@@ -3519,12 +3055,12 @@
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
 
-982 -> 983 call = (...) => (undefined | s0)()
+982 -> 983 call = (...) => s0()
 
 982 -> 984 conditional = ???*0*
 - *0* max number of linking steps reached
 
-984 -> 985 call = (...) => (undefined | "ASC")()
+984 -> 985 call = (...) => "ASC"()
 
 0 -> 988 member call = ???*0*["substr"](???*1*, 4)
 - *0* arguments[0]
@@ -3556,13 +3092,10 @@
 - *0* updated with update expression
 
 993 -> 994 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "DESC", "ignoreCase": true}
-    )
+    {"type": "literal", "text": "DESC", "ignoreCase": true}
 )
 
-0 -> 995 conditional = ((???*0* | ???*1* | {} | undefined | "DESC") !== {})
+0 -> 995 conditional = ((???*0* | ???*1* | {} | "DESC") !== {})
 - *0* s1
   ⚠️  pattern without value
 - *1* ???*2*["substr"](peg$currPos, 4)
@@ -3570,12 +3103,12 @@
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
 
-995 -> 996 call = (...) => (undefined | s0)()
+995 -> 996 call = (...) => s0()
 
 995 -> 997 conditional = ???*0*
 - *0* max number of linking steps reached
 
-997 -> 998 call = (...) => (undefined | "DESC")()
+997 -> 998 call = (...) => "DESC"()
 
 0 -> 1001 member call = ???*0*["substr"](???*1*, 3)
 - *0* arguments[0]
@@ -3607,13 +3140,10 @@
 - *0* updated with update expression
 
 1006 -> 1007 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "AND", "ignoreCase": true}
-    )
+    {"type": "literal", "text": "AND", "ignoreCase": true}
 )
 
-0 -> 1008 conditional = ((???*0* | ???*1* | {} | undefined | "AND") !== {})
+0 -> 1008 conditional = ((???*0* | ???*1* | {} | "AND") !== {})
 - *0* s1
   ⚠️  pattern without value
 - *1* ???*2*["substr"](peg$currPos, 3)
@@ -3621,12 +3151,12 @@
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1008 -> 1009 call = (...) => (undefined | s0)()
+1008 -> 1009 call = (...) => s0()
 
 1008 -> 1010 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1010 -> 1011 call = (...) => (undefined | "AND")()
+1010 -> 1011 call = (...) => "AND"()
 
 0 -> 1014 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
@@ -3658,13 +3188,10 @@
 - *0* updated with update expression
 
 1019 -> 1020 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "OR", "ignoreCase": true}
-    )
+    {"type": "literal", "text": "OR", "ignoreCase": true}
 )
 
-0 -> 1021 conditional = ((???*0* | ???*1* | {} | undefined | "OR") !== {})
+0 -> 1021 conditional = ((???*0* | ???*1* | {} | "OR") !== {})
 - *0* s1
   ⚠️  pattern without value
 - *1* ???*2*["substr"](peg$currPos, 2)
@@ -3672,12 +3199,12 @@
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1021 -> 1022 call = (...) => (undefined | s0)()
+1021 -> 1022 call = (...) => s0()
 
 1021 -> 1023 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1023 -> 1024 call = (...) => (undefined | "OR")()
+1023 -> 1024 call = (...) => "OR"()
 
 0 -> 1027 member call = ???*0*["substr"](???*1*, 3)
 - *0* arguments[0]
@@ -3709,13 +3236,10 @@
 - *0* updated with update expression
 
 1032 -> 1033 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "NOT", "ignoreCase": true}
-    )
+    {"type": "literal", "text": "NOT", "ignoreCase": true}
 )
 
-0 -> 1034 conditional = ((???*0* | ???*1* | {} | undefined | "NOT") !== {})
+0 -> 1034 conditional = ((???*0* | ???*1* | {} | "NOT") !== {})
 - *0* s1
   ⚠️  pattern without value
 - *1* ???*2*["substr"](peg$currPos, 3)
@@ -3723,12 +3247,12 @@
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1034 -> 1035 call = (...) => (undefined | s0)()
+1034 -> 1035 call = (...) => s0()
 
 1034 -> 1036 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1036 -> 1037 call = (...) => (undefined | "NOT")()
+1036 -> 1037 call = (...) => "NOT"()
 
 0 -> 1040 member call = ???*0*["substr"](???*1*, 7)
 - *0* arguments[0]
@@ -3760,16 +3284,13 @@
 - *0* updated with update expression
 
 1045 -> 1046 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "BETWEEN", "ignoreCase": true}
-    )
+    {"type": "literal", "text": "BETWEEN", "ignoreCase": true}
 )
 
 0 -> 1047 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1047 -> 1048 call = (...) => (undefined | s0)()
+1047 -> 1048 call = (...) => s0()
 
 0 -> 1051 member call = ???*0*["substr"](???*1*, 6)
 - *0* arguments[0]
@@ -3801,16 +3322,13 @@
 - *0* updated with update expression
 
 1056 -> 1057 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "EXISTS", "ignoreCase": true}
-    )
+    {"type": "literal", "text": "EXISTS", "ignoreCase": true}
 )
 
 0 -> 1058 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1058 -> 1059 call = (...) => (undefined | s0)()
+1058 -> 1059 call = (...) => s0()
 
 0 -> 1062 member call = ???*0*["substr"](???*1*, 5)
 - *0* arguments[0]
@@ -3842,16 +3360,13 @@
 - *0* updated with update expression
 
 1067 -> 1068 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "ARRAY", "ignoreCase": true}
-    )
+    {"type": "literal", "text": "ARRAY", "ignoreCase": true}
 )
 
 0 -> 1069 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1069 -> 1070 call = (...) => (undefined | s0)()
+1069 -> 1070 call = (...) => s0()
 
 0 -> 1072 member call = ???*0*["substr"](???*1*, 4)
 - *0* arguments[0]
@@ -3868,16 +3383,13 @@
 - *0* updated with update expression
 
 1074 -> 1075 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "null", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "null", "ignoreCase": false}
 )
 
 0 -> 1076 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1076 -> 1077 call = (...) => (undefined | s0)()
+1076 -> 1077 call = (...) => s0()
 
 0 -> 1079 member call = ???*0*["substr"](???*1*, 4)
 - *0* arguments[0]
@@ -3894,16 +3406,13 @@
 - *0* updated with update expression
 
 1081 -> 1082 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "true", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "true", "ignoreCase": false}
 )
 
 0 -> 1083 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1083 -> 1084 call = (...) => (undefined | s0)()
+1083 -> 1084 call = (...) => s0()
 
 0 -> 1086 member call = ???*0*["substr"](???*1*, 5)
 - *0* arguments[0]
@@ -3920,16 +3429,13 @@
 - *0* updated with update expression
 
 1088 -> 1089 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "false", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "false", "ignoreCase": false}
 )
 
 0 -> 1090 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1090 -> 1091 call = (...) => (undefined | s0)()
+1090 -> 1091 call = (...) => s0()
 
 0 -> 1093 member call = ???*0*["substr"](???*1*, 3)
 - *0* arguments[0]
@@ -3946,135 +3452,132 @@
 - *0* updated with update expression
 
 1095 -> 1096 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "udf", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "udf", "ignoreCase": false}
 )
 
 0 -> 1097 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1097 -> 1098 call = (...) => (undefined | s0)()
+1097 -> 1098 call = (...) => s0()
 
-0 -> 1099 call = (...) => (undefined | s0)()
+0 -> 1099 call = (...) => s0()
 
 0 -> 1100 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1100 -> 1101 call = (...) => (undefined | s0)()
+1100 -> 1101 call = (...) => s0()
 
 1100 -> 1102 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1102 -> 1103 call = (...) => (undefined | s0)()
+1102 -> 1103 call = (...) => s0()
 
 1102 -> 1104 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1104 -> 1105 call = (...) => (undefined | s0)()
+1104 -> 1105 call = (...) => s0()
 
 1104 -> 1106 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1106 -> 1107 call = (...) => (undefined | s0)()
+1106 -> 1107 call = (...) => s0()
 
 1106 -> 1108 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1108 -> 1109 call = (...) => (undefined | s0)()
+1108 -> 1109 call = (...) => s0()
 
 1108 -> 1110 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1110 -> 1111 call = (...) => (undefined | s0)()
+1110 -> 1111 call = (...) => s0()
 
 1110 -> 1112 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1112 -> 1113 call = (...) => (undefined | s0)()
+1112 -> 1113 call = (...) => s0()
 
 1112 -> 1114 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1114 -> 1115 call = (...) => (undefined | s0)()
+1114 -> 1115 call = (...) => s0()
 
 1114 -> 1116 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1116 -> 1117 call = (...) => (undefined | s0)()
+1116 -> 1117 call = (...) => s0()
 
 1116 -> 1118 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1118 -> 1119 call = (...) => (undefined | s0)()
+1118 -> 1119 call = (...) => s0()
 
 1118 -> 1120 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1120 -> 1121 call = (...) => (undefined | s0)()
+1120 -> 1121 call = (...) => s0()
 
 1120 -> 1122 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1122 -> 1123 call = (...) => (undefined | s0)()
+1122 -> 1123 call = (...) => s0()
 
 1122 -> 1124 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1124 -> 1125 call = (...) => (undefined | s0)()
+1124 -> 1125 call = (...) => s0()
 
 1124 -> 1126 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1126 -> 1127 call = (...) => (undefined | s0)()
+1126 -> 1127 call = (...) => s0()
 
 1126 -> 1128 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1128 -> 1129 call = (...) => (undefined | s0)()
+1128 -> 1129 call = (...) => s0()
 
 1128 -> 1130 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1130 -> 1131 call = (...) => (undefined | s0)()
+1130 -> 1131 call = (...) => s0()
 
 1130 -> 1132 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1132 -> 1133 call = (...) => (undefined | s0)()
+1132 -> 1133 call = (...) => s0()
 
 1132 -> 1134 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1134 -> 1135 call = (...) => (undefined | s0)()
+1134 -> 1135 call = (...) => s0()
 
 1134 -> 1136 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1136 -> 1137 call = (...) => (undefined | s0)()
+1136 -> 1137 call = (...) => s0()
 
 1136 -> 1138 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1138 -> 1139 call = (...) => (undefined | s0)()
+1138 -> 1139 call = (...) => s0()
 
 1138 -> 1140 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1140 -> 1141 call = (...) => (undefined | s0)()
+1140 -> 1141 call = (...) => s0()
 
-0 -> 1142 call = (...) => (undefined | s0)()
+0 -> 1142 call = (...) => s0()
 
 0 -> 1143 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1143 -> 1144 call = (...) => (undefined | s0)()
+1143 -> 1144 call = (...) => s0()
 
 1143 -> 1145 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1145 -> 1146 call = (...) => (undefined | {"type": "identifier", "name": name})(???*0*)
+1145 -> 1146 call = (...) => {"type": "identifier", "name": name}(???*0*)
 - *0* max number of linking steps reached
 
 0 -> 1149 member call = ???*0*["charAt"](???*1*)
@@ -4103,15 +3606,12 @@
 - *0* updated with update expression
 
 1154 -> 1155 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "class", "parts": [["a", "z"], ["A", "Z"], "_"], "inverted": false, "ignoreCase": false}
-    )
+    {"type": "class", "parts": [["a", "z"], ["A", "Z"], "_"], "inverted": false, "ignoreCase": false}
 )
 
-0 -> 1156 call = (...) => (undefined | s0)()
+0 -> 1156 call = (...) => s0()
 
-0 -> 1157 conditional = ((???*0* | undefined | ???*1* | {} | ???*3*) !== {})
+0 -> 1157 conditional = ((???*0* | ???*1* | {} | ???*3*) !== {})
 - *0* s1
   ⚠️  pattern without value
 - *1* ???*2*["charAt"](peg$currPos)
@@ -4157,15 +3657,12 @@
 - *0* updated with update expression
 
 1165 -> 1166 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {
-            "type": "class",
-            "parts": [["a", "z"], ["A", "Z"], ["0", "9"], "_"],
-            "inverted": false,
-            "ignoreCase": false
-        }
-    )
+    {
+        "type": "class",
+        "parts": [["a", "z"], ["A", "Z"], ["0", "9"], "_"],
+        "inverted": false,
+        "ignoreCase": false
+    }
 )
 
 1157 -> 1168 member call = (???*0* | [])["push"]((???*1* | ???*2* | {}))
@@ -4204,23 +3701,20 @@
 - *0* updated with update expression
 
 1176 -> 1177 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {
-            "type": "class",
-            "parts": [["a", "z"], ["A", "Z"], ["0", "9"], "_"],
-            "inverted": false,
-            "ignoreCase": false
-        }
-    )
+    {
+        "type": "class",
+        "parts": [["a", "z"], ["A", "Z"], ["0", "9"], "_"],
+        "inverted": false,
+        "ignoreCase": false
+    }
 )
 
 1157 -> 1178 conditional = ((???*0* | []) !== {})
 - *0* s2
   ⚠️  pattern without value
 
-1178 -> 1179 call = (...) => (undefined | (head + tail["join"]("")))(
-    (???*0* | undefined | ???*1* | {} | (???*3* + (???*4* | ???*6*))),
+1178 -> 1179 call = (...) => (head + tail["join"](""))(
+    (???*0* | ???*1* | {} | (???*3* + (???*4* | ???*6*))),
     (???*8* | [])
 )
 - *0* s1
@@ -4257,19 +3751,10 @@
 - *0* updated with update expression
 
 1183 -> 1184 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "@", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "@", "ignoreCase": false}
 )
 
-0 -> 1185 conditional = ((
-  | ???*0*
-  | "@"
-  | {}
-  | undefined
-  | {"type": "parameter_name", "name": (undefined | ???*1*)}
-) !== {})
+0 -> 1185 conditional = ((???*0* | "@" | {} | {"type": "parameter_name", "name": ???*1*}) !== {})
 - *0* s1
   ⚠️  pattern without value
 - *1* ???*2*["substring"](peg$savedPos, peg$currPos)
@@ -4277,12 +3762,12 @@
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1185 -> 1186 call = (...) => (undefined | s0)()
+1185 -> 1186 call = (...) => s0()
 
 1185 -> 1187 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1187 -> 1188 call = (...) => (undefined | {"type": "parameter_name", "name": text()})()
+1187 -> 1188 call = (...) => {"type": "parameter_name", "name": text()}()
 
 0 -> 1190 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
@@ -4299,10 +3784,7 @@
 - *0* updated with update expression
 
 1192 -> 1193 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "+", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "+", "ignoreCase": false}
 )
 
 0 -> 1194 conditional = ???*0*
@@ -4323,10 +3805,7 @@
 - *0* updated with update expression
 
 1198 -> 1199 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "-", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "-", "ignoreCase": false}
 )
 
 1194 -> 1200 conditional = ???*0*
@@ -4347,16 +3826,13 @@
 - *0* updated with update expression
 
 1204 -> 1205 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "~", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "~", "ignoreCase": false}
 )
 
 1200 -> 1206 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1206 -> 1207 call = (...) => (undefined | s0)()
+1206 -> 1207 call = (...) => s0()
 
 0 -> 1209 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
@@ -4373,10 +3849,7 @@
 - *0* updated with update expression
 
 1211 -> 1212 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "\"", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "\"", "ignoreCase": false}
 )
 
 0 -> 1213 conditional = ???*0*
@@ -4397,21 +3870,18 @@
 - *0* updated with update expression
 
 1217 -> 1218 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "\\", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "\\", "ignoreCase": false}
 )
 
 0 -> 1219 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1219 -> 1220 call = (...) => (undefined | s0)()
+1219 -> 1220 call = (...) => s0()
 
 1219 -> 1221 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1221 -> 1222 call = (...) => (undefined | text())()
+1221 -> 1222 call = (...) => text()()
 
 0 -> 1223 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -4431,21 +3901,18 @@
 - *0* updated with update expression
 
 1227 -> 1228 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "\\", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "\\", "ignoreCase": false}
 )
 
 1223 -> 1229 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1229 -> 1230 call = (...) => (undefined | s0)()
+1229 -> 1230 call = (...) => s0()
 
 1229 -> 1231 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1231 -> 1232 call = (...) => (undefined | seq)(???*0*)
+1231 -> 1232 call = (...) => seq(???*0*)
 - *0* max number of linking steps reached
 
 0 -> 1234 member call = ???*0*["charCodeAt"](???*1*)
@@ -4463,10 +3930,7 @@
 - *0* updated with update expression
 
 1236 -> 1237 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "'", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "'", "ignoreCase": false}
 )
 
 0 -> 1238 conditional = ???*0*
@@ -4487,21 +3951,18 @@
 - *0* updated with update expression
 
 1242 -> 1243 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "\\", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "\\", "ignoreCase": false}
 )
 
 0 -> 1244 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1244 -> 1245 call = (...) => (undefined | s0)()
+1244 -> 1245 call = (...) => s0()
 
 1244 -> 1246 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1246 -> 1247 call = (...) => (undefined | text())()
+1246 -> 1247 call = (...) => text()()
 
 0 -> 1248 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -4521,21 +3982,18 @@
 - *0* updated with update expression
 
 1252 -> 1253 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "\\", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "\\", "ignoreCase": false}
 )
 
 1248 -> 1254 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1254 -> 1255 call = (...) => (undefined | s0)()
+1254 -> 1255 call = (...) => s0()
 
 1254 -> 1256 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1256 -> 1257 call = (...) => (undefined | seq)(???*0*)
+1256 -> 1257 call = (...) => seq(???*0*)
 - *0* max number of linking steps reached
 
 0 -> 1260 member call = ???*0*["charAt"](???*1*)
@@ -4546,21 +4004,21 @@
 0 -> 1261 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
 
-1261 -> 1262 call = (...) => (undefined | FreeVar(undefined))((undefined | {"type": "any"}))
+1261 -> 1262 call = (...) => (undefined | FreeVar(undefined))({"type": "any"})
 
-0 -> 1263 call = (...) => (undefined | s0)()
+0 -> 1263 call = (...) => s0()
 
 0 -> 1264 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1264 -> 1265 call = (...) => (undefined | s0)()
+1264 -> 1265 call = (...) => s0()
 
-0 -> 1266 call = (...) => (undefined | s0)()
+0 -> 1266 call = (...) => s0()
 
 0 -> 1267 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1267 -> 1268 call = (...) => (undefined | s0)()
+1267 -> 1268 call = (...) => s0()
 
 0 -> 1270 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
@@ -4577,10 +4035,7 @@
 - *0* updated with update expression
 
 1272 -> 1273 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "'", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "'", "ignoreCase": false}
 )
 
 0 -> 1274 conditional = ???*0*
@@ -4601,10 +4056,7 @@
 - *0* updated with update expression
 
 1278 -> 1279 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "\"", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "\"", "ignoreCase": false}
 )
 
 1274 -> 1280 conditional = ???*0*
@@ -4625,10 +4077,7 @@
 - *0* updated with update expression
 
 1284 -> 1285 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "\\", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "\\", "ignoreCase": false}
 )
 
 1280 -> 1286 conditional = ???*0*
@@ -4649,17 +4098,14 @@
 - *0* updated with update expression
 
 1290 -> 1291 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "b", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "b", "ignoreCase": false}
 )
 
-1286 -> 1292 conditional = ((???*0* | "b" | {} | undefined | "\b" | "f" | "\f" | "n" | "\n" | "r" | "\r" | "t" | "\t") !== {})
+1286 -> 1292 conditional = ((???*0* | "b" | {} | "\b" | "f" | "\f" | "n" | "\n" | "r" | "\r" | "t" | "\t") !== {})
 - *0* s1
   ⚠️  pattern without value
 
-1292 -> 1293 call = (...) => (undefined | "\b")()
+1292 -> 1293 call = (...) => "\b"()
 
 1286 -> 1294 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -4679,17 +4125,14 @@
 - *0* updated with update expression
 
 1298 -> 1299 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "f", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "f", "ignoreCase": false}
 )
 
-1294 -> 1300 conditional = ((???*0* | "b" | {} | undefined | "\b" | "f" | "\f" | "n" | "\n" | "r" | "\r" | "t" | "\t") !== {})
+1294 -> 1300 conditional = ((???*0* | "b" | {} | "\b" | "f" | "\f" | "n" | "\n" | "r" | "\r" | "t" | "\t") !== {})
 - *0* s1
   ⚠️  pattern without value
 
-1300 -> 1301 call = (...) => (undefined | "\f")()
+1300 -> 1301 call = (...) => "\f"()
 
 1294 -> 1302 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -4709,17 +4152,14 @@
 - *0* updated with update expression
 
 1306 -> 1307 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "n", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "n", "ignoreCase": false}
 )
 
-1302 -> 1308 conditional = ((???*0* | "b" | {} | undefined | "\b" | "f" | "\f" | "n" | "\n" | "r" | "\r" | "t" | "\t") !== {})
+1302 -> 1308 conditional = ((???*0* | "b" | {} | "\b" | "f" | "\f" | "n" | "\n" | "r" | "\r" | "t" | "\t") !== {})
 - *0* s1
   ⚠️  pattern without value
 
-1308 -> 1309 call = (...) => (undefined | "\n")()
+1308 -> 1309 call = (...) => "\n"()
 
 1302 -> 1310 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -4739,17 +4179,14 @@
 - *0* updated with update expression
 
 1314 -> 1315 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "r", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "r", "ignoreCase": false}
 )
 
-1310 -> 1316 conditional = ((???*0* | "b" | {} | undefined | "\b" | "f" | "\f" | "n" | "\n" | "r" | "\r" | "t" | "\t") !== {})
+1310 -> 1316 conditional = ((???*0* | "b" | {} | "\b" | "f" | "\f" | "n" | "\n" | "r" | "\r" | "t" | "\t") !== {})
 - *0* s1
   ⚠️  pattern without value
 
-1316 -> 1317 call = (...) => (undefined | "\r")()
+1316 -> 1317 call = (...) => "\r"()
 
 1310 -> 1318 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -4769,31 +4206,28 @@
 - *0* updated with update expression
 
 1322 -> 1323 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "t", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "t", "ignoreCase": false}
 )
 
-1318 -> 1324 conditional = ((???*0* | "b" | {} | undefined | "\b" | "f" | "\f" | "n" | "\n" | "r" | "\r" | "t" | "\t") !== {})
+1318 -> 1324 conditional = ((???*0* | "b" | {} | "\b" | "f" | "\f" | "n" | "\n" | "r" | "\r" | "t" | "\t") !== {})
 - *0* s1
   ⚠️  pattern without value
 
-1324 -> 1325 call = (...) => (undefined | "\t")()
+1324 -> 1325 call = (...) => "\t"()
 
-0 -> 1326 call = (...) => (undefined | s0)()
+0 -> 1326 call = (...) => s0()
 
 0 -> 1327 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1327 -> 1328 call = (...) => (undefined | s0)()
+1327 -> 1328 call = (...) => s0()
 
 1327 -> 1329 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1329 -> 1330 call = (...) => (undefined | text())()
+1329 -> 1330 call = (...) => text()()
 
-0 -> 1331 call = (...) => (undefined | s0)()
+0 -> 1331 call = (...) => s0()
 
 0 -> 1332 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -4813,10 +4247,7 @@
 - *0* updated with update expression
 
 1336 -> 1337 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "u", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "u", "ignoreCase": false}
 )
 
 0 -> 1339 member call = ???*0*["charCodeAt"](???*1*)
@@ -4834,28 +4265,19 @@
 - *0* updated with update expression
 
 1341 -> 1342 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "u", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "u", "ignoreCase": false}
 )
 
 0 -> 1343 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1343 -> 1344 call = (...) => (undefined | s0)()
+1343 -> 1344 call = (...) => s0()
 
 1343 -> 1345 conditional = ((
   | ???*0*
-  | undefined
   | ???*1*
   | {}
-  | [
-        ???*3*,
-        (???*4* | undefined | ???*5* | {}),
-        (???*7* | undefined | ???*8* | {}),
-        (???*10* | undefined | ???*11* | {})
-    ]
+  | [???*3*, (???*4* | ???*5* | {}), (???*7* | ???*8* | {}), (???*10* | ???*11* | {})]
 ) !== {})
 - *0* s4
   ⚠️  pattern without value
@@ -4884,9 +4306,9 @@
 - *12* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1345 -> 1346 call = (...) => (undefined | s0)()
+1345 -> 1346 call = (...) => s0()
 
-1345 -> 1347 conditional = ((???*0* | undefined | ???*1* | {}) !== {})
+1345 -> 1347 conditional = ((???*0* | ???*1* | {}) !== {})
 - *0* s5
   ⚠️  pattern without value
 - *1* ???*2*["charAt"](peg$currPos)
@@ -4894,9 +4316,9 @@
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1347 -> 1348 call = (...) => (undefined | s0)()
+1347 -> 1348 call = (...) => s0()
 
-1347 -> 1349 conditional = ((???*0* | undefined | ???*1* | {}) !== {})
+1347 -> 1349 conditional = ((???*0* | ???*1* | {}) !== {})
 - *0* s6
   ⚠️  pattern without value
 - *1* ???*2*["charAt"](peg$currPos)
@@ -4904,7 +4326,7 @@
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1349 -> 1350 call = (...) => (undefined | s0)()
+1349 -> 1350 call = (...) => s0()
 
 1343 -> 1351 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -4918,10 +4340,7 @@
 1343 -> 1354 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1354 -> 1355 call = (...) => (
-  | undefined
-  | FreeVar(String)["fromCharCode"](FreeVar(parseInt)(digits, 16))
-)(???*0*)
+1354 -> 1355 call = (...) => FreeVar(String)["fromCharCode"](FreeVar(parseInt)(digits, 16))(???*0*)
 - *0* max number of linking steps reached
 
 0 -> 1358 member call = ???*0*["charAt"](???*1*)
@@ -4950,74 +4369,71 @@
 - *0* updated with update expression
 
 1363 -> 1364 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "class", "parts": [["0", "9"], ["a", "f"]], "inverted": false, "ignoreCase": true}
-    )
+    {"type": "class", "parts": [["0", "9"], ["a", "f"]], "inverted": false, "ignoreCase": true}
 )
 
-0 -> 1365 call = (...) => (undefined | s0)()
+0 -> 1365 call = (...) => s0()
 
 0 -> 1366 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1366 -> 1367 call = (...) => (undefined | s0)()
+1366 -> 1367 call = (...) => s0()
 
 1366 -> 1368 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1368 -> 1369 call = (...) => (undefined | s0)()
+1368 -> 1369 call = (...) => s0()
 
 1366 -> 1370 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1370 -> 1371 call = (...) => (undefined | s0)()
+1370 -> 1371 call = (...) => s0()
 
 1370 -> 1372 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1372 -> 1373 call = (...) => (undefined | s0)()
+1372 -> 1373 call = (...) => s0()
 
 1372 -> 1374 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1374 -> 1375 call = (...) => (undefined | v)(???*0*, ???*1*)
+1374 -> 1375 call = (...) => v(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
 1366 -> 1376 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1376 -> 1377 call = (...) => (undefined | {"property": property, "alias": alias})(???*0*, ???*1*)
+1376 -> 1377 call = (...) => {"property": property, "alias": alias}(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
-0 -> 1378 call = (...) => (undefined | s0)()
+0 -> 1378 call = (...) => s0()
 
 0 -> 1379 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1379 -> 1380 call = (...) => (undefined | s0)()
+1379 -> 1380 call = (...) => s0()
 
 1379 -> 1381 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1381 -> 1382 call = (...) => (undefined | s0)()
+1381 -> 1382 call = (...) => s0()
 
 1381 -> 1383 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1383 -> 1384 call = (...) => (undefined | s0)()
+1383 -> 1384 call = (...) => s0()
 
 1383 -> 1385 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1385 -> 1386 call = (...) => (undefined | s0)()
+1385 -> 1386 call = (...) => s0()
 
 1385 -> 1387 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1387 -> 1388 call = (...) => (undefined | s0)()
+1387 -> 1388 call = (...) => s0()
 
 1387 -> 1389 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -5037,29 +4453,26 @@
 - *0* updated with update expression
 
 1393 -> 1394 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "(", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "(", "ignoreCase": false}
 )
 
 1389 -> 1395 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1395 -> 1396 call = (...) => (undefined | s0)()
+1395 -> 1396 call = (...) => s0()
 
-1395 -> 1397 conditional = ((???*0* | undefined | []) !== {})
+1395 -> 1397 conditional = ((???*0* | []) !== {})
 - *0* s2
   ⚠️  pattern without value
 
-1397 -> 1398 call = (...) => (undefined | s0)()
+1397 -> 1398 call = (...) => s0()
 
 1397 -> 1399 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1399 -> 1400 call = (...) => (undefined | s0)()
+1399 -> 1400 call = (...) => s0()
 
-1399 -> 1401 conditional = ((???*0* | undefined | []) !== {})
+1399 -> 1401 conditional = ((???*0* | []) !== {})
 - *0* s4
   ⚠️  pattern without value
 
@@ -5078,92 +4491,80 @@
 - *0* updated with update expression
 
 1405 -> 1406 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": ")", "ignoreCase": false}
-    )
+    {"type": "literal", "text": ")", "ignoreCase": false}
 )
 
 1401 -> 1407 conditional = ((???*0* | ")" | {}) !== {})
 - *0* s5
   ⚠️  pattern without value
 
-1407 -> 1408 call = (...) => (undefined | expression)(???*0*)
+1407 -> 1408 call = (...) => expression(???*0*)
 - *0* max number of linking steps reached
 
-0 -> 1409 call = (...) => (undefined | s0)()
+0 -> 1409 call = (...) => s0()
 
 0 -> 1410 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1410 -> 1411 call = (...) => (undefined | s0)()
+1410 -> 1411 call = (...) => s0()
 
 1410 -> 1412 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1412 -> 1413 call = (...) => (undefined | s0)()
+1412 -> 1413 call = (...) => s0()
 
-0 -> 1414 call = (...) => (undefined | s0)()
+0 -> 1414 call = (...) => s0()
 
 0 -> 1415 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1415 -> 1416 call = (...) => (undefined | s0)()
+1415 -> 1416 call = (...) => s0()
 
-1415 -> 1417 conditional = ((???*0* | undefined | []) !== {})
+1415 -> 1417 conditional = ((???*0* | []) !== {})
 - *0* s2
   ⚠️  pattern without value
 
-1417 -> 1418 call = (...) => (undefined | s0)()
+1417 -> 1418 call = (...) => s0()
 
 1417 -> 1419 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1419 -> 1420 call = (...) => (
-  | undefined
-  | {"type": "array_subquery_expression", "expression": expression}
-)(???*0*)
+1419 -> 1420 call = (...) => {"type": "array_subquery_expression", "expression": expression}(???*0*)
 - *0* max number of linking steps reached
 
-0 -> 1421 call = (...) => (undefined | s0)()
+0 -> 1421 call = (...) => s0()
 
 0 -> 1422 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1422 -> 1423 call = (...) => (undefined | s0)()
+1422 -> 1423 call = (...) => s0()
 
-1422 -> 1424 conditional = ((???*0* | undefined | []) !== {})
+1422 -> 1424 conditional = ((???*0* | []) !== {})
 - *0* s2
   ⚠️  pattern without value
 
-1424 -> 1425 call = (...) => (undefined | s0)()
+1424 -> 1425 call = (...) => s0()
 
 1424 -> 1426 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1426 -> 1427 call = (...) => (
-  | undefined
-  | {"type": "exists_subquery_expression", "expression": expression}
-)(???*0*)
+1426 -> 1427 call = (...) => {"type": "exists_subquery_expression", "expression": expression}(???*0*)
 - *0* max number of linking steps reached
 
-0 -> 1428 call = (...) => (undefined | s0)()
+0 -> 1428 call = (...) => s0()
 
 0 -> 1429 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1429 -> 1430 call = (...) => (
-  | undefined
-  | {"type": "scalar_subquery_expression", "expression": expression}
-)(???*0*)
+1429 -> 1430 call = (...) => {"type": "scalar_subquery_expression", "expression": expression}(???*0*)
 - *0* max number of linking steps reached
 
-0 -> 1431 call = (...) => (undefined | s0)()
+0 -> 1431 call = (...) => s0()
 
 0 -> 1432 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1432 -> 1433 call = (...) => (undefined | s0)()
+1432 -> 1433 call = (...) => s0()
 
 1432 -> 1434 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -5183,41 +4584,38 @@
 - *0* updated with update expression
 
 1438 -> 1439 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": ".", "ignoreCase": false}
-    )
+    {"type": "literal", "text": ".", "ignoreCase": false}
 )
 
 1434 -> 1440 conditional = ((???*0* | "." | {} | "[") !== {})
 - *0* s5
   ⚠️  pattern without value
 
-1440 -> 1441 call = (...) => (undefined | s0)()
+1440 -> 1441 call = (...) => s0()
 
-1440 -> 1442 conditional = ((???*0* | undefined | []) !== {})
+1440 -> 1442 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-1442 -> 1443 call = (...) => (undefined | s0)()
+1442 -> 1443 call = (...) => s0()
 
 1442 -> 1444 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1444 -> 1445 call = (...) => (undefined | s0)()
+1444 -> 1445 call = (...) => s0()
 
-1444 -> 1446 conditional = ((???*0* | undefined | []) !== {})
+1444 -> 1446 conditional = ((???*0* | []) !== {})
 - *0* s8
   ⚠️  pattern without value
 
-1446 -> 1447 call = (...) => (undefined | {"property": property, "computed": false})(???*0*, ???*1*)
+1446 -> 1447 call = (...) => {"property": property, "computed": false}(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
 1432 -> 1448 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1448 -> 1449 call = (...) => (undefined | s0)()
+1448 -> 1449 call = (...) => s0()
 
 1448 -> 1450 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -5237,40 +4635,37 @@
 - *0* updated with update expression
 
 1454 -> 1455 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "[", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "[", "ignoreCase": false}
 )
 
 1450 -> 1456 conditional = ((???*0* | "." | {} | "[") !== {})
 - *0* s5
   ⚠️  pattern without value
 
-1456 -> 1457 call = (...) => (undefined | s0)()
+1456 -> 1457 call = (...) => s0()
 
-1456 -> 1458 conditional = ((???*0* | undefined | []) !== {})
+1456 -> 1458 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-1458 -> 1459 call = (...) => (undefined | s0)()
+1458 -> 1459 call = (...) => s0()
 
 1458 -> 1460 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1460 -> 1461 call = (...) => (undefined | s0)()
+1460 -> 1461 call = (...) => s0()
 
 1460 -> 1462 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1462 -> 1463 call = (...) => (undefined | s0)()
+1462 -> 1463 call = (...) => s0()
 
 1458 -> 1464 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1464 -> 1465 call = (...) => (undefined | s0)()
+1464 -> 1465 call = (...) => s0()
 
-1464 -> 1466 conditional = ((???*0* | undefined | []) !== {})
+1464 -> 1466 conditional = ((???*0* | []) !== {})
 - *0* s8
   ⚠️  pattern without value
 
@@ -5289,17 +4684,14 @@
 - *0* updated with update expression
 
 1470 -> 1471 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "]", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "]", "ignoreCase": false}
 )
 
 1466 -> 1472 conditional = ((???*0* | "]" | {}) !== {})
 - *0* s9
   ⚠️  pattern without value
 
-1472 -> 1473 call = (...) => (undefined | {"property": property, "computed": true})(???*0*, ???*1*)
+1472 -> 1473 call = (...) => {"property": property, "computed": true}(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
@@ -5308,7 +4700,7 @@
   ⚠️  pattern without value
 - *1* max number of linking steps reached
 
-1432 -> 1476 call = (...) => (undefined | s0)()
+1432 -> 1476 call = (...) => s0()
 
 1432 -> 1477 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -5328,41 +4720,38 @@
 - *0* updated with update expression
 
 1481 -> 1482 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": ".", "ignoreCase": false}
-    )
+    {"type": "literal", "text": ".", "ignoreCase": false}
 )
 
 1477 -> 1483 conditional = ((???*0* | "." | {} | "[") !== {})
 - *0* s5
   ⚠️  pattern without value
 
-1483 -> 1484 call = (...) => (undefined | s0)()
+1483 -> 1484 call = (...) => s0()
 
-1483 -> 1485 conditional = ((???*0* | undefined | []) !== {})
+1483 -> 1485 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-1485 -> 1486 call = (...) => (undefined | s0)()
+1485 -> 1486 call = (...) => s0()
 
 1485 -> 1487 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1487 -> 1488 call = (...) => (undefined | s0)()
+1487 -> 1488 call = (...) => s0()
 
-1487 -> 1489 conditional = ((???*0* | undefined | []) !== {})
+1487 -> 1489 conditional = ((???*0* | []) !== {})
 - *0* s8
   ⚠️  pattern without value
 
-1489 -> 1490 call = (...) => (undefined | {"property": property, "computed": false})(???*0*, ???*1*)
+1489 -> 1490 call = (...) => {"property": property, "computed": false}(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
 1432 -> 1491 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1491 -> 1492 call = (...) => (undefined | s0)()
+1491 -> 1492 call = (...) => s0()
 
 1491 -> 1493 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -5382,40 +4771,37 @@
 - *0* updated with update expression
 
 1497 -> 1498 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "[", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "[", "ignoreCase": false}
 )
 
 1493 -> 1499 conditional = ((???*0* | "." | {} | "[") !== {})
 - *0* s5
   ⚠️  pattern without value
 
-1499 -> 1500 call = (...) => (undefined | s0)()
+1499 -> 1500 call = (...) => s0()
 
-1499 -> 1501 conditional = ((???*0* | undefined | []) !== {})
+1499 -> 1501 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-1501 -> 1502 call = (...) => (undefined | s0)()
+1501 -> 1502 call = (...) => s0()
 
 1501 -> 1503 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1503 -> 1504 call = (...) => (undefined | s0)()
+1503 -> 1504 call = (...) => s0()
 
 1503 -> 1505 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1505 -> 1506 call = (...) => (undefined | s0)()
+1505 -> 1506 call = (...) => s0()
 
 1501 -> 1507 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1507 -> 1508 call = (...) => (undefined | s0)()
+1507 -> 1508 call = (...) => s0()
 
-1507 -> 1509 conditional = ((???*0* | undefined | []) !== {})
+1507 -> 1509 conditional = ((???*0* | []) !== {})
 - *0* s8
   ⚠️  pattern without value
 
@@ -5434,17 +4820,14 @@
 - *0* updated with update expression
 
 1513 -> 1514 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "]", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "]", "ignoreCase": false}
 )
 
 1509 -> 1515 conditional = ((???*0* | "]" | {}) !== {})
 - *0* s9
   ⚠️  pattern without value
 
-1515 -> 1516 call = (...) => (undefined | {"property": property, "computed": true})(???*0*, ???*1*)
+1515 -> 1516 call = (...) => {"property": property, "computed": true}(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
@@ -5452,52 +4835,49 @@
 - *0* s2
   ⚠️  pattern without value
 
-1517 -> 1518 call = (...) => (undefined | tail["reduce"](*arrow function 13694*, head))(???*0*, (???*1* | []))
+1517 -> 1518 call = (...) => tail["reduce"](*arrow function 13694*, head)(???*0*, (???*1* | []))
 - *0* max number of linking steps reached
 - *1* s2
   ⚠️  pattern without value
 
-0 -> 1519 call = (...) => (undefined | s0)()
+0 -> 1519 call = (...) => s0()
 
 0 -> 1520 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1520 -> 1521 call = (...) => (undefined | s0)()
+1520 -> 1521 call = (...) => s0()
 
 1520 -> 1522 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1522 -> 1523 call = (...) => (undefined | s0)()
+1522 -> 1523 call = (...) => s0()
 
 1522 -> 1524 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1524 -> 1525 call = (...) => (undefined | s0)()
+1524 -> 1525 call = (...) => s0()
 
-1524 -> 1526 conditional = ((???*0* | undefined | []) !== {})
+1524 -> 1526 conditional = ((???*0* | []) !== {})
 - *0* s2
   ⚠️  pattern without value
 
-1526 -> 1527 call = (...) => (undefined | s0)()
+1526 -> 1527 call = (...) => s0()
 
 1526 -> 1528 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1528 -> 1529 call = (...) => (
-  | undefined
-  | {"type": "scalar_unary_expression", "operator": operator, "argument": argument}
-)(???*0*, ???*1*)
+1528 -> 1529 call = (...) => {"type": "scalar_unary_expression", "operator": operator, "argument": argument}(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
-0 -> 1530 call = (...) => (undefined | s0)()
+0 -> 1530 call = (...) => s0()
 
 0 -> 1531 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1531 -> 1532 call = (...) => (undefined | s0)()
+1531 -> 1532 call = (...) => s0()
 
-1531 -> 1533 conditional = ((???*0* | undefined | []) !== {})
+1531 -> 1533 conditional = ((???*0* | []) !== {})
 - *0* s2
   ⚠️  pattern without value
 
@@ -5516,30 +4896,27 @@
 - *0* updated with update expression
 
 1537 -> 1538 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "?", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "?", "ignoreCase": false}
 )
 
 1533 -> 1539 conditional = ((???*0* | "?" | {}) !== {})
 - *0* s3
   ⚠️  pattern without value
 
-1539 -> 1540 call = (...) => (undefined | s0)()
+1539 -> 1540 call = (...) => s0()
 
-1539 -> 1541 conditional = ((???*0* | undefined | []) !== {})
+1539 -> 1541 conditional = ((???*0* | []) !== {})
 - *0* s4
   ⚠️  pattern without value
 
-1541 -> 1542 call = (...) => (undefined | s0)()
+1541 -> 1542 call = (...) => s0()
 
 1541 -> 1543 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1543 -> 1544 call = (...) => (undefined | s0)()
+1543 -> 1544 call = (...) => s0()
 
-1543 -> 1545 conditional = ((???*0* | undefined | []) !== {})
+1543 -> 1545 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
@@ -5558,36 +4935,30 @@
 - *0* updated with update expression
 
 1549 -> 1550 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": ":", "ignoreCase": false}
-    )
+    {"type": "literal", "text": ":", "ignoreCase": false}
 )
 
 1545 -> 1551 conditional = ((???*0* | ":" | {}) !== {})
 - *0* s7
   ⚠️  pattern without value
 
-1551 -> 1552 call = (...) => (undefined | s0)()
+1551 -> 1552 call = (...) => s0()
 
-1551 -> 1553 conditional = ((???*0* | undefined | []) !== {})
+1551 -> 1553 conditional = ((???*0* | []) !== {})
 - *0* s8
   ⚠️  pattern without value
 
-1553 -> 1554 call = (...) => (undefined | s0)()
+1553 -> 1554 call = (...) => s0()
 
 1553 -> 1555 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1555 -> 1556 call = (...) => (
-  | undefined
-  | {
-        "type": "scalar_conditional_expression",
-        "test": test,
-        "consequent": consequent,
-        "alternate": alternate
-    }
-)(???*0*, ???*1*, ???*2*)
+1555 -> 1556 call = (...) => {
+    "type": "scalar_conditional_expression",
+    "test": test,
+    "consequent": consequent,
+    "alternate": alternate
+}(???*0*, ???*1*, ???*2*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 - *2* max number of linking steps reached
@@ -5595,19 +4966,19 @@
 0 -> 1557 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1557 -> 1558 call = (...) => (undefined | s0)()
+1557 -> 1558 call = (...) => s0()
 
-0 -> 1559 call = (...) => (undefined | s0)()
+0 -> 1559 call = (...) => s0()
 
 0 -> 1560 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1560 -> 1561 call = (...) => (undefined | s0)()
+1560 -> 1561 call = (...) => s0()
 
 1560 -> 1562 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1562 -> 1563 call = (...) => (undefined | s0)()
+1562 -> 1563 call = (...) => s0()
 
 1562 -> 1564 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -5627,34 +4998,31 @@
 - *0* updated with update expression
 
 1568 -> 1569 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "??", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "??", "ignoreCase": false}
 )
 
 1562 -> 1570 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1570 -> 1571 call = (...) => (undefined | s0)()
+1570 -> 1571 call = (...) => s0()
 
-1570 -> 1572 conditional = ((???*0* | undefined | []) !== {})
+1570 -> 1572 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-1572 -> 1573 call = (...) => (undefined | s0)()
+1572 -> 1573 call = (...) => s0()
 
 1560 -> 1575 member call = (???*0* | [])["push"](???*1*)
 - *0* s2
   ⚠️  pattern without value
 - *1* max number of linking steps reached
 
-1560 -> 1576 call = (...) => (undefined | s0)()
+1560 -> 1576 call = (...) => s0()
 
 1560 -> 1577 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1577 -> 1578 call = (...) => (undefined | s0)()
+1577 -> 1578 call = (...) => s0()
 
 1577 -> 1579 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -5674,93 +5042,90 @@
 - *0* updated with update expression
 
 1583 -> 1584 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "??", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "??", "ignoreCase": false}
 )
 
 1577 -> 1585 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1585 -> 1586 call = (...) => (undefined | s0)()
+1585 -> 1586 call = (...) => s0()
 
-1585 -> 1587 conditional = ((???*0* | undefined | []) !== {})
+1585 -> 1587 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-1587 -> 1588 call = (...) => (undefined | s0)()
+1587 -> 1588 call = (...) => s0()
 
 1560 -> 1589 conditional = ((???*0* | []) !== {})
 - *0* s2
   ⚠️  pattern without value
 
-1589 -> 1590 call = (...) => (undefined | buildBinaryExpression(head, tail))(???*0*, (???*1* | []))
+1589 -> 1590 call = (...) => buildBinaryExpression(head, tail)(???*0*, (???*1* | []))
 - *0* max number of linking steps reached
 - *1* s2
   ⚠️  pattern without value
 
-0 -> 1591 call = (...) => (undefined | s0)()
+0 -> 1591 call = (...) => s0()
 
 0 -> 1592 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1592 -> 1593 call = (...) => (undefined | s0)()
+1592 -> 1593 call = (...) => s0()
 
 1592 -> 1594 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1594 -> 1595 call = (...) => (undefined | s0)()
+1594 -> 1595 call = (...) => s0()
 
 1594 -> 1596 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1596 -> 1597 call = (...) => (undefined | s0)()
+1596 -> 1597 call = (...) => s0()
 
-1596 -> 1598 conditional = ((???*0* | undefined | []) !== {})
+1596 -> 1598 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-1598 -> 1599 call = (...) => (undefined | s0)()
+1598 -> 1599 call = (...) => s0()
 
 1592 -> 1601 member call = (???*0* | [])["push"](???*1*)
 - *0* s2
   ⚠️  pattern without value
 - *1* max number of linking steps reached
 
-1592 -> 1602 call = (...) => (undefined | s0)()
+1592 -> 1602 call = (...) => s0()
 
 1592 -> 1603 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1603 -> 1604 call = (...) => (undefined | s0)()
+1603 -> 1604 call = (...) => s0()
 
 1603 -> 1605 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1605 -> 1606 call = (...) => (undefined | s0)()
+1605 -> 1606 call = (...) => s0()
 
-1605 -> 1607 conditional = ((???*0* | undefined | []) !== {})
+1605 -> 1607 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-1607 -> 1608 call = (...) => (undefined | s0)()
+1607 -> 1608 call = (...) => s0()
 
 1592 -> 1609 conditional = ((???*0* | []) !== {})
 - *0* s2
   ⚠️  pattern without value
 
-1609 -> 1610 call = (...) => (undefined | buildBinaryExpression(head, tail))(???*0*, (???*1* | []))
+1609 -> 1610 call = (...) => buildBinaryExpression(head, tail)(???*0*, (???*1* | []))
 - *0* max number of linking steps reached
 - *1* s2
   ⚠️  pattern without value
 
-0 -> 1611 call = (...) => (undefined | s0)()
+0 -> 1611 call = (...) => s0()
 
 0 -> 1612 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1612 -> 1613 call = (...) => (undefined | s0)()
+1612 -> 1613 call = (...) => s0()
 
 1612 -> 1614 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -5780,10 +5145,7 @@
 - *0* updated with update expression
 
 1618 -> 1619 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "=", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "=", "ignoreCase": false}
 )
 
 1614 -> 1620 conditional = ((???*0* | "=" | {} | "!=" | "<>") === {})
@@ -5805,10 +5167,7 @@
 - *0* updated with update expression
 
 1624 -> 1625 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "!=", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "!=", "ignoreCase": false}
 )
 
 1620 -> 1626 conditional = ((???*0* | "=" | {} | "!=" | "<>") === {})
@@ -5830,30 +5189,27 @@
 - *0* updated with update expression
 
 1630 -> 1631 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "<>", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "<>", "ignoreCase": false}
 )
 
 1614 -> 1632 conditional = ((???*0* | "=" | {} | "!=" | "<>") !== {})
 - *0* s5
   ⚠️  pattern without value
 
-1632 -> 1633 call = (...) => (undefined | s0)()
+1632 -> 1633 call = (...) => s0()
 
-1632 -> 1634 conditional = ((???*0* | undefined | []) !== {})
+1632 -> 1634 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-1634 -> 1635 call = (...) => (undefined | s0)()
+1634 -> 1635 call = (...) => s0()
 
 1612 -> 1637 member call = (???*0* | [])["push"](???*1*)
 - *0* s2
   ⚠️  pattern without value
 - *1* max number of linking steps reached
 
-1612 -> 1638 call = (...) => (undefined | s0)()
+1612 -> 1638 call = (...) => s0()
 
 1612 -> 1639 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -5873,10 +5229,7 @@
 - *0* updated with update expression
 
 1643 -> 1644 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "=", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "=", "ignoreCase": false}
 )
 
 1639 -> 1645 conditional = ((???*0* | "=" | {} | "!=" | "<>") === {})
@@ -5898,10 +5251,7 @@
 - *0* updated with update expression
 
 1649 -> 1650 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "!=", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "!=", "ignoreCase": false}
 )
 
 1645 -> 1651 conditional = ((???*0* | "=" | {} | "!=" | "<>") === {})
@@ -5923,39 +5273,36 @@
 - *0* updated with update expression
 
 1655 -> 1656 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "<>", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "<>", "ignoreCase": false}
 )
 
 1639 -> 1657 conditional = ((???*0* | "=" | {} | "!=" | "<>") !== {})
 - *0* s5
   ⚠️  pattern without value
 
-1657 -> 1658 call = (...) => (undefined | s0)()
+1657 -> 1658 call = (...) => s0()
 
-1657 -> 1659 conditional = ((???*0* | undefined | []) !== {})
+1657 -> 1659 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-1659 -> 1660 call = (...) => (undefined | s0)()
+1659 -> 1660 call = (...) => s0()
 
 1612 -> 1661 conditional = ((???*0* | []) !== {})
 - *0* s2
   ⚠️  pattern without value
 
-1661 -> 1662 call = (...) => (undefined | buildBinaryExpression(head, tail))(???*0*, (???*1* | []))
+1661 -> 1662 call = (...) => buildBinaryExpression(head, tail)(???*0*, (???*1* | []))
 - *0* max number of linking steps reached
 - *1* s2
   ⚠️  pattern without value
 
-0 -> 1663 call = (...) => (undefined | s0)()
+0 -> 1663 call = (...) => s0()
 
 0 -> 1664 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1664 -> 1665 call = (...) => (undefined | s0)()
+1664 -> 1665 call = (...) => s0()
 
 1664 -> 1666 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -5975,10 +5322,7 @@
 - *0* updated with update expression
 
 1670 -> 1671 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "<=", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "<=", "ignoreCase": false}
 )
 
 1666 -> 1672 conditional = ((???*0* | "<=" | {} | ">=" | "<" | ">") === {})
@@ -6000,10 +5344,7 @@
 - *0* updated with update expression
 
 1676 -> 1677 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": ">=", "ignoreCase": false}
-    )
+    {"type": "literal", "text": ">=", "ignoreCase": false}
 )
 
 1672 -> 1678 conditional = ((???*0* | "<=" | {} | ">=" | "<" | ">") === {})
@@ -6025,10 +5366,7 @@
 - *0* updated with update expression
 
 1682 -> 1683 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "<", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "<", "ignoreCase": false}
 )
 
 1678 -> 1684 conditional = ((???*0* | "<=" | {} | ">=" | "<" | ">") === {})
@@ -6050,30 +5388,27 @@
 - *0* updated with update expression
 
 1688 -> 1689 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": ">", "ignoreCase": false}
-    )
+    {"type": "literal", "text": ">", "ignoreCase": false}
 )
 
 1666 -> 1690 conditional = ((???*0* | "<=" | {} | ">=" | "<" | ">") !== {})
 - *0* s5
   ⚠️  pattern without value
 
-1690 -> 1691 call = (...) => (undefined | s0)()
+1690 -> 1691 call = (...) => s0()
 
-1690 -> 1692 conditional = ((???*0* | undefined | []) !== {})
+1690 -> 1692 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-1692 -> 1693 call = (...) => (undefined | s0)()
+1692 -> 1693 call = (...) => s0()
 
 1664 -> 1695 member call = (???*0* | [])["push"](???*1*)
 - *0* s2
   ⚠️  pattern without value
 - *1* max number of linking steps reached
 
-1664 -> 1696 call = (...) => (undefined | s0)()
+1664 -> 1696 call = (...) => s0()
 
 1664 -> 1697 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -6093,10 +5428,7 @@
 - *0* updated with update expression
 
 1701 -> 1702 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "<=", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "<=", "ignoreCase": false}
 )
 
 1697 -> 1703 conditional = ((???*0* | "<=" | {} | ">=" | "<" | ">") === {})
@@ -6118,10 +5450,7 @@
 - *0* updated with update expression
 
 1707 -> 1708 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": ">=", "ignoreCase": false}
-    )
+    {"type": "literal", "text": ">=", "ignoreCase": false}
 )
 
 1703 -> 1709 conditional = ((???*0* | "<=" | {} | ">=" | "<" | ">") === {})
@@ -6143,10 +5472,7 @@
 - *0* updated with update expression
 
 1713 -> 1714 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "<", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "<", "ignoreCase": false}
 )
 
 1709 -> 1715 conditional = ((???*0* | "<=" | {} | ">=" | "<" | ">") === {})
@@ -6168,52 +5494,49 @@
 - *0* updated with update expression
 
 1719 -> 1720 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": ">", "ignoreCase": false}
-    )
+    {"type": "literal", "text": ">", "ignoreCase": false}
 )
 
 1697 -> 1721 conditional = ((???*0* | "<=" | {} | ">=" | "<" | ">") !== {})
 - *0* s5
   ⚠️  pattern without value
 
-1721 -> 1722 call = (...) => (undefined | s0)()
+1721 -> 1722 call = (...) => s0()
 
-1721 -> 1723 conditional = ((???*0* | undefined | []) !== {})
+1721 -> 1723 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-1723 -> 1724 call = (...) => (undefined | s0)()
+1723 -> 1724 call = (...) => s0()
 
 1664 -> 1725 conditional = ((???*0* | []) !== {})
 - *0* s2
   ⚠️  pattern without value
 
-1725 -> 1726 call = (...) => (undefined | buildBinaryExpression(head, tail))(???*0*, (???*1* | []))
+1725 -> 1726 call = (...) => buildBinaryExpression(head, tail)(???*0*, (???*1* | []))
 - *0* max number of linking steps reached
 - *1* s2
   ⚠️  pattern without value
 
-0 -> 1727 call = (...) => (undefined | s0)()
+0 -> 1727 call = (...) => s0()
 
 0 -> 1728 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1728 -> 1729 call = (...) => (undefined | s0)()
+1728 -> 1729 call = (...) => s0()
 
-1728 -> 1730 conditional = ((???*0* | undefined | []) !== {})
+1728 -> 1730 conditional = ((???*0* | []) !== {})
 - *0* s2
   ⚠️  pattern without value
 
-1730 -> 1731 call = (...) => (undefined | s0)()
+1730 -> 1731 call = (...) => s0()
 
 1730 -> 1732 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1732 -> 1733 call = (...) => (undefined | s0)()
+1732 -> 1733 call = (...) => s0()
 
-1732 -> 1734 conditional = ((???*0* | undefined | []) !== {})
+1732 -> 1734 conditional = ((???*0* | []) !== {})
 - *0* s4
   ⚠️  pattern without value
 
@@ -6232,30 +5555,27 @@
 - *0* updated with update expression
 
 1738 -> 1739 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "(", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "(", "ignoreCase": false}
 )
 
 1734 -> 1740 conditional = ((???*0* | "(" | {}) !== {})
 - *0* s5
   ⚠️  pattern without value
 
-1740 -> 1741 call = (...) => (undefined | s0)()
+1740 -> 1741 call = (...) => s0()
 
-1740 -> 1742 conditional = ((???*0* | undefined | []) !== {})
+1740 -> 1742 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-1742 -> 1743 call = (...) => (undefined | s0)()
+1742 -> 1743 call = (...) => s0()
 
 1742 -> 1744 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1744 -> 1745 call = (...) => (undefined | s0)()
+1744 -> 1745 call = (...) => s0()
 
-1744 -> 1746 conditional = ((???*0* | undefined | []) !== {})
+1744 -> 1746 conditional = ((???*0* | []) !== {})
 - *0* s8
   ⚠️  pattern without value
 
@@ -6274,81 +5594,72 @@
 - *0* updated with update expression
 
 1750 -> 1751 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": ")", "ignoreCase": false}
-    )
+    {"type": "literal", "text": ")", "ignoreCase": false}
 )
 
 1746 -> 1752 conditional = ((???*0* | ")" | {}) !== {})
 - *0* s9
   ⚠️  pattern without value
 
-1752 -> 1753 call = (...) => (
-  | undefined
-  | {"type": "scalar_in_expression", "value": value, "list": list}
-)(???*0*, ???*1*)
+1752 -> 1753 call = (...) => {"type": "scalar_in_expression", "value": value, "list": list}(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
 0 -> 1754 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1754 -> 1755 call = (...) => (undefined | s0)()
+1754 -> 1755 call = (...) => s0()
 
-0 -> 1756 call = (...) => (undefined | s0)()
+0 -> 1756 call = (...) => s0()
 
 0 -> 1757 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1757 -> 1758 call = (...) => (undefined | s0)()
+1757 -> 1758 call = (...) => s0()
 
-1757 -> 1759 conditional = ((???*0* | undefined | []) !== {})
+1757 -> 1759 conditional = ((???*0* | []) !== {})
 - *0* s2
   ⚠️  pattern without value
 
-1759 -> 1760 call = (...) => (undefined | s0)()
+1759 -> 1760 call = (...) => s0()
 
 1759 -> 1761 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1761 -> 1762 call = (...) => (undefined | s0)()
+1761 -> 1762 call = (...) => s0()
 
-1761 -> 1763 conditional = ((???*0* | undefined | []) !== {})
+1761 -> 1763 conditional = ((???*0* | []) !== {})
 - *0* s4
   ⚠️  pattern without value
 
-1763 -> 1764 call = (...) => (undefined | s0)()
+1763 -> 1764 call = (...) => s0()
 
 1763 -> 1765 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1765 -> 1766 call = (...) => (undefined | s0)()
+1765 -> 1766 call = (...) => s0()
 
-1765 -> 1767 conditional = ((???*0* | undefined | []) !== {})
+1765 -> 1767 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-1767 -> 1768 call = (...) => (undefined | s0)()
+1767 -> 1768 call = (...) => s0()
 
 1767 -> 1769 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1769 -> 1770 call = (...) => (undefined | s0)()
+1769 -> 1770 call = (...) => s0()
 
-1769 -> 1771 conditional = ((???*0* | undefined | []) !== {})
+1769 -> 1771 conditional = ((???*0* | []) !== {})
 - *0* s8
   ⚠️  pattern without value
 
-1771 -> 1772 call = (...) => (undefined | s0)()
+1771 -> 1772 call = (...) => s0()
 
 1771 -> 1773 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1773 -> 1774 call = (...) => (
-  | undefined
-  | {"type": "scalar_between_expression", "value": value, "begin": begin, "end": end}
-)(???*0*, ???*1*, ???*2*)
+1773 -> 1774 call = (...) => {"type": "scalar_between_expression", "value": value, "begin": begin, "end": end}(???*0*, ???*1*, ???*2*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 - *2* max number of linking steps reached
@@ -6356,14 +5667,14 @@
 0 -> 1775 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1775 -> 1776 call = (...) => (undefined | s0)()
+1775 -> 1776 call = (...) => s0()
 
-0 -> 1777 call = (...) => (undefined | s0)()
+0 -> 1777 call = (...) => s0()
 
 0 -> 1778 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1778 -> 1779 call = (...) => (undefined | s0)()
+1778 -> 1779 call = (...) => s0()
 
 1778 -> 1780 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -6383,30 +5694,27 @@
 - *0* updated with update expression
 
 1784 -> 1785 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "|", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "|", "ignoreCase": false}
 )
 
 1780 -> 1786 conditional = ((???*0* | "|" | {}) !== {})
 - *0* s5
   ⚠️  pattern without value
 
-1786 -> 1787 call = (...) => (undefined | s0)()
+1786 -> 1787 call = (...) => s0()
 
-1786 -> 1788 conditional = ((???*0* | undefined | []) !== {})
+1786 -> 1788 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-1788 -> 1789 call = (...) => (undefined | s0)()
+1788 -> 1789 call = (...) => s0()
 
 1778 -> 1791 member call = (???*0* | [])["push"](???*1*)
 - *0* s2
   ⚠️  pattern without value
 - *1* max number of linking steps reached
 
-1778 -> 1792 call = (...) => (undefined | s0)()
+1778 -> 1792 call = (...) => s0()
 
 1778 -> 1793 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -6426,39 +5734,36 @@
 - *0* updated with update expression
 
 1797 -> 1798 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "|", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "|", "ignoreCase": false}
 )
 
 1793 -> 1799 conditional = ((???*0* | "|" | {}) !== {})
 - *0* s5
   ⚠️  pattern without value
 
-1799 -> 1800 call = (...) => (undefined | s0)()
+1799 -> 1800 call = (...) => s0()
 
-1799 -> 1801 conditional = ((???*0* | undefined | []) !== {})
+1799 -> 1801 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-1801 -> 1802 call = (...) => (undefined | s0)()
+1801 -> 1802 call = (...) => s0()
 
 1778 -> 1803 conditional = ((???*0* | []) !== {})
 - *0* s2
   ⚠️  pattern without value
 
-1803 -> 1804 call = (...) => (undefined | buildBinaryExpression(head, tail))(???*0*, (???*1* | []))
+1803 -> 1804 call = (...) => buildBinaryExpression(head, tail)(???*0*, (???*1* | []))
 - *0* max number of linking steps reached
 - *1* s2
   ⚠️  pattern without value
 
-0 -> 1805 call = (...) => (undefined | s0)()
+0 -> 1805 call = (...) => s0()
 
 0 -> 1806 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1806 -> 1807 call = (...) => (undefined | s0)()
+1806 -> 1807 call = (...) => s0()
 
 1806 -> 1808 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -6478,30 +5783,27 @@
 - *0* updated with update expression
 
 1812 -> 1813 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "^", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "^", "ignoreCase": false}
 )
 
 1808 -> 1814 conditional = ((???*0* | "^" | {}) !== {})
 - *0* s5
   ⚠️  pattern without value
 
-1814 -> 1815 call = (...) => (undefined | s0)()
+1814 -> 1815 call = (...) => s0()
 
-1814 -> 1816 conditional = ((???*0* | undefined | []) !== {})
+1814 -> 1816 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-1816 -> 1817 call = (...) => (undefined | s0)()
+1816 -> 1817 call = (...) => s0()
 
 1806 -> 1819 member call = (???*0* | [])["push"](???*1*)
 - *0* s2
   ⚠️  pattern without value
 - *1* max number of linking steps reached
 
-1806 -> 1820 call = (...) => (undefined | s0)()
+1806 -> 1820 call = (...) => s0()
 
 1806 -> 1821 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -6521,39 +5823,36 @@
 - *0* updated with update expression
 
 1825 -> 1826 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "^", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "^", "ignoreCase": false}
 )
 
 1821 -> 1827 conditional = ((???*0* | "^" | {}) !== {})
 - *0* s5
   ⚠️  pattern without value
 
-1827 -> 1828 call = (...) => (undefined | s0)()
+1827 -> 1828 call = (...) => s0()
 
-1827 -> 1829 conditional = ((???*0* | undefined | []) !== {})
+1827 -> 1829 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-1829 -> 1830 call = (...) => (undefined | s0)()
+1829 -> 1830 call = (...) => s0()
 
 1806 -> 1831 conditional = ((???*0* | []) !== {})
 - *0* s2
   ⚠️  pattern without value
 
-1831 -> 1832 call = (...) => (undefined | buildBinaryExpression(head, tail))(???*0*, (???*1* | []))
+1831 -> 1832 call = (...) => buildBinaryExpression(head, tail)(???*0*, (???*1* | []))
 - *0* max number of linking steps reached
 - *1* s2
   ⚠️  pattern without value
 
-0 -> 1833 call = (...) => (undefined | s0)()
+0 -> 1833 call = (...) => s0()
 
 0 -> 1834 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1834 -> 1835 call = (...) => (undefined | s0)()
+1834 -> 1835 call = (...) => s0()
 
 1834 -> 1836 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -6573,30 +5872,27 @@
 - *0* updated with update expression
 
 1840 -> 1841 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "&", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "&", "ignoreCase": false}
 )
 
 1836 -> 1842 conditional = ((???*0* | "&" | {}) !== {})
 - *0* s5
   ⚠️  pattern without value
 
-1842 -> 1843 call = (...) => (undefined | s0)()
+1842 -> 1843 call = (...) => s0()
 
-1842 -> 1844 conditional = ((???*0* | undefined | []) !== {})
+1842 -> 1844 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-1844 -> 1845 call = (...) => (undefined | s0)()
+1844 -> 1845 call = (...) => s0()
 
 1834 -> 1847 member call = (???*0* | [])["push"](???*1*)
 - *0* s2
   ⚠️  pattern without value
 - *1* max number of linking steps reached
 
-1834 -> 1848 call = (...) => (undefined | s0)()
+1834 -> 1848 call = (...) => s0()
 
 1834 -> 1849 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -6616,39 +5912,36 @@
 - *0* updated with update expression
 
 1853 -> 1854 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "&", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "&", "ignoreCase": false}
 )
 
 1849 -> 1855 conditional = ((???*0* | "&" | {}) !== {})
 - *0* s5
   ⚠️  pattern without value
 
-1855 -> 1856 call = (...) => (undefined | s0)()
+1855 -> 1856 call = (...) => s0()
 
-1855 -> 1857 conditional = ((???*0* | undefined | []) !== {})
+1855 -> 1857 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-1857 -> 1858 call = (...) => (undefined | s0)()
+1857 -> 1858 call = (...) => s0()
 
 1834 -> 1859 conditional = ((???*0* | []) !== {})
 - *0* s2
   ⚠️  pattern without value
 
-1859 -> 1860 call = (...) => (undefined | buildBinaryExpression(head, tail))(???*0*, (???*1* | []))
+1859 -> 1860 call = (...) => buildBinaryExpression(head, tail)(???*0*, (???*1* | []))
 - *0* max number of linking steps reached
 - *1* s2
   ⚠️  pattern without value
 
-0 -> 1861 call = (...) => (undefined | s0)()
+0 -> 1861 call = (...) => s0()
 
 0 -> 1862 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1862 -> 1863 call = (...) => (undefined | s0)()
+1862 -> 1863 call = (...) => s0()
 
 1862 -> 1864 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -6668,10 +5961,7 @@
 - *0* updated with update expression
 
 1868 -> 1869 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "<<", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "<<", "ignoreCase": false}
 )
 
 1864 -> 1870 conditional = ((???*0* | "<<" | {} | ">>>" | ">>") === {})
@@ -6693,10 +5983,7 @@
 - *0* updated with update expression
 
 1874 -> 1875 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": ">>>", "ignoreCase": false}
-    )
+    {"type": "literal", "text": ">>>", "ignoreCase": false}
 )
 
 1870 -> 1876 conditional = ((???*0* | "<<" | {} | ">>>" | ">>") === {})
@@ -6718,30 +6005,27 @@
 - *0* updated with update expression
 
 1880 -> 1881 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": ">>", "ignoreCase": false}
-    )
+    {"type": "literal", "text": ">>", "ignoreCase": false}
 )
 
 1864 -> 1882 conditional = ((???*0* | "<<" | {} | ">>>" | ">>") !== {})
 - *0* s5
   ⚠️  pattern without value
 
-1882 -> 1883 call = (...) => (undefined | s0)()
+1882 -> 1883 call = (...) => s0()
 
-1882 -> 1884 conditional = ((???*0* | undefined | []) !== {})
+1882 -> 1884 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-1884 -> 1885 call = (...) => (undefined | s0)()
+1884 -> 1885 call = (...) => s0()
 
 1862 -> 1887 member call = (???*0* | [])["push"](???*1*)
 - *0* s2
   ⚠️  pattern without value
 - *1* max number of linking steps reached
 
-1862 -> 1888 call = (...) => (undefined | s0)()
+1862 -> 1888 call = (...) => s0()
 
 1862 -> 1889 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -6761,10 +6045,7 @@
 - *0* updated with update expression
 
 1893 -> 1894 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "<<", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "<<", "ignoreCase": false}
 )
 
 1889 -> 1895 conditional = ((???*0* | "<<" | {} | ">>>" | ">>") === {})
@@ -6786,10 +6067,7 @@
 - *0* updated with update expression
 
 1899 -> 1900 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": ">>>", "ignoreCase": false}
-    )
+    {"type": "literal", "text": ">>>", "ignoreCase": false}
 )
 
 1895 -> 1901 conditional = ((???*0* | "<<" | {} | ">>>" | ">>") === {})
@@ -6811,39 +6089,36 @@
 - *0* updated with update expression
 
 1905 -> 1906 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": ">>", "ignoreCase": false}
-    )
+    {"type": "literal", "text": ">>", "ignoreCase": false}
 )
 
 1889 -> 1907 conditional = ((???*0* | "<<" | {} | ">>>" | ">>") !== {})
 - *0* s5
   ⚠️  pattern without value
 
-1907 -> 1908 call = (...) => (undefined | s0)()
+1907 -> 1908 call = (...) => s0()
 
-1907 -> 1909 conditional = ((???*0* | undefined | []) !== {})
+1907 -> 1909 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-1909 -> 1910 call = (...) => (undefined | s0)()
+1909 -> 1910 call = (...) => s0()
 
 1862 -> 1911 conditional = ((???*0* | []) !== {})
 - *0* s2
   ⚠️  pattern without value
 
-1911 -> 1912 call = (...) => (undefined | buildBinaryExpression(head, tail))(???*0*, (???*1* | []))
+1911 -> 1912 call = (...) => buildBinaryExpression(head, tail)(???*0*, (???*1* | []))
 - *0* max number of linking steps reached
 - *1* s2
   ⚠️  pattern without value
 
-0 -> 1913 call = (...) => (undefined | s0)()
+0 -> 1913 call = (...) => s0()
 
 0 -> 1914 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1914 -> 1915 call = (...) => (undefined | s0)()
+1914 -> 1915 call = (...) => s0()
 
 1914 -> 1916 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -6863,10 +6138,7 @@
 - *0* updated with update expression
 
 1920 -> 1921 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "+", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "+", "ignoreCase": false}
 )
 
 1916 -> 1922 conditional = ((???*0* | "+" | {} | "-" | "||") === {})
@@ -6888,10 +6160,7 @@
 - *0* updated with update expression
 
 1926 -> 1927 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "-", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "-", "ignoreCase": false}
 )
 
 1922 -> 1928 conditional = ((???*0* | "+" | {} | "-" | "||") === {})
@@ -6913,30 +6182,27 @@
 - *0* updated with update expression
 
 1932 -> 1933 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "||", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "||", "ignoreCase": false}
 )
 
 1916 -> 1934 conditional = ((???*0* | "+" | {} | "-" | "||") !== {})
 - *0* s5
   ⚠️  pattern without value
 
-1934 -> 1935 call = (...) => (undefined | s0)()
+1934 -> 1935 call = (...) => s0()
 
-1934 -> 1936 conditional = ((???*0* | undefined | []) !== {})
+1934 -> 1936 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-1936 -> 1937 call = (...) => (undefined | s0)()
+1936 -> 1937 call = (...) => s0()
 
 1914 -> 1939 member call = (???*0* | [])["push"](???*1*)
 - *0* s2
   ⚠️  pattern without value
 - *1* max number of linking steps reached
 
-1914 -> 1940 call = (...) => (undefined | s0)()
+1914 -> 1940 call = (...) => s0()
 
 1914 -> 1941 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -6956,10 +6222,7 @@
 - *0* updated with update expression
 
 1945 -> 1946 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "+", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "+", "ignoreCase": false}
 )
 
 1941 -> 1947 conditional = ((???*0* | "+" | {} | "-" | "||") === {})
@@ -6981,10 +6244,7 @@
 - *0* updated with update expression
 
 1951 -> 1952 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "-", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "-", "ignoreCase": false}
 )
 
 1947 -> 1953 conditional = ((???*0* | "+" | {} | "-" | "||") === {})
@@ -7006,39 +6266,36 @@
 - *0* updated with update expression
 
 1957 -> 1958 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "||", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "||", "ignoreCase": false}
 )
 
 1941 -> 1959 conditional = ((???*0* | "+" | {} | "-" | "||") !== {})
 - *0* s5
   ⚠️  pattern without value
 
-1959 -> 1960 call = (...) => (undefined | s0)()
+1959 -> 1960 call = (...) => s0()
 
-1959 -> 1961 conditional = ((???*0* | undefined | []) !== {})
+1959 -> 1961 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-1961 -> 1962 call = (...) => (undefined | s0)()
+1961 -> 1962 call = (...) => s0()
 
 1914 -> 1963 conditional = ((???*0* | []) !== {})
 - *0* s2
   ⚠️  pattern without value
 
-1963 -> 1964 call = (...) => (undefined | buildBinaryExpression(head, tail))(???*0*, (???*1* | []))
+1963 -> 1964 call = (...) => buildBinaryExpression(head, tail)(???*0*, (???*1* | []))
 - *0* max number of linking steps reached
 - *1* s2
   ⚠️  pattern without value
 
-0 -> 1965 call = (...) => (undefined | s0)()
+0 -> 1965 call = (...) => s0()
 
 0 -> 1966 conditional = ???*0*
 - *0* max number of linking steps reached
 
-1966 -> 1967 call = (...) => (undefined | s0)()
+1966 -> 1967 call = (...) => s0()
 
 1966 -> 1968 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -7058,10 +6315,7 @@
 - *0* updated with update expression
 
 1972 -> 1973 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "*", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "*", "ignoreCase": false}
 )
 
 1968 -> 1974 conditional = ((???*0* | "*" | {} | "/" | "%") === {})
@@ -7083,10 +6337,7 @@
 - *0* updated with update expression
 
 1978 -> 1979 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "/", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "/", "ignoreCase": false}
 )
 
 1974 -> 1980 conditional = ((???*0* | "*" | {} | "/" | "%") === {})
@@ -7108,30 +6359,27 @@
 - *0* updated with update expression
 
 1984 -> 1985 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "%", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "%", "ignoreCase": false}
 )
 
 1968 -> 1986 conditional = ((???*0* | "*" | {} | "/" | "%") !== {})
 - *0* s5
   ⚠️  pattern without value
 
-1986 -> 1987 call = (...) => (undefined | s0)()
+1986 -> 1987 call = (...) => s0()
 
-1986 -> 1988 conditional = ((???*0* | undefined | []) !== {})
+1986 -> 1988 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-1988 -> 1989 call = (...) => (undefined | s0)()
+1988 -> 1989 call = (...) => s0()
 
 1966 -> 1991 member call = (???*0* | [])["push"](???*1*)
 - *0* s2
   ⚠️  pattern without value
 - *1* max number of linking steps reached
 
-1966 -> 1992 call = (...) => (undefined | s0)()
+1966 -> 1992 call = (...) => s0()
 
 1966 -> 1993 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -7151,10 +6399,7 @@
 - *0* updated with update expression
 
 1997 -> 1998 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "*", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "*", "ignoreCase": false}
 )
 
 1993 -> 1999 conditional = ((???*0* | "*" | {} | "/" | "%") === {})
@@ -7176,10 +6421,7 @@
 - *0* updated with update expression
 
 2003 -> 2004 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "/", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "/", "ignoreCase": false}
 )
 
 1999 -> 2005 conditional = ((???*0* | "*" | {} | "/" | "%") === {})
@@ -7201,46 +6443,43 @@
 - *0* updated with update expression
 
 2009 -> 2010 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "%", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "%", "ignoreCase": false}
 )
 
 1993 -> 2011 conditional = ((???*0* | "*" | {} | "/" | "%") !== {})
 - *0* s5
   ⚠️  pattern without value
 
-2011 -> 2012 call = (...) => (undefined | s0)()
+2011 -> 2012 call = (...) => s0()
 
-2011 -> 2013 conditional = ((???*0* | undefined | []) !== {})
+2011 -> 2013 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-2013 -> 2014 call = (...) => (undefined | s0)()
+2013 -> 2014 call = (...) => s0()
 
 1966 -> 2015 conditional = ((???*0* | []) !== {})
 - *0* s2
   ⚠️  pattern without value
 
-2015 -> 2016 call = (...) => (undefined | buildBinaryExpression(head, tail))(???*0*, (???*1* | []))
+2015 -> 2016 call = (...) => buildBinaryExpression(head, tail)(???*0*, (???*1* | []))
 - *0* max number of linking steps reached
 - *1* s2
   ⚠️  pattern without value
 
-0 -> 2017 call = (...) => (undefined | s0)()
+0 -> 2017 call = (...) => s0()
 
 0 -> 2018 conditional = ???*0*
 - *0* max number of linking steps reached
 
-2018 -> 2019 call = (...) => (undefined | s0)()
+2018 -> 2019 call = (...) => s0()
 
 0 -> 2020 conditional = ???*0*
 - *0* max number of linking steps reached
 
-2020 -> 2021 call = (...) => (undefined | s0)()
+2020 -> 2021 call = (...) => s0()
 
-2020 -> 2022 conditional = ((???*0* | undefined | []) !== {})
+2020 -> 2022 conditional = ((???*0* | []) !== {})
 - *0* s2
   ⚠️  pattern without value
 
@@ -7259,44 +6498,41 @@
 - *0* updated with update expression
 
 2026 -> 2027 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": ":", "ignoreCase": false}
-    )
+    {"type": "literal", "text": ":", "ignoreCase": false}
 )
 
 2022 -> 2028 conditional = ((???*0* | ":" | {}) !== {})
 - *0* s3
   ⚠️  pattern without value
 
-2028 -> 2029 call = (...) => (undefined | s0)()
+2028 -> 2029 call = (...) => s0()
 
-2028 -> 2030 conditional = ((???*0* | undefined | []) !== {})
+2028 -> 2030 conditional = ((???*0* | []) !== {})
 - *0* s4
   ⚠️  pattern without value
 
-2030 -> 2031 call = (...) => (undefined | s0)()
+2030 -> 2031 call = (...) => s0()
 
 2030 -> 2032 conditional = ???*0*
 - *0* max number of linking steps reached
 
-2032 -> 2033 call = (...) => (undefined | {"key": key, "value": value})(???*0*, ???*1*)
+2032 -> 2033 call = (...) => {"key": key, "value": value}(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
-0 -> 2034 call = (...) => (undefined | s0)()
+0 -> 2034 call = (...) => s0()
 
 0 -> 2035 conditional = ???*0*
 - *0* max number of linking steps reached
 
-2035 -> 2036 call = (...) => (undefined | s0)()
+2035 -> 2036 call = (...) => s0()
 
 0 -> 2037 conditional = ???*0*
 - *0* max number of linking steps reached
 
-2037 -> 2038 call = (...) => (undefined | s0)()
+2037 -> 2038 call = (...) => s0()
 
-2037 -> 2039 conditional = ((???*0* | undefined | []) !== {})
+2037 -> 2039 conditional = ((???*0* | []) !== {})
 - *0* s2
   ⚠️  pattern without value
 
@@ -7315,48 +6551,42 @@
 - *0* updated with update expression
 
 2043 -> 2044 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": ":", "ignoreCase": false}
-    )
+    {"type": "literal", "text": ":", "ignoreCase": false}
 )
 
 2039 -> 2045 conditional = ((???*0* | ":" | {}) !== {})
 - *0* s3
   ⚠️  pattern without value
 
-2045 -> 2046 call = (...) => (undefined | s0)()
+2045 -> 2046 call = (...) => s0()
 
-2045 -> 2047 conditional = ((???*0* | undefined | []) !== {})
+2045 -> 2047 conditional = ((???*0* | []) !== {})
 - *0* s4
   ⚠️  pattern without value
 
-2047 -> 2048 call = (...) => (undefined | s0)()
+2047 -> 2048 call = (...) => s0()
 
 2047 -> 2049 conditional = ???*0*
 - *0* max number of linking steps reached
 
-2049 -> 2050 call = (...) => (undefined | {"key": key, "value": value})(???*0*, ???*1*)
+2049 -> 2050 call = (...) => {"key": key, "value": value}(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
-0 -> 2051 call = (...) => (undefined | s0)()
+0 -> 2051 call = (...) => s0()
 
 0 -> 2052 conditional = ???*0*
 - *0* max number of linking steps reached
 
-2052 -> 2053 call = (...) => (
-  | undefined
-  | {"type": "collection_expression", "expression": expression}
-)(???*0*)
+2052 -> 2053 call = (...) => {"type": "collection_expression", "expression": expression}(???*0*)
 - *0* max number of linking steps reached
 
-0 -> 2054 call = (...) => (undefined | s0)()
+0 -> 2054 call = (...) => s0()
 
 0 -> 2055 conditional = ???*0*
 - *0* max number of linking steps reached
 
-2055 -> 2056 call = (...) => (undefined | s0)()
+2055 -> 2056 call = (...) => s0()
 
 2055 -> 2057 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -7376,41 +6606,38 @@
 - *0* updated with update expression
 
 2061 -> 2062 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": ".", "ignoreCase": false}
-    )
+    {"type": "literal", "text": ".", "ignoreCase": false}
 )
 
 2057 -> 2063 conditional = ((???*0* | "." | {} | "[") !== {})
 - *0* s5
   ⚠️  pattern without value
 
-2063 -> 2064 call = (...) => (undefined | s0)()
+2063 -> 2064 call = (...) => s0()
 
-2063 -> 2065 conditional = ((???*0* | undefined | []) !== {})
+2063 -> 2065 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-2065 -> 2066 call = (...) => (undefined | s0)()
+2065 -> 2066 call = (...) => s0()
 
 2065 -> 2067 conditional = ???*0*
 - *0* max number of linking steps reached
 
-2067 -> 2068 call = (...) => (undefined | s0)()
+2067 -> 2068 call = (...) => s0()
 
-2067 -> 2069 conditional = ((???*0* | undefined | []) !== {})
+2067 -> 2069 conditional = ((???*0* | []) !== {})
 - *0* s8
   ⚠️  pattern without value
 
-2069 -> 2070 call = (...) => (undefined | {"property": property, "computed": false})(???*0*, ???*1*)
+2069 -> 2070 call = (...) => {"property": property, "computed": false}(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
 2055 -> 2071 conditional = ???*0*
 - *0* max number of linking steps reached
 
-2071 -> 2072 call = (...) => (undefined | s0)()
+2071 -> 2072 call = (...) => s0()
 
 2071 -> 2073 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -7430,40 +6657,37 @@
 - *0* updated with update expression
 
 2077 -> 2078 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "[", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "[", "ignoreCase": false}
 )
 
 2073 -> 2079 conditional = ((???*0* | "." | {} | "[") !== {})
 - *0* s5
   ⚠️  pattern without value
 
-2079 -> 2080 call = (...) => (undefined | s0)()
+2079 -> 2080 call = (...) => s0()
 
-2079 -> 2081 conditional = ((???*0* | undefined | []) !== {})
+2079 -> 2081 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-2081 -> 2082 call = (...) => (undefined | s0)()
+2081 -> 2082 call = (...) => s0()
 
 2081 -> 2083 conditional = ???*0*
 - *0* max number of linking steps reached
 
-2083 -> 2084 call = (...) => (undefined | s0)()
+2083 -> 2084 call = (...) => s0()
 
 2083 -> 2085 conditional = ???*0*
 - *0* max number of linking steps reached
 
-2085 -> 2086 call = (...) => (undefined | s0)()
+2085 -> 2086 call = (...) => s0()
 
 2081 -> 2087 conditional = ???*0*
 - *0* max number of linking steps reached
 
-2087 -> 2088 call = (...) => (undefined | s0)()
+2087 -> 2088 call = (...) => s0()
 
-2087 -> 2089 conditional = ((???*0* | undefined | []) !== {})
+2087 -> 2089 conditional = ((???*0* | []) !== {})
 - *0* s8
   ⚠️  pattern without value
 
@@ -7482,17 +6706,14 @@
 - *0* updated with update expression
 
 2093 -> 2094 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "]", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "]", "ignoreCase": false}
 )
 
 2089 -> 2095 conditional = ((???*0* | "]" | {}) !== {})
 - *0* s9
   ⚠️  pattern without value
 
-2095 -> 2096 call = (...) => (undefined | {"property": property, "computed": true})(???*0*, ???*1*)
+2095 -> 2096 call = (...) => {"property": property, "computed": true}(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
@@ -7504,7 +6725,7 @@
   ⚠️  pattern without value
 - *1* max number of linking steps reached
 
-2097 -> 2100 call = (...) => (undefined | s0)()
+2097 -> 2100 call = (...) => s0()
 
 2097 -> 2101 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -7524,41 +6745,38 @@
 - *0* updated with update expression
 
 2105 -> 2106 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": ".", "ignoreCase": false}
-    )
+    {"type": "literal", "text": ".", "ignoreCase": false}
 )
 
 2101 -> 2107 conditional = ((???*0* | "." | {} | "[") !== {})
 - *0* s5
   ⚠️  pattern without value
 
-2107 -> 2108 call = (...) => (undefined | s0)()
+2107 -> 2108 call = (...) => s0()
 
-2107 -> 2109 conditional = ((???*0* | undefined | []) !== {})
+2107 -> 2109 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-2109 -> 2110 call = (...) => (undefined | s0)()
+2109 -> 2110 call = (...) => s0()
 
 2109 -> 2111 conditional = ???*0*
 - *0* max number of linking steps reached
 
-2111 -> 2112 call = (...) => (undefined | s0)()
+2111 -> 2112 call = (...) => s0()
 
-2111 -> 2113 conditional = ((???*0* | undefined | []) !== {})
+2111 -> 2113 conditional = ((???*0* | []) !== {})
 - *0* s8
   ⚠️  pattern without value
 
-2113 -> 2114 call = (...) => (undefined | {"property": property, "computed": false})(???*0*, ???*1*)
+2113 -> 2114 call = (...) => {"property": property, "computed": false}(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
 2097 -> 2115 conditional = ???*0*
 - *0* max number of linking steps reached
 
-2115 -> 2116 call = (...) => (undefined | s0)()
+2115 -> 2116 call = (...) => s0()
 
 2115 -> 2117 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -7578,40 +6796,37 @@
 - *0* updated with update expression
 
 2121 -> 2122 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "[", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "[", "ignoreCase": false}
 )
 
 2117 -> 2123 conditional = ((???*0* | "." | {} | "[") !== {})
 - *0* s5
   ⚠️  pattern without value
 
-2123 -> 2124 call = (...) => (undefined | s0)()
+2123 -> 2124 call = (...) => s0()
 
-2123 -> 2125 conditional = ((???*0* | undefined | []) !== {})
+2123 -> 2125 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-2125 -> 2126 call = (...) => (undefined | s0)()
+2125 -> 2126 call = (...) => s0()
 
 2125 -> 2127 conditional = ???*0*
 - *0* max number of linking steps reached
 
-2127 -> 2128 call = (...) => (undefined | s0)()
+2127 -> 2128 call = (...) => s0()
 
 2127 -> 2129 conditional = ???*0*
 - *0* max number of linking steps reached
 
-2129 -> 2130 call = (...) => (undefined | s0)()
+2129 -> 2130 call = (...) => s0()
 
 2125 -> 2131 conditional = ???*0*
 - *0* max number of linking steps reached
 
-2131 -> 2132 call = (...) => (undefined | s0)()
+2131 -> 2132 call = (...) => s0()
 
-2131 -> 2133 conditional = ((???*0* | undefined | []) !== {})
+2131 -> 2133 conditional = ((???*0* | []) !== {})
 - *0* s8
   ⚠️  pattern without value
 
@@ -7630,17 +6845,14 @@
 - *0* updated with update expression
 
 2137 -> 2138 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "]", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "]", "ignoreCase": false}
 )
 
 2133 -> 2139 conditional = ((???*0* | "]" | {}) !== {})
 - *0* s9
   ⚠️  pattern without value
 
-2139 -> 2140 call = (...) => (undefined | {"property": property, "computed": true})(???*0*, ???*1*)
+2139 -> 2140 call = (...) => {"property": property, "computed": true}(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
@@ -7648,33 +6860,30 @@
 - *0* s2
   ⚠️  pattern without value
 
-2141 -> 2142 call = (...) => (undefined | tail["reduce"](*arrow function 16259*, head))(???*0*, (???*1* | [] | {}))
+2141 -> 2142 call = (...) => tail["reduce"](*arrow function 16259*, head)(???*0*, (???*1* | [] | {}))
 - *0* max number of linking steps reached
 - *1* s2
   ⚠️  pattern without value
 
-0 -> 2143 call = (...) => (undefined | s0)()
+0 -> 2143 call = (...) => s0()
 
 0 -> 2144 conditional = ???*0*
 - *0* max number of linking steps reached
 
-2144 -> 2145 call = (...) => (
-  | undefined
-  | {"type": "collection_subquery_expression", "expression": expression}
-)(???*0*)
+2144 -> 2145 call = (...) => {"type": "collection_subquery_expression", "expression": expression}(???*0*)
 - *0* max number of linking steps reached
 
-0 -> 2146 call = (...) => (undefined | s0)()
+0 -> 2146 call = (...) => s0()
 
 0 -> 2147 conditional = ???*0*
 - *0* max number of linking steps reached
 
-2147 -> 2148 call = (...) => (undefined | s0)()
+2147 -> 2148 call = (...) => s0()
 
 0 -> 2149 conditional = ???*0*
 - *0* max number of linking steps reached
 
-2149 -> 2150 call = (...) => (undefined | {"type": "top_specification", "value": value})(???*0*)
+2149 -> 2150 call = (...) => {"type": "top_specification", "value": value}(???*0*)
 - *0* max number of linking steps reached
 
 0 -> 2153 member call = ???*0*["charAt"](???*1*)
@@ -7703,10 +6912,7 @@
 - *0* updated with update expression
 
 2158 -> 2159 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "class", "parts": [["0", "9"]], "inverted": false, "ignoreCase": false}
-    )
+    {"type": "class", "parts": [["0", "9"]], "inverted": false, "ignoreCase": false}
 )
 
 0 -> 2160 conditional = ((???*0* | ???*1* | {}) !== {})
@@ -7717,7 +6923,7 @@
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
 
-2160 -> 2162 member call = (???*0* | [] | {} | undefined | {"type": "number_constant", "value": ???*1*})["push"]((???*3* | ???*4* | {}))
+2160 -> 2162 member call = (???*0* | [] | {} | {"type": "number_constant", "value": ???*1*})["push"]((???*3* | ???*4* | {}))
 - *0* s1
   ⚠️  pattern without value
 - *1* ???*2*(text())
@@ -7757,13 +6963,10 @@
 - *0* updated with update expression
 
 2170 -> 2171 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "class", "parts": [["0", "9"]], "inverted": false, "ignoreCase": false}
-    )
+    {"type": "class", "parts": [["0", "9"]], "inverted": false, "ignoreCase": false}
 )
 
-0 -> 2172 conditional = ((???*0* | [] | {} | undefined | {"type": "number_constant", "value": ???*1*}) !== {})
+0 -> 2172 conditional = ((???*0* | [] | {} | {"type": "number_constant", "value": ???*1*}) !== {})
 - *0* s1
   ⚠️  pattern without value
 - *1* ???*2*(text())
@@ -7771,17 +6974,14 @@
 - *2* FreeVar(Number)
   ⚠️  unknown global
 
-2172 -> 2173 call = (...) => (
-  | undefined
-  | {"type": "number_constant", "value": FreeVar(Number)(text())}
-)()
+2172 -> 2173 call = (...) => {"type": "number_constant", "value": FreeVar(Number)(text())}()
 
-0 -> 2174 call = (...) => (undefined | s0)()
+0 -> 2174 call = (...) => s0()
 
 0 -> 2175 conditional = ???*0*
 - *0* max number of linking steps reached
 
-2175 -> 2176 call = (...) => (undefined | s0)()
+2175 -> 2176 call = (...) => s0()
 
 2175 -> 2177 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -7801,28 +7001,25 @@
 - *0* updated with update expression
 
 2181 -> 2182 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": ",", "ignoreCase": false}
-    )
+    {"type": "literal", "text": ",", "ignoreCase": false}
 )
 
 2177 -> 2183 conditional = ((???*0* | "," | {}) !== {})
 - *0* s5
   ⚠️  pattern without value
 
-2183 -> 2184 call = (...) => (undefined | s0)()
+2183 -> 2184 call = (...) => s0()
 
-2183 -> 2185 conditional = ((???*0* | undefined | []) !== {})
+2183 -> 2185 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-2185 -> 2186 call = (...) => (undefined | s0)()
+2185 -> 2186 call = (...) => s0()
 
 2185 -> 2187 conditional = ???*0*
 - *0* max number of linking steps reached
 
-2187 -> 2188 call = (...) => (undefined | v)(???*0*, ???*1*)
+2187 -> 2188 call = (...) => v(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
@@ -7831,7 +7028,7 @@
   ⚠️  pattern without value
 - *1* max number of linking steps reached
 
-2175 -> 2191 call = (...) => (undefined | s0)()
+2175 -> 2191 call = (...) => s0()
 
 2175 -> 2192 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -7851,28 +7048,25 @@
 - *0* updated with update expression
 
 2196 -> 2197 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": ",", "ignoreCase": false}
-    )
+    {"type": "literal", "text": ",", "ignoreCase": false}
 )
 
 2192 -> 2198 conditional = ((???*0* | "," | {}) !== {})
 - *0* s5
   ⚠️  pattern without value
 
-2198 -> 2199 call = (...) => (undefined | s0)()
+2198 -> 2199 call = (...) => s0()
 
-2198 -> 2200 conditional = ((???*0* | undefined | []) !== {})
+2198 -> 2200 conditional = ((???*0* | []) !== {})
 - *0* s6
   ⚠️  pattern without value
 
-2200 -> 2201 call = (...) => (undefined | s0)()
+2200 -> 2201 call = (...) => s0()
 
 2200 -> 2202 conditional = ???*0*
 - *0* max number of linking steps reached
 
-2202 -> 2203 call = (...) => (undefined | v)(???*0*, ???*1*)
+2202 -> 2203 call = (...) => v(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
@@ -7880,7 +7074,7 @@
 - *0* s2
   ⚠️  pattern without value
 
-2204 -> 2205 call = (...) => (undefined | ???*0* | [])(???*1*, (???*2* | []))
+2204 -> 2205 call = (...) => (???*0* | [])(???*1*, (???*2* | []))
 - *0* spread is not supported
 - *1* max number of linking steps reached
 - *2* s2
@@ -7901,29 +7095,26 @@
 - *0* updated with update expression
 
 2209 -> 2210 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": "(", "ignoreCase": false}
-    )
+    {"type": "literal", "text": "(", "ignoreCase": false}
 )
 
 0 -> 2211 conditional = ???*0*
 - *0* max number of linking steps reached
 
-2211 -> 2212 call = (...) => (undefined | s0)()
+2211 -> 2212 call = (...) => s0()
 
-2211 -> 2213 conditional = ((???*0* | undefined | []) !== {})
+2211 -> 2213 conditional = ((???*0* | []) !== {})
 - *0* s2
   ⚠️  pattern without value
 
-2213 -> 2214 call = (...) => (undefined | s0)()
+2213 -> 2214 call = (...) => s0()
 
 2213 -> 2215 conditional = ???*0*
 - *0* max number of linking steps reached
 
-2215 -> 2216 call = (...) => (undefined | s0)()
+2215 -> 2216 call = (...) => s0()
 
-2215 -> 2217 conditional = ((???*0* | undefined | []) !== {})
+2215 -> 2217 conditional = ((???*0* | []) !== {})
 - *0* s4
   ⚠️  pattern without value
 
@@ -7942,17 +7133,14 @@
 - *0* updated with update expression
 
 2221 -> 2222 call = (...) => (undefined | FreeVar(undefined))(
-    (
-      | undefined
-      | {"type": "literal", "text": ")", "ignoreCase": false}
-    )
+    {"type": "literal", "text": ")", "ignoreCase": false}
 )
 
 2217 -> 2223 conditional = ((???*0* | ")" | {}) !== {})
 - *0* s5
   ⚠️  pattern without value
 
-2223 -> 2224 call = (...) => (undefined | subquery)(???*0*)
+2223 -> 2224 call = (...) => subquery(???*0*)
 - *0* max number of linking steps reached
 
 0 -> 2226 member call = ???*0*["reduce"](
@@ -7964,7 +7152,7 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-0 -> 2227 call = ((...) => (undefined | s0) | ???*0*)()
+0 -> 2227 call = ((...) => s0 | ???*0*)()
 - *0* {}[???*1*]
   ⚠️  unknown object prototype methods or values
 - *1* ???*2*["startRule"]
@@ -7978,36 +7166,30 @@
 2229 -> 2231 conditional = ???*0*
 - *0* max number of linking steps reached
 
-2231 -> 2232 call = (...) => (undefined | {"type": "end"})()
+2231 -> 2232 call = (...) => {"type": "end"}()
 
-2231 -> 2233 call = (...) => (undefined | FreeVar(undefined))((undefined | {"type": "end"}))
+2231 -> 2233 call = (...) => (undefined | FreeVar(undefined))({"type": "end"})
 
 2229 -> 2236 member call = ???*0*["charAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
 
-2229 -> 2238 call = (...) => (
-  | undefined
-  | {
-        "start": {"offset": startPos, "line": startPosDetails["line"], "column": startPosDetails["column"]},
-        "end": {"offset": endPos, "line": endPosDetails["line"], "column": endPosDetails["column"]}
-    }
-)(???*0*, ???*1*)
+2229 -> 2238 call = (...) => {
+    "start": {"offset": startPos, "line": startPosDetails["line"], "column": startPosDetails["column"]},
+    "end": {"offset": endPos, "line": endPosDetails["line"], "column": endPosDetails["column"]}
+}(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
-2229 -> 2239 call = (...) => (
-  | undefined
-  | {
-        "start": {"offset": startPos, "line": startPosDetails["line"], "column": startPosDetails["column"]},
-        "end": {"offset": endPos, "line": endPosDetails["line"], "column": endPosDetails["column"]}
-    }
-)(???*0*, ???*1*)
+2229 -> 2239 call = (...) => {
+    "start": {"offset": startPos, "line": startPosDetails["line"], "column": startPosDetails["column"]},
+    "end": {"offset": endPos, "line": endPosDetails["line"], "column": endPosDetails["column"]}
+}(???*0*, ???*1*)
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
-2229 -> 2240 call = (...) => (undefined | ???*0*)([], (???*1* | null), ???*3*)
+2229 -> 2240 call = (...) => ???*0*([], (???*1* | null), ???*3*)
 - *0* unknown new expression
 - *1* ???*2*["charAt"](peg$maxFailPos)
   ⚠️  unknown callee object

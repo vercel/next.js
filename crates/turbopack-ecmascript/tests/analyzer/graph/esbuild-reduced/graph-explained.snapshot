@@ -6,7 +6,7 @@ e = ???*0*
 - *0* e
   ⚠️  pattern without value
 
-generateBinPath = (...) => (undefined | binPath)
+generateBinPath = (...) => binPath
 
 knownWindowsPackages = {
     "win32 arm64 LE": "esbuild-windows-arm64",
@@ -24,7 +24,7 @@ pkg#3 = (???*0* | knownWindowsPackages[FreeVar(platformKey)])
 
 pkg#4 = pkgAndSubpathForCurrentPlatform()["pkg"]
 
-pkgAndSubpathForCurrentPlatform = (...) => (undefined | {"pkg": pkg, "subpath": subpath})
+pkgAndSubpathForCurrentPlatform = (...) => {"pkg": pkg, "subpath": subpath}
 
 subpath#3 = (???*0* | "esbuild.exe")
 - *0* subpath

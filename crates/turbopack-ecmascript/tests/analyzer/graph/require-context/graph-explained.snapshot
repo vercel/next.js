@@ -2,7 +2,7 @@ a = context["resolve"]("./a")
 
 context = FreeVar(require)["context"]("./test", false, /\.test\.js$/)
 
-importAll = (...) => (undefined | r["keys"]()["map"](r))
+importAll = (...) => r["keys"]()["map"](r)
 
 items = importAll(context)
 

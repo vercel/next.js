@@ -1225,7 +1225,7 @@ impl VisitAstPath for Analyzer<'_> {
     ) {
         let old = replace(
             &mut self.cur_fn_return_values,
-            Some(vec![JsValue::Constant(ConstantValue::Undefined)]),
+            Some(get_fn_init_return_vals(decl.function.body.as_ref())),
         );
         let old_ident = self.cur_fn_ident;
         self.cur_fn_ident = decl.function.span.lo.0;
@@ -1248,7 +1248,7 @@ impl VisitAstPath for Analyzer<'_> {
     ) {
         let old = replace(
             &mut self.cur_fn_return_values,
-            Some(vec![JsValue::Constant(ConstantValue::Undefined)]),
+            Some(get_fn_init_return_vals(expr.function.body.as_ref())),
         );
         let old_ident = self.cur_fn_ident;
         self.cur_fn_ident = expr.function.span.lo.0;
@@ -1283,7 +1283,7 @@ impl VisitAstPath for Analyzer<'_> {
             BlockStmtOrExpr::BlockStmt(_block) => {
                 let old = replace(
                     &mut self.cur_fn_return_values,
-                    Some(vec![JsValue::Constant(ConstantValue::Undefined)]),
+                    Some(get_fn_init_return_vals(Some(_block))),
                 );
                 let old_ident = self.cur_fn_ident;
                 self.cur_fn_ident = expr.span.lo.0;
@@ -1766,4 +1766,24 @@ fn extract_var_from_umd_factory(callee: &Expr, args: &[ExprOrSpread]) -> Option<
     }
 
     None
+}
+
+fn get_fn_init_return_vals(fn_body_stmts: Option<&BlockStmt>) -> Vec<JsValue> {
+    let has_final_return_val = match fn_body_stmts {
+        Some(fn_body_stmts) => {
+            if let Some(Stmt::Return(ReturnStmt { arg: Some(_), .. })) = fn_body_stmts.stmts.last()
+            {
+                true
+            } else {
+                false
+            }
+        }
+        None => false,
+    };
+
+    if has_final_return_val {
+        vec![]
+    } else {
+        vec![JsValue::Constant(ConstantValue::Undefined)]
+    }
 }
