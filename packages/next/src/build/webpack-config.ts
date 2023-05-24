@@ -1039,6 +1039,7 @@ export default async function getBaseWebpackConfig(
             'next/dist/shared': 'next/dist/esm/shared',
             'next/dist/pages': 'next/dist/esm/pages',
             'next/dist/lib': 'next/dist/esm/lib',
+            'next/dist/server': 'next/dist/esm/server',
 
             // Alias the usage of next public APIs
             [require.resolve('next/dist/client/link')]:
@@ -1058,9 +1059,9 @@ export default async function getBaseWebpackConfig(
             [require.resolve('next/dist/pages/_app')]:
               'next/dist/esm/pages/_app',
             [require.resolve('next/dist/client/components/navigation')]:
-              'next/dist/client/components/navigation',
+              'next/dist/esm/client/components/navigation',
             [require.resolve('next/dist/client/components/headers')]:
-              'next/dist/client/components/headers',
+              'next/dist/esm/client/components/headers',
           }
         : undefined),
 
