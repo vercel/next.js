@@ -50,7 +50,7 @@
     "@babel/preset-react": "7.14.5",
     "@fullhuman/postcss-purgecss": "1.3.0",
     "@mdx-js/loader": "0.18.0",
-    "@svgr/webpack": "5.5.0",
+    "@svgr/webpack": "6.0.0",
     "@swc/cli": "0.1.55",
     "@swc/core": "1.2.148",
     "@testing-library/react": "13.0.0",
