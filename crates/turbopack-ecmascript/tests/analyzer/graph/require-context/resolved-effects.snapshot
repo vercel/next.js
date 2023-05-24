@@ -15,7 +15,7 @@
 0 -> 7 member call = require*0*["context"]("./test", false, /\.test\.js$/)
 - *0* require: The require method from CommonJS
 
-0 -> 8 call = (...) => (undefined | r["keys"]()["map"](r))(require.context(...)*0*)
+0 -> 8 call = (...) => r["keys"]()["map"](r)(require.context(...)*0*)
 - *0* require.context(...): The require.context(...) method from webpack: https://webpack.js.org/api/module-methods/#requirecontext
 
 0 -> 10 member call = require.context(...)*0*["resolve"]("./a")

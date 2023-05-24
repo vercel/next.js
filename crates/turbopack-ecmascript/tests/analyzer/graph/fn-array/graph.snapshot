@@ -16,45 +16,37 @@
     (
         "c",
         Function(
-            8,
+            6,
             1,
-            Alternatives(
-                7,
-                [
-                    Constant(
-                        Undefined,
-                    ),
-                    Array {
-                        total_nodes: 5,
-                        items: [
-                            Concat(
-                                3,
-                                [
-                                    Variable(
-                                        (
-                                            Atom('a' type=static),
-                                            #3,
-                                        ),
-                                    ),
-                                    Variable(
-                                        (
-                                            Atom('b' type=static),
-                                            #3,
-                                        ),
-                                    ),
-                                ],
-                            ),
+            Array {
+                total_nodes: 5,
+                items: [
+                    Concat(
+                        3,
+                        [
                             Variable(
                                 (
                                     Atom('a' type=static),
                                     #3,
                                 ),
                             ),
+                            Variable(
+                                (
+                                    Atom('b' type=static),
+                                    #3,
+                                ),
+                            ),
                         ],
-                        mutable: true,
-                    },
+                    ),
+                    Variable(
+                        (
+                            Atom('a' type=static),
+                            #3,
+                        ),
+                    ),
                 ],
-            ),
+                mutable: true,
+            },
         ),
     ),
     (

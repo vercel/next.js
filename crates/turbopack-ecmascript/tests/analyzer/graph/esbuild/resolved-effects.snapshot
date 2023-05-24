@@ -31,12 +31,12 @@
 
 17 -> 18 free var = FreeVar(ESBUILD_BINARY_PATH)
 
-0 -> 19 call = (...) => (undefined | {"pkg": pkg, "subpath": subpath})()
+0 -> 19 call = (...) => {"pkg": pkg, "subpath": subpath}()
 
 0 -> 21 free var = FreeVar(require)
 
 0 -> 22 member call = require*0*["resolve"](
-    `${(undefined["pkg"] | ???*1* | ???*2* | ???*3* | "esbuild-linux-64")}/${(undefined["subpath"] | ???*4* | "esbuild.exe" | "bin/esbuild" | ???*5*)}`
+    `${(???*1* | ???*2* | ???*3* | "esbuild-linux-64")}/${(???*4* | "esbuild.exe" | "bin/esbuild" | ???*5*)}`
 )
 - *0* require: The require method from CommonJS
 - *1* pkg
@@ -50,10 +50,7 @@
 
 0 -> 23 free var = FreeVar(downloadedBinPath)
 
-0 -> 24 call = ???*0*(
-    (undefined["pkg"] | ???*1* | ???*2* | ???*3* | "esbuild-linux-64"),
-    (undefined["subpath"] | ???*4* | "esbuild.exe" | "bin/esbuild" | ???*5*)
-)
+0 -> 24 call = ???*0*((???*1* | ???*2* | ???*3* | "esbuild-linux-64"), (???*4* | "esbuild.exe" | "bin/esbuild" | ???*5*))
 - *0* FreeVar(downloadedBinPath)
   ⚠️  unknown global
 - *1* pkg
@@ -73,7 +70,7 @@
 - *1* binPath
   ⚠️  pattern without value
 - *2* require.resolve*3*(
-        `${(undefined["pkg"] | ???*4* | ???*5* | ???*6* | "esbuild-linux-64")}/${(undefined["subpath"] | ???*7* | "esbuild.exe" | "bin/esbuild" | ???*8*)}`
+        `${(???*4* | ???*5* | ???*6* | "esbuild-linux-64")}/${(???*7* | "esbuild.exe" | "bin/esbuild" | ???*8*)}`
     )
   ⚠️  require.resolve non constant
 - *3* require.resolve: The require.resolve method from CommonJS
@@ -98,9 +95,7 @@
 
 28 -> 30 free var = FreeVar(require)
 
-28 -> 31 member call = require*0*["resolve"](
-    (undefined["pkg"] | ???*1* | ???*2* | ???*3* | "esbuild-linux-64")
-)
+28 -> 31 member call = require*0*["resolve"]((???*1* | ???*2* | ???*3* | "esbuild-linux-64"))
 - *0* require: The require method from CommonJS
 - *1* pkg
   ⚠️  pattern without value
@@ -125,9 +120,7 @@
 35 -> 40 member call = path*0*["dirname"]("\"esbuild\"/resolved/lib/index.js")
 - *0* path: The Node.js path module: https://nodejs.org/api/path.html
 
-35 -> 43 member call = path*0*["basename"](
-    (undefined["subpath"] | ???*1* | "esbuild.exe" | "bin/esbuild" | ???*2*)
-)
+35 -> 43 member call = path*0*["basename"]((???*1* | "esbuild.exe" | "bin/esbuild" | ???*2*))
 - *0* path: The Node.js path module: https://nodejs.org/api/path.html
 - *1* subpath
   ⚠️  pattern without value
@@ -135,7 +128,7 @@
 
 35 -> 44 member call = path*0*["join"](
     "\"esbuild\"/resolved/lib",
-    `pnpapi-${(undefined["pkg"] | ???*1* | ???*2* | ???*3* | "esbuild-linux-64")}-${???*4*}`
+    `pnpapi-${(???*1* | ???*2* | ???*3* | "esbuild-linux-64")}-${???*4*}`
 )
 - *0* path: The Node.js path module: https://nodejs.org/api/path.html
 - *1* pkg
@@ -143,9 +136,7 @@
 - *2* FreeVar(undefined)
   ⚠️  unknown global
 - *3* unknown mutation
-- *4* ???*5*(
-        (undefined["subpath"] | ???*7* | "esbuild.exe" | "bin/esbuild" | ???*8*)
-    )
+- *4* ???*5*((???*7* | "esbuild.exe" | "bin/esbuild" | ???*8*))
   ⚠️  unknown callee
 - *5* path*6*["basename"]
   ⚠️  unsupported property on Node.js path module
@@ -157,7 +148,7 @@
 35 -> 46 free var = FreeVar(fs)
 
 35 -> 47 member call = ???*0*["existsSync"](
-    `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(undefined["pkg"] | ???*1* | ???*2* | ???*3* | "esbuild-linux-64")}-${???*4*}`
+    `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*1* | ???*2* | ???*3* | "esbuild-linux-64")}-${???*4*}`
 )
 - *0* FreeVar(fs)
   ⚠️  unknown global
@@ -166,9 +157,7 @@
 - *2* FreeVar(undefined)
   ⚠️  unknown global
 - *3* unknown mutation
-- *4* ???*5*(
-        (undefined["subpath"] | ???*7* | "esbuild.exe" | "bin/esbuild" | ???*8*)
-    )
+- *4* ???*5*((???*7* | "esbuild.exe" | "bin/esbuild" | ???*8*))
   ⚠️  unknown callee
 - *5* path*6*["basename"]
   ⚠️  unsupported property on Node.js path module
@@ -187,14 +176,14 @@
 
 48 -> 51 member call = ???*0*["copyFileSync"](
     (???*1* | ???*2* | ???*9*),
-    `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(undefined["pkg"] | ???*11* | ???*12* | ???*13* | "esbuild-linux-64")}-${???*14*}`
+    `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*11* | ???*12* | ???*13* | "esbuild-linux-64")}-${???*14*}`
 )
 - *0* FreeVar(fs)
   ⚠️  unknown global
 - *1* binPath
   ⚠️  pattern without value
 - *2* require.resolve*3*(
-        `${(undefined["pkg"] | ???*4* | ???*5* | ???*6* | "esbuild-linux-64")}/${(undefined["subpath"] | ???*7* | "esbuild.exe" | "bin/esbuild" | ???*8*)}`
+        `${(???*4* | ???*5* | ???*6* | "esbuild-linux-64")}/${(???*7* | "esbuild.exe" | "bin/esbuild" | ???*8*)}`
     )
   ⚠️  require.resolve non constant
 - *3* require.resolve: The require.resolve method from CommonJS
@@ -216,7 +205,7 @@
   ⚠️  unknown global
 - *13* unknown mutation
 - *14* ???*15*(
-        (undefined["subpath"] | ???*17* | "esbuild.exe" | "bin/esbuild" | ???*18*)
+        (???*17* | "esbuild.exe" | "bin/esbuild" | ???*18*)
     )
   ⚠️  unknown callee
 - *15* path*16*["basename"]
@@ -229,7 +218,7 @@
 48 -> 53 free var = FreeVar(fs)
 
 48 -> 54 member call = ???*0*["chmodSync"](
-    `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(undefined["pkg"] | ???*1* | ???*2* | ???*3* | "esbuild-linux-64")}-${???*4*}`,
+    `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*1* | ???*2* | ???*3* | "esbuild-linux-64")}-${???*4*}`,
     493
 )
 - *0* FreeVar(fs)
@@ -239,9 +228,7 @@
 - *2* FreeVar(undefined)
   ⚠️  unknown global
 - *3* unknown mutation
-- *4* ???*5*(
-        (undefined["subpath"] | ???*7* | "esbuild.exe" | "bin/esbuild" | ???*8*)
-    )
+- *4* ???*5*((???*7* | "esbuild.exe" | "bin/esbuild" | ???*8*))
   ⚠️  unknown callee
 - *5* path*6*["basename"]
   ⚠️  unsupported property on Node.js path module
@@ -287,10 +274,9 @@
 65 -> 68 member call = path*0*["join"]("__dirname", "..", "bin", "esbuild")
 - *0* path: The Node.js path module: https://nodejs.org/api/path.html
 
-0 -> 69 call = (...) => (undefined | FreeVar(ESBUILD_BINARY_PATH) | binTargetPath | binPath)()
+0 -> 69 call = (...) => (FreeVar(ESBUILD_BINARY_PATH) | binTargetPath | binPath)()
 
 0 -> 70 call = (...) => (
-  | undefined
   | [
         "node",
         [

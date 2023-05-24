@@ -1,13 +1,61 @@
-$a = ???*0*
-- *0* max number of linking steps reached
+$a = (
+  | ???*0*
+  | null
+  | null["value"]["slice"]((???*1* | 0 | ???*2*), ???*3*)
+  | ???*4*
+  | null["textContent"]["slice"]((???*11* | 0 | ???*12*), ???*13*)
+  | ???*14*
+  | ???*15*
+  | undefined
+  | ???*17*
+  | null["value"]["slice"]((???*18* | 0 | ???*19*), ???*20*)
+  | null["textContent"]["slice"]((???*21* | 0 | ???*22*), ???*23*)
+)
+- *0* $a
+  ⚠️  pattern without value
+- *1* a
+  ⚠️  pattern without value
+- *2* updated with update expression
+- *3* unsupported expression
+- *4* ???*5*["slice"]((???*8* | 0 | ???*9*), ???*10*)
+  ⚠️  unknown callee object
+- *5* ???*6*["value"]
+  ⚠️  unknown object
+- *6* ???*7*["parentNode"]
+  ⚠️  unknown object
+- *7* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *8* a
+  ⚠️  pattern without value
+- *9* updated with update expression
+- *10* unsupported expression
+- *11* a
+  ⚠️  pattern without value
+- *12* updated with update expression
+- *13* unsupported expression
+- *14* unsupported expression
+- *15* ???*16*["data"]
+  ⚠️  unknown object
+- *16* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *17* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *18* a
+  ⚠️  pattern without value
+- *19* updated with update expression
+- *20* unsupported expression
+- *21* a
+  ⚠️  pattern without value
+- *22* updated with update expression
+- *23* unsupported expression
 
-$b = (...) => (undefined | a | b | null)
+$b = (...) => (a | b | null)
 
 $c = (...) => undefined
 
 $d = [9, 13, 27, 32]
 
-$e = (undefined | ???*0* | ???*1* | "animationend" | ???*2*)
+$e = (???*0* | ???*1* | "animationend" | ???*2*)
 - *0* FreeVar(undefined)
   ⚠️  unknown global
 - *1* unknown mutation
@@ -18,32 +66,32 @@ $f = (...) => undefined
 $g = (false | true)
 
 $h = {
-    "readContext": (...) => (undefined | b),
-    "useCallback": (...) => (undefined | d[0] | a),
-    "useContext": (...) => (undefined | b),
-    "useEffect": (...) => (undefined | ui(2048, 8, a, b)),
-    "useImperativeHandle": (...) => (undefined | ui(4, 4, yi["bind"](null, b, a), c)),
-    "useInsertionEffect": (...) => (undefined | ui(4, 2, a, b)),
-    "useLayoutEffect": (...) => (undefined | ui(4, 4, a, b)),
-    "useMemo": (...) => (undefined | d[0] | a),
-    "useReducer": (...) => (undefined | [f, d]),
-    "useRef": (...) => (undefined | di()["memoizedState"]),
-    "useState": (...) => (undefined | gi(ei)),
+    "readContext": (...) => b,
+    "useCallback": (...) => (d[0] | a),
+    "useContext": (...) => b,
+    "useEffect": (...) => ui(2048, 8, a, b),
+    "useImperativeHandle": (...) => ui(4, 4, yi["bind"](null, b, a), c),
+    "useInsertionEffect": (...) => ui(4, 2, a, b),
+    "useLayoutEffect": (...) => ui(4, 4, a, b),
+    "useMemo": (...) => (d[0] | a),
+    "useReducer": (...) => [f, d],
+    "useRef": (...) => di()["memoizedState"],
+    "useState": (...) => gi(ei),
     "useDebugValue": (...) => undefined,
-    "useDeferredValue": (...) => (undefined | ???*0* | Di(b, O["memoizedState"], a)),
-    "useTransition": (...) => (undefined | [a, b]),
+    "useDeferredValue": (...) => (???*0* | Di(b, O["memoizedState"], a)),
+    "useTransition": (...) => [a, b],
     "useMutableSource": (...) => undefined,
-    "useSyncExternalStore": (...) => (undefined | e),
-    "useId": (...) => (undefined | di()["memoizedState"]),
+    "useSyncExternalStore": (...) => e,
+    "useId": (...) => di()["memoizedState"],
     "unstable_isNewReconciler": false
 }
 - *0* unsupported expression
 
-$i = (...) => (undefined | null | b["child"])
+$i = (...) => (null | b["child"])
 
-$k = (...) => (undefined | 1 | 0 | 11 | 14 | 2)
+$k = (...) => (1 | 0 | 11 | 14 | 2)
 
-*anonymous function 10089* = (...) => (undefined | d)
+*anonymous function 10089* = (...) => d
 
 *anonymous function 100988* = (...) => undefined
 
@@ -53,7 +101,7 @@ $k = (...) => (undefined | 1 | 0 | 11 | 14 | 2)
 
 *anonymous function 108286* = (...) => undefined
 
-*anonymous function 114743* = (...) => (undefined | null)
+*anonymous function 114743* = (...) => null
 
 *anonymous function 117815* = (...) => (
   | undefined
@@ -98,41 +146,41 @@ $k = (...) => (undefined | 1 | 0 | 11 | 14 | 2)
 
 *anonymous function 128036* = (...) => undefined
 
-*anonymous function 128133* = (...) => (undefined | C)
+*anonymous function 128133* = (...) => C
 
 *anonymous function 128157* = (...) => (undefined | b())
 
 *anonymous function 128216* = (...) => undefined
 
-*anonymous function 129223* = (...) => (undefined | null | a["stateNode"])
+*anonymous function 129223* = (...) => (null | a["stateNode"])
 
-*anonymous function 129753* = (...) => (undefined | dl(a, b, null, c))
+*anonymous function 129753* = (...) => dl(a, b, null, c)
 
-*anonymous function 129905* = (...) => (undefined | ???*0*)
+*anonymous function 129905* = (...) => ???*0*
 - *0* unknown new expression
 
-*anonymous function 130256* = (...) => (undefined | null | a)
+*anonymous function 130256* = (...) => (null | a)
 
-*anonymous function 130523* = (...) => (undefined | Sk(a))
+*anonymous function 130523* = (...) => Sk(a)
 
-*anonymous function 130565* = (...) => (undefined | sl(null, a, b, !(0), c))
+*anonymous function 130565* = (...) => sl(null, a, b, !(0), c)
 
-*anonymous function 130658* = (...) => (undefined | ???*0*)
+*anonymous function 130658* = (...) => ???*0*
 - *0* unknown new expression
 
-*anonymous function 131212* = (...) => (undefined | sl(null, a, b, !(1), c))
+*anonymous function 131212* = (...) => sl(null, a, b, !(1), c)
 
-*anonymous function 131315* = (...) => (undefined | !(0) | !(1))
+*anonymous function 131315* = (...) => (!(0) | !(1))
 
 *anonymous function 131389* = (...) => undefined
 
 *anonymous function 131418* = (...) => undefined
 
-*anonymous function 131559* = (...) => (undefined | sl(a, b, c, !(1), d))
+*anonymous function 131559* = (...) => sl(a, b, c, !(1), d)
 
 *anonymous function 13525* = (...) => undefined
 
-*anonymous function 13573* = (...) => (undefined | a(b, c, d, e))
+*anonymous function 13573* = (...) => a(b, c, d, e)
 
 *anonymous function 13608* = (...) => undefined
 
@@ -160,37 +208,30 @@ $k = (...) => (undefined | 1 | 0 | 11 | 14 | 2)
 
 *anonymous function 28013* = (...) => undefined
 
-*anonymous function 28108* = (...) => (undefined | (a["timeStamp"] || FreeVar(Date)["now"]()))
+*anonymous function 28108* = (...) => (a["timeStamp"] || FreeVar(Date)["now"]())
 
-*anonymous function 28404* = (...) => (undefined | a["toElement"] | a["fromElement"] | a["relatedTarget"])
+*anonymous function 28404* = (...) => (a["toElement"] | a["fromElement"] | a["relatedTarget"])
 
-*anonymous function 28530* = (...) => (undefined | a["movementX"] | wd)
+*anonymous function 28530* = (...) => (a["movementX"] | wd)
 
-*anonymous function 28699* = (...) => (undefined | a["movementY"] | xd)
+*anonymous function 28699* = (...) => (a["movementY"] | xd)
 
-*anonymous function 28936* = (...) => (undefined | a["clipboardData"] | FreeVar(window)["clipboardData"])
+*anonymous function 28936* = (...) => (a["clipboardData"] | FreeVar(window)["clipboardData"])
 
-*anonymous function 29891* = (...) => (
-  | undefined
-  | b
-  | "Enter"
-  | FreeVar(String)["fromCharCode"](a)
-  | (Nd[a["keyCode"]] || "Unidentified")
-  | ""
-)
+*anonymous function 29891* = (...) => (b | "Enter" | FreeVar(String)["fromCharCode"](a) | (Nd[a["keyCode"]] || "Unidentified") | "")
 
 *anonymous function 3008* = (...) => undefined
 
-*anonymous function 30217* = (...) => (undefined | od(a) | 0)
+*anonymous function 30217* = (...) => (od(a) | 0)
 
-*anonymous function 30272* = (...) => (undefined | a["keyCode"] | 0)
+*anonymous function 30272* = (...) => (a["keyCode"] | 0)
 
-*anonymous function 30346* = (...) => (undefined | od(a) | a["keyCode"] | 0)
+*anonymous function 30346* = (...) => (od(a) | a["keyCode"] | 0)
 
-*anonymous function 30803* = (...) => (undefined | a["deltaX"] | ???*0* | 0)
+*anonymous function 30803* = (...) => (a["deltaX"] | ???*0* | 0)
 - *0* unsupported expression
 
-*anonymous function 30887* = (...) => (undefined | a["deltaY"] | ???*0* | 0)
+*anonymous function 30887* = (...) => (a["deltaY"] | ???*0* | 0)
 - *0* unsupported expression
 
 *anonymous function 3119* = (...) => undefined
@@ -207,7 +248,7 @@ $k = (...) => (undefined | 1 | 0 | 11 | 14 | 2)
 
 *anonymous function 4580* = (...) => undefined
 
-*anonymous function 45964* = (...) => (undefined | Hf["resolve"](null)["then"](a)["catch"](If))
+*anonymous function 45964* = (...) => Hf["resolve"](null)["then"](a)["catch"](If)
 
 *anonymous function 46048* = (...) => undefined
 
@@ -219,7 +260,7 @@ $k = (...) => (undefined | 1 | 0 | 11 | 14 | 2)
 
 *anonymous function 5213* = (...) => undefined
 
-*anonymous function 55504* = (...) => (undefined | (Vb(a) === a) | !(1))
+*anonymous function 55504* = (...) => ((Vb(a) === a) | !(1))
 
 *anonymous function 55574* = (...) => undefined
 
@@ -229,9 +270,9 @@ $k = (...) => (undefined | 1 | 0 | 11 | 14 | 2)
 
 *anonymous function 58064* = (...) => undefined
 
-*anonymous function 61566* = (...) => (undefined | b(e, a))
+*anonymous function 61566* = (...) => b(e, a)
 
-*anonymous function 62327* = (...) => (undefined | b(e, a))
+*anonymous function 62327* = (...) => b(e, a)
 
 *anonymous function 67764* = (...) => undefined
 
@@ -243,51 +284,51 @@ $k = (...) => (undefined | 1 | 0 | 11 | 14 | 2)
 
 *anonymous function 69089* = (...) => undefined
 
-*anonymous function 71076* = (...) => (undefined | a)
+*anonymous function 71076* = (...) => a
 
-*anonymous function 71188* = (...) => (undefined | ti(4194308, 4, yi["bind"](null, b, a), c))
+*anonymous function 71188* = (...) => ti(4194308, 4, yi["bind"](null, b, a), c)
 
-*anonymous function 71305* = (...) => (undefined | ti(4194308, 4, a, b))
+*anonymous function 71305* = (...) => ti(4194308, 4, a, b)
 
-*anonymous function 71364* = (...) => (undefined | ti(4, 2, a, b))
+*anonymous function 71364* = (...) => ti(4, 2, a, b)
 
-*anonymous function 71406* = (...) => (undefined | a)
+*anonymous function 71406* = (...) => a
 
-*anonymous function 71500* = (...) => (undefined | [d["memoizedState"], a])
+*anonymous function 71500* = (...) => [d["memoizedState"], a]
 
-*anonymous function 71750* = (...) => (undefined | ???*0*)
+*anonymous function 71750* = (...) => ???*0*
 - *0* unsupported expression
 
-*anonymous function 71860* = (...) => (undefined | ???*0*)
+*anonymous function 71860* = (...) => ???*0*
 - *0* unsupported expression
 
-*anonymous function 71915* = (...) => (undefined | [b, a])
+*anonymous function 71915* = (...) => [b, a]
 
 *anonymous function 72018* = (...) => undefined
 
-*anonymous function 72052* = (...) => (undefined | c)
+*anonymous function 72052* = (...) => c
 
-*anonymous function 72352* = (...) => (undefined | ???*0*)
+*anonymous function 72352* = (...) => ???*0*
 - *0* unsupported expression
 
-*anonymous function 72781* = (...) => (undefined | fi(ei))
+*anonymous function 72781* = (...) => fi(ei)
 
-*anonymous function 72842* = (...) => (undefined | Di(b, O["memoizedState"], a))
+*anonymous function 72842* = (...) => Di(b, O["memoizedState"], a)
 
-*anonymous function 72911* = (...) => (undefined | [a, b])
+*anonymous function 72911* = (...) => [a, b]
 
-*anonymous function 73223* = (...) => (undefined | gi(ei))
+*anonymous function 73223* = (...) => gi(ei)
 
-*anonymous function 73283* = (...) => (undefined | ???*0* | Di(b, O["memoizedState"], a))
+*anonymous function 73283* = (...) => (???*0* | Di(b, O["memoizedState"], a))
 - *0* unsupported expression
 
-*anonymous function 73380* = (...) => (undefined | [a, b])
+*anonymous function 73380* = (...) => [a, b]
 
 *anonymous function 73860* = (...) => undefined
 
 *anonymous function 74018* = (...) => undefined
 
-*anonymous function 74191* = (...) => (undefined | d(e))
+*anonymous function 74191* = (...) => d(e)
 
 *anonymous function 74226* = (...) => undefined
 
@@ -301,7 +342,7 @@ $k = (...) => (undefined | 1 | 0 | 11 | 14 | 2)
 
 *anonymous function 87803* = (...) => undefined
 
-*anonymous function 9947* = (...) => (undefined | e["call"](???*0*))
+*anonymous function 9947* = (...) => e["call"](???*0*)
 - *0* unsupported expression
 
 *anonymous function 9983* = (...) => undefined
@@ -360,7 +401,7 @@ Af = (...) => undefined
 
 Ag = (...) => undefined
 
-Ah = (...) => (undefined | a)
+Ah = (...) => a
 
 Ai = (...) => undefined
 
@@ -388,22 +429,19 @@ Bb = (...) => undefined
 
 Bc = (...) => undefined
 
-Bd = (undefined | (...) => (undefined | ???*0*))
+Bd = (...) => ???*0*
 - *0* unsupported expression
 
 Be = (...) => undefined
 
 Bf = (...) => undefined
 
-Bg = (...) => (undefined | ???*0*)
+Bg = (...) => ???*0*
 - *0* unknown new expression
 
-Bh = (
-  | undefined
-  | (...) => (undefined | g(a) | J(a, d, l(f["_payload"]), h) | n(a, d, f, h) | t(a, d, f, h) | c(a, d))
-)
+Bh = (...) => (g(a) | J(a, d, l(f["_payload"]), h) | n(a, d, f, h) | t(a, d, f, h) | c(a, d))
 
-Bi = (...) => (undefined | d[0] | a)
+Bi = (...) => (d[0] | a)
 
 Bj = (???*0* | (...) => undefined)
 - *0* Bj
@@ -421,7 +459,7 @@ Ca = ???*0*
 - *1* FreeVar(Symbol)
   ⚠️  unknown global
 
-Cb = (...) => (undefined | null | a)
+Cb = (...) => (null | a)
 
 Cc = (...) => undefined
 
@@ -443,18 +481,15 @@ Cf = (null | true | false | !(???*0*))
 
 Cg = (...) => (undefined | !(0) | !(1))
 
-Ch = (
-  | undefined
-  | (...) => (undefined | g(a) | J(a, d, l(f["_payload"]), h) | n(a, d, f, h) | t(a, d, f, h) | c(a, d))
-)
+Ch = (...) => (g(a) | J(a, d, l(f["_payload"]), h) | n(a, d, f, h) | t(a, d, f, h) | c(a, d))
 
-Ci = (...) => (undefined | d[0] | a)
+Ci = (...) => (d[0] | a)
 
 Cj = (???*0* | (...) => undefined)
 - *0* Cj
   ⚠️  pattern without value
 
-Ck = (0 | undefined | 64 | ???*0*)
+Ck = (0 | 64 | ???*0*)
 - *0* unsupported assign operation
 
 D = (...) => undefined
@@ -465,11 +500,11 @@ Da = ???*0*
 - *1* FreeVar(Symbol)
   ⚠️  unknown global
 
-Db = (...) => (undefined | (a[Pf] || null))
+Db = (...) => (a[Pf] || null)
 
-Dc = (...) => (undefined | 16 | 536870912 | 4 | 1)
+Dc = (...) => (16 | 536870912 | 4 | 1)
 
-Dd = (undefined | (...) => (undefined | ???*0*))
+Dd = (...) => ???*0*
 - *0* unsupported expression
 
 De = (...) => (undefined | te(qe))
@@ -477,13 +512,13 @@ De = (...) => (undefined | te(qe))
 Df = ???*0*
 - *0* max number of linking steps reached
 
-Dg = (...) => (undefined | ((0 !== ???*0*) && (0 === ???*1*)))
+Dg = (...) => ((0 !== ???*0*) && (0 === ???*1*))
 - *0* unsupported expression
 - *1* unsupported expression
 
 Dh = {}
 
-Di = (...) => (undefined | ???*0* | b)
+Di = (...) => (???*0* | b)
 - *0* unsupported expression
 
 Dj = (???*0* | (...) => undefined)
@@ -517,17 +552,14 @@ Ed = ???*0*
 Ee = (...) => (undefined | te(b))
 
 Ef = (...) => (
-  | undefined
-  | (
-     || ("textarea" === a)
-     || ("noscript" === a)
-     || ("string" === ???*0*)
-     || ("number" === ???*1*)
-     || (
-         && ("object" === ???*2*)
-         && (null !== b["dangerouslySetInnerHTML"])
-         && (null != b["dangerouslySetInnerHTML"]["__html"])
-        )
+ || ("textarea" === a)
+ || ("noscript" === a)
+ || ("string" === ???*0*)
+ || ("number" === ???*1*)
+ || (
+     && ("object" === ???*2*)
+     && (null !== b["dangerouslySetInnerHTML"])
+     && (null != b["dangerouslySetInnerHTML"]["__html"])
     )
 )
 - *0* unsupported expression
@@ -536,7 +568,7 @@ Ef = (...) => (
 
 Eg = (...) => undefined
 
-Eh = (undefined | {"current": {}})
+Eh = {"current": {}}
 
 Ei = (...) => undefined
 
@@ -573,7 +605,7 @@ Fc = (???*0* | (...) => undefined)
 - *0* Fc
   ⚠️  pattern without value
 
-Fd = (undefined | (...) => (undefined | ???*0*))
+Fd = (...) => ???*0*
 - *0* unsupported expression
 
 Fe = (...) => (undefined | te(b))
@@ -585,13 +617,13 @@ Ff = (???*0* | ???*1*)
 
 Fg = (...) => undefined
 
-Fh = (undefined | {"current": {}})
+Fh = {"current": {}}
 
-Fi = (...) => (undefined | di()["memoizedState"])
+Fi = (...) => di()["memoizedState"]
 
 Fj = (...) => (undefined | null | b | b["child"])
 
-Fk = (...) => (undefined | null)
+Fk = (...) => null
 
 G = (...) => undefined
 
@@ -601,7 +633,7 @@ Ga = ???*0*
 - *1* FreeVar(Symbol)
   ⚠️  unknown global
 
-Gb = ((...) => (undefined | a(b)) | (...) => (undefined | a(b)))
+Gb = ((...) => a(b) | (...) => (undefined | a(b)))
 
 Gc = (???*0* | (...) => undefined)
 - *0* Gc
@@ -619,10 +651,7 @@ Gd = ???*0*
 - *2* FreeVar(Object)
   ⚠️  unknown global
 
-Ge = (...) => (
-  | undefined
-  | (((a === b) && ((0 !== a) || (???*0* === ???*1*))) || ((a !== a) && (b !== b)))
-)
+Ge = (...) => (((a === b) && ((0 !== a) || (???*0* === ???*1*))) || ((a !== a) && (b !== b)))
 - *0* unsupported expression
 - *1* unsupported expression
 
@@ -631,17 +660,17 @@ Gf = (???*0* | ???*1*)
   ⚠️  unknown global
 - *1* unsupported expression
 
-Gg = (...) => (undefined | !(1) | !(0))
+Gg = (...) => (!(1) | !(0))
 
-Gh = (undefined | {"current": {}})
+Gh = {"current": {}}
 
 Gi = (...) => undefined
 
 Gj = (...) => undefined
 
-Gk = (...) => (undefined | ac(a, b))
+Gk = (...) => ac(a, b)
 
-H = (undefined | {"current": {}})
+H = {"current": {}}
 
 Ha = ???*0*
 - *0* ???*1*["for"]("react.lazy")
@@ -651,19 +680,16 @@ Ha = ???*0*
 
 Hb = ((...) => undefined | (...) => (undefined | a()))
 
-Hc = (???*0* | (...) => (undefined | C))
+Hc = (???*0* | (...) => C)
 - *0* Hc
   ⚠️  pattern without value
 
-Hd = (undefined | (...) => (undefined | ???*0*))
+Hd = (...) => ???*0*
 - *0* unsupported expression
 
 He = (
   | ???*0*
-  | (...) => (
-      | undefined
-      | (((a === b) && ((0 !== a) || (???*2* === ???*3*))) || ((a !== a) && (b !== b)))
-    )
+  | (...) => (((a === b) && ((0 !== a) || (???*2* === ???*3*))) || ((a !== a) && (b !== b)))
 )
 - *0* ???*1*["is"]
   ⚠️  unknown object
@@ -679,9 +705,9 @@ Hf = (???*0* | ???*1*)
 
 Hg = (...) => undefined
 
-Hh = (...) => (undefined | a)
+Hh = (...) => a
 
-Hi = (...) => (undefined | ((a === N) || ((null !== b) && (b === N))))
+Hi = (...) => ((a === N) || ((null !== b) && (b === N)))
 
 Hj = (???*0* | (???*1* + 500))
 - *0* FreeVar(Infinity)
@@ -689,7 +715,7 @@ Hj = (???*0* | (???*1* + 500))
 - *1* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
 
-Hk = (...) => (undefined | null | Hk["bind"](null, a))
+Hk = (...) => (null | Hk["bind"](null, a))
 
 I = (false | true)
 
@@ -713,7 +739,7 @@ Id = ???*0*
 - *2* FreeVar(Object)
   ⚠️  unknown global
 
-Ie = (...) => (undefined | !(0) | !(1))
+Ie = (...) => (!(0) | !(1))
 
 If = (...) => undefined
 
@@ -725,12 +751,12 @@ Ii = (...) => undefined
 
 Ij = (...) => undefined
 
-Ik = (...) => (undefined | d | !(1))
+Ik = (...) => (d | !(1))
 
 J#292 = ???*0*
 - *0* max number of linking steps reached
 
-J#431 = (...) => (undefined | g(a) | J(a, d, l(f["_payload"]), h) | n(a, d, f, h) | t(a, d, f, h) | c(a, d))
+J#431 = (...) => (g(a) | J(a, d, l(f["_payload"]), h) | n(a, d, f, h) | t(a, d, f, h) | c(a, d))
 
 J#673 = ???*0*
 - *0* max number of linking steps reached
@@ -751,14 +777,14 @@ Jb = (...) => (undefined | a(b, c) | Gb(a, b, c))
 
 Jc = (false | true)
 
-Jd = (undefined | (...) => (undefined | ???*0*))
+Jd = (...) => ???*0*
 - *0* unsupported expression
 
-Je = (...) => (undefined | a)
+Je = (...) => a
 
 Jf = (
   | ???*0*
-  | (...) => (undefined | Hf["resolve"](null)["then"](a)["catch"](If))
+  | (...) => Hf["resolve"](null)["then"](a)["catch"](If)
   | ???*1*
 )
 - *0* FreeVar(queueMicrotask)
@@ -773,14 +799,14 @@ Ji = (...) => undefined
 
 Jj = (...) => (undefined | b | null)
 
-Jk = (...) => (undefined | T)
+Jk = (...) => T
 
 K = ???*0*
 - *0* max number of linking steps reached
 
-Ka = (...) => (undefined | null | a)
+Ka = (...) => (null | a)
 
-Kb = (...) => (undefined | null | c)
+Kb = (...) => (null | c)
 
 Kc = []
 
@@ -801,17 +827,14 @@ Kg = module<react, {}>["__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED"]["Re
 
 Kh = (...) => undefined
 
-Ki = (...) => (
-  | undefined
-  | {"value": a, "source": b, "stack": e, "digest": null}
-)
+Ki = (...) => {"value": a, "source": b, "stack": e, "digest": null}
 
 Kj = ???*0*
 - *0* max number of linking steps reached
 
-Kk = (...) => (undefined | ai | a)
+Kk = (...) => (ai | a)
 
-L = (...) => (undefined | B() | Bk | ???*0*)
+L = (...) => (B() | Bk | ???*0*)
 - *0* unsupported expression
 
 La = (???*0* | ???*1* | ???*6* | "")
@@ -842,10 +865,9 @@ Lb = (false | true)
 
 Lc = (
   | null
-  | undefined
   | ???*0*
   | {
-        "blockedOn": (???*1* | undefined | null | ???*2* | ???*3*),
+        "blockedOn": (???*1* | null | ???*2* | ???*3*),
         "domEventName": ???*5*,
         "eventSystemFlags": ???*6*,
         "nativeEvent": ???*7*,
@@ -871,45 +893,38 @@ Lc = (
 - *8* arguments[3]
   ⚠️  function calls are not analysed yet
 
-Ld = (undefined | (...) => (undefined | ???*0*))
+Ld = (...) => ???*0*
 - *0* unsupported expression
 
-Le = (...) => (undefined | !(0) | !(1) | Le(a, b["parentNode"]) | a["contains"](b) | !(!(???*0*)))
+Le = (...) => (!(0) | !(1) | Le(a, b["parentNode"]) | a["contains"](b) | !(!(???*0*)))
 - *0* unsupported expression
 
-Lf = (...) => (undefined | null | a)
+Lf = (...) => (null | a)
 
-Lg = (...) => (undefined | b)
+Lg = (...) => b
 
 Lh = (...) => undefined
 
-Li = (...) => (
-  | undefined
-  | {"value": a, "source": null, "stack": (c | null), "digest": (b | null)}
-)
+Li = (...) => {"value": a, "source": null, "stack": (c | null), "digest": (b | null)}
 
 Lj = ???*0*
 - *0* FreeVar(WeakSet)
   ⚠️  unknown global
 
-Lk = (...) => (undefined | a)
+Lk = (...) => a
 
-M = (undefined | {"current": 0})
+M = {"current": 0}
 
-Ma = (...) => (
-  | undefined
-  | `
+Ma = (...) => `
 ${La}${a}`
-)
 
 Mb = {}
 
 Mc = (
   | null
-  | undefined
   | ???*0*
   | {
-        "blockedOn": (???*1* | undefined | null | ???*2* | ???*3*),
+        "blockedOn": (???*1* | null | ???*2* | ???*3*),
         "domEventName": ???*5*,
         "eventSystemFlags": ???*6*,
         "nativeEvent": ???*7*,
@@ -950,13 +965,13 @@ Md = {
     "MozPrintableKey": "Unidentified"
 }
 
-Me = (...) => (undefined | b)
+Me = (...) => b
 
-Mf = (...) => (undefined | a | null)
+Mf = (...) => (a | null)
 
-Mg = (undefined | {"current": null})
+Mg = {"current": null}
 
-Mh = (...) => (undefined | b | null)
+Mh = (...) => (b | null)
 
 Mi = (...) => undefined
 
@@ -1010,10 +1025,9 @@ Nb = (...) => undefined
 
 Nc = (
   | null
-  | undefined
   | ???*0*
   | {
-        "blockedOn": (???*1* | undefined | null | ???*2* | ???*3*),
+        "blockedOn": (???*1* | null | ???*2* | ???*3*),
         "domEventName": ???*5*,
         "eventSystemFlags": ???*6*,
         "nativeEvent": ???*7*,
@@ -1079,23 +1093,20 @@ Nd = {
 }
 
 Ne = (...) => (
-  | undefined
-  | (
-     && b
-     && (
-         || (
-             && ("input" === b)
-             && (
-                 || ("text" === a["type"])
-                 || ("search" === a["type"])
-                 || ("tel" === a["type"])
-                 || ("url" === a["type"])
-                 || ("password" === a["type"])
-                )
+ && b
+ && (
+     || (
+         && ("input" === b)
+         && (
+             || ("text" === a["type"])
+             || ("search" === a["type"])
+             || ("tel" === a["type"])
+             || ("url" === a["type"])
+             || ("password" === a["type"])
             )
-         || ("textarea" === b)
-         || ("true" === a["contentEditable"])
         )
+     || ("textarea" === b)
+     || ("true" === a["contentEditable"])
     )
 )
 
@@ -1169,7 +1180,7 @@ O = (
   ⚠️  unknown object
 - *14* unsupported expression
 
-Oa = (...) => (undefined | "" | k | Ma(a))
+Oa = (...) => ("" | k | Ma(a))
 
 Ob = (false | true)
 
@@ -1210,11 +1221,11 @@ Og = (
 
 Oh = (...) => undefined
 
-Oi = (...) => (undefined | c)
+Oi = (...) => c
 
 Oj = false
 
-Ok = (...) => (undefined | a)
+Ok = (...) => a
 
 P = ???*0*
 - *0* max number of linking steps reached
@@ -1228,7 +1239,7 @@ Pb = (null | ???*0*)
 Pc = ???*0*
 - *0* unknown new expression
 
-Pd = (...) => (undefined | b["getModifierState"](a) | !(!(b[a])) | !(1))
+Pd = (...) => (b["getModifierState"](a) | !(!(b[a])) | !(1))
 
 Pe = (!(???*0*) | ???*2*)
 - *0* ("undefined" === ???*1*)
@@ -1255,14 +1266,13 @@ Ph = module<react, {}>["__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED"]["Re
 
 Pi = (true | false)
 
-Pj = (...) => (undefined | n)
+Pj = (...) => n
 
-Pk = (...) => (undefined | !(1) | !(0))
+Pk = (...) => (!(1) | !(0))
 
 Q = (...) => undefined
 
 Qa = (...) => (
-  | undefined
   | null
   | (a["displayName"] || a["name"] || null)
   | a
@@ -1336,9 +1346,9 @@ Qi = (???*0* | null)
 
 Qj = (...) => undefined
 
-Qk = (...) => (undefined | null)
+Qk = (...) => null
 
-R = (null | ???*0* | undefined | ???*1* | ???*4*)
+R = (null | ???*0* | ???*1* | ???*4*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["alternate"]
@@ -1350,7 +1360,6 @@ R = (null | ???*0* | undefined | ???*1* | ???*4*)
 - *4* unknown new expression
 
 Ra = (...) => (
-  | undefined
   | "Cache"
   | `${(b["displayName"] || "Context")}.Consumer`
   | `${(b["_context"]["displayName"] || "Context")}.Provider`
@@ -1380,7 +1389,7 @@ Rb = (null | ???*0*)
 
 Rc = "mousedown mouseup touchcancel touchend touchstart auxclick dblclick pointercancel pointerdown pointerup dragend dragstart drop compositionend compositionstart keydown keypress keyup input textInput copy cut paste click change contextmenu reset submit"["split"](" ")
 
-Rd = (undefined | (...) => (undefined | ???*0*))
+Rd = (...) => ???*0*
 - *0* unsupported expression
 
 Re = ???*0*
@@ -1406,13 +1415,13 @@ Rh = (0 | ???*0* | (???*1* + 1))
 - *1* f
   ⚠️  circular variable reference
 
-Ri = (...) => (undefined | c)
+Ri = (...) => c
 
 Rj = (...) => undefined
 
 Rk = (...) => (undefined | a(b))
 
-S = (...) => (undefined | b)
+S = (...) => b
 
 Sa = (...) => (undefined | a | "")
 
@@ -1461,17 +1470,14 @@ Sk = (...) => (undefined | a())
 
 T = (3 | 0 | 1 | 2 | 4 | 6 | 5)
 
-Ta = (...) => (
-  | undefined
-  | (???*0* && ("input" === a["toLowerCase"]()) && (("checkbox" === b) || ("radio" === b)))
-)
+Ta = (...) => (???*0* && ("input" === a["toLowerCase"]()) && (("checkbox" === b) || ("radio" === b)))
 - *0* unsupported expression
 
 Tb = (...) => undefined
 
-Tc = (...) => (undefined | a)
+Tc = (...) => a
 
-Td = (undefined | (...) => (undefined | ???*0*))
+Td = (...) => ???*0*
 - *0* unsupported expression
 
 Te = (false | true)
@@ -1505,7 +1511,7 @@ Ua = (...) => (
 
 Ub = (...) => undefined
 
-Uc = (...) => (undefined | !(0) | !(1))
+Uc = (...) => (!(0) | !(1))
 
 Ud = ???*0*
 - *0* ???*1*(
@@ -1530,7 +1536,7 @@ Ud = ???*0*
 
 Ue = (...) => undefined
 
-Uf = (...) => (undefined | {"current": a})
+Uf = (...) => {"current": a}
 
 Ug = (true | false)
 
@@ -1539,10 +1545,7 @@ Uh = (0 | ???*0*)
 
 Ui = (...) => undefined
 
-Uj = (...) => (
-  | undefined
-  | ((5 === a["tag"]) || (3 === a["tag"]) || (4 === a["tag"]))
-)
+Uj = (...) => ((5 === a["tag"]) || (3 === a["tag"]) || (4 === a["tag"]))
 
 Uk = (...) => undefined
 
@@ -1551,23 +1554,23 @@ V = ???*0*
 
 Va = (...) => undefined
 
-Vb = (...) => (undefined | c | null)
+Vb = (...) => (c | null)
 
 Vc = (...) => (undefined | FreeVar(undefined))
 
-Vd = (undefined | (...) => (undefined | ???*0*))
+Vd = (...) => ???*0*
 - *0* unsupported expression
 
-Ve = (...) => (undefined | c)
+Ve = (...) => c
 
 Vf = {}
 
-Vg = (...) => (undefined | b)
+Vg = (...) => b
 
 Vh = (0 | ???*0*)
 - *0* updated with update expression
 
-Vi = (...) => (undefined | a | null)
+Vi = (...) => (a | null)
 
 Vj = (...) => (undefined | null | a["stateNode"])
 
@@ -1575,11 +1578,11 @@ Vk = (...) => undefined
 
 W = (...) => undefined
 
-Wa = (...) => (undefined | !(1) | !(0))
+Wa = (...) => (!(1) | !(0))
 
-Wb = (...) => (undefined | b["dehydrated"] | null)
+Wb = (...) => (b["dehydrated"] | null)
 
-Wc = (...) => (undefined | b | c | null)
+Wc = (...) => (b | c | null)
 
 Wd = ???*0*
 - *0* ???*1*(
@@ -1593,22 +1596,17 @@ Wd = ???*0*
 - *2* FreeVar(Object)
   ⚠️  unknown global
 
-We = {
-    "animationend": (undefined | {}),
-    "animationiteration": (undefined | {}),
-    "animationstart": (undefined | {}),
-    "transitionend": (undefined | {})
-}
+We = {"animationend": {}, "animationiteration": {}, "animationstart": {}, "transitionend": {}}
 
-Wf = (undefined | {"current": false})
+Wf = {"current": false}
 
 Wg = (null | [???*0*])
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-Wh = (...) => (undefined | !(1) | !(0))
+Wh = (...) => (!(1) | !(0))
 
-Wi = (...) => (undefined | a)
+Wi = (...) => a
 
 Wj = (...) => undefined
 
@@ -1641,49 +1639,46 @@ Xa = (...) => (undefined | null | (a["activeElement"] || a["body"]) | a["body"])
 
 Xb = (...) => undefined
 
-Xc = (...) => (undefined | !(1) | !(0))
+Xc = (...) => (!(1) | !(0))
 
-Xd = (undefined | (...) => (undefined | ???*0*))
+Xd = (...) => ???*0*
 - *0* unsupported expression
 
 Xe = {}
 
-Xf = ({} | undefined["current"] | ???*0*)
+Xf = ({} | ???*0*)
 - *0* unknown mutation
 
 Xg = (...) => undefined
 
-Xh = (...) => (undefined | a)
+Xh = (...) => a
 
 Xi = module<react, {}>["__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED"]["ReactCurrentOwner"]
 
 Xj = (...) => undefined
 
-Xk = (...) => (undefined | null)
+Xk = (...) => null
 
 Y = ???*0*
 - *0* max number of linking steps reached
 
-Ya = (...) => (
-  | undefined
-  | A(
-        {},
-        b,
-        {
-            "defaultChecked": ???*0*,
-            "defaultValue": ???*1*,
-            "value": ???*2*,
-            "checked": (c | a["_wrapperState"]["initialChecked"])
-        }
-    )
+Ya = (...) => A(
+    {},
+    b,
+    {
+        "defaultChecked": ???*0*,
+        "defaultValue": ???*1*,
+        "value": ???*2*,
+        "checked": (c | a["_wrapperState"]["initialChecked"])
+    }
 )
 - *0* unsupported expression
 - *1* unsupported expression
 - *2* unsupported expression
 
-Yb = (...) => (undefined | null | a | b)
+Yb = (...) => (null | a | b)
 
-Yc = (...) => (undefined | a | b["stateNode"]["containerInfo"] | null)
+Yc = (...) => (a | b["stateNode"]["containerInfo"] | null)
 
 Yd = ???*0*
 - *0* ???*1*(
@@ -1710,28 +1705,28 @@ Ye = ({} | ???*0*)
 - *2* FreeVar(document)
   ⚠️  unknown global
 
-Yf = (...) => (undefined | Vf | d["__reactInternalMemoizedMaskedChildContext"] | e)
+Yf = (...) => (Vf | d["__reactInternalMemoizedMaskedChildContext"] | e)
 
-Yg = (...) => (undefined | Zg(a, d))
+Yg = (...) => Zg(a, d)
 
 Yh = {
-    "readContext": (...) => (undefined | b),
-    "useCallback": (...) => (undefined | a),
-    "useContext": (...) => (undefined | b),
-    "useEffect": (...) => (undefined | ti(8390656, 8, a, b)),
-    "useImperativeHandle": (...) => (undefined | ti(4194308, 4, yi["bind"](null, b, a), c)),
-    "useLayoutEffect": (...) => (undefined | ti(4194308, 4, a, b)),
-    "useInsertionEffect": (...) => (undefined | ti(4, 2, a, b)),
-    "useMemo": (...) => (undefined | a),
-    "useReducer": (...) => (undefined | [d["memoizedState"], a]),
-    "useRef": (...) => (undefined | ???*0*),
-    "useState": (...) => (undefined | [b["memoizedState"], a]),
+    "readContext": (...) => b,
+    "useCallback": (...) => a,
+    "useContext": (...) => b,
+    "useEffect": (...) => ti(8390656, 8, a, b),
+    "useImperativeHandle": (...) => ti(4194308, 4, yi["bind"](null, b, a), c),
+    "useLayoutEffect": (...) => ti(4194308, 4, a, b),
+    "useInsertionEffect": (...) => ti(4, 2, a, b),
+    "useMemo": (...) => a,
+    "useReducer": (...) => [d["memoizedState"], a],
+    "useRef": (...) => ???*0*,
+    "useState": (...) => [b["memoizedState"], a],
     "useDebugValue": (...) => undefined,
-    "useDeferredValue": (...) => (undefined | ???*1*),
-    "useTransition": (...) => (undefined | [b, a]),
+    "useDeferredValue": (...) => ???*1*,
+    "useTransition": (...) => [b, a],
     "useMutableSource": (...) => undefined,
-    "useSyncExternalStore": (...) => (undefined | c),
-    "useId": (...) => (undefined | ???*2*),
+    "useSyncExternalStore": (...) => c,
+    "useId": (...) => ???*2*,
     "unstable_isNewReconciler": false
 }
 - *0* unsupported expression
@@ -1756,43 +1751,43 @@ Z = (0 | ???*0*)
 
 Za = (...) => undefined
 
-Zb = (...) => (undefined | $b(a) | null)
+Zb = (...) => ($b(a) | null)
 
 Zc = (...) => undefined
 
-Zd = (undefined | (...) => (undefined | ???*0*))
+Zd = (...) => ???*0*
 - *0* unsupported expression
 
-Ze = (...) => (undefined | Xe[a] | a | ???*0*)
+Ze = (...) => (Xe[a] | a | ???*0*)
 - *0* unsupported expression
 
-Zf = (...) => (undefined | ((null !== a) && (???*0* !== a)))
+Zf = (...) => ((null !== a) && (???*0* !== a))
 - *0* unsupported expression
 
-Zg = (...) => (undefined | c["stateNode"] | null)
+Zg = (...) => (c["stateNode"] | null)
 
 Zh = {
-    "readContext": (...) => (undefined | b),
-    "useCallback": (...) => (undefined | d[0] | a),
-    "useContext": (...) => (undefined | b),
-    "useEffect": (...) => (undefined | ui(2048, 8, a, b)),
-    "useImperativeHandle": (...) => (undefined | ui(4, 4, yi["bind"](null, b, a), c)),
-    "useInsertionEffect": (...) => (undefined | ui(4, 2, a, b)),
-    "useLayoutEffect": (...) => (undefined | ui(4, 4, a, b)),
-    "useMemo": (...) => (undefined | d[0] | a),
-    "useReducer": (...) => (undefined | [b["memoizedState"], c["dispatch"]]),
-    "useRef": (...) => (undefined | di()["memoizedState"]),
-    "useState": (...) => (undefined | fi(ei)),
+    "readContext": (...) => b,
+    "useCallback": (...) => (d[0] | a),
+    "useContext": (...) => b,
+    "useEffect": (...) => ui(2048, 8, a, b),
+    "useImperativeHandle": (...) => ui(4, 4, yi["bind"](null, b, a), c),
+    "useInsertionEffect": (...) => ui(4, 2, a, b),
+    "useLayoutEffect": (...) => ui(4, 4, a, b),
+    "useMemo": (...) => (d[0] | a),
+    "useReducer": (...) => [b["memoizedState"], c["dispatch"]],
+    "useRef": (...) => di()["memoizedState"],
+    "useState": (...) => fi(ei),
     "useDebugValue": (...) => undefined,
-    "useDeferredValue": (...) => (undefined | Di(b, O["memoizedState"], a)),
-    "useTransition": (...) => (undefined | [a, b]),
+    "useDeferredValue": (...) => Di(b, O["memoizedState"], a),
+    "useTransition": (...) => [a, b],
     "useMutableSource": (...) => undefined,
-    "useSyncExternalStore": (...) => (undefined | e),
-    "useId": (...) => (undefined | di()["memoizedState"]),
+    "useSyncExternalStore": (...) => e,
+    "useId": (...) => di()["memoizedState"],
     "unstable_isNewReconciler": false
 }
 
-Zi = (...) => (undefined | $i(a, b, e) | b["child"])
+Zi = (...) => ($i(a, b, e) | b["child"])
 
 Zj = (...) => undefined
 
@@ -1810,7 +1805,7 @@ a#1004 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-a#1008 = (???*0* | undefined | ???*1* | null | ???*2* | ???*4*)
+a#1008 = (???*0* | ???*1* | null | ???*2* | ???*4*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* a
@@ -1819,7 +1814,7 @@ a#1008 = (???*0* | undefined | ???*1* | null | ???*2* | ???*4*)
   ⚠️  unknown object
 - *3* a
   ⚠️  circular variable reference
-- *4* (...) => (undefined | a | b | null)((???*5* | undefined | null | ???*6*))
+- *4* (...) => (a | b | null)((???*5* | null | ???*6*))
   ⚠️  recursive function call
 - *5* a
   ⚠️  circular variable reference
@@ -1844,19 +1839,7 @@ a#1013 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-a#1014 = (
-  | ???*0*
-  | ???*1*
-  | undefined
-  | ???*4*
-  | undefined["_reactInternals"]
-  | null["_reactInternals"]
-  | null
-  | ???*6*
-  | ???*7*
-  | undefined["stateNode"]
-  | null["stateNode"]
-)
+a#1014 = (???*0* | ???*1* | ???*4* | null["_reactInternals"] | null | ???*6* | ???*7* | null["stateNode"])
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["join"](",")
@@ -1871,8 +1854,8 @@ a#1014 = (
   ⚠️  function calls are not analysed yet
 - *6* a
   ⚠️  circular variable reference
-- *7* (...) => (undefined | a | b | null)(
-        (???*8* | undefined["_reactInternals"] | null["_reactInternals"] | undefined | null | ???*10*)
+- *7* (...) => (a | b | null)(
+        (???*8* | null["_reactInternals"] | null | ???*10*)
     )
   ⚠️  recursive function call
 - *8* ???*9*["_reactInternals"]
@@ -1933,7 +1916,7 @@ a#108 = (???*0* | ???*1* | ???*3*)
 - *3* FreeVar(window)
   ⚠️  unknown global
 
-a#109 = (???*0* | undefined | null | ???*1* | ???*2*)
+a#109 = (???*0* | null | ???*1* | ???*2*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* a
@@ -1967,9 +1950,9 @@ a#116 = ???*0*
 a#119 = (
   | ???*0*
   | ???*1*
-  | !((undefined | ???*3* | null | ???*6*))["type"]
+  | !((???*3* | null | ???*6*))["type"]
   | false["type"]
-  | !((undefined | ???*9* | false["stateNode"][???*16*] | null | ???*21*))
+  | !((???*9* | false["stateNode"][???*16*] | null | ???*21*))
   | false
 )
 - *0* arguments[0]
@@ -2083,17 +2066,7 @@ a#15 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-a#151 = (
-  | ???*0*
-  | undefined
-  | null
-  | ???*1*
-  | ???*2*
-  | undefined["alternate"]
-  | null["alternate"]
-  | undefined["return"]
-  | null["return"]
-)
+a#151 = (???*0* | null | ???*1* | ???*2* | null["alternate"] | null["return"])
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* a
@@ -2196,7 +2169,7 @@ a#174 = ???*0*
 a#175 = (
   | ???*0*
   | {
-        "blockedOn": (???*1* | undefined | null | ???*2* | ???*3* | [???*5*] | ???*6*),
+        "blockedOn": (???*1* | null | ???*2* | ???*3* | [???*5*] | ???*6*),
         "domEventName": ???*7*,
         "eventSystemFlags": ???*8*,
         "nativeEvent": ???*9*,
@@ -2346,7 +2319,7 @@ a#221 = (???*0* | "altKey" | "ctrlKey" | "metaKey" | "shiftKey" | ???*1* | ???*3
   ⚠️  unknown global
 - *4* unknown mutation
 
-a#223 = (???*0* | undefined | ???*1* | ???*2* | 13 | 0)
+a#223 = (???*0* | ???*1* | ???*2* | 13 | 0)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* a
@@ -2402,14 +2375,11 @@ a#232 = (???*0* | ???*1*)
 
 a#233 = (
   | ???*0*
-  | undefined
   | null
   | null["value"]["slice"]((???*1* | 0 | ???*2*), ???*3*)
-  | undefined["value"]["slice"]((???*4* | 0 | ???*5*), ???*6*)
-  | ???*7*
-  | null["textContent"]["slice"]((???*14* | 0 | ???*15*), ???*16*)
-  | undefined["textContent"]["slice"]((???*17* | 0 | ???*18*), ???*19*)
-  | ???*20*
+  | ???*4*
+  | null["textContent"]["slice"]((???*11* | 0 | ???*12*), ???*13*)
+  | ???*14*
 )
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
@@ -2417,31 +2387,23 @@ a#233 = (
   ⚠️  pattern without value
 - *2* updated with update expression
 - *3* unsupported expression
-- *4* a
-  ⚠️  pattern without value
-- *5* updated with update expression
-- *6* unsupported expression
-- *7* ???*8*["slice"]((???*11* | 0 | ???*12*), ???*13*)
+- *4* ???*5*["slice"]((???*8* | 0 | ???*9*), ???*10*)
   ⚠️  unknown callee object
-- *8* ???*9*["value"]
+- *5* ???*6*["value"]
   ⚠️  unknown object
-- *9* ???*10*["parentNode"]
+- *6* ???*7*["parentNode"]
   ⚠️  unknown object
-- *10* arguments[2]
+- *7* arguments[2]
   ⚠️  function calls are not analysed yet
+- *8* a
+  ⚠️  pattern without value
+- *9* updated with update expression
+- *10* unsupported expression
 - *11* a
   ⚠️  pattern without value
 - *12* updated with update expression
 - *13* unsupported expression
-- *14* a
-  ⚠️  pattern without value
-- *15* updated with update expression
-- *16* unsupported expression
-- *17* a
-  ⚠️  pattern without value
-- *18* updated with update expression
-- *19* unsupported expression
-- *20* unsupported expression
+- *14* unsupported expression
 
 a#235 = ???*0*
 - *0* arguments[0]
@@ -2511,10 +2473,7 @@ a#254 = (
   | ???*0*
   | 0
   | ???*1*
-  | (
-      + (???*2* | 0 | ???*3*)
-      + (undefined["textContent"]["length"] | ???*4* | 0["textContent"]["length"])
-    )
+  | ((???*2* | 0 | ???*3*) + (???*4* | 0["textContent"]["length"]))
 )
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
@@ -2685,16 +2644,12 @@ a#327 = (???*0* | ???*1*)
 
 a#331 = (
   | ???*0*
-  | undefined
   | ???*1*
   | ???*2*
   | null
-  | undefined["parentNode"]
   | null["parentNode"]
-  | undefined[`__reactFiber$${???*4*}`]["alternate"]
-  | null[`__reactFiber$${???*9*}`]["alternate"]
-  | undefined[`__reactFiber$${???*14*}`]
-  | null[`__reactFiber$${???*19*}`]
+  | null[`__reactFiber$${???*4*}`]["alternate"]
+  | null[`__reactFiber$${???*9*}`]
 )
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
@@ -2723,26 +2678,6 @@ a#331 = (
 - *12* ???*13*()
   ⚠️  nested operation
 - *13* ???["random"]
-  ⚠️  unknown object
-- *14* ???*15*["slice"](2)
-  ⚠️  unknown callee object
-- *15* ???*16*(36)
-  ⚠️  unknown callee
-- *16* ???*17*["toString"]
-  ⚠️  unknown object
-- *17* ???*18*()
-  ⚠️  nested operation
-- *18* ???["random"]
-  ⚠️  unknown object
-- *19* ???*20*["slice"](2)
-  ⚠️  unknown callee object
-- *20* ???*21*(36)
-  ⚠️  unknown callee
-- *21* ???*22*["toString"]
-  ⚠️  unknown object
-- *22* ???*23*()
-  ⚠️  nested operation
-- *23* ???["random"]
   ⚠️  unknown object
 
 a#335 = (???*0* | ???*1*)
@@ -2817,7 +2752,7 @@ a#346 = (???*0* | ???*1* | ???*2* | ???*4* | ???*5* | {})
   ⚠️  unknown global
 - *5* unknown mutation
 
-a#347 = (???*0* | undefined | {} | undefined["current"] | ???*1* | ???*2*)
+a#347 = (???*0* | {} | ???*1* | ???*2*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* unknown mutation
@@ -3153,7 +3088,7 @@ a#435 = (???*0* | ???*1*)
   ⚠️  function calls are not analysed yet
 - *1* unknown new expression
 
-a#436 = (???*0* | undefined | ???*1* | undefined["alternate"] | ???*3*)
+a#436 = (???*0* | ???*1* | ???*3*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["alternate"]
@@ -3416,7 +3351,7 @@ a#514 = (
         "interleaved": null,
         "lanes": 0,
         "dispatch": null,
-        "lastRenderedReducer": (...) => (undefined | ???*4* | b),
+        "lastRenderedReducer": (...) => (???*4* | b),
         "lastRenderedState": ???*5*
     }()
   | ???*6*()
@@ -3425,7 +3360,7 @@ a#514 = (
         "interleaved": null,
         "lanes": 0,
         "dispatch": null,
-        "lastRenderedReducer": (...) => (undefined | b(a) | b),
+        "lastRenderedReducer": (...) => (b(a) | b),
         "lastRenderedState": (
           | ???*7*
           | ???*8*()
@@ -3434,7 +3369,7 @@ a#514 = (
                 "interleaved": null,
                 "lanes": 0,
                 "dispatch": null,
-                "lastRenderedReducer": (...) => (undefined | b(a) | b),
+                "lastRenderedReducer": (...) => (b(a) | b),
                 "lastRenderedState": ???*9*
             }
           | ???*10*
@@ -3667,7 +3602,6 @@ a#56 = ???*0*
   ⚠️  function calls are not analysed yet
 
 a#562 = (
-  | undefined
   | null
   | ???*0*
   | {"memoizedState": null, "baseState": null, "baseQueue": null, "queue": null, "next": null}
@@ -3875,7 +3809,7 @@ a#612 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-a#613 = (???*0* | undefined | ???*1*)
+a#613 = (???*0* | ???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* unsupported expression
@@ -3910,7 +3844,7 @@ a#63 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-a#631 = (???*0* | undefined | null | ???*1*)
+a#631 = (???*0* | null | ???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["child"]
@@ -4122,7 +4056,7 @@ a#8 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-a#801 = (???*0* | 0 | 1 | ???*1* | 4 | 16 | undefined | 536870912 | null | ???*2*)
+a#801 = (???*0* | 0 | 1 | ???*1* | 4 | 16 | 536870912 | null | ???*2* | undefined)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* C
@@ -4183,7 +4117,7 @@ a#834 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-a#838 = (???*0* | undefined | ???*1* | undefined["current"]["alternate"] | ???*4*)
+a#838 = (???*0* | ???*1* | ???*4*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["alternate"]
@@ -4236,7 +4170,7 @@ a#880 = (???*0* | ???*1* | null)
 - *2* arguments[1]
   ⚠️  function calls are not analysed yet
 
-a#883 = (undefined | 16 | 536870912 | 4 | 1 | null | ???*0* | ???*1*)
+a#883 = (16 | 536870912 | 4 | 1 | null | ???*0* | ???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["value"]
@@ -4268,16 +4202,7 @@ a#915 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-a#916 = (
-  | ???*0*
-  | undefined
-  | ???*1*
-  | undefined["alternate"]["stateNode"]
-  | null["alternate"]["stateNode"]
-  | undefined["stateNode"]
-  | null["stateNode"]
-  | null
-)
+a#916 = (???*0* | ???*1* | null["alternate"]["stateNode"] | null["stateNode"] | null)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["stateNode"]
@@ -4334,22 +4259,22 @@ a#946 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-a#947 = (???*0* | undefined | ???*1*)
+a#947 = (???*0* | ???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* unknown new expression
 
-a#948 = (???*0* | undefined | ???*1*)
+a#948 = (???*0* | ???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* unknown new expression
 
-a#949 = (???*0* | undefined | ???*1*)
+a#949 = (???*0* | ???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* unknown new expression
 
-a#950 = (???*0* | undefined | ???*1*)
+a#950 = (???*0* | ???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* unknown new expression
@@ -4443,10 +4368,10 @@ a#974 = (
           | {
                 "blockedOn": null,
                 "target": ???*2*,
-                "priority": (???*3*() | undefined | 0 | 1 | ???*4* | 4 | 16 | 536870912 | null | ???*5* | ???*6*)
+                "priority": (???*3*() | 0 | 1 | ???*4* | 4 | 16 | 536870912 | null | ???*5* | ???*6*)
             }
         ),
-        "priority": (???*8*() | undefined | 0 | 1 | ???*9* | 4 | 16 | 536870912 | null | ???*10* | ???*11*)
+        "priority": (???*8*() | 0 | 1 | ???*9* | 4 | 16 | 536870912 | null | ???*10* | ???*11*)
     }
 )
 - *0* arguments[0]
@@ -4488,7 +4413,7 @@ a#979 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-a#982 = (undefined | null | undefined["child"]["stateNode"] | ???*0*)
+a#982 = (undefined | null | ???*0*)
 - *0* ???*1*["stateNode"]
   ⚠️  unknown object
 - *1* ???*2*["child"]
@@ -4496,7 +4421,7 @@ a#982 = (undefined | null | undefined["child"]["stateNode"] | ???*0*)
 - *2* arguments[1]
   ⚠️  function calls are not analysed yet
 
-a#984 = (undefined | null | undefined["child"]["stateNode"] | ???*0*)
+a#984 = (undefined | null | ???*0*)
 - *0* ???*1*["stateNode"]
   ⚠️  unknown object
 - *1* ???*2*["child"]
@@ -4508,7 +4433,7 @@ a#986 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-a#989 = (undefined | null | ???*0* | undefined["child"]["stateNode"])
+a#989 = (undefined | null | ???*0*)
 - *0* ???*1*["stateNode"]
   ⚠️  unknown object
 - *1* ???*2*["child"]
@@ -4548,7 +4473,7 @@ ae = (!(???*0*) | ???*2*)
 - *1* unsupported expression
 - *2* unsupported expression
 
-af = (undefined | ???*0* | ???*1* | "animationiteration" | ???*2*)
+af = (???*0* | ???*1* | "animationiteration" | ???*2*)
 - *0* FreeVar(undefined)
   ⚠️  unknown global
 - *1* unknown mutation
@@ -4559,7 +4484,7 @@ ag = (...) => undefined
 ah = (...) => undefined
 
 ai = {
-    "readContext": (...) => (undefined | b),
+    "readContext": (...) => b,
     "useCallback": (...) => undefined,
     "useContext": (...) => undefined,
     "useEffect": (...) => undefined,
@@ -4579,7 +4504,7 @@ ai = {
     "unstable_isNewReconciler": false
 }
 
-aj = (...) => (undefined | cj(a, b, f, d, e) | ???*0* | $i(a, b, e))
+aj = (...) => (cj(a, b, f, d, e) | ???*0* | $i(a, b, e))
 - *0* unsupported expression
 
 ak = (...) => undefined
@@ -4641,12 +4566,12 @@ b#1012 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
-b#1013 = (???*0* | undefined | ???*1*)
+b#1013 = (???*0* | ???*1*)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 - *1* unknown new expression
 
-b#1014 = (???*0* | undefined["_reactInternals"] | null["_reactInternals"])
+b#1014 = (???*0* | null["_reactInternals"])
 - *0* ???*1*["_reactInternals"]
   ⚠️  unknown object
 - *1* arguments[0]
@@ -4681,13 +4606,9 @@ b#107 = ???*0*
 
 b#109 = (
   | ???*0*
-  | undefined["stateNode"]
   | null["stateNode"]
-  | undefined
-  | undefined["stateNode"][`__reactProps$${???*2*}`]
-  | null["stateNode"][`__reactProps$${???*7*}`]
-  | undefined[`__reactProps$${???*12*}`]
-  | null[`__reactProps$${???*17*}`]
+  | null["stateNode"][`__reactProps$${???*2*}`]
+  | null[`__reactProps$${???*7*}`]
   | null
 )
 - *0* ???*1*["stateNode"]
@@ -4713,26 +4634,6 @@ b#109 = (
 - *10* ???*11*()
   ⚠️  nested operation
 - *11* ???["random"]
-  ⚠️  unknown object
-- *12* ???*13*["slice"](2)
-  ⚠️  unknown callee object
-- *13* ???*14*(36)
-  ⚠️  unknown callee
-- *14* ???*15*["toString"]
-  ⚠️  unknown object
-- *15* ???*16*()
-  ⚠️  nested operation
-- *16* ???["random"]
-  ⚠️  unknown object
-- *17* ???*18*["slice"](2)
-  ⚠️  unknown callee object
-- *18* ???*19*(36)
-  ⚠️  unknown callee
-- *19* ???*20*["toString"]
-  ⚠️  unknown object
-- *20* ???*21*()
-  ⚠️  nested operation
-- *21* ???["random"]
   ⚠️  unknown object
 
 b#11 = ???*0*
@@ -4786,7 +4687,7 @@ b#133 = ???*0*
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-b#136 = (???*0* | undefined | ???*2* | ???*3* | null)
+b#136 = (???*0* | ???*2* | ???*3* | null)
 - *0* ???*1*["alternate"]
   ⚠️  unknown object
 - *1* arguments[0]
@@ -4796,14 +4697,14 @@ b#136 = (???*0* | undefined | ???*2* | ???*3* | null)
 - *3* a
   ⚠️  circular variable reference
 
-b#152 = (undefined | ???*0* | ???*1* | ???*3* | null)
+b#152 = (???*0* | ???*1* | ???*3* | null)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["child"]
   ⚠️  unknown object
 - *2* a
   ⚠️  circular variable reference
-- *3* (...) => (undefined | a | b | null)((???*4* | ???*5*))
+- *3* (...) => (a | b | null)((???*4* | ???*5*))
   ⚠️  recursive function call
 - *4* arguments[0]
   ⚠️  function calls are not analysed yet
@@ -4856,7 +4757,7 @@ b#174 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
-b#175 = (???*0* | undefined | null | ???*1* | ???*2* | [???*4*] | ???*5*)
+b#175 = (???*0* | null | ???*1* | ???*2* | [???*4*] | ???*5*)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 - *1* b
@@ -4887,7 +4788,7 @@ b#188 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
-b#189 = (...) => (undefined | ad(b, a))
+b#189 = (...) => ad(b, a)
 
 b#190 = ???*0*
 - *0* arguments[0]
@@ -4914,15 +4815,7 @@ b#20 = ???*0*
 b#203 = ???*0*
 - *0* max number of linking steps reached
 
-b#207 = (
-  | null
-  | ???*0*
-  | null["value"]
-  | undefined["value"]
-  | ???*1*
-  | null["textContent"]
-  | undefined["textContent"]
-)
+b#207 = (null | ???*0* | null["value"] | ???*1* | null["textContent"])
 - *0* unsupported expression
 - *1* ???*2*["value"]
   ⚠️  unknown object
@@ -4943,7 +4836,7 @@ b#21 = ???*0*
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-b#211 = (...) => (undefined | ???*0*)
+b#211 = (...) => ???*0*
 - *0* unsupported expression
 
 b#212 = (???*0* | ???*1*)
@@ -4979,7 +4872,6 @@ b#223 = (
   | "Unidentified"
   | ???*0*
   | ???*3*
-  | undefined["key"]
   | 13["key"]
   | 0["key"]
 )
@@ -5020,7 +4912,7 @@ b#235 = (???*0* | ???*1* | ???*3*())
 - *5* arguments[0]
   ⚠️  function calls are not analysed yet
 
-b#236 = (???*0* | undefined | [])
+b#236 = (???*0* | [])
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
@@ -5127,7 +5019,7 @@ b#270 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
-b#271 = (undefined | {} | ???*0*)
+b#271 = ({} | ???*0*)
 - *0* {}[???*1*]
   ⚠️  unknown object prototype methods or values
 - *1* arguments[0]
@@ -5205,21 +5097,15 @@ b#311 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
-b#314 = (???*0* | undefined | ???*1* | ???*4*)
+b#314 = (???*0* | ???*1*)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
-- *1* ???*2*["replace"](/\u0000|\uFFFD/g, "")
+- *1* ???*2*["replace"](yf, "")
   ⚠️  unknown callee object
 - *2* ???*3*["replace"](/\r\n?/g, "\n")
   ⚠️  unknown callee object
 - *3* arguments[1]
   ⚠️  function calls are not analysed yet
-- *4* ???*5*(/\u0000|\uFFFD/g, "")
-  ⚠️  unknown callee
-- *5* ???*6*["replace"]
-  ⚠️  unknown object
-- *6* undefined["replace"](/\r\n?/g, "\n")
-  ⚠️  nested operation
 
 b#316 = ???*0*
 - *0* arguments[1]
@@ -5265,7 +5151,7 @@ b#347 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
-b#350 = (0 | 1 | ???*0* | 4 | 16 | undefined | 536870912 | null | ???*1* | ???*2*)
+b#350 = (0 | 1 | ???*0* | 4 | 16 | 536870912 | null | ???*1* | ???*2*)
 - *0* C
   ⚠️  circular variable reference
 - *1* arguments[0]
@@ -5313,7 +5199,7 @@ b#381 = (???*0* | ???*1*)
 - *3* FreeVar(Object)
   ⚠️  unknown global
 
-b#384 = (undefined["current"] | null | ???*0*)
+b#384 = (null | ???*0*)
 - *0* unknown mutation
 
 b#385 = ???*0*
@@ -5394,7 +5280,7 @@ b#415 = (???*0* | ???*1*)
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
 
-b#417 = (???*0* | undefined | null | ???*1*)
+b#417 = (???*0* | null | ???*1*)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["stateNode"]
@@ -5404,7 +5290,7 @@ b#417 = (???*0* | undefined | null | ???*1*)
 - *3* arguments[0]
   ⚠️  function calls are not analysed yet
 
-b#418 = (???*0* | undefined | null | ???*1*)
+b#418 = (???*0* | null | ???*1*)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["stateNode"]
@@ -5414,7 +5300,7 @@ b#418 = (???*0* | undefined | null | ???*1*)
 - *3* arguments[0]
   ⚠️  function calls are not analysed yet
 
-b#419 = (???*0* | undefined | null | ???*1*)
+b#419 = (???*0* | null | ???*1*)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["stateNode"]
@@ -5496,7 +5382,7 @@ b#438 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-b#439 = (???*0* | undefined | ???*1* | ???*2* | ???*3*)
+b#439 = (???*0* | ???*1* | ???*2* | ???*3*)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 - *1* unknown new expression
@@ -5511,7 +5397,7 @@ b#440 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
-b#441 = (???*0* | undefined | ???*1* | ???*3* | ???*4*)
+b#441 = (???*0* | ???*1* | ???*3* | ???*4*)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["mode"]
@@ -5522,7 +5408,7 @@ b#441 = (???*0* | undefined | ???*1* | ???*3* | ???*4*)
 - *4* b
   ⚠️  circular variable reference
 
-b#442 = (???*0* | undefined | ???*1* | ???*2* | ???*3*)
+b#442 = (???*0* | ???*1* | ???*2* | ???*3*)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 - *1* unknown new expression
@@ -5547,7 +5433,7 @@ b#447 = ???*0*
 b#472 = ???*0*
 - *0* max number of linking steps reached
 
-b#474 = (undefined | undefined["current"] | {} | ???*0*)
+b#474 = ({} | ???*0*)
 - *0* unknown mutation
 
 b#476 = (???*0* | ???*1*)
@@ -5609,7 +5495,6 @@ b#493 = ???*0*
   ⚠️  function calls are not analysed yet
 
 b#494 = (
-  | undefined
   | null
   | ???*0*
   | {"memoizedState": null, "baseState": null, "baseQueue": null, "queue": null, "next": null}
@@ -5718,7 +5603,6 @@ b#50 = (
   ⚠️  circular variable reference
 
 b#501 = (
-  | undefined
   | null
   | ???*0*
   | {"memoizedState": null, "baseState": null, "baseQueue": null, "queue": null, "next": null}
@@ -5855,7 +5739,7 @@ b#510 = ???*0*
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-b#513 = (undefined | ???*0* | null)
+b#513 = (???*0* | null)
 - *0* ???*1*["stateNode"]
   ⚠️  unknown object
 - *1* ???*2*["alternate"]
@@ -5864,7 +5748,6 @@ b#513 = (undefined | ???*0* | null)
   ⚠️  function calls are not analysed yet
 
 b#514 = (
-  | undefined
   | null
   | ???*0*
   | {"memoizedState": null, "baseState": null, "baseQueue": null, "queue": null, "next": null}
@@ -6102,7 +5985,6 @@ b#554 = (???*0* | ???*1* | ???*3*)
   ⚠️  circular variable reference
 
 b#555 = (
-  | undefined
   | null
   | ???*0*
   | {"memoizedState": null, "baseState": null, "baseQueue": null, "queue": null, "next": null}
@@ -6189,7 +6071,6 @@ b#562 = ???*0*
 - *0* max number of linking steps reached
 
 b#565 = (
-  | undefined
   | null
   | ???*0*
   | {"memoizedState": null, "baseState": null, "baseQueue": null, "queue": null, "next": null}
@@ -6264,7 +6145,6 @@ b#565 = (
 - *28* unsupported expression
 
 b#566 = (
-  | undefined["memoizedState"]
   | null["memoizedState"]
   | ???*0*
   | null
@@ -6319,7 +6199,6 @@ b#566 = (
 - *20* unsupported expression
 
 b#568 = (
-  | undefined
   | null
   | ???*0*
   | {"memoizedState": null, "baseState": null, "baseQueue": null, "queue": null, "next": null}
@@ -6394,7 +6273,6 @@ b#568 = (
 - *28* unsupported expression
 
 b#569 = (
-  | undefined["memoizedState"]
   | null["memoizedState"]
   | ???*0*
   | null
@@ -6486,7 +6364,6 @@ b#587 = (???*0* | (13 === ???*1*) | ???*3* | true | false)
 
 b#589 = (
   | ???*0*
-  | undefined
   | {"eventTime": ???*1*, "lane": 1, "tag": 0, "payload": null, "callback": null, "next": null}
 )
 - *0* arguments[1]
@@ -6545,10 +6422,9 @@ b#609 = ???*0*
 
 b#612 = (
   | ???*0*
-  | undefined
   | {
         "mode": "visible",
-        "children": (???*1* | undefined | {"mode": "visible", "children": ???*2*} | ???*3*)
+        "children": (???*1* | {"mode": "visible", "children": ???*2*} | ???*3*)
     }
   | ???*4*
 )
@@ -6872,10 +6748,10 @@ b#827 = (???*0* | ???*1*)
 - *1* unsupported assign operation
 
 b#829 = (
-  | undefined
   | 0
   | ???*0*
   | ???*2*
+  | undefined
   | 1
   | 2
   | 4
@@ -6993,7 +6869,7 @@ b#909 = ???*0*
 b#910 = ???*0*
 - *0* max number of linking steps reached
 
-b#915 = (???*0* | undefined | module<scheduler, {}>["unstable_now"]() | ???*1*)
+b#915 = (???*0* | module<scheduler, {}>["unstable_now"]() | ???*1*)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 - *1* unsupported expression
@@ -7048,7 +6924,7 @@ b#946 = (???*0* | ???*1*)
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
 
-b#947 = (???*0* | undefined | ???*1*)
+b#947 = (???*0* | ???*1*)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 - *1* unknown new expression
@@ -7065,7 +6941,7 @@ b#950 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
-b#951 = (???*0* | undefined | ???*1*)
+b#951 = (???*0* | ???*1*)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 - *1* unknown new expression
@@ -7101,18 +6977,15 @@ b#960 = ???*0*
 
 b#961 = (
   | ???*0*
-  | undefined
   | {
-        "eventTime": (undefined | module<scheduler, {}>["unstable_now"]() | ???*1*),
+        "eventTime": (module<scheduler, {}>["unstable_now"]() | ???*1*),
         "lane": (
-          | undefined
           | 1
           | ???*2*
           | 0
           | 64
           | ???*3*
           | ???*4*
-          | undefined["current"]
           | ???*6*
           | ???*7*
           | ???*8*
@@ -7121,6 +6994,7 @@ b#961 = (
           | 536870912
           | null
           | ???*9*
+          | undefined
         ),
         "tag": 0,
         "payload": null,
@@ -7165,7 +7039,7 @@ b#970 = ???*0*
   ⚠️  unknown object
 - *2* unsupported expression
 
-b#974 = (???*0*() | undefined | 0 | 1 | ???*1* | 4 | 16 | 536870912 | null | ???*2* | ???*3*)
+b#974 = (???*0*() | 0 | 1 | ???*1* | 4 | 16 | 536870912 | null | ???*2* | ???*3*)
 - *0* Hc
   ⚠️  pattern without value
 - *1* C
@@ -7191,7 +7065,7 @@ b#990 = ???*0*
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-b#992 = (undefined | ???*0* | null)
+b#992 = (???*0* | null)
 - *0* ???*1*["stateNode"]
   ⚠️  unknown object
 - *1* ???*2*["alternate"]
@@ -7199,7 +7073,7 @@ b#992 = (undefined | ???*0* | null)
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
 
-b#994 = (undefined | ???*0* | null)
+b#994 = (???*0* | null)
 - *0* ???*1*["stateNode"]
   ⚠️  unknown object
 - *1* ???*2*["alternate"]
@@ -7207,7 +7081,7 @@ b#994 = (undefined | ???*0* | null)
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
 
-b#997 = (undefined | 1 | ???*0* | 0 | 64 | ???*1* | ???*2* | ???*3* | 4 | 16 | 536870912 | null | ???*4*)
+b#997 = (1 | ???*0* | 0 | 64 | ???*1* | ???*2* | ???*3* | 4 | 16 | 536870912 | null | ???*4* | undefined)
 - *0* unsupported expression
 - *1* unsupported assign operation
 - *2* arguments[0]
@@ -7235,25 +7109,25 @@ be = (null | ???*0*)
 - *1* FreeVar(document)
   ⚠️  unknown global
 
-bf = (undefined | ???*0* | ???*1* | "animationstart" | ???*2*)
+bf = (???*0* | ???*1* | "animationstart" | ???*2*)
 - *0* FreeVar(undefined)
   ⚠️  unknown global
 - *1* unknown mutation
 - *2* unsupported expression
 
-bg = (...) => (undefined | c | A({}, c, d))
+bg = (...) => (c | A({}, c, d))
 
 bh = (...) => undefined
 
-bi = (...) => (undefined | a)
+bi = (...) => a
 
-bj = (...) => (undefined | !((!(a) || !(a["isReactComponent"]))))
+bj = (...) => !((!(a) || !(a["isReactComponent"])))
 
 bk = (...) => undefined
 
 bl = (...) => undefined
 
-c#1001 = (0 | 1 | ???*0* | 4 | 16 | undefined | 536870912 | null | ???*1* | ???*2*)
+c#1001 = (0 | 1 | ???*0* | 4 | 16 | 536870912 | null | ???*1* | ???*2*)
 - *0* C
   ⚠️  circular variable reference
 - *1* arguments[0]
@@ -7343,14 +7217,13 @@ c#116 = ???*0*
 
 c#119 = (
   | ???*0*
-  | !((undefined | ???*2* | null | ???*5*))["stateNode"]
+  | !((???*2* | null | ???*5*))["stateNode"]
   | false["stateNode"]
-  | undefined[???*8*]
-  | !(???*9*)["stateNode"][`__reactProps$${???*10*}`][???*15*]
-  | false["stateNode"][`__reactProps$${???*16*}`][???*21*]
-  | null[???*22*]
-  | !(???*23*)[???*25*]
-  | !(???*26*)[???*32*]
+  | !(???*8*)["stateNode"][`__reactProps$${???*9*}`][???*14*]
+  | false["stateNode"][`__reactProps$${???*15*}`][???*20*]
+  | null[???*21*]
+  | !(???*22*)[???*24*]
+  | !(???*25*)[???*31*]
 )
 - *0* ???*1*["stateNode"]
   ⚠️  unknown object
@@ -7368,55 +7241,53 @@ c#119 = (
   ⚠️  unknown object
 - *7* d
   ⚠️  circular variable reference
-- *8* arguments[1]
-  ⚠️  function calls are not analysed yet
-- *9* d
+- *8* d
   ⚠️  circular variable reference
-- *10* ???*11*["slice"](2)
+- *9* ???*10*["slice"](2)
   ⚠️  unknown callee object
-- *11* ???*12*(36)
+- *10* ???*11*(36)
   ⚠️  unknown callee
-- *12* ???*13*["toString"]
+- *11* ???*12*["toString"]
   ⚠️  unknown object
-- *13* ???*14*()
+- *12* ???*13*()
   ⚠️  nested operation
-- *14* ???["random"]
+- *13* ???["random"]
   ⚠️  unknown object
-- *15* arguments[1]
+- *14* arguments[1]
   ⚠️  function calls are not analysed yet
-- *16* ???*17*["slice"](2)
+- *15* ???*16*["slice"](2)
   ⚠️  unknown callee object
-- *17* ???*18*(36)
+- *16* ???*17*(36)
   ⚠️  unknown callee
-- *18* ???*19*["toString"]
+- *17* ???*18*["toString"]
   ⚠️  unknown object
-- *19* ???*20*()
+- *18* ???*19*()
   ⚠️  nested operation
-- *20* ???["random"]
+- *19* ???["random"]
   ⚠️  unknown object
+- *20* arguments[1]
+  ⚠️  function calls are not analysed yet
 - *21* arguments[1]
   ⚠️  function calls are not analysed yet
-- *22* arguments[1]
-  ⚠️  function calls are not analysed yet
-- *23* ???*24*["disabled"]
+- *22* ???*23*["disabled"]
   ⚠️  unknown object
-- *24* d
+- *23* d
   ⚠️  circular variable reference
-- *25* arguments[1]
+- *24* arguments[1]
   ⚠️  function calls are not analysed yet
-- *26* ("button" === (???*27* | ???*28* | ???*30* | false))
+- *25* ("button" === (???*26* | ???*27* | ???*29* | false))
   ⚠️  nested operation
-- *27* arguments[0]
+- *26* arguments[0]
   ⚠️  function calls are not analysed yet
-- *28* ???*29*["type"]
+- *27* ???*28*["type"]
   ⚠️  unknown object
-- *29* a
+- *28* a
   ⚠️  circular variable reference
-- *30* !(???*31*)
+- *29* !(???*30*)
   ⚠️  nested operation
-- *31* d
+- *30* d
   ⚠️  circular variable reference
-- *32* arguments[1]
+- *31* arguments[1]
   ⚠️  function calls are not analysed yet
 
 c#123 = ???*0*
@@ -7444,14 +7315,10 @@ c#131 = (???*0* | ???*1* | ???*2*)
 c#136 = (
   | ???*0*
   | ???*1*
-  | undefined
   | ???*3*
   | null
-  | undefined["return"]
   | null["return"]
-  | undefined["return"]["alternate"]
   | null["return"]["alternate"]
-  | undefined["return"]["child"]
   | null["return"]["child"]
 )
 - *0* arguments[0]
@@ -7529,14 +7396,7 @@ c#199 = ???*0*
 c#203 = ???*0*
 - *0* max number of linking steps reached
 
-c#207 = (
-  | null["length"]
-  | ???*0*
-  | null["value"]["length"]
-  | undefined["value"]["length"]
-  | null["textContent"]["length"]
-  | undefined["textContent"]["length"]
-)
+c#207 = (null["length"] | ???*0* | null["value"]["length"] | null["textContent"]["length"])
 - *0* ???*1*["length"]
   ⚠️  unknown object
 - *1* unsupported expression
@@ -7567,21 +7427,17 @@ c#251 = ???*0*
   ⚠️  unknown global
 
 c#254 = (
-  | undefined
   | ???*0*
   | 0
   | ???*1*
-  | (???*2* + (undefined["textContent"]["length"] | ???*3*))
+  | (???*2* + ???*3*)
   | ???*6*
-  | undefined["nextSibling"]
   | 0["nextSibling"]
   | (???*8* + ???*9*)["nextSibling"]
-  | undefined["parentNode"]
   | 0["parentNode"]
   | (???*12* + ???*13*)["parentNode"]
   | ???*16*
-  | (???*17* + ???*18*)
-  | ???*21*
+  | ???*17*
 )
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
@@ -7616,15 +7472,7 @@ c#254 = (
 - *15* c
   ⚠️  circular variable reference
 - *16* unsupported expression
-- *17* a
-  ⚠️  circular variable reference
-- *18* ???*19*["length"]
-  ⚠️  unknown object
-- *19* ???*20*["textContent"]
-  ⚠️  unknown object
-- *20* c
-  ⚠️  circular variable reference
-- *21* c
+- *17* c
   ⚠️  circular variable reference
 
 c#261 = (("string" === ???*0*) | false)
@@ -7850,7 +7698,7 @@ c#357 = (???*0* | ((???*1* | ???*2*) + 1))
 - *3* c
   ⚠️  circular variable reference
 
-c#361 = (undefined | ???*0*)
+c#361 = ???*0*
 - *0* unknown new expression
 
 c#362 = ???*0*
@@ -7939,7 +7787,7 @@ c#418 = ???*0*
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 
-c#419 = (undefined | module<scheduler, {}>["unstable_now"]() | ???*0*)
+c#419 = (module<scheduler, {}>["unstable_now"]() | ???*0*)
 - *0* unsupported expression
 
 c#420 = ???*0*
@@ -7966,7 +7814,7 @@ c#424 = (???*0* | ???*1*)
 - *2* arguments[2]
   ⚠️  function calls are not analysed yet
 
-c#431 = (...) => (undefined | null)
+c#431 = (...) => null
 
 c#432 = ???*0*
 - *0* arguments[1]
@@ -8012,7 +7860,6 @@ c#474 = (
   | "http://www.w3.org/2000/svg"
   | "http://www.w3.org/1998/Math/MathML"
   | "http://www.w3.org/1999/xhtml"
-  | undefined["current"]
   | {}
   | ???*0*
 )
@@ -8032,7 +7879,6 @@ c#485 = ???*0*
   ⚠️  function calls are not analysed yet
 
 c#494 = (
-  | undefined["queue"]
   | null["queue"]
   | ???*0*
   | null
@@ -8087,7 +7933,6 @@ c#494 = (
 - *20* unsupported expression
 
 c#501 = (
-  | undefined["queue"]
   | null["queue"]
   | ???*0*
   | null
@@ -8313,7 +8158,6 @@ c#528 = (???*0* | ???*1* | null["concat"]([???*4*]) | null)
   ⚠️  function calls are not analysed yet
 
 c#530 = (
-  | undefined
   | null
   | ???*0*
   | {"memoizedState": null, "baseState": null, "baseQueue": null, "queue": null, "next": null}
@@ -8388,7 +8232,6 @@ c#530 = (
 - *28* unsupported expression
 
 c#531 = (
-  | undefined
   | null
   | ???*0*
   | {"memoizedState": null, "baseState": null, "baseQueue": null, "queue": null, "next": null}
@@ -8462,12 +8305,12 @@ c#531 = (
   ⚠️  unknown object
 - *28* unsupported expression
 
-c#532 = (???*0* | undefined | 64 | ???*1*)
+c#532 = (???*0* | 64 | ???*1*)
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 - *1* unsupported assign operation
 
-c#533 = (0 | 1 | ???*0* | 4 | 16 | undefined | 536870912 | null | ???*1* | ???*2*)
+c#533 = (0 | 1 | ???*0* | 4 | 16 | 536870912 | null | ???*1* | ???*2*)
 - *0* C
   ⚠️  circular variable reference
 - *1* arguments[0]
@@ -8480,7 +8323,7 @@ c#533 = (0 | 1 | ???*0* | 4 | 16 | undefined | 536870912 | null | ???*1* | ???*2
 c#537 = ???*0*
 - *0* max number of linking steps reached
 
-c#539 = (???*0* | undefined | ???*1* | null)
+c#539 = (???*0* | ???*1* | null)
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["stateNode"]
@@ -8514,7 +8357,6 @@ c#550 = (???*0* | ???*1* | null["concat"]([???*4*]) | null)
   ⚠️  function calls are not analysed yet
 
 c#553 = (
-  | undefined
   | null
   | ???*0*
   | {"memoizedState": null, "baseState": null, "baseQueue": null, "queue": null, "next": null}
@@ -8624,12 +8466,10 @@ c#576 = ???*0*
 
 c#578 = (
   | ???*0*
-  | undefined
   | {
         "eventTime": ???*1*,
         "lane": (
           | ???*2*
-          | undefined
           | {"eventTime": ???*3*, "lane": ???*4*, "tag": 0, "payload": null, "callback": null, "next": null}
         ),
         "tag": 0,
@@ -8649,12 +8489,10 @@ c#578 = (
 
 c#580 = (
   | ???*0*
-  | undefined
   | {
         "eventTime": ???*1*,
         "lane": (
           | ???*2*
-          | undefined
           | {"eventTime": ???*3*, "lane": ???*4*, "tag": 0, "payload": null, "callback": null, "next": null}
         ),
         "tag": 0,
@@ -8690,14 +8528,7 @@ c#590 = ???*0*
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 
-c#591 = (
-  | ???*0*
-  | ???*1*
-  | undefined["render"]
-  | (0 !== (0 | ???*3*))["render"]
-  | undefined
-  | (0 !== (0 | ???*4*))
-)
+c#591 = (???*0* | ???*1* | (0 !== (0 | ???*3*))["render"] | (0 !== (0 | ???*4*)))
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["render"]
@@ -8710,10 +8541,10 @@ c#591 = (
 c#592 = (
   | ???*0*
   | ???*1*
-  | (...) => (undefined | !(0) | !(1))["compare"]
+  | (...) => (!(0) | !(1))["compare"]
   | ???*3*
-  | (...) => (undefined | !(0) | !(1))
-  | (...) => (undefined | !(0) | !(1))
+  | (...) => (!(0) | !(1))
+  | (...) => (!(0) | !(1))
 )
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
@@ -8738,10 +8569,10 @@ c#599 = ???*0*
 - *1* arguments[1]
   ⚠️  function calls are not analysed yet
 
-c#600 = (???*0* | undefined | ???*1*)
+c#600 = (???*0* | ???*1*)
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
-- *1* (???*2* | undefined | ???*3*)(d, e)
+- *1* (???*2* | ???*3*)(d, e)
   ⚠️  non-function callee
 - *2* arguments[2]
   ⚠️  function calls are not analysed yet
@@ -8789,10 +8620,8 @@ c#620 = ???*0*
 c#621 = (
   | ???*0*
   | ???*1*
-  | undefined["current"]["revealOrder"]["sibling"]
   | 0["revealOrder"]["sibling"]
   | null["sibling"]
-  | undefined["current"]["revealOrder"]
   | 0["revealOrder"]
   | null
   | ???*3*
@@ -8807,7 +8636,7 @@ c#621 = (
 - *3* e
   ⚠️  circular variable reference
 
-c#629 = (???*0* | undefined | ???*1* | ???*3* | ???*4*)
+c#629 = (???*0* | ???*1* | ???*3* | ???*4*)
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["alternate"]
@@ -8827,7 +8656,7 @@ c#634 = ???*0*
 - *1* arguments[1]
   ⚠️  function calls are not analysed yet
 
-c#639 = (???*0* | null | {} | ???*1* | undefined[(???*5* | null | [] | ???*6*)] | ???*7*)
+c#639 = (???*0* | null | {} | ???*1* | ???*5*)
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*[(???*3* | null | [] | ???*4*)]
@@ -8838,11 +8667,7 @@ c#639 = (???*0* | null | {} | ???*1* | undefined[(???*5* | null | [] | ???*6*)] 
   ⚠️  pattern without value
 - *4* f
   ⚠️  circular variable reference
-- *5* l
-  ⚠️  pattern without value
-- *6* f
-  ⚠️  circular variable reference
-- *7* unsupported expression
+- *5* unsupported expression
 
 c#64 = (
   | ???*0*()
@@ -9029,7 +8854,6 @@ c#803 = (
   | module<scheduler, {}>["unstable_UserBlockingPriority"]
   | module<scheduler, {}>["unstable_NormalPriority"]
   | module<scheduler, {}>["unstable_IdlePriority"]
-  | undefined
   | module<scheduler, {}>["unstable_scheduleCallback"](
         (
           | ???*2*
@@ -9038,7 +8862,6 @@ c#803 = (
           | module<scheduler, {}>["unstable_UserBlockingPriority"]
           | module<scheduler, {}>["unstable_NormalPriority"]
           | module<scheduler, {}>["unstable_IdlePriority"]
-          | undefined
           | ???*4*
         ),
         ???*9*
@@ -9056,13 +8879,13 @@ c#803 = (
   ⚠️  nested operation
 - *5* c
   ⚠️  circular variable reference
-- *6* (...) => (undefined | null | ???*7*)["bind"](null, ???*8*)
+- *6* (...) => (null | ???*7*)["bind"](null, ???*8*)
   ⚠️  nested operation
 - *7* Hk["bind"](null, a)
   ⚠️  nested operation
 - *8* arguments[0]
   ⚠️  function calls are not analysed yet
-- *9* (...) => (undefined | null | ???*10*)["bind"](null, ???*11*)
+- *9* (...) => (null | ???*10*)["bind"](null, ???*11*)
   ⚠️  nested operation
 - *10* Hk["bind"](null, a)
   ⚠️  nested operation
@@ -9145,7 +8968,7 @@ c#880 = (???*0* | ???*1* | null["finishedWork"] | 0 | ???*3*)
   ⚠️  function calls are not analysed yet
 - *3* updated with update expression
 
-c#883 = (0 | 1 | ???*0* | 4 | 16 | undefined | 536870912 | null | ???*1* | ???*2*)
+c#883 = (0 | 1 | ???*0* | 4 | 16 | 536870912 | null | ???*1* | ???*2*)
 - *0* C
   ⚠️  circular variable reference
 - *1* arguments[0]
@@ -9171,7 +8994,7 @@ c#915 = ???*0*
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 
-c#916 = (undefined | module<scheduler, {}>["unstable_now"]() | ???*0*)
+c#916 = (module<scheduler, {}>["unstable_now"]() | ???*0*)
 - *0* unsupported expression
 
 c#917 = (0 | ???*0*)
@@ -9190,18 +9013,8 @@ c#918 = (0 | ???*0*)
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
 
-c#919 = (???*0* | ???*1* | ???*2*)
-- *0* arguments[2]
-  ⚠️  function calls are not analysed yet
-- *1* (
-      | undefined
-      | (...) => (undefined | g(a) | J(a, d, l(f["_payload"]), h) | n(a, d, f, h) | t(a, d, f, h) | c(a, d))
-    )(b, null, d, c)
-  ⚠️  non-function callee
-- *2* ???*3*["sibling"]
-  ⚠️  unknown object
-- *3* arguments[2]
-  ⚠️  function calls are not analysed yet
+c#919 = ???*0*
+- *0* max number of linking steps reached
 
 c#92 = ???*0*
 - *0* arguments[1]
@@ -9215,7 +9028,7 @@ c#942 = ???*0*
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 
-c#946 = (???*0* | undefined | ???*2*)
+c#946 = (???*0* | ???*2*)
 - *0* ???*1*["alternate"]
   ⚠️  unknown object
 - *1* arguments[0]
@@ -9266,7 +9079,7 @@ c#96 = ???*0*
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-c#960 = (???*0* | ???*1* | undefined["current"])
+c#960 = (???*0* | ???*1*)
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["current"]
@@ -9274,7 +9087,7 @@ c#960 = (???*0* | ???*1* | undefined["current"])
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
 
-c#961 = (???*0* | undefined | {} | ???*1* | ???*2* | ???*4*)
+c#961 = (???*0* | {} | ???*1* | ???*2* | ???*4*)
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 - *1* c
@@ -9330,13 +9143,13 @@ c#990 = (
 - *3* arguments[0]
   ⚠️  function calls are not analysed yet
 
-c#992 = (undefined | module<scheduler, {}>["unstable_now"]() | ???*0*)
+c#992 = (module<scheduler, {}>["unstable_now"]() | ???*0*)
 - *0* unsupported expression
 
-c#994 = (undefined | module<scheduler, {}>["unstable_now"]() | ???*0*)
+c#994 = (module<scheduler, {}>["unstable_now"]() | ???*0*)
 - *0* unsupported expression
 
-c#997 = (undefined | ???*0* | null)
+c#997 = (???*0* | null)
 - *0* ???*1*["stateNode"]
   ⚠️  unknown object
 - *1* ???*2*["alternate"]
@@ -9362,26 +9175,23 @@ ce = (!(???*0*) | ???*2* | !((null | ???*3*)))
 - *4* FreeVar(document)
   ⚠️  unknown global
 
-cf = (undefined | ???*0* | ???*1* | "transitionend" | ???*2*)
+cf = (???*0* | ???*1* | "transitionend" | ???*2*)
 - *0* FreeVar(undefined)
   ⚠️  unknown global
 - *1* unknown mutation
 - *2* unsupported expression
 
-cg = (...) => (undefined | !(0))
+cg = (...) => !(0)
 
-ch = (...) => (
-  | undefined
-  | {"eventTime": a, "lane": b, "tag": 0, "payload": null, "callback": null, "next": null}
-)
+ch = (...) => {"eventTime": a, "lane": b, "tag": 0, "payload": null, "callback": null, "next": null}
 
-ci = (...) => (undefined | P)
+ci = (...) => P
 
-cj = (...) => (undefined | $i(a, b, e) | dj(a, b, c, d, e))
+cj = (...) => ($i(a, b, e) | dj(a, b, c, d, e))
 
 ck = (...) => undefined
 
-cl = (...) => (undefined | a)
+cl = (...) => a
 
 d#1004 = ???*0*
 - *0* ???*1*[(???*2* | ???*3* | 0 | ???*5*)]
@@ -9396,7 +9206,7 @@ d#1004 = ???*0*
   ⚠️  function calls are not analysed yet
 - *5* updated with update expression
 
-d#1013 = ("" | ???*0* | undefined["identifierPrefix"])
+d#1013 = ("" | ???*0*)
 - *0* ???*1*["identifierPrefix"]
   ⚠️  unknown object
 - *1* arguments[1]
@@ -9465,17 +9275,12 @@ d#128 = ???*0*
 
 d#136 = (
   | ???*0*
-  | undefined
   | ???*2*
   | ???*3*
   | null
-  | undefined["return"]["return"]
   | null["return"]["return"]
-  | undefined["return"]["alternate"]
   | null["return"]["alternate"]
-  | undefined["return"]["child"]
   | null["return"]["child"]
-  | undefined["return"]
   | null["return"]
 )
 - *0* ???*1*["alternate"]
@@ -9592,10 +9397,7 @@ d#251 = (???*0* | 0 | ???*2*)
 
 d#254 = (
   | ???*0*
-  | (
-      + (???*1* | 0 | ???*2* | ???*3*)
-      + (undefined["textContent"]["length"] | ???*8* | 0["textContent"]["length"])
-    )
+  | ((???*1* | 0 | ???*2* | ???*3*) + (???*8* | 0["textContent"]["length"]))
 )
 - *0* d
   ⚠️  pattern without value
@@ -9603,7 +9405,7 @@ d#254 = (
   ⚠️  function calls are not analysed yet
 - *2* d
   ⚠️  pattern without value
-- *3* (???*4* + (undefined["textContent"]["length"] | ???*5*))
+- *3* (???*4* + ???*5*)
   ⚠️  nested operation
 - *4* a
   ⚠️  circular variable reference
@@ -9699,7 +9501,7 @@ d#345 = (???*0* | ???*2*())
 - *4* arguments[0]
   ⚠️  function calls are not analysed yet
 
-d#347 = (???*0* | undefined["stateNode"] | ???*2* | ???*3* | undefined["current"]["stateNode"])
+d#347 = (???*0* | ???*2* | ???*3*)
 - *0* ???*1*["stateNode"]
   ⚠️  unknown object
 - *1* arguments[0]
@@ -9804,13 +9606,13 @@ d#415 = ???*0*
 - *0* arguments[3]
   ⚠️  function calls are not analysed yet
 
-d#417 = (undefined | module<scheduler, {}>["unstable_now"]() | ???*0*)
+d#417 = (module<scheduler, {}>["unstable_now"]() | ???*0*)
 - *0* unsupported expression
 
-d#418 = (undefined | module<scheduler, {}>["unstable_now"]() | ???*0*)
+d#418 = (module<scheduler, {}>["unstable_now"]() | ???*0*)
 - *0* unsupported expression
 
-d#419 = (undefined | 1 | ???*0* | 0 | 64 | ???*1* | ???*2* | ???*3* | ???*5* | 4 | 16 | 536870912 | null)
+d#419 = (1 | ???*0* | 0 | 64 | ???*1* | ???*2* | ???*3* | ???*5* | 4 | 16 | 536870912 | null | undefined)
 - *0* unsupported expression
 - *1* unsupported assign operation
 - *2* arguments[0]
@@ -9863,7 +9665,7 @@ d#424 = ???*0*
 - *1* arguments[2]
   ⚠️  function calls are not analysed yet
 
-d#431 = (...) => (undefined | a)
+d#431 = (...) => a
 
 d#432 = ???*0*
 - *0* ???*1*["deletions"]
@@ -9891,8 +9693,14 @@ d#439 = ???*0*
 - *0* arguments[3]
   ⚠️  function calls are not analysed yet
 
-d#440 = ???*0*
-- *0* max number of linking steps reached
+d#440 = (???*0* | ???*1* | ???*3*)
+- *0* arguments[3]
+  ⚠️  function calls are not analysed yet
+- *1* ???*2*["alternate"]
+  ⚠️  unknown object
+- *2* a
+  ⚠️  circular variable reference
+- *3* unknown new expression
 
 d#441 = ???*0*
 - *0* arguments[3]
@@ -9993,7 +9801,6 @@ d#518 = (???*0* | null | ???*1*)
   ⚠️  circular variable reference
 
 d#530 = (
-  | undefined["memoizedState"]
   | null["memoizedState"]
   | ???*0*
   | null
@@ -10048,7 +9855,6 @@ d#530 = (
 - *20* unsupported expression
 
 d#531 = (
-  | undefined["memoizedState"]
   | null["memoizedState"]
   | ???*0*
   | null
@@ -10104,7 +9910,7 @@ d#531 = (
 
 d#533 = module<react, {}>["__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED"]["ReactCurrentBatchConfig"]["transition"]
 
-d#537 = (undefined | 1 | ???*0* | 0 | 64 | ???*1* | ???*2* | ???*3* | 4 | 16 | 536870912 | null | ???*4*)
+d#537 = (1 | ???*0* | 0 | 64 | ???*1* | ???*2* | ???*3* | 4 | 16 | 536870912 | null | ???*4* | undefined)
 - *0* unsupported expression
 - *1* unsupported assign operation
 - *2* arguments[0]
@@ -10116,7 +9922,7 @@ d#537 = (undefined | 1 | ???*0* | 0 | 64 | ???*1* | ???*2* | ???*3* | 4 | 16 | 5
 - *5* arguments[1]
   ⚠️  function calls are not analysed yet
 
-d#539 = (undefined | 1 | ???*0* | 0 | 64 | ???*1* | ???*2* | ???*3* | 4 | 16 | 536870912 | null | ???*4*)
+d#539 = (1 | ???*0* | 0 | 64 | ???*1* | ???*2* | ???*3* | 4 | 16 | 536870912 | null | ???*4* | undefined)
 - *0* unsupported expression
 - *1* unsupported assign operation
 - *2* arguments[0]
@@ -10136,7 +9942,6 @@ d#547 = (???*0* | ???*2*)
 - *2* unsupported assign operation
 
 d#554 = (
-  | undefined
   | null
   | ???*0*
   | {"memoizedState": null, "baseState": null, "baseQueue": null, "queue": null, "next": null}
@@ -10307,10 +10112,10 @@ d#590 = ???*0*
 - *0* arguments[3]
   ⚠️  function calls are not analysed yet
 
-d#591 = (???*0* | undefined | ???*1*)
+d#591 = (???*0* | ???*1*)
 - *0* arguments[3]
   ⚠️  function calls are not analysed yet
-- *1* (???*2* | ???*3* | undefined | (0 !== (0 | ???*5*)))(d, e)
+- *1* (???*2* | ???*3* | (0 !== (0 | ???*5*)))(d, e)
   ⚠️  non-function callee
 - *2* arguments[2]
   ⚠️  function calls are not analysed yet
@@ -10341,7 +10146,7 @@ d#597 = (???*0* | null["baseLanes"] | ???*2* | ???*3*)
   ⚠️  function calls are not analysed yet
 - *3* unsupported expression
 
-d#600 = (???*0* | undefined | (0 !== (0 | ???*1*)))
+d#600 = (???*0* | (0 !== (0 | ???*1*)))
 - *0* arguments[3]
   ⚠️  function calls are not analysed yet
 - *1* updated with update expression
@@ -10381,7 +10186,7 @@ d#620 = ???*0*
 - *0* arguments[3]
   ⚠️  function calls are not analysed yet
 
-d#621 = (???*0* | undefined["current"] | 0 | ???*2* | ???*3* | ???*4*)
+d#621 = (???*0* | 0 | ???*2* | ???*3* | ???*4*)
 - *0* ???*1*["pendingProps"]
   ⚠️  unknown object
 - *1* arguments[1]
@@ -10399,7 +10204,7 @@ d#631 = (???*0* | (0 !== ???*3*))
   ⚠️  function calls are not analysed yet
 - *3* unsupported expression
 
-d#639 = (???*0* | undefined | ???*1*)
+d#639 = (???*0* | ???*1*)
 - *0* arguments[3]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*(
@@ -10544,11 +10349,11 @@ d#802 = ???*0*
   ⚠️  function calls are not analysed yet
 
 d#803 = (
-  | undefined
   | 0
   | ???*0*
   | ???*1*
   | ???*3*
+  | undefined
   | 1
   | 2
   | 4
@@ -10576,12 +10381,12 @@ d#819 = (0 | ???*0*)
 d#827 = ???*0*
 - *0* unsupported expression
 
-d#829 = (undefined | ???*0* | ???*1* | 1073741824 | 0)
+d#829 = (???*0* | ???*1* | 1073741824 | 0)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* unsupported expression
 
-d#834 = (0 | 1 | ???*0* | 4 | 16 | undefined | 536870912 | null | ???*1* | ???*2*)
+d#834 = (0 | 1 | ???*0* | 4 | 16 | 536870912 | null | ???*1* | ???*2*)
 - *0* C
   ⚠️  circular variable reference
 - *1* arguments[0]
@@ -10675,9 +10480,8 @@ d#843 = (
 - *29* unknown mutation
 
 d#863 = (
-  | undefined
   | {
-        "readContext": (...) => (undefined | b),
+        "readContext": (...) => b,
         "useCallback": (...) => undefined,
         "useContext": (...) => undefined,
         "useEffect": (...) => undefined,
@@ -10705,7 +10509,7 @@ d#87 = (undefined | ???*0* | "")
 - *1* arguments[1]
   ⚠️  function calls are not analysed yet
 
-d#877 = (0 | 1 | ???*0* | 4 | 16 | undefined | 536870912 | null | ???*1* | ???*2*)
+d#877 = (0 | 1 | ???*0* | 4 | 16 | 536870912 | null | ???*1* | ???*2*)
 - *0* C
   ⚠️  circular variable reference
 - *1* arguments[0]
@@ -10759,7 +10563,7 @@ d#942 = ???*0*
 - *0* arguments[3]
   ⚠️  function calls are not analysed yet
 
-d#947 = (???*0* | undefined | ???*1* | null)
+d#947 = (???*0* | ???*1* | null)
 - *0* arguments[3]
   ⚠️  function calls are not analysed yet
 - *1* unknown new expression
@@ -10786,7 +10590,7 @@ d#954 = (???*0* | null)
 - *1* FreeVar(arguments)
   ⚠️  unknown global
 
-d#960 = (???*0* | undefined | module<scheduler, {}>["unstable_now"]() | ???*1*)
+d#960 = (???*0* | module<scheduler, {}>["unstable_now"]() | ???*1*)
 - *0* arguments[3]
   ⚠️  function calls are not analysed yet
 - *1* unsupported expression
@@ -10805,7 +10609,7 @@ d#986 = ???*0*
 - *0* arguments[3]
   ⚠️  function calls are not analysed yet
 
-d#997 = (undefined | module<scheduler, {}>["unstable_now"]() | ???*0*)
+d#997 = (module<scheduler, {}>["unstable_now"]() | ???*0*)
 - *0* unsupported expression
 
 da = ???*0*
@@ -10846,20 +10650,17 @@ df = ???*0*
 
 dg = (...) => undefined
 
-dh = (...) => (undefined | null | Zg(a, c))
+dh = (...) => (null | Zg(a, c))
 
-di = (...) => (undefined | P)
+di = (...) => P
 
-dj = (...) => (undefined | $i(a, b, e) | b["child"])
+dj = (...) => ($i(a, b, e) | b["child"])
 
 dk = (...) => undefined
 
-dl = (...) => (
-  | undefined
-  | {"$$typeof": wa, "key": (null | d), "children": a, "containerInfo": b, "implementation": c}
-)
+dl = (...) => {"$$typeof": wa, "key": (null | d), "children": a, "containerInfo": b, "implementation": c}
 
-e#1004 = (undefined | ???*0* | null)
+e#1004 = (???*0* | null)
 - *0* ???*1*[Pf]
   ⚠️  unknown object
 - *1* ???*2*[(???*3* | ???*4* | 0 | ???*6*)]
@@ -10874,7 +10675,7 @@ e#1004 = (undefined | ???*0* | null)
   ⚠️  function calls are not analysed yet
 - *6* updated with update expression
 
-e#1013 = (???*0* | (...) => undefined | ???*1* | undefined["onRecoverableError"])
+e#1013 = (???*0* | (...) => undefined | ???*1*)
 - *0* FreeVar(reportError)
   ⚠️  unknown global
 - *1* ???*2*["onRecoverableError"]
@@ -10928,7 +10729,7 @@ e#1018 = (
 - *16* e
   ⚠️  circular variable reference
 
-e#102 = (undefined | "" | ???*0*() | `${???*3*}px`)
+e#102 = ("" | ???*0*() | `${???*3*}px`)
 - *0* ???*1*["trim"]
   ⚠️  unknown object
 - *1* ???*2*[c]
@@ -10952,7 +10753,7 @@ e#128 = ???*0*
 - *0* arguments[4]
   ⚠️  function calls are not analysed yet
 
-e#136 = (???*0* | undefined["return"] | null["return"])
+e#136 = (???*0* | null["return"])
 - *0* ???*1*["return"]
   ⚠️  unknown object
 - *1* arguments[0]
@@ -10985,7 +10786,7 @@ e#176 = ???*0*
 - *0* arguments[4]
   ⚠️  function calls are not analysed yet
 
-e#193 = (0 | 1 | ???*0* | 4 | 16 | undefined | 536870912 | null | ???*1* | ???*2*)
+e#193 = (0 | 1 | ???*0* | 4 | 16 | 536870912 | null | ???*1* | ???*2*)
 - *0* C
   ⚠️  circular variable reference
 - *1* arguments[0]
@@ -10995,7 +10796,7 @@ e#193 = (0 | 1 | ???*0* | 4 | 16 | undefined | 536870912 | null | ???*1* | ???*2
 - *3* arguments[1]
   ⚠️  function calls are not analysed yet
 
-e#196 = (0 | 1 | ???*0* | 4 | 16 | undefined | 536870912 | null | ???*1* | ???*2*)
+e#196 = (0 | 1 | ???*0* | 4 | 16 | 536870912 | null | ???*1* | ???*2*)
 - *0* C
   ⚠️  circular variable reference
 - *1* arguments[0]
@@ -11008,7 +10809,7 @@ e#196 = (0 | 1 | ???*0* | 4 | 16 | undefined | 536870912 | null | ???*1* | ???*2
 e#199 = ???*0*
 - *0* max number of linking steps reached
 
-e#207 = (null["value"] | undefined["value"] | ???*0* | null["textContent"] | undefined["textContent"])
+e#207 = (null["value"] | ???*0* | null["textContent"])
 - *0* ???*1*["value"]
   ⚠️  unknown object
 - *1* ???*2*["parentNode"]
@@ -11060,7 +10861,7 @@ e#286 = ???*0*
 - *0* arguments[4]
   ⚠️  function calls are not analysed yet
 
-e#292 = (undefined | ???*0* | ???*2* | ???*3* | ???*4*)
+e#292 = (???*0* | ???*2* | ???*3* | ???*4*)
 - *0* ???*1*["parentNode"]
   ⚠️  unknown object
 - *1* arguments[2]
@@ -11079,8 +10880,90 @@ e#30 = ???*0*
 - *2* l
   ⚠️  pattern without value
 
-e#308 = ???*0*
-- *0* max number of linking steps reached
+e#308 = (
+  | ???*0*
+  | ???*1*
+  | null
+  | !((???*3* | null | ???*5*))["stateNode"]
+  | false["stateNode"]
+  | null[`${???*8*}Capture`]
+  | !(???*9*)[`${???*11*}Capture`]
+  | !(???*12*)[`${???*18*}Capture`]
+  | !((???*19* | null | ???*21*))["stateNode"]
+  | null[???*24*]
+  | !(???*25*)[???*27*]
+  | !(???*28*)[???*34*]
+)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* ???*2*["return"]
+  ⚠️  unknown object
+- *2* a
+  ⚠️  circular variable reference
+- *3* ???*4*[Pf]
+  ⚠️  unknown object
+- *4* c
+  ⚠️  circular variable reference
+- *5* !(???*6*)
+  ⚠️  nested operation
+- *6* ???*7*["disabled"]
+  ⚠️  unknown object
+- *7* d
+  ⚠️  circular variable reference
+- *8* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*["disabled"]
+  ⚠️  unknown object
+- *10* d
+  ⚠️  circular variable reference
+- *11* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *12* ("button" === (???*13* | ???*14* | ???*16* | false))
+  ⚠️  nested operation
+- *13* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *14* ???*15*["return"]
+  ⚠️  unknown object
+- *15* a
+  ⚠️  circular variable reference
+- *16* !(???*17*)
+  ⚠️  nested operation
+- *17* d
+  ⚠️  circular variable reference
+- *18* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *19* ???*20*[Pf]
+  ⚠️  unknown object
+- *20* c
+  ⚠️  circular variable reference
+- *21* !(???*22*)
+  ⚠️  nested operation
+- *22* ???*23*["disabled"]
+  ⚠️  unknown object
+- *23* d
+  ⚠️  circular variable reference
+- *24* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *25* ???*26*["disabled"]
+  ⚠️  unknown object
+- *26* d
+  ⚠️  circular variable reference
+- *27* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *28* ("button" === (???*29* | ???*30* | ???*32* | false))
+  ⚠️  nested operation
+- *29* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *30* ???*31*["return"]
+  ⚠️  unknown object
+- *31* a
+  ⚠️  circular variable reference
+- *32* !(???*33*)
+  ⚠️  nested operation
+- *33* d
+  ⚠️  circular variable reference
+- *34* arguments[1]
+  ⚠️  function calls are not analysed yet
 
 e#311 = ???*0*
 - *0* arguments[4]
@@ -11145,7 +11028,7 @@ e#412 = (???*0* | 0["effects"][(???*5* | 0 | ???*6*)]["callback"])
   ⚠️  function calls are not analysed yet
 - *6* updated with update expression
 
-e#417 = (undefined | 1 | ???*0* | 0 | 64 | ???*1* | ???*2* | ???*3* | ???*5* | 4 | 16 | 536870912 | null)
+e#417 = (1 | ???*0* | 0 | 64 | ???*1* | ???*2* | ???*3* | ???*5* | 4 | 16 | 536870912 | null | undefined)
 - *0* unsupported expression
 - *1* unsupported assign operation
 - *2* arguments[0]
@@ -11157,7 +11040,7 @@ e#417 = (undefined | 1 | ???*0* | 0 | 64 | ???*1* | ???*2* | ???*3* | ???*5* | 4
 - *5* C
   ⚠️  circular variable reference
 
-e#418 = (undefined | 1 | ???*0* | 0 | 64 | ???*1* | ???*2* | ???*3* | ???*5* | 4 | 16 | 536870912 | null)
+e#418 = (1 | ???*0* | 0 | 64 | ???*1* | ???*2* | ???*3* | ???*5* | 4 | 16 | 536870912 | null | undefined)
 - *0* unsupported expression
 - *1* unsupported assign operation
 - *2* arguments[0]
@@ -11169,17 +11052,14 @@ e#418 = (undefined | 1 | ???*0* | 0 | 64 | ???*1* | ???*2* | ???*3* | ???*5* | 4
 - *5* C
   ⚠️  circular variable reference
 
-e#419 = (
-  | undefined
-  | {
-        "eventTime": (undefined | module<scheduler, {}>["unstable_now"]() | ???*0*),
-        "lane": (undefined | 1 | ???*1* | 0 | 64 | ???*2* | ???*3* | ???*4* | ???*6* | 4 | 16 | 536870912 | null),
-        "tag": 0,
-        "payload": null,
-        "callback": null,
-        "next": null
-    }
-)
+e#419 = {
+    "eventTime": (module<scheduler, {}>["unstable_now"]() | ???*0*),
+    "lane": (1 | ???*1* | 0 | 64 | ???*2* | ???*3* | ???*4* | ???*6* | 4 | 16 | 536870912 | null | undefined),
+    "tag": 0,
+    "payload": null,
+    "callback": null,
+    "next": null
+}
 - *0* unsupported expression
 - *1* unsupported expression
 - *2* unsupported assign operation
@@ -11196,7 +11076,7 @@ e#420 = ???*0*
 - *0* arguments[4]
   ⚠️  function calls are not analysed yet
 
-e#421 = ({} | undefined["current"] | ???*0*)
+e#421 = ({} | ???*0*)
 - *0* unknown mutation
 
 e#423 = ???*0*
@@ -11211,7 +11091,7 @@ e#424 = ???*0*
 - *1* arguments[2]
   ⚠️  function calls are not analysed yet
 
-e#431 = (...) => (undefined | a)
+e#431 = (...) => a
 
 e#445 = (???*0* | null)
 - *0* ???*1*["key"]
@@ -11246,7 +11126,6 @@ e#504 = ???*0*()
   ⚠️  function calls are not analysed yet
 
 e#517 = (
-  | undefined
   | null
   | ???*0*
   | {"memoizedState": null, "baseState": null, "baseQueue": null, "queue": null, "next": null}
@@ -11321,7 +11200,6 @@ e#517 = (
 - *28* unsupported expression
 
 e#518 = (
-  | undefined
   | null
   | ???*0*
   | {"memoizedState": null, "baseState": null, "baseQueue": null, "queue": null, "next": null}
@@ -11395,18 +11273,17 @@ e#518 = (
   ⚠️  unknown object
 - *28* unsupported expression
 
-e#537 = (undefined | module<scheduler, {}>["unstable_now"]() | ???*0*)
+e#537 = (module<scheduler, {}>["unstable_now"]() | ???*0*)
 - *0* unsupported expression
 
 e#539 = (
   | {
-        "lane": (undefined | 1 | ???*0* | 0 | 64 | ???*1* | ???*2* | ???*3* | 4 | 16 | 536870912 | null | ???*4*),
-        "action": (???*6* | undefined | ???*7* | null),
+        "lane": (1 | ???*0* | 0 | 64 | ???*1* | ???*2* | ???*3* | 4 | 16 | 536870912 | null | ???*4* | undefined),
+        "action": (???*6* | ???*7* | null),
         "hasEagerState": false,
         "eagerState": null,
         "next": null
     }
-  | undefined
   | module<scheduler, {}>["unstable_now"]()
   | ???*10*
 )
@@ -11431,7 +11308,6 @@ e#539 = (
 - *10* unsupported expression
 
 e#559 = (
-  | undefined
   | null
   | ???*0*
   | {"memoizedState": null, "baseState": null, "baseQueue": null, "queue": null, "next": null}
@@ -11599,8 +11475,29 @@ e#620 = ???*0*
 - *0* arguments[4]
   ⚠️  function calls are not analysed yet
 
-e#621 = ???*0*
-- *0* max number of linking steps reached
+e#621 = (
+  | ???*0*
+  | 0["revealOrder"]
+  | null
+  | ???*3*
+  | ???*4*
+  | 0["revealOrder"]["sibling"]
+  | null["sibling"]
+  | 0["revealOrder"]["alternate"]
+  | null["alternate"]
+  | null["sibling"]["alternate"]
+  | null["sibling"]["sibling"]
+)
+- *0* ???*1*["revealOrder"]
+  ⚠️  unknown object
+- *1* ???*2*["pendingProps"]
+  ⚠️  unknown object
+- *2* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *3* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *4* c
+  ⚠️  circular variable reference
 
 e#631 = ???*0*
 - *0* ???*1*["value"]
@@ -11610,7 +11507,7 @@ e#631 = ???*0*
 - *2* arguments[1]
   ⚠️  function calls are not analysed yet
 
-e#639 = (???*0* | undefined | ???*2*)
+e#639 = (???*0* | ???*2*)
 - *0* ???*1*["memoizedProps"]
   ⚠️  unknown object
 - *1* arguments[0]
@@ -11841,22 +11738,7 @@ e#953 = ???*0*
 - *0* arguments[4]
   ⚠️  function calls are not analysed yet
 
-e#960 = (
-  | ???*0*
-  | undefined
-  | 1
-  | ???*1*
-  | 0
-  | 64
-  | ???*2*
-  | ???*3*
-  | undefined["current"]
-  | ???*5*
-  | 4
-  | 16
-  | 536870912
-  | null
-)
+e#960 = (???*0* | 1 | ???*1* | 0 | 64 | ???*2* | ???*3* | ???*5* | 4 | 16 | 536870912 | null | undefined)
 - *0* arguments[4]
   ⚠️  function calls are not analysed yet
 - *1* unsupported expression
@@ -11868,7 +11750,7 @@ e#960 = (
 - *5* C
   ⚠️  circular variable reference
 
-e#961 = (???*0* | undefined["current"] | ???*2* | ???*3*)
+e#961 = (???*0* | ???*2* | ???*3*)
 - *0* ???*1*["current"]
   ⚠️  unknown object
 - *1* arguments[1]
@@ -11932,13 +11814,13 @@ eg = (null | [???*0*] | null["slice"](???*1*) | ???*3* | ???*7*)
 
 eh = (...) => undefined
 
-ei = (...) => (undefined | b(a) | b)
+ei = (...) => (b(a) | b)
 
-ej = (...) => (undefined | null | b["child"])
+ej = (...) => (null | b["child"])
 
 ek = (...) => undefined
 
-el = (...) => (undefined | Vf | bg(a, c, b) | b)
+el = (...) => (Vf | bg(a, c, b) | b)
 
 f#1018 = (
   | ""
@@ -11973,13 +11855,9 @@ f#128 = ???*0*
 
 f#136 = (
   | ???*0*
-  | undefined["return"]["alternate"]
   | null["return"]["alternate"]
-  | undefined["return"]["child"]
   | null["return"]["child"]
-  | undefined["return"]["alternate"]["sibling"]
   | null["return"]["alternate"]["sibling"]
-  | undefined["return"]["child"]["sibling"]
   | null["return"]["child"]["sibling"]
 )
 - *0* ???*1*["alternate"]
@@ -12024,13 +11902,7 @@ f#196 = module<react, {}>["__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED"][
 f#199 = ???*0*
 - *0* max number of linking steps reached
 
-f#207 = (
-  | null["value"]["length"]
-  | undefined["value"]["length"]
-  | ???*0*
-  | null["textContent"]["length"]
-  | undefined["textContent"]["length"]
-)
+f#207 = (null["value"]["length"] | ???*0* | null["textContent"]["length"])
 - *0* ???*1*["length"]
   ⚠️  unknown object
 - *1* ???*2*["value"]
@@ -12106,17 +11978,14 @@ f#400 = ???*0*
 f#404 = ???*0*
 - *0* max number of linking steps reached
 
-f#417 = (
-  | undefined
-  | {
-        "eventTime": (undefined | module<scheduler, {}>["unstable_now"]() | ???*0*),
-        "lane": (undefined | 1 | ???*1* | 0 | 64 | ???*2* | ???*3* | ???*4* | ???*6* | 4 | 16 | 536870912 | null),
-        "tag": 0,
-        "payload": null,
-        "callback": null,
-        "next": null
-    }
-)
+f#417 = {
+    "eventTime": (module<scheduler, {}>["unstable_now"]() | ???*0*),
+    "lane": (1 | ???*1* | 0 | 64 | ???*2* | ???*3* | ???*4* | ???*6* | 4 | 16 | 536870912 | null | undefined),
+    "tag": 0,
+    "payload": null,
+    "callback": null,
+    "next": null
+}
 - *0* unsupported expression
 - *1* unsupported expression
 - *2* unsupported assign operation
@@ -12129,17 +11998,14 @@ f#417 = (
 - *6* C
   ⚠️  circular variable reference
 
-f#418 = (
-  | undefined
-  | {
-        "eventTime": (undefined | module<scheduler, {}>["unstable_now"]() | ???*0*),
-        "lane": (undefined | 1 | ???*1* | 0 | 64 | ???*2* | ???*3* | ???*4* | ???*6* | 4 | 16 | 536870912 | null),
-        "tag": 0,
-        "payload": null,
-        "callback": null,
-        "next": null
-    }
-)
+f#418 = {
+    "eventTime": (module<scheduler, {}>["unstable_now"]() | ???*0*),
+    "lane": (1 | ???*1* | 0 | 64 | ???*2* | ???*3* | ???*4* | ???*6* | 4 | 16 | 536870912 | null | undefined),
+    "tag": 0,
+    "payload": null,
+    "callback": null,
+    "next": null
+}
 - *0* unsupported expression
 - *1* unsupported expression
 - *2* unsupported assign operation
@@ -12156,7 +12022,7 @@ f#420 = ???*0*
 - *0* arguments[5]
   ⚠️  function calls are not analysed yet
 
-f#421 = (???*0* | undefined | undefined["_currentValue"] | ???*2* | ???*3* | {})
+f#421 = (???*0* | ???*2* | ???*3* | {})
 - *0* ???*1*["contextType"]
   ⚠️  unknown object
 - *1* arguments[1]
@@ -12165,7 +12031,7 @@ f#421 = (???*0* | undefined | undefined["_currentValue"] | ???*2* | ???*3* | {})
   ⚠️  unknown global
 - *3* unknown mutation
 
-f#423 = (???*0* | {} | undefined["current"] | ???*2*)
+f#423 = (???*0* | {} | ???*2*)
 - *0* ???*1*["contextType"]
   ⚠️  unknown object
 - *1* arguments[1]
@@ -12180,7 +12046,7 @@ f#424 = (???*0* | ???*1*)
 - *2* arguments[2]
   ⚠️  function calls are not analysed yet
 
-f#431 = (...) => (undefined | c | d)
+f#431 = (...) => (c | d)
 
 f#440 = ???*0*
 - *0* ???*1*["type"]
@@ -12224,7 +12090,6 @@ f#494 = ???*0*
 - *0* max number of linking steps reached
 
 f#501 = (
-  | undefined["memoizedState"]
   | null["memoizedState"]
   | ???*0*
   | null
@@ -12286,10 +12151,7 @@ f#501 = (
 f#504 = !(???*0*)
 - *0* (
       | ???*1*
-      | (...) => (
-          | undefined
-          | (((a === b) && ((0 !== a) || (???*3* === ???*4*))) || ((a !== a) && (b !== b)))
-        )
+      | (...) => (((a === b) && ((0 !== a) || (???*3* === ???*4*))) || ((a !== a) && (b !== b)))
     )(d["memoizedState"], e)
   ⚠️  non-function callee
 - *1* ???*2*["is"]
@@ -12362,11 +12224,10 @@ f#591 = ???*0*
 
 f#592 = (
   | ???*0*
-  | (...) => (undefined | !(0) | !(1))["type"]
-  | undefined["child"]
-  | (...) => (undefined | !(0) | !(1))["type"]["child"]
+  | (...) => (!(0) | !(1))["type"]
+  | (...) => (!(0) | !(1))["type"]["child"]
   | null["child"]
-  | (...) => (undefined | !(0) | !(1))["type"]["alternate"]["child"]
+  | (...) => (!(0) | !(1))["type"]["alternate"]["child"]
 )
 - *0* ???*1*["type"]
   ⚠️  unknown object
@@ -12385,7 +12246,7 @@ f#597 = (???*0* | null)
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-f#600 = ({} | undefined["current"] | ???*0* | undefined | ???*1*)
+f#600 = ({} | ???*0* | ???*1*)
 - *0* unknown mutation
 - *1* ???*2*["__reactInternalMemoizedMaskedChildContext"]
   ⚠️  unknown object
@@ -12412,7 +12273,7 @@ f#620 = ???*0*
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-f#621 = (???*0* | undefined["current"]["tail"] | 0["tail"])
+f#621 = (???*0* | 0["tail"])
 - *0* ???*1*["tail"]
   ⚠️  unknown object
 - *1* ???*2*["pendingProps"]
@@ -12476,9 +12337,8 @@ f#785 = ???*0*
 - *0* max number of linking steps reached
 
 f#807 = (
-  | undefined
   | {
-        "readContext": (...) => (undefined | b),
+        "readContext": (...) => b,
         "useCallback": (...) => undefined,
         "useContext": (...) => undefined,
         "useEffect": (...) => undefined,
@@ -12551,32 +12411,16 @@ f#947 = ???*0*
 - *0* arguments[5]
   ⚠️  function calls are not analysed yet
 
-f#953 = (???*0* | undefined | ???*1*)
+f#953 = (???*0* | ???*1*)
 - *0* arguments[5]
   ⚠️  function calls are not analysed yet
 - *1* unknown new expression
 
 f#960 = (
   | ???*0*
-  | undefined
   | {
-        "eventTime": (???*1* | undefined | module<scheduler, {}>["unstable_now"]() | ???*2*),
-        "lane": (
-          | ???*3*
-          | undefined
-          | 1
-          | ???*4*
-          | 0
-          | 64
-          | ???*5*
-          | ???*6*
-          | undefined["current"]
-          | ???*8*
-          | 4
-          | 16
-          | 536870912
-          | null
-        ),
+        "eventTime": (???*1* | module<scheduler, {}>["unstable_now"]() | ???*2*),
+        "lane": (???*3* | 1 | ???*4* | 0 | 64 | ???*5* | ???*6* | ???*8* | 4 | 16 | 536870912 | null | undefined),
         "tag": 0,
         "payload": null,
         "callback": null,
@@ -12599,7 +12443,7 @@ f#960 = (
 - *8* C
   ⚠️  circular variable reference
 
-f#961 = (undefined | module<scheduler, {}>["unstable_now"]() | ???*0*)
+f#961 = (module<scheduler, {}>["unstable_now"]() | ???*0*)
 - *0* unsupported expression
 
 f#979 = (???*0* | (...) => undefined)
@@ -12628,13 +12472,13 @@ fg = (false | true)
 
 fh = (...) => (undefined | FreeVar(undefined))
 
-fi = (...) => (undefined | [b["memoizedState"], c["dispatch"]])
+fi = (...) => [b["memoizedState"], c["dispatch"]]
 
-fj = (undefined | {"current": 0})
+fj = {"current": 0}
 
 fk = (...) => undefined
 
-fl = (...) => (undefined | a)
+fl = (...) => a
 
 g#1018 = (
   | ???*0*
@@ -12716,7 +12560,7 @@ g#420 = ???*0*
 - *0* arguments[6]
   ⚠️  function calls are not analysed yet
 
-g#431 = (...) => (undefined | b)
+g#431 = (...) => b
 
 g#449 = ???*0*
 - *0* max number of linking steps reached
@@ -12760,9 +12604,8 @@ g#539 = ???*0*
 
 g#592 = (
   | ???*0*
-  | (...) => (undefined | !(0) | !(1))["type"]["memoizedProps"]
-  | undefined["child"]["memoizedProps"]
-  | (...) => (undefined | !(0) | !(1))["type"]["child"]["memoizedProps"]
+  | (...) => (!(0) | !(1))["type"]["memoizedProps"]
+  | (...) => (!(0) | !(1))["type"]["child"]["memoizedProps"]
   | null["child"]["memoizedProps"]
 )
 - *0* ???*1*["memoizedProps"]
@@ -12847,7 +12690,7 @@ g#838 = ???*0*
 g#843 = ???*0*
 - *0* max number of linking steps reached
 
-g#880 = (0 | 1 | ???*0* | 4 | 16 | undefined | 536870912 | null | ???*1* | ???*2*)
+g#880 = (0 | 1 | ???*0* | 4 | 16 | 536870912 | null | ???*1* | ???*2*)
 - *0* C
   ⚠️  circular variable reference
 - *1* arguments[0]
@@ -12878,14 +12721,12 @@ g#960 = ???*0*
   ⚠️  function calls are not analysed yet
 
 g#961 = (
-  | undefined
   | 1
   | ???*0*
   | 0
   | 64
   | ???*1*
   | ???*2*
-  | undefined["current"]
   | ???*4*
   | ???*5*
   | ???*6*
@@ -12894,6 +12735,7 @@ g#961 = (
   | 536870912
   | null
   | ???*7*
+  | undefined
 )
 - *0* unsupported expression
 - *1* unsupported assign operation
@@ -12909,7 +12751,7 @@ g#961 = (
 - *7* arguments[0]
   ⚠️  function calls are not analysed yet
 
-g#979 = (undefined | ???*0* | ???*1* | ???*3*)
+g#979 = (???*0* | ???*1* | ???*3*)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["current"]
@@ -12918,7 +12760,7 @@ g#979 = (undefined | ???*0* | ???*1* | ???*3*)
   ⚠️  circular variable reference
 - *3* unknown new expression
 
-g#986 = (???*0* | undefined | ???*2* | ???*3*)
+g#986 = (???*0* | ???*2* | ???*3*)
 - *0* ???*1*["_reactRootContainer"]
   ⚠️  unknown object
 - *1* arguments[2]
@@ -12927,13 +12769,10 @@ g#986 = (???*0* | undefined | ???*2* | ???*3*)
   ⚠️  function calls are not analysed yet
 - *3* unknown new expression
 
-gb = (...) => (
-  | undefined
-  | A(
-        {},
-        b,
-        {"value": ???*0*, "defaultValue": ???*1*, "children": a["_wrapperState"]["initialValue"]}
-    )
+gb = (...) => A(
+    {},
+    b,
+    {"value": ???*0*, "defaultValue": ???*1*, "children": a["_wrapperState"]["initialValue"]}
 )
 - *0* unsupported expression
 - *1* unsupported expression
@@ -12952,9 +12791,9 @@ gg = (false | true)
 
 gh = (...) => undefined
 
-gi = (...) => (undefined | [f, d])
+gi = (...) => [f, d]
 
-gj = (???*0* | 0 | undefined["current"] | ???*1* | ???*2* | ???*3*)
+gj = (???*0* | 0 | ???*1* | ???*2* | ???*3*)
 - *0* unsupported assign operation
 - *1* unknown mutation
 - *2* arguments[1]
@@ -12963,7 +12802,7 @@ gj = (???*0* | 0 | undefined["current"] | ???*1* | ???*2* | ???*3*)
 
 gk = (module<scheduler, {}>["unstable_now"]() | 0)
 
-gl = (...) => (undefined | g)
+gl = (...) => g
 
 h#123 = ???*0*
 - *0* arguments[7]
@@ -13033,7 +12872,7 @@ h#311 = (???*0* | ???*1*)
 h#404 = ???*0*
 - *0* max number of linking steps reached
 
-h#431 = (...) => (undefined | b)
+h#431 = (...) => b
 
 h#449 = ???*0*
 - *0* arguments[2]
@@ -13071,12 +12910,7 @@ h#609 = ???*0*
 h#614 = ???*0*
 - *0* max number of linking steps reached
 
-h#639 = (
-  | ???*0*
-  | undefined[(???*5* | null | [] | ???*6*)]
-  | ???*7*
-  | undefined[(???*8* | null | [] | ???*9*)]["__html"]
-)
+h#639 = (???*0* | ???*5*)
 - *0* ???*1*[(???*3* | null | [] | ???*4*)]
   ⚠️  unknown object
 - *1* ???*2*["memoizedProps"]
@@ -13087,15 +12921,7 @@ h#639 = (
   ⚠️  pattern without value
 - *4* f
   ⚠️  circular variable reference
-- *5* l
-  ⚠️  pattern without value
-- *6* f
-  ⚠️  circular variable reference
-- *7* unsupported expression
-- *8* l
-  ⚠️  pattern without value
-- *9* f
-  ⚠️  circular variable reference
+- *5* unsupported expression
 
 h#647 = ???*0*
 - *0* max number of linking steps reached
@@ -13180,7 +13006,7 @@ hc = module<scheduler, {}>["unstable_NormalPriority"]
 
 hd = (...) => (undefined | FreeVar(undefined))
 
-he = (...) => (undefined | a["data"] | null)
+he = (...) => (a["data"] | null)
 
 hf = "abort auxClick cancel canPlay canPlayThrough click close contextMenu copy cut drag dragEnd dragEnter dragExit dragLeave dragOver dragStart drop durationChange emptied encrypted ended error gotPointerCapture input invalid keyDown keyPress keyUp load loadedData loadedMetadata loadStart lostPointerCapture mouseDown mouseMove mouseOut mouseOver mouseUp paste pause play playing pointerCancel pointerDown pointerMove pointerOut pointerOver pointerUp progress rateChange reset resize seeked seeking stalled submit suspend timeUpdate touchCancel touchEnd touchStart volumeChange scroll toggle touchMove waiting wheel"["split"](" ")[(0 | ???*0*)]
 - *0* updated with update expression
@@ -13216,9 +13042,9 @@ ig = (...) => undefined
 
 ih = (...) => undefined
 
-ii = (...) => (undefined | e)
+ii = (...) => e
 
-ij = (...) => (undefined | kj(a, b, c, d, f, e))
+ij = (...) => kj(a, b, c, d, f, e)
 
 ik = (...) => undefined
 
@@ -13249,14 +13075,14 @@ jf = ???*0*()
   ⚠️  nested operation
 - *3* updated with update expression
 
-jg = (...) => (undefined | null)
+jg = (...) => null
 
 jh = ???*0*
 - *0* ???*1*["refs"]
   ⚠️  unknown object
 - *1* unknown new expression
 
-ji = (...) => (undefined | ui(2048, 8, a, b))
+ji = (...) => ui(2048, 8, a, b)
 
 jj = (...) => undefined
 
@@ -13353,14 +13179,12 @@ ${???*8*}`
 
 k#311 = (
   | ???*0*
-  | undefined
   | null
-  | !((undefined | ???*2* | null | ???*4*))["stateNode"]
+  | !((???*2* | null | ???*4*))["stateNode"]
   | false["stateNode"]
-  | undefined[???*7*]
-  | null[???*9*]
-  | !(???*11*)[???*13*]
-  | !(???*15*)[???*21*]
+  | null[???*7*]
+  | !(???*9*)[???*11*]
+  | !(???*13*)[???*19*]
 )
 - *0* ???*1*["alternate"]
   ⚠️  unknown object
@@ -13380,39 +13204,35 @@ k#311 = (
   ⚠️  unknown object
 - *8* arguments[1]
   ⚠️  function calls are not analysed yet
-- *9* ???*10*["_reactName"]
+- *9* ???*10*["disabled"]
   ⚠️  unknown object
-- *10* arguments[1]
-  ⚠️  function calls are not analysed yet
-- *11* ???*12*["disabled"]
-  ⚠️  unknown object
-- *12* d
+- *10* d
   ⚠️  circular variable reference
-- *13* ???*14*["_reactName"]
+- *11* ???*12*["_reactName"]
   ⚠️  unknown object
-- *14* arguments[1]
+- *12* arguments[1]
   ⚠️  function calls are not analysed yet
-- *15* ("button" === (???*16* | ???*17* | ???*19* | false))
+- *13* ("button" === (???*14* | ???*15* | ???*17* | false))
   ⚠️  nested operation
-- *16* arguments[2]
+- *14* arguments[2]
   ⚠️  function calls are not analysed yet
-- *17* ???*18*["return"]
+- *15* ???*16*["return"]
   ⚠️  unknown object
-- *18* c
+- *16* c
   ⚠️  circular variable reference
-- *19* !(???*20*)
+- *17* !(???*18*)
   ⚠️  nested operation
-- *20* d
+- *18* d
   ⚠️  circular variable reference
-- *21* ???*22*["_reactName"]
+- *19* ???*20*["_reactName"]
   ⚠️  unknown object
-- *22* arguments[1]
+- *20* arguments[1]
   ⚠️  function calls are not analysed yet
 
 k#404 = ???*0*
 - *0* max number of linking steps reached
 
-k#431 = (...) => (undefined | m(a, b, c["props"]["children"], d, c["key"]) | d)
+k#431 = (...) => (m(a, b, c["props"]["children"], d, c["key"]) | d)
 
 k#449 = ???*0*
 - *0* arguments[3]
@@ -13437,16 +13257,7 @@ k#539 = ???*0*
 - *1* arguments[1]
   ⚠️  function calls are not analysed yet
 
-k#601 = (
-  | ???*0*
-  | undefined
-  | undefined["_currentValue"]
-  | ???*3*
-  | ???*4*
-  | undefined["current"]["_currentValue"]
-  | {}
-  | undefined["current"]
-)
+k#601 = (???*0* | ???*3* | ???*4* | {})
 - *0* ???*1*["context"]
   ⚠️  unknown object
 - *1* ???*2*["stateNode"]
@@ -13460,12 +13271,7 @@ k#601 = (
 k#609 = ???*0*
 - *0* max number of linking steps reached
 
-k#639 = (
-  | ???*0*
-  | undefined[(???*4* | null | [] | ???*5*)]
-  | undefined[(???*6* | null | [] | ???*7*)]["__html"]
-  | ???*8*
-)
+k#639 = (???*0* | ???*4*)
 - *0* ???*1*[(???*2* | null | [] | ???*3*)]
   ⚠️  unknown object
 - *1* arguments[3]
@@ -13474,15 +13280,7 @@ k#639 = (
   ⚠️  pattern without value
 - *3* f
   ⚠️  circular variable reference
-- *4* l
-  ⚠️  pattern without value
-- *5* f
-  ⚠️  circular variable reference
-- *6* l
-  ⚠️  pattern without value
-- *7* f
-  ⚠️  circular variable reference
-- *8* unsupported expression
+- *4* unsupported expression
 
 k#647 = ???*0*
 - *0* max number of linking steps reached
@@ -13553,7 +13351,7 @@ k#960 = ???*0*
 - *0* arguments[8]
   ⚠️  function calls are not analysed yet
 
-k#979 = (undefined | ???*0* | ???*1*)
+k#979 = (???*0* | ???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* unknown new expression
@@ -13573,7 +13371,7 @@ kc = (null | ???*0*)
 - *1* FreeVar(__REACT_DEVTOOLS_GLOBAL_HOOK__)
   ⚠️  unknown global
 
-kd = (null | undefined | ???*0* | ???*2* | ???*3* | ???*4*)
+kd = (null | ???*0* | ???*2* | ???*3* | ???*4*)
 - *0* ???*1*["parentNode"]
   ⚠️  unknown object
 - *1* arguments[2]
@@ -13612,13 +13410,13 @@ kg = []
 
 kh = (...) => undefined
 
-ki = (...) => (undefined | c(*anonymous function 67764*))
+ki = (...) => c(*anonymous function 67764*)
 
-kj = (...) => (undefined | $i(a, b, f) | b["child"])
+kj = (...) => ($i(a, b, f) | b["child"])
 
 kk = (...) => undefined
 
-kl = (...) => (undefined | null)
+kl = (...) => null
 
 l#123 = ???*0*
 - *0* ???*1*["call"](FreeVar(arguments), 3)
@@ -13678,7 +13476,7 @@ l#43 = ???*0*
 - *0* l
   ⚠️  pattern without value
 
-l#431 = (...) => (undefined | b)
+l#431 = (...) => b
 
 l#449 = ???*0*
 - *0* max number of linking steps reached
@@ -13732,21 +13530,13 @@ l#919 = ???*0*
 
 la = {}
 
-lb = (...) => (undefined | kb(b) | "http://www.w3.org/1999/xhtml" | a)
+lb = (...) => (kb(b) | "http://www.w3.org/1999/xhtml" | a)
 
 lc = (null | ???*0*)
 - *0* FreeVar(__REACT_DEVTOOLS_GLOBAL_HOOK__)
   ⚠️  unknown global
 
-ld = (
-  | null
-  | ???*0*
-  | null["value"]
-  | undefined["value"]
-  | ???*1*
-  | null["textContent"]
-  | undefined["textContent"]
-)
+ld = (null | ???*0* | null["value"] | ???*1* | null["textContent"])
 - *0* unsupported expression
 - *1* ???*2*["value"]
   ⚠️  unknown object
@@ -13778,10 +13568,10 @@ lf = "abort canplay canplaythrough durationchange emptied encrypted ended error 
 lg = (0 | ???*0*)
 - *0* updated with update expression
 
-lh = (...) => (undefined | 1 | ???*0* | Ck | a)
+lh = (...) => (1 | ???*0* | Ck | a)
 - *0* unsupported expression
 
-li = (...) => (undefined | a)
+li = (...) => a
 
 lj = (...) => undefined
 
@@ -13798,7 +13588,7 @@ m#125 = ???*0*
 m#404 = ???*0*
 - *0* max number of linking steps reached
 
-m#431 = (...) => (undefined | b)
+m#431 = (...) => b
 
 m#449 = ???*0*
 - *0* max number of linking steps reached
@@ -13851,43 +13641,33 @@ mc = (...) => undefined
 md = (
   | null
   | null["value"]["slice"]((???*0* | 0 | ???*1*), ???*2*)
-  | undefined["value"]["slice"]((???*3* | 0 | ???*4*), ???*5*)
-  | ???*6*
-  | null["textContent"]["slice"]((???*13* | 0 | ???*14*), ???*15*)
-  | undefined["textContent"]["slice"]((???*16* | 0 | ???*17*), ???*18*)
-  | ???*19*
+  | ???*3*
+  | null["textContent"]["slice"]((???*10* | 0 | ???*11*), ???*12*)
+  | ???*13*
 )
 - *0* a
   ⚠️  pattern without value
 - *1* updated with update expression
 - *2* unsupported expression
-- *3* a
-  ⚠️  pattern without value
-- *4* updated with update expression
-- *5* unsupported expression
-- *6* ???*7*["slice"]((???*10* | 0 | ???*11*), ???*12*)
+- *3* ???*4*["slice"]((???*7* | 0 | ???*8*), ???*9*)
   ⚠️  unknown callee object
-- *7* ???*8*["value"]
+- *4* ???*5*["value"]
   ⚠️  unknown object
-- *8* ???*9*["parentNode"]
+- *5* ???*6*["parentNode"]
   ⚠️  unknown object
-- *9* arguments[2]
+- *6* arguments[2]
   ⚠️  function calls are not analysed yet
+- *7* a
+  ⚠️  pattern without value
+- *8* updated with update expression
+- *9* unsupported expression
 - *10* a
   ⚠️  pattern without value
 - *11* updated with update expression
 - *12* unsupported expression
-- *13* a
-  ⚠️  pattern without value
-- *14* updated with update expression
-- *15* unsupported expression
-- *16* a
-  ⚠️  pattern without value
-- *17* updated with update expression
-- *18* unsupported expression
-- *19* unsupported expression
+- *13* unsupported expression
 
-me = (...) => (undefined | !(!(le[a["type"]])) | !(0) | !(1))
+me = (...) => (!(!(le[a["type"]])) | !(0) | !(1))
 
 mf = ???*0*
 - *0* unknown new expression
@@ -13903,7 +13683,7 @@ mh = (...) => undefined
 
 mi = (...) => undefined
 
-mj = (...) => (undefined | b["child"])
+mj = (...) => b["child"]
 
 mk = ???*0*
 - *0* ???*1*["ceil"]
@@ -13919,7 +13699,7 @@ n#292 = ???*0*
 n#404 = ???*0*
 - *0* max number of linking steps reached
 
-n#431 = (...) => (undefined | l)
+n#431 = (...) => l
 
 n#449 = ???*0*
 - *0* max number of linking steps reached
@@ -13983,10 +13763,10 @@ nb = ???*0*
 - *1* *anonymous function 13449*
   ⚠️  no value of this variable analysed
 
-nc = (...) => (undefined | 32 | ???*0*)
+nc = (...) => (32 | ???*0*)
 - *0* unsupported expression
 
-nd = (...) => (undefined | md | ???*0*)
+nd = (...) => (md | ???*0*)
 - *0* unsupported expression
 
 ne = (...) => undefined
@@ -14001,7 +13781,7 @@ ng = (0 | ???*0* | ???*1*)
 - *2* unsupported expression
 
 nh = {
-    "isMounted": (...) => (undefined | (Vb(a) === a) | !(1)),
+    "isMounted": (...) => ((Vb(a) === a) | !(1)),
     "enqueueSetState": (...) => undefined,
     "enqueueReplaceState": (...) => undefined,
     "enqueueForceUpdate": (...) => undefined
@@ -14015,21 +13795,21 @@ nk = module<react, {}>["__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED"]["Re
 
 nl = (...) => undefined
 
-oa = (...) => (undefined | !(0) | !(1) | ???*0*)
+oa = (...) => (!(0) | !(1) | ???*0*)
 - *0* unsupported expression
 
 ob = (...) => (undefined | FreeVar(undefined))
 
-oc = (???*0* | (...) => (undefined | 32 | ???*2*))
+oc = (???*0* | (...) => (32 | ???*2*))
 - *0* ???*1*["clz32"]
   ⚠️  unknown object
 - *1* FreeVar(Math)
   ⚠️  unknown global
 - *2* unsupported expression
 
-od = (...) => (undefined | a | 0)
+od = (...) => (a | 0)
 
-oe = (...) => (undefined | d)
+oe = (...) => d
 
 of = `__reactEvents$${???*0*}`
 - *0* ???*1*["slice"](2)
@@ -14045,29 +13825,20 @@ of = `__reactEvents$${???*0*}`
 
 og = []
 
-oh = (...) => (undefined | a["shouldComponentUpdate"](d, f, g) | (!(Ie(c, d)) || !(Ie(e, f))) | !(0))
+oh = (...) => (a["shouldComponentUpdate"](d, f, g) | (!(Ie(c, d)) || !(Ie(e, f))) | !(0))
 
 oi = (...) => (undefined | !(He(a, c)) | !(0))
 
-oj = (...) => (
-  | undefined
-  | {"baseLanes": a, "cachePool": null, "transitions": null}
-)
+oj = (...) => {"baseLanes": a, "cachePool": null, "transitions": null}
 
 ok = module<react, {}>["__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED"]["ReactCurrentOwner"]
 
-ol = (...) => (
-  | undefined
-  | !((
-     || !(a)
-     || ((1 !== a["nodeType"]) && (9 !== a["nodeType"]) && (11 !== a["nodeType"]))
-    ))
-)
+ol = (...) => !((
+ || !(a)
+ || ((1 !== a["nodeType"]) && (9 !== a["nodeType"]) && (11 !== a["nodeType"]))
+))
 
-p = (...) => (
-  | undefined
-  | `Minified React error #${a}; visit ${b} for the full message or use the non-minified dev environment for full errors and additional helpful warnings.`
-)
+p = (...) => `Minified React error #${a}; visit ${b} for the full message or use the non-minified dev environment for full errors and additional helpful warnings.`
 
 pa = (...) => (undefined | !(1) | !(0) | !(c["acceptsBooleans"]) | (("data-" !== a) && ("aria-" !== a)))
 
@@ -14123,7 +13894,7 @@ pc = ???*0*
 - *1* FreeVar(Math)
   ⚠️  unknown global
 
-pd = (...) => (undefined | !(0))
+pd = (...) => !(0)
 
 pe = (null | ???*0*)
 - *0* arguments[1]
@@ -14134,34 +13905,31 @@ pf = (...) => undefined
 pg = (0 | ???*0*)
 - *0* updated with update expression
 
-ph = (...) => (undefined | b)
+ph = (...) => b
 
 pi = (...) => undefined
 
-pj = (...) => (undefined | null | a | rj(b, g) | sj(a, b, g, d, h, e, c) | d)
+pj = (...) => (null | a | rj(b, g) | sj(a, b, g, d, h, e, c) | d)
 
 pk = module<react, {}>["__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED"]["ReactCurrentBatchConfig"]
 
-pl = (...) => (
-  | undefined
-  | !((
-     || !(a)
-     || (
-         && (1 !== a["nodeType"])
-         && (9 !== a["nodeType"])
-         && (11 !== a["nodeType"])
-         && (
-             || (8 !== a["nodeType"])
-             || (" react-mount-point-unstable " !== a["nodeValue"])
-            )
+pl = (...) => !((
+ || !(a)
+ || (
+     && (1 !== a["nodeType"])
+     && (9 !== a["nodeType"])
+     && (11 !== a["nodeType"])
+     && (
+         || (8 !== a["nodeType"])
+         || (" react-mount-point-unstable " !== a["nodeValue"])
         )
-    ))
-)
+    )
+))
 
 q#404 = ???*0*
 - *0* max number of linking steps reached
 
-q#431 = (...) => (undefined | b | c | q(a, d(b["_payload"]), c) | null)
+q#431 = (...) => (b | c | q(a, d(b["_payload"]), c) | null)
 
 q#494 = ???*0*
 - *0* max number of linking steps reached
@@ -14196,7 +13964,7 @@ q#843 = ???*0*
 q#883 = ???*0*
 - *0* max number of linking steps reached
 
-qa = (...) => (undefined | !(0) | !(1) | !(b) | (!(1) === b) | FreeVar(isNaN)(b) | (FreeVar(isNaN)(b) || ???*0*))
+qa = (...) => (!(0) | !(1) | !(b) | (!(1) === b) | FreeVar(isNaN)(b) | (FreeVar(isNaN)(b) || ???*0*))
 - *0* unsupported expression
 
 qb = ["Webkit", "ms", "Moz", "O"]
@@ -14207,7 +13975,7 @@ qc = ???*0*
 - *1* FreeVar(Math)
   ⚠️  unknown global
 
-qd = (...) => (undefined | !(1))
+qd = (...) => !(1)
 
 qe = (null | ???*0* | ???*1*)
 - *0* unsupported expression
@@ -14221,9 +13989,9 @@ qg = ???*0*
 
 qh = (...) => undefined
 
-qi = (...) => (undefined | [b["memoizedState"], a])
+qi = (...) => [b["memoizedState"], a]
 
-qj = (...) => (undefined | a)
+qj = (...) => a
 
 qk = ???*0*
 - *0* max number of linking steps reached
@@ -14234,7 +14002,6 @@ r#404 = ???*0*
 - *0* max number of linking steps reached
 
 r#431 = (...) => (
-  | undefined
   | null
   | h(a, b, c, d)
   | k(a, b, c, d)
@@ -14267,12 +14034,12 @@ r#883 = ???*0*
 
 ra = /[\-:]([a-z])/g
 
-rb = (...) => (undefined | "" | b["trim"]() | `${b}px`)
+rb = (...) => ("" | b["trim"]() | `${b}px`)
 
 rc = (64 | ???*0*)
 - *0* unsupported assign operation
 
-rd = (...) => (undefined | b)
+rd = (...) => b
 
 re = (...) => undefined
 
@@ -14295,16 +14062,16 @@ rh = (...) => undefined
 
 ri = (...) => (undefined | FreeVar(undefined))
 
-rj = (...) => (undefined | ???*0*)
+rj = (...) => ???*0*
 - *0* unsupported expression
 
 rk = (0 | ???*0* | ???*1*)
 - *0* unsupported assign operation
 - *1* unsupported expression
 
-rl = (...) => (undefined | g | k)
+rl = (...) => (g | k)
 
-sa = (...) => (undefined | a[1]["toUpperCase"]())
+sa = (...) => a[1]["toUpperCase"]()
 
 sb = (...) => undefined
 
@@ -14315,7 +14082,7 @@ sd = {
     "eventPhase": 0,
     "bubbles": 0,
     "cancelable": 0,
-    "timeStamp": (...) => (undefined | (a["timeStamp"] || FreeVar(Date)["now"]())),
+    "timeStamp": (...) => (a["timeStamp"] || FreeVar(Date)["now"]()),
     "defaultPrevented": 0,
     "isTrusted": 0
 }
@@ -14327,17 +14094,17 @@ sf = (...) => undefined
 sg = ???*0*
 - *0* max number of linking steps reached
 
-sh = (...) => (undefined | b["ref"] | b | a)
+sh = (...) => (b["ref"] | b | a)
 
-si = (...) => (undefined | di()["memoizedState"])
+si = (...) => di()["memoizedState"]
 
-sj = (...) => (undefined | tj(a, b, g, d) | null | f | tj(a, b, g, null) | b)
+sj = (...) => (tj(a, b, g, d) | null | f | tj(a, b, g, null) | b)
 
 sk = (0 | ???*0* | ???*1*)
 - *0* unsupported expression
 - *1* unsupported assign operation
 
-sl = (...) => (undefined | hl(g))
+sl = (...) => hl(g)
 
 t#292 = ???*0*
 - *0* max number of linking steps reached
@@ -14345,7 +14112,7 @@ t#292 = ???*0*
 t#404 = ???*0*
 - *0* max number of linking steps reached
 
-t#431 = (...) => (undefined | l)
+t#431 = (...) => l
 
 t#454 = ???*0*
 - *0* max number of linking steps reached
@@ -14427,12 +14194,12 @@ tb = ???*0*
 tc = (...) => (undefined | 1 | 2 | 4 | 8 | 16 | 32 | ???*0* | 134217728 | 268435456 | 536870912 | 1073741824 | a)
 - *0* unsupported expression
 
-td = (undefined | (...) => (undefined | ???*0*))
+td = (...) => ???*0*
 - *0* unsupported expression
 
 te = (...) => (undefined | a)
 
-tf = (...) => (undefined | {"instance": a, "listener": b, "currentTarget": c})
+tf = (...) => {"instance": a, "listener": b, "currentTarget": c}
 
 tg = (...) => undefined
 
@@ -14440,7 +14207,7 @@ th = (...) => undefined
 
 ti = (...) => undefined
 
-tj = (...) => (undefined | a)
+tj = (...) => a
 
 tk = ???*0*
 - *0* max number of linking steps reached
@@ -14448,9 +14215,9 @@ tk = ???*0*
 tl = {
     "usingClientEntryPoint": false,
     "Events": [
-        (...) => (undefined | null | a),
+        (...) => (null | a),
         (...) => (undefined | a["stateNode"]),
-        (...) => (undefined | (a[Pf] || null)),
+        (...) => (a[Pf] || null),
         (...) => undefined,
         (...) => undefined,
         (...) => (undefined | a(b))
@@ -14479,7 +14246,7 @@ ua = module<react, {}>["__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED"]
 
 ub = (...) => undefined
 
-uc = (...) => (undefined | 0 | b | d)
+uc = (...) => (0 | b | d)
 
 ud = ???*0*
 - *0* ???*1*({}, sd, {"view": 0, "detail": 0})
@@ -14505,7 +14272,7 @@ uf = `__reactContainer$${???*0*}`
 
 ug = (...) => undefined
 
-uh = (...) => (undefined | b(a["_payload"]))
+uh = (...) => b(a["_payload"])
 
 ui = (...) => (undefined | FreeVar(undefined))
 
@@ -14515,7 +14282,7 @@ uk = ???*0*
 - *0* max number of linking steps reached
 
 ul = {
-    "findFiberByHostInstance": (...) => (undefined | b | c | null),
+    "findFiberByHostInstance": (...) => (b | c | null),
     "bundleType": 0,
     "version": "18.2.0",
     "rendererPackageName": "react-dom"
@@ -14535,18 +14302,18 @@ vb = (...) => (undefined | ("string" === ???*0*) | !(1) | !(0))
 vc = (...) => (undefined | (b + 250) | (b + 5000) | ???*0*)
 - *0* unsupported expression
 
-vd = (undefined | (...) => (undefined | ???*0*))
+vd = (...) => ???*0*
 - *0* unsupported expression
 
 ve = (...) => (undefined | b)
 
-vf = (...) => (undefined | null | a)
+vf = (...) => (null | a)
 
 vg = (...) => undefined
 
-vh = (...) => (undefined | J)
+vh = (...) => J
 
-vi = (...) => (undefined | ti(8390656, 8, a, b))
+vi = (...) => ti(8390656, 8, a, b)
 
 vj = (...) => undefined
 
@@ -14567,8 +14334,8 @@ vl = {
     "setSuspenseHandler": null,
     "scheduleUpdate": null,
     "currentDispatcherRef": module<react, {}>["__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED"]["ReactCurrentDispatcher"],
-    "findHostInstanceByFiber": (...) => (undefined | null | a["stateNode"]),
-    "findFiberByHostInstance": ((...) => (undefined | b | c | null) | ???*5* | (...) => (undefined | null)),
+    "findHostInstanceByFiber": (...) => (null | a["stateNode"]),
+    "findFiberByHostInstance": ((...) => (b | c | null) | ???*5* | (...) => null),
     "findHostInstancesForRefresh": null,
     "scheduleRefresh": null,
     "scheduleRoot": null,
@@ -14601,15 +14368,7 @@ w#673 = ???*0*
 w#843 = ???*0*
 - *0* max number of linking steps reached
 
-w#883 = (
-  | undefined["current"]
-  | 16["current"]
-  | 536870912["current"]
-  | 4["current"]
-  | 1["current"]
-  | null["current"]
-  | ???*0*
-)
+w#883 = (16["current"] | 536870912["current"] | 4["current"] | 1["current"] | null["current"] | ???*0*)
 - *0* ???*1*["current"]
   ⚠️  unknown object
 - *1* arguments[0]
@@ -14645,9 +14404,9 @@ wf = (...) => undefined
 
 wg = (...) => undefined
 
-wh = (...) => (undefined | c)
+wh = (...) => c
 
-wi = (...) => (undefined | ui(4, 2, a, b))
+wi = (...) => ui(4, 2, a, b)
 
 wj = (...) => undefined
 
@@ -14678,9 +14437,9 @@ x#883 = ???*0*
 xa = ???*0*
 - *0* max number of linking steps reached
 
-xb = (...) => (undefined | a["parentNode"] | a)
+xb = (...) => (a["parentNode"] | a)
 
-xc = (...) => (undefined | a | 1073741824 | 0)
+xc = (...) => (a | 1073741824 | 0)
 
 xd = (???*0* | ???*1*)
 - *0* xd
@@ -14698,9 +14457,9 @@ xf = /\r\n?/g
 xg = ???*0*
 - *0* max number of linking steps reached
 
-xh = (...) => (undefined | a)
+xh = (...) => a
 
-xi = (...) => (undefined | ui(4, 4, a, b))
+xi = (...) => ui(4, 4, a, b)
 
 xj = (...) => undefined
 
@@ -14716,7 +14475,6 @@ y#404 = ???*0*
 - *0* max number of linking steps reached
 
 y#431 = (...) => (
-  | undefined
   | h(b, a, d, e)
   | k(b, a, d, e)
   | l(b, a, d, e)
@@ -14751,7 +14509,7 @@ ya = ???*0*
 
 yb = (null | (...) => undefined)
 
-yc = (...) => (undefined | a)
+yc = (...) => a
 
 yd = (???*0* | ???*1*)
 - *0* yd
@@ -14768,11 +14526,11 @@ yf = /\u0000|\uFFFD/g
 yg = ???*0*
 - *0* max number of linking steps reached
 
-yh = (...) => (undefined | Ah(c["children"], e, f, b) | a | qj(c, e, f, b) | b)
+yh = (...) => (Ah(c["children"], e, f, b) | a | qj(c, e, f, b) | b)
 
 yi = (...) => (undefined | *anonymous function 69020* | *anonymous function 69089*)
 
-yj = (...) => (undefined | b["child"])
+yj = (...) => b["child"]
 
 yk = (0 | ???*0* | null["finishedLanes"])
 - *0* ???*1*["finishedLanes"]
@@ -14792,9 +14550,9 @@ zb = (null | ???*0*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-zc = (...) => (undefined | b)
+zc = (...) => b
 
-zd = (...) => (undefined | Pd)
+zd = (...) => Pd
 
 ze = ???*0*
 - *0* ???*1*["createElement"]("div")
@@ -14802,17 +14560,17 @@ ze = ???*0*
 - *1* FreeVar(document)
   ⚠️  unknown global
 
-zf = (...) => (undefined | a["replace"](xf, "\n")["replace"](yf, ""))
+zf = (...) => a["replace"](xf, "\n")["replace"](yf, "")
 
 zg = (null | [???*0*])
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-zh = (...) => (undefined | b)
+zh = (...) => b
 
-zi = (...) => (undefined | ui(4, 4, yi["bind"](null, b, a), c))
+zi = (...) => ui(4, 4, yi["bind"](null, b, a), c)
 
-zj = (...) => (undefined | null | pj(a, b, c) | a["sibling"] | yj(a, b, c) | ej(a, b, c) | $i(a, b, c))
+zj = (...) => (null | pj(a, b, c) | a["sibling"] | yj(a, b, c) | ej(a, b, c) | $i(a, b, c))
 
 zk = (0 | ???*0*)
 - *0* updated with update expression

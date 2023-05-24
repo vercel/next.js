@@ -64,48 +64,40 @@
     (
         "importAll",
         Function(
-            9,
+            7,
             1,
-            Alternatives(
-                8,
-                [
-                    Constant(
-                        Undefined,
+            MemberCall(
+                6,
+                MemberCall(
+                    3,
+                    Variable(
+                        (
+                            Atom('r' type=inline),
+                            #3,
+                        ),
                     ),
-                    MemberCall(
-                        6,
-                        MemberCall(
-                            3,
-                            Variable(
-                                (
-                                    Atom('r' type=inline),
-                                    #3,
-                                ),
-                            ),
-                            Constant(
-                                Str(
-                                    Word(
-                                        Atom('keys' type=inline),
-                                    ),
-                                ),
-                            ),
-                            [],
-                        ),
-                        Constant(
-                            Str(
-                                Word(
-                                    Atom('map' type=static),
-                                ),
+                    Constant(
+                        Str(
+                            Word(
+                                Atom('keys' type=inline),
                             ),
                         ),
-                        [
-                            Variable(
-                                (
-                                    Atom('r' type=inline),
-                                    #3,
-                                ),
-                            ),
-                        ],
+                    ),
+                    [],
+                ),
+                Constant(
+                    Str(
+                        Word(
+                            Atom('map' type=static),
+                        ),
+                    ),
+                ),
+                [
+                    Variable(
+                        (
+                            Atom('r' type=inline),
+                            #3,
+                        ),
                     ),
                 ],
             ),

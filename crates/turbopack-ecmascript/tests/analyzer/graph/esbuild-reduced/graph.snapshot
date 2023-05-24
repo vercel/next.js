@@ -74,21 +74,13 @@
     (
         "generateBinPath",
         Function(
-            4,
+            2,
             387,
-            Alternatives(
-                3,
-                [
-                    Constant(
-                        Undefined,
-                    ),
-                    Variable(
-                        (
-                            Atom('binPath' type=inline),
-                            #4,
-                        ),
-                    ),
-                ],
+            Variable(
+                (
+                    Atom('binPath' type=inline),
+                    #4,
+                ),
             ),
         ),
     ),
@@ -242,52 +234,44 @@
     (
         "pkgAndSubpathForCurrentPlatform",
         Function(
-            8,
+            6,
             217,
-            Alternatives(
-                7,
-                [
-                    Constant(
-                        Undefined,
+            Object {
+                total_nodes: 5,
+                parts: [
+                    KeyValue(
+                        Constant(
+                            Str(
+                                Word(
+                                    Atom('pkg' type=inline),
+                                ),
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('pkg' type=inline),
+                                #3,
+                            ),
+                        ),
                     ),
-                    Object {
-                        total_nodes: 5,
-                        parts: [
-                            KeyValue(
-                                Constant(
-                                    Str(
-                                        Word(
-                                            Atom('pkg' type=inline),
-                                        ),
-                                    ),
-                                ),
-                                Variable(
-                                    (
-                                        Atom('pkg' type=inline),
-                                        #3,
-                                    ),
+                    KeyValue(
+                        Constant(
+                            Str(
+                                Word(
+                                    Atom('subpath' type=inline),
                                 ),
                             ),
-                            KeyValue(
-                                Constant(
-                                    Str(
-                                        Word(
-                                            Atom('subpath' type=inline),
-                                        ),
-                                    ),
-                                ),
-                                Variable(
-                                    (
-                                        Atom('subpath' type=inline),
-                                        #3,
-                                    ),
-                                ),
+                        ),
+                        Variable(
+                            (
+                                Atom('subpath' type=inline),
+                                #3,
                             ),
-                        ],
-                        mutable: true,
-                    },
+                        ),
+                    ),
                 ],
-            ),
+                mutable: true,
+            },
         ),
     ),
     (

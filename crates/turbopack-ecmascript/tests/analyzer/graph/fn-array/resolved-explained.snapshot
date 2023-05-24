@@ -6,12 +6,12 @@ b = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
-c = (...) => (undefined | [`${a}${b}`, a])
+c = (...) => [`${a}${b}`, a]
 
-d = (undefined | ["12", "1"])
+d = ["12", "1"]
 
-e = (undefined[0] | "12" | ???*0*)
+e = ("12" | ???*0*)
 - *0* unknown mutation
 
-f = (undefined[1] | "1" | ???*0*)
+f = ("1" | ???*0*)
 - *0* unknown mutation
