@@ -16,7 +16,6 @@ import { getMiddlewareMatchers } from '../../build/analysis/get-page-static-info
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import {
   CLIENT_STATIC_FILES_PATH,
-  DEV_CLIENT_PAGES_MANIFEST,
   DEV_MIDDLEWARE_MANIFEST,
 } from '../../shared/lib/constants'
 import type { BaseNextRequest } from '../base-http'
