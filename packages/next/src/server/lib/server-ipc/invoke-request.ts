@@ -9,13 +9,6 @@ export const invokeRequest = async (
   },
   readableBody?: import('stream').Readable
 ) => {
-  const parsedUrl = new URL(targetUrl)
-
-  // force localhost to IPv4 as some DNS may
-  // resolve to IPv6 instead
-  if (parsedUrl.hostname === 'localhost') {
-    parsedUrl.hostname = '127.0.0.1'
-  }
   const invokeHeaders = filterReqHeaders({
     ...requestInit.headers,
   }) as IncomingMessage['headers']
@@ -26,7 +19,7 @@ export const invokeRequest = async (
 
       try {
         const invokeReq = http.request(
-          parsedUrl.toString(),
+          targetUrl,
           {
             headers: invokeHeaders,
             method: requestInit.method,
