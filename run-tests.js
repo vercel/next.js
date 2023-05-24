@@ -12,11 +12,11 @@ const { createNextInstall } = require('./test/lib/create-next-install')
 const glob = promisify(_glob)
 const exec = promisify(execOrig)
 
-// Try to read an external array-based json to filter tests to be executed.
+// Try to read an external array-based json to filter tests to be allowed / or disallowed.
 // If process.argv contains a test to be executed, this'll append it to the list.
 const externalTestsFilterLists = process.env.NEXT_EXTERNAL_TESTS_FILTERS
   ? require(process.env.NEXT_EXTERNAL_TESTS_FILTERS)
-  : []
+  : { enabledTests: [], disabledTests: [] }
 const timings = []
 const DEFAULT_NUM_RETRIES = os.platform() === 'win32' ? 2 : 1
 const DEFAULT_CONCURRENCY = 2
@@ -143,9 +143,7 @@ async function main() {
 
   console.log('Running tests with concurrency:', concurrency)
 
-  let tests = process.argv
-    .filter((arg) => arg.match(/\.test\.(js|ts|tsx)/))
-    .concat(externalTestsFilterLists)
+  let tests = process.argv.filter((arg) => arg.match(/\.test\.(js|ts|tsx)/))
   let prevTimings
 
   if (tests.length === 0) {
@@ -188,6 +186,17 @@ async function main() {
         await cleanUpAndExit(1)
       }
     }
+  }
+
+  // If there are external manifest contains list of tests, apply it to the test lists.
+  // Specifically, we filters out `disabledTests` from named export of the manifest.
+  if (externalTestsFilterLists?.disabledTests.length > 0) {
+    tests = tests.filter(
+      (test) =>
+        !externalTestsFilterLists.disabledTests.some((disabled) =>
+          disabled.includes(test)
+        )
+    )
   }
 
   let testNames = [

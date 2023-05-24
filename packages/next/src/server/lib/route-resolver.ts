@@ -26,8 +26,8 @@ export type MiddlewareConfig = {
 }
 
 export type ServerAddress = {
-  hostname: string
-  port: number
+  hostname?: string | null
+  port?: number | null
 }
 
 export type RouteResult =
@@ -165,7 +165,6 @@ export async function makeResolver(
           return {
             name: 'middleware',
             paths: middleware.files.map((file) => join(process.cwd(), file)),
-            env: Object.keys(process.env),
             wasm: [],
             assets: [],
           }
