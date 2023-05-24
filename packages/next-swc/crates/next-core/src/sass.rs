@@ -42,7 +42,7 @@ pub async fn maybe_add_sass_loader(
             // Without `as`, loader result would be JS code, so we don't want to apply sass-loader on that.
             let Some(rename_as) = rule.rename_as.as_ref() else {
                 continue;
-            }
+            };
             // Only when the result should run through the sass pipeline, we apply sass-loader.
             if rename_as != "*" {
                 continue;
