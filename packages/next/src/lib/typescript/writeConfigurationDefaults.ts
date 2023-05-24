@@ -68,6 +68,7 @@ function getDesiredCompilerOptions(
         (ts.ModuleResolutionKind as any).Node12,
         ts.ModuleResolutionKind.Node16,
         ts.ModuleResolutionKind.NodeNext,
+        (ts.ModuleResolutionKind as any).Bundler,
       ].filter((val) => typeof val !== 'undefined'),
       value: 'node',
       reason: 'to match webpack resolution',
