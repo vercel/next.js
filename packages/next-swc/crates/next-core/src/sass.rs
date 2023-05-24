@@ -39,14 +39,17 @@ pub async fn maybe_add_sass_loader(
         };
 
         if let Some(rule) = rule {
+            // Without `as`, loader result would be JS code, so we don't want to apply sass-loader on that.
+            let Some(rename_as) = rule.rename_as.as_ref() else {
+                continue;
+            }
+            // Only when the result should run through the sass pipeline, we apply sass-loader.
+            if rename_as != "*" {
+                continue;
+            }
             let mut loaders = rule.loaders.await?.clone_value();
             loaders.push(loader);
             rule.loaders = WebpackLoaderItemsVc::cell(loaders);
-            if let Some(rename_as) = rule.rename_as.as_mut() {
-                rename_as.push_str(rename);
-            } else {
-                rule.rename_as = Some(format!("*{rename}"));
-            }
         } else {
             rules.insert(
                 pattern.to_string(),
