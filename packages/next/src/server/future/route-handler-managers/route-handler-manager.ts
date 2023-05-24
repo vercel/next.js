@@ -7,6 +7,7 @@ import type { AppRouteRouteHandlerContext } from '../route-modules/app-route/mod
 import { NodeModuleLoader } from '../helpers/module-loader/node-module-loader'
 import { RouteModuleLoader } from '../helpers/module-loader/route-module-loader'
 import { NextRequestAdapter } from '../../web/spec-extension/adapters/next-request'
+import { RouteKind } from '../route-kind'
 
 /**
  * RouteHandlerManager is a manager for route handlers.
@@ -26,6 +27,11 @@ export class RouteHandlerManager {
     req: BaseNextRequest,
     context: RouteHandlerManagerContext
   ): Promise<Response | undefined> {
+    // If the match is not an enabled module type, return undefined.
+    if (match.definition.kind !== RouteKind.APP_ROUTE) {
+      return undefined
+    }
+
     // The module supports minimal mode, load the minimal module.
     const module = await RouteModuleLoader.load<RouteModule>(
       match.definition.filename,
