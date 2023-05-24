@@ -33,6 +33,23 @@ import { autoImplementMethods } from './helpers/auto-implement-methods'
 import { getNonStaticMethods } from './helpers/get-non-static-methods'
 import { appendMutableCookies } from '../../../web/spec-extension/adapters/request-cookies'
 
+// These are imported weirdly like this because of the way that the bundling
+// works. We need to import the built files from the dist directory, but we
+// can't do that directly because we need types from the source files. So we
+// import the types from the source files and then import the built files.
+const { requestAsyncStorage } =
+  require('next/dist/client/components/request-async-storage') as typeof import('../../../../client/components/request-async-storage')
+const { staticGenerationAsyncStorage } =
+  require('next/dist/client/components/static-generation-async-storage') as typeof import('../../../../client/components/static-generation-async-storage')
+const serverHooks =
+  require('next/dist/client/components/hooks-server-context') as typeof import('../../../../client/components/hooks-server-context')
+const headerHooks =
+  require('next/dist/client/components/headers') as typeof import('../../../../client/components/headers')
+const { staticGenerationBailout } =
+  require('next/dist/client/components/static-generation-bailout') as typeof import('../../../../client/components/static-generation-bailout')
+const { actionAsyncStorage } =
+  require('next/dist/client/components/action-async-storage') as typeof import('../../../../client/components/action-async-storage')
+
 /**
  * AppRouteRouteHandlerContext is the context that is passed to the route
  * handler for app routes.
@@ -100,6 +117,40 @@ export class AppRouteRouteModule extends RouteModule<
   AppRouteRouteDefinition,
   AppRouteUserlandModule
 > {
+  /**
+   * A reference to the request async storage.
+   */
+  public readonly requestAsyncStorage = requestAsyncStorage
+
+  /**
+   * A reference to the static generation async storage.
+   */
+  public readonly staticGenerationAsyncStorage = staticGenerationAsyncStorage
+
+  /**
+   * An interface to call server hooks which interact with the underlying
+   * storage.
+   */
+  public readonly serverHooks = serverHooks
+
+  /**
+   * An interface to call header hooks which interact with the underlying
+   * request storage.
+   */
+  public readonly headerHooks = headerHooks
+
+  /**
+   * An interface to call static generation bailout hooks which interact with
+   * the underlying static generation storage.
+   */
+  public readonly staticGenerationBailout = staticGenerationBailout
+
+  /**
+   * A reference to the mutation related async storage, such as mutations of
+   * cookies.
+   */
+  public readonly actionAsyncStorage = actionAsyncStorage
+
   public readonly resolvedPagePath: string
   public readonly nextConfigOutput: NextConfig['output'] | undefined
 
