@@ -3,25 +3,55 @@ import videojs from 'video.js'
 import 'videojs-youtube'
 
 interface PlayerProps {
-  techOrder: string[]
-  autoplay: boolean
-  controls: boolean
-  sources: { src: string; type: string }[]
+    /**
+     * 
+     */
+    techOrder: string[];
+    /**
+     * Is autoplay enabled for this video?
+     */
+    autoplay: boolean;
+    /**
+     * Should this video have controls? 
+     */
+    controls: boolean;
+    /**
+     * A list of video sources.
+     */
+    sources: { 
+        /**
+         * The source url.
+         */
+        src: string; 
+        /**
+         * The type of source
+         */
+        type: string;
+    }[];
 }
 
-export default function Player(props: PlayerProps) {
-  const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null)
+/**
+ * A simple video player component for displaying videos from external websites.
+ * @returns A Video.js video player element.
+ */
+const Player = (props: PlayerProps) => {
+  const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null);
   const onVideo = useCallback((el: HTMLVideoElement) => {
-    setVideoEl(el)
-  }, [])
+    setVideoEl(el);
+  }, []);
 
   useEffect(() => {
-    if (videoEl == null) return
-    const player = videojs(videoEl, props)
-    return () => {
-      player.dispose()
+    if(videoEl == null){
+        return;
     }
-  }, [props, videoEl])
+
+    // our video.js player
+    const player = videojs(videoEl, props);
+
+    return () => {
+      player.dispose();
+    }
+  }, [props, videoEl]);
 
   return (
     <>
@@ -30,5 +60,7 @@ export default function Player(props: PlayerProps) {
         <video ref={onVideo} className="video-js" playsInline />
       </div>
     </>
-  )
+  );
 }
+
+export default Player;
