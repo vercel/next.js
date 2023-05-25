@@ -1109,7 +1109,7 @@ impl AppRouteVc {
 
         let config = parse_segment_config_from_source(entry_asset);
         let module = match config.await?.runtime {
-            Some(NextRuntime::NodeJs) => {
+            Some(NextRuntime::NodeJs) | None => {
                 let bootstrap_asset = next_asset("entry/app/route.ts");
 
                 route_bootstrap(
@@ -1120,7 +1120,7 @@ impl AppRouteVc {
                     BootstrapConfigVc::empty(),
                 )
             }
-            Some(NextRuntime::Edge) | None => {
+            Some(NextRuntime::Edge) => {
                 let internal_asset = next_asset("entry/app/edge-route.ts");
 
                 let entry = this.context.with_transition("next-edge-route").process(
