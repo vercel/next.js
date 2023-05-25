@@ -283,11 +283,11 @@ createNextDescribe(
       it('should render legacy images in edge runtime at /legacy-edge-runtime route', async () => {
         const $ = await next.render$('/legacy')
 
-        const res2 = await next.fetch($('#app-legacy-layout').attr('src'))
+        const res2 = await next.fetch($('#app-legacy-edge-layout').attr('src'))
         expect(res2.status).toBe(200)
         expect(res2.headers.get('content-type')).toBe('image/jpeg')
 
-        const res3 = await next.fetch($('#app-legacy-page').attr('src'))
+        const res3 = await next.fetch($('#app-legacy-edge-page').attr('src'))
         expect(res3.status).toBe(200)
         expect(res3.headers.get('content-type')).toBe('image/jpeg')
       })
