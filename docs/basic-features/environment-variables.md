@@ -44,10 +44,6 @@ export async function getStaticProps() {
 }
 ```
 
-> **Note**: In order to keep server-only secrets safe, environment variables are evaluated at build time, so only environment variables _actually_ used will be included. This means that `process.env` is not a standard JavaScript object, so you’re not able to
-> use [object destructuring](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Destructuring_assignment).
-> Environment variables must be referenced as e.g. `process.env.PUBLISHABLE_KEY`, _not_ `const { PUBLISHABLE_KEY } = process.env`.
-
 > **Note**: Next.js will automatically expand variables (`$VAR`) inside of your `.env*` files.
 > This allows you to reference other secrets, like so:
 >

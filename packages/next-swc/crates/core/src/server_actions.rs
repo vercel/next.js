@@ -3,7 +3,7 @@ use std::convert::{TryFrom, TryInto};
 use hex::encode as hex_encode;
 use serde::Deserialize;
 use sha1::{Digest, Sha1};
-use turbo_binding::swc::core::{
+use turbopack_binding::swc::core::{
     common::{
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
@@ -220,6 +220,12 @@ impl<C: Comments> ServerActions<C> {
                 Some(action_ident.clone()),
             );
 
+            if let BlockStmtOrExpr::BlockStmt(block) = &mut *a.body {
+                block.visit_mut_with(&mut ClosureReplacer {
+                    used_ids: &ids_from_closure,
+                });
+            }
+
             let new_arrow = ArrowExpr {
                 span: DUMMY_SP,
                 params: vec![
@@ -239,11 +245,13 @@ impl<C: Comments> ServerActions<C> {
             };
 
             // export const $ACTION_myAction = async () => {}
-            let mut new_params: Vec<Pat> = ids_from_closure
-                .iter()
-                .cloned()
-                .map(|id| Pat::Ident(Ident::from(id.0).into()))
-                .collect();
+            let mut new_params: Vec<Pat> = vec![];
+
+            for i in 0..ids_from_closure.len() {
+                new_params.push(Pat::Ident(
+                    Ident::new(format!("$$ACTION_ARG_{}", i).into(), DUMMY_SP).into(),
+                ));
+            }
             for p in a.params.iter() {
                 new_params.push(p.clone());
             }
@@ -313,6 +321,10 @@ impl<C: Comments> ServerActions<C> {
                 Some(action_ident.clone()),
             );
 
+            f.body.visit_mut_with(&mut ClosureReplacer {
+                used_ids: &ids_from_closure,
+            });
+
             let new_fn = Function {
                 params: vec![
                     // ...args
@@ -343,11 +355,18 @@ impl<C: Comments> ServerActions<C> {
             };
 
             // export async function $ACTION_myAction () {}
-            let mut new_params: Vec<Param> = ids_from_closure
-                .iter()
-                .cloned()
-                .map(|id| Param::from(Pat::Ident(Ident::from(id.0).into())))
-                .collect();
+            let mut new_params: Vec<Param> = vec![];
+
+            // $$ACTION_ARG_{index}
+            for i in 0..ids_from_closure.len() {
+                new_params.push(Param {
+                    span: DUMMY_SP,
+                    decorators: vec![],
+                    pat: Pat::Ident(
+                        Ident::new(format!("$$ACTION_ARG_{}", i).into(), DUMMY_SP).into(),
+                    ),
+                });
+            }
             for p in f.params.iter() {
                 new_params.push(p.clone());
             }
@@ -717,13 +736,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
                                 for decl in &mut var.decls {
                                     if let Some(init) = &decl.init {
-                                        match &**init {
-                                            Expr::Fn(_f) => {}
-                                            Expr::Arrow(_a) => {}
-                                            Expr::Call(_c) => {}
-                                            _ => {
-                                                disallowed_export_span = *span;
-                                            }
+                                        if let Expr::Lit(_) = &**init {
+                                            // It's not allowed to export any literal.
+                                            disallowed_export_span = *span;
                                         }
                                     }
                                 }
@@ -1434,6 +1449,32 @@ fn collect_idents_in_stmt(stmt: &Stmt) -> Vec<Id> {
     }
 
     ids
+}
+
+pub(crate) struct ClosureReplacer<'a> {
+    used_ids: &'a [Name],
+}
+
+impl ClosureReplacer<'_> {
+    fn index(&self, e: &Expr) -> Option<usize> {
+        let name = Name::try_from(e).ok()?;
+        self.used_ids.iter().position(|used_id| *used_id == name)
+    }
+}
+
+impl VisitMut for ClosureReplacer<'_> {
+    fn visit_mut_expr(&mut self, e: &mut Expr) {
+        e.visit_mut_children_with(self);
+
+        if let Some(index) = self.index(e) {
+            *e = Expr::Ident(Ident::new(
+                // $$ACTION_ARG_0
+                format!("$$ACTION_ARG_{}", index).into(),
+                DUMMY_SP,
+            ));
+        }
+    }
+    noop_visit_mut_type!();
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

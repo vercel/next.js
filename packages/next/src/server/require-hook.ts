@@ -55,6 +55,16 @@ function overrideReact() {
           ),
         ],
         [
+          'react/package.json',
+          require.resolve(`next/dist/compiled/react-experimental/package.json`),
+        ],
+        [
+          'react-dom/package.json',
+          require.resolve(
+            `next/dist/compiled/react-dom-experimental/package.json`
+          ),
+        ],
+        [
           'react-dom/client',
           require.resolve(`next/dist/compiled/react-dom-experimental/client`),
         ],
@@ -103,6 +113,10 @@ function overrideReact() {
       addHookAliases([
         ['react', require.resolve(`next/dist/compiled/react`)],
         [
+          'react/package.json',
+          require.resolve(`next/dist/compiled/react/package.json`),
+        ],
+        [
           'react/jsx-runtime',
           require.resolve(`next/dist/compiled/react/jsx-runtime`),
         ],
@@ -113,6 +127,10 @@ function overrideReact() {
         [
           'react-dom',
           require.resolve(`next/dist/compiled/react-dom/server-rendering-stub`),
+        ],
+        [
+          'react-dom/package.json',
+          require.resolve(`next/dist/compiled/react-dom/package.json`),
         ],
         [
           'react-dom/client',

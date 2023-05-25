@@ -52,7 +52,7 @@ createNextDescribe(
         "./components/Comp.js
         ReactServerComponentsError:
 
-        You're importing a component that needs next/headers. That only works in a Server Component which is not supported in the pages/ directory. Read more: https://beta.nextjs.org/docs/rendering/server-and-client-components
+        You're importing a component that needs next/headers. That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/react-essentials#server-components
 
            ,-[1:1]
          1 | 
@@ -94,7 +94,7 @@ createNextDescribe(
         "./components/Comp.js
         ReactServerComponentsError:
 
-        You're importing a component that needs server-only. That only works in a Server Component which is not supported in the pages/ directory. Read more: https://beta.nextjs.org/docs/rendering/server-and-client-components
+        You're importing a component that needs server-only. That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/react-essentials#server-components
 
            ,-[1:1]
          1 | 

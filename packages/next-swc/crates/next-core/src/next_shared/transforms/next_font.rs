@@ -1,7 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use swc_core::ecma::{ast::Program, atoms::JsWord, visit::VisitMutWith};
-use turbo_binding::turbopack::{
+use turbopack_binding::turbopack::{
     ecmascript::{
         CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransformsVc, TransformContext,
         TransformPluginVc,
@@ -38,17 +38,13 @@ struct NextJsFont {
 
 #[async_trait]
 impl CustomTransformer for NextJsFont {
-    async fn transform(
-        &self,
-        program: &mut Program,
-        ctx: &TransformContext<'_>,
-    ) -> Result<Option<Program>> {
+    async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         let mut next_font = next_transform_font::next_font_loaders(next_transform_font::Config {
             font_loaders: self.font_loaders.clone(),
             relative_file_path_from_root: ctx.file_name_str.into(),
         });
 
         program.visit_mut_with(&mut next_font);
-        Ok(None)
+        Ok(())
     }
 }

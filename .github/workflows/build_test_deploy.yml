@@ -672,7 +672,6 @@ jobs:
     name: Test Codemods
     runs-on: ubuntu-latest
     needs: [build]
-    if: ${{ needs.build.outputs.codemodChange == 'yup' }}
     timeout-minutes: 5
     env:
       NEXT_TELEMETRY_DISABLED: 1
@@ -683,9 +682,11 @@ jobs:
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
+        if: ${{ needs.build.outputs.codemodChange == 'yup' }}
         run: sudo ethtool -K eth0 tx off rx off
 
       - uses: actions/cache@v3
+        if: ${{ needs.build.outputs.codemodChange == 'yup' }}
         timeout-minutes: 5
         id: restore-build
         with:
@@ -693,6 +694,7 @@ jobs:
           key: ${{ github.sha }}-${{ github.run_number }}
 
       - name: Run tests
+        if: ${{ needs.build.outputs.codemodChange == 'yup' }}
         run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-jammy /bin/bash -c "cd /work && NODE_VERSION=${{ env.NODE_LTS_VERSION }} ./scripts/setup-node.sh && npm i -g pnpm@${PNPM_VERSION} > /dev/null && cd ./packages/next-codemod && pnpm build && pnpm test >> /proc/1/fd/1"
 
   testIntegration:
@@ -810,9 +812,8 @@ jobs:
       - run: xvfb-run node run-tests.js test/integration/with-electron/test/index.test.js
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-  # A job to run sets of tests with turbopack enabled. These tests are considered as `stable`,
-  # that running with turbopack should always pass.
-  testTurbopack:
+  # A job to run sets of devlopment tests with turbopack enabled.
+  testDevTurbopack:
     name: Test Development (Turbopack)
     runs-on: ubuntu-latest
     needs: [build, build-native-test]
@@ -826,10 +827,13 @@ jobs:
       NEXT_BINDINGS_BIN: /work/packages/next-swc/native/next-swc.linux-x64-gnu.node
       # Glob pattern to run specific tests with --turbo.
       NEXT_DEV_TEST_GLOB: '*'
-      NEXT_EXTERNAL_TESTS_FILTERS: /work/packages/next-swc/crates/next-dev-tests/tests-manifest.json
+      NEXT_EXTERNAL_TESTS_FILTERS: /work/packages/next-swc/crates/next-dev-tests/tests-manifest.js
 
     strategy:
       fail-fast: false
+      matrix:
+        node: [18]
+        group: [1, 2, 3, 4, 5]
     steps:
       - run: echo "${{needs.build.outputs.docsChange}}"
 
@@ -851,9 +855,117 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-jammy /bin/bash -c "cd /work && NODE_VERSION=${{ env.NODE_LTS_VERSION }} ./scripts/setup-node.sh && node -v && npm i -g pnpm@${PNPM_VERSION} > /dev/null && NEXT_EXTERNAL_TESTS_FILTERS=${NEXT_EXTERNAL_TESTS_FILTERS} __INTERNAL_NEXT_DEV_TEST_TURBO_DEV=TRUE __INTERNAL_CUSTOM_TURBOPACK_BINDINGS=${NEXT_BINDINGS_BIN} __INTERNAL_NEXT_DEV_TEST_TURBO_GLOB_MATCH=${NEXT_DEV_TEST_GLOB} NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_JOB=1 NEXT_TEST_MODE=dev TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} xvfb-run node run-tests.js --type development --timings -c 1 >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-jammy /bin/bash -c "cd /work && NODE_VERSION=${{ env.NODE_LTS_VERSION }} ./scripts/setup-node.sh && node -v && npm i -g pnpm@${PNPM_VERSION} > /dev/null && NEXT_EXTERNAL_TESTS_FILTERS=${NEXT_EXTERNAL_TESTS_FILTERS} __INTERNAL_NEXT_DEV_TEST_TURBO_DEV=TRUE __INTERNAL_CUSTOM_TURBOPACK_BINDINGS=${NEXT_BINDINGS_BIN} __INTERNAL_NEXT_DEV_TEST_TURBO_GLOB_MATCH=${NEXT_DEV_TEST_GLOB} NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_JOB=1 NEXT_TEST_MODE=dev TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} xvfb-run node run-tests.js --type development --timings -g ${{ matrix.group }}/5 >> /proc/1/fd/1"
         name: Run test/development
         if: ${{needs.build.outputs.docsChange == 'nope'}}
+
+  testDevE2ETurbopack:
+    name: Test Development (E2E) (Turbopack)
+    runs-on: ubuntu-latest
+    needs: [build, build-native-test]
+    timeout-minutes: 35
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
+      # Enabling backtrace will makes snapshot tests fail
+      RUST_BACKTRACE: 0
+      # Path to the custom next-swc bindings.
+      NEXT_BINDINGS_BIN: /work/packages/next-swc/native/next-swc.linux-x64-gnu.node
+      # Glob pattern to run specific tests with --turbo.
+      NEXT_DEV_TEST_GLOB: '*'
+      NEXT_EXTERNAL_TESTS_FILTERS: /work/packages/next-swc/crates/next-dev-tests/tests-manifest.js
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [18]
+        group: [1, 2, 3, 4, 5]
+    steps:
+      - run: echo "${{needs.build.outputs.docsChange}}"
+
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - uses: actions/cache@v3
+        timeout-minutes: 5
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}
+
+      - uses: actions/download-artifact@v3
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+        with:
+          name: next-swc-test-binary
+          path: packages/next-swc/native
+
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-jammy /bin/bash -c "cd /work && curl -s https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} > /dev/null && NEXT_EXTERNAL_TESTS_FILTERS=${NEXT_EXTERNAL_TESTS_FILTERS} __INTERNAL_NEXT_DEV_TEST_TURBO_DEV=TRUE __INTERNAL_CUSTOM_TURBOPACK_BINDINGS=${NEXT_BINDINGS_BIN} __INTERNAL_NEXT_DEV_TEST_TURBO_GLOB_MATCH=${NEXT_DEV_TEST_GLOB} NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_JOB=1 NEXT_TEST_MODE=dev TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} xvfb-run node run-tests.js --type e2e --timings -g ${{ matrix.group }}/5 >> /proc/1/fd/1"
+        name: Run test/e2e (dev)
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+
+      - name: Upload test trace
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-trace
+          if-no-files-found: ignore
+          retention-days: 2
+          path: |
+            test/traces
+
+  testIntegrationTurbopack:
+    name: Test Integration (Turbopack)
+    runs-on: ubuntu-latest
+    needs: [build, build-native-test]
+    timeout-minutes: 35
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
+      # Enabling backtrace will makes snapshot tests fail
+      RUST_BACKTRACE: 0
+      # Path to the custom next-swc bindings.
+      NEXT_BINDINGS_BIN: /work/packages/next-swc/native/next-swc.linux-x64-gnu.node
+      # Glob pattern to run specific tests with --turbo.
+      NEXT_DEV_TEST_GLOB: '*'
+      NEXT_EXTERNAL_TESTS_FILTERS: /work/packages/next-swc/crates/next-dev-tests/tests-manifest.js
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3, 4, 5]
+    steps:
+      - run: echo "${{needs.build.outputs.docsChange}}"
+
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - uses: actions/cache@v3
+        timeout-minutes: 5
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}
+
+      - uses: actions/download-artifact@v3
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+        with:
+          name: next-swc-test-binary
+          path: packages/next-swc/native
+
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-jammy /bin/bash -c "cd /work && NODE_VERSION=${{ env.NODE_LTS_VERSION }} ./scripts/setup-node.sh && npm i -g pnpm@${PNPM_VERSION} > /dev/null && NEXT_EXTERNAL_TESTS_FILTERS=${NEXT_EXTERNAL_TESTS_FILTERS} __INTERNAL_NEXT_DEV_TEST_TURBO_DEV=TRUE __INTERNAL_CUSTOM_TURBOPACK_BINDINGS=${NEXT_BINDINGS_BIN} __INTERNAL_NEXT_DEV_TEST_TURBO_GLOB_MATCH=${NEXT_DEV_TEST_GLOB} NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_JOB=1 TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/5 >> /proc/1/fd/1"
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+
+      - name: Upload test trace
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-trace
+          if-no-files-found: ignore
+          retention-days: 2
+          path: |
+            test/traces
 
   testsPass:
     name: thank you, next
@@ -1336,12 +1448,12 @@ jobs:
             target: 'x86_64-apple-darwin'
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
-              turbo run build-native -- --release --target x86_64-apple-darwin
+              turbo run build-native-release -- --target x86_64-apple-darwin --release
               strip -x packages/next-swc/native/next-swc.*.node
           - host: windows-latest
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
-              turbo run build-native -- --release --target x86_64-pc-windows-msvc
+              turbo run build-native-release -- --target x86_64-pc-windows-msvc
             target: 'x86_64-pc-windows-msvc'
           - host: windows-latest
             build: |
@@ -1358,7 +1470,7 @@ jobs:
               rustup target add x86_64-unknown-linux-gnu &&
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
               unset CC_x86_64_unknown_linux_gnu && unset CC &&
-              turbo run build-native -- --release --target x86_64-unknown-linux-gnu &&
+              turbo run build-native-release -- --target x86_64-unknown-linux-gnu &&
               strip packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
             target: 'x86_64-unknown-linux-musl'
@@ -1370,7 +1482,7 @@ jobs:
               rustup default "${RUST_TOOLCHAIN}" &&
               rustup target add x86_64-unknown-linux-musl &&
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
-              turbo run build-native -- --release --target x86_64-unknown-linux-musl &&
+              turbo run build-native-release -- --target x86_64-unknown-linux-musl &&
               strip packages/next-swc/native/next-swc.*.node
           - host: macos-latest
             target: 'aarch64-apple-darwin'
@@ -1381,7 +1493,7 @@ jobs:
               SYSROOT=$(xcrun --sdk macosx --show-sdk-path);
               export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
-              turbo run build-native -- --release --target aarch64-apple-darwin
+              turbo run build-native-release -- --target aarch64-apple-darwin
               strip -x packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
             target: 'aarch64-unknown-linux-gnu'
@@ -1394,7 +1506,7 @@ jobs:
               rustup target add aarch64-unknown-linux-gnu &&
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
               export CC_aarch64_unknown_linux_gnu=/usr/aarch64-unknown-linux-gnu/bin/aarch64-unknown-linux-gnu-gcc &&
-              turbo run build-native -- --release --target aarch64-unknown-linux-gnu &&
+              turbo run build-native-release -- --target aarch64-unknown-linux-gnu &&
               llvm-strip -x packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
             target: 'aarch64-unknown-linux-musl'
@@ -1407,13 +1519,13 @@ jobs:
               rustup toolchain install "${RUST_TOOLCHAIN}" &&
               rustup default "${RUST_TOOLCHAIN}" &&
               rustup target add aarch64-unknown-linux-musl &&
-              turbo run build-native -- --release --target aarch64-unknown-linux-musl &&
+              turbo run build-native-release -- --target aarch64-unknown-linux-musl &&
               llvm-strip -x packages/next-swc/native/next-swc.*.node
           - host: windows-latest
             target: 'aarch64-pc-windows-msvc'
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
-              turbo run build-native-no-plugin-woa -- --release --target aarch64-pc-windows-msvc --cargo-flags=--no-default-features
+              turbo run build-native-no-plugin-woa-release -- --target aarch64-pc-windows-msvc
     if: ${{ needs.build.outputs.isRelease == 'true' || (needs.build.outputs.turboToken != 'empty') }}
     needs: build
     name: stable - ${{ matrix.settings.target }} - node@16
@@ -1535,7 +1647,7 @@ jobs:
         run: node scripts/normalize-version-bump.js
 
       - name: Build
-        run: turbo run build-wasm -- --target ${{ matrix.target }}
+        run: turbo run build-wasm -- --target ${{ matrix.target }} --features tracing/release_max_level_info
 
       - name: Add target to folder name
         run: '[[ -d "packages/next-swc/crates/wasm/pkg" ]] && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-${{ matrix.target }} || ls packages/next-swc/crates/wasm'
@@ -1600,7 +1712,7 @@ jobs:
 
       - name: Build
         if: ${{needs.build.outputs.docsChange == 'nope'}}
-        run: turbo run build-wasm --cache-dir=".turbo" -- --target nodejs --dev
+        run: turbo run build-wasm --cache-dir=".turbo" -- --target nodejs --dev --features tracing/release_max_level_info
 
       - name: Add target to folder name
         if: ${{needs.build.outputs.docsChange == 'nope'}}
