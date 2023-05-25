@@ -2,6 +2,7 @@ use std::ops::Deref;
 
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use swc_core::{
     common::{source_map::Pos, Span, Spanned},
     ecma::ast::{Expr, Ident, Program},
@@ -258,7 +259,7 @@ fn parse_config_value(
                 return invalid_config("`dynamic` needs to be a static string", &value);
             };
 
-            config.dynamic = match serde_json::from_str(val) {
+            config.dynamic = match serde_json::from_value(Value::String(val.to_string())) {
                 Ok(dynamic) => Some(dynamic),
                 Err(err) => {
                     return invalid_config(
@@ -290,7 +291,7 @@ fn parse_config_value(
                 return invalid_config("`fetchCache` needs to be a static string", &value);
             };
 
-            config.fetch_cache = match serde_json::from_str(val) {
+            config.fetch_cache = match serde_json::from_value(Value::String(val.to_string())) {
                 Ok(fetch_cache) => Some(fetch_cache),
                 Err(err) => {
                     return invalid_config(
@@ -306,7 +307,7 @@ fn parse_config_value(
                 return invalid_config("`runtime` needs to be a static string", &value);
             };
 
-            config.runtime = match serde_json::from_str(val) {
+            config.runtime = match serde_json::from_value(Value::String(val.to_string())) {
                 Ok(runtime) => Some(runtime),
                 Err(err) => {
                     return invalid_config(
