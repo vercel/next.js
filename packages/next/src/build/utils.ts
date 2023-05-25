@@ -1970,7 +1970,7 @@ createServerHandler({
       res.end('Internal Server Error')
     }
   })
-  
+
   if (
     !Number.isNaN(keepAliveTimeout) &&
       Number.isFinite(keepAliveTimeout) &&
@@ -1983,7 +1983,7 @@ createServerHandler({
       console.error("Failed to start server", err)
       process.exit(1)
     }
-  
+
     console.log(
       'Listening on port',
       currentPort,
