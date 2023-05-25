@@ -11,6 +11,7 @@ export default function DashboardPage(props) {
       </p>
       <p className="bold">BOLD</p>
       <p className="green">this is green</p>
+      <p className="emojis">{`abc 🚀`}</p>
       <ClientComp />
     </>
   )

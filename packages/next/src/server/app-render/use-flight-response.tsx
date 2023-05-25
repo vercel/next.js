@@ -61,7 +61,7 @@ export function useFlightResponse(
         flightResponseRef.current = null
         writer.close()
       } else {
-        const responsePartial = decodeText(value, textDecoder)
+        const responsePartial = decodeText(value, textDecoder, false)
         const scripts = `${startScriptTag}self.__next_f.push(${htmlEscapeJsonString(
           JSON.stringify([1, responsePartial])
         )})</script>`

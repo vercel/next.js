@@ -5,7 +5,7 @@ export function encodeText(input: string) {
 export function decodeText(
   input: Uint8Array | undefined,
   textDecoder: TextDecoder,
-  isStream = true
+  isFinalChunk: boolean
 ) {
-  return textDecoder.decode(input, { stream: isStream })
+  return textDecoder.decode(input, { stream: !isFinalChunk })
 }

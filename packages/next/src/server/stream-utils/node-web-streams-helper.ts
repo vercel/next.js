@@ -21,7 +21,7 @@ export const streamToBufferedResult = async (
 
   const writable = {
     write(chunk: any) {
-      renderChunks.push(decodeText(chunk, textDecoder))
+      renderChunks.push(decodeText(chunk, textDecoder, false))
     },
     end() {
       // ensure we flush final bytes
@@ -102,7 +102,7 @@ export async function streamToString(
       return bufferedString
     }
 
-    bufferedString += decodeText(value, textDecoder)
+    bufferedString += decodeText(value, textDecoder, false)
   }
 }
 
@@ -191,7 +191,7 @@ function createHeadInsertionTransformStream(
         controller.enqueue(chunk)
         freezing = true
       } else {
-        const content = decodeText(chunk, textDecoder, false)
+        const content = decodeText(chunk, textDecoder, true)
         const index = content.indexOf('</head>')
         if (index !== -1) {
           const insertedHeadContent =
@@ -310,7 +310,7 @@ export function createSuffixStream(
         return controller.enqueue(chunk)
       }
 
-      let content = decodeText(chunk, textDecoder)
+      let content = decodeText(chunk, textDecoder, false)
       if (content.endsWith(suffix)) {
         foundSuffix = true
         content += textDecoder.decode()
@@ -339,7 +339,7 @@ export function createRootLayoutValidatorStream(
   return new TransformStream({
     async transform(chunk, controller) {
       if (!foundHtml || !foundBody) {
-        const content = decodeText(chunk, textDecoder)
+        const content = decodeText(chunk, textDecoder, false)
         if (!foundHtml && content.includes('<html')) {
           foundHtml = true
         }
