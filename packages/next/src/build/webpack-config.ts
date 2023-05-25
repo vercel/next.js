@@ -14,6 +14,7 @@ import {
   RSC_ACTION_PROXY_ALIAS,
   RSC_ACTION_CLIENT_WRAPPER_ALIAS,
   RSC_ACTION_VALIDATE_ALIAS,
+  WEBPACK_RESOURCE_QUERIES,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
@@ -64,7 +65,6 @@ import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plu
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
 import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plugin'
 import { getSupportedBrowsers } from './utils'
-import { METADATA_RESOURCE_QUERY } from './webpack/loaders/metadata/discover'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -1942,7 +1942,9 @@ export default async function getBaseWebpackConfig(
               // be in the SSR layer — here we convert the actual page request to
               // the RSC layer via a webpack rule.
               {
-                resourceQuery: /__edge_ssr_entry__/,
+                resourceQuery: new RegExp(
+                  WEBPACK_RESOURCE_QUERIES.edgeSSREntry
+                ),
                 layer: WEBPACK_LAYERS.server,
               },
             ]
@@ -2039,7 +2041,9 @@ export default async function getBaseWebpackConfig(
                   },
                   {
                     test: codeCondition.test,
-                    resourceQuery: /__edge_ssr_entry__/,
+                    resourceQuery: new RegExp(
+                      WEBPACK_RESOURCE_QUERIES.edgeSSREntry
+                    ),
                     use: swcLoaderForServerLayer,
                   },
                   {
@@ -2087,7 +2091,9 @@ export default async function getBaseWebpackConfig(
                 loader: 'next-image-loader',
                 issuer: { not: regexLikeCss },
                 dependency: { not: ['url'] },
-                resourceQuery: { not: [METADATA_RESOURCE_QUERY] },
+                resourceQuery: {
+                  not: [new RegExp(WEBPACK_RESOURCE_QUERIES.metadata)],
+                },
                 options: {
                   isServer: isNodeServer || isEdgeServer,
                   isDev: dev,
