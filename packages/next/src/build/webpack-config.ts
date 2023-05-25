@@ -1672,6 +1672,10 @@ export default async function getBaseWebpackConfig(
             framework: {
               chunks: 'all',
               name: 'framework',
+              // Ensures the framework chunk is not created for App Router.
+              layer(layer: any) {
+                return layer === null || layer === undefined
+              },
               test(module: any) {
                 const resource = module.nameForCondition?.()
                 return resource
@@ -1696,6 +1700,7 @@ export default async function getBaseWebpackConfig(
                 )
               },
               name(module: {
+                layer: string | null | undefined
                 type: string
                 libIdent?: Function
                 updateHash: (hash: crypto.Hash) => void
@@ -1710,6 +1715,13 @@ export default async function getBaseWebpackConfig(
                     )
                   }
                   hash.update(module.libIdent({ context: dir }))
+                }
+
+                // Ensures the name of the chunk is not the same between two modules in different layers
+                // E.g. if you import 'button-library' in App Router and Pages Router we don't want these to be bundled in the same chunk
+                // as they're never used on the same page.
+                if (module.layer) {
+                  hash.update(module.layer)
                 }
 
                 return hash.digest('hex').substring(0, 8)
