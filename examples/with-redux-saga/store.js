@@ -4,7 +4,7 @@ import { createWrapper } from 'next-redux-wrapper'
 
 import rootReducer from './reducer'
 import rootSaga from './saga'
-import { configureStore, getDefaultMiddleware } from '@reduxjs/toolkit'
+import { configureStore } from '@reduxjs/toolkit'
 
 const bindMiddleware = (middleware) => {
   if (process.env.NODE_ENV !== 'production') {
@@ -19,7 +19,8 @@ export const makeStore = (context) => {
   const store = configureStore({
     reducer: rootReducer,
     middleware: (getDefaultMiddleware) =>
-      getDefaultMiddleware().concat(sagaMiddleware),
+      getDefaultMiddleware({ thunk: false }).concat(sagaMiddleware),
+    enhancers: [bindMiddleware([sagaMiddleware])],
   })
 
   store.sagaTask = sagaMiddleware.run(rootSaga)
