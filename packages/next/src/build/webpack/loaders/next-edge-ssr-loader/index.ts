@@ -100,7 +100,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
 
     enhanceGlobals()
 
-    const pageType = ${JSON.stringify(pagesType)}
+    const pagesType = ${JSON.stringify(pagesType)}
     ${
       isAppDir
         ? `
@@ -145,7 +145,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
     const nextFontManifest = self.__NEXT_FONT_MANIFEST
 
     const render = getRender({
-      pageType,
+      pagesType,
       dev: ${dev},
       page: ${JSON.stringify(page)},
       appMod,
@@ -154,6 +154,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       error500Mod,
       Document,
       buildManifest,
+      isAppPath: ${!!isAppDir},
       prerenderManifest,
       appRenderToHTML,
       pagesRenderToHTML,
