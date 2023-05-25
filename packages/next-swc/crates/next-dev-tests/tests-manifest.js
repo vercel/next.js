@@ -125,54 +125,54 @@ const enabledTests = [
   // these are build specific
   // 'test/integration/auto-export-error-bail/test/index.test.js',
   // 'test/integration/auto-export-query-error/test/index.test.js',
-  
+
   // TODO: should babel be tested with turbopack?
   'test/integration/babel-custom/test/index.test.js',
   'test/integration/bigint/test/index.test.js',
-  
-  // these are build specific 
+
+  // these are build specific
   // 'test/integration/build-output/test/index.test.js',
   // 'test/integration/build-trace-extra-entries-turbo/test/index.test.js',
   // 'test/integration/build-trace-extra-entries/test/index.test.js',
   // 'test/integration/build-warnings/test/index.test.js',
-  
+
   'test/integration/catches-missing-getStaticProps/test/index.test.js',
   'test/integration/chunking/test/index.test.js',
-  
+
   // Clean dist dir is a production only test should it be here?
   // 'test/integration/clean-distdir/test/index.test.js',
-  
+
   'test/integration/client-404/test/index.test.js',
   'test/integration/client-navigation-a11y/test/index.test.js',
   'test/integration/client-shallow-routing/test/index.test.js',
   'test/integration/config-experimental-warning/test/index.test.js',
   'test/integration/config-promise-error/test/index.test.js',
   'test/integration/config-resolve-alias/test/index.test.js',
-  
+
   // next build specific
   // 'test/integration/config-schema-check/test/index.test.js',
   // 'test/integration/config-syntax-error/test/index.test.js',
   // 'test/integration/config-validation/test/index.test.ts',
   // 'test/integration/conflicting-ssg-paths/test/index.test.js',
-  
+
   // these are already tested against turbopack explicitly in the suite
   // 'test/integration/create-next-app/index.test.ts',
   // 'test/integration/create-next-app/templates.test.ts',
-  
+
   // next build specific
   // 'test/integration/critical-css/test/index.test.js',
   'test/integration/css-customization/test/index.test.js',
   'test/integration/css-features/test/index.test.js',
   'test/integration/css-minify/test/index.test.js',
   'test/integration/custom-error-page-exception/test/index.test.js',
-  
+
   // custom-server isn't compatible with turbopack why is it here?
   // 'test/integration/custom-server-types/test/index.test.js',
-  
+
   'test/integration/dedupes-scripts/test/index.test.js',
   'test/integration/development-hmr-refresh/test/index.test.js',
   'test/integration/disable-js/test/index.test.js',
-  
+
   // this is next build specific why is it here?
   // 'test/integration/dist-dir/test/index.test.js',
   'test/integration/document-file-dependencies/test/index.test.js',
