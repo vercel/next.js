@@ -273,23 +273,23 @@ createNextDescribe(
 
         const res2 = await next.fetch($('#app-legacy-layout').attr('src'))
         expect(res2.status).toBe(200)
-        expect(res2.headers.get('content-type')).toBe('image/jpeg')
+        expect(res2.headers.get('content-type')).toBe('image/png')
 
         const res3 = await next.fetch($('#app-legacy-page').attr('src'))
         expect(res3.status).toBe(200)
-        expect(res3.headers.get('content-type')).toBe('image/jpeg')
+        expect(res3.headers.get('content-type')).toBe('image/png')
       })
 
-      it('should render legacy images in edge runtime at /legacy-edge-runtime route', async () => {
-        const $ = await next.render$('/legacy')
+      it('should render legacy images in edge runtime on /legacy-edge-runtime route', async () => {
+        const $ = await next.render$('/legacy-edge-runtime')
 
         const res2 = await next.fetch($('#app-legacy-edge-layout').attr('src'))
         expect(res2.status).toBe(200)
-        expect(res2.headers.get('content-type')).toBe('image/jpeg')
+        expect(res2.headers.get('content-type')).toBe('image/png')
 
         const res3 = await next.fetch($('#app-legacy-edge-page').attr('src'))
         expect(res3.status).toBe(200)
-        expect(res3.headers.get('content-type')).toBe('image/jpeg')
+        expect(res3.headers.get('content-type')).toBe('image/png')
       })
     })
   }
