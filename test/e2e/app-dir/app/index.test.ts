@@ -233,7 +233,9 @@ createNextDescribe(
           ['RSC'.toString()]: '1',
         },
       })
-      expect(res.headers.get('Content-Type')).toBe('text/x-component; charset=utf-8')
+      expect(res.headers.get('Content-Type')).toBe(
+        'text/x-component; charset=utf-8'
+      )
     })
 
     it('should use text/x-component; charset=utf-8 for flight with edge runtime', async () => {
@@ -242,7 +244,9 @@ createNextDescribe(
           ['RSC'.toString()]: '1',
         },
       })
-      expect(res.headers.get('Content-Type')).toBe('text/x-component; charset=utf-8')
+      expect(res.headers.get('Content-Type')).toBe(
+        'text/x-component; charset=utf-8'
+      )
     })
 
     it('should return the `vary` header from edge runtime', async () => {
