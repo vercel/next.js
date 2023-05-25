@@ -91,7 +91,7 @@ const enabledTests = [
   'test/e2e/repeated-forward-slashes-error/repeated-forward-slashes-error.test.ts',
   'test/e2e/ssr-react-context/index.test.ts',
   'test/e2e/styled-jsx/index.test.ts',
-  'test/e2e/test-template/{{ toFileName name }}/{{ toFileName name }}.test.ts',
+  // 'test/e2e/test-template/{{ toFileName name }}/{{ toFileName name }}.test.ts',
   'test/e2e/test-utils-tests/basic/basic.test.ts',
   'test/e2e/trailingslash-with-rewrite/index.test.ts',
   'test/e2e/transpile-packages/index.test.ts',
@@ -121,39 +121,60 @@ const enabledTests = [
   'test/integration/app-functional/test/index.test.js',
   'test/integration/app-tree/test/index.test.js',
   'test/integration/app-types/app-types.test.js',
-  'test/integration/auto-export-error-bail/test/index.test.js',
-  'test/integration/auto-export-query-error/test/index.test.js',
+
+  // these are build specific
+  // 'test/integration/auto-export-error-bail/test/index.test.js',
+  // 'test/integration/auto-export-query-error/test/index.test.js',
+  
+  // TODO: should babel be tested with turbopack?
   'test/integration/babel-custom/test/index.test.js',
   'test/integration/bigint/test/index.test.js',
-  'test/integration/build-output/test/index.test.js',
-  'test/integration/build-trace-extra-entries-turbo/test/index.test.js',
-  'test/integration/build-trace-extra-entries/test/index.test.js',
-  'test/integration/build-warnings/test/index.test.js',
+  
+  // these are build specific 
+  // 'test/integration/build-output/test/index.test.js',
+  // 'test/integration/build-trace-extra-entries-turbo/test/index.test.js',
+  // 'test/integration/build-trace-extra-entries/test/index.test.js',
+  // 'test/integration/build-warnings/test/index.test.js',
+  
   'test/integration/catches-missing-getStaticProps/test/index.test.js',
   'test/integration/chunking/test/index.test.js',
-  'test/integration/clean-distdir/test/index.test.js',
+  
+  // Clean dist dir is a production only test should it be here?
+  // 'test/integration/clean-distdir/test/index.test.js',
+  
   'test/integration/client-404/test/index.test.js',
   'test/integration/client-navigation-a11y/test/index.test.js',
   'test/integration/client-shallow-routing/test/index.test.js',
   'test/integration/config-experimental-warning/test/index.test.js',
   'test/integration/config-promise-error/test/index.test.js',
   'test/integration/config-resolve-alias/test/index.test.js',
-  'test/integration/config-schema-check/test/index.test.js',
-  'test/integration/config-syntax-error/test/index.test.js',
-  'test/integration/config-validation/test/index.test.ts',
-  'test/integration/conflicting-ssg-paths/test/index.test.js',
-  'test/integration/create-next-app/index.test.ts',
-  'test/integration/create-next-app/templates.test.ts',
-  'test/integration/critical-css/test/index.test.js',
+  
+  // next build specific
+  // 'test/integration/config-schema-check/test/index.test.js',
+  // 'test/integration/config-syntax-error/test/index.test.js',
+  // 'test/integration/config-validation/test/index.test.ts',
+  // 'test/integration/conflicting-ssg-paths/test/index.test.js',
+  
+  // these are already tested against turbopack explicitly in the suite
+  // 'test/integration/create-next-app/index.test.ts',
+  // 'test/integration/create-next-app/templates.test.ts',
+  
+  // next build specific
+  // 'test/integration/critical-css/test/index.test.js',
   'test/integration/css-customization/test/index.test.js',
   'test/integration/css-features/test/index.test.js',
   'test/integration/css-minify/test/index.test.js',
   'test/integration/custom-error-page-exception/test/index.test.js',
-  'test/integration/custom-server-types/test/index.test.js',
+  
+  // custom-server isn't compatible with turbopack why is it here?
+  // 'test/integration/custom-server-types/test/index.test.js',
+  
   'test/integration/dedupes-scripts/test/index.test.js',
   'test/integration/development-hmr-refresh/test/index.test.js',
   'test/integration/disable-js/test/index.test.js',
-  'test/integration/dist-dir/test/index.test.js',
+  
+  // this is next build specific why is it here?
+  // 'test/integration/dist-dir/test/index.test.js',
   'test/integration/document-file-dependencies/test/index.test.js',
   'test/integration/document-head-warnings/test/index.test.js',
   'test/integration/duplicate-pages/test/index.test.js',
@@ -166,19 +187,21 @@ const enabledTests = [
   'test/integration/errors-on-output-to-public/test/index.test.js',
   'test/integration/errors-on-output-to-static/test/index.test.js',
   'test/integration/eslint/test/index.test.js',
-  'test/integration/export-404/test/index.test.js',
-  'test/integration/export-default-map/test/index.test.js',
-  'test/integration/export-dynamic-pages/test/index.test.js',
-  'test/integration/export-fallback-true-error/test/index.test.js',
-  'test/integration/export-getInitialProps-warn/test/index.test.js',
-  'test/integration/export-image-default/test/index.test.js',
-  'test/integration/export-image-loader-legacy/test/index.test.js',
-  'test/integration/export-image-loader/test/index.test.js',
-  'test/integration/export-index-not-found-gsp/test/index.test.ts',
-  'test/integration/export-intent/test/index.test.js',
-  'test/integration/export-no-build/test/index.test.js',
-  'test/integration/export-progress-status-message/test/index.test.js',
-  'test/integration/export-subfolders/test/index.test.js',
+
+  // these are next build specific
+  // 'test/integration/export-404/test/index.test.js',
+  // 'test/integration/export-default-map/test/index.test.js',
+  // 'test/integration/export-dynamic-pages/test/index.test.js',
+  // 'test/integration/export-fallback-true-error/test/index.test.js',
+  // 'test/integration/export-getInitialProps-warn/test/index.test.js',
+  // 'test/integration/export-image-default/test/index.test.js',
+  // 'test/integration/export-image-loader-legacy/test/index.test.js',
+  // 'test/integration/export-image-loader/test/index.test.js',
+  // 'test/integration/export-index-not-found-gsp/test/index.test.ts',
+  // 'test/integration/export-intent/test/index.test.js',
+  // 'test/integration/export-no-build/test/index.test.js',
+  // 'test/integration/export-progress-status-message/test/index.test.js',
+  // 'test/integration/export-subfolders/test/index.test.js',
   'test/integration/externalize-next-server/test/index.test.js',
   'test/integration/externals-esm-loose/test/index.test.js',
   'test/integration/externals-esm/test/index.test.js',
@@ -215,7 +238,8 @@ const enabledTests = [
   'test/integration/link-ref/test/index.test.js',
   'test/integration/link-with-multiple-child/test/index.test.js',
   'test/integration/link-without-router/test/index.test.js',
-  'test/integration/middleware-build-errors/test/index.test.js',
+  // build specific
+  // 'test/integration/middleware-build-errors/test/index.test.js',
   'test/integration/middleware-overrides-node.js-api/test/index.test.ts',
   'test/integration/middleware-prefetch/tests/index.test.js',
   'test/integration/middleware-src/test/index.test.js',
@@ -259,7 +283,7 @@ const enabledTests = [
   'test/integration/re-export-all-exports-from-page-disallowed/test/index.test.js',
   'test/integration/react-profiling-mode/test/index.test.js',
   'test/integration/react-streaming/test/index.test.js',
-  // 'test/integration/read-only-source-hmr/test/index.test.js',
+  'test/integration/read-only-source-hmr/test/index.test.js',
   'test/integration/relay-analytics-disabled/test/index.test.js',
   'test/integration/relay-analytics/test/index.test.js',
   'test/integration/render-error-on-module-error/test/index.test.js',
@@ -293,8 +317,9 @@ const enabledTests = [
   'test/integration/typescript-ignore-errors/test/index.test.js',
   'test/integration/webpack-config-extensionalias/test/index.test.js',
   'test/integration/webpack-config-mainjs/test/index.test.js',
-  'test/integration/webpack-require-hook/test/index.test.js',
-  'test/integration/with-electron/test/index.test.js',
+  // 'test/integration/webpack-require-hook/test/index.test.js',
+  // this is next build and next export specific
+  // 'test/integration/with-electron/test/index.test.js',
 ]
 
 // Tests that are currently disabled with Turbopack in CI.
