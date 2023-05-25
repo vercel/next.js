@@ -1,10 +1,9 @@
 import { createNextDescribe } from 'e2e-utils'
 
 createNextDescribe(
-  'app-dir action handling - next export',
+  'app-dir action invalid config',
   {
     files: __dirname,
-    skipStart: true,
     skipDeployment: true,
     dependencies: {
       react: 'latest',
@@ -24,21 +23,18 @@ createNextDescribe(
         'next.config.js',
         `
       module.exports = {
-        output: 'export',
-        experimental: {
-          serverActions: true,
-        },
+        experimental: {},
       }
       `
       )
       try {
-        await next.start()
+        await next.build()
       } catch {}
     })
 
-    it('should error when use export output for server actions', async () => {
+    it('should error if serverActions is not enabled', async () => {
       expect(next.cliOutput).toContain(
-        `Server Actions are not supported with static export.`
+        'Server Actions require `experimental.serverActions` option'
       )
     })
   }

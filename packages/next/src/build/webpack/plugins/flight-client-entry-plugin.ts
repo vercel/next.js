@@ -355,13 +355,21 @@ export class ClientReferenceEntryPlugin {
         }
 
         if (actionEntryImports.size > 0) {
-          if (!actionMapsPerClientEntry[name]) {
-            actionMapsPerClientEntry[name] = new Map()
+          if (!this.useServerActions) {
+            compilation.errors.push(
+              new Error(
+                'Server Actions require `experimental.serverActions` option to be enabled in your Next.js config: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions'
+              )
+            )
+          } else {
+            if (!actionMapsPerClientEntry[name]) {
+              actionMapsPerClientEntry[name] = new Map()
+            }
+            actionMapsPerClientEntry[name] = new Map([
+              ...actionMapsPerClientEntry[name],
+              ...actionEntryImports,
+            ])
           }
-          actionMapsPerClientEntry[name] = new Map([
-            ...actionMapsPerClientEntry[name],
-            ...actionEntryImports,
-          ])
         }
       })
 

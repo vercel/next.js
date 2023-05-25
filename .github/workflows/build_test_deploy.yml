@@ -932,7 +932,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2, 3, 4, 5]
+        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     steps:
       - run: echo "${{needs.build.outputs.docsChange}}"
 
@@ -954,7 +954,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-jammy /bin/bash -c "cd /work && NODE_VERSION=${{ env.NODE_LTS_VERSION }} ./scripts/setup-node.sh && npm i -g pnpm@${PNPM_VERSION} > /dev/null && NEXT_EXTERNAL_TESTS_FILTERS=${NEXT_EXTERNAL_TESTS_FILTERS} __INTERNAL_NEXT_DEV_TEST_TURBO_DEV=TRUE __INTERNAL_CUSTOM_TURBOPACK_BINDINGS=${NEXT_BINDINGS_BIN} __INTERNAL_NEXT_DEV_TEST_TURBO_GLOB_MATCH=${NEXT_DEV_TEST_GLOB} NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_JOB=1 TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/5 >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-jammy /bin/bash -c "cd /work && NODE_VERSION=${{ env.NODE_LTS_VERSION }} ./scripts/setup-node.sh && npm i -g pnpm@${PNPM_VERSION} > /dev/null && NEXT_EXTERNAL_TESTS_FILTERS=${NEXT_EXTERNAL_TESTS_FILTERS} __INTERNAL_NEXT_DEV_TEST_TURBO_DEV=TRUE __INTERNAL_CUSTOM_TURBOPACK_BINDINGS=${NEXT_BINDINGS_BIN} __INTERNAL_NEXT_DEV_TEST_TURBO_GLOB_MATCH=${NEXT_DEV_TEST_GLOB} NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_JOB=1 TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/10 >> /proc/1/fd/1"
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - name: Upload test trace
