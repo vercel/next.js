@@ -2195,7 +2195,7 @@ export default async function getBaseWebpackConfig(
             ]
           : []),
         {
-          test: /node_modules[/\\]client-only[/\\]error.js/,
+          test: /(node_modules|next[/\\]dist[/\\]compiled)[/\\]client-only[/\\]error.js/,
           loader: 'next-invalid-import-error-loader',
           issuerLayer: {
             or: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.action],
@@ -2206,7 +2206,7 @@ export default async function getBaseWebpackConfig(
           },
         },
         {
-          test: /node_modules[/\\]server-only[/\\]index.js/,
+          test: /(node_modules|next[/\\]dist[/\\]compiled)[/\\]server-only[/\\]index.js/,
           loader: 'next-invalid-import-error-loader',
           issuerLayer: WEBPACK_LAYERS.client,
           options: {
