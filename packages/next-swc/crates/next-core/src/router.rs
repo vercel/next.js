@@ -23,16 +23,13 @@ use turbopack_binding::{
             environment::{EnvironmentIntention::Middleware, ServerAddrVc, ServerInfo},
             ident::AssetIdentVc,
             issue::IssueVc,
-            reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
+            reference_type::{EcmaScriptModulesReferenceSubType, InnerAssetsVc, ReferenceType},
             resolve::{find_context_file, FindContextFileResult},
             source_asset::SourceAssetVc,
             virtual_asset::VirtualAssetVc,
         },
         dev::DevChunkingContextVc,
-        ecmascript::{
-            EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
-            EcmascriptModuleAssetVc, InnerAssetsVc, OptionEcmascriptModuleAssetVc,
-        },
+        ecmascript::OptionEcmascriptModuleAssetVc,
         node::{
             evaluate::evaluate,
             execution_context::{ExecutionContext, ExecutionContextVc},
@@ -232,18 +229,12 @@ async fn config_assets(
 
 #[turbo_tasks::function]
 fn route_executor(context: AssetContextVc, configs: InnerAssetsVc) -> AssetVc {
-    EcmascriptModuleAssetVc::new_with_inner_assets(
-        next_asset("entry/router.ts"),
-        context,
-        Value::new(EcmascriptModuleAssetType::Typescript),
-        EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
-            use_define_for_class_fields: false,
-        }]),
-        Default::default(),
-        context.compile_time_info(),
-        configs,
-    )
-    .into()
+    context
+        .process(
+            next_asset("entry/router.ts"),
+            Value::new(ReferenceType::Internal(configs)),
+        )
+        .into()
 }
 
 #[turbo_tasks::function]

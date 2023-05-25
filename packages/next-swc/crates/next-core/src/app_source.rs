@@ -1,15 +1,12 @@
 use std::{collections::HashMap, io::Write, iter::once};
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use async_recursion::async_recursion;
 use indexmap::{indexmap, IndexMap};
 use turbo_tasks::{primitives::JsonValueVc, TryJoinIterExt, ValueToString};
 use turbopack_binding::{
     turbo::{
-        tasks::{
-            primitives::{OptionStringVc, StringVc},
-            Value,
-        },
+        tasks::{primitives::StringVc, Value},
         tasks_env::{CustomProcessEnvVc, EnvMapVc, ProcessEnvVc},
         tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPathVc},
     },
@@ -22,7 +19,8 @@ use turbopack_binding::{
             environment::{EnvironmentIntention, ServerAddrVc},
             issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
             reference_type::{
-                EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType,
+                EcmaScriptModulesReferenceSubType, EntryReferenceSubType, InnerAssetsVc,
+                ReferenceType,
             },
             source_asset::SourceAssetVc,
             virtual_asset::VirtualAssetVc,
@@ -41,8 +39,6 @@ use turbopack_binding::{
             magic_identifier,
             text::TextContentSourceAssetVc,
             utils::{FormatIter, StringifyJs},
-            EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc,
-            InnerAssetsVc,
         },
         env::ProcessEnvAssetVc,
         node::{
@@ -55,7 +51,6 @@ use turbopack_binding::{
         },
         r#static::{fixed::FixedStaticAssetVc, StaticModuleAssetVc},
         turbopack::{
-            ecmascript::EcmascriptInputTransform,
             transition::{TransitionVc, TransitionsByNameVc},
             ModuleAssetContextVc,
         },
@@ -1026,6 +1021,15 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
         .reference_chunk_source_maps(false)
         .build();
 
+        let module = context.process(
+            asset.into(),
+            Value::new(ReferenceType::Internal(InnerAssetsVc::cell(inner_assets))),
+        );
+
+        let Some(module) = EvaluatableAssetVc::resolve_from(module).await? else {
+            bail!("Internal module is not evaluatable");
+        };
+
         Ok(NodeRenderingEntry {
             runtime_entries: EvaluatableAssetsVc::cell(
                 runtime_entries
@@ -1034,26 +1038,7 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
                     .map(|entry| EvaluatableAssetVc::from_asset(*entry, context))
                     .collect(),
             ),
-            module: EcmascriptModuleAssetVc::new_with_inner_assets(
-                asset.into(),
-                context,
-                Value::new(EcmascriptModuleAssetType::Typescript),
-                EcmascriptInputTransformsVc::cell(vec![
-                    EcmascriptInputTransform::React {
-                        // The App source is currently only used in the development mode.
-                        development: true,
-                        refresh: false,
-                        import_source: OptionStringVc::cell(None),
-                        runtime: OptionStringVc::cell(None),
-                    },
-                    EcmascriptInputTransform::TypeScript {
-                        use_define_for_class_fields: false,
-                    },
-                ]),
-                Default::default(),
-                context.compile_time_info(),
-                InnerAssetsVc::cell(inner_assets),
-            ),
+            module,
             chunking_context,
             intermediate_output_path,
             output_root: intermediate_output_path.root(),
@@ -1131,6 +1116,7 @@ impl AppRouteVc {
                     bootstrap_asset,
                     BootstrapConfigVc::empty(),
                 )
+                .into()
             }
             NextRuntime::Edge => {
                 let internal_asset = next_asset("entry/app/edge-route.ts");
@@ -1140,19 +1126,18 @@ impl AppRouteVc {
                     Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),
                 );
 
-                EcmascriptModuleAssetVc::new_with_inner_assets(
+                let module = this.context.process(
                     internal_asset,
-                    this.context,
-                    Value::new(EcmascriptModuleAssetType::Typescript),
-                    EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
-                        use_define_for_class_fields: false,
-                    }]),
-                    Default::default(),
-                    this.context.compile_time_info(),
-                    InnerAssetsVc::cell(indexmap! {
+                    Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
                         "ROUTE_CHUNK_GROUP".to_string() => entry
-                    }),
-                )
+                    }))),
+                );
+
+                let Some(module) = EvaluatableAssetVc::resolve_from(module).await? else {
+                    bail!("Internal module must be evaluatable");
+                };
+
+                module
             }
         };
 
