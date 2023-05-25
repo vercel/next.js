@@ -96,11 +96,11 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
     const transformed = `
     import { adapter, enhanceGlobals } from 'next/dist/esm/server/web/adapter'
     import { getRender } from 'next/dist/esm/build/webpack/loaders/next-edge-ssr-loader/render'
-    import {IncrementalCache} from 'next/dist/esm/server/lib/incremental-cache'
+    import { IncrementalCache } from 'next/dist/esm/server/lib/incremental-cache'
 
     enhanceGlobals()
 
-    const pageType = ${JSON.stringify(pagesType)}
+    const pagesType = ${JSON.stringify(pagesType)}
     ${
       isAppDir
         ? `
@@ -145,7 +145,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
     const nextFontManifest = self.__NEXT_FONT_MANIFEST
 
     const render = getRender({
-      pageType,
+      pagesType,
       dev: ${dev},
       page: ${JSON.stringify(page)},
       appMod,
@@ -154,6 +154,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       error500Mod,
       Document,
       buildManifest,
+      isAppPath: ${!!isAppDir},
       prerenderManifest,
       appRenderToHTML,
       pagesRenderToHTML,

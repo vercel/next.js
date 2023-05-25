@@ -15,6 +15,10 @@ import 'next/dist/server/node-polyfill-fetch.js'
 import middlewareChunkGroup from 'MIDDLEWARE_CHUNK_GROUP'
 import middlewareConfig from 'MIDDLEWARE_CONFIG'
 
+type Resolver = Awaited<
+  ReturnType<typeof import('next/dist/server/lib/route-resolver').makeResolver>
+>
+
 type RouterRequest = {
   method: string
   pathname: string
@@ -51,16 +55,12 @@ type MiddlewareHeadersResponse = {
   headers: [string, string][]
 }
 
-let resolveRouteMemo: Promise<
-  (req: IncomingMessage, res: ServerResponse) => Promise<void>
->
+let resolveRouteMemo: Promise<Resolver>
 
 async function getResolveRoute(
   dir: string,
   serverInfo: ServerInfo
-): ReturnType<
-  typeof import('next/dist/server/lib/route-resolver').makeResolver
-> {
+): Promise<Resolver> {
   const nextConfig = await loadConfig(
     PHASE_DEVELOPMENT_SERVER,
     process.cwd(),
