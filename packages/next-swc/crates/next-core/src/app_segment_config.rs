@@ -1,13 +1,12 @@
 use std::ops::Deref;
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use swc_core::{
     common::{source_map::Pos, Span, Spanned},
     ecma::ast::{Expr, Ident, Program},
 };
-use turbo_tasks::{primitives::StringVc, trace::TraceRawVcs};
+use turbo_tasks::{primitives::StringVc, trace::TraceRawVcs, TryJoinIterExt};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_binding::turbopack::{
     core::{
@@ -16,6 +15,7 @@ use turbopack_binding::turbopack::{
         issue::{
             Issue, IssueSeverity, IssueSeverityVc, IssueSourceVc, IssueVc, OptionIssueSourceVc,
         },
+        source_asset::SourceAssetVc,
     },
     ecmascript::{
         analyzer::{graph::EvalContext, JsValue},
@@ -24,7 +24,7 @@ use turbopack_binding::turbopack::{
     },
 };
 
-use crate::util::NextRuntime;
+use crate::{app_structure::LoaderTreeVc, util::NextRuntime};
 
 #[derive(Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -50,15 +50,14 @@ pub enum NextSegmentFetchCache {
 }
 
 #[turbo_tasks::value]
-#[derive(Debug)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Default)]
 pub struct NextSegmentConfig {
-    pub dynamic: NextSegmentDynamic,
-    pub dynamic_params: bool,
-    pub revalidate: bool,
-    pub fetch_cache: NextSegmentFetchCache,
-    pub runtime: NextRuntime,
-    pub referred_region: String,
+    pub dynamic: Option<NextSegmentDynamic>,
+    pub dynamic_params: Option<bool>,
+    pub revalidate: Option<bool>,
+    pub fetch_cache: Option<NextSegmentFetchCache>,
+    pub runtime: Option<NextRuntime>,
+    pub referred_region: Option<String>,
 }
 
 #[turbo_tasks::value_impl]
@@ -69,16 +68,60 @@ impl NextSegmentConfigVc {
     }
 }
 
-impl Default for NextSegmentConfig {
-    fn default() -> Self {
-        NextSegmentConfig {
-            dynamic: Default::default(),
-            dynamic_params: true,
-            revalidate: false,
-            fetch_cache: Default::default(),
-            runtime: Default::default(),
-            referred_region: "auto".to_string(),
+impl NextSegmentConfig {
+    /// Applies the parent config to this config, setting any unset values to
+    /// the parent's values.
+    pub fn apply_parent_config(&mut self, parent: &Self) {
+        self.dynamic = self.dynamic.or(parent.dynamic);
+        self.dynamic_params = self.dynamic_params.or(parent.dynamic_params);
+        self.revalidate = self.revalidate.or(parent.revalidate);
+        self.fetch_cache = self.fetch_cache.or(parent.fetch_cache);
+        self.runtime = self.runtime.or(parent.runtime);
+        self.referred_region = self
+            .referred_region
+            .take()
+            .or(parent.referred_region.clone());
+    }
+
+    /// Applies the sibling config to this config, returning an error if there
+    /// are conflicting values.
+    pub fn apply_sibling_config(&mut self, sibling: &Self) -> Result<()> {
+        fn merge_sibling<T: PartialEq + Clone>(
+            a: &mut Option<T>,
+            b: &Option<T>,
+            name: &str,
+        ) -> Result<()> {
+            match (a.as_ref(), b) {
+                (Some(a), Some(b)) => {
+                    if *a != *b {
+                        bail!(
+                            "Sibling segment configs have conflicting values for {}",
+                            name
+                        )
+                    }
+                }
+                (None, Some(b)) => {
+                    *a = Some(b.clone());
+                }
+                _ => {}
+            }
+            Ok(())
         }
+        merge_sibling(&mut self.dynamic, &sibling.dynamic, "dynamic")?;
+        merge_sibling(
+            &mut self.dynamic_params,
+            &sibling.dynamic_params,
+            "dynamicParams",
+        )?;
+        merge_sibling(&mut self.revalidate, &sibling.revalidate, "revalidate")?;
+        merge_sibling(&mut self.fetch_cache, &sibling.fetch_cache, "fetchCache")?;
+        merge_sibling(&mut self.runtime, &sibling.runtime, "runtime")?;
+        merge_sibling(
+            &mut self.referred_region,
+            &sibling.referred_region,
+            "referredRegion",
+        )?;
+        Ok(())
     }
 }
 
@@ -215,8 +258,8 @@ fn parse_config_value(
                 return invalid_config("`dynamic` needs to be a static string", &value);
             };
 
-            config.dynamic = match serde_json::from_value(Value::String(val.to_string())) {
-                Ok(dynamic) => dynamic,
+            config.dynamic = match serde_json::from_str(val) {
+                Ok(dynamic) => Some(dynamic),
                 Err(err) => {
                     return invalid_config(
                         &format!("`dynamic` has an invalid value: {}", err),
@@ -231,7 +274,7 @@ fn parse_config_value(
                 return invalid_config("`dynamicParams` needs to be a static boolean", &value);
             };
 
-            config.dynamic_params = val;
+            config.dynamic_params = Some(val);
         }
         "revalidate" => {
             let value = eval_context.eval(init);
@@ -239,7 +282,7 @@ fn parse_config_value(
                 return invalid_config("`revalidate` needs to be a static boolean", &value);
             };
 
-            config.revalidate = val;
+            config.revalidate = Some(val);
         }
         "fetchCache" => {
             let value = eval_context.eval(init);
@@ -247,8 +290,8 @@ fn parse_config_value(
                 return invalid_config("`fetchCache` needs to be a static string", &value);
             };
 
-            config.fetch_cache = match serde_json::from_value(Value::String(val.to_string())) {
-                Ok(fetch_cache) => fetch_cache,
+            config.fetch_cache = match serde_json::from_str(val) {
+                Ok(fetch_cache) => Some(fetch_cache),
                 Err(err) => {
                     return invalid_config(
                         &format!("`fetchCache` has an invalid value: {}", err),
@@ -263,8 +306,8 @@ fn parse_config_value(
                 return invalid_config("`runtime` needs to be a static string", &value);
             };
 
-            config.runtime = match serde_json::from_value(Value::String(val.to_string())) {
-                Ok(runtime) => runtime,
+            config.runtime = match serde_json::from_str(val) {
+                Ok(runtime) => Some(runtime),
                 Err(err) => {
                     return invalid_config(
                         &format!("`runtime` has an invalid value: {}", err),
@@ -279,8 +322,43 @@ fn parse_config_value(
                 return invalid_config("`preferredRegion` needs to be a static string", &value);
             };
 
-            config.referred_region = val.to_string();
+            config.referred_region = Some(val.to_string());
         }
         _ => {}
     }
+}
+
+#[turbo_tasks::function]
+pub async fn parse_segment_config_from_loader_tree(
+    loader_tree: LoaderTreeVc,
+) -> Result<NextSegmentConfigVc> {
+    let loader_tree = loader_tree.await?;
+    let components = loader_tree.components.await?;
+    let mut config = NextSegmentConfig::default();
+    let siblings = loader_tree
+        .parallel_routes
+        .values()
+        .copied()
+        .map(parse_segment_config_from_loader_tree)
+        .try_join()
+        .await?;
+    for tree in siblings {
+        config.apply_sibling_config(&*tree)?;
+    }
+    if let Some(page) = components.page {
+        config.apply_parent_config(
+            &*parse_segment_config_from_source(SourceAssetVc::new(page).into()).await?,
+        );
+    }
+    if let Some(default) = components.default {
+        config.apply_parent_config(
+            &*parse_segment_config_from_source(SourceAssetVc::new(default).into()).await?,
+        );
+    }
+    if let Some(layout) = components.layout {
+        config.apply_parent_config(
+            &*parse_segment_config_from_source(SourceAssetVc::new(layout).into()).await?,
+        );
+    }
+    Ok(config.cell())
 }
