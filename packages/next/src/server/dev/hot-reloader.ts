@@ -180,6 +180,7 @@ export default class HotReloader {
   private clientError: Error | null = null
   private serverError: Error | null = null
   private serverPrevDocumentHash: string | null
+  private serverChunkNames?: Set<string>
   private prevChunkNames?: Set<any>
   private onDemandEntries?: ReturnType<typeof onDemandEntryHandler>
   private previewProps: __ApiPreviewProps
@@ -1050,6 +1051,7 @@ export default class HotReloader {
       (err: Error) => {
         this.serverError = err
         this.serverStats = null
+        this.serverChunkNames = undefined
       }
     )
 
@@ -1093,16 +1095,38 @@ export default class HotReloader {
           return
         }
 
+        // As document chunk will change if new app pages are joined,
+        // since react bundle is different it will effect the chunk hash.
+        // So we diff the chunk changes, if there's only new app page chunk joins,
+        // then we don't trigger a reload by checking pages/_document chunk change.
+        if (this.appDir) {
+          const chunkNames = new Set(compilation.namedChunks.keys())
+          const diffChunkNames = difference<string>(
+            this.serverChunkNames || new Set(),
+            chunkNames
+          )
+
+          if (
+            diffChunkNames.length === 0 ||
+            diffChunkNames.every((chunkName) => chunkName.startsWith('app/'))
+          ) {
+            return
+          }
+          this.serverChunkNames = chunkNames
+        }
+
         // Notify reload to reload the page, as _document.js was changed (different hash)
         this.send('reloadPage')
         this.serverPrevDocumentHash = documentChunk.hash || null
       }
     )
+
     this.multiCompiler.hooks.done.tap('NextjsHotReloaderForServer', () => {
       const serverOnlyChanges = difference<string>(
         changedServerPages,
         changedClientPages
       )
+
       const edgeServerOnlyChanges = difference<string>(
         changedEdgeServerPages,
         changedClientPages

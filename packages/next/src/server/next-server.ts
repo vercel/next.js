@@ -273,6 +273,7 @@ export default class NextNodeServer extends BaseServer {
         hostname: this.hostname,
         minimalMode: this.minimalMode,
         dev: !!options.dev,
+        isNodeDebugging: !!options.isNodeDebugging,
       }
       const { createWorker, createIpcServer } =
         require('./lib/server-ipc') as typeof import('./lib/server-ipc')
@@ -281,8 +282,7 @@ export default class NextNodeServer extends BaseServer {
           this.renderWorkers = {}
           const { ipcPort, ipcValidationKey } = await createIpcServer(this)
           if (this.hasAppDir) {
-            this.renderWorkers.app = createWorker(
-              this.port || 0,
+            this.renderWorkers.app = await createWorker(
               ipcPort,
               ipcValidationKey,
               options.isNodeDebugging,
@@ -290,8 +290,7 @@ export default class NextNodeServer extends BaseServer {
               this.nextConfig.experimental.serverActions
             )
           }
-          this.renderWorkers.pages = createWorker(
-            this.port || 0,
+          this.renderWorkers.pages = await createWorker(
             ipcPort,
             ipcValidationKey,
             options.isNodeDebugging,
@@ -2184,7 +2183,6 @@ export default class NextNodeServer extends BaseServer {
   }): {
     name: string
     paths: string[]
-    env: string[]
     wasm: { filePath: string; name: string }[]
     assets: { filePath: string; name: string }[]
   } | null {
@@ -2215,7 +2213,6 @@ export default class NextNodeServer extends BaseServer {
     return {
       name: pageInfo.name,
       paths: pageInfo.files.map((file) => join(this.distDir, file)),
-      env: pageInfo.env ?? [],
       wasm: (pageInfo.wasm ?? []).map((binding) => ({
         ...binding,
         filePath: join(this.distDir, binding.filePath),
@@ -2323,7 +2320,6 @@ export default class NextNodeServer extends BaseServer {
       distDir: this.distDir,
       name: middlewareInfo.name,
       paths: middlewareInfo.paths,
-      env: middlewareInfo.env,
       edgeFunctionEntry: middlewareInfo,
       request: {
         headers: params.request.headers,
@@ -2826,7 +2822,6 @@ export default class NextNodeServer extends BaseServer {
       distDir: this.distDir,
       name: edgeInfo.name,
       paths: edgeInfo.paths,
-      env: edgeInfo.env,
       edgeFunctionEntry: edgeInfo,
       request: {
         headers: params.req.headers,

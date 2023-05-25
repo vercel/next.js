@@ -1,13 +1,5 @@
 import { existsSync } from 'fs'
-import {
-  basename,
-  extname,
-  join,
-  relative,
-  isAbsolute,
-  resolve,
-  dirname,
-} from 'path'
+import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import { Agent as HttpAgent } from 'http'
 import { Agent as HttpsAgent } from 'https'
@@ -28,8 +20,9 @@ import {
 } from './config-shared'
 import { loadWebpackHook } from './config-utils'
 import { ImageConfig, imageConfigDefault } from '../shared/lib/image-config'
-import { loadEnvConfig } from '@next/env'
+import { loadEnvConfig, updateInitialEnv } from '@next/env'
 import { flushAndExit } from '../telemetry/flush-and-exit'
+import { findRootDir } from '../lib/find-root'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
@@ -485,21 +478,16 @@ function assignDefaults(
 
   // use the closest lockfile as tracing root
   if (!result.experimental?.outputFileTracingRoot) {
-    const lockFiles: string[] = [
-      'package-lock.json',
-      'yarn.lock',
-      'pnpm-lock.yaml',
-    ]
-    const foundLockfile = findUp.sync(lockFiles, { cwd: dir })
+    let rootDir = findRootDir(dir)
 
-    if (foundLockfile) {
+    if (rootDir) {
       if (!result.experimental) {
         result.experimental = {}
       }
       if (!defaultConfig.experimental) {
         defaultConfig.experimental = {}
       }
-      result.experimental.outputFileTracingRoot = dirname(foundLockfile)
+      result.experimental.outputFileTracingRoot = rootDir
       defaultConfig.experimental.outputFileTracingRoot =
         result.experimental.outputFileTracingRoot
     }
@@ -734,6 +722,8 @@ export default async function loadConfig(
     let userConfigModule: any
 
     try {
+      const envBefore = Object.assign({}, process.env)
+
       // `import()` expects url-encoded strings, so the path must be properly
       // escaped and (especially on Windows) absolute paths must pe prefixed
       // with the `file://` protocol
@@ -745,6 +735,14 @@ export default async function loadConfig(
       } else {
         userConfigModule = await lazyJiti()(pathToFileURL(path).href)
       }
+      const newEnv: typeof process.env = {} as any
+
+      for (const key of Object.keys(process.env)) {
+        if (envBefore[key] !== process.env[key]) {
+          newEnv[key] = process.env[key]
+        }
+      }
+      updateInitialEnv(newEnv)
 
       if (rawConfig) {
         return userConfigModule
