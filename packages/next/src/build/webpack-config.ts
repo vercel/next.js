@@ -245,6 +245,7 @@ export function getDefineEnv({
             process.env.NEXT_EDGE_RUNTIME_PROVIDER || 'edge-runtime'
           ),
         }),
+    'process.turbopack': JSON.stringify(false),
     // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
     'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production'),
     'process.env.NEXT_RUNTIME': JSON.stringify(
@@ -389,18 +390,20 @@ export function getDefineEnv({
   }
 }
 
-function createReactAliases(
+function createRSCAliases(
   bundledReactChannel: string,
   opts: {
     reactSharedSubset: boolean
     reactDomServerRenderingStub: boolean
+    reactServerCondition?: boolean
   }
 ) {
-  const alias = {
+  const alias: Record<string, string> = {
     react$: `next/dist/compiled/react${bundledReactChannel}`,
     'react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}`,
     'react/jsx-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-runtime`,
     'react/jsx-dev-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime`,
+    'react-dom/client$': `next/dist/compiled/react-dom${bundledReactChannel}/client`,
     'react-dom/server$': `next/dist/compiled/react-dom${bundledReactChannel}/server`,
     'react-dom/server.edge$': `next/dist/compiled/react-dom${bundledReactChannel}/server.edge`,
     'react-dom/server.browser$': `next/dist/compiled/react-dom${bundledReactChannel}/server.browser`,
@@ -421,6 +424,19 @@ function createReactAliases(
     alias[
       'react-dom$'
     ] = `next/dist/compiled/react-dom${bundledReactChannel}/server-rendering-stub`
+  }
+
+  // Alias `server-only` and `client-only` modules to their server/client only, vendored versions.
+  // These aliases are necessary if the user doesn't have those two packages installed manually.
+  if (typeof opts.reactServerCondition !== 'undefined') {
+    if (opts.reactServerCondition) {
+      // Alias to the `react-server` exports.
+      alias['server-only$'] = 'next/dist/compiled/server-only/empty'
+      alias['client-only$'] = 'next/dist/compiled/client-only/error'
+    } else {
+      alias['server-only$'] = 'next/dist/compiled/server-only/index'
+      alias['client-only$'] = 'next/dist/compiled/client-only/index'
+    }
   }
 
   return alias
@@ -1039,6 +1055,7 @@ export default async function getBaseWebpackConfig(
             'next/dist/shared': 'next/dist/esm/shared',
             'next/dist/pages': 'next/dist/esm/pages',
             'next/dist/lib': 'next/dist/esm/lib',
+            'next/dist/server': 'next/dist/esm/server',
 
             // Alias the usage of next public APIs
             [require.resolve('next/dist/client/link')]:
@@ -1058,9 +1075,9 @@ export default async function getBaseWebpackConfig(
             [require.resolve('next/dist/pages/_app')]:
               'next/dist/esm/pages/_app',
             [require.resolve('next/dist/client/components/navigation')]:
-              'next/dist/client/components/navigation',
+              'next/dist/esm/client/components/navigation',
             [require.resolve('next/dist/client/components/headers')]:
-              'next/dist/client/components/headers',
+              'next/dist/esm/client/components/headers',
           }
         : undefined),
 
@@ -1866,7 +1883,7 @@ export default async function getBaseWebpackConfig(
                     [require.resolve('next/dynamic')]: require.resolve(
                       'next/dist/shared/lib/app-dynamic'
                     ),
-                    ...createReactAliases(bundledReactChannel, {
+                    ...createRSCAliases(bundledReactChannel, {
                       reactSharedSubset: false,
                       reactDomServerRenderingStub: false,
                     }),
@@ -1897,9 +1914,10 @@ export default async function getBaseWebpackConfig(
                     // If missing the alias override here, the default alias will be used which aliases
                     // react to the direct file path, not the package name. In that case the condition
                     // will be ignored completely.
-                    ...createReactAliases(bundledReactChannel, {
+                    ...createRSCAliases(bundledReactChannel, {
                       reactSharedSubset: true,
                       reactDomServerRenderingStub: true,
+                      reactServerCondition: true,
                     }),
                   },
                 },
@@ -1963,9 +1981,10 @@ export default async function getBaseWebpackConfig(
                       // It needs `conditionNames` here to require the proper asset,
                       // when react is acting as dependency of compiled/react-dom.
                       alias: {
-                        ...createReactAliases(bundledReactChannel, {
+                        ...createRSCAliases(bundledReactChannel, {
                           reactSharedSubset: true,
                           reactDomServerRenderingStub: true,
+                          reactServerCondition: true,
                         }),
                       },
                     },
@@ -1975,9 +1994,10 @@ export default async function getBaseWebpackConfig(
                     issuerLayer: WEBPACK_LAYERS.client,
                     resolve: {
                       alias: {
-                        ...createReactAliases(bundledReactChannel, {
+                        ...createRSCAliases(bundledReactChannel, {
                           reactSharedSubset: false,
                           reactDomServerRenderingStub: true,
+                          reactServerCondition: false,
                         }),
                       },
                     },
@@ -1989,10 +2009,11 @@ export default async function getBaseWebpackConfig(
                 issuerLayer: WEBPACK_LAYERS.appClient,
                 resolve: {
                   alias: {
-                    ...createReactAliases(bundledReactChannel, {
+                    ...createRSCAliases(bundledReactChannel, {
                       // Only alias server rendering stub in client SSR layer.
                       reactSharedSubset: false,
                       reactDomServerRenderingStub: false,
+                      reactServerCondition: false,
                     }),
                   },
                 },
@@ -2189,7 +2210,7 @@ export default async function getBaseWebpackConfig(
             ]
           : []),
         {
-          test: /node_modules[/\\]client-only[/\\]error.js/,
+          test: /(node_modules|next[/\\]dist[/\\]compiled)[/\\]client-only[/\\]error.js/,
           loader: 'next-invalid-import-error-loader',
           issuerLayer: {
             or: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.action],
@@ -2200,7 +2221,7 @@ export default async function getBaseWebpackConfig(
           },
         },
         {
-          test: /node_modules[/\\]server-only[/\\]index.js/,
+          test: /(node_modules|next[/\\]dist[/\\]compiled)[/\\]server-only[/\\]index.js/,
           loader: 'next-invalid-import-error-loader',
           issuerLayer: WEBPACK_LAYERS.client,
           options: {
