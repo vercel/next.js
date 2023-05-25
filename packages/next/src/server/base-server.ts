@@ -31,6 +31,8 @@ import type { PayloadOptions } from './send-payload'
 import type { PrerenderManifest } from '../build'
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
+import type { PagesRouteModule } from './future/route-modules/pages/module'
+import type { NodeNextRequest, NodeNextResponse } from './base-http/node'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/redirect-status'
@@ -1593,95 +1595,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const supportsDynamicHTML =
         (!isDataReq && opts.dev) || !(isSSG || hasStaticPaths)
 
-      const match =
-        pathname !== '/_error' && !is404Page && !is500Page
-          ? getRequestMeta(req, '_nextMatch')
-          : undefined
-
-      if (match) {
-        const context: RouteHandlerManagerContext = {
-          params: match.params,
-          prerenderManifest: this.getPrerenderManifest(),
-          staticGenerationContext: {
-            originalPathname: components.ComponentMod.originalPathname,
-            supportsDynamicHTML,
-            incrementalCache,
-            isRevalidate: isSSG,
-          },
-        }
-
-        try {
-          // Handle the match and collect the response if it's a static response.
-          const response = await this.handlers.handle(match, req, context)
-          if (response) {
-            ;(req as any).fetchMetrics = (
-              context.staticGenerationContext as any
-            ).fetchMetrics
-
-            const cacheTags = (context.staticGenerationContext as any).fetchTags
-
-            // If the request is for a static response, we can cache it so long
-            // as it's not edge.
-            if (isSSG && process.env.NEXT_RUNTIME !== 'edge') {
-              const blob = await response.blob()
-
-              // Copy the headers from the response.
-              const headers = toNodeHeaders(response.headers)
-
-              if (cacheTags) {
-                headers['x-next-cache-tags'] = cacheTags
-              }
-
-              if (!headers['content-type'] && blob.type) {
-                headers['content-type'] = blob.type
-              }
-              let revalidate: number | false | undefined =
-                context.staticGenerationContext.store?.revalidate
-
-              if (typeof revalidate == 'undefined') {
-                revalidate = false
-              }
-
-              // Create the cache entry for the response.
-              const cacheEntry: ResponseCacheEntry = {
-                value: {
-                  kind: 'ROUTE',
-                  status: response.status,
-                  body: Buffer.from(await blob.arrayBuffer()),
-                  headers,
-                },
-                revalidate,
-              }
-
-              return cacheEntry
-            }
-
-            // Send the response now that we have copied it into the cache.
-            await sendResponse(req, res, response)
-
-            return null
-          }
-        } catch (err) {
-          // If an error was thrown while handling an app route request, we
-          // should return a 500 response.
-          if (match.definition.kind === RouteKind.APP_ROUTE) {
-            // If this is during static generation, throw the error again.
-            if (isSSG) throw err
-
-            // Otherwise, send a 500 response.
-            Log.error(err)
-            await sendResponse(req, res, handleInternalServerErrorResponse())
-
-            return null
-          }
-        }
-      }
-
-      let pageData: any
-      let body: RenderResult
-      let isrRevalidate: number | false
-      let isNotFound: boolean | undefined
-      let isRedirect: boolean | undefined
       let headers: OutgoingHttpHeaders | undefined
 
       const origQuery = parseUrl(req.url || '', true).query
@@ -1734,40 +1647,147 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         isOnDemandRevalidate,
       }
 
-      const renderResult = await this.renderHTML(
-        req,
-        res,
-        pathname,
-        query,
-        renderOpts
-      )
+      const match =
+        pathname !== '/_error' && !is404Page && !is500Page
+          ? getRequestMeta(req, '_nextMatch')
+          : undefined
 
-      body = renderResult
+      // Legacy render methods will return a render result that needs to be
+      // served by the server.
+      let result: RenderResult | undefined
 
-      const renderResultMeta = renderResult.metadata()
+      if (match?.definition.kind === RouteKind.APP_ROUTE) {
+        const context: RouteHandlerManagerContext = {
+          params: match.params,
+          prerenderManifest: this.getPrerenderManifest(),
+          staticGenerationContext: {
+            originalPathname: components.ComponentMod.originalPathname,
+            supportsDynamicHTML,
+            incrementalCache,
+            isRevalidate: isSSG,
+          },
+        }
 
-      pageData = renderResultMeta.pageData
-      isrRevalidate = renderResultMeta.revalidate
-      isNotFound = renderResultMeta.isNotFound
-      isRedirect = renderResultMeta.isRedirect
+        try {
+          // Handle the match and collect the response if it's a static response.
+          const response = await this.handlers.handle(match, req, context)
+          if (response) {
+            ;(req as any).fetchMetrics = (
+              context.staticGenerationContext as any
+            ).fetchMetrics
 
-      const cacheTags = (renderOpts as any).fetchTags
+            const cacheTags = (context.staticGenerationContext as any).fetchTags
 
-      if (cacheTags) {
-        headers = {
-          'x-next-cache-tags': cacheTags,
+            // If the request is for a static response, we can cache it so long
+            // as it's not edge.
+            if (isSSG && process.env.NEXT_RUNTIME !== 'edge') {
+              const blob = await response.blob()
+
+              // Copy the headers from the response.
+              headers = toNodeHeaders(response.headers)
+
+              if (cacheTags) {
+                headers['x-next-cache-tags'] = cacheTags
+              }
+
+              if (!headers['content-type'] && blob.type) {
+                headers['content-type'] = blob.type
+              }
+              let revalidate: number | false | undefined =
+                context.staticGenerationContext.store?.revalidate
+
+              if (typeof revalidate == 'undefined') {
+                revalidate = false
+              }
+
+              // Create the cache entry for the response.
+              const cacheEntry: ResponseCacheEntry = {
+                value: {
+                  kind: 'ROUTE',
+                  status: response.status,
+                  body: Buffer.from(await blob.arrayBuffer()),
+                  headers,
+                },
+                revalidate,
+              }
+
+              return cacheEntry
+            }
+
+            // Send the response now that we have copied it into the cache.
+            await sendResponse(req, res, response)
+
+            return null
+          }
+        } catch (err) {
+          // If an error was thrown while handling an app route request, we
+          // should return a 500 response.
+          if (match.definition.kind === RouteKind.APP_ROUTE) {
+            // If this is during static generation, throw the error again.
+            if (isSSG) throw err
+
+            // Otherwise, send a 500 response.
+            Log.error(err)
+            await sendResponse(req, res, handleInternalServerErrorResponse())
+
+            return null
+          }
         }
       }
+      // If we've matched a page while not in edge where the module exports a
+      // `routeModule`, then we should be able to render it using the provided
+      // `render` method.
+      else if (
+        match?.definition.kind === RouteKind.PAGES &&
+        process.env.NEXT_RUNTIME !== 'edge' &&
+        components.ComponentMod.routeModule
+      ) {
+        const module: PagesRouteModule = components.ComponentMod.routeModule
+
+        // Call the built-in render method on the module. We cast these to
+        // NodeNextRequest and NodeNextResponse because we know that we're
+        // in the node runtime because we check that we're not in edge mode
+        // above.
+        result = await module.render(
+          (req as NodeNextRequest).originalRequest,
+          (res as NodeNextResponse).originalResponse,
+          pathname,
+          query,
+          renderOpts
+        )
+      }
+
+      // If there is no result yet, then we should render the page using the
+      // legacy render method.
+      if (!result) {
+        result = await this.renderHTML(req, res, pathname, query, renderOpts)
+      }
+
+      const { metadata } = result
+
+      // Add any fetch tags that were on the page to the response headers.
+      const cacheTags = (renderOpts as any).fetchTags
+      if (cacheTags) {
+        headers ??= {}
+        headers['x-next-cache-tags'] = cacheTags
+      }
+
+      // Pull any fetch metrics from the render onto the request.
       ;(req as any).fetchMetrics = (renderOpts as any).fetchMetrics
 
       // we don't throw static to dynamic errors in dev as isSSG
       // is a best guess in dev since we don't have the prerender pass
       // to know whether the path is actually static or not
-      if (isAppPath && isSSG && isrRevalidate === 0 && !this.renderOpts.dev) {
+      if (
+        isAppPath &&
+        isSSG &&
+        metadata.revalidate === 0 &&
+        !this.renderOpts.dev
+      ) {
         const staticBailoutInfo: {
           stack?: string
           description?: string
-        } = renderResultMeta.staticBailoutInfo || {}
+        } = metadata.staticBailoutInfo || {}
 
         const err = new Error(
           `Page changed from static to dynamic at runtime ${urlPathname}${
@@ -1787,17 +1807,22 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
 
       let value: ResponseCacheValue | null
-      if (isNotFound) {
+      if (metadata.isNotFound) {
         value = null
-      } else if (isRedirect) {
-        value = { kind: 'REDIRECT', props: pageData }
+      } else if (metadata.isRedirect) {
+        value = { kind: 'REDIRECT', props: metadata.pageData }
       } else {
-        if (body.isNull()) {
+        if (result.isNull()) {
           return null
         }
-        value = { kind: 'PAGE', html: body, pageData, headers }
+        value = {
+          kind: 'PAGE',
+          html: result,
+          pageData: metadata.pageData,
+          headers,
+        }
       }
-      return { revalidate: isrRevalidate, value }
+      return { revalidate: metadata.revalidate, value }
     }
 
     const cacheEntry = await this.responseCache.get(

@@ -498,9 +498,9 @@ export default async function exportPage({
               curRenderOpts as any
             )
             const html = result.toUnchunkedString()
-            const renderResultMeta = result.metadata()
-            const flightData = renderResultMeta.pageData
-            const revalidate = renderResultMeta.revalidate
+            const { metadata } = result
+            const flightData = metadata.pageData
+            const revalidate = metadata.revalidate
             results.fromBuildExportRevalidate = revalidate
 
             if (revalidate !== 0) {
@@ -534,7 +534,7 @@ export default async function exportPage({
               )
             }
 
-            const staticBailoutInfo = renderResultMeta.staticBailoutInfo || {}
+            const staticBailoutInfo = metadata.staticBailoutInfo || {}
 
             if (
               revalidate === 0 &&
@@ -623,7 +623,7 @@ export default async function exportPage({
         }
       }
 
-      results.ssgNotFound = renderResult?.metadata().isNotFound
+      results.ssgNotFound = renderResult?.metadata.isNotFound
 
       const validateAmp = async (
         rawAmpHtml: string,
@@ -697,9 +697,8 @@ export default async function exportPage({
         }
       }
 
-      const renderResultMeta =
-        renderResult?.metadata() || ampRenderResult?.metadata() || {}
-      if (renderResultMeta.pageData) {
+      const metadata = renderResult?.metadata || ampRenderResult?.metadata || {}
+      if (metadata.pageData) {
         const dataFile = join(
           pagesDataDir,
           htmlFilename.replace(/\.html$/, '.json')
@@ -708,19 +707,19 @@ export default async function exportPage({
         await promises.mkdir(dirname(dataFile), { recursive: true })
         await promises.writeFile(
           dataFile,
-          JSON.stringify(renderResultMeta.pageData),
+          JSON.stringify(metadata.pageData),
           'utf8'
         )
 
         if (hybridAmp) {
           await promises.writeFile(
             dataFile.replace(/\.json$/, '.amp.json'),
-            JSON.stringify(renderResultMeta.pageData),
+            JSON.stringify(metadata.pageData),
             'utf8'
           )
         }
       }
-      results.fromBuildExportRevalidate = renderResultMeta.revalidate
+      results.fromBuildExportRevalidate = metadata.revalidate
 
       if (!results.ssgNotFound) {
         // don't attempt writing to disk if getStaticProps returned not found

@@ -33,7 +33,7 @@ export default class RenderResult {
     this._metadata = metadata
   }
 
-  metadata() {
+  get metadata() {
     return this._metadata
   }
 

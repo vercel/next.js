@@ -1,3 +1,4 @@
+import type { IncomingMessage, ServerResponse } from 'http'
 import type {
   GetServerSideProps,
   GetStaticPaths,
@@ -6,8 +7,12 @@ import type {
   PageConfig,
 } from '../../../../../types'
 import type { PagesRouteDefinition } from '../../route-definitions/pages-route-definition'
+import type { NextParsedUrlQuery } from '../../../request-meta'
+import type { RenderOpts } from '../../../render'
+import type RenderResult from '../../../render-result'
 
 import { RouteModule, type RouteModuleOptions } from '../route-module'
+import { renderToHTML } from '../../../render'
 
 /**
  * The userland module for a page. This is the module that is exported from the
@@ -46,7 +51,7 @@ export type PagesRouteModuleOptions = RouteModuleOptions<
   PagesUserlandModule
 >
 
-class PagesRouteModule extends RouteModule<
+export class PagesRouteModule extends RouteModule<
   PagesRouteDefinition,
   PagesUserlandModule
 > {
@@ -56,6 +61,17 @@ class PagesRouteModule extends RouteModule<
 
   public handle(): Promise<Response> {
     throw new Error('Method not implemented.')
+  }
+
+  public async render(
+    req: IncomingMessage,
+    res: ServerResponse,
+    pathname: string,
+    query: NextParsedUrlQuery,
+    renderOpts: RenderOpts
+  ): Promise<RenderResult> {
+    const result = await renderToHTML(req, res, pathname, query, renderOpts)
+    return result
   }
 }
 
