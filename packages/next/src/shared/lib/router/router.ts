@@ -60,6 +60,7 @@ declare global {
 
 interface RouteProperties {
   shallow: boolean
+  method: HistoryMethod
 }
 
 interface TransitionOptions {
@@ -1265,7 +1266,7 @@ export default class Router implements BaseRouter {
     }
 
     const { shallow = false, scroll = true } = options
-    const routeProps = { shallow }
+    const routeProps = { shallow, method }
 
     if (this._inFlightRoute && this.clc) {
       if (!isSsr) {
@@ -1667,7 +1668,7 @@ export default class Router implements BaseRouter {
             query,
             as,
             resolvedAs,
-            routeProps: { shallow: false },
+            routeProps: { shallow: false, method },
             locale: nextState.locale,
             isPreview: nextState.isPreview,
             isNotFound: true,
@@ -1721,7 +1722,7 @@ export default class Router implements BaseRouter {
           query,
           as,
           resolvedAs,
-          routeProps: { shallow: false },
+          routeProps: { shallow: false, method },
           locale: nextState.locale,
           isPreview: nextState.isPreview,
           isQueryUpdating: isQueryUpdating && !this.isFallback,
