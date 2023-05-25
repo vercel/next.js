@@ -18,7 +18,7 @@ createNextDescribe(
     })
 
     if (isNextStart) {
-      it('should not emit metadata files into bad paths', async () => {
+      it('should mark static contain metadata routes as edge functions', async () => {
         const middlewareManifest = await next.readFile(
           '.next/server/middleware-manifest.json'
         )
