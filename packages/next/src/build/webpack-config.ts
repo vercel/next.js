@@ -1652,6 +1652,10 @@ export default async function getBaseWebpackConfig(
             framework: {
               chunks: 'all',
               name: 'framework',
+              // Ensures the framework chunk is not created for App Router.
+              layer(layer: any) {
+                return layer === null || layer === undefined
+              },
               test(module: any) {
                 const resource = module.nameForCondition?.()
                 return resource
