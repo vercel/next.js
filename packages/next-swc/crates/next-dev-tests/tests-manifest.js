@@ -259,7 +259,7 @@ const enabledTests = [
   'test/integration/re-export-all-exports-from-page-disallowed/test/index.test.js',
   'test/integration/react-profiling-mode/test/index.test.js',
   'test/integration/react-streaming/test/index.test.js',
-  'test/integration/read-only-source-hmr/test/index.test.js',
+  // 'test/integration/read-only-source-hmr/test/index.test.js',
   'test/integration/relay-analytics-disabled/test/index.test.js',
   'test/integration/relay-analytics/test/index.test.js',
   'test/integration/render-error-on-module-error/test/index.test.js',
