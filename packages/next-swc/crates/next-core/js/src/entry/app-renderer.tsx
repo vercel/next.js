@@ -1,18 +1,8 @@
-// Provided by the rust generate code
-type FileType =
-  | 'layout'
-  | 'template'
-  | 'error'
-  | 'loading'
-  | 'not-found'
-  | 'head'
-declare global {
-  // an tree of all layouts and the page
-  const LOADER_TREE: LoaderTree
-  // array of chunks for the bootstrap script
-  const BOOTSTRAP: string[]
-  const IPC: Ipc<unknown, unknown>
-}
+// IPC need to be the first import to allow it to catch errors happening during
+// the other imports
+import { IPC } from '@vercel/turbopack-node/ipc/index'
+
+import "../polyfill/app-polyfills.ts"
 
 import type { Ipc } from '@vercel/turbopack-node/ipc/index'
 import type { IncomingMessage } from 'node:http'
@@ -25,9 +15,9 @@ import { RSC_VARY_HEADER } from 'next/dist/client/components/app-router-headers'
 import { headersFromEntries, initProxiedHeaders } from '../internal/headers'
 import { parse, ParsedUrlQuery } from 'node:querystring'
 import { PassThrough } from 'node:stream'
-;('TURBOPACK { transition: next-layout-entry; chunking-type: isolatedParallel }')
-// @ts-ignore
-import layoutEntry from './app/layout-entry'
+;('TURBOPACK { chunking-type: isolatedParallel }')
+import entry from 'APP_ENTRY'
+import BOOTSTRAP from "APP_BOOTSTRAP";
 import { createServerResponse } from '../internal/http'
 
 globalThis.__next_require__ = (data) => {
@@ -105,20 +95,6 @@ const MIME_TEXT_HTML_UTF8 = 'text/html; charset=utf-8'
 })().catch((err) => {
   ipc.sendError(err)
 })
-
-// TODO expose these types in next.js
-type ComponentModule = () => any
-type ModuleReference = [componentModule: ComponentModule, filePath: string]
-export type ComponentsType = {
-  [componentKey in FileType]?: ModuleReference
-} & {
-  page?: ModuleReference
-}
-type LoaderTree = [
-  segment: string,
-  parallelRoutes: { [parallelRouterKey: string]: LoaderTree },
-  components: ComponentsType
-]
 
 async function runOperation(renderData: RenderData) {
   const proxyMethodsForModule = (
@@ -266,9 +242,8 @@ async function runOperation(renderData: RenderData) {
       ampFirstPages: [],
     },
     ComponentMod: {
-      ...layoutEntry,
-      default: undefined,
-      tree: LOADER_TREE,
+      ...entry,
+      __next_app_require__: __next_require__,
       pages: ['page.js'],
     },
     clientReferenceManifest: manifest,

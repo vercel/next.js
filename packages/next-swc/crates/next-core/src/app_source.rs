@@ -8,7 +8,7 @@ use turbopack_binding::{
     turbo::{
         tasks::{primitives::StringVc, Value},
         tasks_env::{CustomProcessEnvVc, EnvMapVc, ProcessEnvVc},
-        tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPathVc},
+        tasks_fs::{rope::RopeBuilder, File, FileSystemPathVc},
     },
     turbopack::{
         core::{
@@ -59,14 +59,14 @@ use turbopack_binding::{
 };
 
 use crate::{
-    app_render::next_layout_entry_transition::NextServerComponentTransition,
+    app_render::next_server_component_transition::NextServerComponentTransition,
     app_segment_config::parse_segment_config_from_source,
     app_structure::{
         get_entrypoints, get_global_metadata, Components, Entrypoint, GlobalMetadataVc, LoaderTree,
         LoaderTreeVc, Metadata, MetadataItem, MetadataWithAltItem, OptionAppDirVc,
     },
     bootstrap::{route_bootstrap, BootstrapConfigVc},
-    embed_js::{next_asset, next_js_file, next_js_file_path},
+    embed_js::{next_asset, next_js_file_path},
     env::env_for_js,
     fallback::get_fallback_page,
     mode::NextMode,
@@ -200,7 +200,7 @@ fn next_ssr_client_module_transition(
 }
 
 #[turbo_tasks::function]
-fn next_layout_entry_transition(
+fn next_server_component_transition(
     project_path: FileSystemPathVc,
     execution_context: ExecutionContextVc,
     app_dir: FileSystemPathVc,
@@ -302,8 +302,8 @@ fn app_context(
         ),
     );
     transitions.insert(
-        "next-layout-entry".to_string(),
-        next_layout_entry_transition(
+        "next-server-component".to_string(),
+        next_server_component_transition(
             project_path,
             execution_context,
             app_dir,
@@ -767,12 +767,15 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
 
                 state.inner_assets.insert(
                     format!("COMPONENT_{i}"),
-                    state.context.with_transition("next-layout-entry").process(
-                        SourceAssetVc::new(component).into(),
-                        Value::new(ReferenceType::EcmaScriptModules(
-                            EcmaScriptModulesReferenceSubType::Undefined,
-                        )),
-                    ),
+                    state
+                        .context
+                        .with_transition("next-server-component")
+                        .process(
+                            SourceAssetVc::new(component).into(),
+                            Value::new(ReferenceType::EcmaScriptModules(
+                                EcmaScriptModulesReferenceSubType::Undefined,
+                            )),
+                        ),
                 );
             }
             Ok(())
@@ -958,7 +961,7 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
         walk_tree(&mut state, loader_tree).await?;
 
         let State {
-            mut inner_assets,
+            inner_assets,
             imports,
             loader_tree_code,
             unsupported_metadata,
@@ -975,41 +978,25 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
             .emit();
         }
 
-        // IPC need to be the first import to allow it to catch errors happening during
-        // the other imports
-        let mut result =
-            RopeBuilder::from("import { IPC } from \"@vercel/turbopack-node/ipc/index\";\n");
-
-        let import_path = next_js_file_path("entry")
-            .await?
-            .get_relative_path_to(&*next_js_file_path("polyfill/app-polyfills.ts").await?)
-            .unwrap();
-        writeln!(result, "import \"{import_path}\";\n",)?;
+        let mut result = RopeBuilder::from(
+            "import GlobalError from 'next/dist/client/components/error-boundary'\nimport * as \
+             base from 'next/dist/server/app-render/entry-base'\n",
+        );
 
         for import in imports {
             writeln!(result, "{import}")?;
         }
 
-        writeln!(result, "const LOADER_TREE = {loader_tree_code};\n")?;
-        writeln!(result, "import BOOTSTRAP from \"BOOTSTRAP\";\n")?;
-
-        inner_assets.insert(
-            "BOOTSTRAP".to_string(),
-            context.with_transition("next-client").process(
-                SourceAssetVc::new(next_js_file_path("entry/app/hydrate.tsx")).into(),
-                Value::new(ReferenceType::EcmaScriptModules(
-                    EcmaScriptModulesReferenceSubType::Undefined,
-                )),
-            ),
-        );
-
-        let base_code = next_js_file("entry/app-renderer.tsx");
-        if let FileContent::Content(base_file) = &*base_code.await? {
-            result += base_file.content()
-        }
+        writeln!(result, "const tree = {loader_tree_code};\n")?;
+        writeln!(
+            result,
+            // Need this hack because "export *" from CommonJS will trigger a warning
+            // otherwise
+            "__turbopack_export_value__({{ tree, GlobalError, ...base }});\n"
+        )?;
 
         let file = File::from(result.build());
-        let asset = VirtualAssetVc::new(next_js_file_path("entry/app-renderer.tsx"), file.into());
+        let asset = VirtualAssetVc::new(next_js_file_path("entry/app-entry.tsx"), file.into());
 
         let chunking_context = DevChunkingContextVc::builder(
             project_path,
@@ -1022,12 +1009,25 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
         .reference_chunk_source_maps(false)
         .build();
 
-        let module = context.process(
+        let entry_module = context.with_transition("next-server-component").process(
             asset.into(),
             Value::new(ReferenceType::Internal(InnerAssetsVc::cell(inner_assets))),
         );
 
-        let Some(module) = EvaluatableAssetVc::resolve_from(module).await? else {
+        let renderer_module = context.process(
+            SourceAssetVc::new(next_js_file_path("entry/app-renderer.tsx")).into(),
+            Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
+                "APP_ENTRY".to_string() => entry_module.into(),
+                "APP_BOOTSTRAP".to_string() => context.with_transition("next-client").process(
+                    SourceAssetVc::new(next_js_file_path("entry/app/hydrate.tsx")).into(),
+                    Value::new(ReferenceType::EcmaScriptModules(
+                        EcmaScriptModulesReferenceSubType::Undefined,
+                    )),
+                ),
+            }))),
+        );
+
+        let Some(module) = EvaluatableAssetVc::resolve_from(renderer_module).await? else {
             bail!("internal module must be evaluatable");
         };
 
