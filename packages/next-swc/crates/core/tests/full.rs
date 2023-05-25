@@ -5,7 +5,7 @@ use serde::de::DeserializeOwned;
 use turbopack_binding::swc::{
     core::{
         base::Compiler,
-        common::comments::SingleThreadedComments,
+        common::{comments::SingleThreadedComments, Mark},
         ecma::{
             parser::{Syntax, TsConfig},
             transforms::base::pass::noop,
@@ -77,9 +77,12 @@ fn test(input: &Path, minify: bool) {
                 font_loaders: None,
                 app_dir: None,
                 server_actions: None,
+                cjs_require_optimizer: None,
             };
 
-            let options = options.patch(&fm);
+            let unresolved_mark = Mark::new();
+            let mut options = options.patch(&fm);
+            options.swc.unresolved_mark = Some(unresolved_mark);
 
             let comments = SingleThreadedComments::default();
             match c.process_js_with_custom_pass(
@@ -95,6 +98,7 @@ fn test(input: &Path, minify: bool) {
                         &options,
                         comments.clone(),
                         Default::default(),
+                        unresolved_mark,
                     )
                 },
                 |_| noop(),

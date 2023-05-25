@@ -9,6 +9,7 @@
 }
 
 .main {
+  width: 100%;
   max-width: 540px;
   padding-top: 2rem;
   flex: 1;
@@ -59,7 +60,7 @@
 }
 
 .cards {
-  margin: 2rem;
+  margin: 0;
 }
 
 .card {

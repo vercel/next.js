@@ -36,7 +36,7 @@ createNextDescribe(
     buildCommand: 'yarn build',
     skipDeployment: true,
   },
-  ({ next }) => {
+  ({ next, isNextDev }) => {
     it('should be able to opt-out 3rd party packages being bundled in server components', async () => {
       await next.fetch('/react-server/optout').then(async (response) => {
         const result = await resolveStreamResponse(response)
@@ -188,7 +188,7 @@ createNextDescribe(
       expect(html).toContain('Foo')
     })
 
-    if ((global as any).isNextDev) {
+    if (isNextDev) {
       it('should error for wildcard exports of client module references in esm', async () => {
         const page = 'app/esm-client-ref/page.js'
         const pageSource = await next.readFile(page)
@@ -207,9 +207,17 @@ createNextDescribe(
         }
 
         expect(next.cliOutput).toInclude(
-          `It's currently unsupport to use "export *" in a client boundary. Please use named exports instead.`
+          `It's currently unsupported to use "export *" in a client boundary. Please use named exports instead.`
         )
       })
     }
+
+    it('should have proper tree-shaking for known modules in CJS', async () => {
+      const html = await next.render('/test-middleware')
+      expect(html).toContain('it works')
+
+      const middlewareBundle = await next.readFile('.next/server/middleware.js')
+      expect(middlewareBundle).not.toContain('image-response')
+    })
   }
 )

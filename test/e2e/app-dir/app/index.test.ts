@@ -37,6 +37,15 @@ createNextDescribe(
       })
     }
 
+    it('should work for catch-all edge page', async () => {
+      const html = await next.render('/catch-all-edge/hello123')
+      const $ = cheerio.load(html)
+
+      expect(JSON.parse($('#params').text())).toEqual({
+        slug: ['hello123'],
+      })
+    })
+
     it('should have correct searchParams and params (server)', async () => {
       const html = await next.render('/dynamic/category-1/id-2?query1=value2')
       const $ = cheerio.load(html)
@@ -218,22 +227,26 @@ createNextDescribe(
       })
     }
 
-    it('should use text/x-component for flight', async () => {
+    it('should use text/x-component; charset=utf-8 for flight', async () => {
       const res = await next.fetch('/dashboard/deployments/123', {
         headers: {
           ['RSC'.toString()]: '1',
         },
       })
-      expect(res.headers.get('Content-Type')).toBe('text/x-component')
+      expect(res.headers.get('Content-Type')).toBe(
+        'text/x-component; charset=utf-8'
+      )
     })
 
-    it('should use text/x-component for flight with edge runtime', async () => {
+    it('should use text/x-component; charset=utf-8 for flight with edge runtime', async () => {
       const res = await next.fetch('/dashboard', {
         headers: {
           ['RSC'.toString()]: '1',
         },
       })
-      expect(res.headers.get('Content-Type')).toBe('text/x-component')
+      expect(res.headers.get('Content-Type')).toBe(
+        'text/x-component; charset=utf-8'
+      )
     })
 
     it('should return the `vary` header from edge runtime', async () => {
@@ -282,6 +295,15 @@ createNextDescribe(
     it('should serve from app', async () => {
       const html = await next.render('/dashboard')
       expect(html).toContain('hello from app/dashboard')
+    })
+
+    it('should ensure the </body></html> suffix is at the end of the stream', async () => {
+      const html = await next.render('/dashboard')
+
+      // It must end with the suffix and not contain it anywhere else.
+      const suffix = '</body></html>'
+      expect(html).toEndWith(suffix)
+      expect(html.slice(0, -suffix.length)).not.toContain(suffix)
     })
 
     if (!isNextDeploy) {
