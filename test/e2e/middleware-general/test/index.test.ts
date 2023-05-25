@@ -159,7 +159,7 @@ describe('Middleware Runtime', () => {
 
         expect(manifest.functions['/api/edge-search-params']).toHaveProperty(
           'regions',
-          'default'
+          'auto'
         )
       })
 

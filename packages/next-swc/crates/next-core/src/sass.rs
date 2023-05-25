@@ -19,7 +19,12 @@ pub async fn maybe_add_sass_loader(
     } else {
         Default::default()
     };
-    for pattern in ["*.scss", "*.sass"] {
+    for (pattern, rename) in [
+        ("*.module.scss", ".module.css"),
+        ("*.module.sass", ".module.css"),
+        ("*.scss", ".css"),
+        ("*.sass", ".css"),
+    ] {
         let rule = rules.get_mut(pattern);
         let loader = WebpackLoaderItem {
             loader: "next/dist/compiled/sass-loader".to_string(),
@@ -37,12 +42,17 @@ pub async fn maybe_add_sass_loader(
             let mut loaders = rule.loaders.await?.clone_value();
             loaders.push(loader);
             rule.loaders = WebpackLoaderItemsVc::cell(loaders);
+            if let Some(rename_as) = rule.rename_as.as_mut() {
+                rename_as.push_str(rename);
+            } else {
+                rule.rename_as = Some(format!("*{rename}"));
+            }
         } else {
             rules.insert(
                 pattern.to_string(),
                 LoaderRuleItem {
                     loaders: WebpackLoaderItemsVc::cell(vec![loader]),
-                    rename_as: Some("*".to_string()),
+                    rename_as: Some(format!("*{rename}")),
                 },
             );
         }
