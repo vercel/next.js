@@ -64,7 +64,6 @@ use crate::{
         get_entrypoints, get_global_metadata, Components, Entrypoint, GlobalMetadataVc, LoaderTree,
         LoaderTreeVc, Metadata, MetadataItem, MetadataWithAltItem, OptionAppDirVc,
     },
-    asset_helpers::as_es_module_asset,
     bootstrap::{route_bootstrap, BootstrapConfigVc},
     embed_js::{next_asset, next_js_file, next_js_file_path},
     env::env_for_js,
@@ -890,12 +889,11 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
                             .push(format!("import {identifier} from \"{inner_module_id}\";"));
                         state.inner_assets.insert(
                             inner_module_id,
-                            as_es_module_asset(
+                            state.context.process(
                                 TextContentSourceAssetVc::new(SourceAssetVc::new(*alt_path).into())
                                     .into(),
-                                state.context,
-                            )
-                            .into(),
+                                Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
+                            ),
                         );
                         writeln!(state.loader_tree_code, "{s}  alt: {identifier},")?;
                     }

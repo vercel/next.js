@@ -15,8 +15,6 @@ use turbopack_binding::turbopack::{
     ecmascript::{resolve::esm_resolve, utils::StringifyJs, EcmascriptModuleAssetVc},
 };
 
-use crate::asset_helpers::as_es_module_asset;
-
 #[turbo_tasks::function]
 pub async fn route_bootstrap(
     asset: AssetVc,
@@ -102,7 +100,7 @@ pub async fn bootstrap(
     config.insert("PAGE".to_string(), path.to_string());
     config.insert("PATHNAME".to_string(), pathname);
 
-    let config_asset = as_es_module_asset(
+    let config_asset = context.process(
         VirtualAssetVc::new(
             asset.ident().path().join("bootstrap-config.ts"),
             File::from(
@@ -115,9 +113,8 @@ pub async fn bootstrap(
             .into(),
         )
         .as_asset(),
-        context,
-    )
-    .as_asset();
+        Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
+    );
 
     let mut inner_assets = inner_assets.await?.clone_value();
     inner_assets.insert("ENTRY".to_string(), asset);

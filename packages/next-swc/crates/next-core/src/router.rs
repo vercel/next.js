@@ -16,7 +16,7 @@ use turbopack_binding::{
     },
     turbopack::{
         core::{
-            asset::AssetVc,
+            asset::{AssetOptionVc, AssetVc},
             changed::any_content_changed,
             chunk::ChunkingContext,
             context::{AssetContext, AssetContextVc},
@@ -29,7 +29,6 @@ use turbopack_binding::{
             virtual_asset::VirtualAssetVc,
         },
         dev::DevChunkingContextVc,
-        ecmascript::OptionEcmascriptModuleAssetVc,
         node::{
             evaluate::evaluate,
             execution_context::{ExecutionContext, ExecutionContextVc},
@@ -42,7 +41,6 @@ use turbopack_binding::{
 };
 
 use crate::{
-    asset_helpers::as_es_module_asset,
     embed_js::next_asset,
     mode::NextMode,
     next_config::NextConfigVc,
@@ -143,16 +141,16 @@ async fn get_config(
     context: AssetContextVc,
     project_path: FileSystemPathVc,
     configs: StringsVc,
-) -> Result<OptionEcmascriptModuleAssetVc> {
+) -> Result<AssetOptionVc> {
     let find_config_result = find_context_file(project_path, configs);
     let config_asset = match &*find_config_result.await? {
-        FindContextFileResult::Found(config_path, _) => Some(as_es_module_asset(
+        FindContextFileResult::Found(config_path, _) => Some(context.process(
             SourceAssetVc::new(*config_path).as_asset(),
-            context,
+            Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
         )),
         FindContextFileResult::NotFound(_) => None,
     };
-    Ok(OptionEcmascriptModuleAssetVc::cell(config_asset))
+    Ok(AssetOptionVc::cell(config_asset))
 }
 
 #[turbo_tasks::function]
@@ -184,30 +182,29 @@ async fn config_assets(
     let (manifest, config) = match &*middleware_config {
         Some(c) => {
             let manifest = context.with_transition("next-edge").process(
-                c.as_asset(),
+                *c,
                 Value::new(ReferenceType::EcmaScriptModules(
                     EcmaScriptModulesReferenceSubType::Undefined,
                 )),
             );
-            let config = parse_config_from_source(c.as_asset());
+            let config = parse_config_from_source(*c);
             (manifest, config)
         }
         None => {
-            let manifest = as_es_module_asset(
+            let manifest = context.process(
                 VirtualAssetVc::new(
                     project_path.join("middleware.js"),
                     File::from("export default [];").into(),
                 )
                 .as_asset(),
-                context,
-            )
-            .as_asset();
+                Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
+            );
             let config = NextSourceConfigVc::default();
             (manifest, config)
         }
     };
 
-    let config_asset = as_es_module_asset(
+    let config_asset = context.process(
         VirtualAssetVc::new(
             project_path.join("middleware_config.js"),
             File::from(format!(
@@ -217,9 +214,8 @@ async fn config_assets(
             .into(),
         )
         .as_asset(),
-        context,
-    )
-    .as_asset();
+        Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
+    );
 
     Ok(InnerAssetsVc::cell(indexmap! {
         "MIDDLEWARE_CHUNK_GROUP".to_string() => manifest,

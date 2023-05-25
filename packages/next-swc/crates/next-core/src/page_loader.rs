@@ -89,9 +89,10 @@ impl PageLoaderAssetVc {
         let module = this.client_context.process(
             loader_entry_asset,
             Value::new(ReferenceType::Internal(
-            InnerAssetsVc::cell(indexmap! {
-                "PAGE".to_string() => this.client_context.process(this.entry_asset, Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)))
-            }))),
+                InnerAssetsVc::cell(indexmap! {
+                    "PAGE".to_string() => this.client_context.process(this.entry_asset, Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)))
+                })
+            )),
         );
 
         let Some(module) = EvaluatableAssetVc::resolve_from(module).await? else {
