@@ -23,7 +23,10 @@ export const streamToBufferedResult = async (
     write(chunk: any) {
       renderChunks.push(decodeText(chunk, textDecoder))
     },
-    end() {},
+    end() {
+      // ensure we flush final bytes
+      renderChunks.push(textDecoder.decode())
+    },
     destroy() {},
   }
   await renderResult.pipe(writable as any)
@@ -95,6 +98,7 @@ export async function streamToString(
     const { done, value } = await reader.read()
 
     if (done) {
+      bufferedString += textDecoder.decode()
       return bufferedString
     }
 
@@ -127,7 +131,7 @@ export function createBufferedTransformStream(
 
   return new TransformStream({
     transform(chunk, controller) {
-      bufferedString += decodeText(chunk, textDecoder)
+      bufferedString += decodeText(chunk, textDecoder, false)
       flushBuffer(controller)
     },
 
@@ -187,7 +191,7 @@ function createHeadInsertionTransformStream(
         controller.enqueue(chunk)
         freezing = true
       } else {
-        const content = decodeText(chunk, textDecoder)
+        const content = decodeText(chunk, textDecoder, false)
         const index = content.indexOf('</head>')
         if (index !== -1) {
           const insertedHeadContent =
@@ -306,9 +310,10 @@ export function createSuffixStream(
         return controller.enqueue(chunk)
       }
 
-      const content = decodeText(chunk, textDecoder)
+      let content = decodeText(chunk, textDecoder)
       if (content.endsWith(suffix)) {
         foundSuffix = true
+        content += textDecoder.decode()
         const contentWithoutSuffix = content.slice(0, -suffix.length)
         controller.enqueue(encodeText(contentWithoutSuffix))
       } else {

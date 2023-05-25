@@ -4,7 +4,8 @@ export function encodeText(input: string) {
 
 export function decodeText(
   input: Uint8Array | undefined,
-  textDecoder: TextDecoder
+  textDecoder: TextDecoder,
+  isStream = true
 ) {
-  return textDecoder.decode(input, { stream: true })
+  return textDecoder.decode(input, { stream: isStream })
 }
