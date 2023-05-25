@@ -847,7 +847,6 @@ export default async function getBaseWebpackConfig(
         rootDir: dir,
         pagesDir,
         appDir,
-        hasServerComponents,
         hasReactRefresh: dev && isClient,
         fileReading: config.experimental.swcFileReading,
         nextConfig: config,
@@ -865,7 +864,7 @@ export default async function getBaseWebpackConfig(
 
   const swcLoaderForServerLayer = hasServerComponents
     ? useSWCLoader
-      ? [getSwcLoader({ isServerLayer: true })]
+      ? [getSwcLoader({ hasServerComponents, isServerLayer: true })]
       : // When using Babel, we will have to add the SWC loader
         // as an additional pass to handle RSC correctly.
         // This will cause some performance overhead but
@@ -874,12 +873,15 @@ export default async function getBaseWebpackConfig(
     : []
   const swcLoaderForClientLayer = hasServerComponents
     ? useSWCLoader
-      ? [getSwcLoader({ isServerLayer: false })]
+      ? [getSwcLoader({ hasServerComponents, isServerLayer: false })]
       : // When using Babel, we will have to add the SWC loader
         // as an additional pass to handle RSC correctly.
         // This will cause some performance overhead but
         // acceptable as Babel will not be recommended.
-        [getSwcLoader({ isServerLayer: false }), getBabelLoader()]
+        [
+          getSwcLoader({ hasServerComponents, isServerLayer: false }),
+          getBabelLoader(),
+        ]
     : []
 
   // Loader for API routes needs to be differently configured as it shouldn't
