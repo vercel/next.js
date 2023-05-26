@@ -24,7 +24,9 @@ function getMetrics(data) {
   }
 }
 
-const round = (num) => Math.round(num * 100) / 100;
+function round(num) {
+  return Math.round(num * 100) / 100;
+}
 
 // thanks Copilot
 function getConfidenceInterval(data) {
