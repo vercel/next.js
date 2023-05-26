@@ -40,6 +40,7 @@ turbopack-binding = { workspace = true, features = [
   "__turbopack_dev_server",
   "__turbopack_ecmascript",
   "__turbopack_ecmascript_plugin",
+  "__turbopack_ecmascript_runtime",
   "__turbopack_env",
   "__turbopack_static",
   "__turbopack_image",
