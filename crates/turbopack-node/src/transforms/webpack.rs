@@ -8,13 +8,10 @@ use turbopack_core::{
     asset::{Asset, AssetContent, AssetContentVc, AssetVc},
     context::{AssetContext, AssetContextVc},
     ident::AssetIdentVc,
+    reference_type::{InnerAssetsVc, ReferenceType},
     source_asset::SourceAssetVc,
     source_transform::{SourceTransform, SourceTransformVc},
     virtual_asset::VirtualAssetVc,
-};
-use turbopack_ecmascript::{
-    EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
-    EcmascriptModuleAssetVc,
 };
 
 use super::util::{emitted_assets_to_virtual_assets, EmittedAsset};
@@ -118,17 +115,12 @@ struct ProcessWebpackLoadersResult {
 
 #[turbo_tasks::function]
 fn webpack_loaders_executor(context: AssetContextVc) -> AssetVc {
-    EcmascriptModuleAssetVc::new(
-        SourceAssetVc::new(embed_file_path("transforms/webpack-loaders.ts")).into(),
-        context,
-        Value::new(EcmascriptModuleAssetType::Typescript),
-        EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
-            use_define_for_class_fields: false,
-        }]),
-        Value::new(Default::default()),
-        context.compile_time_info(),
-    )
-    .into()
+    context
+        .process(
+            SourceAssetVc::new(embed_file_path("transforms/webpack-loaders.ts")).into(),
+            Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
+        )
+        .into()
 }
 
 #[turbo_tasks::value_impl]

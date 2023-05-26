@@ -301,7 +301,7 @@ impl Introspectable for NodeRenderContentSource {
                 StringVc::cell("intermediate asset".to_string()),
                 IntrospectableAssetVc::new(get_intermediate_asset(
                     entry.chunking_context,
-                    entry.module.into(),
+                    entry.module,
                     entry.runtime_entries,
                 )),
             ));

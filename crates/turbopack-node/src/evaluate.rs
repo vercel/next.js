@@ -1,6 +1,6 @@
 use std::{borrow::Cow, ops::ControlFlow, thread::available_parallelism, time::Duration};
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 use async_stream::try_stream as generator;
 use futures::{
     channel::mpsc::{unbounded, UnboundedSender},
@@ -24,16 +24,15 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::{
     asset::{Asset, AssetVc},
-    chunk::{ChunkableAsset, ChunkingContext, ChunkingContextVc, EvaluatableAssetsVc},
+    chunk::{
+        ChunkableAsset, ChunkingContext, ChunkingContextVc, EvaluatableAssetVc, EvaluatableAssetsVc,
+    },
     context::{AssetContext, AssetContextVc},
     ident::AssetIdentVc,
     issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
+    reference_type::{InnerAssetsVc, ReferenceType},
     source_asset::SourceAssetVc,
     virtual_asset::VirtualAssetVc,
-};
-use turbopack_ecmascript::{
-    EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
-    EcmascriptModuleAssetVc, InnerAssetsVc,
 };
 
 use crate::{
@@ -108,17 +107,10 @@ pub async fn get_evaluate_pool(
     additional_invalidation: CompletionVc,
     debug: bool,
 ) -> Result<NodeJsPoolVc> {
-    let runtime_asset = EcmascriptModuleAssetVc::new(
+    let runtime_asset = context.process(
         SourceAssetVc::new(embed_file_path("ipc/evaluate.ts")).into(),
-        context,
-        Value::new(EcmascriptModuleAssetType::Typescript),
-        EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
-            use_define_for_class_fields: false,
-        }]),
-        Value::new(Default::default()),
-        context.compile_time_info(),
-    )
-    .as_asset();
+        Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
+    );
 
     let module_path = module_asset.ident().path().await?;
     let file_name = module_path.file_name();
@@ -130,7 +122,7 @@ pub async fn get_evaluate_pool(
         Cow::Owned(format!("{file_name}.js"))
     };
     let path = chunking_context.output_root().join(file_name.as_ref());
-    let entry_module = EcmascriptModuleAssetVc::new_with_inner_assets(
+    let entry_module = context.process(
         VirtualAssetVc::new(
             runtime_asset.ident().path().join("evaluate.js"),
             File::from(
@@ -140,40 +132,34 @@ pub async fn get_evaluate_pool(
             .into(),
         )
         .into(),
-        context,
-        Value::new(EcmascriptModuleAssetType::Typescript),
-        EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
-            use_define_for_class_fields: false,
-        }]),
-        Value::new(Default::default()),
-        context.compile_time_info(),
-        InnerAssetsVc::cell(indexmap! {
+        Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
             "INNER".to_string() => module_asset,
             "RUNTIME".to_string() => runtime_asset
-        }),
+        }))),
     );
+
+    let Some(entry_module) = EvaluatableAssetVc::resolve_from(entry_module).await? else {
+        bail!("Internal module is not evaluatable");
+    };
 
     let (Some(cwd), Some(entrypoint)) = (to_sys_path(cwd).await?, to_sys_path(path).await?) else {
         panic!("can only evaluate from a disk filesystem");
     };
 
     let runtime_entries = {
-        let globals_module = EcmascriptModuleAssetVc::new(
+        let globals_module = context.process(
             SourceAssetVc::new(embed_file_path("globals.ts")).into(),
-            context,
-            Value::new(EcmascriptModuleAssetType::Typescript),
-            EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
-                use_define_for_class_fields: false,
-            }]),
-            Value::new(Default::default()),
-            context.compile_time_info(),
-        )
-        .as_evaluatable_asset();
+            Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
+        );
+
+        let Some(globals_module) = EvaluatableAssetVc::resolve_from(globals_module).await? else {
+            bail!("Internal module is not evaluatable");
+        };
 
         let mut entries = vec![globals_module];
         if let Some(runtime_entries) = runtime_entries {
-            for entry in &*runtime_entries.await? {
-                entries.push(*entry)
+            for &entry in &*runtime_entries.await? {
+                entries.push(entry)
             }
         }
 
@@ -184,7 +170,7 @@ pub async fn get_evaluate_pool(
         path,
         chunking_context,
         entry: entry_module.as_root_chunk(chunking_context),
-        evaluatable_assets: runtime_entries.with_entry(entry_module.into()),
+        evaluatable_assets: runtime_entries.with_entry(entry_module),
     }
     .cell()
     .into();

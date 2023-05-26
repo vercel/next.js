@@ -13,14 +13,13 @@ use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::{File, FileContent, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetContentVc},
-    chunk::{ChunkingContextVc, EvaluatableAssetsVc},
+    chunk::{ChunkingContextVc, EvaluatableAssetVc, EvaluatableAssetsVc},
     error::PrettyPrintError,
 };
 use turbopack_dev_server::{
     html::DevHtmlAssetVc,
     source::{Body, HeaderListVc, RewriteBuilder, RewriteVc},
 };
-use turbopack_ecmascript::EcmascriptModuleAssetVc;
 
 use super::{
     issue::RenderingIssue, RenderDataVc, RenderStaticIncomingMessage, RenderStaticOutgoingMessage,
@@ -70,7 +69,7 @@ pub async fn render_static(
     cwd: FileSystemPathVc,
     env: ProcessEnvVc,
     path: FileSystemPathVc,
-    module: EcmascriptModuleAssetVc,
+    module: EvaluatableAssetVc,
     runtime_entries: EvaluatableAssetsVc,
     fallback_page: DevHtmlAssetVc,
     chunking_context: ChunkingContextVc,
@@ -195,7 +194,7 @@ fn render_stream(
     cwd: FileSystemPathVc,
     env: ProcessEnvVc,
     path: FileSystemPathVc,
-    module: EcmascriptModuleAssetVc,
+    module: EvaluatableAssetVc,
     runtime_entries: EvaluatableAssetsVc,
     fallback_page: DevHtmlAssetVc,
     chunking_context: ChunkingContextVc,
@@ -255,7 +254,7 @@ async fn render_stream_internal(
     cwd: FileSystemPathVc,
     env: ProcessEnvVc,
     path: FileSystemPathVc,
-    module: EcmascriptModuleAssetVc,
+    module: EvaluatableAssetVc,
     runtime_entries: EvaluatableAssetsVc,
     fallback_page: DevHtmlAssetVc,
     chunking_context: ChunkingContextVc,
@@ -274,7 +273,7 @@ async fn render_stream_internal(
     let stream = generator! {
         let intermediate_asset = get_intermediate_asset(
             chunking_context,
-            module.into(),
+            module,
             runtime_entries,
         );
         let renderer_pool = get_renderer_pool(
