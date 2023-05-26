@@ -57,7 +57,7 @@ importers:
       '@typescript-eslint/eslint-plugin': 4.29.1
       '@typescript-eslint/parser': 4.29.1
       '@vercel/fetch': 6.1.1
-      '@vercel/og': 0.5.0
+      '@vercel/og': 0.5.6
       '@webassemblyjs/ast': 1.11.1
       '@webassemblyjs/floating-point-hex-parser': 1.11.1
       '@webassemblyjs/helper-api-error': 1.11.1
@@ -173,7 +173,7 @@ importers:
       request-promise-core: 1.1.2
       resolve-from: 5.0.0
       sass: 1.54.0
-      satori: 0.4.4
+      satori: 0.9.1
       scheduler-builtin: npm:scheduler@0.24.0-canary-16d053d59-20230506
       scheduler-experimental-builtin: npm:scheduler@0.0.0-experimental-16d053d59-20230506
       seedrandom: 3.0.5
@@ -242,7 +242,7 @@ importers:
       '@typescript-eslint/eslint-plugin': 4.29.1_qxyn66xcaddhgaahwkbomftvi4
       '@typescript-eslint/parser': 4.29.1_6x3mpmmsttbpxxsctsorxedanu
       '@vercel/fetch': 6.1.1_fii5qhbaymjqmfm7e2spxc5z4m
-      '@vercel/og': 0.5.0
+      '@vercel/og': 0.5.6
       '@webassemblyjs/ast': 1.11.1
       '@webassemblyjs/floating-point-hex-parser': 1.11.1
       '@webassemblyjs/helper-api-error': 1.11.1
@@ -358,7 +358,7 @@ importers:
       request-promise-core: 1.1.2_request@2.88.2
       resolve-from: 5.0.0
       sass: 1.54.0
-      satori: 0.4.4
+      satori: 0.9.1
       scheduler-builtin: /scheduler/0.24.0-canary-16d053d59-20230506
       scheduler-experimental-builtin: /scheduler/0.0.0-experimental-16d053d59-20230506
       seedrandom: 3.0.5
@@ -7713,12 +7713,12 @@ packages:
       - supports-color
     dev: true
 
-  /@vercel/og/0.5.0:
-    resolution: {integrity: sha512-NrHyWFj7fLixXPjgCXlyX90VdbiIfP6IBcyimiFGgwpnmyRgLiYTvrnPIKI/JP49VF9bnYHFfVqzMupeyCamuQ==}
+  /@vercel/og/0.5.6:
+    resolution: {integrity: sha512-C7loD/Ryt+cXgZ93KVNOIa/r/WcPVPk1JflUODGUdngFwxOJab0eCdugMrwGR2Oq85g4TXXHMBZIC2Z0C9P1NQ==}
     engines: {node: '>=16'}
     dependencies:
       '@resvg/resvg-wasm': 2.4.1
-      satori: 0.4.4
+      satori: 0.9.1
       yoga-wasm-web: 0.3.3
     dev: true
 
@@ -13996,6 +13996,11 @@ packages:
     resolution: {integrity: sha512-l9sfDFsuqtOqKDsQdqrMRk0U85RZc0RtOR9yPI7mRVOa4FsR/BVnZ0shmQRM96Ji99kYZP/7hn1cedc1+ApsTQ==}
     dev: true
 
+  /hex-rgb/4.3.0:
+    resolution: {integrity: sha512-Ox1pJVrDCyGHMG9CFg1tmrRUMRPRsAWYc/PinY0XzJU4K7y7vjNoLKIQ7BR5UJMCxNN8EM1MNDmHWA/B3aZUuw==}
+    engines: {node: '>=6'}
+    dev: true
+
   /hmac-drbg/1.0.1:
     resolution: {integrity: sha1-0nRXAQJabHdabFRXk+1QL8DGSaE=}
     dependencies:
@@ -19009,6 +19014,13 @@ packages:
       safe-buffer: 5.2.1
     dev: true
 
+  /parse-css-color/0.2.1:
+    resolution: {integrity: sha512-bwS/GGIFV3b6KS4uwpzCFj4w297Yl3uqnSgIPsoQkx7GMLROXfMnWvxfNkL0oh8HVhZA4hvJoEoEIqonfJ3BWg==}
+    dependencies:
+      color-name: 1.1.4
+      hex-rgb: 4.3.0
+    dev: true
+
   /parse-english/4.2.0:
     resolution: {integrity: sha512-jw5N6wZUZViIw3VLG/FUSeL3vDhfw5Q2g4E3nYC69Mm5ANbh9ZWd+eligQbeUoyObZM8neynTn3l14e09pjEWg==}
     dependencies:
@@ -22309,8 +22321,8 @@ packages:
       immutable: 4.1.0
       source-map-js: 1.0.2
 
-  /satori/0.4.4:
-    resolution: {integrity: sha512-UCgoY7CXibFQmgI4ay4QSWUOca07nI9pY56w8NKrBq+bkGgiMbcPXZWj9bxukyJkEl/cgAICGjjxvwlDF2NYRw==}
+  /satori/0.9.1:
+    resolution: {integrity: sha512-2ggMOiY8O8rIxQ6vywiw3LlBheWHbsOzu5hZdMXTDFKzE9sDHUOtJegGmGE+e9aRSO1ttttgXrcHVsHPKYU2GQ==}
     engines: {node: '>=16'}
     dependencies:
       '@shuding/opentype.js': 1.4.0-beta.0
@@ -22319,6 +22331,7 @@ packages:
       css-to-react-native: 3.0.0
       emoji-regex: 10.2.1
       linebreak: 1.1.0
+      parse-css-color: 0.2.1
       postcss-value-parser: 4.2.0
       yoga-wasm-web: 0.3.3
     dev: true
