@@ -51,7 +51,10 @@ __swc_core_binding_napi = [
   "swc_core/ecma_utils",
   "swc_core/ecma_visit",
 ]
-__swc_core_binding_napi_plugin = ["swc_core/plugin_transform_host_native"]
+__swc_core_binding_napi_plugin = [
+  "swc_core/plugin_transform_host_native",
+  "turbopack-ecmascript-plugins/swc_ecma_transform_plugin",
+]
 __swc_core_binding_napi_allocator = ["swc_core/allocator_node"]
 
 __swc_core_binding_wasm = [
