@@ -82,7 +82,7 @@ impl Transition for NextClientTransition {
             asset
         };
         let Some(asset) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? else {
-            bail!("Not an ecmascript placeable module");
+            bail!("not an ecmascript placeable module");
         };
 
         let runtime_entries = self.runtime_entries.resolve_entries(context.into());

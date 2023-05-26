@@ -1025,7 +1025,7 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
         );
 
         let Some(module) = EvaluatableAssetVc::resolve_from(module).await? else {
-            bail!("Internal module is not evaluatable");
+            bail!("internal module must be evaluatable");
         };
 
         Ok(NodeRenderingEntry {
@@ -1132,7 +1132,7 @@ impl AppRouteVc {
                 );
 
                 let Some(module) = EvaluatableAssetVc::resolve_from(module).await? else {
-                    bail!("Internal module must be evaluatable");
+                    bail!("internal module must be evaluatable");
                 };
 
                 module

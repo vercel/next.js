@@ -126,7 +126,7 @@ pub async fn bootstrap(
     );
 
     let Some(asset) = EvaluatableAssetVc::resolve_from(asset).await? else {
-        bail!("internal asset is not evaluatable");
+        bail!("internal module must be evaluatable");
     };
 
     Ok(asset)

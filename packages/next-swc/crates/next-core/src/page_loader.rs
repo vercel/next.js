@@ -96,7 +96,7 @@ impl PageLoaderAssetVc {
         );
 
         let Some(module) = EvaluatableAssetVc::resolve_from(module).await? else {
-            bail!("internal asset is not evaluatable");
+            bail!("internal module must be evaluatable");
         };
 
         Ok(this.client_chunking_context.evaluated_chunk_group(

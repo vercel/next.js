@@ -834,7 +834,7 @@ impl SsrEntryVc {
             Value::new(ReferenceType::Internal(InnerAssetsVc::cell(inner_assets))),
         );
         let Some(module) = EvaluatableAssetVc::resolve_from(module).await? else {
-            bail!("Internal module was not processed into an evaluatable asset");
+            bail!("internal module must be evaluatable");
         };
         Ok(NodeRenderingEntry {
             runtime_entries: EvaluatableAssetsVc::cell(
