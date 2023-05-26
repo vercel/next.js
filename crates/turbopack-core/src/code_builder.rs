@@ -126,6 +126,12 @@ impl ops::AddAssign<&'static str> for CodeBuilder {
     }
 }
 
+impl ops::AddAssign<&'static str> for &mut CodeBuilder {
+    fn add_assign(&mut self, rhs: &'static str) {
+        self.push_static_bytes(rhs.as_bytes());
+    }
+}
+
 impl Write for CodeBuilder {
     fn write(&mut self, bytes: &[u8]) -> IoResult<usize> {
         self.push_map(None);

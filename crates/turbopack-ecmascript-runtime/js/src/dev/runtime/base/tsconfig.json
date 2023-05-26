@@ -1,0 +1,9 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    // environment
+    "lib": ["ESNext"],
+    "target": "ESNext"
+  },
+  "include": ["runtime-base.ts", "dummy.ts"]
+}

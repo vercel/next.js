@@ -24,11 +24,13 @@ turbo-tasks = { workspace = true }
 turbo-tasks-env = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-tasks-memory = { workspace = true }
+turbopack-build = { workspace = true, features = ["test"] }
 turbopack-core = { workspace = true, features = ["issue_path"] }
-turbopack-dev = { workspace = true }
+turbopack-dev = { workspace = true, features = ["test"] }
 turbopack-ecmascript-plugins = { workspace = true, features = [
   "transform_emotion",
 ] }
+turbopack-ecmascript-runtime = { workspace = true }
 turbopack-env = { workspace = true }
 turbopack-test-utils = { workspace = true }
 

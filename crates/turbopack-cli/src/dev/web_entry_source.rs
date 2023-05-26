@@ -58,10 +58,10 @@ pub async fn get_client_import_map(project_path: FileSystemPathVc) -> Result<Imp
     import_map.insert_singleton_alias("react-dom", project_path);
 
     import_map.insert_wildcard_alias(
-        "@vercel/turbopack-dev/",
+        "@vercel/turbopack-ecmascript-runtime/",
         ImportMapping::PrimaryAlternative(
             "./*".to_string(),
-            Some(turbopack_dev::embed_js::embed_fs().root()),
+            Some(turbopack_ecmascript_runtime::embed_fs().root()),
         )
         .cell(),
     );

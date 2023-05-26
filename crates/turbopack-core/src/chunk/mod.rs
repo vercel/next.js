@@ -2,6 +2,7 @@ pub mod availability_info;
 pub mod available_assets;
 pub(crate) mod chunking_context;
 pub(crate) mod containment_tree;
+pub(crate) mod data;
 pub(crate) mod evaluate;
 pub mod optimize;
 
@@ -29,6 +30,7 @@ use turbo_tasks_hash::DeterministicHash;
 use self::availability_info::AvailabilityInfo;
 pub use self::{
     chunking_context::{ChunkingContext, ChunkingContextVc},
+    data::{ChunkData, ChunkDataOption, ChunkDataOptionVc, ChunkDataVc, ChunksData, ChunksDataVc},
     evaluate::{EvaluatableAsset, EvaluatableAssetVc, EvaluatableAssets, EvaluatableAssetsVc},
 };
 use crate::{

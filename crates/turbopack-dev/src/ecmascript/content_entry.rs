@@ -17,8 +17,6 @@ use turbopack_ecmascript::chunk::{
     EcmascriptChunkContentVc, EcmascriptChunkItem, EcmascriptChunkItemVc,
 };
 
-use crate::ecmascript::module_factory::module_factory;
-
 /// A chunk item's content entry.
 ///
 /// Instead of storing the [`EcmascriptChunkItemVc`] itself from which `code`
@@ -37,7 +35,8 @@ impl EcmascriptDevChunkContentEntry {
         chunk_item: EcmascriptChunkItemVc,
         availability_info: AvailabilityInfo,
     ) -> Result<Self> {
-        let code = item_code(chunk_item, Value::new(availability_info))
+        let code = chunk_item
+            .code(Value::new(availability_info))
             .resolve()
             .await?;
         Ok(EcmascriptDevChunkContentEntry {
@@ -92,7 +91,9 @@ async fn item_code(
     availability_info: Value<AvailabilityInfo>,
 ) -> Result<CodeVc> {
     Ok(
-        match module_factory(item.content_with_availability_info(availability_info))
+        match item
+            .content_with_availability_info(availability_info)
+            .module_factory()
             .resolve()
             .await
         {

@@ -56,6 +56,8 @@ pub mod turbopack {
     pub use turbopack;
     #[cfg(feature = "__turbopack_bench")]
     pub use turbopack_bench as bench;
+    #[cfg(feature = "__turbopack_build")]
+    pub use turbopack_build as build;
     #[cfg(feature = "__turbopack_cli_utils")]
     pub use turbopack_cli_utils as cli_utils;
     #[cfg(feature = "__turbopack_core")]
@@ -72,6 +74,8 @@ pub mod turbopack {
     pub use turbopack_ecmascript as ecmascript;
     #[cfg(feature = "__turbopack_ecmascript_plugin")]
     pub use turbopack_ecmascript_plugins as ecmascript_plugin;
+    #[cfg(feature = "__turbopack_ecmascript_runtime")]
+    pub use turbopack_ecmascript_runtime as ecmascript_runtime;
     #[cfg(feature = "__turbopack_env")]
     pub use turbopack_env as env;
     #[cfg(feature = "__turbopack_image")]

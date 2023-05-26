@@ -31,6 +31,7 @@ pub mod target;
 mod utils;
 pub mod version;
 pub mod virtual_asset;
+pub mod virtual_fs;
 
 pub const PROJECT_FILESYSTEM_NAME: &str = "project";
 pub const SOURCE_MAP_ROOT_NAME: &str = "turbopack";
