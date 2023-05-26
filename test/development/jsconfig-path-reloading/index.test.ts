@@ -70,8 +70,8 @@ describe('jsconfig-path-reloading', () => {
         const html = await browser.eval('document.documentElement.innerHTML')
         expect(html).toContain('first button')
         expect(html).toContain('second button')
-        expect(html).toContain('first-data')
-        expect(html).not.toContain('second-data')
+        expect(html).toContain('id="first-data"')
+        expect(html).not.toContain('id="second-data"')
 
         await next.patchFile(
           indexPage,
