@@ -317,7 +317,8 @@ export class ClientReferenceEntryPlugin {
             ...clientEntryToInject,
             clientImports: [
               ...clientEntryToInject.clientComponentImports,
-              ...dedupedCSSImports[clientEntryToInject.absolutePagePath],
+              ...(dedupedCSSImports[clientEntryToInject.absolutePagePath] ||
+                []),
             ],
           })
         )
