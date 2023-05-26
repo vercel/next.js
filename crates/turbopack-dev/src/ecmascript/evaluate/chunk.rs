@@ -4,12 +4,13 @@ use anyhow::{bail, Result};
 use indoc::writedoc;
 use serde::Serialize;
 use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value, ValueToString, ValueToStringVc};
-use turbo_tasks_fs::{embed_file, File, FileContent};
+use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc, AssetsVc},
-    chunk::{ChunkVc, ChunkingContext, EvaluatableAssetsVc, ModuleIdReadRef},
+    chunk::{
+        ChunkDataVc, ChunkVc, ChunkingContext, ChunksDataVc, EvaluatableAssetsVc, ModuleIdReadRef,
+    },
     code_builder::{CodeBuilder, CodeVc},
-    environment::ChunkLoading,
     ident::AssetIdentVc,
     reference::AssetReferencesVc,
     source_map::{
@@ -17,14 +18,12 @@ use turbopack_core::{
     },
 };
 use turbopack_ecmascript::{
-    chunk::{EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc},
+    chunk::{EcmascriptChunkData, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc},
     utils::StringifyJs,
 };
+use turbopack_ecmascript_runtime::RuntimeType;
 
-use crate::{
-    ecmascript::chunk_data::{ChunkDataVc, ChunksDataVc},
-    DevChunkingContextVc,
-};
+use crate::DevChunkingContextVc;
 
 /// An Ecmascript chunk that:
 /// * Contains the Turbopack dev runtime code; and
@@ -68,6 +67,7 @@ impl EcmascriptDevEvaluateChunkVc {
     #[turbo_tasks::function]
     async fn code(self) -> Result<CodeVc> {
         let this = self.await?;
+        let environment = this.chunking_context.environment();
 
         let output_root = this.chunking_context.output_root().await?;
         let chunk_path = self.ident().path().await?;
@@ -85,7 +85,7 @@ impl EcmascriptDevEvaluateChunkVc {
         let other_chunks_data = other_chunks_data.iter().try_join().await?;
         let other_chunks_data: Vec<_> = other_chunks_data
             .iter()
-            .map(|chunk_data| chunk_data.runtime_chunk_data())
+            .map(|chunk_data| EcmascriptChunkData::new(chunk_data))
             .collect();
 
         let runtime_module_ids = this
@@ -132,47 +132,22 @@ impl EcmascriptDevEvaluateChunkVc {
                     {{}},
                     {}
                 ]);
-                (() => {{
-                if (!Array.isArray(globalThis.TURBOPACK)) {{
-                    return;
-                }}
             "#,
             StringifyJs(&chunk_public_path),
             StringifyJs(&params),
         )?;
 
-        let shared_runtime_code = embed_file!("js/src/runtime.js").await?;
-
-        match &*shared_runtime_code {
-            FileContent::NotFound => bail!("shared runtime code is not found"),
-            FileContent::Content(file) => code.push_source(file.content(), None),
-        };
-
-        // The specific runtime code depends on declarations in the shared runtime code,
-        // hence it must be appended after it.
-        let specific_runtime_code =
-            match &*this.chunking_context.environment().chunk_loading().await? {
-                ChunkLoading::None => embed_file!("js/src/runtime.none.js").await?,
-                ChunkLoading::NodeJs => embed_file!("js/src/runtime.nodejs.js").await?,
-                ChunkLoading::Dom => embed_file!("js/src/runtime.dom.js").await?,
-            };
-
-        match &*specific_runtime_code {
-            FileContent::NotFound => bail!("specific runtime code is not found"),
-            FileContent::Content(file) => code.push_source(file.content(), None),
-        };
-
-        // Registering chunks depends on the BACKEND variable, which is set by the
-        // specific runtime code, hence it must be appended after it.
-        writedoc!(
-            code,
-            r#"
-                const chunksToRegister = globalThis.TURBOPACK;
-                globalThis.TURBOPACK = {{ push: registerChunk }};
-                chunksToRegister.forEach(registerChunk);
-                }})();
-            "#
-        )?;
+        match this.chunking_context.await?.runtime_type() {
+            RuntimeType::Default => {
+                let runtime_code = turbopack_ecmascript_runtime::get_dev_runtime_code(environment);
+                code.push_code(&*runtime_code.await?);
+            }
+            #[cfg(feature = "test")]
+            RuntimeType::Dummy => {
+                let runtime_code = turbopack_ecmascript_runtime::get_dummy_runtime_code();
+                code.push_code(&runtime_code);
+            }
+        }
 
         if code.has_source_map() {
             let filename = chunk_path.file_name();

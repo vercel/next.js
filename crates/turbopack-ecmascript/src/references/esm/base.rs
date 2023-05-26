@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 use lazy_static::lazy_static;
 use swc_core::{
     common::DUMMY_SP,
@@ -9,8 +9,8 @@ use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingType, ChunkingTypeOptionVc,
-        ModuleId,
+        ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingContext, ChunkingType,
+        ChunkingTypeOptionVc, ModuleId,
     },
     issue::{IssueSeverity, OptionIssueSourceVc},
     reference::{AssetReference, AssetReferenceVc},
@@ -23,7 +23,10 @@ use turbopack_core::{
 
 use crate::{
     analyzer::imports::ImportAnnotations,
-    chunk::{EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkingContextVc},
+    chunk::{
+        EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkingContext,
+        EcmascriptChunkingContextVc,
+    },
     code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
     create_visitor, magic_identifier,
     references::util::{request_to_string, throw_module_not_found_expr},
@@ -242,6 +245,9 @@ impl CodeGenerateable for EsmAssetReference {
                         }));
                     }
                     ReferencedAsset::OriginalReferenceTypeExternal(request) => {
+                        if !*context.environment().node_externals().await? {
+                            bail!("the chunking context does not support Node.js external modules");
+                        }
                         let request = request.clone();
                         visitors.push(create_visitor!(visit_mut_program(program: &mut Program) {
                             // TODO Technically this should insert a ESM external, but we don't support that yet

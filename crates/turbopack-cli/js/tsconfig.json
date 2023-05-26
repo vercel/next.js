@@ -1,17 +1,9 @@
 {
   "compilerOptions": {
     // type checking
-    "strict": false,
+    "strict": true,
     "noFallthroughCasesInSwitch": true,
     "skipLibCheck": true,
-
-    // interop constraints
-    "allowSyntheticDefaultImports": true,
-    "esModuleInterop": true,
-
-    // js support
-    "allowJs": true,
-    "checkJs": true,
 
     // environment
     "jsx": "react-jsx",
@@ -21,7 +13,7 @@
     // modules
     "baseUrl": ".",
     "module": "esnext",
-    "moduleResolution": "node",
+    "moduleResolution": "nodenext",
     "types": [],
 
     // emit

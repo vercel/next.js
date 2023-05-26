@@ -97,6 +97,10 @@ __turbo_updater = ["__turbo", "turbo-updater"]
 
 __turbopack = ["turbopack"]
 __turbopack_bench = ["__turbopack", "turbopack-bench"]
+__turbopack_build = ["__turbopack", "turbopack-build"]
+__turbopack_build_dynamic_embed_contents = [
+  "turbopack-build/dynamic_embed_contents",
+]
 __turbopack_cli_utils = ["__turbopack", "turbopack-cli-utils"]
 __turbopack_core = ["__turbopack", "turbopack-core"]
 __turbopack_core_issue_path = ["turbopack-core/issue_path"]
@@ -114,6 +118,8 @@ __turbopack_ecmascript_plugin = [
   "turbopack-ecmascript-plugins",
   "turbopack-ecmascript-plugins/transform_emotion",
 ]
+__turbopack_ecmascript_runtime = ["__turbopack", "turbopack-ecmascript-runtime"]
+
 __turbopack_env = ["__turbopack", "turbopack-env"]
 __turbopack_image = ["__turbopack", "turbopack-image"]
 __turbopack_image_avif = ["turbopack-image/avif"]
@@ -186,6 +192,7 @@ turbo-tasks-testing = { optional = true, workspace = true }
 turbo-updater = { optional = true, workspace = true }
 turbopack = { optional = true, workspace = true }
 turbopack-bench = { optional = true, workspace = true }
+turbopack-build = { optional = true, workspace = true }
 turbopack-cli-utils = { optional = true, workspace = true }
 turbopack-core = { optional = true, workspace = true }
 turbopack-create-test-app = { optional = true, workspace = true }
@@ -194,6 +201,7 @@ turbopack-dev = { optional = true, workspace = true }
 turbopack-dev-server = { optional = true, workspace = true }
 turbopack-ecmascript = { optional = true, workspace = true }
 turbopack-ecmascript-plugins = { optional = true, workspace = true }
+turbopack-ecmascript-runtime = { optional = true, workspace = true }
 turbopack-env = { optional = true, workspace = true }
 turbopack-image = { optional = true, workspace = true }
 turbopack-json = { optional = true, workspace = true }

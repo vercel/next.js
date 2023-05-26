@@ -22,7 +22,8 @@ use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::{
         availability_info::AvailabilityInfo, ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset,
-        ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkableAssetVc, ChunkingContextVc,
+        ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkableAssetVc, ChunkingContext,
+        ChunkingContextVc,
     },
     ident::AssetIdentVc,
     issue::{IssueSeverityVc, OptionIssueSourceVc},
@@ -455,11 +456,19 @@ impl EcmascriptChunkItem for RequireContextChunkItem {
 
             let prop = KeyValueProp {
                 key: PropName::Str(key.as_str().into()),
-                value: quote_expr!(
-                    "{ internal: $internal, id: () => $id }",
-                    internal: Expr = pm.is_internal_import().into(),
-                    id: Expr = pm.apply(Expr::Lit(Lit::Str(entry.origin_relative.as_str().into()))),
-                ),
+                value: match *self.context.environment().node_externals().await? {
+                    true => quote_expr!(
+                        "{ external: $external, id: () => $id }",
+                        external: Expr = (!pm.is_internal_import()).into(),
+                        id: Expr =
+                            pm.apply(Expr::Lit(Lit::Str(entry.origin_relative.as_str().into()))),
+                    ),
+                    false => quote_expr!(
+                        "{ id: () => $id }",
+                        id: Expr =
+                            pm.apply(Expr::Lit(Lit::Str(entry.origin_relative.as_str().into()))),
+                    ),
+                },
             };
 
             context_map

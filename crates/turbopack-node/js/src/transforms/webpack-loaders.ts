@@ -22,8 +22,7 @@ type LoaderConfig =
       options: { [k: string]: unknown };
     };
 
-// @ts-ignore
-let runLoaders: typeof import("loader-runner");
+let runLoaders: typeof import("loader-runner")["runLoaders"];
 try {
   ({ runLoaders } = require("@vercel/turbopack/loader-runner"));
 } catch {
@@ -65,7 +64,7 @@ const LogType = Object.freeze({
 
 const loaderFlag = "LOADER_EXECUTION";
 
-const cutOffByFlag = (stack, flag) => {
+const cutOffByFlag = (stack: string, flag: string): string => {
   const errorStack = stack.split("\n");
   for (let i = 0; i < errorStack.length; i++) {
     if (errorStack[i].includes(flag)) {
@@ -76,10 +75,11 @@ const cutOffByFlag = (stack, flag) => {
 };
 
 /**
- * @param {string} stack stack trace
- * @returns {string} stack trace without the loader execution flag included
+ * @param stack stack trace
+ * @returns stack trace without the loader execution flag included
  */
-const cutOffLoaderExecution = (stack) => cutOffByFlag(stack, loaderFlag);
+const cutOffLoaderExecution = (stack: string): string =>
+  cutOffByFlag(stack, loaderFlag);
 
 class DummySpan {
   traceChild() {
@@ -126,25 +126,27 @@ const transform = (
           }),
           emitWarning: makeErrorEmitter("warning", ipc),
           emitError: makeErrorEmitter("error", ipc),
-          getLogger: (name) => (type, args) => {
-            let trace;
-            switch (type) {
-              case LogType.warn:
-              case LogType.error:
-              case LogType.trace:
-                trace = cutOffLoaderExecution(new Error("Trace").stack)
-                  .split("\n")
-                  .slice(3);
-                break;
-            }
-            const logEntry = {
-              time: Date.now(),
-              type,
-              args,
-              trace,
-            };
+          getLogger(name: unknown) {
+            return (type: unknown, args: unknown) => {
+              let trace;
+              switch (type) {
+                case LogType.warn:
+                case LogType.error:
+                case LogType.trace:
+                  trace = cutOffLoaderExecution(new Error("Trace").stack!)
+                    .split("\n")
+                    .slice(3);
+                  break;
+              }
+              const logEntry = {
+                time: Date.now(),
+                type,
+                args,
+                trace,
+              };
 
-            this.hooks.log.call(name, logEntry);
+              this.hooks.log.call(name, logEntry);
+            };
           },
         },
 

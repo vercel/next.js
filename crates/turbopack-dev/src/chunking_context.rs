@@ -1,29 +1,25 @@
-use std::fmt::Write;
-
 use anyhow::Result;
 use indexmap::IndexSet;
 use turbo_tasks::{
     graph::{GraphTraversal, ReverseTopological},
     primitives::{BoolVc, StringVc},
-    TryJoinIterExt, Value, ValueToString,
+    TryJoinIterExt, Value,
 };
 use turbo_tasks_fs::FileSystemPathVc;
-use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64, DeterministicHash, Xxh3Hash64Hasher};
 use turbopack_core::{
     asset::{Asset, AssetVc, AssetsVc},
     chunk::{
-        availability_info::AvailabilityInfo, Chunk, ChunkVc, ChunkableAsset, ChunkableAssetVc,
-        ChunkingContext, ChunkingContextVc, ChunksVc, EvaluatableAssetsVc,
+        Chunk, ChunkVc, ChunkableAsset, ChunkingContext, ChunkingContextVc, ChunksVc,
+        EvaluatableAssetsVc,
     },
     environment::EnvironmentVc,
-    ident::{AssetIdent, AssetIdentVc},
-    resolve::ModulePart,
+    ident::AssetIdentVc,
 };
 use turbopack_css::chunk::{CssChunkVc, CssChunksVc};
 use turbopack_ecmascript::chunk::{
-    EcmascriptChunkItemVc, EcmascriptChunkVc, EcmascriptChunkingContext,
-    EcmascriptChunkingContextVc, EcmascriptChunksVc,
+    EcmascriptChunkVc, EcmascriptChunkingContext, EcmascriptChunkingContextVc, EcmascriptChunksVc,
 };
+use turbopack_ecmascript_runtime::RuntimeType;
 
 use crate::{
     css::optimize::optimize_css_chunks,
@@ -31,7 +27,6 @@ use crate::{
         chunk::EcmascriptDevChunkVc,
         evaluate::chunk::EcmascriptDevEvaluateChunkVc,
         list::asset::{EcmascriptDevChunkListSource, EcmascriptDevChunkListVc},
-        manifest::{chunk_asset::DevManifestChunkAssetVc, loader_item::DevManifestLoaderItemVc},
         optimize::optimize_ecmascript_chunks,
     },
 };
@@ -61,6 +56,11 @@ impl DevChunkingContextBuilder {
         self
     }
 
+    pub fn runtime_type(mut self, runtime_type: RuntimeType) -> Self {
+        self.context.runtime_type = runtime_type;
+        self
+    }
+
     pub fn build(self) -> ChunkingContextVc {
         DevChunkingContextVc::new(Value::new(self.context)).into()
     }
@@ -74,7 +74,8 @@ impl DevChunkingContextBuilder {
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Clone, Hash, PartialOrd, Ord)]
 pub struct DevChunkingContext {
-    /// This path get striped off of path before creating a name out of it
+    /// This path get stripped off of chunk paths before generating output asset
+    /// paths.
     context_path: FileSystemPathVc,
     /// This path is used to compute the url to request chunks or assets from
     output_root: FileSystemPathVc,
@@ -92,6 +93,8 @@ pub struct DevChunkingContext {
     enable_hot_module_replacement: bool,
     /// The environment chunks will be evaluated in.
     environment: EnvironmentVc,
+    /// The kind of runtime to include in the output.
+    runtime_type: RuntimeType,
 }
 
 impl DevChunkingContextVc {
@@ -113,8 +116,19 @@ impl DevChunkingContextVc {
                 layer: None,
                 enable_hot_module_replacement: false,
                 environment,
+                runtime_type: Default::default(),
             },
         }
+    }
+}
+
+impl DevChunkingContext {
+    /// Returns the kind of runtime to include in output chunks.
+    ///
+    /// This is defined directly on `DevChunkingContext` so it is zero-cost when
+    /// `RuntimeType` has a single variant.
+    pub fn runtime_type(&self) -> RuntimeType {
+        self.runtime_type
     }
 }
 
@@ -123,20 +137,6 @@ impl DevChunkingContextVc {
     #[turbo_tasks::function]
     fn new(this: Value<DevChunkingContext>) -> Self {
         this.into_value().cell()
-    }
-
-    #[turbo_tasks::function]
-    pub(crate) async fn generate_chunk(
-        self_vc: DevChunkingContextVc,
-        chunk: ChunkVc,
-    ) -> Result<AssetVc> {
-        Ok(
-            if let Some(ecmascript_chunk) = EcmascriptChunkVc::resolve_from(chunk).await? {
-                EcmascriptDevChunkVc::new(self_vc, ecmascript_chunk).into()
-            } else {
-                chunk.into()
-            },
-        )
     }
 
     #[turbo_tasks::function]
@@ -159,6 +159,17 @@ impl DevChunkingContextVc {
     ) -> AssetVc {
         EcmascriptDevChunkListVc::new(self_vc, entry_chunk, other_chunks, source).into()
     }
+
+    #[turbo_tasks::function]
+    async fn generate_chunk(self, chunk: ChunkVc) -> Result<AssetVc> {
+        Ok(
+            if let Some(ecmascript_chunk) = EcmascriptChunkVc::resolve_from(chunk).await? {
+                EcmascriptDevChunkVc::new(self, ecmascript_chunk).into()
+            } else {
+                chunk.into()
+            },
+        )
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -180,125 +191,13 @@ impl ChunkingContext for DevChunkingContext {
 
     #[turbo_tasks::function]
     async fn chunk_path(&self, ident: AssetIdentVc, extension: &str) -> Result<FileSystemPathVc> {
-        fn clean(s: &str) -> String {
-            s.replace('/', "_")
-        }
-        let ident = &*ident.await?;
-
-        // For clippy -- This explicit deref is necessary
-        let path = &*ident.path.await?;
-        let mut name = if let Some(inner) = self.context_path.await?.get_path_to(path) {
-            clean(inner)
-        } else {
-            clean(&ident.path.to_string().await?)
-        };
-        let removed_extension = name.ends_with(extension);
-        if removed_extension {
-            name.truncate(name.len() - extension.len());
-        }
-
-        let default_modifier = match extension {
-            ".js" => Some("ecmascript"),
-            ".css" => Some("css"),
-            _ => None,
-        };
-
-        let mut hasher = Xxh3Hash64Hasher::new();
-        let mut has_hash = false;
-        let AssetIdent {
-            path: _,
-            query,
-            fragment,
-            assets,
-            modifiers,
-            part,
-        } = ident;
-        if let Some(query) = query {
-            0_u8.deterministic_hash(&mut hasher);
-            query.await?.deterministic_hash(&mut hasher);
-            has_hash = true;
-        }
-        if let Some(fragment) = fragment {
-            1_u8.deterministic_hash(&mut hasher);
-            fragment.await?.deterministic_hash(&mut hasher);
-            has_hash = true;
-        }
-        for (key, ident) in assets.iter() {
-            2_u8.deterministic_hash(&mut hasher);
-            key.await?.deterministic_hash(&mut hasher);
-            ident.to_string().await?.deterministic_hash(&mut hasher);
-            has_hash = true;
-        }
-        for modifier in modifiers.iter() {
-            let modifier = modifier.await?;
-            if let Some(default_modifier) = default_modifier {
-                if *modifier == default_modifier {
-                    continue;
-                }
-            }
-            3_u8.deterministic_hash(&mut hasher);
-            modifier.deterministic_hash(&mut hasher);
-            has_hash = true;
-        }
-        if let Some(part) = part {
-            4_u8.deterministic_hash(&mut hasher);
-            match &*part.await? {
-                ModulePart::ModuleEvaluation => {
-                    1_u8.deterministic_hash(&mut hasher);
-                }
-                ModulePart::Export(export) => {
-                    2_u8.deterministic_hash(&mut hasher);
-                    export.await?.deterministic_hash(&mut hasher);
-                }
-                ModulePart::Internal(id) => {
-                    3_u8.deterministic_hash(&mut hasher);
-                    id.deterministic_hash(&mut hasher);
-                }
-            }
-
-            has_hash = true;
-        }
-
-        if has_hash {
-            let hash = encode_hex(hasher.finish());
-            let truncated_hash = &hash[..6];
-            write!(name, "_{}", truncated_hash)?;
-        }
-
-        // Location in "path" where hashed and named parts are split.
-        // Everything before i is hashed and after i named.
-        let mut i = 0;
-        static NODE_MODULES: &str = "_node_modules_";
-        if let Some(j) = name.rfind(NODE_MODULES) {
-            i = j + NODE_MODULES.len();
-        }
-        const MAX_FILENAME: usize = 80;
-        if name.len() - i > MAX_FILENAME {
-            i = name.len() - MAX_FILENAME;
-            if let Some(j) = name[i..].find('_') {
-                if j < 20 {
-                    i += j + 1;
-                }
-            }
-        }
-        if i > 0 {
-            let hash = encode_hex(hash_xxh3_hash64(name[..i].as_bytes()));
-            let truncated_hash = &hash[..5];
-            name = format!("{}_{}", truncated_hash, &name[i..]);
-        }
-        // We need to make sure that `.json` and `.json.js` doesn't end up with the same
-        // name. So when we add an extra extension when want to mark that with a "._"
-        // suffix.
-        if !removed_extension {
-            name += "._";
-        }
-        name += extension;
         let root_path = self.chunk_root_path;
         let root_path = if let Some(layer) = self.layer.as_deref() {
             root_path.join(layer)
         } else {
             root_path
         };
+        let name = ident.output_name(self.context_path, extension).await?;
         Ok(root_path.join(&name))
     }
 
@@ -443,13 +342,8 @@ impl ChunkingContext for DevChunkingContext {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkingContext for DevChunkingContext {
     #[turbo_tasks::function]
-    fn manifest_loader_item(
-        self_vc: DevChunkingContextVc,
-        asset: ChunkableAssetVc,
-        availability_info: Value<AvailabilityInfo>,
-    ) -> EcmascriptChunkItemVc {
-        let manifest_asset = DevManifestChunkAssetVc::new(asset, self_vc, availability_info);
-        DevManifestLoaderItemVc::new(manifest_asset).into()
+    fn has_react_refresh(&self) -> BoolVc {
+        BoolVc::cell(true)
     }
 }
 

@@ -1,0 +1,26 @@
+{
+  "name": "@vercel/turbopack-ecmascript-runtime",
+  "version": "0.0.0",
+  "description": "Turbopack EcmaScript runtime code and utilities",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "check": "run-p check:*",
+    "check:build": "tsc -p src/build",
+    "check:dev-client": "tsc -p src/dev/client",
+    "check:dev-runtime-base": "tsc -p src/dev/runtime/base",
+    "check:dev-runtime-dom": "tsc -p src/dev/runtime/dom",
+    "check:dev-runtime-nodejs": "tsc -p src/dev/runtime/nodejs",
+    "check:dev-runtime-none": "tsc -p src/dev/runtime/none"
+  },
+  "exports": {
+    "./*": "./src/*.ts"
+  },
+  "dependencies": {
+    "@next/react-refresh-utils": "^13.0.6",
+    "@types/node": "^18.11.11"
+  },
+  "devDependencies": {
+    "npm-run-all": "^4.1.5"
+  }
+}

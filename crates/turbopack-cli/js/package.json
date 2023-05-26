@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@next/react-refresh-utils": "^13.0.6",
-    "@vercel/turbopack-dev": "*"
+    "@vercel/turbopack-ecmascript-runtime": "*"
   },
   "devDependencies": {
     "@types/node": "^18.11.11"
