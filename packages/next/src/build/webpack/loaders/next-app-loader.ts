@@ -9,11 +9,10 @@ import { NODE_RESOLVE_OPTIONS } from '../../webpack-config'
 import { getModuleBuildInfo } from './get-module-build-info'
 import { verifyRootLayout } from '../../../lib/verifyRootLayout'
 import * as Log from '../../output/log'
-import { APP_DIR_ALIAS } from '../../../lib/constants'
+import { APP_DIR_ALIAS, WEBPACK_RESOURCE_QUERIES } from '../../../lib/constants'
 import {
   createMetadataExportsCode,
   createStaticMetadataFromRoute,
-  METADATA_RESOURCE_QUERY,
 } from './metadata/discover'
 import { promises as fs } from 'fs'
 import { isAppRouteRoute } from '../../../lib/is-app-route-route'
@@ -105,7 +104,7 @@ async function createAppRouteCode({
     resolvedPagePath = `next-metadata-route-loader?${stringify({
       page,
       pageExtensions,
-    })}!${resolvedPagePath + METADATA_RESOURCE_QUERY}`
+    })}!${resolvedPagePath + '?' + WEBPACK_RESOURCE_QUERIES.metadata}`
   }
 
   // References the route handler file to load found in `./routes/${kind}.ts`.
