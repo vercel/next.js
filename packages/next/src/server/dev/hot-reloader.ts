@@ -666,6 +666,9 @@ export default class HotReloader {
     for (const config of this.activeConfigs) {
       const defaultEntry = config.entry
       config.entry = async (...args) => {
+        let hasAmpEntrypoints = false
+        let hasAppRouterEntrypoints = false
+        let hasPagesRouterEntrypoints = false
         const outputPath = this.multiCompiler?.outputPath || ''
         const entries = getEntries(outputPath)
         // @ts-ignore entry is always a function
@@ -716,6 +719,11 @@ export default class HotReloader {
                   return
                 }
               }
+            }
+
+            // Ensure _error is considered a `pages` page.
+            if (page === '/_error') {
+              hasPagesRouterEntrypoints = true
             }
 
             const hasAppDir = !!this.appDir
@@ -877,6 +885,21 @@ export default class HotReloader {
             })
           })
         )
+
+        if (!hasAmpEntrypoints) {
+          delete entrypoints.amp
+        }
+        if (!hasPagesRouterEntrypoints) {
+          delete entrypoints.main
+          delete entrypoints['pages/_app']
+          delete entrypoints['pages/_error']
+          delete entrypoints['/_error']
+          delete entrypoints['pages/_document']
+        }
+        if (!hasAppRouterEntrypoints) {
+          delete entrypoints['main-app']
+        }
+
         return entrypoints
       }
     }
