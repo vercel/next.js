@@ -1,10 +1,9 @@
 // IPC need to be the first import to allow it to catch errors happening during
 // the other imports
-import { IPC } from '@vercel/turbopack-node/ipc/index'
+import startOperationStreamHandler from '../internal/operation-stream'
 
 import '../polyfill/app-polyfills.ts'
 
-import type { Ipc } from '@vercel/turbopack-node/ipc/index'
 import type { IncomingMessage } from 'node:http'
 
 import type { RenderData } from 'types/turbopack'
@@ -25,72 +24,25 @@ installRequireAndChunkLoad()
 
 process.env.__NEXT_NEW_LINK_BEHAVIOR = 'true'
 
-const ipc = IPC as Ipc<IpcIncomingMessage, IpcOutgoingMessage>
-
-type IpcIncomingMessage = {
-  type: 'headers'
-  data: RenderData
-}
-
-type IpcOutgoingMessage =
-  | {
-      type: 'headers'
-      data: {
-        status: number
-        headers: [string, string][]
-      }
-    }
-  | {
-      type: 'bodyChunk'
-      data: number[]
-    }
-  | {
-      type: 'bodyEnd'
-    }
-
 const MIME_TEXT_HTML_UTF8 = 'text/html; charset=utf-8'
 
-;(async () => {
-  while (true) {
-    const msg = await ipc.recv()
+startOperationStreamHandler(async (renderData: RenderData, respond) => {
+  const result = await runOperation(renderData)
 
-    let renderData: RenderData
-    switch (msg.type) {
-      case 'headers': {
-        renderData = msg.data
-        break
-      }
-      default: {
-        console.error('unexpected message type', msg.type)
-        process.exit(1)
-      }
-    }
-
-    const result = await runOperation(renderData)
-
-    if (result == null) {
-      throw new Error('no html returned')
-    }
-
-    ipc.send({
-      type: 'headers',
-      data: {
-        status: result.statusCode,
-        headers: result.headers,
-      },
-    })
-
-    for await (const chunk of result.body) {
-      ipc.send({
-        type: 'bodyChunk',
-        data: (chunk as Buffer).toJSON().data,
-      })
-    }
-
-    ipc.send({ type: 'bodyEnd' })
+  if (result == null) {
+    throw new Error('no html returned')
   }
-})().catch((err) => {
-  ipc.sendError(err)
+
+  const channel = respond({
+    status: result.statusCode,
+    headers: result.headers,
+  })
+
+  for await (const chunk of result.body) {
+    channel.chunk(chunk as Buffer)
+  }
+
+  channel.end()
 })
 
 async function runOperation(renderData: RenderData) {
@@ -168,24 +120,4 @@ async function runOperation(renderData: RenderData) {
     ] as [string, string][],
     body,
   }
-}
-
-// This utility is based on https://github.com/zertosh/htmlescape
-// License: https://github.com/zertosh/htmlescape/blob/0527ca7156a524d256101bb310a9f970f63078ad/LICENSE
-
-const ESCAPE_LOOKUP = {
-  '&': '\\u0026',
-  '>': '\\u003e',
-  '<': '\\u003c',
-  '\u2028': '\\u2028',
-  '\u2029': '\\u2029',
-}
-
-const ESCAPE_REGEX = /[&><\u2028\u2029]/g
-
-export function htmlEscapeJsonString(str: string) {
-  return str.replace(
-    ESCAPE_REGEX,
-    (match) => ESCAPE_LOOKUP[match as keyof typeof ESCAPE_LOOKUP]
-  )
 }
