@@ -19,7 +19,12 @@ pub async fn maybe_add_sass_loader(
     } else {
         Default::default()
     };
-    for pattern in ["*.scss", "*.sass"] {
+    for (pattern, rename) in [
+        ("*.module.scss", ".module.css"),
+        ("*.module.sass", ".module.css"),
+        ("*.scss", ".css"),
+        ("*.sass", ".css"),
+    ] {
         let rule = rules.get_mut(pattern);
         let loader = WebpackLoaderItem {
             loader: "next/dist/compiled/sass-loader".to_string(),
@@ -34,6 +39,16 @@ pub async fn maybe_add_sass_loader(
         };
 
         if let Some(rule) = rule {
+            // Without `as`, loader result would be JS code, so we don't want to apply
+            // sass-loader on that.
+            let Some(rename_as) = rule.rename_as.as_ref() else {
+                continue;
+            };
+            // Only when the result should run through the sass pipeline, we apply
+            // sass-loader.
+            if rename_as != "*" {
+                continue;
+            }
             let mut loaders = rule.loaders.await?.clone_value();
             loaders.push(loader);
             rule.loaders = WebpackLoaderItemsVc::cell(loaders);
@@ -42,7 +57,7 @@ pub async fn maybe_add_sass_loader(
                 pattern.to_string(),
                 LoaderRuleItem {
                     loaders: WebpackLoaderItemsVc::cell(vec![loader]),
-                    rename_as: Some("*".to_string()),
+                    rename_as: Some(format!("*{rename}")),
                 },
             );
         }

@@ -17,6 +17,7 @@ import { traceGlobals } from '../trace/shared'
 import { Telemetry } from '../telemetry/storage'
 import loadConfig from '../server/config'
 import { findPagesDir } from '../lib/find-pages-dir'
+import { findRootDir } from '../lib/find-root'
 import { fileExists } from '../lib/file-exists'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
 import Watchpack from 'next/dist/compiled/watchpack'
@@ -275,7 +276,7 @@ const nextDev: CliCommand = async (argv) => {
     let server = bindings.turbo.startDev({
       ...devServerOptions,
       showAll: args['--show-all'] ?? false,
-      root: args['--root'] ?? rawNextConfig.experimental?.outputFileTracingRoot,
+      root: args['--root'] ?? findRootDir(dir),
     })
     // Start preflight after server is listening and ignore errors:
     preflight().catch(() => {})
