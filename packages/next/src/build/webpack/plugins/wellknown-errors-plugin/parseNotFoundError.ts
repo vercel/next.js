@@ -139,6 +139,7 @@ export async function getNotFoundError(
             !/next-(app|middleware|client-pages|route|flight-(client|server|client-entry))-loader\.js/.test(
               name
             ) &&
+            !/next-route-loader\/index\.js/.test(name) &&
             !/css-loader.+\.js/.test(name)
         )
       if (moduleTrace.length === 0) return ''
