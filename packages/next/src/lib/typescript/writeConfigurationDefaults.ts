@@ -19,7 +19,7 @@ type DesiredCompilerOptionsShape = {
 
 function getDesiredCompilerOptions(
   ts: typeof import('typescript'),
-  userTsConfig: any
+  userTsConfig?: { compilerOptions?: CompilerOptions }
 ): DesiredCompilerOptionsShape {
   const o: DesiredCompilerOptionsShape = {
     // These are suggested values and will be set when not present in the
@@ -74,6 +74,14 @@ function getDesiredCompilerOptions(
       reason: 'to match webpack resolution',
     },
     resolveJsonModule: { value: true, reason: 'to match webpack resolution' },
+    ...(userTsConfig?.compilerOptions?.verbatimModuleSyntax === true
+      ? undefined
+      : {
+          isolatedModules: {
+            value: true,
+            reason: 'requirement for SWC / Babel',
+          },
+        }),
     jsx: {
       parsedValue: ts.JsxEmit.Preserve,
       value: 'preserve',
@@ -81,11 +89,11 @@ function getDesiredCompilerOptions(
     },
   }
 
-  if (userTsConfig.compilerOptions?.verbatimModuleSyntax !== true) {
+  if (userTsConfig?.compilerOptions?.verbatimModuleSyntax !== true) {
     o.isolatedModules = {
       value: true,
       reason: 'requirement for SWC / Babel',
-    };
+    }
   }
 
   return o
@@ -96,7 +104,7 @@ export function getRequiredConfiguration(
 ): Partial<import('typescript').CompilerOptions> {
   const res: Partial<import('typescript').CompilerOptions> = {}
 
-  const desiredCompilerOptions = getDesiredCompilerOptions(ts, {})
+  const desiredCompilerOptions = getDesiredCompilerOptions(ts)
   for (const optionKey of Object.keys(desiredCompilerOptions)) {
     const ev = desiredCompilerOptions[optionKey]
     if (!('value' in ev)) {
