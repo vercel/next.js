@@ -1115,7 +1115,6 @@ export default class HotReloader {
         const documentChunk = compilation.namedChunks.get('pages/_document')
         // If the document chunk can't be found we do nothing
         if (!documentChunk) {
-          console.warn('_document.js chunk not found')
           return
         }
 
