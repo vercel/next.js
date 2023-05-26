@@ -166,6 +166,9 @@ function erroredPages(compilation: webpack.Compilation) {
 }
 
 export default class HotReloader {
+  private hasAmpEntrypoints: boolean
+  private hasAppRouterEntrypoints: boolean
+  private hasPagesRouterEntrypoints: boolean
   private dir: string
   private buildId: string
   private interceptors: any[]
@@ -222,6 +225,9 @@ export default class HotReloader {
       telemetry: Telemetry
     }
   ) {
+    this.hasAmpEntrypoints = false
+    this.hasAppRouterEntrypoints = false
+    this.hasPagesRouterEntrypoints = false
     this.buildId = buildId
     this.dir = dir
     this.interceptors = []
@@ -666,9 +672,6 @@ export default class HotReloader {
     for (const config of this.activeConfigs) {
       const defaultEntry = config.entry
       config.entry = async (...args) => {
-        let hasAmpEntrypoints = false
-        let hasAppRouterEntrypoints = false
-        let hasPagesRouterEntrypoints = false
         const outputPath = this.multiCompiler?.outputPath || ''
         const entries = getEntries(outputPath)
         // @ts-ignore entry is always a function
@@ -723,7 +726,7 @@ export default class HotReloader {
 
             // Ensure _error is considered a `pages` page.
             if (page === '/_error') {
-              hasPagesRouterEntrypoints = true
+              this.hasPagesRouterEntrypoints = true
             }
 
             const hasAppDir = !!this.appDir
@@ -741,7 +744,7 @@ export default class HotReloader {
               : {}
 
             if (staticInfo.amp === true || staticInfo.amp === 'hybrid') {
-              hasAmpEntrypoints = true
+              this.hasAmpEntrypoints = true
             }
             const isServerComponent =
               isAppPath && staticInfo.rsc !== RSC_MODULE_TYPES.client
@@ -753,10 +756,10 @@ export default class HotReloader {
               : 'root'
 
             if (pageType === 'pages') {
-              hasPagesRouterEntrypoints = true
+              this.hasPagesRouterEntrypoints = true
             }
             if (pageType === 'app') {
-              hasAppRouterEntrypoints = true
+              this.hasAppRouterEntrypoints = true
             }
 
             await runDependingOnPageType({
@@ -898,17 +901,17 @@ export default class HotReloader {
           })
         )
 
-        if (!hasAmpEntrypoints) {
+        if (!this.hasAmpEntrypoints) {
           delete entrypoints.amp
         }
-        if (!hasPagesRouterEntrypoints) {
+        if (!this.hasPagesRouterEntrypoints) {
           delete entrypoints.main
           delete entrypoints['pages/_app']
           delete entrypoints['pages/_error']
           delete entrypoints['/_error']
           delete entrypoints['pages/_document']
         }
-        if (!hasAppRouterEntrypoints) {
+        if (!this.hasAppRouterEntrypoints) {
           delete entrypoints['main-app']
         }
 
