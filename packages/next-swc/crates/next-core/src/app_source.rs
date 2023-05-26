@@ -866,8 +866,7 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
                             SourceAssetVc::new(*path).into(),
                             BlurPlaceholderMode::None,
                             state.context,
-                        )
-                        .into(),
+                        ),
                     );
                     writeln!(state.loader_tree_code, "{s}(async (props) => [{{")?;
                     writeln!(state.loader_tree_code, "{s}  url: {identifier}.src,")?;
@@ -1114,7 +1113,6 @@ impl AppRouteVc {
                     bootstrap_asset,
                     BootstrapConfigVc::empty(),
                 )
-                .into()
             }
             NextRuntime::Edge => {
                 let internal_asset = next_asset("entry/app/edge-route.ts");

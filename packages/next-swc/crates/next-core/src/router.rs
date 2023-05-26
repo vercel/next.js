@@ -160,7 +160,7 @@ async fn next_config_changed(
 ) -> Result<CompletionVc> {
     let next_config = get_config(context, project_path, next_configs()).await?;
     Ok(if let Some(c) = *next_config {
-        any_content_changed(c.into())
+        any_content_changed(c)
     } else {
         CompletionVc::immutable()
     })
@@ -230,7 +230,6 @@ fn route_executor(context: AssetContextVc, configs: InnerAssetsVc) -> AssetVc {
             next_asset("entry/router.ts"),
             Value::new(ReferenceType::Internal(configs)),
         )
-        .into()
 }
 
 #[turbo_tasks::function]
