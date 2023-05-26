@@ -104,6 +104,7 @@ pub async fn bootstrap(
     let mut config = config.await?.clone_value();
     config.insert("PAGE".to_string(), path.to_string());
     config.insert("PATHNAME".to_string(), pathname);
+    config.insert("KIND".to_string(), "APP_ROUTE".to_string());
 
     let config_asset = as_es_module_asset(
         VirtualAssetVc::new(
