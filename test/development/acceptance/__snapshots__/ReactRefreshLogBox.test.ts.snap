@@ -96,5 +96,6 @@ Caused by:
     Syntax Error
 
 Import trace for requested module:
-./index.js"
+./index.js
+./pages/index.js"
 `;
