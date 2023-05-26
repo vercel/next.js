@@ -141,14 +141,14 @@ impl VisitMut for CjsOptimizer {
                                             false
                                         }
                                     }) {
-                                        self.data.extra_stmts.push(Stmt::Decl(Decl::Var(Box::new(
-                                            VarDecl {
+                                        self.data.extra_stmts.push(Stmt::Decl(Decl::Var(
+                                            Box::new(VarDecl {
                                                 span: DUMMY_SP,
                                                 kind: VarDeclKind::Const,
                                                 declare: false,
                                                 decls: vec![var],
-                                            },
-                                        ))));
+                                            }),
+                                        )));
                                     }
 
                                     *e = Expr::Ident(new_id.into());
