@@ -8,7 +8,7 @@ import {
 } from 'next/dist/shared/lib/router/utils/querystring'
 import { formatWithValidation } from 'next/dist/shared/lib/router/utils/format-url'
 import { initializeHMR } from '../dev/client'
-import { subscribeToUpdate } from '@vercel/turbopack-dev/client/hmr-client'
+import { subscribeToUpdate } from '@vercel/turbopack-ecmascript-runtime/dev/client/hmr-client'
 
 import * as _app from '@vercel/turbopack-next/pages/_app'
 import * as page from 'PAGE'
