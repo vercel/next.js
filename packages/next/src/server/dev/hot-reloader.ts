@@ -739,6 +739,10 @@ export default class HotReloader {
                   page,
                 })
               : {}
+
+            if (staticInfo.amp === true || staticInfo.amp === 'hybrid') {
+              hasAmpEntrypoints = true
+            }
             const isServerComponent =
               isAppPath && staticInfo.rsc !== RSC_MODULE_TYPES.client
 
@@ -747,6 +751,14 @@ export default class HotReloader {
               : entryData.bundlePath.startsWith('app/')
               ? 'app'
               : 'root'
+
+            if (pageType === 'pages') {
+              hasPagesRouterEntrypoints = true
+            }
+            if (pageType === 'app') {
+              hasAppRouterEntrypoints = true
+            }
+
             await runDependingOnPageType({
               page,
               pageRuntime: staticInfo.runtime,
