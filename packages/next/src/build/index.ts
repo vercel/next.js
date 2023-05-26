@@ -1193,16 +1193,20 @@ export default async function build(
             ? [
                 'hasCustomGetInitialProps',
                 'isPageStatic',
-                'getNamedExports',
+                'getDefinedNamedExports',
                 'exportPage',
               ]
-            : ['hasCustomGetInitialProps', 'isPageStatic', 'getNamedExports'],
+            : [
+                'hasCustomGetInitialProps',
+                'isPageStatic',
+                'getDefinedNamedExports',
+              ],
         }) as Worker &
           Pick<
             typeof import('./worker'),
             | 'hasCustomGetInitialProps'
             | 'isPageStatic'
-            | 'getNamedExports'
+            | 'getDefinedNamedExports'
             | 'exportPage'
           >
       }
@@ -1275,7 +1279,7 @@ export default async function build(
             true
           )
 
-        const namedExportsPromise = pagesStaticWorkers.getNamedExports(
+        const namedExportsPromise = pagesStaticWorkers.getDefinedNamedExports(
           appPageToCheck,
           distDir,
           runtimeEnvConfig
