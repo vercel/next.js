@@ -15,7 +15,7 @@ __turbopack_export_value__([
       "[project]/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/node_modules/foo/index.js (ecmascript)"
     ]
   },
-  "output/crates_turbopack-tests_tests_snapshot_basic_async_chunk_input_import_75e817.js"
+  "output/crates_turbopack-tests_tests_snapshot_basic_async_chunk_input_import_84f69c.js"
 ]);
 
 })()),
