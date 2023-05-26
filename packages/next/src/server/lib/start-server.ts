@@ -1,11 +1,12 @@
 import http from 'http'
 import { isIPv6 } from 'net'
 import * as Log from '../../build/output/log'
-import { getNodeOptionsWithoutInspect } from './utils'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ChildProcess } from 'child_process'
 import { normalizeRepeatedSlashes } from '../../shared/lib/utils'
 import { initialEnv } from '@next/env'
+import { genExecArgv, getNodeOptionsWithoutInspect } from './utils'
+import { getFreePort } from './worker-utils'
 
 export interface StartServerOptions {
   dir: string
@@ -184,11 +185,17 @@ export async function startServer({
         // TODO: do we want to allow more than 10 OOM restarts?
         maxRetries: 10,
         forkOptions: {
+          execArgv: isNodeDebugging
+            ? genExecArgv(
+                isNodeDebugging === undefined ? false : isNodeDebugging,
+                await getFreePort()
+              )
+            : undefined,
           env: {
             FORCE_COLOR: '1',
             ...((initialEnv || process.env) as typeof process.env),
             PORT: port + '',
-            NODE_OPTIONS: getNodeOptionsWithoutInspect().trim(),
+            NODE_OPTIONS: getNodeOptionsWithoutInspect(),
           },
         },
         exposedMethods: ['initialize'],
@@ -235,6 +242,7 @@ export async function startServer({
         hostname,
         dev: !!isDev,
         workerType: 'router',
+        isNodeDebugging: !!isNodeDebugging,
         keepAliveTimeout,
       })
       didInitialize = true

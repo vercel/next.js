@@ -20,6 +20,7 @@ import type { StaticGenerationAsyncStorage } from '../client/components/static-g
 import '../server/require-hook'
 import '../server/node-polyfill-fetch'
 import '../server/node-polyfill-crypto'
+import '../server/node-environment'
 import chalk from 'next/dist/compiled/chalk'
 import getGzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
@@ -62,7 +63,6 @@ import { StaticGenerationAsyncStorageWrapper } from '../server/async-storage/sta
 import { IncrementalCache } from '../server/lib/incremental-cache'
 import { patchFetch } from '../server/lib/patch-fetch'
 import { nodeFs } from '../server/lib/node-fs-methods'
-import '../server/node-environment'
 import * as ciEnvironment from '../telemetry/ci-info'
 
 export type ROUTER_TYPE = 'pages' | 'app'
@@ -1389,7 +1389,6 @@ export async function isPageStatic({
       if (pathIsEdgeRuntime) {
         const runtime = await getRuntimeContext({
           paths: edgeInfo.files.map((file: string) => path.join(distDir, file)),
-          env: edgeInfo.env,
           edgeFunctionEntry: {
             ...edgeInfo,
             wasm: (edgeInfo.wasm ?? []).map((binding: AssetBinding) => ({
@@ -1971,7 +1970,7 @@ createServerHandler({
       res.end('Internal Server Error')
     }
   })
-  
+
   if (
     !Number.isNaN(keepAliveTimeout) &&
       Number.isFinite(keepAliveTimeout) &&
@@ -1984,7 +1983,7 @@ createServerHandler({
       console.error("Failed to start server", err)
       process.exit(1)
     }
-  
+
     console.log(
       'Listening on port',
       currentPort,
