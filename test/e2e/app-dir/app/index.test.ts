@@ -10,6 +10,42 @@ createNextDescribe(
     files: __dirname,
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
+    if (isNextStart) {
+      it('should have correct preferredRegion values in manifest', async () => {
+        const middlewareManifest = JSON.parse(
+          await next.readFile('.next/server/middleware-manifest.json')
+        )
+        expect(
+          middlewareManifest.functions['/(rootonly)/dashboard/hello/page']
+            .regions
+        ).toEqual(['iad1', 'sfo1'])
+        expect(middlewareManifest.functions['/dashboard/page'].regions).toEqual(
+          ['iad1']
+        )
+        expect(
+          middlewareManifest.functions['/slow-page-no-loading/page'].regions
+        ).toEqual(['global'])
+
+        expect(middlewareManifest.functions['/test-page/page'].regions).toEqual(
+          ['home']
+        )
+
+        // Inherits from the root layout.
+        expect(
+          middlewareManifest.functions['/slow-page-with-loading/page'].regions
+        ).toEqual(['sfo1'])
+      })
+    }
+
+    it('should work for catch-all edge page', async () => {
+      const html = await next.render('/catch-all-edge/hello123')
+      const $ = cheerio.load(html)
+
+      expect(JSON.parse($('#params').text())).toEqual({
+        slug: ['hello123'],
+      })
+    })
+
     it('should have correct searchParams and params (server)', async () => {
       const html = await next.render('/dynamic/category-1/id-2?query1=value2')
       const $ = cheerio.load(html)
@@ -191,29 +227,33 @@ createNextDescribe(
       })
     }
 
-    it('should use text/x-component for flight', async () => {
+    it('should use text/x-component; charset=utf-8 for flight', async () => {
       const res = await next.fetch('/dashboard/deployments/123', {
         headers: {
           ['RSC'.toString()]: '1',
         },
       })
-      expect(res.headers.get('Content-Type')).toBe('text/x-component')
+      expect(res.headers.get('Content-Type')).toBe(
+        'text/x-component; charset=utf-8'
+      )
     })
 
-    it('should use text/x-component for flight with edge runtime', async () => {
+    it('should use text/x-component; charset=utf-8 for flight with edge runtime', async () => {
       const res = await next.fetch('/dashboard', {
         headers: {
           ['RSC'.toString()]: '1',
         },
       })
-      expect(res.headers.get('Content-Type')).toBe('text/x-component')
+      expect(res.headers.get('Content-Type')).toBe(
+        'text/x-component; charset=utf-8'
+      )
     })
 
     it('should return the `vary` header from edge runtime', async () => {
       const res = await next.fetch('/dashboard')
       expect(res.headers.get('x-edge-runtime')).toBe('1')
       expect(res.headers.get('vary')).toBe(
-        isNextDeploy || isNextStart
+        isNextDeploy
           ? 'RSC, Next-Router-State-Tree, Next-Router-Prefetch'
           : 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding'
       )
@@ -257,6 +297,15 @@ createNextDescribe(
       expect(html).toContain('hello from app/dashboard')
     })
 
+    it('should ensure the </body></html> suffix is at the end of the stream', async () => {
+      const html = await next.render('/dashboard')
+
+      // It must end with the suffix and not contain it anywhere else.
+      const suffix = '</body></html>'
+      expect(html).toEndWith(suffix)
+      expect(html.slice(0, -suffix.length)).not.toContain(suffix)
+    })
+
     if (!isNextDeploy) {
       it('should serve /index as separate page', async () => {
         const stderr = []
@@ -273,7 +322,7 @@ createNextDescribe(
       it('should serve polyfills for browsers that do not support modules', async () => {
         const html = await next.render('/dashboard/index')
         expect(html).toMatch(
-          /<script src="\/_next\/static\/chunks\/polyfills(-\w+)?\.js" nomodule="">/
+          /<script src="\/_next\/static\/chunks\/polyfills(-\w+)?\.js" noModule="">/
         )
       })
     }
@@ -522,17 +571,10 @@ createNextDescribe(
           await browser.waitForElementByCss('#render-id-456')
           expect(await browser.eval('window.history.length')).toBe(3)
 
-          // Get the id on the rendered page.
-          const firstID = await browser.elementById('render-id-456').text()
-
           // Go back, and redo the navigation by clicking the link.
           await browser.back()
           await browser.elementById('link').click()
           await browser.waitForElementByCss('#render-id-456')
-
-          // Get the id again, and compare, they should not be the same.
-          const secondID = await browser.elementById('render-id-456').text()
-          expect(secondID).not.toBe(firstID)
         } finally {
           await browser.close()
         }
@@ -549,9 +591,6 @@ createNextDescribe(
           await browser.waitForElementByCss('#render-id-456')
           expect(await browser.eval('window.history.length')).toBe(2)
 
-          // Get the date again, and compare, they should not be the same.
-          const firstId = await browser.elementById('render-id-456').text()
-
           // Navigate to the subpage, verify that the history entry was NOT added.
           await browser.elementById('link').click()
           await browser.waitForElementByCss('#render-id-123')
@@ -561,10 +600,6 @@ createNextDescribe(
           await browser.elementById('link').click()
           await browser.waitForElementByCss('#render-id-456')
           expect(await browser.eval('window.history.length')).toBe(2)
-
-          // Get the date again, and compare, they should not be the same.
-          const secondId = await browser.elementById('render-id-456').text()
-          expect(firstId).not.toBe(secondId)
         } finally {
           await browser.close()
         }

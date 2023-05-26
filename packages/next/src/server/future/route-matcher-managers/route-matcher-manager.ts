@@ -6,11 +6,6 @@ export type MatchOptions = {
   skipDynamic?: boolean
 
   /**
-   * If defined, this will be used as the referrer for the matching potential intercepting routes.
-   */
-  referrer?: string | undefined
-
-  /**
    * If defined, this indicates to the matcher that the request should be
    * treated as locale-aware. If this is undefined, it means that this
    * application was not configured for additional locales.

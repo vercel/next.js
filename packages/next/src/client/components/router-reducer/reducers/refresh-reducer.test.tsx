@@ -152,8 +152,10 @@ describe('refreshReducer', () => {
       focusAndScrollRef: {
         apply: false,
         hashFragment: null,
+        segmentPaths: [],
       },
       canonicalUrl: '/linking',
+      nextUrl: '/linking',
       cache: {
         status: CacheStates.READY,
         data: null,
@@ -309,8 +311,10 @@ describe('refreshReducer', () => {
       focusAndScrollRef: {
         apply: false,
         hashFragment: null,
+        segmentPaths: [],
       },
       canonicalUrl: '/linking',
+      nextUrl: '/linking',
       cache: {
         status: CacheStates.READY,
         data: null,
@@ -490,8 +494,10 @@ describe('refreshReducer', () => {
       focusAndScrollRef: {
         apply: false,
         hashFragment: null,
+        segmentPaths: [],
       },
       canonicalUrl: '/linking',
+      nextUrl: '/linking',
       cache: {
         status: CacheStates.READY,
         data: null,
@@ -720,8 +726,10 @@ describe('refreshReducer', () => {
       focusAndScrollRef: {
         apply: false,
         hashFragment: null,
+        segmentPaths: [],
       },
       canonicalUrl: '/linking',
+      nextUrl: '/linking',
       cache: {
         status: CacheStates.READY,
         data: null,

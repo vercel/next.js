@@ -1,4 +1,4 @@
-import { trace } from '@vercel/otel'
+import { trace } from '@opentelemetry/api'
 
 export async function fetchGithubStars() {
   return await trace

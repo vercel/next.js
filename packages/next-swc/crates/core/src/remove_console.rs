@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use turbo_binding::swc::core::{
+use turbopack_binding::swc::core::{
     common::{collections::AHashSet, DUMMY_SP},
     ecma::{
         ast::*,

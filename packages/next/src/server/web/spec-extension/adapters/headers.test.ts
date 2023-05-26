@@ -236,6 +236,9 @@ describe('HeadersAdapter', () => {
       const sealed = HeadersAdapter.seal(headers)
       expect(sealed).toBeInstanceOf(Headers)
 
+      expect(sealed.get('content-type')).toBe('application/json')
+      expect(sealed.get('x-custom-header')).toBe('custom')
+
       // These methods are not available on the sealed instance
       expect(() =>
         (sealed as any).append('x-custom-header', 'custom2')

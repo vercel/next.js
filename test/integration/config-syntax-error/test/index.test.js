@@ -23,7 +23,7 @@ describe('Invalid config syntax', () => {
     await fs.remove(nextConfigJS)
 
     expect(stderr).toContain(
-      'error - Failed to load next.config.js, see more info here https://nextjs.org/docs/messages/next-config-error'
+      '- error Failed to load next.config.js, see more info here https://nextjs.org/docs/messages/next-config-error'
     )
     expect(stderr).toContain('SyntaxError')
   })
@@ -44,7 +44,7 @@ describe('Invalid config syntax', () => {
     await fs.remove(nextConfigMJS)
 
     expect(stderr).toContain(
-      'error - Failed to load next.config.mjs, see more info here https://nextjs.org/docs/messages/next-config-error'
+      '- error Failed to load next.config.mjs, see more info here https://nextjs.org/docs/messages/next-config-error'
     )
     expect(stderr).toContain('SyntaxError')
   })

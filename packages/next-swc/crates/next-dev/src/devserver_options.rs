@@ -2,7 +2,7 @@ use std::{net::IpAddr, path::PathBuf};
 
 #[cfg(feature = "cli")]
 use clap::Parser;
-use turbo_binding::turbopack::cli_utils::issue::IssueSeverityCliOption;
+use turbopack_binding::turbopack::cli_utils::issue::IssueSeverityCliOption;
 
 #[derive(Debug)]
 #[cfg_attr(feature = "cli", derive(Parser))]
@@ -37,7 +37,7 @@ pub struct DevServerOptions {
     /// Hostname on which to start the application
     #[cfg_attr(
         feature = "cli",
-        clap(short = 'H', long, value_parser, default_value = "0.0.0.0")
+        clap(short = 'H', long, value_parser, default_value = "::")
     )]
     #[cfg_attr(feature = "serializable", serde(default = "default_host"))]
     pub hostname: IpAddr,
@@ -114,5 +114,7 @@ fn default_port() -> u16 {
 
 #[cfg(feature = "serializable")]
 fn default_host() -> IpAddr {
-    IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0))
+    // IPv6 address can accept both IPv4 and v6 requests.
+    // https://nodejs.org/api/net.html#serverlistenport-host-backlog-callback
+    IpAddr::V6(std::net::Ipv6Addr::UNSPECIFIED)
 }

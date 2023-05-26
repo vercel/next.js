@@ -2,10 +2,17 @@ use anyhow::{Context, Result};
 use indexmap::IndexMap;
 use mime::{APPLICATION_JAVASCRIPT_UTF_8, APPLICATION_JSON};
 use serde::Serialize;
-use turbo_binding::{
+use turbo_tasks::{
+    graph::{GraphTraversal, NonDeterministic},
+    primitives::{StringReadRef, StringVc, StringsVc},
+};
+use turbopack_binding::{
     turbo::{tasks::TryJoinIterExt, tasks_fs::File},
     turbopack::{
-        core::asset::AssetContentVc,
+        core::{
+            asset::AssetContentVc,
+            introspect::{Introspectable, IntrospectableVc},
+        },
         dev_server::source::{
             ContentSource, ContentSourceContentVc, ContentSourceData, ContentSourceResultVc,
             ContentSourceVc,
@@ -15,15 +22,11 @@ use turbo_binding::{
         },
     },
 };
-use turbo_tasks::{
-    graph::{GraphTraversal, NonDeterministic},
-    primitives::{StringVc, StringsVc},
-};
 
 use crate::{
     embed_js::next_js_file,
     next_config::{NextConfigVc, RewritesReadRef},
-    util::get_asset_path_from_route,
+    util::get_asset_path_from_pathname,
 };
 
 /// A content source which creates the next.js `_devPagesManifest.json` and
@@ -43,16 +46,16 @@ impl DevManifestContentSourceVc {
 
         async fn content_source_to_pathname(
             content_source: ContentSourceVc,
-        ) -> Result<Option<String>> {
+        ) -> Result<Option<StringReadRef>> {
             // TODO This shouldn't use casts but an public api instead
             if let Some(api_source) = NodeApiContentSourceVc::resolve_from(content_source).await? {
-                return Ok(Some(format!("/{}", api_source.get_pathname().await?)));
+                return Ok(Some(api_source.get_pathname().await?));
             }
 
             if let Some(page_source) =
                 NodeRenderContentSourceVc::resolve_from(content_source).await?
             {
-                return Ok(Some(format!("/{}", page_source.get_pathname().await?)));
+                return Ok(Some(page_source.get_pathname().await?));
             }
 
             Ok(None)
@@ -64,21 +67,22 @@ impl DevManifestContentSourceVc {
             Ok(content_source.get_children().await?.clone_value())
         }
 
-        let mut routes = GraphTraversal::<NonDeterministic<_>>::visit(
-            this.page_roots.iter().copied(),
-            get_content_source_children,
-        )
-        .await
-        .completed()?
-        .into_iter()
-        .map(content_source_to_pathname)
-        .try_join()
-        .await?
-        .into_iter()
-        .flatten()
-        .collect::<Vec<_>>();
+        let routes = NonDeterministic::new()
+            .visit(this.page_roots.iter().copied(), get_content_source_children)
+            .await
+            .completed()?
+            .into_iter()
+            .map(content_source_to_pathname)
+            .try_join()
+            .await?;
+        let mut routes = routes
+            .into_iter()
+            .flatten()
+            .map(|route| route.clone_value())
+            .collect::<Vec<_>>();
 
         routes.sort_by_cached_key(|s| s.split('/').map(PageSortKey::from).collect::<Vec<_>>());
+        routes.dedup();
 
         Ok(StringsVc::cell(routes))
     }
@@ -107,12 +111,12 @@ impl DevManifestContentSourceVc {
         let sorted_pages = &*self.find_pages().await?;
         let routes = sorted_pages
             .iter()
-            .map(|p| {
+            .map(|pathname| {
                 (
-                    p,
+                    pathname,
                     vec![format!(
-                        "_next/static/chunks/pages/{}",
-                        get_asset_path_from_route(p.split_at(1).1, ".js")
+                        "_next/static/chunks/pages{}",
+                        get_asset_path_from_pathname(pathname, ".js")
                     )],
                 )
             })
@@ -170,7 +174,11 @@ impl ContentSource for DevManifestContentSource {
                 File::from(build_manifest.as_str()).with_content_type(APPLICATION_JAVASCRIPT_UTF_8)
             }
             "_next/static/development/_devMiddlewareManifest.json" => {
-                // empty middleware manifest
+                // If there is actual middleware, this request will have been handled by the
+                // node router in next-core/js/src/entry/router.ts and
+                // next/src/server/lib/route-resolver.ts.
+                // If we've reached this point, then there is no middleware and we need to
+                // respond with an empty `MiddlewareMatcher[]`.
                 File::from("[]").with_content_type(APPLICATION_JSON)
             }
             _ => return Ok(ContentSourceResultVc::not_found()),
@@ -180,6 +188,22 @@ impl ContentSource for DevManifestContentSource {
             ContentSourceContentVc::static_content(AssetContentVc::from(manifest_file).into())
                 .into(),
         ))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Introspectable for DevManifestContentSource {
+    #[turbo_tasks::function]
+    fn ty(&self) -> StringVc {
+        StringVc::cell("dev manifest source".to_string())
+    }
+
+    #[turbo_tasks::function]
+    fn details(&self) -> StringVc {
+        StringVc::cell(
+            "provides _devPagesManifest.json, _buildManifest.js and _devMiddlewareManifest.json."
+                .to_string(),
+        )
     }
 }
 

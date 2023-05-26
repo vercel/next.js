@@ -1,5 +1,7 @@
 import type { IncomingHttpHeaders } from 'http'
 
+import { ReflectAdapter } from './reflect'
+
 /**
  * @internal
  */
@@ -15,8 +17,14 @@ export class ReadonlyHeadersError extends Error {
   }
 }
 
-export type ReadonlyHeaders = Omit<Headers, 'append' | 'delete' | 'set'>
-
+export type ReadonlyHeaders = Headers & {
+  /** @deprecated Method unavailable on `ReadonlyHeaders`. Read more: https://nextjs.org/docs/api-reference/headers */
+  append(...args: any[]): void
+  /** @deprecated Method unavailable on `ReadonlyHeaders`. Read more: https://nextjs.org/docs/api-reference/headers */
+  set(...args: any[]): void
+  /** @deprecated Method unavailable on `ReadonlyHeaders`. Read more: https://nextjs.org/docs/api-reference/headers */
+  delete(...args: any[]): void
+}
 export class HeadersAdapter extends Headers {
   private readonly headers: IncomingHttpHeaders
 
@@ -30,7 +38,9 @@ export class HeadersAdapter extends Headers {
         // Because this is just an object, we expect that all "get" operations
         // are for properties. If it's a "get" for a symbol, we'll just return
         // the symbol.
-        if (typeof prop === 'symbol') return Reflect.get(target, prop, receiver)
+        if (typeof prop === 'symbol') {
+          return ReflectAdapter.get(target, prop, receiver)
+        }
 
         const lowercased = prop.toLowerCase()
 
@@ -45,10 +55,12 @@ export class HeadersAdapter extends Headers {
         if (typeof original === 'undefined') return
 
         // If the original casing exists, return the value.
-        return Reflect.get(target, original, receiver)
+        return ReflectAdapter.get(target, original, receiver)
       },
-      set(target, prop, value) {
-        if (typeof prop === 'symbol') return Reflect.set(target, prop, value)
+      set(target, prop, value, receiver) {
+        if (typeof prop === 'symbol') {
+          return ReflectAdapter.set(target, prop, value, receiver)
+        }
 
         const lowercased = prop.toLowerCase()
 
@@ -60,10 +72,10 @@ export class HeadersAdapter extends Headers {
         )
 
         // If the original casing doesn't exist, use the prop as the key.
-        return Reflect.set(target, original ?? prop, value)
+        return ReflectAdapter.set(target, original ?? prop, value, receiver)
       },
       has(target, prop) {
-        if (typeof prop === 'symbol') return Reflect.has(target, prop)
+        if (typeof prop === 'symbol') return ReflectAdapter.has(target, prop)
 
         const lowercased = prop.toLowerCase()
 
@@ -78,11 +90,11 @@ export class HeadersAdapter extends Headers {
         if (typeof original === 'undefined') return false
 
         // If the original casing exists, return true.
-        return Reflect.has(target, original)
+        return ReflectAdapter.has(target, original)
       },
       deleteProperty(target, prop) {
         if (typeof prop === 'symbol')
-          return Reflect.deleteProperty(target, prop)
+          return ReflectAdapter.deleteProperty(target, prop)
 
         const lowercased = prop.toLowerCase()
 
@@ -97,7 +109,7 @@ export class HeadersAdapter extends Headers {
         if (typeof original === 'undefined') return true
 
         // If the original casing exists, delete the property.
-        return Reflect.deleteProperty(target, original)
+        return ReflectAdapter.deleteProperty(target, original)
       },
     })
   }
@@ -107,7 +119,7 @@ export class HeadersAdapter extends Headers {
    * any mutating method is called.
    */
   public static seal(headers: Headers): ReadonlyHeaders {
-    return new Proxy(headers, {
+    return new Proxy<ReadonlyHeaders>(headers, {
       get(target, prop, receiver) {
         switch (prop) {
           case 'append':
@@ -115,7 +127,7 @@ export class HeadersAdapter extends Headers {
           case 'set':
             return ReadonlyHeadersError.callable
           default:
-            return Reflect.get(target, prop, receiver)
+            return ReflectAdapter.get(target, prop, receiver)
         }
       },
     })

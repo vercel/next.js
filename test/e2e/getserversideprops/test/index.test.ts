@@ -43,19 +43,19 @@ const expectedManifestRoutes = () => [
   {
     namedDataRouteRegex: `^/_next/data/${escapeRegex(
       buildId
-    )}/blog/(?<nextParampost>[^/]+?)\\.json$`,
+    )}/blog/(?<nxtPpost>[^/]+?)\\.json$`,
     dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/blog\\/([^\\/]+?)\\.json$`
     ),
     page: '/blog/[post]',
     routeKeys: {
-      nextParampost: 'nextParampost',
+      nxtPpost: 'nxtPpost',
     },
   },
   {
     namedDataRouteRegex: `^/_next/data/${escapeRegex(
       buildId
-    )}/blog/(?<nextParampost>[^/]+?)/(?<nextParamcomment>[^/]+?)\\.json$`,
+    )}/blog/(?<nxtPpost>[^/]+?)/(?<nxtPcomment>[^/]+?)\\.json$`,
     dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(
         buildId
@@ -63,20 +63,20 @@ const expectedManifestRoutes = () => [
     ),
     page: '/blog/[post]/[comment]',
     routeKeys: {
-      nextParampost: 'nextParampost',
-      nextParamcomment: 'nextParamcomment',
+      nxtPpost: 'nxtPpost',
+      nxtPcomment: 'nxtPcomment',
     },
   },
   {
     namedDataRouteRegex: `^/_next/data/${escapeRegex(
       buildId
-    )}/catchall/(?<nextParampath>.+?)\\.json$`,
+    )}/catchall/(?<nxtPpath>.+?)\\.json$`,
     dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/catchall\\/(.+?)\\.json$`
     ),
     page: '/catchall/[...path]',
     routeKeys: {
-      nextParampath: 'nextParampath',
+      nxtPpath: 'nxtPpath',
     },
   },
   {
@@ -127,10 +127,10 @@ const expectedManifestRoutes = () => [
     )}\\/not\\-found\\/([^\\/]+?)\\.json$`,
     namedDataRouteRegex: `^/_next/data/${escapeRegex(
       buildId
-    )}/not\\-found/(?<nextParamslug>[^/]+?)\\.json$`,
+    )}/not\\-found/(?<nxtPslug>[^/]+?)\\.json$`,
     page: '/not-found/[slug]',
     routeKeys: {
-      nextParamslug: 'nextParamslug',
+      nxtPslug: 'nxtPslug',
     },
   },
   {
@@ -182,7 +182,7 @@ const expectedManifestRoutes = () => [
   {
     namedDataRouteRegex: `^/_next/data/${escapeRegex(
       buildId
-    )}/user/(?<nextParamuser>[^/]+?)/profile\\.json$`,
+    )}/user/(?<nxtPuser>[^/]+?)/profile\\.json$`,
     dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(
         buildId
@@ -190,7 +190,7 @@ const expectedManifestRoutes = () => [
     ),
     page: '/user/[user]/profile',
     routeKeys: {
-      nextParamuser: 'nextParamuser',
+      nxtPuser: 'nxtPuser',
     },
   },
 ]

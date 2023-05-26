@@ -1,11 +1,17 @@
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{bail, Context, Result};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use swc_core::ecma::ast::Program;
-use turbo_binding::{
+use turbo_tasks::{
+    primitives::{JsonValue, JsonValueVc, StringVc},
+    trace::TraceRawVcs,
+    TaskInput, Value, ValueToString,
+};
+use turbopack_binding::{
     turbo::tasks_fs::{json::parse_json_rope_with_source_context, FileContent, FileSystemPathVc},
     turbopack::{
         core::{
             asset::{Asset, AssetVc},
+            environment::{ServerAddrVc, ServerInfo},
             ident::AssetIdentVc,
             issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc, OptionIssueSourceVc},
             reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
@@ -22,17 +28,21 @@ use turbo_binding::{
         turbopack::condition::ContextCondition,
     },
 };
-use turbo_tasks::{primitives::StringVc, trace::TraceRawVcs, Value, ValueToString};
 
-use crate::next_config::NextConfigVc;
+use crate::next_config::{NextConfigVc, OutputType};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, TaskInput)]
+pub enum PathType {
+    Page,
+    Data,
+}
 
 /// Converts a filename within the server root into a next pathname.
 #[turbo_tasks::function]
 pub async fn pathname_for_path(
     server_root: FileSystemPathVc,
     server_path: FileSystemPathVc,
-    has_extension: bool,
-    data: bool,
+    path_ty: PathType,
 ) -> Result<StringVc> {
     let server_path_value = &*server_path.await?;
     let path = if let Some(path) = server_root.await?.get_path_to(server_path_value) {
@@ -44,30 +54,25 @@ pub async fn pathname_for_path(
             server_root.to_string().await?
         )
     };
-    let path = if has_extension {
-        path.rsplit_once('.')
-            .ok_or_else(|| anyhow!("path ({}) has no extension", path))?
-            .0
-    } else {
-        path
-    };
-    let path = if path == "index" && !data {
-        ""
-    } else {
-        path.strip_suffix("/index").unwrap_or(path)
+    let path = match (path_ty, path) {
+        // "/" is special-cased to "/index" for data routes.
+        (PathType::Data, "") => "/index".to_string(),
+        // `get_path_to` always strips the leading `/` from the path, so we need to add
+        // it back here.
+        (_, path) => format!("/{}", path),
     };
 
-    Ok(StringVc::cell(path.to_string()))
+    Ok(StringVc::cell(path))
 }
 
 // Adapted from https://github.com/vercel/next.js/blob/canary/packages/next/shared/lib/router/utils/get-asset-path-from-route.ts
-pub fn get_asset_path_from_route(route: &str, ext: &str) -> String {
-    if route.is_empty() {
-        format!("index{}", ext)
-    } else if route == "index" || route.starts_with("index/") {
-        format!("index/{}{}", route, ext)
+pub fn get_asset_path_from_pathname(pathname: &str, ext: &str) -> String {
+    if pathname == "/" {
+        format!("/index{}", ext)
+    } else if pathname == "/index" || pathname.starts_with("/index/") {
+        format!("/index{}{}", pathname, ext)
     } else {
-        format!("{}{}", route, ext)
+        format!("{}{}", pathname, ext)
     }
 }
 
@@ -90,9 +95,11 @@ pub async fn foreign_code_context_condition(next_config: NextConfigVc) -> Result
 }
 
 #[derive(Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum NextRuntime {
     #[default]
     NodeJs,
+    #[serde(alias = "experimental-edge")]
     Edge,
 }
 
@@ -113,7 +120,7 @@ impl NextSourceConfigVc {
     }
 }
 
-/// An issue that occurred while resolving the React Refresh runtime module.
+/// An issue that occurred while parsing the page config.
 #[turbo_tasks::value(shared)]
 pub struct NextSourceConfigParsingIssue {
     ident: AssetIdentVc,
@@ -347,4 +354,26 @@ pub async fn load_next_json<T: DeserializeOwned>(
     let result: T = parse_json_rope_with_source_context(file.content())?;
 
     Ok(result)
+}
+
+#[turbo_tasks::function]
+pub async fn render_data(
+    next_config: NextConfigVc,
+    server_addr: ServerAddrVc,
+) -> Result<JsonValueVc> {
+    #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Data {
+        next_config_output: Option<OutputType>,
+        server_info: Option<ServerInfo>,
+    }
+
+    let config = next_config.await?;
+    let server_info = ServerInfo::try_from(&*server_addr.await?);
+
+    let value = serde_json::to_value(Data {
+        next_config_output: config.output.clone(),
+        server_info: server_info.ok(),
+    })?;
+    Ok(JsonValue(value).cell())
 }

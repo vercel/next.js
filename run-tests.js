@@ -12,6 +12,11 @@ const { createNextInstall } = require('./test/lib/create-next-install')
 const glob = promisify(_glob)
 const exec = promisify(execOrig)
 
+// Try to read an external array-based json to filter tests to be allowed / or disallowed.
+// If process.argv contains a test to be executed, this'll append it to the list.
+const externalTestsFilterLists = process.env.NEXT_EXTERNAL_TESTS_FILTERS
+  ? require(process.env.NEXT_EXTERNAL_TESTS_FILTERS)
+  : { enabledTests: [], disabledTests: [] }
 const timings = []
 const DEFAULT_NUM_RETRIES = os.platform() === 'win32' ? 2 : 1
 const DEFAULT_CONCURRENCY = 2
@@ -54,6 +59,9 @@ const configuredTestTypes = Object.values(testFilters)
 const cleanUpAndExit = async (code) => {
   if (process.env.NEXT_TEST_STARTER) {
     await fs.remove(process.env.NEXT_TEST_STARTER)
+  }
+  if (process.env.NEXT_TEST_TEMP_REPO) {
+    await fs.remove(process.env.NEXT_TEST_TEMP_REPO)
   }
   console.log(`exiting with code ${code}`)
 
@@ -180,6 +188,17 @@ async function main() {
     }
   }
 
+  // If there are external manifest contains list of tests, apply it to the test lists.
+  // Specifically, we filters out `disabledTests` from named export of the manifest.
+  if (externalTestsFilterLists?.disabledTests.length > 0) {
+    tests = tests.filter(
+      (test) =>
+        !externalTestsFilterLists.disabledTests.some((disabled) =>
+          disabled.includes(test)
+        )
+    )
+  }
+
   let testNames = [
     ...new Set(
       tests.map((f) => {
@@ -257,14 +276,23 @@ async function main() {
     // to avoid having to run yarn each time
     console.log('Creating Next.js install for isolated tests')
     const reactVersion = process.env.NEXT_TEST_REACT_VERSION || 'latest'
-    const testStarter = await createNextInstall({
+    const { installDir, pkgPaths, tmpRepoDir } = await createNextInstall({
       parentSpan: mockTrace(),
       dependencies: {
         react: reactVersion,
         'react-dom': reactVersion,
       },
+      keepRepoDir: true,
     })
-    process.env.NEXT_TEST_STARTER = testStarter
+
+    const serializedPkgPaths = []
+
+    for (const key of pkgPaths.keys()) {
+      serializedPkgPaths.push([key, pkgPaths.get(key)])
+    }
+    process.env.NEXT_TEST_PKG_PATHS = JSON.stringify(serializedPkgPaths)
+    process.env.NEXT_TEST_TEMP_REPO = tmpRepoDir
+    process.env.NEXT_TEST_STARTER = installDir
   }
 
   const sema = new Sema(concurrency, { capacity: testNames.length })
@@ -527,7 +555,9 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error(err)
-  cleanUpAndExit(1)
-})
+main()
+  .then(() => cleanUpAndExit(0))
+  .catch((err) => {
+    console.error(err)
+    cleanUpAndExit(1)
+  })

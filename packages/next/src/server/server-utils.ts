@@ -262,6 +262,21 @@ export function getUtils({
               const matchesHasLocale =
                 i18n && detectedLocale && obj['1'] === detectedLocale
 
+              for (const key of Object.keys(obj)) {
+                const value = obj[key]
+
+                if (
+                  key !== NEXT_QUERY_PARAM_PREFIX &&
+                  key.startsWith(NEXT_QUERY_PARAM_PREFIX)
+                ) {
+                  const normalizedKey = key.substring(
+                    NEXT_QUERY_PARAM_PREFIX.length
+                  )
+                  obj[normalizedKey] = value
+                  delete obj[key]
+                }
+              }
+
               // favor named matches if available
               const routeKeyNames = Object.keys(routeKeys || {})
               const filterLocaleItem = (val: string | string[] | undefined) => {

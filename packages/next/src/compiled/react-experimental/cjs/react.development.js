@@ -23,7 +23,7 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
 }
-          var ReactVersion = '18.3.0-experimental-b14f8da15-20230403';
+          var ReactVersion = '18.3.0-experimental-16d053d59-20230506';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -631,7 +631,6 @@ function getComponentNameFromType(type) {
           return (context2.displayName || context2._globalName) + '.Provider';
         }
 
-      // eslint-disable-next-line no-fallthrough
     }
   }
 
@@ -1859,6 +1858,11 @@ function useEffectEvent(callback) {
 
   return dispatcher.useEffectEvent(callback);
 }
+function useOptimistic(passthrough, reducer) {
+  var dispatcher = resolveDispatcher(); // $FlowFixMe[not-a-function] This is unstable, thus optional
+
+  return dispatcher.useOptimistic(passthrough, reducer);
+}
 
 // Helpers to patch console.logs to avoid logging during side-effect free
 // replaying on render function. This currently only patches the object
@@ -3055,6 +3059,7 @@ exports.createFactory = createFactory;
 exports.createRef = createRef;
 exports.createServerContext = createServerContext;
 exports.experimental_useEffectEvent = useEffectEvent;
+exports.experimental_useOptimistic = useOptimistic;
 exports.forwardRef = forwardRef;
 exports.isValidElement = isValidElement;
 exports.lazy = lazy;
