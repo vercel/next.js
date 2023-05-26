@@ -114,7 +114,8 @@ describe('jsconfig-path-reloading', () => {
         await next.patchFile(tsConfigFile, tsconfigContent)
         await check(async () => {
           const html3 = await browser.eval('document.documentElement.innerHTML')
-          return html3.includes('first-data') && !html3.includes('second-data')
+          return html3.includes('id="first-data"') &&
+            !html3.includes('id="second-data"')
             ? 'success'
             : html3
         }, 'success')
