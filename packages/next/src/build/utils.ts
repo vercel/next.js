@@ -1389,7 +1389,6 @@ export async function isPageStatic({
       if (pathIsEdgeRuntime) {
         const runtime = await getRuntimeContext({
           paths: edgeInfo.files.map((file: string) => path.join(distDir, file)),
-          env: edgeInfo.env,
           edgeFunctionEntry: {
             ...edgeInfo,
             wasm: (edgeInfo.wasm ?? []).map((binding: AssetBinding) => ({
@@ -1976,16 +1975,17 @@ createServerHandler({
       res.end('Internal Server Error')
     }
   })
-  
+
   if (isValidKeepAliveTimeout) {
     server.keepAliveTimeout = keepAliveTimeout
   }
+
   server.listen(currentPort, async (err) => {
     if (err) {
       console.error("Failed to start server", err)
       process.exit(1)
     }
-  
+
     console.log(
       'Listening on port',
       currentPort,

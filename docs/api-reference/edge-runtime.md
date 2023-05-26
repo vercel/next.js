@@ -130,15 +130,6 @@ The Edge Runtime supports the following web standard APIs:
 
 You can use `process.env` to access [Environment Variables](/docs/basic-features/environment-variables.md) for both `next dev` and `next build`.
 
-Running `console.log` on `process.env` **will not** show all your Environment Variables. You have to access the variables directly as shown below:
-
-```javascript
-console.log(process.env)
-// { NEXT_RUNTIME: 'edge' }
-console.log(process.env.TEST_VARIABLE)
-// value
-```
-
 ## Compatible Node.js Modules
 
 The following modules can be imported with and without the `node:` prefix when using the `import` statement:
