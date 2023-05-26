@@ -82,9 +82,9 @@ impl Asset for EcmascriptDevChunkList {
 
         ident.add_modifier(modifier());
 
-        for chunk in &*self.chunks.await? {
-            ident.add_modifier(chunk.ident().to_string());
-        }
+        // We must not include the actual chunks idents as part of the chunk list's
+        // ident, because it must remain stable whenever a chunk is added or
+        // removed from the list.
 
         let ident = AssetIdentVc::new(Value::new(ident));
         Ok(AssetIdentVc::from_path(

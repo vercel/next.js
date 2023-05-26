@@ -9,7 +9,7 @@ __turbopack_export_value__([
       "[project]/crates/turbopack-tests/tests/snapshot/imports/dynamic/input/vercel.mjs (ecmascript)"
     ]
   },
-  "output/crates_turbopack-tests_tests_snapshot_imports_dynamic_input_vercel_mjs_d4d527._.js"
+  "output/crates_turbopack-tests_tests_snapshot_imports_dynamic_input_vercel_mjs_4c4c3a._.js"
 ]);
 
 })()),

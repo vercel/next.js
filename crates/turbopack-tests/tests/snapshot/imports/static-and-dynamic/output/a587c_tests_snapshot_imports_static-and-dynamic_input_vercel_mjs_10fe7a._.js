@@ -9,7 +9,7 @@ __turbopack_export_value__([
       "[project]/crates/turbopack-tests/tests/snapshot/imports/static-and-dynamic/input/vercel.mjs (ecmascript)"
     ]
   },
-  "output/a587c_tests_snapshot_imports_static-and-dynamic_input_vercel_mjs_ab3761._.js"
+  "output/a587c_tests_snapshot_imports_static-and-dynamic_input_vercel_mjs_4c5c39._.js"
 ]);
 
 })()),
