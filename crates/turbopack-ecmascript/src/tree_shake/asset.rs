@@ -30,16 +30,18 @@ pub struct EcmascriptModulePartAsset {
     pub(crate) part: ModulePartVc,
 }
 
+#[turbo_tasks::value_impl]
 impl EcmascriptModulePartAssetVc {
     /// Create a new instance of [EcmascriptModulePartAssetVc], whcih consists
     /// of a pointer to the full module and the [ModulePart] pointing the part
     /// of the module.
-    pub fn new(module: EcmascriptModuleAssetVc, part: ModulePartVc) -> Result<Self> {
-        Ok(EcmascriptModulePartAsset {
+    #[turbo_tasks::function]
+    pub fn new(module: EcmascriptModuleAssetVc, part: ModulePartVc) -> Self {
+        EcmascriptModulePartAsset {
             full_module: module,
             part,
         }
-        .cell())
+        .cell()
     }
 }
 
@@ -79,7 +81,7 @@ impl Asset for EcmascriptModulePartAsset {
                     EcmascriptModulePartAssetVc::new(
                         self.full_module,
                         ModulePartVc::internal(part_id),
-                    )?
+                    )
                     .as_asset(),
                     StringVc::cell("ecmascript module part".to_string()),
                 )

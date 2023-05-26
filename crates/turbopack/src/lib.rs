@@ -15,7 +15,6 @@ use std::{
 use anyhow::Result;
 use css::{CssModuleAssetVc, ModuleCssModuleAssetVc};
 use ecmascript::{
-    tree_shake::asset::EcmascriptModulePartAssetVc,
     typescript::resolve::TypescriptTypesAssetReferenceVc, EcmascriptModuleAssetType,
     EcmascriptModuleAssetVc,
 };
@@ -37,7 +36,7 @@ use turbopack_core::{
     issue::{Issue, IssueVc},
     plugin::CustomModuleType,
     reference::all_referenced_assets,
-    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
+    reference_type::{EcmaScriptModulesReferenceSubType, InnerAssetsVc, ReferenceType},
     resolve::{
         options::ResolveOptionsVc, origin::PlainResolveOriginVc, parse::RequestVc, resolve,
         ModulePartVc, ResolveResultVc,
@@ -103,67 +102,69 @@ async fn apply_module_type(
     context: ModuleAssetContextVc,
     module_type: ModuleTypeVc,
     part: Option<ModulePartVc>,
+    inner_assets: Option<InnerAssetsVc>,
 ) -> Result<AssetVc> {
-    Ok(match &*module_type.await? {
+    let module_type = &*module_type.await?;
+    Ok(match module_type {
         ModuleType::Ecmascript {
             transforms,
             options,
+        }
+        | ModuleType::Typescript {
+            transforms,
+            options,
+        }
+        | ModuleType::TypescriptWithTypes {
+            transforms,
+            options,
+        }
+        | ModuleType::TypescriptDeclaration {
+            transforms,
+            options,
         } => {
-            let base = EcmascriptModuleAssetVc::new(
+            let context_for_module = match module_type {
+                ModuleType::TypescriptWithTypes { .. }
+                | ModuleType::TypescriptDeclaration { .. } => {
+                    context.with_types_resolving_enabled()
+                }
+                _ => context,
+            };
+            let mut builder = EcmascriptModuleAssetVc::builder(
                 source,
-                context.into(),
-                Value::new(EcmascriptModuleAssetType::Ecmascript),
+                context_for_module.into(),
                 *transforms,
-                Value::new(*options),
+                *options,
                 context.compile_time_info(),
             );
+            match module_type {
+                ModuleType::Ecmascript { .. } => {
+                    builder = builder.with_type(EcmascriptModuleAssetType::Ecmascript)
+                }
+                ModuleType::Typescript { .. } => {
+                    builder = builder.with_type(EcmascriptModuleAssetType::Typescript)
+                }
+                ModuleType::TypescriptWithTypes { .. } => {
+                    builder = builder.with_type(EcmascriptModuleAssetType::TypescriptWithTypes)
+                }
+                ModuleType::TypescriptDeclaration { .. } => {
+                    builder = builder.with_type(EcmascriptModuleAssetType::TypescriptDeclaration)
+                }
+                _ => unreachable!(),
+            }
+
+            if let Some(inner_assets) = inner_assets {
+                builder = builder.with_inner_assets(inner_assets);
+            }
 
             if options.split_into_parts {
                 if let Some(part) = part {
-                    if let Ok(v) = EcmascriptModulePartAssetVc::new(base, part) {
-                        return Ok(v.into());
-                    }
+                    builder = builder.with_part(part);
                 }
             }
 
-            base.into()
+            builder.build().into()
         }
-        ModuleType::Typescript {
-            transforms,
-            options,
-        } => EcmascriptModuleAssetVc::new(
-            source,
-            context.into(),
-            Value::new(EcmascriptModuleAssetType::Typescript),
-            *transforms,
-            Value::new(*options),
-            context.compile_time_info(),
-        )
-        .into(),
-        ModuleType::TypescriptWithTypes {
-            transforms,
-            options,
-        } => EcmascriptModuleAssetVc::new(
-            source,
-            context.with_types_resolving_enabled().into(),
-            Value::new(EcmascriptModuleAssetType::TypescriptWithTypes),
-            *transforms,
-            Value::new(*options),
-            context.compile_time_info(),
-        )
-        .into(),
-        ModuleType::TypescriptDeclaration {
-            transforms,
-            options,
-        } => EcmascriptModuleAssetVc::new(
-            source,
-            context.with_types_resolving_enabled().into(),
-            Value::new(EcmascriptModuleAssetType::TypescriptDeclaration),
-            *transforms,
-            Value::new(*options),
-            context.compile_time_info(),
-        )
-        .into(),
+
         ModuleType::Json => JsonModuleAssetVc::new(source).into(),
         ModuleType::Raw => source,
         ModuleType::Css(transforms) => {
@@ -279,10 +280,14 @@ async fn process_default(
     let options = ModuleOptionsVc::new(ident.path().parent(), context.module_options_context());
 
     let reference_type = reference_type.into_value();
-    let part = match &reference_type {
+    let part: Option<ModulePartVc> = match &reference_type {
         ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportPart(part)) => {
             Some(*part)
         }
+        _ => None,
+    };
+    let inner_assets = match &reference_type {
+        ReferenceType::Internal(inner_assets) => Some(*inner_assets),
         _ => None,
     };
     let mut current_source = source;
@@ -381,6 +386,7 @@ async fn process_default(
         context,
         module_type,
         part,
+        inner_assets,
     ))
 }
 

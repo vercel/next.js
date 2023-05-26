@@ -31,7 +31,6 @@ use chunk::{
     EcmascriptChunkingContextVc,
 };
 use code_gen::CodeGenerateableVc;
-use indexmap::IndexMap;
 use parse::{parse, ParseResult};
 pub use parse::{ParseResultSourceMap, ParseResultSourceMapVc};
 use path_visitor::ApplyVisitors;
@@ -64,9 +63,11 @@ use turbopack_core::{
     context::AssetContextVc,
     ident::AssetIdentVc,
     reference::{AssetReferencesReadRef, AssetReferencesVc},
+    reference_type::InnerAssetsVc,
     resolve::{
         origin::{ResolveOrigin, ResolveOriginVc},
         parse::RequestVc,
+        ModulePartVc,
     },
 };
 
@@ -80,6 +81,7 @@ use self::{
         VisitorFactory,
     },
     parse::ParseResultVc,
+    tree_shake::asset::EcmascriptModulePartAssetVc,
 };
 use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc},
@@ -122,9 +124,6 @@ pub enum EcmascriptModuleAssetType {
     TypescriptDeclaration,
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct InnerAssets(IndexMap<String, AssetVc>);
-
 #[turbo_tasks::function]
 fn modifier() -> StringVc {
     StringVc::cell("ecmascript".to_string())
@@ -135,6 +134,62 @@ struct MemoizedSuccessfulAnalysis {
     operation: RawVc,
     references: AssetReferencesReadRef,
     exports: EcmascriptExportsReadRef,
+}
+
+pub struct EcmascriptModuleAssetBuilder {
+    source: AssetVc,
+    context: AssetContextVc,
+    ty: EcmascriptModuleAssetType,
+    transforms: EcmascriptInputTransformsVc,
+    options: EcmascriptOptions,
+    compile_time_info: CompileTimeInfoVc,
+    inner_assets: Option<InnerAssetsVc>,
+    part: Option<ModulePartVc>,
+}
+
+impl EcmascriptModuleAssetBuilder {
+    pub fn with_inner_assets(mut self, inner_assets: InnerAssetsVc) -> Self {
+        self.inner_assets = Some(inner_assets);
+        self
+    }
+
+    pub fn with_type(mut self, ty: EcmascriptModuleAssetType) -> Self {
+        self.ty = ty;
+        self
+    }
+
+    pub fn with_part(mut self, part: ModulePartVc) -> Self {
+        self.part = Some(part);
+        self
+    }
+
+    pub fn build(self) -> AssetVc {
+        let base = if let Some(inner_assets) = self.inner_assets {
+            EcmascriptModuleAssetVc::new_with_inner_assets(
+                self.source,
+                self.context,
+                Value::new(self.ty),
+                self.transforms,
+                Value::new(self.options),
+                self.compile_time_info,
+                inner_assets,
+            )
+        } else {
+            EcmascriptModuleAssetVc::new(
+                self.source,
+                self.context,
+                Value::new(self.ty),
+                self.transforms,
+                Value::new(self.options),
+                self.compile_time_info,
+            )
+        };
+        if let Some(part) = self.part {
+            EcmascriptModulePartAssetVc::new(base, part).into()
+        } else {
+            base.into()
+        }
+    }
 }
 
 #[turbo_tasks::value]
@@ -154,6 +209,27 @@ pub struct EcmascriptModuleAsset {
 /// An optional [EcmascriptModuleAsset]
 #[turbo_tasks::value(transparent)]
 pub struct OptionEcmascriptModuleAsset(Option<EcmascriptModuleAssetVc>);
+
+impl EcmascriptModuleAssetVc {
+    pub fn builder(
+        source: AssetVc,
+        context: AssetContextVc,
+        transforms: EcmascriptInputTransformsVc,
+        options: EcmascriptOptions,
+        compile_time_info: CompileTimeInfoVc,
+    ) -> EcmascriptModuleAssetBuilder {
+        EcmascriptModuleAssetBuilder {
+            source,
+            context,
+            ty: EcmascriptModuleAssetType::Ecmascript,
+            transforms,
+            options,
+            compile_time_info,
+            inner_assets: None,
+            part: None,
+        }
+    }
+}
 
 #[turbo_tasks::value_impl]
 impl EcmascriptModuleAssetVc {
