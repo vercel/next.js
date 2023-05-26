@@ -32,7 +32,10 @@ impl TextContentSourceAssetVc {
 impl Asset for TextContentSourceAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> AssetIdentVc {
-        self.source.ident().with_modifier(modifier())
+        self.source
+            .ident()
+            .with_modifier(modifier())
+            .rename_as("*.mjs")
     }
 
     #[turbo_tasks::function]
