@@ -78,7 +78,7 @@ import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { loadComponents } from './load-components'
 import isError, { getProperError } from '../lib/is-error'
 import { FontManifest } from './font-utils'
-import { splitCookiesString, toNodeHeaders } from './web/utils'
+import { splitCookiesString, toOutgoingHttpHeaders } from './web/utils'
 import { relativizeURL } from '../shared/lib/router/utils/relativize-url'
 import { prepareDestination } from '../shared/lib/router/utils/prepare-destination'
 import { getMiddlewareRouteMatcher } from '../shared/lib/router/utils/middleware-route-matcher'
@@ -2496,7 +2496,7 @@ export default class NextNodeServer extends BaseServer {
 
                 if (isMiddlewareInvoke && 'response' in result) {
                   for (const [key, value] of Object.entries(
-                    toNodeHeaders(result.response.headers)
+                    toOutgoingHttpHeaders(result.response.headers)
                   )) {
                     if (key !== 'content-encoding' && value !== undefined) {
                       res.setHeader(key, value as string | string[])
@@ -2590,7 +2590,7 @@ export default class NextNodeServer extends BaseServer {
             result.response.headers.delete('x-middleware-next')
 
             for (const [key, value] of Object.entries(
-              toNodeHeaders(result.response.headers)
+              toOutgoingHttpHeaders(result.response.headers)
             )) {
               if (
                 [
