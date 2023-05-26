@@ -135,7 +135,13 @@ function deduplicateCSSImportsForEntry(mergedCSSimports: CssImports) {
   for (const [entryName, cssImports] of sortedCSSImports) {
     for (const cssImport of cssImports) {
       if (trackedCSSImports.has(cssImport)) continue
-      trackedCSSImports.add(cssImport)
+
+      // Only track CSS imports that are in files that can inherit CSS.
+      const filename = path.parse(entryName).name
+      if (['template', 'layout'].includes(filename)) {
+        trackedCSSImports.add(cssImport)
+      }
+
       if (!dedupedCSSImports[entryName]) {
         dedupedCSSImports[entryName] = []
       }
