@@ -225,6 +225,10 @@ export class ClientReferenceEntryPlugin {
           continue
         }
 
+        if (clientImports.length === 0 && actionImports.length === 0) {
+          continue
+        }
+
         const relativeRequest = isAbsoluteRequest
           ? path.relative(compilation.options.context, entryRequest)
           : entryRequest
