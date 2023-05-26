@@ -56,6 +56,7 @@ futures = { workspace = true }
 indexmap = { workspace = true }
 mime = { workspace = true }
 next-core = { workspace = true }
+once_cell = { workspace = true }
 owo-colors = { workspace = true }
 serde = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
@@ -72,6 +73,8 @@ turbopack-binding = { workspace = true, features = [
   "__turbopack_dev_server",
 ]}
 turbo-tasks = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
 webbrowser = { workspace = true }
 
 [dev-dependencies]

@@ -1460,7 +1460,7 @@ function runTests({ dev }) {
         ],
         rsc: {
           header: 'RSC',
-          contentTypeHeader: 'text/x-component',
+          contentTypeHeader: 'text/x-component; charset=utf-8',
           varyHeader: 'RSC, Next-Router-State-Tree, Next-Router-Prefetch',
         },
       })

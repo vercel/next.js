@@ -15,7 +15,6 @@ const FORBIDDEN_HEADERS = [
 
 type RunnerFn = (params: {
   name: string
-  env: string[]
   onWarning?: (warn: Error) => void
   paths: string[]
   request: NodejsRequestData
@@ -49,7 +48,6 @@ export const getRuntimeContext = async (params: {
   name: string
   onWarning?: any
   useCache: boolean
-  env: string[]
   edgeFunctionEntry: any
   distDir: string
   paths: string[]
@@ -59,7 +57,6 @@ export const getRuntimeContext = async (params: {
     moduleName: params.name,
     onWarning: params.onWarning ?? (() => {}),
     useCache: params.useCache !== false,
-    env: params.env,
     edgeFunctionEntry: params.edgeFunctionEntry,
     distDir: params.distDir,
   })
