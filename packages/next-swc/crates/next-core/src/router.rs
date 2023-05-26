@@ -225,11 +225,10 @@ async fn config_assets(
 
 #[turbo_tasks::function]
 fn route_executor(context: AssetContextVc, configs: InnerAssetsVc) -> AssetVc {
-    context
-        .process(
-            next_asset("entry/router.ts"),
-            Value::new(ReferenceType::Internal(configs)),
-        )
+    context.process(
+        next_asset("entry/router.ts"),
+        Value::new(ReferenceType::Internal(configs)),
+    )
 }
 
 #[turbo_tasks::function]
