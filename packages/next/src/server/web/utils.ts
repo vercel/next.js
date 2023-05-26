@@ -9,7 +9,7 @@ import type { OutgoingHttpHeaders } from 'http'
  * @param nodeHeaders the headers object to convert
  * @returns the converted headers object
  */
-export function fromOutgoingHttpHeaders(
+export function fromNodeOutgoingHttpHeaders(
   nodeHeaders: OutgoingHttpHeaders
 ): Headers {
   const headers = new Headers()
@@ -110,7 +110,9 @@ export function splitCookiesString(cookiesString: string) {
  * @param headers the headers object to convert
  * @returns the converted headers object
  */
-export function toOutgoingHttpHeaders(headers: Headers): OutgoingHttpHeaders {
+export function toNodeOutgoingHttpHeaders(
+  headers: Headers
+): OutgoingHttpHeaders {
   const nodeHeaders: OutgoingHttpHeaders = {}
   const cookies: string[] = []
   if (headers) {

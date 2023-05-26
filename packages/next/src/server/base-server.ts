@@ -100,7 +100,10 @@ import { I18NProvider } from './future/helpers/i18n-provider'
 import { sendResponse } from './send-response'
 import { RouteKind } from './future/route-kind'
 import { handleInternalServerErrorResponse } from './future/route-modules/helpers/response-handlers'
-import { fromOutgoingHttpHeaders, toOutgoingHttpHeaders } from './web/utils'
+import {
+  fromNodeOutgoingHttpHeaders,
+  toNodeOutgoingHttpHeaders,
+} from './web/utils'
 import { NEXT_QUERY_PARAM_PREFIX } from '../lib/constants'
 
 export type FindComponentsResult = {
@@ -1626,7 +1629,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               const blob = await response.blob()
 
               // Copy the headers from the response.
-              const headers = toOutgoingHttpHeaders(response.headers)
+              const headers = toNodeOutgoingHttpHeaders(response.headers)
 
               if (cacheTags) {
                 headers['x-next-cache-tags'] = cacheTags
@@ -2024,7 +2027,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         req,
         res,
         new Response(cachedData.body, {
-          headers: fromOutgoingHttpHeaders(headers),
+          headers: fromNodeOutgoingHttpHeaders(headers),
           status: cachedData.status || 200,
         })
       )

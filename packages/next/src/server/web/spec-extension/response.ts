@@ -1,6 +1,6 @@
 import type { I18NConfig } from '../../config-shared'
 import { NextURL } from '../next-url'
-import { toOutgoingHttpHeaders, validateURL } from '../utils'
+import { toNodeOutgoingHttpHeaders, validateURL } from '../utils'
 
 import { ResponseCookies } from './cookies'
 
@@ -40,7 +40,7 @@ export class NextResponse<Body = unknown> extends Response {
       cookies: new ResponseCookies(this.headers),
       url: init.url
         ? new NextURL(init.url, {
-            headers: toOutgoingHttpHeaders(this.headers),
+            headers: toNodeOutgoingHttpHeaders(this.headers),
             nextConfig: init.nextConfig,
           })
         : undefined,
