@@ -8,18 +8,21 @@ use turbopack_binding::{
     turbopack::{
         core::{
             asset::{Asset, AssetContentVc, AssetVc, AssetsVc},
-            chunk::{ChunkableAsset, ChunkingContext, ChunkingContextVc, EvaluatableAssetsVc},
+            chunk::{
+                ChunkDataVc, ChunkableAsset, ChunkingContext, ChunkingContextVc, ChunksDataVc,
+                EvaluatableAssetsVc,
+            },
             context::{AssetContext, AssetContextVc},
             ident::AssetIdentVc,
             reference::{AssetReferencesVc, SingleAssetReferenceVc},
             reference_type::{EntryReferenceSubType, ReferenceType},
             virtual_asset::VirtualAssetVc,
         },
-        dev::{ChunkDataVc, ChunksDataVc},
         dev_server::source::{asset_graph::AssetGraphContentSourceVc, ContentSourceVc},
         ecmascript::{
-            utils::StringifyJs, EcmascriptInputTransform, EcmascriptInputTransformsVc,
-            EcmascriptModuleAssetType, EcmascriptModuleAssetVc, InnerAssetsVc,
+            chunk::EcmascriptChunkData, utils::StringifyJs, EcmascriptInputTransform,
+            EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc,
+            InnerAssetsVc,
         },
     },
 };
@@ -140,7 +143,7 @@ impl Asset for PageLoaderAsset {
         let chunks_data = chunks_data.iter().try_join().await?;
         let chunks_data: Vec<_> = chunks_data
             .iter()
-            .map(|chunk_data| chunk_data.runtime_chunk_data())
+            .map(|chunk_data| EcmascriptChunkData::new(chunk_data))
             .collect();
 
         let content = format!(
