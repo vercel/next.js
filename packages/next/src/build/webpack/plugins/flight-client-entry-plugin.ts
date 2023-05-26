@@ -92,6 +92,60 @@ const pluginState = getProxiedPluginState({
   injectedClientEntries: {} as Record<string, string>,
 })
 
+function deduplicateCSSImportsForEntry(mergedCSSimports: CssImports) {
+  // If multiple entry module connections are having the same CSS import,
+  // we only need to have one module to keep track of that CSS import.
+  // It is based on the fact that if a page or a layout is rendered in the
+  // given entry, all its parent layouts are always rendered too.
+  // This can avoid duplicate CSS imports in the generated CSS manifest,
+  // for example, if a page and its parent layout are both using the same
+  // CSS import, we only need to have the layout to keep track of that CSS
+  // import.
+  // To achieve this, we need to first collect all the CSS imports from
+  // every connection, and deduplicate them in the order of layers from
+  // top to bottom. The implementation can be generally described as:
+  // - Sort by number of `/` in the request path (the more `/`, the deeper)
+  // - When in the same depth, sort by the filename (template < layout < page and others)
+
+  // Sort the connections as described above.
+  const sortedCSSImports = Object.entries(mergedCSSimports).sort((a, b) => {
+    const [aPath] = a
+    const [bPath] = b
+
+    const aDepth = aPath.split('/').length
+    const bDepth = bPath.split('/').length
+
+    if (aDepth !== bDepth) {
+      return aDepth - bDepth
+    }
+
+    const aName = path.parse(aPath).name
+    const bName = path.parse(bPath).name
+
+    const indexA = ['template', 'layout'].indexOf(aName)
+    const indexB = ['template', 'layout'].indexOf(bName)
+
+    if (indexA === -1) return 1
+    if (indexB === -1) return -1
+    return indexA - indexB
+  })
+
+  const dedupedCSSImports: CssImports = {}
+  const trackedCSSImports = new Set<string>()
+  for (const [entryName, cssImports] of sortedCSSImports) {
+    for (const cssImport of cssImports) {
+      if (trackedCSSImports.has(cssImport)) continue
+      trackedCSSImports.add(cssImport)
+      if (!dedupedCSSImports[entryName]) {
+        dedupedCSSImports[entryName] = []
+      }
+      dedupedCSSImports[entryName].push(cssImport)
+    }
+  }
+
+  return dedupedCSSImports
+}
+
 export class ClientReferenceEntryPlugin {
   dev: boolean
   appDir: string
@@ -196,6 +250,8 @@ export class ClientReferenceEntryPlugin {
         ClientComponentImports[0]
       >()
       const actionEntryImports = new Map<string, string[]>()
+      const clientEntriesToInject = []
+      const mergedCSSimports: CssImports = {}
 
       for (const connection of compilation.moduleGraph.getOutgoingConnections(
         entryModule
@@ -204,7 +260,7 @@ export class ClientReferenceEntryPlugin {
         const entryDependency = connection.dependency
         const entryRequest = connection.dependency.request
 
-        const { clientImports, actionImports } =
+        const { clientComponentImports, actionImports, cssImports } =
           this.collectComponentInfoFromDependencies({
             entryRequest,
             compilation,
@@ -219,7 +275,7 @@ export class ClientReferenceEntryPlugin {
 
         // Next.js internals are put into a separate entry.
         if (!isAbsoluteRequest) {
-          clientImports.forEach((value) =>
+          clientComponentImports.forEach((value) =>
             internalClientComponentEntryImports.add(value)
           )
           continue
@@ -234,14 +290,29 @@ export class ClientReferenceEntryPlugin {
           relativeRequest.replace(/\.[^.\\/]+$/, '').replace(/^src[\\/]/, '')
         )
 
+        Object.assign(mergedCSSimports, cssImports)
+        clientEntriesToInject.push({
+          compiler,
+          compilation,
+          entryName: name,
+          clientComponentImports,
+          cssImports,
+          bundlePath,
+          absolutePagePath: entryRequest,
+        })
+      }
+
+      // Make sure CSS imports are deduplicated before injecting the client entry
+      // and SSR modules.
+      const dedupedCSSImports = deduplicateCSSImportsForEntry(mergedCSSimports)
+      for (const clientEntryToInject of clientEntriesToInject) {
         addClientEntryAndSSRModulesList.push(
           this.injectClientEntryAndSSRModules({
-            compiler,
-            compilation,
-            entryName: name,
-            clientImports,
-            bundlePath,
-            absolutePagePath: entryRequest,
+            ...clientEntryToInject,
+            clientImports: [
+              ...clientEntryToInject.clientComponentImports,
+              ...dedupedCSSImports[clientEntryToInject.absolutePagePath],
+            ],
           })
         )
       }
@@ -447,6 +518,8 @@ export class ClientReferenceEntryPlugin {
       forEachEntryModule(compilation, ({ name, entryModule }) => {
         const clientEntryDependencyMap = collectClientEntryDependencyMap(name)
         const tracked = new Set<string>()
+        const mergedCSSimports: CssImports = {}
+
         for (const connection of compilation.moduleGraph.getOutgoingConnections(
           entryModule
         )) {
@@ -465,9 +538,14 @@ export class ClientReferenceEntryPlugin {
             clientEntryDependencyMap,
           })
 
-          if (!cssManifest.cssImports) cssManifest.cssImports = {}
-          Object.assign(cssManifest.cssImports, cssImports)
+          Object.assign(mergedCSSimports, cssImports)
         }
+
+        if (!cssManifest.cssImports) cssManifest.cssImports = {}
+        Object.assign(
+          cssManifest.cssImports,
+          deduplicateCSSImportsForEntry(mergedCSSimports)
+        )
       })
     })
 
@@ -534,8 +612,8 @@ export class ClientReferenceEntryPlugin {
     dependency: any /* Dependency */
     clientEntryDependencyMap?: Record<string, any>
   }): {
-    clientImports: ClientComponentImports
     cssImports: CssImports
+    clientComponentImports: ClientComponentImports
     actionImports: [string, string[]][]
     clientActionImports: [string, string[]][]
   } {
@@ -605,13 +683,12 @@ export class ClientReferenceEntryPlugin {
         CSSImports.add(modRequest)
       }
 
-      // Check if request is for css file.
-      if ((!inClientComponentBoundary && isClientComponent) || isCSS) {
+      if (!inClientComponentBoundary && isClientComponent) {
         clientComponentImports.push(modRequest)
 
         // Here we are entering a client boundary, and we need to collect dependencies
         // in the client graph too.
-        if (isClientComponent && clientEntryDependencyMap) {
+        if (clientEntryDependencyMap) {
           if (clientEntryDependencyMap[modRequest]) {
             filterClientComponents(clientEntryDependencyMap[modRequest], true)
           }
@@ -637,7 +714,7 @@ export class ClientReferenceEntryPlugin {
     }
 
     return {
-      clientImports: clientComponentImports,
+      clientComponentImports,
       cssImports: CSSImports.size
         ? {
             [entryRequest]: Array.from(CSSImports),
