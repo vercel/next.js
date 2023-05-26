@@ -134,13 +134,13 @@ impl VisitMut for CjsOptimizer {
                                         definite: false,
                                     };
 
-                                    if self.data.extra_stmts.clone().into_iter().find(|s| {
+                                    if !self.data.extra_stmts.clone().into_iter().any(|s| {
                                         if let Stmt::Decl(Decl::Var(v)) = &s {
                                             v.decls.iter().any(|d| d.name == var.name)
                                         } else {
                                             false
                                         }
-                                    }).is_none() {
+                                    }) {
                                         self.data.extra_stmts.push(Stmt::Decl(Decl::Var(Box::new(
                                             VarDecl {
                                                 span: DUMMY_SP,
