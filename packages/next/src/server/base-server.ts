@@ -1747,6 +1747,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       ) {
         const module: PagesRouteModule = components.ComponentMod.routeModule
 
+        // Due to the way we pass data by mutating `renderOpts`, we can't extend
+        // the object here but only updating its `clientReferenceManifest`
+        // field.
+        // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
+        renderOpts.nextFontManifest = this.nextFontManifest
+
         // Call the built-in render method on the module. We cast these to
         // NodeNextRequest and NodeNextResponse because we know that we're
         // in the node runtime because we check that we're not in edge mode
