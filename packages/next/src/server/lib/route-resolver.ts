@@ -35,7 +35,8 @@ export type RouteResult =
       type: 'rewrite'
       url: string
       statusCode: number
-      headers: Record<string, undefined | number | string | string[]>
+      requestHeaders: Record<string, undefined | number | string | string[]>
+      responseHeaders: Record<string, undefined | number | string | string[]>
     }
   | {
       type: 'error'
@@ -215,7 +216,8 @@ export async function makeResolver(
             hash: parsedUrl.hash,
           }),
           statusCode: 200,
-          headers: res.getHeaders(),
+          requestHeaders: req.headers,
+          responseHeaders: res.getHeaders(),
         })
 
         return { finished: true }

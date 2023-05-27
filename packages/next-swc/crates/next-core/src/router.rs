@@ -93,7 +93,8 @@ pub struct RouterRequest {
 #[serde(rename_all = "camelCase")]
 pub struct RewriteResponse {
     pub url: String,
-    pub headers: Vec<(String, String)>,
+    pub request_headers: Vec<(String, String)>,
+    pub response_headers: Vec<(String, String)>,
 }
 
 #[turbo_tasks::value(shared)]

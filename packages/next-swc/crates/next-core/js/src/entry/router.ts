@@ -44,7 +44,8 @@ type MessageData =
 
 type RewriteResponse = {
   url: string
-  headers: [string, string][]
+  requestHeaders: [string, string][]
+  responseHeaders: [string, string][]
 }
 
 type MiddlewareHeadersResponse = {
@@ -78,7 +79,7 @@ export default async function route(
   routerRequest: RouterRequest,
   dir: string,
   serverInfo: ServerInfo
-) {
+): Promise<MessageData | void> {
   const [resolveRoute, server] = await Promise.all([
     (resolveRouteMemo ??= getResolveRoute(dir, serverInfo)),
     createServer(),
@@ -137,9 +138,8 @@ export default async function route(
             type: 'rewrite',
             data: {
               url: routeResult.url,
-              headers: Object.entries(routeResult.headers)
-                .filter(([, val]) => val != null)
-                .map(([name, value]) => [name, value!.toString()]),
+              requestHeaders: filterHeaders(routeResult.requestHeaders),
+              responseHeaders: filterHeaders(routeResult.responseHeaders),
             },
           }
         default:
@@ -152,6 +152,14 @@ export default async function route(
     // the process.
     ipc.sendError(e as Error)
   }
+}
+
+function filterHeaders(
+  headers: Record<string, undefined | number | string | string[]>
+): [string, string][] {
+  return Object.entries(headers)
+    .filter(([, val]) => val != null)
+    .map(([name, value]) => [name, value!.toString()])
 }
 
 async function handleMiddlewareResponse(

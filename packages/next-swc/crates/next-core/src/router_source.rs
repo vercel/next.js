@@ -156,8 +156,13 @@ impl ContentSource for NextRouterContentSource {
                 .get(path, Value::new(ContentSourceData::default())),
             RouterResult::Rewrite(data) => {
                 let mut rewrite = RewriteBuilder::new(data.url.clone()).content_source(this.inner);
-                if !data.headers.is_empty() {
-                    rewrite = rewrite.response_headers(HeaderListVc::new(data.headers.clone()));
+                if !data.request_headers.is_empty() {
+                    rewrite =
+                        rewrite.request_headers(HeaderListVc::new(data.request_headers.clone()));
+                }
+                if !data.response_headers.is_empty() {
+                    rewrite =
+                        rewrite.response_headers(HeaderListVc::new(data.response_headers.clone()));
                 }
                 ContentSourceResultVc::exact(
                     ContentSourceContent::Rewrite(rewrite.build()).cell().into(),
