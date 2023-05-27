@@ -15,6 +15,7 @@
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "react-redux": "8.0.5",
+    "sass": "1.62.1",
     "waait": "1.0.5"
   },
   "devDependencies": {
@@ -31,6 +32,7 @@
     "jest-environment-jsdom": "29.5.0",
     "jest-watch-typeahead": "2.2.2",
     "redux-logger": "3.0.6",
+    "ts-node": "10.9.1",
     "typescript": "5.0.4"
   }
 }
