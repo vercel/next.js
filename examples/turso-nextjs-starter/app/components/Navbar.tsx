@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import Link from 'next/link'
 
 export default function Navbar() {
   return (
@@ -27,5 +27,5 @@ export default function Navbar() {
         </Link>
       </div>
     </nav>
-  );
+  )
 }

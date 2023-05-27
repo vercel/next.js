@@ -1,14 +1,14 @@
-import './form.css';
+import './form.css'
 
-export const runtime = 'edge';
+export const runtime = 'edge'
 
 export const metadata = {
   title: 'Add New',
   description: 'Contribute to the frameworks list.',
-};
+}
 
 export default function AddNewPage(request: { searchParams: any }) {
-  const { error, message } = request.searchParams;
+  const { error, message } = request.searchParams
 
   return (
     <>
@@ -88,5 +88,5 @@ export default function AddNewPage(request: { searchParams: any }) {
         </form>
       </div>
     </>
-  );
+  )
 }

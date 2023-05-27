@@ -1,11 +1,11 @@
-import Link from 'next/link';
+import Link from 'next/link'
 
-export const runtime = 'edge';
+export const runtime = 'edge'
 
 export const metadata = {
   title: 'About Us',
   description: 'Top web frameworks about page',
-};
+}
 
 export default async function AboutPage() {
   return (
@@ -24,5 +24,5 @@ export default async function AboutPage() {
         </Link>
       </p>
     </>
-  );
+  )
 }

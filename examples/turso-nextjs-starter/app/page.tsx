@@ -1,35 +1,35 @@
-import { tursoClient } from '@/utils/tursoClient';
+import { tursoClient } from '@/utils/tursoClient'
 
-export const runtime = 'edge';
+export const runtime = 'edge'
 
 export const metadata = {
   title: {
     absolute: 'Top Web Frameworks',
   },
   description: 'A Next.js and Turso starter template',
-};
+}
 
 export interface Framework {
-  name: string;
-  language: string;
-  url: string;
-  stars: number;
-  id: number;
+  name: string
+  language: string
+  url: string
+  stars: number
+  id: number
 }
 
 async function getData() {
-  const res = await tursoClient.execute('select * from frameworks;');
+  const res = await tursoClient.execute('select * from frameworks;')
   return {
     frameworks: res.rows as unknown as Framework[],
-  };
+  }
 }
 
 export default async function Home(page: any) {
-  const { frameworks } = await getData();
+  const { frameworks } = await getData()
   let {
     searchParams: { city },
-  } = page;
-  city = decodeURIComponent(city.replace(/\+/g, ' '));
+  } = page
+  city = decodeURIComponent(city.replace(/\+/g, ' '))
 
   return (
     <>
@@ -70,5 +70,5 @@ export default async function Home(page: any) {
         </div>
       </div>
     </>
-  );
+  )
 }
