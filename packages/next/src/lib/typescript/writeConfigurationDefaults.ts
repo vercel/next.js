@@ -184,13 +184,27 @@ export async function writeConfigurationDefaults(
             : `['next-env.d.ts', '**/*.ts', '**/*.tsx']`
         )
     )
-  } else if (isAppDirEnabled && !rawConfig.include.includes(nextAppTypes)) {
-    userTsConfig.include.push(nextAppTypes)
-    suggestedActions.push(
-      chalk.cyan('include') +
-        ' was updated to add ' +
-        chalk.bold(`'${nextAppTypes}'`)
+  } else if (isAppDirEnabled) {
+    const nextAppTypesIndex = rawConfig.include.indexOf(nextAppTypes)
+    const relativeNextAppTypesIndex = rawConfig.include.indexOf(
+      `./${nextAppTypes}`
     )
+
+    if (nextAppTypesIndex >= 0 && relativeNextAppTypesIndex >= 0) {
+      userTsConfig.include.splice(nextAppTypesIndex)
+      suggestedActions.push(
+        chalk.cyan('include') +
+          ' was updated to use only' +
+          chalk.bold(`'./${nextAppTypes}'`)
+      )
+    } else if (nextAppTypesIndex < 0 && relativeNextAppTypesIndex < 0) {
+      userTsConfig.include.push(nextAppTypes)
+      suggestedActions.push(
+        chalk.cyan('include') +
+          ' was updated to add ' +
+          chalk.bold(`'${nextAppTypes}'`)
+      )
+    }
   }
 
   // Enable the Next.js typescript plugin.

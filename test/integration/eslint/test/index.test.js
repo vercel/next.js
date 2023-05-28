@@ -38,6 +38,10 @@ const dirEslintCacheCustomDir = join(__dirname, '../eslint-cache-custom-dir')
 const dirFileLinting = join(__dirname, '../file-linting')
 const mjsCjsLinting = join(__dirname, '../mjs-cjs-linting')
 const dirTypescript = join(__dirname, '../with-typescript')
+const dirTypescriptRelativeDistTypes = join(
+  __dirname,
+  '../with-typescript-relative-dist-types'
+)
 
 describe('ESLint', () => {
   describe('Next Build', () => {
@@ -399,6 +403,25 @@ describe('ESLint', () => {
       const tsConfigJson = JSON.parse(tsConfigContent)
 
       expect(tsConfigJson.include).toContain('.build/types/**/*.ts')
+    })
+
+    test('should not add relative path for dist types in tsconfig.json when app dir exist and relative path already exists', async () => {
+      await nextLint(dirTypescriptRelativeDistTypes, [], {
+        stdout: true,
+        stderr: true,
+      })
+
+      const tsConfigPath = join(
+        dirTypescriptRelativeDistTypes,
+        '../with-typescript-relative-dist-types/tsconfig.json'
+      )
+      const tsConfigContent = await fs.readFile(tsConfigPath, {
+        encoding: 'utf8',
+      })
+      const tsConfigJson = JSON.parse(tsConfigContent)
+
+      expect(tsConfigJson.include).toContain('./.build/types/**/*.ts')
+      expect(tsConfigJson.include).not.toContain('.build/types/**/*.ts')
     })
 
     test('shows warnings and errors', async () => {
