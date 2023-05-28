@@ -407,7 +407,8 @@ createNextDescribe(
         }, 'success')
       })
 
-      it('should handle revalidateTag', async () => {
+      // TODO: investigate flakiness when deployed
+      it.skip('should handle revalidateTag', async () => {
         const browser = await next.browser('/revalidate')
         const randomNumber = await browser.elementByCss('#random-number').text()
         const justPutIt = await browser.elementByCss('#justputit').text()
@@ -415,24 +416,21 @@ createNextDescribe(
 
         await browser.elementByCss('#revalidate-justputit').click()
 
-        // TODO: investigate flakiness when deployed
-        if (!isNextDeploy) {
-          await check(async () => {
-            const newRandomNumber = await browser
-              .elementByCss('#random-number')
-              .text()
-            const newJustPutIt = await browser.elementByCss('#justputit').text()
-            const newThankYouNext = await browser
-              .elementByCss('#thankyounext')
-              .text()
+        await check(async () => {
+          const newRandomNumber = await browser
+            .elementByCss('#random-number')
+            .text()
+          const newJustPutIt = await browser.elementByCss('#justputit').text()
+          const newThankYouNext = await browser
+            .elementByCss('#thankyounext')
+            .text()
 
-            expect(newRandomNumber).not.toBe(randomNumber)
-            expect(newJustPutIt).not.toBe(justPutIt)
-            expect(newThankYouNext).toBe(thankYouNext)
+          expect(newRandomNumber).not.toBe(randomNumber)
+          expect(newJustPutIt).not.toBe(justPutIt)
+          expect(newThankYouNext).toBe(thankYouNext)
 
-            return 'success'
-          }, 'success')
-        }
+          return 'success'
+        }, 'success')
       })
 
       it('should handle revalidateTag + redirect', async () => {

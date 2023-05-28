@@ -1,5 +1,6 @@
 import { join } from 'path'
 import stripAnsi from 'strip-ansi'
+import { File } from 'next-test-utils'
 
 export const context = {
   appDir: join(__dirname, '../'),
