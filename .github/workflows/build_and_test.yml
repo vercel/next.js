@@ -3,12 +3,8 @@ name: build-and-test
 on:
   push:
     branches: ['canary']
-  pull_request_target:
+  pull_request:
     types: [opened, synchronize]
-
-concurrency:
-  group: ${{ github.ref }}-build-and-test
-  cancel-in-progress: true
 
 env:
   NAPI_CLI_VERSION: 2.14.7
