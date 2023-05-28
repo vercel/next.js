@@ -76,7 +76,7 @@ async function main() {
   // if we are on the canary branch only diff current commit
   const toDiff = isCanary
     ? `${process.env.GITHUB_SHA || 'canary'}~`
-    : 'origin/canary HEAD'
+    : 'origin/canary...'
 
   const changesResult = await exec(`git diff ${toDiff} --name-only`).catch(
     (err) => {
