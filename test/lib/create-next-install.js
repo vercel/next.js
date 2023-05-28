@@ -8,7 +8,6 @@ const { linkPackages } =
   require('../../.github/actions/next-stats-action/src/prepare/repo-setup')()
 
 async function createNextInstall({
-  name = '',
   parentSpan = null,
   dependencies = null,
   installCommand = null,
@@ -24,9 +23,7 @@ async function createNextInstall({
       const origRepoDir = path.join(__dirname, '../../')
       const installDir = path.join(
         tmpDir,
-        `next-install${
-          name ? `-${name.toLowerCase().replace(/ /g, '-')}` : ''
-        }-${randomBytes(32).toString('hex')}${dirSuffix}`
+        `next-install-${randomBytes(32).toString('hex')}${dirSuffix}`
       )
       let tmpRepoDir
       require('console').log('Creating next instance in:')
@@ -40,9 +37,7 @@ async function createNextInstall({
       } else {
         tmpRepoDir = path.join(
           tmpDir,
-          `next-repo${
-            name ? `-${name.toLowerCase().replace(/ /g, '-')}` : ''
-          }-${randomBytes(32).toString('hex')}${dirSuffix}`
+          `next-repo-${randomBytes(32).toString('hex')}${dirSuffix}`
         )
         require('console').log('Creating temp repo dir', tmpRepoDir)
 
