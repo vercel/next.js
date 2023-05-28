@@ -215,7 +215,6 @@ export function createNextDescribe(
     next: NextInstance
   }) => void
 ): void {
-  options.name = name
   describe(name, () => {
     if (options.skipDeployment) {
       // When the environment is running for deployment tests.
