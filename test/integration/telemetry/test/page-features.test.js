@@ -88,7 +88,7 @@ describe('page features telemetry', () => {
       await check(() => stderr, /NEXT_CLI_SESSION_STARTED/)
 
       if (app) {
-        await app.kill('SIGTERM')
+        await app.kill('SIGINT')
       }
       await check(() => stderr, /NEXT_CLI_SESSION_STOPPED/)
 
@@ -127,7 +127,7 @@ describe('page features telemetry', () => {
       await check(() => stderr, /NEXT_CLI_SESSION_STARTED/)
 
       if (app) {
-        await app.kill('SIGTERM')
+        await app.kill('SIGINT')
       }
       await check(() => stderr, /NEXT_CLI_SESSION_STOPPED/)
 

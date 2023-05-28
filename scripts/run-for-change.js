@@ -67,14 +67,16 @@ async function main() {
     branchName.trim() === 'canary' && remoteUrl.includes('vercel/next.js')
 
   try {
-    await exec('git fetch origin canary')
+    await exec('git remote set-branches --add origin canary')
+    await exec('git fetch origin canary --depth=20')
   } catch (err) {
+    console.error(await exec('git remote -v'))
     console.error(`Failed to fetch origin/canary`, err)
   }
   // if we are on the canary branch only diff current commit
   const toDiff = isCanary
     ? `${process.env.GITHUB_SHA || 'canary'}~`
-    : 'origin/canary...'
+    : 'origin/canary HEAD'
 
   const changesResult = await exec(`git diff ${toDiff} --name-only`).catch(
     (err) => {
