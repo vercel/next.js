@@ -44,6 +44,7 @@ import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 import { fileExists } from '../../lib/file-exists'
 import {
   difference,
+  isInstrumentationHookFile,
   isMiddlewareFile,
   isMiddlewareFilename,
 } from '../../build/utils'
@@ -878,7 +879,8 @@ export default class HotReloader {
                 } else if (
                   !isAPIRoute(page) &&
                   !isMiddlewareFile(page) &&
-                  !isInternalPathname(relativeRequest)
+                  !isInternalPathname(relativeRequest) &&
+                  !isInstrumentationHookFile(page)
                 ) {
                   value = getRouteLoaderEntry({
                     page,
