@@ -21,7 +21,7 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // src/primitives/structured-clone.js
 var structured_clone_exports = {};
 __export(structured_clone_exports, {
-  structuredClone: () => esm_default
+  structuredClone: () => structuredClone2
 });
 module.exports = __toCommonJS(structured_clone_exports);
 
@@ -222,7 +222,21 @@ var serialize = /* @__PURE__ */ __name((value, { json, lossy } = {}) => {
 }, "serialize");
 
 // ../../node_modules/.pnpm/@ungap+structured-clone@1.0.2/node_modules/@ungap/structured-clone/esm/index.js
-var esm_default = typeof structuredClone === "function" ? (any, options) => options && ("json" in options || "lossy" in options) ? deserialize(serialize(any, options)) : structuredClone(any) : (any, options) => deserialize(serialize(any, options));
+var esm_default = typeof structuredClone === "function" ? (
+  /* c8 ignore start */
+  (any, options) => options && ("json" in options || "lossy" in options) ? deserialize(serialize(any, options)) : structuredClone(any)
+) : (any, options) => deserialize(serialize(any, options));
+
+// src/primitives/structured-clone.js
+function structuredClone2(value, options) {
+  if (value instanceof ReadableStream) {
+    const transform = new TransformStream({});
+    value.pipeTo(transform.writable);
+    return transform.readable;
+  }
+  return esm_default(value, options);
+}
+__name(structuredClone2, "structuredClone");
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   structuredClone

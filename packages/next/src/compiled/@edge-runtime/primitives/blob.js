@@ -25,6 +25,10 @@ var __copyProps = (to, from, except, desc) => {
   return to;
 };
 var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
   isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
   mod
 ));
@@ -364,7 +368,7 @@ var require_Blob = __commonJS({
             opts = opts || {};
             var a = Blob3.call(this, chunks, opts) || this;
             a.name = name.replace(/\//g, ":");
-            a.lastModifiedDate = opts.lastModified ? new Date(opts.lastModified) : new Date();
+            a.lastModifiedDate = opts.lastModified ? new Date(opts.lastModified) : /* @__PURE__ */ new Date();
             a.lastModified = +a.lastModifiedDate;
             return a;
           }
@@ -481,7 +485,7 @@ var require_Blob = __commonJS({
             } catch (e2) {
               exports2.File = function(b, d, c) {
                 var blob2 = new Blob(b, c);
-                var t = c && void 0 !== c.lastModified ? new Date(c.lastModified) : new Date();
+                var t = c && void 0 !== c.lastModified ? new Date(c.lastModified) : /* @__PURE__ */ new Date();
                 blob2.name = d.replace(/\//g, ":");
                 blob2.lastModifiedDate = t;
                 blob2.lastModified = +t;

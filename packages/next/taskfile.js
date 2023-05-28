@@ -419,10 +419,18 @@ export async function ncc_edge_runtime_primitives() {
       types: `../${file}.d.ts`,
     })
 
-    await fs.copy(
+    await fs.copyFile(
       require.resolve(`@edge-runtime/primitives/${file}`),
       join(dest, `${file}.js`)
     )
+
+    try {
+      await fs.copyFile(
+        require.resolve(`@edge-runtime/primitives/dist/${file}.js.text.js`),
+        join(dest, `${file}.js.text.js`)
+      )
+    } catch (err) {}
+
     await fs.copy(
       require.resolve(`@edge-runtime/primitives/types/${file}.d.ts`),
       join(dest, `${file}.d.ts`)
@@ -439,6 +447,43 @@ export async function ncc_edge_runtime_primitives() {
     require.resolve('@edge-runtime/primitives'),
     join(dest, 'index.js')
   )
+  await fs.copy(
+    require.resolve('@edge-runtime/primitives/types/index.d.ts'),
+    join(dest, 'index.d.ts')
+  )
+}
+
+// eslint-disable-next-line camelcase
+externals['@edge-runtime/ponyfill'] =
+  'next/dist/compiled/@edge-runtime/ponyfill'
+export async function ncc_edge_runtime_ponyfill(task, opts) {
+  const indexFile = await fs.readFile(
+    require.resolve('@edge-runtime/ponyfill/src/index.js'),
+    'utf8'
+  )
+  await fs.outputFile(
+    'src/compiled/@edge-runtime/ponyfill/index.js',
+    indexFile.replace(
+      `require('@edge-runtime/primitives')`,
+      `require(${JSON.stringify(externals['@edge-runtime/primitives'])})`
+    )
+  )
+  await fs.copy(
+    require.resolve('@edge-runtime/ponyfill/src/index.d.ts'),
+    'src/compiled/@edge-runtime/ponyfill/index.d.ts'
+  )
+
+  const pkg = await fs.readJson(
+    require.resolve('@edge-runtime/ponyfill/package.json')
+  )
+
+  await fs.outputJson('src/compiled/@edge-runtime/ponyfill/package.json', {
+    name: '@edge-runtime/ponyfill',
+    version: pkg.version,
+    main: './index.js',
+    types: './index.d.ts',
+    license: pkg.license,
+  })
 }
 
 // eslint-disable-next-line camelcase
@@ -2300,6 +2345,7 @@ export async function ncc(task, opts) {
       'ncc_jest_worker',
       'ncc_edge_runtime_cookies',
       'ncc_edge_runtime_primitives',
+      'ncc_edge_runtime_ponyfill',
       'ncc_edge_runtime',
     ],
     opts

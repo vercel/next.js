@@ -26,7 +26,6 @@ __export(abort_controller_exports, {
   DOMException: () => DOMException
 });
 module.exports = __toCommonJS(abort_controller_exports);
-var import_events = require("./events");
 var kSignal = Symbol("kSignal");
 var kAborted = Symbol("kAborted");
 var kReason = Symbol("kReason");
@@ -43,7 +42,7 @@ var DOMException = class extends Error {
 };
 __name(DOMException, "DOMException");
 function createAbortSignal() {
-  const signal = new import_events.EventTarget();
+  const signal = new EventTarget();
   Object.setPrototypeOf(signal, AbortSignal.prototype);
   signal[kAborted] = false;
   signal[kReason] = void 0;
@@ -60,7 +59,7 @@ function abortSignalAbort(signal, reason) {
   }
   signal[kReason] = reason;
   signal[kAborted] = true;
-  signal.dispatchEvent(new import_events.Event("abort"));
+  signal.dispatchEvent(new Event("abort"));
 }
 __name(abortSignalAbort, "abortSignalAbort");
 var AbortController = class {
@@ -75,7 +74,7 @@ var AbortController = class {
   }
 };
 __name(AbortController, "AbortController");
-var AbortSignal = class extends import_events.EventTarget {
+var AbortSignal = class extends EventTarget {
   constructor() {
     throw new TypeError("Illegal constructor.");
   }

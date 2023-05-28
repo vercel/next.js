@@ -76,6 +76,10 @@ var Warning = class {
     this.code = code;
     this.message = message;
   }
+  /**
+   * Report this warning.
+   * @param args The arguments of the warning.
+   */
   warn(...args) {
     var _a;
     try {
@@ -100,18 +104,36 @@ var OptionWasIgnored = new Warning("W07", "The %o option value was abandoned bec
 var InvalidEventListener = new Warning("W08", "The 'callback' argument must be a function or an object that has 'handleEvent' method: %o");
 var InvalidAttributeHandler = new Warning("W09", "Event attribute handler must be a function: %o");
 var Event = class {
+  /**
+   * @see https://dom.spec.whatwg.org/#dom-event-none
+   */
   static get NONE() {
     return NONE;
   }
+  /**
+   * @see https://dom.spec.whatwg.org/#dom-event-capturing_phase
+   */
   static get CAPTURING_PHASE() {
     return CAPTURING_PHASE;
   }
+  /**
+   * @see https://dom.spec.whatwg.org/#dom-event-at_target
+   */
   static get AT_TARGET() {
     return AT_TARGET;
   }
+  /**
+   * @see https://dom.spec.whatwg.org/#dom-event-bubbling_phase
+   */
   static get BUBBLING_PHASE() {
     return BUBBLING_PHASE;
   }
+  /**
+   * Initialize this event instance.
+   * @param type The type of this event.
+   * @param eventInitDict Options to initialize.
+   * @see https://dom.spec.whatwg.org/#dom-event-event
+   */
   constructor(type, eventInitDict) {
     Object.defineProperty(this, "isTrusted", {
       value: false,
@@ -133,18 +155,40 @@ var Event = class {
       timeStamp: Date.now()
     });
   }
+  /**
+   * The type of this event.
+   * @see https://dom.spec.whatwg.org/#dom-event-type
+   */
   get type() {
     return $(this).type;
   }
+  /**
+   * The event target of the current dispatching.
+   * @see https://dom.spec.whatwg.org/#dom-event-target
+   */
   get target() {
     return $(this).target;
   }
+  /**
+   * The event target of the current dispatching.
+   * @deprecated Use the `target` property instead.
+   * @see https://dom.spec.whatwg.org/#dom-event-srcelement
+   */
   get srcElement() {
     return $(this).target;
   }
+  /**
+   * The event target of the current dispatching.
+   * @see https://dom.spec.whatwg.org/#dom-event-currenttarget
+   */
   get currentTarget() {
     return $(this).currentTarget;
   }
+  /**
+   * The event target of the current dispatching.
+   * This doesn't support node tree.
+   * @see https://dom.spec.whatwg.org/#dom-event-composedpath
+   */
   composedPath() {
     const currentTarget = $(this).currentTarget;
     if (currentTarget) {
@@ -152,27 +196,58 @@ var Event = class {
     }
     return [];
   }
+  /**
+   * @see https://dom.spec.whatwg.org/#dom-event-none
+   */
   get NONE() {
     return NONE;
   }
+  /**
+   * @see https://dom.spec.whatwg.org/#dom-event-capturing_phase
+   */
   get CAPTURING_PHASE() {
     return CAPTURING_PHASE;
   }
+  /**
+   * @see https://dom.spec.whatwg.org/#dom-event-at_target
+   */
   get AT_TARGET() {
     return AT_TARGET;
   }
+  /**
+   * @see https://dom.spec.whatwg.org/#dom-event-bubbling_phase
+   */
   get BUBBLING_PHASE() {
     return BUBBLING_PHASE;
   }
+  /**
+   * The current event phase.
+   * @see https://dom.spec.whatwg.org/#dom-event-eventphase
+   */
   get eventPhase() {
     return $(this).dispatchFlag ? 2 : 0;
   }
+  /**
+   * Stop event bubbling.
+   * Because this shim doesn't support node tree, this merely changes the `cancelBubble` property value.
+   * @see https://dom.spec.whatwg.org/#dom-event-stoppropagation
+   */
   stopPropagation() {
     $(this).stopPropagationFlag = true;
   }
+  /**
+   * `true` if event bubbling was stopped.
+   * @deprecated
+   * @see https://dom.spec.whatwg.org/#dom-event-cancelbubble
+   */
   get cancelBubble() {
     return $(this).stopPropagationFlag;
   }
+  /**
+   * Stop event bubbling if `true` is set.
+   * @deprecated Use the `stopPropagation()` method instead.
+   * @see https://dom.spec.whatwg.org/#dom-event-cancelbubble
+   */
   set cancelBubble(value) {
     if (value) {
       $(this).stopPropagationFlag = true;
@@ -180,19 +255,41 @@ var Event = class {
       FalsyWasAssignedToCancelBubble.warn();
     }
   }
+  /**
+   * Stop event bubbling and subsequent event listener callings.
+   * @see https://dom.spec.whatwg.org/#dom-event-stopimmediatepropagation
+   */
   stopImmediatePropagation() {
     const data = $(this);
     data.stopPropagationFlag = data.stopImmediatePropagationFlag = true;
   }
+  /**
+   * `true` if this event will bubble.
+   * @see https://dom.spec.whatwg.org/#dom-event-bubbles
+   */
   get bubbles() {
     return $(this).bubbles;
   }
+  /**
+   * `true` if this event can be canceled by the `preventDefault()` method.
+   * @see https://dom.spec.whatwg.org/#dom-event-cancelable
+   */
   get cancelable() {
     return $(this).cancelable;
   }
+  /**
+   * `true` if the default behavior will act.
+   * @deprecated Use the `defaultPrevented` proeprty instead.
+   * @see https://dom.spec.whatwg.org/#dom-event-returnvalue
+   */
   get returnValue() {
     return !$(this).canceledFlag;
   }
+  /**
+   * Cancel the default behavior if `false` is set.
+   * @deprecated Use the `preventDefault()` method instead.
+   * @see https://dom.spec.whatwg.org/#dom-event-returnvalue
+   */
   set returnValue(value) {
     if (!value) {
       setCancelFlag($(this));
@@ -200,21 +297,42 @@ var Event = class {
       TruthyWasAssignedToReturnValue.warn();
     }
   }
+  /**
+   * Cancel the default behavior.
+   * @see https://dom.spec.whatwg.org/#dom-event-preventdefault
+   */
   preventDefault() {
     setCancelFlag($(this));
   }
+  /**
+   * `true` if the default behavior was canceled.
+   * @see https://dom.spec.whatwg.org/#dom-event-defaultprevented
+   */
   get defaultPrevented() {
     return $(this).canceledFlag;
   }
+  /**
+   * @see https://dom.spec.whatwg.org/#dom-event-composed
+   */
   get composed() {
     return $(this).composed;
   }
+  /**
+   * @see https://dom.spec.whatwg.org/#dom-event-istrusted
+   */
+  //istanbul ignore next
   get isTrusted() {
     return false;
   }
+  /**
+   * @see https://dom.spec.whatwg.org/#dom-event-timestamp
+   */
   get timeStamp() {
     return $(this).timeStamp;
   }
+  /**
+   * @deprecated Don't use this method. The constructor did initialization.
+   */
   initEvent(type, bubbles = false, cancelable = false) {
     const data = $(this);
     if (data.dispatchFlag) {
@@ -284,9 +402,11 @@ function createInvalidStateError(message) {
           Error.captureStackTrace(this, DOMException2);
         }
       }
+      // eslint-disable-next-line class-methods-use-this
       get code() {
         return 11;
       }
+      // eslint-disable-next-line class-methods-use-this
       get name() {
         return "InvalidStateError";
       }
@@ -345,6 +465,10 @@ function defineErrorCodeProperties(obj) {
 }
 __name(defineErrorCodeProperties, "defineErrorCodeProperties");
 var EventWrapper = class extends Event {
+  /**
+   * Wrap a given event object to control states.
+   * @param event The event-like object to wrap.
+   */
   static wrap(event) {
     return new (getWrapperClassOf(event))(event);
   }
@@ -579,9 +703,13 @@ function ensureListenerList(listenerMap, type) {
 }
 __name(ensureListenerList, "ensureListenerList");
 var EventTarget = class {
+  /**
+   * Initialize this instance.
+   */
   constructor() {
     internalDataMap$2.set(this, createListenerListMap());
   }
+  // Implementation
   addEventListener(type0, callback0, options0) {
     const listenerMap = $$2(this);
     const { callback, capture, once, passive, signal, type } = normalizeAddOptions(type0, callback0, options0);
@@ -596,6 +724,7 @@ var EventTarget = class {
     }
     addListener(list, callback, capture, passive, once, signal);
   }
+  // Implementation
   removeEventListener(type0, callback0, options0) {
     const listenerMap = $$2(this);
     const { callback, capture, type } = normalizeOptions(type0, callback0, options0);
@@ -604,6 +733,7 @@ var EventTarget = class {
       removeListener(list, callback, capture);
     }
   }
+  // Implementation
   dispatchEvent(e) {
     const list = $$2(this)[String(e.type)];
     if (list == null) {
