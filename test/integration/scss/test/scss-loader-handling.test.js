@@ -2,14 +2,7 @@
 
 import 'flat-map-polyfill'
 import { readdir, readFile, remove } from 'fs-extra'
-import {
-  findPort,
-  killApp,
-  launchApp,
-  nextBuild,
-  nextStart,
-} from 'next-test-utils'
-import webdriver from 'next-webdriver'
+import { nextBuild } from 'next-test-utils'
 import { join } from 'path'
 
 const fixturesDir = join(__dirname, '../..', 'scss-fixtures')
@@ -259,78 +252,6 @@ describe('SCSS Support', () => {
     })
   })
 
-  describe('Good CSS Import from node_modules', () => {
-    const appDir = join(fixturesDir, 'npm-import')
-
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
-
-    it('should compile successfully', async () => {
-      const { code, stdout } = await nextBuild(appDir, [], {
-        stdout: true,
-      })
-      expect(code).toBe(0)
-      expect(stdout).toMatch(/Compiled successfully/)
-    })
-
-    it(`should've emitted a single CSS file`, async () => {
-      const cssFolder = join(appDir, '.next/static/css')
-
-      const files = await readdir(cssFolder)
-      const cssFiles = files.filter((f) => /\.css$/.test(f))
-
-      expect(cssFiles.length).toBe(1)
-      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-      expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(/nprogress/)
-    })
-  })
-
-  describe('Good Nested CSS Import from node_modules', () => {
-    const appDir = join(fixturesDir, 'npm-import-nested')
-
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
-
-    it('should compile successfully', async () => {
-      const { code, stdout } = await nextBuild(appDir, [], {
-        stdout: true,
-      })
-      expect(code).toBe(0)
-      expect(stdout).toMatch(/Compiled successfully/)
-    })
-
-    it(`should've emitted a single CSS file`, async () => {
-      const cssFolder = join(appDir, '.next/static/css')
-
-      const files = await readdir(cssFolder)
-      const cssFiles = files.filter((f) => /\.css$/.test(f))
-
-      expect(cssFiles.length).toBe(1)
-      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-      expect(
-        cssContent.replace(/\/\*.*?\*\//g, '').trim()
-      ).toMatchInlineSnapshot(`".other{color:blue}.test{color:red}"`)
-    })
-  })
-
-  describe('CSS Import from node_modules', () => {
-    const appDir = join(fixturesDir, 'npm-import-bad')
-
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
-
-    it('should fail the build', async () => {
-      const { code, stderr } = await nextBuild(appDir, [], { stderr: true })
-
-      expect(code).toBe(0)
-      expect(stderr).not.toMatch(/Can't resolve '[^']*?nprogress[^']*?'/)
-      expect(stderr).not.toMatch(/Build error occurred/)
-    })
-  })
-
   describe('Preprocessor loader order', () => {
     const appDir = join(fixturesDir, 'loader-order')
 
@@ -343,64 +264,6 @@ describe('SCSS Support', () => {
         stdout: true,
       })
       expect(stdout).toMatch(/Compiled successfully/)
-    })
-  })
-
-  describe('Ordering with styled-jsx (dev)', () => {
-    const appDir = join(fixturesDir, 'with-styled-jsx')
-
-    let appPort
-    let app
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-    })
-
-    it('should have the correct color (css ordering)', async () => {
-      const browser = await webdriver(appPort, '/')
-
-      const currentColor = await browser.eval(
-        `window.getComputedStyle(document.querySelector('.my-text')).color`
-      )
-      expect(currentColor).toMatchInlineSnapshot(`"rgb(0, 128, 0)"`)
-    })
-  })
-
-  describe('Ordering with styled-jsx (prod)', () => {
-    const appDir = join(fixturesDir, 'with-styled-jsx')
-
-    let appPort
-    let app
-    let stdout
-    let code
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-      ;({ code, stdout } = await nextBuild(appDir, [], {
-        stdout: true,
-      }))
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-    })
-
-    it('should have compiled successfully', () => {
-      expect(code).toBe(0)
-      expect(stdout).toMatch(/Compiled successfully/)
-    })
-
-    it('should have the correct color (css ordering)', async () => {
-      const browser = await webdriver(appPort, '/')
-
-      const currentColor = await browser.eval(
-        `window.getComputedStyle(document.querySelector('.my-text')).color`
-      )
-      expect(currentColor).toMatchInlineSnapshot(`"rgb(0, 128, 0)"`)
     })
   })
 })

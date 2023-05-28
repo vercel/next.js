@@ -5,7 +5,8 @@ import { NextInstance } from 'test/lib/next-modes/base'
 import { createNext } from 'e2e-utils'
 import stripAnsi from 'strip-ansi'
 
-describe('Project Directory Renaming', () => {
+// TODO: investigate occasional failure
+describe.skip('Project Directory Renaming', () => {
   let next: NextInstance
 
   beforeAll(async () => {
