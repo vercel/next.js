@@ -35,36 +35,35 @@ createNextDescribe(
       }
     })
 
-    // TODO: investigate react fetch being bypassed
-    // it.each([
-    //   {
-    //     path: '/react-fetch-deduping-node',
-    //   },
-    //   {
-    //     path: '/react-fetch-deduping-edge',
-    //   },
-    // ])(
-    //   'should correctly de-dupe fetch without next cache $path',
-    //   async ({ path }) => {
-    //     for (let i = 0; i < 5; i++) {
-    //       const res = await next.fetch(path, {
-    //         redirect: 'manual',
-    //       })
+    it.skip.each([
+      {
+        path: '/react-fetch-deduping-node',
+      },
+      {
+        path: '/react-fetch-deduping-edge',
+      },
+    ])(
+      'should correctly de-dupe fetch without next cache $path',
+      async ({ path }) => {
+        for (let i = 0; i < 5; i++) {
+          const res = await next.fetch(path, {
+            redirect: 'manual',
+          })
 
-    //       expect(res.status).toBe(200)
-    //       const html = await res.text()
-    //       const $ = cheerio.load(html)
+          expect(res.status).toBe(200)
+          const html = await res.text()
+          const $ = cheerio.load(html)
 
-    //       const data1 = $('#data-1').text()
-    //       const data2 = $('#data-2').text()
+          const data1 = $('#data-1').text()
+          const data2 = $('#data-2').text()
 
-    //       expect(data1).toBeTruthy()
-    //       expect(data1).toBe(data2)
+          expect(data1).toBeTruthy()
+          expect(data1).toBe(data2)
 
-    //       await waitFor(250)
-    //     }
-    //   }
-    // )
+          await waitFor(250)
+        }
+      }
+    )
 
     it.each([
       { pathname: '/unstable-cache-node' },
