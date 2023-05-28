@@ -1,12 +1,12 @@
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, synchronize]
 
 name: Generate Pull Request Stats
 
 env:
   NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 1.6.3
+  TURBO_VERSION: 1.9.6
   RUST_TOOLCHAIN: nightly-2023-03-09
   PNPM_VERSION: 7.24.3
 
@@ -58,19 +58,6 @@ jobs:
           restore-keys: |
             turbo-${{ github.job }}-${{ github.ref_name }}-${{ steps.get-week.outputs.WEEK }}-
             turbo-${{ github.job }}-canary-${{ steps.get-week.outputs.WEEK }}-
-
-      # We use restore-key to pick latest cache.
-      # We will not get exact match, but doc says
-      # "If there are multiple partial matches for a restore key, the action returns the most recently created cache."
-      # So we get latest cache
-      # - name: Cache built files
-      #   uses: actions/cache@v3
-      #   timeout-minutes: 5
-      #   with:
-      #     path: ./packages/next-target
-      #     key: next-swc-cargo-cache-ubuntu-latest--${{ hashFiles('**/Cargo.lock') }}
-      #     restore-keys: |
-      #       next-swc-cargo-cache-ubuntu-latest
 
       - name: Build in docker
         uses: addnab/docker-run-action@v3

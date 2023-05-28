@@ -23,7 +23,7 @@ describe('Project Directory Renaming', () => {
 
     await next.start()
   })
-  afterAll(() => next.destroy())
+  afterAll(() => next.destroy().catch(() => {}))
 
   it('should detect project dir rename and restart', async () => {
     const browser = await webdriver(next.url, '/')
