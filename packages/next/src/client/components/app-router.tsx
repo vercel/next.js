@@ -211,7 +211,7 @@ function Router({
       navigateType: 'push' | 'replace',
       forceOptimisticNavigation: boolean
     ) => {
-      const url = new URL(addBasePath(href), location.origin)
+      const url = new URL(addBasePath(href), location.href)
 
       return dispatch({
         type: ACTION_NAVIGATE,
@@ -261,7 +261,7 @@ function Router({
         if (isBot(window.navigator.userAgent)) {
           return
         }
-        const url = new URL(addBasePath(href), location.origin)
+        const url = new URL(addBasePath(href), location.href)
         // External urls can't be prefetched in the same way.
         if (isExternalURL(url)) {
           return
