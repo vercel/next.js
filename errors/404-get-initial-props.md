@@ -14,4 +14,4 @@ If you want to fetch data for your `404.js` page move it to a client side fetch 
 
 - [Automatic Static Optimization](https://nextjs.org/docs/advanced-features/automatic-static-optimization)
 
-bump
+bump 2
