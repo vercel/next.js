@@ -827,7 +827,23 @@ describe.each([[''], ['/docs']])(
             redboxSource.indexOf('`----')
           )
 
-          expect(redboxSource).toMatchSnapshot()
+          expect(
+            next.normalizeTestDirContent(redboxSource)
+          ).toMatchInlineSnapshot(
+            next.normalizeSnapshot(`
+              "./components/parse-error.js
+              Error: 
+                x Expression expected
+                 ,-[./components/parse-error.js:1:1]
+               1 | This
+               2 | is
+               3 | }}}
+                 : ^
+               4 | invalid
+               5 | js
+                 "
+            `)
+          )
 
           await next.patchFile(aboutPage, aboutContent)
 
@@ -846,7 +862,9 @@ describe.each([[''], ['/docs']])(
             )
           }
 
-          throw err
+          if (!process.env.NEXT_SWC_DEV_BIN) {
+            throw err
+          }
         } finally {
           if (browser) {
             await browser.close()
