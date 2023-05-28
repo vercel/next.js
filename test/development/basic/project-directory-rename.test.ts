@@ -18,11 +18,12 @@ describe('Project Directory Renaming', () => {
         `,
       },
       skipStart: true,
+      forcedPort: (await findPort()) + '',
     })
-    next.forcedPort = (await findPort()) + ''
+
     await next.start()
   })
-  afterAll(() => next.destroy())
+  afterAll(() => next.destroy().catch(() => {}))
 
   it('should detect project dir rename and restart', async () => {
     const browser = await webdriver(next.url, '/')

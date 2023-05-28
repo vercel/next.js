@@ -1,8 +1,8 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use indexmap::indexmap;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    primitives::{JsonValueVc, OptionStringVc, StringVc, StringsVc},
+    primitives::{JsonValueVc, StringVc, StringsVc},
     trace::TraceRawVcs,
     Value,
 };
@@ -17,7 +17,7 @@ use turbopack_binding::{
             chunk::{ChunkingContextVc, EvaluatableAssetVc, EvaluatableAssetsVc},
             context::{AssetContext, AssetContextVc},
             environment::{EnvironmentIntention, ServerAddrVc},
-            reference_type::{EntryReferenceSubType, ReferenceType},
+            reference_type::{EntryReferenceSubType, InnerAssetsVc, ReferenceType},
             source_asset::SourceAssetVc,
         },
         dev::DevChunkingContextVc,
@@ -29,10 +29,6 @@ use turbopack_binding::{
                 specificity::SpecificityVc,
                 ContentSourceData, ContentSourceVc,
             },
-        },
-        ecmascript::{
-            EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
-            EcmascriptModuleAssetVc, InnerAssetsVc,
         },
         env::ProcessEnvAssetVc,
         node::{
@@ -52,6 +48,7 @@ use crate::{
     embed_js::next_asset,
     env::env_for_js,
     fallback::get_fallback_page,
+    mode::NextMode,
     next_client::{
         context::{
             get_client_assets_path, get_client_chunking_context, get_client_compile_time_info,
@@ -105,20 +102,27 @@ pub async fn create_page_source(
         (project_root.join("pages"), None)
     };
 
+    let mode = NextMode::Development;
     let client_ty = Value::new(ClientContextType::Pages { pages_dir });
     let server_ty = Value::new(ServerContextType::Pages { pages_dir });
     let server_data_ty = Value::new(ServerContextType::PagesData { pages_dir });
 
-    let client_compile_time_info = get_client_compile_time_info(browserslist_query);
+    let client_compile_time_info = get_client_compile_time_info(mode, browserslist_query);
     let client_module_options_context = get_client_module_options_context(
         project_root,
         execution_context,
         client_compile_time_info.environment(),
         client_ty,
+        mode,
         next_config,
     );
-    let client_resolve_options_context =
-        get_client_resolve_options_context(project_root, client_ty, next_config, execution_context);
+    let client_resolve_options_context = get_client_resolve_options_context(
+        project_root,
+        client_ty,
+        mode,
+        next_config,
+        execution_context,
+    );
 
     let client_chunking_context = get_client_chunking_context(
         project_root,
@@ -127,8 +131,14 @@ pub async fn create_page_source(
         client_ty,
     );
 
-    let client_runtime_entries =
-        get_client_runtime_entries(project_root, env, client_ty, next_config, execution_context);
+    let client_runtime_entries = get_client_runtime_entries(
+        project_root,
+        env,
+        client_ty,
+        mode,
+        next_config,
+        execution_context,
+    );
 
     let next_client_transition = NextClientTransition {
         is_app: false,
@@ -175,17 +185,28 @@ pub async fn create_page_source(
     .cell()
     .into();
 
-    let server_compile_time_info = get_server_compile_time_info(server_ty, env, server_addr);
-    let server_resolve_options_context =
-        get_server_resolve_options_context(project_root, server_ty, next_config, execution_context);
+    let server_compile_time_info = get_server_compile_time_info(server_ty, mode, env, server_addr);
+    let server_resolve_options_context = get_server_resolve_options_context(
+        project_root,
+        server_ty,
+        mode,
+        next_config,
+        execution_context,
+    );
 
-    let server_module_options_context =
-        get_server_module_options_context(project_root, execution_context, server_ty, next_config);
+    let server_module_options_context = get_server_module_options_context(
+        project_root,
+        execution_context,
+        server_ty,
+        mode,
+        next_config,
+    );
 
     let server_data_module_options_context = get_server_module_options_context(
         project_root,
         execution_context,
         server_data_ty,
+        mode,
         next_config,
     );
 
@@ -199,6 +220,7 @@ pub async fn create_page_source(
                     project_root,
                     execution_context,
                     client_ty,
+                    mode,
                     client_root,
                     client_compile_time_info,
                     next_config,
@@ -250,7 +272,7 @@ pub async fn create_page_source(
         next_config,
     );
 
-    let render_data = render_data(next_config);
+    let render_data = render_data(next_config, server_addr);
     let page_extensions = next_config.page_extensions();
 
     let mut sources = vec![];
@@ -807,6 +829,13 @@ impl SsrEntryVc {
             }
         };
 
+        let module = this.context.process(
+            internal_asset,
+            Value::new(ReferenceType::Internal(InnerAssetsVc::cell(inner_assets))),
+        );
+        let Some(module) = EvaluatableAssetVc::resolve_from(module).await? else {
+            bail!("internal module must be evaluatable");
+        };
         Ok(NodeRenderingEntry {
             runtime_entries: EvaluatableAssetsVc::cell(
                 this.runtime_entries
@@ -815,24 +844,7 @@ impl SsrEntryVc {
                     .map(|entry| EvaluatableAssetVc::from_asset(*entry, this.context))
                     .collect(),
             ),
-            module: EcmascriptModuleAssetVc::new_with_inner_assets(
-                internal_asset,
-                this.context,
-                Value::new(EcmascriptModuleAssetType::Typescript),
-                EcmascriptInputTransformsVc::cell(vec![
-                    EcmascriptInputTransform::TypeScript {
-                        use_define_for_class_fields: false,
-                    },
-                    EcmascriptInputTransform::React {
-                        refresh: false,
-                        import_source: OptionStringVc::cell(None),
-                        runtime: OptionStringVc::cell(None),
-                    },
-                ]),
-                Default::default(),
-                this.context.compile_time_info(),
-                InnerAssetsVc::cell(inner_assets),
-            ),
+            module,
             chunking_context: this.chunking_context,
             intermediate_output_path: this.node_path,
             output_root: this.node_root,

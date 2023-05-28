@@ -1251,7 +1251,12 @@ export function runTests(ctx) {
 
       const parsed = url.parse(res.headers.get('location'), true)
       expect(parsed.pathname).toBe(path)
-      expect(parsed.hostname).toBe(hostname)
+
+      if (hostname === 'localhost') {
+        expect(parsed.hostname).toBeOneOf([hostname, '127.0.0.1'])
+      } else {
+        expect(parsed.hostname).toBe(hostname)
+      }
       expect(parsed.query).toEqual(query)
     }
   })

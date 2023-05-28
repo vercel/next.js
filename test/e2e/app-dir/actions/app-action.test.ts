@@ -11,6 +11,11 @@ createNextDescribe(
   'app-dir action handling',
   {
     files: __dirname,
+    dependencies: {
+      react: 'latest',
+      'react-dom': 'latest',
+      'server-only': 'latest',
+    },
   },
   ({ next, isNextDev, isNextStart, isNextDeploy }) => {
     it('should handle basic actions correctly', async () => {

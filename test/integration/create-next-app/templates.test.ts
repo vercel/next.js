@@ -62,11 +62,6 @@ const startsWithoutError = async (
 let testVersion
 
 describe('create-next-app templates', () => {
-  if (!process.env.NEXT_TEST_CNA && process.env.NEXT_TEST_JOB) {
-    it('should skip when env is not set', () => {})
-    return
-  }
-
   beforeAll(async () => {
     const span = new Span({ name: 'parent' })
     testVersion = (
@@ -421,11 +416,6 @@ describe('create-next-app templates', () => {
 })
 
 describe('create-next-app --app', () => {
-  if (!process.env.NEXT_TEST_CNA && process.env.NEXT_TEST_JOB) {
-    it('should skip when env is not set', () => {})
-    return
-  }
-
   beforeAll(async () => {
     if (testVersion) return
     const span = new Span({ name: 'parent' })

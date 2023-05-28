@@ -87,7 +87,8 @@ export async function fetchServerResponse(
     }
 
     // If fetch returns something different than flight response handle it like a mpa navigation
-    if (!isFlightResponse) {
+    // If the fetch was not 200, we also handle it like a mpa navigation
+    if (!isFlightResponse || !res.ok) {
       return [res.url, undefined]
     }
 
