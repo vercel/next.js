@@ -226,8 +226,10 @@ describe('SSG Prerender', () => {
       })
     })
     afterAll(async () => {
-      await fs.remove(nextConfigPath)
-      await killApp(app)
+      try {
+        await fs.remove(nextConfigPath)
+        await killApp(app)
+      } catch (_) {}
     })
 
     it('should work with firebase import and getStaticPaths', async () => {

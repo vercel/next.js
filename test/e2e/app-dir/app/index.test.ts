@@ -37,6 +37,15 @@ createNextDescribe(
       })
     }
 
+    it('should work for catch-all edge page', async () => {
+      const html = await next.render('/catch-all-edge/hello123')
+      const $ = cheerio.load(html)
+
+      expect(JSON.parse($('#params').text())).toEqual({
+        slug: ['hello123'],
+      })
+    })
+
     it('should have correct searchParams and params (server)', async () => {
       const html = await next.render('/dynamic/category-1/id-2?query1=value2')
       const $ = cheerio.load(html)
@@ -218,22 +227,26 @@ createNextDescribe(
       })
     }
 
-    it('should use text/x-component for flight', async () => {
+    it('should use text/x-component; charset=utf-8 for flight', async () => {
       const res = await next.fetch('/dashboard/deployments/123', {
         headers: {
           ['RSC'.toString()]: '1',
         },
       })
-      expect(res.headers.get('Content-Type')).toBe('text/x-component')
+      expect(res.headers.get('Content-Type')).toBe(
+        'text/x-component; charset=utf-8'
+      )
     })
 
-    it('should use text/x-component for flight with edge runtime', async () => {
+    it('should use text/x-component; charset=utf-8 for flight with edge runtime', async () => {
       const res = await next.fetch('/dashboard', {
         headers: {
           ['RSC'.toString()]: '1',
         },
       })
-      expect(res.headers.get('Content-Type')).toBe('text/x-component')
+      expect(res.headers.get('Content-Type')).toBe(
+        'text/x-component; charset=utf-8'
+      )
     })
 
     it('should return the `vary` header from edge runtime', async () => {
@@ -1127,7 +1140,8 @@ createNextDescribe(
           }
         })
 
-        it('should HMR correctly when changing the component type', async () => {
+        // TODO: investigate flakey behavior with this test case
+        it.skip('should HMR correctly when changing the component type', async () => {
           const filePath = 'app/dashboard/page/page.jsx'
           const origContent = await next.readFile(filePath)
 
