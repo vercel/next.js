@@ -18,11 +18,18 @@ import { attachRequestMeta } from '../../internal/next-request-helpers'
 
 import RouteModule from 'ROUTE_MODULE'
 import * as userland from 'ENTRY'
-import { PAGE, PATHNAME } from 'BOOTSTRAP_CONFIG'
+import { PAGE, PATHNAME, KIND } from 'BOOTSTRAP_CONFIG'
 
 const routeModule = new RouteModule({
   userland,
-  pathname: PATHNAME,
+  definition: {
+    page: PAGE,
+    kind: KIND,
+    pathname: PATHNAME,
+    // The following aren't used in production.
+    filename: '',
+    bundlePath: '',
+  },
   resolvedPagePath: `app/${PAGE}`,
   nextConfigOutput: undefined,
 })

@@ -1677,11 +1677,11 @@ export async function hasCustomGetInitialProps(
   return mod.getInitialProps !== mod.origGetInitialProps
 }
 
-export async function getNamedExports(
+export async function getDefinedNamedExports(
   page: string,
   distDir: string,
   runtimeEnvConfig: any
-): Promise<Array<string>> {
+): Promise<ReadonlyArray<string>> {
   require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
   const components = await loadComponents({
     distDir,
@@ -1689,9 +1689,10 @@ export async function getNamedExports(
     hasServerComponents: false,
     isAppPath: false,
   })
-  let mod = components.ComponentMod
 
-  return Object.keys(mod)
+  return Object.keys(components.ComponentMod).filter((key) => {
+    return typeof components.ComponentMod[key] !== 'undefined'
+  })
 }
 
 export function detectConflictingPaths(
@@ -1970,7 +1971,7 @@ createServerHandler({
       res.end('Internal Server Error')
     }
   })
-  
+
   if (
     !Number.isNaN(keepAliveTimeout) &&
       Number.isFinite(keepAliveTimeout) &&
@@ -1983,7 +1984,7 @@ createServerHandler({
       console.error("Failed to start server", err)
       process.exit(1)
     }
-  
+
     console.log(
       'Listening on port',
       currentPort,
