@@ -6,7 +6,6 @@ import { join } from 'path'
 import {
   check,
   fetchViaHTTP,
-  File,
   findPort,
   killApp,
   launchApp,
@@ -14,6 +13,8 @@ import {
   nextStart,
 } from 'next-test-utils'
 import {
+  context,
+  appOption,
   expectModuleNotFoundDevError,
   expectModuleNotFoundProdError,
   expectNoError,
@@ -24,25 +25,6 @@ import {
 
 jest.setTimeout(1000 * 60 * 2)
 
-const context = {
-  appDir: join(__dirname, '../'),
-  logs: { output: '', stdout: '', stderr: '' },
-  api: new File(join(__dirname, '../pages/api/route.js')),
-  lib: new File(join(__dirname, '../lib.js')),
-  middleware: new File(join(__dirname, '../middleware.js')),
-  page: new File(join(__dirname, '../pages/index.js')),
-}
-const appOption = {
-  env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
-  onStdout(msg) {
-    context.logs.output += msg
-    context.logs.stdout += msg
-  },
-  onStderr(msg) {
-    context.logs.output += msg
-    context.logs.stderr += msg
-  },
-}
 const routeUrl = '/api/route'
 const middlewareUrl = '/'
 

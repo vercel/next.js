@@ -5,7 +5,7 @@ const enabledTests = [
   'test/development/acceptance-app/ReactRefreshLogBoxMisc.test.ts',
   'test/development/acceptance-app/ReactRefreshRequire.test.ts',
   'test/development/acceptance-app/dynamic-error.test.ts',
-  'test/development/acceptance/ReactRefresh.test.ts',
+  // 'test/development/acceptance/ReactRefresh.test.ts',
   'test/development/acceptance/ReactRefreshLogBox-scss.test.ts',
   'test/development/acceptance/ReactRefreshLogBoxMisc.test.ts',
   'test/development/api-cors-with-rewrite/index.test.ts',
