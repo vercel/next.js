@@ -6,10 +6,6 @@ on:
   pull_request_target:
     types: [opened, synchronize]
 
-concurrency:
-  group: ${{ github.ref }}-build-and-test
-  cancel-in-progress: true
-
 env:
   NAPI_CLI_VERSION: 2.14.7
   TURBO_VERSION: 1.9.6
