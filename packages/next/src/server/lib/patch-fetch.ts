@@ -73,10 +73,14 @@ export function patchFetch({
   serverHooks: typeof ServerHooks
   staticGenerationAsyncStorage: StaticGenerationAsyncStorage
 }) {
+  if (!(globalThis as any)._nextOriginalFetch) {
+    ;(globalThis as any)._nextOriginalFetch = globalThis.fetch
+  }
+
   if ((globalThis.fetch as any).__nextPatched) return
 
   const { DynamicServerError } = serverHooks
-  const originFetch = globalThis.fetch
+  const originFetch: typeof fetch = (globalThis as any)._nextOriginalFetch
 
   globalThis.fetch = async (
     input: RequestInfo | URL,
@@ -527,8 +531,8 @@ export function patchFetch({
       }
     )
   }
-  ;(fetch as any).__nextGetStaticStore = () => {
+  ;(globalThis.fetch as any).__nextGetStaticStore = () => {
     return staticGenerationAsyncStorage
   }
-  ;(fetch as any).__nextPatched = true
+  ;(globalThis.fetch as any).__nextPatched = true
 }

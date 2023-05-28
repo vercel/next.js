@@ -31,12 +31,12 @@ const nextEdgeFunctionLoader: webpack.LoaderDefinitionFunction<EdgeFunctionLoade
 
     return `
         import { adapter, enhanceGlobals } from 'next/dist/esm/server/web/adapter'
-        import {IncrementalCache} from 'next/dist/esm/server/lib/incremental-cache'
+        import { IncrementalCache } from 'next/dist/esm/server/lib/incremental-cache'
 
         enhanceGlobals()
 
-        var mod = require(${stringifiedPagePath})
-        var handler = mod.middleware || mod.default;
+        const mod = require(${stringifiedPagePath})
+        const handler = mod.middleware || mod.default
 
         if (typeof handler !== 'function') {
           throw new Error('The Edge Function "pages${page}" must export a \`default\` function');
