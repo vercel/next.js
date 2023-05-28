@@ -25,7 +25,7 @@ async function createNextInstall({
       const installDir = path.join(
         tmpDir,
         `next-install${
-          name !== '' ? `-${name.toLowerCase().replace(/ /g, '-')}` : ''
+          name ? `-${name.toLowerCase().replace(/ /g, '-')}` : ''
         }-${randomBytes(32).toString('hex')}${dirSuffix}`
       )
       let tmpRepoDir
@@ -41,7 +41,7 @@ async function createNextInstall({
         tmpRepoDir = path.join(
           tmpDir,
           `next-repo${
-            name !== '' ? `-${name.toLowerCase().replace(/ /g, '-')}` : ''
+            name ? `-${name.toLowerCase().replace(/ /g, '-')}` : ''
           }-${randomBytes(32).toString('hex')}${dirSuffix}`
         )
         require('console').log('Creating temp repo dir', tmpRepoDir)

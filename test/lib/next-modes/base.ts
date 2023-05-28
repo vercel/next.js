@@ -138,7 +138,7 @@ export class NextInstance {
         this.testDir = path.join(
           tmpDir,
           `next-test${
-            name !== '' ? `-${name.toLowerCase().replace(/ /g, '-')}` : ''
+            name ? `-${name.toLowerCase().replace(/ /g, '-')}` : ''
           }-${Date.now()}-${(Math.random() * 1000) | 0}${this.dirSuffix}`
         )
 
