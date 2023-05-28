@@ -232,8 +232,22 @@ export default class NextNodeServer extends BaseServer {
       process.env.__NEXT_SCRIPT_WORKERS = JSON.stringify(true)
     }
 
-    if (this.nextConfig.compress) {
-      this.compression = require('next/dist/compiled/compression')()
+    if (this.getMiddleware()) {
+      const compression = require('next/dist/compiled/compression')
+
+      this.compression = compression({
+        filter: (req: NodeNextRequest, res: NodeNextResponse) => {
+          if (!this.nextConfig.compress) {
+            return false
+          }
+
+          return compression.filter(req, res)
+        },
+      })
+    } else {
+      if (this.nextConfig.compress) {
+        this.compression = require('next/dist/compiled/compression')()
+      }
     }
 
     if (!this.minimalMode) {
