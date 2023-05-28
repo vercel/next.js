@@ -29,9 +29,9 @@ function onlyReactElement(
   }
   // Adds support for React.Fragment
   if (child.type === React.Fragment) {
-    return list.concat(
+    list.push(
       // @ts-expect-error @types/react does not remove fragments but this could also return ReactPortal[]
-      React.Children.toArray(child.props.children).reduce(
+      ...React.Children.toArray(child.props.children).reduce(
         // @ts-expect-error @types/react does not remove fragments but this could also return ReactPortal[]
         (
           fragmentList: Array<React.ReactElement<any>>,
@@ -43,13 +43,19 @@ function onlyReactElement(
           ) {
             return fragmentList
           }
-          return fragmentList.concat(fragmentChild)
+
+          fragmentList.push(fragmentChild)
+
+          return fragmentList
         },
         []
       )
     )
+    return list
   }
-  return list.concat(child)
+  list.push(child)
+
+  return list
 }
 
 const METATYPES = ['name', 'httpEquiv', 'charSet', 'itemProp']

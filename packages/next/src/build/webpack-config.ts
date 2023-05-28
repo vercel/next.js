@@ -227,12 +227,10 @@ export function getDefineEnv({
     ),
     ...Object.keys(config.env).reduce((acc, key) => {
       errorIfEnvConflicted(config, key)
+      acc[`process.env.${key}`] = JSON.stringify(config.env[key])
 
-      return {
-        ...acc,
-        [`process.env.${key}`]: JSON.stringify(config.env[key]),
-      }
-    }, {}),
+      return acc
+    }, {} as Record<string, string>),
     ...(!isEdgeServer
       ? {}
       : {
