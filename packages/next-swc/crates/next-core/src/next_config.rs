@@ -18,16 +18,13 @@ use turbopack_binding::{
             context::AssetContext,
             ident::AssetIdentVc,
             issue::{Issue, IssueContextExt, IssueSeverity, IssueSeverityVc, IssueVc},
-            reference_type::{EntryReferenceSubType, ReferenceType},
+            reference_type::{EntryReferenceSubType, InnerAssetsVc, ReferenceType},
             resolve::{
                 find_context_file,
                 options::{ImportMap, ImportMapping},
                 FindContextFileResult, ResolveAliasMap, ResolveAliasMapVc,
             },
             source_asset::SourceAssetVc,
-        },
-        ecmascript::{
-            EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc,
         },
         ecmascript_plugin::transform::{
             emotion::EmotionTransformConfig, relay::RelayConfig,
@@ -670,15 +667,11 @@ pub async fn load_next_config_internal(
     let config_changed = config_asset.map_or_else(CompletionVc::immutable, |config_asset| {
         // This invalidates the execution when anything referenced by the config file
         // changes
-        let config_asset = EcmascriptModuleAssetVc::new(
+        let config_asset = context.process(
             config_asset.into(),
-            context,
-            Value::new(EcmascriptModuleAssetType::Ecmascript),
-            EcmascriptInputTransformsVc::cell(vec![]),
-            Default::default(),
-            context.compile_time_info(),
+            Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
         );
-        any_content_changed(config_asset.into())
+        any_content_changed(config_asset)
     });
     let load_next_config_asset = context.process(
         next_asset("entry/config/next.js"),

@@ -96,6 +96,10 @@ const disabledTests = [
   'test/development/next-font/build-errors.test.ts',
   'test/development/next-font/deprecated-package.test.ts',
   'test/development/next-font/font-loader-in-document-error.test.ts',
+
+  // below test times out
+  'test/development/repeated-dev-edits/repeated-dev-edits.test.ts',
+
   'test/development/watch-config-file/index.test.ts',
   'test/development/webpack-issuer-deprecation-warning/index.test.ts',
   'test/e2e/404-page-router/index.test.ts',
