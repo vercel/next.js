@@ -149,12 +149,27 @@ function load(scopedContext = {}) {
     URLSearchParams: urlImpl.URLSearchParams,
     URLPattern: urlImpl.URLPattern
   });
-  const blobImpl = requireWithFakeGlobalScope({
-    context,
-    id: "blob.js",
-    sourceCode: require("./blob.js.text.js"),
-    scopedContext: { ...streamsImpl, ...scopedContext }
-  });
+  const blobImpl = (() => {
+    if (typeof scopedContext.Blob === "function") {
+      return { Blob: scopedContext.Blob };
+    }
+    if (typeof Blob === "function") {
+      return { Blob };
+    }
+    const global = {
+      ...streamsImpl,
+      ...scopedContext
+    };
+    const globalGlobal = { ...global, Blob: void 0 };
+    Object.setPrototypeOf(globalGlobal, globalThis);
+    global.global = globalGlobal;
+    return requireWithFakeGlobalScope({
+      context,
+      id: "blob.js",
+      sourceCode: require("./blob.js.text.js"),
+      scopedContext: global
+    });
+  })();
   assign(context, {
     Blob: blobImpl.Blob
   });

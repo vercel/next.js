@@ -44,12 +44,6 @@ var init_define_process = __esm({
 var require_Blob = __commonJS({
   "../../node_modules/.pnpm/blob-polyfill@7.0.20220408/node_modules/blob-polyfill/Blob.js"(exports) {
     init_define_process();
-    (() => {
-      try {
-        global.Blob = void 0;
-      } catch {
-      }
-    })();
     (function(global2) {
       (function(factory) {
         if (typeof define === "function" && define.amd) {
