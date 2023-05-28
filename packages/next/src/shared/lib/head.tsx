@@ -133,54 +133,71 @@ function reduceComponents<T extends {} & WithInAmpMode>(
   props: T
 ) {
   const { inAmpMode } = props
-  return headChildrenElements
-    .reduce(onlyReactElement, [])
-    .reverse()
-    .concat(defaultHead(inAmpMode).reverse())
-    .filter(unique())
-    .reverse()
-    .map((c: React.ReactElement<any>, i: number) => {
-      const key = c.key || i
+
+  function cloneElement(c: React.ReactElement<any>, i: number) {
+    const key = c.key || i
+    if (
+      process.env.NODE_ENV !== 'development' &&
+      process.env.__NEXT_OPTIMIZE_FONTS &&
+      !inAmpMode
+    ) {
       if (
-        process.env.NODE_ENV !== 'development' &&
-        process.env.__NEXT_OPTIMIZE_FONTS &&
-        !inAmpMode
+        c.type === 'link' &&
+        c.props['href'] &&
+        // TODO(prateekbh@): Replace this with const from `constants` when the tree shaking works.
+        ['https://fonts.googleapis.com/css', 'https://use.typekit.net/'].some(
+          (url) => c.props['href'].startsWith(url)
+        )
       ) {
-        if (
-          c.type === 'link' &&
-          c.props['href'] &&
-          // TODO(prateekbh@): Replace this with const from `constants` when the tree shaking works.
-          ['https://fonts.googleapis.com/css', 'https://use.typekit.net/'].some(
-            (url) => c.props['href'].startsWith(url)
-          )
-        ) {
-          const newProps = { ...(c.props || {}) }
-          newProps['data-href'] = newProps['href']
-          newProps['href'] = undefined
+        const newProps = { ...(c.props || {}) }
+        newProps['data-href'] = newProps['href']
+        newProps['href'] = undefined
 
-          // Add this attribute to make it easy to identify optimized tags
-          newProps['data-optimized-fonts'] = true
+        // Add this attribute to make it easy to identify optimized tags
+        newProps['data-optimized-fonts'] = true
 
-          return React.cloneElement(c, newProps)
-        }
+        return React.cloneElement(c, newProps)
       }
-      if (process.env.NODE_ENV === 'development') {
-        // omit JSON-LD structured data snippets from the warning
-        if (c.type === 'script' && c.props['type'] !== 'application/ld+json') {
-          const srcMessage = c.props['src']
-            ? `<script> tag with src="${c.props['src']}"`
-            : `inline <script>`
-          warnOnce(
-            `Do not add <script> tags using next/head (see ${srcMessage}). Use next/script instead. \nSee more info here: https://nextjs.org/docs/messages/no-script-tags-in-head-component`
-          )
-        } else if (c.type === 'link' && c.props['rel'] === 'stylesheet') {
-          warnOnce(
-            `Do not add stylesheets using next/head (see <link rel="stylesheet"> tag with href="${c.props['href']}"). Use Document instead. \nSee more info here: https://nextjs.org/docs/messages/no-stylesheets-in-head-component`
-          )
-        }
+    }
+    if (process.env.NODE_ENV === 'development') {
+      // omit JSON-LD structured data snippets from the warning
+      if (c.type === 'script' && c.props['type'] !== 'application/ld+json') {
+        const srcMessage = c.props['src']
+          ? `<script> tag with src="${c.props['src']}"`
+          : `inline <script>`
+        warnOnce(
+          `Do not add <script> tags using next/head (see ${srcMessage}). Use next/script instead. \nSee more info here: https://nextjs.org/docs/messages/no-script-tags-in-head-component`
+        )
+      } else if (c.type === 'link' && c.props['rel'] === 'stylesheet') {
+        warnOnce(
+          `Do not add stylesheets using next/head (see <link rel="stylesheet"> tag with href="${c.props['href']}"). Use Document instead. \nSee more info here: https://nextjs.org/docs/messages/no-stylesheets-in-head-component`
+        )
       }
-      return React.cloneElement(c, { key })
-    })
+    }
+    return React.cloneElement(c, { key })
+  }
+
+  function reverseAndMap(arr: Array<React.ReactElement<any>>) {
+    const totalLength = arr.length
+    const lastIndex = totalLength - 1
+    const reversedAndMappedArr: ReturnType<typeof cloneElement>[] = new Array(
+      totalLength
+    )
+
+    for (let i = lastIndex, j = 0; i >= 0 && j <= lastIndex; i--, j++) {
+      reversedAndMappedArr[i] = cloneElement(arr[j], j)
+    }
+
+    return reversedAndMappedArr
+  }
+
+  return reverseAndMap(
+    headChildrenElements
+      .reduce(onlyReactElement, [])
+      .reverse()
+      .concat(defaultHead(inAmpMode).reverse())
+      .filter(unique())
+  )
 }
 
 /**
