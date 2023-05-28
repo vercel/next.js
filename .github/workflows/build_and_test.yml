@@ -98,12 +98,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2, 3]
+        group: [1, 2, 3, 4, 5]
 
     uses: vercel/next.js/.github/workflows/build_reusable.yml@canary
     with:
       skipForDocsOnly: 'yes'
-      afterBuild: NEXT_TEST_MODE=dev node run-tests.js --timings -g ${{ matrix.group }}/3 -c ${TEST_CONCURRENCY} --test-pattern '^(development|e2e|unit)/.*\.test\.(js|jsx|ts|tsx)$'
+      afterBuild: NEXT_TEST_MODE=dev node run-tests.js --timings -g ${{ matrix.group }}/5 -c ${TEST_CONCURRENCY} --test-pattern '^(development|e2e|unit)/.*\.test\.(js|jsx|ts|tsx)$'
     secrets: inherit
 
   test-prod:
@@ -112,12 +112,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2, 3]
+        group: [1, 2, 3, 4, 5]
 
     uses: vercel/next.js/.github/workflows/build_reusable.yml@canary
     with:
       skipForDocsOnly: 'yes'
-      afterBuild: NEXT_TEST_MODE=start node run-tests.js --timings -g ${{ matrix.group }}/3 -c ${TEST_CONCURRENCY} --test-pattern '^(production|e2e)/.*\.test\.(js|jsx|ts|tsx)$'
+      afterBuild: NEXT_TEST_MODE=start node run-tests.js --timings -g ${{ matrix.group }}/5 -c ${TEST_CONCURRENCY} --test-pattern '^(production|e2e)/.*\.test\.(js|jsx|ts|tsx)$'
     secrets: inherit
 
   test-integration:
@@ -126,12 +126,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2, 3, 4, 5, 6]
+        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
     uses: vercel/next.js/.github/workflows/build_reusable.yml@canary
     with:
       skipForDocsOnly: 'yes'
-      afterBuild: node run-tests.js --timings -g ${{ matrix.group }}/6 -c ${TEST_CONCURRENCY} --test-pattern '^(integration)/.*\.test\.(js|jsx|ts|tsx)$'
+      afterBuild: node run-tests.js --timings -g ${{ matrix.group }}/10 -c ${TEST_CONCURRENCY} --test-pattern '^(integration)/.*\.test\.(js|jsx|ts|tsx)$'
     secrets: inherit
 
   test-firefox-safari:
