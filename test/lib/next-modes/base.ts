@@ -193,7 +193,6 @@ export class NextInstance {
             await fs.copy(process.env.NEXT_TEST_STARTER, this.testDir)
           } else if (!skipIsolatedNext) {
             this.testDir = await createNextInstall({
-              name: this.name,
               parentSpan: rootSpan,
               dependencies: finalDependencies,
               installCommand: this.installCommand,
