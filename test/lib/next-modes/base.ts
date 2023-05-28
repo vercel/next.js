@@ -23,6 +23,7 @@ export type PackageJson = {
   [key: string]: unknown
 }
 export interface NextInstanceOpts {
+  name?: string
   files: FileRef | string | { [filename: string]: string | FileRef }
   dependencies?: { [name: string]: string }
   packageJson?: PackageJson
@@ -47,6 +48,7 @@ type OmitFirstArgument<F> = F extends (
   : never
 
 export class NextInstance {
+  protected name?: string
   protected files: FileRef | { [filename: string]: string | FileRef }
   protected nextConfig?: NextConfig
   protected installCommand?: InstallCommand
@@ -120,6 +122,7 @@ export class NextInstance {
     skipInstall?: boolean
     parentSpan: Span
   }) {
+    const name = this.name
     if (this.isDestroyed) {
       throw new Error('next instance already destroyed')
     }
@@ -134,9 +137,9 @@ export class NextInstance {
           : process.env.NEXT_TEST_DIR || (await fs.realpath(os.tmpdir()))
         this.testDir = path.join(
           tmpDir,
-          `next-test-${Date.now()}-${(Math.random() * 1000) | 0}${
-            this.dirSuffix
-          }`
+          `next-test${
+            name !== '' ? `-${name.toLowerCase().replace(/ /g, '-')}` : ''
+          }-${Date.now()}-${(Math.random() * 1000) | 0}${this.dirSuffix}`
         )
 
         const reactVersion = process.env.NEXT_TEST_REACT_VERSION || 'latest'
@@ -190,6 +193,7 @@ export class NextInstance {
             await fs.copy(process.env.NEXT_TEST_STARTER, this.testDir)
           } else if (!skipIsolatedNext) {
             this.testDir = await createNextInstall({
+              name: this.name,
               parentSpan: rootSpan,
               dependencies: finalDependencies,
               installCommand: this.installCommand,
