@@ -6,6 +6,8 @@
   "@sentry/nextjs",
   "@sentry/node",
   "@swc/core",
+  "@mikro-orm/core",
+  "@mikro-orm/knex",
   "argon2",
   "autoprefixer",
   "aws-crt",
