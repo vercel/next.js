@@ -33,6 +33,7 @@ import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-ma
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 import type { PagesRouteModule } from './future/route-modules/pages/module'
 import type { NodeNextRequest, NodeNextResponse } from './base-http/node'
+import type { AppRouteRouteMatch } from './future/route-matches/app-route-route-match'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/redirect-status'
@@ -107,6 +108,7 @@ import {
   toNodeOutgoingHttpHeaders,
 } from './web/utils'
 import { NEXT_QUERY_PARAM_PREFIX } from '../lib/constants'
+import { isRouteMatch } from './future/route-matches/route-match'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -1650,31 +1652,32 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         isOnDemandRevalidate,
       }
 
-      const match =
-        pathname !== '/_error' && !is404Page && !is500Page
-          ? getRequestMeta(req, '_nextMatch')
-          : undefined
-
       // Legacy render methods will return a render result that needs to be
       // served by the server.
       let result: RenderResult | undefined
 
-      if (match?.definition.kind === RouteKind.APP_ROUTE) {
-        const context: RouteHandlerManagerContext = {
-          params: match.params,
-          prerenderManifest: this.getPrerenderManifest(),
-          staticGenerationContext: {
-            originalPathname: components.ComponentMod.originalPathname,
-            supportsDynamicHTML,
-            incrementalCache,
-            isRevalidate: isSSG,
-          },
-        }
+      // We want to use the match when we're not trying to render an error page.
+      const match =
+        pathname !== '/_error' && !is404Page && !is500Page
+          ? getRequestMeta(req, '_nextMatch')
+          : undefined
+      if (match) {
+        if (isRouteMatch<AppRouteRouteMatch>(match, RouteKind.APP_ROUTE)) {
+          const context: RouteHandlerManagerContext = {
+            params: match.params,
+            prerenderManifest: this.getPrerenderManifest(),
+            staticGenerationContext: {
+              originalPathname: components.ComponentMod.originalPathname,
+              supportsDynamicHTML,
+              incrementalCache,
+              isRevalidate: isSSG,
+            },
+          }
 
-        try {
-          // Handle the match and collect the response if it's a static response.
-          const response = await this.handlers.handle(match, req, context)
-          if (response) {
+          try {
+            // Handle the match and collect the response if it's a static response.
+            const response = await this.handlers.handle(match, req, context)
+
             ;(req as any).fetchMetrics = (
               context.staticGenerationContext as any
             ).fetchMetrics
@@ -1717,53 +1720,54 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               return cacheEntry
             }
 
+            // The response headers here are immutable, but we can set it
+            // directly on the node response here instead.
+            res.setHeader('x-next-cache-tags', cacheTags)
+
             // Send the response now that we have copied it into the cache.
             await sendResponse(req, res, response)
 
             return null
-          }
-        } catch (err) {
-          // If an error was thrown while handling an app route request, we
-          // should return a 500 response.
-          if (match.definition.kind === RouteKind.APP_ROUTE) {
+          } catch (err) {
             // If this is during static generation, throw the error again.
             if (isSSG) throw err
 
-            // Otherwise, send a 500 response.
             Log.error(err)
+
+            // Otherwise, send a 500 response.
             await sendResponse(req, res, handleInternalServerErrorResponse())
 
             return null
           }
         }
-      }
-      // If we've matched a page while not in edge where the module exports a
-      // `routeModule`, then we should be able to render it using the provided
-      // `render` method.
-      else if (
-        match?.definition.kind === RouteKind.PAGES &&
-        process.env.NEXT_RUNTIME !== 'edge' &&
-        components.ComponentMod.routeModule
-      ) {
-        const module: PagesRouteModule = components.ComponentMod.routeModule
+        // If we've matched a page while not in edge where the module exports a
+        // `routeModule`, then we should be able to render it using the provided
+        // `render` method.
+        else if (
+          isRouteMatch(match, RouteKind.PAGES) &&
+          process.env.NEXT_RUNTIME !== 'edge' &&
+          components.ComponentMod.routeModule
+        ) {
+          const module: PagesRouteModule = components.ComponentMod.routeModule
 
-        // Due to the way we pass data by mutating `renderOpts`, we can't extend
-        // the object here but only updating its `clientReferenceManifest`
-        // field.
-        // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
-        renderOpts.nextFontManifest = this.nextFontManifest
+          // Due to the way we pass data by mutating `renderOpts`, we can't extend
+          // the object here but only updating its `clientReferenceManifest`
+          // field.
+          // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
+          renderOpts.nextFontManifest = this.nextFontManifest
 
-        // Call the built-in render method on the module. We cast these to
-        // NodeNextRequest and NodeNextResponse because we know that we're
-        // in the node runtime because we check that we're not in edge mode
-        // above.
-        result = await module.render(
-          (req as NodeNextRequest).originalRequest,
-          (res as NodeNextResponse).originalResponse,
-          pathname,
-          query,
-          renderOpts
-        )
+          // Call the built-in render method on the module. We cast these to
+          // NodeNextRequest and NodeNextResponse because we know that we're
+          // in the node runtime because we check that we're not in edge mode
+          // above.
+          result = await module.render(
+            (req as NodeNextRequest).originalRequest,
+            (res as NodeNextResponse).originalResponse,
+            pathname,
+            query,
+            renderOpts
+          )
+        }
       }
 
       // If there is no result yet, then we should render the page using the

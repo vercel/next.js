@@ -1,13 +1,12 @@
 import type { BaseNextRequest } from '../../base-http'
 import type { ModuleLoader } from '../helpers/module-loader/module-loader'
-import type { RouteMatch } from '../route-matches/route-match'
 import type { RouteModule } from '../route-modules/route-module'
 import type { AppRouteRouteHandlerContext } from '../route-modules/app-route/module'
+import type { AppRouteRouteMatch } from '../route-matches/app-route-route-match'
 
 import { NodeModuleLoader } from '../helpers/module-loader/node-module-loader'
 import { RouteModuleLoader } from '../helpers/module-loader/route-module-loader'
 import { NextRequestAdapter } from '../../web/spec-extension/adapters/next-request'
-import { RouteKind } from '../route-kind'
 
 /**
  * RouteHandlerManager is a manager for route handlers.
@@ -23,15 +22,10 @@ export class RouteHandlerManager {
   ) {}
 
   public async handle(
-    match: RouteMatch,
+    match: AppRouteRouteMatch,
     req: BaseNextRequest,
     context: RouteHandlerManagerContext
-  ): Promise<Response | undefined> {
-    // If the match is not an enabled module type, return undefined.
-    if (match.definition.kind !== RouteKind.APP_ROUTE) {
-      return undefined
-    }
-
+  ): Promise<Response> {
     // The module supports minimal mode, load the minimal module.
     const module = await RouteModuleLoader.load<RouteModule>(
       match.definition.filename,
