@@ -21,7 +21,7 @@ importers:
       '@babel/plugin-proposal-object-rest-spread': 7.14.7
       '@babel/preset-flow': 7.14.5
       '@babel/preset-react': 7.14.5
-      '@edge-runtime/jest-environment': 2.2.0-beta.15
+      '@edge-runtime/jest-environment': 2.2.0
       '@fullhuman/postcss-purgecss': 1.3.0
       '@mdx-js/loader': 2.2.1
       '@mdx-js/react': 2.2.1
@@ -206,7 +206,7 @@ importers:
       '@babel/plugin-proposal-object-rest-spread': 7.14.7_@babel+core@7.18.0
       '@babel/preset-flow': 7.14.5_@babel+core@7.18.0
       '@babel/preset-react': 7.14.5_@babel+core@7.18.0
-      '@edge-runtime/jest-environment': 2.2.0-beta.15
+      '@edge-runtime/jest-environment': 2.2.0
       '@fullhuman/postcss-purgecss': 1.3.0
       '@mdx-js/loader': 2.2.1_webpack@5.74.0
       '@mdx-js/react': 2.2.1_react@18.2.0
@@ -529,9 +529,9 @@ importers:
       '@babel/traverse': 7.18.0
       '@babel/types': 7.18.0
       '@capsizecss/metrics': 1.1.0
-      '@edge-runtime/cookies': 3.2.0-beta.1
-      '@edge-runtime/ponyfill': 2.3.0-beta.0
-      '@edge-runtime/primitives': 3.0.0-beta.13
+      '@edge-runtime/cookies': 3.2.0
+      '@edge-runtime/ponyfill': 2.3.0
+      '@edge-runtime/primitives': 3.0.0
       '@hapi/accept': 5.0.2
       '@jest/transform': 29.5.0
       '@jest/types': 29.5.0
@@ -622,7 +622,7 @@ importers:
       debug: 4.1.1
       devalue: 2.0.1
       domain-browser: 4.19.0
-      edge-runtime: 2.3.0-beta.14
+      edge-runtime: 2.3.0
       events: 3.3.0
       fibers: '>= 3.1.0'
       find-cache-dir: 3.3.1
@@ -751,9 +751,9 @@ importers:
       '@babel/traverse': 7.18.0
       '@babel/types': 7.18.0
       '@capsizecss/metrics': 1.1.0
-      '@edge-runtime/cookies': 3.2.0-beta.1
-      '@edge-runtime/ponyfill': 2.3.0-beta.0
-      '@edge-runtime/primitives': 3.0.0-beta.13
+      '@edge-runtime/cookies': 3.2.0
+      '@edge-runtime/ponyfill': 2.3.0
+      '@edge-runtime/primitives': 3.0.0
       '@hapi/accept': 5.0.2
       '@jest/transform': 29.5.0
       '@jest/types': 29.5.0
@@ -840,7 +840,7 @@ importers:
       debug: 4.1.1
       devalue: 2.0.1
       domain-browser: 4.19.0
-      edge-runtime: 2.3.0-beta.14
+      edge-runtime: 2.3.0
       events: 3.3.0
       find-cache-dir: 3.3.1
       find-up: 4.1.0
@@ -5663,21 +5663,21 @@ packages:
       protobufjs: 6.11.2
     dev: true
 
-  /@edge-runtime/cookies/3.2.0-beta.1:
-    resolution: {integrity: sha512-3zW/Wbyt1mM5iKydHoeZC0MSsxiDN1sOE6HBUj2gFVzomfGdLx2u3OQI56A9pJbF7BUpwayfB9SbkpGmTFcUyQ==}
+  /@edge-runtime/cookies/3.2.0:
+    resolution: {integrity: sha512-7WqJjqbVnMIq2zq8cRcBWV52iFYJVqSHd2kE9owy+JtbdbVTIO5RzjvR51WysSM16lcnMw62Q2nB2S7rF3fQYQ==}
     engines: {node: '>=14'}
     dev: true
 
-  /@edge-runtime/format/2.1.0-beta.0:
-    resolution: {integrity: sha512-oz99txvGTfJ5euuktGe1UAoeTkcU9lK6i4Za6iUQwqEpATXB86GJTUDRerAxjCBGS0yxJC0VMwQ3YuyrpTK9cw==}
+  /@edge-runtime/format/2.1.0:
+    resolution: {integrity: sha512-gc2qbYEIIJRczBApBPznVI1c5vZgzrZQOsFZnAxxFiYah9qldHiu1YEitzSvXI8X8ZgvAguuIiyIbpWz17nlXA==}
     engines: {node: '>=14'}
     dev: true
 
-  /@edge-runtime/jest-environment/2.2.0-beta.15:
-    resolution: {integrity: sha512-6s94WOhZYnzXq059rOm8d/NkgbZFDh57QmpklY8SZtGr9+W6pIrzHtaT0DSJTKrBVzT5SsPV0z6QA3HkO7oLjQ==}
+  /@edge-runtime/jest-environment/2.2.0:
+    resolution: {integrity: sha512-KeSEzbO8SsPAm2+4HQkEVHYfljsQpscIrMaB7DLGEMojL84wT/5m/RyJxnZQpjY69OnXAzmTqs9L3i97Brf9Mg==}
     engines: {node: '>=14'}
     dependencies:
-      '@edge-runtime/vm': 3.0.0-beta.14
+      '@edge-runtime/vm': 3.0.0
       '@jest/environment': 29.5.0
       '@jest/fake-timers': 29.5.0
       '@jest/types': 29.5.0
@@ -5685,21 +5685,21 @@ packages:
       jest-util: 29.5.0
     dev: true
 
-  /@edge-runtime/ponyfill/2.3.0-beta.0:
-    resolution: {integrity: sha512-HSS4GCRml7V0Z1AEIimZvtGp4tpfE6EZDXwfpPpFd/blU6oLlca5KDcKRaeIes6yI+UHi1vo3EoTTIoKXPVVWg==}
+  /@edge-runtime/ponyfill/2.3.0:
+    resolution: {integrity: sha512-vg59/jBV+geBqAs1hPgHk7R8VtXvR4zjlcJaQSKvh0Zt/PBFOZyqpsIqCKgNMDJlgF1BXUrusQSSNr212cXIhg==}
     engines: {node: '>=14'}
     dev: true
 
-  /@edge-runtime/primitives/3.0.0-beta.13:
-    resolution: {integrity: sha512-1LgedN1JTHiEN/9CGOE+yygJDWNv9KoYZyoiYpPbaXQe0UoGXf0Bj2+E6n5hHCVf5laz4CH/4uo70q5621h00g==}
+  /@edge-runtime/primitives/3.0.0:
+    resolution: {integrity: sha512-JDvzghW0Vheh24bN+gmudylWFAT6d1zh7dHn1g6TF+3wsvYrq0SshkBGOaiyAoRbJJJLs8iaJRb5taL8vkVvdg==}
     engines: {node: '>=14'}
     dev: true
 
-  /@edge-runtime/vm/3.0.0-beta.14:
-    resolution: {integrity: sha512-sBVyoy2E8nS0TOLjQOwUPyNulsnfC8L2qoqPLDoEPO0d1jdWD0ex9BsIxDf0MuCfpEE0Sdz1A0Bvb3PU861VGg==}
+  /@edge-runtime/vm/3.0.0:
+    resolution: {integrity: sha512-M3vBgmyndFInsIc8EvI55Hbqd9ajartfhulh6mZR/ZXej+akX01KFj0yMB/nzYsuLxXcmgU8Xv0+Jo2tLRYvtg==}
     engines: {node: '>=14'}
     dependencies:
-      '@edge-runtime/primitives': 3.0.0-beta.13
+      '@edge-runtime/primitives': 3.0.0
     dev: true
 
   /@emotion/unitless/0.7.5:
@@ -12964,13 +12964,13 @@ packages:
       safe-buffer: 5.2.1
     dev: true
 
-  /edge-runtime/2.3.0-beta.14:
-    resolution: {integrity: sha512-vpGwgomCTakoHFYwxtouBxGoFA/Y0cfhU//xYt0kGPnb8PG3EiCqIueyKZBZz9cM8Prrze/n5Jw2eQO0N+Ar4w==}
+  /edge-runtime/2.3.0:
+    resolution: {integrity: sha512-Ks6rwVbUyxGYKCq7Rf3LHRcX+EU/Gmjs9XXbE7NTL5kH131KPOSa82vWIUXdmHPdLdaoqDU3DPpkxj9Bs13k0Q==}
     engines: {node: '>=14'}
     hasBin: true
     dependencies:
-      '@edge-runtime/format': 2.1.0-beta.0
-      '@edge-runtime/vm': 3.0.0-beta.14
+      '@edge-runtime/format': 2.1.0
+      '@edge-runtime/vm': 3.0.0
       async-listen: 3.0.0
       mri: 1.2.0
       picocolors: 1.0.0
@@ -17496,10 +17496,10 @@ packages:
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
     dependencies:
       '@jest/types': 29.5.0
-      '@types/node': 20.2.5
+      '@types/node': 18.11.18
       chalk: 4.1.2
       ci-info: 3.8.0
-      graceful-fs: 4.2.10
+      graceful-fs: 4.2.11
       picomatch: 2.3.1
     dev: true
 
