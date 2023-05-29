@@ -362,7 +362,7 @@ export async function renderToHTMLOrFlight(
 
     const assetPrefix = renderOpts.assetPrefix || ''
 
-    const getAssetQueryString = (addTimestamp?: boolean) => {
+    const getAssetQueryString = (addTimestamp: boolean) => {
       const isDev = process.env.NODE_ENV === 'development'
       let qs = ''
 
@@ -403,7 +403,9 @@ export async function renderToHTMLOrFlight(
             // Because of this, we add a `?v=` query to bypass the cache during
             // development. We need to also make sure that the number is always
             // increasing.
-            const fullHref = `${assetPrefix}/_next/${href}${getAssetQueryString()}`
+            const fullHref = `${assetPrefix}/_next/${href}${getAssetQueryString(
+              true
+            )}`
 
             // `Precedence` is an opt-in signal for React to handle resource
             // loading and deduplication, etc. It's also used as the key to sort
@@ -495,7 +497,9 @@ export async function renderToHTMLOrFlight(
             // Because of this, we add a `?v=` query to bypass the cache during
             // development. We need to also make sure that the number is always
             // increasing.
-            const fullHref = `${assetPrefix}/_next/${href}${getAssetQueryString()}`
+            const fullHref = `${assetPrefix}/_next/${href}${getAssetQueryString(
+              true
+            )}`
 
             // `Precedence` is an opt-in signal for React to handle resource
             // loading and deduplication, etc. It's also used as the key to sort
@@ -1404,7 +1408,7 @@ export async function renderToHTMLOrFlight(
               polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
           )
           .map((polyfill) => ({
-            src: `${assetPrefix}/_next/${polyfill}${getAssetQueryString()}`,
+            src: `${assetPrefix}/_next/${polyfill}${getAssetQueryString(true)}`,
             integrity: subresourceIntegrityManifest?.[polyfill],
           }))
 
@@ -1484,12 +1488,16 @@ export async function renderToHTMLOrFlight(
                 ...(subresourceIntegrityManifest
                   ? buildManifest.rootMainFiles.map((src) => ({
                       src:
-                        `${assetPrefix}/_next/` + src + getAssetQueryString(),
+                        `${assetPrefix}/_next/` +
+                        src +
+                        getAssetQueryString(true),
                       integrity: subresourceIntegrityManifest[src],
                     }))
                   : buildManifest.rootMainFiles.map(
                       (src) =>
-                        `${assetPrefix}/_next/` + src + getAssetQueryString()
+                        `${assetPrefix}/_next/` +
+                        src +
+                        getAssetQueryString(true)
                     )),
               ],
             },
@@ -1561,12 +1569,13 @@ export async function renderToHTMLOrFlight(
               // Include hydration scripts in the HTML
               bootstrapScripts: subresourceIntegrityManifest
                 ? buildManifest.rootMainFiles.map((src) => ({
-                    src: `${assetPrefix}/_next/` + src + getAssetQueryString(),
+                    src:
+                      `${assetPrefix}/_next/` + src + getAssetQueryString(true),
                     integrity: subresourceIntegrityManifest[src],
                   }))
                 : buildManifest.rootMainFiles.map(
                     (src) =>
-                      `${assetPrefix}/_next/` + src + getAssetQueryString()
+                      `${assetPrefix}/_next/` + src + getAssetQueryString(true)
                   ),
             },
           })
