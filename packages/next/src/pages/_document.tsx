@@ -378,6 +378,11 @@ function getNextFontLinkTags(
     (appFontsEntry || pageFontsEntry)
   )
 
+  // we only add if the dpl query is present for fonts
+  if (!assetQueryString.includes('dpl=')) {
+    assetQueryString = ''
+  }
+
   return {
     preconnect: preconnectToSelf ? (
       <link

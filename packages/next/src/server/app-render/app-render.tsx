@@ -362,11 +362,11 @@ export async function renderToHTMLOrFlight(
 
     const assetPrefix = renderOpts.assetPrefix || ''
 
-    const getAssetQueryString = () => {
+    const getAssetQueryString = (addTimestamp?: boolean) => {
       const isDev = process.env.NODE_ENV === 'development'
       let qs = ''
 
-      if (isDev) {
+      if (isDev && addTimestamp) {
         qs += `?v=${Date.now()}`
       }
 
@@ -470,7 +470,9 @@ export async function renderToHTMLOrFlight(
             const fontFilename = preloadedFontFiles[i]
             const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFilename)![1]
             const type = `font/${ext}`
-            const href = `${assetPrefix}/_next/${fontFilename}${getAssetQueryString()}`
+            const href = `${assetPrefix}/_next/${fontFilename}${getAssetQueryString(
+              false
+            )}`
             ComponentMod.preloadFont(href, type)
           }
         } else {
