@@ -1408,7 +1408,9 @@ export async function renderToHTMLOrFlight(
               polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
           )
           .map((polyfill) => ({
-            src: `${assetPrefix}/_next/${polyfill}${getAssetQueryString(true)}`,
+            src: `${assetPrefix}/_next/${polyfill}${getAssetQueryString(
+              false
+            )}`,
             integrity: subresourceIntegrityManifest?.[polyfill],
           }))
 
@@ -1490,14 +1492,14 @@ export async function renderToHTMLOrFlight(
                       src:
                         `${assetPrefix}/_next/` +
                         src +
-                        getAssetQueryString(true),
+                        getAssetQueryString(false),
                       integrity: subresourceIntegrityManifest[src],
                     }))
                   : buildManifest.rootMainFiles.map(
                       (src) =>
                         `${assetPrefix}/_next/` +
                         src +
-                        getAssetQueryString(true)
+                        getAssetQueryString(false)
                     )),
               ],
             },
@@ -1570,12 +1572,14 @@ export async function renderToHTMLOrFlight(
               bootstrapScripts: subresourceIntegrityManifest
                 ? buildManifest.rootMainFiles.map((src) => ({
                     src:
-                      `${assetPrefix}/_next/` + src + getAssetQueryString(true),
+                      `${assetPrefix}/_next/` +
+                      src +
+                      getAssetQueryString(false),
                     integrity: subresourceIntegrityManifest[src],
                   }))
                 : buildManifest.rootMainFiles.map(
                     (src) =>
-                      `${assetPrefix}/_next/` + src + getAssetQueryString(true)
+                      `${assetPrefix}/_next/` + src + getAssetQueryString(false)
                   ),
             },
           })
