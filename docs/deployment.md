@@ -137,13 +137,13 @@ Next.js will automatically load the latest version of your application in the ba
 
 Sometimes you might want to run some cleanup code on process signals like `SIGTERM` or `SIGINT`.
 
-You can do that by setting the env variable `NEXT_MANUAL_SIG_HANDLE` to `true` and then register a handler for that signal inside your `_document.js` file. Please note that you need to register env variable directly in the system env variable, not in the `.env` file.
+You can do that by setting the env variable `NEXT_MANUAL_SIG_HANDLE` to `true` and then register a handler for that signal inside your `_document.js` file. Please note that you need to register env variable directly in the system env variable, not in the `.env` file. Manual signal handling is not available in dev server.
 
 ```json
 // package.json
 {
   "scripts": {
-    "dev": "NEXT_MANUAL_SIG_HANDLE=true next dev",
+    "dev": "next dev",
     "build": "next build",
     "start": "NEXT_MANUAL_SIG_HANDLE=true next start"
   }
