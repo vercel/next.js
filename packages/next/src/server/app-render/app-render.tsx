@@ -362,6 +362,20 @@ export async function renderToHTMLOrFlight(
 
     const assetPrefix = renderOpts.assetPrefix || ''
 
+    const getAssetQueryString = () => {
+      const isDev = process.env.NODE_ENV === 'development'
+      let qs = ''
+
+      if (isDev) {
+        qs += `?v=${Date.now()}`
+      }
+
+      if (renderOpts.deploymentId) {
+        qs += `${isDev ? '&' : '?'}dpl=${renderOpts.deploymentId}`
+      }
+      return qs
+    }
+
     const createComponentAndStyles = async ({
       filePath,
       getComponent,
@@ -389,9 +403,7 @@ export async function renderToHTMLOrFlight(
             // Because of this, we add a `?v=` query to bypass the cache during
             // development. We need to also make sure that the number is always
             // increasing.
-            const fullHref = `${assetPrefix}/_next/${href}${
-              process.env.NODE_ENV === 'development' ? `?v=${Date.now()}` : ''
-            }`
+            const fullHref = `${assetPrefix}/_next/${href}${getAssetQueryString()}`
 
             // `Precedence` is an opt-in signal for React to handle resource
             // loading and deduplication, etc. It's also used as the key to sort
@@ -458,7 +470,7 @@ export async function renderToHTMLOrFlight(
             const fontFilename = preloadedFontFiles[i]
             const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFilename)![1]
             const type = `font/${ext}`
-            const href = `${assetPrefix}/_next/${fontFilename}`
+            const href = `${assetPrefix}/_next/${fontFilename}${getAssetQueryString()}`
             ComponentMod.preloadFont(href, type)
           }
         } else {
@@ -481,9 +493,7 @@ export async function renderToHTMLOrFlight(
             // Because of this, we add a `?v=` query to bypass the cache during
             // development. We need to also make sure that the number is always
             // increasing.
-            const fullHref = `${assetPrefix}/_next/${href}${
-              process.env.NODE_ENV === 'development' ? `?v=${Date.now()}` : ''
-            }`
+            const fullHref = `${assetPrefix}/_next/${href}${getAssetQueryString()}`
 
             // `Precedence` is an opt-in signal for React to handle resource
             // loading and deduplication, etc. It's also used as the key to sort
@@ -1392,7 +1402,7 @@ export async function renderToHTMLOrFlight(
               polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
           )
           .map((polyfill) => ({
-            src: `${assetPrefix}/_next/${polyfill}`,
+            src: `${assetPrefix}/_next/${polyfill}${getAssetQueryString()}`,
             integrity: subresourceIntegrityManifest?.[polyfill],
           }))
 
@@ -1471,11 +1481,13 @@ export async function renderToHTMLOrFlight(
               bootstrapScripts: [
                 ...(subresourceIntegrityManifest
                   ? buildManifest.rootMainFiles.map((src) => ({
-                      src: `${assetPrefix}/_next/` + src,
+                      src:
+                        `${assetPrefix}/_next/` + src + getAssetQueryString(),
                       integrity: subresourceIntegrityManifest[src],
                     }))
                   : buildManifest.rootMainFiles.map(
-                      (src) => `${assetPrefix}/_next/` + src
+                      (src) =>
+                        `${assetPrefix}/_next/` + src + getAssetQueryString()
                     )),
               ],
             },
@@ -1547,11 +1559,12 @@ export async function renderToHTMLOrFlight(
               // Include hydration scripts in the HTML
               bootstrapScripts: subresourceIntegrityManifest
                 ? buildManifest.rootMainFiles.map((src) => ({
-                    src: `${assetPrefix}/_next/` + src,
+                    src: `${assetPrefix}/_next/` + src + getAssetQueryString(),
                     integrity: subresourceIntegrityManifest[src],
                   }))
                 : buildManifest.rootMainFiles.map(
-                    (src) => `${assetPrefix}/_next/` + src
+                    (src) =>
+                      `${assetPrefix}/_next/` + src + getAssetQueryString()
                   ),
             },
           })
