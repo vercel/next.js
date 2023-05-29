@@ -12,10 +12,12 @@ use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_binding::turbopack::{
     core::{
         asset::{Asset, AssetVc},
+        context::{AssetContext, AssetContextVc},
         ident::AssetIdentVc,
         issue::{
             Issue, IssueSeverity, IssueSeverityVc, IssueSourceVc, IssueVc, OptionIssueSourceVc,
         },
+        reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
         source_asset::SourceAssetVc,
     },
     ecmascript::{
@@ -332,6 +334,7 @@ fn parse_config_value(
 #[turbo_tasks::function]
 pub async fn parse_segment_config_from_loader_tree(
     loader_tree: LoaderTreeVc,
+    context: AssetContextVc,
 ) -> Result<NextSegmentConfigVc> {
     let loader_tree = loader_tree.await?;
     let components = loader_tree.components.await?;
@@ -340,26 +343,24 @@ pub async fn parse_segment_config_from_loader_tree(
         .parallel_routes
         .values()
         .copied()
-        .map(parse_segment_config_from_loader_tree)
+        .map(|tree| parse_segment_config_from_loader_tree(tree, context))
         .try_join()
         .await?;
     for tree in siblings {
         config.apply_sibling_config(&*tree)?;
     }
-    if let Some(page) = components.page {
-        config.apply_parent_config(
-            &*parse_segment_config_from_source(SourceAssetVc::new(page).into()).await?,
-        );
-    }
-    if let Some(default) = components.default {
-        config.apply_parent_config(
-            &*parse_segment_config_from_source(SourceAssetVc::new(default).into()).await?,
-        );
-    }
-    if let Some(layout) = components.layout {
-        config.apply_parent_config(
-            &*parse_segment_config_from_source(SourceAssetVc::new(layout).into()).await?,
-        );
+    for component in [components.page, components.default, components.layout] {
+        if let Some(component) = component {
+            config.apply_parent_config(
+                &*parse_segment_config_from_source(context.process(
+                    SourceAssetVc::new(component).into(),
+                    turbo_tasks::Value::new(ReferenceType::EcmaScriptModules(
+                        EcmaScriptModulesReferenceSubType::Undefined,
+                    )),
+                ))
+                .await?,
+            );
+        }
     }
     Ok(config.cell())
 }

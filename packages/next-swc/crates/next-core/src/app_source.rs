@@ -716,7 +716,7 @@ impl AppRendererVc {
             (context_ssr, intermediate_output_path)
         };
 
-        let config = parse_segment_config_from_loader_tree(loader_tree);
+        let config = parse_segment_config_from_loader_tree(loader_tree, context);
 
         struct State {
             inner_assets: IndexMap<String, AssetVc>,
@@ -1016,18 +1016,32 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
             Value::new(ReferenceType::Internal(InnerAssetsVc::cell(inner_assets))),
         );
 
-        let renderer_module = context.process(
-            SourceAssetVc::new(next_js_file_path("entry/app-renderer.tsx")).into(),
-            Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
-                "APP_ENTRY".to_string() => entry_module.into(),
-                "APP_BOOTSTRAP".to_string() => context.with_transition("next-client").process(
-                    SourceAssetVc::new(next_js_file_path("entry/app/hydrate.tsx")).into(),
-                    Value::new(ReferenceType::EcmaScriptModules(
-                        EcmaScriptModulesReferenceSubType::Undefined,
-                    )),
-                ),
-            }))),
-        );
+        let renderer_module = match config.await?.runtime {
+            Some(NextRuntime::NodeJs) | None => context.process(
+                SourceAssetVc::new(next_js_file_path("entry/app-renderer.tsx")).into(),
+                Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
+                    "APP_ENTRY".to_string() => entry_module.into(),
+                    "APP_BOOTSTRAP".to_string() => context.with_transition("next-client").process(
+                        SourceAssetVc::new(next_js_file_path("entry/app/hydrate.tsx")).into(),
+                        Value::new(ReferenceType::EcmaScriptModules(
+                            EcmaScriptModulesReferenceSubType::Undefined,
+                        )),
+                    ),
+                }))),
+            ),
+            Some(NextRuntime::Edge) => context.process(
+                SourceAssetVc::new(next_js_file_path("entry/app-edge-renderer.tsx")).into(),
+                Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
+                    "APP_ENTRY".to_string() => entry_module.into(),
+                    "APP_BOOTSTRAP".to_string() => context.with_transition("next-client").process(
+                        SourceAssetVc::new(next_js_file_path("entry/app/hydrate.tsx")).into(),
+                        Value::new(ReferenceType::EcmaScriptModules(
+                            EcmaScriptModulesReferenceSubType::Undefined,
+                        )),
+                    ),
+                }))),
+            ),
+        };
 
         let Some(module) = EvaluatableAssetVc::resolve_from(renderer_module).await? else {
             bail!("internal module must be evaluatable");
