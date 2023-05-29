@@ -400,41 +400,21 @@ export async function ncc_edge_runtime_primitives() {
   // `@edge-runtime/primitives` is precompiled and pre-bundled
   // so we vendor the package as it is.
   const dest = 'src/compiled/@edge-runtime/primitives'
+  await fs.mkdirp(dest)
+  const primitivesPath = dirname(
+    require.resolve('@edge-runtime/primitives/package.json')
+  )
   const pkg = await fs.readJson(
     require.resolve('@edge-runtime/primitives/package.json')
   )
   await fs.remove(dest)
 
-  for (const file of pkg.files) {
-    if (['dist', 'types'].includes(file)) {
-      continue
-    }
+  for (const file of await fs.readdir(join(primitivesPath, 'types'))) {
+    await fs.copy(join(primitivesPath, 'types', file), join(dest, file))
+  }
 
-    externals[
-      `@edge-runtime/primitives/${file}`
-    ] = `next/dist/compiled/@edge-runtime/primitives/${file}`
-    const dest2 = `src/compiled/@edge-runtime/primitives/${file}`
-    await fs.outputJson(join(dest2, 'package.json'), {
-      main: `../${file}.js`,
-      types: `../${file}.d.ts`,
-    })
-
-    await fs.copyFile(
-      require.resolve(`@edge-runtime/primitives/${file}`),
-      join(dest, `${file}.js`)
-    )
-
-    try {
-      await fs.copyFile(
-        require.resolve(`@edge-runtime/primitives/dist/${file}.js.text.js`),
-        join(dest, `${file}.js.text.js`)
-      )
-    } catch (err) {}
-
-    await fs.copy(
-      require.resolve(`@edge-runtime/primitives/types/${file}.d.ts`),
-      join(dest, `${file}.d.ts`)
-    )
+  for (const file of await fs.readdir(join(primitivesPath, 'dist'))) {
+    await fs.copy(join(primitivesPath, 'dist', file), join(dest, file))
   }
 
   await fs.outputJson(join(dest, 'package.json'), {
