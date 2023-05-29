@@ -1,8 +1,8 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use indexmap::indexmap;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    primitives::{JsonValueVc, OptionStringVc, StringVc, StringsVc},
+    primitives::{JsonValueVc, StringVc, StringsVc},
     trace::TraceRawVcs,
     Value,
 };
@@ -17,7 +17,7 @@ use turbopack_binding::{
             chunk::{ChunkingContextVc, EvaluatableAssetVc, EvaluatableAssetsVc},
             context::{AssetContext, AssetContextVc},
             environment::{EnvironmentIntention, ServerAddrVc},
-            reference_type::{EntryReferenceSubType, ReferenceType},
+            reference_type::{EntryReferenceSubType, InnerAssetsVc, ReferenceType},
             source_asset::SourceAssetVc,
         },
         dev::DevChunkingContextVc,
@@ -29,10 +29,6 @@ use turbopack_binding::{
                 specificity::SpecificityVc,
                 ContentSourceData, ContentSourceVc,
             },
-        },
-        ecmascript::{
-            EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
-            EcmascriptModuleAssetVc, InnerAssetsVc,
         },
         env::ProcessEnvAssetVc,
         node::{
@@ -833,6 +829,13 @@ impl SsrEntryVc {
             }
         };
 
+        let module = this.context.process(
+            internal_asset,
+            Value::new(ReferenceType::Internal(InnerAssetsVc::cell(inner_assets))),
+        );
+        let Some(module) = EvaluatableAssetVc::resolve_from(module).await? else {
+            bail!("internal module must be evaluatable");
+        };
         Ok(NodeRenderingEntry {
             runtime_entries: EvaluatableAssetsVc::cell(
                 this.runtime_entries
@@ -841,26 +844,7 @@ impl SsrEntryVc {
                     .map(|entry| EvaluatableAssetVc::from_asset(*entry, this.context))
                     .collect(),
             ),
-            module: EcmascriptModuleAssetVc::new_with_inner_assets(
-                internal_asset,
-                this.context,
-                Value::new(EcmascriptModuleAssetType::Typescript),
-                EcmascriptInputTransformsVc::cell(vec![
-                    EcmascriptInputTransform::TypeScript {
-                        use_define_for_class_fields: false,
-                    },
-                    EcmascriptInputTransform::React {
-                        // The Page source is currently only used in the development mode.
-                        development: true,
-                        refresh: false,
-                        import_source: OptionStringVc::cell(None),
-                        runtime: OptionStringVc::cell(None),
-                    },
-                ]),
-                Default::default(),
-                this.context.compile_time_info(),
-                InnerAssetsVc::cell(inner_assets),
-            ),
+            module,
             chunking_context: this.chunking_context,
             intermediate_output_path: this.node_path,
             output_root: this.node_root,

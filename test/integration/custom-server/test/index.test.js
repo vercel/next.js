@@ -280,7 +280,7 @@ describe.each([
       expect(stderr).toContain(
         '- error unhandledRejection: Error: unhandled rejection'
       )
-      expect(stderr).toContain('server.js:32:22')
+      expect(stderr).toContain('server.js:33:22')
     })
   })
 
