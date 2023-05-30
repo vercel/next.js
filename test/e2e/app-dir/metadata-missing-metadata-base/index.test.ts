@@ -1,6 +1,6 @@
 import { createNext, FileRef } from 'e2e-utils'
-import { fetchViaHTTP, findPort } from 'next-test-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
+import { fetchViaHTTP, findPort } from 'next-test-utils'
 
 describe('app dir - metadata missing metadataBase', () => {
   let next: NextInstance
