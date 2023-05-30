@@ -499,7 +499,8 @@ export function patchFetch({
             if (
               typeof next.revalidate === 'number' &&
               (typeof staticGenerationStore.revalidate === 'undefined' ||
-                next.revalidate < staticGenerationStore.revalidate)
+                (typeof staticGenerationStore.revalidate === 'number' &&
+                  next.revalidate < staticGenerationStore.revalidate))
             ) {
               const forceDynamic = staticGenerationStore.forceDynamic
 
