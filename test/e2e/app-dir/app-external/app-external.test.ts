@@ -181,6 +181,20 @@ createNextDescribe(
         expect(html).toContain('CJS package: cjs-lib')
       })
 
+      it('should use the same react in server app', async () => {
+        const html = await next.render('/esm/edge-server')
+
+        const v1 = html.match(/App React Version: ([^<]+)</)[1]
+        const v2 = html.match(/External React Version: ([^<]+)</)[1]
+        expect(v1).toBe(v2)
+
+        // Should work with both esm and cjs imports
+        expect(html).toContain(
+          'CJS-ESM Compat package: cjs-esm-compat/index.mjs'
+        )
+        expect(html).toContain('CJS package: cjs-lib')
+      })
+
       it('should use the same react in pages', async () => {
         const html = await next.render('/test-pages-esm')
 
@@ -201,7 +215,7 @@ createNextDescribe(
     })
 
     if (isNextDev) {
-      it('should error for wildcard exports of client module references in esm', async () => {
+      it('should error for require ESM package in CJS package', async () => {
         const page = 'app/cjs-import-esm/page.js'
         // reuse esm-client-ref/page.js
         const pageSource = await next.readFile('app/esm-client-ref/page.js')
