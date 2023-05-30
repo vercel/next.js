@@ -10,20 +10,16 @@ use turbopack_binding::{
             asset::{Asset, AssetContentVc, AssetVc, AssetsVc},
             chunk::{
                 ChunkDataVc, ChunkableAsset, ChunkingContext, ChunkingContextVc, ChunksDataVc,
-                EvaluatableAssetsVc,
+                EvaluatableAssetVc, EvaluatableAssetsVc,
             },
             context::{AssetContext, AssetContextVc},
             ident::AssetIdentVc,
             reference::{AssetReferencesVc, SingleAssetReferenceVc},
-            reference_type::{EntryReferenceSubType, ReferenceType},
+            reference_type::{EntryReferenceSubType, InnerAssetsVc, ReferenceType},
             virtual_asset::VirtualAssetVc,
         },
         dev_server::source::{asset_graph::AssetGraphContentSourceVc, ContentSourceVc},
-        ecmascript::{
-            chunk::EcmascriptChunkData, utils::StringifyJs, EcmascriptInputTransform,
-            EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc,
-            InnerAssetsVc,
-        },
+        ecmascript::{chunk::EcmascriptChunkData, utils::StringifyJs},
     },
 };
 
@@ -90,23 +86,22 @@ impl PageLoaderAssetVc {
 
         let loader_entry_asset = self.get_loader_entry_asset();
 
-        let asset = EcmascriptModuleAssetVc::new_with_inner_assets(
+        let module = this.client_context.process(
             loader_entry_asset,
-            this.client_context,
-            Value::new(EcmascriptModuleAssetType::Typescript),
-            EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
-                use_define_for_class_fields: false,
-            }]),
-            Default::default(),
-            this.client_context.compile_time_info(),
-            InnerAssetsVc::cell(indexmap! {
-                "PAGE".to_string() => this.client_context.process(this.entry_asset, Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)))
-            }),
+            Value::new(ReferenceType::Internal(
+                InnerAssetsVc::cell(indexmap! {
+                    "PAGE".to_string() => this.client_context.process(this.entry_asset, Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)))
+                })
+            )),
         );
 
+        let Some(module) = EvaluatableAssetVc::resolve_from(module).await? else {
+            bail!("internal module must be evaluatable");
+        };
+
         Ok(this.client_chunking_context.evaluated_chunk_group(
-            asset.as_root_chunk(this.client_chunking_context),
-            EvaluatableAssetsVc::one(asset.into()),
+            module.as_root_chunk(this.client_chunking_context),
+            EvaluatableAssetsVc::one(module),
         ))
     }
 
