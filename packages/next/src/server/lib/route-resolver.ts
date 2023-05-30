@@ -251,7 +251,7 @@ export async function makeResolver(
     await router.execute(req, res, parsedUrl)
 
     // If the headers are sent, then this was handled by middleware and there's
-    // noting for us to do.
+    // nothing for us to do.
     if (res.originalResponse.headersSent) {
       return
     }
