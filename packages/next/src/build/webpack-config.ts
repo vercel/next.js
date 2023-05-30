@@ -4,6 +4,7 @@ import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import path from 'path'
+import semver from 'next/dist/compiled/semver'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import {
   DOT_NEXT_ALIAS,
@@ -1035,8 +1036,18 @@ export default async function getBaseWebpackConfig(
 
   let hasExternalOtelApiPackage = false
   try {
-    require.resolve('@opentelemetry/api')
-    hasExternalOtelApiPackage = true
+    const opentelemetryPackageJson = require('@opentelemetry/api/package.json')
+    if (opentelemetryPackageJson.version) {
+      // 0.19.0 is the first version of the package that has the `tracer.getSpan` API that we need:
+      // https://github.com/vercel/next.js/issues/48118
+      if (semver.gte(opentelemetryPackageJson.version, '0.19.0')) {
+        hasExternalOtelApiPackage = true
+      } else {
+        Log.error(
+          `Installed "@opentelemetry/api" version ${opentelemetryPackageJson.version} is not supported by Next.js. Please upgrade to 0.19.0 or newer.`
+        )
+      }
+    }
   } catch {}
 
   const resolveConfig: webpack.Configuration['resolve'] = {
