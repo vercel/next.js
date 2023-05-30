@@ -225,6 +225,12 @@ export class ClientReferenceEntryPlugin {
           continue
         }
 
+        // TODO-APP: Enable these lines. This ensures no entrypoint is created for layout/page when there are no client components.
+        // Currently disabled because it causes test failures in CI.
+        // if (clientImports.length === 0 && actionImports.length === 0) {
+        //   continue
+        // }
+
         const relativeRequest = isAbsoluteRequest
           ? path.relative(compilation.options.context, entryRequest)
           : entryRequest
