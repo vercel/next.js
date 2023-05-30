@@ -74,6 +74,7 @@ function getDesiredCompilerOptions(
       reason: 'to match webpack resolution',
     },
     resolveJsonModule: { value: true, reason: 'to match webpack resolution' },
+    // @ts-ignore - need to upgrade to typescript@5
     ...(userTsConfig?.compilerOptions?.verbatimModuleSyntax === true
       ? undefined
       : {
@@ -87,13 +88,6 @@ function getDesiredCompilerOptions(
       value: 'preserve',
       reason: 'next.js implements its own optimized jsx transform',
     },
-  }
-
-  if (userTsConfig?.compilerOptions?.verbatimModuleSyntax !== true) {
-    o.isolatedModules = {
-      value: true,
-      reason: 'requirement for SWC / Babel',
-    }
   }
 
   return o
