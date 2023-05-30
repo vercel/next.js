@@ -54,6 +54,7 @@ import { normalizeMetadataRoute } from '../lib/metadata/get-metadata-route'
 import { fileExists } from '../lib/file-exists'
 import { getRouteLoaderEntry } from './webpack/loaders/next-route-loader'
 import { isInternalPathname } from '../lib/is-internal-pathname'
+import { isStaticMetadataRouteFile } from '../lib/metadata/is-metadata-route'
 
 export async function getStaticInfoIncludingLayouts({
   isInsideAppDir,
@@ -127,6 +128,13 @@ export async function getStaticInfoIncludingLayouts({
     }
     if (pageStaticInfo.preferredRegion) {
       staticInfo.preferredRegion = pageStaticInfo.preferredRegion
+    }
+
+    // if it's static metadata route, don't inherit runtime from layout
+    const relativePath = pageFilePath.replace(appDir, '')
+    if (isStaticMetadataRouteFile(relativePath)) {
+      delete staticInfo.runtime
+      delete staticInfo.preferredRegion
     }
   }
   return staticInfo
@@ -346,7 +354,9 @@ export function getEdgeServerEntry(opts: {
     dev: opts.isDev,
     isServerComponent: opts.isServerComponent,
     page: opts.page,
-    stringifiedConfig: JSON.stringify(opts.config),
+    stringifiedConfig: Buffer.from(JSON.stringify(opts.config)).toString(
+      'base64'
+    ),
     pagesType: opts.pagesType,
     appDirLoader: Buffer.from(opts.appDirLoader || '').toString('base64'),
     sriEnabled: !opts.isDev && !!opts.config.experimental.sri?.algorithm,

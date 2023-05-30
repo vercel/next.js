@@ -1,5 +1,6 @@
 import type webpack from 'webpack'
 import { getModuleBuildInfo } from '../get-module-build-info'
+import { WEBPACK_RESOURCE_QUERIES } from '../../../../lib/constants'
 import { stringifyRequest } from '../../stringify-request'
 
 export type EdgeSSRLoaderQuery = {
@@ -44,7 +45,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       absolute500Path,
       absoluteErrorPath,
       isServerComponent,
-      stringifiedConfig,
+      stringifiedConfig: stringifiedConfigBase64,
       appDirLoader: appDirLoaderBase64,
       pagesType,
       sriEnabled,
@@ -52,6 +53,10 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       preferredRegion,
     } = this.getOptions()
 
+    const stringifiedConfig = Buffer.from(
+      stringifiedConfigBase64 || '',
+      'base64'
+    ).toString()
     const appDirLoader = Buffer.from(
       appDirLoaderBase64 || '',
       'base64'
@@ -91,7 +96,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
     const pageModPath = `${appDirLoader}${stringifiedPagePath.substring(
       1,
       stringifiedPagePath.length - 1
-    )}${isAppDir ? '?__edge_ssr_entry__' : ''}`
+    )}${isAppDir ? `?${WEBPACK_RESOURCE_QUERIES.edgeSSREntry}` : ''}`
 
     const transformed = `
     import { adapter, enhanceGlobals } from 'next/dist/esm/server/web/adapter'
