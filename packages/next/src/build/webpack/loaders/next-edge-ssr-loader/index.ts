@@ -45,7 +45,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       absolute500Path,
       absoluteErrorPath,
       isServerComponent,
-      stringifiedConfig,
+      stringifiedConfig: stringifiedConfigBase64,
       appDirLoader: appDirLoaderBase64,
       pagesType,
       sriEnabled,
@@ -53,6 +53,10 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       preferredRegion,
     } = this.getOptions()
 
+    const stringifiedConfig = Buffer.from(
+      stringifiedConfigBase64 || '',
+      'base64'
+    ).toString()
     const appDirLoader = Buffer.from(
       appDirLoaderBase64 || '',
       'base64'
