@@ -10,7 +10,7 @@ import {
   nextConfig,
 } from './utils'
 
-describe.skip('app dir with output export (next dev / next build)', () => {
+describe('app dir with output export (next dev / next build)', () => {
   it('should throw when exportPathMap configured', async () => {
     nextConfig.replace(
       'trailingSlash: true,',

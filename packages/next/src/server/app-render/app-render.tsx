@@ -72,8 +72,11 @@ import {
 import { handleAction } from './action-handler'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
 import { warn } from '../../build/output/log'
+import { appendMutableCookies } from '../web/spec-extension/adapters/request-cookies'
 
 export const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
+
+const emptyLoaderTree: LoaderTree = ['', {}, {}]
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -138,11 +141,12 @@ function findDynamicParamFromRouterState(
 export async function renderToHTMLOrFlight(
   req: IncomingMessage,
   res: ServerResponse,
-  pathname: string,
+  pagePath: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts
 ): Promise<RenderResult> {
   const isFlight = req.headers[RSC.toLowerCase()] !== undefined
+  const pathname = validateURL(req.url)
 
   const {
     buildManifest,
@@ -699,7 +703,7 @@ export async function renderToHTMLOrFlight(
           !isValidElementType(Component)
         ) {
           throw new Error(
-            `The default export is not a React Component in page: "${pathname}"`
+            `The default export is not a React Component in page: "${page}"`
           )
         }
 
@@ -839,7 +843,6 @@ export async function renderToHTMLOrFlight(
                 templateStyles={templateStyles}
                 notFound={NotFound ? <NotFound /> : undefined}
                 notFoundStyles={notFoundStyles}
-                asNotFound={asNotFound}
                 childProp={childProp}
                 styles={childStyles}
               />,
@@ -1179,7 +1182,7 @@ export async function renderToHTMLOrFlight(
               injectedCSS: new Set(),
               injectedFontPreloadTags: new Set(),
               rootLayoutIncluded: false,
-              asNotFound: pathname === '/404' || options?.asNotFound,
+              asNotFound: pagePath === '/404' || options?.asNotFound,
             })
           ).map((path) => path.slice(1)) // remove the '' (root) segment
 
@@ -1215,8 +1218,6 @@ export async function renderToHTMLOrFlight(
       Uint8Array,
       Uint8Array
     > = new TransformStream()
-
-    const initialCanonicalUrl = validateURL(req.url)
 
     // Get the nonce from the incoming request if it has one.
     const csp = req.headers['content-security-policy']
@@ -1292,24 +1293,28 @@ export async function renderToHTMLOrFlight(
           query
         )
 
+        const createMetadata = (tree: LoaderTree) => (
+          // Adding key={requestId} to make metadata remount for each render
+          // @ts-expect-error allow to use async server component
+          <MetadataTree
+            key={requestId}
+            tree={tree}
+            pathname={pathname}
+            searchParams={providedSearchParams}
+            getDynamicParamFromSegment={getDynamicParamFromSegment}
+          />
+        )
+
         return (
           <>
             {styles}
             <AppRouter
               assetPrefix={assetPrefix}
-              initialCanonicalUrl={initialCanonicalUrl}
+              initialCanonicalUrl={pathname}
               initialTree={initialTree}
               initialHead={
                 <>
-                  {/* Adding key={requestId} to make metadata remount for each render */}
-                  {/* @ts-expect-error allow to use async server component */}
-                  <MetadataTree
-                    key={requestId}
-                    tree={loaderTree}
-                    pathname={pathname}
-                    searchParams={providedSearchParams}
-                    getDynamicParamFromSegment={getDynamicParamFromSegment}
-                  />
+                  {createMetadata(loaderTree)}
                   {appUsingSizeAdjust ? <meta name="next-size-adjust" /> : null}
                 </>
               }
@@ -1317,6 +1322,7 @@ export async function renderToHTMLOrFlight(
               notFound={
                 NotFound && RootLayout ? (
                   <RootLayout params={{}}>
+                    {createMetadata(emptyLoaderTree)}
                     {notFoundStyles}
                     <NotFound />
                   </RootLayout>
@@ -1361,13 +1367,13 @@ export async function renderToHTMLOrFlight(
       )
     }
 
-    getTracer().getRootSpanAttributes()?.set('next.route', pathname)
+    getTracer().getRootSpanAttributes()?.set('next.route', pagePath)
     const bodyResult = getTracer().wrap(
       AppRenderSpan.getBodyResult,
       {
-        spanName: `render route (app) ${pathname}`,
+        spanName: `render route (app) ${pagePath}`,
         attributes: {
-          'next.route': pathname,
+          'next.route': pagePath,
         },
       },
       async ({
@@ -1497,8 +1503,8 @@ export async function renderToHTMLOrFlight(
           }
           if (err.digest === NEXT_DYNAMIC_NO_SSR_CODE) {
             warn(
-              `Entire page ${pathname} deopted into client-side rendering. https://nextjs.org/docs/messages/deopted-into-client-rendering`,
-              pathname
+              `Entire page ${pagePath} deopted into client-side rendering. https://nextjs.org/docs/messages/deopted-into-client-rendering`,
+              pagePath
             )
           }
           if (isNotFoundError(err)) {
@@ -1506,6 +1512,15 @@ export async function renderToHTMLOrFlight(
           }
           if (isRedirectError(err)) {
             res.statusCode = 307
+            if (err.mutableCookies) {
+              const headers = new Headers()
+
+              // If there were mutable cookies set, we need to set them on the
+              // response.
+              if (appendMutableCookies(headers, err.mutableCookies)) {
+                res.setHeader('set-cookie', Array.from(headers.values()))
+              }
+            }
             res.setHeader('Location', getURLFromRedirectError(err))
           }
 
@@ -1517,7 +1532,7 @@ export async function renderToHTMLOrFlight(
                   {/* @ts-expect-error allow to use async server component */}
                   <MetadataTree
                     key={requestId}
-                    tree={['', {}, {}]}
+                    tree={emptyLoaderTree}
                     pathname={pathname}
                     searchParams={providedSearchParams}
                     getDynamicParamFromSegment={getDynamicParamFromSegment}
@@ -1571,7 +1586,7 @@ export async function renderToHTMLOrFlight(
 
     const renderResult = new RenderResult(
       await bodyResult({
-        asNotFound: pathname === '/404',
+        asNotFound: pagePath === '/404',
       })
     )
 
@@ -1625,7 +1640,7 @@ export async function renderToHTMLOrFlight(
     () =>
       StaticGenerationAsyncStorageWrapper.wrap(
         staticGenerationAsyncStorage,
-        { pathname, renderOpts },
+        { pathname: pagePath, renderOpts },
         () => wrappedRender()
       )
   )

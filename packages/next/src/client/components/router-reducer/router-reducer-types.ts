@@ -42,6 +42,7 @@ export interface ServerActionMutable {
   inFlightServerAction?: Promise<any> | null
   serverActionApplied?: boolean
   previousTree?: FlightRouterState
+  previousUrl?: string
 }
 
 /**

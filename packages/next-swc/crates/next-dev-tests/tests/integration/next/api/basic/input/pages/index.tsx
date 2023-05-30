@@ -34,7 +34,7 @@ function runTests(harness: Harness) {
     expect(json).toEqual({ hello: 'world', input: 'test' })
   })
 
-  it('should be able to use PORT and fetch from [::]', async () => {
+  it('should be able to use PORT and fetch from [::1]', async () => {
     const res = await fetch('/api/ipv6')
     const json = await res.json()
     expect(json).toEqual({ hello: 'world', input: 'test' })

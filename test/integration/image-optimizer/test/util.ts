@@ -1331,6 +1331,7 @@ export const setupTests = (ctx) => {
         nextConfigImages: {
           domains: [
             'localhost',
+            '127.0.0.1',
             'example.com',
             'assets.vercel.com',
             'image-optimization-test.vercel.app',
@@ -1414,6 +1415,7 @@ export const setupTests = (ctx) => {
       nextConfigImages: {
         domains: [
           'localhost',
+          '127.0.0.1',
           'example.com',
           'assets.vercel.com',
           'image-optimization-test.vercel.app',

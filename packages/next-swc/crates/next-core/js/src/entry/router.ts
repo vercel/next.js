@@ -1,12 +1,11 @@
 import type { Ipc, StructuredError } from '@vercel/turbopack-node/ipc/index'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { Buffer } from 'node:buffer'
-import { createServer, makeRequest } from '../internal/server'
+import { createServer, makeRequest, type ServerInfo } from '../internal/server'
 import { toPairs } from '../internal/headers'
 import {
   makeResolver,
-  RouteResult,
-  ServerAddress,
+  type RouteResult,
 } from 'next/dist/server/lib/route-resolver'
 import loadConfig from 'next/dist/server/config'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/dist/shared/lib/constants'
@@ -15,6 +14,10 @@ import 'next/dist/server/node-polyfill-fetch.js'
 
 import middlewareChunkGroup from 'MIDDLEWARE_CHUNK_GROUP'
 import middlewareConfig from 'MIDDLEWARE_CONFIG'
+
+type Resolver = Awaited<
+  ReturnType<typeof import('next/dist/server/lib/route-resolver').makeResolver>
+>
 
 type RouterRequest = {
   method: string
@@ -52,16 +55,12 @@ type MiddlewareHeadersResponse = {
   headers: [string, string][]
 }
 
-let resolveRouteMemo: Promise<
-  (req: IncomingMessage, res: ServerResponse) => Promise<void>
->
+let resolveRouteMemo: Promise<Resolver>
 
 async function getResolveRoute(
   dir: string,
-  serverAddr: Partial<ServerAddress>
-): ReturnType<
-  typeof import('next/dist/server/lib/route-resolver').makeResolver
-> {
+  serverInfo: ServerInfo
+): Promise<Resolver> {
   const nextConfig = await loadConfig(
     PHASE_DEVELOPMENT_SERVER,
     process.cwd(),
@@ -74,17 +73,17 @@ async function getResolveRoute(
     matcher: middlewareConfig.matcher,
   }
 
-  return await makeResolver(dir, nextConfig, middlewareCfg, serverAddr)
+  return await makeResolver(dir, nextConfig, middlewareCfg, serverInfo)
 }
 
 export default async function route(
   ipc: Ipc<RouterRequest, IpcOutgoingMessage>,
   routerRequest: RouterRequest,
   dir: string,
-  serverAddr: Partial<ServerAddress>
+  serverInfo: ServerInfo
 ) {
   const [resolveRoute, server] = await Promise.all([
-    (resolveRouteMemo ??= getResolveRoute(dir, serverAddr)),
+    (resolveRouteMemo ??= getResolveRoute(dir, serverInfo)),
     createServer(),
   ])
 
@@ -99,7 +98,8 @@ export default async function route(
       routerRequest.method,
       routerRequest.pathname,
       routerRequest.rawQuery,
-      routerRequest.rawHeaders
+      routerRequest.rawHeaders,
+      serverInfo
     )
 
     const body = Buffer.concat(

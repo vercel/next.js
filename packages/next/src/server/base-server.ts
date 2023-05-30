@@ -100,7 +100,10 @@ import { I18NProvider } from './future/helpers/i18n-provider'
 import { sendResponse } from './send-response'
 import { RouteKind } from './future/route-kind'
 import { handleInternalServerErrorResponse } from './future/route-modules/helpers/response-handlers'
-import { fromNodeHeaders, toNodeHeaders } from './web/utils'
+import {
+  fromNodeOutgoingHttpHeaders,
+  toNodeOutgoingHttpHeaders,
+} from './web/utils'
 import { NEXT_QUERY_PARAM_PREFIX } from '../lib/constants'
 
 export type FindComponentsResult = {
@@ -1051,7 +1054,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // be passed down for edge functions and the fetch disk
     // cache can be leveraged locally
     if (
-      !(globalThis as any).__incrementalCache &&
+      !(this.serverOptions as any).webServerConfig &&
       !getRequestMeta(req, '_nextIncrementalCache')
     ) {
       let protocol: 'http:' | 'https:' = 'https:'
@@ -1071,6 +1074,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           | 'https',
       })
       addRequestMeta(req, '_nextIncrementalCache', incrementalCache)
+      ;(globalThis as any).__incrementalCache = incrementalCache
     }
 
     try {
@@ -1625,7 +1629,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               const blob = await response.blob()
 
               // Copy the headers from the response.
-              const headers = toNodeHeaders(response.headers)
+              const headers = toNodeOutgoingHttpHeaders(response.headers)
 
               if (cacheTags) {
                 headers['x-next-cache-tags'] = cacheTags
@@ -2023,7 +2027,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         req,
         res,
         new Response(cachedData.body, {
-          headers: fromNodeHeaders(headers),
+          headers: fromNodeOutgoingHttpHeaders(headers),
           status: cachedData.status || 200,
         })
       )

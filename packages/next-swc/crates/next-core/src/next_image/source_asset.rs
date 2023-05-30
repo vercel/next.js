@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use anyhow::{bail, Result};
-use turbo_binding::{
+use turbopack_binding::{
     turbo::{
         tasks::primitives::StringVc,
         tasks_fs::{rope::RopeBuilder, FileContent},
@@ -43,7 +43,10 @@ pub struct StructuredImageSourceAsset {
 impl Asset for StructuredImageSourceAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> AssetIdentVc {
-        self.image.ident().with_modifier(modifier())
+        self.image
+            .ident()
+            .with_modifier(modifier())
+            .rename_as("*.mjs")
     }
 
     #[turbo_tasks::function]

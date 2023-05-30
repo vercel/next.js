@@ -1,7 +1,7 @@
 import type { NextMiddleware, RequestData, FetchEventResult } from './types'
 import type { RequestInit } from './spec-extension/request'
 import { PageSignatureError } from './error'
-import { fromNodeHeaders } from './utils'
+import { fromNodeOutgoingHttpHeaders } from './utils'
 import { NextFetchEvent } from './spec-extension/fetch-event'
 import { NextRequest } from './spec-extension/request'
 import { NextResponse } from './spec-extension/response'
@@ -97,7 +97,10 @@ export async function adapter(
     nextConfig: params.request.nextConfig,
   })
 
-  for (const key of requestUrl.searchParams.keys()) {
+  // Iterator uses an index to keep track of the current iteration. Because of deleting and appending below we can't just use the iterator.
+  // Instead we use the keys before iteration.
+  const keys = [...requestUrl.searchParams.keys()]
+  for (const key of keys) {
     const value = requestUrl.searchParams.getAll(key)
 
     if (
@@ -124,7 +127,7 @@ export async function adapter(
     requestUrl.pathname = '/'
   }
 
-  const requestHeaders = fromNodeHeaders(params.request.headers)
+  const requestHeaders = fromNodeOutgoingHttpHeaders(params.request.headers)
   const flightHeaders = new Map()
   // Parameters should only be stripped for middleware
   if (!isEdgeRendering) {
@@ -177,7 +180,7 @@ export async function adapter(
     ).IncrementalCache({
       appDir: true,
       fetchCache: true,
-      minimalMode: true,
+      minimalMode: process.env.NODE_ENV !== 'development',
       fetchCacheKeyPrefix: process.env.__NEXT_FETCH_CACHE_KEY_PREFIX,
       dev: process.env.NODE_ENV === 'development',
       requestHeaders: params.request.headers as any,
