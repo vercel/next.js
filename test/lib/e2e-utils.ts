@@ -212,6 +212,7 @@ export function createNextDescribe(
     isNextDev: boolean
     isNextDeploy: boolean
     isNextStart: boolean
+    isTurbopack: boolean
     next: NextInstance
   }) => void
 ): void {
@@ -242,6 +243,13 @@ export function createNextDescribe(
     fn({
       get isNextDev(): boolean {
         return Boolean((global as any).isNextDev)
+      },
+      get isTurbopack(): boolean {
+        return Boolean(
+          (global as any).isNextDev &&
+            !process.env.TEST_WASM &&
+            (options.turbo ?? shouldRunTurboDevTest())
+        )
       },
 
       get isNextDeploy(): boolean {
