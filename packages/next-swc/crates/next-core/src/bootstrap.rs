@@ -1,6 +1,6 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use indexmap::{indexmap, IndexMap};
-use turbo_tasks::Value;
+use turbo_tasks::{Value, ValueToString};
 use turbo_tasks_fs::{File, FileSystemPathVc};
 use turbopack_binding::turbopack::{
     core::{
@@ -80,10 +80,13 @@ pub async fn bootstrap(
     config: BootstrapConfigVc,
 ) -> Result<EvaluatableAssetVc> {
     let path = asset.ident().path().await?;
-    let path = base_path
-        .await?
-        .get_path_to(&path)
-        .context("asset is not in base_path")?;
+    let Some(path) = base_path.await?.get_path_to(&path) else {
+        bail!(
+            "asset {} is not in base path {}",
+            asset.ident().to_string().await?,
+            base_path.to_string().await?
+        );
+    };
     let path = if let Some((name, ext)) = path.rsplit_once('.') {
         if !ext.contains('/') {
             name

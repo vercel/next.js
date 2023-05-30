@@ -10,7 +10,7 @@ import type {
 } from 'next/dist/server/base-http/node'
 import { parse, ParsedUrlQuery } from 'querystring'
 import type { Params } from 'next/dist/shared/lib/router/utils/route-matcher'
-import { FetchEventResult } from 'next/dist/server/web/types'
+import type { FetchEventResult } from 'next/dist/server/web/types'
 import { getCloneableBody } from 'next/dist/server/body-streams'
 
 // This is an adapted version of a similar function in next-dev-server.
@@ -34,7 +34,7 @@ export async function runEdgeFunction({
   }
   outputDir: string
   req: BaseNextRequest | NodeNextRequest
-  res: BaseNextResponse | NodeNextResponse
+  res?: BaseNextResponse | NodeNextResponse
   query: string
   path: string
   params: Params | undefined
@@ -83,35 +83,37 @@ export async function runEdgeFunction({
     onWarning,
   })) as FetchEventResult
 
-  res.statusCode = result.response.status
-  res.statusMessage = result.response.statusText
+  if (res) {
+    res.statusCode = result.response.status
+    res.statusMessage = result.response.statusText
 
-  result.response.headers.forEach((value: string, key) => {
-    // the append handling is special cased for `set-cookie`
-    if (key.toLowerCase() === 'set-cookie') {
-      res.setHeader(key, value)
-    } else {
-      res.appendHeader(key, value)
-    }
-  })
-
-  if (result.response.body) {
-    // TODO(gal): not sure that we always need to stream
-    const nodeResStream = (res as NodeNextResponse).originalResponse
-    const {
-      consumeUint8ArrayReadableStream,
-    } = require('next/dist/compiled/edge-runtime')
-    try {
-      for await (const chunk of consumeUint8ArrayReadableStream(
-        result.response.body
-      )) {
-        nodeResStream.write(chunk)
+    result.response.headers.forEach((value: string, key) => {
+      // the append handling is special cased for `set-cookie`
+      if (key.toLowerCase() === 'set-cookie') {
+        res.setHeader(key, value)
+      } else {
+        res.appendHeader(key, value)
       }
-    } finally {
-      nodeResStream.end()
+    })
+
+    if (result.response.body) {
+      // TODO(gal): not sure that we always need to stream
+      const nodeResStream = (res as NodeNextResponse).originalResponse
+      const {
+        consumeUint8ArrayReadableStream,
+      } = require('next/dist/compiled/edge-runtime')
+      try {
+        for await (const chunk of consumeUint8ArrayReadableStream(
+          result.response.body
+        )) {
+          nodeResStream.write(chunk)
+        }
+      } finally {
+        nodeResStream.end()
+      }
+    } else {
+      ;(res as NodeNextResponse).originalResponse.end()
     }
-  } else {
-    ;(res as NodeNextResponse).originalResponse.end()
   }
 
   return result

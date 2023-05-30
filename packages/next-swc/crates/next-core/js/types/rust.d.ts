@@ -87,6 +87,7 @@ declare module 'APP_BOOTSTRAP' {
 
 declare module 'APP_ENTRY' {
   export const tree: any;
+  export const pathname: string;
   // and more...
 }
 

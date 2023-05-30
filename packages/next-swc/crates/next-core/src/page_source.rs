@@ -62,7 +62,7 @@ use crate::{
     next_config::NextConfigVc,
     next_edge::{
         context::{get_edge_compile_time_info, get_edge_resolve_options_context},
-        transition::NextEdgeTransition,
+        route_transition::NextEdgeRouteTransition,
     },
     next_route_matcher::{
         NextExactMatcherVc, NextFallbackMatcherVc, NextParamsMatcherVc,
@@ -173,7 +173,7 @@ pub async fn create_page_source(
     let edge_resolve_options_context =
         get_edge_resolve_options_context(project_root, server_ty, next_config, execution_context);
 
-    let next_edge_transition = NextEdgeTransition {
+    let next_edge_transition = NextEdgeRouteTransition {
         edge_compile_time_info,
         edge_chunking_context,
         edge_module_options_context: None,

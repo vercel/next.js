@@ -17,7 +17,7 @@ use turbopack_binding::{
 use crate::bootstrap::{route_bootstrap, BootstrapConfigVc};
 
 #[turbo_tasks::value(shared)]
-pub struct NextEdgeTransition {
+pub struct NextEdgeRouteTransition {
     pub edge_compile_time_info: CompileTimeInfoVc,
     pub edge_chunking_context: ChunkingContextVc,
     pub edge_module_options_context: Option<ModuleOptionsContextVc>,
@@ -29,7 +29,7 @@ pub struct NextEdgeTransition {
 }
 
 #[turbo_tasks::value_impl]
-impl Transition for NextEdgeTransition {
+impl Transition for NextEdgeRouteTransition {
     #[turbo_tasks::function]
     fn process_compile_time_info(
         &self,

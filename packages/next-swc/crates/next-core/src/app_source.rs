@@ -86,7 +86,7 @@ use crate::{
     next_config::NextConfigVc,
     next_edge::{
         context::{get_edge_compile_time_info, get_edge_resolve_options_context},
-        transition::NextEdgeTransition,
+        route_transition::NextEdgeRouteTransition, page_transition::NextEdgePageTransition,
     },
     next_image::module::{BlurPlaceholderMode, StructuredImageModuleType},
     next_route_matcher::{NextFallbackMatcherVc, NextParamsMatcherVc},
@@ -257,7 +257,7 @@ fn next_edge_route_transition(
     let edge_resolve_options_context =
         get_edge_resolve_options_context(project_path, server_ty, next_config, execution_context);
 
-    NextEdgeTransition {
+    NextEdgeRouteTransition {
         edge_compile_time_info,
         edge_chunking_context,
         edge_module_options_context: None,
@@ -266,6 +266,48 @@ fn next_edge_route_transition(
         base_path: app_dir,
         bootstrap_asset: next_asset("entry/app/edge-route-bootstrap.ts"),
         entry_name: "edge".to_string(),
+    }
+    .cell()
+    .into()
+}
+
+#[turbo_tasks::function]
+fn next_edge_page_transition(
+    project_path: FileSystemPathVc,
+    app_dir: FileSystemPathVc,
+    server_root: FileSystemPathVc,
+    next_config: NextConfigVc,
+    server_addr: ServerAddrVc,
+    output_path: FileSystemPathVc,
+    execution_context: ExecutionContextVc,
+) -> TransitionVc {
+    let server_ty = Value::new(ServerContextType::AppRoute { app_dir });
+
+    let edge_compile_time_info = get_edge_compile_time_info(
+        project_path,
+        server_addr,
+        Value::new(EnvironmentIntention::Api),
+    );
+
+    let edge_chunking_context = DevChunkingContextVc::builder(
+        project_path,
+        output_path.join("edge-pages"),
+        output_path.join("edge-pages/chunks"),
+        get_client_assets_path(server_root, Value::new(ClientContextType::App { app_dir })),
+        edge_compile_time_info.environment(),
+    )
+    .reference_chunk_source_maps(false)
+    .build();
+    let edge_resolve_options_context =
+        get_edge_resolve_options_context(project_path, server_ty, next_config, execution_context);
+
+    NextEdgePageTransition {
+        edge_compile_time_info,
+        edge_chunking_context,
+        edge_module_options_context: None,
+        edge_resolve_options_context,
+        output_path,
+        bootstrap_asset: next_asset("entry/app/edge-page-bootstrap.ts"),
     }
     .cell()
     .into()
@@ -300,6 +342,17 @@ fn app_context(
             output_path,
             execution_context,
         ),
+    );
+    transitions.insert("next-edge-page".to_string(), 
+        next_edge_page_transition(
+            project_path,
+            app_dir,
+            server_root,
+            next_config,
+            server_addr,
+            output_path,
+            execution_context,
+        )
     );
     transitions.insert(
         "next-server-component".to_string(),
@@ -990,11 +1043,12 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
         }
 
         writeln!(result, "const tree = {loader_tree_code};\n")?;
+        writeln!(result, "const pathname = '';\n")?;
         writeln!(
             result,
             // Need this hack because "export *" from CommonJS will trigger a warning
             // otherwise
-            "__turbopack_export_value__({{ tree, GlobalError, ...base }});\n"
+            "__turbopack_export_value__({{ tree, GlobalError, pathname, ...base }});\n"
         )?;
 
         let file = File::from(result.build());
@@ -1011,16 +1065,14 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
         .reference_chunk_source_maps(false)
         .build();
 
-        let entry_module = context.with_transition("next-server-component").process(
-            asset.into(),
-            Value::new(ReferenceType::Internal(InnerAssetsVc::cell(inner_assets))),
-        );
-
         let renderer_module = match config.await?.runtime {
             Some(NextRuntime::NodeJs) | None => context.process(
                 SourceAssetVc::new(next_js_file_path("entry/app-renderer.tsx")).into(),
                 Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
-                    "APP_ENTRY".to_string() => entry_module.into(),
+                    "APP_ENTRY".to_string() => context.with_transition("next-server-component").process(
+                        asset.into(),
+                        Value::new(ReferenceType::Internal(InnerAssetsVc::cell(inner_assets))),
+                    ),
                     "APP_BOOTSTRAP".to_string() => context.with_transition("next-client").process(
                         SourceAssetVc::new(next_js_file_path("entry/app/hydrate.tsx")).into(),
                         Value::new(ReferenceType::EcmaScriptModules(
@@ -1029,18 +1081,16 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
                     ),
                 }))),
             ),
-            Some(NextRuntime::Edge) => context.process(
-                SourceAssetVc::new(next_js_file_path("entry/app-edge-renderer.tsx")).into(),
-                Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
-                    "APP_ENTRY".to_string() => entry_module.into(),
-                    "APP_BOOTSTRAP".to_string() => context.with_transition("next-client").process(
-                        SourceAssetVc::new(next_js_file_path("entry/app/hydrate.tsx")).into(),
-                        Value::new(ReferenceType::EcmaScriptModules(
-                            EcmaScriptModulesReferenceSubType::Undefined,
-                        )),
-                    ),
-                }))),
-            ),
+            Some(NextRuntime::Edge) => 
+                context.process(
+                    SourceAssetVc::new(next_js_file_path("entry/app-edge-renderer.tsx")).into(),
+                    Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
+                        "INNER_EDGE_CHUNK_GROUP".to_string() => context.with_transition("next-edge-page").process(
+                            asset.into(),
+                                    Value::new(ReferenceType::Internal(InnerAssetsVc::cell(inner_assets))),
+                        ),
+                    }))),
+                )
         };
 
         let Some(module) = EvaluatableAssetVc::resolve_from(renderer_module).await? else {
