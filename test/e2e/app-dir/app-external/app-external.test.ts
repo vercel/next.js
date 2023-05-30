@@ -159,6 +159,12 @@ createNextDescribe(
         const v1 = html.match(/App React Version: ([^<]+)</)[1]
         const v2 = html.match(/External React Version: ([^<]+)</)[1]
         expect(v1).toBe(v2)
+
+        // Should work with both esm and cjs imports
+        expect(html).toContain(
+          'CJS-ESM Compat package: cjs-esm-compat/index.mjs'
+        )
+        expect(html).toContain('CJS package: cjs-lib')
       })
 
       it('should use the same react in server app', async () => {
@@ -167,6 +173,12 @@ createNextDescribe(
         const v1 = html.match(/App React Version: ([^<]+)</)[1]
         const v2 = html.match(/External React Version: ([^<]+)</)[1]
         expect(v1).toBe(v2)
+
+        // Should work with both esm and cjs imports
+        expect(html).toContain(
+          'CJS-ESM Compat package: cjs-esm-compat/index.mjs'
+        )
+        expect(html).toContain('CJS package: cjs-lib')
       })
 
       it('should use the same react in pages', async () => {
@@ -190,24 +202,25 @@ createNextDescribe(
 
     if (isNextDev) {
       it('should error for wildcard exports of client module references in esm', async () => {
-        const page = 'app/esm-client-ref/page.js'
-        const pageSource = await next.readFile(page)
+        const page = 'app/cjs-import-esm/page.js'
+        // reuse esm-client-ref/page.js
+        const pageSource = await next.readFile('app/esm-client-ref/page.js')
 
         try {
           await next.patchFile(
             page,
             pageSource.replace(
               "'client-esm-module'",
-              "'client-esm-module-wildcard'"
+              "'client-cjs-import-esm-wildcard'"
             )
           )
-          await next.render('/esm-client-ref')
+          await next.render('/cjs-import-esm')
         } finally {
           await next.patchFile(page, pageSource)
         }
 
         expect(next.cliOutput).toInclude(
-          `It's currently unsupported to use "export *" in a client boundary. Please use named exports instead.`
+          `ESM packages (client-esm-module-wildcard) need to be imported`
         )
       })
     }

@@ -98,6 +98,17 @@ const reactPackagesRegex = /^(react|react-dom|react-server-dom-webpack)($|\/)/
 const asyncStoragesRegex =
   /next[\\/]dist[\\/]client[\\/]components[\\/](static-generation-async-storage|action-async-storage|request-async-storage)/
 
+// exports.<conditionName>
+const edgeConditionNames = [
+  'edge-light',
+  'worker',
+  'browser',
+  'import',
+  'module',
+  'default',
+]
+
+// packageJson.<mainField>
 const mainFieldsPerCompiler: Record<CompilerNameValues, string[]> = {
   [COMPILER_NAMES.server]: ['main', 'module'],
   [COMPILER_NAMES.client]: ['browser', 'module', 'main'],
@@ -915,12 +926,7 @@ export default async function getBaseWebpackConfig(
 
   const reactServerCondition = [
     'react-server',
-    ...mainFieldsPerCompiler[
-      isEdgeServer ? COMPILER_NAMES.edgeServer : COMPILER_NAMES.server
-    ],
-    'node',
-    'import',
-    'require',
+    ...(isEdgeServer ? edgeConditionNames : ['import', 'module', 'default']),
   ]
 
   const clientEntries = isClient
@@ -1166,11 +1172,7 @@ export default async function getBaseWebpackConfig(
       : undefined),
     mainFields: mainFieldsPerCompiler[compilerType],
     ...(isEdgeServer && {
-      conditionNames: [
-        ...mainFieldsPerCompiler[COMPILER_NAMES.edgeServer],
-        'import',
-        'node',
-      ],
+      conditionNames: edgeConditionNames,
     }),
     plugins: [],
   }
