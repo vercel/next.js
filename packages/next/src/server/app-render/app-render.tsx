@@ -82,7 +82,6 @@ import { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
 import { ModuleReference } from '../../build/webpack/loaders/metadata/types'
 
 export const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
-
 const emptyLoaderTree: LoaderTree = ['', {}, {}]
 
 export type GetDynamicParamFromSegment = (
@@ -1216,6 +1215,7 @@ export async function renderToHTMLOrFlight(
                   <MetadataTree
                     key={requestId}
                     tree={loaderTree}
+                    statusCode={res.statusCode}
                     pathname={pathname}
                     searchParams={providedSearchParams}
                     getDynamicParamFromSegment={getDynamicParamFromSegment}
@@ -1367,6 +1367,7 @@ export async function renderToHTMLOrFlight(
           <MetadataTree
             key={requestId}
             tree={tree}
+            statusCode={res.statusCode}
             pathname={pathname}
             searchParams={providedSearchParams}
             getDynamicParamFromSegment={getDynamicParamFromSegment}
@@ -1632,6 +1633,7 @@ export async function renderToHTMLOrFlight(
                   key={requestId}
                   tree={emptyLoaderTree}
                   pathname={pathname}
+                  statusCode={res.statusCode}
                   searchParams={providedSearchParams}
                   getDynamicParamFromSegment={getDynamicParamFromSegment}
                   appUsingSizeAdjust={appUsingSizeAdjust}

@@ -32,3 +32,14 @@ export async function getLayoutOrPageModule(loaderTree: LoaderTree) {
 
   return [value, modType] as const
 }
+
+export async function getErrorModule(
+  loaderTree: LoaderTree,
+  errorType: 'error' | 'not-found'
+) {
+  const error = loaderTree[2][errorType]
+  if (typeof error !== 'undefined') {
+    return await error[0]()
+  }
+  return undefined
+}

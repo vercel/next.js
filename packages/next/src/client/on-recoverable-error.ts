@@ -14,5 +14,7 @@ export default function onRecoverableError(err: any) {
 
   // Skip certain custom errors which are not expected to be reported on client
   if (err.digest === NEXT_DYNAMIC_NO_SSR_CODE) return
+
+  console.log('err', err)
   defaultOnRecoverableError(err)
 }

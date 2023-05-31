@@ -15,6 +15,7 @@ import { resolveTitle } from './resolvers/resolve-title'
 import { resolveAsArrayOrUndefined } from './generate/utils'
 import { isClientReference } from '../client-reference'
 import {
+  getErrorModule,
   getLayoutOrPageModule,
   LoaderTree,
 } from '../../server/lib/app-dir-module'
@@ -248,28 +249,28 @@ function merge({
 async function getDefinedMetadata(
   mod: any,
   props: any,
-  route: string
+  tracingProps: { route: string }
 ): Promise<Metadata | MetadataResolver | null> {
   // Layer is a client component, we just skip it. It can't have metadata exported.
   // Return early to avoid accessing properties error for client references.
   if (isClientReference(mod)) {
     return null
   }
-  return (
-    (mod.generateMetadata
-      ? (parent: ResolvingMetadata) =>
-          getTracer().trace(
-            ResolveMetadataSpan.generateMetadata,
-            {
-              spanName: `generateMetadata ${route}`,
-              attributes: {
-                'next.page': route,
-              },
-            },
-            () => mod.generateMetadata(props, parent)
-          )
-      : mod.metadata) || null
-  )
+  if (typeof mod.generateMetadata === 'function') {
+    const { route } = tracingProps
+    return (parent: ResolvingMetadata) =>
+      getTracer().trace(
+        ResolveMetadataSpan.generateMetadata,
+        {
+          spanName: `generateMetadata ${route}`,
+          attributes: {
+            'next.page': route,
+          },
+        },
+        () => mod.generateMetadata(props, parent)
+      )
+  }
+  return mod.metadata || null
 }
 
 async function collectStaticImagesFiles(
@@ -317,13 +318,22 @@ export async function collectMetadata({
   metadataItems: array,
   props,
   route,
+  errorType,
 }: {
   tree: LoaderTree
   metadataItems: MetadataItems
   props: any
   route: string
+  errorType?: 'not-found' | 'error'
 }) {
-  const [mod, modType] = await getLayoutOrPageModule(tree)
+  let mod
+  let modType
+  if (errorType) {
+    mod = await getErrorModule(tree, errorType)
+    modType = errorType
+  } else {
+    ;[mod, modType] = await getLayoutOrPageModule(tree)
+  }
 
   if (modType) {
     route += `/${modType}`
@@ -331,7 +341,7 @@ export async function collectMetadata({
 
   const staticFilesMetadata = await resolveStaticMetadata(tree[2], props)
   const metadataExport = mod
-    ? await getDefinedMetadata(mod, props, route)
+    ? await getDefinedMetadata(mod, props, { route })
     : null
 
   array.push([metadataExport, staticFilesMetadata])
@@ -344,6 +354,7 @@ export async function resolveMetadata({
   treePrefix = [],
   getDynamicParamFromSegment,
   searchParams,
+  errorType,
 }: {
   tree: LoaderTree
   parentParams: { [key: string]: any }
@@ -352,10 +363,12 @@ export async function resolveMetadata({
   treePrefix?: string[]
   getDynamicParamFromSegment: GetDynamicParamFromSegment
   searchParams: { [key: string]: any }
+  errorType: 'not-found' | 'error' | undefined
 }): Promise<MetadataItems> {
-  const [segment, parallelRoutes, { page }] = tree
+  const [segment, parallelRoutes, { page, 'not-found': notFound }] = tree
   const currentTreePrefix = [...treePrefix, segment]
   const isPage = typeof page !== 'undefined'
+
   // Handle dynamic segment params.
   const segmentParam = getDynamicParamFromSegment(segment)
   /**
@@ -374,6 +387,23 @@ export async function resolveMetadata({
   const layerProps = {
     params: currentParams,
     ...(isPage && { searchParams }),
+  }
+
+  const isLeaf =
+    !parallelRoutes.children ||
+    Object.keys(parallelRoutes.children[1]).length === 0
+  if (isLeaf && notFound && errorType) {
+    await collectMetadata({
+      tree,
+      errorType,
+      metadataItems,
+      props: layerProps,
+      route: currentTreePrefix
+        // __PAGE__ shouldn't be shown in a route
+        .filter((s) => s !== PAGE_SEGMENT_KEY)
+        .join('/'),
+    })
+    return metadataItems
   }
 
   await collectMetadata({
@@ -395,6 +425,7 @@ export async function resolveMetadata({
       treePrefix: currentTreePrefix,
       searchParams,
       getDynamicParamFromSegment,
+      errorType,
     })
   }
 
