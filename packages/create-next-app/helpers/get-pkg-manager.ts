@@ -6,10 +6,10 @@ export function getPkgManager(): PackageManager {
   if (userAgent.startsWith('yarn')) {
     return 'yarn'
   }
-  
+
   if (userAgent.startsWith('pnpm')) {
     return 'pnpm'
-  } 
-  
+  }
+
   return 'npm'
 }
