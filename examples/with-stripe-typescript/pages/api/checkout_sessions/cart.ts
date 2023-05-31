@@ -27,7 +27,7 @@ export default async function handler(
     try {
       // Validate the cart details that were sent from the client.
       const line_items = validateCartItems(inventory as any, req.body)
-      const hasSubscription = line_items.find((item) => {
+      const hasSubscription = line_items.find((item: any) => {
         return !!item.price_data.recurring
       })
       // Create Checkout Sessions from body params.
