@@ -2,7 +2,7 @@ use std::{
     env::current_dir,
     fs,
     io::{self, Write},
-    path::Path,
+    path::{Path, PathBuf},
     process::{Child, Command, Stdio},
 };
 
@@ -46,8 +46,9 @@ impl Bundler for TurboNext {
     }
 
     fn prepare(&self, install_dir: &Path) -> Result<()> {
-        let repo_path = current_dir()?.join("../../../..").canonicalize()?;
-        dbg!(&repo_path);
+        let repo_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../..")
+            .canonicalize()?;
         npm::install(
             install_dir,
             &[NpmPackage::new(
