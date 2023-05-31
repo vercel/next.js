@@ -9,9 +9,9 @@
     "next": "latest",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "supertokens-auth-react": "^0.31.0",
-    "supertokens-node": "^13.1.5",
-    "supertokens-web-js": "^0.5.0"
+    "supertokens-auth-react": "latest",
+    "supertokens-node": "latest",
+    "supertokens-web-js": "latest"
   },
   "devDependencies": {
     "@types/node": "18.7.13",

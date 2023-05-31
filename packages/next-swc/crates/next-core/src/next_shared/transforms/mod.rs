@@ -1,19 +1,22 @@
+pub(crate) mod emotion;
 pub(crate) mod modularize_imports;
 pub(crate) mod next_dynamic;
 pub(crate) mod next_font;
 pub(crate) mod next_strip_page_exports;
 pub(crate) mod relay;
+pub(crate) mod styled_components;
+pub(crate) mod styled_jsx;
 
 pub use modularize_imports::{get_next_modularize_imports_rule, ModularizeImportPackageConfig};
 pub use next_dynamic::get_next_dynamic_transform_rule;
 pub use next_font::get_next_font_transform_rule;
 pub use next_strip_page_exports::get_next_pages_transforms_rule;
 pub use relay::get_relay_transform_plugin;
-use turbo_binding::turbopack::{
+use turbo_tasks::Value;
+use turbopack_binding::turbopack::{
     core::reference_type::{ReferenceType, UrlReferenceSubType},
     turbopack::module_options::{ModuleRule, ModuleRuleCondition, ModuleRuleEffect, ModuleType},
 };
-use turbo_tasks::Value;
 
 use crate::next_image::{module::BlurPlaceholderMode, StructuredImageModuleTypeVc};
 

@@ -426,12 +426,56 @@ for (const variant of ['default', 'turbo']) {
 
       await new Promise((resolve) => setTimeout(resolve, 1000))
       expect(await session.hasRedbox(true)).toBe(true)
-      expect(await session.getRedboxSource()).toMatchSnapshot()
+      expect(
+        next.normalizeTestDirContent(await session.getRedboxSource())
+      ).toMatchInlineSnapshot(
+        next.normalizeSnapshot(`
+        "./index.js
+        Error: 
+          x Expected '}', got '<eof>'
+           ,-[TEST_DIR/index.js:5:1]
+         5 |           i++
+         6 |           throw Error('no ' + i)
+         7 |         }, 1000)
+         8 |         export default function FunctionNamed() {
+           :                                                 ^
+           \`----
+
+        Caused by:
+            Syntax Error
+
+        Import trace for requested module:
+        ./index.js
+        ./pages/index.js"
+      `)
+      )
 
       // Test that runtime error does not take over:
       await new Promise((resolve) => setTimeout(resolve, 2000))
       expect(await session.hasRedbox(true)).toBe(true)
-      expect(await session.getRedboxSource()).toMatchSnapshot()
+      expect(
+        next.normalizeTestDirContent(await session.getRedboxSource())
+      ).toMatchInlineSnapshot(
+        next.normalizeSnapshot(`
+        "./index.js
+        Error: 
+          x Expected '}', got '<eof>'
+           ,-[TEST_DIR/index.js:5:1]
+         5 |           i++
+         6 |           throw Error('no ' + i)
+         7 |         }, 1000)
+         8 |         export default function FunctionNamed() {
+           :                                                 ^
+           \`----
+
+        Caused by:
+            Syntax Error
+
+        Import trace for requested module:
+        ./index.js
+        ./pages/index.js"
+      `)
+      )
 
       await cleanup()
     })

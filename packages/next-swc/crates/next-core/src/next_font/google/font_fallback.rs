@@ -4,11 +4,11 @@ use anyhow::{Context, Result};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use turbo_binding::{turbo::tasks_fs::FileSystemPathVc, turbopack::core::issue::IssueSeverity};
 use turbo_tasks::{
     primitives::{StringVc, StringsVc, U32Vc},
     trace::TraceRawVcs,
 };
+use turbopack_binding::{turbo::tasks_fs::FileSystemPathVc, turbopack::core::issue::IssueSeverity};
 
 use super::options::NextFontGoogleOptionsVc;
 use crate::{
@@ -180,7 +180,7 @@ fn lookup_fallback(
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use turbo_binding::turbo::tasks_fs::json::parse_json_with_source_context;
+    use turbopack_binding::turbo::tasks_fs::json::parse_json_with_source_context;
 
     use super::{FontAdjustment, FontMetricsMap};
     use crate::next_font::google::font_fallback::{lookup_fallback, Fallback};

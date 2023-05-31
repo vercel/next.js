@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_binding::turbopack::{
+use turbopack_binding::turbopack::{
     ecmascript::{OptionTransformPluginVc, TransformPluginVc},
     ecmascript_plugin::transform::relay::RelayTransformer,
 };

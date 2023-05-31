@@ -41,7 +41,7 @@ function getMutableCookies(
   res: ServerResponse | BaseNextResponse | undefined
 ): ResponseCookies {
   const cookies = new RequestCookies(HeadersAdapter.from(headers))
-  return MutableRequestCookiesAdapter.seal(cookies, res)
+  return MutableRequestCookiesAdapter.wrap(cookies, res)
 }
 
 export type RequestContext = {
