@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 
 import Stripe from 'stripe'
-import { validateCartItems } from 'use-shopping-cart/utilities/serverless'
+import { validateCartItems } from 'use-shopping-cart/utilities'
 
 /*
  * Product data can be loaded from anywhere. In this case, we’re loading it from
