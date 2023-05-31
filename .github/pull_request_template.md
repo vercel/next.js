@@ -4,7 +4,11 @@ Choose the right checklist for the change(s) that you're making:
 
 ## For Contributors
 
-### Improving Documentation or adding/fixing Examples
+### Improving Documentation 
+
+- Read the [Docs Contribution Guide](https://nextjs.org/docs/community/contribution-guide) to ensure your contribution follows the docs guidelines. 
+
+### Adding or Updating Examples
 
 - The "examples guidelines" are followed from our contributing doc https://github.com/vercel/next.js/blob/canary/contributing/examples/adding-examples.md
 - Make sure the linting passes by running `pnpm build && pnpm lint`. See https://github.com/vercel/next.js/blob/canary/contributing/repository/linting.md
