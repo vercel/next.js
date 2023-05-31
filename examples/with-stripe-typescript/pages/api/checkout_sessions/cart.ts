@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 
 import Stripe from 'stripe'
+// @ts-ignore
 import { validateCartItems } from 'use-shopping-cart/utilities'
 
 /*
