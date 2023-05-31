@@ -1654,121 +1654,122 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       // Legacy render methods will return a render result that needs to be
       // served by the server.
-      let result: RenderResult | undefined
+      let result: RenderResult
 
       // We want to use the match when we're not trying to render an error page.
       const match =
         pathname !== '/_error' && !is404Page && !is500Page
           ? getRequestMeta(req, '_nextMatch')
           : undefined
-      if (match) {
-        if (isRouteMatch<AppRouteRouteMatch>(match, RouteKind.APP_ROUTE)) {
-          const context: RouteHandlerManagerContext = {
-            params: match.params,
-            prerenderManifest: this.getPrerenderManifest(),
-            staticGenerationContext: {
-              originalPathname: components.ComponentMod.originalPathname,
-              supportsDynamicHTML,
-              incrementalCache,
-              isRevalidate: isSSG,
-            },
-          }
 
-          try {
-            // Handle the match and collect the response if it's a static response.
-            const response = await this.handlers.handle(match, req, context)
+      if (
+        match &&
+        isRouteMatch<AppRouteRouteMatch>(match, RouteKind.APP_ROUTE)
+      ) {
+        const context: RouteHandlerManagerContext = {
+          params: match.params,
+          prerenderManifest: this.getPrerenderManifest(),
+          staticGenerationContext: {
+            originalPathname: components.ComponentMod.originalPathname,
+            supportsDynamicHTML,
+            incrementalCache,
+            isRevalidate: isSSG,
+          },
+        }
 
-            ;(req as any).fetchMetrics = (
-              context.staticGenerationContext as any
-            ).fetchMetrics
+        try {
+          // Handle the match and collect the response if it's a static response.
+          const response = await this.handlers.handle(match, req, context)
 
-            const cacheTags = (context.staticGenerationContext as any).fetchTags
+          ;(req as any).fetchMetrics = (
+            context.staticGenerationContext as any
+          ).fetchMetrics
 
-            // If the request is for a static response, we can cache it so long
-            // as it's not edge.
-            if (isSSG && process.env.NEXT_RUNTIME !== 'edge') {
-              const blob = await response.blob()
+          const cacheTags = (context.staticGenerationContext as any).fetchTags
 
-              // Copy the headers from the response.
-              headers = toNodeOutgoingHttpHeaders(response.headers)
+          // If the request is for a static response, we can cache it so long
+          // as it's not edge.
+          if (isSSG && process.env.NEXT_RUNTIME !== 'edge') {
+            const blob = await response.blob()
 
-              if (cacheTags) {
-                headers['x-next-cache-tags'] = cacheTags
-              }
+            // Copy the headers from the response.
+            headers = toNodeOutgoingHttpHeaders(response.headers)
 
-              if (!headers['content-type'] && blob.type) {
-                headers['content-type'] = blob.type
-              }
-              let revalidate: number | false | undefined =
-                context.staticGenerationContext.store?.revalidate
-
-              if (typeof revalidate == 'undefined') {
-                revalidate = false
-              }
-
-              // Create the cache entry for the response.
-              const cacheEntry: ResponseCacheEntry = {
-                value: {
-                  kind: 'ROUTE',
-                  status: response.status,
-                  body: Buffer.from(await blob.arrayBuffer()),
-                  headers,
-                },
-                revalidate,
-              }
-
-              return cacheEntry
+            if (cacheTags) {
+              headers['x-next-cache-tags'] = cacheTags
             }
 
-            // Send the response now that we have copied it into the cache.
-            await sendResponse(req, res, response)
+            if (!headers['content-type'] && blob.type) {
+              headers['content-type'] = blob.type
+            }
+            let revalidate: number | false | undefined =
+              context.staticGenerationContext.store?.revalidate
 
-            return null
-          } catch (err) {
-            // If this is during static generation, throw the error again.
-            if (isSSG) throw err
+            if (typeof revalidate == 'undefined') {
+              revalidate = false
+            }
 
-            Log.error(err)
+            // Create the cache entry for the response.
+            const cacheEntry: ResponseCacheEntry = {
+              value: {
+                kind: 'ROUTE',
+                status: response.status,
+                body: Buffer.from(await blob.arrayBuffer()),
+                headers,
+              },
+              revalidate,
+            }
 
-            // Otherwise, send a 500 response.
-            await sendResponse(req, res, handleInternalServerErrorResponse())
-
-            return null
+            return cacheEntry
           }
-        }
-        // If we've matched a page while not in edge where the module exports a
-        // `routeModule`, then we should be able to render it using the provided
-        // `render` method.
-        else if (
-          isRouteMatch(match, RouteKind.PAGES) &&
-          process.env.NEXT_RUNTIME !== 'edge' &&
-          components.ComponentMod.routeModule
-        ) {
-          const module: PagesRouteModule = components.ComponentMod.routeModule
 
-          // Due to the way we pass data by mutating `renderOpts`, we can't extend
-          // the object here but only updating its `clientReferenceManifest`
-          // field.
-          // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
-          renderOpts.nextFontManifest = this.nextFontManifest
+          // Send the response now that we have copied it into the cache.
+          await sendResponse(req, res, response)
 
-          // Call the built-in render method on the module. We cast these to
-          // NodeNextRequest and NodeNextResponse because we know that we're
-          // in the node runtime because we check that we're not in edge mode
-          // above.
-          result = await module.render(
-            (req as NodeNextRequest).originalRequest,
-            (res as NodeNextResponse).originalResponse,
-            pathname,
-            query,
-            renderOpts
-          )
+          return null
+        } catch (err) {
+          // If this is during static generation, throw the error again.
+          if (isSSG) throw err
+
+          Log.error(err)
+
+          // Otherwise, send a 500 response.
+          await sendResponse(req, res, handleInternalServerErrorResponse())
+
+          return null
         }
       }
+      // If we've matched a page while not in edge where the module exports a
+      // `routeModule`, then we should be able to render it using the provided
+      // `render` method.
+      else if (
+        match &&
+        isRouteMatch(match, RouteKind.PAGES) &&
+        process.env.NEXT_RUNTIME !== 'edge' &&
+        components.ComponentMod.routeModule
+      ) {
+        const module: PagesRouteModule = components.ComponentMod.routeModule
 
-      // If there is no result yet, then we should render the page using the
-      // legacy render method.
-      if (!result) {
+        // Due to the way we pass data by mutating `renderOpts`, we can't extend
+        // the object here but only updating its `clientReferenceManifest`
+        // field.
+        // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
+        renderOpts.nextFontManifest = this.nextFontManifest
+
+        // Call the built-in render method on the module. We cast these to
+        // NodeNextRequest and NodeNextResponse because we know that we're
+        // in the node runtime because we check that we're not in edge mode
+        // above.
+        result = await module.render(
+          (req as NodeNextRequest).originalRequest,
+          (res as NodeNextResponse).originalResponse,
+          pathname,
+          query,
+          renderOpts
+        )
+      } else {
+        // If we didn't match a page, we should fallback to using the legacy
+        // render method.
         result = await this.renderHTML(req, res, pathname, query, renderOpts)
       }
 
@@ -1777,8 +1778,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // Add any fetch tags that were on the page to the response headers.
       const cacheTags = (renderOpts as any).fetchTags
       if (cacheTags) {
-        headers ??= {}
-        headers['x-next-cache-tags'] = cacheTags
+        headers = {
+          'x-next-cache-tags': cacheTags,
+        }
       }
 
       // Pull any fetch metrics from the render onto the request.

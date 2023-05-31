@@ -228,7 +228,8 @@ describe('page features telemetry', () => {
   it('detects reportWebVitals with no _app correctly for `next build`', async () => {
     // Case 1: When _app.js does not exist.
     let build = await nextBuild(appDir, [], {
-      stderr: true,
+      stderr: 'log',
+      stdout: 'log',
       env: { NEXT_TELEMETRY_DEBUG: 1 },
     })
 

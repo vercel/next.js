@@ -13,11 +13,9 @@ export type RenderResultMetadata = {
 }
 
 export default class RenderResult {
-  private _result: string | ReadableStream<Uint8Array> | null
-  private _contentType: ContentTypeOption
-
-  // Extra render result meta fields
-  private _metadata: RenderResultMetadata
+  private readonly _response: string | ReadableStream<Uint8Array> | null
+  private readonly _contentType: ContentTypeOption
+  private readonly _metadata: RenderResultMetadata
 
   constructor(
     response: string | ReadableStream<Uint8Array> | null,
@@ -28,17 +26,17 @@ export default class RenderResult {
       contentType?: ContentTypeOption
     } & RenderResultMetadata = {}
   ) {
-    this._result = response
+    this._response = response
     this._contentType = contentType
     this._metadata = metadata
   }
 
-  get metadata() {
+  get metadata(): Readonly<RenderResultMetadata> {
     return this._metadata
   }
 
   isNull(): boolean {
-    return this._result === null
+    return this._response === null
   }
 
   contentType(): ContentTypeOption {
@@ -46,24 +44,24 @@ export default class RenderResult {
   }
 
   toUnchunkedString(): string {
-    if (typeof this._result !== 'string') {
+    if (typeof this._response !== 'string') {
       throw new Error(
         'invariant: dynamic responses cannot be unchunked. This is a bug in Next.js'
       )
     }
-    return this._result
+    return this._response
   }
 
   pipe(res: ServerResponse | Writable): Promise<void> {
-    if (this._result === null) {
+    if (this._response === null) {
       throw new Error('invariant: response is null. This is a bug in Next.js')
     }
-    if (typeof this._result === 'string') {
+    if (typeof this._response === 'string') {
       throw new Error(
         'invariant: static responses cannot be piped. This is a bug in Next.js'
       )
     }
-    const response = this._result
+    const response = this._response
     const flush =
       typeof (res as any).flush === 'function'
         ? () => (res as any).flush()
@@ -96,7 +94,7 @@ export default class RenderResult {
   }
 
   isDynamic(): boolean {
-    return typeof this._result !== 'string'
+    return typeof this._response !== 'string'
   }
 
   static fromStatic(value: string): RenderResult {
