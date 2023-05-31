@@ -51,7 +51,7 @@ enum EvalJavaScriptOutgoingMessage<'a> {
     Evaluate { args: Vec<&'a JsonValue> },
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
 enum EvalJavaScriptIncomingMessage {
     FileDependency {
