@@ -6,7 +6,7 @@ Choose the right checklist for the change(s) that you're making:
 
 ### Improving Documentation 
 
-- Read the [Docs Contribution Guide](https://nextjs.org/docs/community/contribution-guide) to ensure your contribution follows the docs guidelines. 
+- Read the Docs Contribution Guide to ensure your contribution follows the docs guidelines: https://nextjs.org/docs/community/contribution-guide 
 
 ### Adding or Updating Examples
 
