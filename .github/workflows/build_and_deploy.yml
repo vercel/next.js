@@ -241,6 +241,23 @@ jobs:
         if: ${{ !matrix.settings.docker }}
         shell: bash
 
+      # Trying to upload metrics for the Turbopack to datadog's CI pipeline execution
+      - name: 'Upload turbopack build metrics'
+        shell: bash
+        if: ${{ needs.build.outputs.isRelease == 'true' }}
+        continue-on-error: true
+        run: |
+          npm install -g @datadog/datadog-ci
+          for filename in packages/next-swc/native/next-swc.*.node; do
+            # Strip out filename to extract target triple
+            export FILENAME=$(basename ${filename})
+            export FILENAME=${FILENAME#*.}
+            export FILENAME=${FILENAME%.node}
+            export BYTESIZE=$(wc -c < $filename | xargs)
+            echo "Reporting $FILENAME:$BYTESIZE for Turbopack bytesize"
+            datadog-ci metric --no-fail --level pipeline --metrics "turbopack.bytesize.$FILENAME:$BYTESIZE"
+          done
+
       - name: Upload artifact
         if: ${{ needs.build.outputs.isRelease == 'true' }}
         uses: actions/upload-artifact@v3
