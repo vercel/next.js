@@ -66,7 +66,7 @@ macro_rules! vdbg {
     (__repeat $str:literal) => { "" };
 
     ($($val:expr),* ; depth = $depth:expr) => {
-        $crate::vdbg!(__init $depth ; $($val),*)
+        $crate::vdbg!(__init $depth ; [ $($val),* ] [])
     };
     ($($val:expr),+ $(,)?) => {
         $crate::vdbg!(__init usize::MAX ; [ $($val),* ] [])
