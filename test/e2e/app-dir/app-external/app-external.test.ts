@@ -181,7 +181,7 @@ createNextDescribe(
         expect(html).toContain('CJS package: cjs-lib')
       })
 
-      it('should use the same react in server app', async () => {
+      it('should use the same react in edge server app', async () => {
         const html = await next.render('/esm/edge-server')
 
         const v1 = html.match(/App React Version: ([^<]+)</)[1]

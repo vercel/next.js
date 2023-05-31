@@ -93,10 +93,6 @@ pub async fn get_edge_resolve_options_context(
         custom_conditions: vec![
             "edge-light".to_string(),
             "worker".to_string(),
-            "browser".to_string(),
-            "import".to_string(),
-            "module".to_string(),
-            "default".to_string(),
             "development".to_string(),
         ],
         import_map: Some(next_edge_import_map),
