@@ -342,8 +342,8 @@ describe('SSG Prerender', () => {
     })
     afterAll(async () => {
       try {
+        stopApp(app)
         await fs.remove(nextConfigPath)
-        await stopApp(app)
 
         for (const page of fallbackTruePages) {
           const pagePath = join(appDir, 'pages', page)
