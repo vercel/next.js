@@ -19,6 +19,9 @@ import { isAppRouteRoute } from '../../../lib/is-app-route-route'
 import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
 import { NextConfig } from '../../../server/config-shared'
 import { AppPathnameNormalizer } from '../../../server/future/normalizers/built/app/app-pathname-normalizer'
+import { RouteKind } from '../../../server/future/route-kind'
+import { AppRouteRouteModuleOptions } from '../../../server/future/route-modules/app-route/module'
+import { AppBundlePathNormalizer } from '../../../server/future/normalizers/built/app/app-bundle-path-normalizer'
 
 export type AppLoaderOptions = {
   name: string
@@ -107,21 +110,24 @@ async function createAppRouteCode({
   // References the route handler file to load found in `./routes/${kind}.ts`.
   // TODO: allow switching to the different kinds of routes
   const kind = 'app-route'
-  const normalizer = new AppPathnameNormalizer()
-  const pathname = normalizer.normalize(page)
+  const pathname = new AppPathnameNormalizer().normalize(page)
+  const bundlePath = new AppBundlePathNormalizer().normalize(page)
 
   // This is providing the options defined by the route options type found at
   // ./routes/${kind}.ts. This is stringified here so that the literal for
   // `userland` can reference the variable for `userland` that's in scope for
   // the loader code.
-  const options = `{
-    userland,
-    pathname: ${JSON.stringify(pathname)},
-    resolvedPagePath: ${JSON.stringify(resolvedPagePath)},
-    nextConfigOutput: ${
-      nextConfigOutput ? JSON.stringify(nextConfigOutput) : 'undefined'
+  const options: Omit<AppRouteRouteModuleOptions, 'userland'> = {
+    definition: {
+      kind: RouteKind.APP_ROUTE,
+      page,
+      pathname,
+      filename,
+      bundlePath,
     },
-  }`
+    resolvedPagePath,
+    nextConfigOutput,
+  }
 
   return `
     import 'next/dist/server/node-polyfill-headers'
@@ -130,7 +136,11 @@ async function createAppRouteCode({
 
     import * as userland from ${JSON.stringify(resolvedPagePath)}
 
-    const routeModule = new RouteModule(${options})
+    const options = ${JSON.stringify(options)}
+    const routeModule = new RouteModule({
+      ...options,
+      userland,
+    })
 
     // Pull out the exports that we need to expose from the module. This should
     // be eliminated when we've moved the other routes to the new format. These
@@ -370,12 +380,7 @@ async function createTreeCodeFromPath(
         const defaultPath =
           (await resolver(
             `${appDirPrefix}${segmentPath}/${actualSegment}/default`
-          )) ??
-          (await resolver(
-            `next/dist/client/components/parallel-route-default`,
-            false,
-            true
-          ))
+          )) ?? 'next/dist/client/components/parallel-route-default'
 
         props[normalizeParallelKey(adjacentParallelSegment)] = `[
           '__DEFAULT__',

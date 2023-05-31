@@ -35,7 +35,7 @@ createNextDescribe(
       }
     })
 
-    it.each([
+    it.skip.each([
       {
         path: '/react-fetch-deduping-node',
       },

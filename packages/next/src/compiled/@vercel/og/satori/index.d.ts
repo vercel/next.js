@@ -134,6 +134,21 @@ interface TwConfig {
     }>;
 }
 
+/**
+ * This module is used to calculate the layout of the current sub-tree.
+ */
+
+interface SatoriNode {
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+    type: string;
+    key?: string | number;
+    props: Record<string, any>;
+    textContent?: string;
+}
+
 declare function init(yoga: Yoga): void;
 
 declare type SatoriOptions = ({
@@ -148,10 +163,11 @@ declare type SatoriOptions = ({
     embedFont?: boolean;
     debug?: boolean;
     graphemeImages?: Record<string, string>;
-    loadAdditionalAsset?: (languageCode: string, segment: string) => Promise<FontOptions | string | undefined>;
+    loadAdditionalAsset?: (languageCode: string, segment: string) => Promise<string | Array<FontOptions>>;
     tailwindConfig?: TwConfig;
+    onNodeDetected?: (node: SatoriNode) => void;
 };
 
 declare function satori(element: ReactNode, options: SatoriOptions): Promise<string>;
 
-export { FontOptions as Font, Style$1 as FontStyle, Weight as FontWeight, Locale, SatoriOptions, satori as default, init };
+export { FontOptions as Font, Style$1 as FontStyle, Weight as FontWeight, Locale, SatoriNode, SatoriOptions, satori as default, init };

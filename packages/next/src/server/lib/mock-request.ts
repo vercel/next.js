@@ -9,7 +9,7 @@ import type { Socket } from 'net'
 import type { TLSSocket } from 'tls'
 
 import Stream from 'stream'
-import { toNodeHeaders } from '../web/utils'
+import { toNodeOutgoingHttpHeaders } from '../web/utils'
 
 interface MockedRequestOptions {
   url: string
@@ -240,7 +240,7 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
   }
 
   public getHeaders(): OutgoingHttpHeaders {
-    return toNodeHeaders(this.headers)
+    return toNodeOutgoingHttpHeaders(this.headers)
   }
 
   public getHeaderNames(): string[] {
