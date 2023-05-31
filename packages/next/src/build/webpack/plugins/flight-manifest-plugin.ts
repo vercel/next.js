@@ -69,9 +69,6 @@ export type ClientReferenceManifest = {
   edgeSSRModuleMapping: {
     [moduleId: string]: ManifestNode
   }
-  cssFiles: {
-    [entryPathWithoutExtension: string]: string[]
-  }
 }
 
 export type ClientCSSReferenceManifest = {
@@ -132,7 +129,6 @@ export class ClientReferenceManifestPlugin {
     const manifest: ClientReferenceManifest = {
       ssrModuleMapping: {},
       edgeSSRModuleMapping: {},
-      cssFiles: {},
       clientModules: {},
     }
 
@@ -384,37 +380,6 @@ export class ClientReferenceManifestPlugin {
           }
         }
       })
-
-      const entryCSSFiles: { [key: string]: string[] } = manifest.cssFiles || {}
-
-      const addCSSFilesToEntry = (
-        files: string[],
-        entryName: string | undefined | null
-      ) => {
-        if (entryName?.startsWith('app/')) {
-          // The `key` here should be the absolute file path but without extension.
-          // We need to replace the separator in the entry name to match the system separator.
-          const key =
-            this.appDir +
-            entryName
-              .slice(3)
-              .replace(/\//g, sep)
-              .replace(/\.[^\\/.]+$/, '')
-          entryCSSFiles[key] = files.concat(entryCSSFiles[key] || [])
-        }
-      }
-
-      const cssFiles = chunkGroup.getFiles().filter((f) => f.endsWith('.css'))
-
-      if (cssFiles.length) {
-        // Add to chunk entry and parent chunk groups too.
-        addCSSFilesToEntry(cssFiles, chunkGroup.name)
-        chunkGroup.getParents().forEach((parent) => {
-          addCSSFilesToEntry(cssFiles, parent.options.name)
-        })
-      }
-
-      manifest.cssFiles = entryCSSFiles
     })
 
     const file = 'server/' + CLIENT_REFERENCE_MANIFEST
