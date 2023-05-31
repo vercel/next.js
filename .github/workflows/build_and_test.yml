@@ -158,7 +158,13 @@ jobs:
         'test-next-swc-wasm',
         'test-turbopack-dev',
       ]
+
+    if: always()
     runs-on: [self-hosted, linux, x64]
     name: thank you, next
     steps:
-      - run: echo 'success'
+      - run: exit 0
+        if: success()
+
+      - run: exit 1
+        if: failure()
