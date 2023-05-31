@@ -1720,12 +1720,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               return cacheEntry
             }
 
-            if (cacheTags) {
-              // The response headers here are immutable, but we can set it
-              // directly on the node response here instead.
-              res.setHeader('x-next-cache-tags', cacheTags)
-            }
-
             // Send the response now that we have copied it into the cache.
             await sendResponse(req, res, response)
 
