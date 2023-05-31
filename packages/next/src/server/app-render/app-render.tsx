@@ -1361,13 +1361,13 @@ export async function renderToHTMLOrFlight(
           query
         )
 
-        const createMetadata = (tree: LoaderTree) => (
+        const createMetadata = (tree: LoaderTree, statusCode: number) => (
           // Adding key={requestId} to make metadata remount for each render
           // @ts-expect-error allow to use async server component
           <MetadataTree
             key={requestId}
             tree={tree}
-            statusCode={res.statusCode}
+            statusCode={statusCode}
             pathname={pathname}
             searchParams={providedSearchParams}
             getDynamicParamFromSegment={getDynamicParamFromSegment}
@@ -1389,12 +1389,12 @@ export async function renderToHTMLOrFlight(
               assetPrefix={assetPrefix}
               initialCanonicalUrl={pathname}
               initialTree={initialTree}
-              initialHead={<>{createMetadata(loaderTree)}</>}
+              initialHead={<>{createMetadata(loaderTree, 200)}</>}
               globalErrorComponent={GlobalError}
               notFound={
                 NotFound ? (
                   <ErrorHtml>
-                    {createMetadata(loaderTree)}
+                    {createMetadata(loaderTree, 200)}
                     {notFoundStyles}
                     <NotFound />
                   </ErrorHtml>
