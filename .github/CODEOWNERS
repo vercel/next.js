@@ -3,15 +3,15 @@
 
 *                                             @timneutkens @ijjk @shuding @huozhi @feedthejim
 /.git*                                        @vercel/next-js
-/docs/                                        @vercel/next-js @vercel/devex
-/errors/                                      @vercel/next-js @vercel/devex
+/docs/                                        @vercel/next-js @vercel/devrel @vercel/docs-team
+/errors/                                      @vercel/next-js @vercel/devrel @vercel/docs-team
 /examples/                                    @vercel/next-js @leerob @steven-tey
 /scripts/                                     @vercel/next-js
 /.alex*                                       @vercel/next-js @leerob
 /.eslint*                                     @vercel/next-js @leerob
 /.prettier*                                   @vercel/next-js @leerob
-/*.md                                         @vercel/next-js @vercel/devex
-/*.mdx                                        @vercel/next-js @vercel/devex
+/*.md                                         @vercel/next-js @vercel/devrel @vercel/docs-team
+/*.mdx                                        @vercel/next-js @vercel/devrel @vercel/docs-team
 /packages/create-next-app/                    @vercel/next-js
 /pnpm-lock.yaml                               @vercel/next-js @vercel/web-tooling
 
