@@ -4,9 +4,9 @@ Choose the right checklist for the change(s) that you're making:
 
 ## For Contributors
 
-### Improving Documentation 
+### Improving Documentation
 
-- Read the Docs Contribution Guide to ensure your contribution follows the docs guidelines: https://nextjs.org/docs/community/contribution-guide 
+- Read the Docs Contribution Guide to ensure your contribution follows the docs guidelines: https://nextjs.org/docs/community/contribution-guide
 
 ### Adding or Updating Examples
 
