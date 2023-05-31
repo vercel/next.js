@@ -10,7 +10,7 @@ This can also happen when you try to use the `useRouter` hook from `next/router`
 
 If used in a test, mock out the router by mocking the `next/router`'s `useRouter()` hook.
 
-If used in the `app` directory, migrate to the new hooks imported from `next/navigation`. 
+If used in the `app` directory, migrate to the new hooks imported from `next/navigation`.
 
 ### Useful Links
 
