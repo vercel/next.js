@@ -17,8 +17,6 @@ createNextDescribe(
   'i18n-disallow-multiple-locales',
   {
     files: __dirname,
-    // TODO: re-enable after this behavior is corrected
-    skipDeployment: true,
   },
   ({ next }) => {
     it('should verify the default locale works', async () => {
