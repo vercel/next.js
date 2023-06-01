@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 const fs = require('fs/promises')
 const path = require('path')
 const fetch = require('node-fetch')

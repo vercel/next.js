@@ -229,7 +229,9 @@ describe('SSG Prerender', () => {
       try {
         await fs.remove(nextConfigPath)
         await killApp(app)
-      } catch (_) {}
+      } catch (err) {
+        console.error(err)
+      }
     })
 
     it('should work with firebase import and getStaticPaths', async () => {
@@ -339,22 +341,26 @@ describe('SSG Prerender', () => {
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(async () => {
-      await fs.remove(nextConfigPath)
-      await stopApp(app)
+      try {
+        stopApp(app)
+        await fs.remove(nextConfigPath)
 
-      for (const page of fallbackTruePages) {
-        const pagePath = join(appDir, 'pages', page)
-        await fs.writeFile(pagePath, fallbackTruePageContents[page])
-      }
+        for (const page of fallbackTruePages) {
+          const pagePath = join(appDir, 'pages', page)
+          await fs.writeFile(pagePath, fallbackTruePageContents[page])
+        }
 
-      for (const page of fallbackBlockingPages) {
-        const pagePath = join(appDir, 'pages', page)
-        await fs.writeFile(pagePath, fallbackBlockingPageContents[page])
-      }
+        for (const page of fallbackBlockingPages) {
+          const pagePath = join(appDir, 'pages', page)
+          await fs.writeFile(pagePath, fallbackBlockingPageContents[page])
+        }
 
-      for (const page of brokenPages) {
-        const pagePath = join(appDir, 'pages', page)
-        await fs.rename(`${pagePath}.bak`, pagePath)
+        for (const page of brokenPages) {
+          const pagePath = join(appDir, 'pages', page)
+          await fs.rename(`${pagePath}.bak`, pagePath)
+        }
+      } catch (err) {
+        console.error(err)
       }
     })
 

@@ -106,6 +106,12 @@ function hasPrefetch(link?: HTMLLinkElement): boolean {
 
 const canPrefetch: boolean = hasPrefetch()
 
+const getAssetQueryString = () => {
+  return process.env.__NEXT_DEPLOYMENT_ID
+    ? `?dpl=${process.env.__NEXT_DEPLOYMENT_ID}`
+    : ''
+}
+
 function prefetchViaDom(
   href: string,
   as: string,
@@ -246,7 +252,8 @@ function getFilesForRoute(
     const scriptUrl =
       assetPrefix +
       '/_next/static/chunks/pages' +
-      encodeURI(getAssetPathFromRoute(route, '.js'))
+      encodeURI(getAssetPathFromRoute(route, '.js')) +
+      getAssetQueryString()
     return Promise.resolve({
       scripts: [__unsafeCreateTrustedScriptURL(scriptUrl)],
       // Styles are handled by `style-loader` in development:
@@ -263,8 +270,10 @@ function getFilesForRoute(
     return {
       scripts: allFiles
         .filter((v) => v.endsWith('.js'))
-        .map((v) => __unsafeCreateTrustedScriptURL(v)),
-      css: allFiles.filter((v) => v.endsWith('.css')),
+        .map((v) => __unsafeCreateTrustedScriptURL(v) + getAssetQueryString()),
+      css: allFiles
+        .filter((v) => v.endsWith('.css'))
+        .map((v) => v + getAssetQueryString()),
     }
   })
 }

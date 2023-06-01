@@ -227,26 +227,22 @@ createNextDescribe(
       })
     }
 
-    it('should use text/x-component; charset=utf-8 for flight', async () => {
+    it('should use text/x-component for flight', async () => {
       const res = await next.fetch('/dashboard/deployments/123', {
         headers: {
           ['RSC'.toString()]: '1',
         },
       })
-      expect(res.headers.get('Content-Type')).toBe(
-        'text/x-component; charset=utf-8'
-      )
+      expect(res.headers.get('Content-Type')).toBe('text/x-component')
     })
 
-    it('should use text/x-component; charset=utf-8 for flight with edge runtime', async () => {
+    it('should use text/x-component for flight with edge runtime', async () => {
       const res = await next.fetch('/dashboard', {
         headers: {
           ['RSC'.toString()]: '1',
         },
       })
-      expect(res.headers.get('Content-Type')).toBe(
-        'text/x-component; charset=utf-8'
-      )
+      expect(res.headers.get('Content-Type')).toBe('text/x-component')
     })
 
     it('should return the `vary` header from edge runtime', async () => {
