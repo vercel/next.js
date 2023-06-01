@@ -1043,8 +1043,8 @@ export default async function getBaseWebpackConfig(
       if (semver.gte(opentelemetryPackageJson.version, '0.19.0')) {
         hasExternalOtelApiPackage = true
       } else {
-        Log.error(
-          `Installed "@opentelemetry/api" version ${opentelemetryPackageJson.version} is not supported by Next.js. Please upgrade to 0.19.0 or newer.`
+        throw new Error(
+          `Installed "@opentelemetry/api" with version ${opentelemetryPackageJson.version} is not supported by Next.js. Please upgrade to 0.19.0 or newer version.`
         )
       }
     }
