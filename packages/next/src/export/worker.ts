@@ -119,6 +119,7 @@ interface RenderOpts {
   incrementalCache?: IncrementalCache
   strictNextHead?: boolean
   originalPathname?: string
+  deploymentId?: string
 }
 
 export default async function exportPage({
@@ -155,6 +156,9 @@ export default async function exportPage({
     }
 
     try {
+      if (renderOpts.deploymentId) {
+        process.env.__NEXT_DEPLOYMENT_ID = renderOpts.deploymentId
+      }
       const { query: originalQuery = {} } = pathMap
       const { page } = pathMap
       const pathname = normalizeAppPath(page)
