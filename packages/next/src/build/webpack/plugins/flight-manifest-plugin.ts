@@ -11,7 +11,7 @@ import {
   CLIENT_REFERENCE_MANIFEST,
   SYSTEM_ENTRYPOINTS,
 } from '../../../shared/lib/constants'
-import { relative, sep } from 'path'
+import { relative } from 'path'
 import { isClientComponentEntryModule, isCSSMod } from '../loaders/utils'
 import { getProxiedPluginState } from '../../build-context'
 
