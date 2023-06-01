@@ -7,8 +7,7 @@ export default function Page() {
   const { isEnabled } = draftMode()
   let data: string | undefined
   if (isEnabled) {
-    const c = cookies()
-    data = c.get('data')?.value
+    data = cookies().get('data')?.value
   }
 
   return (
