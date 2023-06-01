@@ -75,138 +75,6 @@ jobs:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
 
-  publishRelease:
-    if: ${{ needs.build.outputs.isRelease == 'true' }}
-    name: Potentially publish release
-    runs-on: ubuntu-latest
-    needs:
-      - build
-      - build-wasm
-      - build-native
-    permissions:
-      contents: write
-      id-token: write
-    env:
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
-    steps:
-      - name: Setup node
-        uses: actions/setup-node@v3
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
-        with:
-          node-version: ${{ env.NODE_LTS_VERSION }}
-          check-latest: true
-
-      # https://github.com/actions/virtual-environments/issues/1187
-      - name: tune linux network
-        run: sudo ethtool -K eth0 tx off rx off
-
-      - uses: actions/cache@v3
-        timeout-minutes: 5
-        id: restore-build
-        with:
-          path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
-
-      - uses: actions/download-artifact@v3
-        with:
-          name: next-swc-binaries
-          path: packages/next-swc/native
-
-      - uses: actions/download-artifact@v3
-        with:
-          name: wasm-binaries
-          path: packages/next-swc/crates/wasm
-
-      - run: npm i -g npm@9 # need latest version for provenance
-      - run: npm i -g pnpm@${PNPM_VERSION}
-      - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
-      - run: ./scripts/publish-native.js
-      - run: ./scripts/publish-release.js
-
-  deployExamples:
-    name: Deploy examples
-    runs-on: ubuntu-latest
-    needs: [build]
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 25
-      - name: Install Vercel CLI
-        run: npm i -g vercel@28.16.15
-      - name: Deploy preview examples
-        if: ${{ needs.build.outputs.isRelease != 'true' }}
-        run: ./scripts/deploy-examples.sh
-        env:
-          VERCEL_API_TOKEN: ${{ secrets.VERCEL_API_TOKEN }}
-          DEPLOY_ENVIRONMENT: preview
-      - name: Deploy production examples
-        if: ${{ needs.build.outputs.isRelease == 'true' }}
-        run: ./scripts/deploy-examples.sh
-        env:
-          VERCEL_API_TOKEN: ${{ secrets.VERCEL_API_TOKEN }}
-          DEPLOY_ENVIRONMENT: production
-
-  testDeployE2E:
-    name: E2E (deploy)
-    runs-on: ubuntu-latest
-    needs: [publishRelease]
-    env:
-      NEXT_TELEMETRY_DISABLED: 1
-      VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
-      VERCEL_TEST_TEAM: vtest314-next-e2e-tests
-    steps:
-      - uses: actions/cache@v3
-        timeout-minutes: 5
-        id: restore-build
-        with:
-          path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
-
-      - run: npm i -g vercel@latest
-
-      - run: mkdir -p packages/next-swc/native && node scripts/install-native.mjs && cp node_modules/@next/swc-*/* packages/next-swc/native
-
-      - run: RESET_VC_PROJECT=true node scripts/reset-vercel-project.mjs
-        name: Reset test project
-
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-jammy /bin/bash -c "cd /work && NODE_VERSION=${{ env.NODE_LTS_VERSION }} ./scripts/setup-node.sh && npm i -g pnpm@${PNPM_VERSION} > /dev/null && VERCEL_TEST_TOKEN=${{ secrets.VERCEL_TEST_TOKEN }} VERCEL_TEST_TEAM=vtest314-next-e2e-tests NEXT_TEST_JOB=1 NEXT_TEST_MODE=deploy TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} xvfb-run node run-tests.js --type e2e >> /proc/1/fd/1"
-        name: Run test/e2e (deploy)
-
-      - name: Upload test trace
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: test-trace
-          if-no-files-found: ignore
-          retention-days: 2
-          path: |
-            test/traces
-
-  releaseStats:
-    name: Release Stats
-    runs-on: ubuntu-latest
-    needs: [publishRelease]
-    steps:
-      - name: Setup node
-        uses: actions/setup-node@v3
-        with:
-          node-version: ${{ env.NODE_LTS_VERSION }}
-          check-latest: true
-
-      - uses: actions/cache@v3
-        timeout-minutes: 5
-        id: restore-build
-        with:
-          path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
-
-      - run: mkdir -p packages/next-swc/native && node scripts/install-native.mjs && cp node_modules/@next/swc-*/* packages/next-swc/native
-
-      - run: ./scripts/release-stats.sh
-      - uses: ./.github/actions/next-stats-action
-        env:
-          PR_STATS_COMMENT_TOKEN: ${{ secrets.PR_STATS_COMMENT_TOKEN }}
-
   # Build binaries for publishing
   build-native:
     strategy:
@@ -426,3 +294,141 @@ jobs:
         with:
           name: wasm-binaries
           path: packages/next-swc/crates/wasm/pkg-*
+
+  publishRelease:
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
+    name: Potentially publish release
+    runs-on: ubuntu-latest
+    needs:
+      - build
+      - build-wasm
+      - build-native
+    permissions:
+      contents: write
+      id-token: write
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
+    steps:
+      - name: Setup node
+        uses: actions/setup-node@v3
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+        with:
+          node-version: ${{ env.NODE_LTS_VERSION }}
+          check-latest: true
+
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - uses: actions/cache@v3
+        timeout-minutes: 5
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}
+
+      - uses: actions/download-artifact@v3
+        with:
+          name: next-swc-binaries
+          path: packages/next-swc/native
+
+      - uses: actions/download-artifact@v3
+        with:
+          name: wasm-binaries
+          path: packages/next-swc/crates/wasm
+
+      - run: npm i -g npm@9 # need latest version for provenance
+      - run: npm i -g pnpm@${PNPM_VERSION}
+      - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+      - run: ./scripts/publish-native.js
+      - run: ./scripts/publish-release.js
+
+  deployExamples:
+    name: Deploy examples
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 25
+      - name: Install Vercel CLI
+        run: npm i -g vercel@28.16.15
+      - name: Deploy preview examples
+        if: ${{ needs.build.outputs.isRelease != 'true' }}
+        run: ./scripts/deploy-examples.sh
+        env:
+          VERCEL_API_TOKEN: ${{ secrets.VERCEL_API_TOKEN }}
+          DEPLOY_ENVIRONMENT: preview
+      - name: Deploy production examples
+        if: ${{ needs.build.outputs.isRelease == 'true' }}
+        run: ./scripts/deploy-examples.sh
+        env:
+          VERCEL_API_TOKEN: ${{ secrets.VERCEL_API_TOKEN }}
+          DEPLOY_ENVIRONMENT: production
+
+  testDeployE2E:
+    name: E2E (deploy)
+    runs-on: ubuntu-latest
+    needs: [publishRelease]
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
+      VERCEL_TEST_TEAM: vtest314-next-e2e-tests
+    steps:
+      - uses: actions/cache@v3
+        timeout-minutes: 5
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}
+
+      - run: npm i -g vercel@latest
+
+      - uses: actions/download-artifact@v3
+        with:
+          name: next-swc-binaries
+          path: packages/next-swc/native
+
+      - run: RESET_VC_PROJECT=true node scripts/reset-vercel-project.mjs
+        name: Reset test project
+
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-jammy /bin/bash -c "cd /work && NODE_VERSION=${{ env.NODE_LTS_VERSION }} ./scripts/setup-node.sh && npm i -g pnpm@${PNPM_VERSION} > /dev/null && VERCEL_TEST_TOKEN=${{ secrets.VERCEL_TEST_TOKEN }} VERCEL_TEST_TEAM=vtest314-next-e2e-tests NEXT_TEST_JOB=1 NEXT_TEST_MODE=deploy TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} xvfb-run node run-tests.js --type e2e >> /proc/1/fd/1"
+        name: Run test/e2e (deploy)
+
+      - name: Upload test trace
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-trace
+          if-no-files-found: ignore
+          retention-days: 2
+          path: |
+            test/traces
+
+  releaseStats:
+    name: Release Stats
+    runs-on: ubuntu-latest
+    needs: [publishRelease]
+    steps:
+      - name: Setup node
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_LTS_VERSION }}
+          check-latest: true
+
+      - uses: actions/cache@v3
+        timeout-minutes: 5
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}
+
+      - uses: actions/download-artifact@v3
+        with:
+          name: next-swc-binaries
+          path: packages/next-swc/native
+
+      - run: ./scripts/release-stats.sh
+      - uses: ./.github/actions/next-stats-action
+        env:
+          PR_STATS_COMMENT_TOKEN: ${{ secrets.PR_STATS_COMMENT_TOKEN }}
