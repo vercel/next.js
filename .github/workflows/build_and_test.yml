@@ -131,8 +131,7 @@ jobs:
     uses: vercel/next.js/.github/workflows/build_reusable.yml@canary
     with:
       skipForDocsOnly: 'yes'
-      afterBuild: exit 1
-      # afterBuild: node run-tests.js --timings -g ${{ matrix.group }}/6 -c ${TEST_CONCURRENCY} --test-pattern '^(integration)/.*\.test\.(js|jsx|ts|tsx)$'
+      afterBuild: node run-tests.js --timings -g ${{ matrix.group }}/6 -c ${TEST_CONCURRENCY} --test-pattern '^(integration)/.*\.test\.(js|jsx|ts|tsx)$'
     secrets: inherit
 
   test-firefox-safari:
