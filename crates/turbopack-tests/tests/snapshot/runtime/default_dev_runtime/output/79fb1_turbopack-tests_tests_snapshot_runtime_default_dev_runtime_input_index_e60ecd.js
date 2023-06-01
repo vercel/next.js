@@ -124,6 +124,7 @@ const moduleFactories = Object.create(null);
 const moduleCache = Object.create(null);
 const moduleHotData = new Map();
 const moduleHotState = new Map();
+const queuedInvalidatedModules = new Set();
 const runtimeModules = new Set();
 const moduleChunksMap = new Map();
 const chunkModulesMap = new Map();
@@ -217,7 +218,7 @@ function instantiateModule(id, source) {
         throw new Error(`Module ${id} was instantiated ${instantiationReason}, but the module factory is not available. It might have been deleted in an HMR update.`);
     }
     const hotData = moduleHotData.get(id);
-    const { hot , hotState  } = createModuleHot(hotData);
+    const { hot , hotState  } = createModuleHot(id, hotData);
     let parents;
     switch(source.type){
         case SourceType.Runtime:
@@ -264,7 +265,7 @@ function instantiateModule(id, source) {
                 }),
                 g: globalThis,
                 k: refresh,
-                __dirname: module.id.replace(/(^|\/)[\/]+$/, "")
+                __dirname: module.id.replace(/(^|\/)\/+$/, "")
             }));
         });
     } catch (error) {
@@ -339,14 +340,24 @@ function formatDependencyChain(dependencyChain) {
     return `Dependency chain: ${dependencyChain.join(" -> ")}`;
 }
 function computeOutdatedModules(added, modified) {
-    const outdatedModules = new Set();
     const newModuleFactories = new Map();
     for (const [moduleId, entry] of added){
         if (entry != null) {
             newModuleFactories.set(moduleId, _eval(entry));
         }
     }
+    const outdatedModules = computedInvalidatedModules(modified.keys());
     for (const [moduleId, entry] of modified){
+        newModuleFactories.set(moduleId, _eval(entry));
+    }
+    return {
+        outdatedModules,
+        newModuleFactories
+    };
+}
+function computedInvalidatedModules(invalidated) {
+    const outdatedModules = new Set();
+    for (const moduleId of invalidated){
         const effect = getAffectedModuleEffects(moduleId);
         switch(effect.type){
             case "unaccepted":
@@ -354,17 +365,13 @@ function computeOutdatedModules(added, modified) {
             case "self-declined":
                 throw new Error(`cannot apply update: self-declined module. ${formatDependencyChain(effect.dependencyChain)}.`);
             case "accepted":
-                newModuleFactories.set(moduleId, _eval(entry));
                 for (const outdatedModuleId of effect.outdatedModules){
                     outdatedModules.add(outdatedModuleId);
                 }
                 break;
         }
     }
-    return {
-        outdatedModules,
-        newModuleFactories
-    };
+    return outdatedModules;
 }
 function computeOutdatedSelfAcceptedModules(outdatedModules) {
     const outdatedSelfAcceptedModules = [];
@@ -519,12 +526,28 @@ function applyChunkListUpdate(chunkListPath, update) {
 }
 function applyEcmascriptMergedUpdate(chunkPath, update) {
     const { entries ={} , chunks ={}  } = update;
-    const { added , modified , deleted , chunksAdded , chunksDeleted  } = computeChangedModules(entries, chunks);
+    const { added , modified , chunksAdded , chunksDeleted  } = computeChangedModules(entries, chunks);
     const { outdatedModules , newModuleFactories  } = computeOutdatedModules(added, modified);
-    const outdatedSelfAcceptedModules = computeOutdatedSelfAcceptedModules(outdatedModules);
     const { disposedModules  } = updateChunksPhase(chunksAdded, chunksDeleted);
+    applyInternal(outdatedModules, disposedModules, newModuleFactories);
+}
+function applyInvalidatedModules(outdatedModules) {
+    if (queuedInvalidatedModules.size > 0) {
+        computedInvalidatedModules(queuedInvalidatedModules).forEach((moduleId)=>{
+            outdatedModules.add(moduleId);
+        });
+        queuedInvalidatedModules.clear();
+    }
+    return outdatedModules;
+}
+function applyInternal(outdatedModules, disposedModules, newModuleFactories) {
+    outdatedModules = applyInvalidatedModules(outdatedModules);
+    const outdatedSelfAcceptedModules = computeOutdatedSelfAcceptedModules(outdatedModules);
     const { outdatedModuleParents  } = disposePhase(outdatedModules, disposedModules);
     applyPhase(outdatedSelfAcceptedModules, newModuleFactories, outdatedModuleParents);
+    if (queuedInvalidatedModules.size > 0) {
+        applyInternal(new Set(), [], new Map());
+    }
 }
 function computeChangedModules(entries, updates) {
     const chunksAdded = new Map();
@@ -676,7 +699,7 @@ function handleApply(chunkListPath, update) {
             throw new Error(`Unknown update type: ${update.type}`);
     }
 }
-function createModuleHot(hotData) {
+function createModuleHot(moduleId, hotData) {
     const hotState = {
         selfAccepted: false,
         selfDeclined: false,
@@ -716,6 +739,7 @@ function createModuleHot(hotData) {
         },
         invalidate: ()=>{
             hotState.selfInvalidated = true;
+            queuedInvalidatedModules.add(moduleId);
         },
         status: ()=>"idle",
         addStatusHandler: (_handler)=>{},
