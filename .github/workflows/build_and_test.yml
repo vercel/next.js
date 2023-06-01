@@ -163,8 +163,5 @@ jobs:
     runs-on: [self-hosted, linux, x64]
     name: thank you, next
     steps:
-      - run: exit 0
-        if: success()
-
       - run: exit 1
-        if: failure()
+        if: ${{ always() && contains(needs.*.result, 'failure') }}
