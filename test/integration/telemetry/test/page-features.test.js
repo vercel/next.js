@@ -58,6 +58,7 @@ describe('page features telemetry', () => {
       }
 
       try {
+        expect(stderr).toContain('NEXT_CLI_SESSION_STARTED')
         const event1 = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
           .exec(stderr)
           .pop()
@@ -94,10 +95,11 @@ describe('page features telemetry', () => {
       await check(() => stderr, /NEXT_CLI_SESSION_STARTED/)
 
       if (app) {
-        await app.kill('SIGINT')
+        await killApp(app)
       }
       await check(() => stderr, /NEXT_CLI_SESSION_STOPPED/)
 
+      expect(stderr).toContain('NEXT_CLI_SESSION_STOPPED')
       const event1 = /NEXT_CLI_SESSION_STOPPED[\s\S]+?{([\s\S]+?)}/
         .exec(stderr)
         .pop()
@@ -133,10 +135,12 @@ describe('page features telemetry', () => {
       await check(() => stderr, /NEXT_CLI_SESSION_STARTED/)
 
       if (app) {
-        await app.kill('SIGINT')
+        await killApp(app)
       }
+
       await check(() => stderr, /NEXT_CLI_SESSION_STOPPED/)
 
+      expect(stderr).toContain('NEXT_CLI_SESSION_STOPPED')
       const event1 = /NEXT_CLI_SESSION_STOPPED[\s\S]+?{([\s\S]+?)}/
         .exec(stderr)
         .pop()
@@ -198,6 +202,7 @@ describe('page features telemetry', () => {
       })
 
       try {
+        expect(stderr).toContain('NEXT_BUILD_OPTIMIZED')
         const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
           .exec(stderr)
           .pop()
@@ -211,6 +216,7 @@ describe('page features telemetry', () => {
         expect(event1).toMatch(/"edgeRuntimeAppCount": 1/)
         expect(event1).toMatch(/"edgeRuntimePagesCount": 2/)
 
+        expect(stderr).toContain('NEXT_BUILD_COMPLETED')
         const event2 = /NEXT_BUILD_COMPLETED[\s\S]+?{([\s\S]+?)}/
           .exec(stderr)
           .pop()
@@ -233,6 +239,7 @@ describe('page features telemetry', () => {
       env: { NEXT_TELEMETRY_DEBUG: 1 },
     })
 
+    expect(build.stderr).toContain('NEXT_BUILD_OPTIMIZED')
     let event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
       .exec(build.stderr)
       .pop()
@@ -262,6 +269,7 @@ describe('page features telemetry', () => {
     )
 
     try {
+      expect(build.stderr).toContain('NEXT_BUILD_OPTIMIZED')
       const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
         .exec(build.stderr)
         .pop()
@@ -295,6 +303,7 @@ describe('page features telemetry', () => {
     )
 
     try {
+      expect(build.stderr).toContain('NEXT_BUILD_OPTIMIZED')
       const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
         .exec(build.stderr)
         .pop()
