@@ -44,6 +44,12 @@ async function fetchServerAction(
       Accept: RSC_CONTENT_TYPE_HEADER,
       'Next-Action': actionId,
       [NEXT_ROUTER_STATE_TREE]: JSON.stringify(state.tree),
+      ...(process.env.__NEXT_ACTIONS_DEPLOYMENT_ID &&
+      process.env.__NEXT_DEPLOYMENT_ID
+        ? {
+            'x-deployment-id': process.env.__NEXT_DEPLOYMENT_ID,
+          }
+        : {}),
       ...(state.nextUrl
         ? {
             [NEXT_URL]: state.nextUrl,
