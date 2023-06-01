@@ -251,6 +251,12 @@ export function getDefineEnv({
     'process.env.NEXT_RUNTIME': JSON.stringify(
       isEdgeServer ? 'edge' : isNodeServer ? 'nodejs' : undefined
     ),
+    'process.env.__NEXT_ACTIONS_DEPLOYMENT_ID': JSON.stringify(
+      config.experimental.useDeploymentIdServerActions
+    ),
+    'process.env.__NEXT_DEPLOYMENT_ID': JSON.stringify(
+      config.experimental.deploymentId
+    ),
     'process.env.__NEXT_FETCH_CACHE_KEY_PREFIX':
       JSON.stringify(fetchCacheKeyPrefix),
     'process.env.__NEXT_PREVIEW_MODE_ID': JSON.stringify(previewModeId),
