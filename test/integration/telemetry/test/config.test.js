@@ -38,7 +38,7 @@ describe('config telemetry', () => {
       expect(event1).toMatch(/"redirectsCount": 1/)
       expect(event1).toMatch(/"middlewareCount": 0/)
     } catch (err) {
-      require('console').error(stderr)
+      require('console').error('failing stderr', stderr, err)
       throw err
     }
   })
@@ -81,7 +81,7 @@ describe('config telemetry', () => {
       expect(event1).toMatch(/"pagesDir": true/)
       expect(event1).toMatch(/"appDir": false/)
     } catch (err) {
-      require('console').error(stderr)
+      require('console').error('failing stderr', stderr, err)
       throw err
     }
 
@@ -146,7 +146,7 @@ describe('config telemetry', () => {
 
         expect(event1).toContain('"nextConfigOutput": "export"')
       } catch (err) {
-        require('console').error(stderr)
+        require('console').error('failing stderr', stderr, err)
         throw err
       }
     } finally {
@@ -190,7 +190,7 @@ describe('config telemetry', () => {
         invocationCount: 1,
       })
     } catch (err) {
-      require('console').error(stderr)
+      require('console').error('failing stderr', stderr, err)
       throw err
     }
   })
