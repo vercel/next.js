@@ -297,7 +297,7 @@
     "timers-browserify": "2.0.12",
     "tty-browserify": "0.0.1",
     "ua-parser-js": "0.7.28",
-    "undici": "5.22.0",
+    "undici": "5.22.1",
     "unistore": "3.4.1",
     "util": "0.12.4",
     "uuid": "8.3.2",
