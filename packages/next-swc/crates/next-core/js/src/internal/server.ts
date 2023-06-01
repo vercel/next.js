@@ -40,7 +40,6 @@ export function makeRequest(
   serverResponse: ServerResponse<IncomingMessage>
 }> {
   return new Promise((resolve, reject) => {
-    let clientRequest: ClientRequest | null = null
     let clientResponseResolve: (value: IncomingMessage) => void
     let clientResponseReject: (error: Error) => void
     const clientResponsePromise = new Promise<IncomingMessage>(
@@ -49,32 +48,9 @@ export function makeRequest(
         clientResponseReject = reject
       }
     )
-    let serverRequest: IncomingMessage | null = null
-    let serverResponse: ServerResponse<IncomingMessage> | null = null
-
-    const maybeResolve = () => {
-      if (
-        clientRequest != null &&
-        serverRequest != null &&
-        serverResponse != null
-      ) {
-        cleanup()
-        resolve({
-          clientRequest,
-          clientResponsePromise,
-          serverRequest,
-          serverResponse,
-        })
-      }
-    }
-
-    const cleanup = () => {
-      server.removeListener('error', errorListener)
-      server.removeListener('request', requestListener)
-    }
 
     const errorListener = (err: Error) => {
-      cleanup()
+      server.removeListener('request', requestListener)
       reject(err)
     }
 
@@ -82,26 +58,13 @@ export function makeRequest(
       req: IncomingMessage,
       res: ServerResponse<IncomingMessage>
     ) => {
-      serverRequest = req
-      serverResponse = res
-      maybeResolve()
-    }
-
-    const cleanupClientResponse = () => {
-      if (clientRequest != null) {
-        clientRequest.removeListener('response', responseListener)
-        clientRequest.removeListener('error', clientResponseErrorListener)
-      }
-    }
-
-    const clientResponseErrorListener = (err: Error) => {
-      cleanupClientResponse()
-      clientResponseReject(err)
-    }
-
-    const responseListener = (res: IncomingMessage) => {
-      cleanupClientResponse()
-      clientResponseResolve(res)
+      server.removeListener('error', errorListener)
+      resolve({
+        clientRequest,
+        clientResponsePromise,
+        serverRequest: req,
+        serverResponse: res,
+      })
     }
 
     server.once('request', requestListener)
@@ -112,17 +75,26 @@ export function makeRequest(
     const headers = headersFromEntries(rawHeaders ?? [])
     initProxiedHeaders(headers, proxiedFor)
 
-    clientRequest = http.request({
+    const clientRequest = http.request({
       host: 'localhost',
       port: address.port,
       method,
-      path:
-        rawQuery != null && rawQuery.length > 0 ? `${path}?${rawQuery}` : path,
+      path: rawQuery?.length ? `${path}?${rawQuery}` : path,
       headers,
     })
 
     // Otherwise Node.js waits for the first chunk of data to be written before sending the request.
     clientRequest.flushHeaders()
+
+    const clientResponseErrorListener = (err: Error) => {
+      clientRequest.removeListener('response', responseListener)
+      clientResponseReject(err)
+    }
+
+    const responseListener = (res: IncomingMessage) => {
+      clientRequest.removeListener('error', clientResponseErrorListener)
+      clientResponseResolve(res)
+    }
 
     clientRequest.once('response', responseListener)
     clientRequest.once('error', clientResponseErrorListener)

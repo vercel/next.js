@@ -130,6 +130,7 @@ jobs:
 
     uses: vercel/next.js/.github/workflows/build_reusable.yml@canary
     with:
+      nodeVersion: 16
       skipForDocsOnly: 'yes'
       afterBuild: node run-tests.js --timings -g ${{ matrix.group }}/6 -c ${TEST_CONCURRENCY} --test-pattern '^(integration)/.*\.test\.(js|jsx|ts|tsx)$'
     secrets: inherit
@@ -163,8 +164,5 @@ jobs:
     runs-on: [self-hosted, linux, x64]
     name: thank you, next
     steps:
-      - run: exit 0
-        if: success()
-
       - run: exit 1
-        if: failure()
+        if: ${{ always() && contains(needs.*.result, 'failure') }}
