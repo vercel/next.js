@@ -13,7 +13,7 @@ env:
   PNPM_VERSION: 7.24.3
   NODE_MAINTENANCE_VERSION: 16
   NODE_LTS_VERSION: 18
-  TEST_CONCURRENCY: 8
+  TEST_CONCURRENCY: 6
   # TODO: remove after testing
   # NEXT_TEST_CONTINUE_ON_ERROR: 'true'
 
@@ -130,6 +130,7 @@ jobs:
 
     uses: vercel/next.js/.github/workflows/build_reusable.yml@canary
     with:
+      nodeVersion: 16
       skipForDocsOnly: 'yes'
       afterBuild: node run-tests.js --timings -g ${{ matrix.group }}/6 -c ${TEST_CONCURRENCY} --test-pattern '^(integration)/.*\.test\.(js|jsx|ts|tsx)$'
     secrets: inherit
@@ -158,7 +159,10 @@ jobs:
         'test-next-swc-wasm',
         'test-turbopack-dev',
       ]
+
+    if: always()
     runs-on: [self-hosted, linux, x64]
     name: thank you, next
     steps:
-      - run: echo 'success'
+      - run: exit 1
+        if: ${{ always() && contains(needs.*.result, 'failure') }}

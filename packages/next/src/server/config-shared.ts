@@ -144,6 +144,8 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  useDeploymentIdServerActions?: boolean
+  deploymentId?: string
   logging?: 'verbose'
   appDocumentPreloading?: boolean
   strictNextHead?: boolean
@@ -660,6 +662,8 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
+    useDeploymentIdServerActions: false,
+    deploymentId: process.env.NEXT_DEPLOYMENT_ID || '',
     appDocumentPreloading: undefined,
     clientRouterFilter: false,
     clientRouterFilterRedirects: false,
