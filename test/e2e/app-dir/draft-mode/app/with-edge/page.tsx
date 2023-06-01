@@ -1,7 +1,7 @@
 import React from 'react'
 import { cookies, draftMode } from 'next/headers'
 
-export const runtime = 'edge'
+export const runtime = 'experimental-edge'
 
 export default function Page() {
   const { isEnabled } = draftMode()
@@ -13,7 +13,7 @@ export default function Page() {
 
   return (
     <>
-      <h1>Draft Mode Test</h1>
+      <h1>Draft Mode in Edge</h1>
       <p>
         Random: <em id="rand">{Math.random()}</em>
       </p>
