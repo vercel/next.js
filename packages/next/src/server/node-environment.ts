@@ -4,9 +4,9 @@
 // expose AsyncLocalStorage on global for react usage if it isn't already provided by the environment
 if (typeof (globalThis as any).AsyncLocalStorage !== 'function') {
   const { AsyncLocalStorage } = require('async_hooks')
-  ;(globalThis as any).AsyncLocalStorage = AsyncLocalStorage
+    ; (globalThis as any).AsyncLocalStorage = AsyncLocalStorage
 }
 
 if (typeof (globalThis as any).WebSocket !== 'function') {
-  ;(globalThis as any).WebSocket = require('next/dist/compiled/ws').WebSocket
+  ; (globalThis as any).WebSocket = require('next/dist/compiled/ws').WebSocket
 }
