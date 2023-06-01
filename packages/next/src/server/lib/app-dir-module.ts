@@ -33,13 +33,16 @@ export async function getLayoutOrPageModule(loaderTree: LoaderTree) {
   return [value, modType] as const
 }
 
-export async function getErrorModule(
+// First check not-found, if it doesn't exist then pick layout
+export async function getErrorOrLayoutModule(
   loaderTree: LoaderTree,
   errorType: 'error' | 'not-found'
 ) {
-  const error = loaderTree[2][errorType]
+  const { [errorType]: error, layout } = loaderTree[2]
   if (typeof error !== 'undefined') {
     return await error[0]()
+  } else if (typeof layout !== 'undefined') {
+    return await layout[0]()
   }
   return undefined
 }

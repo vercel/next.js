@@ -15,7 +15,7 @@ import { resolveTitle } from './resolvers/resolve-title'
 import { resolveAsArrayOrUndefined } from './generate/utils'
 import { isClientReference } from '../client-reference'
 import {
-  getErrorModule,
+  getErrorOrLayoutModule,
   getLayoutOrPageModule,
   LoaderTree,
 } from '../../server/lib/app-dir-module'
@@ -329,7 +329,7 @@ export async function collectMetadata({
   let mod
   let modType
   if (errorType) {
-    mod = await getErrorModule(tree, errorType)
+    mod = await getErrorOrLayoutModule(tree, errorType)
     modType = errorType
   } else {
     ;[mod, modType] = await getLayoutOrPageModule(tree)
@@ -389,26 +389,27 @@ export async function resolveMetadata({
     ...(isPage && { searchParams }),
   }
 
-  const isLeaf =
-    !parallelRoutes.children ||
-    Object.keys(parallelRoutes.children[1]).length === 0
-  if (isLeaf && notFound && errorType) {
-    await collectMetadata({
-      tree,
-      errorType,
-      metadataItems,
-      props: layerProps,
-      route: currentTreePrefix
-        // __PAGE__ shouldn't be shown in a route
-        .filter((s) => s !== PAGE_SEGMENT_KEY)
-        .join('/'),
-    })
-    return metadataItems
-  }
+  // const isLeaf =
+  //   !parallelRoutes.children ||
+  //   Object.keys(parallelRoutes.children[1]).length === 0
+  // if (isLeaf && notFound && errorType) {
+  //   await collectMetadata({
+  //     tree,
+  //     errorType,
+  //     metadataItems,
+  //     props: layerProps,
+  //     route: currentTreePrefix
+  //       // __PAGE__ shouldn't be shown in a route
+  //       .filter((s) => s !== PAGE_SEGMENT_KEY)
+  //       .join('/'),
+  //   })
+  //   return metadataItems
+  // }
 
   await collectMetadata({
     tree,
     metadataItems,
+    errorType,
     props: layerProps,
     route: currentTreePrefix
       // __PAGE__ shouldn't be shown in a route
