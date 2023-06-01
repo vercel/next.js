@@ -1,0 +1,28 @@
+# Data fetch example
+
+Next.js was conceived to make it easy to create universal apps. That's why fetching data
+on the server and the client when necessary is so easy with the new app directory.
+
+## Deploy your own
+
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/data-fetch)
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/data-fetch&project-name=data-fetch&repository-name=data-fetch)
+
+## How to use
+
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
+
+```bash
+npx create-next-app --example data-fetch-with-app-dir data-fetch-app
+```
+
+```bash
+yarn create next-app --example data-fetch-with-app-dir data-fetch-app
+```
+
+```bash
+pnpm create next-app --example data-fetch-with-app-dir data-fetch-app
+```
+
+Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
