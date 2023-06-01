@@ -215,6 +215,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected readonly buildId: string
   protected readonly minimalMode: boolean
   protected readonly renderOpts: {
+    deploymentId?: string
     poweredByHeader: boolean
     buildId: string
     generateEtags: boolean
@@ -417,7 +418,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       : undefined
     this.nextFontManifest = this.getNextFontManifest()
 
+    if (process.env.NEXT_RUNTIME !== 'edge') {
+      if (this.nextConfig.experimental.deploymentId) {
+        process.env.__NEXT_DEPLOYMENT_ID =
+          this.nextConfig.experimental.deploymentId
+      }
+    }
+
     this.renderOpts = {
+      deploymentId: this.nextConfig.experimental.deploymentId,
       strictNextHead: !!this.nextConfig.experimental.strictNextHead,
       poweredByHeader: this.nextConfig.poweredByHeader,
       canonicalBase: this.nextConfig.amp.canonicalBase || '',

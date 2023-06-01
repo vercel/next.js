@@ -133,6 +133,7 @@ export type RenderOptsPartial = {
   appDirDevErrorLogger?: (err: any) => Promise<void>
   originalPathname?: string
   isDraftMode?: boolean
+  deploymentId?: string
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
