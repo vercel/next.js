@@ -268,6 +268,7 @@ export type RenderOptsPartial = {
   largePageDataBytes?: number
   isOnDemandRevalidate?: boolean
   strictNextHead: boolean
+  isDraftMode?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
