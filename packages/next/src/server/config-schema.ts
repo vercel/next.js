@@ -270,6 +270,12 @@ const configSchema = {
         craCompat: {
           type: 'boolean',
         },
+        useDeploymentIdServerActions: {
+          type: 'boolean',
+        },
+        deploymentId: {
+          type: 'string',
+        },
         disableOptimizedLoading: {
           type: 'boolean',
         },

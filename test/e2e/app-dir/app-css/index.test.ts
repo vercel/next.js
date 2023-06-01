@@ -347,6 +347,24 @@ createNextDescribe(
             ).toBe(1)
           })
 
+          it('should deduplicate styles on the module level', async () => {
+            const browser = await next.browser('/css/css-conflict-layers')
+            await check(
+              () =>
+                browser.eval(
+                  `window.getComputedStyle(document.querySelector('.btn:not(.btn-blue)')).backgroundColor`
+                ),
+              'rgb(255, 255, 255)'
+            )
+            await check(
+              () =>
+                browser.eval(
+                  `window.getComputedStyle(document.querySelector('.btn.btn-blue')).backgroundColor`
+                ),
+              'rgb(0, 0, 255)'
+            )
+          })
+
           it('should only include the same style once in the flight data', async () => {
             const initialHtml = await next.render('/css/css-duplicate-2/server')
 

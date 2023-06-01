@@ -40,6 +40,7 @@ export interface PageStaticInfo {
   ssr?: boolean
   rsc?: RSCModuleType
   middleware?: Partial<MiddlewareConfig>
+  amp?: boolean | 'hybrid'
 }
 
 const CLIENT_MODULE_LABEL =
@@ -488,6 +489,7 @@ export async function getPageStaticInfo(params: {
       ssr,
       ssg,
       rsc,
+      amp: config.amp || false,
       ...(middlewareConfig && { middleware: middlewareConfig }),
       ...(resolvedRuntime && { runtime: resolvedRuntime }),
       preferredRegion,
@@ -498,6 +500,7 @@ export async function getPageStaticInfo(params: {
     ssr: false,
     ssg: false,
     rsc: RSC_MODULE_TYPES.server,
+    amp: false,
     runtime: undefined,
   }
 }

@@ -1,4 +1,4 @@
-import { isMetadataRoute, isMetadataRouteFile } from './is-metadata-route'
+import { isMetadataRoute, isStaticMetadataRouteFile } from './is-metadata-route'
 import path from '../../shared/lib/isomorphic/path'
 import { interpolateDynamicPath } from '../../server/server-utils'
 import { getNamedRouteRegex } from '../../shared/lib/router/utils/route-regex'
@@ -74,7 +74,7 @@ export function normalizeMetadataRoute(page: string) {
   // Support both /<metadata-route.ext> and custom routes /<metadata-route>/route.ts.
   // If it's a metadata file route, we need to append /[id]/route to the page.
   if (!route.endsWith('/route')) {
-    const isStaticMetadataFile = isMetadataRouteFile(page, [], true)
+    const isStaticMetadataFile = isStaticMetadataRouteFile(page)
     const { dir, name: baseName, ext } = path.parse(route)
 
     const isStaticRoute =

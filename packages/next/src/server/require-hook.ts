@@ -23,8 +23,6 @@ addHookAliases([
   ['styled-jsx', require.resolve('styled-jsx')],
   ['styled-jsx/style', require.resolve('styled-jsx/style')],
   ['styled-jsx/style', require.resolve('styled-jsx/style')],
-  ['server-only', require.resolve('next/dist/compiled/server-only')],
-  ['client-only', require.resolve('next/dist/compiled/client-only')],
 ])
 
 // Override built-in React packages if necessary
