@@ -1,5 +1,4 @@
 use std::{
-    env::current_dir,
     fs,
     io::{self, Write},
     path::{Path, PathBuf},
@@ -49,6 +48,12 @@ impl Bundler for TurboNext {
         let repo_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../../..")
             .canonicalize()?;
+
+        let build = Command::new("pnpm")
+            .args(["build"])
+            .current_dir(&repo_path)
+            .output()?;
+
         npm::install(
             install_dir,
             &[NpmPackage::new(
@@ -57,11 +62,6 @@ impl Bundler for TurboNext {
             )],
         )
         .context("failed to install from npm")?;
-
-        let build = Command::new("pnpm")
-            .args(["build"])
-            .current_dir(repo_path)
-            .output()?;
 
         if !build.status.success() {
             io::stdout().write_all(&build.stdout)?;
