@@ -13,6 +13,7 @@ createNextDescribe(
       const $ = await next.render$('/')
       expect($('#mode').text()).toBe('DISABLED')
       expect($('#rand').text()).toBeDefined()
+      expect($('#data').text()).toBe('')
       initialRand = $('#rand').text()
     })
 
@@ -21,6 +22,15 @@ createNextDescribe(
         const $ = await next.render$('/')
         expect($('#mode').text()).toBe('DISABLED')
         expect($('#rand').text()).toBe(initialRand)
+        expect($('#data').text()).toBe('')
+      })
+
+      it('should not read other cookies when draft mode disabled during next start', async () => {
+        const opts = { headers: { Cookie: `data=cool` } }
+        const $ = await next.render$('/', {}, opts)
+        expect($('#mode').text()).toBe('DISABLED')
+        expect($('#rand').text()).toBe(initialRand)
+        expect($('#data').text()).toBe('')
       })
     }
 
@@ -52,6 +62,15 @@ createNextDescribe(
       const $ = await next.render$('/', {}, opts)
       expect($('#mode').text()).toBe('ENABLED')
       expect($('#rand').text()).not.toBe(initialRand)
+      expect($('#data').text()).toBe('')
+    })
+
+    it('should read other cookies when draft mode enabled', async () => {
+      const opts = { headers: { Cookie: `${Cookie};data=cool` } }
+      const $ = await next.render$('/', {}, opts)
+      expect($('#mode').text()).toBe('ENABLED')
+      expect($('#rand').text()).not.toBe(initialRand)
+      expect($('#data').text()).toBe('cool')
     })
 
     it('should be enabled from api route handler when draft mode enabled', async () => {
