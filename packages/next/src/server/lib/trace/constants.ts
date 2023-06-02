@@ -72,6 +72,7 @@ enum StartServerSpan {
 
 enum RenderSpan {
   getServerSideProps = 'Render.getServerSideProps',
+  getStaticProps = 'Render.getStaticProps',
   renderToString = 'Render.renderToString',
   renderDocument = 'Render.renderDocument',
   createBodyResult = 'Render.createBodyResult',
@@ -88,7 +89,19 @@ enum RouterSpan {
   executeRoute = 'Router.executeRoute',
 }
 
-type SpanNames =
+enum NodeSpan {
+  runHandler = 'Node.runHandler',
+}
+
+enum AppRouteRouteHandlersSpan {
+  runHandler = 'AppRouteRouteHandlers.runHandler',
+}
+
+enum ResolveMetadataSpan {
+  generateMetadata = 'ResolveMetadata.generateMetadata',
+}
+
+type SpanTypes =
   | `${BaseServerSpan}`
   | `${LoadComponentsSpan}`
   | `${NextServerSpan}`
@@ -97,14 +110,21 @@ type SpanNames =
   | `${RenderSpan}`
   | `${RouterSpan}`
   | `${AppRenderSpan}`
+  | `${NodeSpan}`
+  | `${AppRouteRouteHandlersSpan}`
+  | `${ResolveMetadataSpan}`
 
 // This list is used to filter out spans that are not relevant to the user
 export const NextVanillaSpanAllowlist = [
-  NextServerSpan.getRequestHandler,
-  NextNodeServerSpan.findPageComponents,
-  BaseServerSpan.renderToResponse,
+  BaseServerSpan.handleRequest,
   RenderSpan.getServerSideProps,
+  RenderSpan.getStaticProps,
   AppRenderSpan.fetch,
+  AppRenderSpan.getBodyResult,
+  RenderSpan.renderDocument,
+  NodeSpan.runHandler,
+  AppRouteRouteHandlersSpan.runHandler,
+  ResolveMetadataSpan.generateMetadata,
 ]
 
 export {
@@ -113,8 +133,11 @@ export {
   NextServerSpan,
   NextNodeServerSpan,
   StartServerSpan,
-  SpanNames,
+  SpanTypes,
   RenderSpan,
   RouterSpan,
   AppRenderSpan,
+  NodeSpan,
+  AppRouteRouteHandlersSpan,
+  ResolveMetadataSpan,
 }

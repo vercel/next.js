@@ -7,6 +7,7 @@ export default function transformer(
 ) {
   const j = api.jscodeshift.withParser('tsx')
   const root = j(file.source)
+  let hasChanges = false
 
   // Before: import { ... } from '@next/font'
   // After: import { ... } from 'next/font'
@@ -15,6 +16,7 @@ export default function transformer(
       source: { value: '@next/font' },
     })
     .forEach((fontImport) => {
+      hasChanges = true
       fontImport.node.source = j.stringLiteral('next/font')
     })
 
@@ -25,6 +27,7 @@ export default function transformer(
       source: { value: '@next/font/google' },
     })
     .forEach((fontImport) => {
+      hasChanges = true
       fontImport.node.source = j.stringLiteral('next/font/google')
     })
 
@@ -35,8 +38,9 @@ export default function transformer(
       source: { value: '@next/font/local' },
     })
     .forEach((fontImport) => {
+      hasChanges = true
       fontImport.node.source = j.stringLiteral('next/font/local')
     })
 
-  return root.toSource(options)
+  return hasChanges ? root.toSource(options) : file.source
 }

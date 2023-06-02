@@ -1,6 +1,6 @@
 import { Metadata } from 'next'
 
-export const meta: Metadata = {
+export const metadata: Metadata = {
   title: 'My App',
 }
 

@@ -11,7 +11,7 @@ body:
   - type: checkboxes
     attributes:
       label: Verify canary release
-      description: '`next@canary` is the canary version of Next.js that ships daily. It includes all features and fixes that have not been released to the stable version yet. Think of canary as a public beta. Some issues may already be fixed in the canary version, so please verify that your issue reproduces before opening a new issue.'
+      description: 'Please run `npm install next@canary` to try the canary version of Next.js that ships daily. It includes all features and fixes that have not been released to the stable version yet. Some issues may already be fixed in the canary version, so please verify that your issue reproduces before opening a new issue.'
       options:
         - label: I verified that the issue exists in the latest Next.js canary release
           required: true
@@ -32,26 +32,30 @@ body:
         - 'Data fetching (gS(S)P, getInitialProps)'
         - 'Dynamic imports (next/dynamic)'
         - 'ESLint (eslint-config-next)'
-        - 'Font optimization (@next/font)'
+        - 'Font optimization (next/font)'
         - 'Image optimization (next/image, next/legacy/image)'
         - 'Internationalization (i18n)'
         - 'Jest (next/jest)'
         - 'MDX (@next/mdx)'
         - 'Metadata (metadata, generateMetadata, next/head, head.js)'
         - 'Middleware / Edge (API routes, runtime)'
+        - 'Operating System (Windows, MacOS, Linux)'
         - 'Package manager (npm, pnpm, Yarn)'
         - 'Routing (next/router, next/navigation, next/link)'
         - 'Script optimization (next/script)'
         - 'Standalone mode (output: "standalone")'
-        - 'Static HTML Export (next export)'
+        - 'Static HTML Export (output: "export")'
         - 'SWC minifier (swcMinify: true)'
         - 'SWC transpilation'
         - 'Turbopack (--turbo)'
-        - 'TypeScript'
+        - 'TypeScript (plugin, built-in types)'
   - type: input
     attributes:
-      label: Link to the code that reproduces this issue
-      description: A link to a GitHub repository, a [StackBlitz](https://stackblitz.com/fork/github/vercel/next.js/tree/canary/examples/reproduction-template), or a [CodeSandbox](https://codesandbox.io/p/sandbox/github/vercel/next.js/tree/canary/examples/reproduction-template) minimal reproduction. Minimal reproductions should be created from our [bug report template with `npx create-next-app -e reproduction-template`](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template) and should include only changes that contribute to the issue.
+      label: Link to the code that reproduces this issue or a replay of the bug
+      description: |
+        A link to a [GitHub repository](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template) or a [CodeSandbox](https://codesandbox.io/p/sandbox/github/vercel/next.js/tree/canary/examples/reproduction-template) minimal reproduction. Minimal reproductions should be created from our [bug report template with `npx create-next-app -e reproduction-template`](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template) and should include only changes that contribute to the issue.
+        If a minimal reproduction can't be created please share a [replay](https://www.replay.io/) of the bug which doesn't require sharing a private repo.
+        To report an App Router related issue, you can use these templates: [CodeSandbox](https://codesandbox.io/p/sandbox/github/vercel/next.js/tree/canary/examples/reproduction-template-app-dir) or [`npx create-next-app -e reproduction-template-app-dir`](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template-app-dir)
     validations:
       required: true
   - type: textarea
@@ -88,4 +92,4 @@ body:
   - type: input
     attributes:
       label: How are you deploying your application? (if relevant)
-      description: 'For example: next start, next export, Vercel, Other platform'
+      description: 'For example: next start, Vercel, Other platform'

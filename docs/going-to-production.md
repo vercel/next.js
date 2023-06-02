@@ -41,7 +41,7 @@ Cache-Control: public, max-age=31536000, immutable
 
 `Cache-Control` headers set in `next.config.js` will be overwritten in production to ensure that static assets can be cached effectively. If you need to revalidate the cache of a page that has been [statically generated](/docs/basic-features/pages.md#static-generation-recommended), you can do so by setting `revalidate` in the page's [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) function. If you're using `next/image`, you can configure the [`minimumCacheTTL`](/docs/api-reference/next/image#minimum-cache-ttl) for the default Image Optimization loader.
 
-**Note:** When running your application locally with `next dev`, your headers are overwritten to prevent caching locally.
+> **Note**: When running your application locally with `next dev`, your headers are overwritten to prevent caching locally.
 
 ```
 Cache-Control: no-cache, no-store, max-age=0, must-revalidate
@@ -74,7 +74,7 @@ By default, `Cache-Control` headers will be set differently depending on how you
 - If the page uses `getServerSideProps` or `getInitialProps`, it will use the default `Cache-Control` header set by `next start` in order to prevent accidental caching of responses that cannot be cached. If you want a different cache behavior while using `getServerSideProps`, use `res.setHeader('Cache-Control', 'value_you_prefer')` inside of the function as shown above.
 - If the page is using `getStaticProps`, it will have a `Cache-Control` header of `s-maxage=REVALIDATE_SECONDS, stale-while-revalidate`, or if `revalidate` is _not_ used, `s-maxage=31536000, stale-while-revalidate` to cache for the maximum age possible.
 
-> **Note:** Your deployment provider must support caching for dynamic responses. If you are self-hosting, you will need to add this logic yourself using a key/value store like Redis. If you are using Vercel, [Edge Caching works without configuration](https://vercel.com/docs/edge-network/caching?utm_source=next-site&utm_medium=docs&utm_campaign=next-website).
+> **Note**: Your deployment provider must support caching for dynamic responses. If you are self-hosting, you will need to add this logic yourself using a key/value store like Redis. If you are using Vercel, [Edge Caching works without configuration](https://vercel.com/docs/edge-network/caching?utm_source=next-site&utm_medium=docs&utm_campaign=next-website).
 
 ## Reducing JavaScript Size
 
@@ -109,7 +109,7 @@ Since Next.js runs on both the client and server, there are multiple forms of lo
 - `console.log` in the browser
 - `stdout` on the server
 
-If you want a structured logging package, we recommend [Pino](https://www.npmjs.com/package/pino). If you're using Vercel, there are [pre-built logging integrations](https://vercel.com/integrations#logging?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) compatible with Next.js.
+If you want a structured logging package, we recommend [Pino](https://www.npmjs.com/package/pino). If you're using Vercel, there are [pre-built logging integrations](https://vercel.com/integrations?utm_source=next-site&utm_medium=docs&utm_campaign=next-website#logging) compatible with Next.js.
 
 ## Error Handling
 

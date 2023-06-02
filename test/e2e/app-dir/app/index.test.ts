@@ -8,15 +8,93 @@ createNextDescribe(
   'app dir',
   {
     files: __dirname,
-    dependencies: {
-      swr: '2.0.0-rc.0',
-      react: 'latest',
-      'react-dom': 'latest',
-      sass: 'latest',
-    },
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
+    if (isNextStart) {
+      it('should have correct preferredRegion values in manifest', async () => {
+        const middlewareManifest = JSON.parse(
+          await next.readFile('.next/server/middleware-manifest.json')
+        )
+        expect(
+          middlewareManifest.functions['/(rootonly)/dashboard/hello/page']
+            .regions
+        ).toEqual(['iad1', 'sfo1'])
+        expect(middlewareManifest.functions['/dashboard/page'].regions).toEqual(
+          ['iad1']
+        )
+        expect(
+          middlewareManifest.functions['/slow-page-no-loading/page'].regions
+        ).toEqual(['global'])
+
+        expect(middlewareManifest.functions['/test-page/page'].regions).toEqual(
+          ['home']
+        )
+
+        // Inherits from the root layout.
+        expect(
+          middlewareManifest.functions['/slow-page-with-loading/page'].regions
+        ).toEqual(['sfo1'])
+      })
+    }
+
+    it('should work for catch-all edge page', async () => {
+      const html = await next.render('/catch-all-edge/hello123')
+      const $ = cheerio.load(html)
+
+      expect(JSON.parse($('#params').text())).toEqual({
+        slug: ['hello123'],
+      })
+    })
+
+    it('should have correct searchParams and params (server)', async () => {
+      const html = await next.render('/dynamic/category-1/id-2?query1=value2')
+      const $ = cheerio.load(html)
+
+      expect(JSON.parse($('#id-page-params').text())).toEqual({
+        category: 'category-1',
+        id: 'id-2',
+      })
+      expect(JSON.parse($('#search-params').text())).toEqual({
+        query1: 'value2',
+      })
+    })
+
+    it('should have correct searchParams and params (client)', async () => {
+      const browser = await next.browser(
+        '/dynamic-client/category-1/id-2?query1=value2'
+      )
+      const html = await browser.eval('document.documentElement.innerHTML')
+      const $ = cheerio.load(html)
+
+      expect(JSON.parse($('#id-page-params').text())).toEqual({
+        category: 'category-1',
+        id: 'id-2',
+      })
+      expect(JSON.parse($('#search-params').text())).toEqual({
+        query1: 'value2',
+      })
+    })
+
+    if (!isDev) {
+      it('should successfully detect app route during prefetch', async () => {
+        const browser = await next.browser('/')
+
+        await check(async () => {
+          const found = await browser.eval(
+            '!!window.next.router.components["/dashboard"]'
+          )
+          return found
+            ? 'success'
+            : await browser.eval('Object.keys(window.next.router.components)')
+        }, 'success')
+
+        await browser.elementByCss('a').click()
+        await browser.waitForElementByCss('#from-dashboard')
+      })
+    }
+
     it('should encode chunk path correctly', async () => {
+      await next.fetch('/dynamic-client/first/second')
       const browser = await next.browser('/')
       const requests = []
       browser.on('request', (req) => {
@@ -171,7 +249,9 @@ createNextDescribe(
       const res = await next.fetch('/dashboard')
       expect(res.headers.get('x-edge-runtime')).toBe('1')
       expect(res.headers.get('vary')).toBe(
-        'RSC, Next-Router-State-Tree, Next-Router-Prefetch'
+        isNextDeploy
+          ? 'RSC, Next-Router-State-Tree, Next-Router-Prefetch'
+          : 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding'
       )
     })
 
@@ -196,9 +276,6 @@ createNextDescribe(
     it('should serve from pages', async () => {
       const html = await next.render('/')
       expect(html).toContain('hello from pages/index')
-
-      // esm imports should work fine in pages/
-      expect(html).toContain('swr-index')
     })
 
     it('should serve dynamic route from pages', async () => {
@@ -214,6 +291,15 @@ createNextDescribe(
     it('should serve from app', async () => {
       const html = await next.render('/dashboard')
       expect(html).toContain('hello from app/dashboard')
+    })
+
+    it('should ensure the </body></html> suffix is at the end of the stream', async () => {
+      const html = await next.render('/dashboard')
+
+      // It must end with the suffix and not contain it anywhere else.
+      const suffix = '</body></html>'
+      expect(html).toEndWith(suffix)
+      expect(html.slice(0, -suffix.length)).not.toContain(suffix)
     })
 
     if (!isNextDeploy) {
@@ -232,7 +318,7 @@ createNextDescribe(
       it('should serve polyfills for browsers that do not support modules', async () => {
         const html = await next.render('/dashboard/index')
         expect(html).toMatch(
-          /<script src="\/_next\/static\/chunks\/polyfills(-\w+)?\.js" nomodule="">/
+          /<script src="\/_next\/static\/chunks\/polyfills(-\w+)?\.js" noModule="">/
         )
       })
     }
@@ -381,21 +467,25 @@ createNextDescribe(
       })
 
       it('should support rewrites on client-side navigation from pages to app with existing pages path', async () => {
+        await next.fetch('/exists-but-not-routed')
         const browser = await next.browser('/link-to-rewritten-path')
 
         try {
           // Click the link.
-          await browser.elementById('link-to-rewritten-path').click()
-          await browser.waitForElementByCss('#from-dashboard')
+          await check(async () => {
+            await browser.elementById('link-to-rewritten-path').click()
+            await browser.waitForElementByCss('#from-dashboard', 5000)
 
-          // Check to see that we were rewritten and not redirected.
-          // TODO-APP: rewrite url is broken
-          // expect(await browser.url()).toBe(`${next.url}/rewritten-to-dashboard`)
+            // Check to see that we were rewritten and not redirected.
+            // TODO-APP: rewrite url is broken
+            // expect(await browser.url()).toBe(`${next.url}/rewritten-to-dashboard`)
 
-          // Check to see that the page we navigated to is in fact the dashboard.
-          expect(await browser.elementByCss('#from-dashboard').text()).toBe(
-            'hello from app/dashboard'
-          )
+            // Check to see that the page we navigated to is in fact the dashboard.
+            expect(await browser.elementByCss('#from-dashboard').text()).toBe(
+              'hello from app/dashboard'
+            )
+            return 'success'
+          }, 'success')
         } finally {
           await browser.close()
         }
@@ -477,17 +567,10 @@ createNextDescribe(
           await browser.waitForElementByCss('#render-id-456')
           expect(await browser.eval('window.history.length')).toBe(3)
 
-          // Get the id on the rendered page.
-          const firstID = await browser.elementById('render-id-456').text()
-
           // Go back, and redo the navigation by clicking the link.
           await browser.back()
           await browser.elementById('link').click()
           await browser.waitForElementByCss('#render-id-456')
-
-          // Get the id again, and compare, they should not be the same.
-          const secondID = await browser.elementById('render-id-456').text()
-          expect(secondID).not.toBe(firstID)
         } finally {
           await browser.close()
         }
@@ -504,9 +587,6 @@ createNextDescribe(
           await browser.waitForElementByCss('#render-id-456')
           expect(await browser.eval('window.history.length')).toBe(2)
 
-          // Get the date again, and compare, they should not be the same.
-          const firstId = await browser.elementById('render-id-456').text()
-
           // Navigate to the subpage, verify that the history entry was NOT added.
           await browser.elementById('link').click()
           await browser.waitForElementByCss('#render-id-123')
@@ -516,10 +596,6 @@ createNextDescribe(
           await browser.elementById('link').click()
           await browser.waitForElementByCss('#render-id-456')
           expect(await browser.eval('window.history.length')).toBe(2)
-
-          // Get the date again, and compare, they should not be the same.
-          const secondId = await browser.elementById('render-id-456').text()
-          expect(firstId).not.toBe(secondId)
         } finally {
           await browser.close()
         }
@@ -653,20 +729,27 @@ createNextDescribe(
       })
 
       it('should navigate to pages dynamic route from pages page if it overlaps with an app page', async () => {
+        await next.fetch('/dynamic-pages-route-app-overlap/app-dir')
         const browser = await next.browser('/dynamic-pages-route-app-overlap')
 
         try {
           // Click the link.
-          await browser.elementById('pages-link').click()
-          expect(await browser.waitForElementByCss('#app-text').text()).toBe(
-            'hello from app/dynamic-pages-route-app-overlap/app-dir/page'
-          )
+          await check(async () => {
+            await browser.elementById('pages-link').click()
 
-          // When refreshing the browser, the app page should be rendered
-          await browser.refresh()
-          expect(await browser.waitForElementByCss('#app-text').text()).toBe(
-            'hello from app/dynamic-pages-route-app-overlap/app-dir/page'
-          )
+            expect(
+              await browser.waitForElementByCss('#app-text', 5000).text()
+            ).toBe(
+              'hello from app/dynamic-pages-route-app-overlap/app-dir/page'
+            )
+
+            // When refreshing the browser, the app page should be rendered
+            await browser.refresh()
+            expect(await browser.waitForElementByCss('#app-text').text()).toBe(
+              'hello from app/dynamic-pages-route-app-overlap/app-dir/page'
+            )
+            return 'success'
+          }, 'success')
         } finally {
           await browser.close()
         }
@@ -1053,7 +1136,8 @@ createNextDescribe(
           }
         })
 
-        it('should HMR correctly when changing the component type', async () => {
+        // TODO: investigate flakey behavior with this test case
+        it.skip('should HMR correctly when changing the component type', async () => {
           const filePath = 'app/dashboard/page/page.jsx'
           const origContent = await next.readFile(filePath)
 

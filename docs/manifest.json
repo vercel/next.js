@@ -321,6 +321,14 @@
               "path": "/docs/advanced-features/output-file-tracing.md"
             },
             {
+              "title": "Instrumentation",
+              "path": "/docs/advanced-features/instrumentation.md"
+            },
+            {
+              "title": "Open Telemetry",
+              "path": "/docs/advanced-features/open-telemetry.md"
+            },
+            {
               "title": "Security Headers",
               "path": "/docs/advanced-features/security-headers.md"
             },

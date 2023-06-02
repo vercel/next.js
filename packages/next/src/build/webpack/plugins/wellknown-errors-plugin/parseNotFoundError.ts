@@ -87,7 +87,7 @@ function getFormattedFileName(
     )
   ) {
     // Parse the query and get the path of the file where the font function was called.
-    // provided by next-swc next_font_loaders
+    // provided by next-swc next-transform-font
     return JSON.parse(module.resourceResolveData.query.slice(1)).path
   } else {
     let formattedFileName: string = chalk.cyan(fileName)
@@ -136,9 +136,10 @@ export async function getNotFoundError(
         .filter(
           (name) =>
             name &&
-            !/next-(app|middleware|client-pages|flight-(client|server|client-entry))-loader\.js/.test(
+            !/next-(app|middleware|client-pages|route|flight-(client|server|client-entry))-loader\.js/.test(
               name
             ) &&
+            !/next-route-loader\/index\.js/.test(name) &&
             !/css-loader.+\.js/.test(name)
         )
       if (moduleTrace.length === 0) return ''

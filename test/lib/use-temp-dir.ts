@@ -4,7 +4,7 @@ import path from 'path'
 
 /**
  * Create a randomly-named directory in `os.tmpdir()`, await a function call,
- * and delete the directory when finished.
+ * and delete the directory when finished, unless `NEXT_TEST_SKIP_CLEANUP` is set.
  */
 export async function useTempDir(
   fn: (folder: string) => void | Promise<void>,
@@ -23,6 +23,8 @@ export async function useTempDir(
   try {
     await fn(folder)
   } finally {
-    await fs.remove(folder)
+    if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
+      await fs.remove(folder)
+    }
   }
 }

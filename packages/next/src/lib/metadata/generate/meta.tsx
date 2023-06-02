@@ -1,4 +1,5 @@
 import React from 'react'
+import { nonNullable } from '../../non-nullable'
 
 export function Meta({
   name,
@@ -14,6 +15,7 @@ export function Meta({
   if (typeof content !== 'undefined' && content !== null && content !== '') {
     return (
       <meta
+        key={(name || property) + ':' + content}
         {...(name ? { name } : { property })}
         {...(media ? { media } : undefined)}
         content={typeof content === 'string' ? content : content.toString()}
@@ -21,6 +23,15 @@ export function Meta({
     )
   }
   return null
+}
+
+export function MetaFilter<T extends {} | {}[]>(
+  items: (T | null)[]
+): NonNullable<T>[] {
+  return items.filter(
+    (item): item is NonNullable<T> =>
+      nonNullable(item) && !(Array.isArray(item) && item.length === 0)
+  )
 }
 
 type ExtendMetaContent = Record<
@@ -31,6 +42,24 @@ type MultiMetaContent =
   | (ExtendMetaContent | string | URL | number)[]
   | null
   | undefined
+
+function camelToSnake(camelCaseStr: string) {
+  return camelCaseStr.replace(/([A-Z])/g, function (match) {
+    return '_' + match.toLowerCase()
+  })
+}
+
+function getMetaKey(prefix: string, key: string) {
+  // Use `twitter:image` and `og:image` instead of `twitter:image:url` and `og:image:url`
+  // to be more compatible as it's a more common format
+  if ((prefix === 'og:image' || prefix === 'twitter:image') && key === 'url') {
+    return prefix
+  }
+  if (prefix.startsWith('og:') || prefix.startsWith('twitter:')) {
+    key = camelToSnake(key)
+  }
+  return prefix + ':' + key
+}
 
 function ExtendMeta({
   content,
@@ -43,26 +72,17 @@ function ExtendMeta({
 }) {
   const keyPrefix = namePrefix || propertyPrefix
   if (!content) return null
-  return (
-    <React.Fragment>
-      {Object.entries(content).map(([k, v], index) => {
-        return typeof v === 'undefined' ? null : (
-          <Meta
-            key={keyPrefix + ':' + k + '_' + index}
-            {...(propertyPrefix
-              ? // Use `og:image` instead of `og:image:url` to be more compatible as it's a more common format
-                {
-                  property:
-                    propertyPrefix === 'og:image' && k === 'url'
-                      ? 'og:image'
-                      : propertyPrefix + ':' + k,
-                }
-              : { name: namePrefix + ':' + k })}
-            content={typeof v === 'string' ? v : v?.toString()}
-          />
-        )
-      })}
-    </React.Fragment>
+  return MetaFilter(
+    Object.entries(content).map(([k, v], index) => {
+      return typeof v === 'undefined' ? null : (
+        <Meta
+          key={keyPrefix + ':' + k + '_' + index}
+          {...(propertyPrefix && { property: getMetaKey(propertyPrefix, k) })}
+          {...(namePrefix && { name: getMetaKey(namePrefix, k) })}
+          content={typeof v === 'string' ? v : v?.toString()}
+        />
+      )
+    })
   )
 }
 
@@ -79,35 +99,26 @@ export function MultiMeta({
     return null
   }
 
-  const keyPrefix = propertyPrefix || namePrefix
-  return (
-    <>
-      {contents.map((content, index) => {
-        if (
-          typeof content === 'string' ||
-          typeof content === 'number' ||
-          content instanceof URL
-        ) {
-          return (
-            <Meta
-              key={keyPrefix + '_' + index}
-              {...(propertyPrefix
-                ? { property: propertyPrefix }
-                : { name: namePrefix })}
-              content={content}
-            />
-          )
-        } else {
-          return (
-            <ExtendMeta
-              key={keyPrefix + '_' + index}
-              namePrefix={namePrefix}
-              propertyPrefix={propertyPrefix}
-              content={content}
-            />
-          )
-        }
-      })}
-    </>
+  return MetaFilter(
+    contents.map((content) => {
+      if (
+        typeof content === 'string' ||
+        typeof content === 'number' ||
+        content instanceof URL
+      ) {
+        return Meta({
+          ...(propertyPrefix
+            ? { property: propertyPrefix }
+            : { name: namePrefix }),
+          content,
+        })
+      } else {
+        return ExtendMeta({
+          namePrefix,
+          propertyPrefix,
+          content,
+        })
+      }
+    })
   )
 }

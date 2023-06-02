@@ -221,7 +221,12 @@ function getMiddlewareData<T extends FetchDataOutput>(
         ) {
           const parsedSource = getNextPathnameInfo(
             parseRelativeUrl(source).pathname,
-            { parseData: true }
+            {
+              nextConfig: process.env.__NEXT_HAS_REWRITES
+                ? undefined
+                : nextConfig,
+              parseData: true,
+            }
           )
 
           as = addBasePath(parsedSource.pathname)
@@ -787,18 +792,18 @@ export default class Router implements BaseRouter {
       const dynamicFilterData: typeof staticFilterData = process.env
         .__NEXT_CLIENT_ROUTER_D_FILTER as any
 
-      if (staticFilterData?.hashes) {
+      if (staticFilterData?.numHashes) {
         this._bfl_s = new BloomFilter(
-          staticFilterData.size,
-          staticFilterData.hashes
+          staticFilterData.numItems,
+          staticFilterData.errorRate
         )
         this._bfl_s.import(staticFilterData)
       }
 
-      if (dynamicFilterData?.hashes) {
+      if (dynamicFilterData?.numHashes) {
         this._bfl_d = new BloomFilter(
-          dynamicFilterData.size,
-          dynamicFilterData.hashes
+          dynamicFilterData.numItems,
+          dynamicFilterData.errorRate
         )
         this._bfl_d.import(dynamicFilterData)
       }
@@ -1052,7 +1057,12 @@ export default class Router implements BaseRouter {
     return this.change('replaceState', url, as, options)
   }
 
-  async _bfl(as: string, resolvedAs?: string, locale?: string | false) {
+  async _bfl(
+    as: string,
+    resolvedAs?: string,
+    locale?: string | false,
+    skipNavigate?: boolean
+  ) {
     if (process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED) {
       let matchesBflStatic = false
       let matchesBflDynamic = false
@@ -1072,8 +1082,8 @@ export default class Router implements BaseRouter {
           ) {
             matchesBflStatic =
               matchesBflStatic ||
-              !!this._bfl_s?.has(asNoSlash) ||
-              !!this._bfl_s?.has(asNoSlashLocale)
+              !!this._bfl_s?.contains(asNoSlash) ||
+              !!this._bfl_s?.contains(asNoSlashLocale)
 
             for (const normalizedAS of [asNoSlash, asNoSlashLocale]) {
               // if any sub-path of as matches a dynamic filter path
@@ -1085,7 +1095,7 @@ export default class Router implements BaseRouter {
                 i++
               ) {
                 const currentPart = curAsParts.slice(0, i).join('/')
-                if (currentPart && this._bfl_d?.has(currentPart)) {
+                if (currentPart && this._bfl_d?.contains(currentPart)) {
                   matchesBflDynamic = true
                   break
                 }
@@ -1095,8 +1105,13 @@ export default class Router implements BaseRouter {
             // if the client router filter is matched then we trigger
             // a hard navigation
             if (matchesBflStatic || matchesBflDynamic) {
+              if (skipNavigate) {
+                return true
+              }
               handleHardNavigation({
-                url: addBasePath(addLocale(as, locale || this.locale)),
+                url: addBasePath(
+                  addLocale(as, locale || this.locale, this.defaultLocale)
+                ),
                 router: this,
               })
               return new Promise(() => {})
@@ -1105,6 +1120,7 @@ export default class Router implements BaseRouter {
         }
       }
     }
+    return false
   }
 
   private async change(
@@ -1308,6 +1324,13 @@ export default class Router implements BaseRouter {
 
     let parsed = parseRelativeUrl(url)
     let { pathname, query } = parsed
+
+    // if we detected the path as app route during prefetching
+    // trigger hard navigation
+    if ((this.components[pathname] as any)?.__appRouter) {
+      handleHardNavigation({ url: as, router: this })
+      return new Promise(() => {})
+    }
 
     // The build manifest needs to be loaded before auto-static dynamic pages
     // get their query parameters to allow ensuring they can be parsed properly
@@ -2274,6 +2297,7 @@ export default class Router implements BaseRouter {
       return
     }
     let parsed = parseRelativeUrl(url)
+    const urlPathname = parsed.pathname
 
     let { pathname, query } = parsed
     const originalPathname = pathname
@@ -2410,6 +2434,10 @@ export default class Router implements BaseRouter {
 
     const route = removeTrailingSlash(pathname)
 
+    if (await this._bfl(asPath, resolvedAs, options.locale, true)) {
+      this.components[urlPathname] = { __appRouter: true } as any
+    }
+
     await Promise.all([
       this.pageLoader._isSsg(route).then((isSsg) => {
         return isSsg
@@ -2430,7 +2458,9 @@ export default class Router implements BaseRouter {
                 options.unstable_skipClientCache ||
                 (options.priority &&
                   !!process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE),
-            }).then(() => false)
+            })
+              .then(() => false)
+              .catch(() => false)
           : false
       }),
       this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](route),

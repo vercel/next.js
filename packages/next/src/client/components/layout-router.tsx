@@ -1,18 +1,16 @@
 'use client'
 
-import type {
-  AppRouterInstance,
-  ChildSegmentMap,
-} from '../../shared/lib/app-router-context'
+import type { ChildSegmentMap } from '../../shared/lib/app-router-context'
 import type {
   FlightRouterState,
   FlightSegmentPath,
   ChildProp,
-} from '../../server/app-render'
+  Segment,
+} from '../../server/app-render/types'
 import type { ErrorComponent } from './error-boundary'
-import { FocusAndScrollRef } from './router-reducer/router-reducer-types'
+import type { FocusAndScrollRef } from './router-reducer/router-reducer-types'
 
-import React, { useContext, useEffect, useMemo, use } from 'react'
+import React, { useContext, use } from 'react'
 import ReactDOM from 'react-dom'
 import {
   CacheStates,
@@ -24,10 +22,11 @@ import { fetchServerResponse } from './router-reducer/fetch-server-response'
 import { createInfinitePromise } from './infinite-promise'
 import { ErrorBoundary } from './error-boundary'
 import { matchSegment } from './match-segments'
-import { useRouter } from './navigation'
 import { handleSmoothScroll } from '../../shared/lib/router/utils/handle-smooth-scroll'
-import { getURLFromRedirectError, isRedirectError } from './redirect'
-import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
+import { RedirectBoundary } from './redirect-boundary'
+import { NotFoundBoundary } from './not-found-boundary'
+import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
+import { createRouterCacheKey } from './router-reducer/create-router-cache-key'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -87,7 +86,7 @@ function findDOMNode(
   instance: Parameters<typeof ReactDOM.findDOMNode>[0]
 ): ReturnType<typeof ReactDOM.findDOMNode> {
   // Tree-shake for server bundle
-  if (typeof window === undefined) return null
+  if (typeof window === 'undefined') return null
   // Only apply strict mode warning when not in production
   if (process.env.NODE_ENV !== 'production') {
     const originalConsoleError = console.error
@@ -106,6 +105,26 @@ function findDOMNode(
   return ReactDOM.findDOMNode(instance)
 }
 
+const rectProperties = [
+  'bottom',
+  'height',
+  'left',
+  'right',
+  'top',
+  'width',
+  'x',
+  'y',
+] as const
+/**
+ * Check if a HTMLElement is hidden.
+ */
+function elementCanScroll(element: HTMLElement) {
+  // Uses `getBoundingClientRect` to check if the element is hidden instead of `offsetParent`
+  // because `offsetParent` doesn't consider document/body
+  const rect = element.getBoundingClientRect()
+  return rectProperties.every((item) => rect[item] === 0)
+}
+
 /**
  * Check if the top corner of the HTMLElement is in the viewport.
  */
@@ -114,31 +133,101 @@ function topOfElementInViewport(element: HTMLElement, viewportHeight: number) {
   return rect.top >= 0 && rect.top <= viewportHeight
 }
 
-class ScrollAndFocusHandler extends React.Component<{
+/**
+ * Find the DOM node for a hash fragment.
+ * If `top` the page has to scroll to the top of the page. This mirrors the browser's behavior.
+ * If the hash fragment is an id, the page has to scroll to the element with that id.
+ * If the hash fragment is a name, the page has to scroll to the first element with that name.
+ */
+function getHashFragmentDomNode(hashFragment: string) {
+  // If the hash fragment is `top` the page has to scroll to the top of the page.
+  if (hashFragment === 'top') {
+    return document.body
+  }
+
+  // If the hash fragment is an id, the page has to scroll to the element with that id.
+  return (
+    document.getElementById(hashFragment) ??
+    // If the hash fragment is a name, the page has to scroll to the first element with that name.
+    document.getElementsByName(hashFragment)[0]
+  )
+}
+interface ScrollAndFocusHandlerProps {
   focusAndScrollRef: FocusAndScrollRef
   children: React.ReactNode
-}> {
-  componentDidMount() {
+  segmentPath: FlightSegmentPath
+}
+class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerProps> {
+  handlePotentialScroll = () => {
     // Handle scroll and focus, it's only applied once in the first useEffect that triggers that changed.
-    const { focusAndScrollRef } = this.props
+    const { focusAndScrollRef, segmentPath } = this.props
 
-    // `findDOMNode` is tricky because it returns just the first child if the component is a fragment.
-    // This already caused a bug where the first child was a <link/> in head.
-    const domNode = findDOMNode(this)
+    if (focusAndScrollRef.apply) {
+      // segmentPaths is an array of segment paths that should be scrolled to
+      // if the current segment path is not in the array, the scroll is not applied
+      // unless the array is empty, in which case the scroll is always applied
+      if (
+        focusAndScrollRef.segmentPaths.length !== 0 &&
+        !focusAndScrollRef.segmentPaths.some((scrollRefSegmentPath) =>
+          segmentPath.every((segment, index) =>
+            matchSegment(segment, scrollRefSegmentPath[index])
+          )
+        )
+      ) {
+        return
+      }
 
-    if (focusAndScrollRef.apply && domNode instanceof HTMLElement) {
+      let domNode:
+        | ReturnType<typeof getHashFragmentDomNode>
+        | ReturnType<typeof findDOMNode> = null
+      const hashFragment = focusAndScrollRef.hashFragment
+
+      if (hashFragment) {
+        domNode = getHashFragmentDomNode(hashFragment)
+      }
+
+      // `findDOMNode` is tricky because it returns just the first child if the component is a fragment.
+      // This already caused a bug where the first child was a <link/> in head.
+      if (!domNode) {
+        domNode = findDOMNode(this)
+      }
+
+      // TODO-APP: Handle the case where we couldn't select any DOM node, even higher up in the layout-router above the current segmentPath.
+      // If there is no DOM node this layout-router level is skipped. It'll be handled higher-up in the tree.
+      if (!(domNode instanceof Element)) {
+        return
+      }
+
+      // Verify if the element is a HTMLElement and if it's visible on screen (e.g. not display: none).
+      // If the element is not a HTMLElement or not visible we try to select the next sibling and try again.
+      while (!(domNode instanceof HTMLElement) || elementCanScroll(domNode)) {
+        // TODO-APP: Handle the case where we couldn't select any DOM node, even higher up in the layout-router above the current segmentPath.
+        // No siblings found that are visible so we handle scroll higher up in the tree instead.
+        if (domNode.nextElementSibling === null) {
+          return
+        }
+        domNode = domNode.nextElementSibling
+      }
+
       // State is mutated to ensure that the focus and scroll is applied only once.
       focusAndScrollRef.apply = false
+      focusAndScrollRef.hashFragment = null
+      focusAndScrollRef.segmentPaths = []
 
       handleSmoothScroll(
         () => {
+          // In case of hash scroll we need to scroll to the top of the element
+          if (hashFragment) {
+            window.scrollTo(0, (domNode as HTMLElement).offsetTop)
+            return
+          }
           // Store the current viewport height because reading `clientHeight` causes a reflow,
           // and it won't change during this function.
           const htmlElement = document.documentElement
           const viewportHeight = htmlElement.clientHeight
 
           // If the element's top edge is already in the viewport, exit early.
-          if (topOfElementInViewport(domNode, viewportHeight)) {
+          if (topOfElementInViewport(domNode as HTMLElement, viewportHeight)) {
             return
           }
 
@@ -149,9 +238,9 @@ class ScrollAndFocusHandler extends React.Component<{
           htmlElement.scrollTop = 0
 
           // Scroll to domNode if domNode is not in viewport when scrolled to top of document
-          if (!topOfElementInViewport(domNode, viewportHeight)) {
+          if (!topOfElementInViewport(domNode as HTMLElement, viewportHeight)) {
             // Scroll into view doesn't scroll horizontally by default when not needed
-            domNode.scrollIntoView()
+            ;(domNode as HTMLElement).scrollIntoView()
           }
         },
         {
@@ -165,15 +254,48 @@ class ScrollAndFocusHandler extends React.Component<{
     }
   }
 
+  componentDidMount() {
+    this.handlePotentialScroll()
+  }
+
+  componentDidUpdate() {
+    // Because this property is overwritten in handlePotentialScroll it's fine to always run it when true as it'll be set to false for subsequent renders.
+    if (this.props.focusAndScrollRef.apply) {
+      this.handlePotentialScroll()
+    }
+  }
+
   render() {
     return this.props.children
   }
 }
 
+function ScrollAndFocusHandler({
+  segmentPath,
+  children,
+}: {
+  segmentPath: FlightSegmentPath
+  children: React.ReactNode
+}) {
+  const context = useContext(GlobalLayoutRouterContext)
+  if (!context) {
+    throw new Error('invariant global layout router not mounted')
+  }
+
+  return (
+    <InnerScrollAndFocusHandler
+      segmentPath={segmentPath}
+      focusAndScrollRef={context.focusAndScrollRef}
+    >
+      {children}
+    </InnerScrollAndFocusHandler>
+  )
+}
+
 /**
  * InnerLayoutRouter handles rendering the provided segment based on the cache.
  */
-export function InnerLayoutRouter({
+function InnerLayoutRouter({
   parallelRouterKey,
   url,
   childNodes,
@@ -182,8 +304,7 @@ export function InnerLayoutRouter({
   tree,
   // TODO-APP: implement `<Offscreen>` when available.
   // isActive,
-  path,
-  headRenderedAboveThisLevel,
+  cacheKey,
 }: {
   parallelRouterKey: string
   url: string
@@ -192,25 +313,17 @@ export function InnerLayoutRouter({
   segmentPath: FlightSegmentPath
   tree: FlightRouterState
   isActive: boolean
-  path: string
-  headRenderedAboveThisLevel: boolean
+  cacheKey: ReturnType<typeof createRouterCacheKey>
 }) {
   const context = useContext(GlobalLayoutRouterContext)
   if (!context) {
     throw new Error('invariant global layout router not mounted')
   }
 
-  const { changeByServerResponse, tree: fullTree, focusAndScrollRef } = context
-
-  const head = useMemo(() => {
-    if (headRenderedAboveThisLevel) {
-      return null
-    }
-    return findHeadInCache(childNodes, tree[1])
-  }, [childNodes, tree, headRenderedAboveThisLevel])
+  const { changeByServerResponse, tree: fullTree } = context
 
   // Read segment path from the parallel router cache node.
-  let childNode = childNodes.get(path)
+  let childNode = childNodes.get(cacheKey)
 
   // If childProp is available this means it's the Flight / SSR case.
   if (
@@ -218,26 +331,24 @@ export function InnerLayoutRouter({
     // TODO-APP: verify if this can be null based on user code
     childProp.current !== null
   ) {
-    if (childNode && childNode.status === CacheStates.LAZY_INITIALIZED) {
-      // @ts-expect-error TODO-APP: handle changing of the type
-      childNode.status = CacheStates.READY
-      // @ts-expect-error TODO-APP: handle changing of the type
-      childNode.subTreeData = childProp.current
-      // Mutates the prop in order to clean up the memory associated with the subTreeData as it is now part of the cache.
-      childProp.current = null
-    } else {
+    if (!childNode) {
       // Add the segment's subTreeData to the cache.
       // This writes to the cache when there is no item in the cache yet. It never *overwrites* existing cache items which is why it's safe in concurrent mode.
-      childNodes.set(path, {
+      childNodes.set(cacheKey, {
         status: CacheStates.READY,
         data: null,
         subTreeData: childProp.current,
         parallelRoutes: new Map(),
       })
-      // Mutates the prop in order to clean up the memory associated with the subTreeData as it is now part of the cache.
-      childProp.current = null
       // In the above case childNode was set on childNodes, so we have to get it from the cacheNodes again.
-      childNode = childNodes.get(path)
+      childNode = childNodes.get(cacheKey)
+    } else {
+      if (childNode.status === CacheStates.LAZY_INITIALIZED) {
+        // @ts-expect-error we're changing it's type!
+        childNode.status = CacheStates.READY
+        // @ts-expect-error
+        childNode.subTreeData = childProp.current
+      }
     }
   }
 
@@ -252,9 +363,13 @@ export function InnerLayoutRouter({
     /**
      * Flight data fetch kicked off during render and put into the cache.
      */
-    childNodes.set(path, {
+    childNodes.set(cacheKey, {
       status: CacheStates.DATA_FETCH,
-      data: fetchServerResponse(new URL(url, location.origin), refetchTree),
+      data: fetchServerResponse(
+        new URL(url, location.origin),
+        refetchTree,
+        context.nextUrl
+      ),
       subTreeData: null,
       head:
         childNode && childNode.status === CacheStates.LAZY_INITIALIZED
@@ -266,7 +381,7 @@ export function InnerLayoutRouter({
           : new Map(),
     })
     // In the above case childNode was set on childNodes, so we have to get it from the cacheNodes again.
-    childNode = childNodes.get(path)
+    childNode = childNodes.get(cacheKey)
   }
 
   // This case should never happen so it throws an error. It indicates there's a bug in the Next.js.
@@ -321,20 +436,13 @@ export function InnerLayoutRouter({
         childNodes: childNode.parallelRoutes,
         // TODO-APP: overriding of url for parallel routes
         url: url,
-        headRenderedAboveThisLevel: true,
       }}
     >
-      {head}
       {childNode.subTreeData}
     </LayoutRouterContext.Provider>
   )
-
   // Ensure root layout is not wrapped in a div as the root layout renders `<html>`
-  return (
-    <ScrollAndFocusHandler focusAndScrollRef={focusAndScrollRef}>
-      {subtree}
-    </ScrollAndFocusHandler>
-  )
+  return subtree
 }
 
 /**
@@ -370,107 +478,6 @@ function LoadingBoundary({
   return <>{children}</>
 }
 
-interface RedirectBoundaryProps {
-  router: AppRouterInstance
-  children: React.ReactNode
-}
-
-function HandleRedirect({ redirect }: { redirect: string }) {
-  const router = useRouter()
-
-  useEffect(() => {
-    router.replace(redirect, {})
-  }, [redirect, router])
-  return null
-}
-
-class RedirectErrorBoundary extends React.Component<
-  RedirectBoundaryProps,
-  { redirect: string | null }
-> {
-  constructor(props: RedirectBoundaryProps) {
-    super(props)
-    this.state = { redirect: null }
-  }
-
-  static getDerivedStateFromError(error: any) {
-    if (isRedirectError(error)) {
-      const url = getURLFromRedirectError(error)
-      return { redirect: url }
-    }
-    // Re-throw if error is not for redirect
-    throw error
-  }
-
-  render() {
-    const redirect = this.state.redirect
-    if (redirect !== null) {
-      return <HandleRedirect redirect={redirect} />
-    }
-
-    return this.props.children
-  }
-}
-
-function RedirectBoundary({ children }: { children: React.ReactNode }) {
-  const router = useRouter()
-  return (
-    <RedirectErrorBoundary router={router}>{children}</RedirectErrorBoundary>
-  )
-}
-
-interface NotFoundBoundaryProps {
-  notFound?: React.ReactNode
-  notFoundStyles?: React.ReactNode
-  children: React.ReactNode
-}
-
-class NotFoundErrorBoundary extends React.Component<
-  NotFoundBoundaryProps,
-  { notFoundTriggered: boolean }
-> {
-  constructor(props: NotFoundBoundaryProps) {
-    super(props)
-    this.state = { notFoundTriggered: false }
-  }
-
-  static getDerivedStateFromError(error: any) {
-    if (error?.digest === 'NEXT_NOT_FOUND') {
-      return { notFoundTriggered: true }
-    }
-    // Re-throw if error is not for 404
-    throw error
-  }
-
-  render() {
-    if (this.state.notFoundTriggered) {
-      return (
-        <>
-          <meta name="robots" content="noindex" />
-          {this.props.notFoundStyles}
-          {this.props.notFound}
-        </>
-      )
-    }
-
-    return this.props.children
-  }
-}
-
-function NotFoundBoundary({
-  notFound,
-  notFoundStyles,
-  children,
-}: NotFoundBoundaryProps) {
-  return notFound ? (
-    <NotFoundErrorBoundary notFound={notFound} notFoundStyles={notFoundStyles}>
-      {children}
-    </NotFoundErrorBoundary>
-  ) : (
-    <>{children}</>
-  )
-}
-
 /**
  * OuterLayoutRouter handles the current segment as well as <Offscreen> rendering of other segments.
  * It can be rendered next to each other with a different `parallelRouterKey`, allowing for Parallel routes.
@@ -488,6 +495,8 @@ export default function OuterLayoutRouter({
   template,
   notFound,
   notFoundStyles,
+  asNotFound,
+  styles,
 }: {
   parallelRouterKey: string
   segmentPath: FlightSegmentPath
@@ -501,13 +510,15 @@ export default function OuterLayoutRouter({
   hasLoading: boolean
   notFound: React.ReactNode | undefined
   notFoundStyles: React.ReactNode | undefined
+  asNotFound?: boolean
+  styles?: React.ReactNode
 }) {
   const context = useContext(LayoutRouterContext)
   if (!context) {
     throw new Error('invariant expected layout router to be mounted')
   }
 
-  const { childNodes, tree, url, headRenderedAboveThisLevel } = context
+  const { childNodes, tree, url } = context
 
   // Get the current parallelRouter cache node
   let childNodesForParallelRouter = childNodes.get(parallelRouterKey)
@@ -522,24 +533,28 @@ export default function OuterLayoutRouter({
   // The reason arrays are used in the data format is that these are transferred from the server to the browser so it's optimized to save bytes.
   const treeSegment = tree[1][parallelRouterKey][0]
 
-  const childPropSegment = Array.isArray(childProp.segment)
-    ? childProp.segment[1]
-    : childProp.segment
+  const childPropSegment = childProp.segment
 
   // If segment is an array it's a dynamic route and we want to read the dynamic route value as the segment to get from the cache.
-  const currentChildSegment = Array.isArray(treeSegment)
-    ? treeSegment[1]
-    : treeSegment
+  const currentChildSegmentValue = getSegmentValue(treeSegment)
 
   /**
    * Decides which segments to keep rendering, all segments that are not active will be wrapped in `<Offscreen>`.
    */
   // TODO-APP: Add handling of `<Offscreen>` when it's available.
-  const preservedSegments: string[] = [currentChildSegment]
+  const preservedSegments: Segment[] = [treeSegment]
 
   return (
     <>
+      {styles}
       {preservedSegments.map((preservedSegment) => {
+        const isChildPropSegment = matchSegment(
+          preservedSegment,
+          childPropSegment
+        )
+        const preservedSegmentValue = getSegmentValue(preservedSegment)
+        const cacheKey = createRouterCacheKey(preservedSegment)
+
         return (
           /*
             - Error boundary
@@ -551,38 +566,38 @@ export default function OuterLayoutRouter({
               - Passed to the router during rendering to ensure it can be immediately rendered when suspending on a Flight fetch.
           */
           <TemplateContext.Provider
-            key={preservedSegment}
+            key={createRouterCacheKey(preservedSegment, true)}
             value={
-              <ErrorBoundary errorComponent={error} errorStyles={errorStyles}>
-                <LoadingBoundary
-                  hasLoading={hasLoading}
-                  loading={loading}
-                  loadingStyles={loadingStyles}
-                >
-                  <NotFoundBoundary
-                    notFound={notFound}
-                    notFoundStyles={notFoundStyles}
+              <ScrollAndFocusHandler segmentPath={segmentPath}>
+                <ErrorBoundary errorComponent={error} errorStyles={errorStyles}>
+                  <LoadingBoundary
+                    hasLoading={hasLoading}
+                    loading={loading}
+                    loadingStyles={loadingStyles}
                   >
-                    <RedirectBoundary>
-                      <InnerLayoutRouter
-                        parallelRouterKey={parallelRouterKey}
-                        url={url}
-                        tree={tree}
-                        childNodes={childNodesForParallelRouter!}
-                        childProp={
-                          childPropSegment === preservedSegment
-                            ? childProp
-                            : null
-                        }
-                        segmentPath={segmentPath}
-                        path={preservedSegment}
-                        isActive={currentChildSegment === preservedSegment}
-                        headRenderedAboveThisLevel={headRenderedAboveThisLevel}
-                      />
-                    </RedirectBoundary>
-                  </NotFoundBoundary>
-                </LoadingBoundary>
-              </ErrorBoundary>
+                    <NotFoundBoundary
+                      notFound={notFound}
+                      notFoundStyles={notFoundStyles}
+                      asNotFound={asNotFound}
+                    >
+                      <RedirectBoundary>
+                        <InnerLayoutRouter
+                          parallelRouterKey={parallelRouterKey}
+                          url={url}
+                          tree={tree}
+                          childNodes={childNodesForParallelRouter!}
+                          childProp={isChildPropSegment ? childProp : null}
+                          segmentPath={segmentPath}
+                          cacheKey={cacheKey}
+                          isActive={
+                            currentChildSegmentValue === preservedSegmentValue
+                          }
+                        />
+                      </RedirectBoundary>
+                    </NotFoundBoundary>
+                  </LoadingBoundary>
+                </ErrorBoundary>
+              </ScrollAndFocusHandler>
             }
           >
             <>

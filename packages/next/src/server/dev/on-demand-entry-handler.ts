@@ -1,12 +1,18 @@
-import type ws from 'ws'
+import type ws from 'next/dist/compiled/ws'
 import origDebug from 'next/dist/compiled/debug'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { NextConfigComplete } from '../config-shared'
-import type { DynamicParamTypesShort, FlightRouterState } from '../app-render'
+import type {
+  DynamicParamTypesShort,
+  FlightRouterState,
+} from '../app-render/types'
 
 import { EventEmitter } from 'events'
 import { findPageFile } from '../lib/find-page-file'
-import { runDependingOnPageType } from '../../build/entries'
+import {
+  getStaticInfoIncludingLayouts,
+  runDependingOnPageType,
+} from '../../build/entries'
 import { join, posix } from 'path'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
@@ -14,7 +20,6 @@ import { ensureLeadingSlash } from '../../shared/lib/page-path/ensure-leading-sl
 import { removePagePathTail } from '../../shared/lib/page-path/remove-page-path-tail'
 import { reportTrigger } from '../../build/output'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
-import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import {
   isInstrumentationHookFile,
   isInstrumentationHookFilename,
@@ -51,7 +56,7 @@ function treePathToEntrypoint(
   const path =
     (parentPath ? parentPath + '/' : '') +
     (parallelRouteKey !== 'children' && !segment.startsWith('@')
-      ? parallelRouteKey + '/'
+      ? `@${parallelRouteKey}/`
       : '') +
     (segment === '' ? 'page' : segment)
 
@@ -80,6 +85,35 @@ function convertDynamicParamTypeToSyntax(
   }
 }
 
+/**
+ * format: {compiler type}@{page type}@{page path}
+ * e.g. client@pages@/index
+ * e.g. server@app@app/page
+ *
+ * This guarantees the uniqueness for each page, to avoid conflicts between app/ and pages/
+ */
+
+export function getEntryKey(
+  compilerType: CompilerNameValues,
+  pageBundleType: 'app' | 'pages' | 'root',
+  page: string
+) {
+  // TODO: handle the /@children slot better
+  // this is a quick hack to handle when children is provided as @children/page instead of /page
+  return `${compilerType}@${pageBundleType}@${page.replace(/\/@children/g, '')}`
+}
+
+function getPageBundleType(pageBundlePath: string) {
+  // Handle special case for /_error
+  if (pageBundlePath === '/_error') return 'pages'
+  if (isMiddlewareFilename(pageBundlePath)) return 'root'
+  return pageBundlePath.startsWith('pages/')
+    ? 'pages'
+    : pageBundlePath.startsWith('app/')
+    ? 'app'
+    : 'root'
+}
+
 function getEntrypointsFromTree(
   tree: FlightRouterState,
   isFirst: boolean,
@@ -91,9 +125,11 @@ function getEntrypointsFromTree(
     ? convertDynamicParamTypeToSyntax(segment[2], segment[0])
     : segment
 
-  const currentPath = [...parentPath, currentSegment]
+  const isPageSegment = currentSegment.startsWith('__PAGE__')
 
-  if (!isFirst && currentSegment === '') {
+  const currentPath = [...parentPath, isPageSegment ? '' : currentSegment]
+
+  if (!isFirst && isPageSegment) {
     // TODO get rid of '' at the start of tree
     return [treePathToEntrypoint(currentPath.slice(1))]
   }
@@ -204,7 +240,7 @@ export const getInvalidator = (dir: string) => {
   return invalidators.get(dir)
 }
 
-const doneCallbacks: EventEmitter | null = new EventEmitter()
+const doneCallbacks: EventEmitter = new EventEmitter()
 const lastClientAccessPages = ['']
 const lastServerAccessPagesForAppDir = ['']
 
@@ -259,6 +295,10 @@ class Invalidator {
       }
     }
     this.invalidate(rebuild)
+  }
+
+  public willRebuild(compilerKey: keyof typeof COMPILER_INDEXES) {
+    return this.rebuildAgain.has(compilerKey)
   }
 }
 
@@ -479,14 +519,18 @@ export function onDemandEntryHandler({
     const pagePaths: string[] = []
     for (const entrypoint of entrypoints.values()) {
       const page = getRouteFromEntrypoint(entrypoint.name!, root)
+
       if (page) {
-        pagePaths.push(`${type}${page}`)
+        const pageBundleType = entrypoint.name?.startsWith('app/')
+          ? 'app'
+          : 'pages'
+        pagePaths.push(getEntryKey(type, pageBundleType, page))
       } else if (
         (root && entrypoint.name === 'root') ||
         isMiddlewareFilename(entrypoint.name) ||
         isInstrumentationHookFilename(entrypoint.name)
       ) {
-        pagePaths.push(`${type}/${entrypoint.name}`)
+        pagePaths.push(getEntryKey(type, 'root', `/${entrypoint.name}`))
       }
     }
     return pagePaths
@@ -534,7 +578,7 @@ export function onDemandEntryHandler({
       }
 
       entry.status = BUILT
-      doneCallbacks!.emit(name)
+      doneCallbacks.emit(name)
     }
 
     getInvalidator(multiCompiler.outputPath)?.doneBuilding([...COMPILER_KEYS])
@@ -558,8 +602,8 @@ export function onDemandEntryHandler({
         COMPILER_NAMES.server,
         COMPILER_NAMES.edgeServer,
       ]) {
-        const pageKey = `${compilerType}/${page}`
-        const entryInfo = curEntries[pageKey]
+        const entryKey = getEntryKey(compilerType, 'app', `/${page}`)
+        const entryInfo = curEntries[entryKey]
 
         // If there's no entry, it may have been invalidated and needs to be re-built.
         if (!entryInfo) {
@@ -571,8 +615,8 @@ export function onDemandEntryHandler({
         if (entryInfo.status !== BUILT) continue
 
         // If there's an entryInfo
-        if (!lastServerAccessPagesForAppDir.includes(pageKey)) {
-          lastServerAccessPagesForAppDir.unshift(pageKey)
+        if (!lastServerAccessPagesForAppDir.includes(entryKey)) {
+          lastServerAccessPagesForAppDir.unshift(entryKey)
 
           // Maintain the buffer max length
           // TODO: verify that the current pageKey is not at the end of the array as multiple entrypoints can exist
@@ -598,8 +642,8 @@ export function onDemandEntryHandler({
       COMPILER_NAMES.server,
       COMPILER_NAMES.edgeServer,
     ]) {
-      const pageKey = `${compilerType}${page}`
-      const entryInfo = curEntries[pageKey]
+      const entryKey = getEntryKey(compilerType, 'pages', page)
+      const entryInfo = curEntries[entryKey]
 
       // If there's no entry, it may have been invalidated and needs to be re-built.
       if (!entryInfo) {
@@ -617,8 +661,8 @@ export function onDemandEntryHandler({
       if (entryInfo.status !== BUILT) continue
 
       // If there's an entryInfo
-      if (!lastClientAccessPages.includes(pageKey)) {
-        lastClientAccessPages.unshift(pageKey)
+      if (!lastClientAccessPages.includes(entryKey)) {
+        lastClientAccessPages.unshift(entryKey)
 
         // Maintain the buffer max length
         if (lastClientAccessPages.length > pagesBufferLength) {
@@ -670,6 +714,7 @@ export function onDemandEntryHandler({
         const isInsideAppDir =
           !!appDir && pagePathData.absolutePagePath.startsWith(appDir)
 
+        const pageBundleType = getPageBundleType(pagePathData.bundlePath)
         const addEntry = (
           compilerType: CompilerNameValues
         ): {
@@ -677,7 +722,11 @@ export function onDemandEntryHandler({
           newEntry: boolean
           shouldInvalidate: boolean
         } => {
-          const entryKey = `${compilerType}${pagePathData.page}`
+          const entryKey = getEntryKey(
+            compilerType,
+            pageBundleType,
+            pagePathData.page
+          )
           if (
             curEntries[entryKey] &&
             // there can be an overlap in the entryKey for the instrumentation hook file and a page named the same
@@ -719,25 +768,24 @@ export function onDemandEntryHandler({
           }
         }
 
-        const staticInfo = await getPageStaticInfo({
+        const staticInfo = await getStaticInfoIncludingLayouts({
+          page,
           pageFilePath: pagePathData.absolutePagePath,
-          nextConfig,
+          isInsideAppDir,
+          pageExtensions: nextConfig.pageExtensions,
           isDev: true,
-          pageType: isInsideAppDir ? 'app' : 'pages',
+          config: nextConfig,
+          appDir,
         })
 
         const added = new Map<CompilerNameValues, ReturnType<typeof addEntry>>()
         const isServerComponent =
           isInsideAppDir && staticInfo.rsc !== RSC_MODULE_TYPES.client
-        const pageType = pagePathData.bundlePath.startsWith('pages/')
-          ? 'pages'
-          : pagePathData.bundlePath.startsWith('app/')
-          ? 'app'
-          : 'root'
+
         await runDependingOnPageType({
           page: pagePathData.page,
           pageRuntime: staticInfo.runtime,
-          pageType,
+          pageType: pageBundleType,
           onClient: () => {
             // Skip adding the client entry for app / Server Components.
             if (isServerComponent || isInsideAppDir) {
@@ -747,7 +795,11 @@ export function onDemandEntryHandler({
           },
           onServer: () => {
             added.set(COMPILER_NAMES.server, addEntry(COMPILER_NAMES.server))
-            const edgeServerEntry = `${COMPILER_NAMES.edgeServer}${pagePathData.page}`
+            const edgeServerEntry = getEntryKey(
+              COMPILER_NAMES.edgeServer,
+              pageBundleType,
+              pagePathData.page
+            )
             if (
               curEntries[edgeServerEntry] &&
               !isInstrumentationHookFile(pagePathData.page)
@@ -761,7 +813,11 @@ export function onDemandEntryHandler({
               COMPILER_NAMES.edgeServer,
               addEntry(COMPILER_NAMES.edgeServer)
             )
-            const serverEntry = `${COMPILER_NAMES.server}${pagePathData.page}`
+            const serverEntry = getEntryKey(
+              COMPILER_NAMES.server,
+              pageBundleType,
+              pagePathData.page
+            )
             if (
               curEntries[serverEntry] &&
               !isInstrumentationHookFile(pagePathData.page)
@@ -773,8 +829,8 @@ export function onDemandEntryHandler({
         })
 
         const addedValues = [...added.values()]
-        const entriesThatShouldBeInvalidated = addedValues.filter(
-          (entry) => entry.shouldInvalidate
+        const entriesThatShouldBeInvalidated = [...added.entries()].filter(
+          ([, entry]) => entry.shouldInvalidate
         )
         const hasNewEntry = addedValues.some((entry) => entry.newEntry)
 
@@ -787,20 +843,36 @@ export function onDemandEntryHandler({
         }
 
         if (entriesThatShouldBeInvalidated.length > 0) {
-          const invalidatePromises = entriesThatShouldBeInvalidated.map(
-            ({ entryKey }) => {
-              return new Promise<void>((resolve, reject) => {
-                doneCallbacks!.once(entryKey, (err: Error) => {
-                  if (err) {
-                    return reject(err)
-                  }
-                  resolve()
+          const invalidatePromise = Promise.all(
+            entriesThatShouldBeInvalidated.map(
+              ([compilerKey, { entryKey }]) => {
+                return new Promise<void>((resolve, reject) => {
+                  doneCallbacks.once(entryKey, (err: Error) => {
+                    if (err) {
+                      return reject(err)
+                    }
+
+                    // If the invalidation also triggers a rebuild, we need to
+                    // wait for that additional build to prevent race conditions.
+                    const needsRebuild = curInvalidator.willRebuild(compilerKey)
+                    if (needsRebuild) {
+                      doneCallbacks.once(entryKey, (rebuildErr: Error) => {
+                        if (rebuildErr) {
+                          return reject(rebuildErr)
+                        }
+                        resolve()
+                      })
+                    } else {
+                      resolve()
+                    }
+                  })
                 })
-              })
-            }
+              }
+            )
           )
+
           curInvalidator.invalidate([...added.keys()])
-          await Promise.all(invalidatePromises)
+          await invalidatePromise
         }
       } finally {
         clearTimeout(stalledEnsureTimeout)

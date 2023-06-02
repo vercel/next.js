@@ -148,7 +148,11 @@ function defaultLoader({
         )
       }
 
-      if (process.env.NODE_ENV !== 'test') {
+      if (
+        process.env.NODE_ENV !== 'test' &&
+        // micromatch isn't compatible with edge runtime
+        process.env.NEXT_RUNTIME !== 'edge'
+      ) {
         // We use dynamic require because this should only error in development
         const { hasMatch } = require('../../shared/lib/match-remote-pattern')
         if (!hasMatch(config.domains, config.remotePatterns, parsedSrc)) {
@@ -976,10 +980,10 @@ export default function Image({
     React.LinkHTMLAttributes<HTMLLinkElement>,
     HTMLLinkElement
   > = {
-    // @ts-expect-error upgrade react types to react 18
     imageSrcSet: imgAttributes.srcSet,
     imageSizes: imgAttributes.sizes,
     crossOrigin: rest.crossOrigin,
+    referrerPolicy: rest.referrerPolicy,
   }
 
   const useLayoutEffect =

@@ -1,14 +1,18 @@
+import type {
+  AppRouteRouteModule,
+  AppRouteRouteHandlerContext,
+} from '../server/future/route-modules/app-route/module'
 import type { FontManifest, FontConfig } from '../server/font-utils'
-import type { DomainLocale, NextConfigComplete } from '../server/config-shared'
-import { NextParsedUrlQuery } from '../server/request-meta'
+import type {
+  DomainLocale,
+  ExportPathMap,
+  NextConfigComplete,
+} from '../server/config-shared'
+import type { OutgoingHttpHeaders } from 'http'
 
-// `NEXT_PREBUNDLED_REACT` env var is inherited from parent process,
-// then override react packages here for export worker.
-if (process.env.NEXT_PREBUNDLED_REACT) {
-  require('../build/webpack/require-hook').overrideBuiltInReactPackages()
-}
+// Polyfill fetch for the export worker.
 import '../server/node-polyfill-fetch'
-import { loadRequireHook } from '../build/webpack/require-hook'
+import '../server/node-environment'
 
 import { extname, join, dirname, sep, posix } from 'path'
 import fs, { promises } from 'fs'
@@ -36,13 +40,13 @@ import { IncrementalCache } from '../server/lib/incremental-cache'
 import { isNotFoundError } from '../client/components/not-found'
 import { isRedirectError } from '../client/components/redirect'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/lazy-dynamic/no-ssr-error'
-import { mockRequest } from '../server/lib/mock-request'
-import { RouteKind } from '../server/future/route-kind'
-import { NodeNextRequest, NodeNextResponse } from '../server/base-http/node'
-import { StaticGenerationContext } from '../server/future/route-handlers/app-route-route-handler'
+import { createRequestResponseMocks } from '../server/lib/mock-request'
+import { NodeNextRequest } from '../server/base-http/node'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
-
-loadRequireHook()
+import { toNodeOutgoingHttpHeaders } from '../server/web/utils'
+import { RouteModuleLoader } from '../server/future/helpers/module-loader/route-module-loader'
+import { NextRequestAdapter } from '../server/web/spec-extension/adapters/next-request'
+import * as ciEnvironment from '../telemetry/ci-info'
 
 const envConfig = require('../shared/lib/runtime-config')
 
@@ -58,10 +62,7 @@ interface AmpValidation {
   }
 }
 
-interface PathMap {
-  page: string
-  query?: NextParsedUrlQuery
-}
+type PathMap = ExportPathMap[keyof ExportPathMap]
 
 interface ExportPageInput {
   path: string
@@ -79,12 +80,12 @@ interface ExportPageInput {
   parentSpanId: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   serverComponents?: boolean
-  appPaths: string[]
-  enableUndici: NextConfigComplete['experimental']['enableUndici']
   debugOutput?: boolean
   isrMemoryCacheSize?: NextConfigComplete['experimental']['isrMemoryCacheSize']
   fetchCache?: boolean
   incrementalCacheHandlerPath?: string
+  fetchCacheKeyPrefix?: string
+  nextConfigOutput?: NextConfigComplete['output']
 }
 
 interface ExportPageResults {
@@ -92,7 +93,7 @@ interface ExportPageResults {
   fromBuildExportRevalidate?: number | false
   fromBuildExportMeta?: {
     status?: number
-    headers?: Record<string, string>
+    headers?: OutgoingHttpHeaders
   }
   error?: boolean
   ssgNotFound?: boolean
@@ -115,12 +116,11 @@ interface RenderOpts {
   domainLocales?: DomainLocale[]
   trailingSlash?: boolean
   supportsDynamicHTML?: boolean
-  incrementalCache?: import('../server/lib/incremental-cache').IncrementalCache
+  incrementalCache?: IncrementalCache
+  strictNextHead?: boolean
+  originalPathname?: string
+  deploymentId?: string
 }
-
-// expose AsyncLocalStorage on globalThis for react usage
-const { AsyncLocalStorage } = require('async_hooks')
-;(globalThis as any).AsyncLocalStorage = AsyncLocalStorage
 
 export default async function exportPage({
   parentSpanId,
@@ -138,15 +138,14 @@ export default async function exportPage({
   disableOptimizedLoading,
   httpAgentOptions,
   serverComponents,
-  enableUndici,
   debugOutput,
   isrMemoryCacheSize,
   fetchCache,
+  fetchCacheKeyPrefix,
   incrementalCacheHandlerPath,
 }: ExportPageInput): Promise<ExportPageResults> {
   setHttpClientAndAgentOptions({
     httpAgentOptions,
-    experimental: { enableUndici },
   })
   const exportPageSpan = trace('export-page-worker', parentSpanId)
 
@@ -157,8 +156,12 @@ export default async function exportPage({
     }
 
     try {
+      if (renderOpts.deploymentId) {
+        process.env.__NEXT_DEPLOYMENT_ID = renderOpts.deploymentId
+      }
       const { query: originalQuery = {} } = pathMap
       const { page } = pathMap
+      const pathname = normalizeAppPath(page)
       const isAppDir = (pathMap as any)._isAppDir
       const isDynamicError = (pathMap as any)._isDynamicError
       const filePath = normalizePagePath(path)
@@ -226,7 +229,7 @@ export default async function exportPage({
         }
       }
 
-      const { req, res } = mockRequest(updatedPath, {}, 'GET')
+      const { req, res } = createRequestResponseMocks({ url: updatedPath })
 
       for (const statusCode of [404, 500]) {
         if (
@@ -292,9 +295,10 @@ export default async function exportPage({
       let htmlFilepath = join(outDir, htmlFilename)
 
       await promises.mkdir(baseDir, { recursive: true })
-      let renderResult
+      let renderResult: RenderResult | undefined
       let curRenderOpts: RenderOpts = {}
-      const { renderToHTML } = require('../server/render')
+      const { renderToHTML } =
+        require('../server/render') as typeof import('../server/render')
       let renderMethod = renderToHTML
       let inAmpMode = false,
         hybridAmp = false
@@ -315,6 +319,7 @@ export default async function exportPage({
         curRenderOpts = {
           ...components,
           ...renderOpts,
+          strictNextHead: !!renderOpts.strictNextHead,
           ampPath: renderAmpPath,
           params,
           optimizeFonts,
@@ -323,6 +328,12 @@ export default async function exportPage({
           fontManifest: optimizeFonts ? requireFontManifest(distDir) : null,
           locale: locale as string,
           supportsDynamicHTML: false,
+          originalPathname: page,
+          ...(ciEnvironment.hasNextSupport
+            ? {
+                isRevalidate: true,
+              }
+            : {}),
         }
       }
 
@@ -337,12 +348,13 @@ export default async function exportPage({
             CacheHandler = require(incrementalCacheHandlerPath)
             CacheHandler = CacheHandler.default || CacheHandler
           }
-
-          curRenderOpts.incrementalCache = new IncrementalCache({
+          const incrementalCache = new IncrementalCache({
             dev: false,
             requestHeaders: {},
             flushToDisk: true,
+            fetchCache: true,
             maxMemoryCacheSize: isrMemoryCacheSize,
+            fetchCacheKeyPrefix,
             getPrerenderManifest: () => ({
               version: 4,
               routes: {},
@@ -355,15 +367,18 @@ export default async function exportPage({
               notFoundRoutes: [],
             }),
             fs: {
-              readFile: (f) => fs.promises.readFile(f, 'utf8'),
-              readFileSync: (f) => fs.readFileSync(f, 'utf8'),
-              writeFile: (f, d) => fs.promises.writeFile(f, d, 'utf8'),
+              readFile: (f) => fs.promises.readFile(f),
+              readFileSync: (f) => fs.readFileSync(f),
+              writeFile: (f, d) => fs.promises.writeFile(f, d),
               mkdir: (dir) => fs.promises.mkdir(dir, { recursive: true }),
               stat: (f) => fs.promises.stat(f),
             },
             serverDistDir: join(distDir, 'server'),
             CurCacheHandler: CacheHandler,
+            minimalMode: ciEnvironment.hasNextSupport,
           })
+          ;(globalThis as any).__incrementalCache = incrementalCache
+          curRenderOpts.incrementalCache = incrementalCache
         }
 
         const isDynamicUsageError = (err: any) =>
@@ -373,41 +388,55 @@ export default async function exportPage({
           isRedirectError(err)
 
         if (isRouteHandler) {
-          const { AppRouteRouteHandler } =
-            require('../server/future/route-handlers/app-route-route-handler') as typeof import('../server/future/route-handlers/app-route-route-handler')
-
-          const nodeReq = new NodeNextRequest(req)
-          const nodeRes = new NodeNextResponse(res)
-
-          addRequestMeta(
-            nodeReq.originalRequest,
-            '__NEXT_INIT_URL',
-            `http://localhost:3000${req.url}`
+          // Ensure that the url for the page is absolute.
+          req.url = `http://localhost:3000${req.url}`
+          const request = NextRequestAdapter.fromNodeNextRequest(
+            new NodeNextRequest(req)
           )
-          const staticContext: StaticGenerationContext = {
-            nextExport: true,
-            supportsDynamicHTML: false,
-            incrementalCache: curRenderOpts.incrementalCache,
+
+          // Create the context for the handler. This contains the params from
+          // the route and the context for the request.
+          const context: AppRouteRouteHandlerContext = {
+            params,
+            prerenderManifest: {
+              version: 4,
+              routes: {},
+              dynamicRoutes: {},
+              preview: {
+                previewModeEncryptionKey: '',
+                previewModeId: '',
+                previewModeSigningKey: '',
+              },
+              notFoundRoutes: [],
+            },
+            staticGenerationContext: {
+              originalPathname: page,
+              nextExport: true,
+              supportsDynamicHTML: false,
+              incrementalCache: curRenderOpts.incrementalCache,
+              ...(ciEnvironment.hasNextSupport
+                ? {
+                    isRevalidate: true,
+                  }
+                : {}),
+            },
           }
 
           try {
-            const routeHandler = new AppRouteRouteHandler()
-            const response: Response = await routeHandler.handle(
-              {
-                params: query,
-                definition: {
-                  filename: posix.join(distDir, 'server', 'app', page),
-                  bundlePath: posix.join('app', page),
-                  kind: RouteKind.APP_ROUTE,
-                  page,
-                  pathname: path,
-                },
-              },
-              nodeReq,
-              nodeRes,
-              staticContext,
-              true
+            // This is a route handler, which means it has it's handler in the
+            // bundled file already, we should just use that.
+            const filename = posix.join(distDir, 'server', 'app', page)
+
+            // Load the module for the route.
+            const module = await RouteModuleLoader.load<AppRouteRouteModule>(
+              filename
             )
+
+            // Call the handler with the request and context from the module.
+            const response = await module.handle(request, context)
+
+            // TODO: (wyattjoh) if cookie headers are present, should we bail?
+
             // we don't consider error status for static generation
             // except for 404
             // TODO: do we want to cache other status codes?
@@ -417,11 +446,16 @@ export default async function exportPage({
             if (isValidStatus) {
               const body = await response.blob()
               const revalidate =
-                ((staticContext as any).store as any as { revalidate?: number })
-                  .revalidate || false
+                context.staticGenerationContext.store?.revalidate || false
 
               results.fromBuildExportRevalidate = revalidate
-              const headers = Object.fromEntries(response.headers)
+              const headers = toNodeOutgoingHttpHeaders(response.headers)
+              const cacheTags = (context.staticGenerationContext as any)
+                .fetchTags
+
+              if (cacheTags) {
+                headers['x-next-cache-tags'] = cacheTags
+              }
 
               if (!headers['content-type'] && body.type) {
                 headers['content-type'] = body.type
@@ -454,25 +488,46 @@ export default async function exportPage({
           }
         } else {
           const { renderToHTMLOrFlight } =
-            require('../server/app-render') as typeof import('../server/app-render')
+            require('../server/app-render/app-render') as typeof import('../server/app-render/app-render')
 
           try {
             curRenderOpts.params ||= {}
 
+            const isNotFoundPage = page === '/_not-found'
             const result = await renderToHTMLOrFlight(
               req as any,
               res as any,
-              page,
+              isNotFoundPage ? '/404' : pathname,
               query,
               curRenderOpts as any
             )
-            const html = result?.toUnchunkedString()
-            const flightData = (curRenderOpts as any).pageData
-            const revalidate = (curRenderOpts as any).revalidate
+            const html = result.toUnchunkedString()
+            const renderResultMeta = result.metadata()
+            const flightData = renderResultMeta.pageData
+            const revalidate = renderResultMeta.revalidate
             results.fromBuildExportRevalidate = revalidate
 
             if (revalidate !== 0) {
+              const cacheTags = (curRenderOpts as any).fetchTags
+              const headers = cacheTags
+                ? {
+                    'x-next-cache-tags': cacheTags,
+                  }
+                : undefined
+
+              if (ciEnvironment.hasNextSupport) {
+                if (cacheTags) {
+                  results.fromBuildExportMeta = {
+                    headers,
+                  }
+                }
+              }
+
               await promises.writeFile(htmlFilepath, html ?? '', 'utf8')
+              await promises.writeFile(
+                htmlFilepath.replace(/\.html$/, '.meta'),
+                JSON.stringify({ headers })
+              )
               await promises.writeFile(
                 htmlFilepath.replace(/\.html$/, '.rsc'),
                 flightData
@@ -483,7 +538,7 @@ export default async function exportPage({
               )
             }
 
-            const { staticBailoutInfo = {} } = curRenderOpts as any
+            const staticBailoutInfo = renderResultMeta.staticBailoutInfo || {}
 
             if (
               revalidate === 0 &&
@@ -534,7 +589,6 @@ export default async function exportPage({
         return { ...results, duration: Date.now() - start }
       }
 
-      // TODO: de-dupe the logic here between serverless and server mode
       if (components.getStaticProps && !htmlFilepath.endsWith('.html')) {
         // make sure it ends with .html if the name contains a dot
         htmlFilepath += '.html'
@@ -547,7 +601,7 @@ export default async function exportPage({
       } else {
         /**
          * This sets environment variable to be used at the time of static export by head.tsx.
-         * Using this from process.env allows targeting both serverless and SSR by calling
+         * Using this from process.env allows targeting SSR by calling
          * `process.env.__NEXT_OPTIMIZE_FONTS`.
          * TODO(prateekbh@): Remove this when experimental.optimizeFonts are being cleaned up.
          */
@@ -573,7 +627,7 @@ export default async function exportPage({
         }
       }
 
-      results.ssgNotFound = (curRenderOpts as any).isNotFound
+      results.ssgNotFound = renderResult?.metadata().isNotFound
 
       const validateAmp = async (
         rawAmpHtml: string,
@@ -596,7 +650,13 @@ export default async function exportPage({
         }
       }
 
-      const html = renderResult ? renderResult.toUnchunkedString() : ''
+      const html =
+        renderResult && !renderResult.isNull()
+          ? renderResult.toUnchunkedString()
+          : ''
+
+      let ampRenderResult: Awaited<ReturnType<typeof renderMethod>> | undefined
+
       if (inAmpMode && !curRenderOpts.ampSkipValidation) {
         if (!results.ssgNotFound) {
           await validateAmp(html, path, curRenderOpts.ampValidatorPath)
@@ -613,7 +673,6 @@ export default async function exportPage({
         try {
           await promises.access(ampHtmlFilepath)
         } catch (_) {
-          let ampRenderResult
           // make sure it doesn't exist from manual mapping
           try {
             ampRenderResult = await renderMethod(
@@ -630,9 +689,10 @@ export default async function exportPage({
             }
           }
 
-          const ampHtml = ampRenderResult
-            ? ampRenderResult.toUnchunkedString()
-            : ''
+          const ampHtml =
+            ampRenderResult && !ampRenderResult.isNull()
+              ? ampRenderResult.toUnchunkedString()
+              : ''
           if (!curRenderOpts.ampSkipValidation) {
             await validateAmp(ampHtml, page + '?amp=1')
           }
@@ -641,7 +701,9 @@ export default async function exportPage({
         }
       }
 
-      if ((curRenderOpts as any).pageData) {
+      const renderResultMeta =
+        renderResult?.metadata() || ampRenderResult?.metadata() || {}
+      if (renderResultMeta.pageData) {
         const dataFile = join(
           pagesDataDir,
           htmlFilename.replace(/\.html$/, '.json')
@@ -650,19 +712,19 @@ export default async function exportPage({
         await promises.mkdir(dirname(dataFile), { recursive: true })
         await promises.writeFile(
           dataFile,
-          JSON.stringify((curRenderOpts as any).pageData),
+          JSON.stringify(renderResultMeta.pageData),
           'utf8'
         )
 
         if (hybridAmp) {
           await promises.writeFile(
             dataFile.replace(/\.json$/, '.amp.json'),
-            JSON.stringify((curRenderOpts as any).pageData),
+            JSON.stringify(renderResultMeta.pageData),
             'utf8'
           )
         }
       }
-      results.fromBuildExportRevalidate = (curRenderOpts as any).revalidate
+      results.fromBuildExportRevalidate = renderResultMeta.revalidate
 
       if (!results.ssgNotFound) {
         // don't attempt writing to disk if getStaticProps returned not found

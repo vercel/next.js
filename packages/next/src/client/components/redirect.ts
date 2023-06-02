@@ -1,7 +1,29 @@
+import { requestAsyncStorage } from './request-async-storage'
+import type { ResponseCookies } from '../../server/web/spec-extension/cookies'
+
 const REDIRECT_ERROR_CODE = 'NEXT_REDIRECT'
 
+export enum RedirectType {
+  push = 'push',
+  replace = 'replace',
+}
+
 type RedirectError<U extends string> = Error & {
-  digest: `${typeof REDIRECT_ERROR_CODE};${U}`
+  digest: `${typeof REDIRECT_ERROR_CODE};${RedirectType};${U}`
+  mutableCookies: ResponseCookies
+}
+
+export function getRedirectError(
+  url: string,
+  type: RedirectType
+): RedirectError<typeof url> {
+  const error = new Error(REDIRECT_ERROR_CODE) as RedirectError<typeof url>
+  error.digest = `${REDIRECT_ERROR_CODE};${type};${url}`
+  const requestStore = requestAsyncStorage.getStore()
+  if (requestStore) {
+    error.mutableCookies = requestStore.mutableCookies
+  }
+  return error
 }
 
 /**
@@ -11,11 +33,11 @@ type RedirectError<U extends string> = Error & {
  *
  * @param url the url to redirect to
  */
-export function redirect(url: string): never {
-  // eslint-disable-next-line no-throw-literal
-  const error = new Error(REDIRECT_ERROR_CODE)
-  ;(error as RedirectError<typeof url>).digest = `${REDIRECT_ERROR_CODE};${url}`
-  throw error
+export function redirect(
+  url: string,
+  type: RedirectType = RedirectType.replace
+): never {
+  throw getRedirectError(url, type)
 }
 
 /**
@@ -28,10 +50,14 @@ export function redirect(url: string): never {
 export function isRedirectError<U extends string>(
   error: any
 ): error is RedirectError<U> {
+  if (typeof error?.digest !== 'string') return false
+
+  const [errorCode, type, destination] = (error.digest as string).split(';', 3)
+
   return (
-    typeof error?.digest === 'string' &&
-    error.digest.startsWith(REDIRECT_ERROR_CODE + ';') &&
-    error.digest.length > REDIRECT_ERROR_CODE.length + 1
+    errorCode === REDIRECT_ERROR_CODE &&
+    (type === 'replace' || type === 'push') &&
+    typeof destination === 'string'
   )
 }
 
@@ -45,11 +71,20 @@ export function isRedirectError<U extends string>(
 export function getURLFromRedirectError<U extends string>(
   error: RedirectError<U>
 ): U
-export function getURLFromRedirectError(error: any): string | null
 export function getURLFromRedirectError(error: any): string | null {
   if (!isRedirectError(error)) return null
 
   // Slices off the beginning of the digest that contains the code and the
   // separating ';'.
-  return error.digest.slice(REDIRECT_ERROR_CODE.length + 1)
+  return error.digest.split(';', 3)[2]
+}
+
+export function getRedirectTypeFromError<U extends string>(
+  error: RedirectError<U>
+): RedirectType {
+  if (!isRedirectError(error)) {
+    throw new Error('Not a redirect error')
+  }
+
+  return error.digest.split(';', 3)[1] as RedirectType
 }

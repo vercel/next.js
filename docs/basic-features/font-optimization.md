@@ -117,29 +117,10 @@ export default function Home() {
 
 Google Fonts are automatically [subset](https://fonts.google.com/knowledge/glossary/subsetting). This reduces the size of the font file and improves performance. You'll need to define which of these subsets you want to preload. Failing to specify any subsets while [`preload`](/docs/api-reference/next/font.md#preload) is true will result in a warning.
 
-This can be done in 2 ways:
-
-- On a font per font basis by adding it to the function call
-
-  ```js
-  // pages/_app.js
-  const inter = Inter({ subsets: ['latin'] })
-  ```
-
-- Globally for all your fonts in your `next.config.js`
-
-  ```js
-  // next.config.js
-  module.exports = {
-    experimental: {
-      fontLoaders: [
-        { loader: 'next/font/google', options: { subsets: ['latin'] } },
-      ],
-    },
-  }
-  ```
-
-  - If both are configured, the subset in the function call is used.
+```js
+// pages/_app.js
+const inter = Inter({ subsets: ['latin'] })
+```
 
 View the [Font API Reference](/docs/api-reference/next/font.md#nextfontgoogle) for more information.
 

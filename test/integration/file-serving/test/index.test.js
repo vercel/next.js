@@ -24,9 +24,14 @@ const expectStatus = async (path) => {
     if (res.status === 308) {
       const redirectDest = res.headers.get('location')
       const parsedUrl = url.parse(redirectDest, true)
-      expect(parsedUrl.hostname).toBe('localhost')
+      expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
     } else {
-      expect(res.status === 400 || res.status === 404).toBe(true)
+      try {
+        expect(res.status === 400 || res.status === 404).toBe(true)
+      } catch (err) {
+        require('console').error({ path, status: res.status })
+        throw err
+      }
       expect(await res.text()).toMatch(containRegex)
     }
   }

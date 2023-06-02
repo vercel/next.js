@@ -216,13 +216,16 @@ export function runNextCommand(argv, options = {}) {
     let mergedStdio = ''
 
     let stderrOutput = ''
-    if (options.stderr) {
+    if (options.stderr || options.onStderr) {
       instance.stderr.on('data', function (chunk) {
         mergedStdio += chunk
         stderrOutput += chunk
 
         if (options.stderr === 'log') {
           console.log(chunk.toString())
+        }
+        if (typeof options.onStderr === 'function') {
+          options.onStderr(chunk.toString())
         }
       })
     } else {
@@ -232,13 +235,16 @@ export function runNextCommand(argv, options = {}) {
     }
 
     let stdoutOutput = ''
-    if (options.stdout) {
+    if (options.stdout || options.onStdout) {
       instance.stdout.on('data', function (chunk) {
         mergedStdio += chunk
         stdoutOutput += chunk
 
         if (options.stdout === 'log') {
           console.log(chunk.toString())
+        }
+        if (typeof options.onStdout === 'function') {
+          options.onStdout(chunk.toString())
         }
       })
     } else {
@@ -314,7 +320,7 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
       const message = data.toString()
       const bootupMarkers = {
         dev: /compiled .*successfully/i,
-        turbo: /initial compilation/i,
+        turbo: /started server/i,
         start: /started server/i,
       }
       if (
@@ -533,14 +539,19 @@ export async function startCleanStaticServer(dir) {
 
 // check for content in 1 second intervals timing out after
 // 30 seconds
-export async function check(contentFn, regex, hardError = true) {
+export async function check(
+  contentFn,
+  regex,
+  hardError = true,
+  maxRetries = 30
+) {
   let content
   let lastErr
 
-  for (let tries = 0; tries < 30; tries++) {
+  for (let tries = 0; tries < maxRetries; tries++) {
     try {
       content = await contentFn()
-      if (typeof regex === 'string') {
+      if (typeof regex !== typeof /regex/) {
         if (regex === content) {
           return true
         }
@@ -557,7 +568,7 @@ export async function check(contentFn, regex, hardError = true) {
   console.error('TIMED OUT CHECK: ', { regex, content, lastErr })
 
   if (hardError) {
-    throw new Error('TIMED OUT: ' + regex + '\n\n' + content)
+    throw new Error('TIMED OUT: ' + regex + '\n\n' + content + '\n\n' + lastErr)
   }
   return false
 }
@@ -671,13 +682,15 @@ export async function getRedboxHeader(browser) {
   return retry(
     () => {
       if (shouldRunTurboDevTest()) {
-        const portal = [].slice
-          .call(document.querySelectorAll('nextjs-portal'))
-          .find((p) =>
-            p.shadowRoot.querySelector('[data-nextjs-turbo-dialog-body]')
-          )
-        const root = portal.shadowRoot
-        return root.querySelector('[data-nextjs-turbo-dialog-body]').innerText
+        return evaluate(browser, () => {
+          const portal = [].slice
+            .call(document.querySelectorAll('nextjs-portal'))
+            .find((p) =>
+              p.shadowRoot.querySelector('[data-nextjs-turbo-dialog-body]')
+            )
+          const root = portal.shadowRoot
+          return root.querySelector('[data-nextjs-turbo-dialog-body]').innerText
+        })
       } else {
         return evaluate(browser, () => {
           const portal = [].slice

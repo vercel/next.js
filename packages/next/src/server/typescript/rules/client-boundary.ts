@@ -39,6 +39,9 @@ const clientBoundary = {
 
     const diagnostics: ts.Diagnostic[] = []
 
+    const isErrorFile = /[\\/]error\.tsx?$/.test(source.fileName)
+    const isGlobalErrorFile = /[\\/]global-error\.tsx?$/.test(source.fileName)
+
     const props = node.parameters?.[0]?.name
     if (props && ts.isObjectBindingPattern(props)) {
       for (const prop of (props as ts.ObjectBindingPattern).elements) {
@@ -52,14 +55,19 @@ const clientBoundary = {
             ts.isFunctionOrConstructorTypeNode(typeDeclarationNode) ||
             ts.isClassDeclaration(typeDeclarationNode)
           ) {
-            diagnostics.push({
-              file: source,
-              category: ts.DiagnosticCategory.Warning,
-              code: NEXT_TS_ERRORS.INVALID_CLIENT_ENTRY_PROP,
-              messageText: `Props must be serializable for components in the "use client" entry file, "${propName}" is invalid.`,
-              start: prop.getStart(),
-              length: prop.getWidth(),
-            })
+            // There's a special case for the error file that the `reset` prop is allowed
+            // to be a function:
+            // https://github.com/vercel/next.js/issues/46573
+            if (!(isErrorFile || isGlobalErrorFile) || propName !== 'reset') {
+              diagnostics.push({
+                file: source,
+                category: ts.DiagnosticCategory.Warning,
+                code: NEXT_TS_ERRORS.INVALID_CLIENT_ENTRY_PROP,
+                messageText: `Props must be serializable for components in the "use client" entry file, "${propName}" is invalid.`,
+                start: prop.getStart(),
+                length: prop.getWidth(),
+              })
+            }
           }
         }
       }

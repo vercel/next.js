@@ -1,12 +1,16 @@
+import type { RouteMatch } from '../route-matches/route-match'
+import type { RouteDefinition } from '../route-definitions/route-definition'
+
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
 import {
   getRouteMatcher,
-  Params,
-  RouteMatchFn,
+  type RouteMatchFn,
 } from '../../../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../../../shared/lib/router/utils/route-regex'
-import { RouteDefinition } from '../route-definitions/route-definition'
-import { RouteMatch } from '../route-matches/route-match'
+
+type RouteMatchResult = {
+  params?: Record<string, string | string[]>
+}
 
 export class RouteMatcher<D extends RouteDefinition = RouteDefinition> {
   private readonly dynamic?: RouteMatchFn
@@ -44,7 +48,7 @@ export class RouteMatcher<D extends RouteDefinition = RouteDefinition> {
     return { definition: this.definition, params: result.params }
   }
 
-  public test(pathname: string): { params?: Params } | null {
+  public test(pathname: string): RouteMatchResult | null {
     if (this.dynamic) {
       const params = this.dynamic(pathname)
       if (!params) return null

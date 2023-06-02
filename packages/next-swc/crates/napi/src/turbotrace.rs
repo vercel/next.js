@@ -1,9 +1,13 @@
 use std::sync::Arc;
 
 use napi::bindgen_prelude::*;
-use next_binding::turbo::node_file_trace::{start, Args};
-use turbo_tasks::TurboTasks;
-use turbo_tasks_memory::MemoryBackend;
+use turbopack_binding::{
+    features::node_file_trace::{start, Args},
+    turbo::{tasks::TurboTasks, tasks_memory::MemoryBackend},
+    turbopack::turbopack::{
+        module_options::ModuleOptionsContext, resolve_options_context::ResolveOptionsContext,
+    },
+};
 
 #[napi]
 pub fn create_turbo_tasks(memory_limit: Option<i64>) -> External<Arc<TurboTasks<MemoryBackend>>> {
@@ -23,6 +27,18 @@ pub async fn run_turbo_tracing(
 ) -> napi::Result<Vec<String>> {
     let args: Args = serde_json::from_slice(options.as_ref())?;
     let turbo_tasks = turbo_tasks.map(|t| t.clone());
-    let files = start(Arc::new(args), turbo_tasks.as_ref()).await?;
+    let files = start(
+        Arc::new(args),
+        turbo_tasks.as_ref(),
+        Some(ModuleOptionsContext {
+            enable_types: true,
+            enable_mdx: true,
+            ..Default::default()
+        }),
+        Some(ResolveOptionsContext {
+            ..Default::default()
+        }),
+    )
+    .await?;
     Ok(files)
 }

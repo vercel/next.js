@@ -25,8 +25,9 @@ import type {
   ServerRuntime,
 } from 'next/types'
 import type { UnwrapPromise } from '../lib/coalesced-function'
-import type { ReactReadableStream } from './node-web-streams-helper'
-import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-manifest-plugin'
+import type { ReactReadableStream } from './stream-utils/node-web-streams-helper'
+import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
+import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 
 import React from 'react'
 import ReactDOMServer from 'react-dom/server.browser'
@@ -68,7 +69,7 @@ import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { getRequestMeta, NextParsedUrlQuery } from './request-meta'
 import { allowedStatusCodes, getRedirectStatus } from '../lib/redirect-status'
-import RenderResult from './render-result'
+import RenderResult, { type RenderResultMetadata } from './render-result'
 import isError from '../lib/is-error'
 import {
   streamFromArray,
@@ -77,7 +78,7 @@ import {
   createBufferedTransformStream,
   renderToInitialStream,
   continueFromInitialStream,
-} from './node-web-streams-helper'
+} from './stream-utils/node-web-streams-helper'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { stripInternalQueries } from './internal-utils'
@@ -90,6 +91,8 @@ import { AppRouterContext } from '../shared/lib/app-router-context'
 import { SearchParamsContext } from '../shared/lib/hooks-client-context'
 import { getTracer } from './lib/trace/tracer'
 import { RenderSpan } from './lib/trace/constants'
+import { PageNotFoundError } from '../shared/lib/utils'
+import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
 
 let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -243,12 +246,12 @@ export type RenderOptsPartial = {
   optimizeCss: any
   nextConfigOutput?: 'standalone' | 'export'
   nextScriptWorkers: any
-  devOnlyCacheBusterQueryString?: string
+  assetQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
-  serverComponentManifest?: any
+  clientReferenceManifest?: ClientReferenceManifest
   serverCSSManifest?: any
-  fontLoaderManifest?: FontLoaderManifest
+  nextFontManifest?: NextFontManifest
   distDir?: string
   locale?: string
   locales?: string[]
@@ -260,9 +263,12 @@ export type RenderOptsPartial = {
   runtime?: ServerRuntime
   serverComponents?: boolean
   customServer?: boolean
-  crossOrigin?: string
+  crossOrigin?: 'anonymous' | 'use-credentials' | '' | undefined
   images: ImageConfigComplete
   largePageDataBytes?: number
+  isOnDemandRevalidate?: boolean
+  strictNextHead: boolean
+  deploymentId?: string
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -329,7 +335,34 @@ function checkRedirectValues(
   }
 }
 
-function errorToJSON(err: Error) {
+export const deserializeErr = (serializedErr: any) => {
+  if (
+    !serializedErr ||
+    typeof serializedErr !== 'object' ||
+    !serializedErr.stack
+  ) {
+    return serializedErr
+  }
+  let ErrorType: any = Error
+
+  if (serializedErr.name === 'PageNotFoundError') {
+    ErrorType = PageNotFoundError
+  }
+
+  const err = new ErrorType(serializedErr.message)
+  err.stack = serializedErr.stack
+  err.name = serializedErr.name
+  ;(err as any).digest = serializedErr.digest
+
+  if (process.env.NEXT_RUNTIME !== 'edge') {
+    const { decorateServerError } =
+      require('next/dist/compiled/@next/react-dev-overlay/dist/middleware') as typeof import('next/dist/compiled/@next/react-dev-overlay/dist/middleware')
+    decorateServerError(err, serializedErr.source || 'server')
+  }
+  return err
+}
+
+export function errorToJSON(err: Error) {
   let source: typeof COMPILER_NAMES.server | typeof COMPILER_NAMES.edgeServer =
     'server'
 
@@ -345,6 +378,7 @@ function errorToJSON(err: Error) {
     source,
     message: stripAnsi(err.message),
     stack: err.stack,
+    digest: (err as any).digest,
   }
 }
 
@@ -372,13 +406,22 @@ export async function renderToHTML(
   pathname: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts
-): Promise<RenderResult | null> {
+): Promise<RenderResult> {
+  const renderResultMeta: RenderResultMetadata = {}
+
   // In dev we invalidate the cache by appending a timestamp to the resource URL.
   // This is a workaround to fix https://github.com/vercel/next.js/issues/5860
   // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
-  renderOpts.devOnlyCacheBusterQueryString = renderOpts.dev
-    ? renderOpts.devOnlyCacheBusterQueryString || `?ts=${Date.now()}`
+  renderResultMeta.assetQueryString = renderOpts.dev
+    ? renderOpts.assetQueryString || `?ts=${Date.now()}`
     : ''
+
+  // if deploymentId is provided we append it to all asset requests
+  if (renderOpts.deploymentId) {
+    renderResultMeta.assetQueryString += `${
+      renderResultMeta.assetQueryString ? '&' : '?'
+    }dpl=${renderOpts.deploymentId}`
+  }
 
   // don't modify original query object
   query = Object.assign({}, query)
@@ -398,11 +441,12 @@ export async function renderToHTML(
     params,
     previewProps,
     basePath,
-    devOnlyCacheBusterQueryString,
     images,
     runtime: globalRuntime,
     App,
   } = renderOpts
+
+  const assetQueryString = renderResultMeta.assetQueryString
 
   let Document = renderOpts.Document
 
@@ -444,7 +488,7 @@ export async function renderToHTML(
   ) {
     warn(
       `Detected getInitialProps on page '${pathname}'` +
-        ` while running "next export". It's recommended to use getStaticProps` +
+        ` while running export. It's recommended to use getStaticProps` +
         ` which has a more correct behavior for static exporting.` +
         `\nRead more: https://nextjs.org/docs/messages/get-initial-props-export`
     )
@@ -561,7 +605,7 @@ export async function renderToHTML(
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
-  let isPreview
+  let isPreview: boolean | undefined = undefined
   let previewData: PreviewData
 
   if (
@@ -571,7 +615,7 @@ export async function renderToHTML(
   ) {
     // Reads of this are cached on the `req` object, so this should resolve
     // instantly. There's no need to pass this data down from a previous
-    // invoke, where we'd have to consider server & serverless.
+    // invoke.
     previewData = tryGetPreviewData(req, res, previewProps)
     isPreview = previewData !== false
   }
@@ -756,15 +800,27 @@ export async function renderToHTML(
     let data: UnwrapPromise<ReturnType<GetStaticProps>>
 
     try {
-      data = await getStaticProps!({
-        ...(pageIsDynamic ? { params: query as ParsedUrlQuery } : undefined),
-        ...(isPreview
-          ? { preview: true, previewData: previewData }
-          : undefined),
-        locales: renderOpts.locales,
-        locale: renderOpts.locale,
-        defaultLocale: renderOpts.defaultLocale,
-      })
+      data = await getTracer().trace(
+        RenderSpan.getStaticProps,
+        {
+          spanName: `getStaticProps ${pathname}`,
+          attributes: {
+            'next.route': pathname,
+          },
+        },
+        () =>
+          getStaticProps!({
+            ...(pageIsDynamic
+              ? { params: query as ParsedUrlQuery }
+              : undefined),
+            ...(isPreview
+              ? { draftMode: true, preview: true, previewData: previewData }
+              : undefined),
+            locales: renderOpts.locales,
+            locale: renderOpts.locale,
+            defaultLocale: renderOpts.defaultLocale,
+          })
+      )
     } catch (staticPropsError: any) {
       // remove not found error code to prevent triggering legacy
       // 404 rendering
@@ -814,7 +870,7 @@ export async function renderToHTML(
         )
       }
 
-      ;(renderOpts as any).isNotFound = true
+      renderResultMeta.isNotFound = true
     }
 
     if (
@@ -838,12 +894,12 @@ export async function renderToHTML(
       if (typeof data.redirect.basePath !== 'undefined') {
         ;(data as any).props.__N_REDIRECT_BASE_PATH = data.redirect.basePath
       }
-      ;(renderOpts as any).isRedirect = true
+      renderResultMeta.isRedirect = true
     }
 
     if (
       (dev || isBuildTimeSSG) &&
-      !(renderOpts as any).isNotFound &&
+      !renderResultMeta.isNotFound &&
       !isSerializableProps(pathname, 'getStaticProps', (data as any).props)
     ) {
       // this fn should throw an error instead of ever returning `false`
@@ -909,14 +965,13 @@ export async function renderToHTML(
     )
 
     // pass up revalidate and props for export
-    // TODO: change this to a different passing mechanism
-    ;(renderOpts as any).revalidate =
+    renderResultMeta.revalidate =
       'revalidate' in data ? data.revalidate : undefined
-    ;(renderOpts as any).pageData = props
+    renderResultMeta.pageData = props
 
-    // this must come after revalidate is added to renderOpts
-    if ((renderOpts as any).isNotFound) {
-      return null
+    // this must come after revalidate is added to renderResultMeta
+    if (renderResultMeta.isNotFound) {
+      return new RenderResult(null, renderResultMeta)
     }
   }
 
@@ -932,7 +987,7 @@ export async function renderToHTML(
     let deferredContent = false
     if (process.env.NODE_ENV !== 'production') {
       resOrProxy = new Proxy<ServerResponse>(res, {
-        get: function (obj, prop, receiver) {
+        get: function (obj, prop) {
           if (!canAccessRes) {
             const message =
               `You should not access 'res' after getServerSideProps resolves.` +
@@ -944,36 +999,43 @@ export async function renderToHTML(
               warn(message)
             }
           }
-          const value = Reflect.get(obj, prop, receiver)
 
-          // since ServerResponse uses internal fields which
-          // proxy can't map correctly we need to ensure functions
-          // are bound correctly while being proxied
-          if (typeof value === 'function') {
-            return value.bind(obj)
+          if (typeof prop === 'symbol') {
+            return ReflectAdapter.get(obj, prop, res)
           }
-          return value
+
+          return ReflectAdapter.get(obj, prop, res)
         },
       })
     }
 
     try {
-      data = await getTracer().trace(RenderSpan.getServerSideProps, async () =>
-        getServerSideProps({
-          req: req as IncomingMessage & {
-            cookies: NextApiRequestCookies
+      data = await getTracer().trace(
+        RenderSpan.getServerSideProps,
+        {
+          spanName: `getServerSideProps ${pathname}`,
+          attributes: {
+            'next.route': pathname,
           },
-          res: resOrProxy,
-          query,
-          resolvedUrl: renderOpts.resolvedUrl as string,
-          ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
-          ...(previewData !== false
-            ? { preview: true, previewData: previewData }
-            : undefined),
-          locales: renderOpts.locales,
-          locale: renderOpts.locale,
-          defaultLocale: renderOpts.defaultLocale,
-        })
+        },
+        async () =>
+          getServerSideProps({
+            req: req as IncomingMessage & {
+              cookies: NextApiRequestCookies
+            },
+            res: resOrProxy,
+            query,
+            resolvedUrl: renderOpts.resolvedUrl as string,
+            ...(pageIsDynamic
+              ? { params: params as ParsedUrlQuery }
+              : undefined),
+            ...(previewData !== false
+              ? { draftMode: true, preview: true, previewData: previewData }
+              : undefined),
+            locales: renderOpts.locales,
+            locale: renderOpts.locale,
+            defaultLocale: renderOpts.defaultLocale,
+          })
       )
       canAccessRes = false
     } catch (serverSidePropsError: any) {
@@ -1022,8 +1084,8 @@ export async function renderToHTML(
         )
       }
 
-      ;(renderOpts as any).isNotFound = true
-      return null
+      renderResultMeta.isNotFound = true
+      return new RenderResult(null, renderResultMeta)
     }
 
     if ('redirect' in data && typeof data.redirect === 'object') {
@@ -1035,7 +1097,7 @@ export async function renderToHTML(
       if (typeof data.redirect.basePath !== 'undefined') {
         ;(data as any).props.__N_REDIRECT_BASE_PATH = data.redirect.basePath
       }
-      ;(renderOpts as any).isRedirect = true
+      renderResultMeta.isRedirect = true
     }
 
     if (deferredContent) {
@@ -1053,7 +1115,7 @@ export async function renderToHTML(
     }
 
     props.pageProps = Object.assign({}, props.pageProps, (data as any).props)
-    ;(renderOpts as any).pageData = props
+    renderResultMeta.pageData = props
   }
 
   if (
@@ -1070,8 +1132,8 @@ export async function renderToHTML(
 
   // Avoid rendering page un-necessarily for getServerSideProps data request
   // and getServerSideProps/getStaticProps redirects
-  if ((isDataReq && !isSSG) || (renderOpts as any).isRedirect) {
-    return RenderResult.fromStatic(JSON.stringify(props))
+  if ((isDataReq && !isSSG) || renderResultMeta.isRedirect) {
+    return new RenderResult(JSON.stringify(props), renderResultMeta)
   }
 
   // We don't call getStaticProps or getServerSideProps while generating
@@ -1081,7 +1143,7 @@ export async function renderToHTML(
   }
 
   // the response might be finished on the getInitialProps call
-  if (isResSent(res) && !isSSG) return null
+  if (isResSent(res) && !isSSG) return new RenderResult(null, renderResultMeta)
 
   // we preload the buildManifest for auto-export dynamic pages
   // to speed up hydrating query values
@@ -1128,19 +1190,11 @@ export async function renderToHTML(
     if (process.env.NEXT_RUNTIME === 'edge' && Document.getInitialProps) {
       // In the Edge runtime, `Document.getInitialProps` isn't supported.
       // We throw an error here if it's customized.
-      if (!BuiltinFunctionalDocument) {
-        throw new Error(
-          '`getInitialProps` in Document component is not supported with the Edge Runtime.'
-        )
-      }
-    }
-
-    if (process.env.NEXT_RUNTIME === 'edge' && Document.getInitialProps) {
       if (BuiltinFunctionalDocument) {
         Document = BuiltinFunctionalDocument
       } else {
         throw new Error(
-          '`getInitialProps` in Document component is not supported with React Server Components.'
+          '`getInitialProps` in Document component is not supported with the Edge Runtime.'
         )
       }
     }
@@ -1319,12 +1373,19 @@ export async function renderToHTML(
     }
   }
 
+  getTracer().getRootSpanAttributes()?.set('next.route', renderOpts.pathname)
   const documentResult = await getTracer().trace(
     RenderSpan.renderDocument,
+    {
+      spanName: `render route (pages) ${renderOpts.pathname}`,
+      attributes: {
+        'next.route': renderOpts.pathname,
+      },
+    },
     async () => renderDocument()
   )
   if (!documentResult) {
-    return null
+    return new RenderResult(null, renderResultMeta)
   }
 
   const dynamicImportsIds = new Set<string | number>()
@@ -1383,6 +1444,7 @@ export async function renderToHTML(
       isPreview: isPreview === true ? true : undefined,
       notFoundSrcPage: notFoundSrcPage && dev ? notFoundSrcPage : undefined,
     },
+    strictNextHead: renderOpts.strictNextHead,
     buildManifest: filteredBuildManifest,
     docComponentsRendered,
     dangerousAsPath: router.asPath,
@@ -1402,7 +1464,7 @@ export async function renderToHTML(
         ? pageConfig.unstable_runtimeJS
         : undefined,
     unstable_JsPreload: pageConfig.unstable_JsPreload,
-    devOnlyCacheBusterQueryString,
+    assetQueryString,
     scriptLoader,
     locale,
     disableOptimizedLoading,
@@ -1416,7 +1478,7 @@ export async function renderToHTML(
     nextScriptWorkers: renderOpts.nextScriptWorkers,
     runtime: globalRuntime,
     largePageDataBytes: renderOpts.largePageDataBytes,
-    fontLoaderManifest: renderOpts.fontLoaderManifest,
+    nextFontManifest: renderOpts.nextFontManifest,
   }
 
   const document = (
@@ -1479,13 +1541,14 @@ export async function renderToHTML(
   if (generateStaticHTML) {
     const html = await streamToString(chainStreams(streams))
     const optimizedHtml = await postOptimize(html)
-    return new RenderResult(optimizedHtml)
+    return new RenderResult(optimizedHtml, renderResultMeta)
   }
 
   return new RenderResult(
     chainStreams(streams).pipeThrough(
       createBufferedTransformStream(postOptimize)
-    )
+    ),
+    renderResultMeta
   )
 }
 

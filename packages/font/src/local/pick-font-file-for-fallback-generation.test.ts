@@ -113,4 +113,32 @@ describe('pickFontFileForFallbackGeneration', () => {
       ])
     ).toEqual({ weight: '400', style: 'normal' })
   })
+
+  it('should error on invalid weight in array', async () => {
+    expect(() =>
+      pickFontFileForFallbackGeneration([
+        { path: './font1.woff2', weight: 'normal bold' },
+        { path: './font2.woff2', weight: '400 bold' },
+        { path: './font3.woff2', weight: 'normal 700' },
+        { path: './font4.woff2', weight: '100 abc' },
+      ])
+    ).toThrowErrorMatchingInlineSnapshot(`
+      "Invalid weight value in src array: \`100 abc\`.
+      Expected \`normal\`, \`bold\` or a number."
+    `)
+  })
+
+  test('Invalid variable weight in array', async () => {
+    expect(() =>
+      pickFontFileForFallbackGeneration([
+        { path: './font1.woff2', weight: 'normal bold' },
+        { path: './font2.woff2', weight: '400 bold' },
+        { path: './font3.woff2', weight: 'normal 700' },
+        { path: './font4.woff2', weight: '100 abc' },
+      ])
+    ).toThrowErrorMatchingInlineSnapshot(`
+      "Invalid weight value in src array: \`100 abc\`.
+      Expected \`normal\`, \`bold\` or a number."
+    `)
+  })
 })

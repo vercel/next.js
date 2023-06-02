@@ -28,6 +28,7 @@ import type {
   Verification,
   ThemeColorDescriptor,
 } from './metadata-types'
+import type { Manifest as ManifestFile } from './manifest-types'
 import type { OpenGraph, ResolvedOpenGraph } from './opengraph-types'
 import type { ResolvedTwitterMetadata, Twitter } from './twitter-types'
 
@@ -318,7 +319,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * The common verification tokens for the document.
    * @example
    * ```tsx
-   * { verification: { google: "google-site-verification=1234567890", yandex: "1234567890", "me": "1234567890" } }
+   * { verification: { google: "1234567890", yandex: "1234567890", "me": "1234567890" } }
    * <meta name="google-site-verification" content="1234567890" />
    * <meta name="yandex-verification" content="1234567890" />
    * <meta name="me" content="@me" />
@@ -534,5 +535,36 @@ interface ResolvedMetadata extends DeprecatedMetadataFields {
       } & DeprecatedMetadataFields)
 }
 
-export type ResolvingMetadata = Promise<ResolvedMetadata>
-export { Metadata, ResolvedMetadata }
+type RobotsFile = {
+  // Apply rules for all
+  rules:
+    | {
+        userAgent?: string | string[]
+        allow?: string | string[]
+        disallow?: string | string[]
+        crawlDelay?: number
+      }
+    // Apply rules for specific user agents
+    | Array<{
+        userAgent: string | string[]
+        allow?: string | string[]
+        disallow?: string | string[]
+        crawlDelay?: number
+      }>
+  sitemap?: string | string[]
+  host?: string
+}
+
+type SitemapFile = Array<{
+  url: string
+  lastModified?: string | Date
+}>
+
+type ResolvingMetadata = Promise<ResolvedMetadata>
+declare namespace MetadataRoute {
+  export type Robots = RobotsFile
+  export type Sitemap = SitemapFile
+  export type Manifest = ManifestFile
+}
+
+export { Metadata, ResolvedMetadata, ResolvingMetadata, MetadataRoute }

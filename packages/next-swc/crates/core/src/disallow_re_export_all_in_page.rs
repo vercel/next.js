@@ -1,8 +1,10 @@
-use next_binding::swc::core::{
+use turbopack_binding::swc::core::{
     common::errors::HANDLER,
-    ecma::ast::ExportAll,
-    ecma::transforms::base::pass::Optional,
-    ecma::visit::{noop_fold_type, Fold},
+    ecma::{
+        ast::ExportAll,
+        transforms::base::pass::Optional,
+        visit::{noop_fold_type, Fold},
+    },
 };
 
 pub fn disallow_re_export_all_in_page(is_page_file: bool) -> impl Fold {

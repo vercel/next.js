@@ -1,7 +1,7 @@
 import type { NextMiddleware, RequestData, FetchEventResult } from './types'
 import type { RequestInit } from './spec-extension/request'
 import { PageSignatureError } from './error'
-import { fromNodeHeaders } from './utils'
+import { fromNodeOutgoingHttpHeaders } from './utils'
 import { NextFetchEvent } from './spec-extension/fetch-event'
 import { NextRequest } from './spec-extension/request'
 import { NextResponse } from './spec-extension/response'
@@ -16,6 +16,7 @@ import {
   NEXT_ROUTER_STATE_TREE,
   RSC,
 } from '../../client/components/app-router-headers'
+import { NEXT_QUERY_PARAM_PREFIX } from '../../lib/constants'
 
 declare const _ENTRIES: any
 
@@ -51,11 +52,41 @@ const FLIGHT_PARAMETERS = [
   [FETCH_CACHE_HEADER],
 ] as const
 
-export async function adapter(params: {
+export type AdapterOptions = {
   handler: NextMiddleware
   page: string
   request: RequestData
-}): Promise<FetchEventResult> {
+  IncrementalCache?: typeof import('../lib/incremental-cache').IncrementalCache
+}
+
+async function registerInstrumentation() {
+  if (
+    '_ENTRIES' in globalThis &&
+    _ENTRIES.middleware_instrumentation &&
+    _ENTRIES.middleware_instrumentation.register
+  ) {
+    try {
+      await _ENTRIES.middleware_instrumentation.register()
+    } catch (err: any) {
+      err.message = `An error occurred while loading instrumentation hook: ${err.message}`
+      throw err
+    }
+  }
+}
+
+let registerInstrumentationPromise: Promise<void> | null = null
+function ensureInstrumentationRegistered() {
+  if (!registerInstrumentationPromise) {
+    registerInstrumentationPromise = registerInstrumentation()
+  }
+  return registerInstrumentationPromise
+}
+
+export async function adapter(
+  params: AdapterOptions
+): Promise<FetchEventResult> {
+  await ensureInstrumentationRegistered()
+
   // TODO-APP: use explicit marker for this
   const isEdgeRendering = typeof self.__BUILD_MANIFEST !== 'undefined'
 
@@ -65,6 +96,26 @@ export async function adapter(params: {
     headers: params.request.headers,
     nextConfig: params.request.nextConfig,
   })
+
+  // Iterator uses an index to keep track of the current iteration. Because of deleting and appending below we can't just use the iterator.
+  // Instead we use the keys before iteration.
+  const keys = [...requestUrl.searchParams.keys()]
+  for (const key of keys) {
+    const value = requestUrl.searchParams.getAll(key)
+
+    if (
+      key !== NEXT_QUERY_PARAM_PREFIX &&
+      key.startsWith(NEXT_QUERY_PARAM_PREFIX)
+    ) {
+      const normalizedKey = key.substring(NEXT_QUERY_PARAM_PREFIX.length)
+      requestUrl.searchParams.delete(normalizedKey)
+
+      for (const val of value) {
+        requestUrl.searchParams.append(normalizedKey, val)
+      }
+      requestUrl.searchParams.delete(key)
+    }
+  }
 
   // Ensure users only see page requests, never data requests.
   const buildId = requestUrl.buildId
@@ -76,7 +127,7 @@ export async function adapter(params: {
     requestUrl.pathname = '/'
   }
 
-  const requestHeaders = fromNodeHeaders(params.request.headers)
+  const requestHeaders = fromNodeOutgoingHttpHeaders(params.request.headers)
   const flightHeaders = new Map()
   // Parameters should only be stripped for middleware
   if (!isEdgeRendering) {
@@ -95,7 +146,9 @@ export async function adapter(params: {
 
   const request = new NextRequestHint({
     page: params.page,
-    input: String(requestUrl),
+    input: process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
+      ? params.request.url
+      : String(requestUrl),
     init: {
       body: params.request.body,
       geo: params.request.geo,
@@ -115,6 +168,34 @@ export async function adapter(params: {
     Object.defineProperty(request, '__isData', {
       enumerable: false,
       value: true,
+    })
+  }
+
+  if (
+    !(globalThis as any).__incrementalCache &&
+    (params as any).IncrementalCache
+  ) {
+    ;(globalThis as any).__incrementalCache = new (
+      params as any
+    ).IncrementalCache({
+      appDir: true,
+      fetchCache: true,
+      minimalMode: process.env.NODE_ENV !== 'development',
+      fetchCacheKeyPrefix: process.env.__NEXT_FETCH_CACHE_KEY_PREFIX,
+      dev: process.env.NODE_ENV === 'development',
+      requestHeaders: params.request.headers as any,
+      requestProtocol: 'https',
+      getPrerenderManifest: () => {
+        return {
+          version: -1 as any, // letting us know this doesn't conform to spec
+          routes: {},
+          dynamicRoutes: {},
+          notFoundRoutes: [],
+          preview: {
+            previewModeId: 'development-id',
+          } as any, // `preview` is special case read in next-dev-server
+        }
+      },
     })
   }
 
@@ -152,11 +233,22 @@ export async function adapter(params: {
      * with an internal header so the client knows which component to load
      * from the data request.
      */
-    if (isDataReq) {
-      response.headers.set(
-        'x-nextjs-rewrite',
-        relativizeURL(String(rewriteUrl), String(requestUrl))
+    const relativizedRewrite = relativizeURL(
+      String(rewriteUrl),
+      String(requestUrl)
+    )
+
+    if (
+      isDataReq &&
+      // if the rewrite is external and external rewrite
+      // resolving config is enabled don't add this header
+      // so the upstream app can set it instead
+      !(
+        process.env.__NEXT_EXTERNAL_MIDDLEWARE_REWRITE_RESOLVE &&
+        relativizedRewrite.match(/http(s)?:\/\//)
       )
+    ) {
+      response.headers.set('x-nextjs-rewrite', relativizedRewrite)
     }
   }
 
@@ -166,7 +258,7 @@ export async function adapter(params: {
    * the incoming request was a data request.
    */
   const redirect = response?.headers.get('Location')
-  if (response && redirect) {
+  if (response && redirect && !isEdgeRendering) {
     const redirectURL = new NextURL(redirect, {
       forceLocale: false,
       headers: params.request.headers,
@@ -270,16 +362,6 @@ export function enhanceGlobals() {
     configurable: false,
   })
 
-  if (
-    '_ENTRIES' in globalThis &&
-    _ENTRIES.middleware_instrumentation &&
-    _ENTRIES.middleware_instrumentation.register
-  ) {
-    try {
-      _ENTRIES.middleware_instrumentation.register()
-    } catch (err: any) {
-      err.message = `An error occurred while loading instrumentation hook: ${err.message}`
-      throw err
-    }
-  }
+  // Eagerly fire instrumentation hook to make the startup faster.
+  void ensureInstrumentationRegistered()
 }

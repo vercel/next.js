@@ -3,11 +3,32 @@ import '../build/polyfills/polyfill-module'
 // @ts-ignore react-dom/client exists when using React 18
 import ReactDOMClient from 'react-dom/client'
 import React, { use } from 'react'
-import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack/client'
+// @ts-ignore
+// eslint-disable-next-line import/no-extraneous-dependencies
+import { createFromReadableStream } from 'react-server-dom-webpack/client'
 
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { GlobalLayoutRouterContext } from '../shared/lib/app-router-context'
 import onRecoverableError from './on-recoverable-error'
+import { callServer } from './app-call-server'
+import { isNextRouterError } from './components/is-next-router-error'
+import { linkGc } from './app-link-gc'
+
+// Since React doesn't call onerror for errors caught in error boundaries.
+const origConsoleError = window.console.error
+window.console.error = (...args) => {
+  if (isNextRouterError(args[0])) {
+    return
+  }
+  origConsoleError.apply(window.console, args)
+}
+
+window.addEventListener('error', (ev: WindowEventMap['error']): void => {
+  if (isNextRouterError(ev.error)) {
+    ev.preventDefault()
+    return
+  }
+})
 
 /// <reference types="react-dom/experimental" />
 
@@ -24,7 +45,14 @@ const chunkFilenameMap: any = {}
 
 // eslint-disable-next-line no-undef
 __webpack_require__.u = (chunkId: any) => {
-  return encodeURI(chunkFilenameMap[chunkId] || getChunkScriptFilename(chunkId))
+  return (
+    encodeURI(chunkFilenameMap[chunkId] || getChunkScriptFilename(chunkId)) +
+    `${
+      process.env.__NEXT_DEPLOYMENT_ID
+        ? `?dpl=${process.env.__NEXT_DEPLOYMENT_ID}`
+        : ''
+    }`
+  )
 }
 
 // Ignore the module ID transform in client.
@@ -51,8 +79,8 @@ self.__next_require__ =
 // eslint-disable-next-line no-undef
 ;(self as any).__next_chunk_load__ = (chunk: string) => {
   if (!chunk) return Promise.resolve()
-  const [chunkId, chunkFileName] = chunk.split(':')
-  chunkFilenameMap[chunkId] = `static/chunks/${chunkFileName}.js`
+  const [chunkId, chunkFilePath] = chunk.split(':')
+  chunkFilenameMap[chunkId] = chunkFilePath
 
   // @ts-ignore
   // eslint-disable-next-line no-undef
@@ -64,16 +92,6 @@ const appElement: HTMLElement | Document | null = document
 const getCacheKey = () => {
   const { pathname, search } = location
   return pathname + search
-}
-
-async function sha1(message: string) {
-  const arrayBuffer = await crypto.subtle.digest(
-    'SHA-1',
-    new TextEncoder().encode(message)
-  )
-  const data = Array.from(new Uint8Array(arrayBuffer))
-  const hex = data.map((b) => b.toString(16).padStart(2, '0')).join('')
-  return hex
 }
 
 const encoder = new TextEncoder()
@@ -161,30 +179,7 @@ function useInitialServerResponse(cacheKey: string): Promise<JSX.Element> {
   })
 
   const newResponse = createFromReadableStream(readable, {
-    async callServer(
-      metadata: {
-        id: string
-        name: string
-      },
-      args: any[]
-    ) {
-      const actionId = await sha1(metadata.id + ':' + metadata.name)
-
-      // Fetching the current url with the action header.
-      // TODO: Refactor this to look up from a manifest.
-      const res = await fetch('', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Next-Action': actionId,
-        },
-        body: JSON.stringify({
-          bound: args,
-        }),
-      })
-
-      return res.json()
-    },
+    callServer,
   })
 
   rscCache.set(cacheKey, newResponse)
@@ -253,7 +248,10 @@ export function hydrate() {
             changeByServerResponse: () => {},
             focusAndScrollRef: {
               apply: false,
+              hashFragment: null,
+              segmentPaths: [],
             },
+            nextUrl: null,
           }}
         >
           <HotReload
@@ -308,4 +306,6 @@ export function hydrate() {
   if (isError) {
     reactRoot.render(reactEl)
   }
+
+  linkGc()
 }

@@ -14,6 +14,11 @@ describe('should set-up next', () => {
         pages: new FileRef(join(__dirname, 'app/pages')),
         components: new FileRef(join(__dirname, 'app/components')),
       },
+      nextConfig: {
+        experimental: {
+          strictNextHead: true,
+        },
+      },
     })
   })
   afterAll(() => next.destroy())
@@ -27,7 +32,7 @@ describe('should set-up next', () => {
     })
 
     expect(html).toContain(
-      `<meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta name="test-head-1" content="hello">`
+      `<meta charset="utf-8"><meta name="next-head" content="1"><meta name="viewport" content="width=device-width"><meta name="next-head" content="1"><meta name="test-head-1" content="hello">`
     )
   })
 

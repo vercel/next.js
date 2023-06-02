@@ -1,13 +1,20 @@
 import cheerio from 'cheerio'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { renderViaHTTP } from 'next-test-utils'
+import { renderViaHTTP, shouldRunTurboDevTest } from 'next-test-utils'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 
 const mockedGoogleFontResponses = require.resolve(
   './google-font-mocked-responses.js'
 )
+
+function getClassNameRegex(className: string): RegExp {
+  // Turbopack uses a different format for its css modules than webpack-based Next.js
+  return shouldRunTurboDevTest()
+    ? new RegExp(`^${className}__.*__.{8}$`) // e.g. `className__inter_c6e282f1__a8cc5613`
+    : new RegExp(`^__${className}_.{6}$`) // e.g. `__className_a8cc56`
+}
 
 describe('next/font', () => {
   describe.each([['app'], ['app-old']])('%s', (fixture: string) => {
@@ -24,9 +31,6 @@ describe('next/font', () => {
           pages: new FileRef(join(__dirname, `${fixture}/pages`)),
           components: new FileRef(join(__dirname, `${fixture}/components`)),
           fonts: new FileRef(join(__dirname, `${fixture}/fonts`)),
-          'next.config.js': new FileRef(
-            join(__dirname, `${fixture}/next.config.js`)
-          ),
         },
         dependencies: {
           '@next/font': 'canary',
@@ -45,8 +49,8 @@ describe('next/font', () => {
 
         // _app.js
         expect(JSON.parse($('#app-open-sans').text())).toEqual({
-          className: expect.stringMatching(/^__className_.{6}$/),
-          variable: expect.stringMatching(/^__variable_.{6}$/),
+          className: expect.stringMatching(getClassNameRegex('className')),
+          variable: expect.stringMatching(getClassNameRegex('variable')),
           style: {
             fontFamily: expect.stringMatching(
               /^'__Open_Sans_.{6}', '__Open_Sans_Fallback_.{6}'$/
@@ -57,8 +61,8 @@ describe('next/font', () => {
 
         // with-fonts.js
         expect(JSON.parse($('#with-fonts-open-sans').text())).toEqual({
-          className: expect.stringMatching(/^__className_.{6}$/),
-          variable: expect.stringMatching(/^__variable_.{6}$/),
+          className: expect.stringMatching(getClassNameRegex('className')),
+          variable: expect.stringMatching(getClassNameRegex('variable')),
           style: {
             fontFamily: expect.stringMatching(
               /^'__Open_Sans_.{6}', '__Open_Sans_Fallback_.{6}'$/
@@ -69,7 +73,7 @@ describe('next/font', () => {
 
         // CompWithFonts.js
         expect(JSON.parse($('#comp-with-fonts-inter').text())).toEqual({
-          className: expect.stringMatching(/^__className_.{6}$/),
+          className: expect.stringMatching(getClassNameRegex('className')),
           style: {
             fontFamily: expect.stringMatching(
               /^'__Inter_.{6}', '__Inter_Fallback_.{6}'$/
@@ -79,7 +83,7 @@ describe('next/font', () => {
           },
         })
         expect(JSON.parse($('#comp-with-fonts-roboto').text())).toEqual({
-          className: expect.stringMatching(/^__className_.{6}$/),
+          className: expect.stringMatching(getClassNameRegex('className')),
           style: {
             fontFamily: expect.stringMatching(
               /^'__Roboto_.{6}', '__Roboto_Fallback_.{6}'$/
@@ -96,8 +100,8 @@ describe('next/font', () => {
 
         // _app.js
         expect(JSON.parse($('#app-open-sans').text())).toEqual({
-          className: expect.stringMatching(/__className_.{6}/),
-          variable: expect.stringMatching(/__variable_.{6}/),
+          className: expect.stringMatching(getClassNameRegex('className')),
+          variable: expect.stringMatching(getClassNameRegex('variable')),
           style: {
             fontFamily: expect.stringMatching(
               /^'__Open_Sans_.{6}', '__Open_Sans_Fallback_.{6}'$/
@@ -108,7 +112,7 @@ describe('next/font', () => {
 
         // with-local-fonts.js
         expect(JSON.parse($('#first-local-font').text())).toEqual({
-          className: expect.stringMatching(/__className_.{6}/),
+          className: expect.stringMatching(getClassNameRegex('className')),
           style: {
             fontFamily: expect.stringMatching(
               /^'__myFont1_.{6}', '__myFont1_Fallback_.{6}', system-ui$/
@@ -118,8 +122,8 @@ describe('next/font', () => {
           },
         })
         expect(JSON.parse($('#second-local-font').text())).toEqual({
-          className: expect.stringMatching(/^__className_.{6}$/),
-          variable: expect.stringMatching(/^__variable_.{6}$/),
+          className: expect.stringMatching(getClassNameRegex('className')),
+          variable: expect.stringMatching(getClassNameRegex('variable')),
           style: {
             fontFamily: expect.stringMatching(
               /^'__myFont2_.{6}', '__myFont2_Fallback_.{6}'$/
@@ -136,9 +140,11 @@ describe('next/font', () => {
         const $ = cheerio.load(html)
 
         expect(JSON.parse($('#nabla').text())).toEqual({
-          className: expect.stringMatching(/__className_.{6}/),
+          className: expect.stringMatching(getClassNameRegex('className')),
           style: {
-            fontFamily: expect.stringMatching(/^'__Nabla_.{6}'$/),
+            fontFamily: expect.stringMatching(
+              /^'__Nabla_.{6}', '__Nabla_Fallback_.{6}'$/
+            ),
             fontStyle: 'normal',
           },
         })
@@ -305,8 +311,11 @@ describe('next/font', () => {
         expect($('link[rel="preconnect"]').length).toBe(0)
 
         expect($('link[as="font"]').length).toBe(2)
+        const links = Array.from($('link[as="font"]')).sort((a, b) => {
+          return a.attribs.href.localeCompare(b.attribs.href)
+        })
         // From /_app
-        expect($('link[as="font"]').get(0).attribs).toEqual({
+        expect(links[0].attribs).toEqual({
           as: 'font',
           crossorigin: 'anonymous',
           href: '/_next/static/media/0812efcfaefec5ea-s.p.woff2',
@@ -314,7 +323,7 @@ describe('next/font', () => {
           type: 'font/woff2',
           'data-next-font': 'size-adjust',
         })
-        expect($('link[as="font"]').get(1).attribs).toEqual({
+        expect(links[1].attribs).toEqual({
           as: 'font',
           crossorigin: 'anonymous',
           href: '/_next/static/media/675c25f648fd6a30-s.p.woff2',
@@ -416,8 +425,10 @@ describe('next/font', () => {
       test('font without size adjust', async () => {
         const html = await renderViaHTTP(next.url, '/with-fallback')
         const $ = cheerio.load(html)
-
-        expect($('link[as="font"]').get(1).attribs).toEqual({
+        const links = Array.from($('link[as="font"]')).sort((a, b) => {
+          return a.attribs.href.localeCompare(b.attribs.href)
+        })
+        expect(links[1].attribs).toEqual({
           as: 'font',
           crossorigin: 'anonymous',
           href: '/_next/static/media/0812efcfaefec5ea.p.woff2',
@@ -426,7 +437,7 @@ describe('next/font', () => {
           'data-next-font': '',
         })
 
-        expect($('link[as="font"]').get(2).attribs).toEqual({
+        expect(links[2].attribs).toEqual({
           as: 'font',
           crossorigin: 'anonymous',
           href: '/_next/static/media/ab6fdae82d1a8d92.p.woff2',
@@ -567,12 +578,12 @@ describe('next/font', () => {
           const ascentOverride = await browser.eval(
             'Array.from(document.fonts.values()).find(font => font.family.includes("Indie_Flower_Fallback")).ascentOverride'
           )
-          expect(ascentOverride).toBe('103.26%')
+          expect(ascentOverride).toBe('101.1%')
 
           const descentOverride = await browser.eval(
             'Array.from(document.fonts.values()).find(font => font.family.includes("Indie_Flower_Fallback")).descentOverride'
           )
-          expect(descentOverride).toBe('51.94%')
+          expect(descentOverride).toBe('50.85%')
 
           const lineGapOverride = await browser.eval(
             'Array.from(document.fonts.values()).find(font => font.family.includes("Indie_Flower_Fallback")).lineGapOverride'
@@ -582,7 +593,7 @@ describe('next/font', () => {
           const sizeAdjust = await browser.eval(
             'Array.from(document.fonts.values()).find(font => font.family.includes("Indie_Flower_Fallback")).sizeAdjust'
           )
-          expect(sizeAdjust).toBe('94%')
+          expect(sizeAdjust).toBe('96.02%')
         })
 
         test('Fraunces', async () => {
@@ -591,12 +602,12 @@ describe('next/font', () => {
           const ascentOverride = await browser.eval(
             'Array.from(document.fonts.values()).find(font => font.family.includes("Fraunces_Fallback")).ascentOverride'
           )
-          expect(ascentOverride).toBe('84.71%')
+          expect(ascentOverride).toBe('84.29%')
 
           const descentOverride = await browser.eval(
             'Array.from(document.fonts.values()).find(font => font.family.includes("Fraunces_Fallback")).descentOverride'
           )
-          expect(descentOverride).toBe('22.09%')
+          expect(descentOverride).toBe('21.98%')
 
           const lineGapOverride = await browser.eval(
             'Array.from(document.fonts.values()).find(font => font.family.includes("Fraunces_Fallback")).lineGapOverride'
@@ -606,7 +617,7 @@ describe('next/font', () => {
           const sizeAdjust = await browser.eval(
             'Array.from(document.fonts.values()).find(font => font.family.includes("Fraunces_Fallback")).sizeAdjust'
           )
-          expect(sizeAdjust).toBe('115.45%')
+          expect(sizeAdjust).toBe('116.03%')
         })
       })
     })

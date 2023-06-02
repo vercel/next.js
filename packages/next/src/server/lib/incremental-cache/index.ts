@@ -8,8 +8,12 @@ import {
   IncrementalCacheValue,
   IncrementalCacheEntry,
 } from '../../response-cache'
-import { encode } from '../../../shared/lib/bloom-filter/base64-arraybuffer'
-import { encodeText } from '../../node-web-streams-helper'
+import { encode } from '../../../shared/lib/base64-arraybuffer'
+import { encodeText } from '../../stream-utils/encode-decode'
+import {
+  CACHE_ONE_YEAR,
+  PRERENDER_REVALIDATE_HEADER,
+} from '../../../lib/constants'
 
 function toRoute(pathname: string): string {
   return pathname.replace(/\/$/, '').replace(/\/index$/, '') || '/'
@@ -21,9 +25,11 @@ export interface CacheHandlerContext {
   flushToDisk?: boolean
   serverDistDir?: string
   maxMemoryCacheSize?: number
+  fetchCacheKeyPrefix?: string
+  prerenderManifest?: PrerenderManifest
+  revalidatedTags: string[]
   _appDir: boolean
   _requestHeaders: IncrementalCache['requestHeaders']
-  fetchCacheKeyPrefix?: string
 }
 
 export interface CacheHandlerValue {
@@ -39,7 +45,9 @@ export class CacheHandler {
 
   public async get(
     _key: string,
-    _fetchCache?: boolean
+    _fetchCache?: boolean,
+    _fetchUrl?: string,
+    _fetchIdx?: number
   ): Promise<CacheHandlerValue | null> {
     return {} as any
   }
@@ -47,8 +55,12 @@ export class CacheHandler {
   public async set(
     _key: string,
     _data: IncrementalCacheValue | null,
-    _fetchCache?: boolean
+    _fetchCache?: boolean,
+    _fetchUrl?: string,
+    _fetchIdx?: number
   ): Promise<void> {}
+
+  public async revalidateTag(_tag: string): Promise<void> {}
 }
 
 export class IncrementalCache {
@@ -56,8 +68,12 @@ export class IncrementalCache {
   cacheHandler?: CacheHandler
   prerenderManifest: PrerenderManifest
   requestHeaders: Record<string, undefined | string | string[]>
+  requestProtocol?: 'http' | 'https'
+  allowedRevalidateHeaderKeys?: string[]
   minimalMode?: boolean
   fetchCacheKeyPrefix?: string
+  revalidatedTags?: string[]
+  isOnDemandRevalidate?: boolean
 
   constructor({
     fs,
@@ -68,10 +84,12 @@ export class IncrementalCache {
     minimalMode,
     serverDistDir,
     requestHeaders,
+    requestProtocol,
     maxMemoryCacheSize,
     getPrerenderManifest,
     fetchCacheKeyPrefix,
     CurCacheHandler,
+    allowedRevalidateHeaderKeys,
   }: {
     fs?: CacheFs
     dev: boolean
@@ -80,20 +98,30 @@ export class IncrementalCache {
     minimalMode?: boolean
     serverDistDir?: string
     flushToDisk?: boolean
+    requestProtocol?: 'http' | 'https'
+    allowedRevalidateHeaderKeys?: string[]
     requestHeaders: IncrementalCache['requestHeaders']
     maxMemoryCacheSize?: number
     getPrerenderManifest: () => PrerenderManifest
     fetchCacheKeyPrefix?: string
     CurCacheHandler?: typeof CacheHandler
   }) {
+    const debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
     if (!CurCacheHandler) {
       if (fs && serverDistDir) {
+        if (debug) {
+          console.log('using filesystem cache handler')
+        }
         CurCacheHandler = FileSystemCache
       }
-
       if (minimalMode && fetchCache) {
+        if (debug) {
+          console.log('using fetch cache handler')
+        }
         CurCacheHandler = FetchCache
       }
+    } else if (debug) {
+      console.log('using custom cache handler', CurCacheHandler.name)
     }
 
     if (process.env.__NEXT_TEST_MAX_ISR_CACHE) {
@@ -103,8 +131,27 @@ export class IncrementalCache {
     this.dev = dev
     this.minimalMode = minimalMode
     this.requestHeaders = requestHeaders
+    this.requestProtocol = requestProtocol
+    this.allowedRevalidateHeaderKeys = allowedRevalidateHeaderKeys
     this.prerenderManifest = getPrerenderManifest()
     this.fetchCacheKeyPrefix = fetchCacheKeyPrefix
+    let revalidatedTags: string[] = []
+
+    if (
+      requestHeaders[PRERENDER_REVALIDATE_HEADER] ===
+      this.prerenderManifest?.preview?.previewModeId
+    ) {
+      this.isOnDemandRevalidate = true
+    }
+
+    if (
+      minimalMode &&
+      typeof requestHeaders['x-next-revalidated-tags'] === 'string' &&
+      requestHeaders['x-next-revalidats-tag-token'] ===
+        this.prerenderManifest?.preview?.previewModeId
+    ) {
+      revalidatedTags = requestHeaders['x-next-revalidated-tags'].split(',')
+    }
 
     if (CurCacheHandler) {
       this.cacheHandler = new CurCacheHandler({
@@ -112,6 +159,7 @@ export class IncrementalCache {
         fs,
         flushToDisk,
         serverDistDir,
+        revalidatedTags,
         maxMemoryCacheSize,
         _appDir: !!appDir,
         _requestHeaders: requestHeaders,
@@ -148,11 +196,18 @@ export class IncrementalCache {
     return fetchCache ? pathname : normalizePagePath(pathname)
   }
 
+  async revalidateTag(tag: string) {
+    return this.cacheHandler?.revalidateTag?.(tag)
+  }
+
   // x-ref: https://github.com/facebook/react/blob/2655c9354d8e1c54ba888444220f63e836925caa/packages/react/src/ReactFetch.js#L23
-  async fetchCacheKey(url: string, init: RequestInit = {}): Promise<string> {
+  async fetchCacheKey(
+    url: string,
+    init: RequestInit | Request = {}
+  ): Promise<string> {
     // this should be bumped anytime a fix is made to cache entries
     // that should bust the cache
-    const MAIN_KEY_PREFIX = 'v1'
+    const MAIN_KEY_PREFIX = 'v3'
 
     let cacheKey: string
     const bodyChunks: string[] = []
@@ -240,7 +295,6 @@ export class IncrementalCache {
       init.referrer,
       init.referrerPolicy,
       init.integrity,
-      init.next,
       init.cache,
       bodyChunks,
     ])
@@ -263,7 +317,10 @@ export class IncrementalCache {
   // get data from cache if available
   async get(
     pathname: string,
-    fetchCache?: boolean
+    fetchCache?: boolean,
+    revalidate?: number | false,
+    fetchUrl?: string,
+    fetchIdx?: number
   ): Promise<IncrementalCacheEntry | null> {
     // we don't leverage the prerender cache in dev mode
     // so that getStaticProps is always called for easier debugging
@@ -276,10 +333,15 @@ export class IncrementalCache {
 
     pathname = this._getPathname(pathname, fetchCache)
     let entry: IncrementalCacheEntry | null = null
-    const cacheData = await this.cacheHandler?.get(pathname, fetchCache)
+    const cacheData = await this.cacheHandler?.get(
+      pathname,
+      fetchCache,
+      fetchUrl,
+      fetchIdx
+    )
 
     if (cacheData?.value?.kind === 'FETCH') {
-      const revalidate = cacheData.value.revalidate
+      revalidate = revalidate || cacheData.value.revalidate
       const age = Math.round(
         (Date.now() - (cacheData.lastModified || 0)) / 1000
       )
@@ -294,22 +356,30 @@ export class IncrementalCache {
           data,
           revalidate: revalidate,
         },
-        revalidateAfter:
-          (cacheData.lastModified || Date.now()) + revalidate * 1000,
+        revalidateAfter: Date.now() + revalidate * 1000,
       }
     }
 
     const curRevalidate =
       this.prerenderManifest.routes[toRoute(pathname)]?.initialRevalidateSeconds
-    const revalidateAfter = this.calculateRevalidate(
-      pathname,
-      cacheData?.lastModified || Date.now(),
-      this.dev && !fetchCache
-    )
-    const isStale =
-      revalidateAfter !== false && revalidateAfter < Date.now()
-        ? true
-        : undefined
+
+    let isStale: boolean | -1 | undefined
+    let revalidateAfter: false | number
+
+    if (cacheData?.lastModified === -1) {
+      isStale = -1
+      revalidateAfter = -1 * CACHE_ONE_YEAR
+    } else {
+      revalidateAfter = this.calculateRevalidate(
+        pathname,
+        cacheData?.lastModified || Date.now(),
+        this.dev && !fetchCache
+      )
+      isStale =
+        revalidateAfter !== false && revalidateAfter < Date.now()
+          ? true
+          : undefined
+    }
 
     if (cacheData) {
       entry = {
@@ -335,7 +405,14 @@ export class IncrementalCache {
         curRevalidate,
         revalidateAfter,
       }
-      this.set(pathname, entry.value, curRevalidate, fetchCache)
+      this.set(
+        pathname,
+        entry.value,
+        curRevalidate,
+        fetchCache,
+        fetchUrl,
+        fetchIdx
+      )
     }
     return entry
   }
@@ -345,13 +422,15 @@ export class IncrementalCache {
     pathname: string,
     data: IncrementalCacheValue | null,
     revalidateSeconds?: number | false,
-    fetchCache?: boolean
+    fetchCache?: boolean,
+    fetchUrl?: string,
+    fetchIdx?: number
   ) {
     if (this.dev && !fetchCache) return
-    // fetchCache has upper limit of 1MB per-entry currently
-    if (fetchCache && JSON.stringify(data).length > 1024 * 1024) {
+    // fetchCache has upper limit of 2MB per-entry currently
+    if (fetchCache && JSON.stringify(data).length > 2 * 1024 * 1024) {
       if (this.dev) {
-        throw new Error(`fetch for over 1MB of data can not be cached`)
+        throw new Error(`fetch for over 2MB of data can not be cached`)
       }
       return
     }
@@ -372,7 +451,13 @@ export class IncrementalCache {
           initialRevalidateSeconds: revalidateSeconds,
         }
       }
-      await this.cacheHandler?.set(pathname, data, fetchCache)
+      await this.cacheHandler?.set(
+        pathname,
+        data,
+        fetchCache,
+        fetchUrl,
+        fetchIdx
+      )
     } catch (error) {
       console.warn('Failed to update prerender cache for', pathname, error)
     }

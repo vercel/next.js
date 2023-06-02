@@ -1,11 +1,12 @@
 use serde::Deserialize;
-
-use next_binding::swc::core::{
+use turbopack_binding::swc::core::{
     common::Mark,
-    ecma::ast::*,
-    ecma::atoms::{js_word, JsWord},
-    ecma::transforms::optimization::simplify::dce::{dce, Config as DCEConfig},
-    ecma::visit::{Fold, FoldWith},
+    ecma::{
+        ast::*,
+        atoms::{js_word, JsWord},
+        transforms::optimization::simplify::dce::{dce, Config as DCEConfig},
+        visit::{Fold, FoldWith},
+    },
 };
 
 #[derive(Clone, Debug, Deserialize)]

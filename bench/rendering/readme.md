@@ -2,7 +2,7 @@
 
 ## Installation
 
-Follow the steps in [contributing.md](../contributing.md)
+Follow the steps in [contributing.md](../../contributing.md)
 
 Both benchmarks use `ab`. So make sure you have that installed.
 

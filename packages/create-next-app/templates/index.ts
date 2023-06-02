@@ -1,4 +1,5 @@
 import { install } from '../helpers/install'
+import { makeDir } from '../helpers/make-dir'
 
 import cpy from 'cpy'
 import globOrig from 'glob'
@@ -36,6 +37,7 @@ export const installTemplate = async ({
   isOnline,
   template,
   mode,
+  tailwind,
   eslint,
   srcDir,
   importAlias,
@@ -47,7 +49,11 @@ export const installTemplate = async ({
    */
   console.log('\nInitializing project with template:', template, '\n')
   const templatePath = path.join(__dirname, template, mode)
-  await cpy('**', root, {
+  const copySource = ['**']
+  if (!eslint) copySource.push('!eslintrc.json')
+  if (!tailwind) copySource.push('!tailwind.config.js', '!postcss.config.js')
+
+  await cpy(copySource, root, {
     parents: true,
     cwd: templatePath,
     rename: (name) => {
@@ -106,7 +112,7 @@ export const installTemplate = async ({
   }
 
   if (srcDir) {
-    await fs.promises.mkdir(path.join(root, 'src'), { recursive: true })
+    await makeDir(path.join(root, 'src'))
     await Promise.all(
       SRC_DIR_NAMES.map(async (file) => {
         await fs.promises
@@ -118,26 +124,38 @@ export const installTemplate = async ({
           })
       })
     )
+
+    const isAppTemplate = template.startsWith('app')
+
     // Change the `Get started by editing pages/index` / `app/page` to include `src`
     const indexPageFile = path.join(
       'src',
-      template === 'app' ? 'app' : 'pages',
-      `${template === 'app' ? 'page' : 'index'}.${mode === 'ts' ? 'tsx' : 'js'}`
+      isAppTemplate ? 'app' : 'pages',
+      `${isAppTemplate ? 'page' : 'index'}.${mode === 'ts' ? 'tsx' : 'js'}`
     )
+
     await fs.promises.writeFile(
       indexPageFile,
       (
         await fs.promises.readFile(indexPageFile, 'utf8')
       ).replace(
-        template === 'app' ? 'app/page' : 'pages/index',
-        template === 'app' ? 'src/app/page' : 'src/pages/index'
+        isAppTemplate ? 'app/page' : 'pages/index',
+        isAppTemplate ? 'src/app/page' : 'src/pages/index'
       )
     )
-  }
 
-  if (!eslint) {
-    // remove un-necessary template file if eslint is not desired
-    await fs.promises.unlink(path.join(root, '.eslintrc.json'))
+    if (tailwind) {
+      const tailwindConfigFile = path.join(root, 'tailwind.config.js')
+      await fs.promises.writeFile(
+        tailwindConfigFile,
+        (
+          await fs.promises.readFile(tailwindConfigFile, 'utf8')
+        ).replace(
+          /\.\/(\w+)\/\*\*\/\*\.\{js,ts,jsx,tsx,mdx\}/g,
+          './src/$1/**/*.{js,ts,jsx,tsx,mdx}'
+        )
+      )
+    }
   }
 
   /**
@@ -154,6 +172,7 @@ export const installTemplate = async ({
       lint: 'next lint',
     },
   }
+
   /**
    * Write it to disk.
    */
@@ -161,11 +180,13 @@ export const installTemplate = async ({
     path.join(root, 'package.json'),
     JSON.stringify(packageJson, null, 2) + os.EOL
   )
+
   /**
    * These flags will be passed to `install()`, which calls the package manager
    * install process.
    */
   const installFlags = { packageManager, isOnline }
+
   /**
    * Default dependencies.
    */
@@ -178,6 +199,7 @@ export const installTemplate = async ({
         : ''
     }`,
   ]
+
   /**
    * TypeScript projects will have type definitions and other devDependencies.
    */
@@ -188,6 +210,13 @@ export const installTemplate = async ({
       '@types/node',
       '@types/react-dom'
     )
+  }
+
+  /**
+   * Add Tailwind CSS dependencies.
+   */
+  if (tailwind) {
+    dependencies.push('tailwindcss', 'postcss', 'autoprefixer')
   }
 
   /**

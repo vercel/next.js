@@ -74,6 +74,9 @@ export const isDefaultFunctionExport = (
   return false
 }
 
+export const isInsideApp = (filePath: string) => {
+  return appDirRegExp.test(filePath)
+}
 export const isAppEntryFile = (filePath: string) => {
   return (
     appDirRegExp.test(filePath) &&

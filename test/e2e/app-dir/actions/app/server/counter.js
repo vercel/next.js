@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 
-export default function Counter({ inc, dec }) {
+export default function Counter({ inc, dec, double }) {
   const [count, setCount] = useState(0)
 
   return (
@@ -25,6 +25,15 @@ export default function Counter({ inc, dec }) {
         }}
       >
         -1
+      </button>
+      <button
+        id="double"
+        onClick={async () => {
+          const newCount = await double(count)
+          setCount(newCount)
+        }}
+      >
+        *2
       </button>
     </div>
   )

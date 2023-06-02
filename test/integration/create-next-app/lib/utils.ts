@@ -135,14 +135,17 @@ export const shouldBeTemplateProject = ({
     files: getProjectSetting({ template, mode, setting: 'files', srcDir }),
   })
 
-  projectFilesShouldNotExist({
-    cwd,
-    projectName,
-    files: mapSrcFiles(
-      projectSpecification[template][mode === 'js' ? 'ts' : 'js'].files,
-      srcDir
-    ),
-  })
+  // Tailwind templates share the same files (tailwind.config.js, postcss.config.js)
+  if (template !== 'app-tw' && template !== 'default-tw') {
+    projectFilesShouldNotExist({
+      cwd,
+      projectName,
+      files: mapSrcFiles(
+        projectSpecification[template][mode === 'js' ? 'ts' : 'js'].files,
+        srcDir
+      ),
+    })
+  }
 
   projectDepsShouldBe({
     type: 'dependencies',

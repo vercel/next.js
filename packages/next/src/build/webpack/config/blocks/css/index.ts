@@ -158,7 +158,17 @@ export const css = curry(async function css(
         // Source maps are required so that `resolve-url-loader` can locate
         // files original to their source directory.
         sourceMap: true,
-        sassOptions,
+        sassOptions: {
+          // The "fibers" option is not needed for Node.js 16+, but it's causing
+          // problems for Node.js <= 14 users as you'll have to manually install
+          // the `fibers` package:
+          // https://github.com/webpack-contrib/sass-loader#:~:text=We%20automatically%20inject%20the%20fibers%20package
+          // https://github.com/vercel/next.js/issues/45052
+          // Since it's optional and not required, we'll disable it by default
+          // to avoid the confusion.
+          fibers: false,
+          ...sassOptions,
+        },
         additionalData: sassPrependData || sassAdditionalData,
       },
     },
@@ -186,50 +196,28 @@ export const css = curry(async function css(
   const localLoader = require.resolve(
     'next/dist/compiled/@next/font/local/loader'
   )
-  const googleLoaderOptions =
-    ctx.experimental?.fontLoaders?.find(
-      (loaderConfig) =>
-        loaderConfig.loader === '@next/font/google' ||
-        loaderConfig.loader === 'next/font/google'
-    )?.options ?? {}
-  const fontLoaders: Array<[string | RegExp, string, any?]> = [
-    [
-      require.resolve('next/font/google/target.css'),
-      googleLoader,
-      googleLoaderOptions,
-    ],
+  const nextFontLoaders: Array<[string | RegExp, string, any?]> = [
+    [require.resolve('next/font/google/target.css'), googleLoader],
     [require.resolve('next/font/local/target.css'), localLoader],
-
     // TODO: remove this in the next major version
-    [
-      /node_modules[\\/]@next[\\/]font[\\/]google[\\/]target.css/,
-      googleLoader,
-      googleLoaderOptions,
-    ],
+    [/node_modules[\\/]@next[\\/]font[\\/]google[\\/]target.css/, googleLoader],
     [/node_modules[\\/]@next[\\/]font[\\/]local[\\/]target.css/, localLoader],
   ]
 
-  fontLoaders.forEach(
-    ([fontLoaderTarget, fontLoaderPath, fontLoaderOptions]) => {
-      // Matches the resolved font loaders noop files to run next-font-loader
-      fns.push(
-        loader({
-          oneOf: [
-            markRemovable({
-              sideEffects: false,
-              test: fontLoaderTarget,
-              use: getNextFontLoader(
-                ctx,
-                lazyPostCSSInitializer,
-                fontLoaderPath,
-                fontLoaderOptions
-              ),
-            }),
-          ],
-        })
-      )
-    }
-  )
+  nextFontLoaders.forEach(([fontLoaderTarget, fontLoaderPath]) => {
+    // Matches the resolved font loaders noop files to run next-font-loader
+    fns.push(
+      loader({
+        oneOf: [
+          markRemovable({
+            sideEffects: false,
+            test: fontLoaderTarget,
+            use: getNextFontLoader(ctx, lazyPostCSSInitializer, fontLoaderPath),
+          }),
+        ],
+      })
+    )
+  })
 
   // CSS cannot be imported in _document. This comes before everything because
   // global CSS nor CSS modules work in said file.

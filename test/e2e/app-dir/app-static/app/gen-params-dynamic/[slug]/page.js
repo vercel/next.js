@@ -22,6 +22,9 @@ export default async function page({ params }) {
     {
       method: 'POST',
       body: JSON.stringify({ hello: 'world' }),
+      next: {
+        revalidate: 0,
+      },
     }
   ).then((res) => res.text())
 

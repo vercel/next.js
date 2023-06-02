@@ -1,21 +1,13 @@
 import { FileReader } from './helpers/file-reader/file-reader'
 import { AppPageRouteMatcher } from '../../route-matchers/app-page-route-matcher'
-import { Normalizer } from '../../normalizers/normalizer'
-import { AbsoluteFilenameNormalizer } from '../../normalizers/absolute-filename-normalizer'
-import { Normalizers } from '../../normalizers/normalizers'
-import { wrapNormalizerFn } from '../../normalizers/wrap-normalizer-fn'
-import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
-import { PrefixingNormalizer } from '../../normalizers/prefixing-normalizer'
 import { RouteKind } from '../../route-kind'
 import { FileCacheRouteMatcherProvider } from './file-cache-route-matcher-provider'
 
+import { DevAppNormalizers } from '../../normalizers/built/app'
+
 export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvider<AppPageRouteMatcher> {
   private readonly expression: RegExp
-  private readonly normalizers: {
-    page: Normalizer
-    pathname: Normalizer
-    bundlePath: Normalizer
-  }
+  private readonly normalizers: DevAppNormalizers
 
   constructor(
     appDir: string,
@@ -24,26 +16,11 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
   ) {
     super(appDir, reader)
 
+    this.normalizers = new DevAppNormalizers(appDir, extensions)
+
     // Match any page file that ends with `/page.${extension}` under the app
     // directory.
     this.expression = new RegExp(`[/\\\\]page\\.(?:${extensions.join('|')})$`)
-
-    const pageNormalizer = new AbsoluteFilenameNormalizer(appDir, extensions)
-
-    this.normalizers = {
-      page: pageNormalizer,
-      pathname: new Normalizers([
-        pageNormalizer,
-        // The pathname to match should have the trailing `/page` and other route
-        // group information stripped from it.
-        wrapNormalizerFn(normalizeAppPath),
-      ]),
-      bundlePath: new Normalizers([
-        pageNormalizer,
-        // Prefix the bundle path with `app/`.
-        new PrefixingNormalizer('app'),
-      ]),
-    }
   }
 
   protected async transform(
@@ -55,9 +32,20 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
       string,
       { page: string; pathname: string; bundlePath: string }
     >()
+    const routeFilenames = new Array<string>()
     const appPaths: Record<string, string[]> = {}
     for (const filename of files) {
+      // If the file isn't a match for this matcher, then skip it.
+      if (!this.expression.test(filename)) continue
+
       const page = this.normalizers.page.normalize(filename)
+
+      // Validate that this is not an ignored page.
+      if (page.includes('/_')) continue
+
+      // This is a valid file that we want to create a matcher for.
+      routeFilenames.push(filename)
+
       const pathname = this.normalizers.pathname.normalize(filename)
       const bundlePath = this.normalizers.bundlePath.normalize(filename)
 
@@ -69,10 +57,7 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
     }
 
     const matchers: Array<AppPageRouteMatcher> = []
-    for (const filename of files) {
-      // If the file isn't a match for this matcher, then skip it.
-      if (!this.expression.test(filename)) continue
-
+    for (const filename of routeFilenames) {
       // Grab the cached values (and the appPaths).
       const cached = cache.get(filename)
       if (!cached) {
@@ -91,7 +76,6 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
         })
       )
     }
-
     return matchers
   }
 }

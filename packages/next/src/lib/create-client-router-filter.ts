@@ -5,11 +5,10 @@ import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-
 import { Redirect } from './load-custom-routes'
 import { tryToParsePath } from './try-to-parse-path'
 
-const POTENTIAL_ERROR_RATE = 0.01
-
 export function createClientRouterFilter(
   paths: string[],
-  redirects: Redirect[]
+  redirects: Redirect[],
+  allowedErrorRate?: number
 ): {
   staticFilter: ReturnType<BloomFilter['export']>
   dynamicFilter: ReturnType<BloomFilter['export']>
@@ -56,12 +55,9 @@ export function createClientRouterFilter(
     }
   }
 
-  const staticFilter = BloomFilter.from([...staticPaths], POTENTIAL_ERROR_RATE)
+  const staticFilter = BloomFilter.from([...staticPaths], allowedErrorRate)
 
-  const dynamicFilter = BloomFilter.from(
-    [...dynamicPaths],
-    POTENTIAL_ERROR_RATE
-  )
+  const dynamicFilter = BloomFilter.from([...dynamicPaths], allowedErrorRate)
   const data = {
     staticFilter: staticFilter.export(),
     dynamicFilter: dynamicFilter.export(),

@@ -3,16 +3,42 @@ import { Writable } from 'stream'
 
 type ContentTypeOption = string | undefined
 
+export type RenderResultMetadata = {
+  pageData?: any
+  revalidate?: any
+  staticBailoutInfo?: any
+  assetQueryString?: string
+  isNotFound?: boolean
+  isRedirect?: boolean
+}
+
 export default class RenderResult {
-  private _result: string | ReadableStream<Uint8Array>
+  private _result: string | ReadableStream<Uint8Array> | null
   private _contentType: ContentTypeOption
 
+  // Extra render result meta fields
+  private _metadata: RenderResultMetadata
+
   constructor(
-    response: string | ReadableStream<Uint8Array>,
-    { contentType }: { contentType?: ContentTypeOption } = {}
+    response: string | ReadableStream<Uint8Array> | null,
+    {
+      contentType,
+      ...metadata
+    }: {
+      contentType?: ContentTypeOption
+    } & RenderResultMetadata = {}
   ) {
     this._result = response
     this._contentType = contentType
+    this._metadata = metadata
+  }
+
+  metadata() {
+    return this._metadata
+  }
+
+  isNull(): boolean {
+    return this._result === null
   }
 
   contentType(): ContentTypeOption {
@@ -29,6 +55,9 @@ export default class RenderResult {
   }
 
   pipe(res: ServerResponse | Writable): Promise<void> {
+    if (this._result === null) {
+      throw new Error('invariant: response is null. This is a bug in Next.js')
+    }
     if (typeof this._result === 'string') {
       throw new Error(
         'invariant: static responses cannot be piped. This is a bug in Next.js'
