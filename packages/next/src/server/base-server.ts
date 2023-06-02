@@ -1744,6 +1744,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
         supportsDynamicHTML,
         isOnDemandRevalidate,
+        isDraftMode: isPreviewMode,
       }
 
       const renderResult = await this.renderHTML(
