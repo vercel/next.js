@@ -25,6 +25,15 @@ export function Meta({
   return null
 }
 
+export function MetaFilter<T extends {} | {}[]>(
+  items: (T | null)[]
+): NonNullable<T>[] {
+  return items.filter(
+    (item): item is NonNullable<T> =>
+      nonNullable(item) && !(Array.isArray(item) && item.length === 0)
+  )
+}
+
 type ExtendMetaContent = Record<
   string,
   undefined | string | URL | number | boolean | null | undefined
@@ -111,14 +120,5 @@ export function MultiMeta({
         })
       }
     })
-  )
-}
-
-export function MetaFilter<T extends {} | {}[]>(
-  items: (T | null)[]
-): NonNullable<T>[] {
-  return items.filter(
-    (item): item is NonNullable<T> =>
-      nonNullable(item) && !(Array.isArray(item) && item.length === 0)
   )
 }
