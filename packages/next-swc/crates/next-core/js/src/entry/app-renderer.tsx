@@ -191,9 +191,6 @@ async function runOperation(renderData: RenderData) {
         if (prop === 'clientModules') {
           return clientModulesProxy
         }
-        if (prop === 'cssFiles') {
-          return new Proxy({} as any, cssFilesProxyMethods)
-        }
       },
     }
   }
@@ -218,13 +215,6 @@ async function runOperation(renderData: RenderData) {
       }
       return needed
     }
-  }
-  const cssFilesProxyMethods = {
-    get(_target: any, prop: string) {
-      const cssChunks = JSON.parse(prop)
-      // TODO(WEB-856) subscribe to changes
-      return cssChunks.map(toPath)
-    },
   }
   const cssImportProxyMethods = {
     get(_target: any, prop: string) {

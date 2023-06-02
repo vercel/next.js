@@ -493,6 +493,7 @@ export default async function exportApp(
           }
         : {}),
       strictNextHead: !!nextConfig.experimental.strictNextHead,
+      deploymentId: nextConfig.experimental.deploymentId,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig

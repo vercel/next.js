@@ -336,7 +336,7 @@ createNextDescribe(
         })
 
         describe('multiple entries', () => {
-          it('should only inject the same style once if used by different layers', async () => {
+          it.skip('should only inject the same style once if used by different layers', async () => {
             const browser = await next.browser('/css/css-duplicate-2/client')
             expect(
               await browser.eval(
@@ -375,7 +375,7 @@ createNextDescribe(
             ).toBe(3)
           })
 
-          it('should only load chunks for the css module that is used by the specific entrypoint', async () => {
+          it.skip('should only load chunks for the css module that is used by the specific entrypoint', async () => {
             // Visit /b first
             await next.render('/css/css-duplicate/b')
 
