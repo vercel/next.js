@@ -4,7 +4,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "cross-env MONGODB_URI=localhost:27017 next build",
-    "start": "next start"
+    "start": "next start",
+    "lint:prettier": "prettier -c . --cache --ignore-path=../../../../.prettier-ignore"
   },
   "dependencies": {
     "mongoose": "^6.4.5",
