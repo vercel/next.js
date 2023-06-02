@@ -1659,6 +1659,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
         supportsDynamicHTML,
         isOnDemandRevalidate,
+        isDraftMode: isPreviewMode,
       }
 
       // Legacy render methods will return a render result that needs to be
