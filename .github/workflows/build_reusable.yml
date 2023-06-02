@@ -84,7 +84,7 @@ jobs:
       - run: node scripts/normalize-version-bump.js
         name: normalize versions
 
-      - run: turbo run build-native-release --summarize true -- --target x86_64-unknown-linux-gnu
+      - run: turbo run build-native-release --summarize -- --target x86_64-unknown-linux-gnu
 
       # undo normalize version changes for install/build
       - run: git checkout .
