@@ -75,6 +75,226 @@ jobs:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
 
+  # Build binaries for publishing
+  build-native:
+    strategy:
+      fail-fast: false
+      matrix:
+        settings:
+          # pnpm is aliased here temporarily until the build docker
+          # image is updated past Node.js v14.19 (current 14.18.1)
+          - host: macos-latest
+            target: 'x86_64-apple-darwin'
+            build: |
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
+              turbo run build-native-release --summarize -- --target x86_64-apple-darwin --release
+              strip -x packages/next-swc/native/next-swc.*.node
+          - host: windows-latest
+            build: |
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
+              turbo run build-native-release --summarize -- --target x86_64-pc-windows-msvc
+            target: 'x86_64-pc-windows-msvc'
+          - host: windows-latest
+            build: |
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
+              turbo run build-native-no-plugin -- --release --target i686-pc-windows-msvc
+            target: 'i686-pc-windows-msvc'
+          - host: ubuntu-latest
+            target: 'x86_64-unknown-linux-gnu'
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-x64
+            build: >-
+              set -e &&
+              rustup toolchain install "${RUST_TOOLCHAIN}" &&
+              rustup default "${RUST_TOOLCHAIN}" &&
+              rustup target add x86_64-unknown-linux-gnu &&
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
+              unset CC_x86_64_unknown_linux_gnu && unset CC &&
+              turbo run build-native-release --summarize -- --target x86_64-unknown-linux-gnu &&
+              strip packages/next-swc/native/next-swc.*.node
+          - host: ubuntu-latest
+            target: 'x86_64-unknown-linux-musl'
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-alpine
+            build: >-
+              set -e &&
+              apk add --no-cache libc6-compat &&
+              rustup toolchain install "${RUST_TOOLCHAIN}" &&
+              rustup default "${RUST_TOOLCHAIN}" &&
+              rustup target add x86_64-unknown-linux-musl &&
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
+              turbo run build-native-release --summarize -- --target x86_64-unknown-linux-musl &&
+              strip packages/next-swc/native/next-swc.*.node
+          - host: macos-latest
+            target: 'aarch64-apple-darwin'
+            build: |
+              sudo rm -Rf /Library/Developer/CommandLineTools/SDKs/*;
+              export CC=$(xcrun -f clang);
+              export CXX=$(xcrun -f clang++);
+              SYSROOT=$(xcrun --sdk macosx --show-sdk-path);
+              export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
+              turbo run build-native-release --summarize -- --target aarch64-apple-darwin
+              strip -x packages/next-swc/native/next-swc.*.node
+          - host: ubuntu-latest
+            target: 'aarch64-unknown-linux-gnu'
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-aarch64
+            build: >-
+              set -e &&
+              export JEMALLOC_SYS_WITH_LG_PAGE=16 &&
+              rustup toolchain install "${RUST_TOOLCHAIN}" &&
+              rustup default "${RUST_TOOLCHAIN}" &&
+              rustup target add aarch64-unknown-linux-gnu &&
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
+              export CC_aarch64_unknown_linux_gnu=/usr/aarch64-unknown-linux-gnu/bin/aarch64-unknown-linux-gnu-gcc &&
+              turbo run build-native-release --summarize -- --target aarch64-unknown-linux-gnu &&
+              llvm-strip -x packages/next-swc/native/next-swc.*.node
+          - host: ubuntu-latest
+            target: 'aarch64-unknown-linux-musl'
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-alpine
+            build: >-
+              set -e &&
+              apk add --no-cache libc6-compat &&
+              export JEMALLOC_SYS_WITH_LG_PAGE=16 &&
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
+              rustup toolchain install "${RUST_TOOLCHAIN}" &&
+              rustup default "${RUST_TOOLCHAIN}" &&
+              rustup target add aarch64-unknown-linux-musl &&
+              turbo run build-native-release --summarize -- --target aarch64-unknown-linux-musl &&
+              llvm-strip -x packages/next-swc/native/next-swc.*.node
+          - host: windows-latest
+            target: 'aarch64-pc-windows-msvc'
+            build: |
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
+              turbo run build-native-no-plugin-woa-release -- --target aarch64-pc-windows-msvc
+    needs: build
+    name: stable - ${{ matrix.settings.target }} - node@16
+    runs-on: ${{ matrix.settings.host }}
+    env:
+      TURBO_TEAM: 'vercel'
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      TURBO_REMOTE_ONLY: 'true'
+    steps:
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+        if: ${{ matrix.settings.host == 'ubuntu-latest' }}
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+        if: ${{ matrix.settings.host == 'ubuntu-latest' }}
+      - name: tune windows network
+        run: Disable-NetAdapterChecksumOffload -Name * -TcpIPv4 -UdpIPv4 -TcpIPv6 -UdpIPv6
+        if: ${{ matrix.settings.host == 'windows-latest' }}
+      - name: tune mac network
+        run: sudo sysctl -w net.link.generic.system.hwcksum_tx=0 && sudo sysctl -w net.link.generic.system.hwcksum_rx=0
+        if: ${{ matrix.settings.host == 'macos-latest' }}
+      # we use checkout here instead of the build cache since
+      # it can fail to restore in different OS'
+      - uses: actions/checkout@v3
+
+      - name: Setup node
+        uses: actions/setup-node@v3
+        if: ${{ !matrix.settings.docker }}
+        with:
+          node-version: ${{ env.NODE_LTS_VERSION }}
+          check-latest: true
+
+      - name: Install
+        uses: actions-rs/toolchain@v1
+        if: ${{ !matrix.settings.docker }}
+        with:
+          profile: minimal
+          override: true
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          target: ${{ matrix.settings.target }}
+
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        timeout-minutes: 5
+        with:
+          path: ~/.cargo/registry
+          key: ${{ matrix.settings.target }}-cargo-registry
+
+      - name: Cache cargo index
+        uses: actions/cache@v3
+        timeout-minutes: 5
+        with:
+          path: ~/.cargo/git
+          key: ${{ matrix.settings.target }}-cargo-index
+
+      - name: normalize versions
+        run: node scripts/normalize-version-bump.js
+
+      - name: Setup toolchain
+        run: ${{ matrix.settings.setup }}
+        if: ${{ matrix.settings.setup }}
+        shell: bash
+
+      - name: Build in docker
+        uses: addnab/docker-run-action@v3
+        if: ${{ matrix.settings.docker }}
+        with:
+          image: ${{ matrix.settings.docker }}
+          options: -e RUST_TOOLCHAIN=${{ env.RUST_TOOLCHAIN }} -e NAPI_CLI_VERSION=${{ env.NAPI_CLI_VERSION }} -e TURBO_VERSION=${{ env.TURBO_VERSION }} -e TURBO_TEAM=vercel -e TURBO_TOKEN=${{ secrets.TURBO_TOKEN }} -e TURBO_REMOTE_ONLY=true -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry -v ${{ github.workspace }}:/build -w /build
+          run: ${{ matrix.settings.build }}
+
+      - name: 'Build'
+        run: ${{ matrix.settings.build }}
+        if: ${{ !matrix.settings.docker }}
+        shell: bash
+
+      - name: Upload artifact
+        if: ${{ needs.build.outputs.isRelease == 'true' }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: next-swc-binaries
+          path: packages/next-swc/native/next-swc.*.node
+
+  build-wasm:
+    needs: build
+    strategy:
+      matrix:
+        target: [web, nodejs]
+    runs-on: macos-latest
+    env:
+      TURBO_TEAM: 'vercel'
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      TURBO_REMOTE_ONLY: 'true'
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup node
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_LTS_VERSION }}
+          check-latest: true
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          override: true
+          target: wasm32-unknown-unknown
+
+      - run: npm i -g turbo@${{ env.TURBO_VERSION }} pnpm@${PNPM_VERSION}
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: normalize versions
+        run: node scripts/normalize-version-bump.js
+
+      - name: Build
+        run: turbo run build-wasm -- --target ${{ matrix.target }} --features tracing/release_max_level_info
+
+      - name: Add target to folder name
+        run: '[[ -d "packages/next-swc/crates/wasm/pkg" ]] && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-${{ matrix.target }} || ls packages/next-swc/crates/wasm'
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: wasm-binaries
+          path: packages/next-swc/crates/wasm/pkg-*
+
   publishRelease:
     if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: Potentially publish release
@@ -164,7 +384,10 @@ jobs:
 
       - run: npm i -g vercel@latest
 
-      - run: mkdir -p packages/next-swc/native && node scripts/install-native.mjs && cp node_modules/@next/swc-*/* packages/next-swc/native
+      - uses: actions/download-artifact@v3
+        with:
+          name: next-swc-binaries
+          path: packages/next-swc/native
 
       - run: RESET_VC_PROJECT=true node scripts/reset-vercel-project.mjs
         name: Reset test project
@@ -200,231 +423,12 @@ jobs:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
 
-      - run: mkdir -p packages/next-swc/native && node scripts/install-native.mjs && cp node_modules/@next/swc-*/* packages/next-swc/native
+      - uses: actions/download-artifact@v3
+        with:
+          name: next-swc-binaries
+          path: packages/next-swc/native
 
       - run: ./scripts/release-stats.sh
       - uses: ./.github/actions/next-stats-action
         env:
           PR_STATS_COMMENT_TOKEN: ${{ secrets.PR_STATS_COMMENT_TOKEN }}
-
-  # Build binaries for publishing
-  build-native:
-    strategy:
-      fail-fast: false
-      matrix:
-        settings:
-          # pnpm is aliased here temporarily until the build docker
-          # image is updated past Node.js v14.19 (current 14.18.1)
-          - host: macos-latest
-            target: 'x86_64-apple-darwin'
-            build: |
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
-              turbo run build-native-release -- --target x86_64-apple-darwin --release
-              strip -x packages/next-swc/native/next-swc.*.node
-          - host: windows-latest
-            build: |
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
-              turbo run build-native-release -- --target x86_64-pc-windows-msvc
-            target: 'x86_64-pc-windows-msvc'
-          - host: windows-latest
-            build: |
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
-              turbo run build-native-no-plugin -- --release --target i686-pc-windows-msvc
-            target: 'i686-pc-windows-msvc'
-          - host: ubuntu-latest
-            target: 'x86_64-unknown-linux-gnu'
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-x64
-            build: >-
-              set -e &&
-              rustup toolchain install "${RUST_TOOLCHAIN}" &&
-              rustup default "${RUST_TOOLCHAIN}" &&
-              rustup target add x86_64-unknown-linux-gnu &&
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
-              unset CC_x86_64_unknown_linux_gnu && unset CC &&
-              turbo run build-native-release -- --target x86_64-unknown-linux-gnu &&
-              strip packages/next-swc/native/next-swc.*.node
-          - host: ubuntu-latest
-            target: 'x86_64-unknown-linux-musl'
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-alpine
-            build: >-
-              set -e &&
-              apk add --no-cache libc6-compat &&
-              rustup toolchain install "${RUST_TOOLCHAIN}" &&
-              rustup default "${RUST_TOOLCHAIN}" &&
-              rustup target add x86_64-unknown-linux-musl &&
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
-              turbo run build-native-release -- --target x86_64-unknown-linux-musl &&
-              strip packages/next-swc/native/next-swc.*.node
-          - host: macos-latest
-            target: 'aarch64-apple-darwin'
-            build: |
-              sudo rm -Rf /Library/Developer/CommandLineTools/SDKs/*;
-              export CC=$(xcrun -f clang);
-              export CXX=$(xcrun -f clang++);
-              SYSROOT=$(xcrun --sdk macosx --show-sdk-path);
-              export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
-              turbo run build-native-release -- --target aarch64-apple-darwin
-              strip -x packages/next-swc/native/next-swc.*.node
-          - host: ubuntu-latest
-            target: 'aarch64-unknown-linux-gnu'
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-aarch64
-            build: >-
-              set -e &&
-              export JEMALLOC_SYS_WITH_LG_PAGE=16 &&
-              rustup toolchain install "${RUST_TOOLCHAIN}" &&
-              rustup default "${RUST_TOOLCHAIN}" &&
-              rustup target add aarch64-unknown-linux-gnu &&
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
-              export CC_aarch64_unknown_linux_gnu=/usr/aarch64-unknown-linux-gnu/bin/aarch64-unknown-linux-gnu-gcc &&
-              turbo run build-native-release -- --target aarch64-unknown-linux-gnu &&
-              llvm-strip -x packages/next-swc/native/next-swc.*.node
-          - host: ubuntu-latest
-            target: 'aarch64-unknown-linux-musl'
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-alpine
-            build: >-
-              set -e &&
-              apk add --no-cache libc6-compat &&
-              export JEMALLOC_SYS_WITH_LG_PAGE=16 &&
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
-              rustup toolchain install "${RUST_TOOLCHAIN}" &&
-              rustup default "${RUST_TOOLCHAIN}" &&
-              rustup target add aarch64-unknown-linux-musl &&
-              turbo run build-native-release -- --target aarch64-unknown-linux-musl &&
-              llvm-strip -x packages/next-swc/native/next-swc.*.node
-          - host: windows-latest
-            target: 'aarch64-pc-windows-msvc'
-            build: |
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
-              turbo run build-native-no-plugin-woa-release -- --target aarch64-pc-windows-msvc
-    if: ${{ needs.build.outputs.isRelease == 'true' }}
-    needs: build
-    name: stable - ${{ matrix.settings.target }} - node@16
-    runs-on: ${{ matrix.settings.host }}
-    env:
-      TURBO_TEAM: 'vercel'
-      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-      TURBO_REMOTE_ONLY: 'true'
-    steps:
-      # https://github.com/actions/virtual-environments/issues/1187
-      - name: tune linux network
-        run: sudo ethtool -K eth0 tx off rx off
-        if: ${{ matrix.settings.host == 'ubuntu-latest' }}
-      - name: tune linux network
-        run: sudo ethtool -K eth0 tx off rx off
-        if: ${{ matrix.settings.host == 'ubuntu-latest' }}
-      - name: tune windows network
-        run: Disable-NetAdapterChecksumOffload -Name * -TcpIPv4 -UdpIPv4 -TcpIPv6 -UdpIPv6
-        if: ${{ matrix.settings.host == 'windows-latest' }}
-      - name: tune mac network
-        run: sudo sysctl -w net.link.generic.system.hwcksum_tx=0 && sudo sysctl -w net.link.generic.system.hwcksum_rx=0
-        if: ${{ matrix.settings.host == 'macos-latest' }}
-      # we use checkout here instead of the build cache since
-      # it can fail to restore in different OS'
-      - uses: actions/checkout@v3
-
-      - name: Setup node
-        uses: actions/setup-node@v3
-        if: ${{ !matrix.settings.docker }}
-        with:
-          node-version: ${{ env.NODE_LTS_VERSION }}
-          check-latest: true
-
-      - name: Install
-        uses: actions-rs/toolchain@v1
-        if: ${{ !matrix.settings.docker }}
-        with:
-          profile: minimal
-          override: true
-          toolchain: ${{ env.RUST_TOOLCHAIN }}
-          target: ${{ matrix.settings.target }}
-
-      - name: Cache cargo registry
-        uses: actions/cache@v3
-        timeout-minutes: 5
-        with:
-          path: ~/.cargo/registry
-          key: ${{ matrix.settings.target }}-cargo-registry
-
-      - name: Cache cargo index
-        uses: actions/cache@v3
-        timeout-minutes: 5
-        with:
-          path: ~/.cargo/git
-          key: ${{ matrix.settings.target }}-cargo-index
-
-      - name: normalize versions
-        run: node scripts/normalize-version-bump.js
-
-      - name: Setup toolchain
-        run: ${{ matrix.settings.setup }}
-        if: ${{ matrix.settings.setup }}
-        shell: bash
-
-      - name: Build in docker
-        uses: addnab/docker-run-action@v3
-        if: ${{ matrix.settings.docker }}
-        with:
-          image: ${{ matrix.settings.docker }}
-          options: -e RUST_TOOLCHAIN=${{ env.RUST_TOOLCHAIN }} -e NAPI_CLI_VERSION=${{ env.NAPI_CLI_VERSION }} -e TURBO_VERSION=${{ env.TURBO_VERSION }} -e TURBO_TEAM=vercel -e TURBO_TOKEN=${{ secrets.TURBO_TOKEN }} -e TURBO_REMOTE_ONLY=true -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry -v ${{ github.workspace }}:/build -w /build
-          run: ${{ matrix.settings.build }}
-
-      - name: 'Build'
-        run: ${{ matrix.settings.build }}
-        if: ${{ !matrix.settings.docker }}
-        shell: bash
-
-      - name: Upload artifact
-        if: ${{ needs.build.outputs.isRelease == 'true' }}
-        uses: actions/upload-artifact@v3
-        with:
-          name: next-swc-binaries
-          path: packages/next-swc/native/next-swc.*.node
-
-  build-wasm:
-    needs: build
-    if: ${{ needs.build.outputs.isRelease == 'true' }}
-    strategy:
-      matrix:
-        target: [web, nodejs]
-    runs-on: macos-latest
-    env:
-      TURBO_TEAM: 'vercel'
-      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-      TURBO_REMOTE_ONLY: 'true'
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Setup node
-        uses: actions/setup-node@v3
-        with:
-          node-version: ${{ env.NODE_LTS_VERSION }}
-          check-latest: true
-
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: ${{ env.RUST_TOOLCHAIN }}
-          override: true
-          target: wasm32-unknown-unknown
-
-      - run: npm i -g turbo@${{ env.TURBO_VERSION }} pnpm@${PNPM_VERSION}
-
-      - name: Install wasm-pack
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-
-      - name: normalize versions
-        run: node scripts/normalize-version-bump.js
-
-      - name: Build
-        run: turbo run build-wasm -- --target ${{ matrix.target }} --features tracing/release_max_level_info
-
-      - name: Add target to folder name
-        run: '[[ -d "packages/next-swc/crates/wasm/pkg" ]] && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-${{ matrix.target }} || ls packages/next-swc/crates/wasm'
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: wasm-binaries
-          path: packages/next-swc/crates/wasm/pkg-*
