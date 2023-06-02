@@ -1,14 +1,10 @@
 import React from 'react'
-import { cookies, draftMode } from 'next/headers'
+import { draftMode } from 'next/headers'
 
 export const runtime = 'experimental-edge'
 
 export default function Page() {
   const { isEnabled } = draftMode()
-  let data: string | undefined
-  if (isEnabled) {
-    data = cookies().get('data')?.value
-  }
 
   return (
     <>
@@ -18,9 +14,6 @@ export default function Page() {
       </p>
       <p>
         State: <strong id="mode">{isEnabled ? 'ENABLED' : 'DISABLED'}</strong>
-      </p>
-      <p>
-        Data: <em id="data">{data}</em>
       </p>
     </>
   )
