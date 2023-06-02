@@ -10,6 +10,7 @@ autobenches = false
 bench = false
 
 [features]
+# [NOTE]: Before enable this, ensure this can build all of the target platforms we support.
 avif = ["image/avif-decoder", "image/avif-encoder"]
 webp = ["image/webp", "image/webp-encoder"]
 
@@ -17,6 +18,7 @@ webp = ["image/webp", "image/webp-encoder"]
 anyhow = { workspace = true }
 base64 = "0.21.0"
 image = { workspace = true, default-features = false, features = [
+  "gif",
   "png",
   "jpeg",
   "ico",
