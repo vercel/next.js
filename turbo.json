@@ -37,6 +37,12 @@
       "dependsOn": ["^dev"],
       "outputs": ["dist/**"]
     },
-    "typescript": {}
+    "typescript": {},
+    "rust-check": {},
+    "test-cargo-unit": {},
+    "//#get-test-timings": {
+      "inputs": ["run-tests.js"],
+      "outputs": ["test-timings.json"]
+    }
   }
 }

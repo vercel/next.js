@@ -144,6 +144,8 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  useDeploymentIdServerActions?: boolean
+  deploymentId?: string
   logging?: 'verbose'
   appDocumentPreloading?: boolean
   strictNextHead?: boolean
@@ -168,6 +170,7 @@ export interface ExperimentalConfig {
   swcMinify?: boolean
   swcFileReading?: boolean
   cpus?: number
+  memoryBasedWorkersCount?: boolean
   sharedPool?: boolean
   proxyTimeout?: number
   isrFlushToDisk?: boolean
@@ -659,7 +662,9 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
-    appDocumentPreloading: true,
+    useDeploymentIdServerActions: false,
+    deploymentId: process.env.NEXT_DEPLOYMENT_ID || '',
+    appDocumentPreloading: undefined,
     clientRouterFilter: false,
     clientRouterFilterRedirects: false,
     fetchCacheKeyPrefix: '',
@@ -673,6 +678,7 @@ export const defaultConfig: NextConfig = {
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
+    memoryBasedWorkersCount: false,
     sharedPool: true,
     isrFlushToDisk: true,
     workerThreads: false,

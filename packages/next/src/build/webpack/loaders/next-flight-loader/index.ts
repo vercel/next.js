@@ -57,7 +57,7 @@ export default async function transformSource(
       if (clientRefs.includes('*')) {
         return callback(
           new Error(
-            `It's currently unsupport to use "export *" in a client boundary. Please use named exports instead.`
+            `It's currently unsupported to use "export *" in a client boundary. Please use named exports instead.`
           )
         )
       }
@@ -70,17 +70,21 @@ const proxy = createProxy(String.raw\`${this.resourcePath}\`)
 // The __esModule getter forces the proxy target to create the default export
 // and the $$typeof value is for rendering logic to determine if the module
 // is a client boundary.
-export const { __esModule, $$typeof } = proxy;
-export default proxy.default;
+const { __esModule, $$typeof } = proxy;
+const __default__ = proxy.default;
 `
       let cnt = 0
       for (const ref of clientRefs) {
-        if (ref !== '' && ref !== 'default') {
+        if (ref === '') {
+          esmSource += `\nexports[''] = proxy[''];`
+        } else if (ref === 'default') {
+          esmSource += `
+export { __esModule, $$typeof };
+export default __default__;`
+        } else {
           esmSource += `
 const e${cnt} = proxy["${ref}"];
 export { e${cnt++} as ${ref} };`
-        } else if (ref === '') {
-          esmSource += `\nexports[''] = proxy[''];`
         }
       }
 

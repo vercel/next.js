@@ -11,11 +11,13 @@ export const createServerHandler = async ({
   port,
   hostname,
   dir,
+  dev = false,
   minimalMode,
 }: {
   port: number
   hostname: string
   dir: string
+  dev?: boolean
   minimalMode: boolean
 }) => {
   const routerWorker = new Worker(renderServerPath, {
@@ -60,10 +62,11 @@ export const createServerHandler = async ({
   const { port: routerPort } = await routerWorker.initialize({
     dir,
     port,
-    dev: false,
+    dev,
     hostname,
     minimalMode,
     workerType: 'router',
+    isNodeDebugging: false,
   })
   didInitialize = true
 

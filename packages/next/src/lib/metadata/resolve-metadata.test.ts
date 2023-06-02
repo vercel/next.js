@@ -126,7 +126,6 @@ describe('accumulateMetadata', () => {
         [{ themeColor: '#fff' }, null],
       ]
       const metadata = await accumulateMetadata(metadataItems)
-      console.log('xxmetadata', metadata.themeColor)
       expect(metadata).toMatchObject({
         themeColor: [{ color: '#fff' }],
       })
