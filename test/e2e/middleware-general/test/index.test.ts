@@ -138,11 +138,6 @@ describe('Middleware Runtime', () => {
         )
         expect(manifest.middleware).toEqual({
           '/': {
-            env: [
-              'MIDDLEWARE_TEST',
-              'ANOTHER_MIDDLEWARE_TEST',
-              'STRING_ENV_VAR',
-            ],
             files: expect.arrayContaining([
               'server/edge-runtime-webpack.js',
               'server/middleware.js',
@@ -164,7 +159,7 @@ describe('Middleware Runtime', () => {
 
         expect(manifest.functions['/api/edge-search-params']).toHaveProperty(
           'regions',
-          'default'
+          'auto'
         )
       })
 
@@ -481,10 +476,9 @@ describe('Middleware Runtime', () => {
       })
     }
 
-    it('should contain process polyfill', async () => {
+    it('allows to access env variables', async () => {
       const res = await fetchViaHTTP(next.url, `/global`)
       const json = readMiddlewareJSON(res)
-      delete json.process.env['JEST_WORKER_ID']
 
       for (const [key, value] of Object.entries({
         ANOTHER_MIDDLEWARE_TEST: 'asdf2',

@@ -11,7 +11,7 @@ Import trace for requested module:
 `;
 
 exports[`ReactRefreshLogBox app default Import trace when module not found in layout 1`] = `
-"./app/module.js:1:0
+"./app/module.js (1:0)
 Module not found: Can't resolve 'non-existing-module'
 > 1 | import \\"non-existing-module\\"
 
@@ -53,7 +53,7 @@ exports[`ReactRefreshLogBox app default conversion to class component (1) 1`] = 
 `;
 
 exports[`ReactRefreshLogBox app default css syntax errors 1`] = `
-"./index.module.css:1:1
+"./index.module.css (1:1)
 Syntax error: Selector \\"button\\" is not pure (pure selectors must contain at least one local class or id)
 
 > 1 | button {}
@@ -98,33 +98,4 @@ exports[`ReactRefreshLogBox app default should strip whitespace correctly with n
   10 | }}>
   11 |   click me
   12 | </a>"
-`;
-
-exports[`ReactRefreshLogBox app default unterminated JSX 1`] = `
-"./index.js
-Error: 
-  x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
-   ,-[5:1]
- 5 |               <p>lol</p>
- 6 |             div
- 7 |           )
- 8 |         }
-   :         ^
- 9 |       
-   \`----
-
-  x Unexpected eof
-   ,-[6:1]
- 6 |             div
- 7 |           )
- 8 |         }
- 9 |       
-   \`----
-
-Caused by:
-    Syntax Error
-
-Import trace for requested module:
-./index.js
-./app/page.js"
 `;

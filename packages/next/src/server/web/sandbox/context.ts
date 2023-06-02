@@ -91,10 +91,8 @@ async function loadWasm(
   return modules
 }
 
-function buildEnvironmentVariablesFrom(
-  keys: string[]
-): Record<string, string | undefined> {
-  const pairs = keys.map((key) => [key, process.env[key]])
+function buildEnvironmentVariablesFrom(): Record<string, string | undefined> {
+  const pairs = Object.keys(process.env).map((key) => [key, process.env[key]])
   const env = Object.fromEntries(pairs)
   env.NEXT_RUNTIME = 'edge'
   return env
@@ -108,16 +106,14 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
   throw error
 }
 
-function createProcessPolyfill(options: Pick<ModuleContextOptions, 'env'>) {
-  const env = buildEnvironmentVariablesFrom(options.env)
-
-  const processPolyfill = { env }
+function createProcessPolyfill() {
+  const processPolyfill = { env: buildEnvironmentVariablesFrom() }
   const overridenValue: Record<string, any> = {}
   for (const key of Object.keys(process)) {
     if (key === 'env') continue
     Object.defineProperty(processPolyfill, key, {
       get() {
-        if (overridenValue[key]) {
+        if (overridenValue[key] !== undefined) {
           return overridenValue[key]
         }
         if (typeof (process as any)[key] === 'function') {
@@ -235,7 +231,8 @@ async function createModuleContext(options: ModuleContextOptions) {
         ? { strings: true, wasm: true }
         : undefined,
     extend: (context) => {
-      context.process = createProcessPolyfill(options)
+      context.WebSocket = require('next/dist/compiled/ws').WebSocket
+      context.process = createProcessPolyfill()
 
       Object.defineProperty(context, 'require', {
         enumerable: false,
@@ -415,7 +412,6 @@ interface ModuleContextOptions {
   moduleName: string
   onWarning: (warn: Error) => void
   useCache: boolean
-  env: string[]
   distDir: string
   edgeFunctionEntry: Pick<EdgeFunctionDefinition, 'assets' | 'wasm'>
 }

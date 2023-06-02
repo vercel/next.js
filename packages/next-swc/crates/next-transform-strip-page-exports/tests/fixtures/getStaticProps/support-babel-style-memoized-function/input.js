@@ -1,10 +1,10 @@
 function fn() {
-  fn = function () {};
-  return fn.apply(this, arguments);
+  fn = function () {}
+  return fn.apply(this, arguments)
 }
 export function getStaticProps() {
-  fn;
+  fn
 }
 export default function Home() {
-  return <div />;
+  return <div />
 }

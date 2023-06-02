@@ -10,6 +10,21 @@ const segmentToPathname = (segment: Segment): string => {
   return segment[1]
 }
 
+function normalizePathname(pathname: string): string {
+  return (
+    pathname.split('/').reduce((acc, segment) => {
+      if (
+        segment === '' ||
+        (segment.startsWith('(') && segment.endsWith(')'))
+      ) {
+        return acc
+      }
+
+      return `${acc}/${segment}`
+    }, '') || '/'
+  )
+}
+
 export function extractPathFromFlightRouterState(
   flightRouterState: FlightRouterState
 ): string | undefined {
@@ -23,7 +38,7 @@ export function extractPathFromFlightRouterState(
   )
     return undefined
 
-  if (segment === '__PAGE__') return ''
+  if (segment.startsWith('__PAGE__')) return ''
 
   const path = [segment]
 
@@ -47,13 +62,11 @@ export function extractPathFromFlightRouterState(
     }
   }
 
-  const finalPath = path.join('/')
-
-  // it'll end up including a trailing slash because of '__PAGE__'
-  return finalPath.endsWith('/') ? finalPath.slice(0, -1) : finalPath
+  // TODO-APP: optimise this, it's not ideal to join and split
+  return normalizePathname(path.join('/'))
 }
 
-export function computeChangedPath(
+function computeChangedPathImpl(
   treeA: FlightRouterState,
   treeB: FlightRouterState
 ): string | null {
@@ -79,7 +92,7 @@ export function computeChangedPath(
 
   for (const parallelRouterKey in parallelRoutesA) {
     if (parallelRoutesB[parallelRouterKey]) {
-      const changedPath = computeChangedPath(
+      const changedPath = computeChangedPathImpl(
         parallelRoutesA[parallelRouterKey],
         parallelRoutesB[parallelRouterKey]
       )
@@ -90,4 +103,18 @@ export function computeChangedPath(
   }
 
   return null
+}
+
+export function computeChangedPath(
+  treeA: FlightRouterState,
+  treeB: FlightRouterState
+): string | null {
+  const changedPath = computeChangedPathImpl(treeA, treeB)
+
+  if (changedPath == null || changedPath === '/') {
+    return changedPath
+  }
+
+  // lightweight normalization to remove route groups
+  return normalizePathname(changedPath)
 }

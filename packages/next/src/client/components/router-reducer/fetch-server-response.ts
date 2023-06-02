@@ -1,6 +1,8 @@
 'use client'
 
-import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack/client'
+// @ts-ignore
+// eslint-disable-next-line import/no-extraneous-dependencies
+import { createFromFetch } from 'react-server-dom-webpack/client'
 import type {
   FlightRouterState,
   FlightData,
@@ -14,6 +16,7 @@ import {
 } from '../app-router-headers'
 import { urlToUrlWithoutFlightMarker } from '../app-router'
 import { callServer } from '../../app-call-server'
+import { PrefetchKind } from './router-reducer-types'
 
 /**
  * Fetch the flight data for the provided url. Takes in the current router state to decide what to render server-side.
@@ -23,7 +26,7 @@ export async function fetchServerResponse(
   url: URL,
   flightRouterState: FlightRouterState,
   nextUrl: string | null,
-  prefetch?: true
+  prefetchKind?: PrefetchKind
 ): Promise<[FlightData: FlightData, canonicalUrlOverride: URL | undefined]> {
   const headers: {
     [RSC]: '1'
@@ -36,8 +39,14 @@ export async function fetchServerResponse(
     // Provide the current router state
     [NEXT_ROUTER_STATE_TREE]: JSON.stringify(flightRouterState),
   }
-  if (prefetch) {
-    // Enable prefetch response
+
+  /**
+   * Three cases:
+   * - `prefetchKind` is `undefined`, it means it's a normal navigation, so we want to prefetch the page data fully
+   * - `prefetchKind` is `full` - we want to prefetch the whole page so same as above
+   * - `prefetchKind` is `auto` - if the page is dynamic, prefetch the page data partially, if static prefetch the page data fully
+   */
+  if (prefetchKind === PrefetchKind.AUTO) {
     headers[NEXT_ROUTER_PREFETCH] = '1'
   }
 
@@ -78,7 +87,8 @@ export async function fetchServerResponse(
     }
 
     // If fetch returns something different than flight response handle it like a mpa navigation
-    if (!isFlightResponse) {
+    // If the fetch was not 200, we also handle it like a mpa navigation
+    if (!isFlightResponse || !res.ok) {
       return [res.url, undefined]
     }
 

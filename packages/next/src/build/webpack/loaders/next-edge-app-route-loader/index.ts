@@ -2,11 +2,13 @@ import { getModuleBuildInfo } from '../get-module-build-info'
 import { stringifyRequest } from '../../stringify-request'
 import { NextConfig } from '../../../../server/config-shared'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
+import { WEBPACK_RESOURCE_QUERIES } from '../../../../lib/constants'
 
 export type EdgeAppRouteLoaderQuery = {
   absolutePagePath: string
   page: string
   appDirLoader: string
+  preferredRegion: string | string[] | undefined
   nextConfigOutput: NextConfig['output']
 }
 
@@ -15,6 +17,7 @@ const EdgeAppRouteLoader: webpack.LoaderDefinitionFunction<EdgeAppRouteLoaderQue
     const {
       page,
       absolutePagePath,
+      preferredRegion,
       appDirLoader: appDirLoaderBase64 = '',
     } = this.getOptions()
 
@@ -33,13 +36,16 @@ const EdgeAppRouteLoader: webpack.LoaderDefinitionFunction<EdgeAppRouteLoaderQue
     buildInfo.route = {
       page,
       absolutePagePath,
+      preferredRegion,
     }
 
     const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
     const modulePath = `${appDirLoader}${stringifiedPagePath.substring(
       1,
       stringifiedPagePath.length - 1
-    )}?__edge_ssr_entry__`
+    )}?${WEBPACK_RESOURCE_QUERIES.edgeSSREntry}&${
+      WEBPACK_RESOURCE_QUERIES.metadata
+    }`
 
     return `
     import { EdgeRouteModuleWrapper } from 'next/dist/esm/server/web/edge-route-module-wrapper'

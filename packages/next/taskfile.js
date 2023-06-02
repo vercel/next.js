@@ -145,8 +145,11 @@ export async function copy_vercel_og(task, opts) {
   await task
     .source(
       join(
-        dirname(require.resolve('@vercel/og/package.json')),
-        '{LICENSE,./dist/*.+(js|ttf|wasm)}'
+        relative(
+          __dirname,
+          dirname(require.resolve('@vercel/og/package.json'))
+        ),
+        'dist/*.+(js|ttf|wasm),LICENSE'
       )
     )
     .target('src/compiled/@vercel/og')
@@ -292,6 +295,14 @@ export async function ncc_undici(task, opts) {
     .source(relative(__dirname, require.resolve('undici')))
     .ncc({ packageName: 'undici', externals })
     .target('src/compiled/undici')
+
+  const outputFile = join('src/compiled/undici/index.js')
+  await fs.writeFile(
+    outputFile,
+    (
+      await fs.readFile(outputFile, 'utf8')
+    ).replace(/process\.emitWarning/g, 'void')
+  )
 }
 
 // eslint-disable-next-line camelcase
@@ -344,15 +355,6 @@ export async function compile_config_schema(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-externals['zod'] = 'next/dist/compiled/zod'
-export async function ncc_zod(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('zod')))
-    .ncc({ packageName: 'zod', externals })
-    .target('src/compiled/zod')
-}
-
-// eslint-disable-next-line camelcase
 externals['acorn'] = 'next/dist/compiled/acorn'
 export async function ncc_acorn(task, opts) {
   await task
@@ -398,33 +400,21 @@ export async function ncc_edge_runtime_primitives() {
   // `@edge-runtime/primitives` is precompiled and pre-bundled
   // so we vendor the package as it is.
   const dest = 'src/compiled/@edge-runtime/primitives'
+  await fs.mkdirp(dest)
+  const primitivesPath = dirname(
+    require.resolve('@edge-runtime/primitives/package.json')
+  )
   const pkg = await fs.readJson(
     require.resolve('@edge-runtime/primitives/package.json')
   )
   await fs.remove(dest)
 
-  for (const file of pkg.files) {
-    if (['dist', 'types'].includes(file)) {
-      continue
-    }
+  for (const file of await fs.readdir(join(primitivesPath, 'types'))) {
+    await fs.copy(join(primitivesPath, 'types', file), join(dest, file))
+  }
 
-    externals[
-      `@edge-runtime/primitives/${file}`
-    ] = `next/dist/compiled/@edge-runtime/primitives/${file}`
-    const dest2 = `src/compiled/@edge-runtime/primitives/${file}`
-    await fs.outputJson(join(dest2, 'package.json'), {
-      main: `../${file}.js`,
-      types: `../${file}.d.ts`,
-    })
-
-    await fs.copy(
-      require.resolve(`@edge-runtime/primitives/${file}`),
-      join(dest, `${file}.js`)
-    )
-    await fs.copy(
-      require.resolve(`@edge-runtime/primitives/types/${file}.d.ts`),
-      join(dest, `${file}.d.ts`)
-    )
+  for (const file of await fs.readdir(join(primitivesPath, 'dist'))) {
+    await fs.copy(join(primitivesPath, 'dist', file), join(dest, file))
   }
 
   await fs.outputJson(join(dest, 'package.json'), {
@@ -437,6 +427,43 @@ export async function ncc_edge_runtime_primitives() {
     require.resolve('@edge-runtime/primitives'),
     join(dest, 'index.js')
   )
+  await fs.copy(
+    require.resolve('@edge-runtime/primitives/types/index.d.ts'),
+    join(dest, 'index.d.ts')
+  )
+}
+
+// eslint-disable-next-line camelcase
+externals['@edge-runtime/ponyfill'] =
+  'next/dist/compiled/@edge-runtime/ponyfill'
+export async function ncc_edge_runtime_ponyfill(task, opts) {
+  const indexFile = await fs.readFile(
+    require.resolve('@edge-runtime/ponyfill/src/index.js'),
+    'utf8'
+  )
+  await fs.outputFile(
+    'src/compiled/@edge-runtime/ponyfill/index.js',
+    indexFile.replace(
+      `require('@edge-runtime/primitives')`,
+      `require(${JSON.stringify(externals['@edge-runtime/primitives'])})`
+    )
+  )
+  await fs.copy(
+    require.resolve('@edge-runtime/ponyfill/src/index.d.ts'),
+    'src/compiled/@edge-runtime/ponyfill/index.d.ts'
+  )
+
+  const pkg = await fs.readJson(
+    require.resolve('@edge-runtime/ponyfill/package.json')
+  )
+
+  await fs.outputJson('src/compiled/@edge-runtime/ponyfill/package.json', {
+    name: '@edge-runtime/ponyfill',
+    version: pkg.version,
+    main: './index.js',
+    types: './index.d.ts',
+    license: pkg.license,
+  })
 }
 
 // eslint-disable-next-line camelcase
@@ -495,7 +522,7 @@ export async function ncc_next__react_dev_overlay(task, opts) {
       precompiled: false,
       packageName: '@next/react-dev-overlay',
       externals: overlayExternals,
-      target: 'es2018',
+      target: 'es5',
     })
     .target('dist/compiled/@next/react-dev-overlay/dist')
 
@@ -1684,6 +1711,15 @@ export async function copy_vendor_react(task_) {
       .target(`src/compiled/react${packageSuffix}`)
     yield task
       .source(join(reactDir, 'cjs/**/*.js'))
+      // eslint-disable-next-line require-yield
+      .run({ every: true }, function* (file) {
+        const source = file.data.toString()
+        // We replace the module/chunk loading code with our own implementation in Next.js.
+        file.data = source.replace(
+          /require\(["']react["']\)/g,
+          `require("next/dist/compiled/react${packageSuffix}")`
+        )
+      })
       .target(`src/compiled/react${packageSuffix}/cjs`)
 
     yield task
@@ -1704,10 +1740,18 @@ export async function copy_vendor_react(task_) {
       .run({ every: true }, function* (file) {
         const source = file.data.toString()
         // We replace the module/chunk loading code with our own implementation in Next.js.
-        file.data = source.replace(
-          /require\(["']scheduler["']\)/g,
-          `require("next/dist/compiled/scheduler${packageSuffix}")`
-        )
+        file.data = source
+          .replace(
+            /require\(["']scheduler["']\)/g,
+            `require("next/dist/compiled/scheduler${packageSuffix}")`
+          )
+          .replace(
+            /require\(["']react["']\)/g,
+            `require("next/dist/compiled/react${packageSuffix}")`
+          )
+
+        // Note that we don't replace `react-dom` with `next/dist/compiled/react-dom`
+        // as it mighe be aliased to the server rendering stub.
       })
       .target(`src/compiled/react-dom${packageSuffix}/cjs`)
 
@@ -1740,12 +1784,12 @@ export async function copy_vendor_react(task_) {
     const reactServerDomDir = dirname(
       relative(
         __dirname,
-        require.resolve(`react-server-dom-webpack/package.json`)
+        require.resolve(`react-server-dom-webpack${packageSuffix}/package.json`)
       )
     )
     yield task
       .source(join(reactServerDomDir, 'LICENSE'))
-      .target(`src/compiled/react-server-dom-webpack`)
+      .target(`src/compiled/react-server-dom-webpack${packageSuffix}`)
     yield task
       .source(join(reactServerDomDir, '{package.json,*.js,cjs/**/*.js}'))
       // eslint-disable-next-line require-yield
@@ -1757,8 +1801,12 @@ export async function copy_vendor_react(task_) {
         file.data = source
           .replace(/__webpack_chunk_load__/g, 'globalThis.__next_chunk_load__')
           .replace(/__webpack_require__/g, 'globalThis.__next_require__')
+
+        if (file.base === 'package.json') {
+          file.data = overridePackageName(file.data)
+        }
       })
-      .target(`src/compiled/react-server-dom-webpack`)
+      .target(`src/compiled/react-server-dom-webpack${packageSuffix}`)
   }
 
   // As taskr transpiles async functions into generators, to reuse the same logic
@@ -2164,7 +2212,6 @@ export async function ncc(task, opts) {
         'ncc_node_shell_quote',
         'ncc_undici',
         'ncc_acorn',
-        'ncc_zod',
         'ncc_amphtml_validator',
         'ncc_arg',
         'ncc_async_retry',
@@ -2278,6 +2325,7 @@ export async function ncc(task, opts) {
       'ncc_jest_worker',
       'ncc_edge_runtime_cookies',
       'ncc_edge_runtime_primitives',
+      'ncc_edge_runtime_ponyfill',
       'ncc_edge_runtime',
     ],
     opts

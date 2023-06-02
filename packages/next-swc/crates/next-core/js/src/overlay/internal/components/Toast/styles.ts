@@ -1,4 +1,4 @@
-import { noop as css } from "../../helpers/noop-template";
+import { noop as css } from '../../helpers/noop-template'
 
 const styles = css`
   .toast {
@@ -24,15 +24,15 @@ const styles = css`
       rgba(0, 0, 0, 0.25);
   }
 
-  .toast[data-severity="error"] > .toast-wrapper {
+  .toast[data-severity='error'] > .toast-wrapper {
     color: var(--color-text-white);
     background-color: var(--color-error);
   }
 
-  .toast[data-severity="warning"] > .toast-wrapper {
+  .toast[data-severity='warning'] > .toast-wrapper {
     color: var(--color-text-white);
     background-color: var(--color-warning);
   }
-`;
+`
 
-export { styles };
+export { styles }
