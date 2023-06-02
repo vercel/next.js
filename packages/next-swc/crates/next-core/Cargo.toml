@@ -44,6 +44,7 @@ turbopack-binding = { workspace = true, features = [
   "__turbopack_env",
   "__turbopack_static",
   "__turbopack_image",
+  "__turbopack_image_webp",
   "__turbopack_node",
 ] }
 turbo-tasks = { workspace = true }
