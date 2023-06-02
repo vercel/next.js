@@ -33,6 +33,9 @@ Create a file named `.vscode/launch.json` at the root of your project with the f
       "type": "node-terminal",
       "request": "launch",
       "command": "npm run dev",
+      "sourceMapPathOverrides": {
+        "webpack://_N_E/./*": "${workspaceFolder}/code/*"
+      },
       "serverReadyAction": {
         "pattern": "started server on .+, url: (https?://.+)",
         "uriFormat": "%s",
