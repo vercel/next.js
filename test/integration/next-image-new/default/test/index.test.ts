@@ -1049,7 +1049,6 @@ function runTests(mode) {
       expect(warnings.length).toBe(1)
     })
   } else {
-    pathExists
     //server-only tests
     it('should not create an image folder in server/chunks', async () => {
       expect(
