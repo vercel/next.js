@@ -16,7 +16,7 @@ export function resolveHandlerError(err: any): Response | false {
     }
 
     // This is a redirect error! Send the redirect response.
-    return handleTemporaryRedirectResponse(redirect)
+    return handleTemporaryRedirectResponse(redirect, err.mutableCookies)
   }
 
   if (isNotFoundError(err)) {

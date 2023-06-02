@@ -84,14 +84,14 @@ describe('Config Experimental Warning', () => {
     configFile.write(`
       module.exports = {
         experimental: {
-          enableUndici: true,
+          urlImports: true,
           workerThreads: true,
         }
       }
     `)
     const { stderr } = await nextBuild(appDir, [], { stderr: true })
     expect(stderr).toMatch(
-      'You have enabled experimental features (enableUndici, workerThreads) in next.config.js.'
+      'You have enabled experimental features (urlImports, workerThreads) in next.config.js.'
     )
   })
 

@@ -5,8 +5,6 @@ createNextDescribe(
   'parallel-routes-and-interception',
   {
     files: __dirname,
-    // TODO: remove after deployment handling is updated
-    skipDeployment: true,
   },
   ({ next }) => {
     describe('parallel routes', () => {
@@ -243,6 +241,84 @@ createNextDescribe(
           'root sidebar here'
         )
       })
+
+      it('should only scroll to the parallel route that was navigated to', async () => {
+        const browser = await next.browser('/parallel-scroll')
+
+        await browser.eval('window.scrollTo(0, 1000)')
+        const position = await browser.eval('window.scrollY')
+        console.log('position', position)
+        await browser.elementByCss('[href="/parallel-scroll/nav"]').click()
+        await browser.waitForElementByCss('#modal')
+        // check that we didn't scroll back to the top
+        await check(() => browser.eval('window.scrollY'), position)
+      })
+
+      it('should apply the catch-all route to the parallel route if no matching route is found', async () => {
+        const browser = await next.browser('/parallel-catchall')
+
+        await browser.elementByCss('[href="/parallel-catchall/bar"]').click()
+        await check(
+          () => browser.waitForElementByCss('#main').text(),
+          'main catchall'
+        )
+        await check(
+          () => browser.waitForElementByCss('#slot-content').text(),
+          'slot catchall'
+        )
+
+        await browser.elementByCss('[href="/parallel-catchall/foo"]').click()
+        await check(() => browser.waitForElementByCss('#main').text(), 'foo')
+        await check(
+          () => browser.waitForElementByCss('#slot-content').text(),
+          'foo slot'
+        )
+
+        await browser.elementByCss('[href="/parallel-catchall/bar"]').click()
+        await check(
+          () => browser.waitForElementByCss('#main').text(),
+          'main catchall'
+        )
+        await check(
+          () => browser.waitForElementByCss('#slot-content').text(),
+          'slot catchall'
+        )
+      })
+
+      it('should navigate with a link with prefetch=false', async () => {
+        const browser = await next.browser('/parallel-prefetch-false')
+
+        // check if the default view loads
+        await check(
+          () => browser.waitForElementByCss('#default-parallel').text(),
+          'default view for parallel'
+        )
+
+        // check that navigating to /foo re-renders the layout to display @parallel/foo
+        await check(
+          () =>
+            browser
+              .elementByCss('[href="/parallel-prefetch-false/foo"]')
+              .click()
+              .waitForElementByCss('#parallel-foo')
+              .text(),
+          'parallel for foo'
+        )
+      })
+
+      it('should display all parallel route params with useParams', async () => {
+        const browser = await next.browser('/parallel-dynamic/foo/bar')
+
+        await check(
+          () => browser.waitForElementByCss('#foo').text(),
+          `{"slug":"foo","id":"bar"}`
+        )
+
+        await check(
+          () => browser.waitForElementByCss('#bar').text(),
+          `{"slug":"foo","id":"bar"}`
+        )
+      })
     })
 
     describe('route intercepting', () => {
@@ -439,6 +515,20 @@ createNextDescribe(
         await check(
           () => browser.url(),
           next.url + '/intercepting-parallel-modal/photo/2'
+        )
+      })
+
+      it('should support intercepting with beforeFiles rewrites', async () => {
+        const browser = await next.browser('/foo')
+
+        await check(
+          () =>
+            browser
+              .elementByCss('[href="/photos"]')
+              .click()
+              .waitForElementByCss('#intercepted')
+              .text(),
+          'intercepted'
         )
       })
     })

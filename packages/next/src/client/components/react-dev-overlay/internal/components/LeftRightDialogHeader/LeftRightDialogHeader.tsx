@@ -2,6 +2,7 @@ import * as React from 'react'
 import { CloseIcon } from '../../icons/CloseIcon'
 
 export type LeftRightDialogHeaderProps = {
+  children?: React.ReactNode
   className?: string
   previous: (() => void) | null
   next: (() => void) | null

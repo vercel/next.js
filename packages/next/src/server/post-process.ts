@@ -199,7 +199,7 @@ async function postProcessHTML(
       : null,
     process.env.NEXT_RUNTIME !== 'edge' && renderOpts.optimizeFonts
       ? async (html: string) => {
-          const getFontDefinition = (url: string): string => {
+          const getFontDefinition = (url: string) => {
             if (renderOpts.fontManifest) {
               const { getFontDefinitionFromManifest } =
                 require('./font-utils') as typeof import('./font-utils')

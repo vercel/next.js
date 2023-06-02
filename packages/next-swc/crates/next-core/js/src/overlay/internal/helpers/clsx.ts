@@ -19,53 +19,53 @@ export type TruthyClassValue =
   | ClassDictionary
   | string
   | number
-  | boolean;
-export type ClassValue = TruthyClassValue | null | undefined;
-export type ClassDictionary = Record<string, any>;
-export type ClassArray = ClassValue[];
+  | boolean
+export type ClassValue = TruthyClassValue | null | undefined
+export type ClassDictionary = Record<string, any>
+export type ClassArray = ClassValue[]
 
 function toVal(mix: TruthyClassValue) {
   let k,
     y,
-    str = "";
+    str = ''
 
-  if (typeof mix === "string" || typeof mix === "number") {
-    str += mix;
-  } else if (typeof mix === "object") {
+  if (typeof mix === 'string' || typeof mix === 'number') {
+    str += mix
+  } else if (typeof mix === 'object') {
     if (Array.isArray(mix)) {
       for (k = 0; k < mix.length; k++) {
         if (mix[k]) {
           if ((y = toVal(mix[k]))) {
-            str && (str += " ");
-            str += y;
+            str && (str += ' ')
+            str += y
           }
         }
       }
     } else {
       for (k in mix) {
         if (mix[k]) {
-          str && (str += " ");
-          str += k;
+          str && (str += ' ')
+          str += k
         }
       }
     }
   }
 
-  return str;
+  return str
 }
 
 export function clsx(...inputs: ClassValue[]) {
   let i = 0,
     tmp,
     x,
-    str = "";
+    str = ''
   while (i < inputs.length) {
     if ((tmp = inputs[i++])) {
       if ((x = toVal(tmp))) {
-        str && (str += " ");
-        str += x;
+        str && (str += ' ')
+        str += x
       }
     }
   }
-  return str;
+  return str
 }
