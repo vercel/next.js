@@ -43,7 +43,7 @@ import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/lazy-dynamic/no-ssr-erro
 import { createRequestResponseMocks } from '../server/lib/mock-request'
 import { NodeNextRequest } from '../server/base-http/node'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
-import { toNodeHeaders } from '../server/web/utils'
+import { toNodeOutgoingHttpHeaders } from '../server/web/utils'
 import { RouteModuleLoader } from '../server/future/helpers/module-loader/route-module-loader'
 import { NextRequestAdapter } from '../server/web/spec-extension/adapters/next-request'
 import * as ciEnvironment from '../telemetry/ci-info'
@@ -119,6 +119,7 @@ interface RenderOpts {
   incrementalCache?: IncrementalCache
   strictNextHead?: boolean
   originalPathname?: string
+  deploymentId?: string
 }
 
 export default async function exportPage({
@@ -155,6 +156,9 @@ export default async function exportPage({
     }
 
     try {
+      if (renderOpts.deploymentId) {
+        process.env.__NEXT_DEPLOYMENT_ID = renderOpts.deploymentId
+      }
       const { query: originalQuery = {} } = pathMap
       const { page } = pathMap
       const pathname = normalizeAppPath(page)
@@ -445,7 +449,7 @@ export default async function exportPage({
                 context.staticGenerationContext.store?.revalidate || false
 
               results.fromBuildExportRevalidate = revalidate
-              const headers = toNodeHeaders(response.headers)
+              const headers = toNodeOutgoingHttpHeaders(response.headers)
               const cacheTags = (context.staticGenerationContext as any)
                 .fetchTags
 

@@ -14,7 +14,7 @@ use turbopack_binding::{
                 },
                 parse::RequestVc,
                 pattern::Pattern,
-                resolve, AliasPattern, ExportsValue, ResolveAliasMapVc,
+                resolve, AliasPattern, ResolveAliasMapVc, SubpathValue,
             },
         },
         node::execution_context::ExecutionContextVc,
@@ -552,7 +552,7 @@ pub async fn insert_alias_option<const N: usize>(
 }
 
 fn export_value_to_import_mapping(
-    value: &ExportsValue,
+    value: &SubpathValue,
     conditions: &BTreeMap<String, ConditionValue>,
     project_path: FileSystemPathVc,
 ) -> Option<ImportMappingVc> {
@@ -603,8 +603,8 @@ fn insert_package_alias(import_map: &mut ImportMap, prefix: &str, package_root: 
 fn insert_turbopack_dev_alias(import_map: &mut ImportMap) {
     insert_package_alias(
         import_map,
-        "@vercel/turbopack-dev/",
-        turbopack_binding::turbopack::dev::embed_js::embed_fs().root(),
+        "@vercel/turbopack-ecmascript-runtime/",
+        turbopack_binding::turbopack::ecmascript_runtime::embed_fs().root(),
     );
 }
 

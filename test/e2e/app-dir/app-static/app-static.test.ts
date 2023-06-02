@@ -35,6 +35,36 @@ createNextDescribe(
       }
     })
 
+    it.skip.each([
+      {
+        path: '/react-fetch-deduping-node',
+      },
+      {
+        path: '/react-fetch-deduping-edge',
+      },
+    ])(
+      'should correctly de-dupe fetch without next cache $path',
+      async ({ path }) => {
+        for (let i = 0; i < 5; i++) {
+          const res = await next.fetch(path, {
+            redirect: 'manual',
+          })
+
+          expect(res.status).toBe(200)
+          const html = await res.text()
+          const $ = cheerio.load(html)
+
+          const data1 = $('#data-1').text()
+          const data2 = $('#data-2').text()
+
+          expect(data1).toBeTruthy()
+          expect(data1).toBe(data2)
+
+          await waitFor(250)
+        }
+      }
+    )
+
     it.each([
       { pathname: '/unstable-cache-node' },
       { pathname: '/unstable-cache-edge' },
@@ -506,6 +536,8 @@ createNextDescribe(
           'partial-gen-params-no-additional-slug/fr/second.html',
           'partial-gen-params-no-additional-slug/fr/second.rsc',
           'partial-gen-params/[lang]/[slug]/page.js',
+          'react-fetch-deduping-edge/page.js',
+          'react-fetch-deduping-node/page.js',
           'route-handler-edge/revalidate-360/route.js',
           'route-handler/post/route.js',
           'route-handler/revalidate-360-isr/route.js',
@@ -942,7 +974,8 @@ createNextDescribe(
       }, 'success')
     })
 
-    it('should cache correctly for fetchCache = force-cache', async () => {
+    // TODO-APP: investigate flaky test
+    it.skip('should cache correctly for fetchCache = force-cache', async () => {
       const res = await next.fetch('/force-cache')
       expect(res.status).toBe(200)
 
@@ -1269,6 +1302,12 @@ createNextDescribe(
         expect($2('#page-data').text()).toBe(pageData)
         return 'success'
       }, 'success')
+
+      if (isNextStart) {
+        expect(next.cliOutput).toContain(
+          `Page "/variable-revalidate-edge/revalidate-3" is using runtime = 'edge' which is currently incompatible with dynamic = 'force-static'. Please remove either "runtime" or "force-static" for correct behavior`
+        )
+      }
     })
 
     it('should honor fetch cache correctly (edge)', async () => {

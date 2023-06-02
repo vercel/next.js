@@ -76,6 +76,8 @@ import { appendMutableCookies } from '../web/spec-extension/adapters/request-coo
 
 export const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
+const emptyLoaderTree: LoaderTree = ['', {}, {}]
+
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
   segment: string
@@ -360,6 +362,20 @@ export async function renderToHTMLOrFlight(
 
     const assetPrefix = renderOpts.assetPrefix || ''
 
+    const getAssetQueryString = (addTimestamp: boolean) => {
+      const isDev = process.env.NODE_ENV === 'development'
+      let qs = ''
+
+      if (isDev && addTimestamp) {
+        qs += `?v=${Date.now()}`
+      }
+
+      if (renderOpts.deploymentId) {
+        qs += `${isDev ? '&' : '?'}dpl=${renderOpts.deploymentId}`
+      }
+      return qs
+    }
+
     const createComponentAndStyles = async ({
       filePath,
       getComponent,
@@ -387,9 +403,9 @@ export async function renderToHTMLOrFlight(
             // Because of this, we add a `?v=` query to bypass the cache during
             // development. We need to also make sure that the number is always
             // increasing.
-            const fullHref = `${assetPrefix}/_next/${href}${
-              process.env.NODE_ENV === 'development' ? `?v=${Date.now()}` : ''
-            }`
+            const fullHref = `${assetPrefix}/_next/${href}${getAssetQueryString(
+              true
+            )}`
 
             // `Precedence` is an opt-in signal for React to handle resource
             // loading and deduplication, etc. It's also used as the key to sort
@@ -456,7 +472,9 @@ export async function renderToHTMLOrFlight(
             const fontFilename = preloadedFontFiles[i]
             const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFilename)![1]
             const type = `font/${ext}`
-            const href = `${assetPrefix}/_next/${fontFilename}`
+            const href = `${assetPrefix}/_next/${fontFilename}${getAssetQueryString(
+              false
+            )}`
             ComponentMod.preloadFont(href, type)
           }
         } else {
@@ -479,9 +497,9 @@ export async function renderToHTMLOrFlight(
             // Because of this, we add a `?v=` query to bypass the cache during
             // development. We need to also make sure that the number is always
             // increasing.
-            const fullHref = `${assetPrefix}/_next/${href}${
-              process.env.NODE_ENV === 'development' ? `?v=${Date.now()}` : ''
-            }`
+            const fullHref = `${assetPrefix}/_next/${href}${getAssetQueryString(
+              true
+            )}`
 
             // `Precedence` is an opt-in signal for React to handle resource
             // loading and deduplication, etc. It's also used as the key to sort
@@ -841,7 +859,6 @@ export async function renderToHTMLOrFlight(
                 templateStyles={templateStyles}
                 notFound={NotFound ? <NotFound /> : undefined}
                 notFoundStyles={notFoundStyles}
-                asNotFound={asNotFound}
                 childProp={childProp}
                 styles={childStyles}
               />,
@@ -1292,6 +1309,18 @@ export async function renderToHTMLOrFlight(
           query
         )
 
+        const createMetadata = (tree: LoaderTree) => (
+          // Adding key={requestId} to make metadata remount for each render
+          // @ts-expect-error allow to use async server component
+          <MetadataTree
+            key={requestId}
+            tree={tree}
+            pathname={pathname}
+            searchParams={providedSearchParams}
+            getDynamicParamFromSegment={getDynamicParamFromSegment}
+          />
+        )
+
         return (
           <>
             {styles}
@@ -1301,15 +1330,7 @@ export async function renderToHTMLOrFlight(
               initialTree={initialTree}
               initialHead={
                 <>
-                  {/* Adding key={requestId} to make metadata remount for each render */}
-                  {/* @ts-expect-error allow to use async server component */}
-                  <MetadataTree
-                    key={requestId}
-                    tree={loaderTree}
-                    pathname={pathname}
-                    searchParams={providedSearchParams}
-                    getDynamicParamFromSegment={getDynamicParamFromSegment}
-                  />
+                  {createMetadata(loaderTree)}
                   {appUsingSizeAdjust ? <meta name="next-size-adjust" /> : null}
                 </>
               }
@@ -1317,6 +1338,7 @@ export async function renderToHTMLOrFlight(
               notFound={
                 NotFound && RootLayout ? (
                   <RootLayout params={{}}>
+                    {createMetadata(emptyLoaderTree)}
                     {notFoundStyles}
                     <NotFound />
                   </RootLayout>
@@ -1386,7 +1408,9 @@ export async function renderToHTMLOrFlight(
               polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
           )
           .map((polyfill) => ({
-            src: `${assetPrefix}/_next/${polyfill}`,
+            src: `${assetPrefix}/_next/${polyfill}${getAssetQueryString(
+              false
+            )}`,
             integrity: subresourceIntegrityManifest?.[polyfill],
           }))
 
@@ -1465,11 +1489,17 @@ export async function renderToHTMLOrFlight(
               bootstrapScripts: [
                 ...(subresourceIntegrityManifest
                   ? buildManifest.rootMainFiles.map((src) => ({
-                      src: `${assetPrefix}/_next/` + src,
+                      src:
+                        `${assetPrefix}/_next/` +
+                        src +
+                        getAssetQueryString(false),
                       integrity: subresourceIntegrityManifest[src],
                     }))
                   : buildManifest.rootMainFiles.map(
-                      (src) => `${assetPrefix}/_next/` + src
+                      (src) =>
+                        `${assetPrefix}/_next/` +
+                        src +
+                        getAssetQueryString(false)
                     )),
               ],
             },
@@ -1526,7 +1556,7 @@ export async function renderToHTMLOrFlight(
                   {/* @ts-expect-error allow to use async server component */}
                   <MetadataTree
                     key={requestId}
-                    tree={['', {}, {}]}
+                    tree={emptyLoaderTree}
                     pathname={pathname}
                     searchParams={providedSearchParams}
                     getDynamicParamFromSegment={getDynamicParamFromSegment}
@@ -1541,11 +1571,15 @@ export async function renderToHTMLOrFlight(
               // Include hydration scripts in the HTML
               bootstrapScripts: subresourceIntegrityManifest
                 ? buildManifest.rootMainFiles.map((src) => ({
-                    src: `${assetPrefix}/_next/` + src,
+                    src:
+                      `${assetPrefix}/_next/` +
+                      src +
+                      getAssetQueryString(false),
                     integrity: subresourceIntegrityManifest[src],
                   }))
                 : buildManifest.rootMainFiles.map(
-                    (src) => `${assetPrefix}/_next/` + src
+                    (src) =>
+                      `${assetPrefix}/_next/` + src + getAssetQueryString(false)
                   ),
             },
           })
