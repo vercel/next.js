@@ -1,4 +1,4 @@
-export const runtime = 'experimental-edge'
+export const runtime = 'edge'
 
 export default (req) => {
   return Response.json(Object.fromEntries(req.headers.entries()), {

@@ -65,7 +65,7 @@ function formatRSCErrorMessage(
     if (isPagesDir) {
       formattedMessage = message.replace(
         NEXT_RSC_ERR_CLIENT_IMPORT,
-        `\n\nYou're importing a component that needs $1. That only works in a Server Component which is not supported in the pages/ directory. Read more: https://beta.nextjs.org/docs/rendering/server-and-client-components\n\n`
+        `\n\nYou're importing a component that needs $1. That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/react-essentials#server-components\n\n`
       )
       formattedVerboseMessage = '\n\nImport trace for requested module:\n'
     } else {
@@ -91,7 +91,7 @@ function formatRSCErrorMessage(
   } else if (NEXT_RSC_ERR_INVALID_API.test(message)) {
     formattedMessage = message.replace(
       NEXT_RSC_ERR_INVALID_API,
-      `\n\n"$1" is not supported in app/. Read more: https://beta.nextjs.org/docs/data-fetching/fundamentals\n\n`
+      `\n\n"$1" is not supported in app/. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching\n\n`
     )
     formattedVerboseMessage = '\n\nFile path:\n'
   } else if (NEXT_RSC_ERR_ERROR_FILE_SERVER_COMPONENT.test(message)) {
@@ -103,14 +103,14 @@ function formatRSCErrorMessage(
   } else if (NEXT_RSC_ERR_CLIENT_METADATA_EXPORT.test(message)) {
     formattedMessage = message.replace(
       NEXT_RSC_ERR_CLIENT_METADATA_EXPORT,
-      `\n\nYou are attempting to export "$1" from a component marked with "use client", which is disallowed. Either remove the export, or the "use client" directive. Read more: https://beta.nextjs.org/docs/api-reference/metadata\n\n`
+      `\n\nYou are attempting to export "$1" from a component marked with "use client", which is disallowed. Either remove the export, or the "use client" directive. Read more: https://nextjs.org/docs/getting-started/react-essentials#the-use-client-directive\n\n`
     )
 
     formattedVerboseMessage = '\n\nFile path:\n'
   } else if (NEXT_RSC_ERR_CONFLICT_METADATA_EXPORT.test(message)) {
     formattedMessage = message.replace(
       NEXT_RSC_ERR_CONFLICT_METADATA_EXPORT,
-      `\n\n"metadata" and "generateMetadata" cannot be exported at the same time, please keep one of them. Read more: https://beta.nextjs.org/docs/api-reference/metadata\n\n`
+      `\n\n"metadata" and "generateMetadata" cannot be exported at the same time, please keep one of them. Read more: https://nextjs.org/docs/app/api-reference/file-conventions/metadata\n\n`
     )
 
     formattedVerboseMessage = '\n\nFile path:\n'

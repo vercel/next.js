@@ -7,7 +7,7 @@ export type RenderResultMetadata = {
   pageData?: any
   revalidate?: any
   staticBailoutInfo?: any
-  devOnlyCacheBusterQueryString?: string
+  assetQueryString?: string
   isNotFound?: boolean
   isRedirect?: boolean
 }

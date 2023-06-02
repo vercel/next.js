@@ -6,10 +6,9 @@ import type {
 import path from 'path'
 import { stringify } from 'querystring'
 import { STATIC_METADATA_IMAGES } from '../../../../lib/metadata/is-metadata-route'
+import { WEBPACK_RESOURCE_QUERIES } from '../../../../lib/constants'
 
 const METADATA_TYPE = 'metadata'
-
-export const METADATA_RESOURCE_QUERY = '?__next_metadata'
 
 // Produce all compositions with filename (icon, apple-icon, etc.) with extensions (png, jpg, etc.)
 async function enumMetadataFiles(
@@ -129,7 +128,7 @@ export async function createStaticMetadataFromRoute(
             basePath,
             pageExtensions,
           }
-        )}!${filepath}${METADATA_RESOURCE_QUERY}`
+        )}!${filepath}?${WEBPACK_RESOURCE_QUERIES.metadata}`
 
         const imageModule = `(async (props) => (await import(/* webpackMode: "eager" */ ${JSON.stringify(
           imageModuleImportSource

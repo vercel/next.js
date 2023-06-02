@@ -42,7 +42,12 @@ import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 import { fileExists } from '../../lib/file-exists'
-import { difference, isMiddlewareFilename } from '../../build/utils'
+import {
+  difference,
+  isInstrumentationHookFile,
+  isMiddlewareFile,
+  isMiddlewareFilename,
+} from '../../build/utils'
 import { DecodeError } from '../../shared/lib/utils'
 import { Span, trace } from '../../trace'
 import { getProperError } from '../../lib/is-error'
@@ -53,6 +58,9 @@ import { getRegistry } from '../../lib/helpers/get-registry'
 import { RouteMatch } from '../future/route-matches/route-match'
 import type { Telemetry } from '../../telemetry/storage'
 import { parseVersionInfo, VersionInfo } from './parse-version-info'
+import { isAPIRoute } from '../../lib/is-api-route'
+import { getRouteLoaderEntry } from '../../build/webpack/loaders/next-route-loader'
+import { isInternalPathname } from '../../lib/is-internal-pathname'
 
 function diff(a: Set<any>, b: Set<any>) {
   return new Set([...a].filter((v) => !b.has(v)))
@@ -159,6 +167,9 @@ function erroredPages(compilation: webpack.Compilation) {
 }
 
 export default class HotReloader {
+  private hasAmpEntrypoints: boolean
+  private hasAppRouterEntrypoints: boolean
+  private hasPagesRouterEntrypoints: boolean
   private dir: string
   private buildId: string
   private interceptors: any[]
@@ -173,6 +184,7 @@ export default class HotReloader {
   private clientError: Error | null = null
   private serverError: Error | null = null
   private serverPrevDocumentHash: string | null
+  private serverChunkNames?: Set<string>
   private prevChunkNames?: Set<any>
   private onDemandEntries?: ReturnType<typeof onDemandEntryHandler>
   private previewProps: __ApiPreviewProps
@@ -214,6 +226,9 @@ export default class HotReloader {
       telemetry: Telemetry
     }
   ) {
+    this.hasAmpEntrypoints = false
+    this.hasAppRouterEntrypoints = false
+    this.hasPagesRouterEntrypoints = false
     this.buildId = buildId
     this.dir = dir
     this.interceptors = []
@@ -710,6 +725,11 @@ export default class HotReloader {
               }
             }
 
+            // Ensure _error is considered a `pages` page.
+            if (page === '/_error') {
+              this.hasPagesRouterEntrypoints = true
+            }
+
             const hasAppDir = !!this.appDir
             const isAppPath = hasAppDir && bundlePath.startsWith('app/')
             const staticInfo = isEntry
@@ -723,6 +743,10 @@ export default class HotReloader {
                   page,
                 })
               : {}
+
+            if (staticInfo.amp === true || staticInfo.amp === 'hybrid') {
+              this.hasAmpEntrypoints = true
+            }
             const isServerComponent =
               isAppPath && staticInfo.rsc !== RSC_MODULE_TYPES.client
 
@@ -731,6 +755,14 @@ export default class HotReloader {
               : entryData.bundlePath.startsWith('app/')
               ? 'app'
               : 'root'
+
+            if (pageType === 'pages') {
+              this.hasPagesRouterEntrypoints = true
+            }
+            if (pageType === 'app') {
+              this.hasAppRouterEntrypoints = true
+            }
+
             await runDependingOnPageType({
               page,
               pageRuntime: staticInfo.runtime,
@@ -820,39 +852,71 @@ export default class HotReloader {
                 ) {
                   relativeRequest = `./${relativeRequest}`
                 }
+
+                let value: { import: string; layer?: string } | string
+                if (isAppPath) {
+                  value = getAppEntry({
+                    name: bundlePath,
+                    page,
+                    appPaths: entryData.appPaths,
+                    pagePath: posix.join(
+                      APP_DIR_ALIAS,
+                      relative(
+                        this.appDir!,
+                        entryData.absolutePagePath
+                      ).replace(/\\/g, '/')
+                    ),
+                    appDir: this.appDir!,
+                    pageExtensions: this.config.pageExtensions,
+                    rootDir: this.dir,
+                    isDev: true,
+                    tsconfigPath: this.config.typescript.tsconfigPath,
+                    basePath: this.config.basePath,
+                    assetPrefix: this.config.assetPrefix,
+                    nextConfigOutput: this.config.output,
+                    preferredRegion: staticInfo.preferredRegion,
+                  })
+                } else if (
+                  !isAPIRoute(page) &&
+                  !isMiddlewareFile(page) &&
+                  !isInternalPathname(relativeRequest) &&
+                  !isInstrumentationHookFile(page)
+                ) {
+                  value = getRouteLoaderEntry({
+                    page,
+                    absolutePagePath: relativeRequest,
+                    preferredRegion: staticInfo.preferredRegion,
+                  })
+                } else {
+                  value = relativeRequest
+                }
+
                 entrypoints[bundlePath] = finalizeEntrypoint({
                   compilerType: COMPILER_NAMES.server,
                   name: bundlePath,
                   isServerComponent,
-                  value: isAppPath
-                    ? getAppEntry({
-                        name: bundlePath,
-                        page,
-                        appPaths: entryData.appPaths,
-                        pagePath: posix.join(
-                          APP_DIR_ALIAS,
-                          relative(
-                            this.appDir!,
-                            entryData.absolutePagePath
-                          ).replace(/\\/g, '/')
-                        ),
-                        appDir: this.appDir!,
-                        pageExtensions: this.config.pageExtensions,
-                        rootDir: this.dir,
-                        isDev: true,
-                        tsconfigPath: this.config.typescript.tsconfigPath,
-                        basePath: this.config.basePath,
-                        assetPrefix: this.config.assetPrefix,
-                        nextConfigOutput: this.config.output,
-                        preferredRegion: staticInfo.preferredRegion,
-                      })
-                    : relativeRequest,
+                  value,
                   hasAppDir,
                 })
               },
             })
           })
         )
+
+        if (!this.hasAmpEntrypoints) {
+          delete entrypoints.amp
+        }
+        if (!this.hasPagesRouterEntrypoints) {
+          delete entrypoints.main
+          delete entrypoints['pages/_app']
+          delete entrypoints['pages/_error']
+          delete entrypoints['/_error']
+          delete entrypoints['pages/_document']
+        }
+        if (!this.hasAppRouterEntrypoints) {
+          delete entrypoints['main-app']
+        }
+
         return entrypoints
       }
     }
@@ -885,6 +949,10 @@ export default class HotReloader {
     const prevEdgeServerPageHashes = new Map<string, string>()
     const prevCSSImportModuleHashes = new Map<string, string>()
 
+    const pageExtensionRegex = new RegExp(
+      `\\.(?:${this.config.pageExtensions.join('|')})$`
+    )
+
     const trackPageChanges =
       (
         pageHashMap: Map<string, string>,
@@ -912,7 +980,9 @@ export default class HotReloader {
                   modsIterable.forEach((mod: any) => {
                     if (
                       mod.resource &&
-                      mod.resource.replace(/\\/g, '/').includes(key)
+                      mod.resource.replace(/\\/g, '/').includes(key) &&
+                      // Shouldn't match CSS modules, etc.
+                      pageExtensionRegex.test(mod.resource)
                     ) {
                       // use original source to calculate hash since mod.hash
                       // includes the source map in development which changes
@@ -952,7 +1022,7 @@ export default class HotReloader {
                       // components are tracked.
                       if (
                         key.startsWith('app/') &&
-                        mod.resource?.endsWith('.css')
+                        /\.(css|scss|sass)$/.test(mod.resource || '')
                       ) {
                         const resourceKey = mod.layer + ':' + mod.resource
                         const prevHash =
@@ -1021,6 +1091,7 @@ export default class HotReloader {
       (err: Error) => {
         this.serverError = err
         this.serverStats = null
+        this.serverChunkNames = undefined
       }
     )
 
@@ -1049,7 +1120,6 @@ export default class HotReloader {
         const documentChunk = compilation.namedChunks.get('pages/_document')
         // If the document chunk can't be found we do nothing
         if (!documentChunk) {
-          console.warn('_document.js chunk not found')
           return
         }
 
@@ -1064,16 +1134,38 @@ export default class HotReloader {
           return
         }
 
+        // As document chunk will change if new app pages are joined,
+        // since react bundle is different it will effect the chunk hash.
+        // So we diff the chunk changes, if there's only new app page chunk joins,
+        // then we don't trigger a reload by checking pages/_document chunk change.
+        if (this.appDir) {
+          const chunkNames = new Set(compilation.namedChunks.keys())
+          const diffChunkNames = difference<string>(
+            this.serverChunkNames || new Set(),
+            chunkNames
+          )
+
+          if (
+            diffChunkNames.length === 0 ||
+            diffChunkNames.every((chunkName) => chunkName.startsWith('app/'))
+          ) {
+            return
+          }
+          this.serverChunkNames = chunkNames
+        }
+
         // Notify reload to reload the page, as _document.js was changed (different hash)
         this.send('reloadPage')
         this.serverPrevDocumentHash = documentChunk.hash || null
       }
     )
+
     this.multiCompiler.hooks.done.tap('NextjsHotReloaderForServer', () => {
       const serverOnlyChanges = difference<string>(
         changedServerPages,
         changedClientPages
       )
+
       const edgeServerOnlyChanges = difference<string>(
         changedEdgeServerPages,
         changedClientPages

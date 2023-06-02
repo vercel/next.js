@@ -408,9 +408,7 @@ export async function accumulateMetadata(
       const currentResolvedMetadata: ResolvedMetadata =
         process.env.NODE_ENV === 'development'
           ? Object.freeze(
-              require('next/dist/compiled/@edge-runtime/primitives/structured-clone').structuredClone(
-                resolvedMetadata
-              )
+              require('./clone-metadata').cloneMetadata(resolvedMetadata)
             )
           : resolvedMetadata
 
