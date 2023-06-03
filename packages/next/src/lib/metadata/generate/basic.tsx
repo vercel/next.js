@@ -12,13 +12,9 @@ export function BasicMetadata({ metadata }: { metadata: ResolvedMetadata }) {
     Meta({ name: 'description', content: metadata.description }),
     Meta({ name: 'application-name', content: metadata.applicationName }),
     ...(metadata.authors
-      ? metadata.authors.map((author, index) => [
+      ? metadata.authors.map((author) => [
           author.url ? (
-            <link
-              // key={'author' + index}
-              rel="author"
-              href={author.url.toString()}
-            />
+            <link rel="author" href={author.url.toString()} />
           ) : null,
           Meta({ name: 'author', content: author.name }),
         ])
@@ -118,16 +114,15 @@ export function AppleWebAppMeta({
       ? Meta({ name: 'apple-mobile-web-app-capable', content: 'yes' })
       : null,
     Meta({ name: 'apple-mobile-web-app-title', content: title }),
-    ...(startupImage
-      ? startupImage.map((image, index) => (
+    startupImage
+      ? startupImage.map((image) => (
           <link
-            // key={index}
             href={image.url}
             media={image.media}
             rel="apple-touch-startup-image"
           />
         ))
-      : []),
+      : null,
     statusBarStyle
       ? Meta({
           name: 'apple-mobile-web-app-status-bar-style',
