@@ -6,11 +6,10 @@ import { renderToHTMLOrFlight } from 'next/dist/server/app-render/app-render'
 import entry from "APP_ENTRY"
 import BOOTSTRAP from 'APP_BOOTSTRAP'
 import { createManifests, installRequireAndChunkLoad } from './manifest'
-import { NextResponse, type NextRequest, NextFetchEvent } from 'next/server'
+import { type NextRequest, NextFetchEvent } from 'next/server'
 import { RenderOpts } from 'next/dist/server/app-render/types'
 import type { ParsedUrlQuery } from 'querystring'
-import type { IncomingMessage } from 'http';
-import { WebNextRequest } from 'next/dist/server/base-http/web';
+import { WebNextRequest, WebNextResponse } from 'next/dist/server/base-http/web';
 
 enhanceGlobals()
 installRequireAndChunkLoad()
@@ -20,19 +19,12 @@ const { clientReferenceManifest, serverCSSManifest } = createManifests()
 const MIME_TEXT_HTML_UTF8 = 'text/html; charset=utf-8'
 
 async function render(request: NextRequest, event: NextFetchEvent) {
-  const res = new NextResponse(undefined, {
-    headers: {
-      'Content-Type': MIME_TEXT_HTML_UTF8,
-      'Vary': RSC_VARY_HEADER,
-    }
-  })
-
   const renderOpt: Omit<
     RenderOpts,
     'App' | 'Document' | 'Component' | 'pathname'
   > & { params: ParsedUrlQuery } = {
     // TODO params
-    params: request.page.params,
+    params: {},
     supportsDynamicHTML: true,
     dev: true,
     buildManifest: {
@@ -62,33 +54,26 @@ async function render(request: NextRequest, event: NextFetchEvent) {
     nextConfigOutput: undefined,
   };
 
-  const req = new WebNextRequest
+  const extendedReq = new WebNextRequest(request)
+  const extendedRes = new WebNextResponse()
+
+  let [,pathname, query] = /^([^?]*)(.*)$/.exec(request.url)!;
 
   const result = await renderToHTMLOrFlight(
-    request as IncomingMessage,
-    res,
-    request.page,
-    query,
+    extendedReq as any,
+    extendedRes as any,
+    pathname,
+    // TODO query
+    {},
     renderOpt as any as RenderOpts
   )
-
-  if (!result || result.isNull())
-    throw new Error('rendering was not successful')
-
-  const body = new PassThrough()
-  if (result.isDynamic()) {
-    result.pipe(body)
-  } else {
-    body.write(result.toUnchunkedString())
-  }
-  return {
-    statusCode: res.statusCode,
-    headers: [
-      ['Content-Type', result.contentType() ?? MIME_TEXT_HTML_UTF8],
-      ['Vary', RSC_VARY_HEADER],
-    ] as [string, string][],
-    body,
-  }
+  
+  extendedRes.setHeader('Content-Type', MIME_TEXT_HTML_UTF8)
+  extendedRes.setHeader('Vary', RSC_VARY_HEADER)
+  
+  result.pipe(extendedRes)
+  
+  return await extendedRes.toResponse();
 }
 
 // @ts-expect-error - exposed for edge support
