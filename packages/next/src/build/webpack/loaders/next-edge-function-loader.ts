@@ -35,7 +35,8 @@ const nextEdgeFunctionLoader: webpack.LoaderDefinitionFunction<EdgeFunctionLoade
 
         enhanceGlobals()
 
-        const mod = require(${stringifiedPagePath})
+        import * as _mod from ${stringifiedPagePath}
+        const mod = { ..._mod }
         const handler = mod.middleware || mod.default
 
         if (typeof handler !== 'function') {

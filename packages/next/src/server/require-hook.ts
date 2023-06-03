@@ -4,6 +4,7 @@
 
 // This module will only be loaded once per process.
 
+const { dirname } = require('path')
 const mod = require('module')
 const resolveFilename = mod._resolveFilename
 const hookPropertyMap = new Map()
@@ -23,6 +24,7 @@ addHookAliases([
   ['styled-jsx', require.resolve('styled-jsx')],
   ['styled-jsx/style', require.resolve('styled-jsx/style')],
   ['styled-jsx/style', require.resolve('styled-jsx/style')],
+  ['zod', dirname(require.resolve('zod/package.json'))],
 ])
 
 // Override built-in React packages if necessary

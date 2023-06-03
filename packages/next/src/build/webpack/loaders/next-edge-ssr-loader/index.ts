@@ -132,10 +132,10 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
     `
     }
 
-    const incrementalCacheHandler = ${
+    ${
       incrementalCacheHandlerPath
-        ? `require("${incrementalCacheHandlerPath}")`
-        : 'null'
+        ? `import incrementalCacheHandler from "${incrementalCacheHandlerPath}"`
+        : 'const incrementalCacheHandler = null'
     }
 
     const buildManifest = self.__BUILD_MANIFEST

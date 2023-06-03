@@ -5,6 +5,7 @@ import crypto from 'crypto'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import path from 'path'
 import semver from 'next/dist/compiled/semver'
+
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import {
   DOT_NEXT_ALIAS,
@@ -1097,6 +1098,9 @@ export default async function getBaseWebpackConfig(
               'next/dist/esm/client/components/navigation',
             [require.resolve('next/dist/client/components/headers')]:
               'next/dist/esm/client/components/headers',
+
+            // TODO: This is a temp fix, investigate the module not found for zod
+            zod: dirname(require.resolve('zod/package.json')),
           }
         : undefined),
 
