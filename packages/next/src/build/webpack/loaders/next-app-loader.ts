@@ -5,7 +5,6 @@ import type { ModuleReference, CollectedMetadata } from './metadata/types'
 import path from 'path'
 import { stringify } from 'querystring'
 import chalk from 'next/dist/compiled/chalk'
-import { NODE_RESOLVE_OPTIONS } from '../../webpack-config'
 import { getModuleBuildInfo } from './get-module-build-info'
 import { verifyRootLayout } from '../../../lib/verifyRootLayout'
 import * as Log from '../../output/log'
@@ -40,8 +39,6 @@ export type AppLoaderOptions = {
   nextConfigOutput?: NextConfig['output']
 }
 type AppLoader = webpack.LoaderDefinitionFunction<AppLoaderOptions>
-
-const isNotResolvedError = (err: any) => err.message.includes("Can't resolve")
 
 const FILE_TYPES = {
   layout: 'layout',
@@ -186,12 +183,13 @@ async function createTreeCodeFromPath(
     resolveDir,
     resolver,
     resolveParallelSegments,
-    loaderContext,
+    metadataResolver,
     pageExtensions,
     basePath,
   }: {
     resolveDir: DirResolver
     resolver: PathResolver
+    metadataResolver: MetadataResolver
     resolveParallelSegments: (
       pathname: string
     ) => [key: string, segment: string | string[]][]
@@ -265,24 +263,17 @@ async function createTreeCodeFromPath(
 
     let metadata: Awaited<ReturnType<typeof createStaticMetadataFromRoute>> =
       null
-    try {
-      const routerDirPath = `${appDirPrefix}${segmentPath}`
-      const resolvedRouteDir = await resolveDir(routerDirPath)
+    const routerDirPath = `${appDirPrefix}${segmentPath}`
+    const resolvedRouteDir = await resolveDir(routerDirPath)
 
-      if (resolvedRouteDir) {
-        metadata = await createStaticMetadataFromRoute(resolvedRouteDir, {
-          basePath,
-          segment: segmentPath,
-          metadataResolver,
-          isRootLayoutOrRootPage,
-          loaderContext,
-          pageExtensions,
-        })
-      }
-    } catch (err: any) {
-      if (isNotResolvedError(err)) {
-        throw err
-      }
+    if (resolvedRouteDir) {
+      metadata = await createStaticMetadataFromRoute(resolvedRouteDir, {
+        basePath,
+        segment: segmentPath,
+        metadataResolver,
+        isRootLayoutOrRootPage,
+        pageExtensions,
+      })
     }
 
     for (const [parallelKey, parallelSegment] of parallelSegments) {
@@ -534,6 +525,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   } = await createTreeCodeFromPath(pagePath, {
     resolveDir,
     resolver,
+    metadataResolver,
     resolveParallelSegments,
     loaderContext: this,
     pageExtensions,
