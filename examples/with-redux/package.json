@@ -14,7 +14,7 @@
     "next": "13.4.4",
     "react": "18.2.0",
     "react-dom": "18.2.0",
-    "react-redux": "8.0.5",
+    "react-redux": "8.0.7",
     "sass": "1.62.1",
     "waait": "1.0.5"
   },
@@ -24,7 +24,7 @@
     "@testing-library/react": "14.0.0",
     "@testing-library/user-event": "14.4.3",
     "@types/node": "20.2.5",
-    "@types/react": "18.2.7",
+    "@types/react": "18.2.8",
     "@types/react-dom": "18.2.4",
     "@types/redux-logger": "3.0.9",
     "jest": "29.5.0",
@@ -33,6 +33,6 @@
     "jest-watch-typeahead": "2.2.2",
     "redux-logger": "3.0.6",
     "ts-node": "10.9.1",
-    "typescript": "5.0.4"
+    "typescript": "5.1.3"
   }
 }
