@@ -22,6 +22,7 @@ import { AppPathnameNormalizer } from '../../../server/future/normalizers/built/
 import { RouteKind } from '../../../server/future/route-kind'
 import { AppRouteRouteModuleOptions } from '../../../server/future/route-modules/app-route/module'
 import { AppBundlePathNormalizer } from '../../../server/future/normalizers/built/app/app-bundle-path-normalizer'
+import { FileType, fileExists } from '../../../lib/file-exists'
 
 export type AppLoaderOptions = {
   name: string
@@ -53,10 +54,11 @@ const FILE_TYPES = {
 const GLOBAL_ERROR_FILE_TYPE = 'global-error'
 const PAGE_SEGMENT = 'page$'
 
-type PathResolver = (
+type DirResolver = (pathToResolve: string) => string
+type PathResolver = (pathname: string) => Promise<string | undefined>
+export type MetadataResolver = (
   pathname: string,
-  resolveDir?: boolean,
-  internal?: boolean
+  extensions: readonly string[]
 ) => Promise<string | undefined>
 
 export type ComponentsType = {
@@ -181,15 +183,15 @@ const isDirectory = async (pathname: string) => {
 async function createTreeCodeFromPath(
   pagePath: string,
   {
+    resolveDir,
     resolver,
-    resolvePath,
     resolveParallelSegments,
     loaderContext,
     pageExtensions,
     basePath,
   }: {
+    resolveDir: DirResolver
     resolver: PathResolver
-    resolvePath: (pathname: string) => Promise<string>
     resolveParallelSegments: (
       pathname: string
     ) => [key: string, segment: string | string[]][]
@@ -208,9 +210,8 @@ async function createTreeCodeFromPath(
   async function resolveAdjacentParallelSegments(
     segmentPath: string
   ): Promise<string[]> {
-    const absoluteSegmentPath = await resolver(
-      `${appDirPrefix}${segmentPath}`,
-      true
+    const absoluteSegmentPath = await resolveDir(
+      `${appDirPrefix}${segmentPath}`
     )
 
     if (!absoluteSegmentPath) {
@@ -266,13 +267,13 @@ async function createTreeCodeFromPath(
       null
     try {
       const routerDirPath = `${appDirPrefix}${segmentPath}`
-      const resolvedRouteDir = await resolver(routerDirPath, true)
+      const resolvedRouteDir = await resolveDir(routerDirPath)
 
       if (resolvedRouteDir) {
         metadata = await createStaticMetadataFromRoute(resolvedRouteDir, {
           basePath,
           segment: segmentPath,
-          resolvePath,
+          metadataResolver,
           isRootLayoutOrRootPage,
           loaderContext,
           pageExtensions,
@@ -448,20 +449,6 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
   const extensions = pageExtensions.map((extension) => `.${extension}`)
 
-  const resolveOptions: any = {
-    ...NODE_RESOLVE_OPTIONS,
-    extensions,
-  }
-
-  const resolve = this.getResolve(resolveOptions)
-
-  // a resolver for internal next files. We need to override the extensions, in case
-  // a project doesn't have the same ones as used by next.
-  const internalResolve = this.getResolve({
-    ...resolveOptions,
-    extensions: [...extensions, '.js', '.jsx', '.ts', '.tsx'],
-  })
-
   const normalizedAppPaths =
     typeof appPaths === 'string' ? [appPaths] : appPaths || []
 
@@ -496,28 +483,34 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
     return Object.entries(matched)
   }
-  const resolver: PathResolver = async (pathname, resolveDir, internal) => {
-    if (resolveDir) {
-      return createAbsolutePath(appDir, pathname)
-    }
 
-    try {
-      const resolved = await (internal ? internalResolve : resolve)(
-        this.rootContext,
-        pathname
-      )
-      this.addDependency(resolved)
-      return resolved
-    } catch (err: any) {
-      const absolutePath = createAbsolutePath(appDir, pathname)
-      for (const ext of extensions) {
-        const absolutePathWithExtension = `${absolutePath}${ext}`
+  const resolveDir: DirResolver = (pathToResolve) => {
+    return createAbsolutePath(appDir, pathToResolve)
+  }
+
+  const resolver: PathResolver = async (pathname) => {
+    const absolutePath = createAbsolutePath(appDir, pathname)
+
+    for (const ext of extensions) {
+      const absolutePathWithExtension = `${absolutePath}${ext}`
+      if (await fileExists(absolutePathWithExtension, FileType.File)) {
+        return absolutePathWithExtension
+      } else {
         this.addMissingDependency(absolutePathWithExtension)
       }
-      if (isNotResolvedError(err)) {
-        return undefined
+    }
+  }
+
+  const metadataResolver: MetadataResolver = async (pathname, exts) => {
+    const absolutePath = createAbsolutePath(appDir, pathname)
+
+    for (const ext of exts) {
+      const absolutePathWithExtension = `${absolutePath}${ext}`
+      if (await fileExists(absolutePathWithExtension, FileType.File)) {
+        return absolutePathWithExtension
+      } else {
+        this.addMissingDependency(absolutePathWithExtension)
       }
-      throw err
     }
   }
 
@@ -539,8 +532,8 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     rootLayout,
     globalError,
   } = await createTreeCodeFromPath(pagePath, {
+    resolveDir,
     resolver,
-    resolvePath: (pathname: string) => resolve(this.rootContext, pathname),
     resolveParallelSegments,
     loaderContext: this,
     pageExtensions,
