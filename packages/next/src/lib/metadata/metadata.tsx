@@ -58,8 +58,8 @@ export async function MetadataTree({
 
   return (
     <>
-      {elements.map((el: React.ReactElement, index: index) => {
-        return React.cloneElement(el, { key: index })
+      {elements.map((el, index) => {
+        return React.cloneElement(el as React.ReactElement, { key: index })
       })}
     </>
   )

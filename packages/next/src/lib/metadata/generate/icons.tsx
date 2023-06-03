@@ -13,7 +13,7 @@ function IconDescriptorLink({ icon }: { icon: IconDescriptor }) {
 function IconLink({ rel, icon }: { rel?: string; icon: Icon }) {
   if (typeof icon === 'object' && !(icon instanceof URL)) {
     if (!icon.rel && rel) icon.rel = rel
-    return <IconDescriptorLink icon={icon} />
+    return IconDescriptorLink({ icon })
   } else {
     const href = icon.toString()
     return <link rel={rel} href={href} />
