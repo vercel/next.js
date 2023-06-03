@@ -3,6 +3,7 @@ name: build-and-deploy
 on:
   push:
     branches: ['canary']
+  workflow_dispatch:
 
 env:
   NAPI_CLI_VERSION: 2.14.7
@@ -24,7 +25,7 @@ jobs:
     outputs:
       docsChange: ${{ steps.docs-change.outputs.DOCS_CHANGE }}
       codemodChange: ${{ steps.codemod-change.outputs.CODEMOD_CHANGE }}
-      isRelease: ${{ steps.check-release.outputs.IS_RELEASE }}
+      isRelease: ${{ github.event_name != 'workflow_dispatch' && steps.check-release.outputs.IS_RELEASE }}
       swcChange: ${{ steps.swc-change.outputs.SWC_CHANGE }}
       turboToken: ${{ steps.turbo-token.outputs.TURBO_TOKEN }}
       weekNum: ${{ steps.get-week.outputs.WEEK }}
