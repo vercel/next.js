@@ -5,9 +5,9 @@ import { Meta, MetaFilter, MultiMeta } from './meta'
 
 export function BasicMetadata({ metadata }: { metadata: ResolvedMetadata }) {
   return MetaFilter([
-    <meta key="charset" charSet="utf-8" />,
+    <meta charSet="utf-8" />,
     metadata.title !== null && metadata.title.absolute ? (
-      <title key="title">{metadata.title.absolute}</title>
+      <title>{metadata.title.absolute}</title>
     ) : null,
     Meta({ name: 'description', content: metadata.description }),
     Meta({ name: 'application-name', content: metadata.applicationName }),
@@ -15,7 +15,7 @@ export function BasicMetadata({ metadata }: { metadata: ResolvedMetadata }) {
       ? metadata.authors.map((author, index) => [
           author.url ? (
             <link
-              key={'author' + index}
+              // key={'author' + index}
               rel="author"
               href={author.url.toString()}
             />
@@ -24,7 +24,7 @@ export function BasicMetadata({ metadata }: { metadata: ResolvedMetadata }) {
         ])
       : []),
     metadata.manifest ? (
-      <link key="manifest" rel="manifest" href={metadata.manifest.toString()} />
+      <link rel="manifest" href={metadata.manifest.toString()} />
     ) : null,
     Meta({ name: 'generator', content: metadata.generator }),
     Meta({ name: 'keywords', content: metadata.keywords?.join(',') }),
@@ -47,17 +47,15 @@ export function BasicMetadata({ metadata }: { metadata: ResolvedMetadata }) {
     Meta({ name: 'abstract', content: metadata.abstract }),
     ...(metadata.archives
       ? metadata.archives.map((archive) => (
-          <link rel="archives" href={archive} key={archive} />
+          <link rel="archives" href={archive} />
         ))
       : []),
     ...(metadata.assets
-      ? metadata.assets.map((asset) => (
-          <link rel="assets" href={asset} key={asset} />
-        ))
+      ? metadata.assets.map((asset) => <link rel="assets" href={asset} />)
       : []),
     ...(metadata.bookmarks
       ? metadata.bookmarks.map((bookmark) => (
-          <link rel="bookmarks" href={bookmark} key={bookmark} />
+          <link rel="bookmarks" href={bookmark} />
         ))
       : []),
     Meta({ name: 'category', content: metadata.category }),
@@ -123,7 +121,7 @@ export function AppleWebAppMeta({
     ...(startupImage
       ? startupImage.map((image, index) => (
           <link
-            key={index}
+            // key={index}
             href={image.url}
             media={image.media}
             rel="apple-touch-startup-image"

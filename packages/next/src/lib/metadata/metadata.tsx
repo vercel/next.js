@@ -56,6 +56,11 @@ export async function MetadataTree({
     IconsMetadata({ icons: metadata.icons }),
   ])
 
-  // Wrap with fragment and key to skip react array-key warnings.
-  return <>{elements}</>
+  return (
+    <>
+      {elements.map((el: React.ReactElement, index: index) => {
+        return React.cloneElement(el, { key: index })
+      })}
+    </>
+  )
 }

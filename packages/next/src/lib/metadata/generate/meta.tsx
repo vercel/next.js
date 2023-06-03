@@ -28,10 +28,15 @@ export function Meta({
 export function MetaFilter<T extends {} | {}[]>(
   items: (T | null)[]
 ): NonNullable<T>[] {
-  return items.filter(
-    (item): item is NonNullable<T> =>
-      nonNullable(item) && !(Array.isArray(item) && item.length === 0)
-  )
+  const acc: NonNullable<T>[] = []
+  for (const item of items) {
+    if (Array.isArray(item)) {
+      acc.push(...item.filter(nonNullable))
+    } else if (nonNullable(item)) {
+      acc.push(item)
+    }
+  }
+  return acc
 }
 
 type ExtendMetaContent = Record<
