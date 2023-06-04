@@ -496,7 +496,8 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     const absolutePath = createAbsolutePath(appDir, pathname)
 
     for (const ext of exts) {
-      const absolutePathWithExtension = `${absolutePath}${ext}`
+      // Compared to `resolver` above the exts do not have the `.` included already, so it's added here.
+      const absolutePathWithExtension = `${absolutePath}.${ext}`
       if (await fileExists(absolutePathWithExtension, FileType.File)) {
         return absolutePathWithExtension
       } else {
