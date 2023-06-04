@@ -52,7 +52,9 @@ const GLOBAL_ERROR_FILE_TYPE = 'global-error'
 const PAGE_SEGMENT = 'page$'
 
 type DirResolver = (pathToResolve: string) => string
-type PathResolver = (pathname: string) => Promise<string | undefined>
+type PathResolver = (
+  pathname: string
+) => Promise<string | undefined> | string | undefined
 export type MetadataResolver = (
   pathname: string,
   extensions: readonly string[]
@@ -72,14 +74,14 @@ async function createAppRouteCode({
   name,
   page,
   pagePath,
-  resolver,
+  resolveAppRoute,
   pageExtensions,
   nextConfigOutput,
 }: {
   name: string
   page: string
   pagePath: string
-  resolver: PathResolver
+  resolveAppRoute: PathResolver
   pageExtensions: string[]
   nextConfigOutput: NextConfig['output']
 }): Promise<string> {
@@ -89,7 +91,7 @@ async function createAppRouteCode({
 
   // This, when used with the resolver will give us the pathname to the built
   // route handler file.
-  let resolvedPagePath = await resolver(routePath)
+  let resolvedPagePath = await resolveAppRoute(routePath)
   if (!resolvedPagePath) {
     throw new Error(
       `Invariant: could not resolve page path for ${name} at ${routePath}`
@@ -479,6 +481,10 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     return createAbsolutePath(appDir, pathToResolve)
   }
 
+  const resolveAppRoute: PathResolver = (pathToResolve) => {
+    return createAbsolutePath(appDir, pathToResolve)
+  }
+
   const resolver: PathResolver = async (pathname) => {
     const absolutePath = createAbsolutePath(appDir, pathname)
 
@@ -512,7 +518,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       page: loaderOptions.page,
       name,
       pagePath,
-      resolver,
+      resolveAppRoute,
       pageExtensions,
       nextConfigOutput,
     })
