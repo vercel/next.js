@@ -64,6 +64,7 @@ import { IncrementalCache } from '../server/lib/incremental-cache'
 import { patchFetch } from '../server/lib/patch-fetch'
 import { nodeFs } from '../server/lib/node-fs-methods'
 import * as ciEnvironment from '../telemetry/ci-info'
+import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -773,6 +774,18 @@ export async function getJsPageSizeInKb(
     throw new Error('expected appBuildManifest with an "app" pageType')
   }
 
+  // Normalize appBuildManifest keys
+  if (routerType === 'app') {
+    pageManifest.pages = Object.entries(pageManifest.pages).reduce(
+      (acc: Record<string, string[]>, [key, value]) => {
+        const newKey = normalizeAppPath(key)
+        acc[newKey] = value as string[]
+        return acc
+      },
+      {}
+    )
+  }
+
   // If stats was not provided, then compute it again.
   const stats =
     cachedStats ??
@@ -788,10 +801,11 @@ export async function getJsPageSizeInKb(
     throw new Error('expected "app" manifest data with an "app" pageType')
   }
 
-  const pagePath =
-    routerType === 'pages'
-      ? denormalizePagePath(page)
-      : denormalizeAppPagePath(page)
+  // Denormalization is not needed for "app" dir, as we normalize the keys of appBuildManifest instead
+  let pagePath = page
+  if (routerType === 'pages') {
+    pagePath = denormalizePagePath(page)
+  }
 
   const fnFilterJs = (entry: string) => entry.endsWith('.js')
 
