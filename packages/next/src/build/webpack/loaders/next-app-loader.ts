@@ -199,7 +199,12 @@ async function createTreeCodeFromPath(
     pageExtensions: string[]
     basePath: string
   }
-) {
+): Promise<{
+  treeCode: string
+  pages: string
+  rootLayout: string | undefined
+  globalError: string | undefined
+}> {
   const splittedPath = pagePath.split(/[\\/]/)
   const appDirPrefix = splittedPath[0]
   const pages: string[] = []
@@ -488,28 +493,43 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   const resolver: PathResolver = async (pathname) => {
     const absolutePath = createAbsolutePath(appDir, pathname)
 
+    let result: string | undefined
+
     for (const ext of extensions) {
       const absolutePathWithExtension = `${absolutePath}${ext}`
-      if (await fileExists(absolutePathWithExtension, FileType.File)) {
-        return absolutePathWithExtension
+      if (
+        !result &&
+        (await fileExists(absolutePathWithExtension, FileType.File))
+      ) {
+        // Ensures we call `addMissingDependency` for all files that didn't match
+        result = absolutePathWithExtension
       } else {
         this.addMissingDependency(absolutePathWithExtension)
       }
     }
+
+    return result
   }
 
   const metadataResolver: MetadataResolver = async (pathname, exts) => {
     const absolutePath = createAbsolutePath(appDir, pathname)
 
+    let result: string | undefined
+
     for (const ext of exts) {
       // Compared to `resolver` above the exts do not have the `.` included already, so it's added here.
       const absolutePathWithExtension = `${absolutePath}.${ext}`
-      if (await fileExists(absolutePathWithExtension, FileType.File)) {
-        return absolutePathWithExtension
+      if (
+        !result &&
+        (await fileExists(absolutePathWithExtension, FileType.File))
+      ) {
+        result = absolutePathWithExtension
       } else {
         this.addMissingDependency(absolutePathWithExtension)
       }
     }
+
+    return result
   }
 
   if (isAppRouteRoute(name)) {
@@ -524,12 +544,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     })
   }
 
-  const {
-    treeCode,
-    pages: pageListCode,
-    rootLayout,
-    globalError,
-  } = await createTreeCodeFromPath(pagePath, {
+  let treeCodeResult = await createTreeCodeFromPath(pagePath, {
     resolveDir,
     resolver,
     metadataResolver,
@@ -539,7 +554,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     basePath,
   })
 
-  if (!rootLayout) {
+  if (!treeCodeResult.rootLayout) {
     if (!isDev) {
       // If we're building and missing a root layout, exit the build
       Log.error(
@@ -573,18 +588,29 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
         throw new Error(message)
       }
+
+      // Get the new result with the created root layout.
+      treeCodeResult = await createTreeCodeFromPath(pagePath, {
+        resolveDir,
+        resolver,
+        metadataResolver,
+        resolveParallelSegments,
+        loaderContext: this,
+        pageExtensions,
+        basePath,
+      })
     }
   }
 
   const result = `
-    export ${treeCode}
-    export ${pageListCode}
+    export ${treeCodeResult.treeCode}
+    export ${treeCodeResult.pages}
 
     export { default as AppRouter } from 'next/dist/client/components/app-router'
     export { default as LayoutRouter } from 'next/dist/client/components/layout-router'
     export { default as RenderFromTemplateContext } from 'next/dist/client/components/render-from-template-context'
     export { default as GlobalError } from ${JSON.stringify(
-      globalError || 'next/dist/client/components/error-boundary'
+      treeCodeResult.globalError || 'next/dist/client/components/error-boundary'
     )}
 
     export { staticGenerationAsyncStorage } from 'next/dist/client/components/static-generation-async-storage'
