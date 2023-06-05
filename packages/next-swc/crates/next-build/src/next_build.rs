@@ -483,7 +483,6 @@ async fn workspace_fs(
 ) -> Result<FileSystemVc> {
     let disk_fs = DiskFileSystemVc::new("workspace".to_string(), workspace_root.to_string());
     handle_issues(disk_fs, issue_reporter).await?;
-    disk_fs.await?.start_watching()?;
     Ok(disk_fs.into())
 }
 
@@ -491,7 +490,6 @@ async fn workspace_fs(
 async fn node_fs(node_root: &str, issue_reporter: IssueReporterVc) -> Result<FileSystemVc> {
     let disk_fs = DiskFileSystemVc::new("node".to_string(), node_root.to_string());
     handle_issues(disk_fs, issue_reporter).await?;
-    disk_fs.await?.start_watching()?;
     Ok(disk_fs.into())
 }
 
@@ -499,7 +497,6 @@ async fn node_fs(node_root: &str, issue_reporter: IssueReporterVc) -> Result<Fil
 async fn client_fs(client_root: &str, issue_reporter: IssueReporterVc) -> Result<FileSystemVc> {
     let disk_fs = DiskFileSystemVc::new("client".to_string(), client_root.to_string());
     handle_issues(disk_fs, issue_reporter).await?;
-    disk_fs.await?.start_watching()?;
     Ok(disk_fs.into())
 }
 
