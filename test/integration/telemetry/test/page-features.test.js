@@ -65,7 +65,7 @@ describe('page features telemetry', () => {
         expect(event1).toMatch(/"pagesDir": true/)
         expect(event1).toMatch(/"turboFlag": true/)
       } catch (err) {
-        require('console').error(stderr)
+        require('console').error('failing stderr', stderr, err)
         throw err
       }
     } finally {
@@ -217,7 +217,7 @@ describe('page features telemetry', () => {
 
         expect(event2).toMatch(/"totalAppPagesCount": 4/)
       } catch (err) {
-        require('console').error(stderr)
+        require('console').error('failing stderr', stderr, err)
         throw err
       }
     } finally {
