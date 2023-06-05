@@ -192,14 +192,13 @@ fn encode_image(image: DynamicImage, format: ImageFormat, quality: u8) -> Result
         }
         #[cfg(feature = "webp")]
         ImageFormat::WebP => {
-            use image::webp::{WebPEncoder, WebPQuality};
-            WebPEncoder::new_with_quality(&mut buf, WebPQuality::lossy(options.quality))
-                .write_image(
-                    small_image.as_bytes(),
-                    blur_width,
-                    blur_height,
-                    small_image.color(),
-                )?;
+            use image::codecs::webp::{WebPEncoder, WebPQuality};
+            WebPEncoder::new_with_quality(&mut buf, WebPQuality::lossy(quality)).write_image(
+                image.as_bytes(),
+                width,
+                height,
+                image.color(),
+            )?;
             (buf, Mime::from_str("image/webp")?)
         }
         #[cfg(feature = "avif")]
