@@ -4,7 +4,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use swc_core::{
     base::SwcComments,
-    common::{chain, util::take::Take, Mark, SourceMap},
+    common::{chain, comments::Comments, util::take::Take, Mark, SourceMap},
     ecma::{
         ast::{Module, ModuleItem, Program, Script},
         preset_env::{self, Targets},
@@ -169,16 +169,22 @@ impl EcmascriptInputTransform {
                     ..Default::default()
                 };
 
-                program.visit_mut_with(&mut react(
+                // Explicit type annotation to ensure that we don't duplicate transforms in the
+                // final binary
+                program.visit_mut_with(&mut react::<&dyn Comments>(
                     source_map.clone(),
-                    Some(comments.clone()),
+                    Some(&comments),
                     config,
                     top_level_mark,
                     unresolved_mark,
                 ));
             }
             EcmascriptInputTransform::CommonJs => {
-                program.visit_mut_with(&mut swc_core::ecma::transforms::module::common_js(
+                // Explicit type annotation to ensure that we don't duplicate transforms in the
+                // final binary
+                program.visit_mut_with(&mut swc_core::ecma::transforms::module::common_js::<
+                    &dyn Comments,
+                >(
                     unresolved_mark,
                     swc_core::ecma::transforms::module::util::Config {
                         allow_top_level_this: true,
@@ -188,7 +194,7 @@ impl EcmascriptInputTransform {
                         ..Default::default()
                     },
                     swc_core::ecma::transforms::base::feature::FeatureFlag::all(),
-                    Some(comments.clone()),
+                    Some(&comments),
                 ));
             }
             EcmascriptInputTransform::PresetEnv(env) => {
@@ -216,10 +222,12 @@ impl EcmascriptInputTransform {
                     module_program
                 };
 
+                // Explicit type annotation to ensure that we don't duplicate transforms in the
+                // final binary
                 *program = module_program.fold_with(&mut chain!(
-                    preset_env::preset_env(
+                    preset_env::preset_env::<&'_ dyn Comments>(
                         top_level_mark,
-                        Some(comments.clone()),
+                        Some(&comments),
                         config,
                         Assumptions::default(),
                         &mut FeatureFlag::empty(),
