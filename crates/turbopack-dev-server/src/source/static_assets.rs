@@ -16,7 +16,7 @@ use super::{
 
 #[turbo_tasks::value(shared)]
 pub struct StaticAssetsContentSource {
-    pub prefix: String,
+    pub prefix: StringVc,
     pub dir: FileSystemPathVc,
 }
 
@@ -24,11 +24,19 @@ pub struct StaticAssetsContentSource {
 impl StaticAssetsContentSourceVc {
     #[turbo_tasks::function]
     pub fn new(prefix: String, dir: FileSystemPathVc) -> StaticAssetsContentSourceVc {
-        let mut prefix = prefix;
-        if !prefix.is_empty() && !prefix.ends_with('/') {
-            prefix.push('/');
+        StaticAssetsContentSourceVc::with_prefix(StringVc::cell(prefix), dir)
+    }
+
+    #[turbo_tasks::function]
+    pub async fn with_prefix(
+        prefix: StringVc,
+        dir: FileSystemPathVc,
+    ) -> Result<StaticAssetsContentSourceVc> {
+        if cfg!(debug_assertions) {
+            let prefix_string = prefix.await?;
+            debug_assert!(prefix_string.is_empty() || prefix_string.ends_with('/'));
         }
-        StaticAssetsContentSource { prefix, dir }.cell()
+        Ok(StaticAssetsContentSource { prefix, dir }.cell())
     }
 }
 
@@ -41,7 +49,8 @@ impl ContentSource for StaticAssetsContentSource {
         _data: Value<ContentSourceData>,
     ) -> Result<ContentSourceResultVc> {
         if !path.is_empty() {
-            if let Some(path) = path.strip_prefix(&self.prefix) {
+            let prefix = self.prefix.await?;
+            if let Some(path) = path.strip_prefix(&*prefix) {
                 let path = self.dir.join(path);
                 let ty = path.get_type().await?;
                 if matches!(
@@ -69,27 +78,29 @@ impl Introspectable for StaticAssetsContentSource {
     #[turbo_tasks::function]
     async fn children(&self) -> Result<IntrospectableChildrenVc> {
         let dir = self.dir.read_dir().await?;
-        let children = match &*dir {
-            DirectoryContent::NotFound => Default::default(),
-            DirectoryContent::Entries(entries) => entries
-                .iter()
-                .map(|(name, entry)| {
-                    let child = match entry {
-                        DirectoryEntry::File(path) | DirectoryEntry::Symlink(path) => {
-                            IntrospectableAssetVc::new(SourceAssetVc::new(*path).as_asset())
-                        }
-                        DirectoryEntry::Directory(path) => StaticAssetsContentSourceVc::new(
-                            format!("{prefix}{name}", prefix = self.prefix),
-                            *path,
-                        )
-                        .into(),
-                        DirectoryEntry::Other(_) => todo!("what's DirectoryContent::Other?"),
-                        DirectoryEntry::Error => todo!(),
-                    };
-                    (StringVc::cell(name.clone()), child)
-                })
-                .collect(),
+        let DirectoryContent::Entries(entries) = &*dir else {
+            return Ok(IntrospectableChildrenVc::cell(Default::default()));
         };
+
+        let prefix = self.prefix.await?;
+        let children = entries
+            .iter()
+            .map(|(name, entry)| {
+                let child = match entry {
+                    DirectoryEntry::File(path) | DirectoryEntry::Symlink(path) => {
+                        IntrospectableAssetVc::new(SourceAssetVc::new(*path).as_asset())
+                    }
+                    DirectoryEntry::Directory(path) => StaticAssetsContentSourceVc::with_prefix(
+                        StringVc::cell(format!("{}{name}/", &*prefix)),
+                        *path,
+                    )
+                    .into(),
+                    DirectoryEntry::Other(_) => todo!("what's DirectoryContent::Other?"),
+                    DirectoryEntry::Error => todo!(),
+                };
+                (StringVc::cell(name.clone()), child)
+            })
+            .collect();
         Ok(IntrospectableChildrenVc::cell(children))
     }
 }
