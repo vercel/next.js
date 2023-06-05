@@ -5,7 +5,7 @@ version = "0.0.0"
 publish = false
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["cdylib"]
 
 [features]
 default = ["rustls-tls"]

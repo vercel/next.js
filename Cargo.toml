@@ -22,7 +22,7 @@ opt-level = 2
 debug-assertions = false
 
 [profile.release]
-lto = true
+# lto = true
 
 [workspace.dependencies]
 # Workspace crates
