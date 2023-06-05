@@ -17,6 +17,7 @@ import {
 } from './generate/opengraph'
 import { IconsMetadata } from './generate/icons'
 import { accumulateMetadata, resolveMetadata } from './resolve-metadata'
+import { MetaFilter } from './generate/meta'
 
 // Generate the actual React elements from the resolved metadata.
 export async function MetadataTree({
@@ -42,18 +43,19 @@ export async function MetadataTree({
   })
   const metadata = await accumulateMetadata(resolvedMetadata, options)
 
-  return (
-    <>
-      <BasicMetadata metadata={metadata} />
-      <AlternatesMetadata alternates={metadata.alternates} />
-      <ItunesMeta itunes={metadata.itunes} />
-      <FormatDetectionMeta formatDetection={metadata.formatDetection} />
-      <VerificationMeta verification={metadata.verification} />
-      <AppleWebAppMeta appleWebApp={metadata.appleWebApp} />
-      <OpenGraphMetadata openGraph={metadata.openGraph} />
-      <TwitterMetadata twitter={metadata.twitter} />
-      <AppLinksMeta appLinks={metadata.appLinks} />
-      <IconsMetadata icons={metadata.icons} />
-    </>
-  )
+  const elements = MetaFilter([
+    BasicMetadata({ metadata }),
+    AlternatesMetadata({ alternates: metadata.alternates }),
+    ItunesMeta({ itunes: metadata.itunes }),
+    FormatDetectionMeta({ formatDetection: metadata.formatDetection }),
+    VerificationMeta({ verification: metadata.verification }),
+    AppleWebAppMeta({ appleWebApp: metadata.appleWebApp }),
+    OpenGraphMetadata({ openGraph: metadata.openGraph }),
+    TwitterMetadata({ twitter: metadata.twitter }),
+    AppLinksMeta({ appLinks: metadata.appLinks }),
+    IconsMetadata({ icons: metadata.icons }),
+  ])
+
+  // Wrap with fragment and key to skip react array-key warnings.
+  return <>{elements}</>
 }
