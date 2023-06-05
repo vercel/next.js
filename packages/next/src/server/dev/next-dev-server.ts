@@ -128,7 +128,7 @@ export interface Options extends ServerOptions {
 export default class DevServer extends Server {
   private devReady: Promise<void>
   private setDevReady?: Function
-  private webpackWatcher?: Watchpack | null
+  private webpackWatcher?: any | null
   private hotReloader?: HotReloader
   private isCustomServer: boolean
   protected sortedRoutes?: string[]

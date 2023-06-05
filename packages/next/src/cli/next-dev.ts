@@ -479,7 +479,9 @@ const nextDev: CliCommand = async (argv) => {
           }
 
           previousInstrumentationFiles.clear()
-          knownFiles.forEach((_, key) => previousInstrumentationFiles.add(key))
+          knownFiles.forEach((_: any, key: any) =>
+            previousInstrumentationFiles.add(key)
+          )
         })
 
         const projectFolderWatcher = new Watchpack({

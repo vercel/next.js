@@ -89,8 +89,8 @@
     "caniuse-lite": "^1.0.30001406",
     "postcss": "8.4.14",
     "styled-jsx": "5.1.1",
-    "zod": "3.21.4",
-    "watchpack": "2.4.0"
+    "watchpack": "2.4.0",
+    "zod": "3.21.4"
   },
   "peerDependencies": {
     "@opentelemetry/api": "^1.1.0",
