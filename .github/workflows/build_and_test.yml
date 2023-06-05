@@ -23,8 +23,6 @@ env:
   # we build a dev binary for use in CI so skip downloading
   # canary next-swc binaries in the monorepo
   NEXT_SKIP_NATIVE_POSTINSTALL: 1
-  DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
-  DATADOG_TRACE_NEXTJS_TEST: 'true'
   TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
   NEXT_TEST_JOB: 1
 
