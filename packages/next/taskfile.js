@@ -595,7 +595,7 @@ externals['watchpack'] = 'next/dist/compiled/watchpack'
 export async function ncc_watchpack(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('watchpack')))
-    .ncc({ packageName: 'watchpack', externals })
+    .ncc({ packageName: 'watchpack', externals, minify: false })
     .target('src/compiled/watchpack')
 }
 
