@@ -6,6 +6,8 @@ use anyhow::{bail, Context, Result};
 use base64::{display::Base64Display, engine::general_purpose::STANDARD};
 use image::{
     codecs::{
+        bmp::BmpEncoder,
+        ico::IcoEncoder,
         jpeg::JpegEncoder,
         png::{CompressionType, PngEncoder},
     },
@@ -189,6 +191,25 @@ fn encode_image(image: DynamicImage, format: ImageFormat, quality: u8) -> Result
                 image.color(),
             )?;
             (buf, mime::IMAGE_JPEG)
+        }
+        ImageFormat::Ico => {
+            IcoEncoder::new(&mut buf).write_image(
+                image.as_bytes(),
+                width,
+                height,
+                image.color(),
+            )?;
+            // mime does not support typed IMAGE_X_ICO yet
+            (buf, Mime::from_str("image/x-icon")?)
+        }
+        ImageFormat::Bmp => {
+            BmpEncoder::new(&mut buf).write_image(
+                image.as_bytes(),
+                width,
+                height,
+                image.color(),
+            )?;
+            (buf, mime::IMAGE_BMP)
         }
         #[cfg(feature = "webp")]
         ImageFormat::WebP => {
