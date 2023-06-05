@@ -20,7 +20,7 @@ import { findPagesDir } from '../lib/find-pages-dir'
 import { findRootDir } from '../lib/find-root'
 import { fileExists, FileType } from '../lib/file-exists'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
-import Watchpack from 'next/dist/compiled/watchpack'
+import Watchpack from 'watchpack'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { getPossibleInstrumentationHookFilenames } from '../build/worker'
 

@@ -727,6 +727,7 @@ importers:
       react-dom: 18.2.0_react@18.2.0
       sass: 1.54.0
       styled-jsx: 5.1.1_uuaxwgga6hqycsez5ok7v2wg4i
+      watchpack: 2.4.0
       zod: 3.21.4
     devDependencies:
       '@ampproject/toolbox-optimizer': 2.8.3
@@ -921,7 +922,6 @@ importers:
       util: 0.12.4
       uuid: 8.3.2
       vm-browserify: 1.1.2
-      watchpack: 2.4.0
       web-vitals: 3.0.0
       webpack: 5.74.0
       webpack-sources1: /webpack-sources/1.4.3

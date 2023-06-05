@@ -17,7 +17,7 @@ import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import findUp from 'next/dist/compiled/find-up'
 import { join as pathJoin, relative, resolve as pathResolve, sep } from 'path'
-import Watchpack from 'next/dist/compiled/watchpack'
+import Watchpack from 'watchpack'
 import { ampValidation } from '../../build/output'
 import {
   INSTRUMENTATION_HOOK_FILENAME,
