@@ -2,7 +2,7 @@ name: 'Update Google Fonts'
 
 on:
   schedule:
-    # This runs once a week: https://crontab.guru/#0_0,12_*_*_*
+    # This runs once a week: https://crontab.guru/#0_0_*_*_0
     - cron: '0 0 * * 0'
   workflow_dispatch:
 
