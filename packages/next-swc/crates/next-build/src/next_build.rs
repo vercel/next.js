@@ -120,7 +120,7 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
         node_root,
         client_root,
         env,
-        &browserslist_query,
+        browserslist_query,
         next_config,
         ServerAddrVc::empty(),
     );
@@ -131,7 +131,7 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
     let filter_pages = filter_pages
         .as_ref()
         .ok()
-        .map(|filter| filter.split(",").collect::<HashSet<_>>());
+        .map(|filter| filter.split(',').collect::<HashSet<_>>());
     let filter_pages = filter_pages.as_ref();
 
     {
@@ -162,14 +162,11 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
                 let all_node_assets: Vec<_> = all_assets_from_entry(page_chunk.node_chunk)
                     .await?
                     .iter()
-                    .map(|asset| {
-                        let node_root = node_root.clone();
-                        async move {
-                            Ok((
-                                asset.ident().path().await?.is_inside(&*node_root.await?),
-                                asset,
-                            ))
-                        }
+                    .map(|asset| async move {
+                        Ok((
+                            asset.ident().path().await?.is_inside(&*node_root.await?),
+                            asset,
+                        ))
                     })
                     .try_join()
                     .await?
@@ -185,14 +182,11 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
                 let all_client_assets: Vec<_> = all_assets_from_entries(client_chunks)
                     .await?
                     .iter()
-                    .map(|asset| {
-                        let client_root = client_root.clone();
-                        async move {
-                            Ok((
-                                asset.ident().path().await?.is_inside(&*client_root.await?),
-                                asset,
-                            ))
-                        }
+                    .map(|asset| async move {
+                        Ok((
+                            asset.ident().path().await?.is_inside(&*client_root.await?),
+                            asset,
+                        ))
                     })
                     .try_join()
                     .await?
@@ -211,7 +205,7 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
             .try_join()
             .await?
             .into_iter()
-            .filter_map(|x| x)
+            .flatten()
             .collect::<Vec<_>>();
 
         {
@@ -271,13 +265,13 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
                     .or_default();
                 for chunk in client_chunks.await?.iter() {
                     let chunk_path = chunk.ident().path().await?;
-                    if let Some(asset_path) = build_manifest_dir_path.get_path_to(&*chunk_path) {
+                    if let Some(asset_path) = build_manifest_dir_path.get_path_to(&chunk_path) {
                         build_manifest_pages_entry.push(asset_path.to_string());
                     }
                 }
 
                 let chunk_path = node_chunk.ident().path().await?;
-                if let Some(asset_path) = pages_manifest_dir_path.get_path_to(&*chunk_path) {
+                if let Some(asset_path) = pages_manifest_dir_path.get_path_to(&chunk_path) {
                     pages_manifest
                         .pages
                         .insert(pathname.clone_value(), asset_path.to_string());
