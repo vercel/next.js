@@ -57,8 +57,7 @@ impl PagesBuildClientContextVc {
             this.client_root.join("static/media"),
             this.client_asset_context.compile_time_info().environment(),
         )
-        .build()
-        .into())
+        .build())
     }
 
     #[turbo_tasks::function]

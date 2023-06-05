@@ -271,21 +271,18 @@ async fn get_page_chunks_for_directory(
     let mut chunks = vec![];
 
     for item in items.iter() {
-        match *item.await? {
-            PagesStructureItem {
-                project_path,
-                next_router_path,
-                specificity: _,
-            } => {
-                chunks.push(get_page_chunk_for_file(
-                    node_build_context,
-                    client_build_context,
-                    SourceAssetVc::new(project_path).into(),
-                    next_router_root,
-                    next_router_path,
-                ));
-            }
-        }
+        let PagesStructureItem {
+            project_path,
+            next_router_path,
+            specificity: _,
+        } = *item.await?;
+        chunks.push(get_page_chunk_for_file(
+            node_build_context,
+            client_build_context,
+            SourceAssetVc::new(project_path).into(),
+            next_router_root,
+            next_router_path,
+        ));
     }
 
     for child in children.iter() {
@@ -349,14 +346,10 @@ fn get_node_runtime_entries(
     env: ProcessEnvVc,
     next_config: NextConfigVc,
 ) -> RuntimeEntriesVc {
-    let mut node_runtime_entries = vec![];
-
-    node_runtime_entries.push(
-        RuntimeEntry::Source(
-            ProcessEnvAssetVc::new(project_root, env_for_js(env, false, next_config)).into(),
-        )
-        .cell(),
-    );
+    let node_runtime_entries = vec![RuntimeEntry::Source(
+        ProcessEnvAssetVc::new(project_root, env_for_js(env, false, next_config)).into(),
+    )
+    .cell()];
 
     RuntimeEntriesVc::cell(node_runtime_entries)
 }
