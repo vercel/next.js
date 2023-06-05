@@ -21,7 +21,7 @@ createNextDescribe(
       }
       expect(next.cliOutput).toContain('`export const config`')
       expect(next.cliOutput).toContain(
-        'app/legacy-runtime-config/page.js is deprecated. Please change `runtime` property to segment export config. See https://beta.nextjs.org/docs/api-reference/segment-config'
+        'app/legacy-runtime-config/page.js is deprecated. Please change `runtime` property to segment export config. See https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config'
       )
     })
   }

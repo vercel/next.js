@@ -40,9 +40,9 @@ const CallStackFrame: React.FC<{
 
   return (
     <div data-nextjs-call-stack-frame>
-      <h6 data-nextjs-frame-expanded={Boolean(frame.expanded)}>
+      <h3 data-nextjs-frame-expanded={Boolean(frame.expanded)}>
         {f.methodName}
-      </h6>
+      </h3>
       <div
         data-has-source={hasSource ? 'true' : undefined}
         tabIndex={hasSource ? 10 : undefined}
@@ -126,7 +126,7 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
     <React.Fragment>
       {firstFrame ? (
         <React.Fragment>
-          <h5>Source</h5>
+          <h2>Source</h2>
           {leadingFrames.map((frame, index) => (
             <CallStackFrame
               key={`leading-frame-${index}-${all}`}
@@ -142,10 +142,10 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
 
       {error.componentStack ? (
         <>
-          <h5>Component Stack</h5>
+          <h2>Component Stack</h2>
           {error.componentStack.map((component, index) => (
             <div key={index} data-nextjs-component-stack-frame>
-              <h6>{component}</h6>
+              <h3>{component}</h3>
             </div>
           ))}
         </>
@@ -153,7 +153,7 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
 
       {visibleCallStackFrames.length ? (
         <React.Fragment>
-          <h5>Call Stack</h5>
+          <h2>Call Stack</h2>
           {visibleCallStackFrames.map((frame, index) => (
             <CallStackFrame key={`call-stack-${index}-${all}`} frame={frame} />
           ))}
@@ -191,14 +191,15 @@ export const styles = css`
     margin-bottom: var(--size-gap-double);
   }
 
-  [data-nextjs-call-stack-frame] > h6,
-  [data-nextjs-component-stack-frame] > h6 {
+  [data-nextjs-call-stack-frame] > h3,
+  [data-nextjs-component-stack-frame] > h3 {
     margin-top: 0;
     margin-bottom: var(--size-gap);
     font-family: var(--font-stack-monospace);
+    font-size: var(--size-font);
     color: #222;
   }
-  [data-nextjs-call-stack-frame] > h6[data-nextjs-frame-expanded='false'] {
+  [data-nextjs-call-stack-frame] > h3[data-nextjs-frame-expanded='false'] {
     color: #666;
   }
   [data-nextjs-call-stack-frame] > div {

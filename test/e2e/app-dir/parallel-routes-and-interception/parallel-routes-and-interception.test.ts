@@ -305,6 +305,20 @@ createNextDescribe(
           'parallel for foo'
         )
       })
+
+      it('should display all parallel route params with useParams', async () => {
+        const browser = await next.browser('/parallel-dynamic/foo/bar')
+
+        await check(
+          () => browser.waitForElementByCss('#foo').text(),
+          `{"slug":"foo","id":"bar"}`
+        )
+
+        await check(
+          () => browser.waitForElementByCss('#bar').text(),
+          `{"slug":"foo","id":"bar"}`
+        )
+      })
     })
 
     describe('route intercepting', () => {
@@ -501,6 +515,20 @@ createNextDescribe(
         await check(
           () => browser.url(),
           next.url + '/intercepting-parallel-modal/photo/2'
+        )
+      })
+
+      it('should support intercepting with beforeFiles rewrites', async () => {
+        const browser = await next.browser('/foo')
+
+        await check(
+          () =>
+            browser
+              .elementByCss('[href="/photos"]')
+              .click()
+              .waitForElementByCss('#intercepted')
+              .text(),
+          'intercepted'
         )
       })
     })

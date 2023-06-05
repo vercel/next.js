@@ -17,7 +17,7 @@ import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import findUp from 'next/dist/compiled/find-up'
 import { join as pathJoin, relative, resolve as pathResolve, sep } from 'path'
-import Watchpack from 'next/dist/compiled/watchpack'
+import Watchpack from 'watchpack'
 import { ampValidation } from '../../build/output'
 import {
   INSTRUMENTATION_HOOK_FILENAME,
@@ -128,7 +128,7 @@ export interface Options extends ServerOptions {
 export default class DevServer extends Server {
   private devReady: Promise<void>
   private setDevReady?: Function
-  private webpackWatcher?: Watchpack | null
+  private webpackWatcher?: any | null
   private hotReloader?: HotReloader
   private isCustomServer: boolean
   protected sortedRoutes?: string[]
@@ -793,10 +793,12 @@ export default class DevServer extends Server {
           : undefined
 
         this.customRoutes = await loadCustomRoutes(this.nextConfig)
-        this.customRoutes.rewrites.beforeFiles.unshift(
+        const { rewrites } = this.customRoutes
+
+        this.customRoutes.rewrites.beforeFiles.push(
           ...generateInterceptionRoutesRewrites(Object.keys(appPaths))
         )
-        const { rewrites } = this.customRoutes
+
         if (
           rewrites.beforeFiles.length ||
           rewrites.afterFiles.length ||

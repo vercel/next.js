@@ -17,7 +17,8 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
-import { existsSync } from 'fs'
+import fs from 'fs/promises'
+import { pathExists } from 'fs-extra'
 
 const appDir = join(__dirname, '../')
 
@@ -204,6 +205,13 @@ function runTests(mode) {
           )
         ).length
       ).toBeGreaterThanOrEqual(1)
+
+      // should preload with referrerpolicy
+      expect(
+        await browser.elementsByCss(
+          'link[rel=preload][as=image][referrerpolicy="no-referrer"][imagesrcset*="test.png"]'
+        )
+      ).toHaveLength(1)
     } finally {
       if (browser) {
         await browser.close()
@@ -1044,7 +1052,7 @@ function runTests(mode) {
     //server-only tests
     it('should not create an image folder in server/chunks', async () => {
       expect(
-        existsSync(join(appDir, '.next/server/chunks/static/media'))
+        await pathExists(join(appDir, '.next/server/chunks/static/media'))
       ).toBeFalsy()
     })
     it('should render as unoptimized with missing src prop', async () => {
@@ -1292,6 +1300,13 @@ function runTests(mode) {
       const computedWidth = await getComputed(browser, id, 'width')
       const computedHeight = await getComputed(browser, id, 'height')
       expect(getRatio(computedHeight, computedWidth)).toBeCloseTo(0.75, 1)
+    })
+
+    it('should create images folder in static/media for edge runtime', async () => {
+      const files = await fs.readdir(join(appDir, '.next/static/media'))
+      expect(files).toEqual(
+        expect.arrayContaining([expect.stringMatching(/small\.\w+\.jpg/)])
+      )
     })
   }
 

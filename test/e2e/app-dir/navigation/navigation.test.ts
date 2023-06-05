@@ -39,7 +39,6 @@ createNextDescribe(
           await check(
             async () => {
               const val = await browser.eval('window.pageYOffset')
-              require('console').error({ val })
               return val.toString()
             },
             expectedScroll.toString(),
@@ -53,8 +52,112 @@ createNextDescribe(
         await checkLink(50, 730)
         await checkLink(160, 2270)
         await checkLink(300, 4230)
+        await checkLink(500, 7030) // this one is hash only (`href="#hash-500"`)
         await checkLink('top', 0)
         await checkLink('non-existent', 0)
+      })
+    })
+
+    describe('hash-link-back-to-same-page', () => {
+      it('should scroll to the specified hash', async () => {
+        const browser = await next.browser('/hash-link-back-to-same-page')
+
+        const checkLink = async (
+          val: number | string,
+          expectedScroll: number
+        ) => {
+          await browser.elementByCss(`#link-to-${val.toString()}`).click()
+          await check(
+            async () => {
+              const val = await browser.eval('window.pageYOffset')
+              return val.toString()
+            },
+            expectedScroll.toString(),
+            true,
+            // Try maximum of 15 seconds
+            15
+          )
+        }
+
+        await checkLink(6, 114)
+        await checkLink(50, 730)
+        await checkLink(160, 2270)
+
+        await browser
+          .elementByCss('#to-other-page')
+          // Navigate to other
+          .click()
+          // Wait for other ot load
+          .waitForElementByCss('#link-to-home')
+          // Navigate back to hash-link-back-to-same-page
+          .click()
+          // Wait for hash-link-back-to-same-page to load
+          .waitForElementByCss('#to-other-page')
+
+        await check(
+          async () => {
+            const val = await browser.eval('window.pageYOffset')
+            return val.toString()
+          },
+          (0).toString(),
+          true,
+          // Try maximum of 15 seconds
+          15
+        )
+      })
+    })
+
+    describe('relative hashes and queries', () => {
+      const pathname = '/nested-relative-query-and-hash'
+
+      it('should work with a hash-only href', async () => {
+        const browser = await next.browser(pathname)
+        await browser.elementByCss('#link-to-h1-hash-only').click()
+
+        await check(() => browser.url(), next.url + pathname + '#h1')
+      })
+
+      it('should work with a hash-only `router.push(...)`', async () => {
+        const browser = await next.browser(pathname)
+        await browser.elementByCss('#button-to-h3-hash-only').click()
+
+        await check(() => browser.url(), next.url + pathname + '#h3')
+      })
+
+      it('should work with a query-only href', async () => {
+        const browser = await next.browser(pathname)
+        await browser.elementByCss('#link-to-dummy-query').click()
+
+        await check(() => browser.url(), next.url + pathname + '?foo=1&bar=2')
+      })
+
+      it('should work with both relative hashes and queries', async () => {
+        const browser = await next.browser(pathname)
+        await browser.elementByCss('#link-to-h2-with-hash-and-query').click()
+
+        await check(() => browser.url(), next.url + pathname + '?here=ok#h2')
+
+        // Only update hash
+        await browser.elementByCss('#link-to-h1-hash-only').click()
+        await check(() => browser.url(), next.url + pathname + '?here=ok#h1')
+
+        // Replace all with new query
+        await browser.elementByCss('#link-to-dummy-query').click()
+        await check(() => browser.url(), next.url + pathname + '?foo=1&bar=2')
+
+        // Add hash to existing query
+        await browser.elementByCss('#link-to-h1-hash-only').click()
+        await check(
+          () => browser.url(),
+          next.url + pathname + '?foo=1&bar=2#h1'
+        )
+
+        // Update hash again via `router.push(...)`
+        await browser.elementByCss('#button-to-h3-hash-only').click()
+        await check(
+          () => browser.url(),
+          next.url + pathname + '?foo=1&bar=2#h3'
+        )
       })
     })
 

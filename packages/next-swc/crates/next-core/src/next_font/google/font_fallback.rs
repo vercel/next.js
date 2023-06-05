@@ -4,11 +4,11 @@ use anyhow::{Context, Result};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use turbo_binding::{turbo::tasks_fs::FileSystemPathVc, turbopack::core::issue::IssueSeverity};
 use turbo_tasks::{
     primitives::{StringVc, StringsVc, U32Vc},
     trace::TraceRawVcs,
 };
+use turbopack_binding::{turbo::tasks_fs::FileSystemPathVc, turbopack::core::issue::IssueSeverity};
 
 use super::options::NextFontGoogleOptionsVc;
 use crate::{
@@ -24,24 +24,18 @@ use crate::{
 };
 
 /// An entry in the Google fonts metrics map
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct FontMetricsMapEntry {
-    #[allow(unused)]
-    family_name: String,
     category: String,
-    #[allow(unused)]
-    cap_height: i32,
     ascent: i32,
     descent: i32,
     line_gap: u32,
     units_per_em: u32,
-    #[allow(unused)]
-    x_height: i32,
     x_width_avg: f64,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub(super) struct FontMetricsMap(pub HashMap<String, FontMetricsMapEntry>);
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -61,49 +55,44 @@ pub(super) async fn get_font_fallback(
         Some(fallback) => FontFallback::Manual(StringsVc::cell(fallback.clone())).cell(),
         None => {
             let metrics_json =
-                load_next_json(context, "/dist/server/capsize-font-metrics.json").await;
-            match metrics_json {
-                Ok(metrics_json) => {
-                    let fallback = lookup_fallback(
-                        &options.font_family,
-                        metrics_json,
-                        options.adjust_font_fallback,
-                    );
+                load_next_json(context, "/dist/server/capsize-font-metrics.json").await?;
+            let fallback = lookup_fallback(
+                &options.font_family,
+                metrics_json,
+                options.adjust_font_fallback,
+            );
 
-                    match fallback {
-                        Ok(fallback) => FontFallback::Automatic(
-                            AutomaticFontFallback {
-                                scoped_font_family: get_scoped_font_family(
-                                    FontFamilyType::Fallback.cell(),
-                                    options_vc.font_family(),
-                                    request_hash,
-                                ),
-                                local_font_family: StringVc::cell(fallback.font_family),
-                                adjustment: fallback.adjustment,
-                            }
-                            .cell(),
-                        )
-                        .cell(),
-                        Err(_) => {
-                            NextFontIssue {
-                                path: context,
-                                title: StringVc::cell(format!(
-                                    "Failed to find font override values for font `{}`",
-                                    &options.font_family,
-                                )),
-                                description: StringVc::cell(
-                                    "Skipping generating a fallback font.".to_owned(),
-                                ),
-                                severity: IssueSeverity::Warning.cell(),
-                            }
-                            .cell()
-                            .as_issue()
-                            .emit();
-                            FontFallback::Error.cell()
-                        }
+            match fallback {
+                Ok(fallback) => FontFallback::Automatic(
+                    AutomaticFontFallback {
+                        scoped_font_family: get_scoped_font_family(
+                            FontFamilyType::Fallback.cell(),
+                            options_vc.font_family(),
+                            request_hash,
+                        ),
+                        local_font_family: StringVc::cell(fallback.font_family),
+                        adjustment: fallback.adjustment,
                     }
+                    .cell(),
+                )
+                .cell(),
+                Err(_) => {
+                    NextFontIssue {
+                        path: context,
+                        title: StringVc::cell(format!(
+                            "Failed to find font override values for font `{}`",
+                            &options.font_family,
+                        )),
+                        description: StringVc::cell(
+                            "Skipping generating a fallback font.".to_owned(),
+                        ),
+                        severity: IssueSeverity::Warning.cell(),
+                    }
+                    .cell()
+                    .as_issue()
+                    .emit();
+                    FontFallback::Error.cell()
                 }
-                Err(_) => FontFallback::Error.cell(),
             }
         }
     })
@@ -180,7 +169,7 @@ fn lookup_fallback(
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use turbo_binding::turbo::tasks_fs::json::parse_json_with_source_context;
+    use turbopack_binding::turbo::tasks_fs::json::parse_json_with_source_context;
 
     use super::{FontAdjustment, FontMetricsMap};
     use crate::next_font::google::font_fallback::{lookup_fallback, Fallback};
