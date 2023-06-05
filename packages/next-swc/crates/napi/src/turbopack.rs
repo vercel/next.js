@@ -76,20 +76,20 @@ pub struct NapiRewrites {
     pub before_files: Vec<NapiRewrite>,
 }
 
-impl Into<Rewrites> for NapiRewrites {
-    fn into(self) -> Rewrites {
+impl From<NapiRewrites> for Rewrites {
+    fn from(val: NapiRewrites) -> Self {
         Rewrites {
-            fallback: self
+            fallback: val
                 .fallback
                 .into_iter()
                 .map(|rewrite| rewrite.into())
                 .collect(),
-            after_files: self
+            after_files: val
                 .after_files
                 .into_iter()
                 .map(|rewrite| rewrite.into())
                 .collect(),
-            before_files: self
+            before_files: val
                 .before_files
                 .into_iter()
                 .map(|rewrite| rewrite.into())
@@ -110,17 +110,17 @@ pub struct NapiRewrite {
     pub missing: Option<Vec<NapiRouteHas>>,
 }
 
-impl Into<Rewrite> for NapiRewrite {
-    fn into(self) -> Rewrite {
+impl From<NapiRewrite> for Rewrite {
+    fn from(val: NapiRewrite) -> Self {
         Rewrite {
-            source: self.source,
-            destination: self.destination,
-            base_path: self.base_path,
-            locale: self.locale,
-            has: self
+            source: val.source,
+            destination: val.destination,
+            base_path: val.base_path,
+            locale: val.locale,
+            has: val
                 .has
                 .map(|has| has.into_iter().map(|has| has.into()).collect()),
-            missing: self
+            missing: val
                 .missing
                 .map(|missing| missing.into_iter().map(|missing| missing.into()).collect()),
         }
@@ -166,9 +166,9 @@ impl FromNapiValue for NapiRouteHas {
     }
 }
 
-impl Into<RouteHas> for NapiRouteHas {
-    fn into(self) -> RouteHas {
-        match self {
+impl From<NapiRouteHas> for RouteHas {
+    fn from(val: NapiRouteHas) -> Self {
+        match val {
             NapiRouteHas::Header { key, value } => RouteHas::Header { key, value },
             NapiRouteHas::Query { key, value } => RouteHas::Query { key, value },
             NapiRouteHas::Cookie { key, value } => RouteHas::Cookie { key, value },
