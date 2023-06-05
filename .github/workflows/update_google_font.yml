@@ -1,0 +1,16 @@
+name: 'Update Google Fonts'
+
+on:
+  schedule:
+    # This runs once a week: https://crontab.guru/#0_0,12_*_*_*
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+jobs:
+  update-fonts:
+    name: update fonts
+    uses: vercel/next.js/.github/workflows/build_reusable.yml@canary
+    with:
+      skipForDocsOnly: 'yes'
+      skipInstallBuild: 'yes'
+      afterBuild: pnpm install && pnpm update-google-fonts
