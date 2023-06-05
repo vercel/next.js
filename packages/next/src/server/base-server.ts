@@ -2371,6 +2371,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     ctx: RequestContext,
     err: Error | null
   ): Promise<ResponsePayload | null> {
+    // Short-circuit favicon.ico in development to avoid compiling 404 page when the app has no favicon.ico.
+    // Since favicon.ico is automatically requested by the browser.
+    if (this.renderOpts.dev && ctx.pathname === '/favicon.ico') {
+      return {
+        type: 'html',
+        body: new RenderResult(''),
+      }
+    }
     const { res, query } = ctx
     try {
       let result: null | FindComponentsResult = null
