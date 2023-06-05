@@ -23,7 +23,6 @@ addHookAliases([
   // styled-jsx needs to be resolved as the external dependency.
   ['styled-jsx', require.resolve('styled-jsx')],
   ['styled-jsx/style', require.resolve('styled-jsx/style')],
-  ['styled-jsx/style', require.resolve('styled-jsx/style')],
   ['zod', dirname(require.resolve('zod/package.json'))],
 ])
 

@@ -1100,7 +1100,9 @@ export default async function getBaseWebpackConfig(
               'next/dist/esm/client/components/headers',
 
             // TODO: This is a temp fix, investigate the module not found for zod
-            zod: dirname(require.resolve('zod/package.json')),
+            zod: path.dirname(require.resolve('zod/package.json')),
+            'styled-jsx': require.resolve('styled-jsx/package.json'),
+            'styled-jsx/style': require.resolve('styled-jsx/style'),
           }
         : undefined),
 

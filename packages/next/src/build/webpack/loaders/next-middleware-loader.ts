@@ -44,8 +44,9 @@ export default function middlewareLoader(this: any) {
 
         enhanceGlobals()
 
-        var mod = require(${stringifiedPagePath})
-        var handler = mod.middleware || mod.default;
+        import * as _mod from ${stringifiedPagePath}
+        const mod = { ..._mod }
+        const handler = mod.middleware || mod.default
 
         if (typeof handler !== 'function') {
           throw new Error('The Middleware "pages${page}" must export a \`middleware\` or a \`default\` function');
