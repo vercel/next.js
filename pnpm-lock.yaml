@@ -727,6 +727,7 @@ importers:
       react-dom: 18.2.0_react@18.2.0
       sass: 1.54.0
       styled-jsx: 5.1.1_uuaxwgga6hqycsez5ok7v2wg4i
+      watchpack: 2.4.0
       zod: 3.21.4
     devDependencies:
       '@ampproject/toolbox-optimizer': 2.8.3
@@ -894,7 +895,7 @@ importers:
       react-is: 18.2.0
       react-refresh: 0.12.0
       regenerator-runtime: 0.13.4
-      sass-loader: 12.4.0_bjhf4pgiqnihj2we567o7p2vqu
+      sass-loader: 12.4.0_webpack@5.74.0
       schema-utils2: /schema-utils/2.7.1
       schema-utils3: /schema-utils/3.0.0
       semver: 7.3.2
@@ -921,7 +922,6 @@ importers:
       util: 0.12.4
       uuid: 8.3.2
       vm-browserify: 1.1.2
-      watchpack: 2.4.0
       web-vitals: 3.0.0
       webpack: 5.74.0
       webpack-sources1: /webpack-sources/1.4.3
@@ -14304,6 +14304,7 @@ packages:
     requiresBuild: true
     dependencies:
       detect-libc: 1.0.3
+    dev: false
 
   /figgy-pudding/3.5.1:
     resolution: {integrity: sha512-vNKxJHTEKNThjfrdJwHc7brvM6eVevuO5nTj6ez8ZQ1qbXTvGthucRF7S4vf2cr71QVnT70V34v0S1DyQsti0w==}
@@ -23923,7 +23924,7 @@ packages:
   /safer-buffer/2.1.2:
     resolution: {integrity: sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg==}
 
-  /sass-loader/12.4.0_bjhf4pgiqnihj2we567o7p2vqu:
+  /sass-loader/12.4.0_webpack@5.74.0:
     resolution: {integrity: sha512-7xN+8khDIzym1oL9XyS6zP6Ges+Bo2B2xbPrjdMHEYyV3AQYhd/wXeru++3ODHF0zMjYmVadblSKrPrjEkL8mg==}
     engines: {node: '>= 12.13.0'}
     peerDependencies:
@@ -23939,10 +23940,8 @@ packages:
       sass:
         optional: true
     dependencies:
-      fibers: 5.0.3
       klona: 2.0.4
       neo-async: 2.6.2
-      sass: 1.54.0
       webpack: 5.74.0
     dev: true
 
