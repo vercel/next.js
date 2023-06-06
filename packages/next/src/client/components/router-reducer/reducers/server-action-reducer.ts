@@ -152,13 +152,13 @@ export function serverActionReducer(
     // cache is updated with the action's flight data again.
     if (revalidatedParts.tag) {
       // Invalidate everything if the tag is set.
-      state.prefetchCache.clear()
+      action.mutable.prefetchCache = new Map()
     } else if (revalidatedParts.paths.length > 0) {
       // Invalidate all subtrees that are below the revalidated paths, and invalidate
       // all the prefetch cache.
       // TODO-APP: Currently the prefetch cache doesn't have subtree information,
       // so we need to invalidate the entire cache if a path was revalidated.
-      state.prefetchCache.clear()
+      action.mutable.prefetchCache = new Map()
     }
 
     if (redirectLocation) {

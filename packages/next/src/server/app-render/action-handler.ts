@@ -129,8 +129,10 @@ function fetchIPv4v6(
 
 async function addRevalidationHeader(
   res: ServerResponse,
-  revalidatedTags: string[] = []
+  staticGenerationStore: StaticGenerationStore
 ) {
+  await Promise.all(staticGenerationStore.pendingRevalidates || [])
+
   // If a tag was revalidated, the client router needs to invalidate all the
   // client router cache as they may be stale. And if a path was revalidated, the
   // client needs to invalidate all subtrees below that path.
@@ -145,7 +147,7 @@ async function addRevalidationHeader(
 
   res.setHeader(
     'x-action-revalidated',
-    JSON.stringify([revalidatedTags.length ? 1 : 0, []])
+    JSON.stringify([staticGenerationStore.revalidatedTags?.length ? 1 : 0, []])
   )
 }
 
@@ -372,8 +374,7 @@ export async function handleAction({
 
         // For form actions, we need to continue rendering the page.
         if (isFetchAction) {
-          await Promise.all(staticGenerationStore.pendingRevalidates || [])
-          addRevalidationHeader(res, staticGenerationStore.revalidatedTags)
+          await addRevalidationHeader(res, staticGenerationStore)
 
           actionResult = await generateFlight({
             actionResult: Promise.resolve(returnVal),
@@ -390,8 +391,7 @@ export async function handleAction({
 
         // if it's a fetch action, we don't want to mess with the status code
         // and we'll handle it on the client router
-        await Promise.all(staticGenerationStore.pendingRevalidates || [])
-        addRevalidationHeader(res, staticGenerationStore.revalidatedTags)
+        await addRevalidationHeader(res, staticGenerationStore)
 
         if (isFetchAction) {
           return createRedirectRenderResult(
@@ -418,8 +418,7 @@ export async function handleAction({
       } else if (isNotFoundError(err)) {
         res.statusCode = 404
 
-        await Promise.all(staticGenerationStore.pendingRevalidates || [])
-        addRevalidationHeader(res, staticGenerationStore.revalidatedTags)
+        await addRevalidationHeader(res, staticGenerationStore)
 
         if (isFetchAction) {
           const promise = Promise.reject(err)
