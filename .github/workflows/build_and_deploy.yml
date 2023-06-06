@@ -260,12 +260,18 @@ jobs:
             datadog-ci metric --no-fail --level pipeline --metrics "turbopack.bytesize.$FILENAME:$BYTESIZE"
           done
 
-      - name: Upload artifact
+      - name: Upload swc artifact
         if: ${{ needs.build.outputs.isRelease == 'true' }}
         uses: actions/upload-artifact@v3
         with:
           name: next-swc-binaries
           path: packages/next-swc/native/next-swc.*.node
+
+      - name: Upload turbo summary artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: turbo run summary
+          path: .turbo/runs
 
   build-wasm:
     needs: build
@@ -303,12 +309,18 @@ jobs:
         run: node scripts/normalize-version-bump.js
 
       - name: Build
-        run: turbo run build-wasm -- --target ${{ matrix.target }} --features tracing/release_max_level_info
+        run: turbo run build-wasm --summarize -- --target ${{ matrix.target }} --features tracing/release_max_level_info
 
       - name: Add target to folder name
         run: '[[ -d "packages/next-swc/crates/wasm/pkg" ]] && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-${{ matrix.target }} || ls packages/next-swc/crates/wasm'
 
-      - name: Upload artifact
+      - name: Upload turbo summary artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: turbo run summary
+          path: .turbo/runs
+
+      - name: Upload swc artifact
         uses: actions/upload-artifact@v3
         with:
           name: wasm-binaries

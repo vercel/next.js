@@ -41,8 +41,7 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
 
     // clone PR/newer repository/ref first to get settings
     if (!actionInfo.skipClone) {
-      await cloneRepo(actionInfo.prRepo, diffRepoDir)
-      await checkoutRef(actionInfo.prRef, diffRepoDir)
+      await cloneRepo(actionInfo.prRepo, diffRepoDir, actionInfo.prRef)
     }
 
     if (actionInfo.isRelease) {
@@ -67,8 +66,7 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
 
     // clone main repository/ref
     if (!actionInfo.skipClone) {
-      await cloneRepo(statsConfig.mainRepo, mainRepoDir)
-      await checkoutRef(statsConfig.mainBranch, mainRepoDir)
+      await cloneRepo(statsConfig.mainRepo, mainRepoDir, statsConfig.mainBranch)
     }
     /* eslint-disable-next-line */
     actionInfo.commitId = await getCommitId(diffRepoDir)

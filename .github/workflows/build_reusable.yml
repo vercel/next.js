@@ -23,6 +23,10 @@ on:
         required: false
         description: 'if nextest rust dep is needed'
         type: string
+      uploadSwcArtifact:
+        required: false
+        description: 'if swc artifact needs uploading'
+        type: string
 
 env:
   NAPI_CLI_VERSION: 2.14.7
@@ -32,8 +36,6 @@ env:
   NODE_MAINTENANCE_VERSION: 16
   NODE_LTS_VERSION: 18
   TEST_CONCURRENCY: 6
-  # TODO: remove after testing
-  # NEXT_TEST_CONTINUE_ON_ERROR: 'true'
 
   TURBO_TEAM: 'vercel'
   TURBO_REMOTE_ONLY: 'true'
@@ -85,6 +87,13 @@ jobs:
         name: normalize versions
 
       - run: turbo run build-native-release --summarize -- --target x86_64-unknown-linux-gnu
+
+      - name: Upload next-swc artifact
+        if: ${{ inputs.uploadSwcArtifact == 'yes' }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: next-swc-binary
+          path: packages/next-swc/native/next-swc.linux-x64-gnu.node
 
       # undo normalize version changes for install/build
       - run: git checkout .
