@@ -79,6 +79,19 @@ module.exports = (actionInfo) => {
         }
         const pkgData = require(pkgDataPath)
         const { name } = pkgData
+
+        // make sure native binaries are included in local linking
+        if (pkg === '@next/swc') {
+          if (!pkgData.files) {
+            pkgData.files = []
+          }
+          pkgData.files.push('native')
+          require('console').log(
+            'using swc binaries: ',
+            await exec(`ls ${path.join(path.dirname(pkgDataPath), 'native')}`)
+          )
+        }
+
         pkgDatas.set(name, {
           pkgDataPath,
           pkg,
@@ -96,18 +109,6 @@ module.exports = (actionInfo) => {
           const { packedPkgPath } = pkgDatas.get(pkg)
           if (!pkgData.dependencies || !pkgData.dependencies[pkg]) continue
           pkgData.dependencies[pkg] = packedPkgPath
-        }
-
-        // make sure native binaries are included in local linking
-        if (pkg === '@next/swc') {
-          if (!pkgData.files) {
-            pkgData.files = []
-          }
-          pkgData.files.push('native/*')
-          require('console').log(
-            'using swc binaries: ',
-            await exec(`ls ${path.join(path.dirname(pkgDataPath), 'native')}`)
-          )
         }
 
         if (pkg === 'next') {
