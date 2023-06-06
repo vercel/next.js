@@ -28,7 +28,7 @@ pub struct PrefixedRouterContentSource {
 #[turbo_tasks::value_impl]
 impl PrefixedRouterContentSourceVc {
     #[turbo_tasks::function]
-    async fn new(
+    pub async fn new(
         prefix: StringVc,
         routes: Vec<(String, ContentSourceVc)>,
         fallback: ContentSourceVc,
