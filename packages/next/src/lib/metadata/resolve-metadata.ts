@@ -42,6 +42,10 @@ export type MetadataItems = [
   StaticMetadata
 ][]
 
+type MetadataAccumulationOptions = {
+  pathname: string
+}
+
 function mergeStaticMetadata(
   metadata: ResolvedMetadata,
   staticFilesMetadata: StaticMetadata
@@ -354,8 +358,17 @@ export async function resolveMetadata({
   return metadataItems
 }
 
-type MetadataAccumulationOptions = {
-  pathname: string
+function postProcessMetadata(metadata: ResolvedMetadata): ResolvedMetadata {
+  const { openGraph, twitter } = metadata
+  if (openGraph && !twitter) {
+    const overlappedProps = {
+      title: openGraph.title,
+      description: openGraph.description,
+      images: openGraph.images,
+    }
+    metadata.twitter = resolveTwitter(overlappedProps, metadata.metadataBase)
+  }
+  return metadata
 }
 
 export async function accumulateMetadata(
@@ -445,18 +458,4 @@ export async function accumulateMetadata(
   }
 
   return postProcessMetadata(resolvedMetadata)
-}
-
-function postProcessMetadata(metadata: ResolvedMetadata): ResolvedMetadata {
-  const { openGraph, twitter } = metadata
-  if (openGraph && !twitter) {
-    const overlappedProps = {
-      title: openGraph.title,
-      description: openGraph.description,
-      images: openGraph.images,
-    }
-    const twitter = resolveTwitter(overlappedProps, metadata.metadataBase)
-    metadata.twitter = twitter
-  }
-  return metadata
 }
