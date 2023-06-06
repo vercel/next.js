@@ -28,7 +28,7 @@ import {
   PAGES_DIR_ALIAS,
   INSTRUMENTATION_HOOK_FILENAME,
 } from '../lib/constants'
-import { fileExists } from '../lib/file-exists'
+import { FileType, fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
 import loadCustomRoutes, {
   CustomRoutes,
@@ -588,7 +588,7 @@ export default async function build(
           for (const page in mappedPages) {
             const hasPublicPageFile = await fileExists(
               path.join(publicDir, page === '/' ? '/index' : page),
-              'file'
+              FileType.File
             )
             if (hasPublicPageFile) {
               conflictingPublicFiles.push(page)
