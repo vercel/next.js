@@ -155,6 +155,7 @@ impl GetContentSourceContent for WrappedGetContentSourceContent {
                         .into(),
                     ),
                     response_headers: rewrite.response_headers,
+                    request_headers: rewrite.request_headers,
                 }
                 .cell(),
             )

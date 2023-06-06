@@ -4,7 +4,10 @@ use std::{
 };
 
 use anyhow::{bail, Result};
-use hyper::Uri;
+use hyper::{
+    header::{HeaderName as HyperHeaderName, HeaderValue as HyperHeaderValue},
+    Uri,
+};
 use turbo_tasks::{TransientInstance, Value};
 
 use super::{
@@ -70,6 +73,15 @@ pub async fn resolve_source_request(
                         request_overwrites.uri = new_uri;
                         if let Some(headers) = &rewrite.response_headers {
                             response_header_overwrites.extend(headers.await?.iter().cloned());
+                        }
+                        if let Some(headers) = &rewrite.request_headers {
+                            request_overwrites.headers.clear();
+                            for (name, value) in &*headers.await? {
+                                request_overwrites.headers.insert(
+                                    HyperHeaderName::try_from(name)?,
+                                    HyperHeaderValue::try_from(value)?,
+                                );
+                            }
                         }
                         current_asset_path = new_asset_path;
                         data = ContentSourceData::default();

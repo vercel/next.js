@@ -531,6 +531,10 @@ pub struct Rewrite {
     /// A [Headers] which will be appended to the eventual, fully resolved
     /// content result. This overwrites any previous matching headers.
     pub response_headers: Option<HeaderListVc>,
+
+    /// A [HeaderList] which will overwrite the values used during the lookup
+    /// process. All headers not present in this list will be deleted.
+    pub request_headers: Option<HeaderListVc>,
 }
 
 pub struct RewriteBuilder {
@@ -544,6 +548,7 @@ impl RewriteBuilder {
                 path_and_query,
                 source: None,
                 response_headers: None,
+                request_headers: None,
             },
         }
     }
@@ -560,6 +565,13 @@ impl RewriteBuilder {
     /// result.
     pub fn response_headers(mut self, headers: HeaderListVc) -> Self {
         self.rewrite.response_headers = Some(headers);
+        self
+    }
+
+    /// Sets request headers to overwrite the headers used during the lookup
+    /// process.
+    pub fn request_headers(mut self, headers: HeaderListVc) -> Self {
+        self.rewrite.request_headers = Some(headers);
         self
     }
 
