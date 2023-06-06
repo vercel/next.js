@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-export default function Home() {
+export default async function Home() {
   const res = await fetch('https://api.github.com/repos/vercel/next.js')
   const data = await res.json()
   const stars = data.stargazers_count
