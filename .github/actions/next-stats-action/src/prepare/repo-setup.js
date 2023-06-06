@@ -81,7 +81,7 @@ module.exports = (actionInfo) => {
         const { name } = pkgData
 
         // make sure native binaries are included in local linking
-        if (pkg === '@next/swc') {
+        if (pkgData.name === '@next/swc') {
           if (!pkgData.files) {
             pkgData.files = []
           }
