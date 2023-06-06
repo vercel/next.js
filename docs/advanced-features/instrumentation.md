@@ -13,6 +13,8 @@ Sometimes, it may be useful to import a file in your code because of the side ef
 
 You can import files with side effects in `instrumentation.ts`, which you might want to use in your `register` function as demonstrated in the following example:
 
+This file should be placed in the root of the project if you are using `appDir` configuration or under `pages` folder if that's not the case
+
 ```ts
 // /instrumentation.ts
 
