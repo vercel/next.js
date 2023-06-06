@@ -22,6 +22,7 @@ pub struct StaticAssetsContentSource {
 
 #[turbo_tasks::value_impl]
 impl StaticAssetsContentSourceVc {
+    // TODO(WEB-1151): Remove this method and migrate users to `with_prefix`.
     #[turbo_tasks::function]
     pub fn new(prefix: String, dir: FileSystemPathVc) -> StaticAssetsContentSourceVc {
         StaticAssetsContentSourceVc::with_prefix(StringVc::cell(prefix), dir)
@@ -35,6 +36,7 @@ impl StaticAssetsContentSourceVc {
         if cfg!(debug_assertions) {
             let prefix_string = prefix.await?;
             debug_assert!(prefix_string.is_empty() || prefix_string.ends_with('/'));
+            debug_assert!(!prefix_string.starts_with('/'));
         }
         Ok(StaticAssetsContentSource { prefix, dir }.cell())
     }
