@@ -63,6 +63,7 @@ async function render(request: NextRequest, event: NextFetchEvent) {
   let [, pathname, query] = /^([^?]*)(.*)$/.exec(request.url)!
 
   const result = await renderToHTMLOrFlight(
+    // @ts-expect-error - TODO renderToHTMLOrFlight types should accept web platform types
     request,
     response,
     pathname,
@@ -71,12 +72,18 @@ async function render(request: NextRequest, event: NextFetchEvent) {
     renderOpt as any as RenderOpts
   )
 
-  response.headers.append('Content-Type', MIME_TEXT_HTML_UTF8)
+  response.headers.append(
+    'Content-Type',
+    result.contentType() || MIME_TEXT_HTML_UTF8
+  )
   response.headers.append('Vary', RSC_VARY_HEADER)
 
   const writer = tranform.writable.getWriter()
-  writer.end = writer.close
-  result.pipe(writer)
+  result.pipe({
+    write: (chunk: Uint8Array) => writer.write(chunk),
+    end: () => writer.close(),
+    destroy: (reason: Error) => writer.abort(reason),
+  })
 
   return response
 }

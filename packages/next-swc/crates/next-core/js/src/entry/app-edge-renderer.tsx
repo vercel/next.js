@@ -27,6 +27,7 @@ startOperationStreamHandler(async (renderData: RenderData, respond) => {
 
   const channel = respond({
     status: response.status,
+    // @ts-expect-error Headers is iterable since node.js 18
     headers: [...response.headers],
   })
 
