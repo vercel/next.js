@@ -59,6 +59,10 @@ jobs:
             turbo-${{ github.job }}-${{ github.ref_name }}-${{ steps.get-week.outputs.WEEK }}-
             turbo-${{ github.job }}-canary-${{ steps.get-week.outputs.WEEK }}-
 
+      - name: Make more disk space
+        continue-on-error: true
+        run: sudo rm -rf /usr/local/lib/android
+
       - name: Build in docker
         uses: addnab/docker-run-action@v3
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}

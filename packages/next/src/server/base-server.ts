@@ -215,6 +215,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected readonly buildId: string
   protected readonly minimalMode: boolean
   protected readonly renderOpts: {
+    deploymentId?: string
     poweredByHeader: boolean
     buildId: string
     generateEtags: boolean
@@ -417,7 +418,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       : undefined
     this.nextFontManifest = this.getNextFontManifest()
 
+    if (process.env.NEXT_RUNTIME !== 'edge') {
+      if (this.nextConfig.experimental.deploymentId) {
+        process.env.__NEXT_DEPLOYMENT_ID =
+          this.nextConfig.experimental.deploymentId
+      }
+    }
+
     this.renderOpts = {
+      deploymentId: this.nextConfig.experimental.deploymentId,
       strictNextHead: !!this.nextConfig.experimental.strictNextHead,
       poweredByHeader: this.nextConfig.poweredByHeader,
       canonicalBase: this.nextConfig.amp.canonicalBase || '',
@@ -1735,6 +1744,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
         supportsDynamicHTML,
         isOnDemandRevalidate,
+        isDraftMode: isPreviewMode,
       }
 
       const renderResult = await this.renderHTML(
@@ -2361,6 +2371,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     ctx: RequestContext,
     err: Error | null
   ): Promise<ResponsePayload | null> {
+    // Short-circuit favicon.ico in development to avoid compiling 404 page when the app has no favicon.ico.
+    // Since favicon.ico is automatically requested by the browser.
+    if (this.renderOpts.dev && ctx.pathname === '/favicon.ico') {
+      return {
+        type: 'html',
+        body: new RenderResult(''),
+      }
+    }
     const { res, query } = ctx
     try {
       let result: null | FindComponentsResult = null

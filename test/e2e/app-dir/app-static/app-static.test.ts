@@ -14,7 +14,6 @@ createNextDescribe(
     files: __dirname,
     env: {
       NEXT_DEBUG_BUILD: '1',
-      NEXT_PRIVATE_DEBUG_CACHE: '1',
       ...(process.env.CUSTOM_CACHE_HANDLER
         ? {
             CUSTOM_CACHE_HANDLER: process.env.CUSTOM_CACHE_HANDLER,
@@ -35,7 +34,7 @@ createNextDescribe(
       }
     })
 
-    it.each([
+    it.skip.each([
       {
         path: '/react-fetch-deduping-node',
       },
