@@ -62,6 +62,7 @@ export function Dialog({
 
   return (
     <div
+      data-nextjs-dialog
       ref={onDialog}
       tabIndex={-1}
       role="dialog"

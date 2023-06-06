@@ -59,6 +59,7 @@ export function DialogHeader({
       <div className="filler">&nbsp;</div>
       {close ? (
         <button
+          data-nextjs-errors-dialog-left-right-close-button
           ref={buttonClose}
           type="button"
           onClick={close}

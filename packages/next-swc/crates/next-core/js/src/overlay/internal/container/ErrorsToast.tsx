@@ -45,7 +45,7 @@ export function ErrorsToast({
         {severity == 'warning' && <AlertTriangle />}
         <span>{message}</span>
         <button
-          data-toast-errors-hide-button
+          data-nextjs-toast-errors-hide-button
           className="toast-errors-hide-button"
           type="button"
           onClick={(e) => {
