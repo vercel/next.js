@@ -388,6 +388,7 @@ pub struct ExperimentalConfig {
     pub isr_memory_cache_size: Option<f64>,
     pub isr_flush_to_disk: Option<bool>,
     mdx_rs: Option<bool>,
+    pub swc_plugins: Option<Vec<(String, serde_json::Value)>>,
 
     // unsupported
     adjust_font_fallbacks: Option<bool>,
@@ -430,7 +431,6 @@ pub struct ExperimentalConfig {
     swc_file_reading: Option<bool>,
     swc_minify: Option<bool>,
     swc_minify_debug_options: Option<serde_json::Value>,
-    swc_plugins: Option<serde_json::Value>,
     swc_trace_profiling: Option<bool>,
     transpile_packages: Option<Vec<String>>,
     turbotrace: Option<serde_json::Value>,
