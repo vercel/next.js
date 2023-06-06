@@ -143,7 +143,8 @@ fn lookup_fallback(
         // Derived from
         // https://github.com/vercel/next.js/blob/7bfd5829999b1d203e447d30de7e29108c31934a/packages/next/src/server/font-utils.ts#L131
         let main_font_avg_width = metrics.x_width_avg / metrics.units_per_em as f64;
-        let fallback_font_avg_width = fallback.x_width_avg / fallback.units_per_em as f64;
+        let fallback_metrics = font_metrics_map.0.get(&fallback.capsize_key).unwrap();
+        let fallback_font_avg_width = fallback_metrics.x_width_avg / fallback.units_per_em as f64;
         let size_adjust = main_font_avg_width / fallback_font_avg_width;
 
         let ascent = metrics.ascent as f64 / (metrics.units_per_em as f64 * size_adjust);
