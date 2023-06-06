@@ -26,15 +26,10 @@ env:
 
 jobs:
   build:
-    runs-on: [self-hosted, linux, x64]
-    steps:
-      - uses: vercel/next.js/.github/workflows/build_reusable.yml@canary
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: next-swc-dev-binary
-          path: packages/next-swc/native/next-swc.linux-x64-gnu.node
+    uses: vercel/next.js/.github/workflows/build_reusable.yml@canary
+    secrets: inherit
+    with:
+      uploadSwcArtifact: 'yes'
 
   stats:
     name: PR Stats
@@ -52,7 +47,7 @@ jobs:
       - uses: actions/download-artifact@v3
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
-          name: next-swc-dev-binary
+          name: next-swc-binary
           path: packages/next-swc/native
 
       - run: cp -r packages/next-swc/native .github/actions/next-stats-action/native
