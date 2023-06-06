@@ -36,7 +36,7 @@ impl PrefixedRouterContentSourceVc {
         if cfg!(debug_assertions) {
             let prefix_string = prefix.await?;
             debug_assert!(prefix_string.is_empty() || prefix_string.ends_with('/'));
-            debug_assert!(prefix_string.starts_with('/'));
+            debug_assert!(!prefix_string.starts_with('/'));
         }
         Ok(PrefixedRouterContentSource {
             prefix,
