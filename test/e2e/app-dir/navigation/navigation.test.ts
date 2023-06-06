@@ -52,6 +52,7 @@ createNextDescribe(
         await checkLink(50, 730)
         await checkLink(160, 2270)
         await checkLink(300, 4230)
+        await checkLink(500, 7030) // this one is hash only (`href="#hash-500"`)
         await checkLink('top', 0)
         await checkLink('non-existent', 0)
       })
@@ -102,6 +103,60 @@ createNextDescribe(
           true,
           // Try maximum of 15 seconds
           15
+        )
+      })
+    })
+
+    describe('relative hashes and queries', () => {
+      const pathname = '/nested-relative-query-and-hash'
+
+      it('should work with a hash-only href', async () => {
+        const browser = await next.browser(pathname)
+        await browser.elementByCss('#link-to-h1-hash-only').click()
+
+        await check(() => browser.url(), next.url + pathname + '#h1')
+      })
+
+      it('should work with a hash-only `router.push(...)`', async () => {
+        const browser = await next.browser(pathname)
+        await browser.elementByCss('#button-to-h3-hash-only').click()
+
+        await check(() => browser.url(), next.url + pathname + '#h3')
+      })
+
+      it('should work with a query-only href', async () => {
+        const browser = await next.browser(pathname)
+        await browser.elementByCss('#link-to-dummy-query').click()
+
+        await check(() => browser.url(), next.url + pathname + '?foo=1&bar=2')
+      })
+
+      it('should work with both relative hashes and queries', async () => {
+        const browser = await next.browser(pathname)
+        await browser.elementByCss('#link-to-h2-with-hash-and-query').click()
+
+        await check(() => browser.url(), next.url + pathname + '?here=ok#h2')
+
+        // Only update hash
+        await browser.elementByCss('#link-to-h1-hash-only').click()
+        await check(() => browser.url(), next.url + pathname + '?here=ok#h1')
+
+        // Replace all with new query
+        await browser.elementByCss('#link-to-dummy-query').click()
+        await check(() => browser.url(), next.url + pathname + '?foo=1&bar=2')
+
+        // Add hash to existing query
+        await browser.elementByCss('#link-to-h1-hash-only').click()
+        await check(
+          () => browser.url(),
+          next.url + pathname + '?foo=1&bar=2#h1'
+        )
+
+        // Update hash again via `router.push(...)`
+        await browser.elementByCss('#button-to-h3-hash-only').click()
+        await check(
+          () => browser.url(),
+          next.url + pathname + '?foo=1&bar=2#h3'
         )
       })
     })

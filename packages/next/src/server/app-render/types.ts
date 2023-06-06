@@ -132,6 +132,8 @@ export type RenderOptsPartial = {
   nextConfigOutput?: 'standalone' | 'export'
   appDirDevErrorLogger?: (err: any) => Promise<void>
   originalPathname?: string
+  isDraftMode?: boolean
+  deploymentId?: string
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial

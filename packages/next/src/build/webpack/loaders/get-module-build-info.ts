@@ -33,7 +33,6 @@ export function getModuleBuildInfo(webpackModule: webpack.Module) {
     nextEdgeMiddleware?: EdgeMiddlewareMeta
     nextEdgeApiFunction?: EdgeMiddlewareMeta
     nextEdgeSSR?: EdgeSSRMeta
-    nextUsedEnvVars?: Set<string>
     nextWasmMiddlewareBinding?: AssetBinding
     nextAssetMiddlewareBinding?: AssetBinding
     usingIndirectEval?: boolean | Set<string>

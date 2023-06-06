@@ -20,6 +20,9 @@ export default function HashPage() {
       <Link href="/hash#hash-300" id="link-to-300">
         To 300
       </Link>
+      <Link href="#hash-500" id="link-to-500">
+        To 500 (hash only)
+      </Link>
       <Link href="/hash#top" id="link-to-top">
         To Top
       </Link>

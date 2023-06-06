@@ -70,8 +70,8 @@ describe('tsconfig-path-reloading', () => {
         const html = await browser.eval('document.documentElement.innerHTML')
         expect(html).toContain('first button')
         expect(html).toContain('second button')
-        expect(html).toContain('first-data')
-        expect(html).not.toContain('second-data')
+        expect(html).toContain('id="first-data"')
+        expect(html).not.toContain('id="second-data"')
 
         await next.patchFile(
           indexPage,
@@ -114,7 +114,8 @@ describe('tsconfig-path-reloading', () => {
         await next.patchFile(tsConfigFile, tsconfigContent)
         await check(async () => {
           const html3 = await browser.eval('document.documentElement.innerHTML')
-          return html3.includes('first-data') && !html3.includes('second-data')
+          return html3.includes('id="first-data"') &&
+            !html3.includes('id="second-data"')
             ? 'success'
             : html3
         }, 'success')

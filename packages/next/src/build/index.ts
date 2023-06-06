@@ -28,7 +28,7 @@ import {
   PAGES_DIR_ALIAS,
   INSTRUMENTATION_HOOK_FILENAME,
 } from '../lib/constants'
-import { fileExists } from '../lib/file-exists'
+import { FileType, fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
 import loadCustomRoutes, {
   CustomRoutes,
@@ -588,7 +588,7 @@ export default async function build(
           for (const page in mappedPages) {
             const hasPublicPageFile = await fileExists(
               path.join(publicDir, page === '/' ? '/index' : page),
-              'file'
+              FileType.File
             )
             if (hasPublicPageFile) {
               conflictingPublicFiles.push(page)
@@ -1189,34 +1189,24 @@ export default async function build(
             },
           },
           enableWorkerThreads: config.experimental.workerThreads,
-          computeWorkerKey(method, ...args) {
-            if (method === 'exportPage') {
-              const typedArgs = args as Parameters<
-                typeof import('./worker').exportPage
-              >
-              return typedArgs[0].pathMap.page
-            } else if (method === 'isPageStatic') {
-              const typedArgs = args as Parameters<
-                typeof import('./worker').isPageStatic
-              >
-              return typedArgs[0].originalAppPath || typedArgs[0].page
-            }
-            return method
-          },
           exposedMethods: sharedPool
             ? [
                 'hasCustomGetInitialProps',
                 'isPageStatic',
-                'getNamedExports',
+                'getDefinedNamedExports',
                 'exportPage',
               ]
-            : ['hasCustomGetInitialProps', 'isPageStatic', 'getNamedExports'],
+            : [
+                'hasCustomGetInitialProps',
+                'isPageStatic',
+                'getDefinedNamedExports',
+              ],
         }) as Worker &
           Pick<
             typeof import('./worker'),
             | 'hasCustomGetInitialProps'
             | 'isPageStatic'
-            | 'getNamedExports'
+            | 'getDefinedNamedExports'
             | 'exportPage'
           >
       }
@@ -1289,7 +1279,7 @@ export default async function build(
             true
           )
 
-        const namedExportsPromise = pagesStaticWorkers.getNamedExports(
+        const namedExportsPromise = pagesStaticWorkers.getDefinedNamedExports(
           appPageToCheck,
           distDir,
           runtimeEnvConfig

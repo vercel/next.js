@@ -13,6 +13,7 @@ import {
 } from '../../../../server/base-http/web'
 import { SERVER_RUNTIME } from '../../../../lib/constants'
 import { PrerenderManifest } from '../../..'
+import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
 
 export function getRender({
   dev,
@@ -78,6 +79,7 @@ export function getRender({
     minimalMode: true,
     webServerConfig: {
       page,
+      normalizedPage: isAppPath ? normalizeAppPath(page) : page,
       pagesType,
       prerenderManifest,
       extendRenderOpts: {
@@ -93,8 +95,6 @@ export function getRender({
       pagesRenderToHTML,
       incrementalCacheHandler,
       loadComponent: async (pathname) => {
-        if (isAppPath) return null
-
         if (pathname === page) {
           return {
             ...baseLoadComponentResult,
