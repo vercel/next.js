@@ -444,5 +444,19 @@ export async function accumulateMetadata(
     }
   }
 
-  return resolvedMetadata
+  return postProcessMetadata(resolvedMetadata)
+}
+
+function postProcessMetadata(metadata: ResolvedMetadata): ResolvedMetadata {
+  const { openGraph, twitter } = metadata
+  if (openGraph && !twitter) {
+    const overlappedProps = {
+      title: openGraph.title,
+      description: openGraph.description,
+      images: openGraph.images,
+    }
+    const twitter = resolveTwitter(overlappedProps, metadata.metadataBase)
+    metadata.twitter = twitter
+  }
+  return metadata
 }
