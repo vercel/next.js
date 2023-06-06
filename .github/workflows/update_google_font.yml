@@ -39,8 +39,6 @@ jobs:
 
       - run: pnpm install
 
-      - run: pnpm run build
-
       - run: pnpm run update-google-fonts
 
         # open a PR using peter-evans/create-pull-request@v5
