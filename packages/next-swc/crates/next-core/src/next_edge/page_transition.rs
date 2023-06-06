@@ -9,7 +9,8 @@ use turbopack_binding::{
             chunk::{ChunkableAssetVc, ChunkingContextVc},
             compile_time_info::CompileTimeInfoVc,
             context::AssetContext,
-            reference_type::{InnerAssetsVc, ReferenceType},
+            reference_type::{EcmaScriptModulesReferenceSubType, InnerAssetsVc, ReferenceType},
+            source_asset::SourceAssetVc,
         },
         ecmascript::chunk_group_files_asset::ChunkGroupFilesAsset,
         turbopack::{
@@ -20,6 +21,8 @@ use turbopack_binding::{
         },
     },
 };
+
+use crate::embed_js::next_js_file_path;
 
 #[turbo_tasks::value(shared)]
 pub struct NextEdgePageTransition {
@@ -67,6 +70,12 @@ impl Transition for NextEdgePageTransition {
             self.bootstrap_asset,
             Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
                 "APP_ENTRY".to_string() => asset,
+                "APP_BOOTSTRAP".to_string() => context.with_transition("next-client").process(
+                    SourceAssetVc::new(next_js_file_path("entry/app/hydrate.tsx")).into(),
+                    Value::new(ReferenceType::EcmaScriptModules(
+                        EcmaScriptModulesReferenceSubType::Undefined,
+                    )),
+                ),
             }))),
         );
 

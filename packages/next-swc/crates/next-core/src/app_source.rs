@@ -3,6 +3,7 @@ use std::{collections::HashMap, io::Write as _, iter::once};
 use anyhow::{bail, Result};
 use async_recursion::async_recursion;
 use indexmap::{indexmap, IndexMap};
+use indoc::indoc;
 use turbo_tasks::{primitives::JsonValueVc, TryJoinIterExt, ValueToString};
 use turbopack_binding::{
     turbo::{
@@ -227,6 +228,35 @@ fn next_server_component_transition(
     .into()
 }
 
+
+#[turbo_tasks::function]
+fn next_edge_server_component_transition(
+    project_path: FileSystemPathVc,
+    execution_context: ExecutionContextVc,
+    app_dir: FileSystemPathVc,
+    server_root: FileSystemPathVc,
+    process_env: ProcessEnvVc,
+    next_config: NextConfigVc,
+    server_addr: ServerAddrVc,
+) -> TransitionVc {
+    let ty = Value::new(ServerContextType::AppRSC { app_dir });
+    let mode = NextMode::Development;
+    let rsc_compile_time_info = get_edge_compile_time_info(project_path, server_addr, Value::new(EnvironmentIntention::ServerRendering));
+    let rsc_resolve_options_context =
+        get_edge_resolve_options_context(project_path, ty, next_config, execution_context);
+    let rsc_module_options_context =
+        get_server_module_options_context(project_path, execution_context, ty, mode, next_config);
+
+    NextServerComponentTransition {
+        rsc_compile_time_info,
+        rsc_module_options_context,
+        rsc_resolve_options_context,
+        server_root,
+    }
+    .cell()
+    .into()
+}
+
 #[turbo_tasks::function]
 fn next_edge_route_transition(
     project_path: FileSystemPathVc,
@@ -286,7 +316,7 @@ fn next_edge_page_transition(
     let edge_compile_time_info = get_edge_compile_time_info(
         project_path,
         server_addr,
-        Value::new(EnvironmentIntention::Api),
+        Value::new(EnvironmentIntention::ServerRendering),
     );
 
     let edge_chunking_context = DevChunkingContextVc::builder(
@@ -357,6 +387,18 @@ fn app_context(
     transitions.insert(
         "next-server-component".to_string(),
         next_server_component_transition(
+            project_path,
+            execution_context,
+            app_dir,
+            server_root,
+            env,
+            next_config,
+            server_addr,
+        ),
+    );
+    transitions.insert(
+        "next-edge-server-component".to_string(),
+        next_edge_server_component_transition(
             project_path,
             execution_context,
             app_dir,
@@ -771,6 +813,12 @@ impl AppRendererVc {
 
         let config = parse_segment_config_from_loader_tree(loader_tree, context);
 
+        let runtime = config.await?.runtime;
+        let rsc_transition = match runtime {
+            Some(NextRuntime::NodeJs) | None => "next-server-component",
+            Some(NextRuntime::Edge) => "next-edge-server-component",
+        };
+
         struct State {
             inner_assets: IndexMap<String, AssetVc>,
             counter: usize,
@@ -778,6 +826,7 @@ impl AppRendererVc {
             loader_tree_code: String,
             context: AssetContextVc,
             unsupported_metadata: Vec<FileSystemPathVc>,
+            rsc_transition: &'static str,
         }
 
         impl State {
@@ -795,6 +844,7 @@ impl AppRendererVc {
             loader_tree_code: String::new(),
             context,
             unsupported_metadata: Vec::new(),
+            rsc_transition,
         };
 
         fn write_component(
@@ -824,7 +874,7 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
                     format!("COMPONENT_{i}"),
                     state
                         .context
-                        .with_transition("next-server-component")
+                        .with_transition(state.rsc_transition)
                         .process(
                             SourceAssetVc::new(component).into(),
                             Value::new(ReferenceType::EcmaScriptModules(
@@ -1034,8 +1084,14 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
         }
 
         let mut result = RopeBuilder::from(
-            "import GlobalError from 'next/dist/client/components/error-boundary'\nimport * as \
-             base from 'next/dist/server/app-render/entry-base'\n",
+            indoc! {"
+                \"TURBOPACK { chunking-type: isolatedParallel; transition: next-edge-server-component }\";
+                import GlobalErrorMod from \"next/dist/client/components/error-boundary\"
+                const { GlobalError } = GlobalErrorMod;
+                \"TURBOPACK { chunking-type: isolatedParallel; transition: next-edge-server-component }\";
+                import base from \"next/dist/server/app-render/entry-base\"\n
+            "}
+            
         );
 
         for import in imports {
@@ -1065,11 +1121,11 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
         .reference_chunk_source_maps(false)
         .build();
 
-        let renderer_module = match config.await?.runtime {
+        let renderer_module = match runtime {
             Some(NextRuntime::NodeJs) | None => context.process(
                 SourceAssetVc::new(next_js_file_path("entry/app-renderer.tsx")).into(),
                 Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
-                    "APP_ENTRY".to_string() => context.with_transition("next-server-component").process(
+                    "APP_ENTRY".to_string() => context.with_transition(rsc_transition).process(
                         asset.into(),
                         Value::new(ReferenceType::Internal(InnerAssetsVc::cell(inner_assets))),
                     ),

@@ -14,23 +14,31 @@ import type { RenderData } from 'types/turbopack'
 
 import chunkGroup from 'INNER_EDGE_CHUNK_GROUP'
 import { attachRequestMeta } from '../internal/next-request-helpers'
+import { Readable } from 'stream'
 
 startOperationStreamHandler(async (renderData: RenderData, respond) => {
-  const result = await runOperation(renderData)
+  const { response } = await runOperation(renderData)
 
-  console.log(result);
+  console.log('response', response)
 
-  if (result == null) {
+  if (response == null) {
     throw new Error('no html returned')
   }
 
   const channel = respond({
-    status: result.statusCode,
-    headers: result.headers,
+    status: response.status,
+    headers: [...response.headers],
   })
 
-  for await (const chunk of result.body) {
-    channel.chunk(chunk as Buffer)
+  if (response.body) {
+    const reader = response.body.getReader()
+    for (;;) {
+      let { done, value } = await reader.read()
+      if (done) {
+        break
+      }
+      channel.chunk(Buffer.from(value!))
+    }
   }
 
   channel.end()
@@ -48,17 +56,17 @@ async function runOperation(renderData: RenderData) {
   }
 
   const parsedUrl = parseUrl(renderData.originalUrl, true)
-  const incoming: IncomingMessage = {
-    url: renderData.originalUrl,
-    method: renderData.method,
-    headers: initProxiedHeaders(
-      headersFromEntries(renderData.rawHeaders),
-      renderData.data?.serverInfo
-    ),
-  } as any
+  const incoming = new Readable() as IncomingMessage
+  incoming.push(null)
+  incoming.url = renderData.originalUrl
+  incoming.method = renderData.method
+  incoming.headers = initProxiedHeaders(
+    headersFromEntries(renderData.rawHeaders),
+    renderData.data?.serverInfo
+  )
   const req = new NodeNextRequest(incoming)
   attachRequestMeta(req, parsedUrl, req.headers.host!)
-  
+
   const res = await runEdgeFunction({
     edgeInfo,
     outputDir: 'edge-pages',
@@ -71,5 +79,5 @@ async function runOperation(renderData: RenderData) {
     },
   })
 
-  return res;
+  return res as { response: Response }
 }
