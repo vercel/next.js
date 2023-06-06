@@ -36,7 +36,7 @@ To get started, you must install `@vercel/otel`:
 npm install @vercel/otel
 ```
 
-Next, create a custom [`instrumentation.ts`](https://nextjs.org/docs/advanced-features/instrumentation) file in the root of the project:
+Next, create a custom [`instrumentation.ts`](https://nextjs.org/docs/advanced-features/instrumentation) file in the root of the project(if you are using `appDir` configuration or under `pages` folder if that's not the case:
 
 ```ts
 // instrumentation.ts
