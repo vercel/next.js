@@ -6,7 +6,7 @@ labels:
 body:
   - type: markdown
     attributes:
-      value: Before opening this issue to request a docs improvement, is this something you can do yourself? Your contributions are welcomed and appreciated. See our [Docs Contribution Guide](https://nextjs.org/docs/community/contribution-guide) to learn how to edit the Next.js docs.
+      value: Before opening this issue to request a docs improvement, is this something you can help us with? Your contributions are welcomed and appreciated. See our [Docs Contribution Guide](https://nextjs.org/docs/community/contribution-guide) to learn how to edit the Next.js docs.
   - type: markdown
     attributes:
       value: Thank you for helping us improve the docs!
