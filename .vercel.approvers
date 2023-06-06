@@ -1,0 +1,13 @@
+# Global Owners 
+@vercel/next-js
+
+# Tooling & Telemetry
+pnpm-lock.yaml                                @vercel/web-tooling
+Cargo.toml                                    @vercel/web-tooling
+Cargo.lock                                    @vercel/web-tooling
+/.cargo/config.toml                           @vercel/web-tooling
+/.config/nextest.toml                         @vercel/web-tooling
+
+# Catch any markdown files outside docs (e.g. examples)
+**/*.md                                       @vercel/devex
+**/*.mdx                                      @vercel/devex
