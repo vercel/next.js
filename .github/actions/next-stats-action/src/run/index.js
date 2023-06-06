@@ -195,7 +195,7 @@ async function linkPkgs(pkgDir = '', pkgPaths) {
     `cd ${pkgDir} && pnpm install --strict-peer-dependencies=false`,
     false
   )
-  await exec(`cd ${pkgDir} && find node_modules | grep swc`)
+  console.log(await exec(`cd ${pkgDir} && find node_modules | grep swc`))
 }
 
 module.exports = runConfigs
