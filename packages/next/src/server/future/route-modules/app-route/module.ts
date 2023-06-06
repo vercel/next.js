@@ -190,25 +190,10 @@ export class AppRouteRouteModule extends RouteModule<
   }
 
   /**
-   * When true, indicates that the global interfaces have been patched via the
-   * `patch()` method.
-   */
-  private hasSetup: boolean = false
-
-  /**
    * Validates the userland module to ensure the exported methods and properties
    * are valid.
    */
-  public async setup() {
-    // If we've already setup, then return.
-    if (this.hasSetup) return
-
-    // Mark the module as setup. The following warnings about the userland
-    // module will run if we're in development. If the module files are modified
-    // when in development, then the require cache will be busted for it and
-    // this method will be called again (resetting the `hasSetup` flag).
-    this.hasSetup = true
-
+  protected async setup() {
     // We only warn in development after here, so return if we're not in
     // development.
     if (process.env.NODE_ENV === 'development') {
@@ -466,6 +451,11 @@ export class AppRouteRouteModule extends RouteModule<
     context: AppRouteRouteHandlerContext
   ): Promise<Response> {
     try {
+      // Wait for the setup to complete. If the setup has already completed,
+      // this will resolve immediately. If setup encounters an error, it will
+      // throw and we will catch it below.
+      await this.hasSetup
+
       // Execute the route to get the response.
       const response = await this.execute(request, context)
 
