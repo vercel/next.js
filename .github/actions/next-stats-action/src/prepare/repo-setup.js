@@ -8,12 +8,11 @@ const execa = require('execa')
 
 module.exports = (actionInfo) => {
   return {
-    async cloneRepo(repoPath = '', dest = '') {
+    async cloneRepo(repoPath = '', dest = '', branch = '', depth = '20') {
       await remove(dest)
-      await exec(`git clone ${actionInfo.gitRoot}${repoPath} ${dest}`)
-    },
-    async checkoutRef(ref = '', repoDir = '') {
-      await exec(`cd ${repoDir} && git fetch && git checkout ${ref}`)
+      await exec(
+        `git clone ${actionInfo.gitRoot}${repoPath} --single-branch --branch ${branch} --depth=${depth} ${dest}`
+      )
     },
     async getLastStable(repoDir = '', ref) {
       const { stdout } = await exec(`cd ${repoDir} && git tag -l`)
@@ -112,6 +111,10 @@ module.exports = (actionInfo) => {
         }
 
         if (pkg === 'next') {
+          console.log('using swc dep', {
+            nextSwcVersion,
+            nextSwcPkg: pkgDatas.get('@next/swc'),
+          })
           if (nextSwcVersion) {
             Object.assign(pkgData.dependencies, {
               '@next/swc-linux-x64-gnu': nextSwcVersion,

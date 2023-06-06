@@ -3,6 +3,7 @@ name: build-and-deploy
 on:
   push:
     branches: ['canary']
+  workflow_dispatch:
 
 env:
   NAPI_CLI_VERSION: 2.14.7
@@ -24,7 +25,7 @@ jobs:
     outputs:
       docsChange: ${{ steps.docs-change.outputs.DOCS_CHANGE }}
       codemodChange: ${{ steps.codemod-change.outputs.CODEMOD_CHANGE }}
-      isRelease: ${{ steps.check-release.outputs.IS_RELEASE }}
+      isRelease: ${{ github.event_name != 'workflow_dispatch' && steps.check-release.outputs.IS_RELEASE }}
       swcChange: ${{ steps.swc-change.outputs.SWC_CHANGE }}
       turboToken: ${{ steps.turbo-token.outputs.TURBO_TOKEN }}
       weekNum: ${{ steps.get-week.outputs.WEEK }}
@@ -172,6 +173,7 @@ jobs:
       TURBO_TEAM: 'vercel'
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
       TURBO_REMOTE_ONLY: 'true'
+      DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
     steps:
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
@@ -241,12 +243,35 @@ jobs:
         if: ${{ !matrix.settings.docker }}
         shell: bash
 
-      - name: Upload artifact
+      # Trying to upload metrics for the Turbopack to datadog's CI pipeline execution
+      - name: 'Upload turbopack build metrics'
+        shell: bash
+        continue-on-error: true
+        run: |
+          npm install -g @datadog/datadog-ci
+          shopt -s nullglob
+          for filename in packages/next-swc/native/next-swc.*.node; do
+            # Strip out filename to extract target triple
+            export FILENAME=$(basename ${filename})
+            export FILENAME=${FILENAME#*.}
+            export FILENAME=${FILENAME%.node}
+            export BYTESIZE=$(wc -c < $filename | xargs)
+            echo "Reporting $FILENAME:$BYTESIZE for Turbopack bytesize"
+            datadog-ci metric --no-fail --level pipeline --metrics "turbopack.bytesize.$FILENAME:$BYTESIZE"
+          done
+
+      - name: Upload swc artifact
         if: ${{ needs.build.outputs.isRelease == 'true' }}
         uses: actions/upload-artifact@v3
         with:
           name: next-swc-binaries
           path: packages/next-swc/native/next-swc.*.node
+
+      - name: Upload turbo summary artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: turbo run summary
+          path: .turbo/runs
 
   build-wasm:
     needs: build
@@ -284,12 +309,18 @@ jobs:
         run: node scripts/normalize-version-bump.js
 
       - name: Build
-        run: turbo run build-wasm -- --target ${{ matrix.target }} --features tracing/release_max_level_info
+        run: turbo run build-wasm --summarize -- --target ${{ matrix.target }} --features tracing/release_max_level_info
 
       - name: Add target to folder name
         run: '[[ -d "packages/next-swc/crates/wasm/pkg" ]] && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-${{ matrix.target }} || ls packages/next-swc/crates/wasm'
 
-      - name: Upload artifact
+      - name: Upload turbo summary artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: turbo run summary
+          path: .turbo/runs
+
+      - name: Upload swc artifact
         uses: actions/upload-artifact@v3
         with:
           name: wasm-binaries

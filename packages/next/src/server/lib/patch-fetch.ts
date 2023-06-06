@@ -480,18 +480,15 @@ export function patchFetch({
             }
             if (cache === 'no-store') {
               staticGenerationStore.revalidate = 0
-              // TODO: ensure this error isn't logged to the user
-              // seems it's slipping through currently
               const dynamicUsageReason = `no-store fetch ${input}${
                 staticGenerationStore.pathname
                   ? ` ${staticGenerationStore.pathname}`
                   : ''
               }`
               const err = new DynamicServerError(dynamicUsageReason)
+              staticGenerationStore.dynamicUsageErr = err
               staticGenerationStore.dynamicUsageStack = err.stack
               staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
-
-              throw err
             }
 
             const hasNextConfig = 'next' in init
@@ -517,11 +514,10 @@ export function patchFetch({
                     : ''
                 }`
                 const err = new DynamicServerError(dynamicUsageReason)
+                staticGenerationStore.dynamicUsageErr = err
                 staticGenerationStore.dynamicUsageStack = err.stack
                 staticGenerationStore.dynamicUsageDescription =
                   dynamicUsageReason
-
-                throw err
               }
             }
             if (hasNextConfig) delete init.next
