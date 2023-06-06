@@ -137,7 +137,7 @@
     "critters": "0.0.6",
     "cross-env": "6.0.3",
     "cross-spawn": "6.0.5",
-    "dd-trace": "2.3.0",
+    "dd-trace": "4.1.0",
     "es5-ext": "0.10.53",
     "escape-string-regexp": "2.0.0",
     "eslint": "7.24.0",
