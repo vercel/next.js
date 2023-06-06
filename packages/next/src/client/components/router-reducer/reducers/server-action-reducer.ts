@@ -25,11 +25,16 @@ import {
 import { addBasePath } from '../../../add-base-path'
 import { createHrefFromUrl } from '../create-href-from-url'
 import { RedirectType, getRedirectError } from '../../redirect'
+import { CacheStates } from '../../../../shared/lib/app-router-context'
 
 type FetchServerActionResult = {
   redirectLocation: URL | undefined
   actionResult?: ActionResult
   actionFlightData?: FlightData | undefined | null
+  revalidatedParts: {
+    tag: boolean
+    paths: string[]
+  }
 }
 
 async function fetchServerAction(
@@ -60,6 +65,21 @@ async function fetchServerAction(
   })
 
   const location = res.headers.get('x-action-redirect')
+  let revalidatedParts: FetchServerActionResult['revalidatedParts']
+  try {
+    const revalidatedHeader = JSON.parse(
+      res.headers.get('x-action-revalidated') || '[0,[]]'
+    )
+    revalidatedParts = {
+      tag: !!revalidatedHeader[0],
+      paths: revalidatedHeader[1] || [],
+    }
+  } catch (e) {
+    revalidatedParts = {
+      tag: false,
+      paths: [],
+    }
+  }
 
   const redirectLocation = location
     ? new URL(addBasePath(location), window.location.origin)
@@ -77,6 +97,7 @@ async function fetchServerAction(
       return {
         actionFlightData: result as FlightData,
         redirectLocation,
+        revalidatedParts,
       }
       // otherwise it's a tuple of [actionResult, actionFlightData]
     } else {
@@ -86,11 +107,13 @@ async function fetchServerAction(
         actionResult,
         actionFlightData,
         redirectLocation,
+        revalidatedParts,
       }
     }
   }
   return {
     redirectLocation,
+    revalidatedParts,
   }
 }
 
@@ -116,10 +139,27 @@ export function serverActionReducer(
   }
   try {
     // suspends until the server action is resolved.
-    const { actionResult, actionFlightData, redirectLocation } =
-      readRecordValue(
-        action.mutable.inFlightServerAction!
-      ) as Awaited<FetchServerActionResult>
+    const {
+      actionResult,
+      actionFlightData,
+      redirectLocation,
+      revalidatedParts,
+    } = readRecordValue(
+      action.mutable.inFlightServerAction!
+    ) as Awaited<FetchServerActionResult>
+
+    // Invalidate the cache for the revalidated parts. This has to be done before the
+    // cache is updated with the action's flight data again.
+    if (revalidatedParts.tag) {
+      // Invalidate everything if the tag is set.
+      state.prefetchCache.clear()
+    } else if (revalidatedParts.paths.length > 0) {
+      // Invalidate all subtrees that are below the revalidated paths, and invalidate
+      // all the prefetch cache.
+      // TODO-APP: Currently the prefetch cache doesn't have subtree information,
+      // so we need to invalidate the entire cache if a path was revalidated.
+      state.prefetchCache.clear()
+    }
 
     if (redirectLocation) {
       // the redirection might have a flight data associated with it, so we'll populate the cache with it
