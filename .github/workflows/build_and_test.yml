@@ -29,14 +29,14 @@ env:
 jobs:
   build:
     name: build
-    uses: vercel/next.js/.github/workflows/build_reusable.yml@canary
+    uses: ./.github/workflows/build_reusable.yml@canary
     secrets: inherit
 
   lint:
     name: lint
     needs: ['build']
 
-    uses: vercel/next.js/.github/workflows/build_reusable.yml@canary
+    uses: ./.github/workflows/build_reusable.yml@canary
     with:
       afterBuild: pnpm lint-no-typescript && pnpm check-examples
     secrets: inherit
@@ -45,7 +45,7 @@ jobs:
     name: types and precompiled
     needs: ['build']
 
-    uses: vercel/next.js/.github/workflows/build_reusable.yml@canary
+    uses: ./.github/workflows/build_reusable.yml@canary
     with:
       afterBuild: pnpm types-and-precompiled
       skipForDocsOnly: 'yes'
@@ -55,7 +55,7 @@ jobs:
     name: test cargo unit
     needs: ['build']
 
-    uses: vercel/next.js/.github/workflows/build_reusable.yml@canary
+    uses: ./.github/workflows/build_reusable.yml@canary
     with:
       skipForDocsOnly: 'yes'
       skipInstallBuild: 'yes'
@@ -66,7 +66,7 @@ jobs:
     name: rust check
     needs: ['build']
 
-    uses: vercel/next.js/.github/workflows/build_reusable.yml@canary
+    uses: ./.github/workflows/build_reusable.yml@canary
     with:
       skipForDocsOnly: 'yes'
       skipInstallBuild: 'yes'
@@ -76,7 +76,7 @@ jobs:
   test-turbopack-dev:
     name: test turbopack dev
     needs: ['build']
-    uses: vercel/next.js/.github/workflows/build_reusable.yml@canary
+    uses: ./.github/workflows/build_reusable.yml@canary
     with:
       skipForDocsOnly: 'yes'
       afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/packages/next-swc/crates/next-dev-tests/tests-manifest.js" __INTERNAL_NEXT_DEV_TEST_TURBO_DEV=TRUE __INTERNAL_CUSTOM_TURBOPACK_BINDINGS="$(pwd)/packages/next-swc/native/next-swc.linux-x64-gnu.node" __INTERNAL_NEXT_DEV_TEST_TURBO_GLOB_MATCH="*" NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_MODE=dev node run-tests.js --type development --timings -c ${TEST_CONCURRENCY}
@@ -86,7 +86,7 @@ jobs:
     name: test next-swc wasm
     needs: ['build']
 
-    uses: vercel/next.js/.github/workflows/build_reusable.yml@canary
+    uses: ./.github/workflows/build_reusable.yml@canary
     with:
       skipForDocsOnly: 'yes'
       afterBuild: rustup target add wasm32-unknown-unknown && curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh && node ./scripts/normalize-version-bump.js && turbo run build-wasm -- --target nodejs --features tracing/release_max_level_info && git checkout . && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-nodejs && node ./scripts/setup-wasm.mjs && NEXT_TEST_MODE=start TEST_WASM=true node run-tests.js test/integration/production/test/index.test.js test/e2e/streaming-ssr/index.test.ts
@@ -100,7 +100,7 @@ jobs:
       matrix:
         group: [1, 2, 3]
 
-    uses: vercel/next.js/.github/workflows/build_reusable.yml@canary
+    uses: ./.github/workflows/build_reusable.yml@canary
     with:
       skipForDocsOnly: 'yes'
       afterBuild: NEXT_TEST_MODE=dev node run-tests.js --timings -g ${{ matrix.group }}/3 -c ${TEST_CONCURRENCY} --test-pattern '^(development|e2e|unit)/.*\.test\.(js|jsx|ts|tsx)$'
@@ -114,7 +114,7 @@ jobs:
       matrix:
         group: [1, 2, 3]
 
-    uses: vercel/next.js/.github/workflows/build_reusable.yml@canary
+    uses: ./.github/workflows/build_reusable.yml@canary
     with:
       skipForDocsOnly: 'yes'
       afterBuild: NEXT_TEST_MODE=start node run-tests.js --timings -g ${{ matrix.group }}/3 -c ${TEST_CONCURRENCY} --test-pattern '^(production|e2e)/.*\.test\.(js|jsx|ts|tsx)$'
@@ -128,7 +128,7 @@ jobs:
       matrix:
         group: [1, 2, 3, 4, 5, 6]
 
-    uses: vercel/next.js/.github/workflows/build_reusable.yml@canary
+    uses: ./.github/workflows/build_reusable.yml@canary
     with:
       nodeVersion: 16
       skipForDocsOnly: 'yes'
@@ -139,7 +139,7 @@ jobs:
     name: test firefox and safari
     needs: ['build']
 
-    uses: vercel/next.js/.github/workflows/build_reusable.yml@canary
+    uses: ./.github/workflows/build_reusable.yml@canary
     with:
       skipForDocsOnly: 'yes'
       afterBuild: pnpm playwright install && BROWSER_NAME=firefox node run-tests.js test/integration/production/test/index.test.js && BROWSER_NAME=safari NEXT_TEST_MODE=start node run-tests.js -c 1 test/integration/production/test/index.test.js test/e2e/basepath.test.ts && BROWSER_NAME=safari DEVICE_NAME='iPhone XR' node run-tests.js -c 1 test/production/prerender-prefetch/index.test.ts

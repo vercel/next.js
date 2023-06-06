@@ -26,7 +26,7 @@ env:
 
 jobs:
   build:
-    uses: vercel/next.js/.github/workflows/build_reusable.yml@canary
+    uses: ./.github/workflows/build_reusable.yml
     secrets: inherit
     with:
       uploadSwcArtifact: 'yes'
