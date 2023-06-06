@@ -49,7 +49,7 @@ jobs:
           node-version: 18
           check-latest: true
 
-      - run: git clone https://ijjk:${{ secrets.START_RELEASE_TOKEN }}@github.com/vercel/next.js.git --depth=25 .
+      - run: git clone https://github.com/vercel/next.js.git --depth=25 .
 
       - run: git describe || 'echo failed to get tag'
 
