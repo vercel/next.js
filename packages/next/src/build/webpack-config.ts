@@ -2124,8 +2124,8 @@ export default async function getBaseWebpackConfig(
                   not: [new RegExp(WEBPACK_RESOURCE_QUERIES.metadata)],
                 },
                 options: {
-                  isServer: isNodeServer || isEdgeServer,
                   isDev: dev,
+                  compilerType,
                   basePath: config.basePath,
                   assetPrefix: config.assetPrefix,
                 },

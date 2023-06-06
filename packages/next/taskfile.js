@@ -591,13 +591,7 @@ export async function ncc_next_font(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-externals['watchpack'] = 'next/dist/compiled/watchpack'
-export async function ncc_watchpack(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('watchpack')))
-    .ncc({ packageName: 'watchpack', externals })
-    .target('src/compiled/watchpack')
-}
+externals['watchpack'] = 'watchpack'
 
 // eslint-disable-next-line camelcase
 externals['jest-worker'] = 'next/dist/compiled/jest-worker'
@@ -2195,7 +2189,6 @@ export async function ncc(task, opts) {
     .parallel(
       [
         'ncc_node_html_parser',
-        'ncc_watchpack',
         'ncc_chalk',
         'ncc_napirs_triples',
         'ncc_p_limit',
