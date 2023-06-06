@@ -15,7 +15,6 @@ export function Meta({
   if (typeof content !== 'undefined' && content !== null && content !== '') {
     return (
       <meta
-        key={(name || property) + ':' + content}
         {...(name ? { name } : { property })}
         {...(media ? { media } : undefined)}
         content={typeof content === 'string' ? content : content.toString()}
@@ -28,10 +27,15 @@ export function Meta({
 export function MetaFilter<T extends {} | {}[]>(
   items: (T | null)[]
 ): NonNullable<T>[] {
-  return items.filter(
-    (item): item is NonNullable<T> =>
-      nonNullable(item) && !(Array.isArray(item) && item.length === 0)
-  )
+  const acc: NonNullable<T>[] = []
+  for (const item of items) {
+    if (Array.isArray(item)) {
+      acc.push(...item.filter(nonNullable))
+    } else if (nonNullable(item)) {
+      acc.push(item)
+    }
+  }
+  return acc
 }
 
 type ExtendMetaContent = Record<
@@ -70,18 +74,16 @@ function ExtendMeta({
   namePrefix?: string
   propertyPrefix?: string
 }) {
-  const keyPrefix = namePrefix || propertyPrefix
   if (!content) return null
   return MetaFilter(
-    Object.entries(content).map(([k, v], index) => {
-      return typeof v === 'undefined' ? null : (
-        <Meta
-          key={keyPrefix + ':' + k + '_' + index}
-          {...(propertyPrefix && { property: getMetaKey(propertyPrefix, k) })}
-          {...(namePrefix && { name: getMetaKey(namePrefix, k) })}
-          content={typeof v === 'string' ? v : v?.toString()}
-        />
-      )
+    Object.entries(content).map(([k, v]) => {
+      return typeof v === 'undefined'
+        ? null
+        : Meta({
+            ...(propertyPrefix && { property: getMetaKey(propertyPrefix, k) }),
+            ...(namePrefix && { name: getMetaKey(namePrefix, k) }),
+            content: typeof v === 'string' ? v : v?.toString(),
+          })
     })
   )
 }
