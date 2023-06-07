@@ -666,6 +666,26 @@ function assignDefaults(
     }
   }
 
+  const userProvidedModularizeImports = result.modularizeImports
+  // Unfortunately these packages end up re-exporting 10600 modules, for example: https://unpkg.com/browse/@mui/icons-material@5.11.16/esm/index.js.
+  // Leveraging modularizeImports tremendously reduces compile times for these.
+  result.modularizeImports = {
+    ...(userProvidedModularizeImports || {}),
+    // This is intentionally added after the user-provided modularizeImports config.
+    'lucide-react': {
+      transform: 'lucide-react/dist/esm/icons/{{ kebabCase member }}',
+    },
+    '@mui/icons-material/?(((\\w*)?/?)*)': {
+      transform: '@mui/icons-material/{{ matches.[1] }}/{{member}}',
+    },
+    lodash: {
+      transform: 'lodash/{{member}}',
+    },
+    'react-bootstrap': {
+      transform: 'react-bootstrap/{{member}}',
+    },
+  }
+
   return result
 }
 
