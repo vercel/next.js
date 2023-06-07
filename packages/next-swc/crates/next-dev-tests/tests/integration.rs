@@ -92,6 +92,8 @@ lazy_static! {
     static ref DEBUG_BROWSER: bool = env::var("TURBOPACK_DEBUG_BROWSER").is_ok();
     /// Only starts the dev server on port 3000, but doesn't spawn a browser or run any tests.
     static ref DEBUG_START: bool = env::var("TURBOPACK_DEBUG_START").is_ok();
+    /// When using TURBOPACK_DEBUG_START, this will open the browser to the dev server.
+    static ref DEBUG_OPEN: bool = env::var("TURBOPACK_DEBUG_OPEN").is_ok();
 }
 
 fn run_async_test<'a, T>(future: impl Future<Output = T> + Send + 'a) -> T {
@@ -302,7 +304,9 @@ async fn run_test(resource: PathBuf) -> JsResult {
     );
 
     if *DEBUG_START {
-        webbrowser::open(&format!("http://{}", local_addr)).unwrap();
+        if *DEBUG_OPEN {
+            webbrowser::open(&format!("http://{}", local_addr)).unwrap();
+        }
         tokio::select! {
             _ = mock_server_future => {},
             _ = pending() => {},
