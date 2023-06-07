@@ -99,11 +99,10 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
     )}${isAppDir ? `?${WEBPACK_RESOURCE_QUERIES.edgeSSREntry}` : ''}`
 
     const transformed = `
-    import { adapter, enhanceGlobals } from 'next/dist/esm/server/web/adapter'
+    import 'next/dist/esm/server/web/globals'
+    import { adapter } from 'next/dist/esm/server/web/adapter'
     import { getRender } from 'next/dist/esm/build/webpack/loaders/next-edge-ssr-loader/render'
     import { IncrementalCache } from 'next/dist/esm/server/lib/incremental-cache'
-
-    enhanceGlobals()
 
     const pagesType = ${JSON.stringify(pagesType)}
     ${

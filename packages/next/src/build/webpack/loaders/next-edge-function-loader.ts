@@ -30,10 +30,9 @@ const nextEdgeFunctionLoader: webpack.LoaderDefinitionFunction<EdgeFunctionLoade
     buildInfo.rootDir = rootDir
 
     return `
-        import { adapter, enhanceGlobals } from 'next/dist/esm/server/web/adapter'
+        import 'next/dist/esm/server/web/globals'
+        import { adapter } from 'next/dist/esm/server/web/adapter'
         import { IncrementalCache } from 'next/dist/esm/server/lib/incremental-cache'
-
-        enhanceGlobals()
 
         import handler from ${stringifiedPagePath}
 

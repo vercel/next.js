@@ -40,12 +40,10 @@ export default function middlewareLoader(this: any) {
   buildInfo.rootDir = rootDir
 
   return `
-        import { adapter, enhanceGlobals } from 'next/dist/esm/server/web/adapter'
+        import 'next/dist/esm/server/web/globals'
+        import { adapter } from 'next/dist/esm/server/web/adapter'
 
-        enhanceGlobals()
-
-        import * as _mod from ${stringifiedPagePath}
-        const mod = { ..._mod }
+        import * as mod from ${stringifiedPagePath}
         const handler = mod.middleware || mod.default
 
         if (typeof handler !== 'function') {
