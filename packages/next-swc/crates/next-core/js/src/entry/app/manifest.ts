@@ -115,11 +115,13 @@ export function createManifests() {
 
   const cssImportProxyMethods = {
     get(_target: any, prop: string) {
-      let cssChunks;
+      let cssChunks
       try {
-      cssChunks = JSON.parse(prop.replace(/\.js$/, ''))
+        cssChunks = JSON.parse(prop.replace(/\.js$/, ''))
       } catch (e) {
-        throw new Error(`Unexpected property (${prop}) accessed from proxy manifest`);
+        throw new Error(
+          `Unexpected property (${prop}) accessed from proxy manifest`
+        )
       }
       // TODO(WEB-856) subscribe to changes
 
