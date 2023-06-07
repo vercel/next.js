@@ -82,7 +82,7 @@ async function render(request: NextRequest, event: NextFetchEvent) {
   result.pipe({
     write: (chunk: Uint8Array) => writer.write(chunk),
     end: () => writer.close(),
-    destroy: (reason: Error) => writer.abort(reason),
+    destroy: (reason?: Error) => writer.abort(reason),
   })
 
   return response
