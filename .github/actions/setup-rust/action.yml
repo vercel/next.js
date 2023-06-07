@@ -1,0 +1,42 @@
+name: 'Turbo Rust Setup'
+description: 'Sets up the Rust toolchain for CI'
+inputs:
+  targets:
+    description: 'Comma-separated list of target triples to install for this toolchain'
+    required: false
+  components:
+    description: 'Comma-separated list of components to be additionally installed'
+    required: false
+  skip-install:
+    description: 'Sets environment variables without installing the rust toolchain'
+    required: false
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 'Get toolchain version from file'
+      id: file
+      shell: bash
+      run: echo "toolchain=$(cat ./rust-toolchain)" >> $GITHUB_OUTPUT
+
+    - name: 'Set rust default environment'
+      shell: bash
+      run: |
+        echo "RUST_TOOLCHAIN=${{ steps.file.outputs.toolchain }}" >> $GITHUB_ENV
+        echo "CARGO_INCREMENTAL=0" >> $GITHUB_ENV
+        echo "CARGO_TERM_COLOR=always" >> $GITHUB_ENV
+        echo "RUST_BACKTRACE=short" >> $GITHUB_ENV
+        # Enable faster sparse index
+        echo "CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse" >> $GITHUB_ENV
+
+    - name: 'Setup Rust toolchain'
+      uses: dtolnay/rust-toolchain@master
+      if: ${{ !inputs.skip-install }}
+      with:
+        toolchain: ${{ steps.file.outputs.toolchain }}
+        targets: ${{ inputs.targets }}
+        components: ${{ inputs.components }}
+
+    - name: 'Add cargo problem matchers'
+      shell: bash
+      run: echo "::add-matcher::${{ github.action_path }}/matchers.json"
