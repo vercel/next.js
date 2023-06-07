@@ -63,6 +63,27 @@ jobs:
       afterBuild: turbo run test-cargo-unit
     secrets: inherit
 
+  test-cargo-integration:
+    name: test cargo integration
+    needs: ['build']
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      skipForDocsOnly: 'yes'
+      skipInstallBuild: 'yes'
+      needsNextest: 'yes'
+      afterBuild: turbo run test-cargo-integration
+
+  test-cargo-bench:
+    name: test cargo benchmarks
+    needs: ['build']
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      skipForDocsOnly: 'yes'
+      skipInstallBuild: 'yes'
+      afterBuild: turbo run test-cargo-bench
+
   rust-check:
     name: rust check
     needs: ['build']
