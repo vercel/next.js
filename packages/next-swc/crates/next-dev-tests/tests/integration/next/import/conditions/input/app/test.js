@@ -63,16 +63,9 @@ function runTests() {
 
   it('app with edge runtime should import edge conditions', async () => {
     const json = await getJson('/app-edge')
-    // TODO We don't currently support edge config in app rendering.
-    // When we do, this needs to be updated.
-    expect(json).not.toMatchObject({
+    expect(json).toMatchObject({
       edgeThenNode: 'edge',
       nodeThenEdge: 'edge',
-    })
-    // TODO: delete this.
-    expect(json).toMatchObject({
-      edgeThenNode: 'node',
-      nodeThenEdge: 'node',
     })
   })
 
