@@ -33,7 +33,7 @@
     "@types/ci-info": "2.0.0",
     "@types/cross-spawn": "6.0.0",
     "@types/glob": "7.1.1",
-    "@types/node": "^16.8.0",
+    "@types/node": "^20.2.5",
     "@types/prompts": "2.0.1",
     "@types/tar": "4.0.3",
     "@types/validate-npm-package-name": "3.0.0",
