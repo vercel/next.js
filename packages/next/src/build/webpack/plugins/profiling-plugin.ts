@@ -242,9 +242,11 @@ export class ProfilingPlugin {
           const addEntrySpan = parentSpan.traceChild('add-entry')
           addEntrySpan.setAttribute(
             'request',
-            entry.request
-              // Reduce trace size by replacing the absolute path project path with ROOT
-              .replace(this.dir, 'ROOT')
+            typeof entry.request === 'string'
+              ? entry.request
+                  // Reduce trace size by replacing the absolute path project path with ROOT
+                  .replace(this.dir, 'ROOT')
+              : ''
           )
           spans.set(entry, addEntrySpan)
         })
