@@ -8,6 +8,7 @@ mod app_source;
 pub mod app_structure;
 mod babel;
 mod bootstrap;
+mod debug;
 mod embed_js;
 pub mod env;
 mod fallback;

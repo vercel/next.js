@@ -42,6 +42,7 @@ use turbopack_binding::{
 };
 
 use crate::{
+    debug::NODE_JS_SOURCE_MAPS,
     embed_js::next_asset,
     mode::NextMode,
     next_config::NextConfigVc,
@@ -250,7 +251,7 @@ fn edge_transition_map(
         output_path.join("edge/assets"),
         edge_compile_time_info.environment(),
     )
-    .reference_chunk_source_maps(false)
+    .reference_chunk_source_maps(NODE_JS_SOURCE_MAPS)
     .build();
 
     let edge_resolve_options_context = get_edge_resolve_options_context(
