@@ -177,6 +177,8 @@ jobs:
         'test-prod',
         'test-integration',
         'test-cargo-unit',
+        'test-cargo-integration',
+        'test-cargo-bench',
         'rust-check',
         'test-next-swc-wasm',
         'test-turbopack-dev',
