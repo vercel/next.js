@@ -302,7 +302,7 @@ async fn run_test(resource: PathBuf) -> JsResult {
     );
 
     if *DEBUG_START {
-        webbrowser::open(&local_addr.to_string()).unwrap();
+        webbrowser::open(&format!("http://{}", local_addr)).unwrap();
         tokio::select! {
             _ = mock_server_future => {},
             _ = pending() => {},
