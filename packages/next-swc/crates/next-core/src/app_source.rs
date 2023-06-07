@@ -67,6 +67,7 @@ use crate::{
         LoaderTreeVc, Metadata, MetadataItem, MetadataWithAltItem, OptionAppDirVc,
     },
     bootstrap::{route_bootstrap, BootstrapConfigVc},
+    debug::NODE_JS_SOURCE_MAPS,
     embed_js::{next_asset, next_js_file_path},
     env::env_for_js,
     fallback::get_fallback_page,
@@ -87,7 +88,8 @@ use crate::{
     next_config::NextConfigVc,
     next_edge::{
         context::{get_edge_compile_time_info, get_edge_resolve_options_context},
-        route_transition::NextEdgeRouteTransition, page_transition::NextEdgePageTransition,
+        page_transition::NextEdgePageTransition,
+        route_transition::NextEdgeRouteTransition,
     },
     next_image::module::{BlurPlaceholderMode, StructuredImageModuleType},
     next_route_matcher::{NextFallbackMatcherVc, NextParamsMatcherVc},
@@ -95,7 +97,7 @@ use crate::{
         get_server_compile_time_info, get_server_module_options_context,
         get_server_resolve_options_context, ServerContextType,
     },
-    util::{render_data, NextRuntime}, debug::NODE_JS_SOURCE_MAPS,
+    util::{render_data, NextRuntime},
 };
 
 #[turbo_tasks::function]
@@ -228,7 +230,6 @@ fn next_server_component_transition(
     .into()
 }
 
-
 #[turbo_tasks::function]
 fn next_edge_server_component_transition(
     project_path: FileSystemPathVc,
@@ -240,7 +241,11 @@ fn next_edge_server_component_transition(
 ) -> TransitionVc {
     let ty = Value::new(ServerContextType::AppRSC { app_dir });
     let mode = NextMode::Development;
-    let rsc_compile_time_info = get_edge_compile_time_info(project_path, server_addr, Value::new(EnvironmentIntention::ServerRendering));
+    let rsc_compile_time_info = get_edge_compile_time_info(
+        project_path,
+        server_addr,
+        Value::new(EnvironmentIntention::ServerRendering),
+    );
     let rsc_resolve_options_context =
         get_edge_resolve_options_context(project_path, ty, next_config, execution_context);
     let rsc_module_options_context =
@@ -373,7 +378,8 @@ fn app_context(
             execution_context,
         ),
     );
-    transitions.insert("next-edge-page".to_string(), 
+    transitions.insert(
+        "next-edge-page".to_string(),
         next_edge_page_transition(
             project_path,
             app_dir,
@@ -382,7 +388,7 @@ fn app_context(
             server_addr,
             output_path,
             execution_context,
-        )
+        ),
     );
     transitions.insert(
         "next-server-component".to_string(),
@@ -871,15 +877,12 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
 
                 state.inner_assets.insert(
                     format!("COMPONENT_{i}"),
-                    state
-                        .context
-                        .with_transition(state.rsc_transition)
-                        .process(
-                            SourceAssetVc::new(component).into(),
-                            Value::new(ReferenceType::EcmaScriptModules(
-                                EcmaScriptModulesReferenceSubType::Undefined,
-                            )),
-                        ),
+                    state.context.with_transition(state.rsc_transition).process(
+                        SourceAssetVc::new(component).into(),
+                        Value::new(ReferenceType::EcmaScriptModules(
+                            EcmaScriptModulesReferenceSubType::Undefined,
+                        )),
+                    ),
                 );
             }
             Ok(())
@@ -1082,16 +1085,13 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
             .emit();
         }
 
-        let mut result = RopeBuilder::from(
-            indoc! {"
+        let mut result = RopeBuilder::from(indoc! {"
                 \"TURBOPACK { chunking-type: isolatedParallel; transition: next-edge-server-component }\";
                 import GlobalErrorMod from \"next/dist/client/components/error-boundary\"
                 const { GlobalError } = GlobalErrorMod;
                 \"TURBOPACK { chunking-type: isolatedParallel; transition: next-edge-server-component }\";
                 import base from \"next/dist/server/app-render/entry-base\"\n
-            "}
-            
-        );
+            "});
 
         for import in imports {
             writeln!(result, "{import}")?;
@@ -1136,7 +1136,7 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
                     ),
                 }))),
             ),
-            Some(NextRuntime::Edge) => 
+            Some(NextRuntime::Edge) =>
                 context.process(
                     SourceAssetVc::new(next_js_file_path("entry/app-edge-renderer.tsx")).into(),
                     Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
