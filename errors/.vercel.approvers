@@ -1,1 +1,2 @@
 @vercel/devex
+@vercel/next-js:optional

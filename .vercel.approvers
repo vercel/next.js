@@ -1,6 +1,3 @@
-# Global Owners 
-@vercel/next-js
-
 # Tooling & Telemetry
 pnpm-lock.yaml                                @vercel/web-tooling
 Cargo.toml                                    @vercel/web-tooling
