@@ -13,6 +13,8 @@ env:
   NODE_MAINTENANCE_VERSION: 16
   NODE_LTS_VERSION: 18
   TEST_CONCURRENCY: 6
+  # disable backtrace for test snapshots
+  RUST_BACKTRACE: 0
 
   TURBO_TEAM: 'vercel'
   TURBO_REMOTE_ONLY: 'true'
