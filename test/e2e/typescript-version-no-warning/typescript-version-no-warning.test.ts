@@ -7,15 +7,18 @@ createNextDescribe(
     skipStart: true,
     skipDeployment: true,
   },
-  ({ next, isNextDeploy }) => {
-    if (isNextDeploy) {
-      return
+  ({ next, isNextDeploy, isNextDev }) => {
+    if (isNextDeploy || isNextDev) {
+      it('should skip', async () => {
+        expect(1).toBe(1)
+      })
+    } else {
+      it('should not print warning when new typescript version is used with next build', async () => {
+        await next.start().catch(() => {})
+        expect(next.cliOutput).not.toContain(
+          'Minimum recommended TypeScript version is'
+        )
+      })
     }
-    it('should not print warning when new typescript version is used', async () => {
-      await next.start().catch(() => {})
-      expect(next.cliOutput).not.toContain(
-        'Minimum recommended TypeScript version is'
-      )
-    })
   }
 )

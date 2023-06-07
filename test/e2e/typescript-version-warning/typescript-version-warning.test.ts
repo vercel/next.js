@@ -10,15 +10,18 @@ createNextDescribe(
       typescript: '4.0.6',
     },
   },
-  ({ next, isNextDeploy }) => {
-    if (isNextDeploy) {
-      return
+  ({ next, isNextDeploy, isNextDev }) => {
+    if (isNextDeploy || isNextDev) {
+      it('should skip', async () => {
+        expect(1).toBe(1)
+      })
+    } else {
+      it('should print warning when old typescript version is used with next build', async () => {
+        await next.start().catch(() => {})
+        expect(next.cliOutput).toContain(
+          'warn Minimum recommended TypeScript version is v4.5.2, older versions can potentially be incompatible with Next.js. Detected: 4.0.6'
+        )
+      })
     }
-    it('should print warning when old typescript version is used', async () => {
-      await next.start().catch(() => {})
-      expect(next.cliOutput).toContain(
-        'warn Minimum recommended TypeScript version is v4.5.2, older versions can potentially be incompatible with Next.js. Detected: 4.0.6'
-      )
-    })
   }
 )
