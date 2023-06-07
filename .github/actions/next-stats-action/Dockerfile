@@ -1,10 +1,12 @@
-FROM node:16-bullseye
+FROM ubuntu:22.04
 
 LABEL com.github.actions.name="Next.js PR Stats"
 LABEL com.github.actions.description="Compares stats of a PR with the main branch"
 LABEL repository="https://github.com/vercel/next-stats-action"
 
 COPY . /next-stats
+
+RUN curl -sfLS https://install-node.vercel.app/v18 | bash -s --
 
 # Install node_modules
 RUN npm i -g pnpm@7.24.3
