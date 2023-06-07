@@ -235,7 +235,6 @@ fn next_edge_server_component_transition(
     execution_context: ExecutionContextVc,
     app_dir: FileSystemPathVc,
     server_root: FileSystemPathVc,
-    process_env: ProcessEnvVc,
     next_config: NextConfigVc,
     server_addr: ServerAddrVc,
 ) -> TransitionVc {
@@ -326,6 +325,7 @@ fn next_edge_page_transition(
         get_client_assets_path(server_root, Value::new(ClientContextType::App { app_dir })),
         edge_compile_time_info.environment(),
     )
+    .layer("ssr")
     .reference_chunk_source_maps(NODE_JS_SOURCE_MAPS)
     .build();
     let edge_resolve_options_context =
@@ -403,7 +403,6 @@ fn app_context(
             execution_context,
             app_dir,
             server_root,
-            env,
             next_config,
             server_addr,
         ),
