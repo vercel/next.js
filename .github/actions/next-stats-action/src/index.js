@@ -132,6 +132,13 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
         )
         .catch(console.error)
 
+      // pnpm ignores .gitignore files when packing so we need
+      // to remove the ignore for the swc binary
+      await fs.remove(path.join(dir, 'packages/next-swc/native/.gitignore'))
+
+      console.log(await exec(`ls ${path.join(__dirname, '../native')}`))
+      console.log(await exec(`cd ${dir} && ls ${dir}/packages/next-swc/native`))
+
       logger(`Linking packages in ${dir}`)
       const isMainRepo = dir === mainRepoDir
       const pkgPaths = await linkPackages({
