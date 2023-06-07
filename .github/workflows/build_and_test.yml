@@ -70,7 +70,6 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
-      skipInstallBuild: 'yes'
       needsNextest: 'yes'
       afterBuild: turbo run test-cargo-integration
 
@@ -81,7 +80,6 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
-      skipInstallBuild: 'yes'
       afterBuild: turbo run test-cargo-bench
 
   rust-check:
