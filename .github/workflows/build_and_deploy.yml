@@ -8,7 +8,6 @@ on:
 env:
   NAPI_CLI_VERSION: 2.14.7
   TURBO_VERSION: 1.9.6
-  RUST_TOOLCHAIN: nightly-2023-03-09
   PNPM_VERSION: 7.24.3
   NODE_MAINTENANCE_VERSION: 16
   NODE_LTS_VERSION: 18
@@ -199,14 +198,11 @@ jobs:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
 
-      - name: Install
-        uses: actions-rs/toolchain@v1
-        if: ${{ !matrix.settings.docker }}
+      - name: Install Rust
+        uses: ./.github/actions/setup-rust
         with:
-          profile: minimal
-          override: true
-          toolchain: ${{ env.RUST_TOOLCHAIN }}
-          target: ${{ matrix.settings.target }}
+          targets: ${{ matrix.settings.target }}
+          skip-install: ${{ !!matrix.settings.docker }}
 
       - name: Cache cargo registry
         uses: actions/cache@v3
@@ -235,7 +231,21 @@ jobs:
         if: ${{ matrix.settings.docker }}
         with:
           image: ${{ matrix.settings.docker }}
-          options: -e RUST_TOOLCHAIN=${{ env.RUST_TOOLCHAIN }} -e NAPI_CLI_VERSION=${{ env.NAPI_CLI_VERSION }} -e TURBO_VERSION=${{ env.TURBO_VERSION }} -e TURBO_TEAM=vercel -e TURBO_TOKEN=${{ secrets.TURBO_TOKEN }} -e TURBO_REMOTE_ONLY=true -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry -v ${{ github.workspace }}:/build -w /build
+          options: >-
+            -e RUST_TOOLCHAIN=${{ env.RUST_TOOLCHAIN }}
+            -e CARGO_INCREMENTAL=${{ env.CARGO_INCREMENTAL }}
+            -e CARGO_TERM_COLOR=${{ env.CARGO_TERM_COLOR }}
+            -e RUST_BACKTRACE=${{ env.RUST_BACKTRACE }}
+            -e CARGO_REGISTRIES_CRATES_IO_PROTOCOL=${{ env.CARGO_REGISTRIES_CRATES_IO_PROTOCOL }}
+            -e NAPI_CLI_VERSION=${{ env.NAPI_CLI_VERSION }}
+            -e TURBO_VERSION=${{ env.TURBO_VERSION }}
+            -e TURBO_TEAM=vercel
+            -e TURBO_TOKEN=${{ secrets.TURBO_TOKEN }}
+            -e TURBO_REMOTE_ONLY=true
+            -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git
+            -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry
+            -v ${{ github.workspace }}:/build
+            -w /build
           run: ${{ matrix.settings.build }}
 
       - name: 'Build'
@@ -293,12 +303,9 @@ jobs:
           check-latest: true
 
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
+        uses: ./.github/actions/setup-rust
         with:
-          profile: minimal
-          toolchain: ${{ env.RUST_TOOLCHAIN }}
-          override: true
-          target: wasm32-unknown-unknown
+          targets: wasm32-unknown-unknown
 
       - run: npm i -g turbo@${{ env.TURBO_VERSION }} pnpm@${PNPM_VERSION}
 
