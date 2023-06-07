@@ -97,6 +97,7 @@ export function getUtils({
   rewrites,
   pageIsDynamic,
   trailingSlash,
+  caseSensitive,
 }: {
   page: string
   i18n?: NextConfig['i18n']
@@ -108,6 +109,7 @@ export function getUtils({
   }
   pageIsDynamic: boolean
   trailingSlash?: boolean
+  caseSensitive: boolean
 }) {
   let defaultRouteRegex: ReturnType<typeof getNamedRouteRegex> | undefined
   let dynamicRouteMatcher: RouteMatchFn | undefined
@@ -140,6 +142,7 @@ export function getUtils({
         {
           removeUnnamedParams: true,
           strict: true,
+          sensitive: !!caseSensitive,
         }
       )
       let params = matcher(parsedUrl.pathname)
