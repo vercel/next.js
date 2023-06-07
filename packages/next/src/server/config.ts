@@ -672,14 +672,26 @@ function assignDefaults(
   result.modularizeImports = {
     ...(userProvidedModularizeImports || {}),
     // This is intentionally added after the user-provided modularizeImports config.
-    'lucide-react': {
-      transform: 'lucide-react/dist/esm/icons/{{ kebabCase member }}',
-    },
     '@mui/icons-material/?(((\\w*)?/?)*)': {
       transform: '@mui/icons-material/{{ matches.[1] }}/{{member}}',
     },
+    '@mui/material': {
+      transform: '@mui/material/{{member}}',
+    },
+    'date-fns': {
+      transform: 'date-fns/{{member}}',
+    },
     lodash: {
       transform: 'lodash/{{member}}',
+    },
+    'lodash-es': {
+      transform: 'lodash-es/{{member}}',
+    },
+    'lucide-react': {
+      transform: 'lucide-react/dist/esm/icons/{{ kebabCase member }}',
+    },
+    ramda: {
+      transform: 'ramda/es/{{member}}',
     },
     'react-bootstrap': {
       transform: 'react-bootstrap/{{member}}',
