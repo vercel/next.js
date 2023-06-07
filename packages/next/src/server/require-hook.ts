@@ -21,7 +21,7 @@ export function addHookAliases(aliases: [string, string][] = []) {
 addHookAliases([
   // Use `require.resolve` explicitly to make them statically analyzable
   // styled-jsx needs to be resolved as the external dependency.
-  ['styled-jsx', require.resolve('styled-jsx')],
+  ['styled-jsx', dirname(require.resolve('styled-jsx/package.json'))],
   ['styled-jsx/style', require.resolve('styled-jsx/style')],
   ['zod', dirname(require.resolve('zod/package.json'))],
 ])

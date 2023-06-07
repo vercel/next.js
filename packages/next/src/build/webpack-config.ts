@@ -100,7 +100,14 @@ const asyncStoragesRegex =
   /next[\\/]dist[\\/]client[\\/]components[\\/](static-generation-async-storage|action-async-storage|request-async-storage)/
 
 // exports.<conditionName>
-const edgeConditionNames = ['edge-light', 'worker', 'browser', 'module']
+const edgeConditionNames = [
+  'edge-light',
+  'worker',
+  'import',
+  'module',
+  'main',
+  'browser',
+]
 
 // packageJson.<mainField>
 const mainFieldsPerCompiler: Record<CompilerNameValues, string[]> = {
@@ -109,8 +116,8 @@ const mainFieldsPerCompiler: Record<CompilerNameValues, string[]> = {
   [COMPILER_NAMES.edgeServer]: [
     'edge-light',
     'worker',
-    'browser',
     'module',
+    'browser',
     'main',
   ],
 }
@@ -1098,11 +1105,6 @@ export default async function getBaseWebpackConfig(
               'next/dist/esm/client/components/navigation',
             [require.resolve('next/dist/client/components/headers')]:
               'next/dist/esm/client/components/headers',
-
-            // TODO: This is a temp fix, investigate the module not found for zod
-            zod: path.dirname(require.resolve('zod/package.json')),
-            'styled-jsx': require.resolve('styled-jsx/package.json'),
-            'styled-jsx/style': require.resolve('styled-jsx/style'),
           }
         : undefined),
 
