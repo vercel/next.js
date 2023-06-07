@@ -45,7 +45,7 @@ importers:
       '@types/html-validator': 5.0.3
       '@types/http-proxy': 1.17.3
       '@types/jest': 24.0.13
-      '@types/node': 14.14.31
+      '@types/node': 20.2.5
       '@types/node-fetch': 2.6.1
       '@types/react': 18.2.7
       '@types/react-dom': 18.2.4
@@ -230,7 +230,7 @@ importers:
       '@types/html-validator': 5.0.3
       '@types/http-proxy': 1.17.3
       '@types/jest': 24.0.13
-      '@types/node': 14.14.31
+      '@types/node': 20.2.5
       '@types/node-fetch': 2.6.1
       '@types/react': 18.2.7
       '@types/react-dom': 18.2.4
@@ -373,7 +373,7 @@ importers:
       tailwindcss: 3.2.7_pe6iykxod2v7i2uk6okjazxzki
       taskr: 1.1.0
       tree-kill: 1.2.2
-      ts-node: 10.9.1_23p6ttc5yzdn6bu4b2mbrmvfre
+      ts-node: 10.9.1_egai5tutgkouoc7y2zkxfulvye
       tsec: 0.2.1_sbe2uaqno6akssxfwbhgeg7v2q
       turbo: 1.9.6
       typescript: 4.8.2
@@ -6978,7 +6978,7 @@ packages:
   /@types/cheerio/0.22.16:
     resolution: {integrity: sha512-bSbnU/D4yzFdzLpp3+rcDj0aQQMIRUBNJU7azPxdqMpnexjUSvGJyDuOBQBHeOZh1mMKgsJm6Dy+LLh80Ew4tQ==}
     dependencies:
-      '@types/node': 18.11.18
+      '@types/node': 20.2.5
     dev: true
 
   /@types/ci-info/2.0.0:
@@ -7082,7 +7082,7 @@ packages:
   /@types/fs-extra/8.1.0:
     resolution: {integrity: sha512-UoOfVEzAUpeSPmjm7h1uk5MH6KZma2z2O7a75onTGjnNvAvMVrPzPL/vBbT65iIGHWj6rokwfmYcmxmlSf2uwg==}
     dependencies:
-      '@types/node': 18.11.18
+      '@types/node': 20.2.5
     dev: true
 
   /@types/glob/7.1.1:
@@ -7106,7 +7106,7 @@ packages:
   /@types/html-validator/5.0.3:
     resolution: {integrity: sha512-QcKpR0cAWhLy7T3J24dwCuviRyS8xj/gVtFxcfZer9lfRgHdSAUFvE02nI/rsgIxSr71Z/2moXVYvWl2fTAzHQ==}
     dependencies:
-      '@types/node': 18.11.18
+      '@types/node': 20.2.5
     dev: true
 
   /@types/http-cache-semantics/4.0.0:
@@ -7116,7 +7116,7 @@ packages:
   /@types/http-proxy/1.17.3:
     resolution: {integrity: sha512-wIPqXANye5BbORbuh74exbwNzj+UWCwWyeEFJzUQ7Fq3W2NSAy+7x7nX1fgbEypr2/TdKqpeuxLnXWgzN533/Q==}
     dependencies:
-      '@types/node': 18.11.18
+      '@types/node': 20.2.5
     dev: true
 
   /@types/inquirer/8.1.3:
@@ -7271,10 +7271,6 @@ packages:
     resolution: {integrity: sha512-fh+pAqt4xRzPfqA6eh3Z2y6fyZavRIumvjhaCL753+TVkGKGhpPeyrJG2JftD0T9q4GF00KjefsQ+PQNDdWQaQ==}
     dev: true
 
-  /@types/node/14.14.31:
-    resolution: {integrity: sha512-vFHy/ezP5qI0rFgJ7aQnjDXwAMrG0KqqIH7tQG5PPv3BWBayOPIQNBjVc/P6hhdZfMx51REc6tfDNXHUio893g==}
-    dev: true
-
   /@types/node/16.18.27:
     resolution: {integrity: sha512-GFfndd/RINWD19W+xNJ9Qh/sOZ5ieTiOSagA86ER/12i/l+MEnQxsbldGRF23azWjRfe7zUlAldyrwN84a1E5w==}
     dev: true
@@ -7398,7 +7394,7 @@ packages:
   /@types/sharp/0.29.3:
     resolution: {integrity: sha512-83Xp05eK2hvfNnmKLr2Fz0C2A0jrr2TnSLqKRbkLTYuAu+Erj6mKQLoEMGafE73Om8p3q3ryZxtHFM/7hy4Adg==}
     dependencies:
-      '@types/node': 18.11.18
+      '@types/node': 20.2.5
     dev: true
 
   /@types/shell-quote/1.7.1:
@@ -10869,7 +10865,7 @@ packages:
       '@datadog/native-metrics': 1.1.0
       '@datadog/pprof': 0.3.0
       '@datadog/sketches-js': 1.0.4
-      '@types/node': 18.11.18
+      '@types/node': 20.2.5
       crypto-randomuuid: 1.0.0
       diagnostics_channel: 1.1.0
       form-data: 3.0.1
@@ -15356,7 +15352,7 @@ packages:
       jest-validate: 27.5.1
       micromatch: 4.0.4
       pretty-format: 27.5.1
-      ts-node: 10.9.1_23p6ttc5yzdn6bu4b2mbrmvfre
+      ts-node: 10.9.1_egai5tutgkouoc7y2zkxfulvye
     transitivePeerDependencies:
       - bufferutil
       - canvas
@@ -19799,7 +19795,7 @@ packages:
     dependencies:
       lilconfig: 2.1.0
       postcss: 8.4.14
-      ts-node: 10.9.1_23p6ttc5yzdn6bu4b2mbrmvfre
+      ts-node: 10.9.1_egai5tutgkouoc7y2zkxfulvye
       yaml: 1.10.2
     dev: true
 
@@ -24028,7 +24024,7 @@ packages:
   /trough/2.1.0:
     resolution: {integrity: sha512-AqTiAOLcj85xS7vQ8QkAV41hPDIJ71XJB4RCUrzo/1GM2CQwhkJGaf9Hgr7BOugMRpgGUrqRg/DrBDl4H40+8g==}
 
-  /ts-node/10.9.1_23p6ttc5yzdn6bu4b2mbrmvfre:
+  /ts-node/10.9.1_egai5tutgkouoc7y2zkxfulvye:
     resolution: {integrity: sha512-NtVysVPkxxrwFGUUxGYhfux8k78pQB3JqYBXlLRZgdGUqTO5wU/UyHop5p70iEbGhB7q5KmiZiU0Y3KlJrScEw==}
     hasBin: true
     peerDependencies:
@@ -24048,7 +24044,7 @@ packages:
       '@tsconfig/node12': 1.0.11
       '@tsconfig/node14': 1.0.3
       '@tsconfig/node16': 1.0.3
-      '@types/node': 14.14.31
+      '@types/node': 20.2.5
       acorn: 8.8.0
       acorn-walk: 8.2.0
       arg: 4.1.0
