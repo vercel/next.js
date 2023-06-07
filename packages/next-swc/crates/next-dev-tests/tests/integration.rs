@@ -257,7 +257,11 @@ async fn run_test(resource: PathBuf) -> JsResult {
     let test_dir = resource_temp.to_path_buf();
     let workspace_root = cargo_workspace_root.parent().unwrap().parent().unwrap();
     let project_dir = test_dir.join("input");
-    let requested_addr = get_free_local_addr().unwrap();
+    let requested_addr = if *DEBUG_START {
+        "127.0.0.1:3000".parse().unwrap()
+    } else {
+        get_free_local_addr().unwrap()
+    };
 
     let mock_dir = resource_temp.join("__httpmock__");
     let mock_server_future = get_mock_server_future(&mock_dir);
