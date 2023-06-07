@@ -298,7 +298,11 @@ async fn source(
 ) -> Result<ContentSourceVc> {
     let output_fs = output_fs(&project_dir);
     let fs = project_fs(&root_dir);
-    let project_relative = project_dir.strip_prefix(&root_dir).unwrap();
+    let project_relative = project_dir.strip_prefix(&root_dir).unwrap_or_else(|| {
+        panic!(
+            "project directory '{project_dir}' exists outside of the root directory '{root_dir}'"
+        )
+    });
     let project_relative = project_relative
         .strip_prefix(MAIN_SEPARATOR)
         .unwrap_or(project_relative)
