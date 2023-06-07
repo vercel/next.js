@@ -43,7 +43,7 @@ With Server Components, the initial page load is faster, and the client-side Jav
 
 When a route is loaded with Next.js, the initial HTML is rendered on the server. This HTML is then **progressively enhanced** in the browser, allowing the client to take over the application and add interactivity, by asynchronously loading the Next.js and React client-side runtime.
 
-To make the transition to Server Components easier, all components inside the [App Router](/docs/app/building-your-application/routing#the-app-directory) are Server Components by default, including [special files](/docs/app/building-your-application/routing#file-conventions) and [colocated components](/docs/app/building-your-application/routing#colocation). This allows you to automatically adopt them with no extra work, and achieve great performance out of the box. You can also optionally opt-in to Client Components using the ['use client' directive](#the-use-client-directive).
+To make the transition to Server Components easier, all components inside the [App Router](/docs/app/building-your-application/routing#the-app-router) are Server Components by default, including [special files](/docs/app/building-your-application/routing#file-conventions) and [colocated components](/docs/app/building-your-application/routing#colocation). This allows you to automatically adopt them with no extra work, and achieve great performance out of the box. You can also optionally opt-in to Client Components using the ['use client' directive](#the-use-client-directive).
 
 ## Client Components
 

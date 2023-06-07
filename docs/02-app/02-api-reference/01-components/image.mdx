@@ -129,6 +129,8 @@ A `loader` is a function returning a URL string for the image, given the followi
 Here is an example of using a custom loader:
 
 ```js
+'use client'
+
 import Image from 'next/image'
 
 const imageLoader = ({ src, width, quality }) => {
@@ -147,6 +149,12 @@ export default function Page() {
   )
 }
 ```
+
+<AppOnly>
+
+> **Good to know:** Using props like `loader`, which accept a function, require using [Client Components](/docs/getting-started/react-essentials#client-components) to serialize the provided function.
+
+</AppOnly>
 
 Alternatively, you can use the [loaderFile](#loaderfile) configuration in `next.config.js` to configure every instance of `next/image` in your application, without passing a prop.
 
@@ -271,12 +279,20 @@ Remember that the required width and height props can interact with your styling
 ### `onLoadingComplete`
 
 ```jsx
+'use client'
+
 <Image onLoadingComplete={(img) => console.log(img.naturalWidth)} />
 ```
 
 A callback function that is invoked once the image is completely loaded and the [placeholder](#placeholder) has been removed.
 
 The callback function will be called with one argument, a reference to the underlying `<img>` element.
+
+<AppOnly>
+
+> **Good to know:** Using props like `onLoadingComplete`, which accept a function, require using [Client Components](/docs/getting-started/react-essentials#client-components) to serialize the provided function.
+
+</AppOnly>
 
 ### `onLoad`
 
@@ -286,9 +302,13 @@ The callback function will be called with one argument, a reference to the under
 
 A callback function that is invoked when the image is loaded.
 
-Note that the load event might occur before the placeholder is removed and the image is fully decoded.
+The load event might occur before the image placeholder is removed and the image is fully decoded. If you want to wait until the image has fully loaded, use [`onLoadingComplete`](#onloadingcomplete) instead.
 
-Instead, use [`onLoadingComplete`](#onloadingcomplete).
+<AppOnly>
+
+> **Good to know:** Using props like `onLoad`, which accept a function, require using [Client Components](/docs/getting-started/react-essentials#client-components) to serialize the provided function.
+
+</AppOnly>
 
 ### `onError`
 
@@ -297,6 +317,12 @@ Instead, use [`onLoadingComplete`](#onloadingcomplete).
 ```
 
 A callback function that is invoked if the image fails to load.
+
+<AppOnly>
+
+> **Good to know:** Using props like `onError`, which accept a function, require using [Client Components](/docs/getting-started/react-essentials#client-components) to serialize the provided function.
+
+</AppOnly>
 
 ### `loading`
 
@@ -460,6 +486,12 @@ Alternatively, you can use the [`loader` prop](#loader) to configure each instan
 Examples:
 
 - [Custom Image Loader Configuration](/docs/app/api-reference/next-config-js/images#example-loader-configuration)
+
+<AppOnly>
+
+> **Good to know:** Customizing the image loader file, which accepts a function, require using [Client Components](/docs/getting-started/react-essentials#client-components) to serialize the provided function.
+
+</AppOnly>
 
 ## Advanced
 

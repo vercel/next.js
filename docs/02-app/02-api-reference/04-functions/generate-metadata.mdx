@@ -216,6 +216,7 @@ import { Metadata } from 'next'
 export const metadata: Metadata = {
   title: {
     template: '%s | Acme',
+    default: 'Acme', // a default is required when creating a template
   },
 }
 ```
@@ -226,6 +227,7 @@ import { Metadata } from 'next'
 export const metadata: Metadata = {
   title: {
     template: '%s | Acme',
+    default: 'Acme', // a default is required when creating a template
   },
 }
 ```
@@ -254,7 +256,7 @@ export const metadata: Metadata = {
 >
 > - `title.template` applies to **child** route segments and **not** the segment it's defined in. This means:
 >
->   - `title.default` is required when you add a `title.template`.
+>   - `title.default` is **required** when you add a `title.template`.
 >   - `title.template` defined in `layout.js` will not apply to a `title` defined in a `page.js` of the same route segment.
 >   - `title.template` defined in `page.js` has no effect because a page is always the terminating segment (it doesn't have any children route segments).
 >

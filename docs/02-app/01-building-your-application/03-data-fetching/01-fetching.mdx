@@ -4,18 +4,15 @@ nav_title: Fetching
 description: Learn how to fetch data in your Next.js application.
 ---
 
-> **Good to know**:
->
-> - This new data fetching model is currently being developed by the React team. We recommend reading the [support for promises React RFC](https://github.com/acdlite/rfcs/blob/first-class-promises/text/0000-first-class-support-for-promises.md) which introduces `async` and `await` in Server Components and a new `use()` hook for Client Components.
-> - While you can try it out, it is not yet stable. We'll keep these docs updated to reflect the latest developments.
+The Next.js App Router allows you to fetch data directly in your React components by marking the function as `async` and using `await` for the [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise).
 
-React and Next.js 13 introduced a new way to fetch and manage data in your application. The new data fetching system works in the `app` directory and is built on top of the [`fetch()` Web API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API).
+Data fetching is built on top of the [`fetch()` Web API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) and React Server Components. When using `fetch()`, requests are [automatically deduped](/docs/app/building-your-application/data-fetching#automatic-fetch-request-deduping) by default.
 
-`fetch()` is a Web API used to fetch remote resources that **returns a promise**. React extends `fetch` to provide [automatic request deduping](/docs/app/building-your-application/data-fetching#automatic-fetch-request-deduping), and Next.js extends the `fetch` options object to allow each request to set its own [caching and revalidating](/docs/app/building-your-application/data-fetching/caching).
+Next.js extends the `fetch` options object to allow each request to set its own [caching and revalidating](/docs/app/building-your-application/data-fetching/caching).
 
 ## `async` and `await` in Server Components
 
-With the [proposed React RFC](https://github.com/acdlite/rfcs/blob/first-class-promises/text/0000-first-class-support-for-promises.md), you can use `async` and `await` to fetch data in Server Components.
+You can use `async` and `await` to fetch data in Server Components.
 
 ```tsx filename="app/page.tsx" switcher
 async function getData() {
@@ -61,11 +58,9 @@ export default async function Page() {
 }
 ```
 
-> **Async Server Component TypeScript Error**
+> **Good to know:**
 >
-> - An `async` Server Components will cause a `'Promise<Element>' is not a valid JSX element` type error where it is used.
-> - This is a known issue with TypeScript and is being worked on upstream.
-> - As a temporary workaround, you can add `{/* @ts-expect-error Async Server Component */}` above the component to disable type checking for it.
+> To use an `async` Server Component with TypeScript, ensure you are using TypeScript `5.1.3` or higher and `@types/react` `18.2.8` or higher.
 
 ### Server Component Functions
 
@@ -100,7 +95,9 @@ fetch('https://...', { next: { revalidate: 10 } })
 
 See [Revalidating Data](/docs/app/building-your-application/data-fetching/revalidating) for more information.
 
-> **NOTE:** Caching at the fetch level via `revalidate` or `cache: 'force-cache'` stores the data across requests in a shared cache. You should avoid using it for user-specific data (i.e. requests that derive data from `cookies()` or `headers()`)
+> **Good to know:**
+>
+> Caching at the fetch level with `revalidate` or `cache: 'force-cache'` stores the data across requests in a shared cache. You should avoid using it for user-specific data (i.e. requests that derive data from `cookies()` or `headers()`)
 
 ## Dynamic Data Fetching
 
@@ -207,7 +204,6 @@ export default async function Page({
       {/* Send the artist information first,
           and wrap albums in a suspense boundary */}
       <Suspense fallback={<div>Loading...</div>}>
-        {/* @ts-expect-error Async Server Component */}
         <Albums promise={albumData} />
       </Suspense>
     </>
@@ -301,7 +297,6 @@ export default async function Page({
     <>
       <h1>{artist.name}</h1>
       <Suspense fallback={<div>Loading...</div>}>
-        {/* @ts-expect-error Async Server Component */}
         <Playlists artistID={artist.id} />
       </Suspense>
     </>

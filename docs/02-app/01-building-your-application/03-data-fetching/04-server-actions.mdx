@@ -9,11 +9,14 @@ related:
     - app/api-reference/functions/cookies
 ---
 
-[Server Actions](#server-actions) are an **alpha** feature in Next.js, built on top of React [Actions](#actions). They enable server-side data mutations, reduced client-side JavaScript, and progressively enhanced forms.
+[Server Actions](#server-actions) are an **alpha** feature in Next.js, built on top of React [Actions](#actions). They enable server-side data mutations, reduced client-side JavaScript, and progressively enhanced forms. They can be defined inside Server Components and/or called from Client Components:
 
-```jsx filename="app/add-to-cart.js"
+**With Server Components:**
+
+```jsx filename="app/add-to-cart.jsx" highlight={5, 6, 13}
 import { cookies } from 'next/headers'
 
+// Server action defined inside a Server Component
 export default function AddToCart({ productId }) {
   async function addItem(data) {
     'use server'
@@ -22,6 +25,32 @@ export default function AddToCart({ productId }) {
     await saveToDb({ cartId, data })
   }
 
+  return (
+    <form action={addItem}>
+      <button type="submit">Add to Cart</button>
+    </form>
+  )
+}
+```
+
+**With Client Components:**
+
+```jsx filename="app/actions.js" highlight={1, 3}
+'use server'
+
+async function addItem(data) {
+  const cartId = cookies().get('cartId')?.value
+  await saveToDb({ cartId, data })
+}
+```
+
+```jsx filename="app/add-to-cart.jsx" highlight={1, 3, 8}
+'use client'
+
+import { addItem } from './actions.js'
+
+// Server Action being called inside a Client Component
+export default function AddToCart({ productId }) {
   return (
     <form action={addItem}>
       <button type="submit">Add to Cart</button>
@@ -44,16 +73,27 @@ module.exports = {
 
 ### Creation
 
+Server Actions can be defined in two places:
+
+- Inside the component that uses it (Server Components only)
+- In a separate file (Client and Server Components), for reusability. You can define multiple Server Actions in a single file.
+
+#### With Server Components
+
 Create a Server Action by defining an asynchronous function with the `"use server"` directive at the top of the function body. This function should have **serializable arguments** and a **serializable return value** based on the React Server Components protocol.
 
-```jsx filename="app/components/component.js" highlight={2}
-async function myAction() {
-  'use server'
-  // ...
+```jsx filename="app/server-component.jsx" highlight={2}
+export default function ServerComponent() {
+  async function myAction() {
+    'use server'
+    // ...
+  }
 }
 ```
 
-You can also use a top-level `"use server"` directive on top of a file. This can be useful if you have a single file that exports multiple Server Actions, and it is **required** if you're importing a Server Action in a Client Component.
+#### With Client Components
+
+If you're using a Server Action inside a Client Component, create your action in a separate file with the "use server" directive at the top of the file. Then, import the Server Action into your Client Component:
 
 ```jsx filename="app/actions.js" highlight={1}
 'use server'
@@ -63,7 +103,21 @@ export async function myAction() {
 }
 ```
 
-> **Note:** When using a top-level `"use server"` directive, all exports will be considered Server Actions.
+```jsx filename="app/client-component.jsx" highlight={1}
+|"use client"
+
+import { myAction } from './actions';
+
+export default function ClientComponent() {
+  return (
+    <form action={myAction}>
+      <button type="submit">Add to Cart</button>
+    </form>
+  );
+}
+```
+
+> **Note:** When using a top-level `"use server"` directive, all exports below will be considered Server Actions. You can have multiple Server Actions in a single file.
 
 ### Invocation
 
@@ -130,7 +184,7 @@ You can also invoke Server Actions without using `action` or `formAction`. You c
 
 > **Note:** Using `startTransition` disables the out-of-the-box Progressive Enhancement.
 
-```jsx filename="app/components/example-client-component.js" highlight={3, 7, 9}
+```jsx filename="app/components/example-client-component.js" highlight={3, 7, 10}
 'use client'
 
 import { useTransition } from 'react'
@@ -336,7 +390,7 @@ export async function addItem() {
 }
 ```
 
-```jsx filename="app/components/example-client-component.js" highlight={3, 7, 9}
+```jsx filename="app/components/example-client-component.js" highlight={3, 7, 10}
 'use client'
 
 import { useTransition } from 'react'
