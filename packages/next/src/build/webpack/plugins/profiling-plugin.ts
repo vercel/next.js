@@ -181,7 +181,12 @@ export class ProfilingPlugin {
             }
             span = parentSpan.traceChild(spanName)
           }
-          span.setAttribute('name', module.userRequest)
+          span.setAttribute(
+            'name',
+            typeof module.userRequest === 'string'
+              ? module.userRequest.replace(this.dir, 'ROOT')
+              : ''
+          )
           moduleSpans!.set(module, span)
         })
 
