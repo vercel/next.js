@@ -187,13 +187,7 @@ export class AppRouteRouteModule extends RouteModule<
         )
       }
     }
-  }
 
-  /**
-   * Validates the userland module to ensure the exported methods and properties
-   * are valid.
-   */
-  protected setup() {
     // We only warn in development after here, so return if we're not in
     // development.
     if (process.env.NODE_ENV === 'development') {
@@ -451,11 +445,6 @@ export class AppRouteRouteModule extends RouteModule<
     context: AppRouteRouteHandlerContext
   ): Promise<Response> {
     try {
-      // Wait for the setup to complete. If the setup has already completed,
-      // this will resolve immediately. If setup encounters an error, it will
-      // throw and we will catch it below.
-      await this.hasSetup
-
       // Execute the route to get the response.
       const response = await this.execute(request, context)
 
