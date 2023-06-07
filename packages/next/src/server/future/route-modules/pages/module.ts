@@ -105,10 +105,6 @@ export class PagesRouteModule extends RouteModule<
   PagesRouteDefinition,
   PagesUserlandModule
 > {
-  public setup(): Promise<void> {
-    throw new Error('Method not implemented.')
-  }
-
   public async handle(
     request: NextRequest,
     context: PagesRouteHandlerContext

@@ -49,7 +49,7 @@ export abstract class RouteModule<
    * Setup will be called when the module is first loaded. This is where the
    * module should do any setup that it needs to do.
    */
-  protected abstract setup(): Promise<void>
+  protected setup(): Promise<void> | void {}
 
   /**
    * This is a promise that will resolve when the module is ready to handle
@@ -57,7 +57,7 @@ export abstract class RouteModule<
    * completed. It rejects with the error (if any) that was thrown during
    * setup.
    */
-  protected readonly hasSetup: Promise<void>
+  protected readonly hasSetup: Promise<void> | void
 
   /**
    * Handle will handle the request and return a response.

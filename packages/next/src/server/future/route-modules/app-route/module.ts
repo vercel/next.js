@@ -193,7 +193,7 @@ export class AppRouteRouteModule extends RouteModule<
    * Validates the userland module to ensure the exported methods and properties
    * are valid.
    */
-  protected async setup() {
+  protected setup() {
     // We only warn in development after here, so return if we're not in
     // development.
     if (process.env.NODE_ENV === 'development') {
