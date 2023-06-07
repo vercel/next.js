@@ -14,6 +14,7 @@ const customJestConfig = {
     '<rootDir>/../packages/next/src/',
     '<rootDir>/../packages/font/src/',
   ],
+  modulePathIgnorePatterns: ['/\\.next/'],
   modulePaths: ['<rootDir>/lib'],
   transformIgnorePatterns: ['/next[/\\\\]dist/', '/\\.next/'],
   globals: {
