@@ -3,8 +3,7 @@
 
 # Part of code owners now use Vercel Spaces
 # Search .vercel.approvers for all files
-
-*                                             @timneutkens @ijjk @shuding @huozhi @feedthejim
+          
 /.git*                                        @vercel/next-js
 /.alex*                                       @vercel/next-js @leerob
 /.eslint*                                     @vercel/next-js @leerob
