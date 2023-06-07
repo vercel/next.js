@@ -1354,7 +1354,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     if (isAppPath) {
       res.setHeader('vary', RSC_VARY_HEADER)
 
-      if (isSSG && req.headers[RSC.toLowerCase()]) {
+      if (
+        !opts.supportsDynamicHTML &&
+        isSSG &&
+        req.headers[RSC.toLowerCase()]
+      ) {
         if (!this.minimalMode) {
           isDataReq = true
         }
