@@ -42,8 +42,8 @@ export default function middlewareLoader(this: any) {
   return `
         import 'next/dist/esm/server/web/globals'
         import { adapter } from 'next/dist/esm/server/web/adapter'
-
         import * as mod from ${stringifiedPagePath}
+
         const handler = mod.middleware || mod.default
 
         if (typeof handler !== 'function') {
@@ -52,9 +52,9 @@ export default function middlewareLoader(this: any) {
 
         export default function (opts) {
           return adapter({
-              ...opts,
-              page: ${JSON.stringify(page)},
-              handler,
+            ...opts,
+            page: ${JSON.stringify(page)},
+            handler,
           })
         }
     `
