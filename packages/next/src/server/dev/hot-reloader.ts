@@ -61,6 +61,7 @@ import { parseVersionInfo, VersionInfo } from './parse-version-info'
 import { isAPIRoute } from '../../lib/is-api-route'
 import { getRouteLoaderEntry } from '../../build/webpack/loaders/next-route-loader'
 import { isInternalPathname } from '../../lib/is-internal-pathname'
+import { Duplex } from 'stream'
 
 function diff(a: Set<any>, b: Set<any>) {
   return new Set([...a].filter((v) => !b.has(v)))
@@ -325,7 +326,7 @@ export default class HotReloader {
     return { finished }
   }
 
-  public onHMR(req: IncomingMessage, _res: ServerResponse, head: Buffer) {
+  public onHMR(req: IncomingMessage, _socket: Duplex, head: Buffer) {
     wsServer.handleUpgrade(req, req.socket, head, (client) => {
       this.webpackHotMiddleware?.onHMR(client)
       this.onDemandEntries?.onHMR(client)
