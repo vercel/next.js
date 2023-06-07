@@ -968,8 +968,10 @@ importers:
   packages/next-swc:
     specifiers:
       '@napi-rs/cli': 2.14.7
+      cross-env: 6.0.3
     devDependencies:
       '@napi-rs/cli': 2.14.7
+      cross-env: 6.0.3
 
   packages/next-swc/crates/next-core/js:
     specifiers:
@@ -6110,7 +6112,7 @@ packages:
     dependencies:
       '@mdx-js/mdx': 2.2.1
       source-map: 0.7.3
-      webpack: 5.86.0
+      webpack: 5.86.0_@swc+core@1.3.55
     transitivePeerDependencies:
       - supports-color
 
@@ -23768,7 +23770,6 @@ packages:
       serialize-javascript: 6.0.1
       terser: 5.17.7
       webpack: 5.86.0_@swc+core@1.3.55
-    dev: true
 
   /terser/5.10.0:
     resolution: {integrity: sha512-AMmF99DMfEDiRJfxfY5jj5wNH/bYO09cniSqhfoyxc8sFoYIgkJy86G04UoZU5VjlpnplVu0K6Tx6E9b5+DlHA==}
