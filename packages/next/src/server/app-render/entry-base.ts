@@ -1,17 +1,20 @@
-export { default as AppRouter } from '../../client/components/app-router'
-export { default as LayoutRouter } from '../../client/components/layout-router'
-export { default as RenderFromTemplateContext } from '../../client/components/render-from-template-context'
+// Must import from next/dist/...
+// relative imports won't work as we want to references the CJS version from the ESM version of this file
 
-export { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
+export { default as AppRouter } from 'next/dist/client/components/app-router'
+export { default as LayoutRouter } from 'next/dist/client/components/layout-router'
+export { default as RenderFromTemplateContext } from 'next/dist/client/components/render-from-template-context'
 
-export { requestAsyncStorage } from '../../client/components/request-async-storage'
-export { actionAsyncStorage } from '../../client/components/action-async-storage'
+export { staticGenerationAsyncStorage } from 'next/dist/client/components/static-generation-async-storage'
 
-export { staticGenerationBailout } from '../../client/components/static-generation-bailout'
-export { default as StaticGenerationSearchParamsBailoutProvider } from '../../client/components/static-generation-searchparams-bailout-provider'
-export { createSearchParamsBailoutProxy } from '../../client/components/searchparams-bailout-proxy'
+export { requestAsyncStorage } from 'next/dist/client/components/request-async-storage'
+export { actionAsyncStorage } from 'next/dist/client/components/action-async-storage'
 
-import * as serverHooks from '../../client/components/hooks-server-context'
+export { staticGenerationBailout } from 'next/dist/client/components/static-generation-bailout'
+export { default as StaticGenerationSearchParamsBailoutProvider } from 'next/dist/client/components/static-generation-searchparams-bailout-provider'
+export { createSearchParamsBailoutProxy } from 'next/dist/client/components/searchparams-bailout-proxy'
+
+import * as serverHooks from 'next/dist/client/components/hooks-server-context'
 export { serverHooks }
 
 export {

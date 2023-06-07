@@ -609,8 +609,9 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     }
   }
 
-  // Prefer to modify next/dist/server/app-render/entry-base since this is shared with Turbopack.
+  // Prefer to modify next/src/server/app-render/entry-base.ts since this is shared with Turbopack.
   // Any changes to this code shoulld be reflected in Turbopack's app_source.rs and/or app-renderer.tsx as well.
+  // Must use the esm version of entry-base.ts to allow reexporting client components.
   const result = `
     export ${treeCodeResult.treeCode}
     export ${treeCodeResult.pages}
@@ -620,7 +621,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     export const originalPathname = ${JSON.stringify(page)}
     export const __next_app_require__ = __webpack_require__
 
-    export * from 'next/dist/server/app-render/entry-base'
+    export * from 'next/dist/esm/server/app-render/entry-base'
   `
 
   return result
