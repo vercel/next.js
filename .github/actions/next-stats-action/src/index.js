@@ -132,6 +132,9 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
         )
         .catch(console.error)
 
+      console.log(await exec(`ls ${path.join(__dirname, '../native')}`))
+      console.log(await exec(`cd ${dir} && ls ${dir}/packages/next-swc/native`))
+
       logger(`Linking packages in ${dir}`)
       const isMainRepo = dir === mainRepoDir
       const pkgPaths = await linkPackages({
