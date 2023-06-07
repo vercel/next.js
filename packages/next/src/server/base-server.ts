@@ -11,11 +11,7 @@ import type { NextConfig, NextConfigComplete } from './config-shared'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { ParsedUrlQuery } from 'querystring'
 import type { RenderOpts, RenderOptsPartial } from './render'
-import type {
-  ResponseCacheBase,
-  ResponseCacheEntry,
-  ResponseCacheValue,
-} from './response-cache'
+import type { ResponseCacheBase, ResponseCacheEntry } from './response-cache'
 import type { UrlWithParsedQuery } from 'url'
 import {
   NormalizeError,
@@ -31,7 +27,10 @@ import type { PayloadOptions } from './send-payload'
 import type { PrerenderManifest } from '../build'
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
-import type { PagesRouteModule } from './future/route-modules/pages/module'
+import type {
+  PagesRouteHandlerContext,
+  PagesRouteModule,
+} from './future/route-modules/pages/module'
 import type { NodeNextRequest, NodeNextResponse } from './base-http/node'
 import type { AppRouteRouteMatch } from './future/route-matches/app-route-route-match'
 
@@ -109,6 +108,7 @@ import {
 } from './web/utils'
 import { NEXT_QUERY_PARAM_PREFIX } from '../lib/constants'
 import { isRouteMatch } from './future/route-matches/route-match'
+import { NextRequestAdapter } from './web/spec-extension/adapters/next-request'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -1767,17 +1767,41 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
         renderOpts.nextFontManifest = this.nextFontManifest
 
-        // Call the built-in render method on the module. We cast these to
-        // NodeNextRequest and NodeNextResponse because we know that we're
-        // in the node runtime because we check that we're not in edge mode
-        // above.
-        result = await module.render(
-          (req as NodeNextRequest).originalRequest,
-          (res as NodeNextResponse).originalResponse,
-          pathname,
-          query,
-          renderOpts
-        )
+        // If we're statically generating the page, we can just get the render
+        // result from the module. Otherwise we can use the new handle method.
+        if (isSSG) {
+          // Call the built-in render method on the module. We cast these to
+          // NodeNextRequest and NodeNextResponse because we know that we're
+          // in the node runtime because we check that we're not in edge mode
+          // above.
+          result = await module.render(
+            (req as NodeNextRequest).originalRequest,
+            (res as NodeNextResponse).originalResponse,
+            pathname,
+            query,
+            renderOpts
+          )
+        } else {
+          const context: PagesRouteHandlerContext = {
+            params: match.params,
+            req: (req as NodeNextRequest).originalRequest,
+            res: (res as NodeNextResponse).originalResponse,
+            page: pathname,
+            query,
+            poweredByHeader: this.nextConfig.poweredByHeader,
+            generateEtags: this.nextConfig.generateEtags,
+            renderOpts,
+          }
+
+          // Handle the request using the module.
+          const request = NextRequestAdapter.fromBaseNextRequest(req)
+          const response = await module.handle(request, context)
+
+          // Send the response now that we have copied it into the cache.
+          await sendResponse(req, res, response)
+
+          return null
+        }
       } else {
         // If we didn't match a page, we should fallback to using the legacy
         // render method.
@@ -1828,23 +1852,39 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         throw err
       }
 
-      let value: ResponseCacheValue | null
+      // Based on the metadata, we can determine what kind of cache result we
+      // should return.
+
+      // Handle `isNotFound`.
       if (metadata.isNotFound) {
-        value = null
-      } else if (metadata.isRedirect) {
-        value = { kind: 'REDIRECT', props: metadata.pageData }
-      } else {
-        if (result.isNull()) {
-          return null
+        return { value: null, revalidate: metadata.revalidate }
+      }
+
+      // Handle `isRedirect`.
+      if (metadata.isRedirect) {
+        return {
+          value: {
+            kind: 'REDIRECT',
+            props: metadata.pageData,
+            revalidate: metadata.revalidate,
+          },
         }
-        value = {
+      }
+
+      // Handle `isNull`.
+      if (result.isNull()) {
+        return { value: null, revalidate: metadata.revalidate }
+      }
+
+      // We now have a valid HTML result that we can return to the user.
+      return {
+        value: {
           kind: 'PAGE',
           html: result,
           pageData: metadata.pageData,
-          headers,
-        }
+          revalidate: metadata.revalidate,
+        },
       }
-      return { revalidate: metadata.revalidate, value }
     }
 
     const cacheEntry = await this.responseCache.get(
