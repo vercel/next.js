@@ -1,4 +1,4 @@
-name: 'Turbo Rust Setup'
+name: 'Rust Setup'
 description: 'Sets up the Rust toolchain for CI'
 inputs:
   targets:
@@ -26,7 +26,7 @@ runs:
         echo "CARGO_INCREMENTAL=0" >> $GITHUB_ENV
         echo "CARGO_TERM_COLOR=always" >> $GITHUB_ENV
         echo "RUST_BACKTRACE=short" >> $GITHUB_ENV
-        # Enable faster sparse index
+        # Enable faster sparse crates index
         echo "CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse" >> $GITHUB_ENV
 
     - name: 'Setup Rust toolchain'
