@@ -36,12 +36,6 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'center',
   },
-
-  desc: {
-    display: 'inline-block',
-    textAlign: 'left',
-  },
-
   h1: {
     display: 'inline-block',
     margin: '0 20px 0 0',
@@ -51,12 +45,11 @@ const styles: Record<string, React.CSSProperties> = {
     verticalAlign: 'top',
     lineHeight: '49px',
   },
-
   h2: {
     fontSize: 14,
     fontWeight: 400,
-    lineHeight: '49px',
-    margin: 0,
+    lineHeight: '2em',
+    margin: '0 8px',
   },
 }
 
@@ -118,7 +111,7 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
               {statusCode}
             </h1>
           ) : null}
-          <div style={styles.desc}>
+          <div>
             <h2 style={styles.h2}>
               {this.props.title || statusCode ? (
                 title
