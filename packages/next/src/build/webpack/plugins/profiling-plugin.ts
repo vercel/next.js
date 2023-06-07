@@ -27,9 +27,11 @@ function inTraceLabelsSeal(label: string) {
 export class ProfilingPlugin {
   compiler: any
   runWebpackSpan: Span
+  dir: string
 
-  constructor({ runWebpackSpan }: { runWebpackSpan: Span }) {
+  constructor({ runWebpackSpan, dir }: { runWebpackSpan: Span; dir: string }) {
     this.runWebpackSpan = runWebpackSpan
+    this.dir = dir
   }
   apply(compiler: any) {
     this.traceTopLevelHooks(compiler)
@@ -238,7 +240,12 @@ export class ProfilingPlugin {
             return
           }
           const addEntrySpan = parentSpan.traceChild('add-entry')
-          addEntrySpan.setAttribute('request', entry.request)
+          addEntrySpan.setAttribute(
+            'request',
+            entry.request
+              // Reduce trace size by replacing the absolute path project path with ROOT
+              .replace(this.dir, 'ROOT')
+          )
           spans.set(entry, addEntrySpan)
         })
 
