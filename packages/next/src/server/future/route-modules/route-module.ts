@@ -46,20 +46,6 @@ export abstract class RouteModule<
   public readonly definition: Readonly<D>
 
   /**
-   * Setup will be called when the module is first loaded. This is where the
-   * module should do any setup that it needs to do.
-   */
-  protected setup(): Promise<void> | void {}
-
-  /**
-   * This is a promise that will resolve when the module is ready to handle
-   * requests. It is resolved after the setup method is called and was
-   * completed. It rejects with the error (if any) that was thrown during
-   * setup.
-   */
-  protected readonly hasSetup: Promise<void> | void
-
-  /**
    * Handle will handle the request and return a response.
    */
   public abstract handle(
@@ -70,11 +56,5 @@ export abstract class RouteModule<
   constructor({ userland, definition }: RouteModuleOptions<D, U>) {
     this.userland = userland
     this.definition = definition
-
-    // Call the setup method and store the promise. When the promise has
-    // resolved, the module is ready to handle requests. For modules
-    // implementing a setup method, this should be awaited before handling
-    // requests.
-    this.hasSetup = this.setup()
   }
 }
