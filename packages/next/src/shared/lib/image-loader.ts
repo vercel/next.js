@@ -59,6 +59,10 @@ function defaultLoader({
 
   return `${config.path}?url=${encodeURIComponent(src)}&w=${width}&q=${
     quality || 75
+  }${
+    process.env.__NEXT_DEPLOYMENT_ID
+      ? `&dpl=${process.env.__NEXT_DEPLOYMENT_ID}`
+      : ''
   }`
 }
 

@@ -18,11 +18,8 @@ export function getCssInlinedLinkTags(
   const layoutOrPageCssModules = serverCSSManifest.cssImports[filePath]
 
   const filePathWithoutExt = filePath.replace(/(\.[A-Za-z0-9]+)+$/, '')
-  const cssFilesForEntry = new Set(
-    clientReferenceManifest.cssFiles?.[filePathWithoutExt] || []
-  )
 
-  if (!layoutOrPageCssModules || !cssFilesForEntry.size) {
+  if (!layoutOrPageCssModules) {
     return []
   }
   const chunks = new Set<string>()
@@ -49,15 +46,11 @@ export function getCssInlinedLinkTags(
           ]
         if (modData) {
           for (const chunk of modData.chunks) {
-            // If the current entry in the final tree-shaked bundle has that CSS
-            // chunk, it means that it's actually used. We should include it.
-            if (cssFilesForEntry.has(chunk)) {
-              chunks.add(chunk)
-              // This might be a new layout, and to make it more efficient and
-              // not introducing another loop, we mutate the set directly.
-              if (collectNewCSSImports) {
-                injectedCSS.add(mod)
-              }
+            chunks.add(chunk)
+            // This might be a new layout, and to make it more efficient and
+            // not introducing another loop, we mutate the set directly.
+            if (collectNewCSSImports) {
+              injectedCSS.add(mod)
             }
           }
         }
