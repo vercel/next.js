@@ -414,7 +414,7 @@ importers:
       '@types/ci-info': 2.0.0
       '@types/cross-spawn': 6.0.0
       '@types/glob': 7.1.1
-      '@types/node': ^16.8.0
+      '@types/node': ^20.2.5
       '@types/prompts': 2.0.1
       '@types/tar': 4.0.3
       '@types/validate-npm-package-name': 3.0.0
@@ -438,7 +438,7 @@ importers:
       '@types/ci-info': 2.0.0
       '@types/cross-spawn': 6.0.0
       '@types/glob': 7.1.1
-      '@types/node': 16.18.27
+      '@types/node': 20.2.5
       '@types/prompts': 2.0.1
       '@types/tar': 4.0.3
       '@types/validate-npm-package-name': 3.0.0
@@ -5227,7 +5227,7 @@ packages:
       '@jest/schemas': 29.4.3
       '@types/istanbul-lib-coverage': 2.0.3
       '@types/istanbul-reports': 3.0.0
-      '@types/node': 18.11.18
+      '@types/node': 20.2.5
       '@types/yargs': 17.0.10
       chalk: 4.1.2
     dev: true
@@ -6887,7 +6887,7 @@ packages:
   /@types/amphtml-validator/1.0.0:
     resolution: {integrity: sha512-CJOi00fReT1JehItkgTZDI47v9WJxUH/OLX0XzkDgyEed7dGdeUQfXk5CTRM7N9FkHdv3klSjsZxo5sH1oTIGg==}
     dependencies:
-      '@types/node': 18.11.18
+      '@types/node': 20.2.5
     dev: true
 
   /@types/aria-query/5.0.1:
@@ -7012,7 +7012,7 @@ packages:
   /@types/cross-spawn/6.0.0:
     resolution: {integrity: sha512-evp2ZGsFw9YKprDbg8ySgC9NA15g3YgiI8ANkGmKKvvi0P2aDGYLPxQIC5qfeKNUOe3TjABVGuah6omPRpIYhg==}
     dependencies:
-      '@types/node': 18.11.18
+      '@types/node': 20.2.5
     dev: true
 
   /@types/debug/4.1.5:
@@ -7052,7 +7052,7 @@ packages:
   /@types/express-serve-static-core/4.17.33:
     resolution: {integrity: sha512-TPBqmR/HRYI3eC2E5hmiivIzv+bidAfXofM+sbonAGvyDhySGw9/PQZFt2BLOrjUUR++4eJVpx6KnLQK1Fk9tA==}
     dependencies:
-      '@types/node': 18.11.18
+      '@types/node': 20.2.5
       '@types/qs': 6.9.7
       '@types/range-parser': 1.2.3
     dev: true
@@ -7090,7 +7090,7 @@ packages:
     dependencies:
       '@types/events': 3.0.0
       '@types/minimatch': 3.0.3
-      '@types/node': 18.11.18
+      '@types/node': 20.2.5
     dev: true
 
   /@types/graceful-fs/4.1.3:
@@ -7185,7 +7185,7 @@ packages:
   /@types/jsonwebtoken/9.0.0:
     resolution: {integrity: sha512-mM4TkDpA9oixqg1Fv2vVpOFyIVLJjm5x4k0V+K/rEsizfjD7Tk7LKk3GTtbB7KCfP0FEHQtsZqFxYA0+sijNVg==}
     dependencies:
-      '@types/node': 18.11.18
+      '@types/node': 20.2.5
     dev: true
 
   /@types/keyv/3.1.1:
@@ -7263,16 +7263,12 @@ packages:
   /@types/node-fetch/2.6.1:
     resolution: {integrity: sha512-oMqjURCaxoSIsHSr1E47QHzbmzNR5rK8McHuNb11BOM9cHcIK3Avy0s/b2JlXHoQGTYS3NsvWzV1M0iK7l0wbA==}
     dependencies:
-      '@types/node': 18.11.18
+      '@types/node': 20.2.5
       form-data: 3.0.1
     dev: true
 
   /@types/node/10.12.18:
     resolution: {integrity: sha512-fh+pAqt4xRzPfqA6eh3Z2y6fyZavRIumvjhaCL753+TVkGKGhpPeyrJG2JftD0T9q4GF00KjefsQ+PQNDdWQaQ==}
-    dev: true
-
-  /@types/node/16.18.27:
-    resolution: {integrity: sha512-GFfndd/RINWD19W+xNJ9Qh/sOZ5ieTiOSagA86ER/12i/l+MEnQxsbldGRF23azWjRfe7zUlAldyrwN84a1E5w==}
     dev: true
 
   /@types/node/18.11.18:
@@ -7374,14 +7370,14 @@ packages:
   /@types/semver/7.3.1:
     resolution: {integrity: sha512-ooD/FJ8EuwlDKOI6D9HWxgIgJjMg2cuziXm/42npDC8y4NjxplBUn9loewZiBNCt44450lHAU0OSb51/UqXeag==}
     dependencies:
-      '@types/node': 18.11.18
+      '@types/node': 20.2.5
     dev: true
 
   /@types/send/0.14.4:
     resolution: {integrity: sha512-SCVCRRjSbpwoKgA34wK8cq14OUPu4qrKigO85/ZH6J04NGws37khLtq7YQr17zyOH01p4T5oy8e1TxEzql01Pg==}
     dependencies:
       '@types/mime': 2.0.1
-      '@types/node': 18.11.18
+      '@types/node': 20.2.5
     dev: true
 
   /@types/serve-static/1.13.3:
@@ -7420,7 +7416,7 @@ packages:
     resolution: {integrity: sha512-Z7AVMMlkI8NTWF0qGhC4QIX0zkV/+y0J8x7b/RsHrN0310+YNjoJd8UrApCiGBCWtKjxS9QhNqLi2UJNToh5hA==}
     dependencies:
       '@types/minipass': 2.2.0
-      '@types/node': 18.11.18
+      '@types/node': 20.2.5
     dev: true
 
   /@types/text-table/0.2.1:
@@ -7463,7 +7459,7 @@ packages:
   /@types/ws/8.2.0:
     resolution: {integrity: sha512-cyeefcUCgJlEk+hk2h3N+MqKKsPViQgF5boi9TTHSK+PoR9KWBb/C5ccPcDyAqgsbAYHTwulch725DV84+pSpg==}
     dependencies:
-      '@types/node': 18.11.18
+      '@types/node': 20.2.5
     dev: true
 
   /@types/yargs-parser/21.0.0:
@@ -15971,7 +15967,7 @@ packages:
     resolution: {integrity: sha512-mk0umAQ5lT+CaOJ+Qp01N6kz48sJG2kr2n1rX0koqKf6FIygQV0qLOdN9SCYID4IVeSigDOcPeGLozdMLYfb5g==}
     engines: {node: ^10.13.0 || ^12.13.0 || ^14.15.0 || >=15.0.0}
     dependencies:
-      '@types/node': 18.11.18
+      '@types/node': 20.2.5
       merge-stream: 2.0.0
       supports-color: 8.1.1
     dev: true
