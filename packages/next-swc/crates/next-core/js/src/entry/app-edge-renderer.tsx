@@ -19,8 +19,6 @@ import { Readable } from 'stream'
 startOperationStreamHandler(async (renderData: RenderData, respond) => {
   const { response } = await runOperation(renderData)
 
-  console.log('response', response)
-
   if (response == null) {
     throw new Error('no html returned')
   }
