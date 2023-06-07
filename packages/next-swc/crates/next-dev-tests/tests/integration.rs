@@ -139,19 +139,12 @@ fn test(resource: PathBuf) {
         run_result,
     } = run_async_test(run_test(resource));
 
-    if !uncaught_exceptions.is_empty() {
-        panic!(
-            "Uncaught exception(s) in test:\n{}",
-            uncaught_exceptions.join("\n")
-        )
+    let mut messages = vec![];
+
+    if run_result.test_results.is_empty() {
+        messages.push("No tests were run.".to_string());
     }
 
-    assert!(
-        !run_result.test_results.is_empty(),
-        "Expected one or more tests to run."
-    );
-
-    let mut messages = vec![];
     for test_result in run_result.test_results {
         // It's possible to fail multiple tests across these tests,
         // so collect them and fail the respective test in Rust with
@@ -163,6 +156,10 @@ fn test(resource: PathBuf) {
                 test_result.errors.join("\n")
             ));
         }
+    }
+
+    for uncaught_exception in uncaught_exceptions {
+        messages.push(format!("Uncaught exception: {}", uncaught_exception));
     }
 
     if !messages.is_empty() {
@@ -315,7 +312,7 @@ async fn run_test(resource: PathBuf) -> JsResult {
         panic!("Never resolves")
     }
 
-    let result = tokio::select! {
+    let mut result = tokio::select! {
         // Poll the mock_server first to add the env var
         _ = mock_server_future => panic!("Never resolves"),
         r = run_browser(local_addr, &project_dir) => r.expect("error while running browser"),
@@ -346,16 +343,6 @@ async fn run_test(resource: PathBuf) -> JsResult {
         Ok(NothingVc::new().into())
     });
     tt.wait_task_completion(task, true).await.unwrap();
-
-    // This sometimes fails for the following test:
-    // test_tests__integration__next__webpack_loaders__no_options__input
-    retry(
-        (),
-        |()| std::fs::remove_dir_all(&resource_temp),
-        3,
-        Duration::from_millis(100),
-    )
-    .expect("failed to remove temporary directory");
 
     result
 }
