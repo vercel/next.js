@@ -12,7 +12,7 @@ const MS_MAX_IDLE_DELAY = 3800
 
 declare global {
   interface Window {
-    __BUILD_MANIFEST?: Record<string, string[]>
+    __BUILD_MANIFEST?: string
     __BUILD_MANIFEST_CB?: Function
     __MIDDLEWARE_MATCHERS?: MiddlewareMatcher[]
     __MIDDLEWARE_MANIFEST_CB?: Function
@@ -219,16 +219,16 @@ function resolvePromiseWithTimeout<T>(
 // Only cache this response as a last resort if we cannot eliminate all other
 // code branches that use the Build Manifest Callback and push them through
 // the Route Loader interface.
-export function getClientBuildManifest() {
+export function getClientBuildManifest(): Promise<Record<string, string[]>> {
   if (self.__BUILD_MANIFEST) {
-    return Promise.resolve(self.__BUILD_MANIFEST)
+    return Promise.resolve(JSON.parse(self.__BUILD_MANIFEST))
   }
 
   const onBuildManifest = new Promise<Record<string, string[]>>((resolve) => {
     // Mandatory because this is not concurrent safe:
     const cb = self.__BUILD_MANIFEST_CB
     self.__BUILD_MANIFEST_CB = () => {
-      resolve(self.__BUILD_MANIFEST!)
+      resolve(JSON.parse(self.__BUILD_MANIFEST!))
       cb && cb()
     }
   })
