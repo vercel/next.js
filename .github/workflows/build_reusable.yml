@@ -31,11 +31,12 @@ on:
 env:
   NAPI_CLI_VERSION: 2.14.7
   TURBO_VERSION: 1.9.6
-  RUST_TOOLCHAIN: nightly-2023-03-09
   PNPM_VERSION: 7.24.3
   NODE_MAINTENANCE_VERSION: 16
   NODE_LTS_VERSION: 18
   TEST_CONCURRENCY: 6
+  # disable backtrace for test snapshots
+  RUST_BACKTRACE: 0
 
   TURBO_TEAM: 'vercel'
   TURBO_REMOTE_ONLY: 'true'
@@ -58,11 +59,14 @@ jobs:
       - run: node -v
       - run: pwd
 
-      - name: Install
-        uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v3
         with:
-          profile: minimal
-          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          fetch-depth: 25
+
+      # local action -> needs to run after checkout
+      - name: Install Rust
+        uses: ./.github/actions/setup-rust
+        with:
           components: rustfmt, clippy
 
       - name: Install nextest
@@ -72,10 +76,6 @@ jobs:
       - run: rustc --version
 
       - run: npm i -g yarn "pnpm@${PNPM_VERSION}" "turbo@${TURBO_VERSION}" "@napi-rs/cli@${NAPI_CLI_VERSION}"
-
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 25
 
       # clean up any previous artifacts to avoid hitting disk space limits
       - run: git clean -xdf && rm -rf /tmp/next-repo-*; rm -rf /tmp/next-install-* /tmp/yarn-* /tmp/ncc-cache target && cargo clean
