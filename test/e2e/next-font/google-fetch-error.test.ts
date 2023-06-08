@@ -30,7 +30,7 @@ describe('next/font/google fetch error', () => {
   afterAll(() => next.destroy())
 
   if (isDev) {
-    it.only('should use a fallback font in dev', async () => {
+    it('should use a fallback font in dev', async () => {
       await next.start()
       const outputIndex = next.cliOutput.length
       const browser = await webdriver(next.url, '/')
