@@ -585,7 +585,7 @@ export class ClientReferenceEntryPlugin {
           ) as unknown as webpack.sources.RawSource
         assets[`${this.assetPrefix}${FLIGHT_SERVER_CSS_MANIFEST}.js`] =
           new sources.RawSource(
-            `self.__RSC_CSS_MANIFEST=\`${manifest}\``
+            `self.__RSC_CSS_MANIFEST=${JSON.stringify(manifest)}`
           ) as unknown as webpack.sources.RawSource
       }
     )
@@ -990,7 +990,7 @@ export class ClientReferenceEntryPlugin {
 
     assets[`${this.assetPrefix}${SERVER_REFERENCE_MANIFEST}.js`] =
       new sources.RawSource(
-        `self.__RSC_SERVER_MANIFEST=\`${json}\``
+        `self.__RSC_SERVER_MANIFEST=${JSON.stringify(json)}`
       ) as unknown as webpack.sources.RawSource
     assets[`${this.assetPrefix}${SERVER_REFERENCE_MANIFEST}.json`] =
       new sources.RawSource(json) as unknown as webpack.sources.RawSource

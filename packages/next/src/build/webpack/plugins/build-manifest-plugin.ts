@@ -237,7 +237,7 @@ export default class BuildManifestPlugin {
       if (this.exportRuntime) {
         assets[`server/${MIDDLEWARE_BUILD_MANIFEST}.js`] =
           new sources.RawSource(
-            `self.__BUILD_MANIFEST=\`${JSON.stringify(assetMap)}\``
+            `self.__BUILD_MANIFEST=${JSON.stringify(JSON.stringify(assetMap))}`
           )
       }
 
@@ -245,12 +245,16 @@ export default class BuildManifestPlugin {
         const clientManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`
 
         assets[clientManifestPath] = new sources.RawSource(
-          `self.__BUILD_MANIFEST = \`${generateClientManifest(
-            compiler,
-            compilation,
-            assetMap,
-            this.rewrites
-          )}\`;self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
+          `self.__BUILD_MANIFEST = ${JSON.stringify(
+            JSON.stringify(
+              generateClientManifest(
+                compiler,
+                compilation,
+                assetMap,
+                this.rewrites
+              )
+            )
+          )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
         )
       }
 
