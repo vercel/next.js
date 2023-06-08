@@ -88,7 +88,7 @@ createNextDescribe(
 
       await check(() => {
         return requests.some(
-          (req) => req.includes('static-page') && req.includes('__nextRSC=')
+          (req) => req.includes('static-page') && !req.includes('__nextRSC')
         )
           ? 'success'
           : JSON.stringify(requests)
@@ -118,7 +118,7 @@ createNextDescribe(
       )
       await check(() => {
         return requests.some(
-          (req) => req.includes('static-page') && req.includes('__nextRSC=')
+          (req) => req.includes('static-page') && !req.includes('__nextRSC')
         )
           ? 'success'
           : JSON.stringify(requests)

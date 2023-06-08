@@ -81,6 +81,7 @@ import {
   RSC,
   RSC_VARY_HEADER,
   FLIGHT_PARAMETERS,
+  NEXT_RSC_UNION_QUERY,
 } from '../client/components/app-router-headers'
 import {
   MatchOptions,
@@ -2207,6 +2208,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const { res, query, pathname } = ctx
     let page = pathname
     const bubbleNoFallback = !!query._nextBubbleNoFallback
+    delete query[NEXT_RSC_UNION_QUERY]
     delete query._nextBubbleNoFallback
 
     const options: MatchOptions = {

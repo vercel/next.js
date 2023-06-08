@@ -49,6 +49,7 @@ import { RedirectBoundary } from './redirect-boundary'
 import { NotFoundBoundary } from './not-found-boundary'
 import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
 import { createInfinitePromise } from './infinite-promise'
+import { NEXT_RSC_UNION_QUERY } from './app-router-headers'
 
 const isServer = typeof window === 'undefined'
 
@@ -65,6 +66,7 @@ export function getServerActionDispatcher() {
 
 export function urlToUrlWithoutFlightMarker(url: string): URL {
   const urlWithoutFlightParameters = new URL(url, location.origin)
+  urlWithoutFlightParameters.searchParams.delete(NEXT_RSC_UNION_QUERY)
   // TODO-APP: handle .rsc for static export case
   return urlWithoutFlightParameters
 }
