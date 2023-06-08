@@ -1,8 +1,10 @@
+import type { Duplex } from 'stream'
+import type { IncomingMessage, ServerResponse } from 'http'
+import type { ChildProcess } from 'child_process'
+
 import http from 'http'
 import { isIPv6 } from 'net'
 import * as Log from '../../build/output/log'
-import type { IncomingMessage, ServerResponse } from 'http'
-import type { ChildProcess } from 'child_process'
 import { normalizeRepeatedSlashes } from '../../shared/lib/utils'
 import { initialEnv } from '@next/env'
 import { genExecArgv, getNodeOptionsWithoutInspect } from './utils'
@@ -36,7 +38,7 @@ export async function startServer({
   onStdout,
   onStderr,
 }: StartServerOptions): Promise<TeardownServer> {
-  const sockets = new Set<ServerResponse>()
+  const sockets = new Set<ServerResponse | Duplex>()
   let worker: import('next/dist/compiled/jest-worker').Worker | undefined
   let handlersReady = () => {}
   let handlersError = () => {}
@@ -71,7 +73,7 @@ export async function startServer({
   }
   let upgradeHandler = async (
     _req: IncomingMessage,
-    _socket: ServerResponse,
+    _socket: ServerResponse | Duplex,
     _head: Buffer
   ): Promise<void> => {
     if (handlersPromise) {
