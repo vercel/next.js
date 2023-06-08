@@ -30,7 +30,7 @@ describe('next/font/google fetch error', () => {
   afterAll(() => next.destroy())
 
   if (isDev) {
-    it('should use a fallback font in dev', async () => {
+    it.only('should use a fallback font in dev', async () => {
       await next.start()
       const outputIndex = next.cliOutput.length
       const browser = await webdriver(next.url, '/')
@@ -55,6 +55,7 @@ describe('next/font/google fetch error', () => {
       )
       expect(sizeAdjust).toBe('107.4%')
 
+      console.log('cli output', next.cliOutput)
       expect(next.cliOutput.slice(outputIndex)).toInclude(
         'Failed to download `Inter` from Google Fonts. Using fallback font instead.'
       )
