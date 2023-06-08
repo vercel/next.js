@@ -1095,7 +1095,7 @@ importers:
       source-map: 0.8.0-beta.0
       stacktrace-parser: 0.1.10
       strip-ansi: 6.0.1
-      webpack: ^5.86.0
+      webpack: ^4 || ^5
     dependencies:
       '@babel/code-frame': 7.12.11
       '@types/babel__code-frame': 7.0.2

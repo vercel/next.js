@@ -33,7 +33,7 @@
   "peerDependencies": {
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
-    "webpack": "^5.86.0"
+    "webpack": "^4 || ^5"
   },
   "peerDependenciesMeta": {
     "webpack": {
