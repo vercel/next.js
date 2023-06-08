@@ -1109,7 +1109,7 @@ export default class DevServer extends Server {
               this.hotReloader?.onHMR(req, socket, head)
             }
           } else {
-            this.handleUpgrade(req as any, socket, head)
+            this.handleUpgrade(req as any as NodeNextRequest, socket, head)
           }
         })
       }

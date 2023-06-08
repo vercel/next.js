@@ -1,13 +1,14 @@
+import type { Duplex } from 'stream'
+import type { IncomingMessage, ServerResponse } from 'http'
+import type { ChildProcess } from 'child_process'
+
 import http from 'http'
 import { isIPv6 } from 'net'
 import * as Log from '../../build/output/log'
-import type { IncomingMessage, ServerResponse } from 'http'
-import type { ChildProcess } from 'child_process'
 import { normalizeRepeatedSlashes } from '../../shared/lib/utils'
 import { initialEnv } from '@next/env'
 import { genExecArgv, getNodeOptionsWithoutInspect } from './utils'
 import { getFreePort } from './worker-utils'
-import { Duplex } from 'stream'
 
 export interface StartServerOptions {
   dir: string

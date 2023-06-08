@@ -61,13 +61,10 @@ export class MockedRequest extends Stream.Readable implements IncomingMessage {
 
   public get headersDistinct(): NodeJS.Dict<string[]> {
     const headers: NodeJS.Dict<string[]> = {}
-    for (const key in this.headers) {
-      const value = this.headers[key]
-      if (Array.isArray(value)) {
-        headers[key] = value
-      } else if (value) {
-        headers[key] = [value]
-      }
+    for (const [key, value] of Object.entries(this.headers)) {
+      if (!value) continue
+
+      headers[key] = Array.isArray(value) ? value : [value]
     }
 
     return headers
@@ -173,12 +170,9 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
   }
 
   public appendHeader(name: string, value: string | string[]): this {
-    if (Array.isArray(value)) {
-      for (const v of value) {
-        this.headers.append(name, v)
-      }
-    } else {
-      this.headers.append(name, value)
+    const values = Array.isArray(value) ? value : [value]
+    for (const v of values) {
+      this.headers.append(name, v)
     }
 
     return this
