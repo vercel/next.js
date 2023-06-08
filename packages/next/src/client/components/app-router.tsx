@@ -415,7 +415,7 @@ function Router({
 
   const head = useMemo(() => {
     return findHeadInCache(cache, tree[1])
-  }, [cache, tree])
+  }, [cache, tree[1]])
 
   const content = (
     <NotFoundBoundary
