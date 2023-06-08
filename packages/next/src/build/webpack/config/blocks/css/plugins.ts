@@ -1,3 +1,4 @@
+import path from 'path'
 import chalk from 'next/dist/compiled/chalk'
 import { findConfig } from '../../../../../lib/find-config'
 
@@ -90,6 +91,16 @@ function getDefaultPlugins(
   supportedBrowsers: string[] | undefined,
   disablePostcssPresetEnv: boolean
 ): any[] {
+  let rootDir = process.cwd()
+  let pkg = require(path.resolve(rootDir, 'package.json'))
+
+  if (
+    'tailwindcss' in pkg.dependencies ||
+    'tailwindcss' in pkg.devDependencies
+  ) {
+    return [require.resolve('tailwindcss', { paths: [rootDir] })]
+  }
+
   return [
     require.resolve('next/dist/compiled/postcss-flexbugs-fixes'),
     disablePostcssPresetEnv
