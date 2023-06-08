@@ -236,14 +236,16 @@
     "typescript": "5.1.3",
     "unfetch": "4.2.0",
     "wait-port": "0.2.2",
-    "webpack": "5.74.0",
+    "webpack": "5.86.0",
     "webpack-bundle-analyzer": "4.7.0",
     "whatwg-fetch": "3.0.0",
     "ws": "8.2.3"
   },
   "resolutions": {
+    "webpack": "5.86.0",
     "browserslist": "4.20.2",
     "caniuse-lite": "1.0.30001406",
+    "@types/node": "20.2.5",
     "@babel/core": "7.18.0",
     "@babel/parser": "7.18.0",
     "@babel/types": "7.18.0",
