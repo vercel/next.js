@@ -307,6 +307,10 @@ export class ClientReferenceManifestPlugin {
             moduleIdMapping[id] = moduleIdMapping[id] || {}
             moduleIdMapping[id][name] = {
               ...manifest.clientModules[exportName],
+              // During SSR, we don't have external chunks to load on the server
+              // side with our architecture of Webpack / Turbopack. We can keep
+              // this field empty to save some bytes.
+              chunks: [],
               id: pluginState.serverModuleIds[ssrNamedModuleId],
             }
           }
@@ -318,6 +322,10 @@ export class ClientReferenceManifestPlugin {
             edgeModuleIdMapping[id] = edgeModuleIdMapping[id] || {}
             edgeModuleIdMapping[id][name] = {
               ...manifest.clientModules[exportName],
+              // During SSR, we don't have external chunks to load on the server
+              // side with our architecture of Webpack / Turbopack. We can keep
+              // this field empty to save some bytes.
+              chunks: [],
               id: pluginState.edgeServerModuleIds[ssrNamedModuleId],
             }
           }
