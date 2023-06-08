@@ -1,3 +1,4 @@
+import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 import type { NextParsedUrlQuery } from './request-meta'
 
 const INTERNAL_QUERY_NAMES = [
@@ -6,6 +7,7 @@ const INTERNAL_QUERY_NAMES = [
   '__nextInferredLocaleFromDefault',
   '__nextDefaultLocale',
   '__nextIsNotFound',
+  NEXT_RSC_UNION_QUERY,
 ] as const
 
 const EXTENDED_INTERNAL_QUERY_NAMES = ['__nextDataReq'] as const

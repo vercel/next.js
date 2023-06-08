@@ -10,6 +10,7 @@ import type {
 import {
   NEXT_ROUTER_PREFETCH,
   NEXT_ROUTER_STATE_TREE,
+  NEXT_RSC_UNION_QUERY,
   NEXT_URL,
   RSC,
   RSC_CONTENT_TYPE_HEADER,
@@ -17,6 +18,7 @@ import {
 import { urlToUrlWithoutFlightMarker } from '../app-router'
 import { callServer } from '../../app-call-server'
 import { PrefetchKind } from './router-reducer-types'
+import { hexHash } from '../../../shared/lib/hash'
 
 /**
  * Fetch the flight data for the provided url. Takes in the current router state to decide what to render server-side.
@@ -56,6 +58,13 @@ export async function fetchServerResponse(
     headers[NEXT_URL] = nextUrl
   }
 
+  const uniqueCacheQuery = hexHash(
+    [
+      headers[NEXT_ROUTER_PREFETCH] || '0',
+      headers[NEXT_ROUTER_STATE_TREE],
+    ].join(',')
+  )
+
   try {
     let fetchUrl = url
     if (process.env.NODE_ENV === 'production') {
@@ -68,6 +77,10 @@ export async function fetchServerResponse(
         }
       }
     }
+
+    // Add unique cache query to avoid caching conflicts on CDN which don't respect to Vary header
+    fetchUrl.searchParams.set(NEXT_RSC_UNION_QUERY, uniqueCacheQuery)
+
     const res = await fetch(fetchUrl, {
       // Backwards compat for older browsers. `same-origin` is the default in modern browsers.
       credentials: 'same-origin',

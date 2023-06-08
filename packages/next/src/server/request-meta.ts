@@ -97,6 +97,7 @@ type NextQueryMetadata = {
   _nextBubbleNoFallback?: '1'
   __nextDataReq?: '1'
   __nextCustomErrorRender?: '1'
+  __nextRSC?: string
 }
 
 export type NextParsedUrlQuery = ParsedUrlQuery &

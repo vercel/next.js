@@ -85,8 +85,11 @@ createNextDescribe(
       await browser.eval(
         'window.nd.router.prefetch("/static-page", {kind: "auto"})'
       )
+
       await check(() => {
-        return requests.some((req) => req.includes('static-page'))
+        return requests.some(
+          (req) => req.includes('static-page') && req.includes('__nextRSC=')
+        )
           ? 'success'
           : JSON.stringify(requests)
       }, 'success')
@@ -114,7 +117,9 @@ createNextDescribe(
         `window.nd.router.prefetch("/static-page", {kind: "auto"})`
       )
       await check(() => {
-        return requests.some((req) => req.includes('static-page'))
+        return requests.some(
+          (req) => req.includes('static-page') && req.includes('__nextRSC=')
+        )
           ? 'success'
           : JSON.stringify(requests)
       }, 'success')
@@ -136,7 +141,10 @@ createNextDescribe(
         .waitForElementByCss('#static-page')
 
       expect(
-        requests.filter((request) => request === '/static-page').length
+        requests.filter(
+          (request) =>
+            request === '/static-page' || request.includes('__nextRSC')
+        ).length
       ).toBe(1)
     })
 
@@ -159,7 +167,10 @@ createNextDescribe(
       for (let i = 0; i < 5; i++) {
         await waitFor(500)
         expect(
-          requests.filter((request) => request === '/static-page').length
+          requests.filter(
+            (request) =>
+              request === '/static-page' || request.includes('__nextRSC')
+          ).length
         ).toBe(0)
       }
     })
