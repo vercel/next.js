@@ -9,16 +9,15 @@ createNextDescribe(
   },
   ({ next, isNextDeploy, isNextDev }) => {
     if (isNextDeploy || isNextDev) {
-      it('should skip', async () => {
-        expect(1).toBe(1)
-      })
-    } else {
-      it('should not print warning when new typescript version is used with next build', async () => {
-        await next.start().catch(() => {})
-        expect(next.cliOutput).not.toContain(
-          'Minimum recommended TypeScript version is'
-        )
-      })
+      it('should skip', () => {})
+      return
     }
+
+    it('should not print warning when new typescript version is used with next build', async () => {
+      await next.start().catch(() => {})
+      expect(next.cliOutput).not.toContain(
+        'Minimum recommended TypeScript version is'
+      )
+    })
   }
 )
