@@ -1,6 +1,9 @@
-import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
 import type { NextConfigComplete } from '../config-shared'
 import type { CustomRoutes } from '../../lib/load-custom-routes'
+import type { Duplex } from 'stream'
+import type { Telemetry } from '../../telemetry/storage'
+
+import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
 import { getOverlayMiddleware } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
 import { IncomingMessage, ServerResponse } from 'http'
 import { WebpackHotMiddleware } from './hot-middleware'
@@ -56,12 +59,10 @@ import { promises as fs } from 'fs'
 import { UnwrapPromise } from '../../lib/coalesced-function'
 import { getRegistry } from '../../lib/helpers/get-registry'
 import { RouteMatch } from '../future/route-matches/route-match'
-import type { Telemetry } from '../../telemetry/storage'
 import { parseVersionInfo, VersionInfo } from './parse-version-info'
 import { isAPIRoute } from '../../lib/is-api-route'
 import { getRouteLoaderEntry } from '../../build/webpack/loaders/next-route-loader'
 import { isInternalPathname } from '../../lib/is-internal-pathname'
-import { Duplex } from 'stream'
 
 function diff(a: Set<any>, b: Set<any>) {
   return new Set([...a].filter((v) => !b.has(v)))
