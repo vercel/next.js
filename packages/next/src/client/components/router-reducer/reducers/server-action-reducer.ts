@@ -148,28 +148,25 @@ export function serverActionReducer(
       action.mutable.inFlightServerAction!
     ) as Awaited<FetchServerActionResult>
 
-    let prefetchCache = state.prefetchCache
-
     // Invalidate the cache for the revalidated parts. This has to be done before the
     // cache is updated with the action's flight data again.
     if (revalidatedParts.tag) {
       // Invalidate everything if the tag is set.
-      // Avoid directly mutating the state if possible.
-      action.mutable.prefetchCache = prefetchCache = new Map()
+      state.prefetchCache.clear()
     } else if (revalidatedParts.paths.length > 0) {
       // Invalidate all subtrees that are below the revalidated paths, and invalidate
       // all the prefetch cache.
       // TODO-APP: Currently the prefetch cache doesn't have subtree information,
       // so we need to invalidate the entire cache if a path was revalidated.
-      action.mutable.prefetchCache = prefetchCache = new Map()
+      state.prefetchCache.clear()
     }
 
     if (redirectLocation) {
       // the redirection might have a flight data associated with it, so we'll populate the cache with it
       if (actionFlightData) {
         const href = createHrefFromUrl(redirectLocation, false)
-        const previousCacheEntry = prefetchCache.get(href)
-        prefetchCache.set(href, {
+        const previousCacheEntry = state.prefetchCache.get(href)
+        state.prefetchCache.set(href, {
           data: createRecordFromThenable(
             Promise.resolve([
               actionFlightData,
@@ -194,8 +191,8 @@ export function serverActionReducer(
           new URL(action.mutable.previousUrl!, window.location.origin),
           false
         )
-        const previousCacheEntry = prefetchCache.get(href)
-        prefetchCache.set(
+        const previousCacheEntry = state.prefetchCache.get(href)
+        state.prefetchCache.set(
           createHrefFromUrl(
             new URL(action.mutable.previousUrl!, window.location.origin),
             false
@@ -236,5 +233,5 @@ export function serverActionReducer(
   }
 
   action.mutable.serverActionApplied = true
-  return handleMutable(state, action.mutable)
+  return state
 }
