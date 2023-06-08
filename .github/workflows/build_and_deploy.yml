@@ -202,7 +202,7 @@ jobs:
         uses: ./.github/actions/setup-rust
         with:
           targets: ${{ matrix.settings.target }}
-          skip-install: ${{ !!matrix.settings.docker }}
+          skip-install: ${{ matrix.settings.docker }}
 
       - name: Cache cargo registry
         uses: actions/cache@v3
