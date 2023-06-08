@@ -96,11 +96,11 @@ createNextDescribe(
         '<meta name="viewport" content="width=device-width, initial-scale=1"/>'
       )
 
-      expect(homeHTML).toContain('component:index.server')
       expect(homeHTML).toContain('header:test-util')
 
       const inlineFlightContents = []
       const $ = cheerio.load(homeHTML)
+      expect($('h1').text()).toBe('component:index.server')
       $('script').each((_index, tag) => {
         const content = $(tag).text()
         if (content) inlineFlightContents.push(content)
@@ -390,9 +390,7 @@ createNextDescribe(
     it('should support streaming for flight response', async () => {
       await next
         .fetch('/', {
-          headers: {
-            ['RSC'.toString()]: '1',
-          },
+          headers: { RSC: '1' },
         })
         .then(async (response) => {
           const result = await resolveStreamResponse(response)
