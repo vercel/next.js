@@ -40,12 +40,11 @@ export default function middlewareLoader(this: any) {
   buildInfo.rootDir = rootDir
 
   return `
-        import { adapter, enhanceGlobals } from 'next/dist/esm/server/web/adapter'
+        import 'next/dist/esm/server/web/globals'
+        import { adapter } from 'next/dist/esm/server/web/adapter'
+        import * as mod from ${stringifiedPagePath}
 
-        enhanceGlobals()
-
-        var mod = require(${stringifiedPagePath})
-        var handler = mod.middleware || mod.default;
+        const handler = mod.middleware || mod.default
 
         if (typeof handler !== 'function') {
           throw new Error('The Middleware "pages${page}" must export a \`middleware\` or a \`default\` function');
@@ -53,9 +52,9 @@ export default function middlewareLoader(this: any) {
 
         export default function (opts) {
           return adapter({
-              ...opts,
-              page: ${JSON.stringify(page)},
-              handler,
+            ...opts,
+            page: ${JSON.stringify(page)},
+            handler,
           })
         }
     `
