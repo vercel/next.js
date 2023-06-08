@@ -712,6 +712,7 @@ export default async function build(
           varyHeader: typeof RSC_VARY_HEADER
         }
         skipMiddlewareUrlNormalize?: boolean
+        caseSensitive?: boolean
       } = nextBuildSpan.traceChild('generate-routes-manifest').traceFn(() => {
         const sortedRoutes = getSortedRoutes([
           ...pageKeys.pages,
@@ -731,6 +732,7 @@ export default async function build(
         return {
           version: 3,
           pages404: true,
+          caseSensitive: !!config.experimental.caseSensitiveRoutes,
           basePath: config.basePath,
           redirects: redirects.map((r: any) => buildCustomRoute(r, 'redirect')),
           headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
