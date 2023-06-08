@@ -114,7 +114,7 @@ createNextDescribe(
 
       await check(() => {
         return browser.eval('window.location.pathname + window.location.search')
-      }, '/header?name=test&constructor=FormData')
+      }, '/header?name=test&constructor=FormData&hidden-info=hi')
     })
 
     it('should support .bind', async () => {
