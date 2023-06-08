@@ -59,6 +59,8 @@ jobs:
       - run: fnm use ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
       - run: node -v
       - run: pwd
+      - run: df -h
+      - run: free -mh
 
       - uses: actions/checkout@v3
         with:
