@@ -37,7 +37,6 @@ import { stripInternalQueries } from '../internal-utils'
 import {
   NEXT_ROUTER_PREFETCH,
   NEXT_ROUTER_STATE_TREE,
-  NEXT_RSC_UNION_QUERY,
   RSC,
 } from '../../client/components/app-router-headers'
 import { MetadataTree } from '../../lib/metadata/metadata'
