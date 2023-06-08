@@ -249,6 +249,7 @@ jobs:
 
       - name: 'check build cache status'
         id: check-did-build
+        shell: bash
         run: if [[ ! -z $(ls .turbo/runs) ]]; then echo "DID_BUILD=yup" >> $GITHUB_OUTPUT; fi
 
       # Trying to upload metrics for the Turbopack to datadog's CI pipeline execution
