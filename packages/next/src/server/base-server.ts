@@ -783,6 +783,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             i18n: this.nextConfig.i18n,
             basePath: this.nextConfig.basePath,
             rewrites: this.customRoutes.rewrites,
+            caseSensitive: !!this.nextConfig.experimental.caseSensitiveRoutes,
           })
 
           // Ensure parsedUrl.pathname includes locale before processing
