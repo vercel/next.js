@@ -398,7 +398,7 @@ createNextDescribe(
         .then(async (response) => {
           const result = await resolveStreamResponse(response)
           expect(result).toContain('component:index.server')
-          expect(result).toContain(
+          expect(result).toMatch(
             isNextDev ? /"buildId":"development"/ : /"buildId":"\w+"/
           )
         })
