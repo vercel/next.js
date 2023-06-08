@@ -249,12 +249,12 @@ jobs:
 
       - name: 'check build cache status'
         id: check-did-build
-        run: if [[ ! -z $(ls .turbo/runs) ]]; then echo "DID_BUILD=true" >> $GITHUB_OUTPUT; fi
+        run: if [[ ! -z $(ls .turbo/runs) ]]; then echo "DID_BUILD=yup" >> $GITHUB_OUTPUT; fi
 
       # Trying to upload metrics for the Turbopack to datadog's CI pipeline execution
       - name: 'Upload turbopack build metrics'
         shell: bash
-        if: ${{ steps.check-did-build.outputs.DID_BUILD == "true" }}
+        if: ${{ steps.check-did-build.outputs.DID_BUILD == 'yup' }}
         continue-on-error: true
         run: |
           npm install -g @datadog/datadog-ci
