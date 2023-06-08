@@ -968,10 +968,8 @@ importers:
   packages/next-swc:
     specifiers:
       '@napi-rs/cli': 2.14.7
-      cross-env: 6.0.3
     devDependencies:
       '@napi-rs/cli': 2.14.7
-      cross-env: 6.0.3
 
   packages/next-swc/crates/next-core/js:
     specifiers:

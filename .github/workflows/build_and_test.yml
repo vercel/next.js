@@ -71,7 +71,7 @@ jobs:
     with:
       skipForDocsOnly: 'yes'
       needsNextest: 'yes'
-      afterBuild: turbo run test-cargo-integration
+      afterBuild: xvfb-run turbo run test-cargo-integration
 
   test-cargo-bench:
     name: test cargo benchmarks
@@ -80,7 +80,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
-      afterBuild: turbo run test-cargo-bench
+      afterBuild: xvfb-run turbo run test-cargo-bench
 
   rust-check:
     name: rust check
