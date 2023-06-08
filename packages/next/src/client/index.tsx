@@ -775,6 +775,7 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
         name,
         startTime,
         value,
+        delta,
         duration,
         entryType,
         entries,
@@ -795,6 +796,7 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
           name,
           startTime: startTime || perfStartEntry,
           value: value == null ? duration : value,
+          delta,
           label:
             entryType === 'mark' || entryType === 'measure'
               ? 'custom'
