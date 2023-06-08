@@ -1,3 +1,4 @@
+import React from 'react'
 import { RouteRefresher } from '../../../components/RouterRefresh'
 
 export default async function Page() {
