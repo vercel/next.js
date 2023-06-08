@@ -1,6 +1,7 @@
 import { createConnection } from "node:net";
 import type { StackFrame } from "../compiled/stacktrace-parser";
 import { parse as parseStackTrace } from "../compiled/stacktrace-parser";
+import { getProperError } from "./error";
 
 export type StructuredError = {
   name: string;
@@ -9,10 +10,12 @@ export type StructuredError = {
 };
 
 export function structuredError(e: Error): StructuredError {
+  e = getProperError(e);
+
   return {
     name: e.name,
     message: e.message,
-    stack: parseStackTrace(e.stack!),
+    stack: typeof e.stack === "string" ? parseStackTrace(e.stack!) : [],
   };
 }
 
@@ -133,9 +136,11 @@ function createIpc<TIncoming, TOutgoing>(
           ...structuredError(error),
         });
       } catch (err) {
+        console.error("failed to send error back to rust:", err);
         // ignore and exit anyway
         process.exit(1);
       }
+
       process.exit(0);
     },
   };

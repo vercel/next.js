@@ -32,6 +32,7 @@ use self::{
 };
 
 pub mod bootstrap;
+pub mod debug;
 pub mod embed_js;
 pub mod evaluate;
 pub mod execution_context;

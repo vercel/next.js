@@ -16,6 +16,7 @@ use turbopack_core::{
 
 use super::util::{emitted_assets_to_virtual_assets, EmittedAsset};
 use crate::{
+    debug::should_debug,
     embed_js::embed_file_path,
     evaluate::evaluate,
     execution_context::{ExecutionContext, ExecutionContextVc},
@@ -166,7 +167,7 @@ impl WebpackLoadersProcessedAssetVc {
                 JsonValueVc::cell(json!(*loaders)),
             ],
             CompletionVc::immutable(),
-            /* debug */ false,
+            should_debug("webpack_loader"),
         )
         .await?;
 

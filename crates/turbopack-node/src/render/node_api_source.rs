@@ -33,6 +33,7 @@ pub fn create_node_api_source(
     pathname: StringVc,
     entry: NodeEntryVc,
     render_data: JsonValueVc,
+    debug: bool,
 ) -> ContentSourceVc {
     NodeApiContentSource {
         cwd,
@@ -43,6 +44,7 @@ pub fn create_node_api_source(
         route_match,
         entry,
         render_data,
+        debug,
     }
     .cell()
     .into()
@@ -64,6 +66,7 @@ pub struct NodeApiContentSource {
     route_match: RouteMatcherVc,
     entry: NodeEntryVc,
     render_data: JsonValueVc,
+    debug: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -90,6 +93,7 @@ impl ContentSource for NodeApiContentSource {
                     source: self_vc,
                     render_data: this.render_data,
                     path: path.to_string(),
+                    debug: this.debug,
                 }
                 .cell()
                 .into(),
@@ -105,6 +109,7 @@ struct NodeApiGetContentResult {
     source: NodeApiContentSourceVc,
     render_data: JsonValueVc,
     path: String,
+    debug: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -123,6 +128,7 @@ impl GetContentSourceContent for NodeApiGetContentResult {
         }
         .cell()
     }
+
     #[turbo_tasks::function]
     async fn get(&self, data: Value<ContentSourceData>) -> Result<ContentSourceContentVc> {
         let source = self.source.await?;
@@ -163,6 +169,7 @@ impl GetContentSourceContent for NodeApiGetContentResult {
             }
             .cell(),
             *body,
+            self.debug,
         ))
         .cell())
     }

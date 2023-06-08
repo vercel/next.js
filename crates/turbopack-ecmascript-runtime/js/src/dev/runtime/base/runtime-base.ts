@@ -261,7 +261,12 @@ async function loadChunkPath(
     throw new Error(
       `Failed to load chunk ${chunkPath} ${loadReason}${
         error ? `: ${error}` : ""
-      }`
+      }`,
+      error
+        ? {
+            cause: error,
+          }
+        : undefined
     );
   }
 }
@@ -687,7 +692,8 @@ function applyPhase(
     errorHandler: true | Function;
   }[],
   newModuleFactories: Map<ModuleId, ModuleFactory>,
-  outdatedModuleParents: Map<ModuleId, Array<ModuleId>>
+  outdatedModuleParents: Map<ModuleId, Array<ModuleId>>,
+  reportError: (err: any) => void
 ) {
   // Update module factories.
   for (const [moduleId, factory] of newModuleFactories.entries()) {
@@ -709,9 +715,12 @@ function applyPhase(
       if (typeof errorHandler === "function") {
         try {
           errorHandler(err, { moduleId, module: moduleCache[moduleId] });
-        } catch (_) {
-          // Ignore error.
+        } catch (err2) {
+          reportError(err2);
+          reportError(err);
         }
+      } else {
+        reportError(err);
       }
     }
   }
@@ -823,11 +832,22 @@ function applyInternal(
     disposedModules
   );
 
+  // we want to continue on error and only throw the error after we tried applying all updates
+  let error: any;
+  function reportError(err: any) {
+    if (!error) error = err;
+  }
+
   applyPhase(
     outdatedSelfAcceptedModules,
     newModuleFactories,
-    outdatedModuleParents
+    outdatedModuleParents,
+    reportError
   );
+
+  if (error) {
+    throw error;
+  }
 
   if (queuedInvalidatedModules.size > 0) {
     applyInternal(new Set(), [], new Map());
@@ -1156,7 +1176,7 @@ function getFirstModuleChunk(moduleId: ModuleId) {
 
 /**
  * Removes a module from a chunk.
- * Returns `true` if there are no remaining chunks, including this module.
+ * Returns `true` if there are no remaining chunks including this module.
  */
 function removeModuleFromChunk(
   moduleId: ModuleId,
