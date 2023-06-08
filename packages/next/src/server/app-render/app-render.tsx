@@ -796,6 +796,7 @@ export async function renderToHTMLOrFlight(
               return [
                 parallelRouteKey,
                 <LayoutRouter
+                  buildId={renderOpts.buildId}
                   parallelRouterKey={parallelRouteKey}
                   segmentPath={createSegmentPath(currentSegmentPath)}
                   loading={Loading ? <Loading /> : undefined}
@@ -847,6 +848,7 @@ export async function renderToHTMLOrFlight(
             return [
               parallelRouteKey,
               <LayoutRouter
+                buildId={renderOpts.buildId}
                 parallelRouterKey={parallelRouteKey}
                 segmentPath={segmentPath}
                 error={ErrorComponent}

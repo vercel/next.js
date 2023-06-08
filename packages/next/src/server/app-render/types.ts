@@ -118,6 +118,7 @@ export type ChildProp = {
 export type RenderOptsPartial = {
   err?: Error | null
   dev?: boolean
+  buildId: string
   clientReferenceManifest?: ClientReferenceManifest
   serverCSSManifest?: ClientCSSReferenceManifest
   supportsDynamicHTML: boolean

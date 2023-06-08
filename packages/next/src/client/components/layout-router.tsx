@@ -302,6 +302,9 @@ function InnerLayoutRouter({
   childProp,
   segmentPath,
   tree,
+  // `buildId` prop is for adding buildId into RSC payload for caching purpose.
+  // Then same page will be unique among different builds.
+  buildId: _buildId,
   // TODO-APP: implement `<Offscreen>` when available.
   // isActive,
   cacheKey,
@@ -312,6 +315,7 @@ function InnerLayoutRouter({
   childProp: ChildProp | null
   segmentPath: FlightSegmentPath
   tree: FlightRouterState
+  buildId: string
   isActive: boolean
   cacheKey: ReturnType<typeof createRouterCacheKey>
 }) {
@@ -497,6 +501,7 @@ export default function OuterLayoutRouter({
   notFoundStyles,
   asNotFound,
   styles,
+  buildId,
 }: {
   parallelRouterKey: string
   segmentPath: FlightSegmentPath
@@ -512,6 +517,7 @@ export default function OuterLayoutRouter({
   notFoundStyles: React.ReactNode | undefined
   asNotFound?: boolean
   styles?: React.ReactNode
+  buildId: string
 }) {
   const context = useContext(LayoutRouterContext)
   if (!context) {
@@ -582,6 +588,7 @@ export default function OuterLayoutRouter({
                     >
                       <RedirectBoundary>
                         <InnerLayoutRouter
+                          buildId={buildId}
                           parallelRouterKey={parallelRouterKey}
                           url={url}
                           tree={tree}
