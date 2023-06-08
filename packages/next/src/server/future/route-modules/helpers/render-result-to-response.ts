@@ -8,7 +8,7 @@ import type { RenderResultMetadata } from '../../../render-result'
 import fresh from 'next/dist/compiled/fresh'
 import { normalizeRepeatedSlashes } from '../../../../shared/lib/utils'
 import { generateETag } from '../../../lib/etag'
-import { getRevalidateCacheControlHeader } from '../../../send-payload/revalidate-headers'
+import { setRevalidateHeaders } from '../../../send-payload/revalidate-headers'
 import {
   fromNodeOutgoingHttpHeaders,
   toNodeOutgoingHttpHeaders,
@@ -73,8 +73,8 @@ export async function renderResultToResponse(
   // If we're in dev mode, we shouldn't cache for any reason.
   if (process.env.NODE_ENV === 'development') {
     headers.set('Cache-Control', 'no-store, must-revalidate')
-  } else if (typeof metadata.revalidate !== 'undefined') {
-    const header = getRevalidateCacheControlHeader({
+  } else {
+    setRevalidateHeaders(headers, {
       // When the page is 404, Cache-Control should not be added unless we are
       // rendering the 404 page for `notFound: true` which should cache
       // according to revalidate correctly.
@@ -84,8 +84,6 @@ export async function renderResultToResponse(
       stateful: module.hasGetStaticProps,
       revalidate: metadata.revalidate,
     })
-
-    headers.set('Cache-Control', header)
   }
 
   // If this isn't a data request, then add the powered by header if that's
