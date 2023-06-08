@@ -329,6 +329,8 @@ export function Thread({ messages }) {
 The **experimental** `useFormStatus` hook can be used within Form Actions, and provides the `pending` property.
 
 ```jsx filename="app/form.js"
+'use client'
+
 import { experimental_useFormStatus as useFormStatus } from 'react-dom'
 
 function Submit() {
