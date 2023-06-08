@@ -13,6 +13,7 @@ import {
   fromNodeOutgoingHttpHeaders,
   toNodeOutgoingHttpHeaders,
 } from '../../../web/utils'
+import { PERMANENT_REDIRECT_STATUS } from '../../../../shared/lib/constants'
 
 type RenderResultToResponseContext = {
   res: MockedResponse
@@ -126,6 +127,12 @@ export async function renderResultToResponse(
 
     // Add the location header.
     headers.set('Location', redirect.destination)
+
+    // Since IE11 doesn't support the 308 header add backwards
+    // compatibility using refresh header
+    if (redirect.statusCode === PERMANENT_REDIRECT_STATUS) {
+      headers.set('Refresh', `0;url=${redirect.destination}`)
+    }
 
     // Return a redirect response.
     return new Response(redirect.destination, {
