@@ -71,7 +71,6 @@ jobs:
     with:
       skipForDocsOnly: 'yes'
       needsNextest: 'yes'
-      needsChromium: 'yes'
       afterBuild: turbo run test-cargo-integration
 
   test-cargo-bench:
@@ -81,7 +80,6 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
-      needsChromium: 'yes'
       afterBuild: turbo run test-cargo-bench
 
   rust-check:
@@ -107,7 +105,6 @@ jobs:
   test-next-swc-wasm:
     name: test next-swc wasm
     needs: ['build']
-
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'

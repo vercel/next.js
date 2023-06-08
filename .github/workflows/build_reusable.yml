@@ -23,10 +23,6 @@ on:
         required: false
         description: 'if nextest rust dep is needed'
         type: string
-      needsChromium:
-        required: false
-        description: 'if chromium is needed'
-        type: string
       uploadSwcArtifact:
         required: false
         description: 'if swc artifact needs uploading'
@@ -77,10 +73,6 @@ jobs:
       - name: Install nextest
         if: ${{ inputs.needsNextest == 'yes' }}
         uses: taiki-e/install-action@nextest
-
-      - name: Install Chromium
-        if: ${{ inputs.needsChromium == 'yes' }}
-        run: sudo apt-get update && sudo apt-get -y install chromium
 
       - run: rustc --version
 
