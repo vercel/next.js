@@ -109,6 +109,7 @@ import {
 import { NEXT_QUERY_PARAM_PREFIX } from '../lib/constants'
 import { isRouteMatch } from './future/route-matches/route-match'
 import { NextRequestAdapter } from './web/spec-extension/adapters/next-request'
+import { NotFoundError } from './future/route-modules/helpers/render-result-to-response'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -1795,12 +1796,24 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
           // Handle the request using the module.
           const request = NextRequestAdapter.fromBaseNextRequest(req)
-          const response = await module.handle(request, context)
 
-          // Send the response now that we have copied it into the cache.
-          await sendResponse(req, res, response)
+          try {
+            const response = await module.handle(request, context)
 
-          return null
+            // Send the response now that we have copied it into the cache.
+            await sendResponse(req, res, response)
+
+            return null
+          } catch (err) {
+            if (NotFoundError.isNotFoundError(err)) {
+              // If we couldn't find the page, we should return null so that
+              // the legacy render method will be used.
+              return { value: null, revalidate: err.metadata.revalidate }
+            }
+
+            // This was an unexpected error, so we should throw it again.
+            throw err
+          }
         }
       } else {
         // If we didn't match a page, we should fallback to using the legacy

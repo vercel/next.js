@@ -3,6 +3,7 @@ import type { RouteDefinition } from '../../route-definitions/route-definition'
 import type { Redirect } from '../../../../../types'
 import type RenderResult from '../../../render-result'
 import type { NextRequest } from '../../../web/spec-extension/request'
+import type { RenderResultMetadata } from '../../../render-result'
 
 import fresh from 'next/dist/compiled/fresh'
 import { normalizeRepeatedSlashes } from '../../../../shared/lib/utils'
@@ -25,6 +26,16 @@ type RenderResultToResponseModule = {
   basePath: string | undefined
   poweredByHeader: boolean | undefined
   generateEtags: boolean | undefined
+}
+
+export class NotFoundError {
+  public readonly digest = 'NEXT_PAGES_NOT_FOUND'
+
+  constructor(public readonly metadata: RenderResultMetadata) {}
+
+  public static isNotFoundError(error: any): error is NotFoundError {
+    return error?.digest === 'NEXT_PAGES_NOT_FOUND'
+  }
 }
 
 /**
@@ -127,7 +138,12 @@ export async function renderResultToResponse(
 
   // If this is a not found, we can return the result immediately.
   if (metadata.isNotFound) {
-    throw new Error("Invariant: 'isNotFound' should never be true here")
+    // TODO: re-enable this once error handling is inside the module
+    // throw new Error("Invariant: 'isNotFound' should never be true here")
+
+    // NOTE: this is a temporary workaround until we can get the error handling
+    // inside the module. This will trigger the not found page.
+    throw new NotFoundError(metadata)
   }
 
   // Get and set the content type on the response.
