@@ -145,6 +145,10 @@ module.exports = (actionInfo) => {
 
           await execa('yarn', ['pack', '-f', packedPkgPath], {
             cwd: pkgPath,
+            env: {
+              ...process.env,
+              COREPACK_ENABLE_STRICT: '0',
+            },
           })
         })
       )

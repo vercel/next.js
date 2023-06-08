@@ -42,6 +42,7 @@ use turbopack_binding::{
         },
         env::ProcessEnvAssetVc,
         node::{
+            debug::should_debug,
             execution_context::ExecutionContextVc,
             render::{
                 node_api_source::create_node_api_source,
@@ -587,6 +588,7 @@ async fn create_app_page_source_for_route(
         .into(),
         fallback_page,
         render_data,
+        should_debug("app_source"),
     );
 
     Ok(source.issue_context(app_dir, &format!("Next.js App Page Route {pathname}")))
@@ -630,6 +632,7 @@ async fn create_app_not_found_page_source(
         .into(),
         fallback_page,
         render_data,
+        should_debug("app_source"),
     );
 
     Ok(source.issue_context(app_dir, "Next.js App Page Route /404"))
@@ -673,6 +676,7 @@ async fn create_app_route_source_for_route(
         .cell()
         .into(),
         render_data,
+        should_debug("app_source"),
     );
 
     Ok(source.issue_context(app_dir, &format!("Next.js App Route {pathname}")))
