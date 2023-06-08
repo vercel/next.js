@@ -82,7 +82,7 @@ export async function renderResultToResponse(
       private:
         context.isPreviewMode ||
         (module.definition.page === '/404' && !metadata.isNotFound),
-      stateful: module.hasGetStaticProps,
+      stateful: !module.hasGetStaticProps,
       revalidate: metadata.revalidate,
     })
   }
