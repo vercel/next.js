@@ -25,7 +25,6 @@ import {
 import { addBasePath } from '../../../add-base-path'
 import { createHrefFromUrl } from '../create-href-from-url'
 import { RedirectType, getRedirectError } from '../../redirect'
-import { handleMutable } from '../handle-mutable'
 
 type FetchServerActionResult = {
   redirectLocation: URL | undefined
