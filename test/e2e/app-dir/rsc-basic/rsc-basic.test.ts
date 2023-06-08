@@ -23,8 +23,8 @@ createNextDescribe(
       'server-only': 'latest',
     },
   },
-  ({ next, isNextDev, isNextStart }) => {
-    if (isNextDev) {
+  ({ next, isNextDev, isNextStart, isTurbopack }) => {
+    if (isNextDev && !isTurbopack) {
       it('should have correct client references keys in manifest', async () => {
         await next.render('/')
         await check(async () => {

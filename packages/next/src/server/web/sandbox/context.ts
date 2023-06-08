@@ -231,7 +231,6 @@ async function createModuleContext(options: ModuleContextOptions) {
         ? { strings: true, wasm: true }
         : undefined,
     extend: (context) => {
-      context.WebSocket = require('next/dist/compiled/ws').WebSocket
       context.process = createProcessPolyfill()
 
       Object.defineProperty(context, 'require', {
