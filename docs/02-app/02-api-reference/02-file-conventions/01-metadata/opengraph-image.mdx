@@ -110,7 +110,7 @@ const interSemiBold = fetch(
 ).then((res) => res.arrayBuffer())
 
 // Image generation
-export default function Image() {
+export default async function Image() {
   return new ImageResponse(
     (
       // ImageResponse JSX element
