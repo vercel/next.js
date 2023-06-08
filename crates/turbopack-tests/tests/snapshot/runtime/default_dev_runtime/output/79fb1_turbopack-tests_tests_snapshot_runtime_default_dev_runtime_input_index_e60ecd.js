@@ -197,7 +197,9 @@ async function loadChunkPath(source, chunkPath) {
                 loadReason = "from an HMR update";
                 break;
         }
-        throw new Error(`Failed to load chunk ${chunkPath} ${loadReason}${error ? `: ${error}` : ""}`);
+        throw new Error(`Failed to load chunk ${chunkPath} ${loadReason}${error ? `: ${error}` : ""}`, error ? {
+            cause: error
+        } : undefined);
     }
 }
 function instantiateModule(id, source) {
@@ -456,7 +458,7 @@ function disposeModule(moduleId, mode) {
             invariant(mode, (mode)=>`invalid mode: ${mode}`);
     }
 }
-function applyPhase(outdatedSelfAcceptedModules, newModuleFactories, outdatedModuleParents) {
+function applyPhase(outdatedSelfAcceptedModules, newModuleFactories, outdatedModuleParents, reportError) {
     for (const [moduleId, factory] of newModuleFactories.entries()){
         moduleFactories[moduleId] = factory;
     }
@@ -473,7 +475,12 @@ function applyPhase(outdatedSelfAcceptedModules, newModuleFactories, outdatedMod
                         moduleId,
                         module: moduleCache[moduleId]
                     });
-                } catch (_) {}
+                } catch (err2) {
+                    reportError(err2);
+                    reportError(err);
+                }
+            } else {
+                reportError(err);
             }
         }
     }
@@ -544,7 +551,14 @@ function applyInternal(outdatedModules, disposedModules, newModuleFactories) {
     outdatedModules = applyInvalidatedModules(outdatedModules);
     const outdatedSelfAcceptedModules = computeOutdatedSelfAcceptedModules(outdatedModules);
     const { outdatedModuleParents  } = disposePhase(outdatedModules, disposedModules);
-    applyPhase(outdatedSelfAcceptedModules, newModuleFactories, outdatedModuleParents);
+    let error;
+    function reportError(err) {
+        if (!error) error = err;
+    }
+    applyPhase(outdatedSelfAcceptedModules, newModuleFactories, outdatedModuleParents, reportError);
+    if (error) {
+        throw error;
+    }
     if (queuedInvalidatedModules.size > 0) {
         applyInternal(new Set(), [], new Map());
     }

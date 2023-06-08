@@ -41,6 +41,7 @@ pub async fn render_proxy(
     project_dir: FileSystemPathVc,
     data: RenderDataVc,
     body: BodyVc,
+    debug: bool,
 ) -> Result<ProxyResultVc> {
     let render = render_stream(
         cwd,
@@ -54,6 +55,7 @@ pub async fn render_proxy(
         project_dir,
         data,
         body,
+        debug,
     )
     .await?;
 
@@ -157,6 +159,7 @@ fn render_stream(
     project_dir: FileSystemPathVc,
     data: RenderDataVc,
     body: BodyVc,
+    debug: bool,
 ) -> RenderStreamVc {
     // Note the following code uses some hacks to create a child task that produces
     // a stream that is returned by this task.
@@ -198,6 +201,7 @@ fn render_stream(
             }),
         }
         .cell(),
+        debug,
     );
 
     let raw: RawVc = cell.into();
@@ -218,6 +222,7 @@ async fn render_stream_internal(
     data: RenderDataVc,
     body: BodyVc,
     sender: RenderStreamSenderVc,
+    debug: bool,
 ) {
     mark_finished();
     let Ok(sender) = sender.await else {
@@ -238,7 +243,7 @@ async fn render_stream_internal(
             intermediate_output_path,
             output_root,
             project_dir,
-            /* debug */ false,
+            debug,
         );
 
         // Read this strongly consistent, since we don't want to run inconsistent

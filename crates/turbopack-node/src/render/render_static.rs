@@ -77,6 +77,7 @@ pub async fn render_static(
     output_root: FileSystemPathVc,
     project_dir: FileSystemPathVc,
     data: RenderDataVc,
+    debug: bool,
 ) -> Result<StaticResultVc> {
     let render = render_stream(
         cwd,
@@ -90,6 +91,7 @@ pub async fn render_static(
         output_root,
         project_dir,
         data,
+        debug,
     )
     .await?;
 
@@ -202,6 +204,7 @@ fn render_stream(
     output_root: FileSystemPathVc,
     project_dir: FileSystemPathVc,
     data: RenderDataVc,
+    debug: bool,
 ) -> RenderStreamVc {
     // Note the following code uses some hacks to create a child task that produces
     // a stream that is returned by this task.
@@ -243,6 +246,7 @@ fn render_stream(
             }),
         }
         .cell(),
+        debug,
     );
 
     let raw: RawVc = cell.into();
@@ -263,6 +267,7 @@ async fn render_stream_internal(
     project_dir: FileSystemPathVc,
     data: RenderDataVc,
     sender: RenderStreamSenderVc,
+    debug: bool,
 ) {
     mark_finished();
     let Ok(sender) = sender.await else {
@@ -283,7 +288,7 @@ async fn render_stream_internal(
             intermediate_output_path,
             output_root,
             project_dir,
-            /* debug */ false,
+            debug,
         );
 
         // Read this strongly consistent, since we don't want to run inconsistent

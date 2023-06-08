@@ -11,7 +11,7 @@ use super::{asset::EcmascriptModulePartAssetVc, part_of_module, split_module};
 use crate::{
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContentVc, EcmascriptChunkItemVc,
-        EcmascriptChunkingContext, EcmascriptChunkingContextVc,
+        EcmascriptChunkingContextVc,
     },
     EcmascriptModuleContentVc,
 };

@@ -24,6 +24,7 @@ use turbopack_core::{
 
 use super::util::{emitted_assets_to_virtual_assets, EmittedAsset};
 use crate::{
+    debug::should_debug,
     embed_js::embed_file,
     evaluate::evaluate,
     execution_context::{ExecutionContext, ExecutionContextVc},
@@ -233,7 +234,7 @@ impl PostCssTransformedAssetVc {
                 JsonValueVc::cell(css_path.into()),
             ],
             extra_configs_changed,
-            /* debug */ false,
+            should_debug("postcss_transform"),
         )
         .await?;
 

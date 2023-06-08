@@ -1,10 +1,3 @@
-use std::{
-    future::Future,
-    pin::Pin,
-    task::{Context, Poll},
-};
-
-use pin_project_lite::pin_project;
 use serde::Serialize;
 use swc_core::{
     common::DUMMY_SP,

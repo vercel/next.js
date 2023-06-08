@@ -55,6 +55,7 @@ pub fn create_node_rendered_source(
     entry: NodeEntryVc,
     fallback_page: DevHtmlAssetVc,
     render_data: JsonValueVc,
+    debug: bool,
 ) -> ContentSourceVc {
     let source = NodeRenderContentSource {
         cwd,
@@ -66,6 +67,7 @@ pub fn create_node_rendered_source(
         entry,
         fallback_page,
         render_data,
+        debug,
     }
     .cell();
     ConditionalContentSourceVc::new(
@@ -91,6 +93,7 @@ pub struct NodeRenderContentSource {
     entry: NodeEntryVc,
     fallback_page: DevHtmlAssetVc,
     render_data: JsonValueVc,
+    debug: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -162,6 +165,7 @@ impl ContentSource for NodeRenderContentSource {
                     source: self_vc,
                     render_data: this.render_data,
                     path: path.to_string(),
+                    debug: this.debug,
                 }
                 .cell()
                 .into(),
@@ -177,6 +181,7 @@ struct NodeRenderGetContentResult {
     source: NodeRenderContentSourceVc,
     render_data: JsonValueVc,
     path: String,
+    debug: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -233,6 +238,7 @@ impl GetContentSourceContent for NodeRenderGetContentResult {
                 data: Some(self.render_data.await?),
             }
             .cell(),
+            self.debug,
         )
         .issue_context(
             entry.module.ident().path(),
