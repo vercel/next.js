@@ -136,7 +136,7 @@ export class ClientReferenceManifestPlugin {
 
     // Collect client requests
     function collectClientRequest(mod: webpack.NormalModule) {
-      if (mod.resource === '' && mod.buildInfo.rsc) {
+      if (mod.resource === '' && mod.buildInfo?.rsc) {
         const { requests = [] } = mod.buildInfo.rsc
         requests.forEach((r: string) => {
           clientRequestsSet.add(r)
@@ -147,6 +147,31 @@ export class ClientReferenceManifestPlugin {
     traverseModules(compilation, (mod) => collectClientRequest(mod))
 
     compilation.chunkGroups.forEach((chunkGroup) => {
+      function getAppPathRequiredChunks() {
+        return chunkGroup.chunks
+          .map((requiredChunk: webpack.Chunk) => {
+            if (SYSTEM_ENTRYPOINTS.has(requiredChunk.name || '')) {
+              return null
+            }
+
+            // Get the actual chunk file names from the chunk file list.
+            // It's possible that the chunk is generated via `import()`, in
+            // that case the chunk file name will be '[name].[contenthash]'
+            // instead of '[name]-[chunkhash]'.
+            return [...requiredChunk.files].map((file) => {
+              // It's possible that a chunk also emits CSS files, that will
+              // be handled separatedly.
+              if (!file.endsWith('.js')) return null
+              if (file.endsWith('.hot-update.js')) return null
+
+              return requiredChunk.id + ':' + file
+            })
+          })
+          .flat()
+          .filter(nonNullable)
+      }
+      const requiredChunks = getAppPathRequiredChunks()
+
       const recordModule = (
         id: ModuleId,
         mod: webpack.NormalModule,
@@ -240,37 +265,12 @@ export class ClientReferenceManifestPlugin {
                 }
                 return null
               }),
-              ...(mod.buildInfo.rsc?.clientRefs || []),
+              ...(mod.buildInfo?.rsc?.clientRefs || []),
             ]
               .filter(Boolean)
               .flat()
           ),
         ]
-
-        function getAppPathRequiredChunks() {
-          return chunkGroup.chunks
-            .map((requiredChunk: webpack.Chunk) => {
-              if (SYSTEM_ENTRYPOINTS.has(requiredChunk.name)) {
-                return null
-              }
-
-              // Get the actual chunk file names from the chunk file list.
-              // It's possible that the chunk is generated via `import()`, in
-              // that case the chunk file name will be '[name].[contenthash]'
-              // instead of '[name]-[chunkhash]'.
-              return [...requiredChunk.files].map((file) => {
-                // It's possible that a chunk also emits CSS files, that will
-                // be handled separatedly.
-                if (!file.endsWith('.js')) return null
-                if (file.endsWith('.hot-update.js')) return null
-
-                return requiredChunk.id + ':' + file
-              })
-            })
-            .flat()
-            .filter(nonNullable)
-        }
-        const requiredChunks = getAppPathRequiredChunks()
 
         // The client compiler will always use the CJS Next.js build, so here we
         // also add the mapping for the ESM build (Edge runtime) to consume.

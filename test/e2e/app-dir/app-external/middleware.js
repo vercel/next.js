@@ -1,4 +1,4 @@
-import { createResponse } from 'cjs-lib'
+import { createResponse } from 'next-server-cjs-lib'
 import { respond } from 'compat-next-server-module'
 
 export async function middleware(request) {
