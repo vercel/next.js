@@ -246,13 +246,11 @@ export default class BuildManifestPlugin {
 
         assets[clientManifestPath] = new sources.RawSource(
           `self.__BUILD_MANIFEST = ${JSON.stringify(
-            JSON.stringify(
-              generateClientManifest(
-                compiler,
-                compilation,
-                assetMap,
-                this.rewrites
-              )
+            generateClientManifest(
+              compiler,
+              compilation,
+              assetMap,
+              this.rewrites
             )
           )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
         )
