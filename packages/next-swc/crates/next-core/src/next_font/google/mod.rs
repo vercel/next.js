@@ -414,7 +414,7 @@ async fn get_mock_stylesheet(
             ecmascript::{
                 EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc,
             },
-            node::{evaluate::evaluate, execution_context::ExecutionContext},
+            node::{debug::should_debug, evaluate::evaluate, execution_context::ExecutionContext},
             turbopack::evaluate_context::node_evaluate_asset_context,
         },
     };
@@ -473,7 +473,7 @@ async fn get_mock_stylesheet(
         None,
         vec![],
         CompletionVc::immutable(),
-        /* debug */ false,
+        should_debug("next_font::google"),
     )
     .await?;
 
