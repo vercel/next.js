@@ -84,5 +84,11 @@ createNextDescribe(
       const res = await next.fetch('/state', opts)
       expect(await res.text()).toBe('ENABLED')
     })
+
+    it('should handle router.refresh()', async () => {
+      const opts = { headers: { Cookie } }
+      const res = await next.fetch('/generate/foo', opts)
+      expect(await res.text()).toBe('ENABLED')
+    })
   }
 )
