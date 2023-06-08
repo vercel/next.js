@@ -88,7 +88,7 @@
     "@types/html-validator": "5.0.3",
     "@types/http-proxy": "1.17.3",
     "@types/jest": "24.0.13",
-    "@types/node": "14.14.31",
+    "@types/node": "20.2.5",
     "@types/node-fetch": "2.6.1",
     "@types/react": "18.2.7",
     "@types/react-dom": "18.2.4",
