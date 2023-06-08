@@ -3,9 +3,26 @@ import {
   getRedboxHeader,
   getRedboxSource,
   hasRedbox,
-} from 'next-test-utils'
-import webdriver from 'next-webdriver'
-import { NextInstance } from 'test/lib/next-modes/base'
+  waitFor,
+} from './next-test-utils'
+import webdriver from './next-webdriver'
+import { NextInstance } from './next-modes/base'
+import { BrowserInterface } from './browsers/base'
+
+export function waitForHydration(browser: BrowserInterface): Promise<void> {
+  return browser.evalAsync(function () {
+    var callback = arguments[arguments.length - 1]
+    if ((window as any).__NEXT_HYDRATED) {
+      callback()
+    } else {
+      var timeout = setTimeout(callback, 30 * 1000)
+      ;(window as any).__NEXT_HYDRATED_CB = function () {
+        clearTimeout(timeout)
+        callback()
+      }
+    }
+  })
+}
 
 export async function sandbox(
   next: NextInstance,
@@ -21,8 +38,10 @@ export async function sandbox(
       await next.patchFile(k, v)
     }
   }
+
   await next.start()
   const browser = await webdriver(next.url, initialUrl, webDriverOptions)
+  // await waitForHydration(browser)
   return {
     browser,
     session: {
@@ -49,25 +68,14 @@ export async function sandbox(
         for (;;) {
           const status = await browser.eval(() => (window as any).__HMR_STATE)
           if (!status) {
-            await new Promise((resolve) => setTimeout(resolve, 750))
+            await waitFor(750)
 
             // Wait for application to re-hydrate:
-            await browser.evalAsync(function () {
-              var callback = arguments[arguments.length - 1]
-              if ((window as any).__NEXT_HYDRATED) {
-                callback()
-              } else {
-                var timeout = setTimeout(callback, 30 * 1000)
-                ;(window as any).__NEXT_HYDRATED_CB = function () {
-                  clearTimeout(timeout)
-                  callback()
-                }
-              }
-            })
+            await waitForHydration(browser)
 
             console.log('Application re-loaded.')
             // Slow down tests a bit:
-            await new Promise((resolve) => setTimeout(resolve, 750))
+            await waitFor(750)
             return false
           }
           if (status === 'success') {
@@ -78,11 +86,11 @@ export async function sandbox(
             throw new Error(`Application is in inconsistent state: ${status}.`)
           }
 
-          await new Promise((resolve) => setTimeout(resolve, 30))
+          await waitFor(30)
         }
 
         // Slow down tests a bit (we don't know how long re-rendering takes):
-        await new Promise((resolve) => setTimeout(resolve, 750))
+        await waitFor(750)
         return true
       },
       async remove(filename) {
@@ -91,7 +99,7 @@ export async function sandbox(
       async evaluate(snippet: () => any) {
         if (typeof snippet === 'function') {
           const result = await browser.eval(snippet)
-          await new Promise((resolve) => setTimeout(resolve, 30))
+          await waitFor(30)
           return result
         } else {
           throw new Error(
@@ -124,7 +132,10 @@ export async function sandbox(
         return source
       },
       async getRedboxComponentStack() {
-        await browser.waitForElementByCss('[data-nextjs-component-stack-frame]')
+        await browser.waitForElementByCss(
+          '[data-nextjs-component-stack-frame]',
+          30000
+        )
         const componentStackFrameElements = await browser.elementsByCss(
           '[data-nextjs-component-stack-frame]'
         )

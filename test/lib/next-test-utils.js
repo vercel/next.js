@@ -961,7 +961,9 @@ export function shouldRunTurboDevTest() {
 export function getSnapshotTestDescribe(variant) {
   const runningEnv = variant ?? 'default'
   if (runningEnv !== 'default' && runningEnv !== 'turbo') {
-    throw new Error(`Check if test env passed correctly ${variant}`)
+    throw new Error(
+      `An invalid test env was passed: ${variant} (only "default" and "turbo" are valid options)`
+    )
   }
 
   const shouldRunTurboDev = shouldRunTurboDevTest()
@@ -970,4 +972,26 @@ export function getSnapshotTestDescribe(variant) {
     (runningEnv === 'default' && shouldRunTurboDev)
 
   return shouldSkip ? describe.skip : describe
+}
+
+/**
+ * For better editor support, pass in the variants this should run on (`default` and/or `turbo`) as cases.
+ *
+ * This is necessary if separate snapshots are needed for next.js with webpack vs turbopack.
+ *
+ * @type {Pick<import("jest").Describe, "each">}
+ */
+export const describeVariants = {
+  each: (variants) => (name, fn) => {
+    if (
+      !Array.isArray(variants) ||
+      !variants.every((val) => typeof val === 'string')
+    ) {
+      throw new Error('variants need to be an array of strings')
+    }
+
+    for (const variant of variants) {
+      getSnapshotTestDescribe(variant).each([variant])(name, fn)
+    }
+  },
 }
