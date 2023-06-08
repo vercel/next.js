@@ -2,7 +2,7 @@ name: build-and-deploy
 
 on:
   push:
-    branches: ['canary', 'hrmny/fix-rust-ci-skipped-install']
+    branches: ['canary']
   workflow_dispatch:
 
 env:
