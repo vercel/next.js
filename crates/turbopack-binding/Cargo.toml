@@ -58,6 +58,9 @@ __swc_core_binding_napi_plugin = [
 __swc_core_binding_napi_plugin_filesystem_cache = [
   "swc_core/plugin_transform_host_native_filesystem_cache",
 ]
+__swc_core_binding_napi_plugin_shared_runtime = [
+  "swc_core/plugin_transform_host_native_shared_runtime",
+]
 __swc_core_binding_napi_allocator = ["swc_core/allocator_node"]
 
 __swc_core_binding_wasm = [

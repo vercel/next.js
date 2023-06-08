@@ -12,7 +12,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests
 const StyledButton = __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$node_modules$2f40$emotion$2f$styled$2f$index$2e$js__$28$ecmascript$29$__["default"]("button", {
     target: "eyjq79w0"
 })("background:blue;");
-function ClassNameButton({ children  }) {
+function ClassNameButton({ children }) {
     return __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$node_modules$2f40$emotion$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$28$ecmascript$29$__["jsxDEV"]("button", {
         className: css`
         background: blue;
