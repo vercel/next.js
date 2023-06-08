@@ -1335,6 +1335,8 @@ export default class NextNodeServer extends BaseServer {
       ...publicRoutes,
       ...staticFilesRoutes,
     ]
+    const caseSensitiveRoutes =
+      !!this.nextConfig.experimental.caseSensitiveRoutes
 
     const restrictedRedirectPaths = this.nextConfig.basePath
       ? [`${this.nextConfig.basePath}/_next`]
@@ -1345,14 +1347,22 @@ export default class NextNodeServer extends BaseServer {
       this.minimalMode || this.isRenderWorker
         ? []
         : this.customRoutes.headers.map((rule) =>
-            createHeaderRoute({ rule, restrictedRedirectPaths })
+            createHeaderRoute({
+              rule,
+              restrictedRedirectPaths,
+              caseSensitive: caseSensitiveRoutes,
+            })
           )
 
     const redirects =
       this.minimalMode || this.isRenderWorker
         ? []
         : this.customRoutes.redirects.map((rule) =>
-            createRedirectRoute({ rule, restrictedRedirectPaths })
+            createRedirectRoute({
+              rule,
+              restrictedRedirectPaths,
+              caseSensitive: caseSensitiveRoutes,
+            })
           )
 
     const rewrites = this.generateRewrites({ restrictedRedirectPaths })
@@ -2044,6 +2054,7 @@ export default class NextNodeServer extends BaseServer {
           type: 'rewrite',
           rule: rewrite,
           restrictedRedirectPaths,
+          caseSensitive: !!this.nextConfig.experimental.caseSensitiveRoutes,
         })
         return {
           ...rewriteRoute,

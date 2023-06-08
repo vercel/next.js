@@ -144,6 +144,10 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  caseSensitiveRoutes?: boolean
+  useDeploymentId?: boolean
+  useDeploymentIdServerActions?: boolean
+  deploymentId?: string
   logging?: 'verbose'
   appDocumentPreloading?: boolean
   strictNextHead?: boolean
@@ -660,6 +664,10 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
+    caseSensitiveRoutes: false,
+    useDeploymentId: false,
+    deploymentId: undefined,
+    useDeploymentIdServerActions: false,
     appDocumentPreloading: undefined,
     clientRouterFilter: false,
     clientRouterFilterRedirects: false,

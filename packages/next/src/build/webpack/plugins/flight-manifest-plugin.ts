@@ -11,7 +11,7 @@ import {
   CLIENT_REFERENCE_MANIFEST,
   SYSTEM_ENTRYPOINTS,
 } from '../../../shared/lib/constants'
-import { relative, sep } from 'path'
+import { relative } from 'path'
 import { isClientComponentEntryModule, isCSSMod } from '../loaders/utils'
 import { getProxiedPluginState } from '../../build-context'
 
@@ -68,9 +68,6 @@ export type ClientReferenceManifest = {
   }
   edgeSSRModuleMapping: {
     [moduleId: string]: ManifestNode
-  }
-  cssFiles: {
-    [entryPathWithoutExtension: string]: string[]
   }
 }
 
@@ -132,7 +129,6 @@ export class ClientReferenceManifestPlugin {
     const manifest: ClientReferenceManifest = {
       ssrModuleMapping: {},
       edgeSSRModuleMapping: {},
-      cssFiles: {},
       clientModules: {},
     }
 
@@ -151,6 +147,31 @@ export class ClientReferenceManifestPlugin {
     traverseModules(compilation, (mod) => collectClientRequest(mod))
 
     compilation.chunkGroups.forEach((chunkGroup) => {
+      function getAppPathRequiredChunks() {
+        return chunkGroup.chunks
+          .map((requiredChunk: webpack.Chunk) => {
+            if (SYSTEM_ENTRYPOINTS.has(requiredChunk.name)) {
+              return null
+            }
+
+            // Get the actual chunk file names from the chunk file list.
+            // It's possible that the chunk is generated via `import()`, in
+            // that case the chunk file name will be '[name].[contenthash]'
+            // instead of '[name]-[chunkhash]'.
+            return [...requiredChunk.files].map((file) => {
+              // It's possible that a chunk also emits CSS files, that will
+              // be handled separatedly.
+              if (!file.endsWith('.js')) return null
+              if (file.endsWith('.hot-update.js')) return null
+
+              return requiredChunk.id + ':' + file
+            })
+          })
+          .flat()
+          .filter(nonNullable)
+      }
+      const requiredChunks = getAppPathRequiredChunks()
+
       const recordModule = (
         id: ModuleId,
         mod: webpack.NormalModule,
@@ -251,31 +272,6 @@ export class ClientReferenceManifestPlugin {
           ),
         ]
 
-        function getAppPathRequiredChunks() {
-          return chunkGroup.chunks
-            .map((requiredChunk: webpack.Chunk) => {
-              if (SYSTEM_ENTRYPOINTS.has(requiredChunk.name)) {
-                return null
-              }
-
-              // Get the actual chunk file names from the chunk file list.
-              // It's possible that the chunk is generated via `import()`, in
-              // that case the chunk file name will be '[name].[contenthash]'
-              // instead of '[name]-[chunkhash]'.
-              return [...requiredChunk.files].map((file) => {
-                // It's possible that a chunk also emits CSS files, that will
-                // be handled separatedly.
-                if (!file.endsWith('.js')) return null
-                if (file.endsWith('.hot-update.js')) return null
-
-                return requiredChunk.id + ':' + file
-              })
-            })
-            .flat()
-            .filter(nonNullable)
-        }
-        const requiredChunks = getAppPathRequiredChunks()
-
         // The client compiler will always use the CJS Next.js build, so here we
         // also add the mapping for the ESM build (Edge runtime) to consume.
         const esmResource = /[\\/]next[\\/]dist[\\/]/.test(resource)
@@ -311,6 +307,10 @@ export class ClientReferenceManifestPlugin {
             moduleIdMapping[id] = moduleIdMapping[id] || {}
             moduleIdMapping[id][name] = {
               ...manifest.clientModules[exportName],
+              // During SSR, we don't have external chunks to load on the server
+              // side with our architecture of Webpack / Turbopack. We can keep
+              // this field empty to save some bytes.
+              chunks: [],
               id: pluginState.serverModuleIds[ssrNamedModuleId],
             }
           }
@@ -322,6 +322,10 @@ export class ClientReferenceManifestPlugin {
             edgeModuleIdMapping[id] = edgeModuleIdMapping[id] || {}
             edgeModuleIdMapping[id][name] = {
               ...manifest.clientModules[exportName],
+              // During SSR, we don't have external chunks to load on the server
+              // side with our architecture of Webpack / Turbopack. We can keep
+              // this field empty to save some bytes.
+              chunks: [],
               id: pluginState.edgeServerModuleIds[ssrNamedModuleId],
             }
           }
@@ -384,37 +388,6 @@ export class ClientReferenceManifestPlugin {
           }
         }
       })
-
-      const entryCSSFiles: { [key: string]: string[] } = manifest.cssFiles || {}
-
-      const addCSSFilesToEntry = (
-        files: string[],
-        entryName: string | undefined | null
-      ) => {
-        if (entryName?.startsWith('app/')) {
-          // The `key` here should be the absolute file path but without extension.
-          // We need to replace the separator in the entry name to match the system separator.
-          const key =
-            this.appDir +
-            entryName
-              .slice(3)
-              .replace(/\//g, sep)
-              .replace(/\.[^\\/.]+$/, '')
-          entryCSSFiles[key] = files.concat(entryCSSFiles[key] || [])
-        }
-      }
-
-      const cssFiles = chunkGroup.getFiles().filter((f) => f.endsWith('.css'))
-
-      if (cssFiles.length) {
-        // Add to chunk entry and parent chunk groups too.
-        addCSSFilesToEntry(cssFiles, chunkGroup.name)
-        chunkGroup.getParents().forEach((parent) => {
-          addCSSFilesToEntry(cssFiles, parent.options.name)
-        })
-      }
-
-      manifest.cssFiles = entryCSSFiles
     })
 
     const file = 'server/' + CLIENT_REFERENCE_MANIFEST
