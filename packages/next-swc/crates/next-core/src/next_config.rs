@@ -31,6 +31,7 @@ use turbopack_binding::{
             styled_components::StyledComponentsTransformConfig,
         },
         node::{
+            debug::should_debug,
             evaluate::evaluate,
             execution_context::{ExecutionContext, ExecutionContextVc},
             transforms::webpack::{WebpackLoaderItem, WebpackLoaderItemsVc},
@@ -688,7 +689,7 @@ pub async fn load_next_config_internal(
         None,
         vec![],
         config_changed,
-        /* debug */ false,
+        should_debug("next_config"),
     )
     .await?;
 

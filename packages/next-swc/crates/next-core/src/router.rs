@@ -30,6 +30,7 @@ use turbopack_binding::{
         },
         dev::DevChunkingContextVc,
         node::{
+            debug::should_debug,
             evaluate::evaluate,
             execution_context::{ExecutionContext, ExecutionContextVc},
             source_map::{trace_stack, StructuredError},
@@ -377,7 +378,7 @@ async fn route_internal(
             JsonValueVc::cell(serde_json::to_value(ServerInfo::try_from(&*server_addr)?)?),
         ],
         CompletionsVc::all(vec![next_config_changed, routes_changed]),
-        /* debug */ false,
+        should_debug("router"),
     )
     .await?;
 
