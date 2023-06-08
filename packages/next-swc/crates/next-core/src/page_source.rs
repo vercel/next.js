@@ -32,7 +32,6 @@ use turbopack_binding::{
         },
         env::ProcessEnvAssetVc,
         node::{
-            debug::should_debug,
             execution_context::ExecutionContextVc,
             render::{
                 node_api_source::create_node_api_source,
@@ -423,7 +422,6 @@ async fn create_page_source_for_file(
             .cell()
             .into(),
             render_data,
-            should_debug("page_source"),
         )
     } else {
         let data_pathname = pathname_for_path(client_root, client_path, PathType::Data);
@@ -467,7 +465,6 @@ async fn create_page_source_for_file(
                 ssr_entry,
                 fallback_page,
                 render_data,
-                should_debug("page_source"),
             ),
             create_node_rendered_source(
                 project_path,
@@ -479,7 +476,6 @@ async fn create_page_source_for_file(
                 ssr_data_entry,
                 fallback_page,
                 render_data,
-                should_debug("page_source"),
             ),
             create_page_loader(
                 client_root,
@@ -595,7 +591,6 @@ async fn create_not_found_page_source(
             ssr_entry,
             fallback_page,
             render_data,
-            should_debug("page_source"),
         ),
         page_loader,
     ])
