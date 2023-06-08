@@ -388,7 +388,7 @@ export class ClientReferenceManifestPlugin {
     pluginState.ASYNC_CLIENT_MODULES = []
 
     assets[file + '.js'] = new sources.RawSource(
-      `self.__RSC_MANIFEST="${json}"`
+      `self.__RSC_MANIFEST=\`${json}\``
       // Work around webpack 4 type of RawSource being used
       // TODO: use webpack 5 type by default
     ) as unknown as webpack.sources.RawSource

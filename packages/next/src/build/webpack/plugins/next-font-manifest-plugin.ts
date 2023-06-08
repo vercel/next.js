@@ -147,7 +147,7 @@ export class NextFontManifestPlugin {
           const manifest = JSON.stringify(nextFontManifest, null, 2)
           // Create manifest for edge
           assets[`server/${NEXT_FONT_MANIFEST}.js`] = new sources.RawSource(
-            `self.__NEXT_FONT_MANIFEST="${manifest}"`
+            `self.__NEXT_FONT_MANIFEST=\`${manifest}\``
           )
           // Create manifest for server
           assets[`server/${NEXT_FONT_MANIFEST}.json`] = new sources.RawSource(

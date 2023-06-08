@@ -179,7 +179,7 @@ export class ReactLoadablePlugin {
     )
     if (this.runtimeAsset) {
       assets[this.runtimeAsset] = new sources.RawSource(
-        `self.__REACT_LOADABLE_MANIFEST="${JSON.stringify(manifest)}"`
+        `self.__REACT_LOADABLE_MANIFEST=\`${JSON.stringify(manifest)}\``
       )
     }
     return assets
