@@ -55,7 +55,6 @@ describe('next/font/google fetch error', () => {
       )
       expect(sizeAdjust).toBe('107.4%')
 
-      console.log('cli output', next.cliOutput)
       expect(next.cliOutput.slice(outputIndex)).toInclude(
         'Failed to download `Inter` from Google Fonts. Using fallback font instead.'
       )
