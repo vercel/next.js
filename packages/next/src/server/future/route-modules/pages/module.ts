@@ -142,14 +142,16 @@ export class PagesRouteModule extends RouteModule<
     )
   }
 
-  public render(
+  public async render(
     req: IncomingMessage,
     res: ServerResponse,
     pathname: string,
     query: NextParsedUrlQuery,
     renderOpts: RenderOpts
   ): Promise<RenderResult> {
-    return renderToHTML(req, res, pathname, query, renderOpts)
+    const result = await renderToHTML(req, res, pathname, query, renderOpts)
+
+    return result
   }
 }
 
