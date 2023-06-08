@@ -123,6 +123,12 @@ export class PagesRouteModule extends RouteModule<
       context.renderOpts
     )
 
+    // Add any fetch tags that were on the page to the response headers.
+    const cacheTags = (context.renderOpts as any).fetchTags
+    if (cacheTags) {
+      res.setHeader('x-next-cache-tags', cacheTags)
+    }
+
     // Convert the render result to a response that can be sent to the client.
     return renderResultToResponse(
       request,

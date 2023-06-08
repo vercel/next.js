@@ -1896,6 +1896,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           html: result,
           pageData: metadata.pageData,
           revalidate: metadata.revalidate,
+          headers,
         },
       }
     }
