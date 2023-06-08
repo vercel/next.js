@@ -2,12 +2,13 @@
 
 import { NEXT_TS_ERRORS } from '../constant'
 import { getTs } from '../utils'
+import type tsModule from 'typescript/lib/tsserverlibrary'
 
 const errorEntry = {
   getSemanticDiagnostics(
-    source: ts.SourceFile,
+    source: tsModule.SourceFile,
     isClientEntry: boolean
-  ): ts.Diagnostic[] {
+  ): tsModule.Diagnostic[] {
     const isErrorFile = /[\\/]error\.tsx?$/.test(source.fileName)
     const isGlobalErrorFile = /[\\/]global-error\.tsx?$/.test(source.fileName)
 
