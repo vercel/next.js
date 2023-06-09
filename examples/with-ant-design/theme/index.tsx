@@ -6,15 +6,15 @@ const withTheme = (node: ReactNode) => (
     <ConfigProvider
       theme={{
         token: {
-          colorPrimary: '#389e0d'
-        }
+          colorPrimary: '#389e0d',
+        },
       }}
     >
       <ConfigProvider
         theme={{
           token: {
-            borderRadius: 8
-          }
+            borderRadius: 8,
+          },
         }}
       >
         {node}
