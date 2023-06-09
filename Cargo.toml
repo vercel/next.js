@@ -38,7 +38,7 @@ next-transform-strip-page-exports = { path = "packages/next-swc/crates/next-tran
 
 # SWC crates
 # Keep consistent with preset_env_base through swc_core
-swc_core = { version = "0.76.41" }
+swc_core = { version = "0.76.46" }
 testing = { version = "0.33.13" }
 
 # Turbo crates
@@ -61,7 +61,7 @@ chromiumoxide = { version = "0.5.0", features = [
 ], default-features = false }
 # For matching on errors from chromiumoxide. Keep in
 # sync with chromiumoxide's tungstenite requirement.
-tungstenite = "0.17.3"
+tungstenite = "0.18.0"
 
 # flate2_zlib requires zlib, use flate2_rust
 allsorts = { version = "0.14.0", default_features = false, features = [
