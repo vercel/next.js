@@ -82,10 +82,10 @@ describe('minimal-mode-response-cache', () => {
   })
 
   it('app router revalidate should work with previous response cache', async () => {
-    const res1 = await fetchViaHTTP(appPort, '/app-blog', undefined, {
+    const res1 = await fetchViaHTTP(appPort, '/app-blog.rsc', undefined, {
       headers: {
         'x-matched-path': '/app-blog.rsc',
-        rsc: '1',
+        RSC: '1',
       },
     })
     const content1 = await res1.text()
@@ -95,7 +95,8 @@ describe('minimal-mode-response-cache', () => {
 
     const res2 = await fetchViaHTTP(appPort, '/app-blog', undefined, {
       headers: {
-        'x-matched-path': '/app-blog',
+        'x-matched-path': '/app-blog.rsc',
+        RSC: '1',
       },
     })
     const content2 = await res2.text()
