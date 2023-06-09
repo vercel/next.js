@@ -554,8 +554,8 @@ async fn run_browser(addr: SocketAddr, project_dir: &Path) -> Result<JsResult> {
 }
 
 fn get_free_local_addr() -> Result<SocketAddr, std::io::Error> {
-    let socket = TcpSocket::new_v6()?;
-    socket.bind("[::]:0".parse().unwrap())?;
+    let socket = TcpSocket::new_v4()?;
+    socket.bind("0.0.0.0:0".parse().unwrap())?;
     socket.local_addr()
 }
 
