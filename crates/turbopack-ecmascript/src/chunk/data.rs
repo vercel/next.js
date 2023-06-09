@@ -27,13 +27,13 @@ impl<'a> EcmascriptChunkData<'a> {
             references: _,
         } = chunk_data;
         if included.is_empty() && excluded.is_empty() && module_chunks.is_empty() {
-            return EcmascriptChunkData::Simple(&path);
+            return EcmascriptChunkData::Simple(path);
         }
         EcmascriptChunkData::WithRuntimeInfo {
             path,
-            included: &included,
-            excluded: &excluded,
-            module_chunks: &module_chunks,
+            included,
+            excluded,
+            module_chunks,
         }
     }
 }

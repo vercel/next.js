@@ -101,7 +101,7 @@ impl ModuleOptionsVc {
                         .output_transforms
                         .iter()
                         .cloned()
-                        .map(|plugin| EcmascriptInputTransform::Plugin(plugin))
+                        .map(EcmascriptInputTransform::Plugin)
                         .collect(),
                 )
             } else {
@@ -270,7 +270,7 @@ impl ModuleOptionsVc {
                 ]),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
                     transforms: app_transforms,
-                    options: ecmascript_options.clone(),
+                    options: ecmascript_options,
                 })],
             ),
             ModuleRule::new(
@@ -301,12 +301,12 @@ impl ModuleOptionsVc {
                 vec![if enable_types {
                     ModuleRuleEffect::ModuleType(ModuleType::TypescriptWithTypes {
                         transforms: ts_app_transforms,
-                        options: ecmascript_options.clone(),
+                        options: ecmascript_options,
                     })
                 } else {
                     ModuleRuleEffect::ModuleType(ModuleType::Typescript {
                         transforms: ts_app_transforms,
-                        options: ecmascript_options.clone(),
+                        options: ecmascript_options,
                     })
                 }],
             ),
@@ -361,7 +361,7 @@ impl ModuleOptionsVc {
                 vec![ModuleRuleEffect::ModuleType(
                     ModuleType::TypescriptDeclaration {
                         transforms: vendor_transforms,
-                        options: ecmascript_options.clone(),
+                        options: ecmascript_options,
                     },
                 )],
             ),
@@ -384,7 +384,7 @@ impl ModuleOptionsVc {
                 ModuleRuleCondition::ResourcePathHasNoExtension,
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
                     transforms: vendor_transforms,
-                    options: ecmascript_options.clone(),
+                    options: ecmascript_options,
                 })],
             ),
             ModuleRule::new(
@@ -443,7 +443,7 @@ impl ModuleOptionsVc {
             for (glob, rule) in webpack_loaders_options.rules.await?.iter() {
                 rules.push(ModuleRule::new(
                     ModuleRuleCondition::All(vec![
-                        if !glob.contains("/") {
+                        if !glob.contains('/') {
                             ModuleRuleCondition::ResourceBasePathGlob(GlobVc::new(glob).await?)
                         } else {
                             ModuleRuleCondition::ResourcePathGlob {
@@ -458,7 +458,7 @@ impl ModuleOptionsVc {
                         // This can be overriden by specifying e. g. `as: "*.css"` in the rule.
                         ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
                             transforms: app_transforms,
-                            options: ecmascript_options.clone(),
+                            options: ecmascript_options,
                         }),
                         ModuleRuleEffect::SourceTransforms(SourceTransformsVc::cell(vec![
                             WebpackLoadersVc::new(

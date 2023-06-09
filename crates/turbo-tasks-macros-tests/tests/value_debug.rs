@@ -16,7 +16,7 @@ async fn ignored_indexes() {
         let input = IgnoredIndexes(-1, 2, -3);
         let debug = input.value_debug_format(usize::MAX).try_to_string().await?;
         assert!(!debug.contains("-1"));
-        assert!(debug.contains("2"));
+        assert!(debug.contains('2'));
         assert!(!debug.contains("-3"));
     }
 }

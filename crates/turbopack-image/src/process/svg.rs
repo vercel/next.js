@@ -79,7 +79,7 @@ fn calculate_by_viewbox(
 }
 
 pub fn calculate(content: &str) -> Result<(u32, u32)> {
-    let Some(root) = ROOT_REGEX.find(&content) else {
+    let Some(root) = ROOT_REGEX.find(content) else {
         bail!("Source code does not contain a <svg> root element");
     };
     let root = root.as_str();

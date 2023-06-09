@@ -76,9 +76,9 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
                 let (fields_destructuring, try_from_expansion, from_expansion) = expand_fields(
                     &variant.ident,
                     &variant.fields,
-                    &expand_named,
-                    &expand_unnamed,
-                    &expand_unit,
+                    expand_named,
+                    expand_unnamed,
+                    expand_unit,
                 );
                 variants_idents.push(variant_ident);
                 variants_fields_len.push(variant.fields.len());
@@ -101,7 +101,7 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
             };
 
             let variants_discriminants: Vec<_> = (0..variants_idents.len())
-                .map(|i| Literal::usize_unsuffixed(i))
+                .map(Literal::usize_unsuffixed)
                 .collect();
 
             (
@@ -144,7 +144,7 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
         }
         Data::Struct(DataStruct { fields, .. }) => {
             let (destructuring, try_from_expansion, from_expansion) =
-                expand_fields(ident, fields, &expand_named, &expand_unnamed, &expand_unit);
+                expand_fields(ident, fields, expand_named, expand_unnamed, expand_unit);
             let fields_len = fields.len();
 
             (

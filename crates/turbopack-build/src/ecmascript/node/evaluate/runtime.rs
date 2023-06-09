@@ -57,7 +57,7 @@ impl EcmascriptBuildNodeRuntimeChunkVc {
             r#"
                 const RUNTIME_PUBLIC_PATH = {};
             "#,
-            StringifyJs(&*runtime_public_path)
+            StringifyJs(runtime_public_path)
         )?;
 
         match this.chunking_context.await?.runtime_type() {

@@ -100,7 +100,7 @@ impl ChunkItem for ManifestLoaderItem {
 impl EcmascriptChunkItem for ManifestLoaderItem {
     #[turbo_tasks::function]
     async fn chunking_context(&self) -> Result<EcmascriptChunkingContextVc> {
-        Ok(self.manifest.await?.chunking_context.into())
+        Ok(self.manifest.await?.chunking_context)
     }
 
     #[turbo_tasks::function]
@@ -121,7 +121,7 @@ impl EcmascriptChunkItem for ManifestLoaderItem {
         // exports a promise for all of the necessary chunk loads.
         let item_id = &*this
             .manifest
-            .as_chunk_item(manifest.chunking_context.into())
+            .as_chunk_item(manifest.chunking_context)
             .id()
             .await?;
 
@@ -131,7 +131,7 @@ impl EcmascriptChunkItem for ManifestLoaderItem {
             .await?
             .ok_or_else(|| anyhow!("asset is not placeable in ecmascript chunk"))?;
         let dynamic_id = &*placeable
-            .as_chunk_item(manifest.chunking_context.into())
+            .as_chunk_item(manifest.chunking_context)
             .id()
             .await?;
 
@@ -157,7 +157,7 @@ impl EcmascriptChunkItem for ManifestLoaderItem {
             chunks_server_data = StringifyJs(
                 &chunks_server_data
                     .iter()
-                    .map(|chunk_data| EcmascriptChunkData::new(&chunk_data))
+                    .map(|chunk_data| EcmascriptChunkData::new(chunk_data))
                     .collect::<Vec<_>>()
             ),
             item_id = StringifyJs(item_id),

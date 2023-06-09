@@ -153,7 +153,7 @@ impl DevHtmlAssetVc {
                     chunking_context.chunk_group(chunk)
                 };
 
-                Ok(assets.await?)
+                assets.await
             })
             .try_join()
             .await?

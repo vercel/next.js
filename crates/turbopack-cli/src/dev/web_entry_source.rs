@@ -293,7 +293,7 @@ pub async fn create_web_entry_source(
             } else if let Some(chunkable) = ChunkableAssetVc::resolve_from(module).await? {
                 // TODO this is missing runtime code, so it's probably broken and we should also
                 // add an ecmascript chunk with the runtime code
-                Ok((chunkable.into(), chunking_context, None))
+                Ok((chunkable, chunking_context, None))
             } else {
                 // TODO convert into a serve-able asset
                 Err(anyhow!(

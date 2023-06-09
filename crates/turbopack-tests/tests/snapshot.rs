@@ -320,8 +320,7 @@ async fn run_test(resource: &str) -> Result<FileSystemPathVc> {
             env,
         )
         .runtime_type(options.runtime_type)
-        .build()
-        .into(),
+        .build(),
         Runtime::Build => BuildChunkingContextVc::builder(
             project_root,
             path,
@@ -411,7 +410,7 @@ async fn walk_asset(
         return Ok(());
     }
 
-    if path.await?.is_inside(&*output_path) {
+    if path.await?.is_inside(output_path) {
         // Only consider assets that should be written to disk.
         diff(path, asset.content()).await?;
     }

@@ -58,7 +58,7 @@ where
 {
     pub fn new(store: StoreImpl) -> Self {
         Self {
-            store: store,
+            store,
             visited: Default::default(),
         }
     }

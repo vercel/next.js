@@ -162,7 +162,7 @@ async fn apply_module_type(
                 }
             }
 
-            builder.build().into()
+            builder.build()
         }
 
         ModuleType::Json => JsonModuleAssetVc::new(source).into(),

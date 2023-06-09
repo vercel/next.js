@@ -302,10 +302,10 @@ impl ChunkingContext for DevChunkingContext {
             .iter()
             .map({
                 move |evaluatable_asset| async move {
-                    Ok(evaluatable_asset
+                    evaluatable_asset
                         .as_root_chunk(self_vc.into())
                         .resolve()
-                        .await?)
+                        .await
                 }
             })
             .try_join()

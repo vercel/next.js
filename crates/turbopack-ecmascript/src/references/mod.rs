@@ -159,7 +159,7 @@ impl AnalyzeEcmascriptModuleResultVc {
                 return Ok(BoolVc::cell(true));
             }
         }
-        return Ok(BoolVc::cell(false));
+        Ok(BoolVc::cell(false))
     }
 }
 
@@ -1310,12 +1310,11 @@ pub(crate) async fn analyze_ecmascript_module(
                             if it.next().unwrap() != Cow::Borrowed(prop) {
                                 continue;
                             }
-                            if obj.iter_defineable_name_rev().eq(it) {
-                                if handle_free_var_reference(ast_path, value, state, analysis)
+                            if obj.iter_defineable_name_rev().eq(it)
+                                && handle_free_var_reference(ast_path, value, state, analysis)
                                     .await?
-                                {
-                                    return Ok(());
-                                }
+                            {
+                                return Ok(());
                             }
                         }
                     }
@@ -1354,10 +1353,9 @@ pub(crate) async fn analyze_ecmascript_module(
                         if var
                             .iter_defineable_name_rev()
                             .eq(name.iter().map(Cow::Borrowed).rev())
+                            && handle_free_var_reference(ast_path, value, state, analysis).await?
                         {
-                            if handle_free_var_reference(ast_path, value, state, analysis).await? {
-                                return Ok(());
-                            }
+                            return Ok(());
                         }
                     }
                 }
@@ -1373,7 +1371,7 @@ pub(crate) async fn analyze_ecmascript_module(
             ) -> Result<bool> {
                 // We don't want to replace assignments as this would lead to invalid code.
                 if matches!(
-                    &ast_path[..],
+                    ast_path,
                     [
                         ..,
                         AstParentKind::AssignExpr(AssignExprField::Left),

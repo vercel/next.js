@@ -37,7 +37,7 @@ impl AssetIdent {
         let root = self.path.root();
         let path = self.path.await?;
         self.path = root
-            .join(&pattern.replace("*", &path.path))
+            .join(&pattern.replace('*', &path.path))
             .resolve()
             .await?;
         Ok(())

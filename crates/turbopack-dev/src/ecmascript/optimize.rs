@@ -38,13 +38,11 @@ pub async fn optimize_ecmascript_chunks(chunks: EcmascriptChunksVc) -> Result<Ec
     let optimized_chunks = chunks_by_chunking_context
         .into_values()
         .map(|chunks| async move {
-            Ok(
-                optimize_by_common_parent(&chunks, get_common_parent, |local, children| {
-                    optimize_ecmascript(local.map(EcmascriptChunksVc::cell), children)
-                })
-                .await?
-                .await?,
-            )
+            optimize_by_common_parent(&chunks, get_common_parent, |local, children| {
+                optimize_ecmascript(local.map(EcmascriptChunksVc::cell), children)
+            })
+            .await?
+            .await
         })
         .try_join()
         .await?

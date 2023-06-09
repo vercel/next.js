@@ -1347,7 +1347,7 @@ async fn resolve_package_internal_with_imports_field(
         *package_json_path,
         resolve_options,
         imports,
-        &specifier,
+        specifier,
         conditions,
         unspecified_conditions,
     )

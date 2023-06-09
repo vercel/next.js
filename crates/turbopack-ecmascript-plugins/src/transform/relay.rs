@@ -70,7 +70,7 @@ impl CustomTransformer for RelayTransformer {
 
         let p = std::mem::replace(program, Program::Module(Module::dummy()));
         *program = p.fold_with(&mut swc_relay::relay(
-            config.as_ref().unwrap_or_else(|| &self.config),
+            config.as_ref().unwrap_or(&self.config),
             FileName::Real(PathBuf::from(ctx.file_name_str)),
             root,
             // [TODO]: pages_dir comes through next-swc-loader

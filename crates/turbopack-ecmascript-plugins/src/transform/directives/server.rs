@@ -20,7 +20,7 @@ pub struct ServerDirectiveTransformer {
 impl ServerDirectiveTransformer {
     pub fn new(transition_name: &StringVc) -> Self {
         Self {
-            transition_name: transition_name.clone(),
+            transition_name: *transition_name,
         }
     }
 }

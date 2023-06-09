@@ -243,7 +243,7 @@ impl UpdateStream {
         let stream = ReceiverStream::new(rx).filter_map(move |item| {
             {
                 let (has_issues, issues_changed) =
-                    if let Some(UpdateStreamItem::Found { issues, .. }) = item.as_deref().ok() {
+                    if let Ok(UpdateStreamItem::Found { issues, .. }) = item.as_deref() {
                         let has_issues = !issues.is_empty();
                         let issues_changed = has_issues != last_had_issues;
                         last_had_issues = has_issues;

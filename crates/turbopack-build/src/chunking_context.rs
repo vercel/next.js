@@ -140,7 +140,7 @@ impl BuildChunkingContextVc {
 
         let asset = self_vc.generate_evaluate_chunk(
             entry_chunk,
-            AssetsVc::cell(assets.clone()),
+            AssetsVc::cell(assets),
             evaluatable_assets,
             Some(module),
         );
@@ -172,10 +172,7 @@ impl BuildChunkingContextVc {
             .iter()
             .map({
                 move |evaluatable_asset| async move {
-                    Ok(evaluatable_asset
-                        .as_root_chunk(self.into())
-                        .resolve()
-                        .await?)
+                    evaluatable_asset.as_root_chunk(self.into()).resolve().await
                 }
             })
             .try_join()

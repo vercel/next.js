@@ -143,14 +143,10 @@ async fn extra_configs(
         .map(|path| async move {
             Ok(
                 matches!(&*path.get_type().await?, FileSystemEntryType::File).then(|| {
-                    any_content_changed(
-                        context
-                            .process(
-                                SourceAssetVc::new(path).into(),
-                                Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
-                            )
-                            .into(),
-                    )
+                    any_content_changed(context.process(
+                        SourceAssetVc::new(path).into(),
+                        Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
+                    ))
                 }),
             )
         })
