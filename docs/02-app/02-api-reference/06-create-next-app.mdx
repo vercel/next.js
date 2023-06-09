@@ -21,11 +21,12 @@ You will then be asked the following prompts:
 
 ```bash filename="Terminal"
 What is your project named?  my-app
-Would you like to add TypeScript with this project?  Y/N
-Would you like to use ESLint with this project?  Y/N
-Would you like to use Tailwind CSS with this project? Y/N
-Would you like to use the `src/ directory` with this project? Y/N
-What import alias would you like configured? `@/*`
+Would you like to use TypeScript with this project?  No / Yes
+Would you like to use ESLint with this project?  No / Yes
+Would you like to use Tailwind CSS with this project?  No / Yes
+Would you like to use `src/` directory with this project?  No / Yes
+Use App Router (recommended)?  No / Yes
+Would you like to customize the default import alias?  No / Yes
 ```
 
 Once you've answered the prompts, a new project will be created with the correct configuration depending on your answers.
@@ -59,6 +60,10 @@ Options:
 
     Initialize with ESLint config.
 
+  --app
+
+    Initialize as an App Router project.
+
   --src-dir
 
     Initialize inside a `src/` directory.
@@ -74,6 +79,10 @@ Options:
   --use-pnpm
 
     Explicitly tell the CLI to bootstrap the app using pnpm
+
+  --use-yarn
+
+    Explicitly tell the CLI to bootstrap the app using Yarn
 
   -e, --example [name]|[github-url]
 
