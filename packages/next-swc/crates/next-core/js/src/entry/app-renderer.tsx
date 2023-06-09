@@ -143,10 +143,13 @@ async function runOperation(renderData: RenderData) {
       // TODO(WEB-856) subscribe to changes
 
       // This return value is passed to proxyMethodsNested for clientModules
-      return cssChunks
-        .filter(filterAvailable)
-        .map(toPath)
-        .map((chunk: string) => JSON.stringify([chunk, [chunk]]))
+      return {
+        modules: [],
+        files: cssChunks
+          .filter(filterAvailable)
+          .map(toPath)
+          .map((chunk: string) => JSON.stringify([chunk, [chunk]])),
+      }
     },
   }
 
