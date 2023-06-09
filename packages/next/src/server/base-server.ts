@@ -1351,25 +1351,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       return null
     }
 
-    if (isAppPath) {
-      res.setHeader('vary', RSC_VARY_HEADER)
-
-      if (isSSG && req.headers[RSC.toLowerCase()]) {
-        if (!this.minimalMode) {
-          isDataReq = true
-        }
-        // strip header so we generate HTML still
-        if (
-          !isEdgeRuntime(opts.runtime) ||
-          (this.serverOptions as any).webServerConfig
-        ) {
-          for (const param of FLIGHT_PARAMETERS) {
-            delete req.headers[param.toString().toLowerCase()]
-          }
-        }
-      }
-    }
-
     delete query.__nextDataReq
 
     // normalize req.url for SSG paths as it is not exposed
@@ -1489,6 +1470,25 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           require('./api-utils/node') as typeof import('./api-utils/node')
         previewData = tryGetPreviewData(req, res, this.renderOpts.previewProps)
         isPreviewMode = previewData !== false
+      }
+    }
+
+    if (isAppPath) {
+      res.setHeader('vary', RSC_VARY_HEADER)
+
+      if (!isPreviewMode && isSSG && req.headers[RSC.toLowerCase()]) {
+        if (!this.minimalMode) {
+          isDataReq = true
+        }
+        // strip header so we generate HTML still
+        if (
+          !isEdgeRuntime(opts.runtime) ||
+          (this.serverOptions as any).webServerConfig
+        ) {
+          for (const param of FLIGHT_PARAMETERS) {
+            delete req.headers[param.toString().toLowerCase()]
+          }
+        }
       }
     }
 
