@@ -22,3 +22,4 @@ This folder is also useful for `robots.txt`, `favicon.ico`, Google Site Verifica
 - Be sure the directory is named `public`. The name cannot be changed and is the only directory used to serve static assets.
 - Be sure to not have a static file with the same name as a file in the `pages/` directory, as this will result in an error. [Read more](/docs/messages/conflicting-public-file-page)
 - Only assets that are in the `public` directory at [build time](/docs/app/api-reference/next-cli#build) will be served by Next.js. Files added at runtime won't be available. We recommend using a third party service like [AWS S3](https://aws.amazon.com/s3/) for persistent file storage.
+- All subdomains will also be able to access any files in the public directory using the same path as the root domain.
