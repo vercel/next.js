@@ -428,7 +428,7 @@ importers:
       cross-spawn: 6.0.5
       glob: 8.0.3
       got: 10.7.0
-      prettier-plugin-tailwindcss: 0.2.4
+      prettier-plugin-tailwindcss: 0.3.0
       prompts: 2.1.0
       tar: 6.1.15
       update-check: 1.5.4
@@ -452,7 +452,7 @@ importers:
       cross-spawn: 6.0.5
       glob: 8.0.3
       got: 10.7.0
-      prettier-plugin-tailwindcss: 0.2.4_prettier@2.5.1
+      prettier-plugin-tailwindcss: 0.3.0_prettier@2.8.8
       prompts: 2.1.0
       tar: 6.1.15
       update-check: 1.5.4
@@ -20886,12 +20886,11 @@ packages:
     engines: {node: '>=4'}
     dev: true
 
-  /prettier-plugin-tailwindcss/0.2.4_prettier@2.5.1:
-    resolution: {integrity: sha512-wMyugRI2yD8gqmMpZSS8kTA0gGeKozX/R+w8iWE+yiCZL09zY0SvfiHfHabNhjGhzxlQ2S2VuTxPE3T72vppCQ==}
+  /prettier-plugin-tailwindcss/0.3.0_prettier@2.8.8:
+    resolution: {integrity: sha512-009/Xqdy7UmkcTBpwlq7jsViDqXAYSOMLDrHAdTMlVZOrKfM2o9Ci7EMWTMZ7SkKBFTG04UM9F9iM2+4i6boDA==}
     engines: {node: '>=12.17.0'}
     peerDependencies:
       '@ianvs/prettier-plugin-sort-imports': '*'
-      '@prettier/plugin-php': '*'
       '@prettier/plugin-pug': '*'
       '@shopify/prettier-plugin-liquid': '*'
       '@shufo/prettier-plugin-blade': '*'
@@ -20901,6 +20900,7 @@ packages:
       prettier-plugin-css-order: '*'
       prettier-plugin-import-sort: '*'
       prettier-plugin-jsdoc: '*'
+      prettier-plugin-marko: '*'
       prettier-plugin-organize-attributes: '*'
       prettier-plugin-organize-imports: '*'
       prettier-plugin-style-order: '*'
@@ -20908,8 +20908,6 @@ packages:
       prettier-plugin-twig-melody: '*'
     peerDependenciesMeta:
       '@ianvs/prettier-plugin-sort-imports':
-        optional: true
-      '@prettier/plugin-php':
         optional: true
       '@prettier/plugin-pug':
         optional: true
@@ -20927,6 +20925,8 @@ packages:
         optional: true
       prettier-plugin-jsdoc:
         optional: true
+      prettier-plugin-marko:
+        optional: true
       prettier-plugin-organize-attributes:
         optional: true
       prettier-plugin-organize-imports:
@@ -20938,13 +20938,7 @@ packages:
       prettier-plugin-twig-melody:
         optional: true
     dependencies:
-      prettier: 2.5.1
-    dev: true
-
-  /prettier/2.5.1:
-    resolution: {integrity: sha512-vBZcPRUR5MZJwoyi3ZoyQlc1rXeEck8KgeC9AwwOn+exuxLxq5toTRDTSaVrXHxelDMHy9zlicw8u66yxoSUFg==}
-    engines: {node: '>=10.13.0'}
-    hasBin: true
+      prettier: 2.8.8
     dev: true
 
   /prettier/2.8.8:
