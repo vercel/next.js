@@ -15,4 +15,4 @@ export const FLIGHT_PARAMETERS = [
   [NEXT_ROUTER_PREFETCH],
 ] as const
 
-export const NEXT_RSC_UNION_QUERY = '__nextRSC' as const
+export const NEXT_RSC_UNION_QUERY = '_rsc' as const

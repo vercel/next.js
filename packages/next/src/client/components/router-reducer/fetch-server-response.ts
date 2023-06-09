@@ -69,7 +69,6 @@ export async function fetchServerResponse(
     let fetchUrl = new URL(url)
     if (process.env.NODE_ENV === 'production') {
       if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
-        fetchUrl = new URL(url) // clone
         if (fetchUrl.pathname.endsWith('/')) {
           fetchUrl.pathname += 'index.txt'
         } else {

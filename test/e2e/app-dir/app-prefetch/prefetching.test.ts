@@ -1,6 +1,9 @@
 import { createNextDescribe } from 'e2e-utils'
 import { check, waitFor } from 'next-test-utils'
 
+// @ts-ignore
+import { NEXT_RSC_UNION_QUERY } from 'next/dist/src/client/components/app-router-headers'
+
 const browserConfigWithFixedTime = {
   beforePageLoad: (page) => {
     page.addInitScript(() => {
@@ -37,6 +40,10 @@ createNextDescribe(
       it('should skip next dev for now', () => {})
       return
     }
+
+    it('NEXT_RSC_UNION_QUERY query name is _rsc', async () => {
+      expect(NEXT_RSC_UNION_QUERY).toBe('_rsc')
+    })
 
     it('should show layout eagerly when prefetched with loading one level down', async () => {
       const browser = await next.browser('/', browserConfigWithFixedTime)
@@ -88,7 +95,8 @@ createNextDescribe(
 
       await check(() => {
         return requests.some(
-          (req) => req.includes('static-page') && !req.includes('__nextRSC')
+          (req) =>
+            req.includes('static-page') && !req.includes(NEXT_RSC_UNION_QUERY)
         )
           ? 'success'
           : JSON.stringify(requests)
@@ -118,7 +126,8 @@ createNextDescribe(
       )
       await check(() => {
         return requests.some(
-          (req) => req.includes('static-page') && !req.includes('__nextRSC')
+          (req) =>
+            req.includes('static-page') && !req.includes(NEXT_RSC_UNION_QUERY)
         )
           ? 'success'
           : JSON.stringify(requests)
@@ -143,7 +152,7 @@ createNextDescribe(
       expect(
         requests.filter(
           (request) =>
-            request === '/static-page' || request.includes('__nextRSC')
+            request === '/static-page' || request.includes(NEXT_RSC_UNION_QUERY)
         ).length
       ).toBe(1)
     })
@@ -169,7 +178,8 @@ createNextDescribe(
         expect(
           requests.filter(
             (request) =>
-              request === '/static-page' || request.includes('__nextRSC')
+              request === '/static-page' ||
+              request.includes(NEXT_RSC_UNION_QUERY)
           ).length
         ).toBe(0)
       }
