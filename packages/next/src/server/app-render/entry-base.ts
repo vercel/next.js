@@ -22,4 +22,8 @@ export {
   decodeReply,
   decodeAction,
 } from 'next/dist/compiled/react-server-dom-webpack/server.edge'
-export { preloadStyle, preloadFont, preconnect } from './rsc/preloads'
+export {
+  preloadStyle,
+  preloadFont,
+  preconnect,
+} from 'next/dist/server/app-render/rsc/preloads'
