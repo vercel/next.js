@@ -28,14 +28,23 @@ env:
   NEXT_TEST_JOB: 1
 
 jobs:
-  build:
+  build-native:
+    name: build-native
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      skipInstallBuild: 'yes'
+    secrets: inherit
+
+  build-next:
     name: build
     uses: ./.github/workflows/build_reusable.yml
+    with:
+      skipNativeBuild: 'yes'
     secrets: inherit
 
   lint:
     name: lint
-    needs: ['build']
+    needs: ['build-native', 'build-next']
 
     uses: ./.github/workflows/build_reusable.yml
     with:
@@ -44,7 +53,7 @@ jobs:
 
   check-types-precompiled:
     name: types and precompiled
-    needs: ['build']
+    needs: ['build-native', 'build-next']
 
     uses: ./.github/workflows/build_reusable.yml
     with:
@@ -54,48 +63,52 @@ jobs:
 
   test-cargo-unit:
     name: test cargo unit
-    needs: ['build']
+    needs: ['build-next']
 
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
       skipInstallBuild: 'yes'
+      skipNativeBuild: 'yes'
       afterBuild: turbo run test-cargo-unit
     secrets: inherit
 
   test-cargo-integration:
     name: test cargo integration
-    needs: ['build']
+    needs: ['build-next']
 
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
       needsNextest: 'yes'
+      skipNativeBuild: 'yes'
       afterBuild: xvfb-run turbo run test-cargo-integration
 
   test-cargo-bench:
     name: test cargo benchmarks
-    needs: ['build']
+    needs: ['build-next']
 
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
+      skipNativeBuild: 'yes'
       afterBuild: xvfb-run turbo run test-cargo-bench
 
   rust-check:
     name: rust check
-    needs: ['build']
+    needs: ['build-next']
 
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
       skipInstallBuild: 'yes'
+      skipNativeBuild: 'yes'
       afterBuild: turbo run rust-check
     secrets: inherit
 
   test-turbopack-dev:
     name: test turbopack dev
-    needs: ['build']
+    needs: ['build-native', 'build-next']
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
@@ -104,7 +117,7 @@ jobs:
 
   test-next-swc-wasm:
     name: test next-swc wasm
-    needs: ['build']
+    needs: ['build-native', 'build-next']
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
@@ -113,7 +126,7 @@ jobs:
 
   test-dev:
     name: test dev
-    needs: ['build']
+    needs: ['build-native', 'build-next']
     strategy:
       fail-fast: false
       matrix:
@@ -127,7 +140,7 @@ jobs:
 
   test-prod:
     name: test prod
-    needs: ['build']
+    needs: ['build-native', 'build-next']
     strategy:
       fail-fast: false
       matrix:
@@ -141,7 +154,7 @@ jobs:
 
   test-integration:
     name: test integration
-    needs: ['build']
+    needs: ['build-native', 'build-next']
     strategy:
       fail-fast: false
       matrix:
@@ -156,7 +169,7 @@ jobs:
 
   test-firefox-safari:
     name: test firefox and safari
-    needs: ['build']
+    needs: ['build-native', 'build-next']
 
     uses: ./.github/workflows/build_reusable.yml
     with:

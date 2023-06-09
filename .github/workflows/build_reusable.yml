@@ -11,6 +11,10 @@ on:
         required: false
         description: 'whether to skip pnpm install && pnpm build'
         type: string
+      skipNativeBuild:
+        required: false
+        description: 'whether to skip building native modules'
+        type: string
       skipForDocsOnly:
         required: false
         description: 'skip for docs only changes'
@@ -18,6 +22,10 @@ on:
       nodeVersion:
         required: false
         description: 'version of Node.js to use'
+        type: string
+      needsRust:
+        required: false
+        description: 'if rust is needed'
         type: string
       needsNextest:
         required: false
@@ -67,6 +75,7 @@ jobs:
       # local action -> needs to run after checkout
       - name: Install Rust
         uses: ./.github/actions/setup-rust
+        if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
         with:
           components: rustfmt, clippy
 
@@ -90,6 +99,7 @@ jobs:
         name: normalize versions
 
       - run: turbo run build-native-release --summarize -- --target x86_64-unknown-linux-gnu
+        if: ${{ inputs.skipNativeBuild != 'yes' }}
 
       - name: Upload next-swc artifact
         if: ${{ inputs.uploadSwcArtifact == 'yes' }}
@@ -117,9 +127,6 @@ jobs:
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
       - run: turbo run get-test-timings -- --build ${{ github.sha }}
-
-      - run: df -h
-      - run: free -mh
 
       - run: /bin/bash -c "${{ inputs.afterBuild }}"
         if: ${{inputs.skipForDocsOnly != 'yes' || steps.docs-change.outputs.DOCS_CHANGE == 'nope'}}
