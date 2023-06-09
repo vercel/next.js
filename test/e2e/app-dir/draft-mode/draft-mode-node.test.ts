@@ -1,4 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
+import { waitFor } from 'next-test-utils'
 
 createNextDescribe(
   'app dir - draft mode',
@@ -6,21 +7,38 @@ createNextDescribe(
     files: __dirname,
   },
   ({ next, isNextDev }) => {
-    let initialRand = 'unintialized'
+    let origRandHome = 'unintialized'
+    let origRandWithCookies = 'unintialized'
     let Cookie = ''
 
-    it('should use initial rand when draft mode is disabled', async () => {
+    it('should use initial rand when draft mode is disabled on /index', async () => {
       const $ = await next.render$('/')
       expect($('#mode').text()).toBe('DISABLED')
       expect($('#rand').text()).toBeDefined()
-      initialRand = $('#rand').text()
+      origRandHome = $('#rand').text()
+    })
+
+    it('should use initial rand when draft mode is disabled on /with-cookies', async () => {
+      const $ = await next.render$('/with-cookies')
+      expect($('#mode').text()).toBe('DISABLED')
+      expect($('#rand').text()).toBeDefined()
+      expect($('#data').text()).toBe('')
+      origRandWithCookies = $('#rand').text()
     })
 
     if (!isNextDev) {
       it('should not generate rand when draft mode disabled during next start', async () => {
         const $ = await next.render$('/')
         expect($('#mode').text()).toBe('DISABLED')
-        expect($('#rand').text()).toBe(initialRand)
+        expect($('#rand').text()).toBe(origRandHome)
+      })
+
+      it('should not read other cookies when draft mode disabled during next start', async () => {
+        const opts = { headers: { Cookie: `data=cool` } }
+        const $ = await next.render$('/with-cookies', {}, opts)
+        expect($('#mode').text()).toBe('DISABLED')
+        expect($('#rand').text()).toBe(origRandWithCookies)
+        expect($('#data').text()).toBe('')
       })
     }
 
@@ -51,13 +69,39 @@ createNextDescribe(
       const opts = { headers: { Cookie } }
       const $ = await next.render$('/', {}, opts)
       expect($('#mode').text()).toBe('ENABLED')
-      expect($('#rand').text()).not.toBe(initialRand)
+      expect($('#rand').text()).not.toBe(origRandHome)
+    })
+
+    it('should read other cookies when draft mode enabled', async () => {
+      const opts = { headers: { Cookie: `${Cookie};data=cool` } }
+      const $ = await next.render$('/with-cookies', {}, opts)
+      expect($('#mode').text()).toBe('ENABLED')
+      expect($('#rand').text()).not.toBe(origRandWithCookies)
+      expect($('#data').text()).toBe('cool')
     })
 
     it('should be enabled from api route handler when draft mode enabled', async () => {
       const opts = { headers: { Cookie } }
       const res = await next.fetch('/state', opts)
       expect(await res.text()).toBe('ENABLED')
+    })
+
+    it('should not perform full page navigation on router.refresh()', async () => {
+      const to = encodeURIComponent('/generate/foo')
+      const browser = await next.browser(`/enable-and-redirect?to=${to}`)
+      await browser.eval('window._test = 42')
+      await browser.elementById('refresh').click()
+
+      const start = Date.now()
+      while (Date.now() - start < 5000) {
+        const value = await browser.eval('window._test')
+        if (value !== 42) {
+          throw new Error('Detected a full page navigation')
+        }
+        await waitFor(200)
+      }
+
+      expect(await browser.eval('window._test')).toBe(42)
     })
   }
 )

@@ -288,7 +288,9 @@ export class IncrementalCache {
       this.fetchCacheKeyPrefix || '',
       url,
       init.method,
-      init.headers,
+      typeof (init.headers || {}).keys === 'function'
+        ? Object.fromEntries(init.headers as Headers)
+        : init.headers,
       init.mode,
       init.redirect,
       init.credentials,

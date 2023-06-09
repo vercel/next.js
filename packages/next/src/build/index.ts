@@ -28,7 +28,7 @@ import {
   PAGES_DIR_ALIAS,
   INSTRUMENTATION_HOOK_FILENAME,
 } from '../lib/constants'
-import { fileExists } from '../lib/file-exists'
+import { FileType, fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
 import loadCustomRoutes, {
   CustomRoutes,
@@ -588,7 +588,7 @@ export default async function build(
           for (const page in mappedPages) {
             const hasPublicPageFile = await fileExists(
               path.join(publicDir, page === '/' ? '/index' : page),
-              'file'
+              FileType.File
             )
             if (hasPublicPageFile) {
               conflictingPublicFiles.push(page)
@@ -712,6 +712,7 @@ export default async function build(
           varyHeader: typeof RSC_VARY_HEADER
         }
         skipMiddlewareUrlNormalize?: boolean
+        caseSensitive?: boolean
       } = nextBuildSpan.traceChild('generate-routes-manifest').traceFn(() => {
         const sortedRoutes = getSortedRoutes([
           ...pageKeys.pages,
@@ -731,6 +732,7 @@ export default async function build(
         return {
           version: 3,
           pages404: true,
+          caseSensitive: !!config.experimental.caseSensitiveRoutes,
           basePath: config.basePath,
           redirects: redirects.map((r: any) => buildCustomRoute(r, 'redirect')),
           headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
@@ -2928,7 +2930,9 @@ export default async function build(
         )
         await promises.writeFile(
           path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
-          `self.__PRERENDER_MANIFEST=${JSON.stringify(prerenderManifest)}`,
+          `self.__PRERENDER_MANIFEST=${JSON.stringify(
+            JSON.stringify(prerenderManifest)
+          )}`,
           'utf8'
         )
         await generateClientSsgManifest(prerenderManifest, {
@@ -2951,7 +2955,9 @@ export default async function build(
         )
         await promises.writeFile(
           path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
-          `self.__PRERENDER_MANIFEST=${JSON.stringify(prerenderManifest)}`,
+          `self.__PRERENDER_MANIFEST=${JSON.stringify(
+            JSON.stringify(prerenderManifest)
+          )}`,
           'utf8'
         )
       }

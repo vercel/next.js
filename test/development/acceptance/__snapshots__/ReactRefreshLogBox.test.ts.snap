@@ -70,32 +70,3 @@ exports[`ReactRefreshLogBox default should strip whitespace correctly with newli
   11 |   click me
   12 | </a>"
 `;
-
-exports[`ReactRefreshLogBox default unterminated JSX 1`] = `
-"./index.js
-Error: 
-  x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
-   ,-[5:1]
- 5 |               <p>lol</p>
- 6 |             div
- 7 |           )
- 8 |         }
-   :         ^
- 9 |       
-   \`----
-
-  x Unexpected eof
-   ,-[6:1]
- 6 |             div
- 7 |           )
- 8 |         }
- 9 |       
-   \`----
-
-Caused by:
-    Syntax Error
-
-Import trace for requested module:
-./index.js
-./pages/index.js"
-`;

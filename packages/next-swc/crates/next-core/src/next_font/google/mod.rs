@@ -406,11 +406,15 @@ async fn get_mock_stylesheet(
             tasks_fs::{DiskFileSystemVc, File, FileSystem},
         },
         turbopack::{
-            core::{context::AssetContext, ident::AssetIdentVc},
+            core::{
+                context::AssetContext,
+                ident::AssetIdentVc,
+                reference_type::{InnerAssetsVc, ReferenceType},
+            },
             ecmascript::{
                 EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc,
             },
-            node::{evaluate::evaluate, execution_context::ExecutionContext},
+            node::{debug::should_debug, evaluate::evaluate, execution_context::ExecutionContext},
             turbopack::evaluate_context::node_evaluate_asset_context,
         },
     };
@@ -440,26 +444,23 @@ async fn get_mock_stylesheet(
     } = *execution_context.await?;
     let context = node_evaluate_asset_context(execution_context, None, None);
     let loader_path = mock_fs.root().join("loader.js");
-    let mocked_response_asset = EcmascriptModuleAssetVc::new(
-        VirtualAssetVc::new(
-            loader_path,
-            File::from(format!(
-                "import data from './{}'; export default function load() {{ return data; }};",
-                response_path
-                    .file_name()
-                    .context("Must exist")?
-                    .to_string_lossy(),
-            ))
+    let mocked_response_asset = context
+        .process(
+            VirtualAssetVc::new(
+                loader_path,
+                File::from(format!(
+                    "import data from './{}'; export default function load() {{ return data; }};",
+                    response_path
+                        .file_name()
+                        .context("Must exist")?
+                        .to_string_lossy(),
+                ))
+                .into(),
+            )
             .into(),
+            Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
         )
-        .into(),
-        context,
-        Value::new(EcmascriptModuleAssetType::Ecmascript),
-        EcmascriptInputTransformsVc::cell(vec![]),
-        Default::default(),
-        context.compile_time_info(),
-    )
-    .into();
+        .into();
 
     let root = mock_fs.root();
     let val = evaluate(
@@ -472,7 +473,7 @@ async fn get_mock_stylesheet(
         None,
         vec![],
         CompletionVc::immutable(),
-        /* debug */ false,
+        should_debug("next_font::google"),
     )
     .await?;
 

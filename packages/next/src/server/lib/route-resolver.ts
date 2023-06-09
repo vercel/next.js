@@ -156,7 +156,7 @@ export async function makeResolver(
     }
 
     type GetEdgeFunctionInfo =
-      typeof DevServer['prototype']['getEdgeFunctionInfo']
+      (typeof DevServer)['prototype']['getEdgeFunctionInfo']
     const getEdgeFunctionInfo = (
       original: GetEdgeFunctionInfo
     ): GetEdgeFunctionInfo => {
@@ -240,7 +240,7 @@ export async function makeResolver(
   return async function resolveRoute(
     _req: IncomingMessage,
     _res: ServerResponse
-  ) {
+  ): Promise<RouteResult | void> {
     const req = new NodeNextRequest(_req)
     const res = new NodeNextResponse(_res)
     const parsedUrl = url.parse(req.url!, true)
@@ -250,15 +250,28 @@ export async function makeResolver(
 
     await router.execute(req, res, parsedUrl)
 
-    if (!res.originalResponse.headersSent) {
-      res.setHeader('x-nextjs-route-result', '1')
-      const routeResult: RouteResult = routeResults.get(req) ?? {
-        type: 'none',
-      }
-
-      res.body(JSON.stringify(routeResult)).send()
+    // If the headers are sent, then this was handled by middleware and there's
+    // nothing for us to do.
+    if (res.originalResponse.headersSent) {
+      return
     }
 
-    routeResults.delete(req)
+    // The response won't be used, but we need to close the request so that the
+    // ClientResponse's promise will resolve. We signal that this response is
+    // unneeded via the header.
+    res.setHeader('x-nextjs-route-result', '1')
+    res.send()
+
+    // If we have a routeResult, then we hit the catchAllRoute during execution
+    // and this is a rewrite request.
+    const routeResult = routeResults.get(req)
+    if (routeResult) {
+      routeResults.delete(req)
+      return routeResult
+    }
+
+    // Finally, if the catchall didn't match, than this request is invalid
+    // (maybe they're missing the basePath?)
+    return { type: 'none' }
   }
 }
