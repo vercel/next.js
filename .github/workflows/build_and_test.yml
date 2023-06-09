@@ -68,6 +68,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
+      needsRust: 'yes'
       skipInstallBuild: 'yes'
       skipNativeBuild: 'yes'
       afterBuild: turbo run test-cargo-unit
@@ -81,6 +82,7 @@ jobs:
     with:
       skipForDocsOnly: 'yes'
       needsNextest: 'yes'
+      needsRust: 'yes'
       skipNativeBuild: 'yes'
       afterBuild: xvfb-run turbo run test-cargo-integration
 
@@ -91,6 +93,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
+      needsRust: 'yes'
       skipNativeBuild: 'yes'
       afterBuild: xvfb-run turbo run test-cargo-bench
 
@@ -101,6 +104,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
+      needsRust: 'yes'
       skipInstallBuild: 'yes'
       skipNativeBuild: 'yes'
       afterBuild: turbo run rust-check
