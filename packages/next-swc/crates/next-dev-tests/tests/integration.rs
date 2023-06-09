@@ -358,9 +358,7 @@ async fn create_browser(is_debugging: bool) -> Result<(Browser, JoinSet<()>)> {
             .with_head()
             .args(vec!["--auto-open-devtools-for-tabs", "--no-sandbox"]);
     } else {
-        config_builder = config_builder
-            .with_head()
-            .args(vec!["--no-sandbox"]);
+        config_builder = config_builder.with_head().args(vec!["--no-sandbox"]);
     }
 
     let (browser, mut handler) = retry_async(
