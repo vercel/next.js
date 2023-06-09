@@ -1,5 +1,6 @@
 import './test'
-import { adapter, enhanceGlobals } from 'next/dist/server/web/adapter'
+import 'next/dist/esm/server/web/globals'
+import { adapter } from 'next/dist/server/web/adapter'
 import { RSC_VARY_HEADER } from 'next/dist/client/components/app-router-headers'
 import { IncrementalCache } from 'next/dist/server/lib/incremental-cache'
 import { renderToHTMLOrFlight } from 'next/dist/server/app-render/app-render'
@@ -10,9 +11,7 @@ import { createManifests, installRequireAndChunkLoad } from './manifest'
 import type { NextRequest, NextFetchEvent } from 'next/server'
 import type { RenderOpts } from 'next/dist/server/app-render/types'
 import type { ParsedUrlQuery } from 'querystring'
-import { WebNextRequest, WebNextResponse } from 'next/dist/server/base-http/web'
 
-enhanceGlobals()
 installRequireAndChunkLoad()
 
 Error.stackTraceLimit = 100
