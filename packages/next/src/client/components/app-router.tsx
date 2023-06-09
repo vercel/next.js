@@ -72,19 +72,11 @@ export function urlToUrlWithoutFlightMarker(url: string): URL {
       if (urlWithoutFlightParameters.pathname.endsWith('/index.txt')) {
         // Slice off `/index.txt` from the end of the pathname
         urlWithoutFlightParameters.pathname =
-          urlWithoutFlightParameters.pathname.slice(
-            0,
-            // 10 is the length of `/index.txt`
-            -10
-          )
+          urlWithoutFlightParameters.pathname.slice(0, -`/index.txt`.length)
       } else {
         // Slice off `.txt` from the end of the pathname
         urlWithoutFlightParameters.pathname =
-          urlWithoutFlightParameters.pathname.slice(
-            0,
-            // 4 is the length of `.txt`
-            -4
-          )
+          urlWithoutFlightParameters.pathname.slice(0, -`.txt`.length)
       }
     }
   }

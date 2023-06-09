@@ -22,7 +22,7 @@ import { PrefetchKind } from './router-reducer-types'
 import { hexHash } from '../../../shared/lib/hash'
 
 type FetchServerResponseResult = [
-  FlightData: FlightData,
+  flightData: FlightData | null,
   canonicalUrlOverride: URL | undefined
 ]
 
