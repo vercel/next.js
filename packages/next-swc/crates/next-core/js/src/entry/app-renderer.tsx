@@ -139,16 +139,24 @@ async function runOperation(renderData: RenderData) {
     ClientReferenceManifest['entryCSSFiles']
   > = {
     get(_target, prop: string) {
-      const cssChunks = JSON.parse(prop.replace(/\.js$/, ''))
-      // TODO(WEB-856) subscribe to changes
+      try {
+        const cssChunks = JSON.parse(prop.replace(/\.js$/, ''))
+        // TODO(WEB-856) subscribe to changes
 
-      // This return value is passed to proxyMethodsNested for clientModules
-      return {
-        modules: [],
-        files: cssChunks
-          .filter(filterAvailable)
-          .map(toPath)
-          .map((chunk: string) => JSON.stringify([chunk, [chunk]])),
+        // This return value is passed to proxyMethodsNested for clientModules
+        return {
+          modules: [],
+          files: cssChunks
+            .filter(filterAvailable)
+            .map(toPath)
+            .map((chunk: string) => JSON.stringify([chunk, [chunk]])),
+        }
+      } catch (err) {
+        console.error('Failed to parse CSS chunks:', err, '\nProp:', prop)
+        return {
+          modules: [],
+          files: [],
+        }
       }
     },
   }
@@ -241,18 +249,6 @@ async function runOperation(renderData: RenderData) {
       }
       return needed
     }
-  }
-  const cssImportProxyMethods = {
-    get(_target: any, prop: string) {
-      const cssChunks = JSON.parse(prop.replace(/\.js$/, ''))
-      // TODO(WEB-856) subscribe to changes
-
-      // This return value is passed to proxyMethodsNested for clientModules
-      return cssChunks
-        .filter(filterAvailable)
-        .map(toPath)
-        .map((chunk: string) => JSON.stringify([chunk, [chunk]]))
-    },
   }
   const manifest: ClientReferenceManifest = new Proxy({} as any, proxyMethods())
 
