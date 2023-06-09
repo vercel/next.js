@@ -347,20 +347,21 @@ pub async fn parse_segment_config_from_loader_tree(
         .try_join()
         .await?;
     for tree in siblings {
-        config.apply_sibling_config(&*tree)?;
+        config.apply_sibling_config(&tree)?;
     }
-    for component in [components.page, components.default, components.layout] {
-        if let Some(component) = component {
-            config.apply_parent_config(
-                &*parse_segment_config_from_source(context.process(
-                    SourceAssetVc::new(component).into(),
-                    turbo_tasks::Value::new(ReferenceType::EcmaScriptModules(
-                        EcmaScriptModulesReferenceSubType::Undefined,
-                    )),
-                ))
-                .await?,
-            );
-        }
+    for component in [components.page, components.default, components.layout]
+        .into_iter()
+        .flatten()
+    {
+        config.apply_parent_config(
+            &*parse_segment_config_from_source(context.process(
+                SourceAssetVc::new(component).into(),
+                turbo_tasks::Value::new(ReferenceType::EcmaScriptModules(
+                    EcmaScriptModulesReferenceSubType::Undefined,
+                )),
+            ))
+            .await?,
+        );
     }
     Ok(config.cell())
 }

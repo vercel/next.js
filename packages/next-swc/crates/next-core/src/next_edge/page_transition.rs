@@ -84,7 +84,7 @@ impl Transition for NextEdgePageTransition {
         };
 
         let asset = ChunkGroupFilesAsset {
-            asset: asset.into(),
+            asset,
             client_root: self.output_path,
             chunking_context: self.edge_chunking_context,
             runtime_entries: None,
