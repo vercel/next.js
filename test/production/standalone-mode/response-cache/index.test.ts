@@ -9,6 +9,7 @@ import {
   findPort,
   renderViaHTTP,
   initNextServerScript,
+  fetchViaHTTP,
 } from 'next-test-utils'
 
 describe('minimal-mode-response-cache', () => {
@@ -78,6 +79,30 @@ describe('minimal-mode-response-cache', () => {
   afterAll(async () => {
     await next.destroy()
     if (server) await killApp(server)
+  })
+
+  it('app router revalidate should work with previous response cache', async () => {
+    const res1 = await fetchViaHTTP(appPort, '/app-blog.rsc', undefined, {
+      headers: {
+        'x-matched-path': '/app-blog.rsc',
+        RSC: '1',
+      },
+    })
+    const content1 = await res1.text()
+    expect(content1).not.toContain('<html')
+    expect(content1).toContain('app-blog')
+    expect(res1.headers.get('content-type')).toContain('text/x-component')
+
+    const res2 = await fetchViaHTTP(appPort, '/app-blog', undefined, {
+      headers: {
+        'x-matched-path': '/app-blog.rsc',
+        RSC: '1',
+      },
+    })
+    const content2 = await res2.text()
+    expect(content2).toContain('<html')
+    expect(content2).toContain('app-blog')
+    expect(res2.headers.get('content-type')).toContain('text/html')
   })
 
   it('should have correct "Listening on" log', async () => {

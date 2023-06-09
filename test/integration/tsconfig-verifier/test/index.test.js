@@ -298,10 +298,7 @@ describe('tsconfig.json verifier', () => {
     `)
   })
 
-  // TODO-APP: Re-enable this test. Currently fails with the following message:
-  // Type error: Layout "app/layout.jsx" does not match the required types of a Next.js Layout.
-  // Invalid configuration "default":
-  it.skip('allows you to set node16 moduleResolution mode', async () => {
+  it('allows you to set node16 moduleResolution mode', async () => {
     expect(await exists(tsConfig)).toBe(false)
 
     await writeFile(
@@ -321,6 +318,62 @@ describe('tsconfig.json verifier', () => {
         \\"compilerOptions\\": {
           \\"esModuleInterop\\": true,
           \\"moduleResolution\\": \\"node16\\",
+          \\"lib\\": [
+            \\"dom\\",
+            \\"dom.iterable\\",
+            \\"esnext\\"
+          ],
+          \\"allowJs\\": true,
+          \\"skipLibCheck\\": true,
+          \\"strict\\": false,
+          \\"forceConsistentCasingInFileNames\\": true,
+          \\"noEmit\\": true,
+          \\"incremental\\": true,
+          \\"module\\": \\"esnext\\",
+          \\"resolveJsonModule\\": true,
+          \\"isolatedModules\\": true,
+          \\"jsx\\": \\"preserve\\",
+          \\"plugins\\": [
+            {
+              \\"name\\": \\"next\\"
+            }
+          ],
+          \\"strictNullChecks\\": true
+        },
+        \\"include\\": [
+          \\"next-env.d.ts\\",
+          \\".next/types/**/*.ts\\",
+          \\"**/*.ts\\",
+          \\"**/*.tsx\\"
+        ],
+        \\"exclude\\": [
+          \\"node_modules\\"
+        ]
+      }
+      "
+    `)
+  })
+
+  it('allows you to set bundler moduleResolution mode', async () => {
+    expect(await exists(tsConfig)).toBe(false)
+
+    await writeFile(
+      tsConfig,
+      `{ "compilerOptions": { "esModuleInterop": false, "moduleResolution": "bundler" } }`
+    )
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    const { code, stderr, stdout } = await nextBuild(appDir, undefined, {
+      stderr: true,
+      stdout: true,
+    })
+    expect(stderr + stdout).not.toContain('moduleResolution')
+    expect(code).toBe(0)
+
+    expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+      "{
+        \\"compilerOptions\\": {
+          \\"esModuleInterop\\": true,
+          \\"moduleResolution\\": \\"bundler\\",
           \\"lib\\": [
             \\"dom\\",
             \\"dom.iterable\\",
@@ -411,10 +464,7 @@ describe('tsconfig.json verifier', () => {
     `)
   })
 
-  // TODO-APP: Re-enable this test. Currently fails with the following message:
-  // Type error: Layout "app/layout.jsx" does not match the required types of a Next.js Layout.
-  // Invalid configuration "default":
-  it.skip('allows you to set node16 module mode', async () => {
+  it('allows you to set node16 module mode', async () => {
     expect(await exists(tsConfig)).toBe(false)
 
     await writeFile(
