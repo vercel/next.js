@@ -28,7 +28,25 @@ If you're new to GitHub, we recommend reading the [GitHub Open Source Guide](htt
 
 The docs are written in [MDX](https://mdxjs.com/), a markdown format that supports JSX syntax. This allows us to embed React components in the docs. See the [GitHub Markdown Guide](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax) for a quick overview of markdown syntax.
 
-### VSCode Extensions
+### VSCode
+
+#### Previewing Changes Locally
+
+VSCode has a built-in markdown previewer that you can use to see your edits locally. To enable the previewer for MDX files, you'll need to add a configuration option to your user settings.
+
+Open the command pallete (`⌘ + ⇧ + P` on Mac or `Ctrl+Shift+P` on Windows) and search from `Preferences: Open User Settings (JSON)`.
+
+Then, add the following line to your `settings.json` file:
+
+```json filename="settings.json"
+"files.associations": {
+    "*.mdx": "markdown"
+  }
+```
+
+Next, open the command palette again, and search for `Markdown: Preview File` or `Markdown: Open Preview to the Side`. This will open a preview window where you can see your formatted changes.
+
+#### Extensions
 
 Although you can use any code editor to write MDX, we recommend the following extensions for VSCode users:
 
