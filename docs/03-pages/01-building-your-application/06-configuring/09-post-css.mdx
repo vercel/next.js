@@ -42,7 +42,7 @@ See ["Customizing Plugins"](#customizing-plugins) below for more information.
 <details>
 <summary><strong>Click to view the configuration to enable CSS Grid Layout</strong></summary>
 
-```json
+```json filename="postcss.config.json"
 {
   "plugins": [
     "postcss-flexbugs-fixes",
@@ -74,7 +74,7 @@ Next.js allows you to configure the target browsers (for [Autoprefixer](https://
 
 To customize browserslist, create a `browserslist` key in your `package.json` like so:
 
-```json
+```json filename="package.json"
 {
   "browserslist": [">0.3%", "not dead", "not op_mini all"]
 }

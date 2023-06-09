@@ -39,12 +39,14 @@ npm install --save-dev cypress
 
 Add Cypress to the `package.json` scripts field:
 
-```json
-"scripts": {
-  "dev": "next dev",
-  "build": "next build",
-  "start": "next start",
-  "cypress": "cypress open",
+```json filename="package.json"
+{
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "cypress": "cypress open"
+  }
 }
 ```
 
@@ -155,13 +157,14 @@ Run `npm run cypress -- --component` to start Cypress and execute your component
 You will have noticed that running Cypress so far has opened an interactive browser which is not ideal for CI environments. You can also run Cypress headlessly using the `cypress run` command:
 
 ```json filename="package.json"
-
-"scripts": {
-  //...
-  "e2e": "start-server-and-test dev http://localhost:3000 \"cypress open --e2e\"",
-  "e2e:headless": "start-server-and-test dev http://localhost:3000 \"cypress run --e2e\"",
-  "component": "cypress open --component",
-  "component:headless": "cypress run --component"
+{
+  "scripts": {
+    //...
+    "e2e": "start-server-and-test dev http://localhost:3000 \"cypress open --e2e\"",
+    "e2e:headless": "start-server-and-test dev http://localhost:3000 \"cypress run --e2e\"",
+    "component": "cypress open --component",
+    "component:headless": "cypress run --component"
+  }
 }
 ```
 
@@ -195,12 +198,14 @@ npm install --save-dev @playwright/test
 
 Add Playwright to the `package.json` scripts field:
 
-```json
-"scripts": {
-  "dev": "next dev",
-  "build": "next build",
-  "start": "next start",
-  "test:e2e": "playwright test",
+```json filename="package.json"
+{
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test:e2e": "playwright test"
+  }
 }
 ```
 
@@ -436,7 +441,7 @@ If you need to add more setup options before each test, it's common to add them 
 
 If your project is using [Module Path Aliases](/docs/pages/building-your-application/configuring/absolute-imports-and-module-aliases), you will need to configure Jest to resolve the imports by matching the paths option in the `jsconfig.json` file with the `moduleNameMapper` option in the `jest.config.js` file. For example:
 
-```json filename="tsconfig.json" or jsconfig.json
+```json filename="tsconfig.json or jsconfig.json"
 {
   "compilerOptions": {
     "baseUrl": ".",
@@ -459,12 +464,14 @@ moduleNameMapper: {
 
 Add the Jest executable in watch mode to the `package.json` scripts:
 
-```json
-"scripts": {
-  "dev": "next dev",
-  "build": "next build",
-  "start": "next start",
-  "test": "jest --watch"
+```json filename="package.json"
+{
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "jest --watch"
+  }
 }
 ```
 
