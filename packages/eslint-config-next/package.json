@@ -8,7 +8,7 @@
     "url": "vercel/next.js",
     "directory": "packages/eslint-config-next"
   },
-  "homepage": "https://nextjs.org/docs/pages/building-your-application/configuring/eslint#eslint-config",
+  "homepage": "https://nextjs.org/docs/app/building-your-application/configuring/eslint#eslint-config",
   "dependencies": {
     "@next/eslint-plugin-next": "13.4.5-canary.9",
     "@rushstack/eslint-patch": "^1.1.3",
