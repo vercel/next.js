@@ -470,27 +470,25 @@ describe('tsconfig.json verifier', () => {
     `)
   })
 
-  it('does not add `isolatedModules: true` when `verbatimModuleSyntax: true` is set', async () => {
+  it('allows you to set verbatimModuleSyntax true without adding isolatedModules', async () => {
     expect(await exists(tsConfig)).toBe(false)
 
     await writeFile(
       tsConfig,
-      `{ "compilerOptions": { "verbatimModuleSyntax": true} }`
+      `{ "compilerOptions": { "verbatimModuleSyntax": true } }`
     )
     await new Promise((resolve) => setTimeout(resolve, 500))
     const { code, stderr, stdout } = await nextBuild(appDir, undefined, {
       stderr: true,
       stdout: true,
     })
-    expect(stderr + stdout).not.toContain('moduleResolution')
+    expect(stderr + stdout).not.toContain('isolatedModules')
     expect(code).toBe(0)
 
     expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
       "{
         \\"compilerOptions\\": {
-          \\"esModuleInterop\\": true,
-          \\"module\\": \\"node16\\",
-          \\"moduleResolution\\": \\"node16\\",
+          \\"verbatimModuleSyntax\\": true,
           \\"lib\\": [
             \\"dom\\",
             \\"dom.iterable\\",
@@ -502,12 +500,21 @@ describe('tsconfig.json verifier', () => {
           \\"forceConsistentCasingInFileNames\\": true,
           \\"noEmit\\": true,
           \\"incremental\\": true,
+          \\"esModuleInterop\\": true,
+          \\"module\\": \\"esnext\\",
+          \\"moduleResolution\\": \\"node\\",
           \\"resolveJsonModule\\": true,
-          \\"verbatimModuleSyntax\\": true,
-          \\"jsx\\": \\"preserve\\"
+          \\"jsx\\": \\"preserve\\",
+          \\"plugins\\": [
+            {
+              \\"name\\": \\"next\\"
+            }
+          ],
+          \\"strictNullChecks\\": true
         },
         \\"include\\": [
           \\"next-env.d.ts\\",
+          \\".next/types/**/*.ts\\",
           \\"**/*.ts\\",
           \\"**/*.tsx\\"
         ],

@@ -74,7 +74,6 @@ function getDesiredCompilerOptions(
       reason: 'to match webpack resolution',
     },
     resolveJsonModule: { value: true, reason: 'to match webpack resolution' },
-    // @ts-ignore - need to upgrade to typescript@5
     ...(userTsConfig?.compilerOptions?.verbatimModuleSyntax === true
       ? undefined
       : {
