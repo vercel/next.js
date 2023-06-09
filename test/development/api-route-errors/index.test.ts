@@ -1,8 +1,10 @@
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { check, renderViaHTTP } from 'next-test-utils'
+import { check, renderViaHTTP, shouldRunTurboDevTest } from 'next-test-utils'
 import { join } from 'path'
+
+const isTurbo = shouldRunTurboDevTest()
 
 describe('api-route-errors cli output', () => {
   let next: NextInstance
@@ -24,9 +26,15 @@ describe('api-route-errors cli output', () => {
 
     const output = stripAnsi(next.cliOutput.slice(outputIndex))
     // Location
-    expect(output).toContain('- error pages/api/error.js (2:8) @ error')
+    if (!isTurbo) {
+      expect(output).toContain('- error pages/api/error.js (2:8) @ error')
+    }
     // Stack
-    expect(output).toContain('pages/api/error.js:6:11')
+    if (isTurbo) {
+      expect(output).toContain('at error (pages/api/error.js:2:9)')
+    } else {
+      expect(output).toContain('pages/api/error.js:6:11')
+    }
     // Source code
     expect(output).toContain('1 | export default function error(req, res) {')
   })
@@ -38,11 +46,19 @@ describe('api-route-errors cli output', () => {
 
     const output = stripAnsi(next.cliOutput.slice(outputIndex))
     // Location
-    expect(output).toContain(
-      '- error pages/api/uncaught-exception.js (3:10) @ Timeout'
-    )
+    if (!isTurbo) {
+      expect(output).toContain(
+        '- error pages/api/uncaught-exception.js (3:10) @ Timeout'
+      )
+    }
     // Stack
-    expect(output).toContain('pages/api/uncaught-exception.js:7:15')
+    if (isTurbo) {
+      expect(output).toContain(
+        'at Timeout._onTimeout (pages/api/uncaught-exception.js:3:11)'
+      )
+    } else {
+      expect(output).toContain('pages/api/uncaught-exception.js:7:15')
+    }
     // Source code
     expect(output).toContain(
       '1 | export default function uncaughtException(req, res) {'
@@ -56,11 +72,19 @@ describe('api-route-errors cli output', () => {
 
     const output = stripAnsi(next.cliOutput.slice(outputIndex))
     // Location
-    expect(output).toContain(
-      '- error pages/api/unhandled-rejection.js (2:17) @ unhandledRejection'
-    )
+    if (!isTurbo) {
+      expect(output).toContain(
+        '- error pages/api/unhandled-rejection.js (2:17) @ unhandledRejection'
+      )
+    }
     // Stack
-    expect(output).toContain('pages/api/unhandled-rejection.js:6:20')
+    if (isTurbo) {
+      expect(output).toContain(
+        'at unhandledRejection (pages/api/unhandled-rejection.js:2:18)'
+      )
+    } else {
+      expect(output).toContain('pages/api/unhandled-rejection.js:6:20')
+    }
     // Source code
     expect(output).toContain(
       '1 | export default function unhandledRejection(req, res) '
