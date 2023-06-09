@@ -35,6 +35,7 @@ use next_dev::{EntryRequest, NextDevServerBuilder};
 use owo_colors::OwoColorize;
 use regex::{Captures, Regex, Replacer};
 use serde::Deserialize;
+use tempdir::TempDir;
 use tokio::{
     net::TcpSocket,
     sync::mpsc::{unbounded_channel, UnboundedSender},
@@ -351,14 +352,15 @@ async fn run_test(resource: PathBuf) -> JsResult {
     result
 }
 
-async fn create_browser(is_debugging: bool) -> Result<(Browser, JoinSet<()>)> {
+async fn create_browser(is_debugging: bool) -> Result<(Browser, TempDir, JoinSet<()>)> {
     let mut config_builder = BrowserConfig::builder();
+    config_builder = config_builder.no_sandbox();
+    let tmp = TempDir::new("chromiumoxid").unwrap();
+    config_builder = config_builder.user_data_dir(&tmp);
     if is_debugging {
         config_builder = config_builder
             .with_head()
-            .args(vec!["--auto-open-devtools-for-tabs", "--no-sandbox"]);
-    } else {
-        config_builder = config_builder.with_head().args(vec!["--no-sandbox"]);
+            .args(vec!["--auto-open-devtools-for-tabs"]);
     }
 
     let (browser, mut handler) = retry_async(
@@ -388,7 +390,7 @@ async fn create_browser(is_debugging: bool) -> Result<(Browser, JoinSet<()>)> {
         }
     });
 
-    Ok((browser, set))
+    Ok((browser, tmp, set))
 }
 
 const TURBOPACK_READY_BINDING: &str = "TURBOPACK_READY";
@@ -402,7 +404,7 @@ const BINDINGS: [&str; 3] = [
 
 async fn run_browser(addr: SocketAddr, project_dir: &Path) -> Result<JsResult> {
     let is_debugging = *DEBUG_BROWSER;
-    let (browser, mut handle) = create_browser(is_debugging).await?;
+    let (browser, _tmp, mut handle) = create_browser(is_debugging).await?;
 
     // `browser.new_page()` opens a tab, navigates to the destination, and waits for
     // the page to load. chromiumoxide/Chrome DevTools Protocol has been flakey,
