@@ -54,7 +54,7 @@ export async function clearModuleContext(
 ) {
   const handleContext = (
     key: string,
-    cache: ReturnType<typeof moduleContexts['get']>,
+    cache: ReturnType<(typeof moduleContexts)['get']>,
     context: typeof moduleContexts | typeof pendingModuleCaches
   ) => {
     const prev = cache?.paths.get(path)?.replace(WEBPACK_HASH_REGEX, '')
@@ -161,7 +161,7 @@ function getDecorateUnhandledRejection(runtime: EdgeRuntime) {
 
 const NativeModuleMap = (() => {
   const mods: Record<
-    `node:${typeof SUPPORTED_NATIVE_MODULES[number]}`,
+    `node:${(typeof SUPPORTED_NATIVE_MODULES)[number]}`,
     unknown
   > = {
     'node:buffer': pick(BufferImplementation, [
