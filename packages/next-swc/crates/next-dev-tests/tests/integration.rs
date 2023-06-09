@@ -51,7 +51,7 @@ use turbopack_binding::{
         },
         tasks_fs::{DiskFileSystemVc, FileSystem, FileSystemPathVc},
         tasks_memory::MemoryBackend,
-        tasks_testing::retry::{retry, retry_async},
+        tasks_testing::retry::retry_async,
     },
     turbopack::{
         core::issue::{
@@ -312,7 +312,7 @@ async fn run_test(resource: PathBuf) -> JsResult {
         panic!("Never resolves")
     }
 
-    let mut result = tokio::select! {
+    let result = tokio::select! {
         // Poll the mock_server first to add the env var
         _ = mock_server_future => panic!("Never resolves"),
         r = run_browser(local_addr, &project_dir) => r.expect("error while running browser"),
