@@ -5,7 +5,7 @@ import { describeVariants as describe } from 'next-test-utils'
 import path from 'path'
 import { outdent } from 'outdent'
 
-describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
+describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', (variant) => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
@@ -64,7 +64,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       await session.evaluate(() => document.querySelector('h1').textContent)
     ).toBe('Default Export')
 
-    // Add a throw in module init phase:
+    // Add a `throw` in module init phase:
     await session.patch(
       'index.js',
       outdent`
@@ -81,7 +81,14 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     )
 
     expect(await session.hasRedbox(true)).toBe(true)
-    expect(await session.getRedboxSource()).toMatchSnapshot()
+    if (variant === 'default') {
+      expect(await session.getRedboxSource()).toMatchSnapshot()
+    } else {
+      // can't use a snapshot because we currently display the whole stack trace in the turbopack error overlay.
+      expect(await session.getRedboxSource()).toContain(
+        'return <h1>Default Export</h1>;'
+      )
+    }
 
     await cleanup()
   })
@@ -162,7 +169,8 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       outdent`
         export default function FunctionNamed() {
           return <div>{{}}</div>
-        }`
+        }
+      `
     )
 
     expect(await session.hasRedbox(true)).toBe(true)
@@ -210,35 +218,52 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     expect(await session.hasRedbox(true)).toBe(true)
 
     const source = await session.getRedboxSource()
-    expect(next.normalizeTestDirContent(source)).toMatchInlineSnapshot(
-      next.normalizeSnapshot(`
-        "./index.js
-        Error: 
-          x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
-           ,-[TEST_DIR/index.js:4:1]
-         4 |       <p>lol</p>
-         5 |     div
-         6 |   )
-         7 | }
-           : ^
-           \`----
-
-          x Unexpected eof
-           ,-[TEST_DIR/index.js:4:1]
-         4 |       <p>lol</p>
-         5 |     div
-         6 |   )
-         7 | }
-           \`----
-
-        Caused by:
-            Syntax Error
-
-        Import trace for requested module:
-        ./index.js
-        ./pages/index.js"
+    if (variant === 'default') {
+      expect(next.normalizeTestDirContent(source)).toMatchInlineSnapshot(
+        next.normalizeSnapshot(`
+          "./index.js
+          Error: 
+            x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
+             ,-[TEST_DIR/index.js:4:1]
+           4 |       <p>lol</p>
+           5 |     div
+           6 |   )
+           7 | }
+             : ^
+             \`----
+  
+            x Unexpected eof
+             ,-[TEST_DIR/index.js:4:1]
+           4 |       <p>lol</p>
+           5 |     div
+           6 |   )
+           7 | }
+             \`----
+  
+          Caused by:
+              Syntax Error
+  
+          Import trace for requested module:
+          ./index.js
+          ./pages/index.js"
+        `)
+      )
+    } else {
+      expect(next.normalizeTestDirContent(source)).toMatchInlineSnapshot(`
+        "error - [parse] [project]/index.js  /index.js:7:1  Parsing ecmascript source code failed
+               3 |     <div>
+               4 |       <p>lol</p>
+               5 |     div
+               6 |   )
+                 +  v
+               7 + }
+                 +  ^
+          
+          Unexpected eof
+          
+        "
       `)
-    )
+    }
 
     await cleanup()
   })
@@ -334,18 +359,31 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     // Syntax error
     await session.patch('index.module.css', `.button {`)
     expect(await session.hasRedbox(true)).toBe(true)
+
     const source = await session.getRedboxSource()
-    expect(source).toMatch('./index.module.css:1:1')
-    expect(source).toMatch('Syntax error: ')
-    expect(source).toMatch('Unclosed block')
-    expect(source).toMatch('> 1 | .button {')
-    expect(source).toMatch('    | ^')
+    if (variant === 'default') {
+      expect(source).toMatch('./index.module.css:1:1')
+      expect(source).toMatch('Syntax error: ')
+      expect(source).toMatch('Unclosed block')
+      expect(source).toMatch('> 1 | .button {')
+      expect(source).toMatch('    | ^')
+    } else {
+      expect(source).toMatch('/index.module.css:1:8')
+      expect(source).toMatch('Parsing css source code failed')
+      expect(source).toMatch('1 + .button {')
+      expect(source).toMatch('  +         ^')
+      expect(source).toMatch("Unexpected end of file, but expected '}'")
+    }
 
     // Not local error
-    await session.patch('index.module.css', `button {}`)
-    expect(await session.hasRedbox(true)).toBe(true)
-    const source2 = await session.getRedboxSource()
-    expect(source2).toMatchSnapshot()
+    if (variant === 'default') {
+      await session.patch('index.module.css', `button {}`)
+      expect(await session.hasRedbox(true)).toBe(true)
+      const source2 = await session.getRedboxSource()
+      expect(source2).toMatchSnapshot()
+    } else {
+      // TODO(WEB-XXX): implement for turbopack
+    }
 
     await cleanup()
   })
@@ -617,6 +655,13 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
   test('non-Error errors are handled properly', async () => {
     const { session, cleanup } = await sandbox(next)
 
+    // TODO: turbopack should also display it in the description
+    function getErrorText() {
+      return variant === 'turbo'
+        ? session.getRedboxSource()
+        : session.getRedboxDescription()
+    }
+
     await session.patch(
       'index.js',
       outdent`
@@ -630,9 +675,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     )
 
     expect(await session.hasRedbox(true)).toBe(true)
-    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
-      `"Error: {\\"a\\":1,\\"b\\":\\"x\\"}"`
-    )
+    expect(await getErrorText()).toContain(`Error: {"a":1,"b":"x"}`)
 
     // fix previous error
     await session.patch(
@@ -660,9 +703,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       `
     )
     expect(await session.hasRedbox(true)).toBe(true)
-    expect(await session.getRedboxDescription()).toContain(
-      `Error: class Hello {`
-    )
+    expect(await getErrorText()).toContain(`Error: class Hello {`)
 
     // fix previous error
     await session.patch(
@@ -688,9 +729,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       `
     )
     expect(await session.hasRedbox(true)).toBe(true)
-    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
-      `"Error: string error"`
-    )
+    expect(await getErrorText()).toContain(`Error: string error`)
 
     // fix previous error
     await session.patch(
@@ -716,9 +755,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       `
     )
     expect(await session.hasRedbox(true)).toBe(true)
-    expect(await session.getRedboxDescription()).toContain(
-      `Error: A null error was thrown`
-    )
+    expect(await getErrorText()).toContain(`Error: A null error was thrown`)
 
     await cleanup()
   })
