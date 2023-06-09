@@ -16,7 +16,8 @@ Or, [update your component to use local CSS (Component-Level CSS) via CSS Module
 
 Consider the stylesheet named [`styles.css`](https://nextjs.org/docs/basic-features/built-in-css-support#adding-a-global-stylesheet)
 
-```css filename="styles.css"
+```css
+/* styles.css */
 body {
   font-family: 'SF Pro Text', 'SF Pro Icons', 'Helvetica Neue', 'Helvetica',
     'Arial', sans-serif;
@@ -28,7 +29,8 @@ body {
 
 Create a [`pages/_app.js` file](https://nextjs.org/docs/advanced-features/custom-app) if not already present. Then [`import`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import) the [`styles.css` file](https://nextjs.org/docs/basic-features/built-in-css-support#adding-a-global-stylesheet).
 
-```jsx filename="pages/_app.jsx"
+```jsx
+// pages/_app.js
 import '../styles.css'
 
 export default function MyApp({ Component, pageProps }) {
