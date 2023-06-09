@@ -368,7 +368,7 @@ Route Handlers can use [Dynamic Segments](/docs/app/building-your-application/ro
 ```ts filename="app/items/[slug]/route.ts" switcher
 export async function GET(
   request: Request,
-  { params }: { params: { slug: string }}
+  { params }: { params: { slug: string } }
 ) {
   const slug = params.slug // 'a', 'b', or 'c'
 }
