@@ -151,9 +151,11 @@ export async function renderResultToResponse(
     throw new NotFoundError(metadata)
   }
 
-  // Get and set the content type on the response.
-  const contentType = result.contentType() || 'text/html; charset=utf-8'
-  headers.set('Content-Type', contentType)
+  // Update the content type if the response doesn't already have one.
+  if (!headers.has('Content-Type')) {
+    const contentType = result.contentType() || 'text/html; charset=utf-8'
+    headers.set('Content-Type', contentType)
+  }
 
   // If the response has a body and it's a stream, then we can pipe the stream
   // directly to the response later.
