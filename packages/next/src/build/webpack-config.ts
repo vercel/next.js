@@ -903,10 +903,7 @@ export default async function getBaseWebpackConfig(
       // for middleware to tree shake the unused default optimized imports like "next/server".
       // This will cause some performance overhead but
       // acceptable as Babel will not be recommended.
-      [
-        getSwcLoader({ hasServerComponents: false }),
-        getBabelLoader(),
-      ]
+      [getSwcLoader({ hasServerComponents: false }), getBabelLoader()]
 
   // Loader for API routes needs to be differently configured as it shouldn't
   // have RSC transpiler enabled, so syntax checks such as invalid imports won't
