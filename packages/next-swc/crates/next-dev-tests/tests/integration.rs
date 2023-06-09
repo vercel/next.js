@@ -404,8 +404,10 @@ const BINDINGS: [&str; 3] = [
 
 async fn run_browser(addr: SocketAddr, project_dir: &Path) -> Result<JsResult> {
     let is_debugging = *DEBUG_BROWSER;
+    println!("starting browser...");
     let (browser, _tmp, mut handle) = create_browser(is_debugging).await?;
 
+    println!("open about:blank...");
     // `browser.new_page()` opens a tab, navigates to the destination, and waits for
     // the page to load. chromiumoxide/Chrome DevTools Protocol has been flakey,
     // returning `ChannelSendError`s (WEB-259). Retry if necessary.
@@ -439,10 +441,12 @@ async fn run_browser(addr: SocketAddr, project_dir: &Path) -> Result<JsResult> {
         .await
         .context("Unable to listen to response received events")?;
 
+    println!("start navigating to http://{addr}...");
     page.evaluate_expression(format!("window.location='http://{addr}'"))
         .await
         .context("Unable to evaluate javascript to naviagate to target page")?;
 
+    println!("waiting for navigation...");
     // Wait for the next network response event
     // This is the HTML page that we're testing
     network_response_events.next().await.context(
