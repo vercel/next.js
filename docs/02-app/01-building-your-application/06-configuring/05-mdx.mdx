@@ -103,7 +103,7 @@ export default function Page() {
 }
 ```
 
-```jsx filename="app/page.js" switcher
+```jsx filename="app/page.jsx" switcher
 import HelloWorld from './hello.mdx'
 
 export default function Page() {
@@ -198,7 +198,7 @@ export default async function Home() {
 }
 ```
 
-```jsx filename="app/page.js" switcher
+```jsx filename="app/page.jsx" switcher
 import { MDXRemote } from 'next-mdx-remote/rsc'
 
 export default async function Home() {
@@ -313,7 +313,7 @@ const withMDX = require('@next/mdx')({
 
 Then setup the provider in your page
 
-```jsx filename="pages/index.js"
+```jsx filename="pages/index.jsx"
 
 import { MDXProvider } from '@mdx-js/react'
 import Image from 'next/image'
@@ -349,7 +349,7 @@ React does not natively understand Markdown. The markdown plaintext needs to fir
 
 `remark` is an ecosystem of tools around markdown. `rehype` is the same, but for HTML. For example, the following code snippet transforms markdown into HTML:
 
-```jsx
+```js
 import { unified } from 'unified'
 import remarkParse from 'remark-parse'
 import remarkRehype from 'remark-rehype'

@@ -5,7 +5,7 @@ description: API reference for the generateStaticParams function.
 
 The `generateStaticParams` function can be used in combination with [dynamic route segments](/docs/app/building-your-application/routing/dynamic-routes) to [**statically generate**](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#static-rendering-default) routes at build time instead of on-demand at request time.
 
-```jsx filename="app/blog/[slug]/page.js"
+```jsx filename="app/blog/[slug]/page.jsx"
 // Return a list of `params` to populate the [slug] dynamic segment
 export async function generateStaticParams() {
   const posts = await fetch('https://.../posts').then((res) => res.json())
@@ -70,7 +70,7 @@ export default function Page({ params }: { params: { id: string } }) {
 }
 ```
 
-```jsx filename="app/product/[id]/page.js" switcher
+```jsx filename="app/product/[id]/page.jsx" switcher
 export function generateStaticParams() {
   return [{ id: '1' }, { id: '2' }, { id: '3' }]
 }
@@ -112,7 +112,7 @@ export default function Page({
 }
 ```
 
-```jsx filename="app/products/[category]/[product]/page.js" switcher
+```jsx filename="app/products/[category]/[product]/page.jsx" switcher
 export function generateStaticParams() {
   return [
     { category: 'a', product: '1' },
@@ -150,7 +150,7 @@ export default function Page({ params }: { params: { slug: string[] } }) {
 }
 ```
 
-```jsx filename="app/product/[...slug]/page.js" switcher
+```jsx filename="app/product/[...slug]/page.jsx" switcher
 export function generateStaticParams() {
   return [{ slug: ['a', '1'] }, { slug: ['b', '2'] }, { slug: ['c', '3'] }]
 }
@@ -201,7 +201,7 @@ export default function Page({
 }
 ```
 
-```jsx filename="app/products/[category]/[product]/page.js" switcher
+```jsx filename="app/products/[category]/[product]/page.jsx" switcher
 // Generate segments for both [category] and [product]
 export async function generateStaticParams() {
   const products = await fetch('https://.../products').then((res) => res.json())
@@ -236,7 +236,7 @@ export default function Layout({ params }: { params: { category: string } }) {
 }
 ```
 
-```jsx filename="app/products/[category]/layout.js" switcher
+```jsx filename="app/products/[category]/layout.jsx" switcher
 // Generate segments for [category]
 export async function generateStaticParams() {
   const products = await fetch('https://.../products').then((res) => res.json())
@@ -281,7 +281,7 @@ export default function Page({
 }
 ```
 
-```jsx filename="app/products/[category]/[product]/page.js" switcher
+```jsx filename="app/products/[category]/[product]/page.jsx" switcher
 // Generate segments for [product] using the `params` passed from
 // the parent segment's `generateStaticParams` function
 export async function generateStaticParams({ params: { category } }) {

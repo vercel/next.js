@@ -211,7 +211,7 @@ const inter = Inter({
 })
 ```
 
-```jsx filename="app/page.js" switcher
+```jsx filename="app/page.jsx" switcher
 import { Inter } from 'next/font/google'
 import styles from '../styles/component.module.css'
 
@@ -228,7 +228,7 @@ To use the font, set the `className` of the parent container of the text you wou
 </main>
 ```
 
-```jsx filename="app/page.js" switcher
+```jsx filename="app/page.jsx" switcher
 <main className={inter.variable}>
   <p className={styles.text}>Hello World</p>
 </main>
@@ -305,7 +305,7 @@ export default function Page() {
 }
 ```
 
-```jsx filename="app/page.js" switcher
+```jsx filename="app/page.jsx" switcher
 import { inter, lora, sourceCodePro700, greatVibes } from '../styles/fonts'
 
 export default function Page() {
@@ -340,7 +340,7 @@ You can now import any font definition as follows:
 import { greatVibes, sourceCodePro400 } from '@/fonts'
 ```
 
-```jsx filename="app/about/page.js" switcher
+```jsx filename="app/about/page.jsx" switcher
 import { greatVibes, sourceCodePro400 } from '@/fonts'
 ```
 

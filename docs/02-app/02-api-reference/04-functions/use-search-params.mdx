@@ -23,7 +23,7 @@ export default function SearchBar() {
 }
 ```
 
-```js filename="app/dashboard/search-bar.js" switcher
+```jsx filename="app/dashboard/search-bar.jsx" switcher
 'use client'
 
 import { useSearchParams } from 'next/navigation'
@@ -101,7 +101,7 @@ export default function SearchBar() {
 }
 ```
 
-```js filename="app/dashboard/search-bar.js" switcher
+```jsx filename="app/dashboard/search-bar.jsx" switcher
 'use client'
 
 import { useSearchParams } from 'next/navigation'
@@ -144,7 +144,7 @@ export default function Page() {
 }
 ```
 
-```js filename="app/dashboard/page.js" switcher
+```jsx filename="app/dashboard/page.jsx" switcher
 import { Suspense } from 'react'
 import SearchBar from './search-bar'
 
@@ -196,7 +196,7 @@ export default function SearchBar() {
 }
 ```
 
-```js filename="app/dashboard/search-bar.js" switcher
+```jsx filename="app/dashboard/search-bar.jsx" switcher
 'use client'
 
 import { useSearchParams } from 'next/navigation'
@@ -231,7 +231,7 @@ export default function Page() {
 }
 ```
 
-```js filename="app/dashboard/page.js" switcher
+```jsx filename="app/dashboard/page.jsx" switcher
 import SearchBar from './search-bar'
 
 export const dynamic = 'force-dynamic'
@@ -312,7 +312,7 @@ export default function ExampleClientComponent() {
 }
 ```
 
-```jsx filename="app/example-client-component.js" switcher
+```jsx filename="app/example-client-component.jsx" switcher
 export default function ExampleClientComponent() {
   const router = useRouter()
   const pathname = usePathname()

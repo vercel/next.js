@@ -12,18 +12,18 @@ import { usePathname } from 'next/navigation'
 
 export default function ExampleClientComponent() {
   const pathname = usePathname()
-  return <>Current pathname: {pathname}</>
+  return <p>Current pathname: {pathname}</p>
 }
 ```
 
-```jsx filename="app/example-client-component.js" switcher
+```jsx filename="app/example-client-component.jsx" switcher
 'use client'
 
 import { usePathname } from 'next/navigation'
 
 export default function ExampleClientComponent() {
   const pathname = usePathname()
-  return <>Current pathname: {pathname}</>
+  return <p>Current pathname: {pathname}</p>
 }
 ```
 
@@ -71,7 +71,7 @@ function ExampleClientComponent() {
 }
 ```
 
-```jsx filename="app/example-client-component.js" switcher
+```jsx filename="app/example-client-component.jsx" switcher
 'use client'
 
 import { usePathname, useSearchParams } from 'next/navigation'

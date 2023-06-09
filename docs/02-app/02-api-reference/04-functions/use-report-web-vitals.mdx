@@ -7,7 +7,7 @@ The `useReportWebVitals` hook allows you to report [Core Web Vitals](https://web
 
 <PagesOnly>
 
-```tsx filename="pages/_app.js"
+```jsx filename="pages/_app.jsx"
 import { useReportWebVitals } from 'next/web-vitals'
 
 function MyApp({ Component, pageProps }) {
@@ -23,7 +23,7 @@ function MyApp({ Component, pageProps }) {
 
 <AppOnly>
 
-```tsx filename="app/_components/web-vitals.js"
+```jsx filename="app/_components/web-vitals.jsx"
 'use client'
 
 import { useReportWebVitals } from 'next/web-vitals'
@@ -35,7 +35,7 @@ export function WebVitals() {
 }
 ```
 
-```tsx filename="app/layout.js"
+```jsx filename="app/layout.jsx"
 import { WebVitals } from './_components/web-vitals'
 
 export default function Layout({ children }) {
@@ -82,7 +82,7 @@ You can handle all the results of these metrics using the `name` property.
 
 <PagesOnly>
 
-```tsx filename="pages/_app.js"
+```jsx filename="pages/_app.jsx"
 import { useReportWebVitals } from 'next/web-vitals'
 
 function MyApp({ Component, pageProps }) {
@@ -126,7 +126,7 @@ export function WebVitals() {
 }
 ```
 
-```jsx filename="app/components/web-vitals.js" switcher
+```jsx filename="app/components/web-vitals.jsx" switcher
 'use client'
 
 import { useReportWebVitals } from 'next/web-vitals'

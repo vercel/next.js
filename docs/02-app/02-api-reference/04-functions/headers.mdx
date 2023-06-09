@@ -20,7 +20,7 @@ export default function Page() {
 }
 ```
 
-```jsx filename="app/page.js" switcher
+```jsx filename="app/page.jsx" switcher
 import { headers } from 'next/headers'
 
 export default function Page() {
@@ -62,7 +62,7 @@ const headersList = headers()
 
 `headers()` can be used in combination with [Suspense for Data Fetching](/docs/app/building-your-application/data-fetching/fetching).
 
-```jsx filename="app/page.js"
+```jsx filename="app/page.jsx"
 import { headers } from 'next/headers'
 
 async function getUser() {

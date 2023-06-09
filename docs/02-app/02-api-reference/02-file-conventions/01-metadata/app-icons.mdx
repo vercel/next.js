@@ -122,7 +122,7 @@ export default function Icon() {
 }
 ```
 
-```jsx filename="app/icon.js" switcher
+```jsx filename="app/icon.jsx" switcher
 import { ImageResponse } from 'next/server'
 
 // Route segment config
@@ -189,7 +189,7 @@ export default function Icon({ params }: { params: { slug: string } }) {
 }
 ```
 
-```jsx filename="app/shop/[slug]/icon.js" switcher
+```jsx filename="app/shop/[slug]/icon.jsx" switcher
 export default function Icon({ params }) {
   // ...
 }
@@ -225,7 +225,7 @@ export const size = { width: 32, height: 32 }
 export default function Icon() {}
 ```
 
-```jsx filename="icon.js / apple-icon.js" switcher
+```jsx filename="icon.jsx / apple-icon.jsx" switcher
 export const size = { width: 32, height: 32 }
 
 export default function Icon() {}
@@ -243,7 +243,7 @@ export const contentType = 'image/png'
 export default function Icon() {}
 ```
 
-```jsx filename="icon.js / apple-icon.js" switcher
+```jsx filename="icon.jsx / apple-icon.jsx" switcher
 export const contentType = 'image/png'
 
 export default function Icon() {}
@@ -270,7 +270,7 @@ export const runtime = 'edge'
 export default function Icon() {}
 ```
 
-```jsx filename="app/icon.js" switcher
+```jsx filename="app/icon.jsx" switcher
 export const runtime = 'edge'
 
 export default function Icon() {}

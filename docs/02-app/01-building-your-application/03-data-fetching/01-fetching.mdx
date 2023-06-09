@@ -36,7 +36,7 @@ export default async function Page() {
 }
 ```
 
-```jsx filename="app/page.js" switcher
+```jsx filename="app/page.jsx" switcher
 async function getData() {
   const res = await fetch('https://api.example.com/...')
   // The return value is *not* serialized
@@ -147,7 +147,7 @@ export default async function Page({
 }
 ```
 
-```jsx filename="app/artist/[username]/page.js" switcher
+```jsx filename="app/artist/[username]/page.jsx" switcher
 import Albums from './albums'
 
 async function getArtist(username) {
@@ -225,7 +225,7 @@ async function Albums({ promise }: { promise: Promise<Album[]> }) {
 }
 ```
 
-```jsx filename="artist/[username]/page.js" switcher
+```jsx filename="artist/[username]/page.jsx" switcher
 import { getArtist, getArtistAlbums } from './api'
 
 export default async function Page({ params: { username } }) {
@@ -304,7 +304,7 @@ export default async function Page({
 }
 ```
 
-```jsx filename="app/artist/page.js" switcher
+```jsx filename="app/artist/page.jsx" switcher
 // ...
 
 async function Playlists({ artistID }) {
@@ -368,7 +368,7 @@ If the segment is static (default), the output of the request will be cached and
 
 As a temporary solution, until the caching behavior of third-party queries can be configured, you can use [segment configuration](/docs/app/api-reference/file-conventions/route-segment-config#revalidate) to customize the cache behavior of the entire segment.
 
-```ts filename="app/page.tsx" switcher
+```tsx filename="app/page.tsx" switcher
 import prisma from './lib/prisma'
 
 export const revalidate = 3600 // revalidate every hour
@@ -384,7 +384,7 @@ export default async function Page() {
 }
 ```
 
-```jsx filename="app/page.js" switcher
+```jsx filename="app/page.jsx" switcher
 import prisma from './lib/prisma'
 
 export const revalidate = 3600 // revalidate every hour

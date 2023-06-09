@@ -18,7 +18,7 @@ It’s recommended to use the user’s language preferences in the browser to se
 
 For example, using the following libraries, you can look at an incoming `Request` to determine which locale to select, based on the `Headers`, locales you plan to support, and the default locale.
 
-```jsx filename="middleware.js"
+```js filename="middleware.js"
 import { match } from '@formatjs/intl-localematcher'
 import Negotiator from 'negotiator'
 
@@ -32,7 +32,7 @@ match(languages, locales, defaultLocale) // -> 'en-US'
 
 Routing can be internationalized by either the sub-path (`/fr/products`) or domain (`my-site.fr/products`). With this information, you can now redirect the user based on the locale inside [Middleware](/docs/app/building-your-application/routing/middleware).
 
-```jsx filename="middleware.js"
+```js filename="middleware.js"
 import { NextResponse } from 'next/server'
 
 let locales = ['en-US', 'nl-NL', 'nl']
@@ -71,7 +71,7 @@ export const config = {
 
 Finally, ensure all special files inside `app/` are nested under `app/[lang]`. This enables the Next.js router to dynamically handle different locales in the route, and forward the `lang` parameter to every layout and page. For example:
 
-```jsx filename="app/[lang]/page.js"
+```jsx filename="app/[lang]/page.jsx"
 // You now have access to the current locale
 // e.g. /en-US/products -> `lang` is "en-US"
 export default async function Page({ params: { lang } }) {
@@ -87,7 +87,7 @@ Changing displayed content based on the user’s preferred locale, or localizati
 
 Let’s assume we want to support both English and Dutch content inside our application. We might maintain two different “dictionaries”, which are objects that give us a mapping from some key to a localized string. For example:
 
-```jsx filename="dictionaries/en.json"
+```json filename="dictionaries/en.json"
 {
   "products": {
     "cart": "Add to Cart"
@@ -95,7 +95,7 @@ Let’s assume we want to support both English and Dutch content inside our appl
 }
 ```
 
-```jsx filename="dictionaries/nl.json"
+```json filename="dictionaries/nl.json"
 {
   "products": {
     "cart": "Toevoegen aan Winkelwagen"
@@ -105,7 +105,7 @@ Let’s assume we want to support both English and Dutch content inside our appl
 
 We can then create a `getDictionary` function to load the translations for the requested locale:
 
-```jsx filename="app/[lang]/dictionaries.js"
+```jsx filename="app/[lang]/dictionaries.jsx"
 import 'server-only'
 
 const dictionaries = {
@@ -118,7 +118,7 @@ export const getDictionary = async (locale) => dictionaries[locale]()
 
 Given the currently selected language, we can fetch the dictionary inside of a layout or page.
 
-```jsx filename="app/[lang]/page.js"
+```jsx filename="app/[lang]/page.jsx"
 import { getDictionary } from './dictionaries'
 
 export default async function Page({ params: { lang } }) {
@@ -133,7 +133,7 @@ Because all layouts and pages in the `app/` directory default to [Server Compone
 
 To generate static routes for a given set of locales, we can use `generateStaticParams` with any page or layout. This can be global, for example, in the root layout:
 
-```jsx filename="app/[lang]/layout.js"
+```jsx filename="app/[lang]/layout.jsx"
 export async function generateStaticParams() {
   return [{ lang: 'en-US' }, { lang: 'de' }]
 }

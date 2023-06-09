@@ -21,9 +21,15 @@ Dynamic Segments are passed as the `params` prop to [`layout`](/docs/app/api-ref
 
 For example, a blog could include the following route `app/blog/[slug]/page.js` where `[slug]` is the Dynamic Segment for blog posts.
 
-```tsx filename="app/blog/[slug]/page.js"
+```tsx filename="app/blog/[slug]/page.tsx" switcher
+export default function Page({ params: { slug: string } }) {
+  return <div>My Post: {slug}</div>
+}
+```
+
+```jsx filename="app/blog/[slug]/page.jsx" switcher
 export default function Page({ params }) {
-  return <div>My Post</div>
+  return <div>My Post: {slug}</div>
 }
 ```
 
@@ -51,7 +57,7 @@ export async function generateStaticParams() {
 }
 ```
 
-```jsx filename="app/blog/[slug]/page.js" switcher
+```jsx filename="app/blog/[slug]/page.jsx" switcher
 export async function generateStaticParams() {
   const posts = await fetch('https://.../posts').then((res) => res.json())
 
@@ -104,7 +110,7 @@ export default function Page({ params }: { params: { slug: string } }) {
 }
 ```
 
-```jsx filename="app/blog/[slug]/page.js" switcher
+```jsx filename="app/blog/[slug]/page.jsx" switcher
 export default function Page({ params }) {
   return <h1>My Page</h1>
 }

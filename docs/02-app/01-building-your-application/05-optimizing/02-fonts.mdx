@@ -47,7 +47,7 @@ export default function RootLayout({
 }
 ```
 
-```jsx filename="app/layout.js" switcher
+```jsx filename="app/layout.jsx" switcher
 import { Inter } from 'next/font/google'
 
 // If loading a variable font, you don't need to specify the font weight
@@ -89,7 +89,7 @@ export default function RootLayout({
 }
 ```
 
-```jsx filename="app/layout.js" switcher
+```jsx filename="app/layout.jsx" switcher
 import { Roboto } from 'next/font/google'
 
 const roboto = Roboto({
@@ -111,9 +111,9 @@ export default function RootLayout({ children }) {
 
 <PagesOnly>
 
-To use the font in all your pages, add it to [`_app.js` file](/docs/pages/building-your-application/routing/custom-app) under `/pages` as shown below:
+To use the font in all your pages, add it to [`_app.jsx` file](/docs/pages/building-your-application/routing/custom-app) under `/pages` as shown below:
 
-```jsx filename="pages/_app.js"
+```jsx filename="pages/_app.jsx"
 import { Inter } from 'next/font/google'
 
 // If loading a variable font, you don't need to specify the font weight
@@ -130,7 +130,7 @@ export default function MyApp({ Component, pageProps }) {
 
 If you can't use a variable font, you will **need to specify a weight**:
 
-```jsx filename="pages/_app.js"
+```jsx filename="pages/_app.jsx"
 import { Roboto } from 'next/font/google'
 
 const roboto = Roboto({
@@ -151,7 +151,7 @@ export default function MyApp({ Component, pageProps }) {
 
 You can specify multiple weights and/or styles by using an array:
 
-```jsx filename="app/layout.js"
+```jsx filename="app/layout.jsx"
 const roboto = Roboto({
   weight: ['400', '700'],
   style: ['normal', 'italic'],
@@ -168,7 +168,7 @@ const roboto = Roboto({
 
 You can also use the font without a wrapper and `className` by injecting it inside the `<head>` as follows:
 
-```jsx filename="pages/_app.js"
+```jsx filename="pages/_app.jsx"
 import { Inter } from 'next/font/google'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -191,7 +191,7 @@ export default function MyApp({ Component, pageProps }) {
 
 To use the font on a single page, add it to the specific page as shown below:
 
-```jsx filename="pages/index.js"
+```jsx filename="pages/index.jsx"
 import { Inter } from 'next/font/google'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -219,7 +219,7 @@ This can be done by adding it to the function call:
 const inter = Inter({ subsets: ['latin'] })
 ```
 
-```jsx filename="app/layout.js" switcher
+```jsx filename="app/layout.jsx" switcher
 const inter = Inter({ subsets: ['latin'] })
 ```
 
@@ -227,7 +227,7 @@ const inter = Inter({ subsets: ['latin'] })
 
 <PagesOnly>
 
-```jsx filename="pages/_app.js"
+```jsx filename="pages/_app.jsx"
 const inter = Inter({ subsets: ['latin'] })
 ```
 
@@ -241,7 +241,7 @@ You can import and use multiple fonts in your application. There are two approac
 
 The first approach is to create a utility function that exports a font, imports it, and applies its `className` where needed. This ensures the font is preloaded only when it's rendered:
 
-```tsx filename="app/fonts.ts" switcher
+```ts filename="app/fonts.ts" switcher
 import { Inter, Roboto_Mono } from 'next/font/google'
 
 export const inter = Inter({
@@ -255,7 +255,7 @@ export const roboto_mono = Roboto_Mono({
 })
 ```
 
-```jsx filename="app/fonts.js" switcher
+```js filename="app/fonts.js" switcher
 import { Inter, Roboto_Mono } from 'next/font/google'
 
 export const inter = Inter({
@@ -311,7 +311,7 @@ export default function Page() {
 }
 ```
 
-```jsx filename="app/page.js" switcher
+```jsx filename="app/page.jsx" switcher
 import { roboto_mono } from './fonts'
 
 export default function Page() {
@@ -363,7 +363,7 @@ export default function RootLayout({
 }
 ```
 
-```jsx filename="app/layout.js" switcher
+```jsx filename="app/layout.jsx" switcher
 import { Inter, Roboto_Mono } from 'next/font/google'
 
 const inter = Inter({
@@ -434,7 +434,7 @@ export default function RootLayout({
 }
 ```
 
-```jsx filename="app/layout.js" switcher
+```jsx filename="app/layout.jsx" switcher
 import localFont from 'next/font/local'
 
 // Font files can be colocated inside of `app`
@@ -456,7 +456,7 @@ export default function RootLayout({ children }) {
 
 <PagesOnly>
 
-```jsx filename="pages/_app.js"
+```jsx filename="pages/_app.jsx"
 import localFont from 'next/font/local'
 
 // Font files can be colocated inside of `pages`
@@ -540,7 +540,7 @@ export default function RootLayout({
 }
 ```
 
-```jsx filename="app/layout.js" switcher
+```jsx filename="app/layout.jsx" switcher
 import { Inter, Roboto_Mono } from 'next/font/google'
 
 const inter = Inter({
@@ -568,7 +568,7 @@ export default function RootLayout({ children }) {
 
 <PagesOnly>
 
-```js filename="pages/_app.js"
+```jsx filename="pages/_app.jsx"
 import { Inter } from 'next/font/google'
 
 const inter = Inter({

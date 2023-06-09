@@ -27,7 +27,7 @@ export default function Page() {
 }
 ```
 
-```jsx filename="app/page.js" switcher
+```jsx filename="app/page.jsx" switcher
 import Link from 'next/link'
 
 export default function Page() {
@@ -121,7 +121,7 @@ export default function Page() {
 }
 ```
 
-```jsx filename="app/page.js" switcher
+```jsx filename="app/page.jsx" switcher
 import Link from 'next/link'
 
 export default function Page() {
@@ -151,7 +151,7 @@ export default function Page() {
 }
 ```
 
-```jsx filename="app/page.js" switcher
+```jsx filename="app/page.jsx" switcher
 import Link from 'next/link'
 
 export default function Page() {
@@ -201,7 +201,7 @@ For dynamic routes, it can be handy to use template literals to create the link'
 
 For example, you can generate a list of links to the dynamic route `pages/blog/[slug].js`
 
-```jsx filename="pages/blog/index.js"
+```jsx filename="pages/blog/index.jsx"
 import Link from 'next/link'
 
 function Posts({ posts }) {
@@ -225,7 +225,7 @@ export default Posts
 
 For example, you can generate a list of links to the dynamic route `app/blog/[slug]/page.js`:
 
-```jsx filename="app/blog/page.js"
+```jsx filename="app/blog/page.jsx"
 import Link from 'next/link'
 
 function Page({ posts }) {

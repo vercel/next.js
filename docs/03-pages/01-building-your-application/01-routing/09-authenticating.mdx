@@ -20,7 +20,7 @@ One advantage of this pattern is it allows pages to be served from a global CDN 
 
 Let's look at an example for a profile page. This will initially render a loading skeleton. Once the request for a user has finished, it will show the user's name:
 
-```jsx filename="pages/profile.js"
+```jsx filename="pages/profile.jsx"
 import useUser from '../lib/useUser'
 import Layout from '../components/Layout'
 
@@ -61,7 +61,7 @@ export async function getServerSideProps(context) {
 
 Let's transform the profile example to use [server-side rendering](/docs/pages/building-your-application/rendering/server-side-rendering). If there's a session, return `user` as a prop to the `Profile` component in the page. Notice there is not a loading skeleton in [this example](https://iron-session-example.vercel.app/).
 
-```jsx filename="pages/profile.js"
+```jsx filename="pages/profile.jsx"
 import withSession from '../lib/session'
 import Layout from '../components/Layout'
 

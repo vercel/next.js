@@ -112,7 +112,7 @@ When `next build` is run, Next.js will check if `getStaticPaths` returned `fallb
 
 The following example pre-renders one blog post per page called `pages/posts/[id].js`. The list of blog posts will be fetched from a CMS and returned by `getStaticPaths`. Then, for each page, it fetches the post data from a CMS using [`getStaticProps`](/docs/pages/building-your-application/data-fetching/get-static-props).
 
-```jsx filename="pages/posts/[id].js"
+```jsx filename="pages/posts/[id].jsx"
 function Post({ post }) {
   // Render post...
 }
@@ -205,7 +205,7 @@ In the “fallback” version of a page:
 
 The following example showcases using `isFallback`:
 
-```jsx filename="pages/posts/[id].js"
+```jsx filename="pages/posts/[id].jsx"
 import { useRouter } from 'next/router'
 
 function Post({ post }) {

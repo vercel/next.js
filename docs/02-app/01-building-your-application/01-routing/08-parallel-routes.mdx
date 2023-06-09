@@ -69,7 +69,7 @@ export default function Layout(props: {
 }
 ```
 
-```jsx filename="app/layout.js" switcher
+```jsx filename="app/layout.jsx" switcher
 export default function Layout(props) {
   return (
     <>
@@ -126,6 +126,7 @@ Both [`useSelectedLayoutSegment`](/docs/app/api-reference/functions/use-selected
 
 ```tsx filename="app/layout.tsx" switcher
 'use client'
+
 import { useSelectedLayoutSegment } from 'next/navigation'
 
 export default async function Layout(props: {
@@ -137,8 +138,9 @@ export default async function Layout(props: {
 }
 ```
 
-```jsx filename="app/layout.js" switcher
+```jsx filename="app/layout.jsx" switcher
 'use client'
+
 import { useSelectedLayoutSegment } from 'next/navigation'
 
 export default async function Layout(props) {
@@ -179,7 +181,7 @@ export default async function Layout(props: {
 }
 ```
 
-```jsx filename="app/layout.js" switcher
+```jsx filename="app/layout.jsx" switcher
 export default async function Layout(props) {
   return (
     <>
@@ -203,7 +205,7 @@ export default function Login() {
 }
 ```
 
-```jsx filename="app/@authModal/login/page.js" switcher
+```jsx filename="app/@authModal/login/page.jsx" switcher
 import { Modal } from 'components/modal'
 
 export default function Login() {
@@ -224,7 +226,7 @@ export default function Default() {
 }
 ```
 
-```jsx filename="app/@authModal/login/default.js" switcher
+```jsx filename="app/@authModal/login/default.jsx" switcher
 export default function Default() {
   return null
 }
@@ -280,7 +282,13 @@ If you want to navigate elsewhere and dismiss a modal, you can also use a catch-
   height="768"
 />
 
-```tsx filename="app/@authModal/[...catchAll]/page.js"
+```tsx filename="app/@authModal/[...catchAll]/page.tsx" switcher
+export default function CatchAll() {
+  return null
+}
+```
+
+```jsx filename="app/@authModal/[...catchAll]/page.jsx"switcher
 export default function CatchAll() {
   return null
 }
@@ -301,7 +309,7 @@ export default function Layout({ params, dashboard, login }) {
 }
 ```
 
-```jsx filename="app/layout.js" switcher
+```jsx filename="app/layout.jsx" switcher
 import { getUser } from '@/lib/auth'
 
 export default function Layout({ params, dashboard, login }) {

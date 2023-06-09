@@ -28,7 +28,7 @@ export default function Page() {
 }
 ```
 
-```jsx filename="app/page.js" switcher
+```jsx filename="app/page.jsx" switcher
 // `app/page.js` is the UI for the `/` URL
 export default function Page() {
   return <h1>Hello, Home page!</h1>
@@ -42,7 +42,7 @@ export default function Page() {
 }
 ```
 
-```jsx filename="app/dashboard/page.js" switcher
+```jsx filename="app/dashboard/page.jsx" switcher
 // `app/dashboard/page.js` is the UI for the `/dashboard` URL
 export default function Page() {
   return <h1>Hello, Dashboard Page!</h1>
@@ -88,7 +88,7 @@ export default function DashboardLayout({
 }
 ```
 
-```jsx filename="app/dashboard/layout.js" switcher
+```jsx filename="app/dashboard/layout.jsx" switcher
 export default function DashboardLayout({
   children, // will be a page or nested layout
 }) {
@@ -134,7 +134,7 @@ export default function RootLayout({
 }
 ```
 
-```jsx filename="app/layout.js" switcher
+```jsx filename="app/layout.jsx" switcher
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
@@ -176,7 +176,7 @@ export default function DashboardLayout({
 }
 ```
 
-```jsx filename="app/dashboard/layout.js" switcher
+```jsx filename="app/dashboard/layout.jsx" switcher
 export default function DashboardLayout({ children }) {
   return <section>{children}</section>
 }
@@ -224,7 +224,7 @@ export default function Template({ children }: { children: React.ReactNode }) {
 }
 ```
 
-```jsx filename="app/template.js" switcher
+```jsx filename="app/template.jsx" switcher
 export default function Template({ children }) {
   return <div>{children}</div>
 }
@@ -257,7 +257,7 @@ export default function Page() {
 }
 ```
 
-```jsx filename="app/page.js" switcher
+```jsx filename="app/page.jsx" switcher
 export const metadata = {
   title: 'Next.js',
 }

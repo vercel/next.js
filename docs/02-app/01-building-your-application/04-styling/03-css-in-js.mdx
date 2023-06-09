@@ -65,7 +65,7 @@ export default function StyledJsxRegistry({
 }
 ```
 
-```jsx filename="app/registry.js" switcher
+```jsx filename="app/registry.jsx" switcher
 'use client'
 
 import React, { useState } from 'react'
@@ -107,7 +107,7 @@ export default function RootLayout({
 }
 ```
 
-```jsx filename="app/layout.js" switcher
+```jsx filename="app/layout.jsx" switcher
 import StyledJsxRegistry from './registry'
 
 export default function RootLayout({ children }) {
@@ -161,7 +161,7 @@ export default function StyledComponentsRegistry({
 }
 ```
 
-```jsx filename="lib/registry.js" switcher
+```jsx filename="lib/registry.jsx" switcher
 'use client'
 
 import React, { useState } from 'react'
@@ -209,7 +209,7 @@ export default function RootLayout({
 }
 ```
 
-```jsx filename="app/layout.js" switcher
+```jsx filename="app/layout.jsx" switcher
 import StyledComponentsRegistry from './lib/registry'
 
 export default function RootLayout({ children }) {

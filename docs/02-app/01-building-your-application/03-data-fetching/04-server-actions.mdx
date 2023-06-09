@@ -35,7 +35,7 @@ export default function AddToCart({ productId }) {
 
 **With Client Components:**
 
-```jsx filename="app/actions.js" highlight={1, 3}
+```jsx filename="app/actions.jsx" highlight={1, 3}
 'use server'
 
 async function addItem(data) {
@@ -95,7 +95,7 @@ export default function ServerComponent() {
 
 If you're using a Server Action inside a Client Component, create your action in a separate file with the "use server" directive at the top of the file. Then, import the Server Action into your Client Component:
 
-```jsx filename="app/actions.js" highlight={1}
+```js filename="app/actions.js" highlight={1}
 'use server'
 
 export async function myAction() {
@@ -131,7 +131,7 @@ You can invoke Server Actions using the following methods:
 
 You can use React's `action` prop to invoke a Server Action on a `form` element. Server Actions passed with the action prop act as asynchronous side effects in response to user interaction.
 
-```jsx filename="app/add-to-cart.js"
+```jsx filename="app/add-to-cart.jsx"
 export default function AddToCart({ productId }) {
   async function addItem(data) {
     'use server'
@@ -154,7 +154,7 @@ export default function AddToCart({ productId }) {
 
 You can use `formAction` prop to handle **Form Actions** on elements such as `button`, `input type="submit"`, and `input type="image"`. The `formAction` prop takes presedence over the form's `action`.
 
-```jsx filename="app/form" highlight={15}
+```jsx filename="app/form.jsx" highlight={15}
 export default function Form() {
   async function handleSubmit() {
     'use server'
@@ -184,7 +184,7 @@ You can also invoke Server Actions without using `action` or `formAction`. You c
 
 > **Note:** Using `startTransition` disables the out-of-the-box Progressive Enhancement.
 
-```jsx filename="app/components/example-client-component.js" highlight={3, 7, 10}
+```jsx filename="app/components/example-client-component.jsx" highlight={3, 7, 10}
 'use client'
 
 import { useTransition } from 'react'
@@ -201,7 +201,7 @@ function ExampleClientComponent({ id }) {
 }
 ```
 
-```jsx filename="app/actions.js"
+```js filename="app/actions.js"
 'use server'
 
 export async function addItem(id) {
@@ -229,7 +229,7 @@ export default function Page({ params }: { params: { id: string } }) {
 }
 ```
 
-```jsx filename="app/posts/[id]/page.js" switcher
+```jsx filename="app/posts/[id]/page.jsx" switcher
 import kv from '@vercel/kv'
 import LikeButton from './like-button'
 
@@ -263,7 +263,7 @@ export default function LikeButton({
 }
 ```
 
-```jsx filename="app/post/[id]/like-button.js" switcher
+```jsx filename="app/post/[id]/like-button.jsx" switcher
 'use client'
 
 export default function LikeButton({ increment }) {
@@ -287,7 +287,7 @@ The experimental `useOptimistic` hook provides a way to implement optimistic upd
 
 When a Server Action is invoked, the UI is updated immediately to reflect the expected outcome, instead of waiting for the Server Action's response.
 
-```jsx filename="app/thread.js"
+```jsx filename="app/thread.jsx"
 'use client'
 
 import { experimental_useOptimistic as useOptimistic } from 'react'
@@ -328,7 +328,7 @@ export function Thread({ messages }) {
 
 The **experimental** `useFormStatus` hook can be used within Form Actions, and provides the `pending` property.
 
-```jsx filename="app/form.js"
+```jsx filename="app/form.jsx"
 'use client'
 
 import { experimental_useFormStatus as useFormStatus } from 'react-dom'
@@ -357,7 +357,7 @@ Both Server Form Actions and Client Form Actions support Progressive Enhancement
 - If a **Server Action** is passed directly to a `<form>`, the form is interactive **even if JavaScript is disabled**.
 - If a **Client Action** is passed to a `<form>`, the form is still interactive, but the action will be placed in a queue until the form has hydrated. The `<form>` is prioritized with Selective Hydration, so it happens quickly.
 
-```jsx filename="app/components/example-client-component.js"
+```jsx filename="app/components/example-client-component.jsx"
 'use client'
 
 import { useState } from 'react'
@@ -384,7 +384,7 @@ In both cases, the form is interactive before hydration occurs. Although Server 
 
 Server Actions **cannot** be _defined_ within Client Components, but they can be _imported_. To use Server Actions in Client Components, you can import the action from a file containing a top-level `"use server"` directive.
 
-```jsx filename="app/actions.js" highlight={1}
+```js filename="app/actions.js" highlight={1}
 'use server'
 
 export async function addItem() {
@@ -415,7 +415,7 @@ Although [importing](#import) Server Actions is recommended, in some cases you m
 
 For example, you might want to use a dynamically generated value within the action. In that case, passing a Server Action down as a prop might be a viable solution.
 
-```jsx filename="app/components/example-server-component.js"
+```jsx filename="app/components/example-server-component.jsx"
 import { ExampleClientComponent } from './components/example-client-component.js'
 
 function ExampleServerComponent({ id }) {
@@ -428,7 +428,7 @@ function ExampleServerComponent({ id }) {
 }
 ```
 
-```jsx filename="app/components/example-client-component.js"
+```jsx filename="app/components/example-client-component.jsx"
 'use client'
 
 function ExampleClientComponent({ updateItem }) {
@@ -449,7 +449,7 @@ function ExampleClientComponent({ updateItem }) {
 
 Server Actions can be used to revalidate data on-demand by path ([`revalidatePath`](/docs/app/api-reference/functions/revalidatePath)) or by cache tag ([`revalidateTag`](/docs/app/api-reference/functions/revalidateTag)).
 
-```jsx
+```js
 import { revalidateTag } from 'next/cache'
 
 async function revalidate() {
@@ -462,7 +462,7 @@ async function revalidate() {
 
 The data passed to a Server Action can be validated or sanitized before invoking the action. For example, you can create a wrapper function that receives the action as its argument, and returns a function that invokes the action if it's valid.
 
-```jsx filename="app/actions.js"
+```js filename="app/actions.js"
 'use server'
 
 import { withValidate } from 'lib/form-validation'
@@ -472,7 +472,7 @@ export const action = withValidate((data) => {
 })
 ```
 
-```jsx filename="lib/form-validation"
+```js filename="lib/form-validation.js"
 export function withValidate(action) {
   return (formData: FormData) => {
     'use server'
@@ -493,7 +493,7 @@ export function withValidate(action) {
 
 You can read incoming request headers such as `cookies` and `headers` within a Server Action.
 
-```jsx highlight={6}
+```js highlight={6}
 import { cookies } from 'next/headers'
 
 async function addItem(data) {
@@ -507,7 +507,7 @@ async function addItem(data) {
 
 Additionally, you can modify cookies within a Server Action.
 
-```jsx highlight={7, 9, 10, 11, 12, 13, 14}
+```js highlight={7, 9, 10, 11, 12, 13, 14}
 import { cookies } from 'next/headers';
 
 async function create(data) {

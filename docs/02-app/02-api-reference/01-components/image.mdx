@@ -20,7 +20,7 @@ description: Optimize Images in your Next.js Application using the built-in `nex
 
 This API reference will help you understand how to use [props](#props) and [configuration options](#configuration-options) available for the Image Component. For features and usage, please see the [Image Component](/docs/app/building-your-application/optimizing/images) page.
 
-```jsx filename="app/page.js"
+```jsx filename="app/page.jsx"
 import Image from 'next/image'
 
 export default function Page() {
@@ -64,7 +64,7 @@ Here's a summary of the props available for the Image Component:
 
 The Image Component requires the following properties: `src`, `width`, `height`, and `alt`.
 
-```jsx filename="app/page.js"
+```jsx filename="app/page.jsx"
 import Image from 'next/image'
 
 export default function Page() {
@@ -263,7 +263,7 @@ In some cases, you may need more advanced usage. The `<Image />` component optio
 
 Allows passing CSS styles to the underlying image element.
 
-```jsx filename="components/ProfileImage.js"
+```jsx filename="components/ProfileImage.jsx"
 const imageStyle = {
   borderRadius: '50%',
   border: '1px solid #fff',

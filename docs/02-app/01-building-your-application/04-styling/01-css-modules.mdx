@@ -37,7 +37,7 @@ export default function DashboardLayout({
 }
 ```
 
-```jsx filename="app/dashboard/layout.js" switcher
+```jsx filename="app/dashboard/layout.jsx" switcher
 import styles from './styles.module.css'
 
 export default function DashboardLayout({
@@ -76,7 +76,7 @@ You do not need to worry about .error {} colliding with any other `.css` or
 
 Then, create `components/Button.js`, importing and using the above CSS file:
 
-```jsx filename="components/Button.js"
+```jsx filename="components/Button.jsx"
 import styles from './Button.module.css'
 
 export function Button() {
@@ -137,7 +137,7 @@ export default function RootLayout({
 }
 ```
 
-```jsx filename="app/layout.js" switcher
+```jsx filename="app/layout.jsx" switcher
 // These styles apply to every route in the application
 import './global.css'
 
@@ -171,7 +171,7 @@ body {
 Create a [`pages/_app.js` file](/docs/pages/building-your-application/routing/custom-app) if not already present.
 Then, [`import`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import) the `styles.css` file.
 
-```jsx filename="pages/_app.js"
+```jsx filename="pages/_app.jsx"
 import '../styles.css'
 
 // This default export is required in a new `pages/_app.js` file.
@@ -211,7 +211,7 @@ export default function RootLayout({
 }
 ```
 
-```jsx filename="app/layout.js" switcher
+```jsx filename="app/layout.jsx" switcher
 import 'bootstrap/dist/css/bootstrap.css'
 
 export default function RootLayout({ children }) {
@@ -236,10 +236,10 @@ This is possible because Next.js extends the concept of [`import`](https://devel
 
 Since Next.js **9.5.4**, importing a CSS file from `node_modules` is permitted anywhere in your application.
 
-For global stylesheets, like `bootstrap` or `nprogress`, you should import the file inside `pages/_app.js`.
+For global stylesheets, like `bootstrap` or `nprogress`, you should import the file inside `pages/_app.jsx`.
 For example:
 
-```jsx filename="pages/_app.js"
+```jsx filename="pages/_app.jsx"
 import 'bootstrap/dist/css/bootstrap.css'
 
 export default function MyApp({ Component, pageProps }) {
@@ -249,7 +249,7 @@ export default function MyApp({ Component, pageProps }) {
 
 For importing CSS required by a third-party component, you can do so in your component. For example:
 
-```tsx filename="components/example-dialog.js"
+```jsx filename="components/example-dialog.jsx"
 import { useState } from 'react'
 import { Dialog } from '@reach/dialog'
 import VisuallyHidden from '@reach/visually-hidden'

@@ -13,7 +13,7 @@ First, create a [Route Handler](/docs/app/building-your-application/routing/rout
 
 Then, import `draftMode` from `next/headers` and call the `enable()` method.
 
-```tsx filename="app/api/draft/route.ts" switcher
+```ts filename="app/api/draft/route.ts" switcher
 // route handler enabling draft mode
 import { draftMode } from 'next/headers'
 
@@ -171,7 +171,7 @@ export default async function Page() {
 }
 ```
 
-```jsx filename="app/page.js" switcher
+```jsx filename="app/page.jsx" switcher
 // page that fetches data
 import { draftMode } from 'next/headers'
 

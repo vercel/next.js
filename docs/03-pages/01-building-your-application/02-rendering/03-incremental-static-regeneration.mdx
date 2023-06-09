@@ -110,7 +110,7 @@ https://<your-site.com>/api/revalidate?secret=<token>
 
 Next, add the secret as an [Environment Variable](/docs/pages/building-your-application/configuring/environment-variables) to your application. Finally, create the revalidation API Route:
 
-```jsx filename="pages/api/revalidate.js"
+```js filename="pages/api/revalidate.js"
 export default async function handler(req, res) {
   // Check for secret to confirm this is a valid request
   if (req.query.secret !== process.env.MY_SECRET_TOKEN) {

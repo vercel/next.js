@@ -32,7 +32,7 @@ export const metadata: Metadata = {
 export default function Page() {}
 ```
 
-```jsx filename="layout.js / page.js" switcher
+```jsx filename="layout.jsx / page.jsx" switcher
 export const metadata = {
   title: '...',
   description: '...',
@@ -79,7 +79,7 @@ export async function generateMetadata(
 export default function Page({ params, searchParams }: Props) {}
 ```
 
-```jsx filename="app/products/[id]/page.js" switcher
+```jsx filename="app/products/[id]/page.jsx" switcher
 export async function generateMetadata({ params, searchParams }, parent) {
   // read route params
   const id = params.id
@@ -156,7 +156,7 @@ This means metadata with nested fields such as [`openGraph`](/docs/app/api-refer
 
 #### Overwriting fields
 
-```tsx filename="app/layout.js"
+```jsx filename="app/layout.jsx"
 export const metadata = {
   title: 'Acme',
   openGraph: {
@@ -166,7 +166,7 @@ export const metadata = {
 }
 ```
 
-```tsx filename="app/blog/page.js"
+```jsx filename="app/blog/page.jsx"
 export const metadata = {
   title: 'Blog',
   openGraph: {
@@ -186,11 +186,11 @@ In the example above:
 
 If you'd like to share some nested fields between segments while overwriting others, you can pull them out into a separate variable:
 
-```tsx filename="app/shared-metadata.js"
+```jsx filename="app/shared-metadata.jsx"
 export const openGraphImage = { images: ['http://...'] }
 ```
 
-```tsx filename="app/page.js"
+```jsx filename="app/page.jsx"
 import { openGraphImage } from './shared-metadata'
 
 export const metadata = {
@@ -201,7 +201,7 @@ export const metadata = {
 }
 ```
 
-```tsx filename="app/about/page.js"
+```jsx filename="app/about/page.jsx"
 import { openGraphImage } from '../shared-metadata'
 
 export const metadata = {
@@ -216,7 +216,7 @@ In the example above, the OG image is shared between `app/layout.js` and `app/ab
 
 #### Inheriting fields
 
-```tsx filename="app/layout.js"
+```jsx filename="app/layout.jsx"
 export const metadata = {
   title: 'Acme',
   openGraph: {
@@ -226,7 +226,7 @@ export const metadata = {
 }
 ```
 
-```tsx filename="app/about/page.js"
+```jsx filename="app/about/page.jsx"
 export const metadata = {
   title: 'About',
 }
@@ -325,7 +325,7 @@ export default async function Page({ params }) {
 }
 ```
 
-```jsx filename="app/products/[id]/page.js" switcher
+```jsx filename="app/products/[id]/page.jsx" switcher
 export default async function Page({ params }) {
   const product = await getProduct(params.id)
 

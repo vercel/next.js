@@ -64,7 +64,7 @@ The [Cypress docs contain a guide](https://docs.cypress.io/guides/core-concepts/
 
 Assuming the following two Next.js pages:
 
-```jsx filename="pages/index.js"
+```jsx filename="pages/index.jsx"
 import Link from 'next/link'
 
 export default function Home() {
@@ -77,7 +77,7 @@ export default function Home() {
 }
 ```
 
-```jsx filename="pages/about.js"
+```jsx filename="pages/about.jsx"
 export default function About() {
   return (
     <div>
@@ -90,7 +90,7 @@ export default function About() {
 
 Add a test to check your navigation is working correctly:
 
-```jsx filename="cypress/e2e/app.cy.js"
+```js filename="cypress/e2e/app.cy.js"
 describe('Navigation', () => {
   it('should navigate to the about page', () => {
     // Start from the index page
@@ -118,7 +118,7 @@ Component tests build and mount a specific component without having to bundle yo
 
 Assuming the same components from the previous section, add a test to validate a component is rendering the expected output:
 
-```jsx filename="pages/about.cy.js"
+```jsx filename="pages/about.cy.jsx"
 import AboutPage from './about.js'
 
 describe('<AboutPage />', () => {
@@ -208,7 +208,7 @@ Add Playwright to the `package.json` scripts field:
 
 Assuming the following two Next.js pages:
 
-```jsx filename="pages/index.js"
+```jsx filename="pages/index.jsx"
 import Link from 'next/link'
 
 export default function Home() {
@@ -220,7 +220,7 @@ export default function Home() {
 }
 ```
 
-```jsx filename="pages/about.js"
+```jsx filename="pages/about.jsx"
 export default function About() {
   return (
     <div>
@@ -312,7 +312,7 @@ npm install --save-dev jest jest-environment-jsdom @testing-library/react @testi
 
 Create a `jest.config.mjs` file in your project's root directory and add the following:
 
-```jsx filename="jest.config.mjs"
+```js filename="jest.config.mjs"
 import nextJest from 'next/jest.js'
 
 const createJestConfig = nextJest({
@@ -350,7 +350,7 @@ If you opt out of the [Rust Compiler](/docs/architecture/nextjs-compiler), you w
 
 Here are the recommended options to configure Jest for Next.js:
 
-```jsx filename="jest.config.js"
+```js filename="jest.config.js"
 module.exports = {
   collectCoverage: true,
   // on node 14.x coverage provider v8 offers good speed and more or less good report
@@ -426,7 +426,7 @@ setupFilesAfterEnv: ['<rootDir>/jest.setup.js']
 
 Then, inside `jest.setup.js`, add the following import:
 
-```jsx filename="jest.setup.js"
+```js filename="jest.setup.js"
 import '@testing-library/jest-dom/extend-expect'
 ```
 
@@ -447,7 +447,7 @@ If your project is using [Module Path Aliases](/docs/pages/building-your-applica
 }
 ```
 
-```jsx filename="jest.config.js"
+```js filename="jest.config.js"
 moduleNameMapper: {
   '^@/components/(.*)$': '<rootDir>/components/$1',
 }
@@ -459,7 +459,7 @@ moduleNameMapper: {
 
 Add the Jest executable in watch mode to the `package.json` scripts:
 
-```jsx
+```json
 "scripts": {
   "dev": "next dev",
   "build": "next build",
@@ -496,7 +496,7 @@ describe('Home', () => {
 
 Optionally, add a [snapshot test](https://jestjs.io/docs/snapshot-testing) to keep track of any unexpected changes to your `<Home />` component:
 
-```jsx filename="__tests__/snapshot.js"
+```jsx filename="__tests__/snapshot.jsx"
 import { render } from '@testing-library/react'
 import Home from '../pages/index'
 
