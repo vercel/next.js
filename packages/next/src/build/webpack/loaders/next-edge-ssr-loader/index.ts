@@ -139,7 +139,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
 
     const maybeJSONParse = (str) => str ? JSON.parse(str) : undefined
 
-    const buildManifest = maybeJSONParse(self.__BUILD_MANIFEST)
+    const buildManifest = self.__BUILD_MANIFEST
     const prerenderManifest = maybeJSONParse(self.__PRERENDER_MANIFEST)
     const reactLoadableManifest = maybeJSONParse(self.__REACT_LOADABLE_MANIFEST)
     const rscManifest = maybeJSONParse(self.__RSC_MANIFEST)
