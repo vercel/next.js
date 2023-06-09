@@ -35,7 +35,7 @@ To get started, you must install `@vercel/otel`:
 npm install @vercel/otel
 ```
 
-Next, create a custom [`instrumentation.ts`](/docs/pages/building-your-application/optimizing/instrumentation) file in the root of the project:
+Next, create a custom [`instrumentation.ts`](/docs/app/building-your-application/optimizing/instrumentation) file in the root of the project if you are using the App Router, or inside the `pages` folder if using the Pages Router.
 
 ```ts filename="instrumentation.ts" switcher
 import { registerOTel } from '@vercel/otel'
