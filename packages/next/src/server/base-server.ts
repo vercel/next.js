@@ -671,8 +671,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
       // in minimal mode we detect RSC revalidate if the .rsc
       // path is requested
-      if (this.minimalMode && req.url.endsWith('.rsc')) {
-        parsedUrl.query.__nextDataReq = '1'
+      if (this.minimalMode) {
+        if (req.url.endsWith('.rsc')) {
+          parsedUrl.query.__nextDataReq = '1'
+        } else if (req.headers['x-now-route-matches']) {
+          for (const param of FLIGHT_PARAMETERS) {
+            delete req.headers[param.toString().toLowerCase()]
+          }
+        }
       }
 
       req.url = normalizeRscPath(req.url, this.hasAppDir)
