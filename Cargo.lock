@@ -359,20 +359,6 @@ dependencies = [
 
 [[package]]
 name = "async-tungstenite"
-version = "0.17.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1b71b31561643aa8e7df3effe284fa83ab1a840e52294c5f4bd7bfd8b2becbb"
-dependencies = [
- "futures-io",
- "futures-util",
- "log",
- "pin-project-lite",
- "tokio",
- "tungstenite 0.17.3",
-]
-
-[[package]]
-name = "async-tungstenite"
 version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8e6acf7e4a267eecbb127ed696bb2d50572c22ba7f586a646321e1798d8336a1"
@@ -382,7 +368,7 @@ dependencies = [
  "log",
  "pin-project-lite",
  "tokio",
- "tungstenite 0.18.0",
+ "tungstenite",
 ]
 
 [[package]]
@@ -414,7 +400,7 @@ dependencies = [
 [[package]]
 name = "auto-hash-map"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230608.1#a00ba87b486db48038e1d6e74775a29b920ef03b"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/update-chromiumoxide#01541c4ac4333a6e196b8e5e3bbffcbcb86d0161"
 dependencies = [
  "serde",
 ]
@@ -541,9 +527,9 @@ dependencies = [
 
 [[package]]
 name = "binding_macros"
-version = "0.50.35"
+version = "0.50.41"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a31f397ada59fbcd6cb7f0a9d5bab4a53bb7cfc3ee2277b9f93d0ea2c88704d6"
+checksum = "ef3a809ca2ce465f8c44acb578f9730234a0faf9199590cd5e00e537bb2affa2"
 dependencies = [
  "anyhow",
  "console_error_panic_hook",
@@ -763,40 +749,15 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "chromiumoxide"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c5506e432f602b1747e8a0d60ac6607c6977af4ee9720237764170305323e62"
-dependencies = [
- "async-tungstenite 0.17.2",
- "base64 0.13.1",
- "cfg-if 1.0.0",
- "chromiumoxide_cdp 0.4.0",
- "chromiumoxide_types 0.4.0",
- "fnv",
- "futures",
- "futures-timer",
- "pin-project-lite",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "tracing",
- "url",
- "which",
- "winreg",
-]
-
-[[package]]
-name = "chromiumoxide"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1fbef58698a487c253c55c3d17bb1efbe268d2961a2c8278e3f86fff721355fc"
 dependencies = [
- "async-tungstenite 0.19.0",
+ "async-tungstenite",
  "base64 0.21.0",
  "cfg-if 1.0.0",
- "chromiumoxide_cdp 0.5.0",
- "chromiumoxide_types 0.5.0",
+ "chromiumoxide_cdp",
+ "chromiumoxide_types",
  "dunce",
  "fnv",
  "futures",
@@ -814,41 +775,12 @@ dependencies = [
 
 [[package]]
 name = "chromiumoxide_cdp"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "88b6988af5c6bbf097999e7db879729dd7b27a62010c482d4922fddeb4f220d4"
-dependencies = [
- "chromiumoxide_pdl 0.4.0",
- "chromiumoxide_types 0.4.0",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "chromiumoxide_cdp"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "902b90e019dff479bf5a36ed3961e955afa48c35fb2d4245d0b193e7746d50b9"
 dependencies = [
- "chromiumoxide_pdl 0.5.0",
- "chromiumoxide_types 0.5.0",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "chromiumoxide_pdl"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4cdf6513e24d260548345a5ef13a04110f5915b7764c274933e10f9363a43e3b"
-dependencies = [
- "chromiumoxide_types 0.4.0",
- "either",
- "heck 0.4.1",
- "once_cell",
- "proc-macro2",
- "quote",
- "regex",
+ "chromiumoxide_pdl",
+ "chromiumoxide_types",
  "serde",
  "serde_json",
 ]
@@ -859,23 +791,13 @@ version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cc9319fb29ecce08ac90dd5a798c391f6a8ae1d7c90aff71f3fa27cb3cdfc3ec"
 dependencies = [
- "chromiumoxide_types 0.5.0",
+ "chromiumoxide_types",
  "either",
  "heck 0.4.1",
  "once_cell",
  "proc-macro2",
  "quote",
  "regex",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "chromiumoxide_types"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1af9c183b5aac7f09639cc7b4ddde8a8551850d2c9bf36530830cb10e28e676f"
-dependencies = [
  "serde",
  "serde_json",
 ]
@@ -2445,7 +2367,7 @@ dependencies = [
  "pin-project",
  "tokio",
  "tokio-tungstenite",
- "tungstenite 0.18.0",
+ "tungstenite",
 ]
 
 [[package]]
@@ -3387,7 +3309,7 @@ name = "next-dev"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "chromiumoxide 0.5.0",
+ "chromiumoxide",
  "clap 4.1.11",
  "console-subscriber",
  "criterion",
@@ -3409,7 +3331,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
- "tungstenite 0.17.3",
+ "tungstenite",
  "turbo-tasks",
  "turbopack-binding",
  "url",
@@ -3422,7 +3344,7 @@ name = "next-dev-tests"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "chromiumoxide 0.5.0",
+ "chromiumoxide",
  "console-subscriber",
  "dunce",
  "futures",
@@ -3439,7 +3361,7 @@ dependencies = [
  "serde_json",
  "testing",
  "tokio",
- "tungstenite 0.17.3",
+ "tungstenite",
  "turbo-tasks",
  "turbopack-binding",
  "url",
@@ -3542,7 +3464,7 @@ dependencies = [
 [[package]]
 name = "node-file-trace"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230608.1#a00ba87b486db48038e1d6e74775a29b920ef03b"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/update-chromiumoxide#01541c4ac4333a6e196b8e5e3bbffcbcb86d0161"
 dependencies = [
  "anyhow",
  "serde",
@@ -5463,9 +5385,9 @@ dependencies = [
 
 [[package]]
 name = "swc"
-version = "0.261.35"
+version = "0.261.41"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56428a57e7898982bee4530923a85ba17ad2b555a1502bcdccf6dc7ae483621f"
+checksum = "1b59f4e1f5ebb10037de0a3a5c25d2fe7691f8811f42d3549fb81f2b9047205b"
 dependencies = [
  "ahash",
  "anyhow",
@@ -5531,9 +5453,9 @@ dependencies = [
 
 [[package]]
 name = "swc_bundler"
-version = "0.214.26"
+version = "0.214.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a20b862690e5c6c5e70fc0d56c156175514520c98e89220d408fc0e0d62759a"
+checksum = "1a22f0573fef09dffc3db7094d29ef9445b4f09b76da650bc870060ca0b8c8a4"
 dependencies = [
  "ahash",
  "anyhow",
@@ -5637,9 +5559,9 @@ dependencies = [
 
 [[package]]
 name = "swc_core"
-version = "0.76.41"
+version = "0.76.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e8cd48cee857b467c1a7f3ff14ec26bfcdbe6a08f3218577e15d8157701da958"
+checksum = "82b4ef70c1c82e3392058c2a497e2fc787ed0df3b92dddbbef2e864d866cfa7f"
 dependencies = [
  "binding_macros",
  "swc",
@@ -5771,9 +5693,9 @@ dependencies = [
 
 [[package]]
 name = "swc_css_prefixer"
-version = "0.149.14"
+version = "0.149.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ada0aafa05a52012e4409976dd3352f1986701b7b7756946700543b4b2ebec9c"
+checksum = "13d84e4959647c275a6eaf3c40c2f830b2dd3c169149a5d5c03734cfad7f839c"
 dependencies = [
  "once_cell",
  "preset_env_base",
@@ -5835,9 +5757,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_codegen"
-version = "0.139.15"
+version = "0.139.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "11c6af8e6d6714ecd7ef5cfba322aa1b436f78d9a82b0c3ff16aeaf97b65cd6d"
+checksum = "c66d1ea16bb9b7ea6f87f17325742ff256fcbd65b188af57c2bf415fe4afc945"
 dependencies = [
  "memchr",
  "num-bigint",
@@ -5881,9 +5803,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_lints"
-version = "0.82.16"
+version = "0.82.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c3ea8c34004c75da37b7c4f70d1f043f4de455e6a6e78440bfa4d24a3bd201d"
+checksum = "48d5b6aadff572b212ceadba56da45a6bb9af7d67ce1c234a27073d4ec4e6361"
 dependencies = [
  "ahash",
  "auto_impl",
@@ -5924,9 +5846,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_minifier"
-version = "0.181.26"
+version = "0.181.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4006ddfdcdcf8eb3a83f077ae03b6ee5a94bd9d55d52198bbed2228a6acafcbe"
+checksum = "0f85eb56b6c5a8ba4e91141602511b9c5a390bad4c8e454bff77d80c2033c265"
 dependencies = [
  "ahash",
  "arrayvec",
@@ -5980,9 +5902,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_preset_env"
-version = "0.195.23"
+version = "0.195.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cfa9f2862180c733b633572be7d42b690cf2d878280a199a9b5f7cfba2cfd89e"
+checksum = "384802032a00bc0e67993e7c3c9a28b82af19c5685eb9d8f93655376f3f823c2"
 dependencies = [
  "ahash",
  "anyhow",
@@ -6035,9 +5957,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms"
-version = "0.218.21"
+version = "0.218.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ef09fbed21e8bcdf22bbfd88e5ec83c2acc2c831c39ca2fde01e1f040a85167"
+checksum = "dbe5ca1c16b4ea9ece9f43a24554edce402641c46b2cc4e418be6c40897572b0"
 dependencies = [
  "swc_atoms",
  "swc_common",
@@ -6055,9 +5977,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_base"
-version = "0.127.16"
+version = "0.127.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6232e641bef05c462bc7da34a3771f9b3f1f3352349ae0cd72b8eee8b0f5d5e0"
+checksum = "f9c33ec5369178f3a0580ab86cfe89ffb9c3fbd122aed379cfb71d469d9d61c1"
 dependencies = [
  "better_scoped_tls",
  "bitflags 2.2.1",
@@ -6079,9 +6001,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_classes"
-version = "0.116.16"
+version = "0.116.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f086829a3e645382f5609c9c6dce1d29e5204b3c81f82fe8d65d3bf17bcca68b"
+checksum = "6e3b0d5f362f0da97be1f1b06d7b0d8667ea70b4adeabff0dcaecb6259c09525"
 dependencies = [
  "swc_atoms",
  "swc_common",
@@ -6093,9 +6015,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_compat"
-version = "0.153.18"
+version = "0.153.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8f1ce5cb1e660b972799a3f28587e01d665981661753cb8f3eb7db89e77dae28"
+checksum = "851739faeec27389fbfe5b170534df7868bbcc5c78f229f22fce43f004858eca"
 dependencies = [
  "ahash",
  "arrayvec",
@@ -6133,9 +6055,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_module"
-version = "0.170.18"
+version = "0.170.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa0dfc1f9d2dfa4a95cb10dea599ddf61506e35f5eafbac25cd14bc33f413a7c"
+checksum = "b1595b0522333346488ad7354ad55d4ed337d4e5d7ded5e4d468c523ecb9a495"
 dependencies = [
  "Inflector",
  "ahash",
@@ -6161,9 +6083,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_optimization"
-version = "0.187.21"
+version = "0.187.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d27c12926427f235d149e60f9a9e67a2181fe1eb418c12b53b8e0778c5052a2"
+checksum = "3fff2641ba155b3aaa8ef15c1888d75b73e9f10431ec1cb58e66598266199322"
 dependencies = [
  "ahash",
  "dashmap",
@@ -6187,9 +6109,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_proposal"
-version = "0.161.20"
+version = "0.161.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "416fbb84f84644ef0e81df80bf44fd575bbb297a78887e359e16a61f6dc5af86"
+checksum = "593d2c321aa9b29b289d144832d985031ddc453ab1fdf59170d810e2283944f2"
 dependencies = [
  "either",
  "rustc-hash",
@@ -6207,9 +6129,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_react"
-version = "0.173.18"
+version = "0.173.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d39a0de45fa34ee797a1c80497c8b9dcb6cf6e56b455c163453399894c58a812"
+checksum = "5fb9481ad4e2acba34c6fbb6d4ccc64efe9f1821675e883dcfa732d7220f4b1e"
 dependencies = [
  "ahash",
  "base64 0.13.1",
@@ -6233,9 +6155,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_testing"
-version = "0.130.16"
+version = "0.130.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71e2f974e4f1d78309ea24cce2631a664eb367347c9d2e6677f96c7b8b6b176d"
+checksum = "01e7727573d1ea0a9d3f24c11fe4cb5038ce904bf3e67a13c0ee4a07d3ae4a1d"
 dependencies = [
  "ansi_term",
  "anyhow",
@@ -6259,9 +6181,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_typescript"
-version = "0.177.21"
+version = "0.177.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd32915040ed6ffdfeafb7a63276529df9ed83d8b6e7a6ce22d95ce98d137a21"
+checksum = "64f65165a1ef99b7638503fcf6ead4f58b7cfbf3a37c75dfd6f541b491323041"
 dependencies = [
  "serde",
  "swc_atoms",
@@ -6275,9 +6197,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_usage_analyzer"
-version = "0.13.15"
+version = "0.13.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62aacc5022f52ae332c6545b9248b70285be1847cf85d48b0640d05f68ff971f"
+checksum = "b7da59ebce19380671e76cfe7e9b0cdd6f430b3090c65c24aefcc07ed63739f2"
 dependencies = [
  "ahash",
  "indexmap",
@@ -6446,9 +6368,9 @@ dependencies = [
 
 [[package]]
 name = "swc_plugin_runner"
-version = "0.95.16"
+version = "0.95.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c9d8dc9624bfd27ec09d4dcf56d9e0ed5faaef056629f5d190fc69fde46ec489"
+checksum = "32cea3fce3d59a0962dc427019c469cd44a68c52224af1c7cc2a93f0d41d5890"
 dependencies = [
  "anyhow",
  "enumset",
@@ -6898,7 +6820,7 @@ dependencies = [
  "futures-util",
  "log",
  "tokio",
- "tungstenite 0.18.0",
+ "tungstenite",
 ]
 
 [[package]]
@@ -7120,25 +7042,6 @@ checksum = "3528ecfd12c466c6f163363caf2d02a71161dd5e1cc6ae7b34207ea2d42d81ed"
 
 [[package]]
 name = "tungstenite"
-version = "0.17.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e27992fd6a8c29ee7eef28fc78349aa244134e10ad447ce3b9f0ac0ed0fa4ce0"
-dependencies = [
- "base64 0.13.1",
- "byteorder",
- "bytes",
- "http",
- "httparse",
- "log",
- "rand",
- "sha-1",
- "thiserror",
- "url",
- "utf-8",
-]
-
-[[package]]
-name = "tungstenite"
 version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "30ee6ab729cd4cf0fd55218530c4522ed30b7b6081752839b68fcec8d0960788"
@@ -7159,7 +7062,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230608.1#a00ba87b486db48038e1d6e74775a29b920ef03b"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/update-chromiumoxide#01541c4ac4333a6e196b8e5e3bbffcbcb86d0161"
 dependencies = [
  "anyhow",
  "auto-hash-map",
@@ -7190,7 +7093,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-build"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230608.1#a00ba87b486db48038e1d6e74775a29b920ef03b"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/update-chromiumoxide#01541c4ac4333a6e196b8e5e3bbffcbcb86d0161"
 dependencies = [
  "anyhow",
  "cargo-lock",
@@ -7202,7 +7105,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-bytes"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230608.1#a00ba87b486db48038e1d6e74775a29b920ef03b"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/update-chromiumoxide#01541c4ac4333a6e196b8e5e3bbffcbcb86d0161"
 dependencies = [
  "anyhow",
  "bytes",
@@ -7217,7 +7120,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-env"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230608.1#a00ba87b486db48038e1d6e74775a29b920ef03b"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/update-chromiumoxide#01541c4ac4333a6e196b8e5e3bbffcbcb86d0161"
 dependencies = [
  "anyhow",
  "dotenvy",
@@ -7231,7 +7134,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-fetch"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230608.1#a00ba87b486db48038e1d6e74775a29b920ef03b"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/update-chromiumoxide#01541c4ac4333a6e196b8e5e3bbffcbcb86d0161"
 dependencies = [
  "anyhow",
  "indexmap",
@@ -7248,7 +7151,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-fs"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230608.1#a00ba87b486db48038e1d6e74775a29b920ef03b"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/update-chromiumoxide#01541c4ac4333a6e196b8e5e3bbffcbcb86d0161"
 dependencies = [
  "anyhow",
  "auto-hash-map",
@@ -7278,7 +7181,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-hash"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230608.1#a00ba87b486db48038e1d6e74775a29b920ef03b"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/update-chromiumoxide#01541c4ac4333a6e196b8e5e3bbffcbcb86d0161"
 dependencies = [
  "base16",
  "hex",
@@ -7290,7 +7193,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-macros"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230608.1#a00ba87b486db48038e1d6e74775a29b920ef03b"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/update-chromiumoxide#01541c4ac4333a6e196b8e5e3bbffcbcb86d0161"
 dependencies = [
  "anyhow",
  "convert_case 0.6.0",
@@ -7304,7 +7207,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-macros-shared"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230608.1#a00ba87b486db48038e1d6e74775a29b920ef03b"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/update-chromiumoxide#01541c4ac4333a6e196b8e5e3bbffcbcb86d0161"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -7314,7 +7217,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-malloc"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230608.1#a00ba87b486db48038e1d6e74775a29b920ef03b"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/update-chromiumoxide#01541c4ac4333a6e196b8e5e3bbffcbcb86d0161"
 dependencies = [
  "mimalloc",
 ]
@@ -7322,7 +7225,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-memory"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230608.1#a00ba87b486db48038e1d6e74775a29b920ef03b"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/update-chromiumoxide#01541c4ac4333a6e196b8e5e3bbffcbcb86d0161"
 dependencies = [
  "anyhow",
  "auto-hash-map",
@@ -7345,7 +7248,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-testing"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230608.1#a00ba87b486db48038e1d6e74775a29b920ef03b"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/update-chromiumoxide#01541c4ac4333a6e196b8e5e3bbffcbcb86d0161"
 dependencies = [
  "anyhow",
  "auto-hash-map",
@@ -7357,7 +7260,7 @@ dependencies = [
 [[package]]
 name = "turbopack"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230608.1#a00ba87b486db48038e1d6e74775a29b920ef03b"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/update-chromiumoxide#01541c4ac4333a6e196b8e5e3bbffcbcb86d0161"
 dependencies = [
  "anyhow",
  "async-recursion",
@@ -7387,10 +7290,10 @@ dependencies = [
 [[package]]
 name = "turbopack-bench"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230608.1#a00ba87b486db48038e1d6e74775a29b920ef03b"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/update-chromiumoxide#01541c4ac4333a6e196b8e5e3bbffcbcb86d0161"
 dependencies = [
  "anyhow",
- "chromiumoxide 0.4.0",
+ "chromiumoxide",
  "criterion",
  "dunce",
  "futures",
@@ -7406,7 +7309,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "tokio",
- "tungstenite 0.17.3",
+ "tungstenite",
  "turbo-tasks",
  "turbo-tasks-testing",
  "turbopack-create-test-app",
@@ -7417,7 +7320,7 @@ dependencies = [
 [[package]]
 name = "turbopack-binding"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230608.1#a00ba87b486db48038e1d6e74775a29b920ef03b"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/update-chromiumoxide#01541c4ac4333a6e196b8e5e3bbffcbcb86d0161"
 dependencies = [
  "auto-hash-map",
  "mdxjs",
@@ -7458,7 +7361,7 @@ dependencies = [
 [[package]]
 name = "turbopack-cli-utils"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230608.1#a00ba87b486db48038e1d6e74775a29b920ef03b"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/update-chromiumoxide#01541c4ac4333a6e196b8e5e3bbffcbcb86d0161"
 dependencies = [
  "anyhow",
  "clap 4.1.11",
@@ -7482,7 +7385,7 @@ dependencies = [
 [[package]]
 name = "turbopack-core"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230608.1#a00ba87b486db48038e1d6e74775a29b920ef03b"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/update-chromiumoxide#01541c4ac4333a6e196b8e5e3bbffcbcb86d0161"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7510,7 +7413,7 @@ dependencies = [
 [[package]]
 name = "turbopack-create-test-app"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230608.1#a00ba87b486db48038e1d6e74775a29b920ef03b"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/update-chromiumoxide#01541c4ac4333a6e196b8e5e3bbffcbcb86d0161"
 dependencies = [
  "anyhow",
  "clap 4.1.11",
@@ -7523,7 +7426,7 @@ dependencies = [
 [[package]]
 name = "turbopack-css"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230608.1#a00ba87b486db48038e1d6e74775a29b920ef03b"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/update-chromiumoxide#01541c4ac4333a6e196b8e5e3bbffcbcb86d0161"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7545,7 +7448,7 @@ dependencies = [
 [[package]]
 name = "turbopack-dev"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230608.1#a00ba87b486db48038e1d6e74775a29b920ef03b"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/update-chromiumoxide#01541c4ac4333a6e196b8e5e3bbffcbcb86d0161"
 dependencies = [
  "anyhow",
  "indexmap",
@@ -7569,7 +7472,7 @@ dependencies = [
 [[package]]
 name = "turbopack-dev-server"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230608.1#a00ba87b486db48038e1d6e74775a29b920ef03b"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/update-chromiumoxide#01541c4ac4333a6e196b8e5e3bbffcbcb86d0161"
 dependencies = [
  "anyhow",
  "async-compression",
@@ -7604,7 +7507,7 @@ dependencies = [
 [[package]]
 name = "turbopack-ecmascript"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230608.1#a00ba87b486db48038e1d6e74775a29b920ef03b"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/update-chromiumoxide#01541c4ac4333a6e196b8e5e3bbffcbcb86d0161"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7637,7 +7540,7 @@ dependencies = [
 [[package]]
 name = "turbopack-ecmascript-plugins"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230608.1#a00ba87b486db48038e1d6e74775a29b920ef03b"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/update-chromiumoxide#01541c4ac4333a6e196b8e5e3bbffcbcb86d0161"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7660,7 +7563,7 @@ dependencies = [
 [[package]]
 name = "turbopack-ecmascript-runtime"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230608.1#a00ba87b486db48038e1d6e74775a29b920ef03b"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/update-chromiumoxide#01541c4ac4333a6e196b8e5e3bbffcbcb86d0161"
 dependencies = [
  "anyhow",
  "indoc",
@@ -7677,7 +7580,7 @@ dependencies = [
 [[package]]
 name = "turbopack-env"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230608.1#a00ba87b486db48038e1d6e74775a29b920ef03b"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/update-chromiumoxide#01541c4ac4333a6e196b8e5e3bbffcbcb86d0161"
 dependencies = [
  "anyhow",
  "indexmap",
@@ -7693,7 +7596,7 @@ dependencies = [
 [[package]]
 name = "turbopack-image"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230608.1#a00ba87b486db48038e1d6e74775a29b920ef03b"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/update-chromiumoxide#01541c4ac4333a6e196b8e5e3bbffcbcb86d0161"
 dependencies = [
  "anyhow",
  "base64 0.21.0",
@@ -7713,7 +7616,7 @@ dependencies = [
 [[package]]
 name = "turbopack-json"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230608.1#a00ba87b486db48038e1d6e74775a29b920ef03b"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/update-chromiumoxide#01541c4ac4333a6e196b8e5e3bbffcbcb86d0161"
 dependencies = [
  "anyhow",
  "serde",
@@ -7728,7 +7631,7 @@ dependencies = [
 [[package]]
 name = "turbopack-mdx"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230608.1#a00ba87b486db48038e1d6e74775a29b920ef03b"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/update-chromiumoxide#01541c4ac4333a6e196b8e5e3bbffcbcb86d0161"
 dependencies = [
  "anyhow",
  "mdxjs",
@@ -7743,7 +7646,7 @@ dependencies = [
 [[package]]
 name = "turbopack-node"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230608.1#a00ba87b486db48038e1d6e74775a29b920ef03b"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/update-chromiumoxide#01541c4ac4333a6e196b8e5e3bbffcbcb86d0161"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -7778,7 +7681,7 @@ dependencies = [
 [[package]]
 name = "turbopack-static"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230608.1#a00ba87b486db48038e1d6e74775a29b920ef03b"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/update-chromiumoxide#01541c4ac4333a6e196b8e5e3bbffcbcb86d0161"
 dependencies = [
  "anyhow",
  "serde",
@@ -7794,7 +7697,7 @@ dependencies = [
 [[package]]
 name = "turbopack-swc-utils"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230608.1#a00ba87b486db48038e1d6e74775a29b920ef03b"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/update-chromiumoxide#01541c4ac4333a6e196b8e5e3bbffcbcb86d0161"
 dependencies = [
  "swc_core",
  "turbo-tasks",
@@ -7805,7 +7708,7 @@ dependencies = [
 [[package]]
 name = "turbopack-test-utils"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230608.1#a00ba87b486db48038e1d6e74775a29b920ef03b"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/update-chromiumoxide#01541c4ac4333a6e196b8e5e3bbffcbcb86d0161"
 dependencies = [
  "anyhow",
  "once_cell",
