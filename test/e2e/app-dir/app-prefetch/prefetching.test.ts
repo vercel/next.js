@@ -2,7 +2,7 @@ import { createNextDescribe } from 'e2e-utils'
 import { check, waitFor } from 'next-test-utils'
 
 // @ts-ignore
-import { NEXT_RSC_UNION_QUERY } from 'next/dist/src/client/components/app-router-headers'
+import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
 
 const browserConfigWithFixedTime = {
   beforePageLoad: (page) => {
