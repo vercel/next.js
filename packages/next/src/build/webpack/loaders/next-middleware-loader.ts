@@ -42,8 +42,9 @@ export default function middlewareLoader(this: any) {
   return `
         import 'next/dist/esm/server/web/globals'
         import { adapter } from 'next/dist/esm/server/web/adapter'
-        import * as mod from ${stringifiedPagePath}
+        import * as _mod from ${stringifiedPagePath}
 
+        const mod = { ..._mod }
         const handler = mod.middleware || mod.default
 
         if (typeof handler !== 'function') {
