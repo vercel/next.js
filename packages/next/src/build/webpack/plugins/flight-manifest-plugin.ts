@@ -69,14 +69,11 @@ export type ClientReferenceManifest = {
   edgeSSRModuleMapping: {
     [moduleId: string]: ManifestNode
   }
-}
-
-export type ClientCSSReferenceManifest = {
-  cssImports: {
-    [modulePath: string]: string[]
-  }
-  cssModules?: {
-    [entry: string]: string[]
+  entryCSSFiles: {
+    [entry: string]: {
+      modules: string[]
+      files: string[]
+    }
   }
 }
 
@@ -85,11 +82,13 @@ const PLUGIN_NAME = 'ClientReferenceManifestPlugin'
 export class ClientReferenceManifestPlugin {
   dev: Options['dev'] = false
   appDir: Options['appDir']
+  appDirBase: string
   ASYNC_CLIENT_MODULES: Set<string>
 
   constructor(options: Options) {
     this.dev = options.dev
     this.appDir = options.appDir
+    this.appDirBase = path.dirname(this.appDir) + path.sep
     this.ASYNC_CLIENT_MODULES = new Set(pluginState.ASYNC_CLIENT_MODULES)
   }
 
@@ -130,6 +129,7 @@ export class ClientReferenceManifestPlugin {
       ssrModuleMapping: {},
       edgeSSRModuleMapping: {},
       clientModules: {},
+      entryCSSFiles: {},
     }
 
     const clientRequestsSet = new Set()
@@ -172,11 +172,24 @@ export class ClientReferenceManifestPlugin {
       }
       const requiredChunks = getAppPathRequiredChunks()
 
-      const recordModule = (
-        id: ModuleId,
-        mod: webpack.NormalModule,
-        chunkCSS: string[]
-      ) => {
+      let chunkEntryName: string | null = null
+      if (chunkGroup.name && /^app[\\/]/.test(chunkGroup.name)) {
+        // Absolute path without the extension
+        chunkEntryName = (this.appDirBase + chunkGroup.name).replace(
+          /[\\/]/g,
+          path.sep
+        )
+        manifest.entryCSSFiles[chunkEntryName] = {
+          modules: [],
+          files: chunkGroup
+            .getFiles()
+            .filter(
+              (f) => !f.startsWith('static/css/pages/') && f.endsWith('.css')
+            ),
+        }
+      }
+
+      const recordModule = (id: ModuleId, mod: webpack.NormalModule) => {
         const isCSSModule = isCSSMod(mod)
 
         // Skip all modules from the pages folder. CSS modules are a special case
@@ -196,6 +209,13 @@ export class ClientReferenceManifestPlugin {
           return
         }
 
+        if (isCSSModule) {
+          if (chunkEntryName) {
+            manifest.entryCSSFiles[chunkEntryName].modules.push(resource)
+          }
+          return
+        }
+
         const moduleReferences = manifest.clientModules
         const moduleIdMapping = manifest.ssrModuleMapping
         const edgeModuleIdMapping = manifest.edgeSSRModuleMapping
@@ -210,26 +230,6 @@ export class ClientReferenceManifestPlugin {
 
         if (!ssrNamedModuleId.startsWith('.'))
           ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
-
-        if (isCSSModule) {
-          const exportName = getClientReferenceModuleKey(resource, '')
-          if (!moduleReferences[exportName]) {
-            moduleReferences[exportName] = {
-              id: id || '',
-              name: 'default',
-              chunks: chunkCSS,
-            }
-          } else {
-            // It is possible that there are multiple modules with the same resource,
-            // e.g. extracted by mini-css-extract-plugin. In that case we need to
-            // merge the chunks.
-            moduleReferences[exportName].chunks = [
-              ...new Set([...moduleReferences[exportName].chunks, ...chunkCSS]),
-            ]
-          }
-
-          return
-        }
 
         // Only apply following logic to client module requests from client entry,
         // or if the module is marked as client module.
@@ -369,25 +369,28 @@ export class ClientReferenceManifestPlugin {
           // TODO: Update type so that it doesn't have to be cast.
         ) as Iterable<webpack.NormalModule>
 
-        const chunkCSS = [...chunk.files].filter(
-          (f) => !f.startsWith('static/css/pages/') && f.endsWith('.css')
-        )
-
         for (const mod of chunkModules) {
           const modId: string = compilation.chunkGraph.getModuleId(mod) + ''
 
-          recordModule(modId, mod, chunkCSS)
+          recordModule(modId, mod)
 
           // If this is a concatenation, register each child to the parent ID.
           // TODO: remove any
           const anyModule = mod as any
           if (anyModule.modules) {
             anyModule.modules.forEach((concatenatedMod: any) => {
-              recordModule(modId, concatenatedMod, chunkCSS)
+              recordModule(modId, concatenatedMod)
             })
           }
         }
       })
+
+      if (chunkEntryName) {
+        // Make sure CSS modules are deduped
+        manifest.entryCSSFiles[chunkEntryName].modules = [
+          ...new Set(manifest.entryCSSFiles[chunkEntryName].modules),
+        ]
+      }
     })
 
     const file = 'server/' + CLIENT_REFERENCE_MANIFEST

@@ -62,7 +62,6 @@ import {
   APP_PATHS_MANIFEST,
   APP_PATH_ROUTES_MANIFEST,
   APP_BUILD_MANIFEST,
-  FLIGHT_SERVER_CSS_MANIFEST,
   RSC_MODULE_TYPES,
   NEXT_FONT_MANIFEST,
   SUBRESOURCE_INTEGRITY_MANIFEST,
@@ -892,14 +891,6 @@ export default async function build(
                   path.join(
                     SERVER_DIRECTORY,
                     CLIENT_REFERENCE_MANIFEST + '.json'
-                  ),
-                  path.join(
-                    SERVER_DIRECTORY,
-                    FLIGHT_SERVER_CSS_MANIFEST + '.js'
-                  ),
-                  path.join(
-                    SERVER_DIRECTORY,
-                    FLIGHT_SERVER_CSS_MANIFEST + '.json'
                   ),
                   path.join(
                     SERVER_DIRECTORY,

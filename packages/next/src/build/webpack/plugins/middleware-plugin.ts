@@ -17,7 +17,6 @@ import {
   MIDDLEWARE_MANIFEST,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
   NEXT_CLIENT_SSR_ENTRY_SUFFIX,
-  FLIGHT_SERVER_CSS_MANIFEST,
   SUBRESOURCE_INTEGRITY_MANIFEST,
   NEXT_FONT_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
@@ -100,7 +99,6 @@ function getEntryFiles(
     if (meta.edgeSSR.isServerComponent) {
       files.push(`server/${SERVER_REFERENCE_MANIFEST}.js`)
       files.push(`server/${CLIENT_REFERENCE_MANIFEST}.js`)
-      files.push(`server/${FLIGHT_SERVER_CSS_MANIFEST}.js`)
       if (opts.sriEnabled) {
         files.push(`server/${SUBRESOURCE_INTEGRITY_MANIFEST}.js`)
       }

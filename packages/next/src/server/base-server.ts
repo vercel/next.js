@@ -249,7 +249,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     supportsDynamicHTML?: boolean
     isBot?: boolean
     clientReferenceManifest?: ClientReferenceManifest
-    serverCSSManifest?: any
     serverActionsManifest?: any
     nextFontManifest?: NextFontManifest
     renderServerComponentData?: boolean
@@ -264,7 +263,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected appPathRoutes?: Record<string, string[]>
   protected customRoutes: CustomRoutes
   protected clientReferenceManifest?: ClientReferenceManifest
-  protected serverCSSManifest?: any
   protected nextFontManifest?: NextFontManifest
   public readonly hostname?: string
   public readonly port?: number
@@ -289,7 +287,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getFontManifest(): FontManifest | undefined
   protected abstract getPrerenderManifest(): PrerenderManifest
   protected abstract getServerComponentManifest(): any
-  protected abstract getServerCSSManifest(): any
   protected abstract getNextFontManifest(): NextFontManifest | undefined
   protected abstract attachRequestMeta(
     req: BaseNextRequest,
@@ -416,9 +413,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const serverComponents = this.hasAppDir
     this.clientReferenceManifest = serverComponents
       ? this.getServerComponentManifest()
-      : undefined
-    this.serverCSSManifest = serverComponents
-      ? this.getServerCSSManifest()
       : undefined
     this.nextFontManifest = this.getNextFontManifest()
 
