@@ -70,8 +70,8 @@ impl EcmascriptBuildNodeChunkContentVc {
             .await?
         {
             write!(code, "{}: ", StringifyJs(&id))?;
-            code.push_code(&*item_code);
-            write!(code, ",\n")?;
+            code.push_code(&item_code);
+            writeln!(code, ",")?;
         }
 
         write!(code, "\n}};")?;

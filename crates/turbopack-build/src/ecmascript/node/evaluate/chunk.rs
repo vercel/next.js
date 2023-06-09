@@ -96,7 +96,7 @@ impl EcmascriptBuildNodeEvaluateChunkVc {
                 const CHUNK_PUBLIC_PATH = {};
                 const runtime = require({});
             "#,
-            StringifyJs(&*chunk_public_path),
+            StringifyJs(chunk_public_path),
             StringifyJs(&*runtime_relative_path)
         )?;
 

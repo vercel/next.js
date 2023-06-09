@@ -12,5 +12,5 @@ pub fn should_debug(operation: &str) -> bool {
         return false;
     };
 
-    val == "*" || val.split(",").any(|part| part == operation)
+    val == "*" || val.split(',').any(|part| part == operation)
 }

@@ -44,7 +44,7 @@ impl ChunkDataVc {
         // The "path" in this case is the chunk's path, not the chunk item's path.
         // The difference is a chunk is a file served by the dev server, and an
         // item is one of several that are contained in that chunk file.
-        let Some(path) = output_root.get_path_to(&*path) else {
+        let Some(path) = output_root.get_path_to(&path) else {
             return Ok(ChunkDataOptionVc::cell(None));
         };
         let path = path.to_string();
@@ -88,7 +88,7 @@ impl ChunkDataVc {
 
                     async move {
                         let chunk_path = chunk.ident().path().await?;
-                        Ok(output_root.get_path_to(&*chunk_path).map(|path| {
+                        Ok(output_root.get_path_to(&chunk_path).map(|path| {
                             (
                                 path.to_owned(),
                                 SingleAssetReferenceVc::new(
@@ -114,7 +114,7 @@ impl ChunkDataVc {
                 path,
                 included,
                 excluded,
-                module_chunks: module_chunks,
+                module_chunks,
                 references: AssetReferencesVc::cell(module_chunks_references),
             }
             .cell(),

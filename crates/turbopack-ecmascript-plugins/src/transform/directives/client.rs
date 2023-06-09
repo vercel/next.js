@@ -14,7 +14,7 @@ pub struct ClientDirectiveTransformer {
 impl ClientDirectiveTransformer {
     pub fn new(transition_name: &StringVc) -> Self {
         Self {
-            transition_name: transition_name.clone(),
+            transition_name: *transition_name,
         }
     }
 }

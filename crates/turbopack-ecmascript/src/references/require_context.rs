@@ -498,7 +498,7 @@ impl EcmascriptChunkItem for RequireContextChunkItem {
             },
             cm: source_map.clone(),
             comments: None,
-            wr: JsWriter::new(source_map.clone(), "\n", &mut bytes, None),
+            wr: JsWriter::new(source_map, "\n", &mut bytes, None),
         };
 
         emitter.emit_module(&module)?;

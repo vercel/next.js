@@ -215,7 +215,7 @@ impl EcmascriptInputTransform {
                 {
                     Program::Module(Module {
                         span,
-                        body: body.drain(..).map(|stmt| ModuleItem::Stmt(stmt)).collect(),
+                        body: body.drain(..).map(ModuleItem::Stmt).collect(),
                         shebang,
                     })
                 } else {

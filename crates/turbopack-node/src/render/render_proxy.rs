@@ -233,7 +233,7 @@ async fn render_stream_internal(
     let stream = generator! {
         let intermediate_asset = get_intermediate_asset(
             chunking_context,
-            module.into(),
+            module,
             runtime_entries,
         );
         let pool = get_renderer_pool(

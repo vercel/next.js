@@ -51,7 +51,6 @@ impl ChunkGroupFilesAssetVc {
                 this.chunking_context.evaluated_chunk_group(
                     ecma.as_root_chunk(this.chunking_context),
                     this.runtime_entries
-                        .clone()
                         .unwrap_or_else(EvaluatableAssetsVc::empty)
                         .with_entry(ecma.into()),
                 )
@@ -220,7 +219,7 @@ impl Introspectable for ChunkGroupFilesAsset {
         let mut children = IndexSet::new();
         let chunk_ty = StringVc::cell("chunk".to_string());
         for &chunk in self_vc.chunks().await?.iter() {
-            children.insert((chunk_ty, IntrospectableAssetVc::new(chunk.into())));
+            children.insert((chunk_ty, IntrospectableAssetVc::new(chunk)));
         }
         children.insert((
             StringVc::cell("inner asset".to_string()),

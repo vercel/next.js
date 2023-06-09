@@ -137,7 +137,7 @@ impl<P: SourceProvider + Clone + Send + Sync> UpdateServer<P> {
                         client
                             .send(ClientUpdateInstruction::partial(
                                 &resource,
-                                &**partial_instruction,
+                                partial_instruction,
                                 &issues,
                             ))
                             .await?;

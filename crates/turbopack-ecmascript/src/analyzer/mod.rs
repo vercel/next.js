@@ -1145,7 +1145,7 @@ impl JsValue {
                     "| "
                 )
             ),
-            JsValue::FreeVar(name) => format!("FreeVar({})", &*name),
+            JsValue::FreeVar(name) => format!("FreeVar({})", name),
             JsValue::Variable(name) => {
                 format!("{}", name.0)
             }
