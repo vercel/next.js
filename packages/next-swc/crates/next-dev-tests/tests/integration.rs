@@ -459,6 +459,7 @@ async fn run_browser(addr: SocketAddr, project_dir: &Path) -> Result<JsResult> {
         .await;
     }
 
+    println!("finished navigation to http://{addr}");
     let mut errors_next = errors.next();
     let mut bindings_next = binding_events.next();
     let mut console_next = console_events.next();
