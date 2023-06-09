@@ -215,21 +215,20 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         "./index.js
         Error: 
           x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
-           ,-[TEST_DIR/index.js:5:1]
-         5 |               <p>lol</p>
-         6 |             div
-         7 |           )
-         8 |         }
-           :         ^
-         9 |       
+           ,-[TEST_DIR/index.js:4:1]
+         4 |       <p>lol</p>
+         5 |     div
+         6 |   )
+         7 | }
+           : ^
            \`----
 
           x Unexpected eof
-           ,-[TEST_DIR/index.js:6:1]
-         6 |             div
-         7 |           )
-         8 |         }
-         9 |       
+           ,-[TEST_DIR/index.js:4:1]
+         4 |       <p>lol</p>
+         5 |     div
+         6 |   )
+         7 | }
            \`----
 
         Caused by:

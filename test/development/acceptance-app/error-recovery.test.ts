@@ -144,15 +144,15 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
 
     await session.waitForAndOpenRuntimeError()
     expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-      "index.js (8:22) @ eval
+      "index.js (7:10) @ eval
 
-         6 | const increment = useCallback(() => {
-         7 |   setCount(c => c + 1)
-      >  8 |   throw new Error('oops')
+         5 | const increment = useCallback(() => {
+         6 |   setCount(c => c + 1)
+      >  7 |   throw new Error('oops')
            |        ^
-         9 | }, [setCount])
-        10 | return (
-        11 |   <main>"
+         8 | }, [setCount])
+         9 | return (
+        10 |   <main>"
     `)
 
     await session.patch(

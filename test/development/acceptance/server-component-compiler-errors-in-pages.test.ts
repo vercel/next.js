@@ -64,12 +64,11 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         You're importing a component that needs next/headers. That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/react-essentials#server-components
 
            ,-[TEST_DIR/components/Comp.js:1:1]
-         1 | 
-         2 |         import { cookies } from 'next/headers'
-           :         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-         3 |   
-         4 |         export default function Page() {
-         5 |           return <p>hello world</p>
+         1 | import { cookies } from 'next/headers'
+           : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+         2 | 
+         3 | export default function Page() {
+         4 |   return <p>hello world</p>
            \`----
 
         Import trace for requested module:
@@ -110,12 +109,11 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         You're importing a component that needs server-only. That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/react-essentials#server-components
 
            ,-[TEST_DIR/components/Comp.js:1:1]
-         1 | 
-         2 |           import 'server-only' 
-           :           ^^^^^^^^^^^^^^^^^^^^
-         3 |     
-         4 |           export default function Page() {
-         5 |             return 'hello world'
+         1 | import 'server-only' 
+           : ^^^^^^^^^^^^^^^^^^^^
+         2 | 
+         3 | export default function Page() {
+         4 |   return 'hello world'
            \`----
 
         Import trace for requested module:

@@ -106,16 +106,16 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
 
     expect(await session.hasRedbox(true)).toBe(true)
     expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-        "index.js (8:18) @ eval
+      "index.js (7:10) @ eval
 
-           6 | const increment = useCallback(() => {
-           7 |   setCount(c => c + 1)
-        >  8 |   throw new Error('oops')
-             |        ^
-           9 | }, [setCount])
-          10 | return (
-          11 |   <main>"
-      `)
+         5 | const increment = useCallback(() => {
+         6 |   setCount(c => c + 1)
+      >  7 |   throw new Error('oops')
+           |        ^
+         8 | }, [setCount])
+         9 | return (
+        10 |   <main>"
+    `)
 
     await session.patch(
       'index.js',
@@ -428,12 +428,12 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         "./index.js
         Error: 
           x Expected '}', got '<eof>'
-           ,-[TEST_DIR/index.js:5:1]
-         5 |           i++
-         6 |           throw Error('no ' + i)
-         7 |         }, 1000)
-         8 |         export default function FunctionNamed() {
-           :                                                 ^
+           ,-[TEST_DIR/index.js:4:1]
+         4 |   i++
+         5 |   throw Error('no ' + i)
+         6 | }, 1000)
+         7 | export default function FunctionNamed() {
+           :                                         ^
            \`----
 
         Caused by:
@@ -455,12 +455,12 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         "./index.js
         Error: 
           x Expected '}', got '<eof>'
-           ,-[TEST_DIR/index.js:5:1]
-         5 |           i++
-         6 |           throw Error('no ' + i)
-         7 |         }, 1000)
-         8 |         export default function FunctionNamed() {
-           :                                                 ^
+           ,-[TEST_DIR/index.js:4:1]
+         4 |   i++
+         5 |   throw Error('no ' + i)
+         6 | }, 1000)
+         7 | export default function FunctionNamed() {
+           :                                         ^
            \`----
 
         Caused by:
