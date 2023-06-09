@@ -7,6 +7,7 @@ import type {
   FlightDataPath,
   FlightRouterState,
   FlightSegmentPath,
+  NextFlightData,
   RenderOpts,
   Segment,
 } from './types'
@@ -796,7 +797,6 @@ export async function renderToHTMLOrFlight(
               return [
                 parallelRouteKey,
                 <LayoutRouter
-                  buildId={renderOpts.buildId}
                   parallelRouterKey={parallelRouteKey}
                   segmentPath={createSegmentPath(currentSegmentPath)}
                   loading={Loading ? <Loading /> : undefined}
@@ -1208,10 +1208,12 @@ export async function renderToHTMLOrFlight(
             })
           ).map((path) => path.slice(1)) // remove the '' (root) segment
 
+      const nextFlightData: NextFlightData = [renderOpts.buildId, flightData]
+
       // For app dir, use the bundled version of Fizz renderer (renderToReadableStream)
       // which contains the subset React.
       const readable = ComponentMod.renderToReadableStream(
-        options ? [options.actionResult, flightData] : flightData,
+        options ? [options.actionResult, nextFlightData] : nextFlightData,
         clientReferenceManifest.clientModules,
         {
           context: serverContexts,
@@ -1331,6 +1333,7 @@ export async function renderToHTMLOrFlight(
           <>
             {styles}
             <AppRouter
+              buildId={renderOpts.buildId}
               assetPrefix={assetPrefix}
               initialCanonicalUrl={pathname}
               initialTree={initialTree}

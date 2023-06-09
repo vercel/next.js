@@ -6,8 +6,10 @@ import { CacheStates } from '../../../shared/lib/app-router-context'
 import { createHrefFromUrl } from './create-href-from-url'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { extractPathFromFlightRouterState } from './compute-changed-path'
+import { ReducerState } from './router-reducer-types'
 
 export interface InitialRouterStateParameters {
+  buildId: string
   initialTree: FlightRouterState
   initialCanonicalUrl: string
   children: ReactNode
@@ -18,6 +20,7 @@ export interface InitialRouterStateParameters {
 }
 
 export function createInitialRouterState({
+  buildId,
   initialTree,
   children,
   initialCanonicalUrl,
@@ -25,7 +28,7 @@ export function createInitialRouterState({
   isServer,
   location,
   initialHead,
-}: InitialRouterStateParameters) {
+}: InitialRouterStateParameters): ReducerState {
   const cache: CacheNode = {
     status: CacheStates.READY,
     data: null,
@@ -40,6 +43,7 @@ export function createInitialRouterState({
   }
 
   return {
+    buildId,
     tree: initialTree,
     cache,
     prefetchCache: new Map(),
