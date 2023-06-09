@@ -2921,7 +2921,9 @@ export default async function build(
         )
         await promises.writeFile(
           path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
-          `self.__PRERENDER_MANIFEST=${JSON.stringify(prerenderManifest)}`,
+          `self.__PRERENDER_MANIFEST=${JSON.stringify(
+            JSON.stringify(prerenderManifest)
+          )}`,
           'utf8'
         )
         await generateClientSsgManifest(prerenderManifest, {
@@ -2944,7 +2946,9 @@ export default async function build(
         )
         await promises.writeFile(
           path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
-          `self.__PRERENDER_MANIFEST=${JSON.stringify(prerenderManifest)}`,
+          `self.__PRERENDER_MANIFEST=${JSON.stringify(
+            JSON.stringify(prerenderManifest)
+          )}`,
           'utf8'
         )
       }
