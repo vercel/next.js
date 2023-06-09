@@ -1,13 +1,16 @@
 {
   "private": true,
   "scripts": {
-    "dev": "next",
-    "build": "next build",
-    "start": "next start"
+    "dev": "pnpm pre-dev && next dev",
+    "build": "pnpm pre-build && next build",
+    "start": "next start",
+    "lint": "next lint",
+    "pre-dev": "ts-node --project ./tsconfig.node.json ./scripts/genAntdCss.tsx",
+    "pre-build": "cross-env NODE_ENV=production ts-node --project ./tsconfig.node.json ./scripts/genAntdCss.tsx"
   },
   "dependencies": {
-    "@ant-design/icons": "^4.8.0",
-    "antd": "^5.0.0",
+    "@ant-design/icons": "^5.1.4",
+    "antd": "^5.6.1",
     "next": "latest",
     "react": "18.2.0",
     "react-dom": "18.2.0"
@@ -17,9 +20,13 @@
     "path": false
   },
   "devDependencies": {
-    "@types/node": "18.0.3",
-    "@types/react": "18.0.15",
-    "@types/react-dom": "18.0.6",
-    "typescript": "4.7.4"
+    "@ant-design/static-style-extract": "1.0.1",
+    "@types/node": "20.2.5",
+    "@types/react": "18.2.9",
+    "@types/react-dom": "18.2.4",
+    "cross-env": "7.0.3",
+    "mkdirp": "3.0.1",
+    "ts-node": "10.9.1",
+    "typescript": "5.1.3"
   }
 }

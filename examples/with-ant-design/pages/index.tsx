@@ -1,12 +1,4 @@
-import {
-  Button,
-  DatePicker,
-  Form,
-  InputNumber,
-  Select,
-  Slider,
-  Switch,
-} from 'antd'
+import { Button, DatePicker, Form, InputNumber, Select, Slider, Switch } from 'antd'
 import type { DatePickerProps } from 'antd'
 import { SmileFilled } from '@ant-design/icons'
 import Link from 'next/link'
@@ -14,14 +6,11 @@ import Link from 'next/link'
 const FormItem = Form.Item
 
 const content = {
-  marginTop: '100px',
+  marginTop: '100px'
 }
 
 export default function Home() {
-  const onDatePickerChange: DatePickerProps['onChange'] = (
-    date,
-    dateString
-  ) => {
+  const onDatePickerChange: DatePickerProps['onChange'] = (date, dateString) => {
     console.log(date, dateString)
   }
 
@@ -29,18 +18,13 @@ export default function Home() {
     <div style={content}>
       <div className="text-center mb-5">
         <Link href="#" className="logo mr-0">
-          <SmileFilled style={{ fontSize: 48 }} />
+          <SmileFilled style={{ fontSize: 48, color: '#389e0d' }} />
         </Link>
 
         <p className="mb-0 mt-3 text-disabled">Welcome to the world !</p>
       </div>
       <div>
-        <Form
-          layout="horizontal"
-          size={'large'}
-          labelCol={{ span: 8 }}
-          wrapperCol={{ span: 8 }}
-        >
+        <Form layout="horizontal" size={'large'} labelCol={{ span: 8 }} wrapperCol={{ span: 8 }}>
           <FormItem label="Input Number">
             <InputNumber
               min={1}
@@ -66,21 +50,21 @@ export default function Home() {
               options={[
                 {
                   value: 'jack',
-                  label: 'Jack',
+                  label: 'Jack'
                 },
                 {
                   value: 'lucy',
-                  label: 'Lucy',
+                  label: 'Lucy'
                 },
                 {
                   value: 'disabled',
                   disabled: true,
-                  label: 'Disabled',
+                  label: 'Disabled'
                 },
                 {
                   value: 'Yiminghe',
-                  label: 'yiminghe',
-                },
+                  label: 'yiminghe'
+                }
               ]}
             />
           </FormItem>
