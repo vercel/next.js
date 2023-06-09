@@ -1,6 +1,5 @@
 use anyhow::{bail, Result};
 use indexmap::indexmap;
-use turbo_tasks::Value;
 use turbopack_binding::turbopack::{
     core::{
         asset::AssetVc,
@@ -74,9 +73,9 @@ impl Transition for NextClientTransition {
 
             context.process(
                 internal_asset,
-                Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
+                ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
                     "PAGE".to_string() => asset
-                }))),
+                })),
             )
         } else {
             asset

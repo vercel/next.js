@@ -2,7 +2,7 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use indexmap::indexmap;
-use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value};
+use turbo_tasks::{primitives::StringVc, TryJoinIterExt};
 use turbopack_binding::{
     turbo::tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPathVc},
     turbopack::{
@@ -88,11 +88,11 @@ impl PageLoaderAssetVc {
 
         let module = this.client_context.process(
             loader_entry_asset,
-            Value::new(ReferenceType::Internal(
+            ReferenceType::Internal(
                 InnerAssetsVc::cell(indexmap! {
-                    "PAGE".to_string() => this.client_context.process(this.entry_asset, Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)))
+                    "PAGE".to_string() => this.client_context.process(this.entry_asset, ReferenceType::Entry(EntryReferenceSubType::Page))
                 })
-            )),
+            ),
         );
 
         let Some(module) = EvaluatableAssetVc::resolve_from(module).await? else {

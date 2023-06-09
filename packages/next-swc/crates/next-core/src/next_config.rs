@@ -5,7 +5,7 @@ use serde_json::Value as JsonValue;
 use turbo_tasks::{
     primitives::{BoolVc, JsonValueVc, StringVc, StringsVc},
     trace::TraceRawVcs,
-    CompletionVc, Value,
+    CompletionVc,
 };
 use turbo_tasks_fs::json::parse_json_with_source_context;
 use turbopack_binding::{
@@ -670,13 +670,13 @@ pub async fn load_next_config_internal(
         // changes
         let config_asset = context.process(
             config_asset.into(),
-            Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
+            ReferenceType::Internal(InnerAssetsVc::empty()),
         );
         any_content_changed(config_asset)
     });
     let load_next_config_asset = context.process(
         next_asset("entry/config/next.js"),
-        Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
+        ReferenceType::Entry(EntryReferenceSubType::Undefined),
     );
 
     let config_value = evaluate(

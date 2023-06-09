@@ -1,6 +1,5 @@
 use anyhow::Result;
 use indexmap::indexmap;
-use turbo_tasks::Value;
 use turbopack_binding::turbopack::{
     core::{
         asset::AssetVc,
@@ -27,7 +26,7 @@ impl Transition for NextServerToClientTransition {
         self_vc: NextServerToClientTransitionVc,
         asset: AssetVc,
         context: ModuleAssetContextVc,
-        _reference_type: Value<ReferenceType>,
+        _reference_type: ReferenceType,
     ) -> Result<AssetVc> {
         let internal_asset = next_asset(if self_vc.await?.ssr {
             "entry/app/server-to-client-ssr.tsx"
@@ -37,22 +36,18 @@ impl Transition for NextServerToClientTransition {
         let context = self_vc.process_context(context);
         let client_chunks = context.with_transition("next-client-chunks").process(
             asset,
-            Value::new(ReferenceType::Entry(
-                EntryReferenceSubType::AppClientComponent,
-            )),
+            ReferenceType::Entry(EntryReferenceSubType::AppClientComponent),
         );
         let client_module = context.with_transition("next-ssr-client-module").process(
             asset,
-            Value::new(ReferenceType::Entry(
-                EntryReferenceSubType::AppClientComponent,
-            )),
+            ReferenceType::Entry(EntryReferenceSubType::AppClientComponent),
         );
         Ok(context.process(
             internal_asset,
-            Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
+            ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
                 "CLIENT_MODULE".to_string() => client_module,
                 "CLIENT_CHUNKS".to_string() => client_chunks,
-            }))),
+            })),
         ))
     }
 }

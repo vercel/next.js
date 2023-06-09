@@ -147,7 +147,7 @@ async fn get_config(
     let config_asset = match &*find_config_result.await? {
         FindContextFileResult::Found(config_path, _) => Some(context.process(
             SourceAssetVc::new(*config_path).as_asset(),
-            Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
+            ReferenceType::Internal(InnerAssetsVc::empty()),
         )),
         FindContextFileResult::NotFound(_) => None,
     };
@@ -184,9 +184,7 @@ async fn config_assets(
         Some(c) => {
             let manifest = context.with_transition("next-edge").process(
                 *c,
-                Value::new(ReferenceType::EcmaScriptModules(
-                    EcmaScriptModulesReferenceSubType::Undefined,
-                )),
+                ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined),
             );
             let config = parse_config_from_source(*c);
             (manifest, config)
@@ -198,7 +196,7 @@ async fn config_assets(
                     File::from("export default [];").into(),
                 )
                 .as_asset(),
-                Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
+                ReferenceType::Internal(InnerAssetsVc::empty()),
             );
             let config = NextSourceConfigVc::default();
             (manifest, config)
@@ -215,7 +213,7 @@ async fn config_assets(
             .into(),
         )
         .as_asset(),
-        Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
+        ReferenceType::Internal(InnerAssetsVc::empty()),
     );
 
     Ok(InnerAssetsVc::cell(indexmap! {
@@ -228,7 +226,7 @@ async fn config_assets(
 fn route_executor(context: AssetContextVc, configs: InnerAssetsVc) -> AssetVc {
     context.process(
         next_asset("entry/router.ts"),
-        Value::new(ReferenceType::Internal(configs)),
+        ReferenceType::Internal(configs),
     )
 }
 

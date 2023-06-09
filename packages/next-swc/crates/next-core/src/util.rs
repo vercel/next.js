@@ -324,9 +324,7 @@ pub async fn load_next_json<T: DeserializeOwned>(
 
     let resolve_result = handle_resolve_error(
         resolve::resolve(context, request, resolve_options),
-        Value::new(ReferenceType::EcmaScriptModules(
-            EcmaScriptModulesReferenceSubType::Undefined,
-        )),
+        ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined),
         context,
         request,
         resolve_options,

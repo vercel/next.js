@@ -451,7 +451,7 @@ async fn get_mock_stylesheet(
             .into(),
         )
         .into(),
-        Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
+        ReferenceType::Internal(InnerAssetsVc::empty()),
     );
 
     let root = mock_fs.root();

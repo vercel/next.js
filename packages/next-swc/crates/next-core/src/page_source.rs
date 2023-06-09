@@ -560,7 +560,7 @@ async fn create_not_found_page_source(
 
     let entry_asset = server_context.process(
         page_asset,
-        Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
+        ReferenceType::Entry(EntryReferenceSubType::Page),
     );
 
     let ssr_entry = SsrEntry {
@@ -779,7 +779,7 @@ impl SsrEntryVc {
         let this = self.await?;
         let entry_asset_page = this.context.process(
             this.entry_asset,
-            Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
+            ReferenceType::Entry(EntryReferenceSubType::Page),
         );
         let ty = if this.ty == SsrType::AutoApi {
             let page_config = parse_config_from_source(entry_asset_page);
@@ -803,7 +803,7 @@ impl SsrEntryVc {
                 let entry_asset_edge_chunk_group =
                     this.context.with_transition("next-edge").process(
                         this.entry_asset,
-                        Value::new(ReferenceType::Entry(EntryReferenceSubType::PagesApi)),
+                        ReferenceType::Entry(EntryReferenceSubType::PagesApi),
                     );
                 (
                     next_asset("entry/server-edge-api.tsx"),
@@ -822,7 +822,7 @@ impl SsrEntryVc {
                 let entry_asset_client_chunk_group =
                     this.context.with_transition("next-client").process(
                         this.entry_asset,
-                        Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
+                        ReferenceType::Entry(EntryReferenceSubType::Page),
                     );
                 (
                     next_asset("entry/server-renderer.tsx"),
@@ -836,7 +836,7 @@ impl SsrEntryVc {
 
         let module = this.context.process(
             internal_asset,
-            Value::new(ReferenceType::Internal(InnerAssetsVc::cell(inner_assets))),
+            ReferenceType::Internal(InnerAssetsVc::cell(inner_assets)),
         );
         let Some(module) = EvaluatableAssetVc::resolve_from(module).await? else {
             bail!("internal module must be evaluatable");

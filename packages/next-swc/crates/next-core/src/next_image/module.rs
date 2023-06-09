@@ -53,9 +53,9 @@ impl StructuredImageModuleType {
             }
             .cell()
             .into(),
-            Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap!(
+            ReferenceType::Internal(InnerAssetsVc::cell(indexmap!(
                 "IMAGE".to_string() => static_asset.into()
-            )))),
+            ))),
         )
     }
 }
