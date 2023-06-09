@@ -46,3 +46,60 @@ Import trace for requested module:
 ./index.js
 ./pages/index.js"
 `;
+
+exports[`ReactRefreshLogBox turbo Module not found (empty import trace) 1`] = `
+"error - [resolve] [project]/pages/index.js  Error resolving EcmaScript Modules request
+  unable to resolve module \\"b\\"
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: module \\"b\\"
+  | Path where resolving has started: [project]/pages/index.js
+  | Type of request: EcmaScript Modules request
+  | Import map: No import map entry
+  | 
+"
+`;
+
+exports[`ReactRefreshLogBox turbo Module not found (missing global CSS) 1`] = `
+"error - [resolve] [project]/pages/_app.js  Error resolving EcmaScript Modules request
+  unable to resolve relative \\"./non-existent.css\\"
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: relative \\"./non-existent.css\\"
+  | Path where resolving has started: [project]/pages/_app.js
+  | Type of request: EcmaScript Modules request
+  | Import map: No import map entry
+  | 
+"
+`;
+
+exports[`ReactRefreshLogBox turbo Module not found 1`] = `
+"error - [resolve] [project]/index.js  Error resolving EcmaScript Modules request
+  unable to resolve module \\"b\\"
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: module \\"b\\"
+  | Path where resolving has started: [project]/index.js
+  | Type of request: EcmaScript Modules request
+  | Import map: No import map entry
+  | 
+"
+`;
+
+exports[`ReactRefreshLogBox turbo Node.js builtins 1`] = `
+"error - [resolve] [project]/node_modules/my-package/index.js  /node_modules/my-package/index.js:1:13  Error resolving commonjs request
+         |              v------------
+       1 + const dns = require('dns')
+       2 + module.exports = dns
+         +-
+  
+  unable to resolve module \\"dns\\"
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: module \\"dns\\"
+  | Path where resolving has started: [project]/node_modules/my-package/index.js
+  | Type of request: commonjs request
+  | Import map: No import map entry
+  | 
+"
+`;

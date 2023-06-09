@@ -98,3 +98,18 @@ exports[`ReactRefreshLogBox app default should strip whitespace correctly with n
   10 |   click me
   11 | </a>"
 `;
+
+exports[`ReactRefreshLogBox app turbo Can't resolve @import in CSS file 1`] = `
+"error - [parse] [project]/app/styles1.css  /app/styles1.css:1:0  Parsing css source code failed
+         + v
+       1 + @import \\"./styles2.css\\"
+         + ^
+  
+  Unexpected end of file, but expected ';' or '{'
+  
+"
+`;
+
+exports[`ReactRefreshLogBox app turbo Should not show __webpack_exports__ when exporting anonymous arrow function 1`] = `"should not be null"`;
+
+exports[`ReactRefreshLogBox app turbo conversion to class component (1) 1`] = `"should not be null"`;

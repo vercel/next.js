@@ -11,3 +11,5 @@ exports[`ReactRefreshLogBox default syntax > runtime error 1`] = `
   7 | export default function FunctionNamed() {
   8 | return <div />"
 `;
+
+exports[`ReactRefreshLogBox turbo syntax > runtime error 1`] = `"should not be null"`;

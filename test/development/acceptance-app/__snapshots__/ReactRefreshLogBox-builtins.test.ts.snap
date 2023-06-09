@@ -48,3 +48,21 @@ Import trace for requested module:
 ./index.js
 ./app/page.js"
 `;
+
+exports[`ReactRefreshLogBox app turbo Node.js builtins 1`] = `
+"error - [resolve] [project]/node_modules/my-package/index.js  /node_modules/my-package/index.js:1:13  Error resolving commonjs request
+         |              v------------
+       1 + const dns = require('dns')
+       2 + module.exports = dns
+         +-
+  
+  unable to resolve module \\"dns\\"
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: module \\"dns\\"
+  | Path where resolving has started: [project]/node_modules/my-package/index.js
+  | Type of request: commonjs request
+  | Import map: No import map entry
+  | 
+"
+`;
