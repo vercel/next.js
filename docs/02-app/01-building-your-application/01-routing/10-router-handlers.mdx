@@ -365,15 +365,17 @@ export async function GET(request) {
 
 Route Handlers can use [Dynamic Segments](/docs/app/building-your-application/routing/dynamic-routes) to create request handlers from dynamic data.
 
-```ts filename="app/items/[slug]/route.js"
+```ts filename="app/items/[slug]/route.ts" switcher
 export async function GET(
   request: Request,
-  {
-    params,
-  }: {
-    params: { slug: string }
-  }
+  { params }: { params: { slug: string }}
 ) {
+  const slug = params.slug // 'a', 'b', or 'c'
+}
+```
+
+```js filename="app/items/[slug]/route.js" switcher
+export async function GET(request, { params }) {
   const slug = params.slug // 'a', 'b', or 'c'
 }
 ```
