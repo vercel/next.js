@@ -7,7 +7,7 @@ const WEB_VITALS = ['CLS', 'FCP', 'FID', 'INP', 'LCP', 'TTFB']
 const initialHref = location.href
 let isRegistered = false
 let userReportHandler: ReportCallback | undefined
-type Attribution = typeof WEB_VITALS[number]
+type Attribution = (typeof WEB_VITALS)[number]
 
 function onReport(metric: Metric): void {
   if (userReportHandler) {
