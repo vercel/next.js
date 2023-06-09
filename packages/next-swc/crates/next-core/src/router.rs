@@ -3,31 +3,34 @@ use futures::StreamExt;
 use indexmap::indexmap;
 use serde::Deserialize;
 use serde_json::json;
-use turbo_binding::{
+use turbo_tasks::{
+    primitives::{JsonValueVc, StringsVc},
+    util::SharedError,
+    CompletionVc, CompletionsVc, Value,
+};
+use turbo_tasks_fs::json::parse_json_with_source_context;
+use turbopack_binding::{
     turbo::{
         tasks_bytes::{Bytes, Stream},
         tasks_fs::{to_sys_path, File, FileSystemPathVc},
     },
     turbopack::{
         core::{
-            asset::AssetVc,
+            asset::{AssetOptionVc, AssetVc},
             changed::any_content_changed,
             chunk::ChunkingContext,
             context::{AssetContext, AssetContextVc},
-            environment::{EnvironmentIntention::Middleware, ServerAddrVc},
+            environment::{EnvironmentIntention::Middleware, ServerAddrVc, ServerInfo},
             ident::AssetIdentVc,
             issue::IssueVc,
-            reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
+            reference_type::{EcmaScriptModulesReferenceSubType, InnerAssetsVc, ReferenceType},
             resolve::{find_context_file, FindContextFileResult},
             source_asset::SourceAssetVc,
             virtual_asset::VirtualAssetVc,
         },
         dev::DevChunkingContextVc,
-        ecmascript::{
-            EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
-            EcmascriptModuleAssetVc, InnerAssetsVc, OptionEcmascriptModuleAssetVc,
-        },
         node::{
+            debug::should_debug,
             evaluate::evaluate,
             execution_context::{ExecutionContext, ExecutionContextVc},
             source_map::{trace_stack, StructuredError},
@@ -37,15 +40,10 @@ use turbo_binding::{
         },
     },
 };
-use turbo_tasks::{
-    primitives::{JsonValueVc, StringsVc},
-    util::SharedError,
-    CompletionVc, CompletionsVc, Value,
-};
-use turbo_tasks_fs::json::parse_json_with_source_context;
 
 use crate::{
-    embed_js::{next_asset, next_js_file},
+    embed_js::next_asset,
+    mode::NextMode,
     next_config::NextConfigVc,
     next_edge::{
         context::{get_edge_compile_time_info, get_edge_resolve_options_context},
@@ -88,6 +86,7 @@ pub struct RouterRequest {
     pub pathname: String,
     pub raw_query: String,
     pub raw_headers: Vec<(String, String)>,
+    pub body: Vec<Bytes>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -129,8 +128,8 @@ pub struct MiddlewareResponse {
     pub body: Stream<Result<Bytes, SharedError>>,
 }
 
-#[derive(Debug)]
 #[turbo_tasks::value]
+#[derive(Debug)]
 pub enum RouterResult {
     Rewrite(RewriteResponse),
     Middleware(MiddlewareResponse),
@@ -143,29 +142,16 @@ async fn get_config(
     context: AssetContextVc,
     project_path: FileSystemPathVc,
     configs: StringsVc,
-) -> Result<OptionEcmascriptModuleAssetVc> {
+) -> Result<AssetOptionVc> {
     let find_config_result = find_context_file(project_path, configs);
     let config_asset = match &*find_config_result.await? {
-        FindContextFileResult::Found(config_path, _) => Some(as_es_module_asset(
+        FindContextFileResult::Found(config_path, _) => Some(context.process(
             SourceAssetVc::new(*config_path).as_asset(),
-            context,
+            Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
         )),
         FindContextFileResult::NotFound(_) => None,
     };
-    Ok(OptionEcmascriptModuleAssetVc::cell(config_asset))
-}
-
-fn as_es_module_asset(asset: AssetVc, context: AssetContextVc) -> EcmascriptModuleAssetVc {
-    EcmascriptModuleAssetVc::new(
-        asset,
-        context,
-        Value::new(EcmascriptModuleAssetType::Typescript),
-        EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
-            use_define_for_class_fields: false,
-        }]),
-        Default::default(),
-        context.compile_time_info(),
-    )
+    Ok(AssetOptionVc::cell(config_asset))
 }
 
 #[turbo_tasks::function]
@@ -175,7 +161,7 @@ async fn next_config_changed(
 ) -> Result<CompletionVc> {
     let next_config = get_config(context, project_path, next_configs()).await?;
     Ok(if let Some(c) = *next_config {
-        any_content_changed(c.into())
+        any_content_changed(c)
     } else {
         CompletionVc::immutable()
     })
@@ -197,30 +183,29 @@ async fn config_assets(
     let (manifest, config) = match &*middleware_config {
         Some(c) => {
             let manifest = context.with_transition("next-edge").process(
-                c.as_asset(),
+                *c,
                 Value::new(ReferenceType::EcmaScriptModules(
                     EcmaScriptModulesReferenceSubType::Undefined,
                 )),
             );
-            let config = parse_config_from_source(c.as_asset());
+            let config = parse_config_from_source(*c);
             (manifest, config)
         }
         None => {
-            let manifest = as_es_module_asset(
+            let manifest = context.process(
                 VirtualAssetVc::new(
                     project_path.join("middleware.js"),
                     File::from("export default [];").into(),
                 )
                 .as_asset(),
-                context,
-            )
-            .as_asset();
+                Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
+            );
             let config = NextSourceConfigVc::default();
             (manifest, config)
         }
     };
 
-    let config_asset = as_es_module_asset(
+    let config_asset = context.process(
         VirtualAssetVc::new(
             project_path.join("middleware_config.js"),
             File::from(format!(
@@ -230,9 +215,8 @@ async fn config_assets(
             .into(),
         )
         .as_asset(),
-        context,
-    )
-    .as_asset();
+        Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
+    );
 
     Ok(InnerAssetsVc::cell(indexmap! {
         "MIDDLEWARE_CHUNK_GROUP".to_string() => manifest,
@@ -242,18 +226,10 @@ async fn config_assets(
 
 #[turbo_tasks::function]
 fn route_executor(context: AssetContextVc, configs: InnerAssetsVc) -> AssetVc {
-    EcmascriptModuleAssetVc::new_with_inner_assets(
+    context.process(
         next_asset("entry/router.ts"),
-        context,
-        Value::new(EcmascriptModuleAssetType::Typescript),
-        EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
-            use_define_for_class_fields: false,
-        }]),
-        Default::default(),
-        context.compile_time_info(),
-        configs,
+        Value::new(ReferenceType::Internal(configs)),
     )
-    .into()
 }
 
 #[turbo_tasks::function]
@@ -288,6 +264,7 @@ fn edge_transition_map(
         project_path,
         execution_context,
         Value::new(ServerContextType::Middleware),
+        NextMode::Development,
         next_config,
     );
 
@@ -298,7 +275,7 @@ fn edge_transition_map(
         edge_resolve_options_context,
         output_path: output_path.root(),
         base_path: project_path,
-        bootstrap_file: next_js_file("entry/edge-bootstrap.ts"),
+        bootstrap_asset: next_asset("entry/edge-bootstrap.ts"),
         entry_name: "middleware".to_string(),
     }
     .cell()
@@ -364,7 +341,7 @@ async fn route_internal(
     } = *execution_context.await?;
 
     let context = node_evaluate_asset_context(
-        project_path,
+        execution_context,
         Some(get_next_build_import_map()),
         Some(edge_transition_map(
             server_addr,
@@ -385,6 +362,7 @@ async fn route_internal(
     let Some(dir) = to_sys_path(project_path).await? else {
         bail!("Next.js requires a disk path to check for valid routes");
     };
+    let server_addr = server_addr.await?;
     let result = evaluate(
         router_asset,
         project_path,
@@ -396,9 +374,10 @@ async fn route_internal(
         vec![
             JsonValueVc::cell(request),
             JsonValueVc::cell(dir.to_string_lossy().into()),
+            JsonValueVc::cell(serde_json::to_value(ServerInfo::try_from(&*server_addr)?)?),
         ],
         CompletionsVc::all(vec![next_config_changed, routes_changed]),
-        /* debug */ false,
+        should_debug("router"),
     )
     .await?;
 

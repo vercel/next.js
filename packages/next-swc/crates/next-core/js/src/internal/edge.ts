@@ -1,17 +1,17 @@
-import { join } from "path";
+import { join } from 'path'
 
 import type {
   BaseNextRequest,
   BaseNextResponse,
-} from "next/dist/server/base-http";
+} from 'next/dist/server/base-http'
 import type {
   NodeNextRequest,
   NodeNextResponse,
-} from "next/dist/server/base-http/node";
-import { parse, ParsedUrlQuery } from "querystring";
-import type { Params } from "next/dist/shared/lib/router/utils/route-matcher";
-import { FetchEventResult } from "next/dist/server/web/types";
-import { getCloneableBody } from "next/dist/server/body-streams";
+} from 'next/dist/server/base-http/node'
+import { parse, ParsedUrlQuery } from 'querystring'
+import type { Params } from 'next/dist/shared/lib/router/utils/route-matcher'
+import { FetchEventResult } from 'next/dist/server/web/types'
+import { getCloneableBody } from 'next/dist/server/body-streams'
 
 // This is an adapted version of a similar function in next-dev-server.
 // TODO exposes this method from next.js instead
@@ -26,40 +26,40 @@ export async function runEdgeFunction({
   onWarning,
 }: {
   edgeInfo: {
-    name: string;
-    paths: string[];
-    wasm: unknown[];
-    env: unknown[];
-    assets: unknown[];
-  };
-  outputDir: string;
-  req: BaseNextRequest | NodeNextRequest;
-  res: BaseNextResponse | NodeNextResponse;
-  query: string;
-  path: string;
-  params: Params | undefined;
-  onWarning?: (warning: Error) => void;
+    name: string
+    paths: string[]
+    wasm: unknown[]
+    env: unknown[]
+    assets: unknown[]
+  }
+  outputDir: string
+  req: BaseNextRequest | NodeNextRequest
+  res: BaseNextResponse | NodeNextResponse
+  query: string
+  path: string
+  params: Params | undefined
+  onWarning?: (warning: Error) => void
 }): Promise<FetchEventResult | null> {
   // For edge to "fetch" we must always provide an absolute URL
-  const initialUrl = new URL(path, "http://n");
-  const parsedQuery = parse(query);
+  const initialUrl = new URL(path, 'http://n')
+  const parsedQuery = parse(query)
   const queryString = urlQueryToSearchParams({
     ...Object.fromEntries(initialUrl.searchParams),
     ...parsedQuery,
-  }).toString();
+  }).toString()
 
-  initialUrl.search = queryString;
-  const url = initialUrl.toString();
+  initialUrl.search = queryString
+  const url = initialUrl.toString()
 
-  if (!url.startsWith("http")) {
+  if (!url.startsWith('http')) {
     throw new Error(
-      "To use middleware you must provide a `hostname` and `port` to the Next.js Server"
-    );
+      'To use middleware you must provide a `hostname` and `port` to the Next.js Server'
+    )
   }
 
-  const { run } = require("next/dist/server/web/sandbox");
+  const { run } = require('next/dist/server/web/sandbox')
   const result = (await run({
-    distDir: join(process.cwd(), ".next/server", outputDir),
+    distDir: join(process.cwd(), '.next/server', outputDir),
     name: edgeInfo.name,
     paths: edgeInfo.paths,
     env: edgeInfo.env,
@@ -68,7 +68,7 @@ export async function runEdgeFunction({
       headers: req.headers,
       method: req.method,
       nextConfig: {
-        basePath: "/",
+        basePath: '/',
         i18n: undefined,
         trailingSlash: true,
       },
@@ -81,62 +81,62 @@ export async function runEdgeFunction({
     },
     useCache: false,
     onWarning,
-  })) as FetchEventResult;
+  })) as FetchEventResult
 
-  res.statusCode = result.response.status;
-  res.statusMessage = result.response.statusText;
+  res.statusCode = result.response.status
+  res.statusMessage = result.response.statusText
 
   result.response.headers.forEach((value: string, key) => {
     // the append handling is special cased for `set-cookie`
-    if (key.toLowerCase() === "set-cookie") {
-      res.setHeader(key, value);
+    if (key.toLowerCase() === 'set-cookie') {
+      res.setHeader(key, value)
     } else {
-      res.appendHeader(key, value);
+      res.appendHeader(key, value)
     }
-  });
+  })
 
   if (result.response.body) {
     // TODO(gal): not sure that we always need to stream
-    const nodeResStream = (res as NodeNextResponse).originalResponse;
+    const nodeResStream = (res as NodeNextResponse).originalResponse
     const {
       consumeUint8ArrayReadableStream,
-    } = require("next/dist/compiled/edge-runtime");
+    } = require('next/dist/compiled/edge-runtime')
     try {
       for await (const chunk of consumeUint8ArrayReadableStream(
         result.response.body
       )) {
-        nodeResStream.write(chunk);
+        nodeResStream.write(chunk)
       }
     } finally {
-      nodeResStream.end();
+      nodeResStream.end()
     }
   } else {
-    (res as NodeNextResponse).originalResponse.end();
+    ;(res as NodeNextResponse).originalResponse.end()
   }
 
-  return result;
+  return result
 }
 
 function stringifyUrlQueryParam(param: unknown): string {
   if (
-    typeof param === "string" ||
-    (typeof param === "number" && !isNaN(param)) ||
-    typeof param === "boolean"
+    typeof param === 'string' ||
+    (typeof param === 'number' && !isNaN(param)) ||
+    typeof param === 'boolean'
   ) {
-    return String(param);
+    return String(param)
   } else {
-    return "";
+    return ''
   }
 }
 
 function urlQueryToSearchParams(urlQuery: ParsedUrlQuery): URLSearchParams {
-  const result = new URLSearchParams();
+  const result = new URLSearchParams()
   Object.entries(urlQuery).forEach(([key, value]) => {
     if (Array.isArray(value)) {
-      value.forEach((item) => result.append(key, stringifyUrlQueryParam(item)));
+      value.forEach((item) => result.append(key, stringifyUrlQueryParam(item)))
     } else {
-      result.set(key, stringifyUrlQueryParam(value));
+      result.set(key, stringifyUrlQueryParam(value))
     }
-  });
-  return result;
+  })
+  return result
 }

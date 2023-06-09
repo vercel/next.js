@@ -5,7 +5,9 @@ import {
 import { Metadata } from './types/metadata-interface'
 
 function accumulateMetadata(metadataItems: MetadataItems) {
-  return originAccumulateMetadata(metadataItems, '/test')
+  return originAccumulateMetadata(metadataItems, {
+    pathname: '/test',
+  })
 }
 
 describe('accumulateMetadata', () => {
@@ -124,7 +126,6 @@ describe('accumulateMetadata', () => {
         [{ themeColor: '#fff' }, null],
       ]
       const metadata = await accumulateMetadata(metadataItems)
-      console.log('xxmetadata', metadata.themeColor)
       expect(metadata).toMatchObject({
         themeColor: [{ color: '#fff' }],
       })

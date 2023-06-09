@@ -23,7 +23,7 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
 }
-          var React = require('react');
+          var React = require("next/dist/compiled/react");
 var Scheduler = require("next/dist/compiled/scheduler");
 
 var Internals = {
@@ -97,6 +97,79 @@ function printWarning(level, format, args) {
 
 var assign = Object.assign;
 
+// -----------------------------------------------------------------------------
+// Killswitch
+//
+// Flags that exist solely to turn off a change in case it causes a regression
+// when it rolls out to prod. We should remove these as soon as possible.
+// -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// Land or remove (moderate effort)
+//
+// Flags that can be probably deleted or landed, but might require extra effort
+// like migrating internal callers or performance testing.
+// -----------------------------------------------------------------------------
+// TODO: Finish rolling out in www
+
+var enableClientRenderFallbackOnTextMismatch = true; // Recoil still uses useMutableSource in www, need to delete
+// Slated for removal in the future (significant effort)
+//
+// These are experiments that didn't work out, and never shipped, but we can't
+// delete from the codebase until we migrate internal callers.
+// -----------------------------------------------------------------------------
+// Add a callback property to suspense to notify which promises are currently
+// in the update queue. This allows reporting and tracing of what is causing
+// the user to see a loading state.
+//
+// Also allows hydration callbacks to fire when a dehydrated boundary gets
+// hydrated or deleted.
+//
+// This will eventually be replaced by the Transition Tracing proposal.
+
+var enableSuspenseCallback = false; // Experimental Scope support.
+
+var enableLazyContextPropagation = false; // FB-only usage. The new API has different semantics.
+
+var enableLegacyHidden = false; // Enables unstable_avoidThisFallback feature in Fiber
+var enableHostSingletons = true;
+
+var diffInCommitPhase = false;
+var enableAsyncActions = false;
+var alwaysThrottleRetries = true; // -----------------------------------------------------------------------------
+// Chopping Block
+//
+// Planned feature deprecations and breaking changes. Sorted roughly in order of
+// when we plan to enable them.
+// -----------------------------------------------------------------------------
+// This flag enables Strict Effects by default. We're not turning this on until
+// after 18 because it requires migration work. Recommendation is to use
+// <StrictMode /> to gradually upgrade components.
+// If TRUE, trees rendered with createRoot will be StrictEffectsMode.
+// If FALSE, these trees will be StrictLegacyMode.
+
+var createRootStrictEffectsByDefault = false;
+// React DOM Chopping Block
+//
+// Similar to main Chopping Block but only flags related to React DOM. These are
+// grouped because we will likely batch all of them into a single major release.
+// -----------------------------------------------------------------------------
+// Disable support for comment nodes as React DOM containers. Already disabled
+// in open source, but www codebase still relies on it. Need to remove.
+
+var disableCommentsAsDOMContainers = true; // Disable javascript: URL strings in href for XSS protection.
+// Debugging and DevTools
+// -----------------------------------------------------------------------------
+// Adds user timing marks for e.g. state updates, suspense, and work loop stuff,
+// for an experimental timeline tool.
+
+var enableSchedulingProfiler = true; // Helps identify side effects in render-phase lifecycle hooks and setState
+
+var enableProfilerTimer = true; // Record durations for commit and passive effects phases.
+
+var enableProfilerCommitHooks = true; // Phase param passed to onRender callback differentiates between an "update" and a "cascading-update".
+
+var enableProfilerNestedUpdatePhase = true; // Adds verbose console logging for e.g. state updates, suspense, and work loop
+
 var valueStack = [];
 var fiberStack;
 
@@ -148,9 +221,49 @@ function push(cursor, value, fiber) {
   cursor.current = value;
 }
 
+// ATTENTION
+// When adding new symbols to this file,
+// Please consider also adding to 'react-devtools-shared/src/backend/ReactSymbols'
+// The Symbol used to tag the ReactElement-like types.
+var REACT_ELEMENT_TYPE = Symbol.for('react.element');
+var REACT_PORTAL_TYPE = Symbol.for('react.portal');
+var REACT_FRAGMENT_TYPE = Symbol.for('react.fragment');
+var REACT_STRICT_MODE_TYPE = Symbol.for('react.strict_mode');
+var REACT_PROFILER_TYPE = Symbol.for('react.profiler');
+var REACT_PROVIDER_TYPE = Symbol.for('react.provider');
+var REACT_CONTEXT_TYPE = Symbol.for('react.context');
+var REACT_SERVER_CONTEXT_TYPE = Symbol.for('react.server_context');
+var REACT_FORWARD_REF_TYPE = Symbol.for('react.forward_ref');
+var REACT_SUSPENSE_TYPE = Symbol.for('react.suspense');
+var REACT_SUSPENSE_LIST_TYPE = Symbol.for('react.suspense_list');
+var REACT_MEMO_TYPE = Symbol.for('react.memo');
+var REACT_LAZY_TYPE = Symbol.for('react.lazy');
+var REACT_SCOPE_TYPE = Symbol.for('react.scope');
+var REACT_DEBUG_TRACING_MODE_TYPE = Symbol.for('react.debug_trace_mode');
+var REACT_OFFSCREEN_TYPE = Symbol.for('react.offscreen');
+var REACT_LEGACY_HIDDEN_TYPE = Symbol.for('react.legacy_hidden');
+var REACT_CACHE_TYPE = Symbol.for('react.cache');
+var REACT_TRACING_MARKER_TYPE = Symbol.for('react.tracing_marker');
+var REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
+var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
+var FAUX_ITERATOR_SYMBOL = '@@iterator';
+function getIteratorFn(maybeIterable) {
+  if (maybeIterable === null || typeof maybeIterable !== 'object') {
+    return null;
+  }
+
+  var maybeIterator = MAYBE_ITERATOR_SYMBOL && maybeIterable[MAYBE_ITERATOR_SYMBOL] || maybeIterable[FAUX_ITERATOR_SYMBOL];
+
+  if (typeof maybeIterator === 'function') {
+    return maybeIterator;
+  }
+
+  return null;
+}
+
 var contextStackCursor$1 = createCursor(null);
 var contextFiberStackCursor = createCursor(null);
-var rootInstanceStackCursor = createCursor(null);
+var rootInstanceStackCursor = createCursor(null); // Represents the nearest host transition provider (in React DOM, a <form />)
 
 function requiredContext(c) {
   {
@@ -202,85 +315,26 @@ function getHostContext() {
 }
 
 function pushHostContext(fiber) {
+
   var context = requiredContext(contextStackCursor$1.current);
   var nextContext = getChildHostContext(context, fiber.type); // Don't push this Fiber's context unless it's unique.
 
-  if (context === nextContext) {
-    return;
-  } // Track the context and the Fiber that provided it.
-  // This enables us to pop only Fibers that provide unique contexts.
-
-
-  push(contextFiberStackCursor, fiber, fiber);
-  push(contextStackCursor$1, nextContext, fiber);
+  if (context !== nextContext) {
+    // Track the context and the Fiber that provided it.
+    // This enables us to pop only Fibers that provide unique contexts.
+    push(contextFiberStackCursor, fiber, fiber);
+    push(contextStackCursor$1, nextContext, fiber);
+  }
 }
 
 function popHostContext(fiber) {
-  // Do not pop unless this Fiber provided the current context.
-  // pushHostContext() only pushes Fibers that provide unique contexts.
-  if (contextFiberStackCursor.current !== fiber) {
-    return;
+  if (contextFiberStackCursor.current === fiber) {
+    // Do not pop unless this Fiber provided the current context.
+    // pushHostContext() only pushes Fibers that provide unique contexts.
+    pop(contextStackCursor$1, fiber);
+    pop(contextFiberStackCursor, fiber);
   }
-
-  pop(contextStackCursor$1, fiber);
-  pop(contextFiberStackCursor, fiber);
 }
-
-// -----------------------------------------------------------------------------
-
-var enableClientRenderFallbackOnTextMismatch = true; // TODO: Need to review this code one more time before landing
-// Slated for removal in the future (significant effort)
-//
-// These are experiments that didn't work out, and never shipped, but we can't
-// delete from the codebase until we migrate internal callers.
-// -----------------------------------------------------------------------------
-// Add a callback property to suspense to notify which promises are currently
-// in the update queue. This allows reporting and tracing of what is causing
-// the user to see a loading state.
-//
-// Also allows hydration callbacks to fire when a dehydrated boundary gets
-// hydrated or deleted.
-//
-// This will eventually be replaced by the Transition Tracing proposal.
-
-var enableSuspenseCallback = false; // Experimental Scope support.
-
-var enableLazyContextPropagation = false; // FB-only usage. The new API has different semantics.
-
-var enableLegacyHidden = false; // Enables unstable_avoidThisFallback feature in Fiber
-// Chopping Block
-//
-// Planned feature deprecations and breaking changes. Sorted roughly in order of
-// when we plan to enable them.
-// -----------------------------------------------------------------------------
-// This flag enables Strict Effects by default. We're not turning this on until
-// after 18 because it requires migration work. Recommendation is to use
-// <StrictMode /> to gradually upgrade components.
-// If TRUE, trees rendered with createRoot will be StrictEffectsMode.
-// If FALSE, these trees will be StrictLegacyMode.
-
-var createRootStrictEffectsByDefault = false;
-// React DOM Chopping Block
-//
-// Similar to main Chopping Block but only flags related to React DOM. These are
-// grouped because we will likely batch all of them into a single major release.
-// -----------------------------------------------------------------------------
-// Disable support for comment nodes as React DOM containers. Already disabled
-// in open source, but www codebase still relies on it. Need to remove.
-
-var disableCommentsAsDOMContainers = true; // Disable javascript: URL strings in href for XSS protection.
-// Debugging and DevTools
-// -----------------------------------------------------------------------------
-// Adds user timing marks for e.g. state updates, suspense, and work loop stuff,
-// for an experimental timeline tool.
-
-var enableSchedulingProfiler = true; // Helps identify side effects in render-phase lifecycle hooks and setState
-
-var enableProfilerTimer = true; // Record durations for commit and passive effects phases.
-
-var enableProfilerCommitHooks = true; // Phase param passed to onRender callback differentiates between an "update" and a "cascading-update".
-
-var enableProfilerNestedUpdatePhase = true; // Adds verbose console logging for e.g. state updates, suspense, and work loop
 
 var NoFlags$1 =
 /*                      */
@@ -399,7 +453,7 @@ var PassiveMask = Passive$1 | Visibility | ChildDeletion; // Union of tags that 
 var StaticMask = LayoutStatic | PassiveStatic | RefStatic | MaySuspendCommit;
 
 // This module only exists as an ESM wrapper around the external CommonJS
-var scheduleCallback$2 = Scheduler.unstable_scheduleCallback;
+var scheduleCallback$3 = Scheduler.unstable_scheduleCallback;
 var cancelCallback$1 = Scheduler.unstable_cancelCallback;
 var shouldYield = Scheduler.unstable_shouldYield;
 var requestPaint = Scheduler.unstable_requestPaint;
@@ -1259,24 +1313,6 @@ function getNextLanes(root, wipLanes) {
 
   return nextLanes;
 }
-function getMostRecentEventTime(root, lanes) {
-  var eventTimes = root.eventTimes;
-  var mostRecentEventTime = NoTimestamp;
-
-  while (lanes > 0) {
-    var index = pickArbitraryLaneIndex(lanes);
-    var lane = 1 << index;
-    var eventTime = eventTimes[index];
-
-    if (eventTime > mostRecentEventTime) {
-      mostRecentEventTime = eventTime;
-    }
-
-    lanes &= ~lane;
-  }
-
-  return mostRecentEventTime;
-}
 
 function computeExpirationTime(lane, currentTime) {
   switch (lane) {
@@ -1512,7 +1548,7 @@ function createLaneMap(initial) {
 
   return laneMap;
 }
-function markRootUpdated(root, updateLane, eventTime) {
+function markRootUpdated(root, updateLane) {
   root.pendingLanes |= updateLane; // If there are any suspended transitions, it's possible this new update
   // could unblock them. Clear the suspended lanes so that we can try rendering
   // them again.
@@ -1530,12 +1566,6 @@ function markRootUpdated(root, updateLane, eventTime) {
     root.suspendedLanes = NoLanes;
     root.pingedLanes = NoLanes;
   }
-
-  var eventTimes = root.eventTimes;
-  var index = laneToIndex(updateLane); // We can always overwrite an existing timestamp because we prefer the most
-  // recent event, and we assume time is monotonically increasing.
-
-  eventTimes[index] = eventTime;
 }
 function markRootSuspended$1(root, suspendedLanes) {
   root.suspendedLanes |= suspendedLanes;
@@ -1565,7 +1595,6 @@ function markRootFinished(root, remainingLanes) {
   root.entangledLanes &= remainingLanes;
   root.errorRecoveryDisabledLanes &= remainingLanes;
   var entanglements = root.entanglements;
-  var eventTimes = root.eventTimes;
   var expirationTimes = root.expirationTimes;
   var hiddenUpdates = root.hiddenUpdates; // Clear the lanes that no longer have pending work
 
@@ -1575,7 +1604,6 @@ function markRootFinished(root, remainingLanes) {
     var index = pickArbitraryLaneIndex(lanes);
     var lane = 1 << index;
     entanglements[index] = NoLanes;
-    eventTimes[index] = NoTimestamp;
     expirationTimes[index] = NoTimestamp;
     var hiddenUpdatesForLane = hiddenUpdates[index];
 
@@ -2187,29 +2215,27 @@ function registerDirectEvent(registrationName, dependencies) {
 
 var canUseDOM = !!(typeof window !== 'undefined' && typeof window.document !== 'undefined' && typeof window.document.createElement !== 'undefined');
 
-// Attributes that aren't in the filter are presumed to have this type.
+var hasReadOnlyValue = {
+  button: true,
+  checkbox: true,
+  image: true,
+  hidden: true,
+  radio: true,
+  reset: true,
+  submit: true
+};
+function checkControlledValueProps(tagName, props) {
+  {
+    if (!(hasReadOnlyValue[props.type] || props.onChange || props.onInput || props.readOnly || props.disabled || props.value == null)) {
+      error('You provided a `value` prop to a form field without an ' + '`onChange` handler. This will render a read-only field. If ' + 'the field should be mutable use `defaultValue`. Otherwise, ' + 'set either `onChange` or `readOnly`.');
+    }
 
-var STRING = 1; // A string attribute that accepts booleans in React. In HTML, these are called
-// "enumerated" attributes with "true" and "false" as possible values.
-// When true, it should be set to a "true" string.
-// When false, it should be set to a "false" string.
+    if (!(props.onChange || props.readOnly || props.disabled || props.checked == null)) {
+      error('You provided a `checked` prop to a form field without an ' + '`onChange` handler. This will render a read-only field. If ' + 'the field should be mutable use `defaultChecked`. Otherwise, ' + 'set either `onChange` or `readOnly`.');
+    }
+  }
+}
 
-var BOOLEANISH_STRING = 2; // A real boolean attribute.
-// When true, it should be present (set either to an empty string or its name).
-// When false, it should be omitted.
-
-var BOOLEAN = 3; // An attribute that can be used as a flag as well as with a value.
-// When true, it should be present (set either to an empty string or its name).
-// When false, it should be omitted.
-// For any other value, should be present with that value.
-
-var OVERLOADED_BOOLEAN = 4; // An attribute that must be numeric or parse as a numeric.
-// When falsy, it should be removed.
-
-var NUMERIC = 5; // An attribute that must be positive numeric or parse as a positive numeric.
-// When falsy, it should be removed.
-
-var POSITIVE_NUMERIC = 6;
 /* eslint-disable max-len */
 
 var ATTRIBUTE_NAME_START_CHAR = ":A-Z_a-z\\u00C0-\\u00D6\\u00D8-\\u00F6\\u00F8-\\u02FF\\u0370-\\u037D\\u037F-\\u1FFF\\u200C-\\u200D\\u2070-\\u218F\\u2C00-\\u2FEF\\u3001-\\uD7FF\\uF900-\\uFDCF\\uFDF0-\\uFFFD";
@@ -2241,380 +2267,7 @@ function isAttributeNameSafe(attributeName) {
 
   return false;
 }
-function getPropertyInfo(name) {
-  return properties.hasOwnProperty(name) ? properties[name] : null;
-} // $FlowFixMe[missing-this-annot]
 
-function PropertyInfoRecord(name, type, mustUseProperty, attributeName, attributeNamespace, sanitizeURL, removeEmptyString) {
-  this.acceptsBooleans = type === BOOLEANISH_STRING || type === BOOLEAN || type === OVERLOADED_BOOLEAN;
-  this.attributeName = attributeName;
-  this.attributeNamespace = attributeNamespace;
-  this.mustUseProperty = mustUseProperty;
-  this.propertyName = name;
-  this.type = type;
-  this.sanitizeURL = sanitizeURL;
-  this.removeEmptyString = removeEmptyString;
-} // When adding attributes to this list, be sure to also add them to
-// the `possibleStandardNames` module to ensure casing and incorrect
-// name warnings.
-
-
-var properties = {}; // A few React string attributes have a different name.
-// This is a mapping from React prop names to the attribute names.
-
-[['acceptCharset', 'accept-charset'], ['className', 'class'], ['htmlFor', 'for'], ['httpEquiv', 'http-equiv']].forEach(function (_ref) {
-  var name = _ref[0],
-      attributeName = _ref[1];
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(name, STRING, false, // mustUseProperty
-  attributeName, // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are "enumerated" HTML attributes that accept "true" and "false".
-// In React, we let users pass `true` and `false` even though technically
-// these aren't boolean attributes (they are coerced to strings).
-
-['contentEditable', 'draggable', 'spellCheck', 'value'].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(name, BOOLEANISH_STRING, false, // mustUseProperty
-  name.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are "enumerated" SVG attributes that accept "true" and "false".
-// In React, we let users pass `true` and `false` even though technically
-// these aren't boolean attributes (they are coerced to strings).
-// Since these are SVG attributes, their attribute names are case-sensitive.
-
-['autoReverse', 'externalResourcesRequired', 'focusable', 'preserveAlpha'].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(name, BOOLEANISH_STRING, false, // mustUseProperty
-  name, // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are HTML boolean attributes.
-
-['allowFullScreen', 'async', // Note: there is a special case that prevents it from being written to the DOM
-// on the client side because the browsers are inconsistent. Instead we call focus().
-'autoFocus', 'autoPlay', 'controls', 'default', 'defer', 'disabled', 'disablePictureInPicture', 'disableRemotePlayback', 'formNoValidate', 'hidden', 'loop', 'noModule', 'noValidate', 'open', 'playsInline', 'readOnly', 'required', 'reversed', 'scoped', 'seamless', // Microdata
-'itemScope'].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(name, BOOLEAN, false, // mustUseProperty
-  name.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are the few React props that we set as DOM properties
-// rather than attributes. These are all booleans.
-
-['checked', // Note: `option.selected` is not updated if `select.multiple` is
-// disabled with `removeAttribute`. We have special logic for handling this.
-'multiple', 'muted', 'selected' // NOTE: if you add a camelCased prop to this list,
-// you'll need to set attributeName to name.toLowerCase()
-// instead in the assignment below.
-].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(name, BOOLEAN, true, // mustUseProperty
-  name, // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are HTML attributes that are "overloaded booleans": they behave like
-// booleans, but can also accept a string value.
-
-['capture', 'download' // NOTE: if you add a camelCased prop to this list,
-// you'll need to set attributeName to name.toLowerCase()
-// instead in the assignment below.
-].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(name, OVERLOADED_BOOLEAN, false, // mustUseProperty
-  name, // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are HTML attributes that must be positive numbers.
-
-['cols', 'rows', 'size', 'span' // NOTE: if you add a camelCased prop to this list,
-// you'll need to set attributeName to name.toLowerCase()
-// instead in the assignment below.
-].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(name, POSITIVE_NUMERIC, false, // mustUseProperty
-  name, // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are HTML attributes that must be numbers.
-
-['rowSpan', 'start'].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(name, NUMERIC, false, // mustUseProperty
-  name.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-});
-var CAMELIZE = /[\-\:]([a-z])/g;
-
-var capitalize = function (token) {
-  return token[1].toUpperCase();
-}; // This is a list of all SVG attributes that need special casing, namespacing,
-// or boolean value assignment. Regular attributes that just accept strings
-// and have the same names are omitted, just like in the HTML attribute filter.
-// Some of these attributes can be hard to find. This list was created by
-// scraping the MDN documentation.
-
-
-['accent-height', 'alignment-baseline', 'arabic-form', 'baseline-shift', 'cap-height', 'clip-path', 'clip-rule', 'color-interpolation', 'color-interpolation-filters', 'color-profile', 'color-rendering', 'dominant-baseline', 'enable-background', 'fill-opacity', 'fill-rule', 'flood-color', 'flood-opacity', 'font-family', 'font-size', 'font-size-adjust', 'font-stretch', 'font-style', 'font-variant', 'font-weight', 'glyph-name', 'glyph-orientation-horizontal', 'glyph-orientation-vertical', 'horiz-adv-x', 'horiz-origin-x', 'image-rendering', 'letter-spacing', 'lighting-color', 'marker-end', 'marker-mid', 'marker-start', 'overline-position', 'overline-thickness', 'paint-order', 'panose-1', 'pointer-events', 'rendering-intent', 'shape-rendering', 'stop-color', 'stop-opacity', 'strikethrough-position', 'strikethrough-thickness', 'stroke-dasharray', 'stroke-dashoffset', 'stroke-linecap', 'stroke-linejoin', 'stroke-miterlimit', 'stroke-opacity', 'stroke-width', 'text-anchor', 'text-decoration', 'text-rendering', 'transform-origin', 'underline-position', 'underline-thickness', 'unicode-bidi', 'unicode-range', 'units-per-em', 'v-alphabetic', 'v-hanging', 'v-ideographic', 'v-mathematical', 'vector-effect', 'vert-adv-y', 'vert-origin-x', 'vert-origin-y', 'word-spacing', 'writing-mode', 'xmlns:xlink', 'x-height' // NOTE: if you add a camelCased prop to this list,
-// you'll need to set attributeName to name.toLowerCase()
-// instead in the assignment below.
-].forEach(function (attributeName) {
-  var name = attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-
-  properties[name] = new PropertyInfoRecord(name, STRING, false, // mustUseProperty
-  attributeName, null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // String SVG attributes with the xlink namespace.
-
-['xlink:actuate', 'xlink:arcrole', 'xlink:role', 'xlink:show', 'xlink:title', 'xlink:type' // NOTE: if you add a camelCased prop to this list,
-// you'll need to set attributeName to name.toLowerCase()
-// instead in the assignment below.
-].forEach(function (attributeName) {
-  var name = attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-
-  properties[name] = new PropertyInfoRecord(name, STRING, false, // mustUseProperty
-  attributeName, 'http://www.w3.org/1999/xlink', false, // sanitizeURL
-  false);
-}); // String SVG attributes with the xml namespace.
-
-['xml:base', 'xml:lang', 'xml:space' // NOTE: if you add a camelCased prop to this list,
-// you'll need to set attributeName to name.toLowerCase()
-// instead in the assignment below.
-].forEach(function (attributeName) {
-  var name = attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-
-  properties[name] = new PropertyInfoRecord(name, STRING, false, // mustUseProperty
-  attributeName, 'http://www.w3.org/XML/1998/namespace', false, // sanitizeURL
-  false);
-}); // These attribute exists both in HTML and SVG.
-// The attribute name is case-sensitive in SVG so we can't just use
-// the React name like we do for attributes that exist only in HTML.
-
-['tabIndex', 'crossOrigin'].forEach(function (attributeName) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[attributeName] = new PropertyInfoRecord(attributeName, STRING, false, // mustUseProperty
-  attributeName.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These attributes accept URLs. These must not allow javascript: URLS.
-// These will also need to accept Trusted Types object in the future.
-
-var xlinkHref = 'xlinkHref'; // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-
-properties[xlinkHref] = new PropertyInfoRecord('xlinkHref', STRING, false, // mustUseProperty
-'xlink:href', 'http://www.w3.org/1999/xlink', true, // sanitizeURL
-false);
-var formAction = 'formAction'; // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-
-properties[formAction] = new PropertyInfoRecord('formAction', STRING, false, // mustUseProperty
-'formaction', // attributeName
-null, // attributeNamespace
-true, // sanitizeURL
-false);
-['src', 'href', 'action'].forEach(function (attributeName) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[attributeName] = new PropertyInfoRecord(attributeName, STRING, false, // mustUseProperty
-  attributeName.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  true, // sanitizeURL
-  true);
-});
-
-// and any newline or tab are filtered out as if they're not part of the URL.
-// https://url.spec.whatwg.org/#url-parsing
-// Tab or newline are defined as \r\n\t:
-// https://infra.spec.whatwg.org/#ascii-tab-or-newline
-// A C0 control is a code point in the range \u0000 NULL to \u001F
-// INFORMATION SEPARATOR ONE, inclusive:
-// https://infra.spec.whatwg.org/#c0-control-or-space
-
-/* eslint-disable max-len */
-
-var isJavaScriptProtocol = /^[\u0000-\u001F ]*j[\r\n\t]*a[\r\n\t]*v[\r\n\t]*a[\r\n\t]*s[\r\n\t]*c[\r\n\t]*r[\r\n\t]*i[\r\n\t]*p[\r\n\t]*t[\r\n\t]*\:/i;
-var didWarn$1 = false;
-
-function sanitizeURL(url) {
-  {
-    if (!didWarn$1 && isJavaScriptProtocol.test(url)) {
-      didWarn$1 = true;
-
-      error('A future version of React will block javascript: URLs as a security precaution. ' + 'Use event handlers instead if you can. If you need to generate unsafe HTML try ' + 'using dangerouslySetInnerHTML instead. React was passed %s.', JSON.stringify(url));
-    }
-  }
-}
-
-/**
- * Get the value for a property on a node. Only used in DEV for SSR validation.
- * The "expected" argument is used as a hint of what the expected value is.
- * Some properties have multiple equivalent values.
- */
-
-function getValueForProperty(node, name, expected, propertyInfo) {
-  {
-    if (propertyInfo.mustUseProperty) {
-      var propertyName = propertyInfo.propertyName;
-      return node[propertyName];
-    }
-
-    if (propertyInfo.sanitizeURL) {
-      // If we haven't fully disabled javascript: URLs, and if
-      // the hydration is successful of a javascript: URL, we
-      // still want to warn on the client.
-      {
-        checkAttributeStringCoercion(expected, name);
-      }
-
-      sanitizeURL('' + expected);
-    }
-
-    var attributeName = propertyInfo.attributeName;
-
-    if (!node.hasAttribute(attributeName)) {
-      // shouldRemoveAttribute
-      switch (typeof expected) {
-        case 'function':
-        case 'symbol':
-          // eslint-disable-line
-          return expected;
-
-        case 'boolean':
-          {
-            if (!propertyInfo.acceptsBooleans) {
-              return expected;
-            }
-          }
-      }
-
-      switch (propertyInfo.type) {
-        case BOOLEAN:
-          {
-            if (!expected) {
-              return expected;
-            }
-
-            break;
-          }
-
-        case OVERLOADED_BOOLEAN:
-          {
-            if (expected === false) {
-              return expected;
-            }
-
-            break;
-          }
-
-        case NUMERIC:
-          {
-            if (isNaN(expected)) {
-              return expected;
-            }
-
-            break;
-          }
-
-        case POSITIVE_NUMERIC:
-          {
-            if (isNaN(expected) || expected < 1) {
-              return expected;
-            }
-
-            break;
-          }
-      }
-
-      return expected === undefined ? undefined : null;
-    } // Even if this property uses a namespace we use getAttribute
-    // because we assume its namespaced name is the same as our config.
-    // To use getAttributeNS we need the local name which we don't have
-    // in our config atm.
-
-
-    var value = node.getAttribute(attributeName);
-
-    if (expected == null) {
-      // We had an attribute but shouldn't have had one, so read it
-      // for the error message.
-      return value;
-    } // shouldRemoveAttribute
-
-
-    switch (propertyInfo.type) {
-      case BOOLEAN:
-        {
-          if (expected) {
-            // If this was a boolean, it doesn't matter what the value is
-            // the fact that we have it is the same as the expected.
-            // As long as it's positive.
-            return expected;
-          }
-
-          return value;
-        }
-
-      case OVERLOADED_BOOLEAN:
-        {
-          if (value === '') {
-            return true;
-          }
-
-          if (expected === false) {
-            // We had an attribute but shouldn't have had one, so read it
-            // for the error message.
-            return value;
-          }
-
-          break;
-        }
-
-      case NUMERIC:
-        {
-          if (isNaN(expected)) {
-            // We had an attribute but shouldn't have had one, so read it
-            // for the error message.
-            return value;
-          }
-
-          break;
-        }
-
-      case POSITIVE_NUMERIC:
-        {
-          if (isNaN(expected) || expected < 1) {
-            // We had an attribute but shouldn't have had one, so read it
-            // for the error message.
-            return value;
-          }
-
-          break;
-        }
-    }
-
-    {
-      checkAttributeStringCoercion(expected, name);
-    }
-
-    if (value === '' + expected) {
-      return expected;
-    }
-
-    return value;
-  }
-}
 /**
  * Get the value for a attribute on a node. Only used in DEV for SSR validation.
  * The third argument is used as a hint of what the expected value is. Some
@@ -2694,136 +2347,8 @@ function getValueForAttributeOnCustomComponent(node, name, expected) {
     return value;
   }
 }
-/**
- * Sets the value for a property on a node.
- *
- * @param {DOMElement} node
- * @param {string} name
- * @param {*} value
- */
-
-function setValueForProperty(node, name, value) {
-  if ( // shouldIgnoreAttribute
-  // We have already filtered out reserved words.
-  name.length > 2 && (name[0] === 'o' || name[0] === 'O') && (name[1] === 'n' || name[1] === 'N')) {
-    return;
-  }
-
-  var propertyInfo = getPropertyInfo(name);
-
-  if (propertyInfo !== null) {
-    if (propertyInfo.mustUseProperty) {
-      // We assume mustUseProperty are of BOOLEAN type because that's the only way we use it
-      // right now.
-      node[propertyInfo.propertyName] = value && typeof value !== 'function' && typeof value !== 'symbol';
-      return;
-    } // The rest are treated as attributes with special cases.
-
-
-    var attributeName = propertyInfo.attributeName;
-
-    if (value === null) {
-      node.removeAttribute(attributeName);
-      return;
-    } // shouldRemoveAttribute
-
-
-    switch (typeof value) {
-      case 'undefined':
-      case 'function':
-      case 'symbol':
-        // eslint-disable-line
-        node.removeAttribute(attributeName);
-        return;
-
-      case 'boolean':
-        {
-          if (!propertyInfo.acceptsBooleans) {
-            node.removeAttribute(attributeName);
-            return;
-          }
-        }
-    }
-
-    switch (propertyInfo.type) {
-      case BOOLEAN:
-        if (value) {
-          node.setAttribute(attributeName, '');
-        } else {
-          node.removeAttribute(attributeName);
-          return;
-        }
-
-        break;
-
-      case OVERLOADED_BOOLEAN:
-        if (value === true) {
-          node.setAttribute(attributeName, '');
-        } else if (value === false) {
-          node.removeAttribute(attributeName);
-        } else {
-          {
-            checkAttributeStringCoercion(value, attributeName);
-          }
-
-          node.setAttribute(attributeName, value);
-        }
-
-        return;
-
-      case NUMERIC:
-        if (!isNaN(value)) {
-          {
-            checkAttributeStringCoercion(value, attributeName);
-          }
-
-          node.setAttribute(attributeName, value);
-        } else {
-          node.removeAttribute(attributeName);
-        }
-
-        break;
-
-      case POSITIVE_NUMERIC:
-        if (!isNaN(value) && value >= 1) {
-          {
-            checkAttributeStringCoercion(value, attributeName);
-          }
-
-          node.setAttribute(attributeName, value);
-        } else {
-          node.removeAttribute(attributeName);
-        }
-
-        break;
-
-      default:
-        {
-          var attributeValue; // `setAttribute` with objects becomes only `[object]` in IE8/9,
-          // ('' + value) makes it output the correct toString()-value.
-
-          {
-            {
-              checkAttributeStringCoercion(value, attributeName);
-            }
-
-            attributeValue = '' + value;
-          }
-
-          if (propertyInfo.sanitizeURL) {
-            sanitizeURL(attributeValue.toString());
-          }
-
-          var attributeNamespace = propertyInfo.attributeNamespace;
-
-          if (attributeNamespace) {
-            node.setAttributeNS(attributeNamespace, attributeName, attributeValue);
-          } else {
-            node.setAttribute(attributeName, attributeValue);
-          }
-        }
-    }
-  } else if (isAttributeNameSafe(name)) {
+function setValueForAttribute(node, name, value) {
+  if (isAttributeNameSafe(name)) {
     // If the prop isn't in the special list, treat it as a simple attribute.
     // shouldRemoveAttribute
     if (value === null) {
@@ -2857,70 +2382,51 @@ function setValueForProperty(node, name, value) {
     node.setAttribute(name, '' + value);
   }
 }
-function setValueForPropertyOnCustomComponent(node, name, value) {
+function setValueForKnownAttribute(node, name, value) {
+  if (value === null) {
+    node.removeAttribute(name);
+    return;
+  }
 
-  if (isAttributeNameSafe(name)) {
-    // shouldRemoveAttribute
-    if (value === null) {
-      node.removeAttribute(name);
-      return;
-    }
-
-    switch (typeof value) {
-      case 'undefined':
-      case 'function':
-      case 'symbol':
-        // eslint-disable-line
+  switch (typeof value) {
+    case 'undefined':
+    case 'function':
+    case 'symbol':
+    case 'boolean':
+      {
         node.removeAttribute(name);
         return;
-    }
-
-    {
-      checkAttributeStringCoercion(value, name);
-    }
-
-    node.setAttribute(name, '' + value);
+      }
   }
+
+  {
+    checkAttributeStringCoercion(value, name);
+  }
+
+  node.setAttribute(name, '' + value);
 }
-
-// ATTENTION
-// When adding new symbols to this file,
-// Please consider also adding to 'react-devtools-shared/src/backend/ReactSymbols'
-// The Symbol used to tag the ReactElement-like types.
-var REACT_ELEMENT_TYPE = Symbol.for('react.element');
-var REACT_PORTAL_TYPE = Symbol.for('react.portal');
-var REACT_FRAGMENT_TYPE = Symbol.for('react.fragment');
-var REACT_STRICT_MODE_TYPE = Symbol.for('react.strict_mode');
-var REACT_PROFILER_TYPE = Symbol.for('react.profiler');
-var REACT_PROVIDER_TYPE = Symbol.for('react.provider');
-var REACT_CONTEXT_TYPE = Symbol.for('react.context');
-var REACT_SERVER_CONTEXT_TYPE = Symbol.for('react.server_context');
-var REACT_FORWARD_REF_TYPE = Symbol.for('react.forward_ref');
-var REACT_SUSPENSE_TYPE = Symbol.for('react.suspense');
-var REACT_SUSPENSE_LIST_TYPE = Symbol.for('react.suspense_list');
-var REACT_MEMO_TYPE = Symbol.for('react.memo');
-var REACT_LAZY_TYPE = Symbol.for('react.lazy');
-var REACT_SCOPE_TYPE = Symbol.for('react.scope');
-var REACT_DEBUG_TRACING_MODE_TYPE = Symbol.for('react.debug_trace_mode');
-var REACT_OFFSCREEN_TYPE = Symbol.for('react.offscreen');
-var REACT_LEGACY_HIDDEN_TYPE = Symbol.for('react.legacy_hidden');
-var REACT_CACHE_TYPE = Symbol.for('react.cache');
-var REACT_TRACING_MARKER_TYPE = Symbol.for('react.tracing_marker');
-var REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
-var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
-var FAUX_ITERATOR_SYMBOL = '@@iterator';
-function getIteratorFn(maybeIterable) {
-  if (maybeIterable === null || typeof maybeIterable !== 'object') {
-    return null;
+function setValueForNamespacedAttribute(node, namespace, name, value) {
+  if (value === null) {
+    node.removeAttribute(name);
+    return;
   }
 
-  var maybeIterator = MAYBE_ITERATOR_SYMBOL && maybeIterable[MAYBE_ITERATOR_SYMBOL] || maybeIterable[FAUX_ITERATOR_SYMBOL];
-
-  if (typeof maybeIterator === 'function') {
-    return maybeIterator;
+  switch (typeof value) {
+    case 'undefined':
+    case 'function':
+    case 'symbol':
+    case 'boolean':
+      {
+        node.removeAttribute(name);
+        return;
+      }
   }
 
-  return null;
+  {
+    checkAttributeStringCoercion(value, name);
+  }
+
+  node.setAttributeNS(namespace, name, '' + value);
 }
 
 var ReactCurrentDispatcher$2 = ReactSharedInternals.ReactCurrentDispatcher;
@@ -3333,7 +2839,6 @@ function getComponentNameFromType(type) {
           return (context2.displayName || context2._globalName) + '.Provider';
         }
 
-      // eslint-disable-next-line no-fallthrough
     }
   }
 
@@ -3527,27 +3032,6 @@ function getToStringValue(value) {
   }
 }
 
-var hasReadOnlyValue = {
-  button: true,
-  checkbox: true,
-  image: true,
-  hidden: true,
-  radio: true,
-  reset: true,
-  submit: true
-};
-function checkControlledValueProps(tagName, props) {
-  {
-    if (!(hasReadOnlyValue[props.type] || props.onChange || props.onInput || props.readOnly || props.disabled || props.value == null)) {
-      error('You provided a `value` prop to a form field without an ' + '`onChange` handler. This will render a read-only field. If ' + 'the field should be mutable use `defaultValue`. Otherwise, ' + 'set either `onChange` or `readOnly`.');
-    }
-
-    if (!(props.onChange || props.readOnly || props.disabled || props.checked == null)) {
-      error('You provided a `checked` prop to a form field without an ' + '`onChange` handler. This will render a read-only field. If ' + 'the field should be mutable use `defaultChecked`. Otherwise, ' + 'set either `onChange` or `readOnly`.');
-    }
-  }
-}
-
 function isCheckable(elem) {
   var type = elem.type;
   var nodeName = elem.nodeName;
@@ -3643,8 +3127,7 @@ function trackValueOnNode(node) {
 function track(node) {
   if (getTracker(node)) {
     return;
-  } // TODO: Once it's just Fiber we can move this to node._wrapperState
-
+  }
 
   node._valueTracker = trackValueOnNode(node);
 }
@@ -3685,15 +3168,20 @@ function getActiveElement(doc) {
   }
 }
 
+// When passing user input into querySelector(All) the embedded string must not alter
+// the semantics of the query. This escape function is safe to use when we know the
+// provided value is going to be wrapped in double quotes as part of an attribute selector
+// Do not use it anywhere else
+// we escape double quotes and backslashes
+var escapeSelectorAttributeValueInsideDoubleQuotesRegex = /[\n\"\\]/g;
+function escapeSelectorAttributeValueInsideDoubleQuotes(value) {
+  return value.replace(escapeSelectorAttributeValueInsideDoubleQuotesRegex, function (ch) {
+    return '\\' + ch.charCodeAt(0).toString(16) + ' ';
+  });
+}
+
 var didWarnValueDefaultValue$1 = false;
 var didWarnCheckedDefaultChecked = false;
-var didWarnControlledToUncontrolled = false;
-var didWarnUncontrolledToControlled = false;
-
-function isControlled(props) {
-  var usesChecked = props.type === 'checkbox' || props.type === 'radio';
-  return usesChecked ? props.checked != null : props.value != null;
-}
 /**
  * Implements an <input> host component that allows setting these optional
  * props: `checked`, `value`, `defaultChecked`, and `defaultValue`.
@@ -3711,11 +3199,11 @@ function isControlled(props) {
  * See http://www.w3.org/TR/2012/WD-html5-20121025/the-input-element.html
  */
 
-
-function initWrapperState$2(element, props) {
+function validateInputProps(element, props) {
   {
-    checkControlledValueProps('input', props);
-
+    // Normally we check for undefined and null the same, but explicitly specifying both
+    // properties, at all is probably worth warning for. We could move this either direction
+    // and just make it ok to pass null or just check hasOwnProperty.
     if (props.checked !== undefined && props.defaultChecked !== undefined && !didWarnCheckedDefaultChecked) {
       error('%s contains an input of type %s with both checked and defaultChecked props. ' + 'Input elements must be either controlled or uncontrolled ' + '(specify either the checked prop, or the defaultChecked prop, but not ' + 'both). Decide between using a controlled or uncontrolled input ' + 'element and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components', getCurrentFiberOwnerNameInDevOrNull() || 'A component', props.type);
 
@@ -3728,46 +3216,24 @@ function initWrapperState$2(element, props) {
       didWarnValueDefaultValue$1 = true;
     }
   }
-
-  var node = element;
-  var defaultValue = props.defaultValue == null ? '' : props.defaultValue;
-  var initialChecked = props.checked != null ? props.checked : props.defaultChecked;
-  node._wrapperState = {
-    initialChecked: typeof initialChecked !== 'function' && typeof initialChecked !== 'symbol' && !!initialChecked,
-    initialValue: getToStringValue(props.value != null ? props.value : defaultValue),
-    controlled: isControlled(props)
-  };
 }
-function updateChecked(element, props) {
-  var node = element;
-  var checked = props.checked;
+function updateInput(element, value, defaultValue, lastDefaultValue, checked, defaultChecked, type, name) {
+  var node = element; // Temporarily disconnect the input from any radio buttons.
+  // Changing the type or name as the same time as changing the checked value
+  // needs to be atomically applied. We can only ensure that by disconnecting
+  // the name while do the mutations and then reapply the name after that's done.
 
-  if (checked != null) {
-    node.checked = checked;
-  }
-}
-function updateWrapper$1(element, props) {
-  var node = element;
+  node.name = '';
 
-  {
-    var controlled = isControlled(props);
-
-    if (!node._wrapperState.controlled && controlled && !didWarnUncontrolledToControlled) {
-      error('A component is changing an uncontrolled input to be controlled. ' + 'This is likely caused by the value changing from undefined to ' + 'a defined value, which should not happen. ' + 'Decide between using a controlled or uncontrolled input ' + 'element for the lifetime of the component. More info: https://reactjs.org/link/controlled-components');
-
-      didWarnUncontrolledToControlled = true;
+  if (type != null && typeof type !== 'function' && typeof type !== 'symbol' && typeof type !== 'boolean') {
+    {
+      checkAttributeStringCoercion(type, 'type');
     }
 
-    if (node._wrapperState.controlled && !controlled && !didWarnControlledToUncontrolled) {
-      error('A component is changing a controlled input to be uncontrolled. ' + 'This is likely caused by the value changing from a defined to ' + 'undefined, which should not happen. ' + 'Decide between using a controlled or uncontrolled input ' + 'element for the lifetime of the component. More info: https://reactjs.org/link/controlled-components');
-
-      didWarnControlledToUncontrolled = true;
-    }
+    node.type = type;
+  } else {
+    node.removeAttribute('type');
   }
-
-  updateChecked(element, props);
-  var value = getToStringValue(props.value);
-  var type = props.type;
 
   if (value != null) {
     if (type === 'number') {
@@ -3775,16 +3241,15 @@ function updateWrapper$1(element, props) {
       value === 0 && node.value === '' || // We explicitly want to coerce to number here if possible.
       // eslint-disable-next-line
       node.value != value) {
-        node.value = toString(value);
+        node.value = toString(getToStringValue(value));
       }
-    } else if (node.value !== toString(value)) {
-      node.value = toString(value);
+    } else if (node.value !== toString(getToStringValue(value))) {
+      node.value = toString(getToStringValue(value));
     }
   } else if (type === 'submit' || type === 'reset') {
     // Submit/reset inputs need the attribute removed completely to avoid
     // blank-text buttons.
     node.removeAttribute('value');
-    return;
   }
 
   {
@@ -3793,35 +3258,58 @@ function updateWrapper$1(element, props) {
     //  1. The value React property
     //  2. The defaultValue React property
     //  3. Otherwise there should be no change
-    if (props.hasOwnProperty('value')) {
-      setDefaultValue(node, props.type, value);
-    } else if (props.hasOwnProperty('defaultValue')) {
-      setDefaultValue(node, props.type, getToStringValue(props.defaultValue));
+    if (value != null) {
+      setDefaultValue(node, type, getToStringValue(value));
+    } else if (defaultValue != null) {
+      setDefaultValue(node, type, getToStringValue(defaultValue));
+    } else if (lastDefaultValue != null) {
+      node.removeAttribute('value');
     }
   }
 
   {
     // When syncing the checked attribute, it only changes when it needs
     // to be removed, such as transitioning from a checkbox into a text input
-    if (props.checked == null && props.defaultChecked != null) {
-      node.defaultChecked = !!props.defaultChecked;
+    if (checked == null && defaultChecked != null) {
+      node.defaultChecked = !!defaultChecked;
     }
   }
-}
-function postMountWrapper$3(element, props, isHydrating) {
-  var node = element; // Do not assign value if it is already set. This prevents user text input
-  // from being lost during SSR hydration.
 
-  if (props.hasOwnProperty('value') || props.hasOwnProperty('defaultValue')) {
-    var type = props.type;
+  if (checked != null && node.checked !== !!checked) {
+    node.checked = checked;
+  }
+
+  if (name != null && typeof name !== 'function' && typeof name !== 'symbol' && typeof name !== 'boolean') {
+    {
+      checkAttributeStringCoercion(name, 'name');
+    }
+
+    node.name = toString(getToStringValue(name));
+  } else {
+    node.removeAttribute('name');
+  }
+}
+function initInput(element, value, defaultValue, checked, defaultChecked, type, name, isHydrating) {
+  var node = element;
+
+  if (type != null && typeof type !== 'function' && typeof type !== 'symbol' && typeof type !== 'boolean') {
+    {
+      checkAttributeStringCoercion(type, 'type');
+    }
+
+    node.type = type;
+  }
+
+  if (value != null || defaultValue != null) {
     var isButton = type === 'submit' || type === 'reset'; // Avoid setting value attribute on submit/reset inputs as it overrides the
     // default value provided by the browser. See: #12872
 
-    if (isButton && (props.value === undefined || props.value === null)) {
+    if (isButton && (value === undefined || value === null)) {
       return;
     }
 
-    var initialValue = toString(node._wrapperState.initialValue); // Do not assign value if it is already set. This prevents user text input
+    var defaultValueStr = defaultValue != null ? toString(getToStringValue(defaultValue)) : '';
+    var initialValue = value != null ? toString(getToStringValue(value)) : defaultValueStr; // Do not assign value if it is already set. This prevents user text input
     // from being lost during SSR hydration.
 
     if (!isHydrating) {
@@ -3851,19 +3339,17 @@ function postMountWrapper$3(element, props, isHydrating) {
   // We need to temporarily unset name to avoid disrupting radio button groups.
 
 
-  var name = node.name;
+  var checkedOrDefault = checked != null ? checked : defaultChecked; // TODO: This 'function' or 'symbol' check isn't replicated in other places
+  // so this semantic is inconsistent.
 
-  if (name !== '') {
-    node.name = '';
-  } // The checked property never gets assigned. It must be manually set.
+  var initialChecked = typeof checkedOrDefault !== 'function' && typeof checkedOrDefault !== 'symbol' && !!checkedOrDefault; // The checked property never gets assigned. It must be manually set.
   // We don't want to do this when hydrating so that existing user input isn't
   // modified
   // TODO: I'm pretty sure this is a bug because initialValueTracking won't be
   // correct for the hydration case then.
 
-
   if (!isHydrating) {
-    node.checked = !!node._wrapperState.initialChecked;
+    node.checked = !!initialChecked;
   }
 
   {
@@ -3874,20 +3360,21 @@ function postMountWrapper$3(element, props, isHydrating) {
     //   2. The defaultChecked React property when present
     //   3. Otherwise, false
     node.defaultChecked = !node.defaultChecked;
-    node.defaultChecked = !!node._wrapperState.initialChecked;
-  }
+    node.defaultChecked = !!initialChecked;
+  } // Name needs to be set at the end so that it applies atomically to connected radio buttons.
 
-  if (name !== '') {
+
+  if (name != null && typeof name !== 'function' && typeof name !== 'symbol' && typeof name !== 'boolean') {
+    {
+      checkAttributeStringCoercion(name, 'name');
+    }
+
     node.name = name;
   }
 }
-function restoreControlledState$3(element, props) {
-  var node = element;
-  updateWrapper$1(node, props);
-  updateNamedCousins(node, props);
-}
-
-function updateNamedCousins(rootNode, props) {
+function restoreControlledInputState(element, props) {
+  var rootNode = element;
+  updateInput(rootNode, props.value, props.defaultValue, props.defaultValue, props.checked, props.defaultChecked, props.type, props.name);
   var name = props.name;
 
   if (props.type === 'radio' && name != null) {
@@ -3908,7 +3395,7 @@ function updateNamedCousins(rootNode, props) {
       checkAttributeStringCoercion(name, 'name');
     }
 
-    var group = queryRoot.querySelectorAll('input[name=' + JSON.stringify('' + name) + '][type="radio"]');
+    var group = queryRoot.querySelectorAll('input[name="' + escapeSelectorAttributeValueInsideDoubleQuotes('' + name) + '"][type="radio"]');
 
     for (var i = 0; i < group.length; i++) {
       var otherNode = group[i];
@@ -3933,7 +3420,7 @@ function updateNamedCousins(rootNode, props) {
       // was previously checked to update will cause it to be come re-checked
       // as appropriate.
 
-      updateWrapper$1(otherNode, otherProps);
+      updateInput(otherNode, otherProps.value, otherProps.defaultValue, otherProps.defaultValue, otherProps.checked, otherProps.defaultChecked, otherProps.type, otherProps.name);
     }
   }
 } // In Chrome, assigning defaultValue to certain input types triggers input validation.
@@ -3945,13 +3432,10 @@ function updateNamedCousins(rootNode, props) {
 //
 // https://github.com/facebook/react/issues/7253
 
-
 function setDefaultValue(node, type, value) {
   if ( // Focused number inputs synchronize on blur. See ChangeEventPlugin.js
   type !== 'number' || getActiveElement(node.ownerDocument) !== node) {
-    if (value == null) {
-      node.defaultValue = toString(node._wrapperState.initialValue);
-    } else if (node.defaultValue !== toString(value)) {
+    if (node.defaultValue !== toString(value)) {
       node.defaultValue = toString(value);
     }
   }
@@ -3964,7 +3448,7 @@ var didWarnInvalidInnerHTML = false;
  * Implements an <option> host component that warns when `selected` is set.
  */
 
-function validateProps(element, props) {
+function validateOptionProps(element, props) {
   {
     // If a value is not provided, then the children must be simple.
     if (props.value == null) {
@@ -4001,12 +3485,6 @@ function validateProps(element, props) {
     }
   }
 }
-function postMountWrapper$2(element, props) {
-  // value="" should make a value attribute (#6219)
-  if (props.value != null) {
-    element.setAttribute('value', toString(getToStringValue(props.value)));
-  }
-}
 
 var isArrayImpl = Array.isArray; // eslint-disable-next-line no-redeclare
 
@@ -4037,8 +3515,6 @@ var valuePropNames = ['value', 'defaultValue'];
 
 function checkSelectPropTypes(props) {
   {
-    checkControlledValueProps('select', props);
-
     for (var i = 0; i < valuePropNames.length; i++) {
       var propName = valuePropNames[i];
 
@@ -4125,18 +3601,10 @@ function updateOptions(node, multiple, propValue, setDefaultSelected) {
  */
 
 
-function initWrapperState$1(element, props) {
-  var node = element;
-
+function validateSelectProps(element, props) {
   {
     checkSelectPropTypes(props);
-  }
 
-  node._wrapperState = {
-    wasMultiple: !!props.multiple
-  };
-
-  {
     if (props.value !== undefined && props.defaultValue !== undefined && !didWarnValueDefaultValue) {
       error('Select elements must be either controlled or uncontrolled ' + '(specify either the value prop, or the defaultValue prop, but not ' + 'both). Decide between using a controlled or uncontrolled select ' + 'element and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components');
 
@@ -4144,36 +3612,32 @@ function initWrapperState$1(element, props) {
     }
   }
 }
-function postMountWrapper$1(element, props) {
+function initSelect(element, value, defaultValue, multiple) {
   var node = element;
-  node.multiple = !!props.multiple;
-  var value = props.value;
+  node.multiple = !!multiple;
 
   if (value != null) {
-    updateOptions(node, !!props.multiple, value, false);
-  } else if (props.defaultValue != null) {
-    updateOptions(node, !!props.multiple, props.defaultValue, true);
+    updateOptions(node, !!multiple, value, false);
+  } else if (defaultValue != null) {
+    updateOptions(node, !!multiple, defaultValue, true);
   }
 }
-function postUpdateWrapper(element, props) {
+function updateSelect(element, value, defaultValue, multiple, wasMultiple) {
   var node = element;
-  var wasMultiple = node._wrapperState.wasMultiple;
-  node._wrapperState.wasMultiple = !!props.multiple;
-  var value = props.value;
 
   if (value != null) {
-    updateOptions(node, !!props.multiple, value, false);
-  } else if (wasMultiple !== !!props.multiple) {
+    updateOptions(node, !!multiple, value, false);
+  } else if (!!wasMultiple !== !!multiple) {
     // For simplicity, reapply `defaultValue` if `multiple` is toggled.
-    if (props.defaultValue != null) {
-      updateOptions(node, !!props.multiple, props.defaultValue, true);
+    if (defaultValue != null) {
+      updateOptions(node, !!multiple, defaultValue, true);
     } else {
       // Revert the select back to its default unselected state.
-      updateOptions(node, !!props.multiple, props.multiple ? [] : '', false);
+      updateOptions(node, !!multiple, multiple ? [] : '', false);
     }
   }
 }
-function restoreControlledState$2(element, props) {
+function restoreControlledSelectState(element, props) {
   var node = element;
   var value = props.value;
 
@@ -4199,30 +3663,53 @@ var didWarnValDefaultVal = false;
  * `defaultValue` if specified, or the children content (deprecated).
  */
 
-function initWrapperState(element, props) {
-  var node = element;
-
+function validateTextareaProps(element, props) {
   {
-    checkControlledValueProps('textarea', props);
-
     if (props.value !== undefined && props.defaultValue !== undefined && !didWarnValDefaultVal) {
       error('%s contains a textarea with both value and defaultValue props. ' + 'Textarea elements must be either controlled or uncontrolled ' + '(specify either the value prop, or the defaultValue prop, but not ' + 'both). Decide between using a controlled or uncontrolled textarea ' + 'and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components', getCurrentFiberOwnerNameInDevOrNull() || 'A component');
 
       didWarnValDefaultVal = true;
     }
+
+    if (props.children != null && props.value == null) {
+      error('Use the `defaultValue` or `value` props instead of setting ' + 'children on <textarea>.');
+    }
   }
+}
+function updateTextarea(element, value, defaultValue) {
+  var node = element;
 
-  var initialValue = props.value; // Only bother fetching default value if we're going to use it
+  if (value != null) {
+    // Cast `value` to a string to ensure the value is set correctly. While
+    // browsers typically do this as necessary, jsdom doesn't.
+    var newValue = toString(getToStringValue(value)); // To avoid side effects (such as losing text selection), only set value if changed
 
-  if (initialValue == null) {
-    var children = props.children,
-        defaultValue = props.defaultValue;
+    if (newValue !== node.value) {
+      node.value = newValue;
+    } // TOOO: This should respect disableInputAttributeSyncing flag.
 
-    if (children != null) {
-      {
-        error('Use the `defaultValue` or `value` props instead of setting ' + 'children on <textarea>.');
+
+    if (defaultValue == null) {
+      if (node.defaultValue !== newValue) {
+        node.defaultValue = newValue;
       }
 
+      return;
+    }
+  }
+
+  if (defaultValue != null) {
+    node.defaultValue = toString(getToStringValue(defaultValue));
+  } else {
+    node.defaultValue = '';
+  }
+}
+function initTextarea(element, value, defaultValue, children) {
+  var node = element;
+  var initialValue = value; // Only bother fetching default value if we're going to use it
+
+  if (initialValue == null) {
+    if (children != null) {
       {
         if (defaultValue != null) {
           throw new Error('If you supply `defaultValue` on a <textarea>, do not pass children.');
@@ -4249,36 +3736,7 @@ function initWrapperState(element, props) {
 
   var stringValue = getToStringValue(initialValue);
   node.defaultValue = stringValue; // This will be toString:ed.
-
-  node._wrapperState = {
-    initialValue: stringValue
-  };
-}
-function updateWrapper(element, props) {
-  var node = element;
-  var value = getToStringValue(props.value);
-  var defaultValue = getToStringValue(props.defaultValue);
-
-  if (value != null) {
-    // Cast `value` to a string to ensure the value is set correctly. While
-    // browsers typically do this as necessary, jsdom doesn't.
-    var newValue = toString(value); // To avoid side effects (such as losing text selection), only set value if changed
-
-    if (newValue !== node.value) {
-      node.value = newValue;
-    }
-
-    if (props.defaultValue == null && node.defaultValue !== newValue) {
-      node.defaultValue = newValue;
-    }
-  }
-
-  if (defaultValue != null) {
-    node.defaultValue = toString(defaultValue);
-  }
-}
-function postMountWrapper(element, props) {
-  var node = element; // This is in postMount because we need access to the DOM node, which is not
+  // This is in postMount because we need access to the DOM node, which is not
   // available until after the component has mounted.
 
   var textContent = node.textContent; // Only set node.value if textContent is equal to the expected
@@ -4286,47 +3744,344 @@ function postMountWrapper(element, props) {
   // will populate textContent as well.
   // https://developer.microsoft.com/microsoft-edge/platform/issues/101525/
 
-  if (textContent === node._wrapperState.initialValue) {
+  if (textContent === stringValue) {
     if (textContent !== '' && textContent !== null) {
       node.value = textContent;
     }
   }
 }
-function restoreControlledState$1(element, props) {
+function restoreControlledTextareaState(element, props) {
   // DOM component is still mounted; update
-  updateWrapper(element, props);
+  updateTextarea(element, props.value, props.defaultValue);
 }
 
-var HTML_NAMESPACE = 'http://www.w3.org/1999/xhtml';
+// This validation code was written based on the HTML5 parsing spec:
+// https://html.spec.whatwg.org/multipage/syntax.html#has-an-element-in-scope
+//
+// Note: this does not catch all invalid nesting, nor does it try to (as it's
+// not clear what practical benefit doing so provides); instead, we warn only
+// for cases where the parser will give a parse tree differing from what React
+// intended. For example, <b><div></div></b> is invalid but we don't warn
+// because it still parses correctly; we do warn for other cases like nested
+// <p> tags where the beginning of the second element implicitly closes the
+// first, causing a confusing mess.
+// https://html.spec.whatwg.org/multipage/syntax.html#special
+var specialTags = ['address', 'applet', 'area', 'article', 'aside', 'base', 'basefont', 'bgsound', 'blockquote', 'body', 'br', 'button', 'caption', 'center', 'col', 'colgroup', 'dd', 'details', 'dir', 'div', 'dl', 'dt', 'embed', 'fieldset', 'figcaption', 'figure', 'footer', 'form', 'frame', 'frameset', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'head', 'header', 'hgroup', 'hr', 'html', 'iframe', 'img', 'input', 'isindex', 'li', 'link', 'listing', 'main', 'marquee', 'menu', 'menuitem', 'meta', 'nav', 'noembed', 'noframes', 'noscript', 'object', 'ol', 'p', 'param', 'plaintext', 'pre', 'script', 'section', 'select', 'source', 'style', 'summary', 'table', 'tbody', 'td', 'template', 'textarea', 'tfoot', 'th', 'thead', 'title', 'tr', 'track', 'ul', 'wbr', 'xmp']; // https://html.spec.whatwg.org/multipage/syntax.html#has-an-element-in-scope
+
+var inScopeTags = ['applet', 'caption', 'html', 'table', 'td', 'th', 'marquee', 'object', 'template', // https://html.spec.whatwg.org/multipage/syntax.html#html-integration-point
+// TODO: Distinguish by namespace here -- for <title>, including it here
+// errs on the side of fewer warnings
+'foreignObject', 'desc', 'title']; // https://html.spec.whatwg.org/multipage/syntax.html#has-an-element-in-button-scope
+
+var buttonScopeTags = inScopeTags.concat(['button']) ; // https://html.spec.whatwg.org/multipage/syntax.html#generate-implied-end-tags
+
+var impliedEndTags = ['dd', 'dt', 'li', 'option', 'optgroup', 'p', 'rp', 'rt'];
+var emptyAncestorInfoDev = {
+  current: null,
+  formTag: null,
+  aTagInScope: null,
+  buttonTagInScope: null,
+  nobrTagInScope: null,
+  pTagInButtonScope: null,
+  listItemTagAutoclosing: null,
+  dlItemTagAutoclosing: null,
+  containerTagInScope: null
+};
+
+function updatedAncestorInfoDev(oldInfo, tag) {
+  {
+    var ancestorInfo = assign({}, oldInfo || emptyAncestorInfoDev);
+
+    var info = {
+      tag: tag
+    };
+
+    if (inScopeTags.indexOf(tag) !== -1) {
+      ancestorInfo.aTagInScope = null;
+      ancestorInfo.buttonTagInScope = null;
+      ancestorInfo.nobrTagInScope = null;
+    }
+
+    if (buttonScopeTags.indexOf(tag) !== -1) {
+      ancestorInfo.pTagInButtonScope = null;
+    } // See rules for 'li', 'dd', 'dt' start tags in
+    // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-inbody
+
+
+    if (specialTags.indexOf(tag) !== -1 && tag !== 'address' && tag !== 'div' && tag !== 'p') {
+      ancestorInfo.listItemTagAutoclosing = null;
+      ancestorInfo.dlItemTagAutoclosing = null;
+    }
+
+    ancestorInfo.current = info;
+
+    if (tag === 'form') {
+      ancestorInfo.formTag = info;
+    }
+
+    if (tag === 'a') {
+      ancestorInfo.aTagInScope = info;
+    }
+
+    if (tag === 'button') {
+      ancestorInfo.buttonTagInScope = info;
+    }
+
+    if (tag === 'nobr') {
+      ancestorInfo.nobrTagInScope = info;
+    }
+
+    if (tag === 'p') {
+      ancestorInfo.pTagInButtonScope = info;
+    }
+
+    if (tag === 'li') {
+      ancestorInfo.listItemTagAutoclosing = info;
+    }
+
+    if (tag === 'dd' || tag === 'dt') {
+      ancestorInfo.dlItemTagAutoclosing = info;
+    }
+
+    if (tag === '#document' || tag === 'html') {
+      ancestorInfo.containerTagInScope = null;
+    } else if (!ancestorInfo.containerTagInScope) {
+      ancestorInfo.containerTagInScope = info;
+    }
+
+    return ancestorInfo;
+  }
+}
+/**
+ * Returns whether
+ */
+
+
+function isTagValidWithParent(tag, parentTag) {
+  // First, let's check if we're in an unusual parsing mode...
+  switch (parentTag) {
+    // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-inselect
+    case 'select':
+      return tag === 'option' || tag === 'optgroup' || tag === '#text';
+
+    case 'optgroup':
+      return tag === 'option' || tag === '#text';
+    // Strictly speaking, seeing an <option> doesn't mean we're in a <select>
+    // but
+
+    case 'option':
+      return tag === '#text';
+    // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-intd
+    // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-incaption
+    // No special behavior since these rules fall back to "in body" mode for
+    // all except special table nodes which cause bad parsing behavior anyway.
+    // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-intr
+
+    case 'tr':
+      return tag === 'th' || tag === 'td' || tag === 'style' || tag === 'script' || tag === 'template';
+    // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-intbody
+
+    case 'tbody':
+    case 'thead':
+    case 'tfoot':
+      return tag === 'tr' || tag === 'style' || tag === 'script' || tag === 'template';
+    // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-incolgroup
+
+    case 'colgroup':
+      return tag === 'col' || tag === 'template';
+    // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-intable
+
+    case 'table':
+      return tag === 'caption' || tag === 'colgroup' || tag === 'tbody' || tag === 'tfoot' || tag === 'thead' || tag === 'style' || tag === 'script' || tag === 'template';
+    // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-inhead
+
+    case 'head':
+      return tag === 'base' || tag === 'basefont' || tag === 'bgsound' || tag === 'link' || tag === 'meta' || tag === 'title' || tag === 'noscript' || tag === 'noframes' || tag === 'style' || tag === 'script' || tag === 'template';
+    // https://html.spec.whatwg.org/multipage/semantics.html#the-html-element
+
+    case 'html':
+      return tag === 'head' || tag === 'body' || tag === 'frameset';
+
+    case 'frameset':
+      return tag === 'frame';
+
+    case '#document':
+      return tag === 'html';
+  } // Probably in the "in body" parsing mode, so we outlaw only tag combos
+  // where the parsing rules cause implicit opens or closes to be added.
+  // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-inbody
+
+
+  switch (tag) {
+    case 'h1':
+    case 'h2':
+    case 'h3':
+    case 'h4':
+    case 'h5':
+    case 'h6':
+      return parentTag !== 'h1' && parentTag !== 'h2' && parentTag !== 'h3' && parentTag !== 'h4' && parentTag !== 'h5' && parentTag !== 'h6';
+
+    case 'rp':
+    case 'rt':
+      return impliedEndTags.indexOf(parentTag) === -1;
+
+    case 'body':
+    case 'caption':
+    case 'col':
+    case 'colgroup':
+    case 'frameset':
+    case 'frame':
+    case 'head':
+    case 'html':
+    case 'tbody':
+    case 'td':
+    case 'tfoot':
+    case 'th':
+    case 'thead':
+    case 'tr':
+      // These tags are only valid with a few parents that have special child
+      // parsing rules -- if we're down here, then none of those matched and
+      // so we allow it only if we don't know what the parent is, as all other
+      // cases are invalid.
+      return parentTag == null;
+  }
+
+  return true;
+}
+/**
+ * Returns whether
+ */
+
+
+function findInvalidAncestorForTag(tag, ancestorInfo) {
+  switch (tag) {
+    case 'address':
+    case 'article':
+    case 'aside':
+    case 'blockquote':
+    case 'center':
+    case 'details':
+    case 'dialog':
+    case 'dir':
+    case 'div':
+    case 'dl':
+    case 'fieldset':
+    case 'figcaption':
+    case 'figure':
+    case 'footer':
+    case 'header':
+    case 'hgroup':
+    case 'main':
+    case 'menu':
+    case 'nav':
+    case 'ol':
+    case 'p':
+    case 'section':
+    case 'summary':
+    case 'ul':
+    case 'pre':
+    case 'listing':
+    case 'table':
+    case 'hr':
+    case 'xmp':
+    case 'h1':
+    case 'h2':
+    case 'h3':
+    case 'h4':
+    case 'h5':
+    case 'h6':
+      return ancestorInfo.pTagInButtonScope;
+
+    case 'form':
+      return ancestorInfo.formTag || ancestorInfo.pTagInButtonScope;
+
+    case 'li':
+      return ancestorInfo.listItemTagAutoclosing;
+
+    case 'dd':
+    case 'dt':
+      return ancestorInfo.dlItemTagAutoclosing;
+
+    case 'button':
+      return ancestorInfo.buttonTagInScope;
+
+    case 'a':
+      // Spec says something about storing a list of markers, but it sounds
+      // equivalent to this check.
+      return ancestorInfo.aTagInScope;
+
+    case 'nobr':
+      return ancestorInfo.nobrTagInScope;
+  }
+
+  return null;
+}
+
+var didWarn$1 = {};
+
+function validateDOMNesting(childTag, ancestorInfo) {
+  {
+    ancestorInfo = ancestorInfo || emptyAncestorInfoDev;
+    var parentInfo = ancestorInfo.current;
+    var parentTag = parentInfo && parentInfo.tag;
+    var invalidParent = isTagValidWithParent(childTag, parentTag) ? null : parentInfo;
+    var invalidAncestor = invalidParent ? null : findInvalidAncestorForTag(childTag, ancestorInfo);
+    var invalidParentOrAncestor = invalidParent || invalidAncestor;
+
+    if (!invalidParentOrAncestor) {
+      return;
+    }
+
+    var ancestorTag = invalidParentOrAncestor.tag;
+    var warnKey = // eslint-disable-next-line react-internal/safe-string-coercion
+    String(!!invalidParent) + '|' + childTag + '|' + ancestorTag;
+
+    if (didWarn$1[warnKey]) {
+      return;
+    }
+
+    didWarn$1[warnKey] = true;
+    var tagDisplayName = '<' + childTag + '>';
+
+    if (invalidParent) {
+      var info = '';
+
+      if (ancestorTag === 'table' && childTag === 'tr') {
+        info += ' Add a <tbody>, <thead> or <tfoot> to your code to match the DOM tree generated by ' + 'the browser.';
+      }
+
+      error('validateDOMNesting(...): %s cannot appear as a child of <%s>.%s', tagDisplayName, ancestorTag, info);
+    } else {
+      error('validateDOMNesting(...): %s cannot appear as a descendant of ' + '<%s>.', tagDisplayName, ancestorTag);
+    }
+  }
+}
+
+function validateTextNesting(childText, parentTag) {
+  {
+    if (isTagValidWithParent('#text', parentTag)) {
+      return;
+    } // eslint-disable-next-line react-internal/safe-string-coercion
+
+
+    var warnKey = '#text|' + parentTag;
+
+    if (didWarn$1[warnKey]) {
+      return;
+    }
+
+    didWarn$1[warnKey] = true;
+
+    if (/\S/.test(childText)) {
+      error('validateDOMNesting(...): Text nodes cannot appear as a child of <%s>.', parentTag);
+    } else {
+      error('validateDOMNesting(...): Whitespace text nodes cannot appear as a child of <%s>. ' + "Make sure you don't have any extra whitespace between tags on " + 'each line of your source code.', parentTag);
+    }
+  }
+}
+
 var MATH_NAMESPACE = 'http://www.w3.org/1998/Math/MathML';
-var SVG_NAMESPACE = 'http://www.w3.org/2000/svg'; // Assumes there is no parent namespace.
-
-function getIntrinsicNamespace(type) {
-  switch (type) {
-    case 'svg':
-      return SVG_NAMESPACE;
-
-    case 'math':
-      return MATH_NAMESPACE;
-
-    default:
-      return HTML_NAMESPACE;
-  }
-}
-function getChildNamespace(parentNamespace, type) {
-  if (parentNamespace == null || parentNamespace === HTML_NAMESPACE) {
-    // No (or default) parent namespace: potential entry point.
-    return getIntrinsicNamespace(type);
-  }
-
-  if (parentNamespace === SVG_NAMESPACE && type === 'foreignObject') {
-    // We're leaving SVG.
-    return HTML_NAMESPACE;
-  } // By default, pass namespace below.
-
-
-  return parentNamespace;
-}
+var SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 
 var reusableSVGContainer;
 
@@ -4582,77 +4337,13 @@ function warnValidStyle(name, value) {
 /**
  * CSS properties which accept numbers but are not in units of "px".
  */
-var isUnitlessNumber = {
-  animationIterationCount: true,
-  aspectRatio: true,
-  borderImageOutset: true,
-  borderImageSlice: true,
-  borderImageWidth: true,
-  boxFlex: true,
-  boxFlexGroup: true,
-  boxOrdinalGroup: true,
-  columnCount: true,
-  columns: true,
-  flex: true,
-  flexGrow: true,
-  flexPositive: true,
-  flexShrink: true,
-  flexNegative: true,
-  flexOrder: true,
-  gridArea: true,
-  gridRow: true,
-  gridRowEnd: true,
-  gridRowSpan: true,
-  gridRowStart: true,
-  gridColumn: true,
-  gridColumnEnd: true,
-  gridColumnSpan: true,
-  gridColumnStart: true,
-  fontWeight: true,
-  lineClamp: true,
-  lineHeight: true,
-  opacity: true,
-  order: true,
-  orphans: true,
-  scale: true,
-  tabSize: true,
-  widows: true,
-  zIndex: true,
-  zoom: true,
-  // SVG-related properties
-  fillOpacity: true,
-  floodOpacity: true,
-  stopOpacity: true,
-  strokeDasharray: true,
-  strokeDashoffset: true,
-  strokeMiterlimit: true,
-  strokeOpacity: true,
-  strokeWidth: true
-};
-/**
- * @param {string} prefix vendor-specific prefix, eg: Webkit
- * @param {string} key style name, eg: transitionDuration
- * @return {string} style name prefixed with `prefix`, properly camelCased, eg:
- * WebkitTransitionDuration
- */
-
-function prefixKey(prefix, key) {
-  return prefix + key.charAt(0).toUpperCase() + key.substring(1);
+var unitlessNumbers = new Set(['animationIterationCount', 'aspectRatio', 'borderImageOutset', 'borderImageSlice', 'borderImageWidth', 'boxFlex', 'boxFlexGroup', 'boxOrdinalGroup', 'columnCount', 'columns', 'flex', 'flexGrow', 'flexPositive', 'flexShrink', 'flexNegative', 'flexOrder', 'gridArea', 'gridRow', 'gridRowEnd', 'gridRowSpan', 'gridRowStart', 'gridColumn', 'gridColumnEnd', 'gridColumnSpan', 'gridColumnStart', 'fontWeight', 'lineClamp', 'lineHeight', 'opacity', 'order', 'orphans', 'scale', 'tabSize', 'widows', 'zIndex', 'zoom', 'fillOpacity', // SVG-related properties
+'floodOpacity', 'stopOpacity', 'strokeDasharray', 'strokeDashoffset', 'strokeMiterlimit', 'strokeOpacity', 'strokeWidth', 'MozAnimationIterationCount', // Known Prefixed Properties
+'MozBoxFlex', // TODO: Remove these since they shouldn't be used in modern code
+'MozBoxFlexGroup', 'MozLineClamp', 'msAnimationIterationCount', 'msFlex', 'msZoom', 'msFlexGrow', 'msFlexNegative', 'msFlexOrder', 'msFlexPositive', 'msFlexShrink', 'msGridColumn', 'msGridColumnSpan', 'msGridRow', 'msGridRowSpan', 'WebkitAnimationIterationCount', 'WebkitBoxFlex', 'WebKitBoxFlexGroup', 'WebkitBoxOrdinalGroup', 'WebkitColumnCount', 'WebkitColumns', 'WebkitFlex', 'WebkitFlexGrow', 'WebkitFlexPositive', 'WebkitFlexShrink', 'WebkitLineClamp']);
+function isUnitlessNumber (name) {
+  return unitlessNumbers.has(name);
 }
-/**
- * Support style names that may come passed in prefixed by adding permutations
- * of vendor prefixes.
- */
-
-
-var prefixes = ['Webkit', 'ms', 'Moz', 'O']; // Using Object.keys here, or else the vanilla for-in loop makes IE8 go into an
-// infinite loop, because it iterates over the newly added props too.
-
-Object.keys(isUnitlessNumber).forEach(function (prop) {
-  prefixes.forEach(function (prefix) {
-    isUnitlessNumber[prefixKey(prefix, prop)] = isUnitlessNumber[prop];
-  });
-});
 
 /**
  * Operations for dealing with CSS properties.
@@ -4687,7 +4378,7 @@ function createDangerousStringForStyles(styles) {
 
           serialized += delimiter + styleName + ':' + ('' + value).trim();
         } else {
-          if (typeof value === 'number' && value !== 0 && !(isUnitlessNumber.hasOwnProperty(styleName) && isUnitlessNumber[styleName])) {
+          if (typeof value === 'number' && value !== 0 && !isUnitlessNumber(styleName)) {
             serialized += delimiter + hyphenateStyleName(styleName) + ':' + value + 'px';
           } else {
             {
@@ -4705,6 +4396,40 @@ function createDangerousStringForStyles(styles) {
     return serialized || null;
   }
 }
+
+function setValueForStyle(style, styleName, value) {
+  var isCustomProperty = styleName.indexOf('--') === 0;
+
+  {
+    if (!isCustomProperty) {
+      warnValidStyle(styleName, value);
+    }
+  }
+
+  if (value == null || typeof value === 'boolean' || value === '') {
+    if (isCustomProperty) {
+      style.setProperty(styleName, '');
+    } else if (styleName === 'float') {
+      style.cssFloat = '';
+    } else {
+      style[styleName] = '';
+    }
+  } else if (isCustomProperty) {
+    style.setProperty(styleName, value);
+  } else if (typeof value === 'number' && value !== 0 && !isUnitlessNumber(styleName)) {
+    style[styleName] = value + 'px'; // Presumes implicit 'px' suffix for unitless numbers
+  } else {
+    if (styleName === 'float') {
+      style.cssFloat = value;
+    } else {
+      {
+        checkCSSPropertyStringCoercion(value, styleName);
+      }
+
+      style[styleName] = ('' + value).trim();
+    }
+  }
+}
 /**
  * Sets the value for multiple styles on a node.  If a value is specified as
  * '' (empty string), the corresponding style property will be unset.
@@ -4713,44 +4438,27 @@ function createDangerousStringForStyles(styles) {
  * @param {object} styles
  */
 
-function setValueForStyles(node, styles) {
+
+function setValueForStyles(node, styles, prevStyles) {
+  if (styles != null && typeof styles !== 'object') {
+    throw new Error('The `style` prop expects a mapping from style properties to values, ' + "not a string. For example, style={{marginRight: spacing + 'em'}} when " + 'using JSX.');
+  }
+
+  {
+    if (styles) {
+      // Freeze the next style object so that we can assume it won't be
+      // mutated. We have already warned for this in the past.
+      Object.freeze(styles);
+    }
+  }
+
   var style = node.style;
 
-  for (var styleName in styles) {
-    if (!styles.hasOwnProperty(styleName)) {
-      continue;
-    }
-
-    var value = styles[styleName];
-    var isCustomProperty = styleName.indexOf('--') === 0;
-
-    {
-      if (!isCustomProperty) {
-        warnValidStyle(styleName, value);
-      }
-    }
-
-    if (value == null || typeof value === 'boolean' || value === '') {
-      if (isCustomProperty) {
-        style.setProperty(styleName, '');
-      } else if (styleName === 'float') {
-        style.cssFloat = '';
-      } else {
-        style[styleName] = '';
-      }
-    } else if (isCustomProperty) {
-      style.setProperty(styleName, value);
-    } else if (typeof value === 'number' && value !== 0 && !(isUnitlessNumber.hasOwnProperty(styleName) && isUnitlessNumber[styleName])) {
-      style[styleName] = value + 'px'; // Presumes implicit 'px' suffix for unitless numbers
-    } else {
-      if (styleName === 'float') {
-        style.cssFloat = value;
-      } else {
-        {
-          checkCSSPropertyStringCoercion(value, styleName);
-        }
-
-        style[styleName] = ('' + value).trim();
+  {
+    for (var _styleName2 in styles) {
+      if (styles.hasOwnProperty(_styleName2)) {
+        var _value = styles[_styleName2];
+        setValueForStyle(style, _styleName2, _value);
       }
     }
   }
@@ -4798,19 +4506,43 @@ function expandShorthandMap(styles) {
  */
 
 
-function validateShorthandPropertyCollisionInDev(styleUpdates, nextStyles) {
+function validateShorthandPropertyCollisionInDev(prevStyles, nextStyles) {
   {
     if (!nextStyles) {
       return;
+    } // Compute the diff as it would happen elsewhere.
+
+
+    var expandedUpdates = {};
+
+    if (prevStyles) {
+      for (var key in prevStyles) {
+        if (prevStyles.hasOwnProperty(key) && !nextStyles.hasOwnProperty(key)) {
+          var longhands = shorthandToLonghand[key] || [key];
+
+          for (var i = 0; i < longhands.length; i++) {
+            expandedUpdates[longhands[i]] = key;
+          }
+        }
+      }
     }
 
-    var expandedUpdates = expandShorthandMap(styleUpdates);
+    for (var _key in nextStyles) {
+      if (nextStyles.hasOwnProperty(_key) && (!prevStyles || prevStyles[_key] !== nextStyles[_key])) {
+        var _longhands = shorthandToLonghand[_key] || [_key];
+
+        for (var _i = 0; _i < _longhands.length; _i++) {
+          expandedUpdates[_longhands[_i]] = _key;
+        }
+      }
+    }
+
     var expandedStyles = expandShorthandMap(nextStyles);
     var warnedAbout = {};
 
-    for (var key in expandedUpdates) {
-      var originalKey = expandedUpdates[key];
-      var correctOriginalKey = expandedStyles[key];
+    for (var _key2 in expandedUpdates) {
+      var originalKey = expandedUpdates[_key2];
+      var correctOriginalKey = expandedStyles[_key2];
 
       if (correctOriginalKey && originalKey !== correctOriginalKey) {
         var warningKey = originalKey + ',' + correctOriginalKey;
@@ -4821,15 +4553,15 @@ function validateShorthandPropertyCollisionInDev(styleUpdates, nextStyles) {
 
         warnedAbout[warningKey] = true;
 
-        error('%s a style property during rerender (%s) when a ' + 'conflicting property is set (%s) can lead to styling bugs. To ' + "avoid this, don't mix shorthand and non-shorthand properties " + 'for the same value; instead, replace the shorthand with ' + 'separate values.', isValueEmpty(styleUpdates[originalKey]) ? 'Removing' : 'Updating', originalKey, correctOriginalKey);
+        error('%s a style property during rerender (%s) when a ' + 'conflicting property is set (%s) can lead to styling bugs. To ' + "avoid this, don't mix shorthand and non-shorthand properties " + 'for the same value; instead, replace the shorthand with ' + 'separate values.', isValueEmpty(nextStyles[originalKey]) ? 'Removing' : 'Updating', originalKey, correctOriginalKey);
       }
     }
   }
 }
 
-function isCustomComponent(tagName, props) {
+function isCustomElement(tagName, props) {
   if (tagName.indexOf('-') === -1) {
-    return typeof props.is === 'string';
+    return false;
   }
 
   switch (tagName) {
@@ -4850,6 +4582,14 @@ function isCustomComponent(tagName, props) {
     default:
       return true;
   }
+}
+
+var aliases = new Map([['acceptCharset', 'accept-charset'], ['htmlFor', 'for'], ['httpEquiv', 'http-equiv'], // HTML and SVG attributes, but the SVG attribute is case sensitive.],
+['crossOrigin', 'crossorigin'], // This is a list of all SVG attributes that need special casing.
+// Regular attributes that just accept strings.],
+['accentHeight', 'accent-height'], ['alignmentBaseline', 'alignment-baseline'], ['arabicForm', 'arabic-form'], ['baselineShift', 'baseline-shift'], ['capHeight', 'cap-height'], ['clipPath', 'clip-path'], ['clipRule', 'clip-rule'], ['colorInterpolation', 'color-interpolation'], ['colorInterpolationFilters', 'color-interpolation-filters'], ['colorProfile', 'color-profile'], ['colorRendering', 'color-rendering'], ['dominantBaseline', 'dominant-baseline'], ['enableBackground', 'enable-background'], ['fillOpacity', 'fill-opacity'], ['fillRule', 'fill-rule'], ['floodColor', 'flood-color'], ['floodOpacity', 'flood-opacity'], ['fontFamily', 'font-family'], ['fontSize', 'font-size'], ['fontSizeAdjust', 'font-size-adjust'], ['fontStretch', 'font-stretch'], ['fontStyle', 'font-style'], ['fontVariant', 'font-variant'], ['fontWeight', 'font-weight'], ['glyphName', 'glyph-name'], ['glyphOrientationHorizontal', 'glyph-orientation-horizontal'], ['glyphOrientationVertical', 'glyph-orientation-vertical'], ['horizAdvX', 'horiz-adv-x'], ['horizOriginX', 'horiz-origin-x'], ['imageRendering', 'image-rendering'], ['letterSpacing', 'letter-spacing'], ['lightingColor', 'lighting-color'], ['markerEnd', 'marker-end'], ['markerMid', 'marker-mid'], ['markerStart', 'marker-start'], ['overlinePosition', 'overline-position'], ['overlineThickness', 'overline-thickness'], ['paintOrder', 'paint-order'], ['panose-1', 'panose-1'], ['pointerEvents', 'pointer-events'], ['renderingIntent', 'rendering-intent'], ['shapeRendering', 'shape-rendering'], ['stopColor', 'stop-color'], ['stopOpacity', 'stop-opacity'], ['strikethroughPosition', 'strikethrough-position'], ['strikethroughThickness', 'strikethrough-thickness'], ['strokeDasharray', 'stroke-dasharray'], ['strokeDashoffset', 'stroke-dashoffset'], ['strokeLinecap', 'stroke-linecap'], ['strokeLinejoin', 'stroke-linejoin'], ['strokeMiterlimit', 'stroke-miterlimit'], ['strokeOpacity', 'stroke-opacity'], ['strokeWidth', 'stroke-width'], ['textAnchor', 'text-anchor'], ['textDecoration', 'text-decoration'], ['textRendering', 'text-rendering'], ['transformOrigin', 'transform-origin'], ['underlinePosition', 'underline-position'], ['underlineThickness', 'underline-thickness'], ['unicodeBidi', 'unicode-bidi'], ['unicodeRange', 'unicode-range'], ['unitsPerEm', 'units-per-em'], ['vAlphabetic', 'v-alphabetic'], ['vHanging', 'v-hanging'], ['vIdeographic', 'v-ideographic'], ['vMathematical', 'v-mathematical'], ['vectorEffect', 'vector-effect'], ['vertAdvY', 'vert-adv-y'], ['vertOriginX', 'vert-origin-x'], ['vertOriginY', 'vert-origin-y'], ['wordSpacing', 'word-spacing'], ['writingMode', 'writing-mode'], ['xmlnsXlink', 'xmlns:xlink'], ['xHeight', 'x-height']]);
+function getAttributeAlias (name) {
+  return aliases.get(name) || name;
 }
 
 // When adding attributes to the HTML or SVG allowed attribute list, be sure to
@@ -5462,7 +5202,7 @@ function validateProperty$1(tagName, name) {
   return true;
 }
 
-function warnInvalidARIAProps(type, props) {
+function validateProperties$2(type, props) {
   {
     var invalidProps = [];
 
@@ -5484,14 +5224,6 @@ function warnInvalidARIAProps(type, props) {
       error('Invalid aria props %s on <%s> tag. ' + 'For details, see https://reactjs.org/link/invalid-aria-props', unknownPropString, type);
     }
   }
-}
-
-function validateProperties$2(type, props) {
-  if (isCustomComponent(type, props)) {
-    return;
-  }
-
-  warnInvalidARIAProps(type, props);
 }
 
 var didWarnValueNull = false;
@@ -5532,7 +5264,7 @@ function validateProperty(tagName, name, value, eventRegistry) {
 
       warnedProperties[name] = true;
       return true;
-    } // We can't rely on the event system being injected on the server.
+    }
 
 
     if (eventRegistry != null) {
@@ -5601,9 +5333,8 @@ function validateProperty(tagName, name, value, eventRegistry) {
 
       warnedProperties[name] = true;
       return true;
-    }
+    } // Known attributes should match the casing specified in the property config.
 
-    var propertyInfo = getPropertyInfo(name); // Known attributes should match the casing specified in the property config.
 
     if (possibleStandardNames.hasOwnProperty(lowerCasedName)) {
       var standardName = possibleStandardNames[lowerCasedName];
@@ -5641,37 +5372,126 @@ function validateProperty(tagName, name, value, eventRegistry) {
 
     }
 
-    if (typeof value === 'boolean') {
-      var prefix = name.toLowerCase().slice(0, 5);
-      var acceptsBooleans = propertyInfo !== null ? propertyInfo.acceptsBooleans : prefix === 'data-' || prefix === 'aria-';
-
-      if (!acceptsBooleans) {
-        if (value) {
-          error('Received `%s` for a non-boolean attribute `%s`.\n\n' + 'If you want to write it to the DOM, pass a string instead: ' + '%s="%s" or %s={value.toString()}.', value, name, name, value, name);
-        } else {
-          error('Received `%s` for a non-boolean attribute `%s`.\n\n' + 'If you want to write it to the DOM, pass a string instead: ' + '%s="%s" or %s={value.toString()}.\n\n' + 'If you used to conditionally omit it with %s={condition && value}, ' + 'pass %s={condition ? value : undefined} instead.', value, name, name, value, name, name, name);
-        }
-      }
-
-      warnedProperties[name] = true;
-      return true;
-    } // Warn when a known attribute is a bad type
-
-
     switch (typeof value) {
+      case 'boolean':
+        {
+          switch (name) {
+            case 'autoFocus':
+            case 'checked':
+            case 'multiple':
+            case 'muted':
+            case 'selected':
+            case 'contentEditable':
+            case 'spellCheck':
+            case 'draggable':
+            case 'value':
+            case 'autoReverse':
+            case 'externalResourcesRequired':
+            case 'focusable':
+            case 'preserveAlpha':
+            case 'allowFullScreen':
+            case 'async':
+            case 'autoPlay':
+            case 'controls':
+            case 'default':
+            case 'defer':
+            case 'disabled':
+            case 'disablePictureInPicture':
+            case 'disableRemotePlayback':
+            case 'formNoValidate':
+            case 'hidden':
+            case 'loop':
+            case 'noModule':
+            case 'noValidate':
+            case 'open':
+            case 'playsInline':
+            case 'readOnly':
+            case 'required':
+            case 'reversed':
+            case 'scoped':
+            case 'seamless':
+            case 'itemScope':
+            case 'capture':
+            case 'download':
+              {
+                // Boolean properties can accept boolean values
+                return true;
+              }
+
+            default:
+              {
+                var prefix = name.toLowerCase().slice(0, 5);
+
+                if (prefix === 'data-' || prefix === 'aria-') {
+                  return true;
+                }
+
+                if (value) {
+                  error('Received `%s` for a non-boolean attribute `%s`.\n\n' + 'If you want to write it to the DOM, pass a string instead: ' + '%s="%s" or %s={value.toString()}.', value, name, name, value, name);
+                } else {
+                  error('Received `%s` for a non-boolean attribute `%s`.\n\n' + 'If you want to write it to the DOM, pass a string instead: ' + '%s="%s" or %s={value.toString()}.\n\n' + 'If you used to conditionally omit it with %s={condition && value}, ' + 'pass %s={condition ? value : undefined} instead.', value, name, name, value, name, name, name);
+                }
+
+                warnedProperties[name] = true;
+                return true;
+              }
+          }
+        }
+
       case 'function':
       case 'symbol':
         // eslint-disable-line
+        // Warn when a known attribute is a bad type
         warnedProperties[name] = true;
         return false;
-    } // Warn when passing the strings 'false' or 'true' into a boolean prop
 
+      case 'string':
+        {
+          // Warn when passing the strings 'false' or 'true' into a boolean prop
+          if (value === 'false' || value === 'true') {
+            switch (name) {
+              case 'checked':
+              case 'selected':
+              case 'multiple':
+              case 'muted':
+              case 'allowFullScreen':
+              case 'async':
+              case 'autoPlay':
+              case 'controls':
+              case 'default':
+              case 'defer':
+              case 'disabled':
+              case 'disablePictureInPicture':
+              case 'disableRemotePlayback':
+              case 'formNoValidate':
+              case 'hidden':
+              case 'loop':
+              case 'noModule':
+              case 'noValidate':
+              case 'open':
+              case 'playsInline':
+              case 'readOnly':
+              case 'required':
+              case 'reversed':
+              case 'scoped':
+              case 'seamless':
+              case 'itemScope':
+                {
+                  break;
+                }
 
-    if ((value === 'false' || value === 'true') && propertyInfo !== null && propertyInfo.type === BOOLEAN) {
-      error('Received the string `%s` for the boolean attribute `%s`. ' + '%s ' + 'Did you mean %s={%s}?', value, name, value === 'false' ? 'The browser will interpret it as a truthy value.' : 'Although this works, it will not work as expected if you pass the string "false".', name, value);
+              default:
+                {
+                  return true;
+                }
+            }
 
-      warnedProperties[name] = true;
-      return true;
+            error('Received the string `%s` for the boolean attribute `%s`. ' + '%s ' + 'Did you mean %s={%s}?', value, name, value === 'false' ? 'The browser will interpret it as a truthy value.' : 'Although this works, it will not work as expected if you pass the string "false".', name, value);
+
+            warnedProperties[name] = true;
+            return true;
+          }
+        }
     }
 
     return true;
@@ -5703,11 +5523,40 @@ function warnUnknownProperties(type, props, eventRegistry) {
 }
 
 function validateProperties(type, props, eventRegistry) {
-  if (isCustomComponent(type, props)) {
+  if (isCustomElement(type) || typeof props.is === 'string') {
     return;
   }
 
   warnUnknownProperties(type, props, eventRegistry);
+}
+
+// and any newline or tab are filtered out as if they're not part of the URL.
+// https://url.spec.whatwg.org/#url-parsing
+// Tab or newline are defined as \r\n\t:
+// https://infra.spec.whatwg.org/#ascii-tab-or-newline
+// A C0 control is a code point in the range \u0000 NULL to \u001F
+// INFORMATION SEPARATOR ONE, inclusive:
+// https://infra.spec.whatwg.org/#c0-control-or-space
+
+/* eslint-disable max-len */
+
+var isJavaScriptProtocol = /^[\u0000-\u001F ]*j[\r\n\t]*a[\r\n\t]*v[\r\n\t]*a[\r\n\t]*s[\r\n\t]*c[\r\n\t]*r[\r\n\t]*i[\r\n\t]*p[\r\n\t]*t[\r\n\t]*\:/i;
+var didWarn = false;
+
+function sanitizeURL(url) {
+  // We should never have symbols here because they get filtered out elsewhere.
+  // eslint-disable-next-line react-internal/safe-string-coercion
+  var stringifiedURL = '' + url;
+
+  {
+    if (!didWarn && isJavaScriptProtocol.test(stringifiedURL)) {
+      didWarn = true;
+
+      error('A future version of React will block javascript: URLs as a security precaution. ' + 'Use event handlers instead if you can. If you need to generate unsafe HTML try ' + 'using dangerouslySetInnerHTML instead. React was passed %s.', JSON.stringify(stringifiedURL));
+    }
+  }
+
+  return url;
 }
 
 var IS_EVENT_HANDLE_NON_MANAGED_NODE = 1;
@@ -6480,99 +6329,6 @@ function is(x, y) {
 var objectIs = // $FlowFixMe[method-unbinding]
 typeof Object.is === 'function' ? Object.is : is;
 
-var syncQueue = null;
-var includesLegacySyncCallbacks = false;
-var isFlushingSyncQueue = false;
-function scheduleSyncCallback(callback) {
-  // Push this callback into an internal queue. We'll flush these either in
-  // the next tick, or earlier if something calls `flushSyncCallbackQueue`.
-  if (syncQueue === null) {
-    syncQueue = [callback];
-  } else {
-    // Push onto existing queue. Don't need to schedule a callback because
-    // we already scheduled one when we created the queue.
-    syncQueue.push(callback);
-  }
-}
-function scheduleLegacySyncCallback(callback) {
-  includesLegacySyncCallbacks = true;
-  scheduleSyncCallback(callback);
-}
-function flushSyncCallbacksOnlyInLegacyMode() {
-  // Only flushes the queue if there's a legacy sync callback scheduled.
-  // TODO: There's only a single type of callback: performSyncOnWorkOnRoot. So
-  // it might make more sense for the queue to be a list of roots instead of a
-  // list of generic callbacks. Then we can have two: one for legacy roots, one
-  // for concurrent roots. And this method would only flush the legacy ones.
-  if (includesLegacySyncCallbacks) {
-    flushSyncCallbacks();
-  }
-}
-function flushSyncCallbacks() {
-  if (!isFlushingSyncQueue && syncQueue !== null) {
-    // Prevent re-entrance.
-    isFlushingSyncQueue = true; // Set the event priority to discrete
-    // TODO: Is this necessary anymore? The only user code that runs in this
-    // queue is in the render or commit phases, which already set the
-    // event priority. Should be able to remove.
-
-    var previousUpdatePriority = getCurrentUpdatePriority();
-    setCurrentUpdatePriority(DiscreteEventPriority);
-    var errors = null;
-    var queue = syncQueue; // $FlowFixMe[incompatible-use] found when upgrading Flow
-
-    for (var i = 0; i < queue.length; i++) {
-      // $FlowFixMe[incompatible-use] found when upgrading Flow
-      var callback = queue[i];
-
-      try {
-        do {
-          var isSync = true; // $FlowFixMe[incompatible-type] we bail out when we get a null
-
-          callback = callback(isSync);
-        } while (callback !== null);
-      } catch (error) {
-        // Collect errors so we can rethrow them at the end
-        if (errors === null) {
-          errors = [error];
-        } else {
-          errors.push(error);
-        }
-      }
-    }
-
-    syncQueue = null;
-    includesLegacySyncCallbacks = false;
-    setCurrentUpdatePriority(previousUpdatePriority);
-    isFlushingSyncQueue = false;
-
-    if (errors !== null) {
-      if (errors.length > 1) {
-        if (typeof AggregateError === 'function') {
-          // eslint-disable-next-line no-undef
-          throw new AggregateError(errors);
-        } else {
-          for (var _i = 1; _i < errors.length; _i++) {
-            scheduleCallback$2(ImmediatePriority, throwError.bind(null, errors[_i]));
-          }
-
-          var firstError = errors[0];
-          throw firstError;
-        }
-      } else {
-        var error = errors[0];
-        throw error;
-      }
-    }
-  }
-
-  return null;
-}
-
-function throwError(error) {
-  throw error;
-}
-
 // This is imported by the event replaying implementation in React DOM. It's
 // in a separate file to break a circular dependency between the renderer and
 // the reconciler.
@@ -6958,7 +6714,7 @@ function insertNonHydratedInstance(returnFiber, fiber) {
 
 function tryHydrateInstance(fiber, nextInstance) {
   // fiber is a HostComponent Fiber
-  var instance = canHydrateInstance(nextInstance, fiber.type);
+  var instance = canHydrateInstance(nextInstance, fiber.type, fiber.pendingProps, rootOrSingletonContext);
 
   if (instance !== null) {
     fiber.stateNode = instance;
@@ -6974,7 +6730,7 @@ function tryHydrateInstance(fiber, nextInstance) {
 function tryHydrateText(fiber, nextInstance) {
   // fiber is a HostText Fiber
   var text = fiber.pendingProps;
-  var textInstance = canHydrateTextInstance(nextInstance, text);
+  var textInstance = canHydrateTextInstance(nextInstance, text, rootOrSingletonContext);
 
   if (textInstance !== null) {
     fiber.stateNode = textInstance;
@@ -6989,7 +6745,7 @@ function tryHydrateText(fiber, nextInstance) {
 
 function tryHydrateSuspense(fiber, nextInstance) {
   // fiber is a SuspenseComponent Fiber
-  var suspenseInstance = canHydrateSuspenseInstance(nextInstance);
+  var suspenseInstance = canHydrateSuspenseInstance(nextInstance, rootOrSingletonContext);
 
   if (suspenseInstance !== null) {
     var suspenseState = {
@@ -7038,31 +6794,6 @@ function claimHydratableSingleton(fiber) {
   }
 }
 
-function advanceToFirstAttemptableInstance(fiber) {
-  // fiber is HostComponent Fiber
-  while (nextHydratableInstance && shouldSkipHydratableForInstance(nextHydratableInstance, fiber.type, fiber.pendingProps)) {
-    // Flow doesn't understand that inside this block nextHydratableInstance is not null
-    var instance = nextHydratableInstance;
-    nextHydratableInstance = getNextHydratableSibling(instance);
-  }
-}
-
-function advanceToFirstAttemptableTextInstance() {
-  while (nextHydratableInstance && shouldSkipHydratableForTextInstance(nextHydratableInstance)) {
-    // Flow doesn't understand that inside this block nextHydratableInstance is not null
-    var instance = nextHydratableInstance;
-    nextHydratableInstance = getNextHydratableSibling(instance);
-  }
-}
-
-function advanceToFirstAttemptableSuspenseInstance() {
-  while (nextHydratableInstance && shouldSkipHydratableForSuspenseInstance(nextHydratableInstance)) {
-    // Flow doesn't understand that inside this block nextHydratableInstance is not null
-    var instance = nextHydratableInstance;
-    nextHydratableInstance = getNextHydratableSibling(instance);
-  }
-}
-
 function tryToClaimNextHydratableInstance(fiber) {
   if (!isHydrating) {
     return;
@@ -7079,12 +6810,6 @@ function tryToClaimNextHydratableInstance(fiber) {
   }
 
   var initialInstance = nextHydratableInstance;
-
-  if (rootOrSingletonContext) {
-    // We may need to skip past certain nodes in these contexts
-    advanceToFirstAttemptableInstance(fiber);
-  }
-
   var nextInstance = nextHydratableInstance;
 
   if (!nextInstance) {
@@ -7115,11 +6840,6 @@ function tryToClaimNextHydratableInstance(fiber) {
     nextHydratableInstance = getNextHydratableSibling(nextInstance);
     var prevHydrationParentFiber = hydrationParentFiber;
 
-    if (rootOrSingletonContext) {
-      // We may need to skip past certain nodes in these contexts
-      advanceToFirstAttemptableInstance(fiber);
-    }
-
     if (!nextHydratableInstance || !tryHydrateInstance(fiber, nextHydratableInstance)) {
       // Nothing to hydrate. Make it an insertion.
       insertNonHydratedInstance(hydrationParentFiber, fiber);
@@ -7145,14 +6865,6 @@ function tryToClaimNextHydratableTextInstance(fiber) {
   var text = fiber.pendingProps;
   var isHydratable = isHydratableText(text);
   var initialInstance = nextHydratableInstance;
-
-  if (rootOrSingletonContext && isHydratable) {
-    // We may need to skip past certain nodes in these contexts.
-    // We don't skip if the text is not hydratable because we know no hydratables
-    // exist which could match this Fiber
-    advanceToFirstAttemptableTextInstance();
-  }
-
   var nextInstance = nextHydratableInstance;
 
   if (!nextInstance || !isHydratable) {
@@ -7185,11 +6897,6 @@ function tryToClaimNextHydratableTextInstance(fiber) {
     nextHydratableInstance = getNextHydratableSibling(nextInstance);
     var prevHydrationParentFiber = hydrationParentFiber;
 
-    if (rootOrSingletonContext && isHydratable) {
-      // We may need to skip past certain nodes in these contexts
-      advanceToFirstAttemptableTextInstance();
-    }
-
     if (!nextHydratableInstance || !tryHydrateText(fiber, nextHydratableInstance)) {
       // Nothing to hydrate. Make it an insertion.
       insertNonHydratedInstance(hydrationParentFiber, fiber);
@@ -7213,12 +6920,6 @@ function tryToClaimNextHydratableSuspenseInstance(fiber) {
   }
 
   var initialInstance = nextHydratableInstance;
-
-  if (rootOrSingletonContext) {
-    // We may need to skip past certain nodes in these contexts
-    advanceToFirstAttemptableSuspenseInstance();
-  }
-
   var nextInstance = nextHydratableInstance;
 
   if (!nextInstance) {
@@ -7249,11 +6950,6 @@ function tryToClaimNextHydratableSuspenseInstance(fiber) {
     nextHydratableInstance = getNextHydratableSibling(nextInstance);
     var prevHydrationParentFiber = hydrationParentFiber;
 
-    if (rootOrSingletonContext) {
-      // We may need to skip past certain nodes in these contexts
-      advanceToFirstAttemptableSuspenseInstance();
-    }
-
     if (!nextHydratableInstance || !tryHydrateSuspense(fiber, nextHydratableInstance)) {
       // Nothing to hydrate. Make it an insertion.
       insertNonHydratedInstance(hydrationParentFiber, fiber);
@@ -7277,11 +6973,13 @@ function prepareToHydrateHostInstance(fiber, hostContext) {
   var shouldWarnIfMismatchDev = !didSuspendOrErrorDEV;
   var updatePayload = hydrateInstance(instance, fiber.type, fiber.memoizedProps, hostContext, fiber, shouldWarnIfMismatchDev); // TODO: Type this specific to this type of component.
 
-  fiber.updateQueue = updatePayload; // If the update payload indicates that there is a change or if there
-  // is a new ref we mark this as an update.
+  {
+    fiber.updateQueue = updatePayload; // If the update payload indicates that there is a change or if there
+    // is a new ref we mark this as an update.
 
-  if (updatePayload !== null) {
-    return true;
+    if (updatePayload !== null) {
+      return true;
+    }
   }
 
   return false;
@@ -7411,7 +7109,7 @@ function popHydrationState(fiber) {
   {
     // With float we never clear the Root, or Singleton instances. We also do not clear Instances
     // that have singleton text content
-    if (fiber.tag !== HostRoot && fiber.tag !== HostSingleton && !(fiber.tag === HostComponent && shouldSetTextContent(fiber.type, fiber.memoizedProps))) {
+    if (fiber.tag !== HostRoot && fiber.tag !== HostSingleton && !(fiber.tag === HostComponent && (shouldSetTextContent(fiber.type, fiber.memoizedProps)))) {
       shouldClear = true;
     }
   }
@@ -8269,7 +7967,8 @@ function shallowEqual(objA, objB) {
   for (var i = 0; i < keysA.length; i++) {
     var currentKey = keysA[i];
 
-    if (!hasOwnProperty.call(objB, currentKey) || !objectIs(objA[currentKey], objB[currentKey])) {
+    if (!hasOwnProperty.call(objB, currentKey) || // $FlowFixMe[incompatible-use] lost refinement of `objB`
+    !objectIs(objA[currentKey], objB[currentKey])) {
       return false;
     }
   }
@@ -8516,7 +8215,7 @@ var ReactStrictModeWarnings = {
   };
 }
 
-var ReactCurrentActQueue$2 = ReactSharedInternals.ReactCurrentActQueue; // An error that is thrown (e.g. by `use`) to trigger Suspense. If we
+var ReactCurrentActQueue$3 = ReactSharedInternals.ReactCurrentActQueue; // An error that is thrown (e.g. by `use`) to trigger Suspense. If we
 // detect this is caught by userspace, we'll log a warning in development.
 
 var SuspenseException = new Error("Suspense Exception: This is not a real error! It's an implementation " + 'detail of `use` to interrupt the current render. You must either ' + 'rethrow it immediately, or move the `use` call outside of the ' + '`try/catch` block. Capturing without rethrowing will lead to ' + 'unexpected behavior.\n\n' + 'To handle async errors, wrap your component in an error boundary, or ' + "call the promise's `.catch` method and pass the result to `use`");
@@ -8541,8 +8240,8 @@ function isThenableResolved(thenable) {
 function noop$2() {}
 
 function trackUsedThenable(thenableState, thenable, index) {
-  if (ReactCurrentActQueue$2.current !== null) {
-    ReactCurrentActQueue$2.didUsePromise = true;
+  if (ReactCurrentActQueue$3.current !== null) {
+    ReactCurrentActQueue$3.didUsePromise = true;
   }
 
   var previous = thenableState[index];
@@ -10162,6 +9861,544 @@ function registerMutableSourceForHydration(root, mutableSource) {
   }
 }
 
+var ReactCurrentActQueue$2 = ReactSharedInternals.ReactCurrentActQueue; // A linked list of all the roots with pending work. In an idiomatic app,
+// there's only a single root, but we do support multi root apps, hence this
+// extra complexity. But this module is optimized for the single root case.
+
+var firstScheduledRoot = null;
+var lastScheduledRoot = null; // Used to prevent redundant mircotasks from being scheduled.
+
+var didScheduleMicrotask = false; // `act` "microtasks" are scheduled on the `act` queue instead of an actual
+// microtask, so we have to dedupe those separately. This wouldn't be an issue
+// if we required all `act` calls to be awaited, which we might in the future.
+
+var didScheduleMicrotask_act = false; // Used to quickly bail out of flushSync if there's no sync work to do.
+
+var mightHavePendingSyncWork = false;
+var isFlushingWork = false;
+var currentEventTransitionLane = NoLane;
+function ensureRootIsScheduled(root) {
+  // This function is called whenever a root receives an update. It does two
+  // things 1) it ensures the root is in the root schedule, and 2) it ensures
+  // there's a pending microtask to process the root schedule.
+  //
+  // Most of the actual scheduling logic does not happen until
+  // `scheduleTaskForRootDuringMicrotask` runs.
+  // Add the root to the schedule
+  if (root === lastScheduledRoot || root.next !== null) ; else {
+    if (lastScheduledRoot === null) {
+      firstScheduledRoot = lastScheduledRoot = root;
+    } else {
+      lastScheduledRoot.next = root;
+      lastScheduledRoot = root;
+    }
+  } // Any time a root received an update, we set this to true until the next time
+  // we process the schedule. If it's false, then we can quickly exit flushSync
+  // without consulting the schedule.
+
+
+  mightHavePendingSyncWork = true; // At the end of the current event, go through each of the roots and ensure
+  // there's a task scheduled for each one at the correct priority.
+
+  if (ReactCurrentActQueue$2.current !== null) {
+    // We're inside an `act` scope.
+    if (!didScheduleMicrotask_act) {
+      didScheduleMicrotask_act = true;
+      scheduleImmediateTask(processRootScheduleInMicrotask);
+    }
+  } else {
+    if (!didScheduleMicrotask) {
+      didScheduleMicrotask = true;
+      scheduleImmediateTask(processRootScheduleInMicrotask);
+    }
+  }
+
+  if (ReactCurrentActQueue$2.isBatchingLegacy && root.tag === LegacyRoot) {
+    // Special `act` case: Record whenever a legacy update is scheduled.
+    ReactCurrentActQueue$2.didScheduleLegacyUpdate = true;
+  }
+}
+function flushSyncWorkOnAllRoots() {
+  // This is allowed to be called synchronously, but the caller should check
+  // the execution context first.
+  flushSyncWorkAcrossRoots_impl(false);
+}
+function flushSyncWorkOnLegacyRootsOnly() {
+  // This is allowed to be called synchronously, but the caller should check
+  // the execution context first.
+  flushSyncWorkAcrossRoots_impl(true);
+}
+
+function flushSyncWorkAcrossRoots_impl(onlyLegacy) {
+  if (isFlushingWork) {
+    // Prevent reentrancy.
+    // TODO: Is this overly defensive? The callers must check the execution
+    // context first regardless.
+    return;
+  }
+
+  if (!mightHavePendingSyncWork) {
+    // Fast path. There's no sync work to do.
+    return;
+  }
+
+  var workInProgressRoot = getWorkInProgressRoot();
+  var workInProgressRootRenderLanes = getWorkInProgressRootRenderLanes(); // There may or may not be synchronous work scheduled. Let's check.
+
+  var didPerformSomeWork;
+  var errors = null;
+  isFlushingWork = true;
+
+  do {
+    didPerformSomeWork = false;
+    var root = firstScheduledRoot;
+
+    while (root !== null) {
+      if (onlyLegacy && root.tag !== LegacyRoot) ; else {
+        var nextLanes = getNextLanes(root, root === workInProgressRoot ? workInProgressRootRenderLanes : NoLanes);
+
+        if (includesSyncLane(nextLanes)) {
+          // This root has pending sync work. Flush it now.
+          try {
+            // TODO: Pass nextLanes as an argument instead of computing it again
+            // inside performSyncWorkOnRoot.
+            didPerformSomeWork = true;
+            performSyncWorkOnRoot(root);
+          } catch (error) {
+            // Collect errors so we can rethrow them at the end
+            if (errors === null) {
+              errors = [error];
+            } else {
+              errors.push(error);
+            }
+          }
+        }
+      }
+
+      root = root.next;
+    }
+  } while (didPerformSomeWork);
+
+  isFlushingWork = false; // If any errors were thrown, rethrow them right before exiting.
+  // TODO: Consider returning these to the caller, to allow them to decide
+  // how/when to rethrow.
+
+  if (errors !== null) {
+    if (errors.length > 1) {
+      if (typeof AggregateError === 'function') {
+        // eslint-disable-next-line no-undef
+        throw new AggregateError(errors);
+      } else {
+        for (var i = 1; i < errors.length; i++) {
+          scheduleImmediateTask(throwError.bind(null, errors[i]));
+        }
+
+        var firstError = errors[0];
+        throw firstError;
+      }
+    } else {
+      var error = errors[0];
+      throw error;
+    }
+  }
+}
+
+function throwError(error) {
+  throw error;
+}
+
+function processRootScheduleInMicrotask() {
+  // This function is always called inside a microtask. It should never be
+  // called synchronously.
+  didScheduleMicrotask = false;
+
+  {
+    didScheduleMicrotask_act = false;
+  } // We'll recompute this as we iterate through all the roots and schedule them.
+
+
+  mightHavePendingSyncWork = false;
+  var currentTime = now$1();
+  var prev = null;
+  var root = firstScheduledRoot;
+
+  while (root !== null) {
+    var next = root.next;
+
+    if (currentEventTransitionLane !== NoLane && shouldAttemptEagerTransition()) {
+      markRootEntangled(root, mergeLanes(currentEventTransitionLane, SyncLane));
+    }
+
+    var nextLanes = scheduleTaskForRootDuringMicrotask(root, currentTime);
+
+    if (nextLanes === NoLane) {
+      // This root has no more pending work. Remove it from the schedule. To
+      // guard against subtle reentrancy bugs, this microtask is the only place
+      // we do this — you can add roots to the schedule whenever, but you can
+      // only remove them here.
+      // Null this out so we know it's been removed from the schedule.
+      root.next = null;
+
+      if (prev === null) {
+        // This is the new head of the list
+        firstScheduledRoot = next;
+      } else {
+        prev.next = next;
+      }
+
+      if (next === null) {
+        // This is the new tail of the list
+        lastScheduledRoot = prev;
+      }
+    } else {
+      // This root still has work. Keep it in the list.
+      prev = root;
+
+      if (includesSyncLane(nextLanes)) {
+        mightHavePendingSyncWork = true;
+      }
+    }
+
+    root = next;
+  }
+
+  currentEventTransitionLane = NoLane; // At the end of the microtask, flush any pending synchronous work. This has
+  // to come at the end, because it does actual rendering work that might throw.
+
+  flushSyncWorkOnAllRoots();
+}
+
+function scheduleTaskForRootDuringMicrotask(root, currentTime) {
+  // This function is always called inside a microtask, or at the very end of a
+  // rendering task right before we yield to the main thread. It should never be
+  // called synchronously.
+  //
+  // TODO: Unless enableDeferRootSchedulingToMicrotask is off. We need to land
+  // that ASAP to unblock additional features we have planned.
+  //
+  // This function also never performs React work synchronously; it should
+  // only schedule work to be performed later, in a separate task or microtask.
+  // Check if any lanes are being starved by other work. If so, mark them as
+  // expired so we know to work on those next.
+  markStarvedLanesAsExpired(root, currentTime); // Determine the next lanes to work on, and their priority.
+
+  var workInProgressRoot = getWorkInProgressRoot();
+  var workInProgressRootRenderLanes = getWorkInProgressRootRenderLanes();
+  var nextLanes = getNextLanes(root, root === workInProgressRoot ? workInProgressRootRenderLanes : NoLanes);
+  var existingCallbackNode = root.callbackNode;
+
+  if ( // Check if there's nothing to work on
+  nextLanes === NoLanes || // If this root is currently suspended and waiting for data to resolve, don't
+  // schedule a task to render it. We'll either wait for a ping, or wait to
+  // receive an update.
+  //
+  // Suspended render phase
+  root === workInProgressRoot && isWorkLoopSuspendedOnData() || // Suspended commit phase
+  root.cancelPendingCommit !== null) {
+    // Fast path: There's nothing to work on.
+    if (existingCallbackNode !== null) {
+      cancelCallback(existingCallbackNode);
+    }
+
+    root.callbackNode = null;
+    root.callbackPriority = NoLane;
+    return NoLane;
+  } // Schedule a new callback in the host environment.
+
+
+  if (includesSyncLane(nextLanes)) {
+    // Synchronous work is always flushed at the end of the microtask, so we
+    // don't need to schedule an additional task.
+    if (existingCallbackNode !== null) {
+      cancelCallback(existingCallbackNode);
+    }
+
+    root.callbackPriority = SyncLane;
+    root.callbackNode = null;
+    return SyncLane;
+  } else {
+    // We use the highest priority lane to represent the priority of the callback.
+    var existingCallbackPriority = root.callbackPriority;
+    var newCallbackPriority = getHighestPriorityLane(nextLanes);
+
+    if (newCallbackPriority === existingCallbackPriority && // Special case related to `act`. If the currently scheduled task is a
+    // Scheduler task, rather than an `act` task, cancel it and re-schedule
+    // on the `act` queue.
+    !(ReactCurrentActQueue$2.current !== null && existingCallbackNode !== fakeActCallbackNode$1)) {
+      // The priority hasn't changed. We can reuse the existing task.
+      return newCallbackPriority;
+    } else {
+      // Cancel the existing callback. We'll schedule a new one below.
+      cancelCallback(existingCallbackNode);
+    }
+
+    var schedulerPriorityLevel;
+
+    switch (lanesToEventPriority(nextLanes)) {
+      case DiscreteEventPriority:
+        schedulerPriorityLevel = ImmediatePriority;
+        break;
+
+      case ContinuousEventPriority:
+        schedulerPriorityLevel = UserBlockingPriority;
+        break;
+
+      case DefaultEventPriority:
+        schedulerPriorityLevel = NormalPriority$1;
+        break;
+
+      case IdleEventPriority:
+        schedulerPriorityLevel = IdlePriority;
+        break;
+
+      default:
+        schedulerPriorityLevel = NormalPriority$1;
+        break;
+    }
+
+    var newCallbackNode = scheduleCallback$2(schedulerPriorityLevel, performConcurrentWorkOnRoot.bind(null, root));
+    root.callbackPriority = newCallbackPriority;
+    root.callbackNode = newCallbackNode;
+    return newCallbackPriority;
+  }
+}
+
+function getContinuationForRoot(root, originalCallbackNode) {
+  // This is called at the end of `performConcurrentWorkOnRoot` to determine
+  // if we need to schedule a continuation task.
+  //
+  // Usually `scheduleTaskForRootDuringMicrotask` only runs inside a microtask;
+  // however, since most of the logic for determining if we need a continuation
+  // versus a new task is the same, we cheat a bit and call it here. This is
+  // only safe to do because we know we're at the end of the browser task.
+  // So although it's not an actual microtask, it might as well be.
+  scheduleTaskForRootDuringMicrotask(root, now$1());
+
+  if (root.callbackNode === originalCallbackNode) {
+    // The task node scheduled for this root is the same one that's
+    // currently executed. Need to return a continuation.
+    return performConcurrentWorkOnRoot.bind(null, root);
+  }
+
+  return null;
+}
+var fakeActCallbackNode$1 = {};
+
+function scheduleCallback$2(priorityLevel, callback) {
+  if (ReactCurrentActQueue$2.current !== null) {
+    // Special case: We're inside an `act` scope (a testing utility).
+    // Instead of scheduling work in the host environment, add it to a
+    // fake internal queue that's managed by the `act` implementation.
+    ReactCurrentActQueue$2.current.push(callback);
+    return fakeActCallbackNode$1;
+  } else {
+    return scheduleCallback$3(priorityLevel, callback);
+  }
+}
+
+function cancelCallback(callbackNode) {
+  if (callbackNode === fakeActCallbackNode$1) ; else if (callbackNode !== null) {
+    cancelCallback$1(callbackNode);
+  }
+}
+
+function scheduleImmediateTask(cb) {
+  if (ReactCurrentActQueue$2.current !== null) {
+    // Special case: Inside an `act` scope, we push microtasks to the fake `act`
+    // callback queue. This is because we currently support calling `act`
+    // without awaiting the result. The plan is to deprecate that, and require
+    // that you always await the result so that the microtasks have a chance to
+    // run. But it hasn't happened yet.
+    ReactCurrentActQueue$2.current.push(function () {
+      cb();
+      return null;
+    });
+  } // TODO: Can we land supportsMicrotasks? Which environments don't support it?
+  // Alternatively, can we move this check to the host config?
+
+
+  {
+    scheduleMicrotask(function () {
+      // In Safari, appending an iframe forces microtasks to run.
+      // https://github.com/facebook/react/issues/22459
+      // We don't support running callbacks in the middle of render
+      // or commit so we need to check against that.
+      var executionContext = getExecutionContext();
+
+      if ((executionContext & (RenderContext | CommitContext)) !== NoContext) {
+        // Note that this would still prematurely flush the callbacks
+        // if this happens outside render or commit phase (e.g. in an event).
+        // Intentionally using a macrotask instead of a microtask here. This is
+        // wrong semantically but it prevents an infinite loop. The bug is
+        // Safari's, not ours, so we just do our best to not crash even though
+        // the behavior isn't completely correct.
+        scheduleCallback$3(ImmediatePriority, cb);
+        return;
+      }
+
+      cb();
+    });
+  }
+}
+
+function requestTransitionLane() {
+  // The algorithm for assigning an update to a lane should be stable for all
+  // updates at the same priority within the same event. To do this, the
+  // inputs to the algorithm must be the same.
+  //
+  // The trick we use is to cache the first of each of these inputs within an
+  // event. Then reset the cached values once we can be sure the event is
+  // over. Our heuristic for that is whenever we enter a concurrent work loop.
+  if (currentEventTransitionLane === NoLane) {
+    // All transitions within the same event are assigned the same lane.
+    currentEventTransitionLane = claimNextTransitionLane();
+  }
+
+  return currentEventTransitionLane;
+}
+
+// transition updates that occur while the async action is still in progress
+// are treated as part of the action.
+//
+// The ideal behavior would be to treat each async function as an independent
+// action. However, without a mechanism like AsyncContext, we can't tell which
+// action an update corresponds to. So instead, we entangle them all into one.
+// The listeners to notify once the entangled scope completes.
+
+var currentEntangledListeners = null; // The number of pending async actions in the entangled scope.
+
+var currentEntangledPendingCount = 0; // The transition lane shared by all updates in the entangled scope.
+
+var currentEntangledLane = NoLane;
+function requestAsyncActionContext(actionReturnValue, finishedState) {
+  if (actionReturnValue !== null && typeof actionReturnValue === 'object' && typeof actionReturnValue.then === 'function') {
+    // This is an async action.
+    //
+    // Return a thenable that resolves once the action scope (i.e. the async
+    // function passed to startTransition) has finished running.
+    var thenable = actionReturnValue;
+    var entangledListeners;
+
+    if (currentEntangledListeners === null) {
+      // There's no outer async action scope. Create a new one.
+      entangledListeners = currentEntangledListeners = [];
+      currentEntangledPendingCount = 0;
+      currentEntangledLane = requestTransitionLane();
+    } else {
+      entangledListeners = currentEntangledListeners;
+    }
+
+    currentEntangledPendingCount++;
+    var resultStatus = 'pending';
+    var rejectedReason;
+    thenable.then(function () {
+      resultStatus = 'fulfilled';
+      pingEngtangledActionScope();
+    }, function (error) {
+      resultStatus = 'rejected';
+      rejectedReason = error;
+      pingEngtangledActionScope();
+    }); // Create a thenable that represents the result of this action, but doesn't
+    // resolve until the entire entangled scope has finished.
+    //
+    // Expressed using promises:
+    //   const [thisResult] = await Promise.all([thisAction, entangledAction]);
+    //   return thisResult;
+
+    var resultThenable = createResultThenable(entangledListeners); // Attach a listener to fill in the result.
+
+    entangledListeners.push(function () {
+      switch (resultStatus) {
+        case 'fulfilled':
+          {
+            var fulfilledThenable = resultThenable;
+            fulfilledThenable.status = 'fulfilled';
+            fulfilledThenable.value = finishedState;
+            break;
+          }
+
+        case 'rejected':
+          {
+            var rejectedThenable = resultThenable;
+            rejectedThenable.status = 'rejected';
+            rejectedThenable.reason = rejectedReason;
+            break;
+          }
+
+        case 'pending':
+        default:
+          {
+            // The listener above should have been called first, so `resultStatus`
+            // should already be set to the correct value.
+            throw new Error('Thenable should have already resolved. This ' + 'is a bug in React.');
+          }
+      }
+    });
+    return resultThenable;
+  } else {
+    // This is not an async action, but it may be part of an outer async action.
+    if (currentEntangledListeners === null) {
+      return finishedState;
+    } else {
+      // Return a thenable that does not resolve until the entangled actions
+      // have finished.
+      var _entangledListeners = currentEntangledListeners;
+
+      var _resultThenable = createResultThenable(_entangledListeners);
+
+      _entangledListeners.push(function () {
+        var fulfilledThenable = _resultThenable;
+        fulfilledThenable.status = 'fulfilled';
+        fulfilledThenable.value = finishedState;
+      });
+
+      return _resultThenable;
+    }
+  }
+}
+
+function pingEngtangledActionScope() {
+  if (currentEntangledListeners !== null && --currentEntangledPendingCount === 0) {
+    // All the actions have finished. Close the entangled async action scope
+    // and notify all the listeners.
+    var listeners = currentEntangledListeners;
+    currentEntangledListeners = null;
+    currentEntangledLane = NoLane;
+
+    for (var i = 0; i < listeners.length; i++) {
+      var listener = listeners[i];
+      listener();
+    }
+  }
+}
+
+function createResultThenable(entangledListeners) {
+  // Waits for the entangled async action to complete, then resolves to the
+  // result of an individual action.
+  var resultThenable = {
+    status: 'pending',
+    value: null,
+    reason: null,
+    then: function (resolve) {
+      // This is a bit of a cheat. `resolve` expects a value of type `S` to be
+      // passed, but because we're instrumenting the `status` field ourselves,
+      // and we know this thenable will only be used by React, we also know
+      // the value isn't actually needed. So we add the resolve function
+      // directly to the entangled listeners.
+      //
+      // This is also why we don't need to check if the thenable is still
+      // pending; the Suspense implementation already performs that check.
+      var ping = resolve;
+      entangledListeners.push(ping);
+    }
+  };
+  return resultThenable;
+}
+
+function peekEntangledActionLane() {
+  return currentEntangledLane;
+}
+
 var ReactCurrentDispatcher$1 = ReactSharedInternals.ReactCurrentDispatcher,
     ReactCurrentBatchConfig$3 = ReactSharedInternals.ReactCurrentBatchConfig;
 var didWarnAboutMismatchedHooksForComponent;
@@ -10171,7 +10408,21 @@ var didWarnAboutUseWrappedInTryCatch;
 {
   didWarnAboutMismatchedHooksForComponent = new Set();
   didWarnAboutUseWrappedInTryCatch = new Set();
-} // These are set right before calling the component.
+} // The effect "instance" is a shared object that remains the same for the entire
+// lifetime of an effect. In Rust terms, a RefCell. We use it to store the
+// "destroy" function that is returned from an effect, because that is stateful.
+// The field is `undefined` if the effect is unmounted, or if the effect ran
+// but is not stateful. We don't explicitly track whether the effect is mounted
+// or unmounted because that can be inferred by the hiddenness of the fiber in
+// the tree, i.e. whether there is a hidden Offscreen fiber above it.
+//
+// It's unfortunate that this is stored on a separate object, because it adds
+// more memory per effect instance, but it's conceptually sound. I think there's
+// likely a better data structure we could use for effects; perhaps just one
+// array of effect instances per fiber. But I think this is OK for now despite
+// the additional memory and we can follow up with performance
+// optimizations later.
+// These are set right before calling the component.
 
 
 var renderLanes$1 = NoLanes; // The work-in-progress fiber. I've named it differently to distinguish it from
@@ -10507,6 +10758,7 @@ function renderWithHooksAgain(workInProgress, Component, props, secondArg) {
   //
   // Keep rendering in a loop for as long as render phase updates continue to
   // be scheduled. Use a counter to prevent infinite loops.
+  currentlyRenderingFiber$1 = workInProgress;
   var numberOfReRenders = 0;
   var children;
 
@@ -10548,7 +10800,6 @@ function renderWithHooksAgain(workInProgress, Component, props, secondArg) {
 
   return children;
 }
-
 function checkDidRenderIdHook() {
   // This should be called immediately after every renderWithHooks call.
   // Conceptually, it's part of the return value of renderWithHooks; it's only a
@@ -10576,11 +10827,12 @@ function resetHooksAfterThrow() {
   //
   // It should only reset things like the current dispatcher, to prevent hooks
   // from being called outside of a component.
-  // We can assume the previous dispatcher is always this one, since we set it
+  currentlyRenderingFiber$1 = null; // We can assume the previous dispatcher is always this one, since we set it
   // at the beginning of the render phase and there's no re-entrance.
+
   ReactCurrentDispatcher$1.current = ContextOnlyDispatcher;
 }
-function resetHooksOnUnwind() {
+function resetHooksOnUnwind(workInProgress) {
   if (didScheduleRenderPhaseUpdate) {
     // There were render phase updates. These are only valid for this render
     // phase, which we are now aborting. Remove the updates from the queues so
@@ -10590,7 +10842,7 @@ function resetHooksOnUnwind() {
     // Only reset the updates from the queue if it has a clone. If it does
     // not have a clone, that means it wasn't processed, and the updates were
     // scheduled before we entered the render phase.
-    var hook = currentlyRenderingFiber$1.memoizedState;
+    var hook = workInProgress.memoizedState;
 
     while (hook !== null) {
       var queue = hook.queue;
@@ -10725,33 +10977,37 @@ var createFunctionComponentUpdateQueue;
   };
 }
 
+function useThenable(thenable) {
+  // Track the position of the thenable within this fiber.
+  var index = thenableIndexCounter;
+  thenableIndexCounter += 1;
+
+  if (thenableState === null) {
+    thenableState = createThenableState();
+  }
+
+  var result = trackUsedThenable(thenableState, thenable, index);
+
+  if (currentlyRenderingFiber$1.alternate === null && (workInProgressHook === null ? currentlyRenderingFiber$1.memoizedState === null : workInProgressHook.next === null)) {
+    // Initial render, and either this is the first time the component is
+    // called, or there were no Hooks called after this use() the previous
+    // time (perhaps because it threw). Subsequent Hook calls should use the
+    // mount dispatcher.
+    {
+      ReactCurrentDispatcher$1.current = HooksDispatcherOnMountInDEV;
+    }
+  }
+
+  return result;
+}
+
 function use(usable) {
   if (usable !== null && typeof usable === 'object') {
     // $FlowFixMe[method-unbinding]
     if (typeof usable.then === 'function') {
       // This is a thenable.
-      var thenable = usable; // Track the position of the thenable within this fiber.
-
-      var index = thenableIndexCounter;
-      thenableIndexCounter += 1;
-
-      if (thenableState === null) {
-        thenableState = createThenableState();
-      }
-
-      var result = trackUsedThenable(thenableState, thenable, index);
-
-      if (currentlyRenderingFiber$1.alternate === null && (workInProgressHook === null ? currentlyRenderingFiber$1.memoizedState === null : workInProgressHook.next === null)) {
-        // Initial render, and either this is the first time the component is
-        // called, or there were no Hooks called after this use() the previous
-        // time (perhaps because it threw). Subsequent Hook calls should use the
-        // mount dispatcher.
-        {
-          ReactCurrentDispatcher$1.current = HooksDispatcherOnMountInDEV;
-        }
-      }
-
-      return result;
+      var thenable = usable;
+      return useThenable(thenable);
     } else if (usable.$$typeof === REACT_CONTEXT_TYPE || usable.$$typeof === REACT_SERVER_CONTEXT_TYPE) {
       var context = usable;
       return readContext(context);
@@ -10792,16 +11048,19 @@ function mountReducer(reducer, initialArg, init) {
 
 function updateReducer(reducer, initialArg, init) {
   var hook = updateWorkInProgressHook();
+  return updateReducerImpl(hook, currentHook, reducer);
+}
+
+function updateReducerImpl(hook, current, reducer) {
   var queue = hook.queue;
 
   if (queue === null) {
     throw new Error('Should have a queue. This is likely a bug in React. Please file an issue.');
   }
 
-  queue.lastRenderedReducer = reducer;
-  var current = currentHook; // The last rebase update that is NOT part of the base state.
+  queue.lastRenderedReducer = reducer; // The last rebase update that is NOT part of the base state.
 
-  var baseQueue = current.baseQueue; // The last pending update that hasn't been processed yet.
+  var baseQueue = hook.baseQueue; // The last pending update that hasn't been processed yet.
 
   var pendingQueue = queue.pending;
 
@@ -10831,7 +11090,7 @@ function updateReducer(reducer, initialArg, init) {
   if (baseQueue !== null) {
     // We have a queue to process.
     var first = baseQueue.next;
-    var newState = current.baseState;
+    var newState = hook.baseState;
     var newBaseState = null;
     var newBaseQueueFirst = null;
     var newBaseQueueLast = null;
@@ -10854,6 +11113,7 @@ function updateReducer(reducer, initialArg, init) {
         // update/state.
         var clone = {
           lane: updateLane,
+          revertLane: update.revertLane,
           action: update.action,
           hasEagerState: update.hasEagerState,
           eagerState: update.eagerState,
@@ -10873,19 +11133,25 @@ function updateReducer(reducer, initialArg, init) {
         currentlyRenderingFiber$1.lanes = mergeLanes(currentlyRenderingFiber$1.lanes, updateLane);
         markSkippedUpdateLanes(updateLane);
       } else {
-        // This update does have sufficient priority.
-        if (newBaseQueueLast !== null) {
-          var _clone = {
-            // This update is going to be committed so we never want uncommit
-            // it. Using NoLane works because 0 is a subset of all bitmasks, so
-            // this will never be skipped by the check above.
-            lane: NoLane,
-            action: update.action,
-            hasEagerState: update.hasEagerState,
-            eagerState: update.eagerState,
-            next: null
-          };
-          newBaseQueueLast = newBaseQueueLast.next = _clone;
+
+        {
+          // This is not an optimistic update, and we're going to apply it now.
+          // But, if there were earlier updates that were skipped, we need to
+          // leave this update in the queue so it can be rebased later.
+          if (newBaseQueueLast !== null) {
+            var _clone = {
+              // This update is going to be committed so we never want uncommit
+              // it. Using NoLane works because 0 is a subset of all bitmasks, so
+              // this will never be skipped by the check above.
+              lane: NoLane,
+              revertLane: NoLane,
+              action: update.action,
+              hasEagerState: update.hasEagerState,
+              eagerState: update.eagerState,
+              next: null
+            };
+            newBaseQueueLast = newBaseQueueLast.next = _clone;
+          }
         } // Process this update.
 
 
@@ -11068,11 +11334,9 @@ function mountSyncExternalStore(subscribe, getSnapshot, getServerSnapshot) {
   // clean-up function, and we track the deps correctly, we can call pushEffect
   // directly, without storing any additional state. For the same reason, we
   // don't need to set a static flag, either.
-  // TODO: We can move this to the passive phase once we add a pre-commit
-  // consistency check. See the next comment.
 
   fiber.flags |= Passive$1;
-  pushEffect(HasEffect | Passive, updateStoreInstance.bind(null, fiber, inst, nextSnapshot, getSnapshot), undefined, null);
+  pushEffect(HasEffect | Passive, updateStoreInstance.bind(null, fiber, inst, nextSnapshot, getSnapshot), createEffectInstance(), null);
   return nextSnapshot;
 }
 
@@ -11082,16 +11346,28 @@ function updateSyncExternalStore(subscribe, getSnapshot, getServerSnapshot) {
   // normal rules of React, and only works because store updates are
   // always synchronous.
 
-  var nextSnapshot = getSnapshot();
+  var nextSnapshot;
+  var isHydrating = getIsHydrating();
 
-  {
-    if (!didWarnUncachedGetSnapshot) {
-      var cachedSnapshot = getSnapshot();
+  if (isHydrating) {
+    // Needed for strict mode double render
+    if (getServerSnapshot === undefined) {
+      throw new Error('Missing getServerSnapshot, which is required for ' + 'server-rendered content. Will revert to client rendering.');
+    }
 
-      if (!objectIs(nextSnapshot, cachedSnapshot)) {
-        error('The result of getSnapshot should be cached to avoid an infinite loop');
+    nextSnapshot = getServerSnapshot();
+  } else {
+    nextSnapshot = getSnapshot();
 
-        didWarnUncachedGetSnapshot = true;
+    {
+      if (!didWarnUncachedGetSnapshot) {
+        var cachedSnapshot = getSnapshot();
+
+        if (!objectIs(nextSnapshot, cachedSnapshot)) {
+          error('The result of getSnapshot should be cached to avoid an infinite loop');
+
+          didWarnUncachedGetSnapshot = true;
+        }
       }
     }
   }
@@ -11110,11 +11386,11 @@ function updateSyncExternalStore(subscribe, getSnapshot, getServerSnapshot) {
   // this can happen all the time, but even in synchronous mode, an earlier
   // effect may have mutated the store.
 
-  if (inst.getSnapshot !== getSnapshot || snapshotChanged || // Check if the susbcribe function changed. We can save some memory by
+  if (inst.getSnapshot !== getSnapshot || snapshotChanged || // Check if the subscribe function changed. We can save some memory by
   // checking whether we scheduled a subscription effect above.
   workInProgressHook !== null && workInProgressHook.memoizedState.tag & HasEffect) {
     fiber.flags |= Passive$1;
-    pushEffect(HasEffect | Passive, updateStoreInstance.bind(null, fiber, inst, nextSnapshot, getSnapshot), undefined, null); // Unless we're rendering a blocking lane, schedule a consistency check.
+    pushEffect(HasEffect | Passive, updateStoreInstance.bind(null, fiber, inst, nextSnapshot, getSnapshot), createEffectInstance(), null); // Unless we're rendering a blocking lane, schedule a consistency check.
     // Right before committing, we will walk the tree and check if any of the
     // stores were mutated.
 
@@ -11124,7 +11400,7 @@ function updateSyncExternalStore(subscribe, getSnapshot, getServerSnapshot) {
       throw new Error('Expected a work-in-progress root. This is a bug in React. Please file an issue.');
     }
 
-    if (!includesBlockingLane(root, renderLanes$1)) {
+    if (!isHydrating && !includesBlockingLane(root, renderLanes$1)) {
       pushStoreConsistencyCheck(fiber, getSnapshot, nextSnapshot);
     }
   }
@@ -11199,11 +11475,11 @@ function forceStoreRerender(fiber) {
   var root = enqueueConcurrentRenderForLane(fiber, SyncLane);
 
   if (root !== null) {
-    scheduleUpdateOnFiber(root, fiber, SyncLane, NoTimestamp);
+    scheduleUpdateOnFiber(root, fiber, SyncLane);
   }
 }
 
-function mountState(initialState) {
+function mountStateImpl(initialState) {
   var hook = mountWorkInProgressHook();
 
   if (typeof initialState === 'function') {
@@ -11220,7 +11496,14 @@ function mountState(initialState) {
     lastRenderedState: initialState
   };
   hook.queue = queue;
-  var dispatch = queue.dispatch = dispatchSetState.bind(null, currentlyRenderingFiber$1, queue);
+  return hook;
+}
+
+function mountState(initialState) {
+  var hook = mountStateImpl(initialState);
+  var queue = hook.queue;
+  var dispatch = dispatchSetState.bind(null, currentlyRenderingFiber$1, queue);
+  queue.dispatch = dispatch;
   return [hook.memoizedState, dispatch];
 }
 
@@ -11232,11 +11515,11 @@ function rerenderState(initialState) {
   return rerenderReducer(basicStateReducer);
 }
 
-function pushEffect(tag, create, destroy, deps) {
+function pushEffect(tag, create, inst, deps) {
   var effect = {
     tag: tag,
     create: create,
-    destroy: destroy,
+    inst: inst,
     deps: deps,
     // Circular
     next: null
@@ -11263,6 +11546,12 @@ function pushEffect(tag, create, destroy, deps) {
   return effect;
 }
 
+function createEffectInstance() {
+  return {
+    destroy: undefined
+  };
+}
+
 function mountRef(initialValue) {
   var hook = mountWorkInProgressHook();
 
@@ -11284,30 +11573,30 @@ function mountEffectImpl(fiberFlags, hookFlags, create, deps) {
   var hook = mountWorkInProgressHook();
   var nextDeps = deps === undefined ? null : deps;
   currentlyRenderingFiber$1.flags |= fiberFlags;
-  hook.memoizedState = pushEffect(HasEffect | hookFlags, create, undefined, nextDeps);
+  hook.memoizedState = pushEffect(HasEffect | hookFlags, create, createEffectInstance(), nextDeps);
 }
 
 function updateEffectImpl(fiberFlags, hookFlags, create, deps) {
   var hook = updateWorkInProgressHook();
   var nextDeps = deps === undefined ? null : deps;
-  var destroy = undefined; // currentHook is null when rerendering after a render phase state update.
+  var effect = hook.memoizedState;
+  var inst = effect.inst; // currentHook is null on initial mount when rerendering after a render phase
+  // state update or for strict mode.
 
   if (currentHook !== null) {
-    var prevEffect = currentHook.memoizedState;
-    destroy = prevEffect.destroy;
-
     if (nextDeps !== null) {
+      var prevEffect = currentHook.memoizedState;
       var prevDeps = prevEffect.deps;
 
       if (areHookInputsEqual(nextDeps, prevDeps)) {
-        hook.memoizedState = pushEffect(hookFlags, create, destroy, nextDeps);
+        hook.memoizedState = pushEffect(hookFlags, create, inst, nextDeps);
         return;
       }
     }
   }
 
   currentlyRenderingFiber$1.flags |= fiberFlags;
-  hook.memoizedState = pushEffect(HasEffect | hookFlags, create, destroy, nextDeps);
+  hook.memoizedState = pushEffect(HasEffect | hookFlags, create, inst, nextDeps);
 }
 
 function mountEffect(create, deps) {
@@ -11533,12 +11822,16 @@ function updateDeferredValueImpl(hook, prevValue, value) {
   }
 }
 
-function startTransition(setPending, callback, options) {
+function startTransition(fiber, queue, pendingState, finishedState, callback, options) {
   var previousPriority = getCurrentUpdatePriority();
   setCurrentUpdatePriority(higherEventPriority(previousPriority, ContinuousEventPriority));
   var prevTransition = ReactCurrentBatchConfig$3.transition;
-  ReactCurrentBatchConfig$3.transition = null;
-  setPending(true);
+
+  {
+    ReactCurrentBatchConfig$3.transition = null;
+    dispatchSetState(fiber, queue, pendingState);
+  }
+
   var currentTransition = ReactCurrentBatchConfig$3.transition = {};
 
   {
@@ -11546,8 +11839,17 @@ function startTransition(setPending, callback, options) {
   }
 
   try {
-    setPending(false);
-    callback();
+    var returnValue, maybeThenable; if (enableAsyncActions) ; else {
+      // Async actions are not enabled.
+      dispatchSetState(fiber, queue, finishedState);
+      callback();
+    }
+  } catch (error) {
+    {
+      // The error rethrowing behavior is only enabled when the async actions
+      // feature is on, even for sync actions.
+      throw error;
+    }
   } finally {
     setCurrentUpdatePriority(previousPriority);
     ReactCurrentBatchConfig$3.transition = prevTransition;
@@ -11567,32 +11869,33 @@ function startTransition(setPending, callback, options) {
 }
 
 function mountTransition() {
-  var _mountState = mountState(false),
-      isPending = _mountState[0],
-      setPending = _mountState[1]; // The `start` method never changes.
+  var stateHook = mountStateImpl(false); // The `start` method never changes.
 
-
-  var start = startTransition.bind(null, setPending);
+  var start = startTransition.bind(null, currentlyRenderingFiber$1, stateHook.queue, true, false);
   var hook = mountWorkInProgressHook();
   hook.memoizedState = start;
-  return [isPending, start];
+  return [false, start];
 }
 
 function updateTransition() {
   var _updateState = updateState(),
-      isPending = _updateState[0];
+      booleanOrThenable = _updateState[0];
 
   var hook = updateWorkInProgressHook();
   var start = hook.memoizedState;
+  var isPending = typeof booleanOrThenable === 'boolean' ? booleanOrThenable : // This will suspend until the async action scope has finished.
+  useThenable(booleanOrThenable);
   return [isPending, start];
 }
 
 function rerenderTransition() {
   var _rerenderState = rerenderState(),
-      isPending = _rerenderState[0];
+      booleanOrThenable = _rerenderState[0];
 
   var hook = updateWorkInProgressHook();
   var start = hook.memoizedState;
+  var isPending = typeof booleanOrThenable === 'boolean' ? booleanOrThenable : // This will suspend until the async action scope has finished.
+  useThenable(booleanOrThenable);
   return [isPending, start];
 }
 
@@ -11666,8 +11969,7 @@ function refreshCache(fiber, seedKey, seedValue) {
           var root = enqueueUpdate(provider, refreshUpdate, lane);
 
           if (root !== null) {
-            var eventTime = requestEventTime();
-            scheduleUpdateOnFiber(root, provider, lane, eventTime);
+            scheduleUpdateOnFiber(root, provider, lane);
             entangleTransitions(root, provider, lane);
           } // TODO: If a refresh never commits, the new cache created here must be
           // released. A simple case is start refreshing a cache boundary, but then
@@ -11707,6 +12009,7 @@ function dispatchReducerAction(fiber, queue, action) {
   var lane = requestUpdateLane(fiber);
   var update = {
     lane: lane,
+    revertLane: NoLane,
     action: action,
     hasEagerState: false,
     eagerState: null,
@@ -11719,8 +12022,7 @@ function dispatchReducerAction(fiber, queue, action) {
     var root = enqueueConcurrentHookUpdate(fiber, queue, update, lane);
 
     if (root !== null) {
-      var eventTime = requestEventTime();
-      scheduleUpdateOnFiber(root, fiber, lane, eventTime);
+      scheduleUpdateOnFiber(root, fiber, lane);
       entangleTransitionUpdate(root, queue, lane);
     }
   }
@@ -11738,6 +12040,7 @@ function dispatchSetState(fiber, queue, action) {
   var lane = requestUpdateLane(fiber);
   var update = {
     lane: lane,
+    revertLane: NoLane,
     action: action,
     hasEagerState: false,
     eagerState: null,
@@ -11794,8 +12097,7 @@ function dispatchSetState(fiber, queue, action) {
     var root = enqueueConcurrentHookUpdate(fiber, queue, update, lane);
 
     if (root !== null) {
-      var eventTime = requestEventTime();
-      scheduleUpdateOnFiber(root, fiber, lane, eventTime);
+      scheduleUpdateOnFiber(root, fiber, lane);
       entangleTransitionUpdate(root, queue, lane);
     }
   }
@@ -11855,6 +12157,7 @@ function markUpdateInDevTools(fiber, lane, action) {
 
 var ContextOnlyDispatcher = {
   readContext: readContext,
+  use: use,
   useCallback: throwInvalidHookError,
   useContext: throwInvalidHookError,
   useEffect: throwInvalidHookError,
@@ -11875,10 +12178,6 @@ var ContextOnlyDispatcher = {
 
 {
   ContextOnlyDispatcher.useCacheRefresh = throwInvalidHookError;
-}
-
-{
-  ContextOnlyDispatcher.use = throwInvalidHookError;
 }
 
 var HooksDispatcherOnMountInDEV = null;
@@ -11902,6 +12201,7 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
     readContext: function (context) {
       return readContext(context);
     },
+    use: use,
     useCallback: function (callback, deps) {
       currentHookNameInDev = 'useCallback';
       mountHookTypesDev();
@@ -12019,14 +12319,11 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
     };
   }
 
-  {
-    HooksDispatcherOnMountInDEV.use = use;
-  }
-
   HooksDispatcherOnMountWithHookTypesInDEV = {
     readContext: function (context) {
       return readContext(context);
     },
+    use: use,
     useCallback: function (callback, deps) {
       currentHookNameInDev = 'useCallback';
       updateHookTypesDev();
@@ -12138,14 +12435,11 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
     };
   }
 
-  {
-    HooksDispatcherOnMountWithHookTypesInDEV.use = use;
-  }
-
   HooksDispatcherOnUpdateInDEV = {
     readContext: function (context) {
       return readContext(context);
     },
+    use: use,
     useCallback: function (callback, deps) {
       currentHookNameInDev = 'useCallback';
       updateHookTypesDev();
@@ -12240,7 +12534,7 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
     useSyncExternalStore: function (subscribe, getSnapshot, getServerSnapshot) {
       currentHookNameInDev = 'useSyncExternalStore';
       updateHookTypesDev();
-      return updateSyncExternalStore(subscribe, getSnapshot);
+      return updateSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
     },
     useId: function () {
       currentHookNameInDev = 'useId';
@@ -12257,14 +12551,11 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
     };
   }
 
-  {
-    HooksDispatcherOnUpdateInDEV.use = use;
-  }
-
   HooksDispatcherOnRerenderInDEV = {
     readContext: function (context) {
       return readContext(context);
     },
+    use: use,
     useCallback: function (callback, deps) {
       currentHookNameInDev = 'useCallback';
       updateHookTypesDev();
@@ -12359,7 +12650,7 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
     useSyncExternalStore: function (subscribe, getSnapshot, getServerSnapshot) {
       currentHookNameInDev = 'useSyncExternalStore';
       updateHookTypesDev();
-      return updateSyncExternalStore(subscribe, getSnapshot);
+      return updateSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
     },
     useId: function () {
       currentHookNameInDev = 'useId';
@@ -12376,14 +12667,14 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
     };
   }
 
-  {
-    HooksDispatcherOnRerenderInDEV.use = use;
-  }
-
   InvalidNestedHooksDispatcherOnMountInDEV = {
     readContext: function (context) {
       warnInvalidContextAccess();
       return readContext(context);
+    },
+    use: function (usable) {
+      warnInvalidHookAccess();
+      return use(usable);
     },
     useCallback: function (callback, deps) {
       currentHookNameInDev = 'useCallback';
@@ -12512,17 +12803,14 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
     };
   }
 
-  {
-    InvalidNestedHooksDispatcherOnMountInDEV.use = function (usable) {
-      warnInvalidHookAccess();
-      return use(usable);
-    };
-  }
-
   InvalidNestedHooksDispatcherOnUpdateInDEV = {
     readContext: function (context) {
       warnInvalidContextAccess();
       return readContext(context);
+    },
+    use: function (usable) {
+      warnInvalidHookAccess();
+      return use(usable);
     },
     useCallback: function (callback, deps) {
       currentHookNameInDev = 'useCallback';
@@ -12633,7 +12921,7 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       currentHookNameInDev = 'useSyncExternalStore';
       warnInvalidHookAccess();
       updateHookTypesDev();
-      return updateSyncExternalStore(subscribe, getSnapshot);
+      return updateSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
     },
     useId: function () {
       currentHookNameInDev = 'useId';
@@ -12651,17 +12939,14 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
     };
   }
 
-  {
-    InvalidNestedHooksDispatcherOnUpdateInDEV.use = function (usable) {
-      warnInvalidHookAccess();
-      return use(usable);
-    };
-  }
-
   InvalidNestedHooksDispatcherOnRerenderInDEV = {
     readContext: function (context) {
       warnInvalidContextAccess();
       return readContext(context);
+    },
+    use: function (usable) {
+      warnInvalidHookAccess();
+      return use(usable);
     },
     useCallback: function (callback, deps) {
       currentHookNameInDev = 'useCallback';
@@ -12772,7 +13057,7 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       currentHookNameInDev = 'useSyncExternalStore';
       warnInvalidHookAccess();
       updateHookTypesDev();
-      return updateSyncExternalStore(subscribe, getSnapshot);
+      return updateSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
     },
     useId: function () {
       currentHookNameInDev = 'useId';
@@ -12787,13 +13072,6 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       currentHookNameInDev = 'useCacheRefresh';
       updateHookTypesDev();
       return updateRefresh();
-    };
-  }
-
-  {
-    InvalidNestedHooksDispatcherOnRerenderInDEV.use = function (usable) {
-      warnInvalidHookAccess();
-      return use(usable);
     };
   }
 }
@@ -13106,8 +13384,7 @@ var classComponentUpdater = {
     var root = enqueueUpdate(fiber, update, lane);
 
     if (root !== null) {
-      var eventTime = requestEventTime();
-      scheduleUpdateOnFiber(root, fiber, lane, eventTime);
+      scheduleUpdateOnFiber(root, fiber, lane);
       entangleTransitions(root, fiber, lane);
     }
 
@@ -13133,8 +13410,7 @@ var classComponentUpdater = {
     var root = enqueueUpdate(fiber, update, lane);
 
     if (root !== null) {
-      var eventTime = requestEventTime();
-      scheduleUpdateOnFiber(root, fiber, lane, eventTime);
+      scheduleUpdateOnFiber(root, fiber, lane);
       entangleTransitions(root, fiber, lane);
     }
 
@@ -13160,8 +13436,7 @@ var classComponentUpdater = {
     var root = enqueueUpdate(fiber, update, lane);
 
     if (root !== null) {
-      var eventTime = requestEventTime();
-      scheduleUpdateOnFiber(root, fiber, lane, eventTime);
+      scheduleUpdateOnFiber(root, fiber, lane);
       entangleTransitions(root, fiber, lane);
     }
 
@@ -14209,9 +14484,9 @@ function throwException(root, returnFiber, sourceFiber, value, rootRenderLanes) 
               }
 
               break;
-            }
+            } // Fall through
+
           }
-        // eslint-disable-next-line no-fallthrough
 
         default:
           {
@@ -14933,24 +15208,17 @@ function updateFunctionComponent(current, workInProgress, Component, nextProps, 
   return workInProgress.child;
 }
 
-function replayFunctionComponent(current, workInProgress, nextProps, Component, renderLanes) {
+function replayFunctionComponent(current, workInProgress, nextProps, Component, secondArg, renderLanes) {
   // This function is used to replay a component that previously suspended,
   // after its data resolves. It's a simplified version of
   // updateFunctionComponent that reuses the hooks from the previous attempt.
-  var context;
-
-  {
-    var unmaskedContext = getUnmaskedContext(workInProgress, Component, true);
-    context = getMaskedContext(workInProgress, unmaskedContext);
-  }
-
   prepareToReadContext(workInProgress, renderLanes);
 
   {
     markComponentRenderStarted(workInProgress);
   }
 
-  var nextChildren = replaySuspendedComponentWithHooks(current, workInProgress, Component, nextProps, context);
+  var nextChildren = replaySuspendedComponentWithHooks(current, workInProgress, Component, nextProps, secondArg);
   var hasId = checkDidRenderIdHook();
 
   {
@@ -16111,11 +16379,9 @@ function updateDehydratedSuspenseComponent(current, workInProgress, didSuspend, 
           // Intentionally mutating since this render will get interrupted. This
           // is one of the very rare times where we mutate the current tree
           // during the render phase.
-          suspenseState.retryLane = attemptHydrationAtLane; // TODO: Ideally this would inherit the event time of the current render
-
-          var eventTime = NoTimestamp;
+          suspenseState.retryLane = attemptHydrationAtLane;
           enqueueConcurrentRenderForLane(current, attemptHydrationAtLane);
-          scheduleUpdateOnFiber(root, current, attemptHydrationAtLane, eventTime); // Throw a special object that signals to the work loop that it should
+          scheduleUpdateOnFiber(root, current, attemptHydrationAtLane); // Throw a special object that signals to the work loop that it should
           // interrupt the current render.
           //
           // Because we're inside a React-only execution stack, we don't
@@ -17084,14 +17350,14 @@ function beginWork$1(current, workInProgress, renderLanes) {
         return updateHostHoistable(current, workInProgress);
       }
 
-    // eslint-disable-next-line no-fallthrough
+    // Fall through
 
     case HostSingleton:
       {
         return updateHostSingleton(current, workInProgress, renderLanes);
       }
 
-    // eslint-disable-next-line no-fallthrough
+    // Fall through
 
     case HostComponent:
       return updateHostComponent$1(current, workInProgress, renderLanes);
@@ -17763,24 +18029,26 @@ function updateHostComponent(current, workInProgress, type, newProps, renderLane
       // In mutation mode, this is sufficient for a bailout because
       // we won't touch this node even if children changed.
       return;
-    } // If we get updated because one of our children updated, we don't
-    // have newProps so we'll have to reuse them.
-    // TODO: Split the update API as separate for the props vs. children.
-    // Even better would be if children weren't special cased at all tho.
+    }
 
+    {
+      // If we get updated because one of our children updated, we don't
+      // have newProps so we'll have to reuse them.
+      // TODO: Split the update API as separate for the props vs. children.
+      // Even better would be if children weren't special cased at all tho.
+      var instance = workInProgress.stateNode; // TODO: Experiencing an error where oldProps is null. Suggests a host
+      // component is hitting the resume path. Figure out why. Possibly
+      // related to `hidden`.
 
-    var instance = workInProgress.stateNode;
-    var currentHostContext = getHostContext(); // TODO: Experiencing an error where oldProps is null. Suggests a host
-    // component is hitting the resume path. Figure out why. Possibly
-    // related to `hidden`.
+      getHostContext();
+      var updatePayload = prepareUpdate(instance, type, oldProps, newProps); // TODO: Type this specific to this type of component.
 
-    var updatePayload = prepareUpdate(instance, type, oldProps, newProps, currentHostContext); // TODO: Type this specific to this type of component.
+      workInProgress.updateQueue = updatePayload; // If the update payload indicates that there is a change or if there
+      // is a new ref we mark this as an update. All the work is done in commitWork.
 
-    workInProgress.updateQueue = updatePayload; // If the update payload indicates that there is a change or if there
-    // is a new ref we mark this as an update. All the work is done in commitWork.
-
-    if (updatePayload) {
-      markUpdate(workInProgress);
+      if (updatePayload) {
+        markUpdate(workInProgress);
+      }
     }
   }
 } // This function must be called at the very end of the complete phase, because
@@ -18297,9 +18565,9 @@ function completeWork(current, workInProgress, renderLanes) {
               return null;
             }
           }
-        }
+        } // Fall through
+
       }
-    // eslint-disable-next-line-no-fallthrough
 
     case HostSingleton:
       {
@@ -18351,9 +18619,9 @@ function completeWork(current, workInProgress, renderLanes) {
 
           bubbleProperties(workInProgress);
           return null;
-        }
+        } // Fall through
+
       }
-    // eslint-disable-next-line-no-fallthrough
 
     case HostComponent:
       {
@@ -19106,55 +19374,36 @@ function unwindInterruptedWork(current, interruptedWork, renderLanes) {
   }
 }
 
-// $FlowFixMe[missing-this-annot]
-function invokeGuardedCallbackProd(name, func, context) {
-  // $FlowFixMe[method-unbinding]
-  var funcArgs = Array.prototype.slice.call(arguments, 3);
+var fakeNode = null;
 
-  try {
-    // $FlowFixMe[incompatible-call] Flow doesn't understand the arguments splicing.
-    func.apply(context, funcArgs);
-  } catch (error) {
-    this.onError(error);
+{
+  if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function' && typeof document !== 'undefined' && // $FlowFixMe[method-unbinding]
+  typeof document.createEvent === 'function') {
+    fakeNode = document.createElement('react');
   }
 }
 
-var invokeGuardedCallbackImpl = invokeGuardedCallbackProd;
-
-{
-  // In DEV mode, we swap out invokeGuardedCallback for a special version
-  // that plays more nicely with the browser's DevTools. The idea is to preserve
-  // "Pause on exceptions" behavior. Because React wraps all user-provided
-  // functions in invokeGuardedCallback, and the production version of
-  // invokeGuardedCallback uses a try-catch, all user exceptions are treated
-  // like caught exceptions, and the DevTools won't pause unless the developer
-  // takes the extra step of enabling pause on caught exceptions. This is
-  // unintuitive, though, because even though React has caught the error, from
-  // the developer's perspective, the error is uncaught.
-  //
-  // To preserve the expected "Pause on exceptions" behavior, we don't use a
-  // try-catch in DEV. Instead, we synchronously dispatch a fake event to a fake
-  // DOM node, and call the user-provided callback from inside an event handler
-  // for that fake event. If the callback throws, the error is "captured" using
-  // a global event handler. But because the error happens in a different
-  // event loop context, it does not interrupt the normal program flow.
-  // Effectively, this gives us try-catch behavior without actually using
-  // try-catch. Neat!
-  // Check that the browser supports the APIs we need to implement our special
-  // DEV version of invokeGuardedCallback
-  if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function' && typeof document !== 'undefined' && // $FlowFixMe[method-unbinding]
-  typeof document.createEvent === 'function') {
-    var fakeNode = document.createElement('react');
-
-    invokeGuardedCallbackImpl = function invokeGuardedCallbackDev(name, func, context) {
-      // If document doesn't exist we know for sure we will crash in this method
-      // when we call document.createEvent(). However this can cause confusing
-      // errors: https://github.com/facebook/create-react-app/issues/3482
-      // So we preemptively throw with a better message instead.
-      if (typeof document === 'undefined' || document === null) {
-        throw new Error('The `document` global was defined when React was initialized, but is not ' + 'defined anymore. This can happen in a test environment if a component ' + 'schedules an update from an asynchronous callback, but the test has already ' + 'finished running. To solve this, you can either unmount the component at ' + 'the end of your test (and ensure that any asynchronous operations get ' + 'canceled in `componentWillUnmount`), or you can change the test itself ' + 'to be asynchronous.');
-      }
-
+function invokeGuardedCallbackImpl(name, func, context) {
+  {
+    // In DEV mode, we use a special version
+    // that plays more nicely with the browser's DevTools. The idea is to preserve
+    // "Pause on exceptions" behavior. Because React wraps all user-provided
+    // functions in invokeGuardedCallback, and the production version of
+    // invokeGuardedCallback uses a try-catch, all user exceptions are treated
+    // like caught exceptions, and the DevTools won't pause unless the developer
+    // takes the extra step of enabling pause on caught exceptions. This is
+    // unintuitive, though, because even though React has caught the error, from
+    // the developer's perspective, the error is uncaught.
+    //
+    // To preserve the expected "Pause on exceptions" behavior, we don't use a
+    // try-catch in DEV. Instead, we synchronously dispatch a fake event to a fake
+    // DOM node, and call the user-provided callback from inside an event handler
+    // for that fake event. If the callback throws, the error is "captured" using
+    // event loop context, it does not interrupt the normal program flow.
+    // Effectively, this gives us try-catch behavior without actually using
+    // try-catch. Neat!
+    // fakeNode signifies we are in an environment with a document and window object
+    if (fakeNode) {
       var evt = document.createEvent('Event');
       var didCall = false; // Keeps track of whether the user-provided callback threw an error. We
       // set this to true at the beginning, then set it to false right after
@@ -19172,7 +19421,7 @@ var invokeGuardedCallbackImpl = invokeGuardedCallbackProd;
 
       var windowEventDescriptor = Object.getOwnPropertyDescriptor(window, 'event');
 
-      function restoreAfterDispatch() {
+      var restoreAfterDispatch = function () {
         // We immediately remove the callback from event listeners so that
         // nested `invokeGuardedCallback` calls do not clash. Otherwise, a
         // nested call would trigger the fake event handlers of any call higher
@@ -19185,21 +19434,21 @@ var invokeGuardedCallbackImpl = invokeGuardedCallbackProd;
         if (typeof window.event !== 'undefined' && window.hasOwnProperty('event')) {
           window.event = windowEvent;
         }
-      } // Create an event handler for our fake event. We will synchronously
+      }; // Create an event handler for our fake event. We will synchronously
       // dispatch our fake event using `dispatchEvent`. Inside the handler, we
       // call the user-provided callback.
       // $FlowFixMe[method-unbinding]
 
 
-      var funcArgs = Array.prototype.slice.call(arguments, 3);
+      var _funcArgs = Array.prototype.slice.call(arguments, 3);
 
-      function callCallback() {
+      var callCallback = function () {
         didCall = true;
         restoreAfterDispatch(); // $FlowFixMe[incompatible-call] Flow doesn't understand the arguments splicing.
 
-        func.apply(context, funcArgs);
+        func.apply(context, _funcArgs);
         didError = false;
-      } // Create a global error event handler. We use this to capture the value
+      }; // Create a global error event handler. We use this to capture the value
       // that was thrown. It's possible that this error handler will fire more
       // than once; for example, if non-React code also calls `dispatchEvent`
       // and a handler for that event throws. We should be resilient to most of
@@ -19215,9 +19464,9 @@ var invokeGuardedCallbackImpl = invokeGuardedCallbackProd;
       var error; // Use this to track whether the error event is ever called.
 
       var didSetError = false;
-      var isCrossOriginError = false; // $FlowFixMe[missing-local-annot]
+      var isCrossOriginError = false;
 
-      function handleWindowError(event) {
+      var handleWindowError = function (event) {
         error = event.error;
         didSetError = true;
 
@@ -19236,7 +19485,7 @@ var invokeGuardedCallbackImpl = invokeGuardedCallbackProd;
             }
           }
         }
-      } // Create a fake event type.
+      }; // Create a fake event type.
 
 
       var evtType = "react-" + (name ? name : 'invokeguardedcallback'); // Attach our event handlers
@@ -19268,19 +19517,30 @@ var invokeGuardedCallbackImpl = invokeGuardedCallbackProd;
 
       window.removeEventListener('error', handleWindowError);
 
-      if (!didCall) {
+      if (didCall) {
+        return;
+      } else {
         // Something went really wrong, and our event was not dispatched.
         // https://github.com/facebook/react/issues/16734
         // https://github.com/facebook/react/issues/16585
         // Fall back to the production implementation.
-        restoreAfterDispatch();
-        return invokeGuardedCallbackProd.apply(this, arguments);
+        restoreAfterDispatch(); // we fall through and call the prod version instead
       }
-    };
+    } // We only get here if we are in an environment that either does not support the browser
+    // variant or we had trouble getting the browser to emit the error.
+    // $FlowFixMe[method-unbinding]
+
+
+    var funcArgs = Array.prototype.slice.call(arguments, 3);
+
+    try {
+      // $FlowFixMe[incompatible-call] Flow doesn't understand the arguments splicing.
+      func.apply(context, funcArgs);
+    } catch (error) {
+      this.onError(error);
+    }
   }
 }
-
-var invokeGuardedCallbackImpl$1 = invokeGuardedCallbackImpl;
 
 var hasError = false;
 var caughtError = null; // Used by event system to capture/rethrow the first error.
@@ -19310,7 +19570,7 @@ var reporter = {
 function invokeGuardedCallback(name, func, context, a, b, c, d, e, f) {
   hasError = false;
   caughtError = null;
-  invokeGuardedCallbackImpl$1.apply(reporter, arguments);
+  invokeGuardedCallbackImpl.apply(reporter, arguments);
 }
 /**
  * Same as invokeGuardedCallback, but instead of returning an error, it stores
@@ -19652,10 +19912,12 @@ function commitHookEffectListUnmount(flags, finishedWork, nearestMountedAncestor
     do {
       if ((effect.tag & flags) === flags) {
         // Unmount
-        var destroy = effect.destroy;
-        effect.destroy = undefined;
+        var inst = effect.inst;
+        var destroy = inst.destroy;
 
         if (destroy !== undefined) {
+          inst.destroy = undefined;
+
           {
             if ((flags & Passive) !== NoFlags) {
               markComponentPassiveEffectUnmountStarted(finishedWork);
@@ -19720,7 +19982,9 @@ function commitHookEffectListMount(flags, finishedWork) {
           }
         }
 
-        effect.destroy = create();
+        var inst = effect.inst;
+        var destroy = create();
+        inst.destroy = destroy;
 
         {
           if ((flags & Insertion) !== NoFlags) {
@@ -19737,8 +20001,6 @@ function commitHookEffectListMount(flags, finishedWork) {
         }
 
         {
-          var destroy = effect.destroy;
-
           if (destroy !== undefined && typeof destroy !== 'function') {
             var hookName = void 0;
 
@@ -20100,9 +20362,9 @@ function commitLayoutEffectOnFiber(finishedRoot, current, finishedWork, committe
           }
 
           break;
-        }
+        } // Fall through
+
       }
-    // eslint-disable-next-line-no-fallthrough
 
     case HostSingleton:
     case HostComponent:
@@ -20481,9 +20743,9 @@ function commitPlacement(finishedWork) {
 
           insertOrAppendPlacementNode(finishedWork, before, parent);
           break;
-        }
+        } // Fall through
+
       }
-    // eslint-disable-next-line no-fallthrough
 
     case HostComponent:
       {
@@ -20514,7 +20776,6 @@ function commitPlacement(finishedWork) {
         insertOrAppendPlacementNodeIntoContainer(finishedWork, _before2, _parent2);
         break;
       }
-    // eslint-disable-next-line-no-fallthrough
 
     default:
       throw new Error('Invalid host parent fiber. This error is likely caused by a bug ' + 'in React. Please file an issue.');
@@ -20673,9 +20934,9 @@ function commitDeletionEffectsOnFiber(finishedRoot, nearestMountedAncestor, dele
           }
 
           return;
-        }
+        } // Fall through
+
       }
-    // eslint-disable-next-line no-fallthrough
 
     case HostSingleton:
       {
@@ -20697,9 +20958,9 @@ function commitDeletionEffectsOnFiber(finishedRoot, nearestMountedAncestor, dele
           hostParent = prevHostParent;
           hostParentIsContainer = prevHostParentIsContainer;
           return;
-        }
+        } // Fall through
+
       }
-    // eslint-disable-next-line no-fallthrough
 
     case HostComponent:
       {
@@ -20708,7 +20969,6 @@ function commitDeletionEffectsOnFiber(finishedRoot, nearestMountedAncestor, dele
         } // Intentional fallthrough to next branch
 
       }
-    // eslint-disable-next-line-no-fallthrough
 
     case HostText:
       {
@@ -20787,12 +21047,13 @@ function commitDeletionEffectsOnFiber(finishedRoot, nearestMountedAncestor, dele
               var effect = firstEffect;
 
               do {
-                var _effect = effect,
-                    destroy = _effect.destroy,
-                    tag = _effect.tag;
+                var tag = effect.tag;
+                var inst = effect.inst;
+                var destroy = inst.destroy;
 
                 if (destroy !== undefined) {
                   if ((tag & Insertion) !== NoFlags) {
+                    inst.destroy = undefined;
                     safelyCallDestroy(deletedFiber, nearestMountedAncestor, destroy);
                   } else if ((tag & Layout) !== NoFlags) {
                     {
@@ -20801,9 +21062,11 @@ function commitDeletionEffectsOnFiber(finishedRoot, nearestMountedAncestor, dele
 
                     if (shouldProfile(deletedFiber)) {
                       startLayoutEffectTimer();
+                      inst.destroy = undefined;
                       safelyCallDestroy(deletedFiber, nearestMountedAncestor, destroy);
                       recordLayoutEffectDuration(deletedFiber);
                     } else {
+                      inst.destroy = undefined;
                       safelyCallDestroy(deletedFiber, nearestMountedAncestor, destroy);
                     }
 
@@ -20961,7 +21224,7 @@ function detachOffscreenInstance(instance) {
 
   if (root !== null) {
     instance._pendingVisibility |= OffscreenDetached;
-    scheduleUpdateOnFiber(root, fiber, SyncLane, NoTimestamp);
+    scheduleUpdateOnFiber(root, fiber, SyncLane);
   }
 }
 function attachOffscreenInstance(instance) {
@@ -20980,7 +21243,7 @@ function attachOffscreenInstance(instance) {
 
   if (root !== null) {
     instance._pendingVisibility &= ~OffscreenDetached;
-    scheduleUpdateOnFiber(root, fiber, SyncLane, NoTimestamp);
+    scheduleUpdateOnFiber(root, fiber, SyncLane);
   }
 }
 
@@ -21189,9 +21452,9 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
           }
 
           return;
-        }
+        } // Fall through
+
       }
-    // eslint-disable-next-line-no-fallthrough
 
     case HostSingleton:
       {
@@ -21207,9 +21470,9 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
               acquireSingletonInstance(finishedWork.type, props, singleton, finishedWork);
             }
           }
-        }
+        } // Fall through
+
       }
-    // eslint-disable-next-line-no-fallthrough
 
     case HostComponent:
       {
@@ -21254,7 +21517,7 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
               var _updatePayload = finishedWork.updateQueue;
               finishedWork.updateQueue = null;
 
-              if (_updatePayload !== null) {
+              if (_updatePayload !== null || diffInCommitPhase) {
                 try {
                   commitUpdate(_instance2, _updatePayload, type, oldProps, newProps, finishedWork);
                 } catch (error) {
@@ -21343,18 +21606,28 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
     case SuspenseComponent:
       {
         recursivelyTraverseMutationEffects(root, finishedWork);
-        commitReconciliationEffects(finishedWork);
+        commitReconciliationEffects(finishedWork); // TODO: We should mark a flag on the Suspense fiber itself, rather than
+        // relying on the Offscreen fiber having a flag also being marked. The
+        // reason is that this offscreen fiber might not be part of the work-in-
+        // progress tree! It could have been reused from a previous render. This
+        // doesn't lead to incorrect behavior because we don't rely on the flag
+        // check alone; we also compare the states explicitly below. But for
+        // modeling purposes, we _should_ be able to rely on the flag check alone.
+        // So this is a bit fragile.
+        //
+        // Also, all this logic could/should move to the passive phase so it
+        // doesn't block paint.
+
         var offscreenFiber = finishedWork.child;
 
         if (offscreenFiber.flags & Visibility) {
-          var newState = offscreenFiber.memoizedState;
-          var isHidden = newState !== null;
+          // Throttle the appearance and disappearance of Suspense fallbacks.
+          var isShowingFallback = finishedWork.memoizedState !== null;
+          var wasShowingFallback = current !== null && current.memoizedState !== null;
 
-          if (isHidden) {
-            var wasHidden = offscreenFiber.alternate !== null && offscreenFiber.alternate.memoizedState !== null;
-
-            if (!wasHidden) {
-              // TODO: Move to passive phase
+          {
+            if (isShowingFallback !== wasShowingFallback) {
+              // A fallback is either appearing or disappearing.
               markCommitTimeOfFallback();
             }
           }
@@ -21386,11 +21659,9 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
           }
         }
 
-        var _newState = finishedWork.memoizedState;
-
-        var _isHidden = _newState !== null;
-
-        var _wasHidden = current !== null && current.memoizedState !== null;
+        var newState = finishedWork.memoizedState;
+        var isHidden = newState !== null;
+        var wasHidden = current !== null && current.memoizedState !== null;
 
         if (finishedWork.mode & ConcurrentMode) {
           // Before committing the children, track on the stack whether this
@@ -21398,8 +21669,8 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
           // effects again.
           var prevOffscreenSubtreeIsHidden = offscreenSubtreeIsHidden;
           var prevOffscreenSubtreeWasHidden = offscreenSubtreeWasHidden;
-          offscreenSubtreeIsHidden = prevOffscreenSubtreeIsHidden || _isHidden;
-          offscreenSubtreeWasHidden = prevOffscreenSubtreeWasHidden || _wasHidden;
+          offscreenSubtreeIsHidden = prevOffscreenSubtreeIsHidden || isHidden;
+          offscreenSubtreeWasHidden = prevOffscreenSubtreeWasHidden || wasHidden;
           recursivelyTraverseMutationEffects(root, finishedWork);
           offscreenSubtreeWasHidden = prevOffscreenSubtreeWasHidden;
           offscreenSubtreeIsHidden = prevOffscreenSubtreeIsHidden;
@@ -21419,20 +21690,20 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
         if (flags & Visibility) {
           // Track the current state on the Offscreen instance so we can
           // read it during an event
-          if (_isHidden) {
+          if (isHidden) {
             offscreenInstance._visibility &= ~OffscreenVisible;
           } else {
             offscreenInstance._visibility |= OffscreenVisible;
           }
 
-          if (_isHidden) {
+          if (isHidden) {
             var isUpdate = current !== null;
             var wasHiddenByAncestorOffscreen = offscreenSubtreeIsHidden || offscreenSubtreeWasHidden; // Only trigger disapper layout effects if:
             //   - This is an update, not first mount.
             //   - This Offscreen was not hidden before.
             //   - Ancestor Offscreen was not hidden in previous commit.
 
-            if (isUpdate && !_wasHidden && !wasHiddenByAncestorOffscreen) {
+            if (isUpdate && !wasHidden && !wasHiddenByAncestorOffscreen) {
               if ((finishedWork.mode & ConcurrentMode) !== NoMode) {
                 // Disappear the layout effects of all the children
                 recursivelyTraverseDisappearLayoutEffects(finishedWork);
@@ -21444,7 +21715,7 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
           if (!isOffscreenManual(finishedWork)) {
             // TODO: This needs to run whenever there's an insertion or update
             // inside a hidden Offscreen tree.
-            hideOrUnhideAllChildren(finishedWork, _isHidden);
+            hideOrUnhideAllChildren(finishedWork, isHidden);
           }
         } // TODO: Move to passive phase
 
@@ -21981,7 +22252,6 @@ function commitPassiveMountOnFiber(finishedRoot, finishedWork, committedLanes, c
       }
 
     case TracingMarkerComponent:
-    // eslint-disable-next-line-no-fallthrough
 
     default:
       {
@@ -22097,7 +22367,6 @@ includeWorkInProgressEffects) {
       }
 
     case TracingMarkerComponent:
-    // eslint-disable-next-line-no-fallthrough
 
     default:
       {
@@ -22158,7 +22427,6 @@ function commitAtomicPassiveEffects(finishedRoot, finishedWork, committedLanes, 
 
         break;
       }
-    // eslint-disable-next-line-no-fallthrough
 
     default:
       {
@@ -22728,7 +22996,6 @@ function isConcurrentActEnvironment() {
   }
 }
 
-var ceil = Math.ceil;
 var PossiblyWeakMap = typeof WeakMap === 'function' ? WeakMap : Map;
 var ReactCurrentDispatcher = ReactSharedInternals.ReactCurrentDispatcher,
     ReactCurrentCache = ReactSharedInternals.ReactCurrentCache,
@@ -22805,11 +23072,13 @@ var workInProgressRootPingedLanes = NoLanes; // Errors that are thrown during th
 var workInProgressRootConcurrentErrors = null; // These are errors that we recovered from without surfacing them to the UI.
 // We will log them once the tree commits.
 
-var workInProgressRootRecoverableErrors = null; // The most recent time we committed a fallback. This lets us ensure a train
-// model where we don't commit new loading states in too quick succession.
+var workInProgressRootRecoverableErrors = null; // The most recent time we either committed a fallback, or when a fallback was
+// filled in with the resolved UI. This lets us throttle the appearance of new
+// content as it streams in, to minimize jank.
+// TODO: Think of a better name for this variable?
 
 var globalMostRecentFallbackTime = 0;
-var FALLBACK_THROTTLE_MS = 500; // The absolute time for when we should start giving up on rendering
+var FALLBACK_THROTTLE_MS = 300; // The absolute time for when we should start giving up on rendering
 // more and prefer CPU suspense heuristics instead.
 
 var workInProgressRootRenderTargetTime = Infinity; // How long a render is supposed to take before we start following CPU
@@ -22842,12 +23111,7 @@ var isFlushingPassiveEffects = false;
 var didScheduleUpdateDuringPassiveEffects = false;
 var NESTED_PASSIVE_UPDATE_LIMIT = 50;
 var nestedPassiveUpdateCount = 0;
-var rootWithPassiveNestedUpdates = null; // If two updates are scheduled within the same event, we should treat their
-// event times as simultaneous, even if the actual clock time has advanced
-// between the first and second call.
-
-var currentEventTime = NoTimestamp;
-var currentEventTransitionLane = NoLanes;
+var rootWithPassiveNestedUpdates = null;
 var isRunningInsertionEffect = false;
 function getWorkInProgressRoot() {
   return workInProgressRoot;
@@ -22855,21 +23119,8 @@ function getWorkInProgressRoot() {
 function getWorkInProgressRootRenderLanes() {
   return workInProgressRootRenderLanes;
 }
-function requestEventTime() {
-  if ((executionContext & (RenderContext | CommitContext)) !== NoContext) {
-    // We're inside React, so it's fine to read the actual time.
-    return now$1();
-  } // We're not inside React, so we may be in the middle of a browser event.
-
-
-  if (currentEventTime !== NoTimestamp) {
-    // Use the same start time for all updates until we enter React again.
-    return currentEventTime;
-  } // This is the first update since React yielded. Compute a new start time.
-
-
-  currentEventTime = now$1();
-  return currentEventTime;
+function isWorkLoopSuspendedOnData() {
+  return workInProgressSuspendedReason === SuspendedOnData;
 }
 function requestUpdateLane(fiber) {
   // Special cases
@@ -22901,21 +23152,14 @@ function requestUpdateLane(fiber) {
       }
 
       transition._updatedFibers.add(fiber);
-    } // The algorithm for assigning an update to a lane should be stable for all
-    // updates at the same priority within the same event. To do this, the
-    // inputs to the algorithm must be the same.
-    //
-    // The trick we use is to cache the first of each of these inputs within an
-    // event. Then reset the cached values once we can be sure the event is
-    // over. Our heuristic for that is whenever we enter a concurrent work loop.
-
-
-    if (currentEventTransitionLane === NoLane) {
-      // All transitions within the same event are assigned the same lane.
-      currentEventTransitionLane = claimNextTransitionLane();
     }
 
-    return currentEventTransitionLane;
+    var actionScopeLane = peekEntangledActionLane();
+    return actionScopeLane !== NoLane ? // We're inside an async action scope. Reuse the same lane.
+    actionScopeLane : // We may or may not be inside an async action scope. If we are, this
+    // is the first update in that scope. Either way, we need to get a
+    // fresh transition lane.
+    requestTransitionLane();
   } // Updates originating inside certain React methods, like flushSync, have
   // their priority set by tracking it with a context variable.
   //
@@ -22954,7 +23198,7 @@ function requestRetryLane(fiber) {
   return claimNextRetryLane();
 }
 
-function scheduleUpdateOnFiber(root, fiber, lane, eventTime) {
+function scheduleUpdateOnFiber(root, fiber, lane) {
   {
     if (isRunningInsertionEffect) {
       error('useInsertionEffect must not schedule updates.');
@@ -22969,7 +23213,9 @@ function scheduleUpdateOnFiber(root, fiber, lane, eventTime) {
   // finish loading.
 
 
-  if (workInProgressSuspendedReason === SuspendedOnData && root === workInProgressRoot) {
+  if ( // Suspended render phase
+  root === workInProgressRoot && workInProgressSuspendedReason === SuspendedOnData || // Suspended commit phase
+  root.cancelPendingCommit !== null) {
     // The incoming update might unblock the current render. Interrupt the
     // current attempt and restart from the top.
     prepareFreshStack(root, NoLanes);
@@ -22977,7 +23223,7 @@ function scheduleUpdateOnFiber(root, fiber, lane, eventTime) {
   } // Mark that the root has a pending update.
 
 
-  markRootUpdated(root, lane, eventTime);
+  markRootUpdated(root, lane);
 
   if ((executionContext & RenderContext) !== NoLanes && root === workInProgressRoot) {
     // This update was dispatched during the render phase. This is a mistake
@@ -22999,10 +23245,7 @@ function scheduleUpdateOnFiber(root, fiber, lane, eventTime) {
 
     if (root === workInProgressRoot) {
       // Received an update to a tree that's in the middle of rendering. Mark
-      // that there was an interleaved update work on this root. Unless the
-      // `deferRenderPhaseUpdateToNextBatch` flag is off and this is a render
-      // phase update. In that case, we don't treat render phase updates as if
-      // they were interleaved, for backwards compat reasons.
+      // that there was an interleaved update work on this root.
       if ((executionContext & RenderContext) === NoContext) {
         workInProgressRootInterleavedUpdatedLanes = mergeLanes(workInProgressRootInterleavedUpdatedLanes, lane);
       }
@@ -23018,21 +23261,22 @@ function scheduleUpdateOnFiber(root, fiber, lane, eventTime) {
       }
     }
 
-    ensureRootIsScheduled(root, eventTime);
+    ensureRootIsScheduled(root);
 
-    if (lane === SyncLane && executionContext === NoContext && (fiber.mode & ConcurrentMode) === NoMode && // Treat `act` as if it's inside `batchedUpdates`, even in legacy mode.
-    !(ReactCurrentActQueue.isBatchingLegacy)) {
-      // Flush the synchronous work now, unless we're already working or inside
-      // a batch. This is intentionally inside scheduleUpdateOnFiber instead of
-      // scheduleCallbackForFiber to preserve the ability to schedule a callback
-      // without immediately flushing it. We only do this for user-initiated
-      // updates, to preserve historical behavior of legacy mode.
-      resetRenderTimer();
-      flushSyncCallbacksOnlyInLegacyMode();
+    if (lane === SyncLane && executionContext === NoContext && (fiber.mode & ConcurrentMode) === NoMode) {
+      if (ReactCurrentActQueue.isBatchingLegacy) ; else {
+        // Flush the synchronous work now, unless we're already working or inside
+        // a batch. This is intentionally inside scheduleUpdateOnFiber instead of
+        // scheduleCallbackForFiber to preserve the ability to schedule a callback
+        // without immediately flushing it. We only do this for user-initiated
+        // updates, to preserve historical behavior of legacy mode.
+        resetRenderTimer();
+        flushSyncWorkOnLegacyRootsOnly();
+      }
     }
   }
 }
-function scheduleInitialHydrationOnRoot(root, lane, eventTime) {
+function scheduleInitialHydrationOnRoot(root, lane) {
   // This is a special fork of scheduleUpdateOnFiber that is only used to
   // schedule the initial hydration of a root that has just been created. Most
   // of the stuff in scheduleUpdateOnFiber can be skipped.
@@ -23044,172 +23288,20 @@ function scheduleInitialHydrationOnRoot(root, lane, eventTime) {
   // match what was rendered on the server.
   var current = root.current;
   current.lanes = lane;
-  markRootUpdated(root, lane, eventTime);
-  ensureRootIsScheduled(root, eventTime);
+  markRootUpdated(root, lane);
+  ensureRootIsScheduled(root);
 }
 function isUnsafeClassRenderPhaseUpdate(fiber) {
   // Check if this is a render phase update. Only called by class components,
   // which special (deprecated) behavior for UNSAFE_componentWillReceive props.
-  return (// TODO: Remove outdated deferRenderPhaseUpdateToNextBatch experiment. We
-    // decided not to enable it.
-    (executionContext & RenderContext) !== NoContext
-  );
-} // Use this function to schedule a task for a root. There's only one task per
-// root; if a task was already scheduled, we'll check to make sure the priority
-// of the existing task is the same as the priority of the next level that the
-// root has work on. This function is called on every update, and right before
-// exiting a task.
-
-function ensureRootIsScheduled(root, currentTime) {
-  var existingCallbackNode = root.callbackNode; // Check if any lanes are being starved by other work. If so, mark them as
-  // expired so we know to work on those next.
-
-  markStarvedLanesAsExpired(root, currentTime); // Determine the next lanes to work on, and their priority.
-
-  var nextLanes = getNextLanes(root, root === workInProgressRoot ? workInProgressRootRenderLanes : NoLanes);
-
-  if (nextLanes === NoLanes) {
-    // Special case: There's nothing to work on.
-    if (existingCallbackNode !== null) {
-      cancelCallback(existingCallbackNode);
-    }
-
-    root.callbackNode = null;
-    root.callbackPriority = NoLane;
-    return;
-  } // If this root is currently suspended and waiting for data to resolve, don't
-  // schedule a task to render it. We'll either wait for a ping, or wait to
-  // receive an update.
-
-
-  if (workInProgressSuspendedReason === SuspendedOnData && workInProgressRoot === root) {
-    root.callbackPriority = NoLane;
-    root.callbackNode = null;
-    return;
-  }
-
-  var cancelPendingCommit = root.cancelPendingCommit;
-
-  if (cancelPendingCommit !== null) {
-    // We should only interrupt a pending commit if the new update
-    // is urgent.
-    if (includesOnlyNonUrgentLanes(nextLanes)) {
-      // The new update is not urgent. Don't interrupt the pending commit.
-      root.callbackPriority = NoLane;
-      root.callbackNode = null;
-      return;
-    }
-  } // We use the highest priority lane to represent the priority of the callback.
-
-
-  var newCallbackPriority = getHighestPriorityLane(nextLanes); // Check if there's an existing task. We may be able to reuse it.
-
-  var existingCallbackPriority = root.callbackPriority;
-
-  if (existingCallbackPriority === newCallbackPriority && // Special case related to `act`. If the currently scheduled task is a
-  // Scheduler task, rather than an `act` task, cancel it and re-scheduled
-  // on the `act` queue.
-  !(ReactCurrentActQueue.current !== null && existingCallbackNode !== fakeActCallbackNode)) {
-    {
-      // If we're going to re-use an existing task, it needs to exist.
-      // Assume that discrete update microtasks are non-cancellable and null.
-      // TODO: Temporary until we confirm this warning is not fired.
-      if (existingCallbackNode == null && !includesSyncLane(existingCallbackPriority)) {
-        error('Expected scheduled callback to exist. This error is likely caused by a bug in React. Please file an issue.');
-      }
-    } // The priority hasn't changed. We can reuse the existing task. Exit.
-
-
-    return;
-  }
-
-  if (existingCallbackNode != null) {
-    // Cancel the existing callback. We'll schedule a new one below.
-    cancelCallback(existingCallbackNode);
-  } // Schedule a new callback.
-
-
-  var newCallbackNode;
-
-  if (includesSyncLane(newCallbackPriority)) {
-    // Special case: Sync React callbacks are scheduled on a special
-    // internal queue
-    if (root.tag === LegacyRoot) {
-      if (ReactCurrentActQueue.isBatchingLegacy !== null) {
-        ReactCurrentActQueue.didScheduleLegacyUpdate = true;
-      }
-
-      scheduleLegacySyncCallback(performSyncWorkOnRoot.bind(null, root));
-    } else {
-      scheduleSyncCallback(performSyncWorkOnRoot.bind(null, root));
-    }
-
-    {
-      // Flush the queue in a microtask.
-      if (ReactCurrentActQueue.current !== null) {
-        // Inside `act`, use our internal `act` queue so that these get flushed
-        // at the end of the current scope even when using the sync version
-        // of `act`.
-        ReactCurrentActQueue.current.push(flushSyncCallbacks);
-      } else {
-        scheduleMicrotask(function () {
-          // In Safari, appending an iframe forces microtasks to run.
-          // https://github.com/facebook/react/issues/22459
-          // We don't support running callbacks in the middle of render
-          // or commit so we need to check against that.
-          if ((executionContext & (RenderContext | CommitContext)) === NoContext) {
-            // Note that this would still prematurely flush the callbacks
-            // if this happens outside render or commit phase (e.g. in an event).
-            flushSyncCallbacks();
-          }
-        });
-      }
-    }
-
-    newCallbackNode = null;
-  } else {
-    var schedulerPriorityLevel;
-
-    switch (lanesToEventPriority(nextLanes)) {
-      case DiscreteEventPriority:
-        schedulerPriorityLevel = ImmediatePriority;
-        break;
-
-      case ContinuousEventPriority:
-        schedulerPriorityLevel = UserBlockingPriority;
-        break;
-
-      case DefaultEventPriority:
-        schedulerPriorityLevel = NormalPriority$1;
-        break;
-
-      case IdleEventPriority:
-        schedulerPriorityLevel = IdlePriority;
-        break;
-
-      default:
-        schedulerPriorityLevel = NormalPriority$1;
-        break;
-    }
-
-    newCallbackNode = scheduleCallback(schedulerPriorityLevel, performConcurrentWorkOnRoot.bind(null, root));
-  }
-
-  root.callbackPriority = newCallbackPriority;
-  root.callbackNode = newCallbackNode;
+  return (executionContext & RenderContext) !== NoContext;
 } // This is the entry point for every concurrent task, i.e. anything that
 // goes through Scheduler.
-
 
 function performConcurrentWorkOnRoot(root, didTimeout) {
   {
     resetNestedUpdateFlag();
-  } // Since we know we're in a React event, we can clear the current
-  // event time. The next update will compute a new event time.
-
-
-  currentEventTime = NoTimestamp;
-  currentEventTransitionLane = NoLanes;
+  }
 
   if ((executionContext & (RenderContext | CommitContext)) !== NoContext) {
     throw new Error('Should not already be working.');
@@ -23231,6 +23323,7 @@ function performConcurrentWorkOnRoot(root, didTimeout) {
     }
   } // Determine the next lanes to work on, using the fields stored
   // on the root.
+  // TODO: This was already computed in the caller. Pass it as an argument.
 
 
   var lanes = getNextLanes(root, root === workInProgressRoot ? workInProgressRootRenderLanes : NoLanes);
@@ -23268,7 +23361,7 @@ function performConcurrentWorkOnRoot(root, didTimeout) {
       var fatalError = workInProgressRootFatalError;
       prepareFreshStack(root, NoLanes);
       markRootSuspended(root, lanes);
-      ensureRootIsScheduled(root, now$1());
+      ensureRootIsScheduled(root);
       throw fatalError;
     }
 
@@ -23308,7 +23401,7 @@ function performConcurrentWorkOnRoot(root, didTimeout) {
           var _fatalError = workInProgressRootFatalError;
           prepareFreshStack(root, NoLanes);
           markRootSuspended(root, lanes);
-          ensureRootIsScheduled(root, now$1());
+          ensureRootIsScheduled(root);
           throw _fatalError;
         } // FIXME: Need to check for RootDidNotComplete again. The factoring here
         // isn't ideal.
@@ -23323,15 +23416,8 @@ function performConcurrentWorkOnRoot(root, didTimeout) {
     }
   }
 
-  ensureRootIsScheduled(root, now$1());
-
-  if (root.callbackNode === originalCallbackNode) {
-    // The task node scheduled for this root is the same one that's
-    // currently executed. Need to return a continuation.
-    return performConcurrentWorkOnRoot.bind(null, root);
-  }
-
-  return null;
+  ensureRootIsScheduled(root);
+  return getContinuationForRoot(root, originalCallbackNode);
 }
 
 function recoverFromConcurrentError(root, originallyAttemptedLanes, errorRetryLanes) {
@@ -23412,98 +23498,34 @@ function queueRecoverableErrors(errors) {
 }
 
 function finishConcurrentRender(root, exitStatus, finishedWork, lanes) {
+  // TODO: The fact that most of these branches are identical suggests that some
+  // of the exit statuses are not best modeled as exit statuses and should be
+  // tracked orthogonally.
   switch (exitStatus) {
     case RootInProgress:
     case RootFatalErrored:
       {
         throw new Error('Root did not complete. This is a bug in React.');
       }
-    // Flow knows about invariant, so it complains if I add a break
-    // statement, but eslint doesn't know about invariant, so it complains
-    // if I do. eslint-disable-next-line no-fallthrough
-
-    case RootErrored:
-      {
-        // We should have already attempted to retry this tree. If we reached
-        // this point, it errored again. Commit it.
-        commitRootWhenReady(root, finishedWork, workInProgressRootRecoverableErrors, workInProgressTransitions, lanes);
-        break;
-      }
-
-    case RootSuspended:
-      {
-        markRootSuspended(root, lanes); // We have an acceptable loading state. We need to figure out if we
-        // should immediately commit it or wait a bit.
-
-        if (includesOnlyRetries(lanes) && // do not delay if we're inside an act() scope
-        !shouldForceFlushFallbacksInDEV()) {
-          // This render only included retries, no updates. Throttle committing
-          // retries so that we don't show too many loading states too quickly.
-          var msUntilTimeout = globalMostRecentFallbackTime + FALLBACK_THROTTLE_MS - now$1(); // Don't bother with a very short suspense time.
-
-          if (msUntilTimeout > 10) {
-            var nextLanes = getNextLanes(root, NoLanes);
-
-            if (nextLanes !== NoLanes) {
-              // There's additional work on this root.
-              break;
-            } // The render is suspended, it hasn't timed out, and there's no
-            // lower priority work to do. Instead of committing the fallback
-            // immediately, wait for more data to arrive.
-
-
-            root.timeoutHandle = scheduleTimeout(commitRootWhenReady.bind(null, root, finishedWork, workInProgressRootRecoverableErrors, workInProgressTransitions, lanes), msUntilTimeout);
-            break;
-          }
-        } // The work expired. Commit immediately.
-
-
-        commitRootWhenReady(root, finishedWork, workInProgressRootRecoverableErrors, workInProgressTransitions, lanes);
-        break;
-      }
 
     case RootSuspendedWithDelay:
       {
-        markRootSuspended(root, lanes);
-
         if (includesOnlyTransitions(lanes)) {
           // This is a transition, so we should exit without committing a
           // placeholder and without scheduling a timeout. Delay indefinitely
           // until we receive more data.
-          break;
-        }
-
-        if (!shouldForceFlushFallbacksInDEV()) {
-          // This is not a transition, but we did trigger an avoided state.
-          // Schedule a placeholder to display after a short delay, using the Just
-          // Noticeable Difference.
-          // TODO: Is the JND optimization worth the added complexity? If this is
-          // the only reason we track the event time, then probably not.
-          // Consider removing.
-          var mostRecentEventTime = getMostRecentEventTime(root, lanes);
-          var eventTimeMs = mostRecentEventTime;
-          var timeElapsedMs = now$1() - eventTimeMs;
-
-          var _msUntilTimeout = jnd(timeElapsedMs) - timeElapsedMs; // Don't bother with a very short suspense time.
-
-
-          if (_msUntilTimeout > 10) {
-            // Instead of committing the fallback immediately, wait for more data
-            // to arrive.
-            root.timeoutHandle = scheduleTimeout(commitRootWhenReady.bind(null, root, finishedWork, workInProgressRootRecoverableErrors, workInProgressTransitions, lanes), _msUntilTimeout);
-            break;
-          }
+          markRootSuspended(root, lanes);
+          return;
         } // Commit the placeholder.
 
 
-        commitRootWhenReady(root, finishedWork, workInProgressRootRecoverableErrors, workInProgressTransitions, lanes);
         break;
       }
 
+    case RootErrored:
+    case RootSuspended:
     case RootCompleted:
       {
-        // The work completed.
-        commitRootWhenReady(root, finishedWork, workInProgressRootRecoverableErrors, workInProgressTransitions, lanes);
         break;
       }
 
@@ -23512,9 +23534,43 @@ function finishConcurrentRender(root, exitStatus, finishedWork, lanes) {
         throw new Error('Unknown root exit status.');
       }
   }
+
+  if (shouldForceFlushFallbacksInDEV()) {
+    // We're inside an `act` scope. Commit immediately.
+    commitRoot(root, workInProgressRootRecoverableErrors, workInProgressTransitions);
+  } else {
+    if (includesOnlyRetries(lanes) && (alwaysThrottleRetries )) {
+      // This render only included retries, no updates. Throttle committing
+      // retries so that we don't show too many loading states too quickly.
+      var msUntilTimeout = globalMostRecentFallbackTime + FALLBACK_THROTTLE_MS - now$1(); // Don't bother with a very short suspense time.
+
+      if (msUntilTimeout > 10) {
+        markRootSuspended(root, lanes);
+        var nextLanes = getNextLanes(root, NoLanes);
+
+        if (nextLanes !== NoLanes) {
+          // There's additional work we can do on this root. We might as well
+          // attempt to work on that while we're suspended.
+          return;
+        } // The render is suspended, it hasn't timed out, and there's no
+        // lower priority work to do. Instead of committing the fallback
+        // immediately, wait for more data to arrive.
+        // TODO: Combine retry throttling with Suspensey commits. Right now they
+        // run one after the other.
+
+
+        root.timeoutHandle = scheduleTimeout(commitRootWhenReady.bind(null, root, finishedWork, workInProgressRootRecoverableErrors, workInProgressTransitions, lanes), msUntilTimeout);
+        return;
+      }
+    }
+
+    commitRootWhenReady(root, finishedWork, workInProgressRootRecoverableErrors, workInProgressTransitions, lanes);
+  }
 }
 
 function commitRootWhenReady(root, finishedWork, recoverableErrors, transitions, lanes) {
+  // TODO: Combine retry throttling with Suspensey commits. Right now they run
+  // one after the other.
   if (includesOnlyNonUrgentLanes(lanes)) {
     // Before committing, ask the renderer whether the host tree is ready.
     // If it's not, we'll wait until it notifies us.
@@ -23536,13 +23592,14 @@ function commitRootWhenReady(root, finishedWork, recoverableErrors, transitions,
       // Not yet ready to commit. Delay the commit until the renderer notifies
       // us that it's ready. This will be canceled if we start work on the
       // root again.
-      root.cancelPendingCommit = schedulePendingCommit(commitRoot.bind(null, root, workInProgressRootRecoverableErrors, workInProgressTransitions));
+      root.cancelPendingCommit = schedulePendingCommit(commitRoot.bind(null, root, recoverableErrors, transitions));
+      markRootSuspended(root, lanes);
       return;
     }
   } // Otherwise, commit immediately.
 
 
-  commitRoot(root, workInProgressRootRecoverableErrors, workInProgressTransitions);
+  commitRoot(root, recoverableErrors, transitions);
 }
 
 function isRenderConsistentWithExternalStores(finishedWork) {
@@ -23629,12 +23686,13 @@ function performSyncWorkOnRoot(root) {
     throw new Error('Should not already be working.');
   }
 
-  flushPassiveEffects();
+  flushPassiveEffects(); // TODO: This was already computed in the caller. Pass it as an argument.
+
   var lanes = getNextLanes(root, NoLanes);
 
   if (!includesSyncLane(lanes)) {
     // There's no remaining sync work left.
-    ensureRootIsScheduled(root, now$1());
+    ensureRootIsScheduled(root);
     return null;
   }
 
@@ -23658,7 +23716,7 @@ function performSyncWorkOnRoot(root) {
     var fatalError = workInProgressRootFatalError;
     prepareFreshStack(root, NoLanes);
     markRootSuspended(root, lanes);
-    ensureRootIsScheduled(root, now$1());
+    ensureRootIsScheduled(root);
     throw fatalError;
   }
 
@@ -23667,7 +23725,7 @@ function performSyncWorkOnRoot(root) {
     // cases where need to exit the current render without producing a
     // consistent tree or committing.
     markRootSuspended(root, lanes);
-    ensureRootIsScheduled(root, now$1());
+    ensureRootIsScheduled(root);
     return null;
   } // We now have a consistent tree. Because this is a sync render, we
   // will commit it even if something suspended.
@@ -23679,18 +23737,20 @@ function performSyncWorkOnRoot(root) {
   commitRoot(root, workInProgressRootRecoverableErrors, workInProgressTransitions); // Before exiting, make sure there's a callback scheduled for the next
   // pending level.
 
-  ensureRootIsScheduled(root, now$1());
+  ensureRootIsScheduled(root);
   return null;
 }
-
 function flushRoot(root, lanes) {
   if (lanes !== NoLanes) {
     markRootEntangled(root, mergeLanes(lanes, SyncLane));
-    ensureRootIsScheduled(root, now$1());
+    ensureRootIsScheduled(root);
 
     if ((executionContext & (RenderContext | CommitContext)) === NoContext) {
-      resetRenderTimer();
-      flushSyncCallbacks();
+      resetRenderTimer(); // TODO: For historical reasons this flushes all sync work across all
+      // roots. It shouldn't really matter either way, but we could change this
+      // to only flush the given root.
+
+      flushSyncWorkOnAllRoots();
     }
   }
 }
@@ -23710,7 +23770,7 @@ function batchedUpdates$1(fn, a) {
     if (executionContext === NoContext && // Treat `act` as if it's inside `batchedUpdates`, even in legacy mode.
     !(ReactCurrentActQueue.isBatchingLegacy)) {
       resetRenderTimer();
-      flushSyncCallbacksOnlyInLegacyMode();
+      flushSyncWorkOnLegacyRootsOnly();
     }
   }
 }
@@ -23748,7 +23808,7 @@ function flushSync$1(fn) {
     // the stack.
 
     if ((executionContext & (RenderContext | CommitContext)) === NoContext) {
-      flushSyncCallbacks();
+      flushSyncWorkOnAllRoots();
     }
   }
 }
@@ -23779,7 +23839,7 @@ function resetWorkInProgressStack() {
   } else {
     // Work-in-progress is in suspended state. Reset the work loop and unwind
     // both the suspended fiber and all its parents.
-    resetSuspendedWorkLoopOnUnwind();
+    resetSuspendedWorkLoopOnUnwind(workInProgress);
     interruptedWork = workInProgress;
   }
 
@@ -23836,10 +23896,10 @@ function prepareFreshStack(root, lanes) {
   return rootWorkInProgress;
 }
 
-function resetSuspendedWorkLoopOnUnwind() {
+function resetSuspendedWorkLoopOnUnwind(fiber) {
   // Reset module-level state that was set during the render phase.
   resetContextDependencies();
-  resetHooksOnUnwind();
+  resetHooksOnUnwind(fiber);
   resetChildReconcilerOnUnwind();
 }
 
@@ -23991,7 +24051,6 @@ function shouldRemainOnPreviousScreen() {
 }
 
 function pushDispatcher(container) {
-  prepareRendererToRender(container);
   var prevDispatcher = ReactCurrentDispatcher.current;
   ReactCurrentDispatcher.current = ContextOnlyDispatcher;
 
@@ -24006,7 +24065,6 @@ function pushDispatcher(container) {
 }
 
 function popDispatcher(prevDispatcher) {
-  resetRendererAfterRender();
   ReactCurrentDispatcher.current = prevDispatcher;
 }
 
@@ -24077,7 +24135,7 @@ function renderHasNotSuspendedYet() {
 function renderRootSync(root, lanes) {
   var prevExecutionContext = executionContext;
   executionContext |= RenderContext;
-  var prevDispatcher = pushDispatcher(root.containerInfo);
+  var prevDispatcher = pushDispatcher();
   var prevCacheDispatcher = pushCacheDispatcher(); // If the root or lanes have changed, throw out the existing stack
   // and prepare a fresh one. Otherwise we'll continue where we left off.
 
@@ -24185,7 +24243,7 @@ function workLoopSync() {
 function renderRootConcurrent(root, lanes) {
   var prevExecutionContext = executionContext;
   executionContext |= RenderContext;
-  var prevDispatcher = pushDispatcher(root.containerInfo);
+  var prevDispatcher = pushDispatcher();
   var prevCacheDispatcher = pushCacheDispatcher(); // If the root or lanes have changed, throw out the existing stack
   // and prepare a fresh one. Otherwise we'll continue where we left off.
 
@@ -24262,7 +24320,7 @@ function renderRootConcurrent(root, lanes) {
                 // rendering later.
 
 
-                ensureRootIsScheduled(root, now$1());
+                ensureRootIsScheduled(root);
               };
 
               thenable.then(onResolution, onResolution);
@@ -24502,10 +24560,9 @@ function replaySuspendedUnitOfWork(unitOfWork) {
         // function component.
         unitOfWork.tag = FunctionComponent; // Fallthrough to the next branch.
       }
-    // eslint-disable-next-line no-fallthrough
 
+    case SimpleMemoComponent:
     case FunctionComponent:
-    case ForwardRef:
       {
         // Resolve `defaultProps`. This logic is copied from `beginWork`.
         // TODO: Consider moving this switch statement into that module. Also,
@@ -24514,16 +24571,41 @@ function replaySuspendedUnitOfWork(unitOfWork) {
         var Component = unitOfWork.type;
         var unresolvedProps = unitOfWork.pendingProps;
         var resolvedProps = unitOfWork.elementType === Component ? unresolvedProps : resolveDefaultProps(Component, unresolvedProps);
-        next = replayFunctionComponent(current, unitOfWork, resolvedProps, Component, workInProgressRootRenderLanes);
+        var context;
+
+        {
+          var unmaskedContext = getUnmaskedContext(unitOfWork, Component, true);
+          context = getMaskedContext(unitOfWork, unmaskedContext);
+        }
+
+        next = replayFunctionComponent(current, unitOfWork, resolvedProps, Component, context, workInProgressRootRenderLanes);
         break;
       }
 
-    case SimpleMemoComponent:
+    case ForwardRef:
       {
-        var _Component = unitOfWork.type;
-        var nextProps = unitOfWork.pendingProps;
-        next = replayFunctionComponent(current, unitOfWork, nextProps, _Component, workInProgressRootRenderLanes);
+        // Resolve `defaultProps`. This logic is copied from `beginWork`.
+        // TODO: Consider moving this switch statement into that module. Also,
+        // could maybe use this as an opportunity to say `use` doesn't work with
+        // `defaultProps` :)
+        var _Component = unitOfWork.type.render;
+        var _unresolvedProps = unitOfWork.pendingProps;
+
+        var _resolvedProps = unitOfWork.elementType === _Component ? _unresolvedProps : resolveDefaultProps(_Component, _unresolvedProps);
+
+        next = replayFunctionComponent(current, unitOfWork, _resolvedProps, _Component, unitOfWork.ref, workInProgressRootRenderLanes);
         break;
+      }
+
+    case HostComponent:
+      {
+        // Some host components are stateful (that's how we implement form
+        // actions) but we don't bother to reuse the memoized state because it's
+        // not worth the extra code. The main reason to reuse the previous hooks
+        // is to reuse uncached promises, but we happen to know that the only
+        // promises that a host component might suspend on are definitely cached
+        // because they are controlled by us. So don't bother.
+        resetHooksOnUnwind(unitOfWork); // Fallthrough to the next branch.
       }
 
     default:
@@ -24568,7 +24650,7 @@ function throwAndUnwindWorkLoop(unitOfWork, thrownValue) {
   //
   // Return to the normal work loop. This will unwind the stack, and potentially
   // result in showing a fallback.
-  resetSuspendedWorkLoopOnUnwind();
+  resetSuspendedWorkLoopOnUnwind(unitOfWork);
   var returnFiber = unitOfWork.return;
 
   if (returnFiber === null || workInProgressRoot === null) {
@@ -24625,12 +24707,10 @@ function completeUnitOfWork(unitOfWork) {
 
   do {
     {
-      {
-        if ((completedWork.flags & Incomplete) !== NoFlags$1) {
-          // NOTE: If we re-enable sibling prerendering in some cases, this branch
-          // is where we would switch to the unwinding path.
-          error('Internal React error: Expected this fiber to be complete, but ' + "it isn't. It should have been unwound. This is a bug in React.");
-        }
+      if ((completedWork.flags & Incomplete) !== NoFlags$1) {
+        // NOTE: If we re-enable sibling prerendering in some cases, this branch
+        // is where we would switch to the unwinding path.
+        error('Internal React error: Expected this fiber to be complete, but ' + "it isn't. It should have been unwound. This is a bug in React.");
       }
     } // The current, flushed, state of this fiber is the alternate. Ideally
     // nothing should rely on this, but relying on it here means that we don't
@@ -24734,7 +24814,10 @@ function unwindUnitOfWork(unitOfWork) {
       returnFiber.flags |= Incomplete;
       returnFiber.subtreeFlags = NoFlags$1;
       returnFiber.deletions = null;
-    }
+    } // NOTE: If we re-enable sibling prerendering in some cases, here we
+    // would switch to the normal completion path: check if a sibling
+    // exists, and if so, begin work on it.
+    // Otherwise, return to the parent
     // $FlowFixMe[incompatible-type] we bail out when we get a null
 
 
@@ -24985,7 +25068,7 @@ function commitRootImpl(root, recoverableErrors, transitions, renderPriorityLeve
   // additional work on this root is scheduled.
 
 
-  ensureRootIsScheduled(root, now$1());
+  ensureRootIsScheduled(root);
 
   if (recoverableErrors !== null) {
     // There were errors during this render, but recovered from them without
@@ -25039,7 +25122,7 @@ function commitRootImpl(root, recoverableErrors, transitions, renderPriorityLeve
   } // If layout work was scheduled, flush it now.
 
 
-  flushSyncCallbacks();
+  flushSyncWorkOnAllRoots();
 
   {
     markCommitStopped();
@@ -25188,7 +25271,7 @@ function flushPassiveEffectsImpl() {
   }
 
   executionContext = prevExecutionContext;
-  flushSyncCallbacks();
+  flushSyncWorkOnAllRoots();
 
   {
     // If additional passive effects were scheduled, increment a counter. If this
@@ -25244,11 +25327,10 @@ function captureCommitPhaseErrorOnRoot(rootFiber, sourceFiber, error) {
   var errorInfo = createCapturedValueAtFiber(error, sourceFiber);
   var update = createRootErrorUpdate(rootFiber, errorInfo, SyncLane);
   var root = enqueueUpdate(rootFiber, update, SyncLane);
-  var eventTime = requestEventTime();
 
   if (root !== null) {
-    markRootUpdated(root, SyncLane, eventTime);
-    ensureRootIsScheduled(root, eventTime);
+    markRootUpdated(root, SyncLane);
+    ensureRootIsScheduled(root);
   }
 }
 
@@ -25265,11 +25347,7 @@ function captureCommitPhaseError(sourceFiber, nearestMountedAncestor, error$1) {
     return;
   }
 
-  var fiber = null;
-
-  {
-    fiber = nearestMountedAncestor;
-  }
+  var fiber = nearestMountedAncestor;
 
   while (fiber !== null) {
     if (fiber.tag === HostRoot) {
@@ -25283,11 +25361,10 @@ function captureCommitPhaseError(sourceFiber, nearestMountedAncestor, error$1) {
         var errorInfo = createCapturedValueAtFiber(error$1, sourceFiber);
         var update = createClassErrorUpdate(fiber, errorInfo, SyncLane);
         var root = enqueueUpdate(fiber, update, SyncLane);
-        var eventTime = requestEventTime();
 
         if (root !== null) {
-          markRootUpdated(root, SyncLane, eventTime);
-          ensureRootIsScheduled(root, eventTime);
+          markRootUpdated(root, SyncLane);
+          ensureRootIsScheduled(root);
         }
 
         return;
@@ -25298,12 +25375,7 @@ function captureCommitPhaseError(sourceFiber, nearestMountedAncestor, error$1) {
   }
 
   {
-    // TODO: Until we re-land skipUnmountedBoundaries (see #20147), this warning
-    // will fire for errors that are thrown by destroy functions inside deleted
-    // trees. What it should instead do is propagate the error to the parent of
-    // the deleted tree. In the meantime, do not add this warning to the
-    // allowlist; this is only for our internal use.
-    error('Internal React error: Attempted to capture a commit phase error ' + 'inside a detached tree. This indicates a bug in React. Likely ' + 'causes include deleting the same fiber more than once, committing an ' + 'already-finished tree, or an inconsistent return pointer.\n\n' + 'Error message:\n\n%s', error$1);
+    error('Internal React error: Attempted to capture a commit phase error ' + 'inside a detached tree. This indicates a bug in React. Potential ' + 'causes include deleting the same fiber more than once, committing an ' + 'already-finished tree, or an inconsistent return pointer.\n\n' + 'Error message:\n\n%s', error$1);
   }
 }
 function attachPingListener(root, wakeable, lanes) {
@@ -25361,7 +25433,6 @@ function pingSuspendedRoot(root, wakeable, pingedLanes) {
     pingCache.delete(wakeable);
   }
 
-  var eventTime = requestEventTime();
   markRootPinged(root, pingedLanes);
   warnIfSuspenseResolutionNotWrappedWithActDEV(root);
 
@@ -25386,7 +25457,7 @@ function pingSuspendedRoot(root, wakeable, pingedLanes) {
     }
   }
 
-  ensureRootIsScheduled(root, eventTime);
+  ensureRootIsScheduled(root);
 }
 
 function retryTimedOutBoundary(boundaryFiber, retryLane) {
@@ -25401,12 +25472,11 @@ function retryTimedOutBoundary(boundaryFiber, retryLane) {
   } // TODO: Special case idle priority?
 
 
-  var eventTime = requestEventTime();
   var root = enqueueConcurrentRenderForLane(boundaryFiber, retryLane);
 
   if (root !== null) {
-    markRootUpdated(root, retryLane, eventTime);
-    ensureRootIsScheduled(root, eventTime);
+    markRootUpdated(root, retryLane);
+    ensureRootIsScheduled(root);
   }
 }
 
@@ -25458,20 +25528,7 @@ function resolveRetryWakeable(boundaryFiber, wakeable) {
   }
 
   retryTimedOutBoundary(boundaryFiber, retryLane);
-} // Computes the next Just Noticeable Difference (JND) boundary.
-// The theory is that a person can't tell the difference between small differences in time.
-// Therefore, if we wait a bit longer than necessary that won't translate to a noticeable
-// difference in the experience. However, waiting for longer might mean that we can avoid
-// showing an intermediate loading state. The longer we have already waited, the harder it
-// is to tell small differences in time. Therefore, the longer we've already waited,
-// the longer we can wait additionally. At some point we have to give up though.
-// We pick a train model where the next boundary commits at a consistent schedule.
-// These particular numbers are vague estimates. We expect to adjust them based on research.
-
-function jnd(timeElapsed) {
-  return timeElapsed < 120 ? 120 : timeElapsed < 480 ? 480 : timeElapsed < 1080 ? 1080 : timeElapsed < 1920 ? 1920 : timeElapsed < 3000 ? 3000 : timeElapsed < 4320 ? 4320 : ceil(timeElapsed / 1960) * 1960;
 }
-
 function throwIfInfiniteUpdateLoopDetected() {
   if (nestedUpdateCount > NESTED_UPDATE_LIMIT) {
     nestedUpdateCount = 0;
@@ -25623,7 +25680,7 @@ var beginWork;
       // Unwind the failed stack frame
 
 
-      resetSuspendedWorkLoopOnUnwind();
+      resetSuspendedWorkLoopOnUnwind(unitOfWork);
       unwindInterruptedWork(current, unitOfWork); // Restore the original properties of the fiber.
 
       assignFiberPropertiesInDEV(unitOfWork, originalWorkInProgressCopy);
@@ -25720,18 +25777,9 @@ function scheduleCallback(priorityLevel, callback) {
       actQueue.push(callback);
       return fakeActCallbackNode;
     } else {
-      return scheduleCallback$2(priorityLevel, callback);
+      return scheduleCallback$3(priorityLevel, callback);
     }
   }
-}
-
-function cancelCallback(callbackNode) {
-  if (callbackNode === fakeActCallbackNode) {
-    return;
-  } // In production, always call Scheduler. This function will be stripped out.
-
-
-  return cancelCallback$1(callbackNode);
 }
 
 function shouldForceFlushFallbacksInDEV() {
@@ -26059,7 +26107,7 @@ function scheduleFibersWithFamiliesRecursively(fiber, updatedFamilies, staleFami
       var root = enqueueConcurrentRenderForLane(fiber, SyncLane);
 
       if (root !== null) {
-        scheduleUpdateOnFiber(root, fiber, SyncLane, NoTimestamp);
+        scheduleUpdateOnFiber(root, fiber, SyncLane);
       }
     }
 
@@ -26561,26 +26609,26 @@ key, pendingProps, owner, mode, lanes) {
 
       case REACT_LEGACY_HIDDEN_TYPE:
 
-      // eslint-disable-next-line no-fallthrough
+      // Fall through
 
       case REACT_SCOPE_TYPE:
 
-      // eslint-disable-next-line no-fallthrough
+      // Fall through
 
       case REACT_CACHE_TYPE:
         {
           return createFiberFromCache(pendingProps, mode, lanes, key);
         }
 
-      // eslint-disable-next-line no-fallthrough
+      // Fall through
 
       case REACT_TRACING_MARKER_TYPE:
 
-      // eslint-disable-next-line no-fallthrough
+      // Fall through
 
       case REACT_DEBUG_TRACING_MODE_TYPE:
 
-      // eslint-disable-next-line no-fallthrough
+      // Fall through
 
       default:
         {
@@ -26820,9 +26868,9 @@ tag, hydrate, identifierPrefix, onRecoverableError) {
   this.cancelPendingCommit = null;
   this.context = null;
   this.pendingContext = null;
+  this.next = null;
   this.callbackNode = null;
   this.callbackPriority = NoLane;
-  this.eventTimes = createLaneMap(NoLanes);
   this.expirationTimes = createLaneMap(NoTimestamp);
   this.pendingLanes = NoLanes;
   this.suspendedLanes = NoLanes;
@@ -26913,7 +26961,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks) {
   return root;
 }
 
-var ReactVersion = '18.3.0-next-85de6fde5-20230328';
+var ReactVersion = '18.3.0-canary-1cea38448-20230530';
 
 function createPortal$1(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {
@@ -27033,9 +27081,8 @@ callback, containerInfo, tag, hydrationCallbacks, isStrictMode, concurrentUpdate
   var lane = requestUpdateLane(current);
   var update = createUpdate(lane);
   update.callback = callback !== undefined && callback !== null ? callback : null;
-  var eventTime = requestEventTime();
   enqueueUpdate(current, update, lane);
-  scheduleInitialHydrationOnRoot(root, lane, eventTime);
+  scheduleInitialHydrationOnRoot(root, lane);
   return root;
 }
 function updateContainer(element, container, parentComponent, callback) {
@@ -27087,8 +27134,7 @@ function updateContainer(element, container, parentComponent, callback) {
   var root = enqueueUpdate(current$1, update, lane);
 
   if (root !== null) {
-    var eventTime = requestEventTime();
-    scheduleUpdateOnFiber(root, current$1, lane, eventTime);
+    scheduleUpdateOnFiber(root, current$1, lane);
     entangleTransitions(root, current$1, lane);
   }
 
@@ -27131,8 +27177,7 @@ function attemptSynchronousHydration(fiber) {
           var root = enqueueConcurrentRenderForLane(fiber, SyncLane);
 
           if (root !== null) {
-            var eventTime = requestEventTime();
-            scheduleUpdateOnFiber(root, fiber, SyncLane, eventTime);
+            scheduleUpdateOnFiber(root, fiber, SyncLane);
           }
         }); // If we're still blocked after this, we need to increase
         // the priority of any promises resolving within this
@@ -27162,6 +27207,7 @@ function markRetryLaneIfNotHydrated(fiber, retryLane) {
     markRetryLaneImpl(alternate, retryLane);
   }
 }
+
 function attemptContinuousHydration(fiber) {
   if (fiber.tag !== SuspenseComponent) {
     // We ignore HostRoots here because we can't increase
@@ -27175,8 +27221,7 @@ function attemptContinuousHydration(fiber) {
   var root = enqueueConcurrentRenderForLane(fiber, lane);
 
   if (root !== null) {
-    var eventTime = requestEventTime();
-    scheduleUpdateOnFiber(root, fiber, lane, eventTime);
+    scheduleUpdateOnFiber(root, fiber, lane);
   }
 
   markRetryLaneIfNotHydrated(fiber, lane);
@@ -27192,8 +27237,7 @@ function attemptHydrationAtCurrentPriority(fiber) {
   var root = enqueueConcurrentRenderForLane(fiber, lane);
 
   if (root !== null) {
-    var eventTime = requestEventTime();
-    scheduleUpdateOnFiber(root, fiber, lane, eventTime);
+    scheduleUpdateOnFiber(root, fiber, lane);
   }
 
   markRetryLaneIfNotHydrated(fiber, lane);
@@ -27344,7 +27388,7 @@ var setSuspenseHandler = null;
       var root = enqueueConcurrentRenderForLane(fiber, SyncLane);
 
       if (root !== null) {
-        scheduleUpdateOnFiber(root, fiber, SyncLane, NoTimestamp);
+        scheduleUpdateOnFiber(root, fiber, SyncLane);
       }
     }
   };
@@ -27365,7 +27409,7 @@ var setSuspenseHandler = null;
       var root = enqueueConcurrentRenderForLane(fiber, SyncLane);
 
       if (root !== null) {
-        scheduleUpdateOnFiber(root, fiber, SyncLane, NoTimestamp);
+        scheduleUpdateOnFiber(root, fiber, SyncLane);
       }
     }
   };
@@ -27386,7 +27430,7 @@ var setSuspenseHandler = null;
       var root = enqueueConcurrentRenderForLane(fiber, SyncLane);
 
       if (root !== null) {
-        scheduleUpdateOnFiber(root, fiber, SyncLane, NoTimestamp);
+        scheduleUpdateOnFiber(root, fiber, SyncLane);
       }
     }
   }; // Support DevTools props for function components, forwardRef, memo, host components, etc.
@@ -27402,7 +27446,7 @@ var setSuspenseHandler = null;
     var root = enqueueConcurrentRenderForLane(fiber, SyncLane);
 
     if (root !== null) {
-      scheduleUpdateOnFiber(root, fiber, SyncLane, NoTimestamp);
+      scheduleUpdateOnFiber(root, fiber, SyncLane);
     }
   };
 
@@ -27416,7 +27460,7 @@ var setSuspenseHandler = null;
     var root = enqueueConcurrentRenderForLane(fiber, SyncLane);
 
     if (root !== null) {
-      scheduleUpdateOnFiber(root, fiber, SyncLane, NoTimestamp);
+      scheduleUpdateOnFiber(root, fiber, SyncLane);
     }
   };
 
@@ -27430,7 +27474,7 @@ var setSuspenseHandler = null;
     var root = enqueueConcurrentRenderForLane(fiber, SyncLane);
 
     if (root !== null) {
-      scheduleUpdateOnFiber(root, fiber, SyncLane, NoTimestamp);
+      scheduleUpdateOnFiber(root, fiber, SyncLane);
     }
   };
 
@@ -27438,7 +27482,7 @@ var setSuspenseHandler = null;
     var root = enqueueConcurrentRenderForLane(fiber, SyncLane);
 
     if (root !== null) {
-      scheduleUpdateOnFiber(root, fiber, SyncLane, NoTimestamp);
+      scheduleUpdateOnFiber(root, fiber, SyncLane);
     }
   };
 
@@ -27618,733 +27662,6 @@ if (canUseDOM) {
   } catch (e) {
     passiveBrowserEventsSupported = false;
   }
-}
-
-// has this definition built-in.
-
-var hasScheduledReplayAttempt = false; // The queue of discrete events to be replayed.
-
-var queuedDiscreteEvents = []; // Indicates if any continuous event targets are non-null for early bailout.
-// if the last target was dehydrated.
-
-var queuedFocus = null;
-var queuedDrag = null;
-var queuedMouse = null; // For pointer events there can be one latest event per pointerId.
-
-var queuedPointers = new Map();
-var queuedPointerCaptures = new Map(); // We could consider replaying selectionchange and touchmoves too.
-
-var queuedExplicitHydrationTargets = [];
-var discreteReplayableEvents = ['mousedown', 'mouseup', 'touchcancel', 'touchend', 'touchstart', 'auxclick', 'dblclick', 'pointercancel', 'pointerdown', 'pointerup', 'dragend', 'dragstart', 'drop', 'compositionend', 'compositionstart', 'keydown', 'keypress', 'keyup', 'input', 'textInput', // Intentionally camelCase
-'copy', 'cut', 'paste', 'click', 'change', 'contextmenu', 'reset', 'submit'];
-function isDiscreteEventThatRequiresHydration(eventType) {
-  return discreteReplayableEvents.indexOf(eventType) > -1;
-}
-
-function createQueuedReplayableEvent(blockedOn, domEventName, eventSystemFlags, targetContainer, nativeEvent) {
-  return {
-    blockedOn: blockedOn,
-    domEventName: domEventName,
-    eventSystemFlags: eventSystemFlags,
-    nativeEvent: nativeEvent,
-    targetContainers: [targetContainer]
-  };
-}
-
-function clearIfContinuousEvent(domEventName, nativeEvent) {
-  switch (domEventName) {
-    case 'focusin':
-    case 'focusout':
-      queuedFocus = null;
-      break;
-
-    case 'dragenter':
-    case 'dragleave':
-      queuedDrag = null;
-      break;
-
-    case 'mouseover':
-    case 'mouseout':
-      queuedMouse = null;
-      break;
-
-    case 'pointerover':
-    case 'pointerout':
-      {
-        var pointerId = nativeEvent.pointerId;
-        queuedPointers.delete(pointerId);
-        break;
-      }
-
-    case 'gotpointercapture':
-    case 'lostpointercapture':
-      {
-        var _pointerId = nativeEvent.pointerId;
-        queuedPointerCaptures.delete(_pointerId);
-        break;
-      }
-  }
-}
-
-function accumulateOrCreateContinuousQueuedReplayableEvent(existingQueuedEvent, blockedOn, domEventName, eventSystemFlags, targetContainer, nativeEvent) {
-  if (existingQueuedEvent === null || existingQueuedEvent.nativeEvent !== nativeEvent) {
-    var queuedEvent = createQueuedReplayableEvent(blockedOn, domEventName, eventSystemFlags, targetContainer, nativeEvent);
-
-    if (blockedOn !== null) {
-      var fiber = getInstanceFromNode(blockedOn);
-
-      if (fiber !== null) {
-        // Attempt to increase the priority of this target.
-        attemptContinuousHydration(fiber);
-      }
-    }
-
-    return queuedEvent;
-  } // If we have already queued this exact event, then it's because
-  // the different event systems have different DOM event listeners.
-  // We can accumulate the flags, and the targetContainers, and
-  // store a single event to be replayed.
-
-
-  existingQueuedEvent.eventSystemFlags |= eventSystemFlags;
-  var targetContainers = existingQueuedEvent.targetContainers;
-
-  if (targetContainer !== null && targetContainers.indexOf(targetContainer) === -1) {
-    targetContainers.push(targetContainer);
-  }
-
-  return existingQueuedEvent;
-}
-
-function queueIfContinuousEvent(blockedOn, domEventName, eventSystemFlags, targetContainer, nativeEvent) {
-  // These set relatedTarget to null because the replayed event will be treated as if we
-  // moved from outside the window (no target) onto the target once it hydrates.
-  // Instead of mutating we could clone the event.
-  switch (domEventName) {
-    case 'focusin':
-      {
-        var focusEvent = nativeEvent;
-        queuedFocus = accumulateOrCreateContinuousQueuedReplayableEvent(queuedFocus, blockedOn, domEventName, eventSystemFlags, targetContainer, focusEvent);
-        return true;
-      }
-
-    case 'dragenter':
-      {
-        var dragEvent = nativeEvent;
-        queuedDrag = accumulateOrCreateContinuousQueuedReplayableEvent(queuedDrag, blockedOn, domEventName, eventSystemFlags, targetContainer, dragEvent);
-        return true;
-      }
-
-    case 'mouseover':
-      {
-        var mouseEvent = nativeEvent;
-        queuedMouse = accumulateOrCreateContinuousQueuedReplayableEvent(queuedMouse, blockedOn, domEventName, eventSystemFlags, targetContainer, mouseEvent);
-        return true;
-      }
-
-    case 'pointerover':
-      {
-        var pointerEvent = nativeEvent;
-        var pointerId = pointerEvent.pointerId;
-        queuedPointers.set(pointerId, accumulateOrCreateContinuousQueuedReplayableEvent(queuedPointers.get(pointerId) || null, blockedOn, domEventName, eventSystemFlags, targetContainer, pointerEvent));
-        return true;
-      }
-
-    case 'gotpointercapture':
-      {
-        var _pointerEvent = nativeEvent;
-        var _pointerId2 = _pointerEvent.pointerId;
-        queuedPointerCaptures.set(_pointerId2, accumulateOrCreateContinuousQueuedReplayableEvent(queuedPointerCaptures.get(_pointerId2) || null, blockedOn, domEventName, eventSystemFlags, targetContainer, _pointerEvent));
-        return true;
-      }
-  }
-
-  return false;
-} // Check if this target is unblocked. Returns true if it's unblocked.
-
-function attemptExplicitHydrationTarget(queuedTarget) {
-  // TODO: This function shares a lot of logic with findInstanceBlockingEvent.
-  // Try to unify them. It's a bit tricky since it would require two return
-  // values.
-  var targetInst = getClosestInstanceFromNode(queuedTarget.target);
-
-  if (targetInst !== null) {
-    var nearestMounted = getNearestMountedFiber(targetInst);
-
-    if (nearestMounted !== null) {
-      var tag = nearestMounted.tag;
-
-      if (tag === SuspenseComponent) {
-        var instance = getSuspenseInstanceFromFiber(nearestMounted);
-
-        if (instance !== null) {
-          // We're blocked on hydrating this boundary.
-          // Increase its priority.
-          queuedTarget.blockedOn = instance;
-          runWithPriority(queuedTarget.priority, function () {
-            attemptHydrationAtCurrentPriority(nearestMounted);
-          });
-          return;
-        }
-      } else if (tag === HostRoot) {
-        var root = nearestMounted.stateNode;
-
-        if (isRootDehydrated(root)) {
-          queuedTarget.blockedOn = getContainerFromFiber(nearestMounted); // We don't currently have a way to increase the priority of
-          // a root other than sync.
-
-          return;
-        }
-      }
-    }
-  }
-
-  queuedTarget.blockedOn = null;
-}
-
-function queueExplicitHydrationTarget(target) {
-  // TODO: This will read the priority if it's dispatched by the React
-  // event system but not native events. Should read window.event.type, like
-  // we do for updates (getCurrentEventPriority).
-  var updatePriority = getCurrentUpdatePriority();
-  var queuedTarget = {
-    blockedOn: null,
-    target: target,
-    priority: updatePriority
-  };
-  var i = 0;
-
-  for (; i < queuedExplicitHydrationTargets.length; i++) {
-    // Stop once we hit the first target with lower priority than
-    if (!isHigherEventPriority(updatePriority, queuedExplicitHydrationTargets[i].priority)) {
-      break;
-    }
-  }
-
-  queuedExplicitHydrationTargets.splice(i, 0, queuedTarget);
-
-  if (i === 0) {
-    attemptExplicitHydrationTarget(queuedTarget);
-  }
-}
-
-function attemptReplayContinuousQueuedEvent(queuedEvent) {
-  if (queuedEvent.blockedOn !== null) {
-    return false;
-  }
-
-  var targetContainers = queuedEvent.targetContainers;
-
-  while (targetContainers.length > 0) {
-    var targetContainer = targetContainers[0];
-    var nextBlockedOn = findInstanceBlockingEvent(queuedEvent.domEventName, queuedEvent.eventSystemFlags, targetContainer, queuedEvent.nativeEvent);
-
-    if (nextBlockedOn === null) {
-      {
-        var nativeEvent = queuedEvent.nativeEvent;
-        var nativeEventClone = new nativeEvent.constructor(nativeEvent.type, nativeEvent);
-        setReplayingEvent(nativeEventClone);
-        nativeEvent.target.dispatchEvent(nativeEventClone);
-        resetReplayingEvent();
-      }
-    } else {
-      // We're still blocked. Try again later.
-      var fiber = getInstanceFromNode(nextBlockedOn);
-
-      if (fiber !== null) {
-        attemptContinuousHydration(fiber);
-      }
-
-      queuedEvent.blockedOn = nextBlockedOn;
-      return false;
-    } // This target container was successfully dispatched. Try the next.
-
-
-    targetContainers.shift();
-  }
-
-  return true;
-}
-
-function attemptReplayContinuousQueuedEventInMap(queuedEvent, key, map) {
-  if (attemptReplayContinuousQueuedEvent(queuedEvent)) {
-    map.delete(key);
-  }
-}
-
-function replayUnblockedEvents() {
-  hasScheduledReplayAttempt = false;
-
-
-  if (queuedFocus !== null && attemptReplayContinuousQueuedEvent(queuedFocus)) {
-    queuedFocus = null;
-  }
-
-  if (queuedDrag !== null && attemptReplayContinuousQueuedEvent(queuedDrag)) {
-    queuedDrag = null;
-  }
-
-  if (queuedMouse !== null && attemptReplayContinuousQueuedEvent(queuedMouse)) {
-    queuedMouse = null;
-  }
-
-  queuedPointers.forEach(attemptReplayContinuousQueuedEventInMap);
-  queuedPointerCaptures.forEach(attemptReplayContinuousQueuedEventInMap);
-}
-
-function scheduleCallbackIfUnblocked(queuedEvent, unblocked) {
-  if (queuedEvent.blockedOn === unblocked) {
-    queuedEvent.blockedOn = null;
-
-    if (!hasScheduledReplayAttempt) {
-      hasScheduledReplayAttempt = true; // Schedule a callback to attempt replaying as many events as are
-      // now unblocked. This first might not actually be unblocked yet.
-      // We could check it early to avoid scheduling an unnecessary callback.
-
-      Scheduler.unstable_scheduleCallback(Scheduler.unstable_NormalPriority, replayUnblockedEvents);
-    }
-  }
-}
-
-function retryIfBlockedOn(unblocked) {
-  // Mark anything that was blocked on this as no longer blocked
-  // and eligible for a replay.
-  if (queuedDiscreteEvents.length > 0) {
-    scheduleCallbackIfUnblocked(queuedDiscreteEvents[0], unblocked); // This is a exponential search for each boundary that commits. I think it's
-    // worth it because we expect very few discrete events to queue up and once
-    // we are actually fully unblocked it will be fast to replay them.
-
-    for (var i = 1; i < queuedDiscreteEvents.length; i++) {
-      var queuedEvent = queuedDiscreteEvents[i];
-
-      if (queuedEvent.blockedOn === unblocked) {
-        queuedEvent.blockedOn = null;
-      }
-    }
-  }
-
-  if (queuedFocus !== null) {
-    scheduleCallbackIfUnblocked(queuedFocus, unblocked);
-  }
-
-  if (queuedDrag !== null) {
-    scheduleCallbackIfUnblocked(queuedDrag, unblocked);
-  }
-
-  if (queuedMouse !== null) {
-    scheduleCallbackIfUnblocked(queuedMouse, unblocked);
-  }
-
-  var unblock = function (queuedEvent) {
-    return scheduleCallbackIfUnblocked(queuedEvent, unblocked);
-  };
-
-  queuedPointers.forEach(unblock);
-  queuedPointerCaptures.forEach(unblock);
-
-  for (var _i = 0; _i < queuedExplicitHydrationTargets.length; _i++) {
-    var queuedTarget = queuedExplicitHydrationTargets[_i];
-
-    if (queuedTarget.blockedOn === unblocked) {
-      queuedTarget.blockedOn = null;
-    }
-  }
-
-  while (queuedExplicitHydrationTargets.length > 0) {
-    var nextExplicitTarget = queuedExplicitHydrationTargets[0];
-
-    if (nextExplicitTarget.blockedOn !== null) {
-      // We're still blocked.
-      break;
-    } else {
-      attemptExplicitHydrationTarget(nextExplicitTarget);
-
-      if (nextExplicitTarget.blockedOn === null) {
-        // We're unblocked.
-        queuedExplicitHydrationTargets.shift();
-      }
-    }
-  }
-}
-
-var ReactCurrentBatchConfig = ReactSharedInternals.ReactCurrentBatchConfig; // TODO: can we stop exporting these?
-
-var _enabled = true; // This is exported in FB builds for use by legacy FB layer infra.
-// We'd like to remove this but it's not clear if this is safe.
-
-function setEnabled(enabled) {
-  _enabled = !!enabled;
-}
-function isEnabled() {
-  return _enabled;
-}
-function createEventListenerWrapperWithPriority(targetContainer, domEventName, eventSystemFlags) {
-  var eventPriority = getEventPriority(domEventName);
-  var listenerWrapper;
-
-  switch (eventPriority) {
-    case DiscreteEventPriority:
-      listenerWrapper = dispatchDiscreteEvent;
-      break;
-
-    case ContinuousEventPriority:
-      listenerWrapper = dispatchContinuousEvent;
-      break;
-
-    case DefaultEventPriority:
-    default:
-      listenerWrapper = dispatchEvent;
-      break;
-  }
-
-  return listenerWrapper.bind(null, domEventName, eventSystemFlags, targetContainer);
-}
-
-function dispatchDiscreteEvent(domEventName, eventSystemFlags, container, nativeEvent) {
-  var previousPriority = getCurrentUpdatePriority();
-  var prevTransition = ReactCurrentBatchConfig.transition;
-  ReactCurrentBatchConfig.transition = null;
-
-  try {
-    setCurrentUpdatePriority(DiscreteEventPriority);
-    dispatchEvent(domEventName, eventSystemFlags, container, nativeEvent);
-  } finally {
-    setCurrentUpdatePriority(previousPriority);
-    ReactCurrentBatchConfig.transition = prevTransition;
-  }
-}
-
-function dispatchContinuousEvent(domEventName, eventSystemFlags, container, nativeEvent) {
-  var previousPriority = getCurrentUpdatePriority();
-  var prevTransition = ReactCurrentBatchConfig.transition;
-  ReactCurrentBatchConfig.transition = null;
-
-  try {
-    setCurrentUpdatePriority(ContinuousEventPriority);
-    dispatchEvent(domEventName, eventSystemFlags, container, nativeEvent);
-  } finally {
-    setCurrentUpdatePriority(previousPriority);
-    ReactCurrentBatchConfig.transition = prevTransition;
-  }
-}
-
-function dispatchEvent(domEventName, eventSystemFlags, targetContainer, nativeEvent) {
-  if (!_enabled) {
-    return;
-  }
-
-  {
-    dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay(domEventName, eventSystemFlags, targetContainer, nativeEvent);
-  }
-}
-
-function dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay(domEventName, eventSystemFlags, targetContainer, nativeEvent) {
-  var blockedOn = findInstanceBlockingEvent(domEventName, eventSystemFlags, targetContainer, nativeEvent);
-
-  if (blockedOn === null) {
-    dispatchEventForPluginEventSystem(domEventName, eventSystemFlags, nativeEvent, return_targetInst, targetContainer);
-    clearIfContinuousEvent(domEventName, nativeEvent);
-    return;
-  }
-
-  if (queueIfContinuousEvent(blockedOn, domEventName, eventSystemFlags, targetContainer, nativeEvent)) {
-    nativeEvent.stopPropagation();
-    return;
-  } // We need to clear only if we didn't queue because
-  // queueing is accumulative.
-
-
-  clearIfContinuousEvent(domEventName, nativeEvent);
-
-  if (eventSystemFlags & IS_CAPTURE_PHASE && isDiscreteEventThatRequiresHydration(domEventName)) {
-    while (blockedOn !== null) {
-      var fiber = getInstanceFromNode(blockedOn);
-
-      if (fiber !== null) {
-        attemptSynchronousHydration(fiber);
-      }
-
-      var nextBlockedOn = findInstanceBlockingEvent(domEventName, eventSystemFlags, targetContainer, nativeEvent);
-
-      if (nextBlockedOn === null) {
-        dispatchEventForPluginEventSystem(domEventName, eventSystemFlags, nativeEvent, return_targetInst, targetContainer);
-      }
-
-      if (nextBlockedOn === blockedOn) {
-        break;
-      }
-
-      blockedOn = nextBlockedOn;
-    }
-
-    if (blockedOn !== null) {
-      nativeEvent.stopPropagation();
-    }
-
-    return;
-  } // This is not replayable so we'll invoke it but without a target,
-  // in case the event system needs to trace it.
-
-
-  dispatchEventForPluginEventSystem(domEventName, eventSystemFlags, nativeEvent, null, targetContainer);
-}
-
-var return_targetInst = null; // Returns a SuspenseInstance or Container if it's blocked.
-// The return_targetInst field above is conceptually part of the return value.
-
-function findInstanceBlockingEvent(domEventName, eventSystemFlags, targetContainer, nativeEvent) {
-  // TODO: Warn if _enabled is false.
-  return_targetInst = null;
-  var nativeEventTarget = getEventTarget(nativeEvent);
-  var targetInst = getClosestInstanceFromNode(nativeEventTarget);
-
-  if (targetInst !== null) {
-    var nearestMounted = getNearestMountedFiber(targetInst);
-
-    if (nearestMounted === null) {
-      // This tree has been unmounted already. Dispatch without a target.
-      targetInst = null;
-    } else {
-      var tag = nearestMounted.tag;
-
-      if (tag === SuspenseComponent) {
-        var instance = getSuspenseInstanceFromFiber(nearestMounted);
-
-        if (instance !== null) {
-          // Queue the event to be replayed later. Abort dispatching since we
-          // don't want this event dispatched twice through the event system.
-          // TODO: If this is the first discrete event in the queue. Schedule an increased
-          // priority for this boundary.
-          return instance;
-        } // This shouldn't happen, something went wrong but to avoid blocking
-        // the whole system, dispatch the event without a target.
-        // TODO: Warn.
-
-
-        targetInst = null;
-      } else if (tag === HostRoot) {
-        var root = nearestMounted.stateNode;
-
-        if (isRootDehydrated(root)) {
-          // If this happens during a replay something went wrong and it might block
-          // the whole system.
-          return getContainerFromFiber(nearestMounted);
-        }
-
-        targetInst = null;
-      } else if (nearestMounted !== targetInst) {
-        // If we get an event (ex: img onload) before committing that
-        // component's mount, ignore it for now (that is, treat it as if it was an
-        // event on a non-React tree). We might also consider queueing events and
-        // dispatching them after the mount.
-        targetInst = null;
-      }
-    }
-  }
-
-  return_targetInst = targetInst; // We're not blocked on anything.
-
-  return null;
-}
-function getEventPriority(domEventName) {
-  switch (domEventName) {
-    // Used by SimpleEventPlugin:
-    case 'cancel':
-    case 'click':
-    case 'close':
-    case 'contextmenu':
-    case 'copy':
-    case 'cut':
-    case 'auxclick':
-    case 'dblclick':
-    case 'dragend':
-    case 'dragstart':
-    case 'drop':
-    case 'focusin':
-    case 'focusout':
-    case 'input':
-    case 'invalid':
-    case 'keydown':
-    case 'keypress':
-    case 'keyup':
-    case 'mousedown':
-    case 'mouseup':
-    case 'paste':
-    case 'pause':
-    case 'play':
-    case 'pointercancel':
-    case 'pointerdown':
-    case 'pointerup':
-    case 'ratechange':
-    case 'reset':
-    case 'resize':
-    case 'seeked':
-    case 'submit':
-    case 'touchcancel':
-    case 'touchend':
-    case 'touchstart':
-    case 'volumechange': // Used by polyfills:
-    // eslint-disable-next-line no-fallthrough
-
-    case 'change':
-    case 'selectionchange':
-    case 'textInput':
-    case 'compositionstart':
-    case 'compositionend':
-    case 'compositionupdate': // Only enableCreateEventHandleAPI:
-    // eslint-disable-next-line no-fallthrough
-
-    case 'beforeblur':
-    case 'afterblur': // Not used by React but could be by user code:
-    // eslint-disable-next-line no-fallthrough
-
-    case 'beforeinput':
-    case 'blur':
-    case 'fullscreenchange':
-    case 'focus':
-    case 'hashchange':
-    case 'popstate':
-    case 'select':
-    case 'selectstart':
-      return DiscreteEventPriority;
-
-    case 'drag':
-    case 'dragenter':
-    case 'dragexit':
-    case 'dragleave':
-    case 'dragover':
-    case 'mousemove':
-    case 'mouseout':
-    case 'mouseover':
-    case 'pointermove':
-    case 'pointerout':
-    case 'pointerover':
-    case 'scroll':
-    case 'toggle':
-    case 'touchmove':
-    case 'wheel': // Not used by React but could be by user code:
-    // eslint-disable-next-line no-fallthrough
-
-    case 'mouseenter':
-    case 'mouseleave':
-    case 'pointerenter':
-    case 'pointerleave':
-      return ContinuousEventPriority;
-
-    case 'message':
-      {
-        // We might be in the Scheduler callback.
-        // Eventually this mechanism will be replaced by a check
-        // of the current priority on the native scheduler.
-        var schedulerPriority = getCurrentPriorityLevel();
-
-        switch (schedulerPriority) {
-          case ImmediatePriority:
-            return DiscreteEventPriority;
-
-          case UserBlockingPriority:
-            return ContinuousEventPriority;
-
-          case NormalPriority$1:
-          case LowPriority:
-            // TODO: Handle LowSchedulerPriority, somehow. Maybe the same lane as hydration.
-            return DefaultEventPriority;
-
-          case IdlePriority:
-            return IdleEventPriority;
-
-          default:
-            return DefaultEventPriority;
-        }
-      }
-
-    default:
-      return DefaultEventPriority;
-  }
-}
-
-function addEventBubbleListener(target, eventType, listener) {
-  target.addEventListener(eventType, listener, false);
-  return listener;
-}
-function addEventCaptureListener(target, eventType, listener) {
-  target.addEventListener(eventType, listener, true);
-  return listener;
-}
-function addEventCaptureListenerWithPassiveFlag(target, eventType, listener, passive) {
-  target.addEventListener(eventType, listener, {
-    capture: true,
-    passive: passive
-  });
-  return listener;
-}
-function addEventBubbleListenerWithPassiveFlag(target, eventType, listener, passive) {
-  target.addEventListener(eventType, listener, {
-    passive: passive
-  });
-  return listener;
-}
-
-/**
- * These variables store information about text content of a target node,
- * allowing comparison of content before and after a given event.
- *
- * Identify the node where selection currently begins, then observe
- * both its text content and its current position in the DOM. Since the
- * browser may natively replace the target node during composition, we can
- * use its position to find its replacement.
- *
- *
- */
-var root = null;
-var startText = null;
-var fallbackText = null;
-function initialize(nativeEventTarget) {
-  root = nativeEventTarget;
-  startText = getText();
-  return true;
-}
-function reset() {
-  root = null;
-  startText = null;
-  fallbackText = null;
-}
-function getData() {
-  if (fallbackText) {
-    return fallbackText;
-  }
-
-  var start;
-  var startValue = startText;
-  var startLength = startValue.length;
-  var end;
-  var endValue = getText();
-  var endLength = endValue.length;
-
-  for (start = 0; start < startLength; start++) {
-    if (startValue[start] !== endValue[start]) {
-      break;
-    }
-  }
-
-  var minEnd = startLength - start;
-
-  for (end = 1; end <= minEnd; end++) {
-    if (startValue[startLength - end] !== endValue[endLength - end]) {
-      break;
-    }
-  }
-
-  var sliceTail = end > 1 ? 1 - end : undefined;
-  fallbackText = endValue.slice(start, sliceTail);
-  return fallbackText;
-}
-function getText() {
-  if ('value' in root) {
-    return root.value;
-  }
-
-  return root.textContent;
 }
 
 /**
@@ -28923,6 +28240,705 @@ var WheelEventInterface = assign({}, MouseEventInterface, {
 });
 
 var SyntheticWheelEvent = createSyntheticEvent(WheelEventInterface);
+
+// has this definition built-in.
+
+var hasScheduledReplayAttempt = false; // The last of each continuous event type. We only need to replay the last one
+// if the last target was dehydrated.
+
+var queuedFocus = null;
+var queuedDrag = null;
+var queuedMouse = null; // For pointer events there can be one latest event per pointerId.
+
+var queuedPointers = new Map();
+var queuedPointerCaptures = new Map(); // We could consider replaying selectionchange and touchmoves too.
+
+var queuedExplicitHydrationTargets = [];
+var discreteReplayableEvents = ['mousedown', 'mouseup', 'touchcancel', 'touchend', 'touchstart', 'auxclick', 'dblclick', 'pointercancel', 'pointerdown', 'pointerup', 'dragend', 'dragstart', 'drop', 'compositionend', 'compositionstart', 'keydown', 'keypress', 'keyup', 'input', 'textInput', // Intentionally camelCase
+'copy', 'cut', 'paste', 'click', 'change', 'contextmenu', 'reset' // 'submit', // stopPropagation blocks the replay mechanism
+];
+function isDiscreteEventThatRequiresHydration(eventType) {
+  return discreteReplayableEvents.indexOf(eventType) > -1;
+}
+
+function createQueuedReplayableEvent(blockedOn, domEventName, eventSystemFlags, targetContainer, nativeEvent) {
+  return {
+    blockedOn: blockedOn,
+    domEventName: domEventName,
+    eventSystemFlags: eventSystemFlags,
+    nativeEvent: nativeEvent,
+    targetContainers: [targetContainer]
+  };
+} // Resets the replaying for this type of continuous event to no event.
+
+
+function clearIfContinuousEvent(domEventName, nativeEvent) {
+  switch (domEventName) {
+    case 'focusin':
+    case 'focusout':
+      queuedFocus = null;
+      break;
+
+    case 'dragenter':
+    case 'dragleave':
+      queuedDrag = null;
+      break;
+
+    case 'mouseover':
+    case 'mouseout':
+      queuedMouse = null;
+      break;
+
+    case 'pointerover':
+    case 'pointerout':
+      {
+        var pointerId = nativeEvent.pointerId;
+        queuedPointers.delete(pointerId);
+        break;
+      }
+
+    case 'gotpointercapture':
+    case 'lostpointercapture':
+      {
+        var _pointerId = nativeEvent.pointerId;
+        queuedPointerCaptures.delete(_pointerId);
+        break;
+      }
+  }
+}
+
+function accumulateOrCreateContinuousQueuedReplayableEvent(existingQueuedEvent, blockedOn, domEventName, eventSystemFlags, targetContainer, nativeEvent) {
+  if (existingQueuedEvent === null || existingQueuedEvent.nativeEvent !== nativeEvent) {
+    var queuedEvent = createQueuedReplayableEvent(blockedOn, domEventName, eventSystemFlags, targetContainer, nativeEvent);
+
+    if (blockedOn !== null) {
+      var fiber = getInstanceFromNode(blockedOn);
+
+      if (fiber !== null) {
+        // Attempt to increase the priority of this target.
+        attemptContinuousHydration(fiber);
+      }
+    }
+
+    return queuedEvent;
+  } // If we have already queued this exact event, then it's because
+  // the different event systems have different DOM event listeners.
+  // We can accumulate the flags, and the targetContainers, and
+  // store a single event to be replayed.
+
+
+  existingQueuedEvent.eventSystemFlags |= eventSystemFlags;
+  var targetContainers = existingQueuedEvent.targetContainers;
+
+  if (targetContainer !== null && targetContainers.indexOf(targetContainer) === -1) {
+    targetContainers.push(targetContainer);
+  }
+
+  return existingQueuedEvent;
+}
+
+function queueIfContinuousEvent(blockedOn, domEventName, eventSystemFlags, targetContainer, nativeEvent) {
+  // These set relatedTarget to null because the replayed event will be treated as if we
+  // moved from outside the window (no target) onto the target once it hydrates.
+  // Instead of mutating we could clone the event.
+  switch (domEventName) {
+    case 'focusin':
+      {
+        var focusEvent = nativeEvent;
+        queuedFocus = accumulateOrCreateContinuousQueuedReplayableEvent(queuedFocus, blockedOn, domEventName, eventSystemFlags, targetContainer, focusEvent);
+        return true;
+      }
+
+    case 'dragenter':
+      {
+        var dragEvent = nativeEvent;
+        queuedDrag = accumulateOrCreateContinuousQueuedReplayableEvent(queuedDrag, blockedOn, domEventName, eventSystemFlags, targetContainer, dragEvent);
+        return true;
+      }
+
+    case 'mouseover':
+      {
+        var mouseEvent = nativeEvent;
+        queuedMouse = accumulateOrCreateContinuousQueuedReplayableEvent(queuedMouse, blockedOn, domEventName, eventSystemFlags, targetContainer, mouseEvent);
+        return true;
+      }
+
+    case 'pointerover':
+      {
+        var pointerEvent = nativeEvent;
+        var pointerId = pointerEvent.pointerId;
+        queuedPointers.set(pointerId, accumulateOrCreateContinuousQueuedReplayableEvent(queuedPointers.get(pointerId) || null, blockedOn, domEventName, eventSystemFlags, targetContainer, pointerEvent));
+        return true;
+      }
+
+    case 'gotpointercapture':
+      {
+        var _pointerEvent = nativeEvent;
+        var _pointerId2 = _pointerEvent.pointerId;
+        queuedPointerCaptures.set(_pointerId2, accumulateOrCreateContinuousQueuedReplayableEvent(queuedPointerCaptures.get(_pointerId2) || null, blockedOn, domEventName, eventSystemFlags, targetContainer, _pointerEvent));
+        return true;
+      }
+  }
+
+  return false;
+} // Check if this target is unblocked. Returns true if it's unblocked.
+
+function attemptExplicitHydrationTarget(queuedTarget) {
+  // TODO: This function shares a lot of logic with findInstanceBlockingEvent.
+  // Try to unify them. It's a bit tricky since it would require two return
+  // values.
+  var targetInst = getClosestInstanceFromNode(queuedTarget.target);
+
+  if (targetInst !== null) {
+    var nearestMounted = getNearestMountedFiber(targetInst);
+
+    if (nearestMounted !== null) {
+      var tag = nearestMounted.tag;
+
+      if (tag === SuspenseComponent) {
+        var instance = getSuspenseInstanceFromFiber(nearestMounted);
+
+        if (instance !== null) {
+          // We're blocked on hydrating this boundary.
+          // Increase its priority.
+          queuedTarget.blockedOn = instance;
+          runWithPriority(queuedTarget.priority, function () {
+            attemptHydrationAtCurrentPriority(nearestMounted);
+          });
+          return;
+        }
+      } else if (tag === HostRoot) {
+        var root = nearestMounted.stateNode;
+
+        if (isRootDehydrated(root)) {
+          queuedTarget.blockedOn = getContainerFromFiber(nearestMounted); // We don't currently have a way to increase the priority of
+          // a root other than sync.
+
+          return;
+        }
+      }
+    }
+  }
+
+  queuedTarget.blockedOn = null;
+}
+
+function queueExplicitHydrationTarget(target) {
+  // TODO: This will read the priority if it's dispatched by the React
+  // event system but not native events. Should read window.event.type, like
+  // we do for updates (getCurrentEventPriority).
+  var updatePriority = getCurrentUpdatePriority();
+  var queuedTarget = {
+    blockedOn: null,
+    target: target,
+    priority: updatePriority
+  };
+  var i = 0;
+
+  for (; i < queuedExplicitHydrationTargets.length; i++) {
+    // Stop once we hit the first target with lower priority than
+    if (!isHigherEventPriority(updatePriority, queuedExplicitHydrationTargets[i].priority)) {
+      break;
+    }
+  }
+
+  queuedExplicitHydrationTargets.splice(i, 0, queuedTarget);
+
+  if (i === 0) {
+    attemptExplicitHydrationTarget(queuedTarget);
+  }
+}
+
+function attemptReplayContinuousQueuedEvent(queuedEvent) {
+  if (queuedEvent.blockedOn !== null) {
+    return false;
+  }
+
+  var targetContainers = queuedEvent.targetContainers;
+
+  while (targetContainers.length > 0) {
+    var nextBlockedOn = findInstanceBlockingEvent(queuedEvent.nativeEvent);
+
+    if (nextBlockedOn === null) {
+      var nativeEvent = queuedEvent.nativeEvent;
+      var nativeEventClone = new nativeEvent.constructor(nativeEvent.type, nativeEvent);
+      setReplayingEvent(nativeEventClone);
+      nativeEvent.target.dispatchEvent(nativeEventClone);
+      resetReplayingEvent();
+    } else {
+      // We're still blocked. Try again later.
+      var fiber = getInstanceFromNode(nextBlockedOn);
+
+      if (fiber !== null) {
+        attemptContinuousHydration(fiber);
+      }
+
+      queuedEvent.blockedOn = nextBlockedOn;
+      return false;
+    } // This target container was successfully dispatched. Try the next.
+
+
+    targetContainers.shift();
+  }
+
+  return true;
+}
+
+function attemptReplayContinuousQueuedEventInMap(queuedEvent, key, map) {
+  if (attemptReplayContinuousQueuedEvent(queuedEvent)) {
+    map.delete(key);
+  }
+}
+
+function replayUnblockedEvents() {
+  hasScheduledReplayAttempt = false; // Replay any continuous events.
+
+  if (queuedFocus !== null && attemptReplayContinuousQueuedEvent(queuedFocus)) {
+    queuedFocus = null;
+  }
+
+  if (queuedDrag !== null && attemptReplayContinuousQueuedEvent(queuedDrag)) {
+    queuedDrag = null;
+  }
+
+  if (queuedMouse !== null && attemptReplayContinuousQueuedEvent(queuedMouse)) {
+    queuedMouse = null;
+  }
+
+  queuedPointers.forEach(attemptReplayContinuousQueuedEventInMap);
+  queuedPointerCaptures.forEach(attemptReplayContinuousQueuedEventInMap);
+}
+
+function scheduleCallbackIfUnblocked(queuedEvent, unblocked) {
+  if (queuedEvent.blockedOn === unblocked) {
+    queuedEvent.blockedOn = null;
+
+    if (!hasScheduledReplayAttempt) {
+      hasScheduledReplayAttempt = true; // Schedule a callback to attempt replaying as many events as are
+      // now unblocked. This first might not actually be unblocked yet.
+      // We could check it early to avoid scheduling an unnecessary callback.
+
+      Scheduler.unstable_scheduleCallback(Scheduler.unstable_NormalPriority, replayUnblockedEvents);
+    }
+  }
+} // [form, submitter or action, formData...]
+
+function retryIfBlockedOn(unblocked) {
+  if (queuedFocus !== null) {
+    scheduleCallbackIfUnblocked(queuedFocus, unblocked);
+  }
+
+  if (queuedDrag !== null) {
+    scheduleCallbackIfUnblocked(queuedDrag, unblocked);
+  }
+
+  if (queuedMouse !== null) {
+    scheduleCallbackIfUnblocked(queuedMouse, unblocked);
+  }
+
+  var unblock = function (queuedEvent) {
+    return scheduleCallbackIfUnblocked(queuedEvent, unblocked);
+  };
+
+  queuedPointers.forEach(unblock);
+  queuedPointerCaptures.forEach(unblock);
+
+  for (var i = 0; i < queuedExplicitHydrationTargets.length; i++) {
+    var queuedTarget = queuedExplicitHydrationTargets[i];
+
+    if (queuedTarget.blockedOn === unblocked) {
+      queuedTarget.blockedOn = null;
+    }
+  }
+
+  while (queuedExplicitHydrationTargets.length > 0) {
+    var nextExplicitTarget = queuedExplicitHydrationTargets[0];
+
+    if (nextExplicitTarget.blockedOn !== null) {
+      // We're still blocked.
+      break;
+    } else {
+      attemptExplicitHydrationTarget(nextExplicitTarget);
+
+      if (nextExplicitTarget.blockedOn === null) {
+        // We're unblocked.
+        queuedExplicitHydrationTargets.shift();
+      }
+    }
+  }
+}
+
+var ReactCurrentBatchConfig = ReactSharedInternals.ReactCurrentBatchConfig; // TODO: can we stop exporting these?
+
+var _enabled = true; // This is exported in FB builds for use by legacy FB layer infra.
+// We'd like to remove this but it's not clear if this is safe.
+
+function setEnabled(enabled) {
+  _enabled = !!enabled;
+}
+function isEnabled() {
+  return _enabled;
+}
+function createEventListenerWrapperWithPriority(targetContainer, domEventName, eventSystemFlags) {
+  var eventPriority = getEventPriority(domEventName);
+  var listenerWrapper;
+
+  switch (eventPriority) {
+    case DiscreteEventPriority:
+      listenerWrapper = dispatchDiscreteEvent;
+      break;
+
+    case ContinuousEventPriority:
+      listenerWrapper = dispatchContinuousEvent;
+      break;
+
+    case DefaultEventPriority:
+    default:
+      listenerWrapper = dispatchEvent;
+      break;
+  }
+
+  return listenerWrapper.bind(null, domEventName, eventSystemFlags, targetContainer);
+}
+
+function dispatchDiscreteEvent(domEventName, eventSystemFlags, container, nativeEvent) {
+  var previousPriority = getCurrentUpdatePriority();
+  var prevTransition = ReactCurrentBatchConfig.transition;
+  ReactCurrentBatchConfig.transition = null;
+
+  try {
+    setCurrentUpdatePriority(DiscreteEventPriority);
+    dispatchEvent(domEventName, eventSystemFlags, container, nativeEvent);
+  } finally {
+    setCurrentUpdatePriority(previousPriority);
+    ReactCurrentBatchConfig.transition = prevTransition;
+  }
+}
+
+function dispatchContinuousEvent(domEventName, eventSystemFlags, container, nativeEvent) {
+  var previousPriority = getCurrentUpdatePriority();
+  var prevTransition = ReactCurrentBatchConfig.transition;
+  ReactCurrentBatchConfig.transition = null;
+
+  try {
+    setCurrentUpdatePriority(ContinuousEventPriority);
+    dispatchEvent(domEventName, eventSystemFlags, container, nativeEvent);
+  } finally {
+    setCurrentUpdatePriority(previousPriority);
+    ReactCurrentBatchConfig.transition = prevTransition;
+  }
+}
+
+function dispatchEvent(domEventName, eventSystemFlags, targetContainer, nativeEvent) {
+  if (!_enabled) {
+    return;
+  }
+
+  var blockedOn = findInstanceBlockingEvent(nativeEvent);
+
+  if (blockedOn === null) {
+    dispatchEventForPluginEventSystem(domEventName, eventSystemFlags, nativeEvent, return_targetInst, targetContainer);
+    clearIfContinuousEvent(domEventName, nativeEvent);
+    return;
+  }
+
+  if (queueIfContinuousEvent(blockedOn, domEventName, eventSystemFlags, targetContainer, nativeEvent)) {
+    nativeEvent.stopPropagation();
+    return;
+  } // We need to clear only if we didn't queue because
+  // queueing is accumulative.
+
+
+  clearIfContinuousEvent(domEventName, nativeEvent);
+
+  if (eventSystemFlags & IS_CAPTURE_PHASE && isDiscreteEventThatRequiresHydration(domEventName)) {
+    while (blockedOn !== null) {
+      var fiber = getInstanceFromNode(blockedOn);
+
+      if (fiber !== null) {
+        attemptSynchronousHydration(fiber);
+      }
+
+      var nextBlockedOn = findInstanceBlockingEvent(nativeEvent);
+
+      if (nextBlockedOn === null) {
+        dispatchEventForPluginEventSystem(domEventName, eventSystemFlags, nativeEvent, return_targetInst, targetContainer);
+      }
+
+      if (nextBlockedOn === blockedOn) {
+        break;
+      }
+
+      blockedOn = nextBlockedOn;
+    }
+
+    if (blockedOn !== null) {
+      nativeEvent.stopPropagation();
+    }
+
+    return;
+  } // This is not replayable so we'll invoke it but without a target,
+  // in case the event system needs to trace it.
+
+
+  dispatchEventForPluginEventSystem(domEventName, eventSystemFlags, nativeEvent, null, targetContainer);
+}
+function findInstanceBlockingEvent(nativeEvent) {
+  var nativeEventTarget = getEventTarget(nativeEvent);
+  return findInstanceBlockingTarget(nativeEventTarget);
+}
+var return_targetInst = null; // Returns a SuspenseInstance or Container if it's blocked.
+// The return_targetInst field above is conceptually part of the return value.
+
+function findInstanceBlockingTarget(targetNode) {
+  // TODO: Warn if _enabled is false.
+  return_targetInst = null;
+  var targetInst = getClosestInstanceFromNode(targetNode);
+
+  if (targetInst !== null) {
+    var nearestMounted = getNearestMountedFiber(targetInst);
+
+    if (nearestMounted === null) {
+      // This tree has been unmounted already. Dispatch without a target.
+      targetInst = null;
+    } else {
+      var tag = nearestMounted.tag;
+
+      if (tag === SuspenseComponent) {
+        var instance = getSuspenseInstanceFromFiber(nearestMounted);
+
+        if (instance !== null) {
+          // Queue the event to be replayed later. Abort dispatching since we
+          // don't want this event dispatched twice through the event system.
+          // TODO: If this is the first discrete event in the queue. Schedule an increased
+          // priority for this boundary.
+          return instance;
+        } // This shouldn't happen, something went wrong but to avoid blocking
+        // the whole system, dispatch the event without a target.
+        // TODO: Warn.
+
+
+        targetInst = null;
+      } else if (tag === HostRoot) {
+        var root = nearestMounted.stateNode;
+
+        if (isRootDehydrated(root)) {
+          // If this happens during a replay something went wrong and it might block
+          // the whole system.
+          return getContainerFromFiber(nearestMounted);
+        }
+
+        targetInst = null;
+      } else if (nearestMounted !== targetInst) {
+        // If we get an event (ex: img onload) before committing that
+        // component's mount, ignore it for now (that is, treat it as if it was an
+        // event on a non-React tree). We might also consider queueing events and
+        // dispatching them after the mount.
+        targetInst = null;
+      }
+    }
+  }
+
+  return_targetInst = targetInst; // We're not blocked on anything.
+
+  return null;
+}
+function getEventPriority(domEventName) {
+  switch (domEventName) {
+    // Used by SimpleEventPlugin:
+    case 'cancel':
+    case 'click':
+    case 'close':
+    case 'contextmenu':
+    case 'copy':
+    case 'cut':
+    case 'auxclick':
+    case 'dblclick':
+    case 'dragend':
+    case 'dragstart':
+    case 'drop':
+    case 'focusin':
+    case 'focusout':
+    case 'input':
+    case 'invalid':
+    case 'keydown':
+    case 'keypress':
+    case 'keyup':
+    case 'mousedown':
+    case 'mouseup':
+    case 'paste':
+    case 'pause':
+    case 'play':
+    case 'pointercancel':
+    case 'pointerdown':
+    case 'pointerup':
+    case 'ratechange':
+    case 'reset':
+    case 'resize':
+    case 'seeked':
+    case 'submit':
+    case 'touchcancel':
+    case 'touchend':
+    case 'touchstart':
+    case 'volumechange': // Used by polyfills: (fall through)
+
+    case 'change':
+    case 'selectionchange':
+    case 'textInput':
+    case 'compositionstart':
+    case 'compositionend':
+    case 'compositionupdate': // Only enableCreateEventHandleAPI: (fall through)
+
+    case 'beforeblur':
+    case 'afterblur': // Not used by React but could be by user code: (fall through)
+
+    case 'beforeinput':
+    case 'blur':
+    case 'fullscreenchange':
+    case 'focus':
+    case 'hashchange':
+    case 'popstate':
+    case 'select':
+    case 'selectstart':
+      return DiscreteEventPriority;
+
+    case 'drag':
+    case 'dragenter':
+    case 'dragexit':
+    case 'dragleave':
+    case 'dragover':
+    case 'mousemove':
+    case 'mouseout':
+    case 'mouseover':
+    case 'pointermove':
+    case 'pointerout':
+    case 'pointerover':
+    case 'scroll':
+    case 'toggle':
+    case 'touchmove':
+    case 'wheel': // Not used by React but could be by user code: (fall through)
+
+    case 'mouseenter':
+    case 'mouseleave':
+    case 'pointerenter':
+    case 'pointerleave':
+      return ContinuousEventPriority;
+
+    case 'message':
+      {
+        // We might be in the Scheduler callback.
+        // Eventually this mechanism will be replaced by a check
+        // of the current priority on the native scheduler.
+        var schedulerPriority = getCurrentPriorityLevel();
+
+        switch (schedulerPriority) {
+          case ImmediatePriority:
+            return DiscreteEventPriority;
+
+          case UserBlockingPriority:
+            return ContinuousEventPriority;
+
+          case NormalPriority$1:
+          case LowPriority:
+            // TODO: Handle LowSchedulerPriority, somehow. Maybe the same lane as hydration.
+            return DefaultEventPriority;
+
+          case IdlePriority:
+            return IdleEventPriority;
+
+          default:
+            return DefaultEventPriority;
+        }
+      }
+
+    default:
+      return DefaultEventPriority;
+  }
+}
+
+function addEventBubbleListener(target, eventType, listener) {
+  target.addEventListener(eventType, listener, false);
+  return listener;
+}
+function addEventCaptureListener(target, eventType, listener) {
+  target.addEventListener(eventType, listener, true);
+  return listener;
+}
+function addEventCaptureListenerWithPassiveFlag(target, eventType, listener, passive) {
+  target.addEventListener(eventType, listener, {
+    capture: true,
+    passive: passive
+  });
+  return listener;
+}
+function addEventBubbleListenerWithPassiveFlag(target, eventType, listener, passive) {
+  target.addEventListener(eventType, listener, {
+    passive: passive
+  });
+  return listener;
+}
+
+/**
+ * These variables store information about text content of a target node,
+ * allowing comparison of content before and after a given event.
+ *
+ * Identify the node where selection currently begins, then observe
+ * both its text content and its current position in the DOM. Since the
+ * browser may natively replace the target node during composition, we can
+ * use its position to find its replacement.
+ *
+ *
+ */
+var root = null;
+var startText = null;
+var fallbackText = null;
+function initialize(nativeEventTarget) {
+  root = nativeEventTarget;
+  startText = getText();
+  return true;
+}
+function reset() {
+  root = null;
+  startText = null;
+  fallbackText = null;
+}
+function getData() {
+  if (fallbackText) {
+    return fallbackText;
+  }
+
+  var start;
+  var startValue = startText;
+  var startLength = startValue.length;
+  var end;
+  var endValue = getText();
+  var endLength = endValue.length;
+
+  for (start = 0; start < startLength; start++) {
+    if (startValue[start] !== endValue[start]) {
+      break;
+    }
+  }
+
+  var minEnd = startLength - start;
+
+  for (end = 1; end <= minEnd; end++) {
+    if (startValue[startLength - end] !== endValue[endLength - end]) {
+      break;
+    }
+  }
+
+  var sliceTail = end > 1 ? 1 - end : undefined;
+  fallbackText = endValue.slice(start, sliceTail);
+  return fallbackText;
+}
+function getText() {
+  if ('value' in root) {
+    return root.value;
+  }
+
+  return root.textContent;
+}
 
 var END_KEYCODES = [9, 13, 27, 32]; // Tab, Return, Esc, Space
 
@@ -29536,16 +29552,18 @@ function getTargetInstForInputOrChangeEvent(domEventName, targetInst) {
   }
 }
 
-function handleControlledInputBlur(node) {
-  var state = node._wrapperState;
-
-  if (!state || !state.controlled || node.type !== 'number') {
+function handleControlledInputBlur(node, props) {
+  if (node.type !== 'number') {
     return;
   }
 
   {
-    // If controlled, assign the value attribute to the current value on blur
-    setDefaultValue(node, 'number', node.value);
+    var isControlled = props.value != null;
+
+    if (isControlled) {
+      // If controlled, assign the value attribute to the current value on blur
+      setDefaultValue(node, 'number', node.value);
+    }
   }
 }
 /**
@@ -29591,8 +29609,12 @@ function extractEvents$4(dispatchQueue, domEventName, targetInst, nativeEvent, n
   } // When blurring, set the value attribute for number inputs
 
 
-  if (domEventName === 'focusout') {
-    handleControlledInputBlur(targetNode);
+  if (domEventName === 'focusout' && targetInst) {
+    // These props aren't necessarily the most current but we warn for changing
+    // between controlled and uncontrolled, so it doesn't matter and the previous
+    // code was also broken for changes.
+    var props = targetInst.memoizedProps;
+    handleControlledInputBlur(targetNode, props);
   }
 }
 
@@ -30413,6 +30435,8 @@ function extractEvents$1(dispatchQueue, domEventName, targetInst, nativeEvent, n
       // Firefox creates a keypress event for function keys too. This removes
       // the unwanted keypress events. Enter is however both printable and
       // non-printable. One would expect Tab to be as well (but it isn't).
+      // TODO: Fixed in https://bugzilla.mozilla.org/show_bug.cgi?id=968056. Can
+      // probably remove.
       if (getEventCharCode(nativeEvent) === 0) {
         return;
       }
@@ -30442,6 +30466,8 @@ function extractEvents$1(dispatchQueue, domEventName, targetInst, nativeEvent, n
     case 'click':
       // Firefox creates a click event on right mouse clicks. This removes the
       // unwanted click events.
+      // TODO: Fixed in https://phabricator.services.mozilla.com/D26793. Can
+      // probably remove.
       if (nativeEvent.button === 2) {
         return;
       }
@@ -31062,21 +31088,17 @@ function getListenerSetKey(domEventName, capture) {
   return domEventName + "__" + (capture ? 'capture' : 'bubble');
 }
 
+var didWarnControlledToUncontrolled = false;
+var didWarnUncontrolledToControlled = false;
 var didWarnInvalidHydration = false;
-var warnedUnknownTags;
+var didWarnFormActionType = false;
+var didWarnFormActionName = false;
+var didWarnFormActionTarget = false;
+var didWarnFormActionMethod = false;
 var canDiffStyleForHydrationWarning;
 
 {
-  warnedUnknownTags = {
-    // There are working polyfills for <dialog>. Let people use it.
-    dialog: true,
-    // Electron ships a custom <webview> tag to display external web content in
-    // an isolated frame and process.
-    // This tag is not present in non Electron environments such as JSDom which
-    // is often used for testing purposes.
-    // @see https://electronjs.org/docs/api/webview-tag
-    webview: true
-  }; // IE 11 parses & normalizes the style attribute as opposed to other
+  // IE 11 parses & normalizes the style attribute as opposed to other
   // browsers. It adds spaces and sorts the properties in some
   // non-alphabetical order. Handling that would require sorting CSS
   // properties in the client & server versions or applying
@@ -31084,7 +31106,6 @@ var canDiffStyleForHydrationWarning;
   // normalized. Since it only affects IE, we're skipping style warnings
   // in that browser completely in favor of doing all that work.
   // See https://github.com/facebook/react/issues/11807
-
   canDiffStyleForHydrationWarning = canUseDOM && !document.documentMode;
 }
 
@@ -31103,9 +31124,76 @@ function validatePropertiesInDevelopment(type, props) {
   }
 }
 
+function validateFormActionInDevelopment(tag, key, value, props) {
+  {
+    if (value == null) {
+      return;
+    }
+
+    if (tag === 'form') {
+      if (key === 'formAction') {
+        error('You can only pass the formAction prop to <input> or <button>. Use the action prop on <form>.');
+      } else if (typeof value === 'function') {
+        if ((props.encType != null || props.method != null) && !didWarnFormActionMethod) {
+          didWarnFormActionMethod = true;
+
+          error('Cannot specify a encType or method for a form that specifies a ' + 'function as the action. React provides those automatically. ' + 'They will get overridden.');
+        }
+
+        if (props.target != null && !didWarnFormActionTarget) {
+          didWarnFormActionTarget = true;
+
+          error('Cannot specify a target for a form that specifies a function as the action. ' + 'The function will always be executed in the same window.');
+        }
+      }
+    } else if (tag === 'input' || tag === 'button') {
+      if (key === 'action') {
+        error('You can only pass the action prop to <form>. Use the formAction prop on <input> or <button>.');
+      } else if (tag === 'input' && props.type !== 'submit' && props.type !== 'image' && !didWarnFormActionType) {
+        didWarnFormActionType = true;
+
+        error('An input can only specify a formAction along with type="submit" or type="image".');
+      } else if (tag === 'button' && props.type != null && props.type !== 'submit' && !didWarnFormActionType) {
+        didWarnFormActionType = true;
+
+        error('A button can only specify a formAction along with type="submit" or no type.');
+      } else if (typeof value === 'function') {
+        // Function form actions cannot control the form properties
+        if (props.name != null && !didWarnFormActionName) {
+          didWarnFormActionName = true;
+
+          error('Cannot specify a "name" prop for a button that specifies a function as a formAction. ' + 'React needs it to encode which action should be invoked. It will get overridden.');
+        }
+
+        if ((props.formEncType != null || props.formMethod != null) && !didWarnFormActionMethod) {
+          didWarnFormActionMethod = true;
+
+          error('Cannot specify a formEncType or formMethod for a button that specifies a ' + 'function as a formAction. React provides those automatically. They will get overridden.');
+        }
+
+        if (props.formTarget != null && !didWarnFormActionTarget) {
+          didWarnFormActionTarget = true;
+
+          error('Cannot specify a formTarget for a button that specifies a function as a formAction. ' + 'The function will always be executed in the same window.');
+        }
+      }
+    } else {
+      if (key === 'action') {
+        error('You can only pass the action prop to <form>.');
+      } else {
+        error('You can only pass the formAction prop to <input> or <button>.');
+      }
+    }
+  }
+}
+
 function warnForPropDifference(propName, serverValue, clientValue) {
   {
     if (didWarnInvalidHydration) {
+      return;
+    }
+
+    if (serverValue === clientValue) {
       return;
     }
 
@@ -31156,7 +31244,7 @@ function normalizeHTML(parent, html) {
     // re-initializing custom elements if they exist. But this breaks
     // how <noscript> is being handled. So we use the same document.
     // See the discussion in https://github.com/facebook/react/pull/11157.
-    var testElement = parent.namespaceURI === HTML_NAMESPACE ? parent.ownerDocument.createElement(parent.tagName) : parent.ownerDocument.createElementNS(parent.namespaceURI, parent.tagName);
+    var testElement = parent.namespaceURI === MATH_NAMESPACE || parent.namespaceURI === SVG_NAMESPACE ? parent.ownerDocument.createElementNS(parent.namespaceURI, parent.tagName) : parent.ownerDocument.createElement(parent.tagName);
     testElement.innerHTML = html;
     return testElement.innerHTML;
   }
@@ -31203,9 +31291,6 @@ function checkForUnmatchedText(serverText, clientText, isConcurrentMode, shouldW
     throw new Error('Text content does not match server-rendered HTML.');
   }
 }
-function getOwnerDocumentFromRootContainer(rootContainerElement) {
-  return rootContainerElement.nodeType === DOCUMENT_NODE ? rootContainerElement : rootContainerElement.ownerDocument;
-}
 
 function noop$1() {}
 
@@ -31221,24 +31306,415 @@ function trapClickOnNonInteractiveElement(node) {
   // TODO: Only do this for the relevant Safaris maybe?
   node.onclick = noop$1;
 }
+var xlinkNamespace = 'http://www.w3.org/1999/xlink';
+var xmlNamespace = 'http://www.w3.org/XML/1998/namespace';
 
-function setProp(domElement, tag, key, value, isCustomComponentTag, props) {
+function setProp(domElement, tag, key, value, props, prevValue) {
+  switch (key) {
+    case 'children':
+      {
+        if (typeof value === 'string') {
+          {
+            validateTextNesting(value, tag);
+          } // Avoid setting initial textContent when the text is empty. In IE11 setting
+          // textContent on a <textarea> will cause the placeholder to not
+          // show within the <textarea> until it has been focused and blurred again.
+          // https://github.com/facebook/react/issues/6731#issuecomment-254874553
+
+
+          var canSetTextContent = (tag !== 'body') && (tag !== 'textarea' || value !== '');
+
+          if (canSetTextContent) {
+            setTextContent(domElement, value);
+          }
+        } else if (typeof value === 'number') {
+          {
+            validateTextNesting('' + value, tag);
+          }
+
+          var _canSetTextContent = tag !== 'body';
+
+          if (_canSetTextContent) {
+            setTextContent(domElement, '' + value);
+          }
+        }
+
+        break;
+      }
+    // These are very common props and therefore are in the beginning of the switch.
+    // TODO: aria-label is a very common prop but allows booleans so is not like the others
+    // but should ideally go in this list too.
+
+    case 'className':
+      setValueForKnownAttribute(domElement, 'class', value);
+      break;
+
+    case 'tabIndex':
+      // This has to be case sensitive in SVG.
+      setValueForKnownAttribute(domElement, 'tabindex', value);
+      break;
+
+    case 'dir':
+    case 'role':
+    case 'viewBox':
+    case 'width':
+    case 'height':
+      {
+        setValueForKnownAttribute(domElement, key, value);
+        break;
+      }
+
+    case 'style':
+      {
+        setValueForStyles(domElement, value);
+        break;
+      }
+    // These attributes accept URLs. These must not allow javascript: URLS.
+
+    case 'src':
+    case 'href':
+      {
+
+        if (value == null || typeof value === 'function' || typeof value === 'symbol' || typeof value === 'boolean') {
+          domElement.removeAttribute(key);
+          break;
+        } // `setAttribute` with objects becomes only `[object]` in IE8/9,
+        // ('' + value) makes it output the correct toString()-value.
+
+
+        {
+          checkAttributeStringCoercion(value, key);
+        }
+
+        var sanitizedValue = sanitizeURL('' + value);
+        domElement.setAttribute(key, sanitizedValue);
+        break;
+      }
+
+    case 'action':
+    case 'formAction':
+      {
+        // TODO: Consider moving these special cases to the form, input and button tags.
+        {
+          validateFormActionInDevelopment(tag, key, value, props);
+        }
+
+        if (value == null || typeof value === 'function' || typeof value === 'symbol' || typeof value === 'boolean') {
+          domElement.removeAttribute(key);
+          break;
+        } // `setAttribute` with objects becomes only `[object]` in IE8/9,
+        // ('' + value) makes it output the correct toString()-value.
+
+
+        {
+          checkAttributeStringCoercion(value, key);
+        }
+
+        var _sanitizedValue = sanitizeURL('' + value);
+
+        domElement.setAttribute(key, _sanitizedValue);
+        break;
+      }
+
+    case 'onClick':
+      {
+        // TODO: This cast may not be sound for SVG, MathML or custom elements.
+        if (value != null) {
+          if (typeof value !== 'function') {
+            warnForInvalidEventListener(key, value);
+          }
+
+          trapClickOnNonInteractiveElement(domElement);
+        }
+
+        break;
+      }
+
+    case 'onScroll':
+      {
+        if (value != null) {
+          if (typeof value !== 'function') {
+            warnForInvalidEventListener(key, value);
+          }
+
+          listenToNonDelegatedEvent('scroll', domElement);
+        }
+
+        break;
+      }
+
+    case 'dangerouslySetInnerHTML':
+      {
+        if (value != null) {
+          if (typeof value !== 'object' || !('__html' in value)) {
+            throw new Error('`props.dangerouslySetInnerHTML` must be in the form `{__html: ...}`. ' + 'Please visit https://reactjs.org/link/dangerously-set-inner-html ' + 'for more information.');
+          }
+
+          var nextHtml = value.__html;
+
+          if (nextHtml != null) {
+            if (props.children != null) {
+              throw new Error('Can only set one of `children` or `props.dangerouslySetInnerHTML`.');
+            }
+
+            {
+              setInnerHTML$1(domElement, nextHtml);
+            }
+          }
+        }
+
+        break;
+      }
+    // Note: `option.selected` is not updated if `select.multiple` is
+    // disabled with `removeAttribute`. We have special logic for handling this.
+
+    case 'multiple':
+      {
+        domElement.multiple = value && typeof value !== 'function' && typeof value !== 'symbol';
+        break;
+      }
+
+    case 'muted':
+      {
+        domElement.muted = value && typeof value !== 'function' && typeof value !== 'symbol';
+        break;
+      }
+
+    case 'suppressContentEditableWarning':
+    case 'suppressHydrationWarning':
+    case 'defaultValue': // Reserved
+
+    case 'defaultChecked':
+    case 'innerHTML':
+      {
+        // Noop
+        break;
+      }
+
+    case 'autoFocus':
+      {
+        // We polyfill it separately on the client during commit.
+        // We could have excluded it in the property list instead of
+        // adding a special case here, but then it wouldn't be emitted
+        // on server rendering (but we *do* want to emit it in SSR).
+        break;
+      }
+
+    case 'xlinkHref':
+      {
+        if (value == null || typeof value === 'function' || typeof value === 'boolean' || typeof value === 'symbol') {
+          domElement.removeAttribute('xlink:href');
+          break;
+        } // `setAttribute` with objects becomes only `[object]` in IE8/9,
+        // ('' + value) makes it output the correct toString()-value.
+
+
+        {
+          checkAttributeStringCoercion(value, key);
+        }
+
+        var _sanitizedValue2 = sanitizeURL('' + value);
+
+        domElement.setAttributeNS(xlinkNamespace, 'xlink:href', _sanitizedValue2);
+        break;
+      }
+
+    case 'contentEditable':
+    case 'spellCheck':
+    case 'draggable':
+    case 'value':
+    case 'autoReverse':
+    case 'externalResourcesRequired':
+    case 'focusable':
+    case 'preserveAlpha':
+      {
+        // Booleanish String
+        // These are "enumerated" attributes that accept "true" and "false".
+        // In React, we let users pass `true` and `false` even though technically
+        // these aren't boolean attributes (they are coerced to strings).
+        // The SVG attributes are case-sensitive. Since the HTML attributes are
+        // insensitive they also work even though we canonically use lower case.
+        if (value != null && typeof value !== 'function' && typeof value !== 'symbol') {
+          {
+            checkAttributeStringCoercion(value, key);
+          }
+
+          domElement.setAttribute(key, '' + value);
+        } else {
+          domElement.removeAttribute(key);
+        }
+
+        break;
+      }
+    // Boolean
+
+    case 'allowFullScreen':
+    case 'async':
+    case 'autoPlay':
+    case 'controls':
+    case 'default':
+    case 'defer':
+    case 'disabled':
+    case 'disablePictureInPicture':
+    case 'disableRemotePlayback':
+    case 'formNoValidate':
+    case 'hidden':
+    case 'loop':
+    case 'noModule':
+    case 'noValidate':
+    case 'open':
+    case 'playsInline':
+    case 'readOnly':
+    case 'required':
+    case 'reversed':
+    case 'scoped':
+    case 'seamless':
+    case 'itemScope':
+      {
+        if (value && typeof value !== 'function' && typeof value !== 'symbol') {
+          domElement.setAttribute(key, '');
+        } else {
+          domElement.removeAttribute(key);
+        }
+
+        break;
+      }
+    // Overloaded Boolean
+
+    case 'capture':
+    case 'download':
+      {
+        // An attribute that can be used as a flag as well as with a value.
+        // When true, it should be present (set either to an empty string or its name).
+        // When false, it should be omitted.
+        // For any other value, should be present with that value.
+        if (value === true) {
+          domElement.setAttribute(key, '');
+        } else if (value !== false && value != null && typeof value !== 'function' && typeof value !== 'symbol') {
+          {
+            checkAttributeStringCoercion(value, key);
+          }
+
+          domElement.setAttribute(key, value);
+        } else {
+          domElement.removeAttribute(key);
+        }
+
+        break;
+      }
+
+    case 'cols':
+    case 'rows':
+    case 'size':
+    case 'span':
+      {
+        // These are HTML attributes that must be positive numbers.
+        if (value != null && typeof value !== 'function' && typeof value !== 'symbol' && !isNaN(value) && value >= 1) {
+          {
+            checkAttributeStringCoercion(value, key);
+          }
+
+          domElement.setAttribute(key, value);
+        } else {
+          domElement.removeAttribute(key);
+        }
+
+        break;
+      }
+
+    case 'rowSpan':
+    case 'start':
+      {
+        // These are HTML attributes that must be numbers.
+        if (value != null && typeof value !== 'function' && typeof value !== 'symbol' && !isNaN(value)) {
+          {
+            checkAttributeStringCoercion(value, key);
+          }
+
+          domElement.setAttribute(key, value);
+        } else {
+          domElement.removeAttribute(key);
+        }
+
+        break;
+      }
+
+    case 'xlinkActuate':
+      setValueForNamespacedAttribute(domElement, xlinkNamespace, 'xlink:actuate', value);
+      break;
+
+    case 'xlinkArcrole':
+      setValueForNamespacedAttribute(domElement, xlinkNamespace, 'xlink:arcrole', value);
+      break;
+
+    case 'xlinkRole':
+      setValueForNamespacedAttribute(domElement, xlinkNamespace, 'xlink:role', value);
+      break;
+
+    case 'xlinkShow':
+      setValueForNamespacedAttribute(domElement, xlinkNamespace, 'xlink:show', value);
+      break;
+
+    case 'xlinkTitle':
+      setValueForNamespacedAttribute(domElement, xlinkNamespace, 'xlink:title', value);
+      break;
+
+    case 'xlinkType':
+      setValueForNamespacedAttribute(domElement, xlinkNamespace, 'xlink:type', value);
+      break;
+
+    case 'xmlBase':
+      setValueForNamespacedAttribute(domElement, xmlNamespace, 'xml:base', value);
+      break;
+
+    case 'xmlLang':
+      setValueForNamespacedAttribute(domElement, xmlNamespace, 'xml:lang', value);
+      break;
+
+    case 'xmlSpace':
+      setValueForNamespacedAttribute(domElement, xmlNamespace, 'xml:space', value);
+      break;
+    // Properties that should not be allowed on custom elements.
+
+    case 'is':
+      {
+        {
+          if (prevValue != null) {
+            error('Cannot update the "is" prop after it has been initialized.');
+          }
+        } // TODO: We shouldn't actually set this attribute, because we've already
+        // passed it to createElement. We don't also need the attribute.
+        // However, our tests currently query for it so it's plausible someone
+        // else does too so it's break.
+
+
+        setValueForAttribute(domElement, 'is', value);
+        break;
+      }
+
+    case 'innerText':
+    case 'textContent':
+
+    // Fall through
+
+    default:
+      {
+        if (key.length > 2 && (key[0] === 'o' || key[0] === 'O') && (key[1] === 'n' || key[1] === 'N')) {
+          if (registrationNameDependencies.hasOwnProperty(key) && value != null && typeof value !== 'function') {
+            warnForInvalidEventListener(key, value);
+          }
+        } else {
+          var attributeName = getAttributeAlias(key);
+          setValueForAttribute(domElement, attributeName, value);
+        }
+      }
+  }
+}
+
+function setPropOnCustomElement(domElement, tag, key, value, props, prevValue) {
   switch (key) {
     case 'style':
       {
-        if (value != null && typeof value !== 'object') {
-          throw new Error('The `style` prop expects a mapping from style properties to values, ' + "not a string. For example, style={{marginRight: spacing + 'em'}} when " + 'using JSX.');
-        }
-
-        {
-          if (value) {
-            // Freeze the next style object so that we can assume it won't be
-            // mutated. We have already warned for this in the past.
-            Object.freeze(value);
-          }
-        } // Relies on `updateStylesByID` not mutating `styleUpdates`.
-
-
         setValueForStyles(domElement, value);
         break;
       }
@@ -31269,21 +31745,9 @@ function setProp(domElement, tag, key, value, isCustomComponentTag, props) {
     case 'children':
       {
         if (typeof value === 'string') {
-          // Avoid setting initial textContent when the text is empty. In IE11 setting
-          // textContent on a <textarea> will cause the placeholder to not
-          // show within the <textarea> until it has been focused and blurred again.
-          // https://github.com/facebook/react/issues/6731#issuecomment-254874553
-          var canSetTextContent = (tag !== 'body') && (tag !== 'textarea' || value !== '');
-
-          if (canSetTextContent) {
-            setTextContent(domElement, value);
-          }
+          setTextContent(domElement, value);
         } else if (typeof value === 'number') {
-          var _canSetTextContent = tag !== 'body';
-
-          if (_canSetTextContent) {
-            setTextContent(domElement, '' + value);
-          }
+          setTextContent(domElement, '' + value);
         }
 
         break;
@@ -31318,21 +31782,9 @@ function setProp(domElement, tag, key, value, isCustomComponentTag, props) {
 
     case 'suppressContentEditableWarning':
     case 'suppressHydrationWarning':
-    case 'defaultValue': // Reserved
-
-    case 'defaultChecked':
     case 'innerHTML':
       {
         // Noop
-        break;
-      }
-
-    case 'autoFocus':
-      {
-        // We polyfill it separately on the client during commit.
-        // We could have excluded it in the property list instead of
-        // adding a special case here, but then it wouldn't be emitted
-        // on server rendering (but we *do* want to emit it in SSR).
         break;
       }
 
@@ -31340,7 +31792,7 @@ function setProp(domElement, tag, key, value, isCustomComponentTag, props) {
 
     case 'textContent':
 
-    // eslint-disable-next-line no-fallthrough
+    // Fall through
 
     default:
       {
@@ -31349,109 +31801,19 @@ function setProp(domElement, tag, key, value, isCustomComponentTag, props) {
             warnForInvalidEventListener(key, value);
           }
         } else {
-          if (isCustomComponentTag) {
-            setValueForPropertyOnCustomComponent(domElement, key, value);
-          } else {
-            setValueForProperty(domElement, key, value);
+          {
+            if (typeof value === 'boolean') {
+              // Special case before the new flag is on
+              value = '' + value;
+            }
+
+            setValueForAttribute(domElement, key, value);
           }
         }
       }
   }
-} // creates a script element that won't execute
-
-
-function createPotentiallyInlineScriptElement(ownerDocument) {
-  // Create the script via .innerHTML so its "parser-inserted" flag is
-  // set to true and it does not execute
-  var div = ownerDocument.createElement('div');
-
-  div.innerHTML = '<script><' + '/script>'; // eslint-disable-line
-  // This is guaranteed to yield a script element.
-
-  var firstChild = div.firstChild;
-  var element = div.removeChild(firstChild);
-  return element;
 }
-function createSelectElement(props, ownerDocument) {
-  var element;
 
-  if (typeof props.is === 'string') {
-    element = ownerDocument.createElement('select', {
-      is: props.is
-    });
-  } else {
-    // Separate else branch instead of using `props.is || undefined` above because of a Firefox bug.
-    // See discussion in https://github.com/facebook/react/pull/6896
-    // and discussion in https://bugzilla.mozilla.org/show_bug.cgi?id=1276240
-    element = ownerDocument.createElement('select');
-  }
-
-  if (props.multiple) {
-    element.multiple = true;
-  } else if (props.size) {
-    // Setting a size greater than 1 causes a select to behave like `multiple=true`, where
-    // it is possible that no option is selected.
-    //
-    // This is only necessary when a select in "single selection mode".
-    element.size = props.size;
-  }
-
-  return element;
-} // Creates elements in the HTML namesapce
-
-function createHTMLElement(type, props, ownerDocument) {
-  {
-    switch (type) {
-      case 'script':
-      case 'select':
-        error('createHTMLElement was called with a "%s" type. This type has special creation logic in React and should use the create function implemented specifically for it. This is a bug in React.', type);
-
-        break;
-
-      case 'svg':
-      case 'math':
-        error('createHTMLElement was called with a "%s" type. This type must be created with Document.createElementNS which this method does not implement. This is a bug in React.', type);
-
-    }
-  }
-
-  var isCustomComponentTag;
-  var element;
-
-  {
-    isCustomComponentTag = isCustomComponent(type, props); // Should this check be gated by parent namespace? Not sure we want to
-    // allow <SVG> or <mATH>.
-
-    if (!isCustomComponentTag && type !== type.toLowerCase()) {
-      error('<%s /> is using incorrect casing. ' + 'Use PascalCase for React components, ' + 'or lowercase for HTML elements.', type);
-    }
-  }
-
-  if (typeof props.is === 'string') {
-    element = ownerDocument.createElement(type, {
-      is: props.is
-    });
-  } else {
-    // Separate else branch instead of using `props.is || undefined` above because of a Firefox bug.
-    // See discussion in https://github.com/facebook/react/pull/6896
-    // and discussion in https://bugzilla.mozilla.org/show_bug.cgi?id=1276240
-    element = ownerDocument.createElement(type);
-  }
-
-  {
-    if (!isCustomComponentTag && // $FlowFixMe[method-unbinding]
-    Object.prototype.toString.call(element) === '[object HTMLUnknownElement]' && !hasOwnProperty.call(warnedUnknownTags, type)) {
-      warnedUnknownTags[type] = true;
-
-      error('The tag <%s> is unrecognized in this browser. ' + 'If you meant to render a React component, start its name with ' + 'an uppercase letter.', type);
-    }
-  }
-
-  return element;
-}
-function createTextNode(text, rootContainerElement) {
-  return getOwnerDocumentFromRootContainer(rootContainerElement).createTextNode(text);
-}
 function setInitialProperties(domElement, tag, props) {
   {
     validatePropertiesInDevelopment(tag, props);
@@ -31459,12 +31821,34 @@ function setInitialProperties(domElement, tag, props) {
 
 
   switch (tag) {
+    case 'div':
+    case 'span':
+    case 'svg':
+    case 'path':
+    case 'a':
+    case 'g':
+    case 'p':
+    case 'li':
+      {
+        // Fast track the most common tag types
+        break;
+      }
+
     case 'input':
       {
-        initWrapperState$2(domElement, props); // We listen to this event in case to ensure emulated bubble
+        {
+          checkControlledValueProps('input', props);
+        } // We listen to this event in case to ensure emulated bubble
         // listeners still fire for the invalid event.
 
+
         listenToNonDelegatedEvent('invalid', domElement);
+        var name = null;
+        var type = null;
+        var value = null;
+        var defaultValue = null;
+        var checked = null;
+        var defaultChecked = null;
 
         for (var propKey in props) {
           if (!props.hasOwnProperty(propKey)) {
@@ -31478,17 +31862,39 @@ function setInitialProperties(domElement, tag, props) {
           }
 
           switch (propKey) {
+            case 'name':
+              {
+                name = propValue;
+                break;
+              }
+
+            case 'type':
+              {
+                type = propValue;
+                break;
+              }
+
             case 'checked':
               {
-                var node = domElement;
-                var checked = propValue != null ? propValue : node._wrapperState.initialChecked;
-                node.checked = !!checked && typeof checked !== 'function' && checked !== 'symbol';
+                checked = propValue;
+                break;
+              }
+
+            case 'defaultChecked':
+              {
+                defaultChecked = propValue;
                 break;
               }
 
             case 'value':
               {
-                // This is handled by updateWrapper below.
+                value = propValue;
+                break;
+              }
+
+            case 'defaultValue':
+              {
+                defaultValue = propValue;
                 break;
               }
 
@@ -31501,28 +31907,34 @@ function setInitialProperties(domElement, tag, props) {
 
                 break;
               }
-            // defaultChecked and defaultValue are ignored by setProp
 
             default:
               {
-                setProp(domElement, tag, propKey, propValue, false, props);
+                setProp(domElement, tag, propKey, propValue, props, null);
               }
           }
         } // TODO: Make sure we check if this is still unmounted or do any clean
         // up necessary since we never stop tracking anymore.
 
 
+        validateInputProps(domElement, props);
+        initInput(domElement, value, defaultValue, checked, defaultChecked, type, name, false);
         track(domElement);
-        postMountWrapper$3(domElement, props, false);
         return;
       }
 
     case 'select':
       {
-        initWrapperState$1(domElement, props); // We listen to this event in case to ensure emulated bubble
+        {
+          checkControlledValueProps('select', props);
+        } // We listen to this event in case to ensure emulated bubble
         // listeners still fire for the invalid event.
 
+
         listenToNonDelegatedEvent('invalid', domElement);
+        var _value = null;
+        var _defaultValue = null;
+        var multiple = null;
 
         for (var _propKey in props) {
           if (!props.hasOwnProperty(_propKey)) {
@@ -31538,28 +31950,49 @@ function setInitialProperties(domElement, tag, props) {
           switch (_propKey) {
             case 'value':
               {
-                // This is handled by updateWrapper below.
+                _value = _propValue; // This is handled by initSelect below.
+
                 break;
               }
-            // defaultValue are ignored by setProp
+
+            case 'defaultValue':
+              {
+                _defaultValue = _propValue; // This is handled by initSelect below.
+
+                break;
+              }
+
+            case 'multiple':
+              {
+                multiple = _propValue; // TODO: We don't actually have to fall through here because we set it
+                // in initSelect anyway. We can remove the special case in setProp.
+              }
+            // Fallthrough
 
             default:
               {
-                setProp(domElement, tag, _propKey, _propValue, false, props);
+                setProp(domElement, tag, _propKey, _propValue, props, null);
               }
           }
         }
 
-        postMountWrapper$1(domElement, props);
+        validateSelectProps(domElement, props);
+        initSelect(domElement, _value, _defaultValue, multiple);
         return;
       }
 
     case 'textarea':
       {
-        initWrapperState(domElement, props); // We listen to this event in case to ensure emulated bubble
+        {
+          checkControlledValueProps('textarea', props);
+        } // We listen to this event in case to ensure emulated bubble
         // listeners still fire for the invalid event.
 
+
         listenToNonDelegatedEvent('invalid', domElement);
+        var _value2 = null;
+        var _defaultValue2 = null;
+        var children = null;
 
         for (var _propKey2 in props) {
           if (!props.hasOwnProperty(_propKey2)) {
@@ -31575,13 +32008,21 @@ function setInitialProperties(domElement, tag, props) {
           switch (_propKey2) {
             case 'value':
               {
-                // This is handled by updateWrapper below.
+                _value2 = _propValue2; // This is handled by initTextarea below.
+
+                break;
+              }
+
+            case 'defaultValue':
+              {
+                _defaultValue2 = _propValue2;
                 break;
               }
 
             case 'children':
               {
-                // TODO: Handled by initWrapperState above.
+                children = _propValue2; // Handled by initTextarea above.
+
                 break;
               }
 
@@ -31594,25 +32035,25 @@ function setInitialProperties(domElement, tag, props) {
 
                 break;
               }
-            // defaultValue is ignored by setProp
 
             default:
               {
-                setProp(domElement, tag, _propKey2, _propValue2, false, props);
+                setProp(domElement, tag, _propKey2, _propValue2, props, null);
               }
           }
         } // TODO: Make sure we check if this is still unmounted or do any clean
         // up necessary since we never stop tracking anymore.
 
 
+        validateTextareaProps(domElement, props);
+        initTextarea(domElement, _value2, _defaultValue2, children);
         track(domElement);
-        postMountWrapper(domElement);
         return;
       }
 
     case 'option':
       {
-        validateProps(domElement, props);
+        validateOptionProps(domElement, props);
 
         for (var _propKey3 in props) {
           if (!props.hasOwnProperty(_propKey3)) {
@@ -31625,10 +32066,21 @@ function setInitialProperties(domElement, tag, props) {
             continue;
           }
 
-          setProp(domElement, tag, _propKey3, _propValue3, false, props);
+          switch (_propKey3) {
+            case 'selected':
+              {
+                // TODO: Remove support for selected on option.
+                domElement.selected = _propValue3 && typeof _propValue3 !== 'function' && typeof _propValue3 !== 'symbol';
+                break;
+              }
+
+            default:
+              {
+                setProp(domElement, tag, _propKey3, _propValue3, props, null);
+              }
+          }
         }
 
-        postMountWrapper$2(domElement, props);
         return;
       }
 
@@ -31686,7 +32138,6 @@ function setInitialProperties(domElement, tag, props) {
         listenToNonDelegatedEvent('error', domElement);
         listenToNonDelegatedEvent('load', domElement); // We fallthrough to the return of the void elements
       }
-    // eslint-disable-next-line no-fallthrough
 
     case 'area':
     case 'base':
@@ -31723,30 +32174,48 @@ function setInitialProperties(domElement, tag, props) {
 
             default:
               {
-                // TODO: If the `is` prop is specified, this should go through the isCustomComponentTag flow.
-                setProp(domElement, tag, _propKey4, _propValue4, false, props);
+                setProp(domElement, tag, _propKey4, _propValue4, props, null);
               }
           }
         }
 
         return;
       }
+
+    default:
+      {
+        if (isCustomElement(tag)) {
+          for (var _propKey5 in props) {
+            if (!props.hasOwnProperty(_propKey5)) {
+              continue;
+            }
+
+            var _propValue5 = props[_propKey5];
+
+            if (_propValue5 == null) {
+              continue;
+            }
+
+            setPropOnCustomElement(domElement, tag, _propKey5, _propValue5, props);
+          }
+
+          return;
+        }
+      }
   }
 
-  var isCustomComponentTag = isCustomComponent(tag, props);
-
-  for (var _propKey5 in props) {
-    if (!props.hasOwnProperty(_propKey5)) {
+  for (var _propKey6 in props) {
+    if (!props.hasOwnProperty(_propKey6)) {
       continue;
     }
 
-    var _propValue5 = props[_propKey5];
+    var _propValue6 = props[_propKey6];
 
-    if (_propValue5 == null) {
+    if (_propValue6 == null) {
       continue;
     }
 
-    setProp(domElement, tag, _propKey5, _propValue5, isCustomComponentTag, props);
+    setProp(domElement, tag, _propKey6, _propValue6, props, null);
   }
 } // Calculate the diff between the two objects.
 
@@ -31838,6 +32307,13 @@ function diffProperties(domElement, tag, lastProps, nextProps) {
             break;
           }
 
+        case 'is':
+          {
+            error('Cannot update the "is" prop after it has been initialized.');
+          }
+
+        // Fall through
+
         default:
           {
             (updatePayload = updatePayload || []).push(propKey, nextProp);
@@ -31848,42 +32324,72 @@ function diffProperties(domElement, tag, lastProps, nextProps) {
 
   if (styleUpdates) {
     {
-      validateShorthandPropertyCollisionInDev(styleUpdates, nextProps.style);
+      validateShorthandPropertyCollisionInDev(lastProps.style, nextProps.style);
     }
 
     (updatePayload = updatePayload || []).push('style', styleUpdates);
   }
 
   return updatePayload;
-} // Apply the diff.
+}
 
-function updateProperties(domElement, updatePayload, tag, lastProps, nextProps) {
+function updatePropertiesWithDiff(domElement, updatePayload, tag, lastProps, nextProps) {
   switch (tag) {
+    case 'div':
+    case 'span':
+    case 'svg':
+    case 'path':
+    case 'a':
+    case 'g':
+    case 'p':
+    case 'li':
+      {
+        // Fast track the most common tag types
+        break;
+      }
+
     case 'input':
       {
-        // Update checked *before* name.
-        // In the middle of an update, it is possible to have multiple checked.
-        // When a checked radio tries to change name, browser makes another radio's checked false.
-        if (nextProps.type === 'radio' && nextProps.name != null) {
-          updateChecked(domElement, nextProps);
-        }
+        var name = nextProps.name;
+        var type = nextProps.type;
+        var value = nextProps.value;
+        var defaultValue = nextProps.defaultValue;
+        var lastDefaultValue = lastProps.defaultValue;
+        var checked = nextProps.checked;
+        var defaultChecked = nextProps.defaultChecked;
 
         for (var i = 0; i < updatePayload.length; i += 2) {
           var propKey = updatePayload[i];
           var propValue = updatePayload[i + 1];
 
           switch (propKey) {
+            case 'type':
+              {
+                break;
+              }
+
+            case 'name':
+              {
+                break;
+              }
+
             case 'checked':
               {
-                var node = domElement;
-                var checked = propValue != null ? propValue : node._wrapperState.initialChecked;
-                node.checked = !!checked && typeof checked !== 'function' && checked !== 'symbol';
+                break;
+              }
+
+            case 'defaultChecked':
+              {
                 break;
               }
 
             case 'value':
               {
-                // This is handled by updateWrapper below.
+                break;
+              }
+
+            case 'defaultValue':
+              {
                 break;
               }
 
@@ -31896,29 +32402,50 @@ function updateProperties(domElement, updatePayload, tag, lastProps, nextProps) 
 
                 break;
               }
-            // defaultChecked and defaultValue are ignored by setProp
 
             default:
               {
-                setProp(domElement, tag, propKey, propValue, false, nextProps);
+                setProp(domElement, tag, propKey, propValue, nextProps, lastProps[propKey]);
               }
+          }
+        }
+
+        {
+          var wasControlled = lastProps.type === 'checkbox' || lastProps.type === 'radio' ? lastProps.checked != null : lastProps.value != null;
+          var isControlled = nextProps.type === 'checkbox' || nextProps.type === 'radio' ? nextProps.checked != null : nextProps.value != null;
+
+          if (!wasControlled && isControlled && !didWarnUncontrolledToControlled) {
+            error('A component is changing an uncontrolled input to be controlled. ' + 'This is likely caused by the value changing from undefined to ' + 'a defined value, which should not happen. ' + 'Decide between using a controlled or uncontrolled input ' + 'element for the lifetime of the component. More info: https://reactjs.org/link/controlled-components');
+
+            didWarnUncontrolledToControlled = true;
+          }
+
+          if (wasControlled && !isControlled && !didWarnControlledToUncontrolled) {
+            error('A component is changing a controlled input to be uncontrolled. ' + 'This is likely caused by the value changing from a defined to ' + 'undefined, which should not happen. ' + 'Decide between using a controlled or uncontrolled input ' + 'element for the lifetime of the component. More info: https://reactjs.org/link/controlled-components');
+
+            didWarnControlledToUncontrolled = true;
           }
         } // Update the wrapper around inputs *after* updating props. This has to
         // happen after updating the rest of props. Otherwise HTML5 input validations
         // raise warnings and prevent the new value from being assigned.
 
 
-        updateWrapper$1(domElement, nextProps);
+        updateInput(domElement, value, defaultValue, lastDefaultValue, checked, defaultChecked, type, name);
         return;
       }
 
     case 'select':
       {
-        for (var _i = 0; _i < updatePayload.length; _i += 2) {
-          var _propKey6 = updatePayload[_i];
-          var _propValue6 = updatePayload[_i + 1];
+        var _value5 = nextProps.value;
+        var _defaultValue5 = nextProps.defaultValue;
+        var multiple = nextProps.multiple;
+        var wasMultiple = lastProps.multiple;
 
-          switch (_propKey6) {
+        for (var _i = 0; _i < updatePayload.length; _i += 2) {
+          var _propKey20 = updatePayload[_i];
+          var _propValue7 = updatePayload[_i + 1];
+
+          switch (_propKey20) {
             case 'value':
               {
                 // This is handled by updateWrapper below.
@@ -31928,24 +32455,27 @@ function updateProperties(domElement, updatePayload, tag, lastProps, nextProps) 
 
             default:
               {
-                setProp(domElement, tag, _propKey6, _propValue6, false, nextProps);
+                setProp(domElement, tag, _propKey20, _propValue7, nextProps, lastProps[_propKey20]);
               }
           }
         } // <select> value update needs to occur after <option> children
         // reconciliation
 
 
-        postUpdateWrapper(domElement, nextProps);
+        updateSelect(domElement, _value5, _defaultValue5, multiple, wasMultiple);
         return;
       }
 
     case 'textarea':
       {
-        for (var _i2 = 0; _i2 < updatePayload.length; _i2 += 2) {
-          var _propKey7 = updatePayload[_i2];
-          var _propValue7 = updatePayload[_i2 + 1];
+        var _value6 = nextProps.value;
+        var _defaultValue6 = nextProps.defaultValue;
 
-          switch (_propKey7) {
+        for (var _i2 = 0; _i2 < updatePayload.length; _i2 += 2) {
+          var _propKey21 = updatePayload[_i2];
+          var _propValue8 = updatePayload[_i2 + 1];
+
+          switch (_propKey21) {
             case 'value':
               {
                 // This is handled by updateWrapper below.
@@ -31960,7 +32490,7 @@ function updateProperties(domElement, updatePayload, tag, lastProps, nextProps) 
 
             case 'dangerouslySetInnerHTML':
               {
-                if (_propValue7 != null) {
+                if (_propValue8 != null) {
                   // TODO: Do we really need a special error message for this. It's also pretty blunt.
                   throw new Error('`dangerouslySetInnerHTML` does not make sense on <textarea>.');
                 }
@@ -31971,12 +32501,36 @@ function updateProperties(domElement, updatePayload, tag, lastProps, nextProps) 
 
             default:
               {
-                setProp(domElement, tag, _propKey7, _propValue7, false, nextProps);
+                setProp(domElement, tag, _propKey21, _propValue8, nextProps, lastProps[_propKey21]);
               }
           }
         }
 
-        updateWrapper(domElement, nextProps);
+        updateTextarea(domElement, _value6, _defaultValue6);
+        return;
+      }
+
+    case 'option':
+      {
+        for (var _i3 = 0; _i3 < updatePayload.length; _i3 += 2) {
+          var _propKey22 = updatePayload[_i3];
+          var _propValue9 = updatePayload[_i3 + 1];
+
+          switch (_propKey22) {
+            case 'selected':
+              {
+                // TODO: Remove support for selected on option.
+                domElement.selected = _propValue9 && typeof _propValue9 !== 'function' && typeof _propValue9 !== 'symbol';
+                break;
+              }
+
+            default:
+              {
+                setProp(domElement, tag, _propKey22, _propValue9, nextProps, lastProps[_propKey22]);
+              }
+          }
+        }
+
         return;
       }
 
@@ -31997,15 +32551,15 @@ function updateProperties(domElement, updatePayload, tag, lastProps, nextProps) 
     case 'menuitem':
       {
         // Void elements
-        for (var _i3 = 0; _i3 < updatePayload.length; _i3 += 2) {
-          var _propKey8 = updatePayload[_i3];
-          var _propValue8 = updatePayload[_i3 + 1];
+        for (var _i4 = 0; _i4 < updatePayload.length; _i4 += 2) {
+          var _propKey23 = updatePayload[_i4];
+          var _propValue10 = updatePayload[_i4 + 1];
 
-          switch (_propKey8) {
+          switch (_propKey23) {
             case 'children':
             case 'dangerouslySetInnerHTML':
               {
-                if (_propValue8 != null) {
+                if (_propValue10 != null) {
                   // TODO: Can we make this a DEV warning to avoid this deny list?
                   throw new Error(tag + " is a void element tag and must neither have `children` nor " + 'use `dangerouslySetInnerHTML`.');
                 }
@@ -32016,24 +32570,33 @@ function updateProperties(domElement, updatePayload, tag, lastProps, nextProps) 
 
             default:
               {
-                // TODO: If the `is` prop is specified, this should go through the isCustomComponentTag flow.
-                setProp(domElement, tag, _propKey8, _propValue8, false, nextProps);
+                setProp(domElement, tag, _propKey23, _propValue10, nextProps, lastProps[_propKey23]);
               }
           }
         }
 
         return;
       }
-  } // TODO: Handle wasCustomComponentTag. Changing "is" isn't valid.
-  // const wasCustomComponentTag = isCustomComponent(tag, lastProps);
+
+    default:
+      {
+        if (isCustomElement(tag)) {
+          for (var _i5 = 0; _i5 < updatePayload.length; _i5 += 2) {
+            var _propKey24 = updatePayload[_i5];
+            var _propValue11 = updatePayload[_i5 + 1];
+            setPropOnCustomElement(domElement, tag, _propKey24, _propValue11, nextProps);
+          }
+
+          return;
+        }
+      }
+  } // Apply the diff.
 
 
-  var isCustomComponentTag = isCustomComponent(tag, nextProps); // Apply the diff.
-
-  for (var _i4 = 0; _i4 < updatePayload.length; _i4 += 2) {
-    var _propKey9 = updatePayload[_i4];
-    var _propValue9 = updatePayload[_i4 + 1];
-    setProp(domElement, tag, _propKey9, _propValue9, isCustomComponentTag, nextProps);
+  for (var _i6 = 0; _i6 < updatePayload.length; _i6 += 2) {
+    var _propKey25 = updatePayload[_i6];
+    var _propValue12 = updatePayload[_i6 + 1];
+    setProp(domElement, tag, _propKey25, _propValue12, nextProps, lastProps[_propKey25]);
   }
 }
 
@@ -32057,28 +32620,317 @@ function diffHydratedStyles(domElement, value) {
   if (canDiffStyleForHydrationWarning) {
     var expectedStyle = createDangerousStringForStyles(value);
     var serverValue = domElement.getAttribute('style');
-
-    if (expectedStyle !== serverValue) {
-      warnForPropDifference('style', serverValue, expectedStyle);
-    }
+    warnForPropDifference('style', serverValue, expectedStyle);
   }
 }
 
-function diffHydratedCustomComponent(domElement, tag, props, parentNamespaceDev, extraAttributeNames) {
+function hydrateAttribute(domElement, propKey, attributeName, value, extraAttributes) {
+  extraAttributes.delete(attributeName);
+  var serverValue = domElement.getAttribute(attributeName);
+
+  if (serverValue === null) {
+    switch (typeof value) {
+      case 'undefined':
+      case 'function':
+      case 'symbol':
+      case 'boolean':
+        return;
+    }
+  } else {
+    if (value == null) ; else {
+      switch (typeof value) {
+        case 'function':
+        case 'symbol':
+        case 'boolean':
+          break;
+
+        default:
+          {
+            {
+              checkAttributeStringCoercion(value, propKey);
+            }
+
+            if (serverValue === '' + value) {
+              return;
+            }
+          }
+      }
+    }
+  }
+
+  warnForPropDifference(propKey, serverValue, value);
+}
+
+function hydrateBooleanAttribute(domElement, propKey, attributeName, value, extraAttributes) {
+  extraAttributes.delete(attributeName);
+  var serverValue = domElement.getAttribute(attributeName);
+
+  if (serverValue === null) {
+    switch (typeof value) {
+      case 'function':
+      case 'symbol':
+        return;
+    }
+
+    if (!value) {
+      return;
+    }
+  } else {
+    switch (typeof value) {
+      case 'function':
+      case 'symbol':
+        break;
+
+      default:
+        {
+          if (value) {
+            // If this was a boolean, it doesn't matter what the value is
+            // the fact that we have it is the same as the expected.
+            // As long as it's positive.
+            return;
+          }
+        }
+    }
+  }
+
+  warnForPropDifference(propKey, serverValue, value);
+}
+
+function hydrateOverloadedBooleanAttribute(domElement, propKey, attributeName, value, extraAttributes) {
+  extraAttributes.delete(attributeName);
+  var serverValue = domElement.getAttribute(attributeName);
+
+  if (serverValue === null) {
+    switch (typeof value) {
+      case 'undefined':
+      case 'function':
+      case 'symbol':
+        return;
+
+      default:
+        if (value === false) {
+          return;
+        }
+
+    }
+  } else {
+    if (value == null) ; else {
+      switch (typeof value) {
+        case 'function':
+        case 'symbol':
+          break;
+
+        case 'boolean':
+          if (value === true && serverValue === '') {
+            return;
+          }
+
+          break;
+
+        default:
+          {
+            {
+              checkAttributeStringCoercion(value, propKey);
+            }
+
+            if (serverValue === '' + value) {
+              return;
+            }
+          }
+      }
+    }
+  }
+
+  warnForPropDifference(propKey, serverValue, value);
+}
+
+function hydrateBooleanishAttribute(domElement, propKey, attributeName, value, extraAttributes) {
+  extraAttributes.delete(attributeName);
+  var serverValue = domElement.getAttribute(attributeName);
+
+  if (serverValue === null) {
+    switch (typeof value) {
+      case 'undefined':
+      case 'function':
+      case 'symbol':
+        return;
+    }
+  } else {
+    if (value == null) ; else {
+      switch (typeof value) {
+        case 'function':
+        case 'symbol':
+          break;
+
+        default:
+          {
+            {
+              checkAttributeStringCoercion(value, attributeName);
+            }
+
+            if (serverValue === '' + value) {
+              return;
+            }
+          }
+      }
+    }
+  }
+
+  warnForPropDifference(propKey, serverValue, value);
+}
+
+function hydrateNumericAttribute(domElement, propKey, attributeName, value, extraAttributes) {
+  extraAttributes.delete(attributeName);
+  var serverValue = domElement.getAttribute(attributeName);
+
+  if (serverValue === null) {
+    switch (typeof value) {
+      case 'undefined':
+      case 'function':
+      case 'symbol':
+      case 'boolean':
+        return;
+
+      default:
+        if (isNaN(value)) {
+          return;
+        }
+
+    }
+  } else {
+    if (value == null) ; else {
+      switch (typeof value) {
+        case 'function':
+        case 'symbol':
+        case 'boolean':
+          break;
+
+        default:
+          {
+            if (isNaN(value)) {
+              // We had an attribute but shouldn't have had one, so read it
+              // for the error message.
+              break;
+            }
+
+            {
+              checkAttributeStringCoercion(value, propKey);
+            }
+
+            if (serverValue === '' + value) {
+              return;
+            }
+          }
+      }
+    }
+  }
+
+  warnForPropDifference(propKey, serverValue, value);
+}
+
+function hydratePositiveNumericAttribute(domElement, propKey, attributeName, value, extraAttributes) {
+  extraAttributes.delete(attributeName);
+  var serverValue = domElement.getAttribute(attributeName);
+
+  if (serverValue === null) {
+    switch (typeof value) {
+      case 'undefined':
+      case 'function':
+      case 'symbol':
+      case 'boolean':
+        return;
+
+      default:
+        if (isNaN(value) || value < 1) {
+          return;
+        }
+
+    }
+  } else {
+    if (value == null) ; else {
+      switch (typeof value) {
+        case 'function':
+        case 'symbol':
+        case 'boolean':
+          break;
+
+        default:
+          {
+            if (isNaN(value) || value < 1) {
+              // We had an attribute but shouldn't have had one, so read it
+              // for the error message.
+              break;
+            }
+
+            {
+              checkAttributeStringCoercion(value, propKey);
+            }
+
+            if (serverValue === '' + value) {
+              return;
+            }
+          }
+      }
+    }
+  }
+
+  warnForPropDifference(propKey, serverValue, value);
+}
+
+function hydrateSanitizedAttribute(domElement, propKey, attributeName, value, extraAttributes) {
+  extraAttributes.delete(attributeName);
+  var serverValue = domElement.getAttribute(attributeName);
+
+  if (serverValue === null) {
+    switch (typeof value) {
+      case 'undefined':
+      case 'function':
+      case 'symbol':
+      case 'boolean':
+        return;
+    }
+  } else {
+    if (value == null) ; else {
+      switch (typeof value) {
+        case 'function':
+        case 'symbol':
+        case 'boolean':
+          break;
+
+        default:
+          {
+            {
+              checkAttributeStringCoercion(value, propKey);
+            }
+
+            var sanitizedValue = sanitizeURL('' + value);
+
+            if (serverValue === sanitizedValue) {
+              return;
+            }
+          }
+      }
+    }
+  }
+
+  warnForPropDifference(propKey, serverValue, value);
+}
+
+function diffHydratedCustomComponent(domElement, tag, props, hostContext, extraAttributes) {
   for (var propKey in props) {
     if (!props.hasOwnProperty(propKey)) {
       continue;
     }
 
-    var nextProp = props[propKey];
+    var value = props[propKey];
 
-    if (nextProp == null) {
+    if (value == null) {
       continue;
     }
 
     if (registrationNameDependencies.hasOwnProperty(propKey)) {
-      if (typeof nextProp !== 'function') {
-        warnForInvalidEventListener(propKey, nextProp);
+      if (typeof value !== 'function') {
+        warnForInvalidEventListener(propKey, value);
       }
 
       continue;
@@ -32103,21 +32955,18 @@ function diffHydratedCustomComponent(domElement, tag, props, parentNamespaceDev,
 
       case 'dangerouslySetInnerHTML':
         var serverHTML = domElement.innerHTML;
-        var nextHtml = nextProp ? nextProp.__html : undefined;
+        var nextHtml = value ? value.__html : undefined;
 
         if (nextHtml != null) {
           var expectedHTML = normalizeHTML(domElement, nextHtml);
-
-          if (expectedHTML !== serverHTML) {
-            warnForPropDifference(propKey, serverHTML, expectedHTML);
-          }
+          warnForPropDifference(propKey, serverHTML, expectedHTML);
         }
 
         continue;
 
       case 'style':
-        extraAttributeNames.delete(propKey);
-        diffHydratedStyles(domElement, nextProp);
+        extraAttributes.delete(propKey);
+        diffHydratedStyles(domElement, value);
         continue;
 
       case 'offsetParent':
@@ -32129,47 +32978,47 @@ function diffHydratedCustomComponent(domElement, tag, props, parentNamespaceDev,
       case 'outerText':
       case 'outerHTML':
 
-      // eslint-disable-next-line no-fallthrough
+      // Fall through
+
+      case 'className':
+
+      // Fall through
 
       default:
         {
-          var ownNamespaceDev = parentNamespaceDev;
+          // This is a DEV-only path
+          var hostContextDev = hostContext;
+          var hostContextProd = hostContextDev.context;
 
-          if (ownNamespaceDev === HTML_NAMESPACE) {
-            ownNamespaceDev = getIntrinsicNamespace(tag);
-          }
-
-          if (ownNamespaceDev === HTML_NAMESPACE) {
-            extraAttributeNames.delete(propKey.toLowerCase());
+          if (hostContextProd === HostContextNamespaceNone && tag !== 'svg' && tag !== 'math') {
+            extraAttributes.delete(propKey.toLowerCase());
           } else {
-            extraAttributeNames.delete(propKey);
+            extraAttributes.delete(propKey);
           }
 
-          var serverValue = getValueForAttributeOnCustomComponent(domElement, propKey, nextProp);
+          var _serverValue = getValueForAttributeOnCustomComponent(domElement, propKey, value);
 
-          if (nextProp !== serverValue) {
-            warnForPropDifference(propKey, serverValue, nextProp);
-          }
+          warnForPropDifference(propKey, _serverValue, value);
         }
     }
   }
-}
+} // This is the exact URL string we expect that Fizz renders if we provide a function action.
 
-function diffHydratedGenericElement(domElement, tag, props, parentNamespaceDev, extraAttributeNames) {
+function diffHydratedGenericElement(domElement, tag, props, hostContext, extraAttributes) {
   for (var propKey in props) {
     if (!props.hasOwnProperty(propKey)) {
       continue;
     }
 
-    var nextProp = props[propKey];
+    var value = props[propKey];
 
-    if (nextProp == null) {
+    if (value == null) {
       continue;
     }
 
     if (registrationNameDependencies.hasOwnProperty(propKey)) {
-      if (typeof nextProp !== 'function') {
-        warnForInvalidEventListener(propKey, nextProp);
+      if (typeof value !== 'function') {
+        warnForInvalidEventListener(propKey, value);
       }
 
       continue;
@@ -32199,47 +33048,205 @@ function diffHydratedGenericElement(domElement, tag, props, parentNamespaceDev, 
 
       case 'dangerouslySetInnerHTML':
         var serverHTML = domElement.innerHTML;
-        var nextHtml = nextProp ? nextProp.__html : undefined;
+        var nextHtml = value ? value.__html : undefined;
 
         if (nextHtml != null) {
           var expectedHTML = normalizeHTML(domElement, nextHtml);
-
-          if (expectedHTML !== serverHTML) {
-            warnForPropDifference(propKey, serverHTML, expectedHTML);
-          }
+          warnForPropDifference(propKey, serverHTML, expectedHTML);
         }
 
+        continue;
+
+      case 'className':
+        hydrateAttribute(domElement, propKey, 'class', value, extraAttributes);
+        continue;
+
+      case 'tabIndex':
+        hydrateAttribute(domElement, propKey, 'tabindex', value, extraAttributes);
         continue;
 
       case 'style':
-        extraAttributeNames.delete(propKey);
-        diffHydratedStyles(domElement, nextProp);
+        extraAttributes.delete(propKey);
+        diffHydratedStyles(domElement, value);
         continue;
-      // eslint-disable-next-line no-fallthrough
 
-      default:
-        if ( // shouldIgnoreAttribute
-        // We have already filtered out null/undefined and reserved words.
-        propKey.length > 2 && (propKey[0] === 'o' || propKey[0] === 'O') && (propKey[1] === 'n' || propKey[1] === 'N')) {
+      case 'multiple':
+        {
+          extraAttributes.delete(propKey);
+          var serverValue = domElement.multiple;
+          warnForPropDifference(propKey, serverValue, value);
           continue;
         }
 
-        var propertyInfo = getPropertyInfo(propKey);
-        var isMismatchDueToBadCasing = false;
-        var serverValue = void 0;
+      case 'muted':
+        {
+          extraAttributes.delete(propKey);
+          var _serverValue2 = domElement.muted;
+          warnForPropDifference(propKey, _serverValue2, value);
+          continue;
+        }
 
-        if (propertyInfo !== null) {
-          extraAttributeNames.delete(propertyInfo.attributeName);
-          serverValue = getValueForProperty(domElement, propKey, nextProp, propertyInfo);
-        } else {
-          var ownNamespaceDev = parentNamespaceDev;
+      case 'autoFocus':
+        {
+          extraAttributes.delete('autofocus');
+          var _serverValue3 = domElement.autofocus;
+          warnForPropDifference(propKey, _serverValue3, value);
+          continue;
+        }
 
-          if (ownNamespaceDev === HTML_NAMESPACE) {
-            ownNamespaceDev = getIntrinsicNamespace(tag);
+      case 'src':
+      case 'href':
+
+        hydrateSanitizedAttribute(domElement, propKey, propKey, value, extraAttributes);
+        continue;
+
+      case 'action':
+      case 'formAction':
+
+        hydrateSanitizedAttribute(domElement, propKey, propKey.toLowerCase(), value, extraAttributes);
+        continue;
+
+      case 'xlinkHref':
+        hydrateSanitizedAttribute(domElement, propKey, 'xlink:href', value, extraAttributes);
+        continue;
+
+      case 'contentEditable':
+        {
+          // Lower-case Booleanish String
+          hydrateBooleanishAttribute(domElement, propKey, 'contenteditable', value, extraAttributes);
+          continue;
+        }
+
+      case 'spellCheck':
+        {
+          // Lower-case Booleanish String
+          hydrateBooleanishAttribute(domElement, propKey, 'spellcheck', value, extraAttributes);
+          continue;
+        }
+
+      case 'draggable':
+      case 'autoReverse':
+      case 'externalResourcesRequired':
+      case 'focusable':
+      case 'preserveAlpha':
+        {
+          // Case-sensitive Booleanish String
+          hydrateBooleanishAttribute(domElement, propKey, propKey, value, extraAttributes);
+          continue;
+        }
+
+      case 'allowFullScreen':
+      case 'async':
+      case 'autoPlay':
+      case 'controls':
+      case 'default':
+      case 'defer':
+      case 'disabled':
+      case 'disablePictureInPicture':
+      case 'disableRemotePlayback':
+      case 'formNoValidate':
+      case 'hidden':
+      case 'loop':
+      case 'noModule':
+      case 'noValidate':
+      case 'open':
+      case 'playsInline':
+      case 'readOnly':
+      case 'required':
+      case 'reversed':
+      case 'scoped':
+      case 'seamless':
+      case 'itemScope':
+        {
+          // Some of these need to be lower case to remove them from the extraAttributes list.
+          hydrateBooleanAttribute(domElement, propKey, propKey.toLowerCase(), value, extraAttributes);
+          continue;
+        }
+
+      case 'capture':
+      case 'download':
+        {
+          hydrateOverloadedBooleanAttribute(domElement, propKey, propKey, value, extraAttributes);
+          continue;
+        }
+
+      case 'cols':
+      case 'rows':
+      case 'size':
+      case 'span':
+        {
+          hydratePositiveNumericAttribute(domElement, propKey, propKey, value, extraAttributes);
+          continue;
+        }
+
+      case 'rowSpan':
+        {
+          hydrateNumericAttribute(domElement, propKey, 'rowspan', value, extraAttributes);
+          continue;
+        }
+
+      case 'start':
+        {
+          hydrateNumericAttribute(domElement, propKey, propKey, value, extraAttributes);
+          continue;
+        }
+
+      case 'xHeight':
+        hydrateAttribute(domElement, propKey, 'x-height', value, extraAttributes);
+        continue;
+
+      case 'xlinkActuate':
+        hydrateAttribute(domElement, propKey, 'xlink:actuate', value, extraAttributes);
+        continue;
+
+      case 'xlinkArcrole':
+        hydrateAttribute(domElement, propKey, 'xlink:arcrole', value, extraAttributes);
+        continue;
+
+      case 'xlinkRole':
+        hydrateAttribute(domElement, propKey, 'xlink:role', value, extraAttributes);
+        continue;
+
+      case 'xlinkShow':
+        hydrateAttribute(domElement, propKey, 'xlink:show', value, extraAttributes);
+        continue;
+
+      case 'xlinkTitle':
+        hydrateAttribute(domElement, propKey, 'xlink:title', value, extraAttributes);
+        continue;
+
+      case 'xlinkType':
+        hydrateAttribute(domElement, propKey, 'xlink:type', value, extraAttributes);
+        continue;
+
+      case 'xmlBase':
+        hydrateAttribute(domElement, propKey, 'xml:base', value, extraAttributes);
+        continue;
+
+      case 'xmlLang':
+        hydrateAttribute(domElement, propKey, 'xml:lang', value, extraAttributes);
+        continue;
+
+      case 'xmlSpace':
+        hydrateAttribute(domElement, propKey, 'xml:space', value, extraAttributes);
+        continue;
+
+      default:
+        {
+          if ( // shouldIgnoreAttribute
+          // We have already filtered out null/undefined and reserved words.
+          propKey.length > 2 && (propKey[0] === 'o' || propKey[0] === 'O') && (propKey[1] === 'n' || propKey[1] === 'N')) {
+            continue;
           }
 
-          if (ownNamespaceDev === HTML_NAMESPACE) {
-            extraAttributeNames.delete(propKey.toLowerCase());
+          var attributeName = getAttributeAlias(propKey);
+          var isMismatchDueToBadCasing = false; // This is a DEV-only path
+
+          var hostContextDev = hostContext;
+          var hostContextProd = hostContextDev.context;
+
+          if (hostContextProd === HostContextNamespaceNone && tag !== 'svg' && tag !== 'math') {
+            extraAttributes.delete(attributeName.toLowerCase());
           } else {
             var standardName = getPossibleStandardName(propKey);
 
@@ -32250,24 +33257,23 @@ function diffHydratedGenericElement(domElement, tag, props, parentNamespaceDev, 
               // However, we already warn about bad casing elsewhere.
               // So we'll skip the misleading extra mismatch warning in this case.
               isMismatchDueToBadCasing = true;
-              extraAttributeNames.delete(standardName);
+              extraAttributes.delete(standardName);
             }
 
-            extraAttributeNames.delete(propKey);
+            extraAttributes.delete(attributeName);
           }
 
-          serverValue = getValueForAttribute(domElement, propKey, nextProp);
-        }
+          var _serverValue5 = getValueForAttribute(domElement, attributeName, value);
 
-        if (nextProp !== serverValue && !isMismatchDueToBadCasing) {
-          warnForPropDifference(propKey, serverValue, nextProp);
+          if (!isMismatchDueToBadCasing) {
+            warnForPropDifference(propKey, _serverValue5, value);
+          }
         }
-
     }
   }
 }
 
-function diffHydratedProperties(domElement, tag, props, isConcurrentMode, shouldWarnDev, parentNamespaceDev) {
+function diffHydratedProperties(domElement, tag, props, isConcurrentMode, shouldWarnDev, hostContext) {
   {
     validatePropertiesInDevelopment(tag, props);
   } // TODO: Make sure that we check isMounted before firing any of these events.
@@ -32319,41 +33325,53 @@ function diffHydratedProperties(domElement, tag, props, isConcurrentMode, should
       break;
 
     case 'input':
-      initWrapperState$2(domElement, props); // We listen to this event in case to ensure emulated bubble
+      {
+        checkControlledValueProps('input', props);
+      } // We listen to this event in case to ensure emulated bubble
       // listeners still fire for the invalid event.
+
 
       listenToNonDelegatedEvent('invalid', domElement); // TODO: Make sure we check if this is still unmounted or do any clean
       // up necessary since we never stop tracking anymore.
 
-      track(domElement); // For input and textarea we current always set the value property at
+      validateInputProps(domElement, props); // For input and textarea we current always set the value property at
       // post mount to force it to diverge from attributes. However, for
       // option and select we don't quite do the same thing and select
       // is not resilient to the DOM state changing so we don't do that here.
       // TODO: Consider not doing this for input and textarea.
 
-      postMountWrapper$3(domElement, props, true);
+      initInput(domElement, props.value, props.defaultValue, props.checked, props.defaultChecked, props.type, props.name, true);
+      track(domElement);
       break;
 
     case 'option':
-      validateProps(domElement, props);
+      validateOptionProps(domElement, props);
       break;
 
     case 'select':
-      initWrapperState$1(domElement, props); // We listen to this event in case to ensure emulated bubble
+      {
+        checkControlledValueProps('select', props);
+      } // We listen to this event in case to ensure emulated bubble
       // listeners still fire for the invalid event.
 
+
       listenToNonDelegatedEvent('invalid', domElement);
+      validateSelectProps(domElement, props);
       break;
 
     case 'textarea':
-      initWrapperState(domElement, props); // We listen to this event in case to ensure emulated bubble
+      {
+        checkControlledValueProps('textarea', props);
+      } // We listen to this event in case to ensure emulated bubble
       // listeners still fire for the invalid event.
+
 
       listenToNonDelegatedEvent('invalid', domElement); // TODO: Make sure we check if this is still unmounted or do any clean
       // up necessary since we never stop tracking anymore.
 
+      validateTextareaProps(domElement, props);
+      initTextarea(domElement, props.value, props.defaultValue, props.children);
       track(domElement);
-      postMountWrapper(domElement);
       break;
   }
 
@@ -32375,7 +33393,9 @@ function diffHydratedProperties(domElement, tag, props, isConcurrentMode, should
       }
 
       if (!isConcurrentMode || !enableClientRenderFallbackOnTextMismatch) {
-        updatePayload = ['children', children];
+        {
+          updatePayload = ['children', children];
+        }
       }
     }
   }
@@ -32390,11 +33410,11 @@ function diffHydratedProperties(domElement, tag, props, isConcurrentMode, should
   }
 
   if (shouldWarnDev) {
-    var extraAttributeNames = new Set();
+    var extraAttributes = new Set();
     var attributes = domElement.attributes;
 
-    for (var _i5 = 0; _i5 < attributes.length; _i5++) {
-      var name = attributes[_i5].name.toLowerCase();
+    for (var _i7 = 0; _i7 < attributes.length; _i7++) {
+      var name = attributes[_i7].name.toLowerCase();
 
       switch (name) {
         // Controlled attributes are not validated
@@ -32411,18 +33431,18 @@ function diffHydratedProperties(domElement, tag, props, isConcurrentMode, should
         default:
           // Intentionally use the original name.
           // See discussion in https://github.com/facebook/react/pull/10676.
-          extraAttributeNames.add(attributes[_i5].name);
+          extraAttributes.add(attributes[_i7].name);
       }
     }
 
-    if (isCustomComponent(tag, props)) {
-      diffHydratedCustomComponent(domElement, tag, props, parentNamespaceDev, extraAttributeNames);
+    if (isCustomElement(tag)) {
+      diffHydratedCustomComponent(domElement, tag, props, hostContext, extraAttributes);
     } else {
-      diffHydratedGenericElement(domElement, tag, props, parentNamespaceDev, extraAttributeNames);
+      diffHydratedGenericElement(domElement, tag, props, hostContext, extraAttributes);
     }
 
-    if (extraAttributeNames.size > 0 && props.suppressHydrationWarning !== true) {
-      warnForExtraAttributes(extraAttributeNames);
+    if (extraAttributes.size > 0 && props.suppressHydrationWarning !== true) {
+      warnForExtraAttributes(extraAttributes);
     }
   }
 
@@ -32487,343 +33507,16 @@ function warnForInsertedHydratedText(parentNode, text) {
 function restoreControlledState(domElement, tag, props) {
   switch (tag) {
     case 'input':
-      restoreControlledState$3(domElement, props);
+      restoreControlledInputState(domElement, props);
       return;
 
     case 'textarea':
-      restoreControlledState$1(domElement, props);
+      restoreControlledTextareaState(domElement, props);
       return;
 
     case 'select':
-      restoreControlledState$2(domElement, props);
+      restoreControlledSelectState(domElement, props);
       return;
-  }
-}
-
-// This validation code was written based on the HTML5 parsing spec:
-// https://html.spec.whatwg.org/multipage/syntax.html#has-an-element-in-scope
-//
-// Note: this does not catch all invalid nesting, nor does it try to (as it's
-// not clear what practical benefit doing so provides); instead, we warn only
-// for cases where the parser will give a parse tree differing from what React
-// intended. For example, <b><div></div></b> is invalid but we don't warn
-// because it still parses correctly; we do warn for other cases like nested
-// <p> tags where the beginning of the second element implicitly closes the
-// first, causing a confusing mess.
-// https://html.spec.whatwg.org/multipage/syntax.html#special
-var specialTags = ['address', 'applet', 'area', 'article', 'aside', 'base', 'basefont', 'bgsound', 'blockquote', 'body', 'br', 'button', 'caption', 'center', 'col', 'colgroup', 'dd', 'details', 'dir', 'div', 'dl', 'dt', 'embed', 'fieldset', 'figcaption', 'figure', 'footer', 'form', 'frame', 'frameset', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'head', 'header', 'hgroup', 'hr', 'html', 'iframe', 'img', 'input', 'isindex', 'li', 'link', 'listing', 'main', 'marquee', 'menu', 'menuitem', 'meta', 'nav', 'noembed', 'noframes', 'noscript', 'object', 'ol', 'p', 'param', 'plaintext', 'pre', 'script', 'section', 'select', 'source', 'style', 'summary', 'table', 'tbody', 'td', 'template', 'textarea', 'tfoot', 'th', 'thead', 'title', 'tr', 'track', 'ul', 'wbr', 'xmp']; // https://html.spec.whatwg.org/multipage/syntax.html#has-an-element-in-scope
-
-var inScopeTags = ['applet', 'caption', 'html', 'table', 'td', 'th', 'marquee', 'object', 'template', // https://html.spec.whatwg.org/multipage/syntax.html#html-integration-point
-// TODO: Distinguish by namespace here -- for <title>, including it here
-// errs on the side of fewer warnings
-'foreignObject', 'desc', 'title']; // https://html.spec.whatwg.org/multipage/syntax.html#has-an-element-in-button-scope
-
-var buttonScopeTags = inScopeTags.concat(['button']) ; // https://html.spec.whatwg.org/multipage/syntax.html#generate-implied-end-tags
-
-var impliedEndTags = ['dd', 'dt', 'li', 'option', 'optgroup', 'p', 'rp', 'rt'];
-var emptyAncestorInfoDev = {
-  current: null,
-  formTag: null,
-  aTagInScope: null,
-  buttonTagInScope: null,
-  nobrTagInScope: null,
-  pTagInButtonScope: null,
-  listItemTagAutoclosing: null,
-  dlItemTagAutoclosing: null,
-  containerTagInScope: null
-};
-
-function updatedAncestorInfoDev(oldInfo, tag) {
-  {
-    var ancestorInfo = assign({}, oldInfo || emptyAncestorInfoDev);
-
-    var info = {
-      tag: tag
-    };
-
-    if (inScopeTags.indexOf(tag) !== -1) {
-      ancestorInfo.aTagInScope = null;
-      ancestorInfo.buttonTagInScope = null;
-      ancestorInfo.nobrTagInScope = null;
-    }
-
-    if (buttonScopeTags.indexOf(tag) !== -1) {
-      ancestorInfo.pTagInButtonScope = null;
-    } // See rules for 'li', 'dd', 'dt' start tags in
-    // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-inbody
-
-
-    if (specialTags.indexOf(tag) !== -1 && tag !== 'address' && tag !== 'div' && tag !== 'p') {
-      ancestorInfo.listItemTagAutoclosing = null;
-      ancestorInfo.dlItemTagAutoclosing = null;
-    }
-
-    ancestorInfo.current = info;
-
-    if (tag === 'form') {
-      ancestorInfo.formTag = info;
-    }
-
-    if (tag === 'a') {
-      ancestorInfo.aTagInScope = info;
-    }
-
-    if (tag === 'button') {
-      ancestorInfo.buttonTagInScope = info;
-    }
-
-    if (tag === 'nobr') {
-      ancestorInfo.nobrTagInScope = info;
-    }
-
-    if (tag === 'p') {
-      ancestorInfo.pTagInButtonScope = info;
-    }
-
-    if (tag === 'li') {
-      ancestorInfo.listItemTagAutoclosing = info;
-    }
-
-    if (tag === 'dd' || tag === 'dt') {
-      ancestorInfo.dlItemTagAutoclosing = info;
-    }
-
-    if (tag === '#document' || tag === 'html') {
-      ancestorInfo.containerTagInScope = null;
-    } else if (!ancestorInfo.containerTagInScope) {
-      ancestorInfo.containerTagInScope = info;
-    }
-
-    return ancestorInfo;
-  }
-}
-/**
- * Returns whether
- */
-
-
-function isTagValidWithParent(tag, parentTag) {
-  // First, let's check if we're in an unusual parsing mode...
-  switch (parentTag) {
-    // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-inselect
-    case 'select':
-      return tag === 'option' || tag === 'optgroup' || tag === '#text';
-
-    case 'optgroup':
-      return tag === 'option' || tag === '#text';
-    // Strictly speaking, seeing an <option> doesn't mean we're in a <select>
-    // but
-
-    case 'option':
-      return tag === '#text';
-    // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-intd
-    // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-incaption
-    // No special behavior since these rules fall back to "in body" mode for
-    // all except special table nodes which cause bad parsing behavior anyway.
-    // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-intr
-
-    case 'tr':
-      return tag === 'th' || tag === 'td' || tag === 'style' || tag === 'script' || tag === 'template';
-    // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-intbody
-
-    case 'tbody':
-    case 'thead':
-    case 'tfoot':
-      return tag === 'tr' || tag === 'style' || tag === 'script' || tag === 'template';
-    // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-incolgroup
-
-    case 'colgroup':
-      return tag === 'col' || tag === 'template';
-    // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-intable
-
-    case 'table':
-      return tag === 'caption' || tag === 'colgroup' || tag === 'tbody' || tag === 'tfoot' || tag === 'thead' || tag === 'style' || tag === 'script' || tag === 'template';
-    // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-inhead
-
-    case 'head':
-      return tag === 'base' || tag === 'basefont' || tag === 'bgsound' || tag === 'link' || tag === 'meta' || tag === 'title' || tag === 'noscript' || tag === 'noframes' || tag === 'style' || tag === 'script' || tag === 'template';
-    // https://html.spec.whatwg.org/multipage/semantics.html#the-html-element
-
-    case 'html':
-      return tag === 'head' || tag === 'body' || tag === 'frameset';
-
-    case 'frameset':
-      return tag === 'frame';
-
-    case '#document':
-      return tag === 'html';
-  } // Probably in the "in body" parsing mode, so we outlaw only tag combos
-  // where the parsing rules cause implicit opens or closes to be added.
-  // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-inbody
-
-
-  switch (tag) {
-    case 'h1':
-    case 'h2':
-    case 'h3':
-    case 'h4':
-    case 'h5':
-    case 'h6':
-      return parentTag !== 'h1' && parentTag !== 'h2' && parentTag !== 'h3' && parentTag !== 'h4' && parentTag !== 'h5' && parentTag !== 'h6';
-
-    case 'rp':
-    case 'rt':
-      return impliedEndTags.indexOf(parentTag) === -1;
-
-    case 'body':
-    case 'caption':
-    case 'col':
-    case 'colgroup':
-    case 'frameset':
-    case 'frame':
-    case 'head':
-    case 'html':
-    case 'tbody':
-    case 'td':
-    case 'tfoot':
-    case 'th':
-    case 'thead':
-    case 'tr':
-      // These tags are only valid with a few parents that have special child
-      // parsing rules -- if we're down here, then none of those matched and
-      // so we allow it only if we don't know what the parent is, as all other
-      // cases are invalid.
-      return parentTag == null;
-  }
-
-  return true;
-}
-/**
- * Returns whether
- */
-
-
-function findInvalidAncestorForTag(tag, ancestorInfo) {
-  switch (tag) {
-    case 'address':
-    case 'article':
-    case 'aside':
-    case 'blockquote':
-    case 'center':
-    case 'details':
-    case 'dialog':
-    case 'dir':
-    case 'div':
-    case 'dl':
-    case 'fieldset':
-    case 'figcaption':
-    case 'figure':
-    case 'footer':
-    case 'header':
-    case 'hgroup':
-    case 'main':
-    case 'menu':
-    case 'nav':
-    case 'ol':
-    case 'p':
-    case 'section':
-    case 'summary':
-    case 'ul':
-    case 'pre':
-    case 'listing':
-    case 'table':
-    case 'hr':
-    case 'xmp':
-    case 'h1':
-    case 'h2':
-    case 'h3':
-    case 'h4':
-    case 'h5':
-    case 'h6':
-      return ancestorInfo.pTagInButtonScope;
-
-    case 'form':
-      return ancestorInfo.formTag || ancestorInfo.pTagInButtonScope;
-
-    case 'li':
-      return ancestorInfo.listItemTagAutoclosing;
-
-    case 'dd':
-    case 'dt':
-      return ancestorInfo.dlItemTagAutoclosing;
-
-    case 'button':
-      return ancestorInfo.buttonTagInScope;
-
-    case 'a':
-      // Spec says something about storing a list of markers, but it sounds
-      // equivalent to this check.
-      return ancestorInfo.aTagInScope;
-
-    case 'nobr':
-      return ancestorInfo.nobrTagInScope;
-  }
-
-  return null;
-}
-
-var didWarn = {};
-
-function validateDOMNesting(childTag, childText, ancestorInfo) {
-  {
-    ancestorInfo = ancestorInfo || emptyAncestorInfoDev;
-    var parentInfo = ancestorInfo.current;
-    var parentTag = parentInfo && parentInfo.tag;
-
-    if (childText != null) {
-      if (childTag != null) {
-        error('validateDOMNesting: when childText is passed, childTag should be null');
-      }
-
-      childTag = '#text';
-    } else if (childTag == null) {
-      error('validateDOMNesting: when childText or childTag must be provided');
-
-      return;
-    }
-
-    var invalidParent = isTagValidWithParent(childTag, parentTag) ? null : parentInfo;
-    var invalidAncestor = invalidParent ? null : findInvalidAncestorForTag(childTag, ancestorInfo);
-    var invalidParentOrAncestor = invalidParent || invalidAncestor;
-
-    if (!invalidParentOrAncestor) {
-      return;
-    }
-
-    var ancestorTag = invalidParentOrAncestor.tag;
-    var warnKey = // eslint-disable-next-line react-internal/safe-string-coercion
-    String(!!invalidParent) + '|' + childTag + '|' + ancestorTag;
-
-    if (didWarn[warnKey]) {
-      return;
-    }
-
-    didWarn[warnKey] = true;
-    var tagDisplayName = childTag;
-    var whitespaceInfo = '';
-
-    if (childTag === '#text') {
-      if (childText != null && /\S/.test(childText)) {
-        tagDisplayName = 'Text nodes';
-      } else {
-        tagDisplayName = 'Whitespace text nodes';
-        whitespaceInfo = " Make sure you don't have any extra whitespace between tags on " + 'each line of your source code.';
-      }
-    } else {
-      tagDisplayName = '<' + childTag + '>';
-    }
-
-    if (invalidParent) {
-      var info = '';
-
-      if (ancestorTag === 'table' && childTag === 'tr') {
-        info += ' Add a <tbody>, <thead> or <tfoot> to your code to match the DOM tree generated by ' + 'the browser.';
-      }
-
-      error('validateDOMNesting(...): %s cannot appear as a child of <%s>.%s%s', tagDisplayName, ancestorTag, whitespaceInfo, info);
-    } else {
-      error('validateDOMNesting(...): %s cannot appear as a descendant of ' + '<%s>.', tagDisplayName, ancestorTag);
-    }
   }
 }
 
@@ -32947,19 +33640,25 @@ function getValueDescriptorExpectingEnumForWarning(thing) {
   return thing === null ? '`null`' : thing === undefined ? '`undefined`' : thing === '' ? 'an empty string' : typeof thing === 'string' ? JSON.stringify(thing) : "something with type \"" + typeof thing + "\"";
 }
 
-var Dispatcher$1 = Internals.Dispatcher;
-
 var SUPPRESS_HYDRATION_WARNING = 'suppressHydrationWarning';
 var SUSPENSE_START_DATA = '$';
 var SUSPENSE_END_DATA = '/$';
 var SUSPENSE_PENDING_START_DATA = '$?';
 var SUSPENSE_FALLBACK_START_DATA = '$!';
 var STYLE = 'style';
+var HostContextNamespaceNone = 0;
+var HostContextNamespaceSvg = 1;
+var HostContextNamespaceMath = 2;
 var eventsEnabled = null;
 var selectionInformation = null;
+
+function getOwnerDocumentFromRootContainer(rootContainerElement) {
+  return rootContainerElement.nodeType === DOCUMENT_NODE ? rootContainerElement : rootContainerElement.ownerDocument;
+}
+
 function getRootHostContext(rootContainerInstance) {
   var type;
-  var namespace;
+  var context;
   var nodeType = rootContainerInstance.nodeType;
 
   switch (nodeType) {
@@ -32968,16 +33667,42 @@ function getRootHostContext(rootContainerInstance) {
       {
         type = nodeType === DOCUMENT_NODE ? '#document' : '#fragment';
         var root = rootContainerInstance.documentElement;
-        namespace = root ? root.namespaceURI : getChildNamespace(null, '');
+
+        if (root) {
+          var namespaceURI = root.namespaceURI;
+          context = namespaceURI ? getOwnHostContext(namespaceURI) : HostContextNamespaceNone;
+        } else {
+          context = HostContextNamespaceNone;
+        }
+
         break;
       }
 
     default:
       {
         var container = nodeType === COMMENT_NODE ? rootContainerInstance.parentNode : rootContainerInstance;
-        var ownNamespace = container.namespaceURI || null;
         type = container.tagName;
-        namespace = getChildNamespace(ownNamespace, type);
+        var _namespaceURI = container.namespaceURI;
+
+        if (!_namespaceURI) {
+          switch (type) {
+            case 'svg':
+              context = HostContextNamespaceSvg;
+              break;
+
+            case 'math':
+              context = HostContextNamespaceMath;
+              break;
+
+            default:
+              context = HostContextNamespaceNone;
+              break;
+          }
+        } else {
+          var ownContext = getOwnHostContext(_namespaceURI);
+          context = getChildHostContextProd(ownContext, type);
+        }
+
         break;
       }
   }
@@ -32986,18 +33711,56 @@ function getRootHostContext(rootContainerInstance) {
     var validatedTag = type.toLowerCase();
     var ancestorInfo = updatedAncestorInfoDev(null, validatedTag);
     return {
-      namespace: namespace,
+      context: context,
       ancestorInfo: ancestorInfo
     };
   }
 }
+
+function getOwnHostContext(namespaceURI) {
+  switch (namespaceURI) {
+    case SVG_NAMESPACE:
+      return HostContextNamespaceSvg;
+
+    case MATH_NAMESPACE:
+      return HostContextNamespaceMath;
+
+    default:
+      return HostContextNamespaceNone;
+  }
+}
+
+function getChildHostContextProd(parentNamespace, type) {
+  if (parentNamespace === HostContextNamespaceNone) {
+    // No (or default) parent namespace: potential entry point.
+    switch (type) {
+      case 'svg':
+        return HostContextNamespaceSvg;
+
+      case 'math':
+        return HostContextNamespaceMath;
+
+      default:
+        return HostContextNamespaceNone;
+    }
+  }
+
+  if (parentNamespace === HostContextNamespaceSvg && type === 'foreignObject') {
+    // We're leaving SVG.
+    return HostContextNamespaceNone;
+  } // By default, pass namespace below.
+
+
+  return parentNamespace;
+}
+
 function getChildHostContext(parentHostContext, type) {
   {
     var parentHostContextDev = parentHostContext;
-    var namespace = getChildNamespace(parentHostContextDev.namespace, type);
+    var context = getChildHostContextProd(parentHostContextDev.context, type);
     var ancestorInfo = updatedAncestorInfoDev(parentHostContextDev.ancestorInfo, type);
     return {
-      namespace: namespace,
+      context: context,
       ancestorInfo: ancestorInfo
     };
   }
@@ -33021,59 +33784,129 @@ function resetAfterCommit(containerInfo) {
 }
 function createHoistableInstance(type, props, rootContainerInstance, internalInstanceHandle) {
   var ownerDocument = getOwnerDocumentFromRootContainer(rootContainerInstance);
-  var domElement = createHTMLElement(type, props, ownerDocument);
+  var domElement = ownerDocument.createElement(type);
   precacheFiberNode(internalInstanceHandle, domElement);
   updateFiberProps(domElement, props);
   setInitialProperties(domElement, type, props);
   markNodeAsHoistable(domElement);
   return domElement;
 }
+var warnedUnknownTags = {
+  // There are working polyfills for <dialog>. Let people use it.
+  dialog: true,
+  // Electron ships a custom <webview> tag to display external web content in
+  // an isolated frame and process.
+  // This tag is not present in non Electron environments such as JSDom which
+  // is often used for testing purposes.
+  // @see https://electronjs.org/docs/api/webview-tag
+  webview: true
+};
 function createInstance(type, props, rootContainerInstance, hostContext, internalInstanceHandle) {
-  var namespace;
+  var hostContextProd;
 
   {
     // TODO: take namespace into account when validating.
     var hostContextDev = hostContext;
-    validateDOMNesting(type, null, hostContextDev.ancestorInfo);
-
-    if (typeof props.children === 'string' || typeof props.children === 'number') {
-      var string = '' + props.children;
-      var ownAncestorInfo = updatedAncestorInfoDev(hostContextDev.ancestorInfo, type);
-      validateDOMNesting(null, string, ownAncestorInfo);
-    }
-
-    namespace = hostContextDev.namespace;
+    validateDOMNesting(type, hostContextDev.ancestorInfo);
+    hostContextProd = hostContextDev.context;
   }
 
   var ownerDocument = getOwnerDocumentFromRootContainer(rootContainerInstance);
   var domElement;
 
-  switch (namespace) {
-    case SVG_NAMESPACE:
-    case MATH_NAMESPACE:
-      domElement = ownerDocument.createElementNS(namespace, type);
+  switch (hostContextProd) {
+    case HostContextNamespaceSvg:
+      domElement = ownerDocument.createElementNS(SVG_NAMESPACE, type);
+      break;
+
+    case HostContextNamespaceMath:
+      domElement = ownerDocument.createElementNS(MATH_NAMESPACE, type);
       break;
 
     default:
       switch (type) {
         case 'svg':
-          domElement = ownerDocument.createElementNS(SVG_NAMESPACE, type);
-          break;
+          {
+            domElement = ownerDocument.createElementNS(SVG_NAMESPACE, type);
+            break;
+          }
 
         case 'math':
-          domElement = ownerDocument.createElementNS(MATH_NAMESPACE, type);
-          break;
+          {
+            domElement = ownerDocument.createElementNS(MATH_NAMESPACE, type);
+            break;
+          }
 
         case 'script':
-          domElement = createPotentiallyInlineScriptElement(ownerDocument);
-          break;
+          {
+            // Create the script via .innerHTML so its "parser-inserted" flag is
+            // set to true and it does not execute
+            var div = ownerDocument.createElement('div');
+
+            div.innerHTML = '<script><' + '/script>'; // eslint-disable-line
+            // This is guaranteed to yield a script element.
+
+            var firstChild = div.firstChild;
+            domElement = div.removeChild(firstChild);
+            break;
+          }
 
         case 'select':
-          domElement = createSelectElement(props, ownerDocument);
-          break;
+          {
+            if (typeof props.is === 'string') {
+              domElement = ownerDocument.createElement('select', {
+                is: props.is
+              });
+            } else {
+              // Separate else branch instead of using `props.is || undefined` above because of a Firefox bug.
+              // See discussion in https://github.com/facebook/react/pull/6896
+              // and discussion in https://bugzilla.mozilla.org/show_bug.cgi?id=1276240
+              domElement = ownerDocument.createElement('select');
+            }
+
+            if (props.multiple) {
+              domElement.multiple = true;
+            } else if (props.size) {
+              // Setting a size greater than 1 causes a select to behave like `multiple=true`, where
+              // it is possible that no option is selected.
+              //
+              // This is only necessary when a select in "single selection mode".
+              domElement.size = props.size;
+            }
+
+            break;
+          }
 
         default:
-          domElement = createHTMLElement(type, props, ownerDocument);
+          {
+            if (typeof props.is === 'string') {
+              domElement = ownerDocument.createElement(type, {
+                is: props.is
+              });
+            } else {
+              // Separate else branch instead of using `props.is || undefined` above because of a Firefox bug.
+              // See discussion in https://github.com/facebook/react/pull/6896
+              // and discussion in https://bugzilla.mozilla.org/show_bug.cgi?id=1276240
+              domElement = ownerDocument.createElement(type);
+            }
+
+            {
+              if (type.indexOf('-') === -1) {
+                // We're not SVG/MathML and we don't have a dash, so we're not a custom element
+                // Even if you use `is`, these should be of known type and lower case.
+                if (type !== type.toLowerCase()) {
+                  error('<%s /> is using incorrect casing. ' + 'Use PascalCase for React components, ' + 'or lowercase for HTML elements.', type);
+                }
+
+                if ( // $FlowFixMe[method-unbinding]
+                Object.prototype.toString.call(domElement) === '[object HTMLUnknownElement]' && !hasOwnProperty.call(warnedUnknownTags, type)) {
+                  warnedUnknownTags[type] = true;
+
+                  error('The tag <%s> is unrecognized in this browser. ' + 'If you meant to render a React component, start its name with ' + 'an uppercase letter.', type);
+                }
+              }
+            }
+          }
       }
 
   }
@@ -33103,15 +33936,6 @@ function finalizeInitialChildren(domElement, type, props, hostContext) {
   }
 }
 function prepareUpdate(domElement, type, oldProps, newProps, hostContext) {
-  {
-    var hostContextDev = hostContext;
-
-    if (typeof newProps.children !== typeof oldProps.children && (typeof newProps.children === 'string' || typeof newProps.children === 'number')) {
-      var string = '' + newProps.children;
-      var ownAncestorInfo = updatedAncestorInfoDev(hostContextDev.ancestorInfo, type);
-      validateDOMNesting(null, string, ownAncestorInfo);
-    }
-  }
 
   return diffProperties(domElement, type, oldProps, newProps);
 }
@@ -33121,10 +33945,14 @@ function shouldSetTextContent(type, props) {
 function createTextInstance(text, rootContainerInstance, hostContext, internalInstanceHandle) {
   {
     var hostContextDev = hostContext;
-    validateDOMNesting(null, text, hostContextDev.ancestorInfo);
+    var ancestor = hostContextDev.ancestorInfo.current;
+
+    if (ancestor != null) {
+      validateTextNesting(text, ancestor.tag);
+    }
   }
 
-  var textNode = createTextNode(text, rootContainerInstance);
+  var textNode = getOwnerDocumentFromRootContainer(rootContainerInstance).createTextNode(text);
   precacheFiberNode(internalInstanceHandle, textNode);
   return textNode;
 }
@@ -33136,6 +33964,9 @@ function getCurrentEventPriority() {
   }
 
   return getEventPriority(currentEvent.type);
+}
+function shouldAttemptEagerTransition() {
+  return window.event && window.event.type === 'popstate';
 }
 // if a component just imports ReactDOM (e.g. for findDOMNode).
 // Some environments might not have setTimeout or clearTimeout.
@@ -33185,9 +34016,12 @@ function commitMount(domElement, type, newProps, internalInstanceHandle) {
   }
 }
 function commitUpdate(domElement, updatePayload, type, oldProps, newProps, internalInstanceHandle) {
-  // Apply the diff to the DOM node.
-  updateProperties(domElement, updatePayload, type, oldProps, newProps); // Update the props handle so that we know which props are the ones with
+  {
+    // Apply the diff to the DOM node.
+    updatePropertiesWithDiff(domElement, updatePayload, type, oldProps, newProps);
+  } // Update the props handle so that we know which props are the ones with
   // with current event handlers.
+
 
   updateFiberProps(domElement, newProps);
 }
@@ -33368,11 +34202,25 @@ function clearContainerSparingly(container) {
           detachDeletedInstance(element);
           continue;
         }
+      // Script tags are retained to avoid an edge case bug. Normally scripts will execute if they
+      // are ever inserted into the DOM. However when streaming if a script tag is opened but not
+      // yet closed some browsers create and insert the script DOM Node but the script cannot execute
+      // yet until the closing tag is parsed. If something causes React to call clearContainer while
+      // this DOM node is in the document but not yet executable the DOM node will be removed from the
+      // document and when the script closing tag comes in the script will not end up running. This seems
+      // to happen in Chrome/Firefox but not Safari at the moment though this is not necessarily specified
+      // behavior so it could change in future versions of browsers. While leaving all scripts is broader
+      // than strictly necessary this is the least amount of additional code to avoid this breaking
+      // edge case.
+      //
+      // Style tags are retained because they may likely come from 3rd party scripts and extensions
 
+      case 'SCRIPT':
       case 'STYLE':
         {
           continue;
         }
+      // Stylesheet tags are retained because tehy may likely come from 3rd party scripts and extensions
 
       case 'LINK':
         {
@@ -33404,128 +34252,159 @@ function isHydratableType(type, props) {
 function isHydratableText(text) {
   return text !== '';
 }
-function shouldSkipHydratableForInstance(instance, type, props) {
-  if (instance.nodeType !== ELEMENT_NODE) {
-    // This is a suspense boundary or Text node.
-    // Suspense Boundaries are never expected to be injected by 3rd parties. If we see one it should be matched
-    // and this is a hydration error.
-    // Text Nodes are also not expected to be injected by 3rd parties. This is less of a guarantee for <body>
-    // but it seems reasonable and conservative to reject this as a hydration error as well
-    return false;
-  } else if (instance.nodeName.toLowerCase() !== type.toLowerCase() || isMarkedHoistable(instance)) {
-    // We are either about to
-    return true;
-  } else {
-    // We have an Element with the right type.
+function canHydrateInstance(instance, type, props, inRootOrSingleton) {
+  while (instance.nodeType === ELEMENT_NODE) {
     var element = instance;
-    var anyProps = props; // We are going to try to exclude it if we can definitely identify it as a hoisted Node or if
-    // we can guess that the node is likely hoisted or was inserted by a 3rd party script or browser extension
-    // using high entropy attributes for certain types. This technique will fail for strange insertions like
-    // extension prepending <div> in the <body> but that already breaks before and that is an edge case.
+    var anyProps = props;
 
-    switch (type) {
-      // case 'title':
-      //We assume all titles are matchable. You should only have one in the Document, at least in a hoistable scope
-      // and if you are a HostComponent with type title we must either be in an <svg> context or this title must have an `itemProp` prop.
-      case 'meta':
+    if (element.nodeName.toLowerCase() !== type.toLowerCase()) {
+      if (!inRootOrSingleton || !enableHostSingletons) {
+        // Usually we error for mismatched tags.
         {
-          // The only way to opt out of hoisting meta tags is to give it an itemprop attribute. We assume there will be
-          // not 3rd party meta tags that are prepended, accepting the cases where this isn't true because meta tags
-          // are usually only functional for SSR so even in a rare case where we did bind to an injected tag the runtime
-          // implications are minimal
-          if (!element.hasAttribute('itemprop')) {
-            // This is a Hoistable
-            return true;
+          return null;
+        }
+      } // In root or singleton parents we skip past mismatched instances.
+
+    } else if (!inRootOrSingleton || !enableHostSingletons) {
+      // Match
+      {
+        return element;
+      }
+    } else if (isMarkedHoistable(element)) ; else {
+      // We have an Element with the right type.
+      // We are going to try to exclude it if we can definitely identify it as a hoisted Node or if
+      // we can guess that the node is likely hoisted or was inserted by a 3rd party script or browser extension
+      // using high entropy attributes for certain types. This technique will fail for strange insertions like
+      // extension prepending <div> in the <body> but that already breaks before and that is an edge case.
+      switch (type) {
+        // case 'title':
+        //We assume all titles are matchable. You should only have one in the Document, at least in a hoistable scope
+        // and if you are a HostComponent with type title we must either be in an <svg> context or this title must have an `itemProp` prop.
+        case 'meta':
+          {
+            // The only way to opt out of hoisting meta tags is to give it an itemprop attribute. We assume there will be
+            // not 3rd party meta tags that are prepended, accepting the cases where this isn't true because meta tags
+            // are usually only functional for SSR so even in a rare case where we did bind to an injected tag the runtime
+            // implications are minimal
+            if (!element.hasAttribute('itemprop')) {
+              // This is a Hoistable
+              break;
+            }
+
+            return element;
           }
 
-          break;
-        }
+        case 'link':
+          {
+            // Links come in many forms and we do expect 3rd parties to inject them into <head> / <body>. We exclude known resources
+            // and then use high-entroy attributes like href which are almost always used and almost always unique to filter out unlikely
+            // matches.
+            var rel = element.getAttribute('rel');
 
-      case 'link':
-        {
-          // Links come in many forms and we do expect 3rd parties to inject them into <head> / <body>. We exclude known resources
-          // and then use high-entroy attributes like href which are almost always used and almost always unique to filter out unlikely
-          // matches.
-          var rel = element.getAttribute('rel');
+            if (rel === 'stylesheet' && element.hasAttribute('data-precedence')) {
+              // This is a stylesheet resource
+              break;
+            } else if (rel !== anyProps.rel || element.getAttribute('href') !== (anyProps.href == null ? null : anyProps.href) || element.getAttribute('crossorigin') !== (anyProps.crossOrigin == null ? null : anyProps.crossOrigin) || element.getAttribute('title') !== (anyProps.title == null ? null : anyProps.title)) {
+              // rel + href should usually be enough to uniquely identify a link however crossOrigin can vary for rel preconnect
+              // and title could vary for rel alternate
+              break;
+            }
 
-          if (rel === 'stylesheet' && element.hasAttribute('data-precedence')) {
-            // This is a stylesheet resource
-            return true;
-          } else if (rel !== anyProps.rel || element.getAttribute('href') !== (anyProps.href == null ? null : anyProps.href) || element.getAttribute('crossorigin') !== (anyProps.crossOrigin == null ? null : anyProps.crossOrigin) || element.getAttribute('title') !== (anyProps.title == null ? null : anyProps.title)) {
-            // rel + href should usually be enough to uniquely identify a link however crossOrigin can vary for rel preconnect
-            // and title could vary for rel alternate
-            return true;
+            return element;
           }
 
-          break;
-        }
+        case 'style':
+          {
+            // Styles are hard to match correctly. We can exclude known resources but otherwise we accept the fact that a non-hoisted style tags
+            // in <head> or <body> are likely never going to be unmounted given their position in the document and the fact they likely hold global styles
+            if (element.hasAttribute('data-precedence')) {
+              // This is a style resource
+              break;
+            }
 
-      case 'style':
-        {
-          // Styles are hard to match correctly. We can exclude known resources but otherwise we accept the fact that a non-hoisted style tags
-          // in <head> or <body> are likely never going to be unmounted given their position in the document and the fact they likely hold global styles
-          if (element.hasAttribute('data-precedence')) {
-            // This is a style resource
-            return true;
+            return element;
           }
 
-          break;
-        }
+        case 'script':
+          {
+            // Scripts are a little tricky, we exclude known resources and then similar to links try to use high-entropy attributes
+            // to reject poor matches. One challenge with scripts are inline scripts. We don't attempt to check text content which could
+            // in theory lead to a hydration error later if a 3rd party injected an inline script before the React rendered nodes.
+            // Falling back to client rendering if this happens should be seemless though so we will try this hueristic and revisit later
+            // if we learn it is problematic
+            var srcAttr = element.getAttribute('src');
 
-      case 'script':
-        {
-          // Scripts are a little tricky, we exclude known resources and then similar to links try to use high-entropy attributes
-          // to reject poor matches. One challenge with scripts are inline scripts. We don't attempt to check text content which could
-          // in theory lead to a hydration error later if a 3rd party injected an inline script before the React rendered nodes.
-          // Falling back to client rendering if this happens should be seemless though so we will try this hueristic and revisit later
-          // if we learn it is problematic
-          var srcAttr = element.getAttribute('src');
+            if (srcAttr && element.hasAttribute('async') && !element.hasAttribute('itemprop')) {
+              // This is an async script resource
+              break;
+            } else if (srcAttr !== (anyProps.src == null ? null : anyProps.src) || element.getAttribute('type') !== (anyProps.type == null ? null : anyProps.type) || element.getAttribute('crossorigin') !== (anyProps.crossOrigin == null ? null : anyProps.crossOrigin)) {
+              // This script is for a different src
+              break;
+            }
 
-          if (srcAttr && element.hasAttribute('async') && !element.hasAttribute('itemprop')) {
-            // This is an async script resource
-            return true;
-          } else if (srcAttr !== (anyProps.src == null ? null : anyProps.src) || element.getAttribute('type') !== (anyProps.type == null ? null : anyProps.type) || element.getAttribute('crossorigin') !== (anyProps.crossOrigin == null ? null : anyProps.crossOrigin)) {
-            // This script is for a different src
-            return true;
+            return element;
           }
 
-          break;
-        }
-    } // We have excluded the most likely cases of mismatch between hoistable tags, 3rd party script inserted tags,
-    // and browser extension inserted tags. While it is possible this is not the right match it is a decent hueristic
-    // that should work in the vast majority of cases.
+        default:
+          {
+            // We have excluded the most likely cases of mismatch between hoistable tags, 3rd party script inserted tags,
+            // and browser extension inserted tags. While it is possible this is not the right match it is a decent hueristic
+            // that should work in the vast majority of cases.
+            return element;
+          }
+      }
+    }
+
+    var nextInstance = getNextHydratableSibling(element);
+
+    if (nextInstance === null) {
+      break;
+    }
+
+    instance = nextInstance;
+  } // This is a suspense boundary or Text node or we got the end.
+  // Suspense Boundaries are never expected to be injected by 3rd parties. If we see one it should be matched
+  // and this is a hydration error.
+  // Text Nodes are also not expected to be injected by 3rd parties. This is less of a guarantee for <body>
+  // but it seems reasonable and conservative to reject this as a hydration error as well
 
 
-    return false;
-  }
+  return null;
 }
-function shouldSkipHydratableForTextInstance(instance) {
-  return instance.nodeType === ELEMENT_NODE;
-}
-function shouldSkipHydratableForSuspenseInstance(instance) {
-  return instance.nodeType === ELEMENT_NODE;
-}
-function canHydrateInstance(instance, type, props) {
-  if (instance.nodeType !== ELEMENT_NODE || instance.nodeName.toLowerCase() !== type.toLowerCase()) {
-    return null;
-  } else {
-    return instance;
-  }
-}
-function canHydrateTextInstance(instance, text) {
+function canHydrateTextInstance(instance, text, inRootOrSingleton) {
+  // Empty strings are not parsed by HTML so there won't be a correct match here.
   if (text === '') return null;
 
-  if (instance.nodeType !== TEXT_NODE) {
-    // Empty strings are not parsed by HTML so there won't be a correct match here.
-    return null;
+  while (instance.nodeType !== TEXT_NODE) {
+    if (!inRootOrSingleton || !enableHostSingletons) {
+      return null;
+    }
+
+    var nextInstance = getNextHydratableSibling(instance);
+
+    if (nextInstance === null) {
+      return null;
+    }
+
+    instance = nextInstance;
   } // This has now been refined to a text node.
 
 
   return instance;
 }
-function canHydrateSuspenseInstance(instance) {
-  if (instance.nodeType !== COMMENT_NODE) {
-    return null;
+function canHydrateSuspenseInstance(instance, inRootOrSingleton) {
+  while (instance.nodeType !== COMMENT_NODE) {
+    if (!inRootOrSingleton || !enableHostSingletons) {
+      return null;
+    }
+
+    var nextInstance = getNextHydratableSibling(instance);
+
+    if (nextInstance === null) {
+      return null;
+    }
+
+    instance = nextInstance;
   } // This has now been refined to a suspense node.
 
 
@@ -33607,14 +34486,7 @@ function hydrateInstance(instance, type, props, hostContext, internalInstanceHan
   // when the legacy root API is removed.
 
   var isConcurrentMode = (internalInstanceHandle.mode & ConcurrentMode) !== NoMode;
-  var parentNamespace;
-
-  {
-    var hostContextDev = hostContext;
-    parentNamespace = hostContextDev.namespace;
-  }
-
-  return diffHydratedProperties(instance, type, props, isConcurrentMode, shouldWarnDev, parentNamespace);
+  return diffHydratedProperties(instance, type, props, isConcurrentMode, shouldWarnDev, hostContext);
 }
 function hydrateTextInstance(textInstance, text, internalInstanceHandle, shouldWarnDev) {
   precacheFiberNode(internalInstanceHandle, textInstance); // TODO: Temporary hack to check if we're in a concurrent root. We can delete
@@ -33688,7 +34560,7 @@ function commitHydratedContainer(container) {
 function commitHydratedSuspenseInstance(suspenseInstance) {
   // Retry if any event replaying was blocked on this.
   retryIfBlockedOn(suspenseInstance);
-} // @TODO remove this function once float lands and hydrated tail nodes
+}
 function didNotMatchHydratedContainerTextInstance(parentContainer, textInstance, text, isConcurrentMode, shouldWarnDev) {
   checkForUnmatchedText(textInstance.nodeValue, text, isConcurrentMode, shouldWarnDev);
 }
@@ -33784,7 +34656,7 @@ function resolveSingletonInstance(type, props, rootContainerInstance, hostContex
     var hostContextDev = hostContext;
 
     if (validateDOMNestingDev) {
-      validateDOMNesting(type, null, hostContextDev.ancestorInfo);
+      validateDOMNesting(type, hostContextDev.ancestorInfo);
     }
   }
 
@@ -33882,7 +34754,7 @@ function clearSingleton(instance) {
     var nextNode = node.nextSibling;
     var nodeName = node.nodeName;
 
-    if (isMarkedHoistable(node) || nodeName === 'HEAD' || nodeName === 'BODY' || nodeName === 'STYLE' || nodeName === 'LINK' && node.rel.toLowerCase() === 'stylesheet') ; else {
+    if (isMarkedHoistable(node) || nodeName === 'HEAD' || nodeName === 'BODY' || nodeName === 'SCRIPT' || nodeName === 'STYLE' || nodeName === 'LINK' && node.rel.toLowerCase() === 'stylesheet') ; else {
       element.removeChild(node);
     }
 
@@ -33891,8 +34763,6 @@ function clearSingleton(instance) {
 
   return;
 } // -------------------
-// In the future this may need to change, especially when modules / scripts are supported
-
 var NotLoaded =
 /*       */
 0;
@@ -33910,28 +34780,6 @@ var Inserted =
 4;
 function prepareToCommitHoistables() {
   tagCaches = null;
-} // It is valid to preload even when we aren't actively rendering. For cases where Float functions are
-// called when there is no rendering we track the last used document. It is not safe to insert
-// arbitrary resources into the lastCurrentDocument b/c it may not actually be the document
-// that the resource is meant to apply too (for example stylesheets or scripts). This is only
-// appropriate for resources that don't really have a strict tie to the document itself for example
-// preloads
-
-var lastCurrentDocument = null;
-var previousDispatcher = null;
-function prepareRendererToRender(rootContainer) {
-  {
-    var rootNode = getHoistableRoot(rootContainer);
-    lastCurrentDocument = getDocumentFromRoot(rootNode);
-    previousDispatcher = Dispatcher$1.current;
-    Dispatcher$1.current = ReactDOMClientDispatcher;
-  }
-}
-function resetRendererAfterRender() {
-  {
-    Dispatcher$1.current = previousDispatcher;
-    previousDispatcher = null;
-  }
 } // global collections of Resources
 
 var preloadPropsMap = new Map();
@@ -33948,26 +34796,6 @@ function getHoistableRoot(container) {
 function getCurrentResourceRoot() {
   var currentContainer = getCurrentRootHostContainer();
   return currentContainer ? getHoistableRoot(currentContainer) : null;
-} // Preloads are somewhat special. Even if we don't have the Document
-// used by the root that is rendering a component trying to insert a preload
-// we can still seed the file cache by doing the preload on any document we have
-// access to. We prefer the currentDocument if it exists, we also prefer the
-// lastCurrentDocument if that exists. As a fallback we will use the window.document
-// if available.
-
-
-function getDocumentForPreloads() {
-  var root = getCurrentResourceRoot();
-
-  if (root) {
-    return root.ownerDocument || root;
-  } else {
-    try {
-      return lastCurrentDocument || window.document;
-    } catch (error) {
-      return null;
-    }
-  }
 }
 
 function getDocumentFromRoot(root) {
@@ -33982,12 +34810,21 @@ var ReactDOMClientDispatcher = {
   preconnect: preconnect$1,
   preload: preload$1,
   preinit: preinit$1
-};
+}; // We expect this to get inlined. It is a function mostly to communicate the special nature of
+// how we resolve the HoistableRoot for ReactDOM.pre*() methods. Because we support calling
+// these methods outside of render there is no way to know which Document or ShadowRoot is 'scoped'
+// and so we have to fall back to something universal. Currently we just refer to the global document.
+// This is notable because nowhere else in ReactDOM do we actually reference the global document or window
+// because we may be rendering inside an iframe.
+
+function getDocumentForImperativeFloatMethods() {
+  return document;
+}
 
 function preconnectAs(rel, crossOrigin, href) {
-  var ownerDocument = getDocumentForPreloads();
+  var ownerDocument = getDocumentForImperativeFloatMethods();
 
-  if (typeof href === 'string' && href && ownerDocument) {
+  if (typeof href === 'string' && href) {
     var limitedEscapedHref = escapeSelectorAttributeValueInsideDoubleQuotes(href);
     var key = "link[rel=\"" + rel + "\"][href=\"" + limitedEscapedHref + "\"]";
 
@@ -34014,6 +34851,7 @@ function preconnectAs(rel, crossOrigin, href) {
 }
 
 function prefetchDNS$1(href, options) {
+
   {
     if (typeof href !== 'string' || !href) {
       error('ReactDOM.prefetchDNS(): Expected the `href` argument (first) to be a non-empty string but encountered %s instead.', getValueDescriptorExpectingObjectForWarning(href));
@@ -34030,6 +34868,7 @@ function prefetchDNS$1(href, options) {
 }
 
 function preconnect$1(href, options) {
+
   {
     if (typeof href !== 'string' || !href) {
       error('ReactDOM.preconnect(): Expected the `href` argument (first) to be a non-empty string but encountered %s instead.', getValueDescriptorExpectingObjectForWarning(href));
@@ -34045,17 +34884,21 @@ function preconnect$1(href, options) {
 }
 
 function preload$1(href, options) {
+
   {
     validatePreloadArguments(href, options);
   }
 
-  var ownerDocument = getDocumentForPreloads();
+  var ownerDocument = getDocumentForImperativeFloatMethods();
 
   if (typeof href === 'string' && href && typeof options === 'object' && options !== null && ownerDocument) {
     var as = options.as;
     var limitedEscapedHref = escapeSelectorAttributeValueInsideDoubleQuotes(href);
-    var preloadKey = "link[rel=\"preload\"][as=\"" + as + "\"][href=\"" + limitedEscapedHref + "\"]";
-    var key = preloadKey;
+    var preloadSelector = "link[rel=\"preload\"][as=\"" + as + "\"][href=\"" + limitedEscapedHref + "\"]"; // Some preloads are keyed under their selector. This happens when the preload is for
+    // an arbitrary type. Other preloads are keyed under the resource key they represent a preload for.
+    // Here we figure out which key to use to determine if we have a preload already.
+
+    var key = preloadSelector;
 
     switch (as) {
       case 'style':
@@ -34071,7 +34914,15 @@ function preload$1(href, options) {
       var preloadProps = preloadPropsFromPreloadOptions(href, as, options);
       preloadPropsMap.set(key, preloadProps);
 
-      if (null === ownerDocument.querySelector(preloadKey)) {
+      if (null === ownerDocument.querySelector(preloadSelector)) {
+        if (as === 'style' && ownerDocument.querySelector(getStylesheetSelectorFromKey(key))) {
+          // We already have a stylesheet for this key. We don't need to preload it.
+          return;
+        } else if (as === 'script' && ownerDocument.querySelector(getScriptSelectorFromKey(key))) {
+          // We already have a stylesheet for this key. We don't need to preload it.
+          return;
+        }
+
         var instance = ownerDocument.createElement('link');
         setInitialProperties(instance, 'link', preloadProps);
         markNodeAsHoistable(instance);
@@ -34093,64 +34944,24 @@ function preloadPropsFromPreloadOptions(href, as, options) {
 }
 
 function preinit$1(href, options) {
+
   {
     validatePreinitArguments(href, options);
   }
 
+  var ownerDocument = getDocumentForImperativeFloatMethods();
+
   if (typeof href === 'string' && href && typeof options === 'object' && options !== null) {
-    var resourceRoot = getCurrentResourceRoot();
     var as = options.as;
-
-    if (!resourceRoot) {
-      if (as === 'style' || as === 'script') {
-        // We are going to emit a preload as a best effort fallback since this preinit
-        // was called outside of a render. Given the passive nature of this fallback
-        // we do not warn in dev when props disagree if there happens to already be a
-        // matching preload with this href
-        var preloadDocument = getDocumentForPreloads();
-
-        if (preloadDocument) {
-          var limitedEscapedHref = escapeSelectorAttributeValueInsideDoubleQuotes(href);
-          var preloadKey = "link[rel=\"preload\"][as=\"" + as + "\"][href=\"" + limitedEscapedHref + "\"]";
-          var key = preloadKey;
-
-          switch (as) {
-            case 'style':
-              key = getStyleKey(href);
-              break;
-
-            case 'script':
-              key = getScriptKey(href);
-              break;
-          }
-
-          if (!preloadPropsMap.has(key)) {
-            var preloadProps = preloadPropsFromPreinitOptions(href, as, options);
-            preloadPropsMap.set(key, preloadProps);
-
-            if (null === preloadDocument.querySelector(preloadKey)) {
-              var instance = preloadDocument.createElement('link');
-              setInitialProperties(instance, 'link', preloadProps);
-              markNodeAsHoistable(instance);
-              preloadDocument.head.appendChild(instance);
-            }
-          }
-        }
-      }
-
-      return;
-    }
 
     switch (as) {
       case 'style':
         {
-          var styles = getResourcesFromRoot(resourceRoot).hoistableStyles;
-
-          var _key = getStyleKey(href);
-
+          var styles = getResourcesFromRoot(ownerDocument).hoistableStyles;
+          var key = getStyleKey(href);
           var precedence = options.precedence || 'default'; // Check if this resource already exists
 
-          var resource = styles.get(_key);
+          var resource = styles.get(key);
 
           if (resource) {
             // We can early return. The resource exists and there is nothing
@@ -34163,24 +34974,20 @@ function preinit$1(href, options) {
             preload: null
           }; // Attempt to hydrate instance from DOM
 
-          var _instance = resourceRoot.querySelector(getStylesheetSelectorFromKey(_key));
+          var instance = ownerDocument.querySelector(getStylesheetSelectorFromKey(key));
 
-          if (_instance) {
+          if (instance) {
             state.loading = Loaded;
           } else {
             // Construct a new instance and insert it
             var stylesheetProps = stylesheetPropsFromPreinitOptions(href, precedence, options);
+            var preloadProps = preloadPropsMap.get(key);
 
-            var _preloadProps = preloadPropsMap.get(_key);
-
-            if (_preloadProps) {
-              adoptPreloadPropsForStylesheet(stylesheetProps, _preloadProps);
+            if (preloadProps) {
+              adoptPreloadPropsForStylesheet(stylesheetProps, preloadProps);
             }
 
-            var ownerDocument = getDocumentFromRoot(resourceRoot);
-
-            var link = _instance = ownerDocument.createElement('link');
-
+            var link = instance = ownerDocument.createElement('link');
             markNodeAsHoistable(link);
             setInitialProperties(link, 'link', stylesheetProps);
             link._p = new Promise(function (resolve, reject) {
@@ -34194,29 +35001,29 @@ function preinit$1(href, options) {
               state.loading |= Errored;
             });
             state.loading |= Inserted;
-            insertStylesheet(_instance, precedence, resourceRoot);
+            insertStylesheet(instance, precedence, ownerDocument);
           } // Construct a Resource and cache it
 
 
           resource = {
             type: 'stylesheet',
-            instance: _instance,
+            instance: instance,
             count: 1,
             state: state
           };
-          styles.set(_key, resource);
+          styles.set(key, resource);
           return;
         }
 
       case 'script':
         {
           var src = href;
-          var scripts = getResourcesFromRoot(resourceRoot).hoistableScripts;
+          var scripts = getResourcesFromRoot(ownerDocument).hoistableScripts;
 
-          var _key2 = getScriptKey(src); // Check if this resource already exists
+          var _key = getScriptKey(src); // Check if this resource already exists
 
 
-          var _resource = scripts.get(_key2);
+          var _resource = scripts.get(_key);
 
           if (_resource) {
             // We can early return. The resource exists and there is nothing
@@ -34225,49 +35032,36 @@ function preinit$1(href, options) {
           } // Attempt to hydrate instance from DOM
 
 
-          var _instance2 = resourceRoot.querySelector(getScriptSelectorFromKey(_key2));
+          var _instance = ownerDocument.querySelector(getScriptSelectorFromKey(_key));
 
-          if (!_instance2) {
+          if (!_instance) {
             // Construct a new instance and insert it
             var scriptProps = scriptPropsFromPreinitOptions(src, options); // Adopt certain preload props
 
-            var _preloadProps2 = preloadPropsMap.get(_key2);
+            var _preloadProps = preloadPropsMap.get(_key);
 
-            if (_preloadProps2) {
-              adoptPreloadPropsForScript(scriptProps, _preloadProps2);
+            if (_preloadProps) {
+              adoptPreloadPropsForScript(scriptProps, _preloadProps);
             }
 
-            var _ownerDocument = getDocumentFromRoot(resourceRoot);
-
-            _instance2 = _ownerDocument.createElement('script');
-            markNodeAsHoistable(_instance2);
-            setInitialProperties(_instance2, 'link', scriptProps);
-
-            _ownerDocument.head.appendChild(_instance2);
+            _instance = ownerDocument.createElement('script');
+            markNodeAsHoistable(_instance);
+            setInitialProperties(_instance, 'link', scriptProps);
+            ownerDocument.head.appendChild(_instance);
           } // Construct a Resource and cache it
 
 
           _resource = {
             type: 'script',
-            instance: _instance2,
+            instance: _instance,
             count: 1,
             state: null
           };
-          scripts.set(_key2, _resource);
+          scripts.set(_key, _resource);
           return;
         }
     }
   }
-}
-
-function preloadPropsFromPreinitOptions(href, as, options) {
-  return {
-    href: href,
-    rel: 'preload',
-    as: as,
-    crossOrigin: as === 'font' ? '' : options.crossOrigin,
-    integrity: options.integrity
-  };
 }
 
 function stylesheetPropsFromPreinitOptions(href, precedence, options) {
@@ -34284,7 +35078,8 @@ function scriptPropsFromPreinitOptions(src, options) {
     src: src,
     async: true,
     crossOrigin: options.crossOrigin,
-    integrity: options.integrity
+    integrity: options.integrity,
+    nonce: options.nonce
   };
 } // This function is called in begin work and we should always have a currentDocument set
 
@@ -34336,11 +35131,11 @@ function getResource(type, currentProps, pendingProps) {
         if (pendingProps.rel === 'stylesheet' && typeof pendingProps.href === 'string' && typeof pendingProps.precedence === 'string') {
           var qualifiedProps = pendingProps;
 
-          var _key3 = getStyleKey(qualifiedProps.href);
+          var _key2 = getStyleKey(qualifiedProps.href);
 
           var _styles = getResourcesFromRoot(resourceRoot).hoistableStyles;
 
-          var _resource2 = _styles.get(_key3);
+          var _resource2 = _styles.get(_key2);
 
           if (!_resource2) {
             // We asserted this above but Flow can't figure out that the type satisfies
@@ -34355,10 +35150,10 @@ function getResource(type, currentProps, pendingProps) {
               }
             };
 
-            _styles.set(_key3, _resource2);
+            _styles.set(_key2, _resource2);
 
-            if (!preloadPropsMap.has(_key3)) {
-              preloadStylesheet(ownerDocument, _key3, preloadPropsFromStylesheet(qualifiedProps), _resource2.state);
+            if (!preloadPropsMap.has(_key2)) {
+              preloadStylesheet(ownerDocument, _key2, preloadPropsFromStylesheet(qualifiedProps), _resource2.state);
             }
           }
 
@@ -34373,11 +35168,11 @@ function getResource(type, currentProps, pendingProps) {
         if (typeof pendingProps.src === 'string' && pendingProps.async === true) {
           var scriptProps = pendingProps;
 
-          var _key4 = getScriptKey(scriptProps.src);
+          var _key3 = getScriptKey(scriptProps.src);
 
           var scripts = getResourcesFromRoot(resourceRoot).hoistableScripts;
 
-          var _resource3 = scripts.get(_key4);
+          var _resource3 = scripts.get(_key3);
 
           if (!_resource3) {
             _resource3 = {
@@ -34386,7 +35181,7 @@ function getResource(type, currentProps, pendingProps) {
               count: 0,
               state: null
             };
-            scripts.set(_key4, _resource3);
+            scripts.set(_key3, _resource3);
           }
 
           return _resource3;
@@ -34418,11 +35213,12 @@ function styleTagPropsFromRawProps(rawProps) {
 
 function getStyleKey(href) {
   var limitedEscapedHref = escapeSelectorAttributeValueInsideDoubleQuotes(href);
-  return "href~=\"" + limitedEscapedHref + "\"";
+  return "href=\"" + limitedEscapedHref + "\"";
 }
 
-function getStyleTagSelectorFromKey(key) {
-  return "style[data-" + key + "]";
+function getStyleTagSelector(href) {
+  var limitedEscapedHref = escapeSelectorAttributeValueInsideDoubleQuotes(href);
+  return "style[data-href~=\"" + limitedEscapedHref + "\"]";
 }
 
 function getStylesheetSelectorFromKey(key) {
@@ -34498,10 +35294,9 @@ function acquireResource(hoistableRoot, resource, props) {
     switch (resource.type) {
       case 'style':
         {
-          var qualifiedProps = props;
-          var key = getStyleKey(qualifiedProps.href); // Attempt to hydrate instance from DOM
+          var qualifiedProps = props; // Attempt to hydrate instance from DOM
 
-          var instance = hoistableRoot.querySelector(getStyleTagSelectorFromKey(key));
+          var instance = hoistableRoot.querySelector(getStyleTagSelector(qualifiedProps.href));
 
           if (instance) {
             resource.instance = instance;
@@ -34529,40 +35324,38 @@ function acquireResource(hoistableRoot, resource, props) {
           // there for what qualifies as a stylesheet resource we need to ensure
           // this cast still makes sense;
           var _qualifiedProps = props;
+          var key = getStyleKey(_qualifiedProps.href); // Attempt to hydrate instance from DOM
 
-          var _key5 = getStyleKey(_qualifiedProps.href); // Attempt to hydrate instance from DOM
+          var _instance2 = hoistableRoot.querySelector(getStylesheetSelectorFromKey(key));
 
-
-          var _instance3 = hoistableRoot.querySelector(getStylesheetSelectorFromKey(_key5));
-
-          if (_instance3) {
-            resource.instance = _instance3;
-            markNodeAsHoistable(_instance3);
-            return _instance3;
+          if (_instance2) {
+            resource.instance = _instance2;
+            markNodeAsHoistable(_instance2);
+            return _instance2;
           }
 
           var stylesheetProps = stylesheetPropsFromRawProps(props);
-          var preloadProps = preloadPropsMap.get(_key5);
+          var preloadProps = preloadPropsMap.get(key);
 
           if (preloadProps) {
             adoptPreloadPropsForStylesheet(stylesheetProps, preloadProps);
           } // Construct and insert a new instance
 
 
-          var _ownerDocument2 = getDocumentFromRoot(hoistableRoot);
+          var _ownerDocument = getDocumentFromRoot(hoistableRoot);
 
-          _instance3 = _ownerDocument2.createElement('link');
-          markNodeAsHoistable(_instance3);
-          var linkInstance = _instance3;
+          _instance2 = _ownerDocument.createElement('link');
+          markNodeAsHoistable(_instance2);
+          var linkInstance = _instance2;
           linkInstance._p = new Promise(function (resolve, reject) {
             linkInstance.onload = resolve;
             linkInstance.onerror = reject;
           });
-          setInitialProperties(_instance3, 'link', stylesheetProps);
+          setInitialProperties(_instance2, 'link', stylesheetProps);
           resource.state.loading |= Inserted;
-          insertStylesheet(_instance3, _qualifiedProps.precedence, hoistableRoot);
-          resource.instance = _instance3;
-          return _instance3;
+          insertStylesheet(_instance2, _qualifiedProps.precedence, hoistableRoot);
+          resource.instance = _instance2;
+          return _instance2;
         }
 
       case 'script':
@@ -34572,37 +35365,37 @@ function acquireResource(hoistableRoot, resource, props) {
           // this cast still makes sense;
           var borrowedScriptProps = props;
 
-          var _key6 = getScriptKey(borrowedScriptProps.src); // Attempt to hydrate instance from DOM
+          var _key4 = getScriptKey(borrowedScriptProps.src); // Attempt to hydrate instance from DOM
 
 
-          var _instance4 = hoistableRoot.querySelector(getScriptSelectorFromKey(_key6));
+          var _instance3 = hoistableRoot.querySelector(getScriptSelectorFromKey(_key4));
 
-          if (_instance4) {
-            resource.instance = _instance4;
-            markNodeAsHoistable(_instance4);
-            return _instance4;
+          if (_instance3) {
+            resource.instance = _instance3;
+            markNodeAsHoistable(_instance3);
+            return _instance3;
           }
 
           var scriptProps = borrowedScriptProps;
 
-          var _preloadProps3 = preloadPropsMap.get(_key6);
+          var _preloadProps2 = preloadPropsMap.get(_key4);
 
-          if (_preloadProps3) {
+          if (_preloadProps2) {
             scriptProps = assign({}, borrowedScriptProps);
-            adoptPreloadPropsForScript(scriptProps, _preloadProps3);
+            adoptPreloadPropsForScript(scriptProps, _preloadProps2);
           } // Construct and insert a new instance
 
 
-          var _ownerDocument3 = getDocumentFromRoot(hoistableRoot);
+          var _ownerDocument2 = getDocumentFromRoot(hoistableRoot);
 
-          _instance4 = _ownerDocument3.createElement('script');
-          markNodeAsHoistable(_instance4);
-          setInitialProperties(_instance4, 'link', scriptProps);
+          _instance3 = _ownerDocument2.createElement('script');
+          markNodeAsHoistable(_instance3);
+          setInitialProperties(_instance3, 'link', scriptProps);
 
-          _ownerDocument3.head.appendChild(_instance4);
+          _ownerDocument2.head.appendChild(_instance3);
 
-          resource.instance = _instance4;
-          return _instance4;
+          resource.instance = _instance3;
+          return _instance3;
         }
 
       case 'void':
@@ -34630,9 +35423,9 @@ function acquireResource(hoistableRoot, resource, props) {
     // for the insertion.
     if (resource.type === 'stylesheet' && (resource.state.loading & Inserted) === NotLoaded) {
       var _qualifiedProps2 = props;
-      var _instance5 = resource.instance;
+      var _instance4 = resource.instance;
       resource.state.loading |= Inserted;
-      insertStylesheet(_instance5, _qualifiedProps2.precedence, hoistableRoot);
+      insertStylesheet(_instance4, _qualifiedProps2.precedence, hoistableRoot);
     }
   }
 
@@ -34735,9 +35528,9 @@ function hydrateHoistable(hoistableRoot, type, props, internalInstanceHandle) {
       {
         var _cache = getHydratableHoistableCache('meta', 'content', ownerDocument);
 
-        var _key7 = type + (props.content || '');
+        var _key5 = type + (props.content || '');
 
-        var _maybeNodes = _cache.get(_key7);
+        var _maybeNodes = _cache.get(_key5);
 
         if (_maybeNodes) {
           var _nodes = _maybeNodes;
@@ -34834,33 +35627,20 @@ function mountHoistable(hoistableRoot, type, instance) {
 }
 function unmountHoistable(instance) {
   instance.parentNode.removeChild(instance);
-} // When passing user input into querySelector(All) the embedded string must not alter
-// the semantics of the query. This escape function is safe to use when we know the
-// provided value is going to be wrapped in double quotes as part of an attribute selector
-// Do not use it anywhere else
-// we escape double quotes and backslashes
-
-var escapeSelectorAttributeValueInsideDoubleQuotesRegex = /[\n\"\\]/g;
-
-function escapeSelectorAttributeValueInsideDoubleQuotes(value) {
-  return value.replace(escapeSelectorAttributeValueInsideDoubleQuotesRegex, function (ch) {
-    return '\\' + ch.charCodeAt(0).toString(16);
-  });
 }
-
 function isHostHoistableType(type, props, hostContext) {
   var outsideHostContainerContext;
-  var namespace;
+  var hostContextProd;
 
   {
     var hostContextDev = hostContext; // We can only render resources when we are not within the host container context
 
     outsideHostContainerContext = !hostContextDev.ancestorInfo.containerTagInScope;
-    namespace = hostContextDev.namespace;
+    hostContextProd = hostContextDev.context;
   } // Global opt out of hoisting for anything in SVG Namespace or anything with an itemProp inside an itemScope
 
 
-  if (namespace === SVG_NAMESPACE || props.itemProp != null) {
+  if (hostContextProd === HostContextNamespaceSvg || props.itemProp != null) {
     {
       if (outsideHostContainerContext && props.itemProp != null && (type === 'meta' || type === 'title' || type === 'style' || type === 'link' || type === 'script')) {
         error('Cannot render a <%s> outside the main document if it has an `itemProp` prop. `itemProp` suggests the tag belongs to an' + ' `itemScope` which can appear anywhere in the DOM. If you were intending for React to hoist this <%s> remove the `itemProp` prop.' + ' Otherwise, try moving this tag into the <head> or <body> of the Document.', type, type);
@@ -35103,29 +35883,33 @@ function waitForCommitToBeReady() {
 
   if (state.count > 0) {
     return function (commit) {
-      unsuspendAfterTimeout(state);
+      // We almost never want to show content before its styles have loaded. But
+      // eventually we will give up and allow unstyled content. So this number is
+      // somewhat arbitrary — big enough that you'd only reach it under
+      // extreme circumstances.
+      // TODO: Figure out what the browser engines do during initial page load and
+      // consider aligning our behavior with that.
+      var stylesheetTimer = setTimeout(function () {
+        if (state.stylesheets) {
+          insertSuspendedStylesheets(state, state.stylesheets);
+        }
+
+        if (state.unsuspend) {
+          var unsuspend = state.unsuspend;
+          state.unsuspend = null;
+          unsuspend();
+        }
+      }, 60000); // one minute
+
       state.unsuspend = commit;
       return function () {
-        return state.unsuspend = null;
+        state.unsuspend = null;
+        clearTimeout(stylesheetTimer);
       };
     };
   }
 
   return null;
-}
-
-function unsuspendAfterTimeout(state) {
-  setTimeout(function () {
-    if (state.stylesheets) {
-      insertSuspendedStylesheets(state, state.stylesheets);
-    }
-
-    if (state.unsuspend) {
-      var unsuspend = state.unsuspend;
-      state.unsuspend = null;
-      unsuspend();
-    }
-  }, 500);
 }
 
 function onUnsuspend() {
@@ -35231,7 +36015,12 @@ function insertStylesheetIntoRoot(root, resource, map) {
   resource.state.loading |= Inserted;
 }
 
-var Dispatcher = Internals.Dispatcher;
+var Dispatcher$1 = Internals.Dispatcher;
+
+if (typeof document !== 'undefined') {
+  // Set the default dispatcher to the client dispatcher
+  Dispatcher$1.current = ReactDOMClientDispatcher;
+}
 /* global reportError */
 
 var defaultOnRecoverableError = typeof reportError === 'function' ? // In modern browsers, reportError will dispatch an error event,
@@ -35333,12 +36122,7 @@ function createRoot$1(container, options) {
 
   var root = createContainer(container, ConcurrentRoot, null, isStrictMode, concurrentUpdatesByDefaultOverride, identifierPrefix, onRecoverableError);
   markContainerAsRoot(root.current, container);
-
-  {
-    // Set the default dispatcher to the client dispatcher
-    Dispatcher.current = ReactDOMClientDispatcher;
-  }
-
+  Dispatcher$1.current = ReactDOMClientDispatcher;
   var rootContainerElement = container.nodeType === COMMENT_NODE ? container.parentNode : container;
   listenToAllSupportedEvents(rootContainerElement); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
 
@@ -35396,12 +36180,7 @@ function hydrateRoot$1(container, initialChildren, options) {
 
   var root = createHydrationContainer(initialChildren, null, container, ConcurrentRoot, hydrationCallbacks, isStrictMode, concurrentUpdatesByDefaultOverride, identifierPrefix, onRecoverableError);
   markContainerAsRoot(root.current, container);
-
-  {
-    // Set the default dispatcher to the client dispatcher
-    Dispatcher.current = ReactDOMClientDispatcher;
-  } // This can't be a comment node since hydration doesn't work on comment nodes anyway.
-
+  Dispatcher$1.current = ReactDOMClientDispatcher; // This can't be a comment node since hydration doesn't work on comment nodes anyway.
 
   listenToAllSupportedEvents(container);
 
@@ -35709,41 +36488,60 @@ function unmountComponentAtNode(container) {
   }
 }
 
-function prefetchDNS() {
-  var dispatcher = Internals.Dispatcher.current;
+var Dispatcher = Internals.Dispatcher;
+function prefetchDNS(href) {
+  var passedOptionArg;
+
+  {
+    if (arguments[1] !== undefined) {
+      passedOptionArg = arguments[1];
+    }
+  }
+
+  var dispatcher = Dispatcher.current;
 
   if (dispatcher) {
-    dispatcher.prefetchDNS.apply(this, arguments);
+    {
+      if (passedOptionArg !== undefined) {
+        // prefetchDNS will warn if you pass reserved options arg. We pass it along in Dev only to
+        // elicit the warning. In prod we do not forward since it is not a part of the interface.
+        // @TODO move all arg validation into this file. It needs to be universal anyway so may as well lock down the interace here and
+        // let the rest of the codebase trust the types
+        dispatcher.prefetchDNS(href, passedOptionArg);
+      } else {
+        dispatcher.prefetchDNS(href);
+      }
+    }
   } // We don't error because preconnect needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
 
 }
-function preconnect() {
-  var dispatcher = Internals.Dispatcher.current;
+function preconnect(href, options) {
+  var dispatcher = Dispatcher.current;
 
   if (dispatcher) {
-    dispatcher.preconnect.apply(this, arguments);
+    dispatcher.preconnect(href, options);
   } // We don't error because preconnect needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
 
 }
-function preload() {
-  var dispatcher = Internals.Dispatcher.current;
+function preload(href, options) {
+  var dispatcher = Dispatcher.current;
 
   if (dispatcher) {
-    dispatcher.preload.apply(this, arguments);
+    dispatcher.preload(href, options);
   } // We don't error because preload needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
 
 }
-function preinit() {
-  var dispatcher = Internals.Dispatcher.current;
+function preinit(href, options) {
+  var dispatcher = Dispatcher.current;
 
   if (dispatcher) {
-    dispatcher.preinit.apply(this, arguments);
+    dispatcher.preinit(href, options);
   } // We don't error because preinit needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.

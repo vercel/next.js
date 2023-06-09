@@ -1,45 +1,6 @@
 {
-  "name": "react-dom",
-  "version": "18.3.0-next-85de6fde5-20230328",
-  "description": "React package for working with the DOM.",
+  "name": "react-dom-builtin",
   "main": "index.js",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/facebook/react.git",
-    "directory": "packages/react-dom"
-  },
-  "keywords": [
-    "react"
-  ],
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/facebook/react/issues"
-  },
-  "homepage": "https://reactjs.org/",
-  "dependencies": {
-    "loose-envify": "^1.1.0",
-    "scheduler": "0.24.0-next-85de6fde5-20230328"
-  },
-  "peerDependencies": {
-    "react": "18.3.0-next-85de6fde5-20230328"
-  },
-  "files": [
-    "LICENSE",
-    "README.md",
-    "index.js",
-    "client.js",
-    "profiling.js",
-    "server.js",
-    "server.browser.js",
-    "server.edge.js",
-    "server.node.js",
-    "server.bun.js",
-    "server-rendering-stub.js",
-    "test-utils.js",
-    "unstable_server-external-runtime.js",
-    "cjs/",
-    "umd/"
-  ],
   "exports": {
     ".": "./index.js",
     "./client": "./client.js",
@@ -62,12 +23,14 @@
     "./unstable_server-external-runtime": "./unstable_server-external-runtime.js",
     "./package.json": "./package.json"
   },
+  "dependencies": {
+    "loose-envify": "^1.1.0",
+    "scheduler": "0.24.0-canary-1cea38448-20230530"
+  },
+  "peerDependencies": {
+    "react": "18.3.0-canary-1cea38448-20230530"
+  },
   "browser": {
     "./server.js": "./server.browser.js"
-  },
-  "browserify": {
-    "transform": [
-      "loose-envify"
-    ]
   }
 }

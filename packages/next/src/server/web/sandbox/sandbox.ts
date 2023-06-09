@@ -15,7 +15,6 @@ const FORBIDDEN_HEADERS = [
 
 type RunnerFn = (params: {
   name: string
-  env: string[]
   onWarning?: (warn: Error) => void
   paths: string[]
   request: NodejsRequestData
@@ -45,25 +44,26 @@ function withTaggedErrors(fn: RunnerFn): RunnerFn {
       })
 }
 
-export const getRuntimeContext = async (params: {
+export async function getRuntimeContext(params: {
   name: string
   onWarning?: any
   useCache: boolean
-  env: string[]
   edgeFunctionEntry: any
   distDir: string
   paths: string[]
   incrementalCache?: any
-}): Promise<EdgeRuntime<any>> => {
+}): Promise<EdgeRuntime<any>> {
   const { runtime, evaluateInContext } = await getModuleContext({
     moduleName: params.name,
     onWarning: params.onWarning ?? (() => {}),
     useCache: params.useCache !== false,
-    env: params.env,
     edgeFunctionEntry: params.edgeFunctionEntry,
     distDir: params.distDir,
   })
-  runtime.context.globalThis.__incrementalCache = params.incrementalCache
+
+  if (params.incrementalCache) {
+    runtime.context.globalThis.__incrementalCache = params.incrementalCache
+  }
 
   for (const paramPath of params.paths) {
     evaluateInContext(paramPath)
@@ -71,7 +71,7 @@ export const getRuntimeContext = async (params: {
   return runtime
 }
 
-export const run = withTaggedErrors(async (params) => {
+export const run = withTaggedErrors(async function runWithTaggedErrors(params) {
   const runtime = await getRuntimeContext(params)
   const subreq = params.request.headers[`x-middleware-subrequest`]
   const subrequests = typeof subreq === 'string' ? subreq.split(':') : []

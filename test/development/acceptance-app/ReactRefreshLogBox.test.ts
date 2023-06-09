@@ -226,7 +226,36 @@ for (const variant of ['default', 'turbo']) {
       expect(await session.hasRedbox(true)).toBe(true)
 
       const source = await session.getRedboxSource()
-      expect(source).toMatchSnapshot()
+      expect(next.normalizeTestDirContent(source)).toMatchInlineSnapshot(
+        next.normalizeSnapshot(`
+        "./index.js
+        Error: 
+          x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
+           ,-[TEST_DIR/index.js:5:1]
+         5 |               <p>lol</p>
+         6 |             div
+         7 |           )
+         8 |         }
+           :         ^
+         9 |       
+           \`----
+
+          x Unexpected eof
+           ,-[TEST_DIR/index.js:6:1]
+         6 |             div
+         7 |           )
+         8 |         }
+         9 |       
+           \`----
+
+        Caused by:
+            Syntax Error
+
+        Import trace for requested module:
+        ./index.js
+        ./app/page.js"
+      `)
+      )
 
       await cleanup()
     })
@@ -323,7 +352,7 @@ for (const variant of ['default', 'turbo']) {
       await session.patch('index.module.css', `.button {`)
       expect(await session.hasRedbox(true)).toBe(true)
       const source = await session.getRedboxSource()
-      expect(source).toMatch('./index.module.css:1:1')
+      expect(source).toMatch('./index.module.css (1:1)')
       expect(source).toMatch('Syntax error: ')
       expect(source).toMatch('Unclosed block')
       expect(source).toMatch('> 1 | .button {')

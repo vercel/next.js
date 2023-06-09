@@ -2,7 +2,7 @@
 import { resolve, join } from 'path'
 import { existsSync } from 'fs'
 import arg from 'next/dist/compiled/arg/index.js'
-import exportApp, { ExportError } from '../export'
+import exportApp, { ExportError, ExportOptions } from '../export'
 import * as Log from '../build/output/log'
 import { printAndExit } from '../server/lib/utils'
 import { CliCommand } from '../lib/commands'
@@ -59,12 +59,13 @@ const nextExport: CliCommand = (argv) => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  const options = {
+  const options: ExportOptions = {
     silent: args['--silent'] || false,
     threads: args['--threads'],
     outdir: args['--outdir'] ? resolve(args['--outdir']) : join(dir, 'out'),
     isInvokedFromCli: true,
     hasAppDir: false,
+    buildExport: false,
   }
 
   exportApp(dir, options, nextExportCliSpan)
@@ -72,9 +73,9 @@ const nextExport: CliCommand = (argv) => {
       nextExportCliSpan.stop()
       printAndExit(`Export successful. Files written to ${options.outdir}`, 0)
     })
-    .catch((err: unknown) => {
+    .catch((err: any) => {
       nextExportCliSpan.stop()
-      if (err instanceof ExportError) {
+      if (err instanceof ExportError || err.code === 'NEXT_EXPORT_ERROR') {
         Log.error(err.message)
       } else {
         console.error(err)

@@ -34,12 +34,20 @@ const NextServerCSSLoader = function (this: any, content: string) {
       .substring(0, 12)
 
     if (isCSSModule) {
-      return (
-        content + '\nmodule.exports.__checksum = ' + JSON.stringify(checksum)
-      )
+      return `\
+${content}
+module.exports.__checksum = ${JSON.stringify(checksum)}
+`
     }
 
-    return `export default ${JSON.stringify(checksum)}`
+    // Server CSS imports are always available for HMR, so we attach
+    // `module.hot.accept()` to the generated module.
+    const hmrCode = 'if (module.hot) { module.hot.accept() }'
+
+    return `\
+export default ${JSON.stringify(checksum)}
+${hmrCode}
+`
   }
 
   return content

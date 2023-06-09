@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use indoc::formatdoc;
-use turbo_binding::{
+use turbopack_binding::{
     turbo::{
         tasks::{
             primitives::{OptionStringVc, StringVc, U32Vc},
@@ -209,7 +209,9 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
 
         #[cfg(not(feature = "__internal_nextjs_integration_test"))]
         let stylesheet_str = {
-            use turbo_binding::{turbo::tasks_fetch::fetch, turbopack::core::issue::IssueSeverity};
+            use turbopack_binding::{
+                turbo::tasks_fetch::fetch, turbopack::core::issue::IssueSeverity,
+            };
 
             let stylesheet_res = fetch(
                 stylesheet_url,
@@ -304,7 +306,7 @@ async fn get_stylesheet_url_from_options(
     let mut css_url: Option<String> = None;
     #[cfg(debug_assertions)]
     {
-        use turbo_binding::turbo::tasks_env::{CommandLineProcessEnvVc, ProcessEnv};
+        use turbopack_binding::turbo::tasks_env::{CommandLineProcessEnvVc, ProcessEnv};
 
         let env = CommandLineProcessEnvVc::new();
         if let Some(url) = &*env.read("TURBOPACK_TEST_ONLY_MOCK_SERVER").await? {
@@ -396,7 +398,7 @@ async fn get_mock_stylesheet(
 ) -> Result<Option<String>> {
     use std::{collections::HashMap, path::Path};
 
-    use turbo_binding::{
+    use turbopack_binding::{
         turbo::{
             tasks::CompletionVc,
             tasks_bytes::stream::SingleValue,
@@ -404,11 +406,15 @@ async fn get_mock_stylesheet(
             tasks_fs::{DiskFileSystemVc, File, FileSystem},
         },
         turbopack::{
-            core::{context::AssetContext, ident::AssetIdentVc},
+            core::{
+                context::AssetContext,
+                ident::AssetIdentVc,
+                reference_type::{InnerAssetsVc, ReferenceType},
+            },
             ecmascript::{
                 EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc,
             },
-            node::{evaluate::evaluate, execution_context::ExecutionContext},
+            node::{debug::should_debug, evaluate::evaluate, execution_context::ExecutionContext},
             turbopack::evaluate_context::node_evaluate_asset_context,
         },
     };
@@ -436,28 +442,25 @@ async fn get_mock_stylesheet(
         project_path,
         chunking_context,
     } = *execution_context.await?;
-    let context = node_evaluate_asset_context(project_path, None, None);
+    let context = node_evaluate_asset_context(execution_context, None, None);
     let loader_path = mock_fs.root().join("loader.js");
-    let mocked_response_asset = EcmascriptModuleAssetVc::new(
-        VirtualAssetVc::new(
-            loader_path,
-            File::from(format!(
-                "import data from './{}'; export default function load() {{ return data; }};",
-                response_path
-                    .file_name()
-                    .context("Must exist")?
-                    .to_string_lossy(),
-            ))
+    let mocked_response_asset = context
+        .process(
+            VirtualAssetVc::new(
+                loader_path,
+                File::from(format!(
+                    "import data from './{}'; export default function load() {{ return data; }};",
+                    response_path
+                        .file_name()
+                        .context("Must exist")?
+                        .to_string_lossy(),
+                ))
+                .into(),
+            )
             .into(),
+            Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
         )
-        .into(),
-        context,
-        Value::new(EcmascriptModuleAssetType::Ecmascript),
-        EcmascriptInputTransformsVc::cell(vec![]),
-        Default::default(),
-        context.compile_time_info(),
-    )
-    .into();
+        .into();
 
     let root = mock_fs.root();
     let val = evaluate(
@@ -470,7 +473,7 @@ async fn get_mock_stylesheet(
         None,
         vec![],
         CompletionVc::immutable(),
-        /* debug */ false,
+        should_debug("next_font::google"),
     )
     .await?;
 

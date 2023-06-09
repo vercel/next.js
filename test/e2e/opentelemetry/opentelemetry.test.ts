@@ -70,7 +70,8 @@ createNextDescribe(
       it('should handle RSC with fetch', async () => {
         await next.fetch('/app/param/rsc-fetch')
 
-        expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
+        await check(async () => {
+          expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
           Array [
             Object {
               "attributes": Object {
@@ -89,6 +90,7 @@ createNextDescribe(
             },
             Object {
               "attributes": Object {
+                "next.route": "/app/[param]/rsc-fetch",
                 "next.span_name": "render route (app) /app/[param]/rsc-fetch",
                 "next.span_type": "AppRender.getBodyResult",
               },
@@ -118,7 +120,7 @@ createNextDescribe(
             },
             Object {
               "attributes": Object {
-                "next.route": "/app/[param]/layout",
+                "next.page": "/app/[param]/layout",
                 "next.span_name": "generateMetadata /app/[param]/layout",
                 "next.span_type": "ResolveMetadata.generateMetadata",
               },
@@ -131,7 +133,7 @@ createNextDescribe(
             },
             Object {
               "attributes": Object {
-                "next.route": "/app/[param]/rsc-fetch/page",
+                "next.page": "/app/[param]/rsc-fetch/page",
                 "next.span_name": "generateMetadata /app/[param]/rsc-fetch/page",
                 "next.span_type": "ResolveMetadata.generateMetadata",
               },
@@ -144,15 +146,19 @@ createNextDescribe(
             },
           ]
         `)
+          return 'success'
+        }, 'success')
       })
 
       it('should handle route handlers in app router', async () => {
         await next.fetch('/api/app/param/data')
 
-        expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
+        await check(async () => {
+          expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
           Array [
             Object {
               "attributes": Object {
+                "next.route": "/api/app/[param]/data/route",
                 "next.span_name": "executing api route (app) /api/app/[param]/data/route",
                 "next.span_type": "AppRouteRouteHandlers.runHandler",
               },
@@ -180,6 +186,8 @@ createNextDescribe(
             },
           ]
         `)
+          return 'success'
+        }, 'success')
       })
     })
 
@@ -187,7 +195,8 @@ createNextDescribe(
       it('should handle getServerSideProps', async () => {
         await next.fetch('/pages/param/getServerSideProps')
 
-        expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
+        await check(async () => {
+          expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
           Array [
             Object {
               "attributes": Object {
@@ -208,6 +217,7 @@ createNextDescribe(
             },
             Object {
               "attributes": Object {
+                "next.route": "/pages/[param]/getServerSideProps",
                 "next.span_name": "getServerSideProps /pages/[param]/getServerSideProps",
                 "next.span_type": "Render.getServerSideProps",
               },
@@ -220,6 +230,7 @@ createNextDescribe(
             },
             Object {
               "attributes": Object {
+                "next.route": "/pages/[param]/getServerSideProps",
                 "next.span_name": "render route (pages) /pages/[param]/getServerSideProps",
                 "next.span_type": "Render.renderDocument",
               },
@@ -232,12 +243,15 @@ createNextDescribe(
             },
           ]
         `)
+          return 'success'
+        }, 'success')
       })
 
       it("should handle getStaticProps when fallback: 'blocking'", async () => {
         await next.fetch('/pages/param/getStaticProps')
 
-        expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
+        await check(async () => {
+          expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
           Array [
             Object {
               "attributes": Object {
@@ -258,6 +272,7 @@ createNextDescribe(
             },
             Object {
               "attributes": Object {
+                "next.route": "/pages/[param]/getStaticProps",
                 "next.span_name": "getStaticProps /pages/[param]/getStaticProps",
                 "next.span_type": "Render.getStaticProps",
               },
@@ -270,6 +285,7 @@ createNextDescribe(
             },
             Object {
               "attributes": Object {
+                "next.route": "/pages/[param]/getStaticProps",
                 "next.span_name": "render route (pages) /pages/[param]/getStaticProps",
                 "next.span_type": "Render.renderDocument",
               },
@@ -282,12 +298,15 @@ createNextDescribe(
             },
           ]
         `)
+          return 'success'
+        }, 'success')
       })
 
       it('should handle api routes in pages', async () => {
         await next.fetch('/api/pages/param/basic')
 
-        expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
+        await check(async () => {
+          expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
           Array [
             Object {
               "attributes": Object {
@@ -320,6 +339,8 @@ createNextDescribe(
             },
           ]
         `)
+          return 'success'
+        }, 'success')
       })
     })
   }

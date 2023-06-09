@@ -1,4 +1,5 @@
 import { install } from '../helpers/install'
+import { makeDir } from '../helpers/make-dir'
 
 import cpy from 'cpy'
 import globOrig from 'glob'
@@ -111,7 +112,7 @@ export const installTemplate = async ({
   }
 
   if (srcDir) {
-    await fs.promises.mkdir(path.join(root, 'src'), { recursive: true })
+    await makeDir(path.join(root, 'src'))
     await Promise.all(
       SRC_DIR_NAMES.map(async (file) => {
         await fs.promises
@@ -150,8 +151,8 @@ export const installTemplate = async ({
         (
           await fs.promises.readFile(tailwindConfigFile, 'utf8')
         ).replace(
-          /\.\/(\w+)\/\*\*\/\*\.\{js,ts,jsx,tsx\}/g,
-          './src/$1/**/*.{js,ts,jsx,tsx}'
+          /\.\/(\w+)\/\*\*\/\*\.\{js,ts,jsx,tsx,mdx\}/g,
+          './src/$1/**/*.{js,ts,jsx,tsx,mdx}'
         )
       )
     }
