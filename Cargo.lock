@@ -372,6 +372,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-tungstenite"
+version = "0.19.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e6acf7e4a267eecbb127ed696bb2d50572c22ba7f586a646321e1798d8336a1"
+dependencies = [
+ "futures-io",
+ "futures-util",
+ "log",
+ "pin-project-lite",
+ "tokio",
+ "tungstenite 0.18.0",
+]
+
+[[package]]
 name = "atomic-polyfill"
 version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -753,11 +767,37 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3c5506e432f602b1747e8a0d60ac6607c6977af4ee9720237764170305323e62"
 dependencies = [
- "async-tungstenite",
+ "async-tungstenite 0.17.2",
  "base64 0.13.1",
  "cfg-if 1.0.0",
- "chromiumoxide_cdp",
- "chromiumoxide_types",
+ "chromiumoxide_cdp 0.4.0",
+ "chromiumoxide_types 0.4.0",
+ "fnv",
+ "futures",
+ "futures-timer",
+ "pin-project-lite",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "url",
+ "which",
+ "winreg",
+]
+
+[[package]]
+name = "chromiumoxide"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fbef58698a487c253c55c3d17bb1efbe268d2961a2c8278e3f86fff721355fc"
+dependencies = [
+ "async-tungstenite 0.19.0",
+ "base64 0.21.0",
+ "cfg-if 1.0.0",
+ "chromiumoxide_cdp 0.5.0",
+ "chromiumoxide_types 0.5.0",
+ "dunce",
  "fnv",
  "futures",
  "futures-timer",
@@ -778,8 +818,20 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "88b6988af5c6bbf097999e7db879729dd7b27a62010c482d4922fddeb4f220d4"
 dependencies = [
- "chromiumoxide_pdl",
- "chromiumoxide_types",
+ "chromiumoxide_pdl 0.4.0",
+ "chromiumoxide_types 0.4.0",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "chromiumoxide_cdp"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "902b90e019dff479bf5a36ed3961e955afa48c35fb2d4245d0b193e7746d50b9"
+dependencies = [
+ "chromiumoxide_pdl 0.5.0",
+ "chromiumoxide_types 0.5.0",
  "serde",
  "serde_json",
 ]
@@ -790,7 +842,24 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4cdf6513e24d260548345a5ef13a04110f5915b7764c274933e10f9363a43e3b"
 dependencies = [
- "chromiumoxide_types",
+ "chromiumoxide_types 0.4.0",
+ "either",
+ "heck 0.4.1",
+ "once_cell",
+ "proc-macro2",
+ "quote",
+ "regex",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "chromiumoxide_pdl"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cc9319fb29ecce08ac90dd5a798c391f6a8ae1d7c90aff71f3fa27cb3cdfc3ec"
+dependencies = [
+ "chromiumoxide_types 0.5.0",
  "either",
  "heck 0.4.1",
  "once_cell",
@@ -806,6 +875,16 @@ name = "chromiumoxide_types"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1af9c183b5aac7f09639cc7b4ddde8a8551850d2c9bf36530830cb10e28e676f"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "chromiumoxide_types"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0c9187058637b8e555690935a6d25a1f7af1d71b377fc45b4257712efb34551f"
 dependencies = [
  "serde",
  "serde_json",
@@ -3308,7 +3387,7 @@ name = "next-dev"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "chromiumoxide",
+ "chromiumoxide 0.5.0",
  "clap 4.1.11",
  "console-subscriber",
  "criterion",
@@ -3343,7 +3422,7 @@ name = "next-dev-tests"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "chromiumoxide",
+ "chromiumoxide 0.5.0",
  "console-subscriber",
  "dunce",
  "futures",
@@ -7311,7 +7390,7 @@ version = "0.1.0"
 source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230608.1#a00ba87b486db48038e1d6e74775a29b920ef03b"
 dependencies = [
  "anyhow",
- "chromiumoxide",
+ "chromiumoxide 0.4.0",
  "criterion",
  "dunce",
  "futures",
