@@ -43,7 +43,10 @@ importers:
       '@swc/helpers': 0.5.1
       '@testing-library/react': 13.0.0
       '@types/cheerio': 0.22.16
+      '@types/cookie': 0.3.3
+      '@types/cross-spawn': 6.0.0
       '@types/fs-extra': 8.1.0
+      '@types/glob': 7.1.1
       '@types/html-validator': 5.0.3
       '@types/http-proxy': 1.17.3
       '@types/jest': 24.0.13
@@ -211,7 +214,10 @@ importers:
       '@swc/helpers': 0.5.1
       '@testing-library/react': 13.0.0_biqbaboplfbrettd7655fr4n2y
       '@types/cheerio': 0.22.16
+      '@types/cookie': 0.3.3
+      '@types/cross-spawn': 6.0.0
       '@types/fs-extra': 8.1.0
+      '@types/glob': 7.1.1
       '@types/html-validator': 5.0.3
       '@types/http-proxy': 1.17.3
       '@types/jest': 24.0.13

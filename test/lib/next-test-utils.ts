@@ -1,4 +1,3 @@
-import spawn from 'cross-spawn'
 import express from 'express'
 import {
   existsSync,
@@ -7,27 +6,41 @@ import {
   writeFileSync,
   createReadStream,
 } from 'fs'
-import { writeFile } from 'fs-extra'
-import getPort from 'get-port'
+import { promisify } from 'util'
 import http from 'http'
 import https from 'https'
-import server from 'next/dist/server/next'
-import _pkg from 'next/package.json'
-import fetch from 'node-fetch'
 import path from 'path'
+
+import spawn from 'cross-spawn'
+import { writeFile } from 'fs-extra'
+import getPort from 'get-port'
+import fetch from 'node-fetch'
 import qs from 'querystring'
 import treeKill from 'tree-kill'
+
+import server from 'next/dist/server/next'
+import _pkg from 'next/package.json'
+
+import type { SpawnOptions, ChildProcess } from 'child_process'
+import type { RequestInit, Response } from 'node-fetch'
+import type { NextServer } from 'next/dist/server/next'
+import type { BrowserInterface } from './browsers/base'
 
 export const nextServer = server
 export const pkg = _pkg
 
 export function initNextServerScript(
-  scriptPath,
-  successRegexp,
-  env,
-  failRegexp,
-  opts
-) {
+  scriptPath: string,
+  successRegexp: RegExp,
+  env: NodeJS.ProcessEnv,
+  failRegexp?: RegExp,
+  opts?: {
+    cwd?: string
+    nodeArgs?: string[]
+    onStdout?: (data: any) => void
+    onStderr?: (data: any) => void
+  }
+): Promise<ChildProcess> {
   return new Promise((resolve, reject) => {
     const instance = spawn(
       'node',
@@ -83,13 +96,11 @@ export function initNextServerScript(
   })
 }
 
-/**
- * @param {string | number} appPortOrUrl
- * @param {string} [url]
- * @param {string} [hostname]
- * @returns
- */
-export function getFullUrl(appPortOrUrl, url, hostname) {
+export function getFullUrl(
+  appPortOrUrl: string | number,
+  url?: string,
+  hostname?: string
+) {
   let fullUrl =
     typeof appPortOrUrl === 'string' && appPortOrUrl.startsWith('http')
       ? appPortOrUrl
@@ -114,11 +125,14 @@ export function getFullUrl(appPortOrUrl, url, hostname) {
 /**
  * Appends the querystring to the url
  *
- * @param {string} pathname the pathname
- * @param {Record<string,any> | string} query the query object to add to the pathname
+ * @param pathname the pathname
+ * @param query the query object to add to the pathname
  * @returns the pathname with the query
  */
-export function withQuery(pathname, query) {
+export function withQuery(
+  pathname: string,
+  query: Record<string, any> | string
+) {
   const querystring = typeof query === 'string' ? query : qs.stringify(query)
   if (querystring.length === 0) {
     return pathname
@@ -133,30 +147,21 @@ export function withQuery(pathname, query) {
   return `${pathname}?${querystring}`
 }
 
-export function renderViaAPI(app, pathname, query) {
-  const url = query ? withQuery(pathname, query) : pathname
-  return app.renderToHTML({ url }, {}, pathname, query)
-}
-
-/**
- * @param {string | number} appPort
- * @param {string} pathname
- * @param {Record<string, any> | string | undefined} [query]
- * @param {import('node-fetch').RequestInit} [opts]
- * @returns {Promise<string>}
- */
-export function renderViaHTTP(appPort, pathname, query, opts) {
+export function renderViaHTTP(
+  appPort: string | number,
+  pathname: string,
+  query?: Record<string, any> | string | undefined,
+  opts?: RequestInit
+) {
   return fetchViaHTTP(appPort, pathname, query, opts).then((res) => res.text())
 }
 
-/**
- * @param {string | number} appPort
- * @param {string} pathname
- * @param {Record<string, any> | string | null | undefined} [query]
- * @param {import('node-fetch').RequestInit} [opts]
- * @returns {Promise<Response & {buffer: any} & {headers: Headers}>}
- */
-export function fetchViaHTTP(appPort, pathname, query, opts) {
+export function fetchViaHTTP(
+  appPort: string | number,
+  pathname: string,
+  query?: Record<string, any> | string | null | undefined,
+  opts?: RequestInit
+): Promise<Response> {
   const url = query ? withQuery(pathname, query) : pathname
   return fetch(getFullUrl(appPort, url), {
     // in node.js v17 fetch favors IPv6 but Next.js is
@@ -177,14 +182,37 @@ export function findPort() {
   return getPort()
 }
 
-export function runNextCommand(argv, options = {}) {
+export interface NextOptions {
+  cwd?: string
+  env?: NodeJS.Dict<string>
+  nodeArgs?: string[]
+
+  spawnOptions?: SpawnOptions
+  instance?: (instance: ChildProcess) => void
+  stderr?: true | 'log'
+  stdout?: true | 'log'
+  ignoreFail?: boolean
+
+  onStdout?: (data: any) => void
+  onStderr?: (data: any) => void
+}
+
+export function runNextCommand(
+  argv: string[],
+  options: NextOptions = {}
+): Promise<{
+  code: number
+  signal: NodeJS.Signals
+  stdout: string
+  stderr: string
+}> {
   const nextDir = path.dirname(require.resolve('next/package'))
   const nextBin = path.join(nextDir, 'dist/bin/next')
   const cwd = options.cwd || nextDir
   // Let Next.js decide the environment
   const env = {
     ...process.env,
-    NODE_ENV: '',
+    NODE_ENV: undefined,
     __NEXT_TEST_MODE: 'true',
     ...options.env,
   }
@@ -279,14 +307,35 @@ export function runNextCommand(argv, options = {}) {
     })
 
     instance.on('error', (err) => {
-      err.stdout = stdoutOutput
-      err.stderr = stderrOutput
+      err['stdout'] = stdoutOutput
+      err['stderr'] = stderrOutput
       reject(err)
     })
   })
 }
 
-export function runNextCommandDev(argv, stdOut, opts = {}) {
+export interface NextDevOptions {
+  cwd?: string
+  env?: NodeJS.Dict<string>
+  nodeArgs?: string[]
+  nextBin?: string
+
+  bootupMarker?: RegExp
+  nextStart?: boolean
+  turbo?: boolean
+
+  stderr?: false
+  stdout?: false
+
+  onStdout?: (data: any) => void
+  onStderr?: (data: any) => void
+}
+
+export function runNextCommandDev(
+  argv: string[],
+  stdOut?: boolean,
+  opts: NextDevOptions = {}
+): Promise<(typeof stdOut extends true ? string : ChildProcess) | undefined> {
   const nextDir = path.dirname(require.resolve('next/package'))
   const nextBin = opts.nextBin || path.join(nextDir, 'dist/bin/next')
   const cwd = opts.cwd || nextDir
@@ -363,7 +412,7 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
       instance.stderr.removeListener('data', handleStderr)
       if (!didResolve) {
         didResolve = true
-        resolve()
+        resolve(undefined)
       }
     })
 
@@ -374,12 +423,18 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
 }
 
 // Launch the app in dev mode.
-export function launchApp(dir, port, opts) {
+export function launchApp(
+  dir: string,
+  port: string | number,
+  opts?: NextDevOptions
+) {
   const options = opts ?? {}
   const useTurbo = shouldRunTurboDevTest()
 
   return runNextCommandDev(
-    [useTurbo ? '--turbo' : undefined, dir, '-p', port].filter(Boolean),
+    [useTurbo ? '--turbo' : undefined, dir, '-p', port as string].filter(
+      Boolean
+    ),
     undefined,
     {
       ...options,
@@ -388,30 +443,46 @@ export function launchApp(dir, port, opts) {
   )
 }
 
-export function nextBuild(dir, args = [], opts = {}) {
+export function nextBuild(
+  dir: string,
+  args: string[] = [],
+  opts: NextOptions = {}
+) {
   return runNextCommand(['build', dir, ...args], opts)
 }
 
-export function nextExport(dir, { outdir }, opts = {}) {
+export function nextExport(dir: string, { outdir }, opts: NextOptions = {}) {
   return runNextCommand(['export', dir, '--outdir', outdir], opts)
 }
 
-export function nextExportDefault(dir, opts = {}) {
+export function nextExportDefault(dir: string, opts: NextOptions = {}) {
   return runNextCommand(['export', dir], opts)
 }
 
-export function nextLint(dir, args = [], opts = {}) {
+export function nextLint(
+  dir: string,
+  args: string[] = [],
+  opts: NextOptions = {}
+) {
   return runNextCommand(['lint', dir, ...args], opts)
 }
 
-export function nextStart(dir, port, opts = {}) {
-  return runNextCommandDev(['start', '-p', port, dir], undefined, {
+export function nextStart(
+  dir: string,
+  port: string | number,
+  opts: NextDevOptions = {}
+) {
+  return runNextCommandDev(['start', '-p', port as string, dir], undefined, {
     ...opts,
     nextStart: true,
   })
 }
 
-export function buildTS(args = [], cwd, env = {}) {
+export function buildTS(
+  args: string[] = [],
+  cwd?: string,
+  env?: any
+): Promise<void> {
   cwd = cwd || path.dirname(require.resolve('next/package'))
   env = { ...process.env, NODE_ENV: undefined, ...env }
 
@@ -439,8 +510,8 @@ export function buildTS(args = [], cwd, env = {}) {
   })
 }
 
-export async function killProcess(pid) {
-  await new Promise((resolve, reject) => {
+export async function killProcess(pid: number): Promise<void> {
+  return await new Promise((resolve, reject) => {
     treeKill(pid, (err) => {
       if (err) {
         if (
@@ -465,11 +536,11 @@ export async function killProcess(pid) {
 }
 
 // Kill a launched app
-export async function killApp(instance) {
+export async function killApp(instance: ChildProcess) {
   await killProcess(instance.pid)
 }
 
-export async function startApp(app) {
+export async function startApp(app: NextServer) {
   // force require usage instead of dynamic import in jest
   // x-ref: https://github.com/nodejs/node/issues/35889
   process.env.__NEXT_TEST_MODE = 'jest'
@@ -480,38 +551,29 @@ export async function startApp(app) {
   await app.prepare()
   const handler = app.getRequestHandler()
   const server = http.createServer(handler)
-  server.__app = app
+  server['__app'] = app
 
-  await promiseCall(server, 'listen')
+  await promisify(server.listen).apply(server)
+
   return server
 }
 
-export async function stopApp(server) {
-  if (server.__app) {
-    await server.__app.close()
+export async function stopApp(server: http.Server) {
+  if (server['__app']) {
+    await server['__app'].close()
   }
-  await promiseCall(server, 'close')
+  await promisify(server.close).apply(server)
 }
 
-export function promiseCall(obj, method, ...args) {
-  return new Promise((resolve, reject) => {
-    const newArgs = [
-      ...args,
-      function (err, res) {
-        if (err) return reject(err)
-        resolve(res)
-      },
-    ]
-
-    obj[method](...newArgs)
-  })
-}
-
-export function waitFor(millis) {
+export function waitFor(millis: number) {
   return new Promise((resolve) => setTimeout(resolve, millis))
 }
 
-export async function startStaticServer(dir, notFoundFile, fixedPort) {
+export async function startStaticServer(
+  dir: string,
+  notFoundFile?: string,
+  fixedPort?: number
+) {
   const app = express()
   const server = http.createServer(app)
   app.use(express.static(dir))
@@ -522,16 +584,16 @@ export async function startStaticServer(dir, notFoundFile, fixedPort) {
     })
   }
 
-  await promiseCall(server, 'listen', fixedPort)
+  await promisify(server.listen).apply(server, fixedPort)
   return server
 }
 
-export async function startCleanStaticServer(dir) {
+export async function startCleanStaticServer(dir: string) {
   const app = express()
   const server = http.createServer(app)
   app.use(express.static(dir, { extensions: ['html'] }))
 
-  await promiseCall(server, 'listen')
+  await promisify(server.listen).apply(server)
   return server
 }
 
@@ -545,8 +607,8 @@ export async function startCleanStaticServer(dir) {
  * @returns {Promise<boolean>}
  */
 export async function check(
-  contentFn,
-  regex,
+  contentFn: () => any | Promise<any>,
+  regex: any,
   hardError = true,
   maxRetries = 30
 ) {
@@ -556,7 +618,7 @@ export async function check(
   for (let tries = 0; tries < maxRetries; tries++) {
     try {
       content = await contentFn()
-      if (typeof regex !== typeof /regex/) {
+      if (!(regex instanceof RegExp)) {
         if (regex === content) {
           return true
         }
@@ -579,21 +641,24 @@ export async function check(
 }
 
 export class File {
-  constructor(path) {
+  path: string
+  originalContent: string
+
+  constructor(path: string) {
     this.path = path
     this.originalContent = existsSync(this.path)
       ? readFileSync(this.path, 'utf8')
       : null
   }
 
-  write(content) {
+  write(content: string) {
     if (!this.originalContent) {
       this.originalContent = content
     }
     writeFileSync(this.path, content, 'utf8')
   }
 
-  replace(pattern, newValue) {
+  replace(pattern: RegExp | string, newValue: string) {
     const currentContent = readFileSync(this.path, 'utf8')
     if (pattern instanceof RegExp) {
       if (!pattern.test(currentContent)) {
@@ -624,7 +689,10 @@ export class File {
   }
 }
 
-export async function evaluate(browser, input) {
+export async function evaluate(
+  browser: BrowserInterface,
+  input: string | Function
+) {
   if (typeof input === 'function') {
     const result = await browser.eval(input)
     await new Promise((resolve) => setTimeout(resolve, 30))
@@ -634,7 +702,12 @@ export async function evaluate(browser, input) {
   }
 }
 
-export async function retry(fn, duration = 3000, interval = 500, description) {
+export async function retry<T>(
+  fn: () => T | Promise<T>,
+  duration: number = 3000,
+  interval: number = 500,
+  description?: string
+): Promise<T> {
   if (duration % interval !== 0) {
     throw new Error(
       `invalid duration ${duration} and interval ${interval} mix, duration must be evenly divisible by interval`
@@ -661,7 +734,7 @@ export async function retry(fn, duration = 3000, interval = 500, description) {
   }
 }
 
-export async function hasRedbox(browser, expected = true) {
+export async function hasRedbox(browser: BrowserInterface, expected = true) {
   for (let i = 0; i < 30; i++) {
     const result = await evaluate(browser, () => {
       return Boolean(
@@ -683,7 +756,7 @@ export async function hasRedbox(browser, expected = true) {
   return false
 }
 
-export async function getRedboxHeader(browser) {
+export async function getRedboxHeader(browser: BrowserInterface) {
   return retry(
     () => {
       if (shouldRunTurboDevTest()) {
@@ -715,7 +788,7 @@ export async function getRedboxHeader(browser) {
   )
 }
 
-export async function getRedboxSource(browser) {
+export async function getRedboxSource(browser: BrowserInterface) {
   return retry(
     () =>
       evaluate(browser, () => {
@@ -737,7 +810,7 @@ export async function getRedboxSource(browser) {
   )
 }
 
-export async function getRedboxDescription(browser) {
+export async function getRedboxDescription(browser: BrowserInterface) {
   return retry(
     () =>
       evaluate(browser, () => {
@@ -755,23 +828,23 @@ export async function getRedboxDescription(browser) {
   )
 }
 
-export function getBrowserBodyText(browser) {
+export function getBrowserBodyText(browser: BrowserInterface) {
   return browser.eval('document.getElementsByTagName("body")[0].innerText')
 }
 
-export function normalizeRegEx(src) {
+export function normalizeRegEx(src: string) {
   return new RegExp(src).source.replace(/\^\//g, '^\\/')
 }
 
-function readJson(path) {
-  return JSON.parse(readFileSync(path))
+function readJson(path: string) {
+  return JSON.parse(readFileSync(path, 'utf-8'))
 }
 
-export function getBuildManifest(dir) {
+export function getBuildManifest(dir: string) {
   return readJson(path.join(dir, '.next/build-manifest.json'))
 }
 
-export function getPageFileFromBuildManifest(dir, page) {
+export function getPageFileFromBuildManifest(dir: string, page: string) {
   const buildManifest = getBuildManifest(dir)
   const pageFiles = buildManifest.pages[page]
   if (!pageFiles) {
@@ -790,24 +863,24 @@ export function getPageFileFromBuildManifest(dir, page) {
   return pageFile
 }
 
-export function readNextBuildClientPageFile(appDir, page) {
+export function readNextBuildClientPageFile(appDir: string, page: string) {
   const pageFile = getPageFileFromBuildManifest(appDir, page)
   return readFileSync(path.join(appDir, '.next', pageFile), 'utf8')
 }
 
-export function getPagesManifest(dir) {
+export function getPagesManifest(dir: string) {
   const serverFile = path.join(dir, '.next/server/pages-manifest.json')
 
   return readJson(serverFile)
 }
 
-export function updatePagesManifest(dir, content) {
+export function updatePagesManifest(dir: string, content: any) {
   const serverFile = path.join(dir, '.next/server/pages-manifest.json')
 
   return writeFile(serverFile, content)
 }
 
-export function getPageFileFromPagesManifest(dir, page) {
+export function getPageFileFromPagesManifest(dir: string, page: string) {
   const pagesManifest = getPagesManifest(dir)
   const pageFile = pagesManifest[page]
   if (!pageFile) {
@@ -817,18 +890,26 @@ export function getPageFileFromPagesManifest(dir, page) {
   return pageFile
 }
 
-export function readNextBuildServerPageFile(appDir, page) {
+export function readNextBuildServerPageFile(appDir: string, page: string) {
   const pageFile = getPageFileFromPagesManifest(appDir, page)
   return readFileSync(path.join(appDir, '.next', 'server', pageFile), 'utf8')
 }
 
-/**
- *
- * @param {string} suiteName
- * @param {{env: 'prod' | 'dev', appDir: string}} context
- * @param {{beforeAll?: Function; afterAll?: Function; runTests: Function}} options
- */
-function runSuite(suiteName, context, options) {
+function runSuite(
+  suiteName: string,
+  context: { env: 'prod' | 'dev'; appDir: string } & Partial<{
+    stderr: string
+    stdout: string
+    appPort: number
+    code: number
+    server: ChildProcess
+  }>,
+  options: {
+    beforeAll?: Function
+    afterAll?: Function
+    runTests: Function
+  } & NextDevOptions
+) {
   const { appDir, env } = context
   describe(`${suiteName} ${env}`, () => {
     beforeAll(async () => {
@@ -878,23 +959,29 @@ function runSuite(suiteName, context, options) {
   })
 }
 
-/**
- *
- * @param {string} suiteName
- * @param {string} appDir
- * @param {{beforeAll?: Function; afterAll?: Function; runTests: Function; env?: Record<string, string>}} options
- */
-export function runDevSuite(suiteName, appDir, options) {
+export function runDevSuite(
+  suiteName: string,
+  appDir: string,
+  options: {
+    beforeAll?: Function
+    afterAll?: Function
+    runTests: Function
+    env?: NodeJS.ProcessEnv
+  }
+) {
   return runSuite(suiteName, { appDir, env: 'dev' }, options)
 }
 
-/**
- *
- * @param {string} suiteName
- * @param {string} appDir
- * @param {{beforeAll?: Function; afterAll?: Function; runTests: Function; env?: Record<string, string>}} options
- */
-export function runProdSuite(suiteName, appDir, options) {
+export function runProdSuite(
+  suiteName: string,
+  appDir: string,
+  options: {
+    beforeAll?: Function
+    afterAll?: Function
+    runTests: Function
+    env?: NodeJS.ProcessEnv
+  }
+) {
   return runSuite(suiteName, { appDir, env: 'prod' }, options)
 }
 
@@ -904,7 +991,7 @@ export function runProdSuite(suiteName, appDir, options) {
  * @param {string} eventName
  * @returns {Array<{}>}
  */
-export function findAllTelemetryEvents(output, eventName) {
+export function findAllTelemetryEvents(output: string, eventName: string) {
   const regex = /\[telemetry\] ({.+?^})/gms
   // Pop the last element of each entry to retrieve contents of the capturing group
   const events = [...output.matchAll(regex)].map((entry) =>
@@ -922,7 +1009,7 @@ export function findAllTelemetryEvents(output, eventName) {
  * it makes hard to conform with existing lint rules. Instead, starting off from manual fixture setup and
  * update test cases accordingly as turbopack changes enable more test cases.
  */
-export function shouldRunTurboDevTest() {
+export function shouldRunTurboDevTest(): boolean {
   if (!!process.env.TEST_WASM) {
     return false
   }
@@ -939,10 +1026,12 @@ export function shouldRunTurboDevTest() {
   return false
 }
 
+type TestVariants = 'default' | 'turbo'
+
 // WEB-168: There are some differences / incompletes in turbopack implementation enforces jest requires to update
 // test snapshot when run against turbo. This fn returns describe, or describe.skip dependes on the running context
 // to avoid force-snapshot update per each runs until turbopack update includes all the changes.
-export function getSnapshotTestDescribe(variant) {
+export function getSnapshotTestDescribe(variant: TestVariants) {
   const runningEnv = variant ?? 'default'
   if (runningEnv !== 'default' && runningEnv !== 'turbo') {
     throw new Error(
@@ -962,20 +1051,20 @@ export function getSnapshotTestDescribe(variant) {
  * For better editor support, pass in the variants this should run on (`default` and/or `turbo`) as cases.
  *
  * This is necessary if separate snapshots are needed for next.js with webpack vs turbopack.
- *
- * @type {Pick<import("jest").Describe, "each">}
  */
 export const describeVariants = {
-  each: (variants) => (name, fn) => {
-    if (
-      !Array.isArray(variants) ||
-      !variants.every((val) => typeof val === 'string')
-    ) {
-      throw new Error('variants need to be an array of strings')
-    }
+  each(variants: TestVariants[]) {
+    return (name: string, fn: (...args: TestVariants[]) => any) => {
+      if (
+        !Array.isArray(variants) ||
+        !variants.every((val) => typeof val === 'string')
+      ) {
+        throw new Error('variants need to be an array of strings')
+      }
 
-    for (const variant of variants) {
-      getSnapshotTestDescribe(variant).each([variant])(name, fn)
+      for (const variant of variants) {
+        getSnapshotTestDescribe(variant).each([variant])(name, fn)
+      }
     }
   },
 }

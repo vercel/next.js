@@ -1,13 +1,13 @@
 import { FileRef, createNext, NextInstance } from 'e2e-utils'
 import { findPort, renderViaHTTP, fetchViaHTTP } from 'next-test-utils'
 import { join } from 'path'
-import { spawn } from 'cross-spawn'
+import spawn from 'cross-spawn'
 
 describe('next/font/google with proxy', () => {
   let next: NextInstance
   let proxy: any
-  let PROXY_PORT: number
-  let SERVER_PORT: number
+  let PROXY_PORT: string
+  let SERVER_PORT: string
 
   if ((global as any).isNextDeploy) {
     it('should skip next deploy', () => {})
@@ -15,8 +15,8 @@ describe('next/font/google with proxy', () => {
   }
 
   beforeAll(async () => {
-    PROXY_PORT = await findPort()
-    SERVER_PORT = await findPort()
+    PROXY_PORT = await findPort().toString()
+    SERVER_PORT = await findPort().toString()
 
     proxy = spawn('node', [require.resolve('./with-proxy/server.js')], {
       stdio: 'inherit',
