@@ -36,7 +36,7 @@ jobs:
     secrets: inherit
 
   build-next:
-    name: build
+    name: build-next
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipNativeBuild: 'yes'
@@ -180,7 +180,8 @@ jobs:
   tests-pass:
     needs:
       [
-        'build',
+        'build-native',
+        'build-next',
         'lint',
         'check-types-precompiled',
         'test-dev',
