@@ -1657,23 +1657,27 @@ export async function ncc_icss_utils(task, opts) {
 externals['scheduler'] = 'next/dist/compiled/scheduler-experimental'
 externals['scheduler'] = 'next/dist/compiled/scheduler'
 export async function copy_vendor_react(task_) {
-  function* copy_vendor_react_impl(task, opts) {
-    const channel = opts.experimental ? `experimental-builtin` : `builtin`
-    const packageSuffix = opts.experimental ? `-experimental` : ``
+  function* copy_vendor_react_vendored_impl(task, opts) {
+    const builtInChannel = opts.experimental
+      ? `-experimental-builtin`
+      : `-builtin`
+    const channel = opts.experimental ? `-experimental` : ``
+    const packageSuffix = opts.experimental
+      ? `-experimental-vendored`
+      : `-vendored`
 
     // Override the `react`, `react-dom` and `scheduler`'s package names to avoid
     // "The name `react` was looked up in the Haste module map" warnings.
     // TODO-APP: remove unused fields from package.json and unused files
-    function overridePackageName(source) {
+    function overridePackageName(source, suffix) {
       const json = JSON.parse(source)
-      json.name = json.name + '-' + channel
+      json.name = json.name + suffix
       return JSON.stringify(
         {
           name: json.name,
           main: json.main,
           exports: json.exports,
           dependencies: json.dependencies,
-          peerDependencies: json.peerDependencies,
           browser: json.browser,
         },
         null,
@@ -1682,29 +1686,38 @@ export async function copy_vendor_react(task_) {
     }
 
     const schedulerDir = dirname(
-      relative(__dirname, require.resolve(`scheduler-${channel}/package.json`))
+      relative(
+        __dirname,
+        require.resolve(`scheduler${builtInChannel}/package.json`)
+      )
     )
     yield task
       .source(join(schedulerDir, '*.{json,js}'))
       // eslint-disable-next-line require-yield
       .run({ every: true }, function* (file) {
         if (file.base === 'package.json') {
-          file.data = overridePackageName(file.data.toString())
+          file.data = overridePackageName(file.data.toString(), packageSuffix)
         }
       })
-      .target(`src/compiled/scheduler${packageSuffix}`)
+      .target(`src/vendored/node_modules/scheduler${packageSuffix}`)
     yield task
       .source(join(schedulerDir, 'cjs/**/*.js'))
-      .target(`src/compiled/scheduler${packageSuffix}/cjs`)
+      .target(`src/vendored/node_modules/scheduler${packageSuffix}/cjs`)
     yield task
       .source(join(schedulerDir, 'LICENSE'))
-      .target(`src/compiled/scheduler${packageSuffix}`)
+      .target(`src/vendored/node_modules/scheduler${packageSuffix}`)
 
     const reactDir = dirname(
-      relative(__dirname, require.resolve(`react-${channel}/package.json`))
+      relative(
+        __dirname,
+        require.resolve(`react${builtInChannel}/package.json`)
+      )
     )
     const reactDomDir = dirname(
-      relative(__dirname, require.resolve(`react-dom-${channel}/package.json`))
+      relative(
+        __dirname,
+        require.resolve(`react-dom${builtInChannel}/package.json`)
+      )
     )
 
     yield task
@@ -1712,63 +1725,37 @@ export async function copy_vendor_react(task_) {
       // eslint-disable-next-line require-yield
       .run({ every: true }, function* (file) {
         if (file.base === 'package.json') {
-          file.data = overridePackageName(file.data.toString())
+          file.data = overridePackageName(file.data.toString(), packageSuffix)
         }
       })
-      .target(`src/compiled/react${packageSuffix}`)
+      .target(`src/vendored/node_modules/react${packageSuffix}`)
     yield task
       .source(join(reactDir, 'LICENSE'))
-      .target(`src/compiled/react${packageSuffix}`)
+      .target(`src/vendored/node_modules/react${packageSuffix}`)
     yield task
       .source(join(reactDir, 'cjs/**/*.js'))
-      // eslint-disable-next-line require-yield
-      .run({ every: true }, function* (file) {
-        const source = file.data.toString()
-        // We replace the module/chunk loading code with our own implementation in Next.js.
-        file.data = source.replace(
-          /require\(["']react["']\)/g,
-          `require("next/dist/compiled/react${packageSuffix}")`
-        )
-      })
-      .target(`src/compiled/react${packageSuffix}/cjs`)
+      .target(`src/vendored/node_modules/react${packageSuffix}/cjs`)
 
     yield task
       .source(join(reactDomDir, '*.{json,js}'))
       // eslint-disable-next-line require-yield
       .run({ every: true }, function* (file) {
         if (file.base === 'package.json') {
-          file.data = overridePackageName(file.data.toString())
+          file.data = overridePackageName(file.data.toString(), packageSuffix)
         }
       })
-      .target(`src/compiled/react-dom${packageSuffix}`)
+      .target(`src/vendored/node_modules/react-dom${packageSuffix}`)
     yield task
       .source(join(reactDomDir, 'LICENSE'))
-      .target(`src/compiled/react-dom${packageSuffix}`)
+      .target(`src/vendored/node_modules/react-dom${packageSuffix}`)
     yield task
       .source(join(reactDomDir, 'cjs/**/*.js'))
-      // eslint-disable-next-line require-yield
-      .run({ every: true }, function* (file) {
-        const source = file.data.toString()
-        // We replace the module/chunk loading code with our own implementation in Next.js.
-        file.data = source
-          .replace(
-            /require\(["']scheduler["']\)/g,
-            `require("next/dist/compiled/scheduler${packageSuffix}")`
-          )
-          .replace(
-            /require\(["']react["']\)/g,
-            `require("next/dist/compiled/react${packageSuffix}")`
-          )
-
-        // Note that we don't replace `react-dom` with `next/dist/compiled/react-dom`
-        // as it mighe be aliased to the server rendering stub.
-      })
-      .target(`src/compiled/react-dom${packageSuffix}/cjs`)
+      .target(`src/vendored/node_modules/react-dom${packageSuffix}/cjs`)
 
     // Remove unused files
     const reactDomCompiledDir = join(
       __dirname,
-      `src/compiled/react-dom${packageSuffix}`
+      `src/vendored/node_modules/react-dom${packageSuffix}`
     )
     const itemsToRemove = [
       'static.js',
@@ -1793,12 +1780,14 @@ export async function copy_vendor_react(task_) {
     const reactServerDomDir = dirname(
       relative(
         __dirname,
-        require.resolve(`react-server-dom-webpack${packageSuffix}/package.json`)
+        require.resolve(`react-server-dom-webpack${channel}/package.json`)
       )
     )
     yield task
       .source(join(reactServerDomDir, 'LICENSE'))
-      .target(`src/compiled/react-server-dom-webpack${packageSuffix}`)
+      .target(
+        `src/vendored/node_modules/react-server-dom-webpack${packageSuffix}`
+      )
     yield task
       .source(join(reactServerDomDir, '{package.json,*.js,cjs/**/*.js}'))
       // eslint-disable-next-line require-yield
@@ -1812,30 +1801,39 @@ export async function copy_vendor_react(task_) {
           .replace(/__webpack_require__/g, 'globalThis.__next_require__')
 
         if (file.base === 'package.json') {
-          file.data = overridePackageName(file.data)
+          file.data = overridePackageName(
+            file.data,
+            `${packageSuffix}-vendored`
+          )
         }
       })
-      .target(`src/compiled/react-server-dom-webpack${packageSuffix}`)
+      .target(
+        `src/vendored/node_modules/react-server-dom-webpack${packageSuffix}`
+      )
   }
 
   // As taskr transpiles async functions into generators, to reuse the same logic
   // we need to directly write this iteration logic here.
-  for (const res of copy_vendor_react_impl(task_, { experimental: false })) {
+  for (const res of copy_vendor_react_vendored_impl(task_, {
+    experimental: false,
+  })) {
     await res
   }
-  for (const res of copy_vendor_react_impl(task_, { experimental: true })) {
+  for (const res of copy_vendor_react_vendored_impl(task_, {
+    experimental: true,
+  })) {
     await res
   }
 }
 
 // eslint-disable-next-line camelcase
-export async function ncc_rsc_poison_packages(task, opts) {
+export async function vendor_poison_packages(task, opts) {
   await task
     .source(join(dirname(require.resolve('server-only')), '*'))
-    .target('src/compiled/server-only')
+    .target('src/vendored/node_modules/server-only')
   await task
     .source(join(dirname(require.resolve('client-only')), '*'))
-    .target('src/compiled/client-only')
+    .target('src/vendored/node_modules/client-only')
 }
 
 externals['sass-loader'] = 'next/dist/compiled/sass-loader'
@@ -2194,6 +2192,7 @@ export async function precompile(task, opts) {
       'browser_polyfills',
       'path_to_regexp',
       'copy_ncced',
+      'copy_vendored',
       'copy_styled_jsx_assets',
     ],
     opts
@@ -2205,6 +2204,10 @@ export async function copy_ncced(task) {
   // we don't ncc every time we build since these won't change
   // that often and can be committed to the repo saving build time
   await task.source('src/compiled/**/*').target('dist/compiled')
+}
+
+export async function copy_vendored(task) {
+  await task.source('src/vendored/**/*').target('dist/vendored')
 }
 
 export async function ncc(task, opts) {
@@ -2338,6 +2341,7 @@ export async function ncc(task, opts) {
       'copy_vercel_og',
       'copy_constants_browserify',
       'copy_vendor_react',
+      'vendor_poison_packages',
       'copy_react_is',
       'ncc_sass_loader',
       'ncc_jest_worker',
