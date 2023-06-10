@@ -53,6 +53,7 @@ export function TurbopackIssuesDialogBody({
       </div>
 
       <h2
+        data-nextjs-dialog-header
         id="nextjs__container_errors_desc"
         data-severity={activeIssueIsError ? 'error' : 'warning'}
       >

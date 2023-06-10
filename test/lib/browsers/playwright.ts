@@ -258,7 +258,7 @@ export class Playwright extends BrowserInterface {
   }
 
   elementByCss(selector: string) {
-    return this.waitForElementByCss(selector)
+    return this.waitForElementByCss(selector, 0)
   }
 
   elementById(sel) {
@@ -294,7 +294,9 @@ export class Playwright extends BrowserInterface {
   }
 
   hasElementByCssSelector(selector: string) {
-    return this.eval<boolean>(`!!document.querySelector('${selector}')`)
+    return this.chainWithReturnValue(() =>
+      page.$(selector).then((el) => el != null)
+    )
   }
 
   keydown(key: string): BrowserInterface {

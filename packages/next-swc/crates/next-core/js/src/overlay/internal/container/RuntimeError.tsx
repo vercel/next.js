@@ -242,7 +242,7 @@ export function RuntimeErrorsDialogBody({
         </LeftRightDialogHeader>
       </div>
       <h2
-        data-nextjs-turbo-dialog-body
+        data-nextjs-dialog-header
         id="nextjs__container_errors_desc"
         data-severity="error"
       >
