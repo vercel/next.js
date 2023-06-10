@@ -17,12 +17,14 @@ import {
   isRedirectError,
 } from '../../client/components/redirect'
 import RenderResult from '../render-result'
+import loadConfig from '../config'
 import { StaticGenerationStore } from '../../client/components/static-generation-async-storage'
 import { FlightRenderResult } from './flight-render-result'
 import { ActionResult } from './types'
 import { ActionAsyncStorage } from '../../client/components/action-async-storage'
 import { filterReqHeaders, forbiddenHeaders } from '../lib/server-ipc/utils'
 import { appendMutableCookies } from '../web/spec-extension/adapters/request-cookies'
+import { PHASE_PRODUCTION_SERVER } from '../../shared/lib/constants'
 
 function nodeToWebReadableStream(nodeReadable: import('stream').Readable) {
   if (process.env.NEXT_RUNTIME !== 'edge') {
@@ -352,7 +354,19 @@ export async function handleAction({
           } else {
             const { parseBody } =
               require('../api-utils/node') as typeof import('../api-utils/node')
-            const actionData = (await parseBody(req, '1mb')) || ''
+
+            const nextConfig = await loadConfig(
+              PHASE_PRODUCTION_SERVER,
+              '/',
+              undefined,
+              undefined,
+              true
+            )
+            const serverActionsLimit =
+              nextConfig.experimental?.serverActionsLimit
+              
+            const actionData =
+              (await parseBody(req, serverActionsLimit ?? '1mb')) || ''
 
             if (isURLEncodedAction) {
               const formData = formDataFromSearchQueryString(actionData)
