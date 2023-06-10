@@ -117,7 +117,7 @@ export default function ClientComponent() {
 }
 ```
 
-> **Good to know:** When using a top-level `"use server"` directive, all exports below will be considered Server Actions. You can have multiple Server Actions in a single file.
+> **Good to know**: When using a top-level `"use server"` directive, all exports below will be considered Server Actions. You can have multiple Server Actions in a single file.
 
 ### Invocation
 
@@ -148,7 +148,7 @@ export default function AddToCart({ productId }) {
 }
 ```
 
-> **Good to know:** An `action` is similar to the HTML primitive [`action`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/form#action)
+> **Good to know**: An `action` is similar to the HTML primitive [`action`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/form#action)
 
 #### `formAction`
 
@@ -176,13 +176,13 @@ export default function Form() {
 }
 ```
 
-> **Good to know:** A `formAction` is the HTML primitive [`formaction`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/button#formaction). React now allows you to pass functions to this attribute.
+> **Good to know**: A `formAction` is the HTML primitive [`formaction`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/button#formaction). React now allows you to pass functions to this attribute.
 
 #### Custom invocation using `startTransition`
 
 You can also invoke Server Actions without using `action` or `formAction`. You can achieve this by using `startTransition` provided by the `useTransition` hook, which can be useful if you want to use Server Actions outside of forms, buttons, or inputs.
 
-> **Good to know:** Using `startTransition` disables the out-of-the-box Progressive Enhancement.
+> **Good to know**: Using `startTransition` disables the out-of-the-box Progressive Enhancement.
 
 ```jsx filename="app/components/example-client-component.js" highlight={3, 7, 10}
 'use client'
