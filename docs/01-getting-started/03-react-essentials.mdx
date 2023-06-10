@@ -731,7 +731,7 @@ export default function RootLayout({ children }) {
 
 With the provider rendered at the root, all other Client Components throughout your app will be able to consume this context.
 
-> Note: You should render providers as deep as possible in the tree – notice how `ThemeProvider` only wraps `{children}` instead of the entire `<html>` document. This makes it easier for Next.js to optimize the static parts of your Server Components.
+> **Good to know:** You should render providers as deep as possible in the tree – notice how `ThemeProvider` only wraps `{children}` instead of the entire `<html>` document. This makes it easier for Next.js to optimize the static parts of your Server Components.
 
 ### Rendering third-party context providers in Server Components
 

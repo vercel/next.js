@@ -32,7 +32,7 @@ If you're using ESLint, you need to upgrade your ESLint version:
 npm install -D eslint-config-next@latest
 ```
 
-> **Note:** You may need to restart the ESLint server in VS Code for the ESLint changes to take effect. Open the Command Palette (`cmd+shift+p` on Mac; `ctrl+shift+p` on Windows) and search for `ESLint: Restart ESLint Server`.
+> **Good to know:** You may need to restart the ESLint server in VS Code for the ESLint changes to take effect. Open the Command Palette (`cmd+shift+p` on Mac; `ctrl+shift+p` on Windows) and search for `ESLint: Restart ESLint Server`.
 
 ## Next Steps
 
@@ -340,7 +340,7 @@ We recommend breaking down the migration of a page into two main steps:
 - Step 1: Move the default exported Page Component into a new Client Component.
 - Step 2: Import the new Client Component into a new `page.js` file inside the `app` directory.
 
-> **Note:** This is the easiest migration path because it has the most comparable behavior to the `pages` directory.
+> **Good to know:** This is the easiest migration path because it has the most comparable behavior to the `pages` directory.
 
 **Step 1: Create a new Client Component**
 
@@ -870,7 +870,7 @@ export async function GET(request: Request) {}
 export async function GET(request) {}
 ```
 
-> **Note:** If you previously used API routes to call an external API from the client, you can now use [Server Components](/docs/getting-started/react-essentials#server-components) instead to securely fetch data. Learn more about [data fetching](/docs/app/building-your-application/data-fetching/fetching).
+> **Good to know:** If you previously used API routes to call an external API from the client, you can now use [Server Components](/docs/getting-started/react-essentials#server-components) instead to securely fetch data. Learn more about [data fetching](/docs/app/building-your-application/data-fetching/fetching).
 
 ### Step 7: Styling
 
