@@ -1,0 +1,109 @@
+.loader {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: 100vw;
+  z-index: 100;
+  opacity: 0.5;
+  animation: loading 1s infinite;
+}
+
+@keyframes loading {
+  0% {
+    background: radial-gradient(
+      circle,
+      violet,
+      indigo,
+      blue,
+      green,
+      yellow,
+      orange,
+      red
+    );
+  }
+  14.3% {
+    background: radial-gradient(
+      circle,
+      red,
+      violet,
+      indigo,
+      blue,
+      green,
+      yellow,
+      orange
+    );
+  }
+  28.6% {
+    background: radial-gradient(
+      circle,
+      orange,
+      red,
+      violet,
+      indigo,
+      blue,
+      green,
+      yellow
+    );
+  }
+  42.8% {
+    background: radial-gradient(
+      circle,
+      yellow,
+      orange,
+      red,
+      violet,
+      indigo,
+      blue,
+      green
+    );
+  }
+  57.1% {
+    background: radial-gradient(
+      circle,
+      green,
+      yellow,
+      orange,
+      red,
+      violet,
+      indigo,
+      blue
+    );
+  }
+  71.4% {
+    background: radial-gradient(
+      circle,
+      blue,
+      green,
+      yellow,
+      orange,
+      red,
+      violet,
+      indigo
+    );
+  }
+  85.7% {
+    background: radial-gradient(
+      circle,
+      indigo,
+      blue,
+      green,
+      yellow,
+      orange,
+      red,
+      violet
+    );
+  }
+  100% {
+    background: radial-gradient(
+      circle,
+      violet,
+      indigo,
+      blue,
+      green,
+      yellow,
+      orange,
+      red
+    );
+  }
+}
