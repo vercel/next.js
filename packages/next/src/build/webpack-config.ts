@@ -899,7 +899,14 @@ export default async function getBaseWebpackConfig(
     : []
   const swcLoaderForMiddlewareLayer = useSWCLoader
     ? getSwcLoader({ hasServerComponents: false })
-    : getBabelLoader()
+    : // When using Babel, we will have to use SWC to do the optimization
+      // for middleware to tree shake the unused default optimized imports like "next/server".
+      // This will cause some performance overhead but
+      // acceptable as Babel will not be recommended.
+      [
+        getSwcLoader({ hasServerComponents: false, isServerLayer: false }),
+        getBabelLoader(),
+      ]
 
   // Loader for API routes needs to be differently configured as it shouldn't
   // have RSC transpiler enabled, so syntax checks such as invalid imports won't
