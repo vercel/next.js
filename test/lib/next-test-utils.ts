@@ -622,7 +622,7 @@ export async function check(
   for (let tries = 0; tries < maxRetries; tries++) {
     try {
       content = await contentFn()
-      if (!(regex instanceof RegExp)) {
+      if (typeof regex !== typeof /regex/) {
         if (regex === content) {
           return true
         }
