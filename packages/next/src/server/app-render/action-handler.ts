@@ -366,9 +366,12 @@ export async function handleAction({
 
             const serverActionsLimit =
               nextConfig.experimental?.serverActionsLimit
-              
+
             const actionData =
-              (await parseBody(req, (serverActions && serverActionsLimit) ?? '1mb')) || ''
+              (await parseBody(
+                req,
+                serverActions && serverActionsLimit ? serverActionsLimit : '1mb'
+              )) || ''
 
             if (isURLEncodedAction) {
               const formData = formDataFromSearchQueryString(actionData)
