@@ -64,22 +64,20 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
       statsConfig.mainRepo = actionInfo.prRepo
     }
 
-    // clone main repository/ref
-    if (!actionInfo.skipClone) {
-      await cloneRepo(statsConfig.mainRepo, mainRepoDir, statsConfig.mainBranch)
-    }
     /* eslint-disable-next-line */
     actionInfo.commitId = await getCommitId(diffRepoDir)
     let mainNextSwcVersion
 
     if (!actionInfo.skipClone) {
+      let mainRef = statsConfig.mainBranch
+
       if (actionInfo.isRelease) {
-        logger('Release detected, resetting mainRepo to last stable tag')
+        logger('Release detected, using last stable tag')
         const lastStableTag = await getLastStable(mainRepoDir, actionInfo.prRef)
+        mainRef = lastStableTag
         mainNextSwcVersion = lastStableTag
         if (!lastStableTag) throw new Error('failed to get last stable tag')
         console.log('using latestStable', lastStableTag)
-        await checkoutRef(lastStableTag, mainRepoDir)
 
         /* eslint-disable-next-line */
         actionInfo.lastStableTag = lastStableTag
@@ -90,12 +88,15 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
           /* eslint-disable-next-line */
           actionInfo.commentEndpoint = `https://api.github.com/repos/${statsConfig.mainRepo}/commits/${actionInfo.commitId}/comments`
         }
-      } else if (statsConfig.autoMergeMain) {
+      }
+
+      await cloneRepo(statsConfig.mainRepo, mainRepoDir, mainRef)
+
+      if (!actionInfo.isRelease && statsConfig.autoMergeMain) {
         logger('Attempting auto merge of main branch')
         await mergeBranch(statsConfig.mainBranch, mainRepoDir, diffRepoDir)
       }
     }
-
     let mainRepoPkgPaths
     let diffRepoPkgPaths
 
