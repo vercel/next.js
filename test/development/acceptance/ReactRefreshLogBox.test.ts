@@ -231,7 +231,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', (variant) => {
            7 | }
              : ^
              \`----
-  
+
             x Unexpected eof
              ,-[TEST_DIR/index.js:4:1]
            4 |       <p>lol</p>
@@ -239,10 +239,10 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', (variant) => {
            6 |   )
            7 | }
              \`----
-  
+
           Caused by:
               Syntax Error
-  
+
           Import trace for requested module:
           ./index.js
           ./pages/index.js"
@@ -755,7 +755,11 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', (variant) => {
       `
     )
     expect(await session.hasRedbox(true)).toBe(true)
-    expect(await getErrorText()).toContain(`Error: A null error was thrown`)
+    expect(await getErrorText()).toContain(
+      variant === 'default'
+        ? `Error: A null error was thrown`
+        : `Error: \`null\` was thrown instead of a real error`
+    )
 
     await cleanup()
   })
