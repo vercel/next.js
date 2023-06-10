@@ -73,7 +73,7 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
 
       if (actionInfo.isRelease) {
         logger('Release detected, using last stable tag')
-        const lastStableTag = await getLastStable(mainRepoDir, actionInfo.prRef)
+        const lastStableTag = await getLastStable(diffRepoDir, actionInfo.prRef)
         mainRef = lastStableTag
         mainNextSwcVersion = lastStableTag
         if (!lastStableTag) throw new Error('failed to get last stable tag')
