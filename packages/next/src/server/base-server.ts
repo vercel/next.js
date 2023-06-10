@@ -1326,7 +1326,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         hasStaticPaths = true
       }
 
-      if (hasFallback || staticPaths?.includes(resolvedUrlPathname)) {
+      if (
+        hasFallback ||
+        staticPaths?.includes(resolvedUrlPathname) ||
+        // this signals revalidation in deploy environments
+        // TODO: make this more generic
+        req.headers['x-now-route-matches']
+      ) {
         isSSG = true
       } else if (!this.renderOpts.dev) {
         const manifest = this.getPrerenderManifest()
