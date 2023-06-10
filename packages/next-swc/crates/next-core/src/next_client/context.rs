@@ -361,7 +361,9 @@ pub async fn get_client_runtime_entries(
 
     if matches!(
         *ty,
-        ClientContextType::App { .. } | ClientContextType::Pages { .. },
+        ClientContextType::App { .. }
+            | ClientContextType::Pages { .. }
+            | ClientContextType::Fallback,
     ) {
         runtime_entries.push(
             RuntimeEntry::Source(
