@@ -114,7 +114,7 @@ createNextDescribe(
 
       await check(() => {
         return browser.eval('window.location.pathname + window.location.search')
-      }, '/header?name=test&constructor=FormData')
+      }, '/header?name=test&constructor=FormData&hidden-info=hi')
     })
 
     it('should support .bind', async () => {
@@ -502,6 +502,61 @@ createNextDescribe(
           return newRandomNumber !== randomNumber ? 'success' : 'failure'
         }, 'success')
       })
+
+      it.each(['tag', 'path'])(
+        'should invalidate client cache when %s is revalidate',
+        async (type) => {
+          const browser = await next.browser('/revalidate')
+          await browser.refresh()
+
+          const thankYouNext = await browser
+            .elementByCss('#thankyounext')
+            .text()
+
+          await browser.elementByCss('#another').click()
+          await check(async () => {
+            return browser.elementByCss('#title').text()
+          }, 'another route')
+
+          const newThankYouNext = await browser
+            .elementByCss('#thankyounext')
+            .text()
+
+          // Should be the same number
+          expect(thankYouNext).toEqual(newThankYouNext)
+
+          await browser.elementByCss('#back').click()
+
+          if (type === 'tag') {
+            await browser.elementByCss('#revalidate-thankyounext').click()
+          } else {
+            await browser.elementByCss('#revalidate-path').click()
+          }
+
+          // Should be different
+          let revalidatedThankYouNext
+          await check(async () => {
+            revalidatedThankYouNext = await browser
+              .elementByCss('#thankyounext')
+              .text()
+            return thankYouNext !== revalidatedThankYouNext
+              ? 'success'
+              : 'failure'
+          }, 'success')
+
+          await browser.elementByCss('#another').click()
+
+          // The other page should be revalidated too
+          await check(async () => {
+            const newThankYouNext = await browser
+              .elementByCss('#thankyounext')
+              .text()
+            return revalidatedThankYouNext === newThankYouNext
+              ? 'success'
+              : 'failure'
+          }, 'success')
+        }
+      )
     })
   }
 )

@@ -705,6 +705,10 @@ export async function renderToHTMLOrFlight(
         }
       }
 
+      if (staticGenerationStore?.dynamicUsageErr) {
+        throw staticGenerationStore.dynamicUsageErr
+      }
+
       /**
        * The React Component to render.
        */
@@ -1454,8 +1458,12 @@ export async function renderToHTMLOrFlight(
             ReactDOMServer: require('react-dom/server.edge'),
             element: (
               <>
-                {Array.from(serverInsertedHTMLCallbacks).map((callback) =>
-                  callback()
+                {Array.from(serverInsertedHTMLCallbacks).map(
+                  (callback, index) => (
+                    <React.Fragment key={'_next_insert' + index}>
+                      {callback()}
+                    </React.Fragment>
+                  )
                 )}
                 {polyfillsFlushed
                   ? null
