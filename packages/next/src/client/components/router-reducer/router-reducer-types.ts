@@ -43,6 +43,7 @@ export interface ServerActionMutable {
   serverActionApplied?: boolean
   previousTree?: FlightRouterState
   previousUrl?: string
+  prefetchCache?: AppRouterState['prefetchCache']
 }
 
 /**

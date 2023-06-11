@@ -7,6 +7,8 @@ import {
   isPositionInsideNode,
 } from '../utils'
 
+import type tsModule from 'typescript/lib/tsserverlibrary'
+
 const TYPE_ANOTATION = ': Metadata'
 const TYPE_ANOTATION_ASYNC = ': Promise<Metadata>'
 const TYPE_IMPORT = `\n\nimport type { Metadata } from 'next'`
@@ -14,7 +16,7 @@ const TYPE_IMPORT = `\n\nimport type { Metadata } from 'next'`
 // Find the `export const metadata = ...` node.
 function getMetadataExport(fileName: string, position: number) {
   const source = getSource(fileName)
-  let metadataExport: ts.VariableDeclaration | undefined
+  let metadataExport: tsModule.VariableDeclaration | undefined
 
   if (source) {
     const ts = getTs()
@@ -47,14 +49,14 @@ function getMetadataExport(fileName: string, position: number) {
   return metadataExport
 }
 
-let cachedProxiedLanguageService: ts.LanguageService | undefined
-let cachedProxiedLanguageServiceHost: ts.LanguageServiceHost | undefined
+let cachedProxiedLanguageService: tsModule.LanguageService | undefined
+let cachedProxiedLanguageServiceHost: tsModule.LanguageServiceHost | undefined
 function getProxiedLanguageService() {
   if (cachedProxiedLanguageService)
     return {
-      languageService: cachedProxiedLanguageService as ts.LanguageService,
+      languageService: cachedProxiedLanguageService as tsModule.LanguageService,
       languageServiceHost:
-        cachedProxiedLanguageServiceHost as ts.LanguageServiceHost & {
+        cachedProxiedLanguageServiceHost as tsModule.LanguageServiceHost & {
           addFile: (fileName: string, body: string) => void
         },
     }
@@ -62,9 +64,10 @@ function getProxiedLanguageService() {
   const languageServiceHost = getInfo().languageServiceHost
 
   const ts = getTs()
-  class ProxiedLanguageServiceHost implements ts.LanguageServiceHost {
-    files: { [fileName: string]: { file: ts.IScriptSnapshot; ver: number } } =
-      {}
+  class ProxiedLanguageServiceHost implements tsModule.LanguageServiceHost {
+    files: {
+      [fileName: string]: { file: tsModule.IScriptSnapshot; ver: number }
+    } = {}
 
     log = () => {}
     trace = () => {}
@@ -133,9 +136,9 @@ function getProxiedLanguageService() {
     ts.createDocumentRegistry()
   )
   return {
-    languageService: cachedProxiedLanguageService as ts.LanguageService,
+    languageService: cachedProxiedLanguageService as tsModule.LanguageService,
     languageServiceHost:
-      cachedProxiedLanguageServiceHost as ts.LanguageServiceHost & {
+      cachedProxiedLanguageServiceHost as tsModule.LanguageServiceHost & {
         addFile: (fileName: string, body: string) => void
       },
   }
@@ -143,7 +146,7 @@ function getProxiedLanguageService() {
 
 function updateVirtualFileWithType(
   fileName: string,
-  node: ts.VariableDeclaration | ts.FunctionDeclaration,
+  node: tsModule.VariableDeclaration | tsModule.FunctionDeclaration,
   isGenerateMetadata?: boolean
 ) {
   const source = getSource(fileName)
@@ -181,14 +184,16 @@ function updateVirtualFileWithType(
   return [nodeEnd, annotation.length]
 }
 
-function isTyped(node: ts.VariableDeclaration | ts.FunctionDeclaration) {
+function isTyped(
+  node: tsModule.VariableDeclaration | tsModule.FunctionDeclaration
+) {
   return node.type !== undefined
 }
 
 function proxyDiagnostics(
   fileName: string,
   pos: number[],
-  n: ts.VariableDeclaration | ts.FunctionDeclaration
+  n: tsModule.VariableDeclaration | tsModule.FunctionDeclaration
 ) {
   // Get diagnostics
   const { languageService } = getProxiedLanguageService()
@@ -221,7 +226,7 @@ const metadata = {
     fileName: string,
     position: number,
     _options: any,
-    prior: ts.WithMetadata<ts.CompletionInfo>
+    prior: tsModule.WithMetadata<tsModule.CompletionInfo>
   ) {
     const node = getMetadataExport(fileName, position)
     if (!node) return prior
@@ -281,7 +286,7 @@ const metadata = {
 
   getSemanticDiagnosticsForExportVariableStatementInClientEntry(
     fileName: string,
-    node: ts.VariableStatement | ts.FunctionDeclaration
+    node: tsModule.VariableStatement | tsModule.FunctionDeclaration
   ) {
     const source = getSource(fileName)
     const ts = getTs()
@@ -322,7 +327,7 @@ const metadata = {
 
   getSemanticDiagnosticsForExportVariableStatement(
     fileName: string,
-    node: ts.VariableStatement | ts.FunctionDeclaration
+    node: tsModule.VariableStatement | tsModule.FunctionDeclaration
   ) {
     const ts = getTs()
 
@@ -354,11 +359,11 @@ const metadata = {
 
   getSemanticDiagnosticsForExportDeclarationInClientEntry(
     fileName: string,
-    node: ts.ExportDeclaration
+    node: tsModule.ExportDeclaration
   ) {
     const ts = getTs()
     const source = getSource(fileName)
-    const diagnostics: ts.Diagnostic[] = []
+    const diagnostics: tsModule.Diagnostic[] = []
 
     const exportClause = node.exportClause
     if (exportClause && ts.isNamedExports(exportClause)) {
@@ -381,7 +386,7 @@ const metadata = {
 
   getSemanticDiagnosticsForExportDeclaration(
     fileName: string,
-    node: ts.ExportDeclaration
+    node: tsModule.ExportDeclaration
   ) {
     const ts = getTs()
 
@@ -447,10 +452,10 @@ const metadata = {
     fileName: string,
     position: number,
     entryName: string,
-    formatOptions: ts.FormatCodeOptions,
+    formatOptions: tsModule.FormatCodeOptions,
     source: string,
-    preferences: ts.UserPreferences,
-    data: ts.CompletionEntryData
+    preferences: tsModule.UserPreferences,
+    data: tsModule.CompletionEntryData
   ) {
     const node = getMetadataExport(fileName, position)
     if (!node) return

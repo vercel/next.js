@@ -53,7 +53,7 @@ const routerEvents = [
   'hashChangeStart',
   'hashChangeComplete',
 ] as const
-export type RouterEvent = typeof routerEvents[number]
+export type RouterEvent = (typeof routerEvents)[number]
 
 const coreMethodFields = [
   'push',

@@ -37,7 +37,9 @@ export async function fetchServerResponse(
     // Enable flight response
     [RSC]: '1',
     // Provide the current router state
-    [NEXT_ROUTER_STATE_TREE]: JSON.stringify(flightRouterState),
+    [NEXT_ROUTER_STATE_TREE]: encodeURIComponent(
+      JSON.stringify(flightRouterState)
+    ),
   }
 
   /**
