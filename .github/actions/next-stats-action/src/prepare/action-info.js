@@ -61,6 +61,10 @@ module.exports = function actionInfo() {
       (GITHUB_REF || '').includes('canary'),
   }
 
+  if (info.isRelease) {
+    info.prRef = 'canary'
+  }
+
   // get comment
   if (GITHUB_EVENT_PATH) {
     const event = require(GITHUB_EVENT_PATH)
