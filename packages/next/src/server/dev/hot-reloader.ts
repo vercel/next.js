@@ -793,6 +793,9 @@ export default class HotReloader {
                       assetPrefix: this.config.assetPrefix,
                       nextConfigOutput: this.config.output,
                       preferredRegion: staticInfo.preferredRegion,
+                      middlewareConfig: Buffer.from(
+                        JSON.stringify(staticInfo.middleware || {})
+                      ).toString('base64'),
                     }).import
                   : undefined
 
@@ -877,6 +880,9 @@ export default class HotReloader {
                     assetPrefix: this.config.assetPrefix,
                     nextConfigOutput: this.config.output,
                     preferredRegion: staticInfo.preferredRegion,
+                    middlewareConfig: Buffer.from(
+                      JSON.stringify(staticInfo.middleware || {})
+                    ).toString('base64'),
                   })
                 } else if (
                   !isAPIRoute(page) &&
@@ -888,6 +894,9 @@ export default class HotReloader {
                     page,
                     absolutePagePath: relativeRequest,
                     preferredRegion: staticInfo.preferredRegion,
+                    middlewareConfig: Buffer.from(
+                      JSON.stringify(staticInfo.middleware || {})
+                    ).toString('base64'),
                   })
                 } else {
                   value = relativeRequest

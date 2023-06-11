@@ -20,9 +20,9 @@ import { RSC_MODULE_TYPES } from '../../shared/lib/constants'
 import type { RSCMeta } from '../webpack/loaders/get-module-build-info'
 
 export interface MiddlewareConfig {
-  matchers: MiddlewareMatcher[]
-  unstable_allowDynamicGlobs: string[]
-  regions: string[] | string
+  matchers?: MiddlewareMatcher[]
+  unstable_allowDynamicGlobs?: string[]
+  regions?: string[] | string
 }
 
 export interface MiddlewareMatcher {
@@ -39,7 +39,7 @@ export interface PageStaticInfo {
   ssg?: boolean
   ssr?: boolean
   rsc?: RSCModuleType
-  middleware?: Partial<MiddlewareConfig>
+  middleware?: MiddlewareConfig
   amp?: boolean | 'hybrid'
 }
 
@@ -329,6 +329,8 @@ function warnAboutExperimentalEdge(apiRoute: string | null) {
   if (apiRouteWarnings.has(apiRoute)) {
     return
   }
+
+  console.log({ apiRoute })
   Log.warn(
     apiRoute
       ? `${apiRoute} provided runtime 'experimental-edge'. It can be updated to 'edge' instead.`

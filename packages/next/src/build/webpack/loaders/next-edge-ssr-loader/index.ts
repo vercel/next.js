@@ -2,6 +2,7 @@ import type webpack from 'webpack'
 import { getModuleBuildInfo } from '../get-module-build-info'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../../lib/constants'
 import { stringifyRequest } from '../../stringify-request'
+import { MiddlewareConfig } from '../../../../server/lib/route-resolver'
 
 export type EdgeSSRLoaderQuery = {
   absolute500Path: string
@@ -19,6 +20,7 @@ export type EdgeSSRLoaderQuery = {
   sriEnabled: boolean
   incrementalCacheHandlerPath?: string
   preferredRegion: string | string[] | undefined
+  middlewareConfig: string
 }
 
 /*
@@ -51,7 +53,12 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       sriEnabled,
       incrementalCacheHandlerPath,
       preferredRegion,
+      middlewareConfig: middlewareConfigBase64,
     } = this.getOptions()
+
+    const middlewareConfig: MiddlewareConfig = JSON.parse(
+      Buffer.from(middlewareConfigBase64, 'base64').toString()
+    )
 
     const stringifiedConfig = Buffer.from(
       stringifiedConfigBase64 || '',
@@ -74,6 +81,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       page,
       absolutePagePath,
       preferredRegion,
+      middlewareConfig,
     }
 
     const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
