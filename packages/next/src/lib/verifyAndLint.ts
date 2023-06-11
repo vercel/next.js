@@ -28,10 +28,7 @@ export async function verifyAndLint(
     lintWorkers.getStdout().pipe(process.stdout)
     lintWorkers.getStderr().pipe(process.stderr)
 
-    // Remove that when the `appDir` will be stable.
-    const directoriesToLint = hasAppDir
-      ? ESLINT_DEFAULT_DIRS_WITH_APP
-      : ESLINT_DEFAULT_DIRS
+    const directoriesToLint = ESLINT_DEFAULT_DIRS
 
     const lintDirs = (configLintDirs ?? directoriesToLint).reduce(
       (res: string[], d: string) => {
