@@ -78,7 +78,7 @@ import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { loadComponents } from './load-components'
 import isError, { getProperError } from '../lib/is-error'
 import { FontManifest } from './font-utils'
-import { splitCookiesString, toNodeHeaders } from './web/utils'
+import { splitCookiesString, toNodeOutgoingHttpHeaders } from './web/utils'
 import { relativizeURL } from '../shared/lib/router/utils/relativize-url'
 import { prepareDestination } from '../shared/lib/router/utils/prepare-destination'
 import { getMiddlewareRouteMatcher } from '../shared/lib/router/utils/middleware-route-matcher'
@@ -273,6 +273,7 @@ export default class NextNodeServer extends BaseServer {
         hostname: this.hostname,
         minimalMode: this.minimalMode,
         dev: !!options.dev,
+        isNodeDebugging: !!options.isNodeDebugging,
       }
       const { createWorker, createIpcServer } =
         require('./lib/server-ipc') as typeof import('./lib/server-ipc')
@@ -281,8 +282,7 @@ export default class NextNodeServer extends BaseServer {
           this.renderWorkers = {}
           const { ipcPort, ipcValidationKey } = await createIpcServer(this)
           if (this.hasAppDir) {
-            this.renderWorkers.app = createWorker(
-              this.port || 0,
+            this.renderWorkers.app = await createWorker(
               ipcPort,
               ipcValidationKey,
               options.isNodeDebugging,
@@ -290,8 +290,7 @@ export default class NextNodeServer extends BaseServer {
               this.nextConfig.experimental.serverActions
             )
           }
-          this.renderWorkers.pages = createWorker(
-            this.port || 0,
+          this.renderWorkers.pages = await createWorker(
             ipcPort,
             ipcValidationKey,
             options.isNodeDebugging,
@@ -1336,6 +1335,8 @@ export default class NextNodeServer extends BaseServer {
       ...publicRoutes,
       ...staticFilesRoutes,
     ]
+    const caseSensitiveRoutes =
+      !!this.nextConfig.experimental.caseSensitiveRoutes
 
     const restrictedRedirectPaths = this.nextConfig.basePath
       ? [`${this.nextConfig.basePath}/_next`]
@@ -1346,14 +1347,22 @@ export default class NextNodeServer extends BaseServer {
       this.minimalMode || this.isRenderWorker
         ? []
         : this.customRoutes.headers.map((rule) =>
-            createHeaderRoute({ rule, restrictedRedirectPaths })
+            createHeaderRoute({
+              rule,
+              restrictedRedirectPaths,
+              caseSensitive: caseSensitiveRoutes,
+            })
           )
 
     const redirects =
       this.minimalMode || this.isRenderWorker
         ? []
         : this.customRoutes.redirects.map((rule) =>
-            createRedirectRoute({ rule, restrictedRedirectPaths })
+            createRedirectRoute({
+              rule,
+              restrictedRedirectPaths,
+              caseSensitive: caseSensitiveRoutes,
+            })
           )
 
     const rewrites = this.generateRewrites({ restrictedRedirectPaths })
@@ -2045,6 +2054,7 @@ export default class NextNodeServer extends BaseServer {
           type: 'rewrite',
           rule: rewrite,
           restrictedRedirectPaths,
+          caseSensitive: !!this.nextConfig.experimental.caseSensitiveRoutes,
         })
         return {
           ...rewriteRoute,
@@ -2184,7 +2194,6 @@ export default class NextNodeServer extends BaseServer {
   }): {
     name: string
     paths: string[]
-    env: string[]
     wasm: { filePath: string; name: string }[]
     assets: { filePath: string; name: string }[]
   } | null {
@@ -2215,7 +2224,6 @@ export default class NextNodeServer extends BaseServer {
     return {
       name: pageInfo.name,
       paths: pageInfo.files.map((file) => join(this.distDir, file)),
-      env: pageInfo.env ?? [],
       wasm: (pageInfo.wasm ?? []).map((binding) => ({
         ...binding,
         filePath: join(this.distDir, binding.filePath),
@@ -2323,7 +2331,6 @@ export default class NextNodeServer extends BaseServer {
       distDir: this.distDir,
       name: middlewareInfo.name,
       paths: middlewareInfo.paths,
-      env: middlewareInfo.env,
       edgeFunctionEntry: middlewareInfo,
       request: {
         headers: params.request.headers,
@@ -2500,7 +2507,7 @@ export default class NextNodeServer extends BaseServer {
 
                 if (isMiddlewareInvoke && 'response' in result) {
                   for (const [key, value] of Object.entries(
-                    toNodeHeaders(result.response.headers)
+                    toNodeOutgoingHttpHeaders(result.response.headers)
                   )) {
                     if (key !== 'content-encoding' && value !== undefined) {
                       res.setHeader(key, value as string | string[])
@@ -2594,7 +2601,7 @@ export default class NextNodeServer extends BaseServer {
             result.response.headers.delete('x-middleware-next')
 
             for (const [key, value] of Object.entries(
-              toNodeHeaders(result.response.headers)
+              toNodeOutgoingHttpHeaders(result.response.headers)
             )) {
               if (
                 [
@@ -2826,7 +2833,6 @@ export default class NextNodeServer extends BaseServer {
       distDir: this.distDir,
       name: edgeInfo.name,
       paths: edgeInfo.paths,
-      env: edgeInfo.env,
       edgeFunctionEntry: edgeInfo,
       request: {
         headers: params.req.headers,

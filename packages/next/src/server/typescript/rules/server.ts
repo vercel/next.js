@@ -1,10 +1,11 @@
 import { DISALLOWED_SERVER_REACT_APIS, NEXT_TS_ERRORS } from '../constant'
 import { getTs } from '../utils'
+import type tsModule from 'typescript/lib/tsserverlibrary'
 
 const serverLayer = {
   // On the server layer we need to filter out some invalid completion results.
-  filterCompletionsAtPosition(entries: ts.CompletionEntry[]) {
-    return entries.filter((e: ts.CompletionEntry) => {
+  filterCompletionsAtPosition(entries: tsModule.CompletionEntry[]) {
+    return entries.filter((e: tsModule.CompletionEntry) => {
       // Remove disallowed React APIs.
       if (
         DISALLOWED_SERVER_REACT_APIS.includes(e.name) &&
@@ -17,7 +18,9 @@ const serverLayer = {
   },
 
   // Filter out quick info for some React APIs.
-  hasDisallowedReactAPIDefinition(definitions: readonly ts.DefinitionInfo[]) {
+  hasDisallowedReactAPIDefinition(
+    definitions: readonly tsModule.DefinitionInfo[]
+  ) {
     return definitions?.some(
       (d) =>
         DISALLOWED_SERVER_REACT_APIS.includes(d.name) &&
@@ -27,12 +30,12 @@ const serverLayer = {
 
   // Give errors about disallowed imports such as `useState`.
   getSemanticDiagnosticsForImportDeclaration(
-    source: ts.SourceFile,
-    node: ts.ImportDeclaration
+    source: tsModule.SourceFile,
+    node: tsModule.ImportDeclaration
   ) {
     const ts = getTs()
 
-    const diagnostics: ts.Diagnostic[] = []
+    const diagnostics: tsModule.Diagnostic[] = []
 
     const importPath = node.moduleSpecifier.getText(source!)
     if (importPath === "'react'" || importPath === '"react"') {

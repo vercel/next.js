@@ -1,7 +1,7 @@
 import type { I18NConfig } from '../../config-shared'
 import type { RequestData } from '../types'
 import { NextURL } from '../next-url'
-import { toNodeHeaders, validateURL } from '../utils'
+import { toNodeOutgoingHttpHeaders, validateURL } from '../utils'
 import { RemovedUAError, RemovedPageError } from '../error'
 import { RequestCookies } from './cookies'
 
@@ -22,7 +22,7 @@ export class NextRequest extends Request {
     validateURL(url)
     super(url, init)
     const nextUrl = new NextURL(url, {
-      headers: toNodeHeaders(this.headers),
+      headers: toNodeOutgoingHttpHeaders(this.headers),
       nextConfig: init.nextConfig,
     })
     this[INTERNALS] = {

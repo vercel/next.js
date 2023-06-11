@@ -1,15 +1,12 @@
 use std::{collections::HashMap, io::Write, iter::once};
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use async_recursion::async_recursion;
 use indexmap::{indexmap, IndexMap};
 use turbo_tasks::{primitives::JsonValueVc, TryJoinIterExt, ValueToString};
 use turbopack_binding::{
     turbo::{
-        tasks::{
-            primitives::{OptionStringVc, StringVc},
-            Value,
-        },
+        tasks::{primitives::StringVc, Value},
         tasks_env::{CustomProcessEnvVc, EnvMapVc, ProcessEnvVc},
         tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPathVc},
     },
@@ -22,7 +19,8 @@ use turbopack_binding::{
             environment::{EnvironmentIntention, ServerAddrVc},
             issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
             reference_type::{
-                EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType,
+                EcmaScriptModulesReferenceSubType, EntryReferenceSubType, InnerAssetsVc,
+                ReferenceType,
             },
             source_asset::SourceAssetVc,
             virtual_asset::VirtualAssetVc,
@@ -41,11 +39,10 @@ use turbopack_binding::{
             magic_identifier,
             text::TextContentSourceAssetVc,
             utils::{FormatIter, StringifyJs},
-            EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc,
-            InnerAssetsVc,
         },
         env::ProcessEnvAssetVc,
         node::{
+            debug::should_debug,
             execution_context::ExecutionContextVc,
             render::{
                 node_api_source::create_node_api_source,
@@ -55,7 +52,6 @@ use turbopack_binding::{
         },
         r#static::{fixed::FixedStaticAssetVc, StaticModuleAssetVc},
         turbopack::{
-            ecmascript::EcmascriptInputTransform,
             transition::{TransitionVc, TransitionsByNameVc},
             ModuleAssetContextVc,
         },
@@ -69,7 +65,6 @@ use crate::{
         get_entrypoints, get_global_metadata, Components, Entrypoint, GlobalMetadataVc, LoaderTree,
         LoaderTreeVc, Metadata, MetadataItem, MetadataWithAltItem, OptionAppDirVc,
     },
-    asset_helpers::as_es_module_asset,
     bootstrap::{route_bootstrap, BootstrapConfigVc},
     embed_js::{next_asset, next_js_file, next_js_file_path},
     env::env_for_js,
@@ -593,6 +588,7 @@ async fn create_app_page_source_for_route(
         .into(),
         fallback_page,
         render_data,
+        should_debug("app_source"),
     );
 
     Ok(source.issue_context(app_dir, &format!("Next.js App Page Route {pathname}")))
@@ -636,6 +632,7 @@ async fn create_app_not_found_page_source(
         .into(),
         fallback_page,
         render_data,
+        should_debug("app_source"),
     );
 
     Ok(source.issue_context(app_dir, "Next.js App Page Route /404"))
@@ -674,10 +671,12 @@ async fn create_app_route_source_for_route(
             project_path,
             intermediate_output_path: intermediate_output_path_root,
             output_root: intermediate_output_path_root,
+            app_dir,
         }
         .cell()
         .into(),
         render_data,
+        should_debug("app_source"),
     );
 
     Ok(source.issue_context(app_dir, &format!("Next.js App Route {pathname}")))
@@ -871,8 +870,7 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
                             SourceAssetVc::new(*path).into(),
                             BlurPlaceholderMode::None,
                             state.context,
-                        )
-                        .into(),
+                        ),
                     );
                     writeln!(state.loader_tree_code, "{s}(async (props) => [{{")?;
                     writeln!(state.loader_tree_code, "{s}  url: {identifier}.src,")?;
@@ -894,12 +892,11 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
                             .push(format!("import {identifier} from \"{inner_module_id}\";"));
                         state.inner_assets.insert(
                             inner_module_id,
-                            as_es_module_asset(
+                            state.context.process(
                                 TextContentSourceAssetVc::new(SourceAssetVc::new(*alt_path).into())
                                     .into(),
-                                state.context,
-                            )
-                            .into(),
+                                Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
+                            ),
                         );
                         writeln!(state.loader_tree_code, "{s}  alt: {identifier},")?;
                     }
@@ -1018,12 +1015,21 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
             project_path,
             intermediate_output_path,
             intermediate_output_path.join("chunks"),
-            server_root.join("_next/static/assets"),
+            get_client_assets_path(server_root, Value::new(ClientContextType::App { app_dir })),
             context.compile_time_info().environment(),
         )
         .layer("ssr")
         .reference_chunk_source_maps(false)
         .build();
+
+        let module = context.process(
+            asset.into(),
+            Value::new(ReferenceType::Internal(InnerAssetsVc::cell(inner_assets))),
+        );
+
+        let Some(module) = EvaluatableAssetVc::resolve_from(module).await? else {
+            bail!("internal module must be evaluatable");
+        };
 
         Ok(NodeRenderingEntry {
             runtime_entries: EvaluatableAssetsVc::cell(
@@ -1033,26 +1039,7 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
                     .map(|entry| EvaluatableAssetVc::from_asset(*entry, context))
                     .collect(),
             ),
-            module: EcmascriptModuleAssetVc::new_with_inner_assets(
-                asset.into(),
-                context,
-                Value::new(EcmascriptModuleAssetType::Typescript),
-                EcmascriptInputTransformsVc::cell(vec![
-                    EcmascriptInputTransform::React {
-                        // The App source is currently only used in the development mode.
-                        development: true,
-                        refresh: false,
-                        import_source: OptionStringVc::cell(None),
-                        runtime: OptionStringVc::cell(None),
-                    },
-                    EcmascriptInputTransform::TypeScript {
-                        use_define_for_class_fields: false,
-                    },
-                ]),
-                Default::default(),
-                context.compile_time_info(),
-                InnerAssetsVc::cell(inner_assets),
-            ),
+            module,
             chunking_context,
             intermediate_output_path,
             output_root: intermediate_output_path.root(),
@@ -1087,6 +1074,7 @@ struct AppRoute {
     project_path: FileSystemPathVc,
     server_root: FileSystemPathVc,
     output_root: FileSystemPathVc,
+    app_dir: FileSystemPathVc,
 }
 
 #[turbo_tasks::value_impl]
@@ -1099,7 +1087,12 @@ impl AppRouteVc {
             this.project_path,
             this.intermediate_output_path,
             this.intermediate_output_path.join("chunks"),
-            this.server_root.join("_next/static/assets"),
+            get_client_assets_path(
+                this.server_root,
+                Value::new(ClientContextType::App {
+                    app_dir: this.app_dir,
+                }),
+            ),
             this.context.compile_time_info().environment(),
         )
         .layer("ssr")
@@ -1133,19 +1126,18 @@ impl AppRouteVc {
                     Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),
                 );
 
-                EcmascriptModuleAssetVc::new_with_inner_assets(
+                let module = this.context.process(
                     internal_asset,
-                    this.context,
-                    Value::new(EcmascriptModuleAssetType::Typescript),
-                    EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
-                        use_define_for_class_fields: false,
-                    }]),
-                    Default::default(),
-                    this.context.compile_time_info(),
-                    InnerAssetsVc::cell(indexmap! {
+                    Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
                         "ROUTE_CHUNK_GROUP".to_string() => entry
-                    }),
-                )
+                    }))),
+                );
+
+                let Some(module) = EvaluatableAssetVc::resolve_from(module).await? else {
+                    bail!("internal module must be evaluatable");
+                };
+
+                module
             }
         };
 

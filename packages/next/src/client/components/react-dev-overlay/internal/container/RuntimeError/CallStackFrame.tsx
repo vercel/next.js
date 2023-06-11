@@ -26,9 +26,9 @@ export const CallStackFrame: React.FC<{
 
   return (
     <div data-nextjs-call-stack-frame>
-      <h6 data-nextjs-frame-expanded={Boolean(frame.expanded)}>
+      <h3 data-nextjs-frame-expanded={Boolean(frame.expanded)}>
         {f.methodName}
-      </h6>
+      </h3>
       <div
         data-has-source={hasSource ? 'true' : undefined}
         tabIndex={hasSource ? 10 : undefined}
