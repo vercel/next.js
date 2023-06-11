@@ -48,7 +48,7 @@ export class SubresourceIntegrityPlugin {
           const json = JSON.stringify(hashes, null, 2)
           const file = 'server/' + SUBRESOURCE_INTEGRITY_MANIFEST
           assets[file + '.js'] = new sources.RawSource(
-            'self.__SUBRESOURCE_INTEGRITY_MANIFEST=' + json
+            `self.__SUBRESOURCE_INTEGRITY_MANIFEST=${JSON.stringify(json)}`
             // Work around webpack 4 type of RawSource being used
             // TODO: use webpack 5 type by default
           ) as unknown as webpack.sources.RawSource
