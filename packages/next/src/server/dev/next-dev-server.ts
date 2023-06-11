@@ -138,7 +138,7 @@ export default class DevServer extends Server {
   private actualMiddlewareFile?: string
   private actualInstrumentationHookFile?: string
   private middleware?: MiddlewareRoutingItem
-  private edgeFunctions?: RoutingItem[]
+  // private edgeFunctions?: RoutingItem[]
   private verifyingTypeScript?: boolean
   private usingTypeScript?: boolean
   private originalFetch: typeof fetch
@@ -437,7 +437,7 @@ export default class DevServer extends Server {
         const routedPages: string[] = []
         const knownFiles = wp.getTimeInfoEntries()
         const appPaths: Record<string, string[]> = {}
-        const edgeRoutesSet = new Set<string>()
+        // const edgeRoutesSet = new Set<string>()
         const pageNameSet = new Set<string>()
         const conflictingAppPagePaths = new Set<string>()
         const appPageFilePaths = new Map<string, string>()
@@ -609,7 +609,7 @@ export default class DevServer extends Server {
             },
             onEdgeServer: () => {
               routedPages.push(pageName)
-              edgeRoutesSet.add(pageName)
+              // edgeRoutesSet.add(pageName)
             },
           })
         }
@@ -770,19 +770,19 @@ export default class DevServer extends Server {
         this.appPathRoutes = Object.fromEntries(
           Object.entries(appPaths).map(([k, v]) => [k, v.sort()])
         )
-        const edgeRoutes = Array.from(edgeRoutesSet)
-        this.edgeFunctions = getSortedRoutes(edgeRoutes).map((page) => {
-          const matchedAppPaths = this.getOriginalAppPaths(page)
-          if (Array.isArray(matchedAppPaths)) {
-            page = matchedAppPaths[0]
-          }
-          const edgeRegex = getRouteRegex(page)
-          return {
-            match: getRouteMatcher(edgeRegex),
-            page,
-            re: edgeRegex.re,
-          }
-        })
+        // const edgeRoutes = Array.from(edgeRoutesSet)
+        // this.edgeFunctions = getSortedRoutes(edgeRoutes).map((page) => {
+        //   const matchedAppPaths = this.getOriginalAppPaths(page)
+        //   if (Array.isArray(matchedAppPaths)) {
+        //     page = matchedAppPaths[0]
+        //   }
+        //   const edgeRegex = getRouteRegex(page)
+        //   return {
+        //     match: getRouteMatcher(edgeRegex),
+        //     page,
+        //     re: edgeRegex.re,
+        //   }
+        // })
 
         this.middleware = middlewareMatchers
           ? {
@@ -1456,9 +1456,9 @@ export default class DevServer extends Server {
     return this.middleware
   }
 
-  protected getEdgeFunctionsPages() {
-    return this.edgeFunctions ? this.edgeFunctions.map(({ page }) => page) : []
-  }
+  // protected getEdgeFunctionsPages() {
+  //   return this.edgeFunctions ? this.edgeFunctions.map(({ page }) => page) : []
+  // }
 
   protected getServerComponentManifest() {
     return undefined
