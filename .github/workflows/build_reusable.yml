@@ -147,5 +147,7 @@ jobs:
         if: ${{ inputs.afterBuild }}
         with:
           name: Test trace reports
-          path: test/test-junit-report
+          path: |
+            test/test-junit-report
+            test/turbopack-test-junit-report
           if-no-files-found: ignore

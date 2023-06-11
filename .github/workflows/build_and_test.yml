@@ -183,7 +183,7 @@ jobs:
     secrets: inherit
 
   report-test-results:
-    needs: ['test-dev', 'test-prod', 'test-integration']
+    needs: ['test-dev', 'test-prod', 'test-integration', 'test-turbopack-dev']
     runs-on: [self-hosted, linux, x64]
     name: upload test trace to datadog
     # We'll not block the CI if the upload fails
@@ -192,11 +192,16 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           name: Test trace reports
-          path: test/test-junit-report
-      - run: |
+          path: test
+      - name: Upload traces
+        run: |
+          ls -al ./test
           npm install -g junit-report-merger @datadog/datadog-ci
           jrm ./nextjs-test-result-junit.xml "test/test-junit-report/**/*.xml"
-          DD_ENV=ci datadog-ci junit upload --git-repository-url https://github.com/vercel/next.js --service nextjs ./nextjs-test-result-junit.xml
+          jrm ./turbopack-test-result-junit.xml "test/turbopack-test-junit-report/**/*.xml"
+          # Put a separate tag for the tests with turbopack to distinguish between same test names
+          DD_ENV=ci datadog-ci junit upload --tags test.type:nextjs --service nextjs ./nextjs-test-result-junit.xml
+          DD_ENV=ci datadog-ci junit upload --tags test.type:turbopack --service nextjs ./turbopack-test-result-junit.xml
 
   tests-pass:
     needs:
