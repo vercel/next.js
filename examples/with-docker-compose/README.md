@@ -45,6 +45,9 @@ First, run the development server:
 # with each other, by using their container name as a hostname
 docker network create my_network
 
+# Build dev
+docker compose -f docker-compose.dev.yml build
+
 # Up dev
 docker compose -f docker-compose.dev.yml up
 ```
@@ -64,6 +67,9 @@ First, run the production server (Final image approximately 110 MB).
 # with each other, by using their container name as a hostname
 docker network create my_network
 
+# Build prod
+docker compose -f docker-compose.prod.yml build
+
 # Up prod in detached mode
 docker compose -f docker-compose.prod.yml up -d
 ```
@@ -74,6 +80,9 @@ Alternatively, run the production server without without multistage builds (Fina
 # Create a network, which allows containers to communicate
 # with each other, by using their container name as a hostname
 docker network create my_network
+
+# Build prod without multistage
+docker compose -f docker-compose.prod-without-multistage.yml build
 
 # Up prod without multistage in detached mode
 docker compose -f docker-compose.prod-without-multistage.yml up -d
