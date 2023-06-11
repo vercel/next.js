@@ -514,7 +514,9 @@ Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`,
 async function findEntryEdgeFunctionConfig(
   entryDependency: any,
   resolver: webpack.Resolver
-) {
+): Promise<
+  { file: string; config: Partial<MiddlewareConfig> | undefined } | undefined
+> {
   if (entryDependency?.request?.startsWith('next-')) {
     const absolutePagePath =
       new URL(entryDependency.request, 'http://example.org').searchParams.get(
@@ -546,7 +548,7 @@ function getExtractMetadata(params: {
   compiler: webpack.Compiler
   dev: boolean
   metadataByEntry: Map<string, EntryMetadata>
-}) {
+}): () => Promise<void> {
   const { dev, compilation, metadataByEntry, compiler } = params
   const { webpack: wp } = compiler
   return async () => {
