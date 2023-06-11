@@ -8,11 +8,7 @@ import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import path from 'path'
-import {
-  defaultConfig,
-  NextConfig,
-  NextConfigComplete,
-} from '../server/config-shared'
+import { NextConfig, NextConfigComplete } from '../server/config-shared'
 import { traceGlobals } from '../trace/shared'
 import { Telemetry } from '../telemetry/storage'
 import loadConfig from '../server/config'
@@ -60,7 +56,7 @@ const handleSessionStop = async () => {
       typeof traceGlobals.get('pagesDir') === 'undefined' ||
       typeof traceGlobals.get('appDir') === 'undefined'
     ) {
-      const pagesResult = findPagesDir(dir, !!config.experimental.appDir)
+      const pagesResult = findPagesDir(dir)
       appDir = !!pagesResult.appDir
       pagesDir = !!pagesResult.pagesDir
     }
@@ -242,12 +238,7 @@ const nextDev: CliCommand = async (argv) => {
     })
 
     const distDir = path.join(dir, rawNextConfig.distDir || '.next')
-    const { pagesDir, appDir } = findPagesDir(
-      dir,
-      typeof rawNextConfig?.experimental?.appDir === 'undefined'
-        ? !!defaultConfig.experimental?.appDir
-        : !!rawNextConfig.experimental?.appDir
-    )
+    const { pagesDir, appDir } = findPagesDir(dir)
     const telemetry = new Telemetry({
       distDir,
     })
@@ -355,10 +346,7 @@ const nextDev: CliCommand = async (argv) => {
               if (startDir === dir) {
                 try {
                   // check if start directory is still valid
-                  const result = findPagesDir(
-                    startDir,
-                    !!config?.experimental?.appDir
-                  )
+                  const result = findPagesDir(startDir)
                   shouldFilter = !Boolean(result.pagesDir || result.appDir)
                 } catch (_) {
                   shouldFilter = true
@@ -500,7 +488,7 @@ const nextDev: CliCommand = async (argv) => {
 
           // if the dir still exists nothing to check
           try {
-            const result = findPagesDir(dir, !!config?.experimental?.appDir)
+            const result = findPagesDir(dir)
             hasPagesApp = Boolean(result.pagesDir || result.appDir)
           } catch (err) {
             // if findPagesDir throws validation error let this be
@@ -532,10 +520,7 @@ const nextDev: CliCommand = async (argv) => {
           // to a new parent directory which we can't track as easily
           // so exit gracefully
           try {
-            const result = findPagesDir(
-              newFiles[0],
-              !!config?.experimental?.appDir
-            )
+            const result = findPagesDir(newFiles[0])
             hasPagesApp = Boolean(result.pagesDir || result.appDir)
           } catch (_) {}
 

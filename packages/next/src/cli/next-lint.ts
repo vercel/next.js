@@ -197,11 +197,7 @@ const nextLint: CliCommand = async (argv) => {
 
   const distDir = join(baseDir, nextConfig.distDir)
   const defaultCacheLocation = join(distDir, 'cache', 'eslint/')
-  const hasAppDir = !!nextConfig.experimental.appDir
-  const { pagesDir, appDir } = findPagesDir(
-    baseDir,
-    !!nextConfig.experimental.appDir
-  )
+  const { pagesDir, appDir } = findPagesDir(baseDir)
 
   await verifyTypeScriptSetup({
     dir: baseDir,
@@ -214,7 +210,7 @@ const nextLint: CliCommand = async (argv) => {
     hasPagesDir: !!pagesDir,
   })
 
-  runLintCheck(baseDir, pathsToLint, hasAppDir, {
+  runLintCheck(baseDir, pathsToLint, {
     lintDuringBuild: false,
     eslintOptions: eslintOptions(args, defaultCacheLocation),
     reportErrorsOnly: reportErrorsOnly,

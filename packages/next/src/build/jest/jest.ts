@@ -78,8 +78,7 @@ export default function nextJest(options: { dir?: string } = {}) {
         isEsmProject = packageConfig.type === 'module'
 
         nextConfig = await getConfig(resolvedDir)
-        const isAppDirEnabled = !!nextConfig.experimental.appDir
-        const findPagesDirResult = findPagesDir(resolvedDir, isAppDirEnabled)
+        const findPagesDirResult = findPagesDir(resolvedDir)
         hasServerComponents = !!findPagesDirResult.appDir
         pagesDir = findPagesDirResult.pagesDir
         setUpEnv(resolvedDir, nextConfig)

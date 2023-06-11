@@ -238,19 +238,13 @@ export default class DevServer extends Server {
 
     this.isCustomServer = !options.isNextDevCommand
 
-    const { pagesDir, appDir } = findPagesDir(
-      this.dir,
-      !!this.nextConfig.experimental.appDir
-    )
+    const { pagesDir, appDir } = findPagesDir(this.dir)
     this.pagesDir = pagesDir
     this.appDir = appDir
   }
 
   protected getRoutes() {
-    const { pagesDir, appDir } = findPagesDir(
-      this.dir,
-      !!this.nextConfig.experimental.appDir
-    )
+    const { pagesDir, appDir } = findPagesDir(this.dir)
 
     const ensurer: RouteEnsurer = {
       ensure: async (match) => {
