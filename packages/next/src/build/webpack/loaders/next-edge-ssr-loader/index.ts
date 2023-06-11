@@ -2,7 +2,7 @@ import type webpack from 'webpack'
 import { getModuleBuildInfo } from '../get-module-build-info'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../../lib/constants'
 import { stringifyRequest } from '../../stringify-request'
-import { MiddlewareConfig } from '../../../../server/lib/route-resolver'
+import { MiddlewareConfig } from '../../../analysis/get-page-static-info'
 
 export type EdgeSSRLoaderQuery = {
   absolute500Path: string
