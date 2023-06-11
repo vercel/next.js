@@ -17,7 +17,7 @@ function runTests() {
     expect(interNoArgs).toEqual({
       className: 'className__inter_34ab8b4d__7bdff866',
       style: {
-        fontFamily: "'__Inter_34ab8b'",
+        fontFamily: "'__Inter_34ab8b', '__Inter_Fallback_34ab8b'",
         fontStyle: 'normal',
       },
     })
@@ -34,7 +34,7 @@ function runTests() {
     expect(interWithVariableName).toEqual({
       className: 'className__inter_c6e282f1__e152ac0c',
       style: {
-        fontFamily: "'__Inter_c6e282'",
+        fontFamily: "'__Inter_c6e282', '__Inter_Fallback_34ab8b'",
         fontStyle: 'normal',
       },
       variable: 'variable__inter_c6e282f1__e152ac0c',
