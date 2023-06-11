@@ -2,3 +2,4 @@
 .vscode
 
 e2e/**/tsconfig.json
+test-junit-report/

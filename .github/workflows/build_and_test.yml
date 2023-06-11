@@ -23,6 +23,7 @@ env:
   # canary next-swc binaries in the monorepo
   NEXT_SKIP_NATIVE_POSTINSTALL: 1
   DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
+  DATADOG_TRACE_NEXTJS_TEST: 'true'
   DD_ENV: 'ci'
   TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
   NEXT_TEST_JOB: 1
@@ -180,6 +181,22 @@ jobs:
       skipForDocsOnly: 'yes'
       afterBuild: pnpm playwright install && BROWSER_NAME=firefox node run-tests.js test/integration/production/test/index.test.js && BROWSER_NAME=safari NEXT_TEST_MODE=start node run-tests.js -c 1 test/integration/production/test/index.test.js test/e2e/basepath.test.ts && BROWSER_NAME=safari DEVICE_NAME='iPhone XR' node run-tests.js -c 1 test/production/prerender-prefetch/index.test.ts
     secrets: inherit
+
+  report-test-results:
+    needs: ['test-dev', 'test-prod', 'test-integration']
+    runs-on: [self-hosted, linux, x64]
+    name: upload test trace to datadog
+    # We'll not block the CI if the upload fails
+    continue-on-error: true
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: Test trace reports
+          path: test/test-junit-report
+      - run: |
+          npm install -g junit-report-merger @datadog/datadog-ci
+          jrm ./nextjs-test-result-junit.xml "test/test-junit-report/**/*.xml"
+          DD_ENV=ci datadog-ci junit upload --git-repository-url https://github.com/vercel/next.js --service nextjs ./nextjs-test-result-junit.xml
 
   tests-pass:
     needs:
