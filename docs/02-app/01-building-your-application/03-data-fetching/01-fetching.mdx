@@ -368,7 +368,7 @@ If the segment is static (default), the output of the request will be cached and
 
 As a temporary solution, until the caching behavior of third-party queries can be configured, you can use [segment configuration](/docs/app/api-reference/file-conventions/route-segment-config#revalidate) to customize the cache behavior of the entire segment.
 
-```ts filename="app/page.tsx" switcher
+```tsx filename="app/page.tsx" switcher
 import prisma from './lib/prisma'
 
 export const revalidate = 3600 // revalidate every hour

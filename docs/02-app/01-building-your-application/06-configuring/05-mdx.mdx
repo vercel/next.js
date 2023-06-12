@@ -220,7 +220,7 @@ To share a layout around MDX content, you can use the [built-in layouts support]
 
 To add a layout to your MDX page, create a new component and import it into the MDX page. Then you can wrap the MDX page with your layout component:
 
-```jsx filename="pages/index.jsx"
+```jsx filename="pages/index.js"
 import { MyLayoutComponent } from 'my-components';
 import HelloWorld from './hello.mdx';
 
@@ -349,7 +349,7 @@ React does not natively understand Markdown. The markdown plaintext needs to fir
 
 `remark` is an ecosystem of tools around markdown. `rehype` is the same, but for HTML. For example, the following code snippet transforms markdown into HTML:
 
-```jsx
+```js
 import { unified } from 'unified'
 import remarkParse from 'remark-parse'
 import remarkRehype from 'remark-rehype'

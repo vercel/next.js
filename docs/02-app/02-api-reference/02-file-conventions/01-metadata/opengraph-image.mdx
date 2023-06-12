@@ -146,7 +146,7 @@ export default async function Image() {
 }
 ```
 
-```jsx filename="app/about/opengraph-image.jsx" switcher
+```jsx filename="app/about/opengraph-image.js" switcher
 import { ImageResponse } from 'next/server'
 
 // Route segment config
@@ -225,7 +225,7 @@ export default function Image({ params }: { params: { slug: string } }) {
 }
 ```
 
-```jsx filename="app/shop/[slug]/opengraph-image.jsx" switcher
+```jsx filename="app/shop/[slug]/opengraph-image.js" switcher
 export default function Image({ params }) {
   // ...
 }
@@ -262,7 +262,7 @@ export const alt = 'My images alt text'
 export default function Image() {}
 ```
 
-```jsx filename="opengraph-image.jsx / twitter-image.jsx" switcher
+```jsx filename="opengraph-image.js / twitter-image.js" switcher
 export const alt = 'My images alt text'
 
 export default function Image() {}
@@ -280,7 +280,7 @@ export const size = { width: 1200, height: 630 }
 export default function Image() {}
 ```
 
-```jsx filename="opengraph-image.jsx / twitter-image.jsx" switcher
+```jsx filename="opengraph-image.js / twitter-image.js" switcher
 export const size = { width: 1200, height: 630 }
 
 export default function Image() {}
@@ -299,7 +299,7 @@ export const contentType = 'image/png'
 export default function Image() {}
 ```
 
-```jsx filename="opengraph-image.jsx / twitter-image.jsx" switcher
+```jsx filename="opengraph-image.js / twitter-image.js" switcher
 export const contentType = 'image/png'
 
 export default function Image() {}
@@ -326,7 +326,7 @@ export const runtime = 'edge'
 export default function Image() {}
 ```
 
-```jsx filename="app/opengraph-image.jsx" switcher
+```jsx filename="app/opengraph-image.js" switcher
 export const runtime = 'edge'
 
 export default function Image() {}
@@ -381,7 +381,7 @@ export default async function Image({ params }: { params: { slug: string } }) {
 }
 ```
 
-```jsx filename="app/posts/[slug]/opengraph-image.jsx" switcher
+```jsx filename="app/posts/[slug]/opengraph-image.js" switcher
 import { ImageResponse } from 'next/server'
 
 export const runtime = 'edge'

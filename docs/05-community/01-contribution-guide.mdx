@@ -39,9 +39,11 @@ Open the command pallete (`⌘ + ⇧ + P` on Mac or `Ctrl + Shift + P` on Window
 Then, add the following line to your `settings.json` file:
 
 ```json filename="settings.json"
-"files.associations": {
+{
+  "files.associations": {
     "*.mdx": "markdown"
   }
+}
 ```
 
 Next, open the command palette again, and search for `Markdown: Preview File` or `Markdown: Open Preview to the Side`. This will open a preview window where you can see your formatted changes.
@@ -216,6 +218,15 @@ npx create-next-app
 
 Most examples in the docs are written in `tsx` and `jsx`, and a few in `bash`. However, you can use any supported language, here's the [full list](https://github.com/shikijs/shiki/blob/main/docs/languages.md#all-languages).
 
+When writing JavaScript code blocks, we use the following language and extension combinations.
+
+|                                | Language | Extension |
+| ------------------------------ | -------- | --------- |
+| JavaScript files with JSX code | ```jsx   | .js       |
+| JavaScript files without JSX   | ```js    | .js       |
+| TypeScript files with JSX      | ```tsx   | .tsx      |
+| TypeScript files without JSX   | ```ts    | .ts       |
+
 ### TS and JS Switcher
 
 Add a language switcher to toggle between TypeScript and JavaScript. Code blocks should be TypeScript first with a JavaScript version to accommodate users.
@@ -227,7 +238,7 @@ Currently, we write TS and JS examples one after the other, and link them with `
 
 ```
 
-```jsx filename="app/page.jsx" switcher
+```jsx filename="app/page.js" switcher
 
 ```
 ````
