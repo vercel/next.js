@@ -17,6 +17,7 @@ export interface ScriptProps extends ScriptHTMLAttributes<HTMLScriptElement> {
   onReady?: () => void | null
   onError?: (e: any) => void
   children?: React.ReactNode
+  stylesheets?: string[]
 }
 
 /**
@@ -33,6 +34,22 @@ const ignoreProps = [
   'strategy',
 ]
 
+const insertStylesheets = (stylesheets) => {
+  console.log('here')
+  if (typeof window !== 'undefined') {
+    let head = document.head
+    stylesheets.forEach((stylesheet: string) => {
+      let link = document.createElement('link')
+
+      link.type = 'text/css'
+      link.rel = 'stylesheet'
+      link.href = stylesheet
+
+      head.appendChild(link)
+    })
+  }
+}
+
 const loadScript = (props: ScriptProps): void => {
   const {
     src,
@@ -43,6 +60,7 @@ const loadScript = (props: ScriptProps): void => {
     children = '',
     strategy = 'afterInteractive',
     onError,
+    stylesheets,
   } = props
 
   const cacheKey = id || src
@@ -126,6 +144,12 @@ const loadScript = (props: ScriptProps): void => {
   }
 
   el.setAttribute('data-nscript', strategy)
+
+  // Load styles associated with this script
+  // Useful when loading 3Ps with styles
+  if (stylesheets) {
+    insertStylesheets(stylesheets)
+  }
 
   document.body.appendChild(el)
 }
