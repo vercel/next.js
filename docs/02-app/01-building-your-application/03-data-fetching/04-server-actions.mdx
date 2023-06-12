@@ -13,7 +13,7 @@ related:
 
 **With Server Components:**
 
-```jsx filename="app/add-to-cart.jsx" highlight={5, 6, 13}
+```jsx filename="app/add-to-cart.js" highlight={5, 6, 13}
 import { cookies } from 'next/headers'
 
 // Server action defined inside a Server Component
@@ -44,7 +44,7 @@ async function addItem(data) {
 }
 ```
 
-```jsx filename="app/add-to-cart.jsx" highlight={1, 3, 8}
+```jsx filename="app/add-to-cart.js" highlight={1, 3, 8}
 'use client'
 
 import { addItem } from './actions.js'
@@ -88,7 +88,7 @@ Server Actions can be defined in two places:
 
 Create a Server Action by defining an asynchronous function with the `"use server"` directive at the top of the function body. This function should have **serializable arguments** and a **serializable return value** based on the React Server Components protocol.
 
-```jsx filename="app/server-component.jsx" highlight={2}
+```jsx filename="app/server-component.js" highlight={2}
 export default function ServerComponent() {
   async function myAction() {
     'use server'
@@ -101,7 +101,7 @@ export default function ServerComponent() {
 
 If you're using a Server Action inside a Client Component, create your action in a separate file with the "use server" directive at the top of the file. Then, import the Server Action into your Client Component:
 
-```jsx filename="app/actions.js" highlight={1}
+```js filename="app/actions.js" highlight={1}
 'use server'
 
 export async function myAction() {
@@ -109,7 +109,7 @@ export async function myAction() {
 }
 ```
 
-```jsx filename="app/client-component.jsx" highlight={1}
+```jsx filename="app/client-component.js" highlight={1}
 'use client'
 
 import { myAction } from './actions'
@@ -160,7 +160,7 @@ export default function AddToCart({ productId }) {
 
 You can use `formAction` prop to handle **Form Actions** on elements such as `button`, `input type="submit"`, and `input type="image"`. The `formAction` prop takes presedence over the form's `action`.
 
-```jsx filename="app/form" highlight={15}
+```jsx filename="app/form.js" highlight={15}
 export default function Form() {
   async function handleSubmit() {
     'use server'
@@ -207,7 +207,7 @@ function ExampleClientComponent({ id }) {
 }
 ```
 
-```jsx filename="app/actions.js"
+```js filename="app/actions.js"
 'use server'
 
 export async function addItem(id) {
@@ -390,7 +390,7 @@ In both cases, the form is interactive before hydration occurs. Although Server 
 
 Server Actions **cannot** be _defined_ within Client Components, but they can be _imported_. To use Server Actions in Client Components, you can import the action from a file containing a top-level `"use server"` directive.
 
-```jsx filename="app/actions.js" highlight={1}
+```js filename="app/actions.js" highlight={1}
 'use server'
 
 export async function addItem() {
@@ -455,7 +455,7 @@ function ExampleClientComponent({ updateItem }) {
 
 Server Actions can be used to revalidate data on-demand by path ([`revalidatePath`](/docs/app/api-reference/functions/revalidatePath)) or by cache tag ([`revalidateTag`](/docs/app/api-reference/functions/revalidateTag)).
 
-```jsx
+```js
 import { revalidateTag } from 'next/cache'
 
 async function revalidate() {
@@ -468,7 +468,7 @@ async function revalidate() {
 
 The data passed to a Server Action can be validated or sanitized before invoking the action. For example, you can create a wrapper function that receives the action as its argument, and returns a function that invokes the action if it's valid.
 
-```jsx filename="app/actions.js"
+```js filename="app/actions.js"
 'use server'
 
 import { withValidate } from 'lib/form-validation'
@@ -478,7 +478,7 @@ export const action = withValidate((data) => {
 })
 ```
 
-```jsx filename="lib/form-validation"
+```js filename="lib/form-validation.js"
 export function withValidate(action) {
   return (formData: FormData) => {
     'use server'
@@ -499,7 +499,7 @@ export function withValidate(action) {
 
 You can read incoming request headers such as `cookies` and `headers` within a Server Action.
 
-```jsx highlight={6}
+```js highlight={6}
 import { cookies } from 'next/headers'
 
 async function addItem(data) {
@@ -513,7 +513,7 @@ async function addItem(data) {
 
 Additionally, you can modify cookies within a Server Action.
 
-```jsx highlight={7, 9, 10, 11, 12, 13, 14}
+```js highlight={7, 9, 10, 11, 12, 13, 14}
 import { cookies } from 'next/headers';
 
 async function create(data) {

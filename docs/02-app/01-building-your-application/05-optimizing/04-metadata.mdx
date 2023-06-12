@@ -156,7 +156,7 @@ This means metadata with nested fields such as [`openGraph`](/docs/app/api-refer
 
 #### Overwriting fields
 
-```tsx filename="app/layout.js"
+```jsx filename="app/layout.js"
 export const metadata = {
   title: 'Acme',
   openGraph: {
@@ -166,7 +166,7 @@ export const metadata = {
 }
 ```
 
-```tsx filename="app/blog/page.js"
+```jsx filename="app/blog/page.js"
 export const metadata = {
   title: 'Blog',
   openGraph: {
@@ -186,11 +186,11 @@ In the example above:
 
 If you'd like to share some nested fields between segments while overwriting others, you can pull them out into a separate variable:
 
-```tsx filename="app/shared-metadata.js"
+```jsx filename="app/shared-metadata.js"
 export const openGraphImage = { images: ['http://...'] }
 ```
 
-```tsx filename="app/page.js"
+```jsx filename="app/page.js"
 import { openGraphImage } from './shared-metadata'
 
 export const metadata = {
@@ -201,7 +201,7 @@ export const metadata = {
 }
 ```
 
-```tsx filename="app/about/page.js"
+```jsx filename="app/about/page.js"
 import { openGraphImage } from '../shared-metadata'
 
 export const metadata = {
@@ -216,7 +216,7 @@ In the example above, the OG image is shared between `app/layout.js` and `app/ab
 
 #### Inheriting fields
 
-```tsx filename="app/layout.js"
+```jsx filename="app/layout.js"
 export const metadata = {
   title: 'Acme',
   openGraph: {
@@ -226,7 +226,7 @@ export const metadata = {
 }
 ```
 
-```tsx filename="app/about/page.js"
+```jsx filename="app/about/page.js"
 export const metadata = {
   title: 'About',
 }
@@ -250,7 +250,7 @@ The `ImageResponse` constructor allows you to generate dynamic images using JSX 
 
 To use it, you can import `ImageResponse` from `next/server`:
 
-```jsx filename="app/about/route.jsx"
+```jsx filename="app/about/route.js"
 import { ImageResponse } from 'next/server'
 
 export const runtime = 'edge'

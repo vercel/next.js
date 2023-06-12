@@ -76,7 +76,7 @@ export default async function Page() {
 
 React allows you to [`cache()`](https://github.com/acdlite/rfcs/blob/first-class-promises/text/0000-first-class-support-for-promises.md) and deduplicate requests, memoizing the result of the wrapped function call. The same function called with the same arguments will reuse a cached value instead of re-running the function.
 
-```tsx filename="utils/getUser.ts" switcher
+```ts filename="utils/getUser.ts" switcher
 import { cache } from 'react'
 
 export const getUser = cache(async (id: string) => {
@@ -85,7 +85,7 @@ export const getUser = cache(async (id: string) => {
 })
 ```
 
-```jsx filename="utils/getUser.js" switcher
+```js filename="utils/getUser.js" switcher
 import { cache } from 'react'
 
 export const getUser = cache(async (id) => {
@@ -146,7 +146,7 @@ Although the `getUser()` function is called twice in the example above, only one
 
 `POST` requests are automatically deduplicated when using `fetch` – unless they are inside of `POST` Route Handler or come after reading `headers()`/`cookies()`. For example, if you are using GraphQL and `POST` requests in the above cases, you can use `cache` to deduplicate requests. The `cache` arguments must be flat and only include primitives. Deep objects won't match for deduplication.
 
-```tsx filename="utils/getUser.ts" switcher
+```ts filename="utils/getUser.ts" switcher
 import { cache } from 'react'
 
 export const getUser = cache(async (id: string) => {
@@ -155,7 +155,7 @@ export const getUser = cache(async (id: string) => {
 })
 ```
 
-```jsx filename="utils/getUser.js" switcher
+```js filename="utils/getUser.js" switcher
 import { cache } from 'react'
 
 export const getUser = cache(async (id) => {
@@ -232,7 +232,7 @@ export default async function Page({ params: { id } }) {
 
 You can combine the `cache` function, the `preload` pattern, and the `server-only` package to create a data fetching utility that can be used throughout your app.
 
-```tsx filename="utils/getUser.ts" switcher
+```ts filename="utils/getUser.ts" switcher
 import { cache } from 'react'
 import 'server-only'
 
@@ -245,7 +245,7 @@ export const getUser = cache(async (id: string) => {
 })
 ```
 
-```jsx filename="utils/getUser.js" switcher
+```js filename="utils/getUser.js" switcher
 import { cache } from 'react'
 import 'server-only'
 
