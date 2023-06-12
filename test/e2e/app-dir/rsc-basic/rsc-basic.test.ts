@@ -399,9 +399,7 @@ createNextDescribe(
           const result = await resolveStreamResponse(response)
           expect(result).toContain('component:index.server')
           expect(result).toMatch(
-            isNextDev
-              ? /"buildId":"development"/
-              : new RegExp('"buildId":"[^"]+"')
+            isNextDev ? /0:\[\"development\",/ : /0:\[\"\w+\",/
           )
         })
     })
