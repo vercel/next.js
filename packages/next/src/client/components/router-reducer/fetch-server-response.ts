@@ -128,7 +128,7 @@ export async function fetchServerResponse(
       return doMpaNavigation(res.url)
     }
 
-    return [flightData!, canonicalUrl]
+    return [flightData, canonicalUrl]
   } catch (err) {
     console.error(
       'Failed to fetch RSC payload. Falling back to browser navigation.',

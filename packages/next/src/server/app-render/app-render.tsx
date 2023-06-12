@@ -1207,12 +1207,14 @@ export async function renderToHTMLOrFlight(
             })
           ).map((path) => path.slice(1)) // remove the '' (root) segment
 
-      const nextFlightData: NextFlightData = [renderOpts.buildId, flightData]
+      const buildIdFlightDataPair = [renderOpts.buildId, flightData]
 
       // For app dir, use the bundled version of Fizz renderer (renderToReadableStream)
       // which contains the subset React.
       const readable = ComponentMod.renderToReadableStream(
-        options ? [options.actionResult, nextFlightData] : nextFlightData,
+        options
+          ? [options.actionResult, buildIdFlightDataPair]
+          : buildIdFlightDataPair,
         clientReferenceManifest.clientModules,
         {
           context: serverContexts,

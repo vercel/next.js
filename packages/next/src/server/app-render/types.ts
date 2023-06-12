@@ -95,7 +95,7 @@ export type FlightDataPath =
       /* head */ React.ReactNode | null
     ]
 
-export type NextFlightData = [buildId: string, flightData: FlightData | null]
+export type NextFlightData = [buildId: string, flightData: FlightData]
 /**
  * The Flight response data
  */
