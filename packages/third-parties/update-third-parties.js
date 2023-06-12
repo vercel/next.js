@@ -72,8 +72,6 @@ const scriptStrategy = {
     `
   })
 
-  console.log(thirdPartyFunctions)
-
   await Promise.all([
     fs.writeFile(
       path.join(__dirname, './src/index.tsx'),
