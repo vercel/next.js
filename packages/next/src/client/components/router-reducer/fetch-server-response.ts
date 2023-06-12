@@ -95,9 +95,9 @@ export async function fetchServerResponse(
       credentials: 'same-origin',
       headers,
     })
-    const canonicalUrl = res.redirected
-      ? urlToUrlWithoutFlightMarker(res.url)
-      : undefined
+
+    const responseUrl = urlToUrlWithoutFlightMarker(res.url)
+    const canonicalUrl = res.redirected ? responseUrl : undefined
 
     const contentType = res.headers.get('content-type') || ''
     let isFlightResponse = contentType === RSC_CONTENT_TYPE_HEADER
@@ -113,7 +113,7 @@ export async function fetchServerResponse(
     // If fetch returns something different than flight response handle it like a mpa navigation
     // If the fetch was not 200, we also handle it like a mpa navigation
     if (!isFlightResponse || !res.ok) {
-      return doMpaNavigation(res.url)
+      return doMpaNavigation(responseUrl.toString())
     }
 
     // Handle the `fetch` readable stream that can be unwrapped by `React.use`.
