@@ -30,19 +30,17 @@ export = defineRule({
         scriptImportName = node.local.name
       },
       JSXOpeningElement(node) {
-        let pathname = context.getFilename()
+        const rootDir = path.resolve(__dirname, '../../../../../')
 
-        if (startsWithUsingCorrectSeparators(pathname, 'src/')) {
+        let pathname = context.getFilename()
+        pathname = pathname.replace(rootDir, '')
+
+        if (startsWithUsingCorrectSeparators(pathname, '/src')) {
           pathname = pathname.slice(4)
-        } else if (startsWithUsingCorrectSeparators(pathname, '/src/')) {
-          pathname = pathname.slice(5)
         }
 
         // This rule shouldn't fire in `app/`
-        if (
-          startsWithUsingCorrectSeparators(pathname, 'app/') ||
-          startsWithUsingCorrectSeparators(pathname, '/app/')
-        ) {
+        if (startsWithUsingCorrectSeparators(pathname, '/app')) {
           return
         }
 
