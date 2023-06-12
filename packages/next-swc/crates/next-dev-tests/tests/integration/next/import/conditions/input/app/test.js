@@ -10,7 +10,11 @@ async function getJson(url) {
   const res = await fetch(url)
   const text = await res.text()
   const jsonText = /(\{[^}]*\})/.exec(text)
-  return JSON.parse(jsonText[0].replace(/&quot;/g, '"'))
+  try {
+    return JSON.parse(jsonText[0].replace(/&quot;/g, '"'))
+  } catch (err) {
+    throw new Error(`Expected JSON but got:\n${text}`)
+  }
 }
 
 function runTests() {
