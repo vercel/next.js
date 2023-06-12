@@ -7,7 +7,6 @@ import type {
   FlightDataPath,
   FlightRouterState,
   FlightSegmentPath,
-  NextFlightData,
   RenderOpts,
   Segment,
 } from './types'
