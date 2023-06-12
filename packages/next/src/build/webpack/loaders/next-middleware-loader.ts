@@ -1,4 +1,7 @@
-import type { MiddlewareMatcher } from '../../analysis/get-page-static-info'
+import type {
+  MiddlewareConfig,
+  MiddlewareMatcher,
+} from '../../analysis/get-page-static-info'
 import { getModuleBuildInfo } from './get-module-build-info'
 import { stringifyRequest } from '../stringify-request'
 import { MIDDLEWARE_LOCATION_REGEXP } from '../../../lib/constants'
