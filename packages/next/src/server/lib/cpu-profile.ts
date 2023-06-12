@@ -1,5 +1,3 @@
-import * as Log from '../../build/output/log'
-
 if (process.env.__NEXT_PRIVATE_CPU_PROFILE) {
   const { Session } = require('inspector') as typeof import('inspector')
   const fs = require('fs')
