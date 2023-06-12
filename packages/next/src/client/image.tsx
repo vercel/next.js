@@ -137,19 +137,15 @@ export type ImageProps = Omit<
 }
 
 type ImageElementProps = Omit<ImageProps, 'src' | 'alt' | 'loader'> & {
-  srcString: string
-  imgAttributes: GenImgAttrsResult
-  heightInt: number | undefined
-  widthInt: number | undefined
-  qualityInt: number | undefined
-  imgStyle: ImgElementStyle
-  blurStyle: ImgElementStyle
-  isLazy: boolean
-  fill?: boolean
+  src: string
+  srcSet: string | undefined
+  sizes: string | undefined
+  height: number | undefined
+  width: number | undefined
+  style: ImgElementStyle
+  dataNImg: string
   loading: LoadingValue
-  config: ImageConfig
   unoptimized: boolean
-  loader: ImageLoaderWithConfig
   placeholder: PlaceholderValue
   onLoadRef: React.MutableRefObject<OnLoad | undefined>
   onLoadingCompleteRef: React.MutableRefObject<OnLoadingComplete | undefined>
@@ -270,13 +266,13 @@ function getInt(x: unknown): number | undefined {
 // handler instead of the img's onLoad attribute.
 function handleLoading(
   img: ImgElementWithDataProp,
-  src: string,
   placeholder: PlaceholderValue,
   onLoadRef: React.MutableRefObject<OnLoad | undefined>,
   onLoadingCompleteRef: React.MutableRefObject<OnLoadingComplete | undefined>,
   setBlurComplete: (b: boolean) => void,
   unoptimized: boolean
 ) {
+  const src = img?.src
   if (!img || img['data-loaded-src'] === src) {
     return
   }
@@ -324,6 +320,7 @@ function handleLoading(
       onLoadingCompleteRef.current(img)
     }
     if (process.env.NODE_ENV !== 'production') {
+      const origSrc = new URL(src, 'http://n').searchParams.get('url') || src
       if (img.getAttribute('data-nimg') === 'fill') {
         if (
           !unoptimized &&
@@ -333,7 +330,7 @@ function handleLoading(
             img.getBoundingClientRect().width / window.innerWidth
           if (widthViewportRatio < 0.6) {
             warnOnce(
-              `Image with src "${src}" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes`
+              `Image with src "${origSrc}" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes`
             )
           }
         }
@@ -342,7 +339,7 @@ function handleLoading(
           const valid = ['absolute', 'fixed', 'relative']
           if (!valid.includes(position)) {
             warnOnce(
-              `Image with src "${src}" has "fill" and parent element with invalid "position". Provided "${position}" should be one of ${valid
+              `Image with src "${origSrc}" has "fill" and parent element with invalid "position". Provided "${position}" should be one of ${valid
                 .map(String)
                 .join(',')}.`
             )
@@ -350,7 +347,7 @@ function handleLoading(
         }
         if (img.height === 0) {
           warnOnce(
-            `Image with src "${src}" has "fill" and a height value of 0. This is likely because the parent element of the image has not been styled to have a set height.`
+            `Image with src "${origSrc}" has "fill" and a height value of 0. This is likely because the parent element of the image has not been styled to have a set height.`
           )
         }
       }
@@ -363,7 +360,7 @@ function handleLoading(
         (!heightModified && widthModified)
       ) {
         warnOnce(
-          `Image with src "${src}" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.`
+          `Image with src "${origSrc}" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.`
         )
       }
     }
@@ -390,22 +387,18 @@ function getDynamicProps(
 const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
   (
     {
-      imgAttributes,
-      heightInt,
-      widthInt,
-      qualityInt,
+      src,
+      srcSet,
+      sizes,
+      height,
+      width,
       className,
-      imgStyle,
-      blurStyle,
-      isLazy,
+      style,
       fetchPriority,
-      fill,
+      dataNImg,
       placeholder,
       loading,
-      srcString,
-      config,
       unoptimized,
-      loader,
       onLoadRef,
       onLoadingCompleteRef,
       setBlurComplete,
@@ -416,22 +409,29 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
     },
     forwardedRef
   ) => {
-    loading = isLazy ? 'lazy' : loading
     return (
       <img
         {...rest}
         {...getDynamicProps(fetchPriority)}
-        loading={loading}
-        width={widthInt}
-        height={heightInt}
-        decoding="async"
-        data-nimg={fill ? 'fill' : '1'}
-        className={className}
-        style={{ ...imgStyle, ...blurStyle }}
         // It's intended to keep `loading` before `src` because React updates
         // props in order which causes Safari/Firefox to not lazy load properly.
         // See https://github.com/facebook/react/issues/25883
-        {...imgAttributes}
+        loading={loading}
+        width={width}
+        height={height}
+        decoding="async"
+        data-nimg={dataNImg}
+        className={className}
+        style={style}
+        // It's intended to keep `src` the last attribute because React updates
+        // attributes in order. If we keep `src` the first one, Safari will
+        // immediately start to fetch `src`, before `sizes` and `srcSet` are even
+        // updated by React. That causes multiple unnecessary requests if `srcSet`
+        // and `sizes` are defined.
+        // This bug cannot be reproduced in Chrome or Firefox.
+        sizes={sizes}
+        srcSet={srcSet}
+        src={src}
         ref={useCallback(
           (img: ImgElementWithDataProp | null) => {
             if (forwardedRef) {
@@ -452,7 +452,7 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
               img.src = img.src
             }
             if (process.env.NODE_ENV !== 'production') {
-              if (!srcString) {
+              if (!src) {
                 console.error(`Image is missing required "src" property:`, img)
               }
               if (img.getAttribute('alt') === null) {
@@ -464,7 +464,6 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
             if (img.complete) {
               handleLoading(
                 img,
-                srcString,
                 placeholder,
                 onLoadRef,
                 onLoadingCompleteRef,
@@ -474,7 +473,7 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
             }
           },
           [
-            srcString,
+            src,
             placeholder,
             onLoadRef,
             onLoadingCompleteRef,
@@ -488,7 +487,6 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
           const img = event.currentTarget as ImgElementWithDataProp
           handleLoading(
             img,
-            srcString,
             placeholder,
             onLoadRef,
             onLoadingCompleteRef,
@@ -511,6 +509,10 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
     )
   }
 )
+
+export function getImageProps(props: ImageProps) {
+  // TODO: throw error if experimental config is not enabled
+}
 
 const Image = forwardRef<HTMLImageElement | null, ImageProps>(
   (
@@ -536,7 +538,7 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
       objectPosition,
       lazyBoundary,
       lazyRoot,
-      ...all
+      ...rest
     },
     forwardedRef
   ) => {
@@ -548,10 +550,12 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
       return { ...c, allSizes, deviceSizes }
     }, [configContext])
 
-    let rest: Partial<ImageProps> = all
     let loader: ImageLoaderWithConfig = rest.loader || defaultLoader
+
     // Remove property so it's not spread on <img> element
     delete rest.loader
+    delete (rest as any).srcSet
+
     // This special value indicates that the user
     // didn't define a "loader" prop or "loader" config.
     const isDefaultLoader = '__next_img_default' in loader
@@ -898,8 +902,6 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
       loader,
     })
 
-    let srcString: string = src
-
     if (process.env.NODE_ENV !== 'production') {
       if (typeof window !== 'undefined') {
         let fullUrl: URL
@@ -925,22 +927,18 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
     }, [onLoadingComplete])
 
     const imgElementArgs: ImageElementProps = {
-      isLazy,
-      imgAttributes,
-      heightInt,
-      widthInt,
-      qualityInt,
+      src: imgAttributes.src,
+      srcSet: imgAttributes.srcSet,
+      sizes: imgAttributes.sizes,
+      height: heightInt,
+      width: widthInt,
       className,
-      imgStyle,
-      blurStyle,
-      loading,
-      config,
+      style: { ...imgStyle, ...blurStyle },
+      loading: isLazy ? 'lazy' : loading,
+      dataNImg: fill ? 'fill' : '1',
       fetchPriority,
-      fill,
       unoptimized,
       placeholder,
-      loader,
-      srcString,
       onLoadRef,
       onLoadingCompleteRef,
       setBlurComplete,
