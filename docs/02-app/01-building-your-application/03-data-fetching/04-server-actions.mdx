@@ -59,6 +59,12 @@ export default function AddToCart({ productId }) {
 }
 ```
 
+> **Good to know:**
+>
+> - Using Server Actions will opt into running the React `experimental` channel.
+> - React Actions, `useOptimistic`, and `useFormStatus` are not a Next.js or React Server Components specific features.
+> - Next.js integrates React Actions into the Next.js router, bundler, and caching system, including adding data mutation APIs like `revalidateTag` and `revalidatePath`.
+
 ## Convention
 
 You can enable Server Actions in your Next.js project by enabling the **experimental** `serverActions` flag.
@@ -104,16 +110,16 @@ export async function myAction() {
 ```
 
 ```jsx filename="app/client-component.jsx" highlight={1}
-|"use client"
+'use client'
 
-import { myAction } from './actions';
+import { myAction } from './actions'
 
 export default function ClientComponent() {
   return (
     <form action={myAction}>
       <button type="submit">Add to Cart</button>
     </form>
-  );
+  )
 }
 ```
 
@@ -529,7 +535,13 @@ async function create(data) {
 
 ### Actions
 
-Performs asynchronous side effects in response to user interaction, with built-in solutions for error handling and [optimistic updates](#experimental-useoptimistic). Similar to the HTML primitive [`action`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/form#action).
+Actions are an experimental feature in React, allowing you to run `async` code in response to a user interaction.
+
+Actions are not Next.js or React Server Components specific, however, they are not yet available in the stable version of React. When using Actions through Next.js, you are opting into using the React `experimental` channel.
+
+Actions are defined through the `action` prop on an element. Typically when building HTML forms, you pass a URL to the [`action` prop](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/form#action). With Actions, React now allows you to pass a function directly.
+
+React also provides built-in solutions for [optimistic updates](#experimental-useoptimistic) with Actions. It's important to note new patterns are still being developed and new APIs may stil be added.
 
 ### Form Actions
 
@@ -542,6 +554,8 @@ Functions that run on the server, but can be called on the client.
 ### Server Actions
 
 [Server Functions](#server-functions) called as an action.
+
+Server Actions can be progressively enhanced by passing them to a [`form` element's `action` prop](#invocation). The form is interactive before any client-side JavaScript has loaded. This means React hydration is not required for the form to submit.
 
 ### Server Mutations
 

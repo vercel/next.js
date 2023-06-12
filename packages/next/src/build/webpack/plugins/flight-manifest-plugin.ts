@@ -219,13 +219,6 @@ export class ClientReferenceManifestPlugin {
               name: 'default',
               chunks: chunkCSS,
             }
-          } else {
-            // It is possible that there are multiple modules with the same resource,
-            // e.g. extracted by mini-css-extract-plugin. In that case we need to
-            // merge the chunks.
-            moduleReferences[exportName].chunks = [
-              ...new Set([...moduleReferences[exportName].chunks, ...chunkCSS]),
-            ]
           }
 
           return
@@ -396,7 +389,7 @@ export class ClientReferenceManifestPlugin {
     pluginState.ASYNC_CLIENT_MODULES = []
 
     assets[file + '.js'] = new sources.RawSource(
-      'self.__RSC_MANIFEST=' + json
+      `self.__RSC_MANIFEST=${JSON.stringify(json)}`
       // Work around webpack 4 type of RawSource being used
       // TODO: use webpack 5 type by default
     ) as unknown as webpack.sources.RawSource
