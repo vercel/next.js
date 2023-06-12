@@ -15,7 +15,7 @@ There are two types of revalidation in Next.js:
 
 To revalidate cached data at a specific interval, you can use the `next.revalidate` option in `fetch()` to set the `cache` lifetime of a resource (in seconds).
 
-```jsx
+```js
 fetch('https://...', { next: { revalidate: 60 } })
 ```
 
@@ -76,7 +76,7 @@ export default async function Page() {
 
 This cached data can then be revalidated on-demand by calling `revalidateTag` in a [Route Handler](/docs/app/building-your-application/routing/router-handlers).
 
-```tsx filename="app/api/revalidate/route.ts" switcher
+```ts filename="app/api/revalidate/route.ts" switcher
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidateTag } from 'next/cache'
 
@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
 }
 ```
 
-```jsx filename="app/api/revalidate/route.js" switcher
+```js filename="app/api/revalidate/route.js" switcher
 import { NextResponse } from 'next/server'
 import { revalidateTag } from 'next/cache'
 

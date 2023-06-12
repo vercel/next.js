@@ -15,7 +15,7 @@ import { useSelectedLayoutSegment } from 'next/navigation'
 export default function ExampleClientComponent() {
   const segment = useSelectedLayoutSegment()
 
-  return <>Active segment: {segment}</>
+  return <p>Active segment: {segment}</p>
 }
 ```
 
@@ -27,7 +27,7 @@ import { useSelectedLayoutSegment } from 'next/navigation'
 export default function ExampleClientComponent() {
   const segment = useSelectedLayoutSegment()
 
-  return <>Active segment: {segment}</>
+  return <p>Active segment: {segment}</p>
 }
 ```
 
@@ -145,7 +145,7 @@ export default async function Layout({
 }
 ```
 
-```js filename="app/blog/layout.js" switcher
+```jsx filename="app/blog/layout.js" switcher
 // Import the Client Component into a parent Layout (Server Component)
 import { BlogNavLink } from './blog-nav-link'
 import getFeaturedPosts from './get-featured-posts'
