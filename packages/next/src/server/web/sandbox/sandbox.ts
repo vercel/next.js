@@ -4,6 +4,7 @@ import { getModuleContext } from './context'
 import { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
 import { requestToBodyStream } from '../../body-streams'
 import type { EdgeRuntime } from 'next/dist/compiled/edge-runtime'
+import { NEXT_RSC_UNION_QUERY } from '../../../client/components/app-router-headers'
 
 export const ErrorSource = Symbol('SandboxError')
 
@@ -96,6 +97,10 @@ export const run = withTaggedErrors(async function runWithTaggedErrors(params) {
     : undefined
 
   const KUint8Array = runtime.evaluate('Uint8Array')
+  const urlInstance = new URL(params.request.url)
+  urlInstance.searchParams.delete(NEXT_RSC_UNION_QUERY)
+
+  params.request.url = urlInstance.toString()
 
   try {
     const result = await edgeFunction({
