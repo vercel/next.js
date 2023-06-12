@@ -5,5 +5,5 @@ filter = "package(next-dev-tests)"
 leak-timeout = "500ms"
 retries = 2
 slow-timeout = "60s"
-threads-required = 2
+threads-required = 4
 failure-output = "immediate-final"
