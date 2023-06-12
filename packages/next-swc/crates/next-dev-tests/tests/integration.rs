@@ -358,7 +358,9 @@ async fn create_browser(is_debugging: bool) -> Result<(Browser, TempDir, JoinSet
     let tmp = TempDir::new("chromiumoxid").unwrap();
     config_builder = config_builder.user_data_dir(&tmp);
     if is_debugging {
-        config_builder = config_builder.with_head().args(vec!["--auto-open-devtools-for-tabs"]);
+        config_builder = config_builder
+            .with_head()
+            .args(vec!["--auto-open-devtools-for-tabs"]);
     }
 
     let (browser, mut handler) = retry_async(
