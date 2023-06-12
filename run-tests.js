@@ -207,6 +207,11 @@ async function main() {
         enabled.includes(test)
       )
     )
+
+    console.log(`Applied external test filter successfully`, {
+      enabledTests: externalTestsFilterLists.enabledTests.length,
+      testsAfterFilter: tests.length,
+    })
   }
 
   let testNames = [
