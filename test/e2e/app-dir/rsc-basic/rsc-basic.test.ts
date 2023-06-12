@@ -117,6 +117,9 @@ createNextDescribe(
         internalQueries.some((query) => content.includes(query))
       )
       expect(hasNextInternalQuery).toBe(false)
+      expect(next.cliOutput).not.toContain(
+        'Each child in a list should have a unique "key" prop'
+      )
     })
 
     it('should reuse the inline flight response without sending extra requests', async () => {

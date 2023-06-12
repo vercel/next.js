@@ -23,19 +23,29 @@ env:
   # canary next-swc binaries in the monorepo
   NEXT_SKIP_NATIVE_POSTINSTALL: 1
   DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
+  DATADOG_TRACE_NEXTJS_TEST: 'true'
   DD_ENV: 'ci'
   TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
   NEXT_TEST_JOB: 1
 
 jobs:
-  build:
-    name: build
+  build-native:
+    name: build-native
     uses: ./.github/workflows/build_reusable.yml
+    with:
+      skipInstallBuild: 'yes'
+    secrets: inherit
+
+  build-next:
+    name: build-next
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      skipNativeBuild: 'yes'
     secrets: inherit
 
   lint:
     name: lint
-    needs: ['build']
+    needs: ['build-native', 'build-next']
 
     uses: ./.github/workflows/build_reusable.yml
     with:
@@ -44,7 +54,7 @@ jobs:
 
   check-types-precompiled:
     name: types and precompiled
-    needs: ['build']
+    needs: ['build-native', 'build-next']
 
     uses: ./.github/workflows/build_reusable.yml
     with:
@@ -54,29 +64,56 @@ jobs:
 
   test-cargo-unit:
     name: test cargo unit
-    needs: ['build']
+    needs: ['build-next']
 
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
+      needsRust: 'yes'
       skipInstallBuild: 'yes'
+      skipNativeBuild: 'yes'
       afterBuild: turbo run test-cargo-unit
     secrets: inherit
 
-  rust-check:
-    name: rust check
-    needs: ['build']
+  test-cargo-integration:
+    name: test cargo integration
+    needs: ['build-next']
 
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
+      needsNextest: 'yes'
+      needsRust: 'yes'
+      skipNativeBuild: 'yes'
+      afterBuild: xvfb-run turbo run test-cargo-integration
+
+  test-cargo-bench:
+    name: test cargo benchmarks
+    needs: ['build-next']
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      skipForDocsOnly: 'yes'
+      needsRust: 'yes'
+      skipNativeBuild: 'yes'
+      afterBuild: xvfb-run turbo run test-cargo-bench
+
+  rust-check:
+    name: rust check
+    needs: ['build-next']
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      skipForDocsOnly: 'yes'
+      needsRust: 'yes'
       skipInstallBuild: 'yes'
+      skipNativeBuild: 'yes'
       afterBuild: turbo run rust-check
     secrets: inherit
 
   test-turbopack-dev:
     name: test turbopack dev
-    needs: ['build']
+    needs: ['build-native', 'build-next']
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
@@ -85,8 +122,7 @@ jobs:
 
   test-next-swc-wasm:
     name: test next-swc wasm
-    needs: ['build']
-
+    needs: ['build-native', 'build-next']
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
@@ -95,7 +131,7 @@ jobs:
 
   test-dev:
     name: test dev
-    needs: ['build']
+    needs: ['build-native', 'build-next']
     strategy:
       fail-fast: false
       matrix:
@@ -109,7 +145,7 @@ jobs:
 
   test-prod:
     name: test prod
-    needs: ['build']
+    needs: ['build-native', 'build-next']
     strategy:
       fail-fast: false
       matrix:
@@ -123,7 +159,7 @@ jobs:
 
   test-integration:
     name: test integration
-    needs: ['build']
+    needs: ['build-native', 'build-next']
     strategy:
       fail-fast: false
       matrix:
@@ -138,7 +174,7 @@ jobs:
 
   test-firefox-safari:
     name: test firefox and safari
-    needs: ['build']
+    needs: ['build-native', 'build-next']
 
     uses: ./.github/workflows/build_reusable.yml
     with:
@@ -146,16 +182,40 @@ jobs:
       afterBuild: pnpm playwright install && BROWSER_NAME=firefox node run-tests.js test/integration/production/test/index.test.js && BROWSER_NAME=safari NEXT_TEST_MODE=start node run-tests.js -c 1 test/integration/production/test/index.test.js test/e2e/basepath.test.ts && BROWSER_NAME=safari DEVICE_NAME='iPhone XR' node run-tests.js -c 1 test/production/prerender-prefetch/index.test.ts
     secrets: inherit
 
+  report-test-results:
+    needs: ['test-dev', 'test-prod', 'test-integration', 'test-turbopack-dev']
+    runs-on: [self-hosted, linux, x64]
+    name: upload test trace to datadog
+    # We'll not block the CI if the upload fails
+    continue-on-error: true
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: Test trace reports
+          path: test
+      - name: Upload traces
+        run: |
+          ls -al ./test
+          npm install -g junit-report-merger@6.0.2 @datadog/datadog-ci@2.14.0
+          jrm ./nextjs-test-result-junit.xml "test/test-junit-report/**/*.xml"
+          jrm ./turbopack-test-result-junit.xml "test/turbopack-test-junit-report/**/*.xml"
+          # Put a separate tag for the tests with turbopack to distinguish between same test names
+          DD_ENV=ci datadog-ci junit upload --tags test.type:nextjs --service nextjs ./nextjs-test-result-junit.xml
+          DD_ENV=ci datadog-ci junit upload --tags test.type:turbopack --service nextjs ./turbopack-test-result-junit.xml
+
   tests-pass:
     needs:
       [
-        'build',
+        'build-native',
+        'build-next',
         'lint',
         'check-types-precompiled',
         'test-dev',
         'test-prod',
         'test-integration',
         'test-cargo-unit',
+        'test-cargo-integration',
+        'test-cargo-bench',
         'rust-check',
         'test-next-swc-wasm',
         'test-turbopack-dev',

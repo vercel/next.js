@@ -5,7 +5,7 @@ description: Learn how to set up Next.js with three commonly used testing tools 
 
 <details open>
   <summary>
-    <b>Examples</b>
+    Examples
   </summary>
 
 - [Next.js with Cypress](https://github.com/vercel/next.js/tree/canary/examples/with-cypress)
@@ -39,12 +39,14 @@ npm install --save-dev cypress
 
 Add Cypress to the `package.json` scripts field:
 
-```json
-"scripts": {
-  "dev": "next dev",
-  "build": "next build",
-  "start": "next start",
-  "cypress": "cypress open",
+```json filename="package.json"
+{
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "cypress": "cypress open"
+  }
 }
 ```
 
@@ -90,7 +92,7 @@ export default function About() {
 
 Add a test to check your navigation is working correctly:
 
-```jsx filename="cypress/e2e/app.cy.js"
+```js filename="cypress/e2e/app.cy.js"
 describe('Navigation', () => {
   it('should navigate to the about page', () => {
     // Start from the index page
@@ -155,13 +157,14 @@ Run `npm run cypress -- --component` to start Cypress and execute your component
 You will have noticed that running Cypress so far has opened an interactive browser which is not ideal for CI environments. You can also run Cypress headlessly using the `cypress run` command:
 
 ```json filename="package.json"
-
-"scripts": {
-  //...
-  "e2e": "start-server-and-test dev http://localhost:3000 \"cypress open --e2e\"",
-  "e2e:headless": "start-server-and-test dev http://localhost:3000 \"cypress run --e2e\"",
-  "component": "cypress open --component",
-  "component:headless": "cypress run --component"
+{
+  "scripts": {
+    //...
+    "e2e": "start-server-and-test dev http://localhost:3000 \"cypress open --e2e\"",
+    "e2e:headless": "start-server-and-test dev http://localhost:3000 \"cypress run --e2e\"",
+    "component": "cypress open --component",
+    "component:headless": "cypress run --component"
+  }
 }
 ```
 
@@ -195,12 +198,14 @@ npm install --save-dev @playwright/test
 
 Add Playwright to the `package.json` scripts field:
 
-```json
-"scripts": {
-  "dev": "next dev",
-  "build": "next build",
-  "start": "next start",
-  "test:e2e": "playwright test",
+```json filename="package.json"
+{
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test:e2e": "playwright test"
+  }
 }
 ```
 
@@ -312,7 +317,7 @@ npm install --save-dev jest jest-environment-jsdom @testing-library/react @testi
 
 Create a `jest.config.mjs` file in your project's root directory and add the following:
 
-```jsx filename="jest.config.mjs"
+```js filename="jest.config.mjs"
 import nextJest from 'next/jest.js'
 
 const createJestConfig = nextJest({
@@ -350,7 +355,7 @@ If you opt out of the [Rust Compiler](/docs/architecture/nextjs-compiler), you w
 
 Here are the recommended options to configure Jest for Next.js:
 
-```jsx filename="jest.config.js"
+```js filename="jest.config.js"
 module.exports = {
   collectCoverage: true,
   // on node 14.x coverage provider v8 offers good speed and more or less good report
@@ -426,7 +431,7 @@ setupFilesAfterEnv: ['<rootDir>/jest.setup.js']
 
 Then, inside `jest.setup.js`, add the following import:
 
-```jsx filename="jest.setup.js"
+```js filename="jest.setup.js"
 import '@testing-library/jest-dom/extend-expect'
 ```
 
@@ -436,7 +441,7 @@ If you need to add more setup options before each test, it's common to add them 
 
 If your project is using [Module Path Aliases](/docs/pages/building-your-application/configuring/absolute-imports-and-module-aliases), you will need to configure Jest to resolve the imports by matching the paths option in the `jsconfig.json` file with the `moduleNameMapper` option in the `jest.config.js` file. For example:
 
-```json filename="tsconfig.json" or jsconfig.json
+```json filename="tsconfig.json or jsconfig.json"
 {
   "compilerOptions": {
     "baseUrl": ".",
@@ -447,7 +452,7 @@ If your project is using [Module Path Aliases](/docs/pages/building-your-applica
 }
 ```
 
-```jsx filename="jest.config.js"
+```js filename="jest.config.js"
 moduleNameMapper: {
   '^@/components/(.*)$': '<rootDir>/components/$1',
 }
@@ -459,12 +464,14 @@ moduleNameMapper: {
 
 Add the Jest executable in watch mode to the `package.json` scripts:
 
-```jsx
-"scripts": {
-  "dev": "next dev",
-  "build": "next build",
-  "start": "next start",
-  "test": "jest --watch"
+```json filename="package.json"
+{
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "jest --watch"
+  }
 }
 ```
 
@@ -476,7 +483,7 @@ Your project is now ready to run tests. Follow Jest's convention by adding tests
 
 For example, we can add a test to check if the `<Home />` component successfully renders a heading:
 
-```jsx filename="__tests__/index.test.jsx"
+```jsx filename="__tests__/index.test.js"
 import { render, screen } from '@testing-library/react'
 import Home from '../pages/index'
 import '@testing-library/jest-dom'

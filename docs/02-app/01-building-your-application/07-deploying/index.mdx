@@ -60,7 +60,7 @@ Next.js can be deployed to any hosting provider that supports Node.js. For examp
 
 First, ensure your `package.json` has the `"build"` and `"start"` scripts:
 
-```json
+```json filename="package.json"
 {
   "scripts": {
     "dev": "next dev",
@@ -134,14 +134,16 @@ Next.js will automatically load the latest version of your application in the ba
 
 ## Manual Graceful shutdowns
 
-Sometimes you might want to run some cleanup code on process signals like `SIGTERM` or `SIGINT`.
+When self-hosting, you might want to run code when the server shuts down on `SIGTERM` or `SIGINT` signals.
 
-You can do that by setting the env variable `NEXT_MANUAL_SIG_HANDLE` to `true` and then register a handler for that signal inside your `_document.js` file. Please note that you need to register env variable directly in the system env variable, not in the `.env` file.
+You can set the env variable `NEXT_MANUAL_SIG_HANDLE` to `true` and then register a handler for that signal inside your `_document.js` file. You will need to register the env variable directly in the `package.json` script, not in the `.env` file.
+
+> **Note**: Manual signal handling is not available in `next dev`.
 
 ```json filename="package.json"
 {
   "scripts": {
-    "dev": "NEXT_MANUAL_SIG_HANDLE=true next dev",
+    "dev": "next dev",
     "build": "next build",
     "start": "NEXT_MANUAL_SIG_HANDLE=true next start"
   }

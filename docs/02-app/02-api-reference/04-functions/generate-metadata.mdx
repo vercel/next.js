@@ -422,31 +422,31 @@ URL composition favors developer intent over default directory traversal semanti
 
 For example, given the following `metadataBase`:
 
-```tsx filename="app/api/layout.tsx" switcher
+```tsx filename="app/layout.tsx" switcher
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://acme.com/api'),
+  metadataBase: new URL('https://acme.com'),
 }
 ```
 
-```jsx filename="app/api/layout.js" switcher
+```jsx filename="app/layout.js" switcher
 export const metadata = {
-  metadataBase: new URL('https://acme.com/api'),
+  metadataBase: new URL('https://acme.com'),
 }
 ```
 
 Any `metadata` fields that inherit the above `metadataBase` and set their own value will be resolved as follows:
 
-| `metadata` field                     | Resolved URL                         |
-| ------------------------------------ | ------------------------------------ |
-| `/`                                  | `https://acme.com/api`               |
-| `./`                                 | `https://acme.com/api`               |
-| `payments`                           | `https://acme.com/api/payments`      |
-| `/payments`                          | `https://acme.com/api/payments`      |
-| `./payments`                         | `https://acme.com/api/payments`      |
-| `../payments`                        | `https://acme.com/payments`          |
-| `https://beta.acme.com/api/payments` | `https://beta.acme.com/api/payments` |
+| `metadata` field                 | Resolved URL                     |
+| -------------------------------- | -------------------------------- |
+| `/`                              | `https://acme.com`               |
+| `./`                             | `https://acme.com`               |
+| `payments`                       | `https://acme.com/payments`      |
+| `/payments`                      | `https://acme.com/payments`      |
+| `./payments`                     | `https://acme.com/payments`      |
+| `../payments`                    | `https://acme.com/payments`      |
+| `https://beta.acme.com/payments` | `https://beta.acme.com/payments` |
 
 ### `openGraph`
 

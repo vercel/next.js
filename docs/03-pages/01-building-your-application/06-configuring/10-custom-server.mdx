@@ -5,7 +5,7 @@ description: Start a Next.js app programmatically using a custom server.
 
 <details>
   <summary>
-    <b>Examples</b>
+    Examples
   </summary>
 
 - [Custom Server](https://github.com/vercel/next.js/tree/canary/examples/custom-server)
@@ -68,11 +68,13 @@ app.prepare().then(() => {
 
 To run the custom server you'll need to update the `scripts` in `package.json` like so:
 
-```json
-"scripts": {
-  "dev": "node server.js",
-  "build": "next build",
-  "start": "NODE_ENV=production node server.js"
+```json filename="package.json"
+{
+  "scripts": {
+    "dev": "node server.js",
+    "build": "next build",
+    "start": "NODE_ENV=production node server.js"
+  }
 }
 ```
 

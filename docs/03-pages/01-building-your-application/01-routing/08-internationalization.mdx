@@ -6,7 +6,7 @@ description: Next.js has built-in support for internationalized routing and lang
 
 <details>
   <summary>
-    <b>Examples</b>
+    Examples
   </summary>
 
 - [i18n routing](https://github.com/vercel/next.js/tree/canary/examples/i18n-routing)
@@ -299,7 +299,7 @@ Next.js doesn't know about variants of a page so it's up to you to add the `href
 
 For pages using `getStaticProps` with [Dynamic Routes](/docs/pages/building-your-application/routing/dynamic-routes), all locale variants of the page desired to be prerendered need to be returned from [`getStaticPaths`](/docs/pages/building-your-application/data-fetching/get-static-paths). Along with the `params` object returned for `paths`, you can also return a `locale` field specifying which locale you want to render. For example:
 
-```js filename="pages/blog/[slug].js"
+```jsx filename="pages/blog/[slug].js"
 export const getStaticPaths = ({ locales }) => {
   return {
     paths: [
