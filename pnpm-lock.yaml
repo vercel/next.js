@@ -111,6 +111,7 @@ importers:
       isomorphic-unfetch: 3.0.0
       jest: 27.0.6
       jest-extended: 1.2.1
+      jest-junit: 16.0.0
       json5: 2.2.3
       ky: 0.19.1
       ky-universal: 0.6.0
@@ -277,6 +278,7 @@ importers:
       isomorphic-unfetch: 3.0.0
       jest: 27.0.6
       jest-extended: 1.2.1
+      jest-junit: 16.0.0
       json5: 2.2.3
       ky: 0.19.1
       ky-universal: 0.6.0_ky@0.19.1
@@ -15600,6 +15602,16 @@ packages:
       - supports-color
     dev: true
 
+  /jest-junit/16.0.0:
+    resolution: {integrity: sha512-A94mmw6NfJab4Fg/BlvVOUXzXgF0XIH6EmTgJ5NDPp4xoKq0Kr7sErb+4Xs9nZvu58pJojz5RFGpqnZYJTrRfQ==}
+    engines: {node: '>=10.12.0'}
+    dependencies:
+      mkdirp: 1.0.4
+      strip-ansi: 6.0.1
+      uuid: 8.3.2
+      xml: 1.0.1
+    dev: true
+
   /jest-leak-detector/27.0.6:
     resolution: {integrity: sha512-2/d6n2wlH5zEcdctX4zdbgX8oM61tb67PQt4Xh8JFAIy6LRKUnX528HulkaG6nD5qDl5vRV1NXejCe1XRCH5gQ==}
     engines: {node: ^10.13.0 || ^12.13.0 || ^14.15.0 || >=15.0.0}
@@ -25395,6 +25407,10 @@ packages:
 
   /xml-name-validator/3.0.0:
     resolution: {integrity: sha512-A5CUptxDsvxKJEU3yO6DuWBSJz/qizqzJKOMIfUJHETbBw/sFaDxgd6fxm1ewUaM0jZ444Fc5vC5ROYurg/4Pw==}
+    dev: true
+
+  /xml/1.0.1:
+    resolution: {integrity: sha512-huCv9IH9Tcf95zuYCsQraZtWnJvBtLVE0QHMOs8bWyZAFZNDcYjsPq1nEx8jKA9y+Beo9v+7OBPRisQTjinQMw==}
     dev: true
 
   /xmlchars/2.2.0:

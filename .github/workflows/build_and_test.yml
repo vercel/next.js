@@ -23,6 +23,7 @@ env:
   # canary next-swc binaries in the monorepo
   NEXT_SKIP_NATIVE_POSTINSTALL: 1
   DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
+  DATADOG_TRACE_NEXTJS_TEST: 'true'
   DD_ENV: 'ci'
   TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
   NEXT_TEST_JOB: 1
@@ -180,6 +181,27 @@ jobs:
       skipForDocsOnly: 'yes'
       afterBuild: pnpm playwright install && BROWSER_NAME=firefox node run-tests.js test/integration/production/test/index.test.js && BROWSER_NAME=safari NEXT_TEST_MODE=start node run-tests.js -c 1 test/integration/production/test/index.test.js test/e2e/basepath.test.ts && BROWSER_NAME=safari DEVICE_NAME='iPhone XR' node run-tests.js -c 1 test/production/prerender-prefetch/index.test.ts
     secrets: inherit
+
+  report-test-results:
+    needs: ['test-dev', 'test-prod', 'test-integration', 'test-turbopack-dev']
+    runs-on: [self-hosted, linux, x64]
+    name: upload test trace to datadog
+    # We'll not block the CI if the upload fails
+    continue-on-error: true
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: Test trace reports
+          path: test
+      - name: Upload traces
+        run: |
+          ls -al ./test
+          npm install -g junit-report-merger@6.0.2 @datadog/datadog-ci@2.14.0
+          jrm ./nextjs-test-result-junit.xml "test/test-junit-report/**/*.xml"
+          jrm ./turbopack-test-result-junit.xml "test/turbopack-test-junit-report/**/*.xml"
+          # Put a separate tag for the tests with turbopack to distinguish between same test names
+          DD_ENV=ci datadog-ci junit upload --tags test.type:nextjs --service nextjs ./nextjs-test-result-junit.xml
+          DD_ENV=ci datadog-ci junit upload --tags test.type:turbopack --service nextjs ./turbopack-test-result-junit.xml
 
   tests-pass:
     needs:

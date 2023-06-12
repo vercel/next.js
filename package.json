@@ -152,6 +152,7 @@
     "isomorphic-unfetch": "3.0.0",
     "jest": "27.0.6",
     "jest-extended": "1.2.1",
+    "jest-junit": "16.0.0",
     "json5": "2.2.3",
     "ky": "0.19.1",
     "ky-universal": "0.6.0",
