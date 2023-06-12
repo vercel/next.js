@@ -18,6 +18,9 @@ export const createServerHandler = async ({
   dev?: boolean
   minimalMode: boolean
 }) => {
+  const nextConfig = JSON.parse(
+    process.env.__NEXT_PRIVATE_STANDALONE_CONFIG || '{}'
+  )
   const routerWorker = new Worker(require.resolve('./render-server'), {
     numWorkers: 1,
     maxRetries: 10,
@@ -25,6 +28,10 @@ export const createServerHandler = async ({
       env: {
         FORCE_COLOR: '1',
         ...process.env,
+        __NEXT_PRIVATE_PREBUNDLED_REACT: nextConfig?.experimental
+          ?.useServerActions
+          ? 'experimental'
+          : 'next',
       },
     },
     exposedMethods: ['initialize'],
