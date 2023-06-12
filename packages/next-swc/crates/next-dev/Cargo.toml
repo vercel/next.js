@@ -33,7 +33,7 @@ tokio_console = [
   "turbo-tasks/tokio_tracing",
 ]
 profile = []
-custom_allocator = ["turbo-binding/__turbo_tasks_malloc", "turbo-binding/__turbo_tasks_malloc_custom_allocator"]
+custom_allocator = ["turbopack-binding/__turbo_tasks_malloc", "turbopack-binding/__turbo_tasks_malloc_custom_allocator"]
 native-tls = ["next-core/native-tls"]
 rustls-tls = ["next-core/rustls-tls"]
 # Internal only. Enabled when building for the Next.js integration test suite.
@@ -43,8 +43,8 @@ __internal_nextjs_integration_test = [
 # enable "HMR" for embedded assets
 dynamic_embed_contents = [
   "next-core/dynamic_embed_contents",
-  "turbo-binding/__turbopack_node_dynamic_embed_contents",
-  "turbo-binding/__turbopack_dev_dynamic_embed_contents",
+  "turbopack-binding/__turbopack_node_dynamic_embed_contents",
+  "turbopack-binding/__turbopack_dev_dynamic_embed_contents",
 ]
 
 [dependencies]
@@ -56,10 +56,11 @@ futures = { workspace = true }
 indexmap = { workspace = true }
 mime = { workspace = true }
 next-core = { workspace = true }
+once_cell = { workspace = true }
 owo-colors = { workspace = true }
 serde = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
-turbo-binding = { workspace = true, features = [
+turbopack-binding = { workspace = true, features = [
   "__turbo_tasks_memory",
   "__turbo_tasks_env",
   "__turbo_tasks_fs",
@@ -72,6 +73,8 @@ turbo-binding = { workspace = true, features = [
   "__turbopack_dev_server",
 ]}
 turbo-tasks = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
 webbrowser = { workspace = true }
 
 [dev-dependencies]
@@ -87,7 +90,7 @@ regex = { workspace = true }
 serde_json = { workspace = true }
 tempfile = { workspace = true }
 tungstenite = { workspace = true }
-turbo-binding = { workspace = true, features = [
+turbopack-binding = { workspace = true, features = [
   "__turbopack_bench",
 ]}
 url = { workspace = true }
@@ -96,7 +99,7 @@ url = { workspace = true }
 nix = "0.26.1"
 
 [build-dependencies]
-turbo-binding = { workspace = true, features = [
+turbopack-binding = { workspace = true, features = [
   "__turbo_tasks_build"
 ]}
 vergen = { version = "7.3.2", default-features = false, features = [

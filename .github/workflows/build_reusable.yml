@@ -1,0 +1,128 @@
+name: Build Reusable
+
+on:
+  workflow_call:
+    inputs:
+      afterBuild:
+        required: false
+        description: 'additional steps to run'
+        type: string
+      skipInstallBuild:
+        required: false
+        description: 'whether to skip pnpm install && pnpm build'
+        type: string
+      skipForDocsOnly:
+        required: false
+        description: 'skip for docs only changes'
+        type: string
+      nodeVersion:
+        required: false
+        description: 'version of Node.js to use'
+        type: string
+      needsNextest:
+        required: false
+        description: 'if nextest rust dep is needed'
+        type: string
+      uploadSwcArtifact:
+        required: false
+        description: 'if swc artifact needs uploading'
+        type: string
+
+env:
+  NAPI_CLI_VERSION: 2.14.7
+  TURBO_VERSION: 1.9.6
+  PNPM_VERSION: 7.24.3
+  NODE_MAINTENANCE_VERSION: 16
+  NODE_LTS_VERSION: 18
+  TEST_CONCURRENCY: 6
+  # disable backtrace for test snapshots
+  RUST_BACKTRACE: 0
+
+  TURBO_TEAM: 'vercel'
+  TURBO_REMOTE_ONLY: 'true'
+  NEXT_TELEMETRY_DISABLED: 1
+  # we build a dev binary for use in CI so skip downloading
+  # canary next-swc binaries in the monorepo
+  NEXT_SKIP_NATIVE_POSTINSTALL: 1
+  DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
+  DD_ENV: 'ci'
+  TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
+  NEXT_TEST_JOB: 1
+
+jobs:
+  build:
+    timeout-minutes: 25
+    runs-on: [self-hosted, linux, x64]
+
+    steps:
+      - run: fnm install ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
+      - run: fnm use ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
+      - run: node -v
+      - run: pwd
+
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 25
+
+      # local action -> needs to run after checkout
+      - name: Install Rust
+        uses: ./.github/actions/setup-rust
+        with:
+          components: rustfmt, clippy
+
+      - name: Install nextest
+        if: ${{ inputs.needsNextest == 'yes' }}
+        uses: taiki-e/install-action@nextest
+
+      - run: rustc --version
+
+      - run: npm i -g yarn "pnpm@${PNPM_VERSION}" "turbo@${TURBO_VERSION}" "@napi-rs/cli@${NAPI_CLI_VERSION}"
+
+      # clean up any previous artifacts to avoid hitting disk space limits
+      - run: git clean -xdf && rm -rf /tmp/next-repo-*; rm -rf /tmp/next-install-* /tmp/yarn-* /tmp/ncc-cache target && cargo clean
+
+      - run: echo "DOCS_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')" >> $GITHUB_OUTPUT; echo 'EOF' >> $GITHUB_OUTPUT
+        name: check docs only change
+        id: docs-change
+
+      # normalize versions before build-native for better cache hits
+      - run: node scripts/normalize-version-bump.js
+        name: normalize versions
+
+      - run: turbo run build-native-release --summarize -- --target x86_64-unknown-linux-gnu
+
+      - name: Upload next-swc artifact
+        if: ${{ inputs.uploadSwcArtifact == 'yes' }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: next-swc-binary
+          path: packages/next-swc/native/next-swc.linux-x64-gnu.node
+
+      # undo normalize version changes for install/build
+      - run: git checkout .
+        if: ${{ inputs.skipInstallBuild != 'yes' }}
+
+      - run: pnpm store path
+
+      - run: pnpm install
+        if: ${{ inputs.skipInstallBuild != 'yes' }}
+
+      - run: pnpm build
+        if: ${{ inputs.skipInstallBuild != 'yes' }}
+
+      - run: pnpm playwright install-deps
+        if: ${{ inputs.skipInstallBuild != 'yes' }}
+
+      - run: pnpm playwright install chromium
+        if: ${{ inputs.skipInstallBuild != 'yes' }}
+
+      - run: turbo run get-test-timings -- --build ${{ github.sha }}
+
+      - run: /bin/bash -c "${{ inputs.afterBuild }}"
+        if: ${{inputs.skipForDocsOnly != 'yes' || steps.docs-change.outputs.DOCS_CHANGE == 'nope'}}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: turbo run summary
+          path: .turbo/runs

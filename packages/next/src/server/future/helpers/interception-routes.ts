@@ -21,7 +21,7 @@ export function isInterceptionRouteAppPath(path: string): boolean {
 
 export function extractInterceptionRouteInformation(path: string) {
   let interceptingRoute: string | undefined,
-    marker: typeof INTERCEPTION_ROUTE_MARKERS[number] | undefined,
+    marker: (typeof INTERCEPTION_ROUTE_MARKERS)[number] | undefined,
     interceptedRoute: string | undefined
 
   for (const segment of path.split('/')) {

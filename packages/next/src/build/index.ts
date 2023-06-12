@@ -28,7 +28,7 @@ import {
   PAGES_DIR_ALIAS,
   INSTRUMENTATION_HOOK_FILENAME,
 } from '../lib/constants'
-import { fileExists } from '../lib/file-exists'
+import { FileType, fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
 import loadCustomRoutes, {
   CustomRoutes,
@@ -300,23 +300,6 @@ export default async function build(
       NextBuildContext.pagesDir = pagesDir
       NextBuildContext.appDir = appDir
       hasAppDir = Boolean(appDir)
-
-      if (isAppDirEnabled && hasAppDir) {
-        if (
-          (!process.env.__NEXT_TEST_MODE ||
-            process.env.__NEXT_TEST_MODE === 'e2e') &&
-          ciEnvironment.hasNextSupport
-        ) {
-          const requireHook = require.resolve('../server/require-hook')
-          const contents = await promises.readFile(requireHook, 'utf8')
-          await promises.writeFile(
-            requireHook,
-            `process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = '${
-              config.experimental.serverActions ? 'experimental' : 'next'
-            }'\n${contents}`
-          )
-        }
-      }
 
       const isSrcDir = path
         .relative(dir, pagesDir || appDir || '')
@@ -605,7 +588,7 @@ export default async function build(
           for (const page in mappedPages) {
             const hasPublicPageFile = await fileExists(
               path.join(publicDir, page === '/' ? '/index' : page),
-              'file'
+              FileType.File
             )
             if (hasPublicPageFile) {
               conflictingPublicFiles.push(page)
@@ -729,6 +712,7 @@ export default async function build(
           varyHeader: typeof RSC_VARY_HEADER
         }
         skipMiddlewareUrlNormalize?: boolean
+        caseSensitive?: boolean
       } = nextBuildSpan.traceChild('generate-routes-manifest').traceFn(() => {
         const sortedRoutes = getSortedRoutes([
           ...pageKeys.pages,
@@ -748,6 +732,7 @@ export default async function build(
         return {
           version: 3,
           pages404: true,
+          caseSensitive: !!config.experimental.caseSensitiveRoutes,
           basePath: config.basePath,
           redirects: redirects.map((r: any) => buildCustomRoute(r, 'redirect')),
           headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
@@ -1142,22 +1127,18 @@ export default async function build(
 
       process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
-      // We limit the number of workers used based on the number of CPUs and
-      // the current available memory. This is to prevent the system from
-      // running out of memory as well as maximize speed. We assume that
-      // each worker will consume ~1GB of memory in a production build.
-      // For example, if the system has 10 CPU cores and 8GB of remaining memory
-      // we will use 8 workers.
-      const numWorkers = Math.max(
-        config.experimental.cpus !== defaultConfig.experimental!.cpus
-          ? (config.experimental.cpus as number)
-          : Math.min(
-              config.experimental.cpus || 1,
-              Math.floor(os.freemem() / 1e9)
-            ),
-        // enforce a minimum of 4 workers
-        4
-      )
+      const numWorkers = config.experimental.memoryBasedWorkersCount
+        ? Math.max(
+            config.experimental.cpus !== defaultConfig.experimental!.cpus
+              ? (config.experimental.cpus as number)
+              : Math.min(
+                  config.experimental.cpus || 1,
+                  Math.floor(os.freemem() / 1e9)
+                ),
+            // enforce a minimum of 4 workers
+            4
+          )
+        : config.experimental.cpus || 4
 
       function createStaticWorker(type: 'app' | 'pages') {
         const numWorkersPerType = isAppDirEnabled
@@ -1210,34 +1191,24 @@ export default async function build(
             },
           },
           enableWorkerThreads: config.experimental.workerThreads,
-          computeWorkerKey(method, ...args) {
-            if (method === 'exportPage') {
-              const typedArgs = args as Parameters<
-                typeof import('./worker').exportPage
-              >
-              return typedArgs[0].pathMap.page
-            } else if (method === 'isPageStatic') {
-              const typedArgs = args as Parameters<
-                typeof import('./worker').isPageStatic
-              >
-              return typedArgs[0].originalAppPath || typedArgs[0].page
-            }
-            return method
-          },
           exposedMethods: sharedPool
             ? [
                 'hasCustomGetInitialProps',
                 'isPageStatic',
-                'getNamedExports',
+                'getDefinedNamedExports',
                 'exportPage',
               ]
-            : ['hasCustomGetInitialProps', 'isPageStatic', 'getNamedExports'],
+            : [
+                'hasCustomGetInitialProps',
+                'isPageStatic',
+                'getDefinedNamedExports',
+              ],
         }) as Worker &
           Pick<
             typeof import('./worker'),
             | 'hasCustomGetInitialProps'
             | 'isPageStatic'
-            | 'getNamedExports'
+            | 'getDefinedNamedExports'
             | 'exportPage'
           >
       }
@@ -1310,7 +1281,7 @@ export default async function build(
             true
           )
 
-        const namedExportsPromise = pagesStaticWorkers.getNamedExports(
+        const namedExportsPromise = pagesStaticWorkers.getDefinedNamedExports(
           appPageToCheck,
           distDir,
           runtimeEnvConfig
@@ -2959,7 +2930,9 @@ export default async function build(
         )
         await promises.writeFile(
           path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
-          `self.__PRERENDER_MANIFEST=${JSON.stringify(prerenderManifest)}`,
+          `self.__PRERENDER_MANIFEST=${JSON.stringify(
+            JSON.stringify(prerenderManifest)
+          )}`,
           'utf8'
         )
         await generateClientSsgManifest(prerenderManifest, {
@@ -2982,7 +2955,9 @@ export default async function build(
         )
         await promises.writeFile(
           path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
-          `self.__PRERENDER_MANIFEST=${JSON.stringify(prerenderManifest)}`,
+          `self.__PRERENDER_MANIFEST=${JSON.stringify(
+            JSON.stringify(prerenderManifest)
+          )}`,
           'utf8'
         )
       }
@@ -3122,6 +3097,7 @@ export default async function build(
 
         const options: ExportOptions = {
           isInvokedFromCli: false,
+          buildExport: false,
           nextConfig: config,
           hasAppDir,
           silent: true,

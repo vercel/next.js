@@ -394,7 +394,7 @@ createNextDescribe(
             redirect: 'manual',
           })
 
-          expect(res.status).toEqual(302)
+          expect(res.status).toEqual(307)
           expect(res.headers.get('location')).toEqual('https://nextjs.org/')
           expect(await res.text()).toBeEmpty()
         })

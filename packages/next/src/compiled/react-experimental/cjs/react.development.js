@@ -23,7 +23,7 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
 }
-          var ReactVersion = '18.3.0-experimental-16d053d59-20230506';
+          var ReactVersion = '18.3.0-experimental-1cea38448-20230530';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -1844,8 +1844,7 @@ function useCacheRefresh() {
   return dispatcher.useCacheRefresh();
 }
 function use(usable) {
-  var dispatcher = resolveDispatcher(); // $FlowFixMe[not-a-function] This is unstable, thus optional
-
+  var dispatcher = resolveDispatcher();
   return dispatcher.use(usable);
 }
 function useMemoCache(size) {

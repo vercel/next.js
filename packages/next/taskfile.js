@@ -145,8 +145,11 @@ export async function copy_vercel_og(task, opts) {
   await task
     .source(
       join(
-        dirname(require.resolve('@vercel/og/package.json')),
-        '{LICENSE,./dist/*.+(js|ttf|wasm)}'
+        relative(
+          __dirname,
+          dirname(require.resolve('@vercel/og/package.json'))
+        ),
+        'dist/*.+(js|ttf|wasm),LICENSE'
       )
     )
     .target('src/compiled/@vercel/og')
@@ -397,33 +400,21 @@ export async function ncc_edge_runtime_primitives() {
   // `@edge-runtime/primitives` is precompiled and pre-bundled
   // so we vendor the package as it is.
   const dest = 'src/compiled/@edge-runtime/primitives'
+  await fs.mkdirp(dest)
+  const primitivesPath = dirname(
+    require.resolve('@edge-runtime/primitives/package.json')
+  )
   const pkg = await fs.readJson(
     require.resolve('@edge-runtime/primitives/package.json')
   )
   await fs.remove(dest)
 
-  for (const file of pkg.files) {
-    if (['dist', 'types'].includes(file)) {
-      continue
-    }
+  for (const file of await fs.readdir(join(primitivesPath, 'types'))) {
+    await fs.copy(join(primitivesPath, 'types', file), join(dest, file))
+  }
 
-    externals[
-      `@edge-runtime/primitives/${file}`
-    ] = `next/dist/compiled/@edge-runtime/primitives/${file}`
-    const dest2 = `src/compiled/@edge-runtime/primitives/${file}`
-    await fs.outputJson(join(dest2, 'package.json'), {
-      main: `../${file}.js`,
-      types: `../${file}.d.ts`,
-    })
-
-    await fs.copy(
-      require.resolve(`@edge-runtime/primitives/${file}`),
-      join(dest, `${file}.js`)
-    )
-    await fs.copy(
-      require.resolve(`@edge-runtime/primitives/types/${file}.d.ts`),
-      join(dest, `${file}.d.ts`)
-    )
+  for (const file of await fs.readdir(join(primitivesPath, 'dist'))) {
+    await fs.copy(join(primitivesPath, 'dist', file), join(dest, file))
   }
 
   await fs.outputJson(join(dest, 'package.json'), {
@@ -436,6 +427,43 @@ export async function ncc_edge_runtime_primitives() {
     require.resolve('@edge-runtime/primitives'),
     join(dest, 'index.js')
   )
+  await fs.copy(
+    require.resolve('@edge-runtime/primitives/types/index.d.ts'),
+    join(dest, 'index.d.ts')
+  )
+}
+
+// eslint-disable-next-line camelcase
+externals['@edge-runtime/ponyfill'] =
+  'next/dist/compiled/@edge-runtime/ponyfill'
+export async function ncc_edge_runtime_ponyfill(task, opts) {
+  const indexFile = await fs.readFile(
+    require.resolve('@edge-runtime/ponyfill/src/index.js'),
+    'utf8'
+  )
+  await fs.outputFile(
+    'src/compiled/@edge-runtime/ponyfill/index.js',
+    indexFile.replace(
+      `require('@edge-runtime/primitives')`,
+      `require(${JSON.stringify(externals['@edge-runtime/primitives'])})`
+    )
+  )
+  await fs.copy(
+    require.resolve('@edge-runtime/ponyfill/src/index.d.ts'),
+    'src/compiled/@edge-runtime/ponyfill/index.d.ts'
+  )
+
+  const pkg = await fs.readJson(
+    require.resolve('@edge-runtime/ponyfill/package.json')
+  )
+
+  await fs.outputJson('src/compiled/@edge-runtime/ponyfill/package.json', {
+    name: '@edge-runtime/ponyfill',
+    version: pkg.version,
+    main: './index.js',
+    types: './index.d.ts',
+    license: pkg.license,
+  })
 }
 
 // eslint-disable-next-line camelcase
@@ -563,13 +591,7 @@ export async function ncc_next_font(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-externals['watchpack'] = 'next/dist/compiled/watchpack'
-export async function ncc_watchpack(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('watchpack')))
-    .ncc({ packageName: 'watchpack', externals })
-    .target('src/compiled/watchpack')
-}
+externals['watchpack'] = 'watchpack'
 
 // eslint-disable-next-line camelcase
 externals['jest-worker'] = 'next/dist/compiled/jest-worker'
@@ -2167,7 +2189,6 @@ export async function ncc(task, opts) {
     .parallel(
       [
         'ncc_node_html_parser',
-        'ncc_watchpack',
         'ncc_chalk',
         'ncc_napirs_triples',
         'ncc_p_limit',
@@ -2297,6 +2318,7 @@ export async function ncc(task, opts) {
       'ncc_jest_worker',
       'ncc_edge_runtime_cookies',
       'ncc_edge_runtime_primitives',
+      'ncc_edge_runtime_ponyfill',
       'ncc_edge_runtime',
     ],
     opts

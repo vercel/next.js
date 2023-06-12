@@ -29,11 +29,18 @@ describe('config telemetry', () => {
       path.join(appDir, 'next.config.custom-routes')
     )
 
-    const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/.exec(stderr).pop()
-    expect(event1).toMatch(/"headersCount": 1/)
-    expect(event1).toMatch(/"rewritesCount": 2/)
-    expect(event1).toMatch(/"redirectsCount": 1/)
-    expect(event1).toMatch(/"middlewareCount": 0/)
+    try {
+      const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
+        .exec(stderr)
+        .pop()
+      expect(event1).toMatch(/"headersCount": 1/)
+      expect(event1).toMatch(/"rewritesCount": 2/)
+      expect(event1).toMatch(/"redirectsCount": 1/)
+      expect(event1).toMatch(/"middlewareCount": 0/)
+    } catch (err) {
+      require('console').error('failing stderr', stderr, err)
+      throw err
+    }
   })
 
   it('detects i18n and image configs for session start', async () => {
@@ -52,26 +59,31 @@ describe('config telemetry', () => {
       path.join(appDir, 'next.config.i18n-images')
     )
 
-    const event1 = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
-      .exec(stderr)
-      .pop()
+    try {
+      const event1 = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
+        .exec(stderr)
+        .pop()
 
-    expect(event1).toMatch(/"i18nEnabled": true/)
-    expect(event1).toMatch(/"locales": "en,nl,fr"/)
-    expect(event1).toMatch(/"localeDomainsCount": 2/)
-    expect(event1).toMatch(/"localeDetectionEnabled": true/)
-    expect(event1).toMatch(/"imageEnabled": true/)
-    expect(event1).toMatch(/"imageFutureEnabled": true/)
-    expect(event1).toMatch(/"imageDomainsCount": 2/)
-    expect(event1).toMatch(/"imageRemotePatternsCount": 1/)
-    expect(event1).toMatch(/"imageSizes": "64,128,256,512,1024"/)
-    expect(event1).toMatch(/"imageFormats": "image\/avif,image\/webp"/)
-    expect(event1).toMatch(/"nextConfigOutput": null/)
-    expect(event1).toMatch(/"trailingSlashEnabled": false/)
-    expect(event1).toMatch(/"reactStrictMode": false/)
-    expect(event1).toMatch(/"turboFlag": false/)
-    expect(event1).toMatch(/"pagesDir": true/)
-    expect(event1).toMatch(/"appDir": false/)
+      expect(event1).toMatch(/"i18nEnabled": true/)
+      expect(event1).toMatch(/"locales": "en,nl,fr"/)
+      expect(event1).toMatch(/"localeDomainsCount": 2/)
+      expect(event1).toMatch(/"localeDetectionEnabled": true/)
+      expect(event1).toMatch(/"imageEnabled": true/)
+      expect(event1).toMatch(/"imageFutureEnabled": true/)
+      expect(event1).toMatch(/"imageDomainsCount": 2/)
+      expect(event1).toMatch(/"imageRemotePatternsCount": 1/)
+      expect(event1).toMatch(/"imageSizes": "64,128,256,512,1024"/)
+      expect(event1).toMatch(/"imageFormats": "image\/avif,image\/webp"/)
+      expect(event1).toMatch(/"nextConfigOutput": null/)
+      expect(event1).toMatch(/"trailingSlashEnabled": false/)
+      expect(event1).toMatch(/"reactStrictMode": false/)
+      expect(event1).toMatch(/"turboFlag": false/)
+      expect(event1).toMatch(/"pagesDir": true/)
+      expect(event1).toMatch(/"appDir": false/)
+    } catch (err) {
+      require('console').error('failing stderr', stderr, err)
+      throw err
+    }
 
     await fs.rename(
       path.join(appDir, 'next.config.i18n-images'),
@@ -96,19 +108,24 @@ describe('config telemetry', () => {
       path.join(appDir, 'next.config.i18n-images')
     )
 
-    const event2 = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
-      .exec(stderr2)
-      .pop()
-    expect(event2).toMatch(/"i18nEnabled": true/)
-    expect(event2).toMatch(/"locales": "en,nl,fr"/)
-    expect(event2).toMatch(/"localeDomainsCount": 2/)
-    expect(event2).toMatch(/"localeDetectionEnabled": true/)
-    expect(event2).toMatch(/"imageDomainsCount": 2/)
-    expect(event2).toMatch(/"imageRemotePatternsCount": 1/)
-    expect(event2).toMatch(/"imageSizes": "64,128,256,512,1024"/)
-    expect(event2).toMatch(/"nextConfigOutput": null/)
-    expect(event2).toMatch(/"trailingSlashEnabled": false/)
-    expect(event2).toMatch(/"reactStrictMode": false/)
+    try {
+      const event2 = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
+        .exec(stderr2)
+        .pop()
+      expect(event2).toMatch(/"i18nEnabled": true/)
+      expect(event2).toMatch(/"locales": "en,nl,fr"/)
+      expect(event2).toMatch(/"localeDomainsCount": 2/)
+      expect(event2).toMatch(/"localeDetectionEnabled": true/)
+      expect(event2).toMatch(/"imageDomainsCount": 2/)
+      expect(event2).toMatch(/"imageRemotePatternsCount": 1/)
+      expect(event2).toMatch(/"imageSizes": "64,128,256,512,1024"/)
+      expect(event2).toMatch(/"nextConfigOutput": null/)
+      expect(event2).toMatch(/"trailingSlashEnabled": false/)
+      expect(event2).toMatch(/"reactStrictMode": false/)
+    } catch (err) {
+      require('console').error(stderr2)
+      throw err
+    }
   })
 
   it('detects output config for session start', async () => {
@@ -122,11 +139,16 @@ describe('config telemetry', () => {
         env: { NEXT_TELEMETRY_DEBUG: 1 },
       })
 
-      const event1 = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
-        .exec(stderr)
-        .pop()
+      try {
+        const event1 = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
+          .exec(stderr)
+          .pop()
 
-      expect(event1).toContain('"nextConfigOutput": "export"')
+        expect(event1).toContain('"nextConfigOutput": "export"')
+      } catch (err) {
+        require('console').error('failing stderr', stderr, err)
+        throw err
+      }
     } finally {
       await fs.remove('./next.config.js')
     }
@@ -143,29 +165,34 @@ describe('config telemetry', () => {
     })
     await fs.remove(path.join(appDir, '.eslintrc'))
 
-    const event1 = /NEXT_LINT_CHECK_COMPLETED[\s\S]+?{([\s\S}]+?)^}/m
-      .exec(stderr)
-      .pop()
+    try {
+      const event1 = /NEXT_LINT_CHECK_COMPLETED[\s\S]+?{([\s\S}]+?)^}/m
+        .exec(stderr)
+        .pop()
 
-    expect(event1).toMatch(/"durationInSeconds": [\d]{1,}/)
-    expect(event1).toMatch(/"eslintVersion": ".*?\..*?\..*?"/)
-    expect(event1).toMatch(/"lintedFilesCount": [\d]{1,}/)
-    expect(event1).toMatch(/"lintFix": false/)
-    expect(event1).toMatch(/"buildLint": true/)
-    expect(event1).toMatch(/"nextEslintPluginVersion": ".*?\..*?\..*?"/)
-    expect(event1).toMatch(/"nextEslintPluginErrorsCount": \d{1,}/)
-    expect(event1).toMatch(/"nextEslintPluginWarningsCount": \d{1,}/)
-    expect(event1).toMatch(`"nextRulesEnabled": {`)
-    expect(event1).toMatch(/"@next\/next\/.+?": "(off|warn|error)"/)
+      expect(event1).toMatch(/"durationInSeconds": [\d]{1,}/)
+      expect(event1).toMatch(/"eslintVersion": ".*?\..*?\..*?"/)
+      expect(event1).toMatch(/"lintedFilesCount": [\d]{1,}/)
+      expect(event1).toMatch(/"lintFix": false/)
+      expect(event1).toMatch(/"buildLint": true/)
+      expect(event1).toMatch(/"nextEslintPluginVersion": ".*?\..*?\..*?"/)
+      expect(event1).toMatch(/"nextEslintPluginErrorsCount": \d{1,}/)
+      expect(event1).toMatch(/"nextEslintPluginWarningsCount": \d{1,}/)
+      expect(event1).toMatch(`"nextRulesEnabled": {`)
+      expect(event1).toMatch(/"@next\/next\/.+?": "(off|warn|error)"/)
 
-    const featureUsageEvents = findAllTelemetryEvents(
-      stderr,
-      'NEXT_BUILD_FEATURE_USAGE'
-    )
-    expect(featureUsageEvents).toContainEqual({
-      featureName: 'build-lint',
-      invocationCount: 1,
-    })
+      const featureUsageEvents = findAllTelemetryEvents(
+        stderr,
+        'NEXT_BUILD_FEATURE_USAGE'
+      )
+      expect(featureUsageEvents).toContainEqual({
+        featureName: 'build-lint',
+        invocationCount: 1,
+      })
+    } catch (err) {
+      require('console').error('failing stderr', stderr, err)
+      throw err
+    }
   })
 
   it(`emits telemetry for lint during build when '--no-lint' is specified`, async () => {

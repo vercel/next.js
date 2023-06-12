@@ -49,6 +49,7 @@ import { RedirectBoundary } from './redirect-boundary'
 import { NotFoundBoundary } from './not-found-boundary'
 import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
 import { createInfinitePromise } from './infinite-promise'
+import { NEXT_RSC_UNION_QUERY } from './app-router-headers'
 
 const isServer = typeof window === 'undefined'
 
@@ -65,7 +66,7 @@ export function getServerActionDispatcher() {
 
 export function urlToUrlWithoutFlightMarker(url: string): URL {
   const urlWithoutFlightParameters = new URL(url, location.origin)
-  // TODO-APP: handle .rsc for static export case
+  urlWithoutFlightParameters.searchParams.delete(NEXT_RSC_UNION_QUERY)
   return urlWithoutFlightParameters
 }
 
@@ -211,7 +212,7 @@ function Router({
       navigateType: 'push' | 'replace',
       forceOptimisticNavigation: boolean
     ) => {
-      const url = new URL(addBasePath(href), location.origin)
+      const url = new URL(addBasePath(href), location.href)
 
       return dispatch({
         type: ACTION_NAVIGATE,
@@ -261,7 +262,7 @@ function Router({
         if (isBot(window.navigator.userAgent)) {
           return
         }
-        const url = new URL(addBasePath(href), location.origin)
+        const url = new URL(addBasePath(href), location.href)
         // External urls can't be prefetched in the same way.
         if (isExternalURL(url)) {
           return
@@ -331,9 +332,16 @@ function Router({
     return routerInstance
   }, [dispatch, navigate])
 
-  // Add `window.nd` for debugging purposes.
-  // This is not meant for use in applications as concurrent rendering will affect the cache/tree/router.
-  if (typeof window !== 'undefined') {
+  useEffect(() => {
+    // Exists for debugging purposes. Don't use in application code.
+    if (window.next) {
+      window.next.router = appRouter
+    }
+  }, [appRouter])
+
+  useEffect(() => {
+    // Add `window.nd` for debugging purposes.
+    // This is not meant for use in applications as concurrent rendering will affect the cache/tree/router.
     // @ts-ignore this is for debugging
     window.nd = {
       router: appRouter,
@@ -341,7 +349,7 @@ function Router({
       prefetchCache,
       tree,
     }
-  }
+  }, [appRouter, cache, prefetchCache, tree])
 
   // When mpaNavigation flag is set do a hard navigation to the new url.
   // Infinitely suspend because we don't actually want to rerender any child
