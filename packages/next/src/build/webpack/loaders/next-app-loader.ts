@@ -621,7 +621,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     export const originalPathname = ${JSON.stringify(page)}
     export const __next_app_require__ = __webpack_require__
 
-    export * from 'next/dist/esm/server/app-render/entry-base'
+    export * from 'next/dist/server/app-render/entry-base'
   `
 
   return result

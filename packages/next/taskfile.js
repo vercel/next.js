@@ -2326,11 +2326,11 @@ export async function ncc(task, opts) {
 }
 
 export async function compile(task, opts) {
+  await task.serial(['server', 'server_entry_esm'], opts)
   await task.parallel(
     [
       'cli',
       'bin',
-      'server',
       'server_esm',
       'nextbuild',
       'nextbuildjest',
@@ -2401,6 +2401,14 @@ export async function server(task, opts) {
     join(__dirname, 'src/server/google-font-metrics.json'),
     join(__dirname, 'dist/server/google-font-metrics.json')
   )
+}
+
+export async function server_entry_esm(task, opts) {
+  // entry-base need to be ESM. Compile it first as the step afterwarts won't override it
+  await task
+    .source('src/server/**/entry-base.ts')
+    .swc('server', { dev: opts.dev, esm: true })
+    .target('dist/server')
 }
 
 export async function server_esm(task, opts) {
@@ -2544,7 +2552,11 @@ export default async function (task) {
   await task.start('build', opts)
   await task.watch('src/bin', 'bin', opts)
   await task.watch('src/pages', 'pages', opts)
-  await task.watch('src/server', ['server', 'server_esm', 'server_wasm'], opts)
+  await task.watch(
+    'src/server',
+    ['server', 'server_entry_esm', 'server_esm', 'server_wasm'],
+    opts
+  )
   await task.watch(
     'src/build',
     ['nextbuild', 'nextbuild_esm', 'nextbuildjest'],
