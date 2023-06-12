@@ -1886,8 +1886,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           value: {
             kind: 'REDIRECT',
             props: metadata.pageData,
-            revalidate: metadata.revalidate,
           },
+          revalidate: metadata.revalidate,
         }
       }
 
@@ -1902,9 +1902,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           kind: 'PAGE',
           html: result,
           pageData: metadata.pageData,
-          revalidate: metadata.revalidate,
           headers,
         },
+        revalidate: metadata.revalidate,
       }
     }
 
