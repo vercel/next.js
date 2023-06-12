@@ -41,7 +41,7 @@ Next.js will [automatically determine](#image-sizing) the `width` and `height` o
 
 <AppOnly>
 
-```jsx filename="app/page.jsx"
+```jsx filename="app/page.js"
 import Image from 'next/image'
 import profilePic from './me.png'
 
@@ -63,7 +63,7 @@ export default function Page() {
 
 <PagesOnly>
 
-```jsx filename="pages/index.jsx"
+```jsx filename="pages/index.js"
 import Image from 'next/image'
 import profilePic from '../public/me.png'
 
@@ -93,7 +93,7 @@ Since Next.js does not have access to remote files during the build process, you
 
 The `width` and `height` attributes are used to infer the correct aspect ratio of image and avoid layout shift from the image loading in. The `width` and `height` do _not_ determine the rendered size of the image file. Learn more about [Image Sizing](#image-sizing).
 
-```jsx filename="app/page.jsx"
+```jsx filename="app/page.js"
 import Image from 'next/image'
 
 export default function Page() {
@@ -155,7 +155,7 @@ Once you've identified the LCP image, you can add the property like this:
 
 <PagesOnly>
 
-```jsx filename="app/page.jsx"
+```jsx filename="app/page.js"
 import Image from 'next/image'
 
 export default function Home() {
@@ -179,7 +179,7 @@ export default function Home() {
 
 <AppOnly>
 
-```jsx filename="app/page.jsx"
+```jsx filename="app/page.js"
 import Image from 'next/image'
 import profilePic from '../public/me.png'
 

@@ -16,7 +16,7 @@ The `cookies` function allows you to read the HTTP incoming request cookies from
 
 A method that takes a cookie name and returns an object with name and value. If a cookie with `name` isn't found, it returns `undefined`. If multiple cookies match, it will only return the first match.
 
-```jsx filename="app/page.jsx"
+```jsx filename="app/page.js"
 import { cookies } from 'next/headers'
 
 export default function Page() {
@@ -30,7 +30,7 @@ export default function Page() {
 
 A method that is similar to `get`, but returns a list of all the cookies with a matching `name`. If `name` is unspecified, it returns all the available cookies.
 
-```jsx filename="app/page.jsx"
+```jsx filename="app/page.js"
 import { cookies } from 'next/headers'
 
 export default function Page() {
@@ -48,7 +48,7 @@ export default function Page() {
 
 A method that takes a cookie name and returns a `boolean` based on if the cookie exists (`true`) or not (`false`).
 
-```jsx filename="app/page.jsx"
+```jsx filename="app/page.js"
 import { cookies } from 'next/headers'
 
 export default function Page() {

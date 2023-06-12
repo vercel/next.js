@@ -23,7 +23,7 @@ By default, Server Components are automatically [code split](https://developer.m
 <AppOnly>
 ### Importing Client Components
 
-```jsx filename="app/page.jsx"
+```jsx filename="app/page.js"
 'use client'
 
 import { useState } from 'react'
@@ -67,7 +67,7 @@ const ComponentC = dynamic(() => import('../components/C'), { ssr: false })
 
 If you dynamically import a Server Component, only the Client Components that are children of the Server Component will be lazy-loaded - not the Server Component itself.
 
-```jsx filename="app/page.jsx"
+```jsx filename="app/page.js"
 import dynamic from 'next/dynamic'
 
 // Server Component:
@@ -86,7 +86,7 @@ export default function ServerComponentExample() {
 
 External libraries can be loaded on demand using the [`import()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import) function. This example uses the external library `fuse.js` for fuzzy search. The module is only loaded on the client after the user types in the search input.
 
-```jsx filename="app/page.jsx"
+```jsx filename="app/page.js"
 'use client'
 
 import { useState } from 'react'
@@ -118,7 +118,7 @@ export default function Page() {
 
 ### Adding a custom loading component
 
-```jsx filename="app/page.jsx"
+```jsx filename="app/page.js"
 import dynamic from 'next/dynamic'
 
 const WithCustomLoading = dynamic(
@@ -142,7 +142,7 @@ export default function Page() {
 
 To dynamically import a named export, you can return it from the Promise returned by [`import()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import) function:
 
-```jsx filename="components/hello.jsx"
+```jsx filename="components/hello.js"
 'use client'
 
 export function Hello() {
@@ -150,7 +150,7 @@ export function Hello() {
 }
 ```
 
-```jsx filename="app/page.jsx"
+```jsx filename="app/page.js"
 import dynamic from 'next/dynamic'
 
 const ClientComponent = dynamic(() =>
@@ -182,7 +182,7 @@ export default function Home() {
 
 To dynamically import a named export, you can return it from the [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise) returned by [`import()`](https://github.com/tc39/proposal-dynamic-import#example):
 
-```jsx filename="components/hello.jsx"
+```jsx filename="components/hello.js"
 export function Hello() {
   return <p>Hello!</p>
 }

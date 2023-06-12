@@ -137,7 +137,7 @@ export default function Page() {
 
 When navigating to the same page in Next.js, the page's state **will not** be reset by default as React does not unmount unless the parent component has changed.
 
-```jsx filename="pages/[slug].jsx"
+```jsx filename="pages/[slug].js"
 import Link from 'next/link'
 import { useState } from 'react'
 import { useRouter } from 'next/router'

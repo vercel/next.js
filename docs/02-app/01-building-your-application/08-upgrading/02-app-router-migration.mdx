@@ -146,7 +146,7 @@ export default function RootLayout({
 }
 ```
 
-```jsx filename="app/layout.jsx" switcher
+```jsx filename="app/layout.js" switcher
 export default function RootLayout({
   // Layouts must accept a children prop.
   // This will be populated with nested layouts or pages
@@ -176,7 +176,7 @@ export const metadata: Metadata = {
 }
 ```
 
-```jsx filename="app/layout.jsx" switcher
+```jsx filename="app/layout.js" switcher
 export const metadata = {
   title: 'Home',
   description: 'Welcome to Next.js',
@@ -200,7 +200,7 @@ Next.js recommended adding a [property to Page components](/docs/pages/building-
 
 **Before**
 
-```jsx filename="components/DashboardLayout.jsx"
+```jsx filename="components/DashboardLayout.js"
 export default function DashboardLayout({ children }) {
   return (
     <div>
@@ -211,7 +211,7 @@ export default function DashboardLayout({ children }) {
 }
 ```
 
-```jsx filename="pages/dashboard/index.jsx"
+```jsx filename="pages/dashboard/index.js"
 import DashboardLayout from '../components/DashboardLayout'
 
 export default function Page() {
@@ -227,7 +227,7 @@ Page.getLayout = function getLayout(page) {
 
 - Remove the `Page.getLayout` property from `pages/dashboard/index.js` and follow the [steps for migrating pages](#step-4-migrating-pages) to the `app` directory.
 
-  ```jsx filename="app/dashboard/page.jsx"
+  ```jsx filename="app/dashboard/page.js"
   export default function Page() {
     return <p>My Page</p>
   }
@@ -235,7 +235,7 @@ Page.getLayout = function getLayout(page) {
 
 - Move the contents of `DashboardLayout` into a new [Client Component](/docs/getting-started/react-essentials#client-components) to retain `pages` directory behavior.
 
-  ```jsx filename="app/dashboard/DashboardLayout.jsx"
+  ```jsx filename="app/dashboard/DashboardLayout.js"
   'use client' // this directive should be at top of the file, before any imports.
 
   // This is a Client Component
@@ -251,7 +251,7 @@ Page.getLayout = function getLayout(page) {
 
 - Import the `DashboardLayout` into a new `layout.js` file inside the `app` directory.
 
-  ```jsx filename="app/dashboard/layout.jsx"
+  ```jsx filename="app/dashboard/layout.js"
   import DashboardLayout from './DashboardLayout'
 
   // This is a Server Component
@@ -284,7 +284,7 @@ export default function Page() {
 }
 ```
 
-```jsx filename="pages/index.jsx" switcher
+```jsx filename="pages/index.js" switcher
 import Head from 'next/head'
 
 export default function Page() {
@@ -312,7 +312,7 @@ export default function Page() {
 }
 ```
 
-```jsx filename="app/page.jsx" switcher
+```jsx filename="app/page.js" switcher
 export const metadata = {
   title: 'My Page Title',
 }
@@ -364,7 +364,7 @@ export default function HomePage({ recentPosts }) {
 }
 ```
 
-```jsx filename="app/home-page.jsx" switcher
+```jsx filename="app/home-page.js" switcher
 'use client'
 
 // This is a Client Component. It receives data as props and
@@ -405,7 +405,7 @@ export default function HomePage({ recentPosts }) {
   }
   ```
 
-  ```jsx filename="app/page.jsx" switcher
+  ```jsx filename="app/page.js" switcher
   // Import your Client Component
   import HomePage from './home-page'
 
@@ -453,7 +453,7 @@ export default function ExampleClientComponent() {
 }
 ```
 
-```jsx filename="app/example-client-component.jsx" switcher
+```jsx filename="app/example-client-component.js" switcher
 'use client'
 
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
@@ -502,7 +502,7 @@ export default async function Page() {
 }
 ```
 
-```jsx filename="app/page.jsx" switcher
+```jsx filename="app/page.js" switcher
 export default async function Page() {
   // This request should be cached until manually invalidated.
   // Similar to `getStaticProps`.
@@ -527,7 +527,7 @@ export default async function Page() {
 
 In the `pages` directory, `getServerSideProps` is used to fetch data on the server and forward props to the default exported React component in the file. The initial HTML for the page is prerendered from the server, followed by "hydrating" the page in the browser (making it interactive).
 
-```jsx filename="pages/dashboard.jsx"
+```jsx filename="pages/dashboard.js"
 // `pages` directory
 
 export async function getServerSideProps() {
@@ -576,7 +576,7 @@ export default async function Dashboard() {
 }
 ```
 
-```jsx filename="app/dashboard/page.jsx" switcher
+```jsx filename="app/dashboard/page.js" switcher
 // `app` directory
 
 // This function can be named anything
@@ -606,7 +606,7 @@ In the `pages` directory, you can retrieve request-based data based on the Node.
 
 For example, you can retrieve the `req` object from `getServerSideProps` and use it to retrieve the request's cookies and headers.
 
-```jsx filename="pages/index.jsx"
+```jsx filename="pages/index.js"
 // `pages` directory
 
 export async function getServerSideProps({ req, query }) {
@@ -645,7 +645,7 @@ export default async function Page() {
 }
 ```
 
-```jsx filename="app/page.jsx" switcher
+```jsx filename="app/page.js" switcher
 // `app` directory
 import { cookies, headers } from 'next/headers'
 
@@ -668,7 +668,7 @@ export default async function Page() {
 
 In the `pages` directory, the `getStaticProps` function is used to pre-render a page at build time. This function can be used to fetch data from an external API or directly from a database, and pass this data down to the entire page as it's being generated during the build.
 
-```jsx filename="pages/index.jsx"
+```jsx filename="pages/index.js"
 // `pages` directory
 
 export async function getStaticProps() {
@@ -685,7 +685,7 @@ export default function Index({ projects }) {
 
 In the `app` directory, data fetching with [`fetch()`](/docs/app/api-reference/functions/fetch) will default to `cache: 'force-cache'`, which will cache the request data until manually invalidated. This is similar to `getStaticProps` in the `pages` directory.
 
-```jsx filename="app/page.jsx"
+```jsx filename="app/page.js"
 // `app` directory
 
 // This function can be named anything
@@ -707,7 +707,7 @@ export default async function Index() {
 
 In the `pages` directory, the `getStaticPaths` function is used to define the dynamic paths that should be pre-rendered at build time.
 
-```jsx filename="pages/posts/[id].jsx"
+```jsx filename="pages/posts/[id].js"
 // `pages` directory
 import PostLayout from '@/components/post-layout'
 
@@ -733,7 +733,7 @@ In the `app` directory, `getStaticPaths` is replaced with [`generateStaticParams
 
 [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) behaves similarly to `getStaticPaths`, but has a simplified API for returning route parameters and can be used inside [layouts](/docs/app/building-your-application/routing/pages-and-layouts). The return shape of `generateStaticParams` is an array of segments instead of an array of nested `param` objects or a string of resolved paths.
 
-```jsx filename="app/posts/[id]/page.jsx"
+```jsx filename="app/posts/[id]/page.js"
 // `app` directory
 import PostLayout from '@/components/post-layout'
 
@@ -763,7 +763,7 @@ Using the name `generateStaticParams` is more appropriate than `getStaticPaths` 
 
 In the `pages` directory, the `fallback` property returned from `getStaticPaths` is used to define the behavior of a page that isn't pre-rendered at build time. This property can be set to `true` to show a fallback page while the page is being generated, `false` to show a 404 page, or `blocking` to generate the page at request time.
 
-```jsx filename="pages/posts/[id].jsx"
+```jsx filename="pages/posts/[id].js"
 // `pages` directory
 
 export async function getStaticPaths() {
@@ -789,7 +789,7 @@ In the `app` directory the [`config.dynamicParams` property](/docs/app/api-refer
 
 This replaces the `fallback: true | false | 'blocking'` option of `getStaticPaths` in the `pages` directory. The `fallback: 'blocking'` option is not included in `dynamicParams` because the difference between `'blocking'` and `true` is negligible with streaming.
 
-```jsx filename="app/posts/[id]/page.jsx"
+```jsx filename="app/posts/[id]/page.js"
 // `app` directory
 
 export const dynamicParams = true;
@@ -815,7 +815,7 @@ With [`dynamicParams`](/docs/app/api-reference/file-conventions/route-segment-co
 
 In the `pages` directory, the `getStaticProps` function allows you to add a `revalidate` field to automatically regenerate a page after a certain amount of time. This is called [Incremental Static Regeneration (ISR)](/docs/app/building-your-application/data-fetching/fetching#static-data-fetching) and helps you update static content without redeploying.
 
-```jsx filename="pages/index.jsx"
+```jsx filename="pages/index.js"
 // `pages` directory
 
 export async function getStaticProps() {
@@ -839,7 +839,7 @@ export default function Index({ posts }) {
 
 In the `app` directory, data fetching with [`fetch()`](/docs/app/api-reference/functions/fetch) can use `revalidate`, which will cache the request for the specified amount of seconds.
 
-```jsx filename="app/page.jsx"
+```jsx filename="app/page.js"
 // `app` directory
 
 async function getPosts() {
@@ -899,7 +899,7 @@ module.exports = {
 
 You'll also need to import your global styles in your `app/layout.js` file:
 
-```jsx filename="app/layout.jsx"
+```jsx filename="app/layout.js"
 import '../styles/globals.css'
 
 export default function RootLayout({ children }) {

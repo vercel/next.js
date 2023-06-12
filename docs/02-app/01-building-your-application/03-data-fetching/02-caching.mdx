@@ -33,7 +33,7 @@ const comments = await getComments() // cache MISS
 const comments = await getComments() // cache HIT
 ```
 
-```jsx filename="app/page.jsx" switcher
+```jsx filename="app/page.js" switcher
 async function getComments() {
   const res = await fetch('https://...') // The result is cached
   return res.json()
@@ -63,7 +63,7 @@ export default async function Page() {
 }
 ```
 
-```jsx filename="app/page.jsx" switcher
+```jsx filename="app/page.js" switcher
 export default async function Page() {
   // revalidate this data every 10 seconds at most
   const res = await fetch('https://...', { next: { revalidate: 10 } })
@@ -103,7 +103,7 @@ export default async function UserLayout({ params: { id } }) {
 }
 ```
 
-```jsx filename="app/user/[id]/layout.jsx" switcher
+```jsx filename="app/user/[id]/layout.js" switcher
 import { getUser } from '@utils/getUser'
 
 export default async function UserLayout({ params: { id } }) {
@@ -125,7 +125,7 @@ export default async function Page({
 }
 ```
 
-```jsx filename="app/user/[id]/page.jsx" switcher
+```jsx filename="app/user/[id]/page.js" switcher
 import { getUser } from '@utils/getUser'
 
 export default async function Page({ params: { id } }) {
@@ -212,7 +212,7 @@ export default async function Page({
 }
 ```
 
-```jsx filename="app/user/[id]/page.jsx" switcher
+```jsx filename="app/user/[id]/page.js" switcher
 import User, { preload } from '@components/User'
 
 export default async function Page({ params: { id } }) {

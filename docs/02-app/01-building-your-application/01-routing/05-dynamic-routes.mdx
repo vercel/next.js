@@ -27,7 +27,7 @@ export default function Page({ params: { slug: string } }) {
 }
 ```
 
-```jsx filename="app/blog/[slug]/page.jsx" switcher
+```jsx filename="app/blog/[slug]/page.js" switcher
 export default function Page({ params }) {
   return <div>My Post: {slug}</div>
 }
@@ -57,7 +57,7 @@ export async function generateStaticParams() {
 }
 ```
 
-```jsx filename="app/blog/[slug]/page.jsx" switcher
+```jsx filename="app/blog/[slug]/page.js" switcher
 export async function generateStaticParams() {
   const posts = await fetch('https://.../posts').then((res) => res.json())
 
@@ -110,7 +110,7 @@ export default function Page({ params }: { params: { slug: string } }) {
 }
 ```
 
-```jsx filename="app/blog/[slug]/page.jsx" switcher
+```jsx filename="app/blog/[slug]/page.js" switcher
 export default function Page({ params }) {
   return <h1>My Page</h1>
 }

@@ -9,7 +9,7 @@ The `redirect` function allows you to redirect the user to another URL. If you n
 
 Invoking the `redirect()` function throws a `NEXT_REDIRECT` error and terminates rendering of the route segment in which it was thrown. `redirect()` can be called with a relative or an absolute URL.
 
-```jsx filename="app/team/[id]/page.jsx"
+```jsx filename="app/team/[id]/page.js"
 import { redirect } from 'next/navigation'
 
 async function fetchTeam(id) {

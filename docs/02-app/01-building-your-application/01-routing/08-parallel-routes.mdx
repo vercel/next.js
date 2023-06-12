@@ -69,7 +69,7 @@ export default function Layout(props: {
 }
 ```
 
-```jsx filename="app/layout.jsx" switcher
+```jsx filename="app/layout.js" switcher
 export default function Layout(props) {
   return (
     <>
@@ -138,7 +138,7 @@ export default async function Layout(props: {
 }
 ```
 
-```jsx filename="app/layout.jsx" switcher
+```jsx filename="app/layout.js" switcher
 'use client'
 
 import { useSelectedLayoutSegment } from 'next/navigation'
@@ -181,7 +181,7 @@ export default async function Layout(props: {
 }
 ```
 
-```jsx filename="app/layout.jsx" switcher
+```jsx filename="app/layout.js" switcher
 export default async function Layout(props) {
   return (
     <>
@@ -205,7 +205,7 @@ export default function Login() {
 }
 ```
 
-```jsx filename="app/@authModal/login/page.jsx" switcher
+```jsx filename="app/@authModal/login/page.js" switcher
 import { Modal } from 'components/modal'
 
 export default function Login() {
@@ -226,7 +226,7 @@ export default function Default() {
 }
 ```
 
-```jsx filename="app/@authModal/login/default.jsx" switcher
+```jsx filename="app/@authModal/login/default.js" switcher
 export default function Default() {
   return null
 }
@@ -253,7 +253,7 @@ export default async function Login() {
 }
 ```
 
-```jsx filename="app/@authModal/login/page.jsx" highlight="5" switcher
+```jsx filename="app/@authModal/login/page.js" highlight="5" switcher
 'use client'
 import { useRouter } from 'next/navigation'
 import { Modal } from 'components/modal'
@@ -288,7 +288,7 @@ export default function CatchAll() {
 }
 ```
 
-```jsx filename="app/@authModal/[...catchAll]/page.jsx"switcher
+```jsx filename="app/@authModal/[...catchAll]/page.js" switcher
 export default function CatchAll() {
   return null
 }
@@ -309,7 +309,7 @@ export default function Layout({ params, dashboard, login }) {
 }
 ```
 
-```jsx filename="app/layout.jsx" switcher
+```jsx filename="app/layout.js" switcher
 import { getUser } from '@/lib/auth'
 
 export default function Layout({ params, dashboard, login }) {

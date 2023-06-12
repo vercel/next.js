@@ -15,7 +15,7 @@ export default function DashboardLayout({
 }
 ```
 
-```jsx filename="app/dashboard/layout.jsx" switcher
+```jsx filename="app/dashboard/layout.js" switcher
 export default function DashboardLayout({ children }) {
   return <section>{children}</section>
 }
@@ -37,7 +37,7 @@ export default function RootLayout({
 }
 ```
 
-```jsx filename="app/layout.jsx" switcher
+```jsx filename="app/layout.js" switcher
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
@@ -82,7 +82,7 @@ export default function ShopLayout({
 }
 ```
 
-```jsx filename="app/shop/[tag]/[item]/layout.jsx" switcher
+```jsx filename="app/shop/[tag]/[item]/layout.js" switcher
 export default function ShopLayout({ children, params }) {
   // URL -> /shop/shoes/nike-air-max-97
   // `params` -> { tag: 'shoes', item: 'nike-air-max-97' }

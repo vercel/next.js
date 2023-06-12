@@ -47,7 +47,7 @@ export default function Page({
 }
 ```
 
-```jsx filename="pages/repo/[name].jsx" switcher
+```jsx filename="pages/repo/[name].js" switcher
 export const getStaticPaths = async () => {
   return {
     paths: [
@@ -112,7 +112,7 @@ In development (`next dev`), `getStaticPaths` will be called on every request.
 
 You can defer generating all pages on-demand by returning an empty array for `paths`. This can be especially helpful when deploying your Next.js application to multiple environments. For example, you can have faster builds by generating all pages on-demand for previews (but not production builds). This is helpful for sites with hundreds/thousands of static pages.
 
-```jsx filename="pages/posts/[id].jsx"
+```jsx filename="pages/posts/[id].js"
 export async function getStaticPaths() {
   // When this is true (in preview environments) don't
   // prerender any static pages

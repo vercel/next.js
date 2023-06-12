@@ -70,7 +70,7 @@ export default function Counter() {
 }
 ```
 
-```jsx filename="app/counter.jsx" highlight={1} switcher
+```jsx filename="app/counter.js" highlight={1} switcher
 'use client'
 
 import { useState } from 'react'
@@ -154,7 +154,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 }
 ```
 
-```jsx filename="app/layout.jsx" switcher
+```jsx filename="app/layout.js" switcher
 // SearchBar is a Client Component
 import SearchBar from './searchbar'
 // Logo is a Server Component
@@ -220,7 +220,7 @@ export default function ExampleClientComponent({
 }
 ```
 
-```jsx filename="app/example-client-component.jsx" switcher highlight={5,14}
+```jsx filename="app/example-client-component.js" switcher highlight={5,14}
 'use client'
 
 // This pattern will **not** work!
@@ -270,7 +270,7 @@ export default function ExampleClientComponent({
 }
 ```
 
-```jsx filename="app/example-client-component.jsx" switcher highlight={5,12}
+```jsx filename="app/example-client-component.js" switcher highlight={5,12}
 'use client'
 
 import { useState } from 'react'
@@ -311,7 +311,7 @@ export default function Page() {
 }
 ```
 
-```jsx filename="app/page.jsx" highlight={11} switcher
+```jsx filename="app/page.js" highlight={11} switcher
 // This pattern works:
 // You can pass a Server Component as a child or prop of a
 // Client Component.
@@ -449,7 +449,7 @@ export default function Gallery() {
 }
 ```
 
-```jsx filename="app/gallery.jsx" switcher
+```jsx filename="app/gallery.js" switcher
 'use client'
 
 import { useState } from 'react'
@@ -486,7 +486,7 @@ export default function Page() {
 }
 ```
 
-```jsx filename="app/page.jsx" switcher
+```jsx filename="app/page.js" switcher
 import { Carousel } from 'acme-carousel'
 
 export default function Page() {
@@ -513,7 +513,7 @@ import { Carousel } from 'acme-carousel'
 export default Carousel
 ```
 
-```jsx filename="app/carousel.jsx" switcher
+```jsx filename="app/carousel.js" switcher
 'use client'
 
 import { Carousel } from 'acme-carousel'
@@ -538,7 +538,7 @@ export default function Page() {
 }
 ```
 
-```jsx filename="app/page.jsx" switcher
+```jsx filename="app/page.js" switcher
 import Carousel from './carousel'
 
 export default function Page() {
@@ -603,7 +603,7 @@ function SidebarNav() {
 }
 ```
 
-```jsx filename="app/sidebar.jsx" switcher
+```jsx filename="app/sidebar.js" switcher
 'use client'
 
 import { createContext, useContext, useState } from 'react'
@@ -652,7 +652,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-```jsx filename="app/layout.jsx" switcher
+```jsx filename="app/layout.js" switcher
 import { createContext } from 'react'
 
 //  createContext is not supported in Server Components
@@ -683,7 +683,7 @@ export default function ThemeProvider({ children }) {
 }
 ```
 
-```jsx filename="app/theme-provider.jsx" switcher
+```jsx filename="app/theme-provider.js" switcher
 'use client'
 
 import { createContext } from 'react'
@@ -715,7 +715,7 @@ export default function RootLayout({
 }
 ```
 
-```jsx filename="app/layout.jsx" switcher
+```jsx filename="app/layout.js" switcher
 import ThemeProvider from './theme-provider'
 
 export default function RootLayout({ children }) {
@@ -754,7 +754,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-```jsx filename="app/layout.jsx" switcher
+```jsx filename="app/layout.js" switcher
 import { ThemeProvider } from 'acme-theme'
 
 export default function RootLayout({ children }) {
@@ -771,7 +771,7 @@ export default function RootLayout({ children }) {
 
 To fix this, wrap third-party providers in your own Client Component:
 
-```jsx filename="app/providers.jsx"
+```jsx filename="app/providers.js"
 'use client'
 
 import { ThemeProvider } from 'acme-theme'
@@ -788,7 +788,7 @@ export function Providers({ children }) {
 
 Now, you can import and render `<Providers />` directly within your root layout.
 
-```jsx filename="app/layout.jsx"
+```jsx filename="app/layout.js"
 import { Providers } from './providers'
 
 export default function RootLayout({ children }) {
@@ -827,7 +827,7 @@ export async function UsersLayout() {
 }
 ```
 
-```jsx filename="app/users/layout.jsx" switcher
+```jsx filename="app/users/layout.js" switcher
 import { db } from '@utils/database'
 
 export async function UsersLayout() {
@@ -845,7 +845,7 @@ export async function DashboardPage() {
 }
 ```
 
-```jsx filename="app/users/[id]/page.jsx" switcher
+```jsx filename="app/users/[id]/page.js" switcher
 import { db } from '@utils/database'
 
 export async function DashboardPage() {

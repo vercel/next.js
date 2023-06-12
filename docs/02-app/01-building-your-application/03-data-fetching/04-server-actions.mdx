@@ -13,7 +13,7 @@ related:
 
 **With Server Components:**
 
-```jsx filename="app/add-to-cart.jsx" highlight={5, 6, 13}
+```jsx filename="app/add-to-cart.js" highlight={5, 6, 13}
 import { cookies } from 'next/headers'
 
 // Server action defined inside a Server Component
@@ -35,7 +35,7 @@ export default function AddToCart({ productId }) {
 
 **With Client Components:**
 
-```jsx filename="app/actions.jsx" highlight={1, 3}
+```jsx filename="app/actions.js" highlight={1, 3}
 'use server'
 
 async function addItem(data) {
@@ -44,7 +44,7 @@ async function addItem(data) {
 }
 ```
 
-```jsx filename="app/add-to-cart.jsx" highlight={1, 3, 8}
+```jsx filename="app/add-to-cart.js" highlight={1, 3, 8}
 'use client'
 
 import { addItem } from './actions.js'
@@ -82,7 +82,7 @@ Server Actions can be defined in two places:
 
 Create a Server Action by defining an asynchronous function with the `"use server"` directive at the top of the function body. This function should have **serializable arguments** and a **serializable return value** based on the React Server Components protocol.
 
-```jsx filename="app/server-component.jsx" highlight={2}
+```jsx filename="app/server-component.js" highlight={2}
 export default function ServerComponent() {
   async function myAction() {
     'use server'
@@ -103,7 +103,7 @@ export async function myAction() {
 }
 ```
 
-```jsx filename="app/client-component.jsx" highlight={1}
+```jsx filename="app/client-component.js" highlight={1}
 |"use client"
 
 import { myAction } from './actions';
@@ -131,7 +131,7 @@ You can invoke Server Actions using the following methods:
 
 You can use React's `action` prop to invoke a Server Action on a `form` element. Server Actions passed with the action prop act as asynchronous side effects in response to user interaction.
 
-```jsx filename="app/add-to-cart.jsx"
+```jsx filename="app/add-to-cart.js"
 export default function AddToCart({ productId }) {
   async function addItem(data) {
     'use server'
@@ -154,7 +154,7 @@ export default function AddToCart({ productId }) {
 
 You can use `formAction` prop to handle **Form Actions** on elements such as `button`, `input type="submit"`, and `input type="image"`. The `formAction` prop takes presedence over the form's `action`.
 
-```jsx filename="app/form.jsx" highlight={15}
+```jsx filename="app/form.js" highlight={15}
 export default function Form() {
   async function handleSubmit() {
     'use server'
@@ -184,7 +184,7 @@ You can also invoke Server Actions without using `action` or `formAction`. You c
 
 > **Note:** Using `startTransition` disables the out-of-the-box Progressive Enhancement.
 
-```jsx filename="app/components/example-client-component.jsx" highlight={3, 7, 10}
+```jsx filename="app/components/example-client-component.js" highlight={3, 7, 10}
 'use client'
 
 import { useTransition } from 'react'
@@ -229,7 +229,7 @@ export default function Page({ params }: { params: { id: string } }) {
 }
 ```
 
-```jsx filename="app/posts/[id]/page.jsx" switcher
+```jsx filename="app/posts/[id]/page.js" switcher
 import kv from '@vercel/kv'
 import LikeButton from './like-button'
 
@@ -263,7 +263,7 @@ export default function LikeButton({
 }
 ```
 
-```jsx filename="app/post/[id]/like-button.jsx" switcher
+```jsx filename="app/post/[id]/like-button.js" switcher
 'use client'
 
 export default function LikeButton({ increment }) {
@@ -287,7 +287,7 @@ The experimental `useOptimistic` hook provides a way to implement optimistic upd
 
 When a Server Action is invoked, the UI is updated immediately to reflect the expected outcome, instead of waiting for the Server Action's response.
 
-```jsx filename="app/thread.jsx"
+```jsx filename="app/thread.js"
 'use client'
 
 import { experimental_useOptimistic as useOptimistic } from 'react'
@@ -328,7 +328,7 @@ export function Thread({ messages }) {
 
 The **experimental** `useFormStatus` hook can be used within Form Actions, and provides the `pending` property.
 
-```jsx filename="app/form.jsx"
+```jsx filename="app/form.js"
 'use client'
 
 import { experimental_useFormStatus as useFormStatus } from 'react-dom'
@@ -357,7 +357,7 @@ Both Server Form Actions and Client Form Actions support Progressive Enhancement
 - If a **Server Action** is passed directly to a `<form>`, the form is interactive **even if JavaScript is disabled**.
 - If a **Client Action** is passed to a `<form>`, the form is still interactive, but the action will be placed in a queue until the form has hydrated. The `<form>` is prioritized with Selective Hydration, so it happens quickly.
 
-```jsx filename="app/components/example-client-component.jsx"
+```jsx filename="app/components/example-client-component.js"
 'use client'
 
 import { useState } from 'react'
@@ -415,7 +415,7 @@ Although [importing](#import) Server Actions is recommended, in some cases you m
 
 For example, you might want to use a dynamically generated value within the action. In that case, passing a Server Action down as a prop might be a viable solution.
 
-```jsx filename="app/components/example-server-component.jsx"
+```jsx filename="app/components/example-server-component.js"
 import { ExampleClientComponent } from './components/example-client-component.js'
 
 function ExampleServerComponent({ id }) {
@@ -428,7 +428,7 @@ function ExampleServerComponent({ id }) {
 }
 ```
 
-```jsx filename="app/components/example-client-component.jsx"
+```jsx filename="app/components/example-client-component.js"
 'use client'
 
 function ExampleClientComponent({ updateItem }) {

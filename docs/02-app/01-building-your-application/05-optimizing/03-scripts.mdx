@@ -32,7 +32,7 @@ export default function DashboardLayout({
 }
 ```
 
-```jsx filename="app/dashboard/layout.jsx" switcher
+```jsx filename="app/dashboard/layout.js" switcher
 import Script from 'next/script'
 
 export default function DashboardLayout({ children }) {
@@ -72,7 +72,7 @@ export default function RootLayout({
 }
 ```
 
-```jsx filename="app/layout.jsx" switcher
+```jsx filename="app/layout.js" switcher
 import Script from 'next/script'
 
 export default function RootLayout({ children }) {
@@ -91,7 +91,7 @@ export default function RootLayout({ children }) {
 
 To load a third-party script for all routes, import `next/script` and include the script directly in your custom `_app`:
 
-```jsx filename="pages/_app.jsx"
+```jsx filename="pages/_app.js"
 import Script from 'next/script'
 
 export default function MyApp({ Component, pageProps }) {
@@ -159,7 +159,7 @@ export default function Home() {
 }
 ```
 
-```jsx filename="pages/home.jsx" switcher
+```jsx filename="pages/home.js" switcher
 import Script from 'next/script'
 
 export default function Home() {
@@ -227,7 +227,7 @@ export default function Page() {
 }
 ```
 
-```jsx filename="app/page.jsx" switcher
+```jsx filename="app/page.js" switcher
 'use client'
 
 import Script from 'next/script'
@@ -271,7 +271,7 @@ export default function Page() {
 }
 ```
 
-```jsx filename="pages/index.jsx" switcher
+```jsx filename="pages/index.js" switcher
 import Script from 'next/script'
 
 export default function Page() {
@@ -315,7 +315,7 @@ export default function Page() {
 }
 ```
 
-```jsx filename="app/page.jsx" switcher
+```jsx filename="app/page.js" switcher
 import Script from 'next/script'
 
 export default function Page() {
@@ -353,7 +353,7 @@ export default function Page() {
 }
 ```
 
-```jsx filename="pages/index.jsx" switcher
+```jsx filename="pages/index.js" switcher
 import Script from 'next/script'
 
 export default function Page() {

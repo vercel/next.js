@@ -66,7 +66,7 @@ The [Cypress docs contain a guide](https://docs.cypress.io/guides/core-concepts/
 
 Assuming the following two Next.js pages:
 
-```jsx filename="pages/index.jsx"
+```jsx filename="pages/index.js"
 import Link from 'next/link'
 
 export default function Home() {
@@ -79,7 +79,7 @@ export default function Home() {
 }
 ```
 
-```jsx filename="pages/about.jsx"
+```jsx filename="pages/about.js"
 export default function About() {
   return (
     <div>
@@ -120,7 +120,7 @@ Component tests build and mount a specific component without having to bundle yo
 
 Assuming the same components from the previous section, add a test to validate a component is rendering the expected output:
 
-```jsx filename="pages/about.cy.jsx"
+```jsx filename="pages/about.cy.js"
 import AboutPage from './about.js'
 
 describe('<AboutPage />', () => {
@@ -213,7 +213,7 @@ Add Playwright to the `package.json` scripts field:
 
 Assuming the following two Next.js pages:
 
-```jsx filename="pages/index.jsx"
+```jsx filename="pages/index.js"
 import Link from 'next/link'
 
 export default function Home() {
@@ -225,7 +225,7 @@ export default function Home() {
 }
 ```
 
-```jsx filename="pages/about.jsx"
+```jsx filename="pages/about.js"
 export default function About() {
   return (
     <div>
@@ -483,7 +483,7 @@ Your project is now ready to run tests. Follow Jest's convention by adding tests
 
 For example, we can add a test to check if the `<Home />` component successfully renders a heading:
 
-```jsx filename="__tests__/index.test.jsx"
+```jsx filename="__tests__/index.test.js"
 import { render, screen } from '@testing-library/react'
 import Home from '../pages/index'
 import '@testing-library/jest-dom'
@@ -503,7 +503,7 @@ describe('Home', () => {
 
 Optionally, add a [snapshot test](https://jestjs.io/docs/snapshot-testing) to keep track of any unexpected changes to your `<Home />` component:
 
-```jsx filename="__tests__/snapshot.jsx"
+```jsx filename="__tests__/snapshot.js"
 import { render } from '@testing-library/react'
 import Home from '../pages/index'
 

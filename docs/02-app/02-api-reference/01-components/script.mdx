@@ -17,7 +17,7 @@ export default function Dashboard() {
 }
 ```
 
-```jsx filename="app/dashboard/page.jsx" switcher
+```jsx filename="app/dashboard/page.js" switcher
 import Script from 'next/script'
 
 export default function Dashboard() {
@@ -94,7 +94,7 @@ export default function RootLayout({
 }
 ```
 
-```jsx filename="app/layout.jsx" switcher
+```jsx filename="app/layout.js" switcher
 import Script from 'next/script'
 
 export default function RootLayout({ children }) {
@@ -150,7 +150,7 @@ Scripts that use the `afterInteractive` strategy are injected into the HTML clie
 
 `afterInteractive` scripts can be placed inside of any page or layout and will only load and execute when that page (or group of pages) is opened in the browser.
 
-```jsx filename="app/page.jsx"
+```jsx filename="app/page.js"
 import Script from 'next/script'
 
 export default function Page() {
@@ -173,7 +173,7 @@ Scripts that use the `lazyOnload` strategy are injected into the HTML client-sid
 
 `lazyOnload` scripts can be placed inside of any page or layout and will only load and execute when that page (or group of pages) is opened in the browser.
 
-```jsx filename="app/page.jsx"
+```jsx filename="app/page.js"
 import Script from 'next/script'
 
 export default function Page() {
@@ -220,7 +220,7 @@ export default function Home() {
 }
 ```
 
-```jsx filename="pages/home.jsx" switcher
+```jsx filename="pages/home.js" switcher
 import Script from 'next/script'
 
 export default function Home() {
@@ -259,7 +259,7 @@ export default function Page() {
 }
 ```
 
-```jsx filename="app/page.jsx" switcher
+```jsx filename="app/page.js" switcher
 'use client'
 
 import Script from 'next/script'
@@ -315,7 +315,7 @@ export default function Page() {
 }
 ```
 
-```jsx filename="app/page.jsx" switcher
+```jsx filename="app/page.js" switcher
 'use client'
 
 import { useRef } from 'react'

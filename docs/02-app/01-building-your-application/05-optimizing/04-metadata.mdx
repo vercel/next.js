@@ -32,7 +32,7 @@ export const metadata: Metadata = {
 export default function Page() {}
 ```
 
-```jsx filename="layout.jsx / page.jsx" switcher
+```jsx filename="layout.js / page.js" switcher
 export const metadata = {
   title: '...',
   description: '...',
@@ -79,7 +79,7 @@ export async function generateMetadata(
 export default function Page({ params, searchParams }: Props) {}
 ```
 
-```jsx filename="app/products/[id]/page.jsx" switcher
+```jsx filename="app/products/[id]/page.js" switcher
 export async function generateMetadata({ params, searchParams }, parent) {
   // read route params
   const id = params.id
@@ -156,7 +156,7 @@ This means metadata with nested fields such as [`openGraph`](/docs/app/api-refer
 
 #### Overwriting fields
 
-```jsx filename="app/layout.jsx"
+```jsx filename="app/layout.js"
 export const metadata = {
   title: 'Acme',
   openGraph: {
@@ -166,7 +166,7 @@ export const metadata = {
 }
 ```
 
-```jsx filename="app/blog/page.jsx"
+```jsx filename="app/blog/page.js"
 export const metadata = {
   title: 'Blog',
   openGraph: {
@@ -186,11 +186,11 @@ In the example above:
 
 If you'd like to share some nested fields between segments while overwriting others, you can pull them out into a separate variable:
 
-```jsx filename="app/shared-metadata.jsx"
+```jsx filename="app/shared-metadata.js"
 export const openGraphImage = { images: ['http://...'] }
 ```
 
-```jsx filename="app/page.jsx"
+```jsx filename="app/page.js"
 import { openGraphImage } from './shared-metadata'
 
 export const metadata = {
@@ -201,7 +201,7 @@ export const metadata = {
 }
 ```
 
-```jsx filename="app/about/page.jsx"
+```jsx filename="app/about/page.js"
 import { openGraphImage } from '../shared-metadata'
 
 export const metadata = {
@@ -216,7 +216,7 @@ In the example above, the OG image is shared between `app/layout.js` and `app/ab
 
 #### Inheriting fields
 
-```jsx filename="app/layout.jsx"
+```jsx filename="app/layout.js"
 export const metadata = {
   title: 'Acme',
   openGraph: {
@@ -226,7 +226,7 @@ export const metadata = {
 }
 ```
 
-```jsx filename="app/about/page.jsx"
+```jsx filename="app/about/page.js"
 export const metadata = {
   title: 'About',
 }
@@ -250,7 +250,7 @@ The `ImageResponse` constructor allows you to generate dynamic images using JSX 
 
 To use it, you can import `ImageResponse` from `next/server`:
 
-```jsx filename="app/about/route.jsx"
+```jsx filename="app/about/route.js"
 import { ImageResponse } from 'next/server'
 
 export const runtime = 'edge'
@@ -325,7 +325,7 @@ export default async function Page({ params }) {
 }
 ```
 
-```jsx filename="app/products/[id]/page.jsx" switcher
+```jsx filename="app/products/[id]/page.js" switcher
 export default async function Page({ params }) {
   const product = await getProduct(params.id)
 

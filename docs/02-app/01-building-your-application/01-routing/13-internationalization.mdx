@@ -71,7 +71,7 @@ export const config = {
 
 Finally, ensure all special files inside `app/` are nested under `app/[lang]`. This enables the Next.js router to dynamically handle different locales in the route, and forward the `lang` parameter to every layout and page. For example:
 
-```jsx filename="app/[lang]/page.jsx"
+```jsx filename="app/[lang]/page.js"
 // You now have access to the current locale
 // e.g. /en-US/products -> `lang` is "en-US"
 export default async function Page({ params: { lang } }) {
@@ -105,7 +105,7 @@ Let’s assume we want to support both English and Dutch content inside our appl
 
 We can then create a `getDictionary` function to load the translations for the requested locale:
 
-```jsx filename="app/[lang]/dictionaries.jsx"
+```jsx filename="app/[lang]/dictionaries.js"
 import 'server-only'
 
 const dictionaries = {
@@ -118,7 +118,7 @@ export const getDictionary = async (locale) => dictionaries[locale]()
 
 Given the currently selected language, we can fetch the dictionary inside of a layout or page.
 
-```jsx filename="app/[lang]/page.jsx"
+```jsx filename="app/[lang]/page.js"
 import { getDictionary } from './dictionaries'
 
 export default async function Page({ params: { lang } }) {
@@ -133,7 +133,7 @@ Because all layouts and pages in the `app/` directory default to [Server Compone
 
 To generate static routes for a given set of locales, we can use `generateStaticParams` with any page or layout. This can be global, for example, in the root layout:
 
-```jsx filename="app/[lang]/layout.jsx"
+```jsx filename="app/[lang]/layout.js"
 export async function generateStaticParams() {
   return [{ lang: 'en-US' }, { lang: 'de' }]
 }

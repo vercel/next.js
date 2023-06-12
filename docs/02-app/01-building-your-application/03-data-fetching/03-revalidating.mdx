@@ -25,7 +25,7 @@ If you want to revalidate data that does not use `fetch` (i.e. using an external
 export const revalidate = 60 // revalidate this page every 60 seconds
 ```
 
-```jsx filename="app/page.jsx" switcher
+```jsx filename="app/page.js" switcher
 export const revalidate = 60 // revalidate this page every 60 seconds
 ```
 
@@ -66,7 +66,7 @@ export default async function Page() {
 }
 ```
 
-```jsx filename="app/page.jsx" switcher
+```jsx filename="app/page.js" switcher
 export default async function Page() {
   const res = await fetch('https://...', { next: { tags: ['collection'] } })
   const data = await res.json()

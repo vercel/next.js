@@ -19,7 +19,7 @@ export default function ExampleClientComponent() {
 }
 ```
 
-```jsx filename="app/example-client-component.jsx" switcher
+```jsx filename="app/example-client-component.js" switcher
 'use client'
 
 import { useSelectedLayoutSegment } from 'next/navigation'
@@ -96,7 +96,7 @@ export default function BlogNavLink({
 }
 ```
 
-```jsx filename="app/blog/blog-nav-link.jsx" switcher
+```jsx filename="app/blog/blog-nav-link.js" switcher
 'use client'
 
 import Link from 'next/link'
@@ -145,7 +145,7 @@ export default async function Layout({
 }
 ```
 
-```jsx filename="app/blog/layout.jsx" switcher
+```jsx filename="app/blog/layout.js" switcher
 // Import the Client Component into a parent Layout (Server Component)
 import { BlogNavLink } from './blog-nav-link'
 import getFeaturedPosts from './get-featured-posts'
