@@ -29,7 +29,7 @@ export default function ExampleClientComponent() {
 
 `usePathname` intentionally requires using a [Client Component](/docs/getting-started/react-essentials). It's important to note Client Components are not a de-optimization. They are an integral part of the [Server Components](/docs/getting-started/react-essentials) architecture.
 
-For example, a Client Component with `usePathname` will be rendered into HTML on the initial page load. When navigating to a new route, this component does not need to be refetched. Instead, the component can be downloaded once (in the client JavaScript bundle) and update what it renders based on the current state.
+For example, a Client Component with `usePathname` will be rendered into HTML on the initial page load. When navigating to a new route, this component does not need to be re-fetched. Instead, the component is downloaded once (in the client JavaScript bundle), and re-renders based on the current state.
 
 > **Good to know:**
 >
