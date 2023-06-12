@@ -26,7 +26,9 @@ function runTests() {
   it('includes a rule styling the exported className', async () => {
     const matchingRule = await getRuleMatchingClassName(interNoArgs.className)
     expect(matchingRule).toBeTruthy()
-    expect(matchingRule.style.fontFamily).toEqual('__Inter_34ab8b, __Inter_Fallback_34ab8b')
+    expect(matchingRule.style.fontFamily).toEqual(
+      '__Inter_34ab8b, __Inter_Fallback_34ab8b'
+    )
     expect(matchingRule.style.fontStyle).toEqual('normal')
   })
 
