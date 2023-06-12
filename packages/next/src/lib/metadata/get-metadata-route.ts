@@ -4,6 +4,7 @@ import { interpolateDynamicPath } from '../../server/server-utils'
 import { getNamedRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import { djb2Hash } from '../../shared/lib/hash'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 
 /*
  * If there's special convention like (...) or @ in the page path,
@@ -42,7 +43,7 @@ export function fillMetadataSegment(
 
   const { name, ext } = path.parse(imageSegment)
 
-  return path.join(route, `${name}${routeSuffix}${ext}`)
+  return normalizePathSep(path.join(route, `${name}${routeSuffix}${ext}`))
 }
 
 /**

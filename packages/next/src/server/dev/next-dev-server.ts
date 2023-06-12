@@ -1109,7 +1109,7 @@ export default class DevServer extends Server {
               this.hotReloader?.onHMR(req, socket, head)
             }
           } else {
-            this.handleUpgrade(req, socket, head)
+            this.handleUpgrade(req as any as NodeNextRequest, socket, head)
           }
         })
       }
@@ -1330,10 +1330,12 @@ export default class DevServer extends Server {
     if (isError(err) && err.stack) {
       try {
         const frames = parseStack(err.stack!)
+        // Filter out internal edge related runtime stack
         const frame = frames.find(
           ({ file }) =>
             !file?.startsWith('eval') &&
             !file?.includes('web/adapter') &&
+            !file?.includes('web/globals') &&
             !file?.includes('sandbox/context') &&
             !file?.includes('<anonymous>')
         )

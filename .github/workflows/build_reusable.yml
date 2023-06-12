@@ -11,6 +11,10 @@ on:
         required: false
         description: 'whether to skip pnpm install && pnpm build'
         type: string
+      skipNativeBuild:
+        required: false
+        description: 'whether to skip building native modules'
+        type: string
       skipForDocsOnly:
         required: false
         description: 'skip for docs only changes'
@@ -18,6 +22,10 @@ on:
       nodeVersion:
         required: false
         description: 'version of Node.js to use'
+        type: string
+      needsRust:
+        required: false
+        description: 'if rust is needed'
         type: string
       needsNextest:
         required: false
@@ -44,11 +52,14 @@ env:
   # we build a dev binary for use in CI so skip downloading
   # canary next-swc binaries in the monorepo
   NEXT_SKIP_NATIVE_POSTINSTALL: 1
+  DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
+  DD_ENV: 'ci'
   TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
   NEXT_TEST_JOB: 1
 
 jobs:
   build:
+    timeout-minutes: 25
     runs-on: [self-hosted, linux, x64]
 
     steps:
@@ -64,6 +75,7 @@ jobs:
       # local action -> needs to run after checkout
       - name: Install Rust
         uses: ./.github/actions/setup-rust
+        if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
         with:
           components: rustfmt, clippy
 
@@ -72,11 +84,15 @@ jobs:
         uses: taiki-e/install-action@nextest
 
       - run: rustc --version
+        if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
 
       - run: npm i -g yarn "pnpm@${PNPM_VERSION}" "turbo@${TURBO_VERSION}" "@napi-rs/cli@${NAPI_CLI_VERSION}"
 
       # clean up any previous artifacts to avoid hitting disk space limits
-      - run: git clean -xdf && rm -rf /tmp/next-repo-*; rm -rf /tmp/next-install-* /tmp/yarn-* /tmp/ncc-cache target && cargo clean
+      - run: git clean -xdf && rm -rf /tmp/next-repo-*; rm -rf /tmp/next-install-* /tmp/yarn-* /tmp/ncc-cache target
+
+      - run: cargo clean
+        if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
 
       - run: echo "DOCS_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')" >> $GITHUB_OUTPUT; echo 'EOF' >> $GITHUB_OUTPUT
         name: check docs only change
@@ -87,6 +103,7 @@ jobs:
         name: normalize versions
 
       - run: turbo run build-native-release --summarize -- --target x86_64-unknown-linux-gnu
+        if: ${{ inputs.skipNativeBuild != 'yes' }}
 
       - name: Upload next-swc artifact
         if: ${{ inputs.uploadSwcArtifact == 'yes' }}

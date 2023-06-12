@@ -6,7 +6,8 @@ description: API Reference for the revalidateTag function.
 `revalidateTag` allows you to revalidate data associated with a specific cache tag. This is useful for scenarios where you want to update your cached data without waiting for a revalidation period to expire.
 
 ```tsx filename="app/api/revalidate/route.ts" switcher
-import { NextRequest, NextResponse, revalidateTag } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { revalidateTag } from 'next/cache'
 
 export async function GET(request: NextRequest) {
   const tag = request.nextUrl.searchParams.get('tag')
@@ -16,7 +17,8 @@ export async function GET(request: NextRequest) {
 ```
 
 ```jsx filename="app/api/revalidate/route.js" switcher
-import { NextResponse, revalidateTag } from 'next/server'
+import { NextResponse } from 'next/server'
+import { revalidateTag } from 'next/cache'
 
 export async function GET(request) {
   const tag = request.nextUrl.searchParams.get('tag')
