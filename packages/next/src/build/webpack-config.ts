@@ -1941,6 +1941,8 @@ export default async function getBaseWebpackConfig(
                   ],
                 },
                 resolve: {
+                  // Prefer module fields over main fields for isomorphic packages on server layer
+                  mainFields: ['module', 'main'],
                   conditionNames: reactServerCondition,
                   alias: {
                     // If missing the alias override here, the default alias will be used which aliases
