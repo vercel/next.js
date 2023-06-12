@@ -65,7 +65,7 @@ The following methods are included inside `router`:
 
 Handles client-side transitions, this method is useful for cases where [`next/link`](/docs/pages/api-reference/components/link) is not enough.
 
-```jsx
+```js
 router.push(url, as, options)
 ```
 
@@ -209,7 +209,7 @@ export default function ReadMore({ post }) {
 
 Similar to the `replace` prop in [`next/link`](/docs/pages/api-reference/components/link), `router.replace` will prevent adding a new URL entry into the `history` stack.
 
-```jsx
+```js
 router.replace(url, as, options)
 ```
 
@@ -237,7 +237,7 @@ Prefetch pages for faster client-side transitions. This method is only useful fo
 
 > This is a production only feature. Next.js doesn't prefetch pages in development.
 
-```jsx
+```js
 router.prefetch(url, as, options)
 ```
 
@@ -287,7 +287,7 @@ export default function Login() {
 
 In some cases (for example, if using a [Custom Server](/docs/pages/building-your-application/configuring/custom-server)), you may wish to listen to [popstate](https://developer.mozilla.org/en-US/docs/Web/Events/popstate) and do something before the router acts on it.
 
-```jsx
+```js
 router.beforePopState(cb)
 ```
 
