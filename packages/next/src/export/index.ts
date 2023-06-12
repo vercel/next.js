@@ -187,7 +187,7 @@ export default async function exportApp(
       if (isExportOutput) {
         if (options.hasOutdirFromCli) {
           throw new ExportError(
-            '"next export --outdir <dir>" cannot be used when "output: export" is configured in next.config.js. Instead add "distDir" in next.config.js https://nextjs.org/docs/advanced-features/static-html-export'
+            '"next export -o <dir>" cannot be used when "output: export" is configured in next.config.js. Instead add "distDir" in next.config.js https://nextjs.org/docs/advanced-features/static-html-export'
           )
         }
         Log.warn(
