@@ -60,11 +60,13 @@ function enhanceGlobals() {
 
   // to allow building code that import but does not use node.js modules,
   // webpack will expect this function to exist in global scope
-  Object.defineProperty(globalThis, '__import_unsupported', {
-    value: __import_unsupported,
-    enumerable: false,
-    configurable: false,
-  })
+  if (!Object.hasOwn(globalThis, '__import_unsupported')) {
+    Object.defineProperty(globalThis, '__import_unsupported', {
+      value: __import_unsupported,
+      enumerable: false,
+      configurable: false,
+    })
+  }
 
   // Eagerly fire instrumentation hook to make the startup faster.
   void ensureInstrumentationRegistered()
