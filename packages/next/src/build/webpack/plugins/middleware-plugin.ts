@@ -546,6 +546,20 @@ function getExtractMetadata(params: {
         wasmBindings: new Map(),
         assetBindings: new Map(),
       }
+
+      if (route?.middlewareConfig?.regions) {
+        entryMetadata.regions = route.middlewareConfig.regions
+      }
+
+      if (route?.preferredRegion) {
+        const preferredRegion = route.preferredRegion
+        entryMetadata.regions =
+          // Ensures preferredRegion is always an array in the manifest.
+          typeof preferredRegion === 'string'
+            ? [preferredRegion]
+            : preferredRegion
+      }
+
       let ogImageGenerationCount = 0
 
       for (const module of modules) {
@@ -621,19 +635,6 @@ function getExtractMetadata(params: {
               })
             )
           }
-        }
-
-        if (route?.middlewareConfig?.regions) {
-          entryMetadata.regions = route.middlewareConfig.regions
-        }
-
-        if (route?.preferredRegion) {
-          const preferredRegion = route.preferredRegion
-          entryMetadata.regions =
-            // Ensures preferredRegion is always an array in the manifest.
-            typeof preferredRegion === 'string'
-              ? [preferredRegion]
-              : preferredRegion
         }
 
         /**

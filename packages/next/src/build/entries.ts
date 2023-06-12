@@ -325,6 +325,10 @@ export function getEdgeServerEntry(opts: {
       matchers: opts.middleware?.matchers
         ? encodeMatchers(opts.middleware.matchers)
         : '',
+      preferredRegion: opts.preferredRegion,
+      middlewareConfig: Buffer.from(
+        JSON.stringify(opts.middlewareConfig || {})
+      ).toString('base64'),
     }
 
     return `next-middleware-loader?${stringify(loaderParams)}!`
