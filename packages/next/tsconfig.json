@@ -7,10 +7,7 @@
     "esModuleInterop": true,
     "moduleResolution": "node",
     "jsx": "react",
-    "stripInternal": true,
-    "paths": {
-      "next/dist/*": ["./src/*"]
-    }
+    "stripInternal": true
   },
   "exclude": [
     "dist",
