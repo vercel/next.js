@@ -23,9 +23,7 @@ export const genRenderExecArgv = async (
 ) => {
   const execArgv = process.execArgv.filter((localArg) => {
     return (
-      !localArg.startsWith('--inspect') &&
-      !localArg.startsWith('--inspect-brk') &&
-      !localArg.startsWith('--cpu-prof')
+      !localArg.startsWith('--inspect') && !localArg.startsWith('--inspect-brk')
     )
   })
 
