@@ -28,7 +28,7 @@ export default function Page({
 }
 ```
 
-```jsx filename="pages/index.jsx" switcher
+```jsx filename="pages/index.js" switcher
 export const getServerSideProps = async () => {
   const res = await fetch('https://api.github.com/repos/vercel/next.js')
   const repo = await res.json()
