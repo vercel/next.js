@@ -3,7 +3,6 @@ const fs = require('fs-extra')
 const exec = require('../util/exec')
 const { remove } = require('fs-extra')
 const logger = require('../util/logger')
-const semver = require('semver')
 const execa = require('execa')
 
 module.exports = (actionInfo) => {
@@ -14,21 +13,16 @@ module.exports = (actionInfo) => {
         `git clone ${actionInfo.gitRoot}${repoPath} --single-branch --branch ${branch} --depth=${depth} ${dest}`
       )
     },
-    async getLastStable(repoDir = '', ref) {
-      const { stdout } = await exec(`cd ${repoDir} && git tag -l`)
-      const tags = stdout.trim().split('\n')
-      let lastStableTag
+    async getLastStable(repoDir = '') {
+      const { stdout } = await exec(`cd ${repoDir} && git describe`)
+      const tag = stdout.trim()
 
-      for (let i = tags.length - 1; i >= 0; i--) {
-        const curTag = tags[i]
-        // stable doesn't include `-canary` or `-beta`
-        if (!curTag.includes('-') && !ref.includes(curTag)) {
-          if (!lastStableTag || semver.gt(curTag, lastStableTag)) {
-            lastStableTag = curTag
-          }
-        }
+      if (!tag || !tag.startsWith('v')) {
+        throw new Error(`Failed to get tag info ${stdout}`)
       }
-      return lastStableTag
+      const tagParts = tag.split('-canary')[0].split('.')
+      // last stable tag will always be 1 patch less than canary
+      return `${tagParts[0]}.${tagParts[1]}.${Number(tagParts[2]) - 1}`
     },
     async getCommitId(repoDir = '') {
       const { stdout } = await exec(`cd ${repoDir} && git rev-parse HEAD`)
@@ -145,6 +139,10 @@ module.exports = (actionInfo) => {
 
           await execa('yarn', ['pack', '-f', packedPkgPath], {
             cwd: pkgPath,
+            env: {
+              ...process.env,
+              COREPACK_ENABLE_STRICT: '0',
+            },
           })
         })
       )

@@ -5,6 +5,7 @@ import crypto from 'crypto'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import path from 'path'
 import semver from 'next/dist/compiled/semver'
+
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import {
   DOT_NEXT_ALIAS,
@@ -98,15 +99,23 @@ const reactPackagesRegex = /^(react|react-dom|react-server-dom-webpack)($|\/)/
 const asyncStoragesRegex =
   /next[\\/]dist[\\/]client[\\/]components[\\/](static-generation-async-storage|action-async-storage|request-async-storage)/
 
+// exports.<conditionName>
+const edgeConditionNames = [
+  'edge-light',
+  'worker',
+  // inherits the default conditions
+  '...',
+]
+
+// packageJson.<mainField>
 const mainFieldsPerCompiler: Record<CompilerNameValues, string[]> = {
   [COMPILER_NAMES.server]: ['main', 'module'],
   [COMPILER_NAMES.client]: ['browser', 'module', 'main'],
   [COMPILER_NAMES.edgeServer]: [
     'edge-light',
     'worker',
-    'browser',
-    'module',
-    'main',
+    // inherits the default conditions
+    '...',
   ],
 }
 
@@ -890,7 +899,11 @@ export default async function getBaseWebpackConfig(
     : []
   const swcLoaderForMiddlewareLayer = useSWCLoader
     ? getSwcLoader({ hasServerComponents: false })
-    : getBabelLoader()
+    : // When using Babel, we will have to use SWC to do the optimization
+      // for middleware to tree shake the unused default optimized imports like "next/server".
+      // This will cause some performance overhead but
+      // acceptable as Babel will not be recommended.
+      [getSwcLoader({ hasServerComponents: false }), getBabelLoader()]
 
   // Loader for API routes needs to be differently configured as it shouldn't
   // have RSC transpiler enabled, so syntax checks such as invalid imports won't
@@ -915,12 +928,9 @@ export default async function getBaseWebpackConfig(
 
   const reactServerCondition = [
     'react-server',
-    ...mainFieldsPerCompiler[
-      isEdgeServer ? COMPILER_NAMES.edgeServer : COMPILER_NAMES.server
-    ],
-    'node',
-    'import',
-    'require',
+    ...(isEdgeServer ? edgeConditionNames : []),
+    // inherits the default conditions
+    '...',
   ]
 
   const clientEntries = isClient
@@ -1166,11 +1176,7 @@ export default async function getBaseWebpackConfig(
       : undefined),
     mainFields: mainFieldsPerCompiler[compilerType],
     ...(isEdgeServer && {
-      conditionNames: [
-        ...mainFieldsPerCompiler[COMPILER_NAMES.edgeServer],
-        'import',
-        'node',
-      ],
+      conditionNames: edgeConditionNames,
     }),
     plugins: [],
   }
@@ -1935,6 +1941,10 @@ export default async function getBaseWebpackConfig(
                   ],
                 },
                 resolve: {
+                  mainFields: isEdgeServer
+                    ? mainFieldsPerCompiler[COMPILER_NAMES.edgeServer]
+                    : // Prefer module fields over main fields for isomorphic packages on server layer
+                      ['module', 'main'],
                   conditionNames: reactServerCondition,
                   alias: {
                     // If missing the alias override here, the default alias will be used which aliases

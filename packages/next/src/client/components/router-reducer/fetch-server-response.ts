@@ -10,6 +10,7 @@ import type {
 import {
   NEXT_ROUTER_PREFETCH,
   NEXT_ROUTER_STATE_TREE,
+  NEXT_RSC_UNION_QUERY,
   NEXT_URL,
   RSC,
   RSC_CONTENT_TYPE_HEADER,
@@ -17,6 +18,7 @@ import {
 import { urlToUrlWithoutFlightMarker } from '../app-router'
 import { callServer } from '../../app-call-server'
 import { PrefetchKind } from './router-reducer-types'
+import { hexHash } from '../../../shared/lib/hash'
 
 /**
  * Fetch the flight data for the provided url. Takes in the current router state to decide what to render server-side.
@@ -37,7 +39,9 @@ export async function fetchServerResponse(
     // Enable flight response
     [RSC]: '1',
     // Provide the current router state
-    [NEXT_ROUTER_STATE_TREE]: JSON.stringify(flightRouterState),
+    [NEXT_ROUTER_STATE_TREE]: encodeURIComponent(
+      JSON.stringify(flightRouterState)
+    ),
   }
 
   /**
@@ -54,11 +58,17 @@ export async function fetchServerResponse(
     headers[NEXT_URL] = nextUrl
   }
 
+  const uniqueCacheQuery = hexHash(
+    [
+      headers[NEXT_ROUTER_PREFETCH] || '0',
+      headers[NEXT_ROUTER_STATE_TREE],
+    ].join(',')
+  )
+
   try {
-    let fetchUrl = url
+    let fetchUrl = new URL(url)
     if (process.env.NODE_ENV === 'production') {
       if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
-        fetchUrl = new URL(url) // clone
         if (fetchUrl.pathname.endsWith('/')) {
           fetchUrl.pathname += 'index.txt'
         } else {
@@ -66,14 +76,18 @@ export async function fetchServerResponse(
         }
       }
     }
+
+    // Add unique cache query to avoid caching conflicts on CDN which don't respect to Vary header
+    fetchUrl.searchParams.set(NEXT_RSC_UNION_QUERY, uniqueCacheQuery)
+
     const res = await fetch(fetchUrl, {
       // Backwards compat for older browsers. `same-origin` is the default in modern browsers.
       credentials: 'same-origin',
       headers,
     })
-    const canonicalUrl = res.redirected
-      ? urlToUrlWithoutFlightMarker(res.url)
-      : undefined
+
+    const responseUrl = urlToUrlWithoutFlightMarker(res.url)
+    const canonicalUrl = res.redirected ? responseUrl : undefined
 
     const contentType = res.headers.get('content-type') || ''
     let isFlightResponse = contentType === RSC_CONTENT_TYPE_HEADER
@@ -89,7 +103,7 @@ export async function fetchServerResponse(
     // If fetch returns something different than flight response handle it like a mpa navigation
     // If the fetch was not 200, we also handle it like a mpa navigation
     if (!isFlightResponse || !res.ok) {
-      return [res.url, undefined]
+      return [responseUrl.toString(), undefined]
     }
 
     // Handle the `fetch` readable stream that can be unwrapped by `React.use`.
