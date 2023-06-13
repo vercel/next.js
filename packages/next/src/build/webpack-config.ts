@@ -903,10 +903,7 @@ export default async function getBaseWebpackConfig(
       // for middleware to tree shake the unused default optimized imports like "next/server".
       // This will cause some performance overhead but
       // acceptable as Babel will not be recommended.
-      [
-        getSwcLoader({ hasServerComponents: false, isServerLayer: false }),
-        getBabelLoader(),
-      ]
+      [getSwcLoader({ hasServerComponents: false }), getBabelLoader()]
 
   // Loader for API routes needs to be differently configured as it shouldn't
   // have RSC transpiler enabled, so syntax checks such as invalid imports won't
@@ -1944,6 +1941,10 @@ export default async function getBaseWebpackConfig(
                   ],
                 },
                 resolve: {
+                  mainFields: isEdgeServer
+                    ? mainFieldsPerCompiler[COMPILER_NAMES.edgeServer]
+                    : // Prefer module fields over main fields for isomorphic packages on server layer
+                      ['module', 'main'],
                   conditionNames: reactServerCondition,
                   alias: {
                     // If missing the alias override here, the default alias will be used which aliases

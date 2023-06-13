@@ -7,8 +7,7 @@ import { isIPv6 } from 'net'
 import * as Log from '../../build/output/log'
 import { normalizeRepeatedSlashes } from '../../shared/lib/utils'
 import { initialEnv } from '@next/env'
-import { genExecArgv, getNodeOptionsWithoutInspect } from './utils'
-import { getFreePort } from './worker-utils'
+import { genRouterWorkerExecArgv, getNodeOptionsWithoutInspect } from './utils'
 
 export interface StartServerOptions {
   dir: string
@@ -187,17 +186,17 @@ export async function startServer({
         // TODO: do we want to allow more than 10 OOM restarts?
         maxRetries: 10,
         forkOptions: {
-          execArgv: isNodeDebugging
-            ? genExecArgv(
-                isNodeDebugging === undefined ? false : isNodeDebugging,
-                await getFreePort()
-              )
-            : undefined,
+          execArgv: await genRouterWorkerExecArgv(
+            isNodeDebugging === undefined ? false : isNodeDebugging
+          ),
           env: {
             FORCE_COLOR: '1',
             ...((initialEnv || process.env) as typeof process.env),
             PORT: port + '',
             NODE_OPTIONS: getNodeOptionsWithoutInspect(),
+            ...(process.env.NEXT_CPU_PROF
+              ? { __NEXT_PRIVATE_CPU_PROFILE: `CPU.router` }
+              : {}),
           },
         },
         exposedMethods: ['initialize'],

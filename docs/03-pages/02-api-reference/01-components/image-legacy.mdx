@@ -4,9 +4,7 @@ description: Backwards compatible Image Optimization with the Legacy Image compo
 ---
 
 <details>
-  <summary>
-    Examples
-  </summary>
+  <summary>Examples</summary>
 
 - [Legacy Image Component](https://github.com/vercel/next.js/tree/canary/examples/image-legacy-component)
 
@@ -370,7 +368,7 @@ module.exports = {
 }
 ```
 
-> **Note**: The example above will ensure the `src` property of `next/legacy/image` must start with `https://example.com/account123/`. Any other protocol, hostname, port, or unmatched path will respond with 400 Bad Request.
+> **Good to know**: The example above will ensure the `src` property of `next/legacy/image` must start with `https://example.com/account123/`. Any other protocol, hostname, port, or unmatched path will respond with 400 Bad Request.
 
 Below is another example of the `remotePatterns` property in the `next.config.js` file:
 
@@ -387,7 +385,7 @@ module.exports = {
 }
 ```
 
-> **Note**: The example above will ensure the `src` property of `next/legacy/image` must start with `https://img1.example.com` or `https://me.avatar.example.com` or any number of subdomains. Any other protocol or unmatched hostname will respond with 400 Bad Request.
+> **Good to know**: The example above will ensure the `src` property of `next/legacy/image` must start with `https://img1.example.com` or `https://me.avatar.example.com` or any number of subdomains. Any other protocol or unmatched hostname will respond with 400 Bad Request.
 
 Wildcard patterns can be used for both `pathname` and `hostname` and have the following syntax:
 
@@ -504,7 +502,7 @@ module.exports = {
 }
 ```
 
-> **Note**: AVIF generally takes 20% longer to encode but it compresses 20% smaller compared to WebP. This means that the first time an image is requested, it will typically be slower and then subsequent requests that are cached will be faster.
+> **Good to know**: AVIF generally takes 20% longer to encode but it compresses 20% smaller compared to WebP. This means that the first time an image is requested, it will typically be slower and then subsequent requests that are cached will be faster.
 
 ## Caching Behavior
 
