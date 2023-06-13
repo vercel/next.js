@@ -1,3 +1,5 @@
+const shouldUseMdxRs = process.env.WITH_MDX_RS === 'true'
+
 const withMDX = require('@next/mdx')({
   extension: /\.mdx?$/,
 })
@@ -8,8 +10,23 @@ const withMDX = require('@next/mdx')({
 const nextConfig = {
   pageExtensions: ['js', 'jsx', 'ts', 'tsx', 'mdx'],
   experimental: {
-    mdxRs: process.env.WITH_MDX_RS === 'true',
+    mdxRs: shouldUseMdxRs,
   },
+}
+
+if (shouldUseMdxRs) {
+  nextConfig.experimental.turbo = {
+    rules: {
+      '*.mdx': [
+        {
+          loader: '@mdx-js/loader',
+          options: {
+            providerImportSource: '@vercel/turbopack-next/mdx-import-source',
+          },
+        },
+      ],
+    },
+  }
 }
 
 module.exports = withMDX(nextConfig)

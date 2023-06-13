@@ -43,13 +43,7 @@ pub async fn get_next_client_import_map(
 ) -> Result<ImportMapVc> {
     let mut import_map = ImportMap::empty();
 
-    insert_next_shared_aliases(
-        &mut import_map,
-        project_path,
-        execution_context,
-        next_config,
-    )
-    .await?;
+    insert_next_shared_aliases(&mut import_map, project_path, execution_context).await?;
 
     insert_alias_option(
         &mut import_map,
@@ -193,13 +187,7 @@ pub async fn get_next_server_import_map(
 ) -> Result<ImportMapVc> {
     let mut import_map = ImportMap::empty();
 
-    insert_next_shared_aliases(
-        &mut import_map,
-        project_path,
-        execution_context,
-        next_config,
-    )
-    .await?;
+    insert_next_shared_aliases(&mut import_map, project_path, execution_context).await?;
 
     insert_alias_option(
         &mut import_map,
@@ -263,13 +251,7 @@ pub async fn get_next_edge_import_map(
 ) -> Result<ImportMapVc> {
     let mut import_map = ImportMap::empty();
 
-    insert_next_shared_aliases(
-        &mut import_map,
-        project_path,
-        execution_context,
-        next_config,
-    )
-    .await?;
+    insert_next_shared_aliases(&mut import_map, project_path, execution_context).await?;
 
     insert_alias_option(
         &mut import_map,
@@ -424,21 +406,18 @@ pub async fn insert_next_shared_aliases(
     import_map: &mut ImportMap,
     project_path: FileSystemPathVc,
     execution_context: ExecutionContextVc,
-    next_config: NextConfigVc,
 ) -> Result<()> {
     let package_root = next_js_fs().root();
 
-    if *next_config.mdx_rs().await? {
-        insert_alias_to_alternatives(
-            import_map,
-            mdx_import_source_file(),
-            vec![
-                request_to_import_mapping(project_path, "./mdx-components"),
-                request_to_import_mapping(project_path, "./src/mdx-components"),
-                external_request_to_import_mapping("@mdx-js/react"),
-            ],
-        );
-    }
+    insert_alias_to_alternatives(
+        import_map,
+        mdx_import_source_file(),
+        vec![
+            request_to_import_mapping(project_path, "./mdx-components"),
+            request_to_import_mapping(project_path, "./src/mdx-components"),
+            external_request_to_import_mapping("@mdx-js/react"),
+        ],
+    );
 
     // we use the next.js hydration code, so we replace the error overlay with our
     // own
