@@ -2,7 +2,7 @@
 title: Client-side Rendering (CSR)
 description: Learn how to implement client-side rendering in the Pages Router.
 related:
-  description: Learn about the alternative rendering methods in Next.js
+  description: Learn about the alternative rendering methods in Next.js.
   links:
     - pages/building-your-application/rendering/server-side-rendering
     - pages/building-your-application/rendering/static-site-generation
@@ -23,18 +23,24 @@ Here's an example of using `useEffect()` inside a Next.js page:
 
 ```jsx filename="pages/index.js"
 import React, { useState, useEffect } from 'react'
-import axios from 'axios'
 
 export function Page() {
   const [data, setData] = useState(null)
 
   useEffect(() => {
     const fetchData = async () => {
-      const result = await axios('https://api.example.com/data')
-      setData(result.data)
+      const response = await fetch('https://api.example.com/data')
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      const result = await response.json()
+      setData(result)
     }
 
-    fetchData()
+    fetchData().catch((e) => {
+      // handle the error as needed
+      console.error('An error occurred while fetching the data: ', e)
+    })
   }, [])
 
   return (
