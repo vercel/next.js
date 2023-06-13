@@ -171,7 +171,7 @@ export default function Page() {
 
 An `<a>` element is no longer required as a child of `<Link>`. Add the `legacyBehavior` prop to use the legacy behavior or remove the `<a>` to upgrade. A [codemod is available](/docs/app/building-your-application/upgrading/codemods#new-link) to automatically upgrade your code.
 
-> **Note**: when `legacyBehavior` is not set to `true`, all [`anchor`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/a) tag properties can be passed to `next/link` as well such as, `className`, `onClick`, etc.
+> **Good to know**: when `legacyBehavior` is not set to `true`, all [`anchor`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/a) tag properties can be passed to `next/link` as well such as, `className`, `onClick`, etc.
 
 ### `passHref`
 
@@ -404,6 +404,6 @@ export default function Page() {
 
 <PagesOnly>
 
-> **Note**: If you're using [Dynamic Routes](/docs/app/building-your-application/routing/dynamic-routes), you'll need to adapt your `as` and `href` props. For example, if you have a Dynamic Route like `/dashboard/[user]` that you want to present differently via middleware, you would write: `<Link href={{ pathname: '/dashboard/authed/[user]', query: { user: username } }} as="/dashboard/[user]">Profile</Link>`.
+> **Good to know**: If you're using [Dynamic Routes](/docs/app/building-your-application/routing/dynamic-routes), you'll need to adapt your `as` and `href` props. For example, if you have a Dynamic Route like `/dashboard/[user]` that you want to present differently via middleware, you would write: `<Link href={{ pathname: '/dashboard/authed/[user]', query: { user: username } }} as="/dashboard/[user]">Profile</Link>`.
 
 </PagesOnly>
