@@ -7,7 +7,7 @@ description: Style your Next.js Application with CSS Modules.
 
 <details open>
   <summary>
-    <b>Examples</b>
+    Examples
   </summary>
 
 - [Basic CSS Example](https://github.com/vercel/next.js/tree/canary/examples/basic-css)
@@ -106,7 +106,7 @@ These `.css` files represent hot execution paths in your application, ensuring t
 <AppOnly>
 Global styles can be imported into any layout, page, or component inside the `app` directory.
 
-> **Good to know:** This is different from the `pages` directory, where you can only import global styles inside the `_app.js` file.
+> **Good to know**: This is different from the `pages` directory, where you can only import global styles inside the `_app.js` file.
 
 For example, consider a stylesheet named `app/global.css`:
 
@@ -223,7 +223,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-> **Note:** External stylesheets must be directly imported from an npm package or downloaded and colocated with your codebase. You cannot use `<link rel="stylesheet" />`.
+> **Good to know**: External stylesheets must be directly imported from an npm package or downloaded and colocated with your codebase. You cannot use `<link rel="stylesheet" />`.
 
 </AppOnly>
 
@@ -249,7 +249,7 @@ export default function MyApp({ Component, pageProps }) {
 
 For importing CSS required by a third-party component, you can do so in your component. For example:
 
-```tsx filename="components/example-dialog.js"
+```jsx filename="components/example-dialog.js"
 import { useState } from 'react'
 import { Dialog } from '@reach/dialog'
 import VisuallyHidden from '@reach/visually-hidden'
