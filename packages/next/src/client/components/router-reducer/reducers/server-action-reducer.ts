@@ -2,7 +2,6 @@ import {
   ActionFlightResponse,
   ActionResult,
   FlightData,
-  NextFlightResponse,
 } from '../../../../server/app-render/types'
 import { callServer } from '../../../app-call-server'
 import {
