@@ -63,7 +63,7 @@ export function Page() {
   )
 
   if (error) return <p>Failed to load.</p>
-  if (isLoading) return <div>loading...</div>
+  if (isLoading) return <p>Loading...</p>
 
   return <div>Your Data: {data}</div>
 }
