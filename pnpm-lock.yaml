@@ -588,7 +588,7 @@ importers:
       debug: 4.1.1
       devalue: 2.0.1
       domain-browser: 4.19.0
-      edge-runtime: 2.3.2
+      edge-runtime: 2.4.1
       events: 3.3.0
       fibers: '>= 3.1.0'
       find-cache-dir: 3.3.1
@@ -807,7 +807,7 @@ importers:
       debug: 4.1.1
       devalue: 2.0.1
       domain-browser: 4.19.0
-      edge-runtime: 2.3.2
+      edge-runtime: 2.4.1
       events: 3.3.0
       find-cache-dir: 3.3.1
       find-up: 4.1.0
@@ -4631,11 +4631,23 @@ packages:
     engines: {node: '>=14'}
     dev: true
 
+  /@edge-runtime/primitives/3.0.2:
+    resolution: {integrity: sha512-mbo36g01tidaO5NiquJP5x9y2gBOnXlqPSjI03QBczSFWgfarU1guVwc6qdLb++afxaU82R/VI5ogOqh4pamjQ==}
+    engines: {node: '>=14'}
+    dev: true
+
   /@edge-runtime/vm/3.0.1:
     resolution: {integrity: sha512-69twXLIcqVx0iNlc1vFqnXgka2CZi2c/QBAmMzXBk0M6mPG+ICCBh2dd+cv1K+HW2pfLuSW+EskkFXWGeCf1Vw==}
     engines: {node: '>=14'}
     dependencies:
       '@edge-runtime/primitives': 3.0.1
+    dev: true
+
+  /@edge-runtime/vm/3.0.2:
+    resolution: {integrity: sha512-M/IotCRwjxiqm4nob4Cj5gVh48u8coeZFRvYYeLFL9bbu56M93TmEfSRtxBjVRAldheZmYj6U+1LLnsBwjuM6g==}
+    engines: {node: '>=14'}
+    dependencies:
+      '@edge-runtime/primitives': 3.0.2
     dev: true
 
   /@emotion/unitless/0.8.1:
@@ -11558,19 +11570,19 @@ packages:
       safe-buffer: 5.2.1
     dev: true
 
-  /edge-runtime/2.3.2:
-    resolution: {integrity: sha512-/HmGkthYyMcgvdilRiSh/jhrMeGuQVlep5IukjQMFF1E6lOUXHiA+hCLO87TVn/NIe8kZNGXApk6geyofd2kpQ==}
+  /edge-runtime/2.4.1:
+    resolution: {integrity: sha512-GluFQ+veLxiynOqvlQd6I62mRUR0yw+b716evw4F4X3eQnKuWeAI3IgHTjwMNbOqtPsc2JZlJH1xQYBs3J8WsQ==}
     engines: {node: '>=14'}
     hasBin: true
     dependencies:
       '@edge-runtime/format': 2.1.0
-      '@edge-runtime/vm': 3.0.1
+      '@edge-runtime/vm': 3.0.2
       async-listen: 3.0.0
       mri: 1.2.0
       picocolors: 1.0.0
       pretty-bytes: 5.6.0
       pretty-ms: 7.0.1
-      signal-exit: 4.0.1
+      signal-exit: 4.0.2
       time-span: 4.0.0
     dev: true
 
@@ -22727,8 +22739,8 @@ packages:
   /signal-exit/3.0.7:
     resolution: {integrity: sha512-wnD2ZE+l+SPC/uoS0vXeE9L1+0wuaMqKlfz9AMUo38JsyLSBWSFcHR1Rri62LZc12vLr1gb3jl7iwQhgwpAbGQ==}
 
-  /signal-exit/4.0.1:
-    resolution: {integrity: sha512-uUWsN4aOxJAS8KOuf3QMyFtgm1pkb6I+KRZbRF/ghdf5T7sM+B1lLLzPDxswUjkmHyxQAVzEgG35E3NzDM9GVw==}
+  /signal-exit/4.0.2:
+    resolution: {integrity: sha512-MY2/qGx4enyjprQnFaZsHib3Yadh3IXyV2C321GY0pjGfVBu4un0uDJkwgdxqO+Rdx8JMT8IfJIRwbYVz3Ob3Q==}
     engines: {node: '>=14'}
     dev: true
 
