@@ -127,7 +127,7 @@ Next.js supports storing application code (including `app`) inside an optional [
 
 Next.js supports [Module Path Aliases](/docs/app/building-your-application/configuring/absolute-imports-and-module-aliases) which make it easier to read and maintain imports across deeply nested project files.
 
-```tsx filename="app/dashboard/settings/analytics/page.js"
+```jsx filename="app/dashboard/settings/analytics/page.js"
 // before
 import { Button } from '../../../components/button'
 
@@ -141,7 +141,7 @@ There is no "right" or "wrong" way when it comes to organizing your own files an
 
 The following section lists a very high-level overview of common strategies. The simplest takeaway is to choose a strategy that works for you and your team and be consistent across the project.
 
-> **Note:** In our examples below, we're using `components` and `lib` folders as generalized placeholders, their naming has no special framework significance and your projects might use other folders like `ui`, `utils`, `hooks`, `styles`, etc.
+> **Good to know**: In our examples below, we're using `components` and `lib` folders as generalized placeholders, their naming has no special framework significance and your projects might use other folders like `ui`, `utils`, `hooks`, `styles`, etc.
 
 ### Store project files outside of `app`
 
