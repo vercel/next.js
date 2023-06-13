@@ -226,11 +226,14 @@ function generateImgAttrs({
   loader,
 }: GenImgAttrsData): GenImgAttrsResult {
   if (unoptimized) {
+    console.log('detected unoptimized')
     return { src, srcSet: undefined, sizes: undefined }
   }
 
   const { widths, kind } = getWidths(config, width, sizes)
   const last = widths.length - 1
+
+  console.log('returning sizes as', sizes)
 
   return {
     sizes: !sizes && kind === 'w' ? '100vw' : sizes,
@@ -326,6 +329,7 @@ function handleLoading(
     if (process.env.NODE_ENV !== 'production') {
       const origSrc = new URL(src, 'http://n').searchParams.get('url') || src
       if (img.getAttribute('data-nimg') === 'fill') {
+        console.log({ imgSize: img.getAttribute('sizes'), unoptimized })
         if (
           !unoptimized &&
           (!img.getAttribute('sizes') || img.getAttribute('sizes') === '100vw')
@@ -413,6 +417,7 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
     },
     forwardedRef
   ) => {
+    console.log('img sizes', sizes)
     return (
       <img
         {...rest}
@@ -544,7 +549,14 @@ export function getImageProps(
     showAltText?: boolean
     blurComplete?: boolean
   }
-): GetImagePropsResult {
+): {
+  props: GetImagePropsResult
+  meta: {
+    unoptimized: boolean
+    priority: boolean
+    placeholder: NonNullable<ImageProps['placeholder']>
+  }
+} {
   // TODO: throw error if experimental config is not enabled
 
   const { imgConf, showAltText, blurComplete } = _state || {}
@@ -914,7 +926,7 @@ export function getImageProps(
     }
   }
 
-  const result: GetImagePropsResult = {
+  const props: GetImagePropsResult = {
     ...rest,
     height: heightInt,
     width: widthInt,
@@ -927,7 +939,8 @@ export function getImageProps(
     srcSet: imgAttributes.srcSet,
     src: imgAttributes.src,
   }
-  return result
+  const meta = { unoptimized, priority, placeholder }
+  return { props, meta }
 }
 
 const Image = forwardRef<HTMLImageElement | null, ImageProps>(
@@ -940,8 +953,7 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
       return { ...c, allSizes, deviceSizes }
     }, [configContext])
 
-    const { onLoad, onLoadingComplete, priority, unoptimized, placeholder } =
-      props
+    const { onLoad, onLoadingComplete } = props
     const onLoadRef = useRef(onLoad)
 
     useEffect(() => {
@@ -957,7 +969,7 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
     const [blurComplete, setBlurComplete] = useState(false)
     const [showAltText, setShowAltText] = useState(false)
 
-    const imgAttributes = getImageProps(props, {
+    const { props: imgAttributes, meta: imgMeta } = getImageProps(props, {
       imgConf: config,
       blurComplete,
       showAltText,
@@ -968,8 +980,8 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
         {
           <ImageElement
             {...imgAttributes}
-            unoptimized={unoptimized || false}
-            placeholder={placeholder || 'empty'}
+            unoptimized={imgMeta.unoptimized}
+            placeholder={imgMeta.placeholder}
             onLoadRef={onLoadRef}
             onLoadingCompleteRef={onLoadingCompleteRef}
             setBlurComplete={setBlurComplete}
@@ -977,7 +989,7 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
             ref={forwardedRef}
           />
         }
-        {priority ? (
+        {imgMeta.priority ? (
           // Note how we omit the `href` attribute, as it would only be relevant
           // for browsers that do not support `imagesrcset`, and in those cases
           // it would likely cause the incorrect image to be preloaded.
