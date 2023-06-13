@@ -44,7 +44,7 @@ export function Page() {
   }, [])
 
   return (
-    <div>{data ? <div>Your data: {data}</div> : <div>Loading...</div>}</div>
+    <p>{data ? `Your data: ${data}` : 'Loading...'}</p>
   )
 }
 ```
