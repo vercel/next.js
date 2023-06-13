@@ -62,7 +62,7 @@ export function Page() {
     fetcher
   )
 
-  if (error) return <div>failed to load</div>
+  if (error) return <p>Failed to load.</p>
   if (isLoading) return <div>loading...</div>
 
   return <div>Your Data: {data}</div>
