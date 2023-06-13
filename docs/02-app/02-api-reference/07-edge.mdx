@@ -7,46 +7,48 @@ The Next.js Edge Runtime is based on standard Web APIs, it supports the followin
 
 ## Network APIs
 
-| API                                                                                                 | Description                      |
-| --------------------------------------------------------------------------------------------------- | -------------------------------- |
-| [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API)                               | Fetches a resource               |
-| [`Request`](https://developer.mozilla.org/en-US/docs/Web/API/Request)                               | Represents an HTTP request       |
-| [`Response`](https://developer.mozilla.org/en-US/docs/Web/API/Response)                             | Represents an HTTP response      |
-| [`Headers`](https://developer.mozilla.org/en-US/docs/Web/API/Headers)                               | Represents HTTP headers          |
-| [`FetchEvent`](https://developer.mozilla.org/en-US/docs/Web/API/FetchEvent)                         | Represents a fetch event         |
-| [`addEventListener`](https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener) | Adds an event listener           |
-| [`FormData`](https://developer.mozilla.org/en-US/docs/Web/API/FormData)                             | Represents form data             |
-| [`File`](https://developer.mozilla.org/en-US/docs/Web/API/File)                                     | Represents a file                |
-| [`Blob`](https://developer.mozilla.org/en-US/docs/Web/API/Blob)                                     | Represents a blob                |
-| [`URLSearchParams`](https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams)               | Represents URL search parameters |
+| API                                                                                                 | Description                       |
+| --------------------------------------------------------------------------------------------------- | --------------------------------- |
+| [`Blob`](https://developer.mozilla.org/en-US/docs/Web/API/Blob)                                     | Represents a blob                 |
+| [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API)                               | Fetches a resource                |
+| [`FetchEvent`](https://developer.mozilla.org/en-US/docs/Web/API/FetchEvent)                         | Represents a fetch event          |
+| [`File`](https://developer.mozilla.org/en-US/docs/Web/API/File)                                     | Represents a file                 |
+| [`FormData`](https://developer.mozilla.org/en-US/docs/Web/API/FormData)                             | Represents form data              |
+| [`Headers`](https://developer.mozilla.org/en-US/docs/Web/API/Headers)                               | Represents HTTP headers           |
+| [`Request`](https://developer.mozilla.org/en-US/docs/Web/API/Request)                               | Represents an HTTP request        | 
+| [`Response`](https://developer.mozilla.org/en-US/docs/Web/API/Response)                             | Represents an HTTP response       |
+| [`URLSearchParams`](https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams)               | Represents URL search parameters  |
+| [`WebSocket`](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket)                           | Represents a websocket connection |
 
 ## Encoding APIs
 
 | API                                                                                       | Description                        |
 | ----------------------------------------------------------------------------------------- | ---------------------------------- |
-| [`TextEncoder`](https://developer.mozilla.org/en-US/docs/Web/API/TextEncoder)             | Encodes a string into a Uint8Array |
-| [`TextDecoder`](https://developer.mozilla.org/en-US/docs/Web/API/TextDecoder)             | Decodes a Uint8Array into a string |
 | [`atob`](https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/atob) | Decodes a base-64 encoded string   |
 | [`btoa`](https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/btoa) | Encodes a string in base-64        |
+| [`TextDecoder`](https://developer.mozilla.org/en-US/docs/Web/API/TextDecoder)             | Decodes a Uint8Array into a string |
+| [`TextDecoderStream`](https://developer.mozilla.org/en-US/docs/Web/API/TextDecoderStream) | Chainable decoder for streams      |
+| [`TextEncoder`](https://developer.mozilla.org/en-US/docs/Web/API/TextEncoder)             | Encodes a string into a Uint8Array |
+| [`TextEncoderStream`](https://developer.mozilla.org/en-US/docs/Web/API/TextEncoderStream) | Chainable encoder for streams      |
 
 ## Stream APIs
 
 | API                                                                                                           | Description                             |
 | ------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
 | [`ReadableStream`](https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream)                           | Represents a readable stream            |
+| [`ReadableStreamBYOBReader`](https://developer.mozilla.org/en-US/docs/Web/API/ReadableStreamBYOBReader)       | Represents a reader of a ReadableStream |
+| [`ReadableStreamDefaultReader`](https://developer.mozilla.org/en-US/docs/Web/API/ReadableStreamDefaultReader) | Represents a reader of a ReadableStream |
+| [`TransformStream`](https://developer.mozilla.org/en-US/docs/Web/API/TransformStream)                         | Represents a transform stream           |
 | [`WritableStream`](https://developer.mozilla.org/en-US/docs/Web/API/WritableStream)                           | Represents a writable stream            |
 | [`WritableStreamDefaultWriter`](https://developer.mozilla.org/en-US/docs/Web/API/WritableStreamDefaultWriter) | Represents a writer of a WritableStream |
-| [`TransformStream`](https://developer.mozilla.org/en-US/docs/Web/API/TransformStream)                         | Represents a transform stream           |
-| [`ReadableStreamDefaultReader`](https://developer.mozilla.org/en-US/docs/Web/API/ReadableStreamDefaultReader) | Represents a reader of a ReadableStream |
-| [`ReadableStreamBYOBReader`](https://developer.mozilla.org/en-US/docs/Web/API/ReadableStreamBYOBReader)       | Represents a reader of a ReadableStream |
 
 ## Crypto APIs
 
 | API                                                                             | Description                                                                                         |
 | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
 | [`crypto`](https://developer.mozilla.org/en-US/docs/Web/API/Window/crypto)      | Provides access to the cryptographic functionality of the platform                                  |
-| [`SubtleCrypto`](https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto) | Provides access to common cryptographic primitives, like hashing, signing, encryption or decryption |
 | [`CryptoKey`](https://developer.mozilla.org/en-US/docs/Web/API/CryptoKey)       | Represents a cryptographic key                                                                      |
+| [`SubtleCrypto`](https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto) | Provides access to common cryptographic primitives, like hashing, signing, encryption or decryption |
 
 ## Web Standard APIs
 
