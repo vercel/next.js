@@ -35,6 +35,10 @@ on:
         required: false
         description: 'if swc artifact needs uploading'
         type: string
+      uploadTestTrace:
+        required: false
+        description: 'if test trace needs uploading'
+        type: string
 
 env:
   NAPI_CLI_VERSION: 2.14.7
@@ -151,3 +155,24 @@ jobs:
             test/test-junit-report
             test/turbopack-test-junit-report
           if-no-files-found: ignore
+
+      - name: Download test reports artifact
+        id: download-test-reports
+        uses: actions/download-artifact@v3
+        continue-on-error: true
+        if: ${{ inputs.uploadTestTrace == 'yes' && (inputs.skipForDocsOnly != 'yes' || steps.docs-change.outputs.DOCS_CHANGE == 'nope') }}
+        with:
+          name: Test trace reports
+          path: test
+
+      - name: Upload test trace to datadog
+        if: ${{ inputs.uploadTestTrace == 'yes' && (inputs.skipForDocsOnly != 'yes' || steps.docs-change.outputs.DOCS_CHANGE == 'nope') }}
+        continue-on-error: true
+        run: |
+          ls -al ./test
+          npm install -g junit-report-merger@6.0.2 @datadog/datadog-ci@2.14.0
+          jrm ./nextjs-test-result-junit.xml "test/test-junit-report/**/*.xml"
+          jrm ./turbopack-test-result-junit.xml "test/turbopack-test-junit-report/**/*.xml"
+          # Put a separate tag for the tests with turbopack to distinguish between same test names
+          DD_ENV=ci datadog-ci junit upload --tags test.type:nextjs --service nextjs ./nextjs-test-result-junit.xml
+          DD_ENV=ci datadog-ci junit upload --tags test.type:turbopack --service nextjs ./turbopack-test-result-junit.xml
