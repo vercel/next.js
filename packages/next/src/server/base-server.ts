@@ -27,10 +27,7 @@ import type { PayloadOptions } from './send-payload'
 import type { PrerenderManifest } from '../build'
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
-import type {
-  PagesRouteHandlerContext,
-  PagesRouteModule,
-} from './future/route-modules/pages/module'
+import type { PagesRouteModule } from './future/route-modules/pages/module'
 import type { NodeNextRequest, NodeNextResponse } from './base-http/node'
 import type { AppRouteRouteMatch } from './future/route-matches/app-route-route-match'
 
@@ -109,8 +106,6 @@ import {
 } from './web/utils'
 import { NEXT_QUERY_PARAM_PREFIX } from '../lib/constants'
 import { isRouteMatch } from './future/route-matches/route-match'
-import { NextRequestAdapter } from './web/spec-extension/adapters/next-request'
-import { NotFoundError } from './future/route-modules/helpers/render-result-to-response'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -1775,53 +1770,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
         renderOpts.nextFontManifest = this.nextFontManifest
 
-        // If we're statically generating the page, we can just get the render
-        // result from the module. Otherwise we can use the new handle method.
-        if (isSSG) {
-          // Call the built-in render method on the module. We cast these to
-          // NodeNextRequest and NodeNextResponse because we know that we're
-          // in the node runtime because we check that we're not in edge mode
-          // above.
-          result = await module.render(
-            (req as NodeNextRequest).originalRequest,
-            (res as NodeNextResponse).originalResponse,
-            pathname,
-            query,
-            renderOpts
-          )
-        } else {
-          const context: PagesRouteHandlerContext = {
-            params: match.params,
-            req: (req as NodeNextRequest).originalRequest,
-            res: (res as NodeNextResponse).originalResponse,
-            page: pathname,
-            query,
-            poweredByHeader: this.nextConfig.poweredByHeader,
-            generateEtags: this.nextConfig.generateEtags,
-            renderOpts,
-          }
-
-          // Handle the request using the module.
-          const request = NextRequestAdapter.fromBaseNextRequest(req)
-
-          try {
-            const response = await module.handle(request, context)
-
-            // Send the response now that we have copied it into the cache.
-            await sendResponse(req, res, response)
-
-            return null
-          } catch (err) {
-            if (NotFoundError.isNotFoundError(err)) {
-              // If we couldn't find the page, we should return null so that
-              // the legacy render method will be used.
-              return { value: null, revalidate: err.metadata.revalidate }
-            }
-
-            // This was an unexpected error, so we should throw it again.
-            throw err
-          }
-        }
+        // Call the built-in render method on the module. We cast these to
+        // NodeNextRequest and NodeNextResponse because we know that we're
+        // in the node runtime because we check that we're not in edge mode
+        // above.
+        result = await module.render(
+          (req as NodeNextRequest).originalRequest,
+          (res as NodeNextResponse).originalResponse,
+          { page: pathname, params: match.params, query, renderOpts }
+        )
       } else {
         // If we didn't match a page, we should fallback to using the legacy
         // render method.
