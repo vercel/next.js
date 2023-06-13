@@ -3,7 +3,7 @@ import { acceptLanguage } from 'next/dist/server/accept-header'
 describe('acceptLanguage', () => {
   it('parses the header', () => {
     const language = acceptLanguage('da, en-GB, en')
-    expect(language).toEqual('da')
+    expect(language).toEqual('daaaaa')
   })
 
   it('respects weights', () => {
