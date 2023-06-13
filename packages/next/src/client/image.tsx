@@ -136,11 +136,10 @@ export type ImageProps = Omit<
   lazyRoot?: string
 }
 
-type GetImagePropsResult = Omit<ImageProps, 'src' | 'alt' | 'loader'> & {
+type ImgProps = Omit<ImageProps, 'src' | 'alt' | 'loader'> & {
   loading: LoadingValue
   width: number | undefined
   height: number | undefined
-  dataNImg: string
   style: ImgElementStyle
   sizes: string | undefined
   srcSet: string | undefined
@@ -148,7 +147,7 @@ type GetImagePropsResult = Omit<ImageProps, 'src' | 'alt' | 'loader'> & {
 }
 
 type ImageElementProps = Omit<ImageProps, 'src' | 'alt' | 'loader'> &
-  GetImagePropsResult & {
+  ImgProps & {
     unoptimized: boolean
     placeholder: PlaceholderValue
     onLoadRef: React.MutableRefObject<OnLoad | undefined>
@@ -226,14 +225,11 @@ function generateImgAttrs({
   loader,
 }: GenImgAttrsData): GenImgAttrsResult {
   if (unoptimized) {
-    console.log('detected unoptimized')
     return { src, srcSet: undefined, sizes: undefined }
   }
 
   const { widths, kind } = getWidths(config, width, sizes)
   const last = widths.length - 1
-
-  console.log('returning sizes as', sizes)
 
   return {
     sizes: !sizes && kind === 'w' ? '100vw' : sizes,
@@ -329,7 +325,6 @@ function handleLoading(
     if (process.env.NODE_ENV !== 'production') {
       const origSrc = new URL(src, 'http://n').searchParams.get('url') || src
       if (img.getAttribute('data-nimg') === 'fill') {
-        console.log({ imgSize: img.getAttribute('sizes'), unoptimized })
         if (
           !unoptimized &&
           (!img.getAttribute('sizes') || img.getAttribute('sizes') === '100vw')
@@ -400,13 +395,14 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
       sizes,
       height,
       width,
+      decoding,
       className,
       style,
       fetchPriority,
-      dataNImg,
       placeholder,
       loading,
       unoptimized,
+      fill,
       onLoadRef,
       onLoadingCompleteRef,
       setBlurComplete,
@@ -417,7 +413,6 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
     },
     forwardedRef
   ) => {
-    console.log('img sizes', sizes)
     return (
       <img
         {...rest}
@@ -428,8 +423,8 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
         loading={loading}
         width={width}
         height={height}
-        decoding="async"
-        data-nimg={dataNImg}
+        decoding={decoding}
+        data-nimg={fill ? 'fill' : '1'}
         className={className}
         style={style}
         // It's intended to keep `src` the last attribute because React updates
@@ -519,7 +514,7 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
   }
 )
 
-export function getImageProps(
+export function getImgProps(
   {
     src,
     sizes,
@@ -530,7 +525,7 @@ export function getImageProps(
     quality,
     width,
     height,
-    fill,
+    fill = false,
     style,
     onLoad,
     onLoadingComplete,
@@ -550,11 +545,12 @@ export function getImageProps(
     blurComplete?: boolean
   }
 ): {
-  props: GetImagePropsResult
+  props: ImgProps
   meta: {
     unoptimized: boolean
     priority: boolean
     placeholder: NonNullable<ImageProps['placeholder']>
+    fill: boolean
   }
 } {
   // TODO: throw error if experimental config is not enabled
@@ -926,20 +922,20 @@ export function getImageProps(
     }
   }
 
-  const props: GetImagePropsResult = {
+  const props: ImgProps = {
     ...rest,
     height: heightInt,
     width: widthInt,
+    decoding: 'async',
     className,
     style: { ...imgStyle, ...blurStyle },
     loading: isLazy ? 'lazy' : loading,
-    dataNImg: fill ? 'fill' : '1',
     fetchPriority,
     sizes: imgAttributes.sizes,
     srcSet: imgAttributes.srcSet,
     src: imgAttributes.src,
   }
-  const meta = { unoptimized, priority, placeholder }
+  const meta = { unoptimized, priority, placeholder, fill }
   return { props, meta }
 }
 
@@ -969,7 +965,7 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
     const [blurComplete, setBlurComplete] = useState(false)
     const [showAltText, setShowAltText] = useState(false)
 
-    const { props: imgAttributes, meta: imgMeta } = getImageProps(props, {
+    const { props: imgAttributes, meta: imgMeta } = getImgProps(props, {
       imgConf: config,
       blurComplete,
       showAltText,
@@ -982,6 +978,7 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
             {...imgAttributes}
             unoptimized={imgMeta.unoptimized}
             placeholder={imgMeta.placeholder}
+            fill={imgMeta.fill}
             onLoadRef={onLoadRef}
             onLoadingCompleteRef={onLoadingCompleteRef}
             setBlurComplete={setBlurComplete}
@@ -1020,3 +1017,13 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
 )
 
 export default Image
+
+export const unstable_getImgProps = (props: ImageProps) => {
+  const result = getImgProps(props).props
+  for (const [key, value] of Object.entries(result)) {
+    if (value === undefined) {
+      delete result[key as keyof typeof result]
+    }
+  }
+  return { props: result }
+}
