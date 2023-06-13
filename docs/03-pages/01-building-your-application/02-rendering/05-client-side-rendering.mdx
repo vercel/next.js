@@ -51,7 +51,7 @@ export function Page() {
 
 In the example above, the component starts by rendering `"Loading..."`. Then, once the data is fetched, it re-renders and displays the data.
 
-Although this is a common pattern in older React Applications, we recommend using a data-fetching library for better performance. Here's an example of using [SWR](https://swr.vercel.app/) to fetch data on the client:
+Although fetching data in a `useEffect` is a pattern you may see in older React Applications, we recommend using a data-fetching library for better performance, caching, optimistic updates, and more. Here's a minimum example using [SWR](https://swr.vercel.app/) to fetch data on the client:
 
 ```jsx filename="pages/index.js"
 import useSWR from 'swr'
