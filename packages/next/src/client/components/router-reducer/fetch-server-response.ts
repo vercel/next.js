@@ -6,7 +6,7 @@ import { createFromFetch } from 'react-server-dom-webpack/client'
 import type {
   FlightRouterState,
   FlightData,
-  NextFlightData,
+  NextFlightResponse,
 } from '../../../server/app-render/types'
 import {
   NEXT_ROUTER_PREFETCH,
@@ -117,7 +117,7 @@ export async function fetchServerResponse(
     }
 
     // Handle the `fetch` readable stream that can be unwrapped by `React.use`.
-    const [buildId, flightData]: NextFlightData = await createFromFetch(
+    const [buildId, flightData]: NextFlightResponse = await createFromFetch(
       Promise.resolve(res),
       {
         callServer,
