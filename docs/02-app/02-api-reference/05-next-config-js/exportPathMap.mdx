@@ -7,9 +7,8 @@ description: Customize the pages that will be exported as HTML files when using 
 > This feature is exclusive to `next export` and currently **deprecated** in favor of `getStaticPaths` with `pages` or `generateStaticParams` with `app`.
 
 <details>
-  <summary>
-    Examples
-  </summary>
+  <summary>Examples</summary>
+  
 - [Static Export](https://github.com/vercel/next.js/tree/canary/examples/with-static-export)
 
 </details>
@@ -41,7 +40,7 @@ module.exports = {
 }
 ```
 
-> **Note**: the `query` field in `exportPathMap` cannot be used with [automatically statically optimized pages](/docs/pages/building-your-application/rendering/automatic-static-optimization) or [`getStaticProps` pages](/docs/pages/building-your-application/data-fetching/get-static-props) as they are rendered to HTML files at build-time and additional query information cannot be provided during `next export`.
+> **Good to know**: the `query` field in `exportPathMap` cannot be used with [automatically statically optimized pages](/docs/pages/building-your-application/rendering/automatic-static-optimization) or [`getStaticProps` pages](/docs/pages/building-your-application/data-fetching/get-static-props) as they are rendered to HTML files at build-time and additional query information cannot be provided during `next export`.
 
 The pages will then be exported as HTML files, for example, `/about` will become `/about.html`.
 
