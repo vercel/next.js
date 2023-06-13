@@ -150,9 +150,7 @@ export default Post
 ### `fallback: true`
 
 <details>
-  <summary>
-    Examples
-  </summary>
+  <summary>Examples</summary>
 
 - [Static generation of a large number of pages](https://static-tweet.vercel.app)
 
@@ -167,7 +165,7 @@ If `fallback` is `true`, then the behavior of `getStaticProps` changes in the fo
 - When complete, the browser receives the `JSON` for the generated path. This will be used to automatically render the page with the required props. From the user’s perspective, the page will be swapped from the fallback page to the full page.
 - At the same time, Next.js adds this path to the list of pre-rendered pages. Subsequent requests to the same path will serve the generated page, like other pages pre-rendered at build time.
 
-> **Note**: `fallback: true` is not supported when using [`output: 'export'`](/docs/pages/building-your-application/deploying/static-exports).
+> **Good to know**: `fallback: true` is not supported when using [`output: 'export'`](/docs/pages/building-your-application/deploying/static-exports).
 
 #### When is `fallback: true` useful?
 
@@ -194,7 +192,7 @@ If `fallback` is `'blocking'`, new paths not returned by `getStaticPaths` will w
 
 `fallback: 'blocking'` will not _update_ generated pages by default. To update generated pages, use [Incremental Static Regeneration](/docs/pages/building-your-application/data-fetching/incremental-static-regeneration) in conjunction with `fallback: 'blocking'`.
 
-> **Note**: `fallback: 'blocking'` is not supported when using [`output: 'export'`](/docs/pages/building-your-application/deploying/static-exports).
+> **Good to know**: `fallback: 'blocking'` is not supported when using [`output: 'export'`](/docs/pages/building-your-application/deploying/static-exports).
 
 ### Fallback pages
 
