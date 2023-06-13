@@ -60,6 +60,7 @@ export function prefetchReducer(
       // initialTree is used when history.state.tree is missing because the history state is set in `useEffect` below, it being missing means this is the hydration case.
       state.tree,
       state.nextUrl,
+      state.buildId,
       action.kind
     )
   )
