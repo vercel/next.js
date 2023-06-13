@@ -132,20 +132,6 @@ export class ClientReferenceManifestPlugin {
       clientModules: {},
     }
 
-    const clientRequestsSet = new Set()
-
-    // Collect client requests
-    function collectClientRequest(mod: webpack.NormalModule) {
-      if (mod.resource === '' && mod.buildInfo?.rsc) {
-        const { requests = [] } = mod.buildInfo.rsc
-        requests.forEach((r: string) => {
-          clientRequestsSet.add(r)
-        })
-      }
-    }
-
-    traverseModules(compilation, (mod) => collectClientRequest(mod))
-
     compilation.chunkGroups.forEach((chunkGroup) => {
       function getAppPathRequiredChunks() {
         return chunkGroup.chunks
@@ -224,12 +210,8 @@ export class ClientReferenceManifestPlugin {
           return
         }
 
-        // Only apply following logic to client module requests from client entry,
-        // or if the module is marked as client module.
-        if (
-          !clientRequestsSet.has(resource) &&
-          !isClientComponentEntryModule(mod)
-        ) {
+        // Only apply following logic to client entries.
+        if (!isClientComponentEntryModule(mod)) {
           return
         }
 
