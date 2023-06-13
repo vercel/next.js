@@ -70,7 +70,7 @@ fetch(`https://...`, { cache: 'force-cache' | 'no-store' })
   - If there is no match or a stale match, Next.js will fetch the resource from the remote server and update the cache with the downloaded resource.
 - **`no-store`** - Next.js fetches the resource from the remote server on every request without looking in the cache, and it will not update the cache with the downloaded resource.
 
-> **Good to know:**
+> **Good to know**:
 >
 > - If you don't provide a `cache` option, Next.js will default to `force-cache`, unless a [dynamic function](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#dynamic-functions) such as `cookies()` is used, in which case it will default to `no-store`.
 > - The `no-cache` option behaves the same way as `no-store` in Next.js.
@@ -87,9 +87,15 @@ Set the cache lifetime of a resource (in seconds).
 - **`0`** - Prevent the resource from being cached.
 - **`number`** - (in seconds) Specify the resource should have a cache lifetime of at most `n` seconds.
 
-> **Good to know:**
+> **Good to know**:
 >
 > - If an individual `fetch()` request sets a `revalidate` number lower than the [default `revalidate`](/docs/app/api-reference/file-conventions/route-segment-config#revalidate) of a route, the whole route revalidation interval will be decreased.
 > - If two fetch requests with the same URL in the same route have different `revalidate` values, the lower value will be used.
 > - As a convenience, it is not necessary to set the `cache` option if `revalidate` is set to a number since `0` implies `cache: 'no-store'` and a positive value implies `cache: 'force-cache'`.
 > - Conflicting options such as `{ revalidate: 0, cache: 'force-cache' }` or `{ revalidate: 10, cache: 'no-store' }` will cause an error.
+
+## Version History
+
+| Version   | Changes             |
+| --------- | ------------------- |
+| `v13.0.0` | `fetch` introduced. |

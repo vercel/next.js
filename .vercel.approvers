@@ -4,6 +4,7 @@
 @shuding
 @huozhi
 @feedthejim
+@vercel/next.js:optional
 
 # Tooling & Telemetry
 pnpm-lock.yaml                                @vercel/web-tooling

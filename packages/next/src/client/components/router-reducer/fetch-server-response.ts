@@ -6,6 +6,7 @@ import { createFromFetch } from 'react-server-dom-webpack/client'
 import type {
   FlightRouterState,
   FlightData,
+  NextFlightResponse,
 } from '../../../server/app-render/types'
 import {
   NEXT_ROUTER_PREFETCH,
@@ -20,16 +21,25 @@ import { callServer } from '../../app-call-server'
 import { PrefetchKind } from './router-reducer-types'
 import { hexHash } from '../../../shared/lib/hash'
 
+type FetchServerResponseResult = [
+  flightData: FlightData,
+  canonicalUrlOverride: URL | undefined
+]
+
+function doMpaNavigation(url: string): FetchServerResponseResult {
+  return [urlToUrlWithoutFlightMarker(url).toString(), undefined]
+}
+
 /**
  * Fetch the flight data for the provided url. Takes in the current router state to decide what to render server-side.
  */
-
 export async function fetchServerResponse(
   url: URL,
   flightRouterState: FlightRouterState,
   nextUrl: string | null,
+  currentBuildId: string,
   prefetchKind?: PrefetchKind
-): Promise<[FlightData: FlightData, canonicalUrlOverride: URL | undefined]> {
+): Promise<FetchServerResponseResult> {
   const headers: {
     [RSC]: '1'
     [NEXT_ROUTER_STATE_TREE]: string
@@ -85,9 +95,9 @@ export async function fetchServerResponse(
       credentials: 'same-origin',
       headers,
     })
-    const canonicalUrl = res.redirected
-      ? urlToUrlWithoutFlightMarker(res.url)
-      : undefined
+
+    const responseUrl = urlToUrlWithoutFlightMarker(res.url)
+    const canonicalUrl = res.redirected ? responseUrl : undefined
 
     const contentType = res.headers.get('content-type') || ''
     let isFlightResponse = contentType === RSC_CONTENT_TYPE_HEADER
@@ -103,13 +113,21 @@ export async function fetchServerResponse(
     // If fetch returns something different than flight response handle it like a mpa navigation
     // If the fetch was not 200, we also handle it like a mpa navigation
     if (!isFlightResponse || !res.ok) {
-      return [res.url, undefined]
+      return doMpaNavigation(responseUrl.toString())
     }
 
     // Handle the `fetch` readable stream that can be unwrapped by `React.use`.
-    const flightData: FlightData = await createFromFetch(Promise.resolve(res), {
-      callServer,
-    })
+    const [buildId, flightData]: NextFlightResponse = await createFromFetch(
+      Promise.resolve(res),
+      {
+        callServer,
+      }
+    )
+
+    if (currentBuildId !== buildId) {
+      return doMpaNavigation(res.url)
+    }
+
     return [flightData, canonicalUrl]
   } catch (err) {
     console.error(

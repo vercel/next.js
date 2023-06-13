@@ -4,9 +4,7 @@ description: Enable AMP in a page, and control the way Next.js adds AMP to the p
 ---
 
 <details>
-  <summary>
-    Examples
-  </summary>
+  <summary>Examples</summary>
 
 - [AMP](https://github.com/vercel/next.js/tree/canary/examples/amp)
 
@@ -16,7 +14,7 @@ description: Enable AMP in a page, and control the way Next.js adds AMP to the p
 
 To enable AMP, add the following config to your page:
 
-```jsx
+```jsx filename="pages/index.js"
 export const config = { amp: true }
 ```
 
@@ -31,7 +29,7 @@ To learn more about the `amp` config, read the sections below.
 
 Take a look at the following example:
 
-```jsx
+```jsx filename="pages/about.js"
 export const config = { amp: true }
 
 function About(props) {
@@ -51,7 +49,7 @@ The page above is an AMP-only page, which means:
 
 Take a look at the following example:
 
-```jsx
+```jsx filename="pages/about.js"
 import { useAmp } from 'next/amp'
 
 export const config = { amp: 'hybrid' }

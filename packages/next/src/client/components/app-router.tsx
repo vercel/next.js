@@ -67,6 +67,19 @@ export function getServerActionDispatcher() {
 export function urlToUrlWithoutFlightMarker(url: string): URL {
   const urlWithoutFlightParameters = new URL(url, location.origin)
   urlWithoutFlightParameters.searchParams.delete(NEXT_RSC_UNION_QUERY)
+  if (process.env.NODE_ENV === 'production') {
+    if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
+      if (urlWithoutFlightParameters.pathname.endsWith('/index.txt')) {
+        // Slice off `/index.txt` from the end of the pathname
+        urlWithoutFlightParameters.pathname =
+          urlWithoutFlightParameters.pathname.slice(0, -`/index.txt`.length)
+      } else {
+        // Slice off `.txt` from the end of the pathname
+        urlWithoutFlightParameters.pathname =
+          urlWithoutFlightParameters.pathname.slice(0, -`.txt`.length)
+      }
+    }
+  }
   return urlWithoutFlightParameters
 }
 
@@ -82,6 +95,7 @@ type AppRouterProps = Omit<
   Omit<InitialRouterStateParameters, 'isServer' | 'location'>,
   'initialParallelRoutes'
 > & {
+  buildId: string
   initialHead: ReactNode
   assetPrefix: string
   // Top level boundaries props
@@ -123,6 +137,7 @@ function HistoryUpdater({ tree, pushRef, canonicalUrl, sync }: any) {
  * The global router that wraps the application components.
  */
 function Router({
+  buildId,
   initialHead,
   initialTree,
   initialCanonicalUrl,
@@ -135,6 +150,7 @@ function Router({
   const initialState = useMemo(
     () =>
       createInitialRouterState({
+        buildId,
         children,
         initialCanonicalUrl,
         initialTree,
@@ -143,7 +159,7 @@ function Router({
         location: !isServer ? window.location : null,
         initialHead,
       }),
-    [children, initialCanonicalUrl, initialTree, initialHead]
+    [buildId, children, initialCanonicalUrl, initialTree, initialHead]
   )
   const [
     {
@@ -444,6 +460,7 @@ function Router({
         <SearchParamsContext.Provider value={searchParams}>
           <GlobalLayoutRouterContext.Provider
             value={{
+              buildId,
               changeByServerResponse,
               tree,
               focusAndScrollRef,

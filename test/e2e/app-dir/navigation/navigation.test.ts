@@ -419,6 +419,38 @@ createNextDescribe(
       })
     })
 
+    describe('navigation between pages and app', () => {
+      it('should not contain _rsc query while navigating from app to pages', async () => {
+        // Initiate with app
+        const browser = await next.browser('/assertion/page')
+        await browser
+          .elementByCss('#link-to-pages')
+          .click()
+          .waitForElementByCss('#link-to-app')
+        expect(await browser.url()).toBe(next.url + '/some')
+        await browser
+          .elementByCss('#link-to-app')
+          .click()
+          .waitForElementByCss('#link-to-pages')
+        expect(await browser.url()).toBe(next.url + '/assertion/page')
+      })
+
+      it('should not contain _rsc query while navigating from pages to app', async () => {
+        // Initiate with pages
+        const browser = await next.browser('/some')
+        await browser
+          .elementByCss('#link-to-app')
+          .click()
+          .waitForElementByCss('#link-to-pages')
+        expect(await browser.url()).toBe(next.url + '/assertion/page')
+        await browser
+          .elementByCss('#link-to-pages')
+          .click()
+          .waitForElementByCss('#link-to-app')
+        expect(await browser.url()).toBe(next.url + '/some')
+      })
+    })
+
     describe('nested navigation', () => {
       it('should navigate to nested pages', async () => {
         const browser = await next.browser('/nested-navigation')
