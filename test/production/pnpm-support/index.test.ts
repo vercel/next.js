@@ -43,6 +43,22 @@ describe('pnpm support', () => {
 
     const html = await renderViaHTTP(next.url, '/')
     expect(html).toContain('Hello World')
+
+    const manifest = JSON.parse(
+      await next.readFile('.next/next-server.js.nft.json')
+    )
+    for (const ignore of ['next/dist/pages', '.wasm', 'compiled/@ampproject']) {
+      let matchingFile
+      try {
+        matchingFile = manifest.files.some((file) => file.includes(ignore))
+        expect(!!matchingFile).toBe(false)
+      } catch (err) {
+        require('console').error(
+          `Found unexpected file in manifest ${matchingFile} matched ${ignore}`
+        )
+        throw err
+      }
+    }
   })
 
   it('should execute client-side JS on each page in output: "standalone"', async () => {

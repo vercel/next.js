@@ -1,99 +1,109 @@
 // @ts-ignore
-import { calculateSizeAdjustValues } from 'next/dist/server/font-utils'
-// @ts-ignore
 // eslint-disable-next-line import/no-extraneous-dependencies
-import fontFromBuffer from '@next/font/dist/fontkit'
+let fontFromBuffer: any
+try {
+  const mod = require('../fontkit').default
+  fontFromBuffer = mod.default || mod
+} catch {}
 import type { AdjustFontFallback, FontLoader } from 'next/font'
 
 import { promisify } from 'util'
-import { calcAzWidth, validateData } from './utils'
+import { pickFontFileForFallbackGeneration } from './pick-font-file-for-fallback-generation'
+import { getFallbackMetricsFromFontFile } from './get-fallback-metrics-from-font-file'
+import { validateLocalFontFunctionCall } from './validate-local-font-function-call'
 
-const fetchFonts: FontLoader = async ({
+const nextFontLocalFontLoader: FontLoader = async ({
   functionName,
+  variableName,
   data,
   emitFontFile,
   resolve,
-  fs,
+  loaderContext,
 }) => {
   const {
-    family,
     src,
-    ext,
-    format,
     display,
-    weight,
-    style,
     fallback,
     preload,
     variable,
     adjustFontFallback,
     declarations,
-  } = validateData(functionName, data)
+    weight: defaultWeight,
+    style: defaultStyle,
+  } = validateLocalFontFunctionCall(functionName, data[0])
 
-  const resolved = await resolve(src)
-  const fileBuffer = await promisify(fs.readFile)(resolved)
-  const fontUrl = emitFontFile(fileBuffer, ext, preload)
+  // Load all font files and emit them to the .next output directory
+  // Also generate a @font-face CSS for each font file
+  const fontFiles = await Promise.all(
+    src.map(async ({ path, style, weight, ext, format }) => {
+      const resolved = await resolve(path)
+      const fileBuffer = await promisify(loaderContext.fs.readFile)(resolved)
+      const fontUrl = emitFontFile(
+        fileBuffer,
+        ext,
+        preload,
+        typeof adjustFontFallback === 'undefined' || !!adjustFontFallback
+      )
 
-  let fontMetadata: any
-  try {
-    fontMetadata = fontFromBuffer(fileBuffer)
-  } catch (e) {
-    console.error(`Failed to load font file: ${resolved}\n${e}`)
-  }
+      // Try to load font metadata from the font file using fontkit.
+      // The data is used to calculate the fallback font override values.
+      let fontMetadata: any
+      try {
+        fontMetadata = fontFromBuffer?.(fileBuffer)
+      } catch (e) {
+        console.error(`Failed to load font file: ${resolved}\n${e}`)
+      }
 
-  // Add fallback font
-  let adjustFontFallbackMetrics: AdjustFontFallback | undefined
-  if (fontMetadata && adjustFontFallback !== false) {
-    const {
-      ascent,
-      descent,
-      lineGap,
-      fallbackFont,
-      sizeAdjust: fallbackSizeAdjust,
-    } = calculateSizeAdjustValues({
-      category:
-        adjustFontFallback === 'Times New Roman' ? 'serif' : 'sans-serif',
-      ascent: fontMetadata.ascent,
-      descent: fontMetadata.descent,
-      lineGap: fontMetadata.lineGap,
-      unitsPerEm: fontMetadata.unitsPerEm,
-      xAvgCharWidth: (fontMetadata as any)['OS/2']?.xAvgCharWidth,
-      azAvgWidth: calcAzWidth(fontMetadata),
+      // Get all values that should be added to the @font-face declaration
+      const fontFaceProperties = [
+        ...(declarations
+          ? declarations.map(({ prop, value }) => [prop, value])
+          : []),
+        ['font-family', variableName],
+        ['src', `url(${fontUrl}) format('${format}')`],
+        ['font-display', display],
+        ...(weight ?? defaultWeight
+          ? [['font-weight', weight ?? defaultWeight]]
+          : []),
+        ...(style ?? defaultStyle
+          ? [['font-style', style ?? defaultStyle]]
+          : []),
+      ]
+
+      // Generate the @font-face CSS from the font-face properties
+      const css = `@font-face {\n${fontFaceProperties
+        .map(([property, value]) => `${property}: ${value};`)
+        .join('\n')}\n}\n`
+
+      return {
+        css,
+        fontMetadata,
+        weight,
+        style,
+      }
     })
-    adjustFontFallbackMetrics = {
-      fallbackFont,
-      ascentOverride: `${ascent}%`,
-      descentOverride: `${descent}%`,
-      lineGapOverride: `${lineGap}%`,
-      sizeAdjust: `${fallbackSizeAdjust}%`,
+  )
+
+  // Calculate the fallback font override values using the font file metadata
+  let adjustFontFallbackMetrics: AdjustFontFallback | undefined
+  if (adjustFontFallback !== false) {
+    const fallbackFontFile = pickFontFileForFallbackGeneration(fontFiles)
+    if (fallbackFontFile.fontMetadata) {
+      adjustFontFallbackMetrics = getFallbackMetricsFromFontFile(
+        fallbackFontFile.fontMetadata,
+        adjustFontFallback === 'Times New Roman' ? 'serif' : 'sans-serif'
+      )
     }
   }
 
-  const fontFaceProperties = [
-    ...(declarations
-      ? declarations.map(({ prop, value }) => [prop, value])
-      : []),
-    ['font-family', `'${fontMetadata?.familyName ?? family}'`],
-    ['src', `url(${fontUrl}) format('${format}')`],
-    ['font-display', display],
-    ...(weight ? [['font-weight', weight]] : []),
-    ...(style ? [['font-style', style]] : []),
-  ]
-
-  const css = `@font-face {
-${fontFaceProperties
-  .map(([property, value]) => `${property}: ${value};`)
-  .join('\n')}
-}`
-
   return {
-    css,
+    css: fontFiles.map(({ css }) => css).join('\n'),
     fallbackFonts: fallback,
-    weight,
-    style,
+    weight: src.length === 1 ? src[0].weight : undefined,
+    style: src.length === 1 ? src[0].style : undefined,
     variable,
     adjustFontFallback: adjustFontFallbackMetrics,
   }
 }
 
-export default fetchFonts
+export default nextFontLocalFontLoader

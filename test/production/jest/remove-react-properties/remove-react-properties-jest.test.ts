@@ -8,21 +8,15 @@ const appDir = path.join(__dirname, 'app')
 describe('next/jest', () => {
   let next: NextInstance
 
-  if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
-    // react testing library is specific to react version
-    it('should bail on react v17', () => {})
-    return
-  }
-
   beforeAll(async () => {
     next = await createNext({
       files: {
         pages: new FileRef(path.join(appDir, 'pages')),
-        'tests/index.test.js': `
+        'tests/index.test.tsx': `
         import { render as renderFn, waitFor } from '@testing-library/react'
         import '@testing-library/jest-dom/extend-expect';
 
-        import Page from '../pages'
+        import Page from '@/pages'
 
         describe('testid', () => {
           it('data-testid should be available in the test', async () => {
@@ -36,6 +30,7 @@ describe('next/jest', () => {
         `,
         'jest.config.js': new FileRef(path.join(appDir, 'jest.config.js')),
         'next.config.js': new FileRef(path.join(appDir, 'next.config.js')),
+        'tsconfig.json': new FileRef(path.join(appDir, 'tsconfig.json')),
       },
       dependencies: {
         jest: '27.4.7',
@@ -46,7 +41,8 @@ describe('next/jest', () => {
       packageJson: {
         scripts: {
           // Runs jest and bails if jest fails
-          build: 'yarn jest --forceExit tests/index.test.js && yarn next build',
+          build:
+            'yarn jest --forceExit tests/index.test.tsx && yarn next build',
         },
       },
       buildCommand: `yarn build`,
@@ -55,7 +51,7 @@ describe('next/jest', () => {
   afterAll(() => next.destroy())
 
   it('data-testid should be removed in production', async () => {
-    const html = await renderViaHTTP(next.appPort, '/')
+    const html = await renderViaHTTP(next.url, '/')
 
     expect(html).not.toContain('data-testid')
   })

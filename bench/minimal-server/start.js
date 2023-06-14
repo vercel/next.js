@@ -1,4 +1,3 @@
-process.env.__NEXT_REACT_CHANNEL = 'exp'
 process.env.NODE_ENV = 'production'
 
 require('../../test/lib/react-channel-require-hook')

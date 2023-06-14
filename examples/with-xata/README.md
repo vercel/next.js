@@ -14,7 +14,7 @@ With this template you get out-of-the-box:
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-xata)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-xata&project-name=with-xata&repository-name=with-xata)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-xata&project-name=with-xata&repository-name=with-xata&integration-ids=oac_IDpMECDuYqBvAtu3wXXMQe0J)
 
 ## Demo
 
@@ -36,15 +36,21 @@ yarn create next-app --example with-xata with-xata-app
 pnpm create next-app --example with-xata with-xata-app
 ```
 
-### Link Your Xata Workspace and Run Codegen
+### Link With Your Xata Workspace And Update Types
 
-> 💡 consider [installing the Xata CLI globally](https://xata.io/docs/cli/getting-started), it will likely improve your experience managing your databases
+> 💡 We recommend installing the [Xata CLI](https://xata.io/docs/cli/getting-started) globally, but you can also use `npx @xata.io/cli` instead of `xata` in the commands below.
+
+You can link your project with a Xata workspace by running the following command:
 
 ```sh
-npm run start:xata
+xata init
 ```
 
-> ⚠️ once linked, you can just run `xata` to re-generate types.
+To update your types, run the following command:
+
+```sh
+xata codegen
+```
 
 ### Start Coding
 

@@ -2,9 +2,9 @@
 
 This example shows how to configure your [Next.js Middleware](https://nextjs.org/docs/advanced-features/middleware) to only match specific pages.
 
-The index page ([`pages/index.js`](pages/index.js)) has a list of links to dynamic pages, which will tell whether they were matched or not.
+The index page ([`pages/index.ts`](pages/index.ts)) has a list of links to dynamic pages, which will tell whether they were matched or not.
 
-The Middleware file ([`middleware.js`](middleware.js)) has a special `matcher` configuration key, allowing you to fine-grained control [matched pages](https://nextjs.org/docs/advanced-features/middleware#matcher).
+The Middleware file ([`middleware.ts`](middleware.ts)) has a special `matcher` configuration key, allowing you to fine-grained control [matched pages](https://nextjs.org/docs/advanced-features/middleware#matcher).
 
 Please keep in mind that:
 
@@ -16,7 +16,7 @@ Please keep in mind that:
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/middleware-matcher&project-name=middleware-matcher&repository-name=middleware-matcher)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/middleware-matcher&project-name=middleware-matcher&repository-name=middleware-matcher)
 
 ## How to use
 

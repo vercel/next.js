@@ -6,27 +6,27 @@ const IndexPage = () => (
     <ol>
       <li>
         <Link href="/[dynamic]" as="/page-1">
-          <a>Link to dynamic page 1</a>
+          Link to dynamic page 1
         </Link>
       </li>
       <li>
         <Link href="/[dynamic]" as="/page-2">
-          <a>Link to dynamic page 2</a>
+          Link to dynamic page 2
         </Link>
       </li>
       <li>
         <Link href="/[dynamic]" as="/page-3">
-          <a>Link to dynamic page 3</a>
+          Link to dynamic page 3
         </Link>
       </li>
       <li>
         <Link href="/[dynamic]" as="/page-4">
-          <a>Link to dynamic page 4</a>
+          Link to dynamic page 4
         </Link>
       </li>
       <li>
         <Link href="/[dynamic]" as="/page-5">
-          <a>Link to dynamic page 5</a>
+          Link to dynamic page 5
         </Link>
       </li>
     </ol>

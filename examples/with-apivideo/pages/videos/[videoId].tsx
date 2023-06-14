@@ -63,7 +63,7 @@ const VideoView: NextPage<IVideoViewProps> = ({
             .<br />
             It provides multiple properties to customize your video player.
           </p>
-          <p>Try 3 of them just bellow 👇</p>
+          <p>Try 3 of them just below 👇</p>
         </div>
 
         <div className="inputs-container">

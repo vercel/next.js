@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { experimental_use as use } from 'react'
+import { use } from 'react'
 
 async function getData() {
   await new Promise((resolve) => setTimeout(resolve, 1000))

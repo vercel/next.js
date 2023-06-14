@@ -1,4 +1,4 @@
-import { experimental_use as use } from 'react'
+import { use } from 'react'
 import Runtime from '../../utils/runtime'
 import Time from '../../utils/time'
 
@@ -8,9 +8,7 @@ async function getData() {
   }
 }
 
-export const config = {
-  runtime: 'nodejs',
-}
+export const runtime = 'nodejs'
 
 export default function Page(props) {
   const { type } = use(getData())

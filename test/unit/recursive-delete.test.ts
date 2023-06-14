@@ -16,7 +16,9 @@ describe('recursiveDelete', () => {
       await recursiveCopy(resolveDataDir, testResolveDataDir)
       await fs.symlink('./aa', join(testResolveDataDir, 'symlink'))
       await recursiveDelete(testResolveDataDir)
-      const result = await recursiveReadDir(testResolveDataDir, /.*/)
+      const result = await recursiveReadDir(testResolveDataDir, (f) =>
+        /.*/.test(f)
+      )
       expect(result.length).toBe(0)
     } finally {
       await recursiveDelete(testResolveDataDir)
@@ -32,13 +34,17 @@ describe('recursiveDelete', () => {
       // preserve cache dir
       await recursiveDelete(testpreservefileDir, /^cache/)
 
-      const result = await recursiveReadDir(testpreservefileDir, /.*/)
+      const result = await recursiveReadDir(testpreservefileDir, (f) =>
+        /.*/.test(f)
+      )
       expect(result.length).toBe(1)
     } finally {
       // Ensure test cleanup
       await recursiveDelete(testpreservefileDir)
 
-      const cleanupResult = await recursiveReadDir(testpreservefileDir, /.*/)
+      const cleanupResult = await recursiveReadDir(testpreservefileDir, (f) =>
+        /.*/.test(f)
+      )
       expect(cleanupResult.length).toBe(0)
     }
   })

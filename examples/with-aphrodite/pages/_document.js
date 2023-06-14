@@ -5,7 +5,7 @@ class MyDocument extends Document {
   static async getInitialProps({ renderPage }) {
     const { html, css } = StyleSheetServer.renderStatic(() => renderPage())
     const ids = css.renderedClassNames
-    return { ...html, css, ids }
+    return { ...(await html), css, ids }
   }
 
   render() {

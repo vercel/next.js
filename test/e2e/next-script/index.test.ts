@@ -13,7 +13,7 @@ describe('beforeInteractive in document Head', () => {
         'pages/_document.js': `
           import { Html, Head, Main, NextScript } from 'next/document'
           import Script from 'next/script'
-          
+
           export default function Document() {
             return (
               <Html>
@@ -31,7 +31,7 @@ describe('beforeInteractive in document Head', () => {
             )
           }
         `,
-        'pages/index.js': `        
+        'pages/index.js': `
           export default function Home() {
             return (
               <>
@@ -42,8 +42,8 @@ describe('beforeInteractive in document Head', () => {
         `,
       },
       dependencies: {
-        react: '17.0.2',
-        'react-dom': '17.0.2',
+        react: 'latest',
+        'react-dom': 'latest',
       },
     })
   })
@@ -74,7 +74,7 @@ describe('beforeInteractive in document body', () => {
         'pages/_document.js': `
           import { Html, Head, Main, NextScript } from 'next/document'
           import Script from 'next/script'
-          
+
           export default function Document() {
             return (
               <Html>
@@ -91,7 +91,7 @@ describe('beforeInteractive in document body', () => {
             )
           }
         `,
-        'pages/index.js': `        
+        'pages/index.js': `
           export default function Home() {
             return (
               <>
@@ -102,8 +102,8 @@ describe('beforeInteractive in document body', () => {
         `,
       },
       dependencies: {
-        react: '17.0.2',
-        'react-dom': '17.0.2',
+        react: 'latest',
+        'react-dom': 'latest',
       },
     })
   })
@@ -149,8 +149,8 @@ describe('experimental.nextScriptWorkers: false with no Partytown dependency', (
       },
       // TODO: @housseindjirdeh: verify React 18 functionality
       dependencies: {
-        react: '17.0.2',
-        'react-dom': '17.0.2',
+        react: 'latest',
+        'react-dom': 'latest',
       },
     })
   })
@@ -182,10 +182,6 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
         experimental: {
           nextScriptWorkers: true,
         },
-        dependencies: {
-          react: '17',
-          'react-dom': '17',
-        },
       },
       files: {
         'pages/index.js': `
@@ -204,6 +200,8 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
         `,
       },
       dependencies: {
+        react: 'latest',
+        'react-dom': 'latest',
         '@builder.io/partytown': '0.4.2',
       },
     })
@@ -255,21 +253,29 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
 })
 
 describe('experimental.nextScriptWorkers: true with required Partytown dependency for inline script', () => {
+  let next: NextInstance
+
+  // Note: previously we were using `finally` cluase inside of test assertion. However, if the test times out
+  // exceeding jest.setTimeout() value, the finally clause is not executed and subsequent tests will fail due to
+  // hanging next instance.
+  afterEach(async () => {
+    if (next) {
+      await next.destroy()
+      next = undefined
+    }
+  })
+
   const createNextApp = async (script) =>
     await createNext({
       nextConfig: {
         experimental: {
           nextScriptWorkers: true,
         },
-        dependencies: {
-          react: '17',
-          'react-dom': '17',
-        },
       },
       files: {
         'pages/index.js': `
         import Script from 'next/script'
-      
+
         export default function Page() {
           return (
             <>
@@ -281,12 +287,13 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
       `,
       },
       dependencies: {
+        react: 'latest',
+        'react-dom': 'latest',
         '@builder.io/partytown': '0.4.2',
       },
     })
 
   it('Inline worker script through children is modified by Partytown to execute on a worker thread', async () => {
-    let next: NextInstance
     let browser: BrowserInterface
 
     next = await createNextApp(
@@ -308,12 +315,10 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
       expect(text).toBe('abc')
     } finally {
       if (browser) await browser.close()
-      await next.destroy()
     }
   })
 
   it('Inline worker script through dangerouslySetInnerHtml is modified by Partytown to execute on a worker thread', async () => {
-    let next: NextInstance
     let browser: BrowserInterface
 
     next = await createNextApp(
@@ -335,7 +340,6 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
       expect(text).toBe('abcd')
     } finally {
       if (browser) await browser.close()
-      await next.destroy()
     }
   })
 })
@@ -399,8 +403,8 @@ describe('experimental.nextScriptWorkers: true with config override', () => {
       },
       dependencies: {
         '@builder.io/partytown': '0.4.2',
-        react: '17',
-        'react-dom': '17',
+        react: 'latest',
+        'react-dom': 'latest',
       },
     })
   })

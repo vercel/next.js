@@ -6,11 +6,6 @@ export default function Page() {
     <div>
       <Comp />
       <StyledComp />
-      <style jsx>{`
-        .this-wont-be-transformed {
-          color: purple;
-        }
-      `}</style>
     </div>
   )
 }

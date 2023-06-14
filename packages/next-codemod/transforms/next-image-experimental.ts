@@ -1,3 +1,5 @@
+import { join, parse } from 'path'
+import { writeFileSync } from 'fs'
 import type {
   API,
   Collection,
@@ -54,6 +56,12 @@ function findAndReplaceProps(
         }
         if (a.name.name === 'objectPosition' && 'value' in a.value) {
           objectPosition = String(a.value.value)
+          return false
+        }
+        if (a.name.name === 'lazyBoundary') {
+          return false
+        }
+        if (a.name.name === 'lazyRoot') {
           return false
         }
 
@@ -141,13 +149,129 @@ function findAndReplaceProps(
     })
 }
 
+function nextConfigTransformer(
+  j: JSCodeshift,
+  root: Collection,
+  appDir: string
+) {
+  let pathPrefix = ''
+  let loaderType = ''
+  root.find(j.ObjectExpression).forEach((o) => {
+    ;(o.value.properties || []).forEach((images) => {
+      if (
+        images.type === 'ObjectProperty' &&
+        images.key.type === 'Identifier' &&
+        images.key.name === 'images' &&
+        images.value.type === 'ObjectExpression' &&
+        images.value.properties
+      ) {
+        const properties = images.value.properties.filter((p) => {
+          if (
+            p.type === 'ObjectProperty' &&
+            p.key.type === 'Identifier' &&
+            p.key.name === 'loader' &&
+            'value' in p.value
+          ) {
+            if (
+              p.value.value === 'imgix' ||
+              p.value.value === 'cloudinary' ||
+              p.value.value === 'akamai'
+            ) {
+              loaderType = p.value.value
+              p.value.value = 'custom'
+            }
+          }
+          if (
+            p.type === 'ObjectProperty' &&
+            p.key.type === 'Identifier' &&
+            p.key.name === 'path' &&
+            'value' in p.value
+          ) {
+            pathPrefix = String(p.value.value)
+            return false
+          }
+          return true
+        })
+        if (loaderType && pathPrefix) {
+          const importSpecifier = `./${loaderType}-loader.js`
+          const filePath = join(appDir, importSpecifier)
+          properties.push(
+            j.property(
+              'init',
+              j.identifier('loaderFile'),
+              j.literal(importSpecifier)
+            )
+          )
+          images.value.properties = properties
+          const normalizeSrc = `const normalizeSrc = (src) => src[0] === '/' ? src.slice(1) : src`
+          if (loaderType === 'imgix') {
+            writeFileSync(
+              filePath,
+              `${normalizeSrc}
+            export default function imgixLoader({ src, width, quality }) {
+              const url = new URL('${pathPrefix}' + normalizeSrc(src))
+              const params = url.searchParams
+              params.set('auto', params.getAll('auto').join(',') || 'format')
+              params.set('fit', params.get('fit') || 'max')
+              params.set('w', params.get('w') || width.toString())
+              if (quality) { params.set('q', quality.toString()) }
+              return url.href
+            }`
+                .split('\n')
+                .map((l) => l.trim())
+                .join('\n')
+            )
+          } else if (loaderType === 'cloudinary') {
+            writeFileSync(
+              filePath,
+              `${normalizeSrc}
+            export default function cloudinaryLoader({ src, width, quality }) {
+              const params = ['f_auto', 'c_limit', 'w_' + width, 'q_' + (quality || 'auto')]
+              const paramsString = params.join(',') + '/'
+              return '${pathPrefix}' + paramsString + normalizeSrc(src)
+            }`
+                .split('\n')
+                .map((l) => l.trim())
+                .join('\n')
+            )
+          } else if (loaderType === 'akamai') {
+            writeFileSync(
+              filePath,
+              `${normalizeSrc}
+            export default function akamaiLoader({ src, width, quality }) {
+              return '${pathPrefix}' + normalizeSrc(src) + '?imwidth=' + width
+            }`
+                .split('\n')
+                .map((l) => l.trim())
+                .join('\n')
+            )
+          }
+        }
+      }
+    })
+  })
+  return root
+}
+
 export default function transformer(
   file: FileInfo,
   api: API,
   options: Options
 ) {
-  const j = api.jscodeshift
+  const j = api.jscodeshift.withParser('tsx')
   const root = j(file.source)
+
+  const parsed = parse(file.path || '/')
+  const isConfig =
+    parsed.base === 'next.config.js' ||
+    parsed.base === 'next.config.ts' ||
+    parsed.base === 'next.config.mjs' ||
+    parsed.base === 'next.config.cjs'
+
+  if (isConfig) {
+    const result = nextConfigTransformer(j, root, parsed.dir)
+    return result.toSource()
+  }
 
   // Before: import Image from "next/legacy/image"
   //  After: import Image from "next/image"
@@ -160,28 +284,24 @@ export default function transformer(
         (node) => node.type === 'ImportDefaultSpecifier'
       ) as ImportDefaultSpecifier | undefined
       const tagName = defaultSpecifier?.local?.name
-
+      imageImport.node.source = j.stringLiteral('next/image')
       if (tagName) {
-        j(imageImport).replaceWith(
-          j.importDeclaration(
-            imageImport.node.specifiers,
-            j.stringLiteral('next/image')
-          )
-        )
         findAndReplaceProps(j, root, tagName)
       }
     })
   // Before: const Image = await import("next/legacy/image")
   //  After: const Image = await import("next/image")
-  root
-    .find(j.ImportExpression, {
-      source: { value: 'next/legacy/image' },
-    })
-    .forEach((imageImport) => {
-      j(imageImport).replaceWith(
-        j.importExpression(j.stringLiteral('next/image'))
-      )
-    })
+  root.find(j.AwaitExpression).forEach((awaitExp) => {
+    const arg = awaitExp.value.argument
+    if (arg?.type === 'CallExpression' && arg.callee.type === 'Import') {
+      if (
+        arg.arguments[0].type === 'StringLiteral' &&
+        arg.arguments[0].value === 'next/legacy/image'
+      ) {
+        arg.arguments[0] = j.stringLiteral('next/image')
+      }
+    }
+  })
 
   // Before: const Image = require("next/legacy/image")
   //  After: const Image = require("next/image")
@@ -193,12 +313,12 @@ export default function transformer(
       let firstArg = requireExp.value.arguments[0]
       if (
         firstArg &&
-        firstArg.type === 'Literal' &&
+        firstArg.type === 'StringLiteral' &&
         firstArg.value === 'next/legacy/image'
       ) {
         const tagName = requireExp?.parentPath?.value?.id?.name
         if (tagName) {
-          requireExp.value.arguments[0] = j.literal('next/image')
+          requireExp.value.arguments[0] = j.stringLiteral('next/image')
           findAndReplaceProps(j, root, tagName)
         }
       }

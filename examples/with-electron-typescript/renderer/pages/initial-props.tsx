@@ -18,9 +18,7 @@ const WithInitialProps = ({ items }: Props) => {
       <p>You are currently on: {router.pathname}</p>
       <List items={items} />
       <p>
-        <Link href="/">
-          <a>Go home</a>
-        </Link>
+        <Link href="/">Go home</Link>
       </p>
     </Layout>
   )

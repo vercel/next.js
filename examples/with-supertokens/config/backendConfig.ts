@@ -3,6 +3,7 @@ import EmailVerificationNode from 'supertokens-node/recipe/emailverification'
 import SessionNode from 'supertokens-node/recipe/session'
 import { appInfo } from './appInfo'
 import { AuthConfig } from '../interfaces'
+import DashboardNode from 'supertokens-node/recipe/dashboard'
 
 export let backendConfig = (): AuthConfig => {
   return {
@@ -38,6 +39,7 @@ export let backendConfig = (): AuthConfig => {
         ],
       }),
       SessionNode.init(),
+      DashboardNode.init(),
     ],
     isInServerlessEnv: true,
   }

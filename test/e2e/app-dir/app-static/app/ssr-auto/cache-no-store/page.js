@@ -1,13 +1,15 @@
-import { cache, use } from '../../../lib/utils'
+import { cache, use } from 'react'
 
 export default function Page() {
-  const getData = () =>
+  const getData = cache(() =>
     fetch('https://example.vercel.sh', {
       cache: 'no-store',
     })
       .then((res) => res.text())
       .then((text) => new Promise((res) => setTimeout(() => res(text), 1000)))
-  const dataPromise = cache(getData)
+  )
+
+  const dataPromise = getData()
   const data = use(dataPromise)
 
   return (

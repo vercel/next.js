@@ -2,12 +2,14 @@ import React from 'react'
 import Link from 'next/link'
 import styles from '../styles/shared.module.css'
 
-export default function Page(props) {
+export default function Page() {
   return (
     <>
-      <b>rc:{React.Component ? 'c' : 'no'}</b>
-      <p className={styles.content}>hello from pages/index</p>
+      <p id="hello" className={styles.content}>
+        hello from pages/index
+      </p>
       <Link href="/dashboard">Dashboard</Link>
+      <p id="react-version">{React.version}</p>
     </>
   )
 }

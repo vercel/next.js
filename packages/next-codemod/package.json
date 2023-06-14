@@ -1,7 +1,12 @@
 {
   "name": "@next/codemod",
-  "version": "12.3.2-canary.32",
+  "version": "13.4.6-canary.2",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "vercel/next.js",
+    "directory": "packages/next-codemod"
+  },
   "dependencies": {
     "chalk": "4.1.0",
     "cheerio": "1.0.0-rc.9",

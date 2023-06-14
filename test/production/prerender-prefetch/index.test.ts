@@ -15,6 +15,20 @@ describe('Prerender prefetch', () => {
     optimisticClientCache?: boolean
   }) => {
     it('should not revalidate during prefetching', async () => {
+      // restart revalidate period
+      for (const path of ['/blog/first', '/blog/second']) {
+        await fetchViaHTTP(next.url, path)
+        await check(
+          // eslint-disable-next-line no-loop-func
+          async () => {
+            return fetchViaHTTP(next.url, path).then((res) =>
+              res.headers.get('x-nextjs-cache')
+            )
+          },
+          /HIT/
+        )
+      }
+
       const reqs = {}
 
       // get initial values
