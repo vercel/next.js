@@ -183,7 +183,22 @@ Due to the global nature of stylesheets, and to avoid conflicts, you may **only 
 
 In development, expressing stylesheets this way allows your styles to be hot reloaded as you edit them—meaning you can keep application state.
 
-In production, all CSS files will be automatically concatenated into a single minified `.css` file.
+In production, all CSS files will be automatically concatenated into a single minified `.css` file. The order that the CSS is concatenated will match the order the CSS is imported into the `_app.js` file. Pay special attention to imported JS modules that include their own CSS; the JS module's CSS will be concatenated following the same ordering rules as imported CSS files. For example:
+
+```jsx
+import '../styles.css'
+// The CSS in ErrorBoundary depends on the global CSS in styles.css,
+// so we import it after styles.css.
+import ErrorBoundary from '../components/ErrorBoundary'
+
+export default function MyApp({ Component, pageProps }) {
+  return (
+    <ErrorBoundary>
+      <Component {...pageProps} />
+    </ErrorBoundary>
+  )
+}
+```
 
 </PagesOnly>
 
