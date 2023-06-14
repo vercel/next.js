@@ -47,7 +47,6 @@ export function runTests(ctx) {
         `${basePath}en`,
         `/en${basePath}`,
       ]) {
-        console.error('checking', pathname)
         const res = await fetchViaHTTP(ctx.appPort, pathname, undefined, {
           redirect: 'manual',
         })
@@ -1252,7 +1251,12 @@ export function runTests(ctx) {
 
       const parsed = url.parse(res.headers.get('location'), true)
       expect(parsed.pathname).toBe(path)
-      expect(parsed.hostname).toBe(hostname)
+
+      if (hostname === 'localhost') {
+        expect(parsed.hostname).toBeOneOf([hostname, '127.0.0.1'])
+      } else {
+        expect(parsed.hostname).toBe(hostname)
+      }
       expect(parsed.query).toEqual(query)
     }
   })
@@ -2109,7 +2113,7 @@ export function runTests(ctx) {
     }
   })
 
-  it('should handle locales with domain', async () => {
+  describe('should handle locales with domain', () => {
     const domainItems = [
       {
         // used for testing, this should not be needed in most cases
@@ -2125,70 +2129,65 @@ export function runTests(ctx) {
         locales: ['go-BE'],
       },
     ]
-    const domainLocales = domainItems.reduce((prev, cur) => {
-      return [...prev, ...cur.locales]
-    }, [])
 
-    const checkDomainLocales = async (
-      domainDefault = '',
-      domain = '',
-      locale = ''
-    ) => {
-      const res = await fetchViaHTTP(
-        ctx.appPort,
-        `${ctx.basePath || '/'}`,
-        undefined,
-        {
-          headers: {
-            host: domain,
-            'accept-language': locale,
-          },
-          redirect: 'manual',
+    // For each domain, check that the locale is handled correctly.
+    describe.each(domainItems)('for domain $domain', ({ domain }) => {
+      // For each locale in all the domains, check that the locale is handled
+      // correctly.
+      it.each(domainItems.reduce((prev, cur) => [...prev, ...cur.locales], []))(
+        'should handle locale %s',
+        async (locale) => {
+          const res = await fetchViaHTTP(
+            ctx.appPort,
+            `${ctx.basePath || '/'}`,
+            undefined,
+            {
+              headers: {
+                host: domain,
+                'accept-language': locale,
+              },
+              redirect: 'manual',
+            }
+          )
+
+          const expectedDomainItem = domainItems.find(
+            (item) =>
+              item.defaultLocale === locale || item.locales.includes(locale)
+          )
+
+          const shouldRedirect =
+            expectedDomainItem.domain !== domain ||
+            locale !== expectedDomainItem.defaultLocale
+
+          if (shouldRedirect) {
+            expect(res.status).toBe(307)
+          } else {
+            expect(res.status).toBe(200)
+          }
+
+          if (shouldRedirect) {
+            const parsedUrl = url.parse(res.headers.get('location'), true)
+
+            const expectedPathname = `/${
+              expectedDomainItem.defaultLocale === locale ? '' : locale
+            }`
+            expect(parsedUrl.pathname).toBe(expectedPathname)
+            expect(parsedUrl.query).toEqual({})
+            expect(parsedUrl.hostname).toBe(expectedDomainItem.domain)
+          } else {
+            const html = await res.text()
+            const $ = cheerio.load(html)
+
+            expect($('html').attr('lang')).toBe(locale)
+            expect($('#router-locale').text()).toBe(locale)
+            expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+            // this will not be the domain's defaultLocale since we don't
+            // generate a prerendered version for each locale domain currently
+            expect($('#router-default-locale').text()).toBe('en-US')
+          }
         }
       )
-      const expectedDomainItem = domainItems.find(
-        (item) => item.defaultLocale === locale || item.locales.includes(locale)
-      )
-      const shouldRedirect =
-        expectedDomainItem.domain !== domain ||
-        locale !== expectedDomainItem.defaultLocale
-
-      console.log('checking', {
-        domain,
-        locale,
-        shouldRedirect,
-        expectedDomainItem,
-        status: res.status,
-      })
-
-      expect(res.status).toBe(shouldRedirect ? 307 : 200)
-
-      if (shouldRedirect) {
-        const parsedUrl = url.parse(res.headers.get('location'), true)
-
-        expect(parsedUrl.pathname).toBe(
-          `/${expectedDomainItem.defaultLocale === locale ? '' : locale}`
-        )
-        expect(parsedUrl.query).toEqual({})
-        expect(parsedUrl.hostname).toBe(expectedDomainItem.domain)
-      } else {
-        const html = await res.text()
-        const $ = cheerio.load(html)
-
-        expect($('html').attr('lang')).toBe(locale)
-        expect($('#router-locale').text()).toBe(locale)
-        expect(JSON.parse($('#router-locales').text())).toEqual(locales)
-        // this will not be the domain's defaultLocale since we don't
-        // generate a prerendered version for each locale domain currently
-        expect($('#router-default-locale').text()).toBe('en-US')
-      }
-    }
-
-    for (const item of domainItems) {
-      for (const locale of domainLocales) {
-        await checkDomainLocales(item.defaultLocale, item.domain, locale)
-      }
-    }
+    })
   })
 
   it('should provide defaultLocale correctly for locale domain', async () => {

@@ -1,8 +1,10 @@
-use turbo_tasks::{NothingVc, StatsType, TurboTasks, TurboTasksBackendApi};
-use turbo_tasks_memory::MemoryBackend;
+use turbopack_binding::turbo::{
+    tasks::{NothingVc, StatsType, TurboTasks, TurboTasksBackendApi},
+    tasks_memory::MemoryBackend,
+};
 
 pub fn register() {
-    turbo_tasks::register();
+    turbopack_binding::turbo::tasks::register();
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }
 

@@ -38,6 +38,14 @@ describe('og-api', () => {
     expect(body.size).toBeGreaterThan(0)
   })
 
+  it('should work in app route in node runtime', async () => {
+    const res = await fetchViaHTTP(next.url, '/og-node')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toContain('image/png')
+    const body = await res.blob()
+    expect(body.size).toBeGreaterThan(0)
+  })
+
   if ((global as any).isNextStart) {
     it('should copy files correctly', async () => {
       expect(next.cliOutput).not.toContain('Failed to copy traced files')
@@ -53,7 +61,9 @@ describe('og-api', () => {
         )
       ).toBe(true)
     })
-  } else {
+  }
+
+  if ((global as any).isNextDev) {
     it('should throw error when returning a response object in pages/api in node runtime', async () => {
       const res = await fetchViaHTTP(next.url, '/api/og-wrong-runtime')
       expect(res.status).toBe(500)

@@ -1,22 +1,18 @@
-export async function callServer(id: string, bound: any[]) {
-  const actionId = id
+import { getServerActionDispatcher } from './components/app-router'
 
-  // Fetching the current url with the action header.
-  // TODO: Refactor this to look up from a manifest.
-  const res = await fetch('', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Next-Action': actionId,
-    },
-    body: JSON.stringify({
-      bound,
-    }),
-  })
+export async function callServer(actionId: string, actionArgs: any[]) {
+  const actionDispatcher = getServerActionDispatcher()
 
-  if (!res.ok) {
-    throw new Error(await res.text())
+  if (!actionDispatcher) {
+    throw new Error('Invariant: missing action dispatcher.')
   }
 
-  return (await res.json())[0]
+  return new Promise((resolve, reject) => {
+    actionDispatcher({
+      actionId,
+      actionArgs,
+      resolve,
+      reject,
+    })
+  })
 }

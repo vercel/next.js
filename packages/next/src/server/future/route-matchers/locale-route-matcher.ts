@@ -1,5 +1,6 @@
-import { LocaleRouteDefinition } from '../route-definitions/locale-route-definition'
-import { LocaleRouteMatch } from '../route-matches/locale-route-match'
+import type { LocaleAnalysisResult } from '../helpers/i18n-provider'
+import type { LocaleRouteDefinition } from '../route-definitions/locale-route-definition'
+import type { LocaleRouteMatch } from '../route-matches/locale-route-match'
 import { RouteMatcher } from './route-matcher'
 
 export type LocaleMatcherMatchOptions = {
@@ -8,26 +9,7 @@ export type LocaleMatcherMatchOptions = {
    * treated as locale-aware. If this is undefined, it means that this
    * application was not configured for additional locales.
    */
-  i18n?: {
-    /**
-     * The locale that was detected on the incoming route. If `undefined` it
-     * means that the locale should be considered to be the default one.
-     *
-     * For example, if the default locale is `en` and the incoming route is
-     * `/about`, then this would be `undefined`. If the incoming route was
-     * `/en/about`, then this would be `en`. If the incoming route was
-     * `/fr/about` then this would be `fr`.
-     */
-    detectedLocale?: string
-
-    /**
-     * The pathname that has had it's locale information stripped from it.
-     *
-     * For example, if the pathname previous was `/en/about` and the locale was
-     * `en`, then this would be `/about`.
-     */
-    pathname: string
-  }
+  i18n?: LocaleAnalysisResult
 }
 
 export class LocaleRouteMatcher<

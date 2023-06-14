@@ -20,13 +20,13 @@ The benchmark numbers we share on [the Turbopack website](https://turbo.build/pa
 To run Turbopack benchmarks against other bundlers, run:
 
 ```sh
-TURBOPACK_BENCH_BUNDLERS=all cargo bench -p next-dev
+cargo bench -p turbopack-bench -p turbopack-cli
 ```
 
 and optionally filter the benchmarks run to specific bundlers, such as:
 
 ```sh
-TURBOPACK_BENCH_BUNDLERS=all cargo bench -p next-dev -- "hmr_to_eval/(Turbopack CSR|Vite)"
+cargo bench -p turbopack-bench -p turbopack-cli -- "hmr_to_eval/(Turbopack CSR|Vite)"
 ```
 
 **Note**: The Turbopack benchmark suite includes a mix of server-side rendered and client-only rendered examples -- these are reflected in "CSR" or "SSR" in the benchmark name. Turbopack supports both, while some other bundlers only support client-rendered examples. Take that into account when comparing CSR results against SSR.

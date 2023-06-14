@@ -1,11 +1,10 @@
 use std::convert::TryFrom;
 
-use crate::util::MapErr;
 use napi::bindgen_prelude::*;
-use next_binding::turbo::{
-    next_build::{next_build as turbo_next_build, NextBuildOptions},
-    next_dev::{devserver_options::DevServerOptions, start_server},
-};
+use next_build::{next_build as turbo_next_build, NextBuildOptions};
+use next_dev::{devserver_options::DevServerOptions, start_server};
+
+use crate::util::MapErr;
 
 #[napi]
 pub async fn start_turbo_dev(options: Buffer) -> napi::Result<()> {

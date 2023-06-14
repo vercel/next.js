@@ -9,11 +9,10 @@ import {
 } from '../../shared/lib/app-router-context'
 import {
   SearchParamsContext,
-  // ParamsContext,
   PathnameContext,
-  // LayoutSegmentsContext,
 } from '../../shared/lib/hooks-client-context'
 import { clientHookInServerComponentError } from './client-hook-in-server-component-error'
+import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
 
 const INTERNAL_URLSEARCHPARAMS_INSTANCE = Symbol(
   'internal for urlsearchparams readonly'
@@ -109,12 +108,6 @@ export function usePathname(): string {
   return useContext(PathnameContext) as string
 }
 
-// TODO-APP: getting all params when client-side navigating is non-trivial as it does not have route matchers so this might have to be a server context instead.
-// export function useParams() {
-//   clientHookInServerComponentError('useParams')
-//   return useContext(ParamsContext)
-// }
-
 export {
   ServerInsertedHTMLContext,
   useServerInsertedHTML,
@@ -136,32 +129,43 @@ export function useRouter(): import('../../shared/lib/app-router-context').AppRo
 interface Params {
   [key: string]: string
 }
-// TODO-APP: handle parallel routes
+
+// this function performs a depth-first search of the tree to find the selected
+// params
 function getSelectedParams(
   tree: FlightRouterState,
   params: Params = {}
 ): Params {
-  // After first parallel route prefer children, if there's no children pick the first parallel route.
   const parallelRoutes = tree[1]
-  const node = parallelRoutes.children ?? Object.values(parallelRoutes)[0]
 
-  if (!node) return params
-  const segment = node[0]
-  const isDynamicParameter = Array.isArray(segment)
-  const segmentValue = isDynamicParameter ? segment[1] : segment
-  if (!segmentValue || segmentValue === '__PAGE__') return params
+  for (const parallelRoute of Object.values(parallelRoutes)) {
+    const segment = parallelRoute[0]
+    const isDynamicParameter = Array.isArray(segment)
+    const segmentValue = isDynamicParameter ? segment[1] : segment
+    if (!segmentValue || segmentValue.startsWith('__PAGE__')) continue
 
-  if (isDynamicParameter) {
-    params[segment[0]] = segment[1]
+    if (isDynamicParameter) {
+      params[segment[0]] = segment[1]
+    }
+
+    params = getSelectedParams(parallelRoute, params)
   }
 
-  return getSelectedParams(node, params)
+  return params
 }
 
-export function useParams() {
+/**
+ * Get the current parameters. For example useParams() on /dashboard/[team]
+ * where pathname is /dashboard/nextjs would return { team: 'nextjs' }
+ */
+export function useParams(): Params {
   clientHookInServerComponentError('useParams')
-  const { tree } = useContext(GlobalLayoutRouterContext)
-  return getSelectedParams(tree)
+  const globalLayoutRouterContext = useContext(GlobalLayoutRouterContext)
+  if (!globalLayoutRouterContext) {
+    // This only happens in `pages`. Type is overwritten in navigation.d.ts
+    return null!
+  }
+  return getSelectedParams(globalLayoutRouterContext.tree)
 }
 
 // TODO-APP: handle parallel routes
@@ -186,8 +190,9 @@ function getSelectedLayoutSegmentPath(
 
   if (!node) return segmentPath
   const segment = node[0]
-  const segmentValue = Array.isArray(segment) ? segment[1] : segment
-  if (!segmentValue || segmentValue === '__PAGE__') return segmentPath
+
+  const segmentValue = getSegmentValue(segment)
+  if (!segmentValue || segmentValue.startsWith('__PAGE__')) return segmentPath
 
   segmentPath.push(segmentValue)
 

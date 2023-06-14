@@ -1,7 +1,9 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::primitives::{BoolVc, Regex};
-use turbopack_node::route_matcher::{Param, ParamsVc, RouteMatcher};
+use turbopack_binding::{
+    turbo::tasks::primitives::{BoolVc, Regex},
+    turbopack::node::route_matcher::{Param, ParamsVc, RouteMatcher},
+};
 
 /// A regular expression that matches a path, with named capture groups for the
 /// dynamic parts of the path.

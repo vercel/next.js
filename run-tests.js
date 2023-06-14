@@ -12,6 +12,11 @@ const { createNextInstall } = require('./test/lib/create-next-install')
 const glob = promisify(_glob)
 const exec = promisify(execOrig)
 
+// Try to read an external array-based json to filter tests to be allowed / or disallowed.
+// If process.argv contains a test to be executed, this'll append it to the list.
+const externalTestsFilterLists = process.env.NEXT_EXTERNAL_TESTS_FILTERS
+  ? require(process.env.NEXT_EXTERNAL_TESTS_FILTERS)
+  : { enabledTests: [] }
 const timings = []
 const DEFAULT_NUM_RETRIES = os.platform() === 'win32' ? 2 : 1
 const DEFAULT_CONCURRENCY = 2
@@ -54,6 +59,9 @@ const configuredTestTypes = Object.values(testFilters)
 const cleanUpAndExit = async (code) => {
   if (process.env.NEXT_TEST_STARTER) {
     await fs.remove(process.env.NEXT_TEST_STARTER)
+  }
+  if (process.env.NEXT_TEST_TEMP_REPO) {
+    await fs.remove(process.env.NEXT_TEST_TEMP_REPO)
   }
   console.log(`exiting with code ${code}`)
 
@@ -99,7 +107,8 @@ async function main() {
   const writeTimings = process.argv.includes('--write-timings')
   const groupIdx = process.argv.indexOf('-g')
   const groupArg = groupIdx !== -1 && process.argv[groupIdx + 1]
-
+  const testPatternIdx = process.argv.indexOf('--test-pattern')
+  const testPattern = testPatternIdx !== -1 && process.argv[testPatternIdx + 1]
   const testTypeIdx = process.argv.indexOf('--type')
   const testType = testTypeIdx > -1 ? process.argv[testTypeIdx + 1] : undefined
   let filterTestsBy
@@ -139,12 +148,21 @@ async function main() {
   let prevTimings
 
   if (tests.length === 0) {
+    let testPatternRegex
+
+    if (testPattern) {
+      testPatternRegex = new RegExp(testPattern)
+    }
+
     tests = (
       await glob('**/*.test.{js,ts,tsx}', {
         nodir: true,
         cwd: path.join(__dirname, 'test'),
       })
     ).filter((test) => {
+      if (testPatternRegex) {
+        return testPatternRegex.test(test)
+      }
       if (filterTestsBy) {
         // only include the specified type
         return filterTestsBy === 'none' ? true : test.startsWith(filterTestsBy)
@@ -153,31 +171,42 @@ async function main() {
         return !configuredTestTypes.some((type) => test.startsWith(type))
       }
     })
+  }
 
-    if (outputTimings && groupArg) {
-      console.log('Fetching previous timings data')
+  if (outputTimings && groupArg) {
+    console.log('Fetching previous timings data')
+    try {
+      const timingsFile = path.join(process.cwd(), 'test-timings.json')
       try {
-        const timingsFile = path.join(__dirname, 'test-timings.json')
-        try {
-          prevTimings = JSON.parse(await fs.readFile(timingsFile, 'utf8'))
-          console.log('Loaded test timings from disk successfully')
-        } catch (_) {}
-
-        if (!prevTimings) {
-          prevTimings = await getTestTimings()
-          console.log('Fetched previous timings data successfully')
-
-          if (writeTimings) {
-            await fs.writeFile(timingsFile, JSON.stringify(prevTimings))
-            console.log('Wrote previous timings data to', timingsFile)
-            await cleanUpAndExit(0)
-          }
-        }
-      } catch (err) {
-        console.log(`Failed to fetch timings data`, err)
-        await cleanUpAndExit(1)
+        prevTimings = JSON.parse(await fs.readFile(timingsFile, 'utf8'))
+        console.log('Loaded test timings from disk successfully')
+      } catch (_) {
+        console.error('failed to load from disk', _)
       }
+
+      if (!prevTimings) {
+        prevTimings = await getTestTimings()
+        console.log('Fetched previous timings data successfully')
+
+        if (writeTimings) {
+          await fs.writeFile(timingsFile, JSON.stringify(prevTimings))
+          console.log('Wrote previous timings data to', timingsFile)
+          await cleanUpAndExit(0)
+        }
+      }
+    } catch (err) {
+      console.log(`Failed to fetch timings data`, err)
+      await cleanUpAndExit(1)
     }
+  }
+
+  // If there are external manifest contains list of tests, apply it to the test lists.
+  if (externalTestsFilterLists?.enabledTests.length > 0) {
+    tests = tests.filter((test) =>
+      externalTestsFilterLists.enabledTests.some((enabled) =>
+        enabled.includes(test)
+      )
+    )
   }
 
   let testNames = [
@@ -231,6 +260,7 @@ async function main() {
       const numPerGroup = Math.ceil(testNames.length / groupTotal)
       let offset = (groupPos - 1) * numPerGroup
       testNames = testNames.slice(offset, offset + numPerGroup)
+      console.log('Splitting without timings')
     }
   }
 
@@ -257,14 +287,23 @@ async function main() {
     // to avoid having to run yarn each time
     console.log('Creating Next.js install for isolated tests')
     const reactVersion = process.env.NEXT_TEST_REACT_VERSION || 'latest'
-    const testStarter = await createNextInstall({
+    const { installDir, pkgPaths, tmpRepoDir } = await createNextInstall({
       parentSpan: mockTrace(),
       dependencies: {
         react: reactVersion,
         'react-dom': reactVersion,
       },
+      keepRepoDir: true,
     })
-    process.env.NEXT_TEST_STARTER = testStarter
+
+    const serializedPkgPaths = []
+
+    for (const key of pkgPaths.keys()) {
+      serializedPkgPaths.push([key, pkgPaths.get(key)])
+    }
+    process.env.NEXT_TEST_PKG_PATHS = JSON.stringify(serializedPkgPaths)
+    process.env.NEXT_TEST_TEMP_REPO = tmpRepoDir
+    process.env.NEXT_TEST_STARTER = installDir
   }
 
   const sema = new Sema(concurrency, { capacity: testNames.length })
@@ -302,11 +341,20 @@ async function main() {
           stdio: ['ignore', 'pipe', 'pipe'],
           env: {
             ...process.env,
+            IS_RETRY: isRetry ? 'true' : undefined,
             RECORD_REPLAY: shouldRecordTestWithReplay,
             // run tests in headless mode by default
             HEADLESS: 'true',
             TRACE_PLAYWRIGHT: 'true',
             NEXT_TELEMETRY_DISABLED: '1',
+            // unset CI env so CI behavior is only explicitly
+            // tested when enabled
+            CI: '',
+            CIRCLECI: '',
+            GITHUB_ACTIONS: '',
+            CONTINUOUS_INTEGRATION: '',
+            RUN_ID: '',
+            BUILD_NUMBER: '',
             ...(isFinalRun
               ? {
                   // Events can be finicky in CI. This switches to a more
@@ -320,7 +368,7 @@ async function main() {
         }
       )
       const handleOutput = (type) => (chunk) => {
-        if (hideOutput && !isFinalRun) {
+        if (hideOutput) {
           outputChunks.push({ type, chunk })
         } else {
           process.stderr.write(chunk)
@@ -345,13 +393,12 @@ async function main() {
               }
             })
           }
-          return reject(
-            new Error(
-              code
-                ? `failed with code: ${code}`
-                : `failed with signal: ${signal}`
-            )
+          const err = new Error(
+            code ? `failed with code: ${code}` : `failed with signal: ${signal}`
           )
+          err.output = outputChunks.map((chunk) => chunk.toString()).join('')
+
+          return reject(err)
         }
         await fs
           .remove(
@@ -375,9 +422,14 @@ async function main() {
     testNames.map(async (test) => {
       const dirName = path.dirname(test)
       let dirSema = directorySemas.get(dirName)
-      if (dirSema === undefined)
+
+      // we only restrict 1 test per directory for
+      // legacy integration tests
+      if (test.startsWith('test/integration') && dirSema === undefined) {
         directorySemas.set(dirName, (dirSema = new Sema(1)))
-      await dirSema.acquire()
+      }
+      if (dirSema) await dirSema.acquire()
+
       await sema.acquire()
       let passed = false
 
@@ -428,9 +480,9 @@ async function main() {
 
       if (!passed) {
         console.error(`${test} failed to pass within ${numRetries} retries`)
-        children.forEach((child) => child.kill())
 
         if (!shouldContinueTestsOnError) {
+          children.forEach((child) => child.kill())
           cleanUpAndExit(1)
         } else {
           console.log(
@@ -454,7 +506,7 @@ async function main() {
       }
 
       sema.release()
-      dirSema.release()
+      if (dirSema) dirSema.release()
     })
   )
 
@@ -527,7 +579,9 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error(err)
-  cleanUpAndExit(1)
-})
+main()
+  .then(() => cleanUpAndExit(0))
+  .catch((err) => {
+    console.error(err)
+    cleanUpAndExit(1)
+  })

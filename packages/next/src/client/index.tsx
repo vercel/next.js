@@ -9,7 +9,6 @@ import type {
 } from '../shared/lib/router/router'
 
 import React from 'react'
-// @ts-expect-error upgrade react types to react 18
 import ReactDOM from 'react-dom/client'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import mitt, { MittEmitter } from '../shared/lib/mitt'
@@ -64,6 +63,21 @@ declare global {
   }
 }
 
+// ensure dynamic imports have deployment id added if enabled
+const getChunkScriptFilename = __webpack_require__.u
+
+// eslint-disable-next-line no-undef
+__webpack_require__.u = (chunkId: any) => {
+  return (
+    getChunkScriptFilename(chunkId) +
+    `${
+      process.env.__NEXT_DEPLOYMENT_ID
+        ? `?dpl=${process.env.__NEXT_DEPLOYMENT_ID}`
+        : ''
+    }`
+  )
+}
+
 type RenderRouteInfo = PrivateRouteInfo & {
   App: AppComponent
   scroll?: { x: number; y: number } | null
@@ -101,6 +115,7 @@ let CachedComponent: React.ComponentType
 ;(self as any).__next_require__ = __webpack_require__
 
 class Container extends React.Component<{
+  children?: React.ReactNode
   fn: (err: Error, info?: any) => void
 }> {
   componentDidCatch(componentErr: Error, info: any) {

@@ -39,6 +39,44 @@ let appPort
 let app
 
 const runTests = (isDev = false, isTurbo = false) => {
+  it.each([
+    {
+      path: '/to-ANOTHER',
+      content: /could not be found/,
+      status: 404,
+    },
+    {
+      path: '/HELLO-world',
+      content: /could not be found/,
+      status: 404,
+    },
+    {
+      path: '/docs/GITHUB',
+      content: /could not be found/,
+      status: 404,
+    },
+    {
+      path: '/add-HEADER',
+      content: /could not be found/,
+      status: 404,
+    },
+  ])(
+    'should honor caseSensitiveRoutes config for $path',
+    async ({ path, status, content }) => {
+      const res = await fetchViaHTTP(appPort, path, undefined, {
+        redirect: 'manual',
+      })
+
+      if (status) {
+        expect(res.status).toBe(status)
+      }
+
+      if (content) {
+        expect(await res.text()).toMatch(content)
+      }
+    }
+  )
+
   it('should successfully rewrite a WebSocket request', async () => {
     // TODO: remove once test failure has been fixed
     if (isTurbo) return
@@ -1534,6 +1572,7 @@ const runTests = (isDev = false, isTurbo = false) => {
       expect(manifest).toEqual({
         version: 3,
         pages404: true,
+        caseSensitive: true,
         basePath: '',
         dataRoutes: [
           {
@@ -1544,10 +1583,10 @@ const runTests = (isDev = false, isTurbo = false) => {
             ),
             namedDataRouteRegex: `^/_next/data/${escapeRegex(
               buildId
-            )}/blog\\-catchall/(?<slug>.+?)\\.json$`,
+            )}/blog\\-catchall/(?<nxtPslug>.+?)\\.json$`,
             page: '/blog-catchall/[...slug]',
             routeKeys: {
-              slug: 'slug',
+              nxtPslug: 'nxtPslug',
             },
           },
           {
@@ -1556,10 +1595,10 @@ const runTests = (isDev = false, isTurbo = false) => {
             )}\\/overridden\\/([^\\/]+?)\\.json$`,
             namedDataRouteRegex: `^/_next/data/${escapeRegex(
               buildId
-            )}/overridden/(?<slug>[^/]+?)\\.json$`,
+            )}/overridden/(?<nxtPslug>[^/]+?)\\.json$`,
             page: '/overridden/[slug]',
             routeKeys: {
-              slug: 'slug',
+              nxtPslug: 'nxtPslug',
             },
           },
         ],
@@ -2464,67 +2503,67 @@ const runTests = (isDev = false, isTurbo = false) => {
         },
         dynamicRoutes: [
           {
-            namedRegex: '^/_sport/(?<slug>[^/]+?)(?:/)?$',
+            namedRegex: '^/_sport/(?<nxtPslug>[^/]+?)(?:/)?$',
             page: '/_sport/[slug]',
             regex: normalizeRegEx('^\\/_sport\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
-              slug: 'slug',
+              nxtPslug: 'nxtPslug',
             },
           },
           {
-            namedRegex: '^/_sport/(?<slug>[^/]+?)/test(?:/)?$',
+            namedRegex: '^/_sport/(?<nxtPslug>[^/]+?)/test(?:/)?$',
             page: '/_sport/[slug]/test',
             regex: normalizeRegEx('^\\/_sport\\/([^\\/]+?)\\/test(?:\\/)?$'),
             routeKeys: {
-              slug: 'slug',
+              nxtPslug: 'nxtPslug',
             },
           },
           {
-            namedRegex: '^/another/(?<id>[^/]+?)(?:/)?$',
+            namedRegex: '^/another/(?<nxtPid>[^/]+?)(?:/)?$',
             page: '/another/[id]',
             regex: normalizeRegEx('^\\/another\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
-              id: 'id',
+              nxtPid: 'nxtPid',
             },
           },
           {
-            namedRegex: '^/api/dynamic/(?<slug>[^/]+?)(?:/)?$',
+            namedRegex: '^/api/dynamic/(?<nxtPslug>[^/]+?)(?:/)?$',
             page: '/api/dynamic/[slug]',
             regex: normalizeRegEx('^\\/api\\/dynamic\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
-              slug: 'slug',
+              nxtPslug: 'nxtPslug',
             },
           },
           {
-            namedRegex: '^/auto\\-export/(?<slug>[^/]+?)(?:/)?$',
+            namedRegex: '^/auto\\-export/(?<nxtPslug>[^/]+?)(?:/)?$',
             page: '/auto-export/[slug]',
             regex: normalizeRegEx('^\\/auto\\-export\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
-              slug: 'slug',
+              nxtPslug: 'nxtPslug',
             },
           },
           {
-            namedRegex: '^/blog/(?<post>[^/]+?)(?:/)?$',
+            namedRegex: '^/blog/(?<nxtPpost>[^/]+?)(?:/)?$',
             page: '/blog/[post]',
             regex: normalizeRegEx('^\\/blog\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
-              post: 'post',
+              nxtPpost: 'nxtPpost',
             },
           },
           {
-            namedRegex: '^/blog\\-catchall/(?<slug>.+?)(?:/)?$',
+            namedRegex: '^/blog\\-catchall/(?<nxtPslug>.+?)(?:/)?$',
             page: '/blog-catchall/[...slug]',
             regex: normalizeRegEx('^\\/blog\\-catchall\\/(.+?)(?:\\/)?$'),
             routeKeys: {
-              slug: 'slug',
+              nxtPslug: 'nxtPslug',
             },
           },
           {
-            namedRegex: '^/overridden/(?<slug>[^/]+?)(?:/)?$',
+            namedRegex: '^/overridden/(?<nxtPslug>[^/]+?)(?:/)?$',
             page: '/overridden/[slug]',
             regex: '^\\/overridden\\/([^\\/]+?)(?:\\/)?$',
             routeKeys: {
-              slug: 'slug',
+              nxtPslug: 'nxtPslug',
             },
           },
         ],

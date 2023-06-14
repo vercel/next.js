@@ -4,12 +4,6 @@ createNextDescribe(
   'app dir - hooks',
   {
     files: __dirname,
-    dependencies: {
-      swr: 'latest',
-      react: 'latest',
-      'react-dom': 'latest',
-      sass: 'latest',
-    },
   },
   ({ next, isNextDeploy }) => {
     describe('from pages', () => {
@@ -82,6 +76,35 @@ createNextDescribe(
       }
     })
 
+    describe('useDraftMode', () => {
+      let initialRand = 'unintialized'
+      it('should use initial rand when draft mode be disabled', async () => {
+        const $ = await next.render$('/hooks/use-draft-mode')
+        expect($('#draft-mode-val').text()).toBe('DISABLED')
+        expect($('#rand').text()).toBeDefined()
+        initialRand = $('#rand').text()
+      })
+
+      it('should genenerate rand when draft mode enabled', async () => {
+        const res = await next.fetch('/enable')
+        const h = res.headers.get('set-cookie') || ''
+        const cookie = h
+          .split(';')
+          .find((c) => c.startsWith('__prerender_bypass'))
+        const $ = await next.render$(
+          '/hooks/use-draft-mode',
+          {},
+          {
+            headers: {
+              Cookie: cookie,
+            },
+          }
+        )
+        expect($('#draft-mode-val').text()).toBe('ENABLED')
+        expect($('#rand').text()).not.toBe(initialRand)
+      })
+    })
+
     describe('useRouter', () => {
       it('should allow access to the router', async () => {
         const browser = await next.browser('/hooks/use-router')
@@ -103,36 +126,33 @@ createNextDescribe(
       })
     })
 
-    // TODO: re-enable after fixed when deployed
-    if (!isNextDeploy) {
-      describe('useSelectedLayoutSegments', () => {
-        it.each`
-          path                                                           | outerLayout                                             | innerLayout
-          ${'/hooks/use-selected-layout-segment/first'}                  | ${['first']}                                            | ${[]}
-          ${'/hooks/use-selected-layout-segment/first/slug1'}            | ${['first', 'slug1']}                                   | ${['slug1']}
-          ${'/hooks/use-selected-layout-segment/first/slug2/second'}     | ${['first', 'slug2', '(group)', 'second']}              | ${['slug2', '(group)', 'second']}
-          ${'/hooks/use-selected-layout-segment/first/slug2/second/a/b'} | ${['first', 'slug2', '(group)', 'second', 'a/b']}       | ${['slug2', '(group)', 'second', 'a/b']}
-          ${'/hooks/use-selected-layout-segment/rewritten'}              | ${['first', 'slug3', '(group)', 'second', 'catch/all']} | ${['slug3', '(group)', 'second', 'catch/all']}
-          ${'/hooks/use-selected-layout-segment/rewritten-middleware'}   | ${['first', 'slug3', '(group)', 'second', 'catch/all']} | ${['slug3', '(group)', 'second', 'catch/all']}
-        `(
-          'should have the correct layout segments at $path',
-          async ({ path, outerLayout, innerLayout }) => {
-            const $ = await next.render$(path)
+    describe('useSelectedLayoutSegments', () => {
+      it.each`
+        path                                                           | outerLayout                                             | innerLayout
+        ${'/hooks/use-selected-layout-segment/first'}                  | ${['first']}                                            | ${[]}
+        ${'/hooks/use-selected-layout-segment/first/slug1'}            | ${['first', 'slug1']}                                   | ${['slug1']}
+        ${'/hooks/use-selected-layout-segment/first/slug2/second'}     | ${['first', 'slug2', '(group)', 'second']}              | ${['slug2', '(group)', 'second']}
+        ${'/hooks/use-selected-layout-segment/first/slug2/second/a/b'} | ${['first', 'slug2', '(group)', 'second', 'a/b']}       | ${['slug2', '(group)', 'second', 'a/b']}
+        ${'/hooks/use-selected-layout-segment/rewritten'}              | ${['first', 'slug3', '(group)', 'second', 'catch/all']} | ${['slug3', '(group)', 'second', 'catch/all']}
+        ${'/hooks/use-selected-layout-segment/rewritten-middleware'}   | ${['first', 'slug3', '(group)', 'second', 'catch/all']} | ${['slug3', '(group)', 'second', 'catch/all']}
+      `(
+        'should have the correct layout segments at $path',
+        async ({ path, outerLayout, innerLayout }) => {
+          const $ = await next.render$(path)
 
-            expect(JSON.parse($('#outer-layout').text())).toEqual(outerLayout)
-            expect(JSON.parse($('#inner-layout').text())).toEqual(innerLayout)
-          }
+          expect(JSON.parse($('#outer-layout').text())).toEqual(outerLayout)
+          expect(JSON.parse($('#inner-layout').text())).toEqual(innerLayout)
+        }
+      )
+
+      it('should return an empty array in pages', async () => {
+        const $ = await next.render$(
+          '/hooks/use-selected-layout-segment/first/slug2/second/a/b'
         )
 
-        it('should return an empty array in pages', async () => {
-          const $ = await next.render$(
-            '/hooks/use-selected-layout-segment/first/slug2/second/a/b'
-          )
-
-          expect(JSON.parse($('#page-layout-segments').text())).toEqual([])
-        })
+        expect(JSON.parse($('#page-layout-segments').text())).toEqual([])
       })
-    }
+    })
 
     describe('useSelectedLayoutSegment', () => {
       it.each`

@@ -32,16 +32,21 @@ DEALINGS IN THE SOFTWARE.
 #[macro_use]
 extern crate napi_derive;
 
-use std::{env, panic::set_hook, sync::Arc};
+use std::{
+    env,
+    panic::set_hook,
+    sync::{Arc, Once},
+};
 
 use backtrace::Backtrace;
 use fxhash::FxHashSet;
 use napi::bindgen_prelude::*;
-use next_binding::swc::core::{
+use turbopack_binding::swc::core::{
     base::{Compiler, TransformOutput},
     common::{sync::Lazy, FilePathMapping, SourceMap},
 };
 
+pub mod app_structure;
 pub mod mdx;
 pub mod minify;
 pub mod parse;
@@ -52,9 +57,18 @@ pub mod util;
 
 // don't use turbo malloc (`mimalloc`) on linux-musl-aarch64 because of the
 // compile error
-#[cfg(not(all(target_os = "linux", target_env = "musl", target_arch = "aarch64")))]
+#[cfg(not(any(
+    all(target_os = "linux", target_env = "musl", target_arch = "aarch64"),
+    feature = "__internal_dhat-heap",
+    feature = "__internal_dhat-ad-hoc"
+)))]
 #[global_allocator]
-static ALLOC: turbo_malloc::TurboMalloc = turbo_malloc::TurboMalloc;
+static ALLOC: turbopack_binding::turbo::malloc::TurboMalloc =
+    turbopack_binding::turbo::malloc::TurboMalloc;
+
+#[cfg(feature = "__internal_dhat-heap")]
+#[global_allocator]
+static ALLOC: dhat::Alloc = dhat::Alloc;
 
 static COMPILER: Lazy<Arc<Compiler>> = Lazy::new(|| {
     let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));
@@ -97,6 +111,15 @@ pub fn complete_output(
 }
 
 pub type ArcCompiler = Arc<Compiler>;
+
+static REGISTER_ONCE: Once = Once::new();
+
+fn register() {
+    REGISTER_ONCE.call_once(|| {
+        next_core::register();
+        include!(concat!(env!("OUT_DIR"), "/register.rs"));
+    });
+}
 
 #[cfg(all(feature = "native-tls", feature = "rustls-tls"))]
 compile_error!("You can't enable both `native-tls` and `rustls-tls`");

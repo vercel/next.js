@@ -41,20 +41,36 @@ interface ModuleContext {
  */
 const moduleContexts = new Map<string, ModuleContext>()
 
+const pendingModuleCaches = new Map<string, Promise<ModuleContext>>()
+
 /**
  * For a given path a context, this function checks if there is any module
  * context that contains the path with an older content and, if that's the
  * case, removes the context from the cache.
  */
-export function clearModuleContext(path: string, content: Buffer | string) {
-  for (const [key, cache] of moduleContexts) {
+export async function clearModuleContext(
+  path: string,
+  content: Buffer | string
+) {
+  const handleContext = (
+    key: string,
+    cache: ReturnType<(typeof moduleContexts)['get']>,
+    context: typeof moduleContexts | typeof pendingModuleCaches
+  ) => {
     const prev = cache?.paths.get(path)?.replace(WEBPACK_HASH_REGEX, '')
     if (
       typeof prev !== 'undefined' &&
       prev !== content.toString().replace(WEBPACK_HASH_REGEX, '')
     ) {
-      moduleContexts.delete(key)
+      context.delete(key)
     }
+  }
+
+  for (const [key, cache] of moduleContexts) {
+    handleContext(key, cache, moduleContexts)
+  }
+  for (const [key, cache] of pendingModuleCaches) {
+    handleContext(key, await cache, pendingModuleCaches)
   }
 }
 
@@ -75,10 +91,8 @@ async function loadWasm(
   return modules
 }
 
-function buildEnvironmentVariablesFrom(
-  keys: string[]
-): Record<string, string | undefined> {
-  const pairs = keys.map((key) => [key, process.env[key]])
+function buildEnvironmentVariablesFrom(): Record<string, string | undefined> {
+  const pairs = Object.keys(process.env).map((key) => [key, process.env[key]])
   const env = Object.fromEntries(pairs)
   env.NEXT_RUNTIME = 'edge'
   return env
@@ -92,16 +106,14 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
   throw error
 }
 
-function createProcessPolyfill(options: Pick<ModuleContextOptions, 'env'>) {
-  const env = buildEnvironmentVariablesFrom(options.env)
-
-  const processPolyfill = { env }
+function createProcessPolyfill() {
+  const processPolyfill = { env: buildEnvironmentVariablesFrom() }
   const overridenValue: Record<string, any> = {}
   for (const key of Object.keys(process)) {
     if (key === 'env') continue
     Object.defineProperty(processPolyfill, key, {
       get() {
-        if (overridenValue[key]) {
+        if (overridenValue[key] !== undefined) {
           return overridenValue[key]
         }
         if (typeof (process as any)[key] === 'function') {
@@ -149,7 +161,7 @@ function getDecorateUnhandledRejection(runtime: EdgeRuntime) {
 
 const NativeModuleMap = (() => {
   const mods: Record<
-    `node:${typeof SUPPORTED_NATIVE_MODULES[number]}`,
+    `node:${(typeof SUPPORTED_NATIVE_MODULES)[number]}`,
     unknown
   > = {
     'node:buffer': pick(BufferImplementation, [
@@ -219,7 +231,7 @@ async function createModuleContext(options: ModuleContextOptions) {
         ? { strings: true, wasm: true }
         : undefined,
     extend: (context) => {
-      context.process = createProcessPolyfill(options)
+      context.process = createProcessPolyfill()
 
       Object.defineProperty(context, 'require', {
         enumerable: false,
@@ -399,12 +411,9 @@ interface ModuleContextOptions {
   moduleName: string
   onWarning: (warn: Error) => void
   useCache: boolean
-  env: string[]
   distDir: string
   edgeFunctionEntry: Pick<EdgeFunctionDefinition, 'assets' | 'wasm'>
 }
-
-const pendingModuleCaches = new Map<string, Promise<ModuleContext>>()
 
 function getModuleContextShared(options: ModuleContextOptions) {
   let deferredModuleContext = pendingModuleCaches.get(options.moduleName)

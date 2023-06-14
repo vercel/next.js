@@ -1,5 +1,6 @@
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { NodeNextResponse } from './base-http/node'
+import { splitCookiesString } from './web/utils'
 
 /**
  * Sends the response on the underlying next response object.
@@ -23,9 +24,14 @@ export async function sendResponse(
     response.headers?.forEach((value, name) => {
       // The append handling is special cased for `set-cookie`.
       if (name.toLowerCase() === 'set-cookie') {
-        res.setHeader(name, value)
-      } else {
+        // TODO: (wyattjoh) replace with native response iteration when we can upgrade undici
+        for (const cookie of splitCookiesString(value)) {
+          res.appendHeader(name, cookie)
+        }
+      } else if (res.hasHeader(name)) {
         res.appendHeader(name, value)
+      } else {
+        res.setHeader(name, value)
       }
     })
 

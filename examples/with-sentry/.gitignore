@@ -31,6 +31,10 @@ yarn-error.log*
 # vercel
 .vercel
 
-# typescript
-*.tsbuildinfo
-next-env.d.ts
+# Sentry
+.sentryclirc
+
+# Sentry
+next.config.original.js
+sentry.properties
+

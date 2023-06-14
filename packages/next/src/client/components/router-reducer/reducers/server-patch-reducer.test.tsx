@@ -4,6 +4,9 @@ import type {
   FlightData,
   FlightRouterState,
 } from '../../../../server/app-render/types'
+
+const buildId = 'development'
+
 jest.mock('../fetch-server-response', () => {
   const flightData: FlightData = [
     [
@@ -139,6 +142,7 @@ describe('serverPatchReducer', () => {
     ])
 
     const state = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -179,6 +183,7 @@ describe('serverPatchReducer', () => {
     )
 
     const expectedState: ReturnType<typeof serverPatchReducer> = {
+      buildId,
       prefetchCache: new Map(),
       pushRef: {
         mpaNavigation: false,
@@ -187,8 +192,10 @@ describe('serverPatchReducer', () => {
       focusAndScrollRef: {
         apply: false,
         hashFragment: null,
+        segmentPaths: [],
       },
       canonicalUrl: '/linking/about',
+      nextUrl: '/linking/somewhere-else',
       cache: {
         status: CacheStates.READY,
         data: null,
@@ -320,6 +327,7 @@ describe('serverPatchReducer', () => {
     ])
 
     const state = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -330,6 +338,7 @@ describe('serverPatchReducer', () => {
     })
 
     const state2 = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -373,6 +382,7 @@ describe('serverPatchReducer', () => {
     )
 
     const expectedState: ReturnType<typeof serverPatchReducer> = {
+      buildId,
       prefetchCache: new Map(),
       pushRef: {
         mpaNavigation: false,
@@ -381,8 +391,10 @@ describe('serverPatchReducer', () => {
       focusAndScrollRef: {
         apply: false,
         hashFragment: null,
+        segmentPaths: [],
       },
       canonicalUrl: '/linking/about',
+      nextUrl: '/linking/about',
       cache: {
         status: CacheStates.READY,
         data: null,
@@ -501,6 +513,7 @@ describe('serverPatchReducer', () => {
     }
 
     const state = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -546,6 +559,7 @@ describe('serverPatchReducer', () => {
     )
 
     const expectedState: ReturnType<typeof serverPatchReducer> = {
+      buildId,
       prefetchCache: new Map(),
       pushRef: {
         mpaNavigation: false,
@@ -554,8 +568,12 @@ describe('serverPatchReducer', () => {
       focusAndScrollRef: {
         apply: true,
         hashFragment: null,
+        segmentPaths: [
+          ['children', 'linking', 'children', 'about', 'children', ''],
+        ],
       },
       canonicalUrl: '/linking/about',
+      nextUrl: '/linking/somewhere-else',
       cache: {
         status: CacheStates.READY,
         data: null,

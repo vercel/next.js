@@ -1,4 +1,4 @@
-import type ws from 'ws'
+import type ws from 'next/dist/compiled/ws'
 import origDebug from 'next/dist/compiled/debug'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { NextConfigComplete } from '../config-shared'
@@ -9,7 +9,10 @@ import type {
 
 import { EventEmitter } from 'events'
 import { findPageFile } from '../lib/find-page-file'
-import { runDependingOnPageType } from '../../build/entries'
+import {
+  getStaticInfoIncludingLayouts,
+  runDependingOnPageType,
+} from '../../build/entries'
 import { join, posix } from 'path'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
@@ -17,7 +20,6 @@ import { ensureLeadingSlash } from '../../shared/lib/page-path/ensure-leading-sl
 import { removePagePathTail } from '../../shared/lib/page-path/remove-page-path-tail'
 import { reportTrigger } from '../../build/output'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
-import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import {
   isInstrumentationHookFile,
   isInstrumentationHookFilename,
@@ -96,7 +98,9 @@ export function getEntryKey(
   pageBundleType: 'app' | 'pages' | 'root',
   page: string
 ) {
-  return `${compilerType}@${pageBundleType}@${page}`
+  // TODO: handle the /@children slot better
+  // this is a quick hack to handle when children is provided as @children/page instead of /page
+  return `${compilerType}@${pageBundleType}@${page.replace(/\/@children/g, '')}`
 }
 
 function getPageBundleType(pageBundlePath: string) {
@@ -222,7 +226,7 @@ const normalizeOutputPath = (dir: string) => dir.replace(/[/\\]server$/, '')
 
 export const getEntries = (
   dir: string
-): NonNullable<ReturnType<typeof entriesMap['get']>> => {
+): NonNullable<ReturnType<(typeof entriesMap)['get']>> => {
   dir = normalizeOutputPath(dir)
   const entries = entriesMap.get(dir) || {}
   entriesMap.set(dir, entries)
@@ -236,7 +240,7 @@ export const getInvalidator = (dir: string) => {
   return invalidators.get(dir)
 }
 
-const doneCallbacks: EventEmitter | null = new EventEmitter()
+const doneCallbacks: EventEmitter = new EventEmitter()
 const lastClientAccessPages = ['']
 const lastServerAccessPagesForAppDir = ['']
 
@@ -292,10 +296,14 @@ class Invalidator {
     }
     this.invalidate(rebuild)
   }
+
+  public willRebuild(compilerKey: keyof typeof COMPILER_INDEXES) {
+    return this.rebuildAgain.has(compilerKey)
+  }
 }
 
 function disposeInactiveEntries(
-  entries: NonNullable<ReturnType<typeof entriesMap['get']>>,
+  entries: NonNullable<ReturnType<(typeof entriesMap)['get']>>,
   maxInactiveAge: number
 ) {
   Object.keys(entries).forEach((entryKey) => {
@@ -570,7 +578,7 @@ export function onDemandEntryHandler({
       }
 
       entry.status = BUILT
-      doneCallbacks!.emit(name)
+      doneCallbacks.emit(name)
     }
 
     getInvalidator(multiCompiler.outputPath)?.doneBuilding([...COMPILER_KEYS])
@@ -706,7 +714,6 @@ export function onDemandEntryHandler({
         const isInsideAppDir =
           !!appDir && pagePathData.absolutePagePath.startsWith(appDir)
 
-        const pageType = isInsideAppDir ? 'app' : 'pages'
         const pageBundleType = getPageBundleType(pagePathData.bundlePath)
         const addEntry = (
           compilerType: CompilerNameValues
@@ -761,11 +768,14 @@ export function onDemandEntryHandler({
           }
         }
 
-        const staticInfo = await getPageStaticInfo({
+        const staticInfo = await getStaticInfoIncludingLayouts({
+          page,
           pageFilePath: pagePathData.absolutePagePath,
-          nextConfig,
+          isInsideAppDir,
+          pageExtensions: nextConfig.pageExtensions,
           isDev: true,
-          pageType,
+          config: nextConfig,
+          appDir,
         })
 
         const added = new Map<CompilerNameValues, ReturnType<typeof addEntry>>()
@@ -819,8 +829,8 @@ export function onDemandEntryHandler({
         })
 
         const addedValues = [...added.values()]
-        const entriesThatShouldBeInvalidated = addedValues.filter(
-          (entry) => entry.shouldInvalidate
+        const entriesThatShouldBeInvalidated = [...added.entries()].filter(
+          ([, entry]) => entry.shouldInvalidate
         )
         const hasNewEntry = addedValues.some((entry) => entry.newEntry)
 
@@ -833,20 +843,36 @@ export function onDemandEntryHandler({
         }
 
         if (entriesThatShouldBeInvalidated.length > 0) {
-          const invalidatePromises = entriesThatShouldBeInvalidated.map(
-            ({ entryKey }) => {
-              return new Promise<void>((resolve, reject) => {
-                doneCallbacks!.once(entryKey, (err: Error) => {
-                  if (err) {
-                    return reject(err)
-                  }
-                  resolve()
+          const invalidatePromise = Promise.all(
+            entriesThatShouldBeInvalidated.map(
+              ([compilerKey, { entryKey }]) => {
+                return new Promise<void>((resolve, reject) => {
+                  doneCallbacks.once(entryKey, (err: Error) => {
+                    if (err) {
+                      return reject(err)
+                    }
+
+                    // If the invalidation also triggers a rebuild, we need to
+                    // wait for that additional build to prevent race conditions.
+                    const needsRebuild = curInvalidator.willRebuild(compilerKey)
+                    if (needsRebuild) {
+                      doneCallbacks.once(entryKey, (rebuildErr: Error) => {
+                        if (rebuildErr) {
+                          return reject(rebuildErr)
+                        }
+                        resolve()
+                      })
+                    } else {
+                      resolve()
+                    }
+                  })
                 })
-              })
-            }
+              }
+            )
           )
+
           curInvalidator.invalidate([...added.keys()])
-          await Promise.all(invalidatePromises)
+          await invalidatePromise
         }
       } finally {
         clearTimeout(stalledEnsureTimeout)

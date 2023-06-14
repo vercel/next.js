@@ -6,12 +6,6 @@ import { check } from 'next-test-utils'
 describe('useSelectedLayoutSegment(s)', () => {
   let next: NextInstance
 
-  // TODO: remove after deploy failures is fixed
-  if ((global as any).isNextDeploy) {
-    it('should bail for deploy currently', () => {})
-    return
-  }
-
   beforeAll(async () => {
     next = await createNext({
       files: new FileRef(__dirname),

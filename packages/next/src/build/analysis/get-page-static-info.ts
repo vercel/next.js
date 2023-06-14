@@ -20,9 +20,9 @@ import { RSC_MODULE_TYPES } from '../../shared/lib/constants'
 import type { RSCMeta } from '../webpack/loaders/get-module-build-info'
 
 export interface MiddlewareConfig {
-  matchers: MiddlewareMatcher[]
-  unstable_allowDynamicGlobs: string[]
-  regions: string[] | string
+  matchers?: MiddlewareMatcher[]
+  unstable_allowDynamicGlobs?: string[]
+  regions?: string[] | string
 }
 
 export interface MiddlewareMatcher {
@@ -35,14 +35,16 @@ export interface MiddlewareMatcher {
 
 export interface PageStaticInfo {
   runtime?: ServerRuntime
+  preferredRegion?: string | string[]
   ssg?: boolean
   ssr?: boolean
   rsc?: RSCModuleType
-  middleware?: Partial<MiddlewareConfig>
+  middleware?: MiddlewareConfig
+  amp?: boolean | 'hybrid'
 }
 
 const CLIENT_MODULE_LABEL =
-  /\/\* __next_internal_client_entry_do_not_use__ ([^ ]*) \*\//
+  /\/\* __next_internal_client_entry_do_not_use__ ([^ ]*) (cjs|auto) \*\//
 const ACTION_MODULE_LABEL =
   /\/\* __next_internal_action_entry_do_not_use__ ([^ ]+) \*\//
 
@@ -52,18 +54,22 @@ export function getRSCModuleInformation(
   isServerLayer = true
 ): RSCMeta {
   const actions = source.match(ACTION_MODULE_LABEL)?.[1]?.split(',')
+  const clientInfoMatch = source.match(CLIENT_MODULE_LABEL)
+  const isClientRef = !!clientInfoMatch
 
   if (!isServerLayer) {
     return {
       type: RSC_MODULE_TYPES.client,
       actions,
+      isClientRef,
     }
   }
 
-  const clientRefs = source.match(CLIENT_MODULE_LABEL)?.[1]?.split(',')
+  const clientRefs = clientInfoMatch?.[1]?.split(',')
+  const clientEntryType = clientInfoMatch?.[2] as 'cjs' | 'auto'
 
   const type = clientRefs ? RSC_MODULE_TYPES.client : RSC_MODULE_TYPES.server
-  return { type, actions, clientRefs }
+  return { type, actions, clientRefs, clientEntryType, isClientRef }
 }
 
 /**
@@ -77,12 +83,24 @@ function checkExports(swcAST: any): {
   ssr: boolean
   ssg: boolean
   runtime?: string
+  preferredRegion?: string | string[]
+  generateImageMetadata?: boolean
+  generateSitemaps?: boolean
 } {
+  const exportsSet = new Set<string>([
+    'getStaticProps',
+    'getServerSideProps',
+    'generateImageMetadata',
+    'generateSitemaps',
+  ])
   if (Array.isArray(swcAST?.body)) {
     try {
       let runtime: string | undefined
+      let preferredRegion: string | string[] | undefined
       let ssr: boolean = false
       let ssg: boolean = false
+      let generateImageMetadata: boolean = false
+      let generateSitemaps: boolean = false
 
       for (const node of swcAST.body) {
         if (
@@ -93,18 +111,35 @@ function checkExports(swcAST: any): {
             if (declaration.id.value === 'runtime') {
               runtime = declaration.init.value
             }
+
+            if (declaration.id.value === 'preferredRegion') {
+              if (declaration.init.type === 'ArrayExpression') {
+                const elements: string[] = []
+                for (const element of declaration.init.elements) {
+                  const { expression } = element
+                  if (expression.type !== 'StringLiteral') {
+                    continue
+                  }
+                  elements.push(expression.value)
+                }
+                preferredRegion = elements
+              } else {
+                preferredRegion = declaration.init.value
+              }
+            }
           }
         }
 
         if (
           node.type === 'ExportDeclaration' &&
           node.declaration?.type === 'FunctionDeclaration' &&
-          ['getStaticProps', 'getServerSideProps'].includes(
-            node.declaration.identifier?.value
-          )
+          exportsSet.has(node.declaration.identifier?.value)
         ) {
-          ssg = node.declaration.identifier.value === 'getStaticProps'
-          ssr = node.declaration.identifier.value === 'getServerSideProps'
+          const id = node.declaration.identifier.value
+          ssg = id === 'getStaticProps'
+          ssr = id === 'getServerSideProps'
+          generateImageMetadata = id === 'generateImageMetadata'
+          generateSitemaps = id === 'generateSitemaps'
         }
 
         if (
@@ -112,9 +147,11 @@ function checkExports(swcAST: any): {
           node.declaration?.type === 'VariableDeclaration'
         ) {
           const id = node.declaration?.declarations[0]?.id.value
-          if (['getStaticProps', 'getServerSideProps'].includes(id)) {
+          if (exportsSet.has(id)) {
             ssg = id === 'getStaticProps'
             ssr = id === 'getServerSideProps'
+            generateImageMetadata = id === 'generateImageMetadata'
+            generateSitemaps = id === 'generateSitemaps'
           }
         }
 
@@ -126,18 +163,36 @@ function checkExports(swcAST: any): {
               specifier.orig?.value
           )
 
-          ssg = values.some((value: any) => ['getStaticProps'].includes(value))
-          ssr = values.some((value: any) =>
-            ['getServerSideProps'].includes(value)
-          )
+          for (const value of values) {
+            if (!ssg && value === 'getStaticProps') ssg = true
+            if (!ssr && value === 'getServerSideProps') ssr = true
+            if (!generateImageMetadata && value === 'generateImageMetadata')
+              generateImageMetadata = true
+            if (!generateSitemaps && value === 'generateSitemaps')
+              generateSitemaps = true
+          }
         }
       }
 
-      return { ssr, ssg, runtime }
+      return {
+        ssr,
+        ssg,
+        runtime,
+        preferredRegion,
+        generateImageMetadata,
+        generateSitemaps,
+      }
     } catch (err) {}
   }
 
-  return { ssg: false, ssr: false }
+  return {
+    ssg: false,
+    ssr: false,
+    runtime: undefined,
+    preferredRegion: undefined,
+    generateImageMetadata: false,
+    generateSitemaps: false,
+  }
 }
 
 async function tryToReadFile(filePath: string, shouldThrow: boolean) {
@@ -164,9 +219,14 @@ export function getMiddlewareMatchers(
   }
   const { i18n } = nextConfig
 
-  let routes = matchers.map(
-    (m) => (typeof m === 'string' ? { source: m } : m) as Middleware
-  )
+  const originalSourceMap = new Map<Middleware, string>()
+  let routes = matchers.map((m) => {
+    let middleware = (typeof m === 'string' ? { source: m } : m) as Middleware
+    if (middleware) {
+      originalSourceMap.set(middleware, middleware.source)
+    }
+    return middleware
+  })
 
   // check before we process the routes and after to ensure
   // they are still valid
@@ -193,7 +253,8 @@ export function getMiddlewareMatchers(
       source = `${nextConfig.basePath}${source}`
     }
 
-    return { ...r, source }
+    r.source = source
+    return r
   })
 
   checkCustomRoutes(routes, 'middleware')
@@ -206,10 +267,12 @@ export function getMiddlewareMatchers(
       throw new Error(`Invalid source: ${source}`)
     }
 
+    const originalSource = originalSourceMap.get(r)
+
     return {
       ...rest,
       regexp: parsedPage.regexStr,
-      originalSource: source,
+      originalSource: originalSource || source,
     }
   })
 }
@@ -257,6 +320,12 @@ function getMiddlewareConfig(
 
 const apiRouteWarnings = new LRUCache({ max: 250 })
 function warnAboutExperimentalEdge(apiRoute: string | null) {
+  if (
+    process.env.NODE_ENV === 'production' &&
+    process.env.NEXT_PRIVATE_BUILD_WORKER === '1'
+  ) {
+    return
+  }
   if (apiRouteWarnings.has(apiRoute)) {
     return
   }
@@ -292,6 +361,20 @@ function warnAboutUnsupportedValue(
   warnedUnsupportedValueMap.set(pageFilePath, true)
 }
 
+// Detect if metadata routes is a dynamic route, which containing
+// generateImageMetadata or generateSitemaps as export
+export async function isDynamicMetadataRoute(
+  pageFilePath: string
+): Promise<boolean> {
+  const fileContent = (await tryToReadFile(pageFilePath, true)) || ''
+  if (!/generateImageMetadata|generateSitemaps/.test(fileContent)) return false
+
+  const swcAST = await parseModule(pageFilePath, fileContent)
+  const exportsInfo = checkExports(swcAST)
+
+  return !exportsInfo.generateImageMetadata || !exportsInfo.generateSitemaps
+}
+
 /**
  * For a given pageFilePath and nextConfig, if the config supports it, this
  * function will read the file and return the runtime that should be used.
@@ -300,26 +383,26 @@ function warnAboutUnsupportedValue(
  * Related discussion: https://github.com/vercel/next.js/discussions/34179
  */
 export async function getPageStaticInfo(params: {
-  nextConfig: Partial<NextConfig>
   pageFilePath: string
+  nextConfig: Partial<NextConfig>
   isDev?: boolean
   page?: string
-  pageType?: 'pages' | 'app'
+  pageType: 'pages' | 'app' | 'root'
 }): Promise<PageStaticInfo> {
   const { isDev, pageFilePath, nextConfig, page, pageType } = params
 
   const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
   if (
-    /runtime|getStaticProps|getServerSideProps|export const config/.test(
+    /runtime|preferredRegion|getStaticProps|getServerSideProps|export const config/.test(
       fileContent
     )
   ) {
     const swcAST = await parseModule(pageFilePath, fileContent)
-    const { ssg, ssr, runtime } = checkExports(swcAST)
+    const { ssg, ssr, runtime, preferredRegion } = checkExports(swcAST)
     const rsc = getRSCModuleInformation(fileContent).type
 
     // default / failsafe value for config
-    let config: any = {}
+    let config: any
     try {
       config = extractExportedConstValue(swcAST, 'config')
     } catch (e) {
@@ -328,12 +411,29 @@ export async function getPageStaticInfo(params: {
       }
       // `export config` doesn't exist, or other unknown error throw by swc, silence them
     }
+    if (pageType === 'app') {
+      if (config) {
+        const message = `\`export const config\` in ${pageFilePath} is deprecated. Please change \`runtime\` property to segment export config. See https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config`
+        if (isDev) {
+          Log.warnOnce(message)
+        } else {
+          throw new Error(message)
+        }
+        config = {}
+      }
+    }
+    if (!config) config = {}
 
-    // Currently, we use `export const config = { runtime: '...' }` to specify the page runtime.
-    // But in the new app directory, we prefer to use `export const runtime = '...'`
+    // We use `export const config = { runtime: '...' }` to specify the page runtime for pages/.
+    // In the new app directory, we prefer to use `export const runtime = '...'`
     // and deprecate the old way. To prevent breaking changes for `pages`, we use the exported config
     // as the fallback value.
-    let resolvedRuntime = runtime || config.runtime
+    let resolvedRuntime
+    if (pageType === 'app') {
+      resolvedRuntime = runtime
+    } else {
+      resolvedRuntime = runtime || config.runtime
+    }
 
     if (
       typeof resolvedRuntime !== 'undefined' &&
@@ -356,11 +456,10 @@ export async function getPageStaticInfo(params: {
 
     const isAnAPIRoute = isAPIRoute(page?.replace(/^(?:\/src)?\/pages\//, '/'))
 
-    resolvedRuntime = isEdgeRuntime(resolvedRuntime)
-      ? resolvedRuntime
-      : requiresServerRuntime
-      ? resolvedRuntime || nextConfig.experimental?.runtime
-      : undefined
+    resolvedRuntime =
+      isEdgeRuntime(resolvedRuntime) || requiresServerRuntime
+        ? resolvedRuntime
+        : undefined
 
     if (resolvedRuntime === SERVER_RUNTIME.experimentalEdge) {
       warnAboutExperimentalEdge(isAnAPIRoute ? page! : null)
@@ -390,8 +489,10 @@ export async function getPageStaticInfo(params: {
       ssr,
       ssg,
       rsc,
+      amp: config.amp || false,
       ...(middlewareConfig && { middleware: middlewareConfig }),
       ...(resolvedRuntime && { runtime: resolvedRuntime }),
+      preferredRegion,
     }
   }
 
@@ -399,6 +500,7 @@ export async function getPageStaticInfo(params: {
     ssr: false,
     ssg: false,
     rsc: RSC_MODULE_TYPES.server,
-    runtime: nextConfig.experimental?.runtime,
+    amp: false,
+    runtime: undefined,
   }
 }

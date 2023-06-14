@@ -24,7 +24,7 @@ harness = false
 # `cargo xxx` without explicitly specifying features, not that we want to
 # promote this as default backend. Actual configuration is done when building next-swc,
 # and also turbopack standalone when we have it.
-default = ["cli", "custom_allocator", "native-tls"]
+default = ["cli", "custom_allocator", "native-tls", "serializable"]
 cli = ["clap"]
 serializable = []
 tokio_console = [
@@ -33,13 +33,14 @@ tokio_console = [
   "turbo-tasks/tokio_tracing",
 ]
 profile = []
-custom_allocator = ["turbo-malloc/custom_allocator"]
-next-font-local = ["next-core/next-font-local"]
+custom_allocator = ["turbopack-binding/__turbo_tasks_malloc", "turbopack-binding/__turbo_tasks_malloc_custom_allocator"]
 native-tls = ["next-core/native-tls"]
 rustls-tls = ["next-core/rustls-tls"]
-# Internal only. Enabled when building for the Next.js integration test suite.
-__internal_nextjs_integration_test = [
-  "next-core/__internal_nextjs_integration_test",
+# enable "HMR" for embedded assets
+dynamic_embed_contents = [
+  "next-core/dynamic_embed_contents",
+  "turbopack-binding/__turbopack_node_dynamic_embed_contents",
+  "turbopack-binding/__turbopack_dev_dynamic_embed_contents",
 ]
 
 [dependencies]
@@ -48,21 +49,28 @@ clap = { workspace = true, features = ["derive", "env"], optional = true }
 console-subscriber = { workspace = true, optional = true }
 dunce = { workspace = true }
 futures = { workspace = true }
+indexmap = { workspace = true }
 mime = { workspace = true }
 next-core = { workspace = true }
+once_cell = { workspace = true }
 owo-colors = { workspace = true }
 serde = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
-turbo-malloc = { workspace = true, default-features = false }
+turbopack-binding = { workspace = true, features = [
+  "__turbo_tasks_memory",
+  "__turbo_tasks_env",
+  "__turbo_tasks_fs",
+  "__turbopack",
+  "__turbopack_core",
+  "__turbopack_dev",
+  "__turbopack_env",
+  "__turbopack_cli_utils",
+  "__turbopack_node",
+  "__turbopack_dev_server",
+]}
 turbo-tasks = { workspace = true }
-turbo-tasks-fs = { workspace = true }
-turbo-tasks-memory = { workspace = true }
-turbopack = { workspace = true }
-turbopack-cli-utils = { workspace = true }
-turbopack-core = { workspace = true }
-turbopack-dev = { workspace = true }
-turbopack-dev-server = { workspace = true }
-turbopack-node = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
 webbrowser = { workspace = true }
 
 [dev-dependencies]
@@ -78,15 +86,18 @@ regex = { workspace = true }
 serde_json = { workspace = true }
 tempfile = { workspace = true }
 tungstenite = { workspace = true }
-turbo-tasks-testing = { workspace = true }
-turbopack-create-test-app = { workspace = true }
+turbopack-binding = { workspace = true, features = [
+  "__turbopack_bench",
+]}
 url = { workspace = true }
 
 [target.'cfg(unix)'.dev-dependencies]
 nix = "0.26.1"
 
 [build-dependencies]
-turbo-tasks-build = { workspace = true }
+turbopack-binding = { workspace = true, features = [
+  "__turbo_tasks_build"
+]}
 vergen = { version = "7.3.2", default-features = false, features = [
   "cargo",
   "build",

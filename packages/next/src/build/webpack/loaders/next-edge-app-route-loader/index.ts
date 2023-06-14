@@ -1,69 +1,66 @@
 import { getModuleBuildInfo } from '../get-module-build-info'
 import { stringifyRequest } from '../../stringify-request'
 import { NextConfig } from '../../../../server/config-shared'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
+import { WEBPACK_RESOURCE_QUERIES } from '../../../../lib/constants'
+import { MiddlewareConfig } from '../../../analysis/get-page-static-info'
 
 export type EdgeAppRouteLoaderQuery = {
   absolutePagePath: string
   page: string
   appDirLoader: string
+  preferredRegion: string | string[] | undefined
   nextConfigOutput: NextConfig['output']
+  middlewareConfig: string
 }
 
-export default async function edgeAppRouteLoader(this: any) {
-  const {
-    page,
-    absolutePagePath,
-    appDirLoader: appDirLoaderBase64,
-    nextConfigOutput,
-  } = this.getOptions() as EdgeAppRouteLoaderQuery
+const EdgeAppRouteLoader: webpack.LoaderDefinitionFunction<EdgeAppRouteLoaderQuery> =
+  async function (this) {
+    const {
+      page,
+      absolutePagePath,
+      preferredRegion,
+      appDirLoader: appDirLoaderBase64 = '',
+      middlewareConfig: middlewareConfigBase64 = '',
+    } = this.getOptions()
 
-  const appDirLoader = Buffer.from(
-    appDirLoaderBase64 || '',
-    'base64'
-  ).toString()
+    const appDirLoader = Buffer.from(appDirLoaderBase64, 'base64').toString()
+    const middlewareConfig: MiddlewareConfig = JSON.parse(
+      Buffer.from(middlewareConfigBase64, 'base64').toString()
+    )
 
-  const buildInfo = getModuleBuildInfo(this._module)
-  buildInfo.nextEdgeSSR = {
-    isServerComponent: false,
-    page: page,
-    isAppDir: true,
-  }
-  buildInfo.route = {
-    page,
-    absolutePagePath,
-  }
+    // Ensure we only run this loader for as a module.
+    if (!this._module) throw new Error('This loader is only usable as a module')
 
-  const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
+    const buildInfo = getModuleBuildInfo(this._module)
 
-  const pageModPath = `${appDirLoader}${stringifiedPagePath.substring(
-    1,
-    stringifiedPagePath.length - 1
-  )}?__edge_ssr_entry__`
+    buildInfo.nextEdgeSSR = {
+      isServerComponent: false,
+      page: page,
+      isAppDir: true,
+    }
+    buildInfo.route = {
+      page,
+      absolutePagePath,
+      preferredRegion,
+      middlewareConfig,
+    }
 
-  const transformed = `
-    import { adapter, enhanceGlobals } from 'next/dist/esm/server/web/adapter'
-    import { getHandle } from 'next/dist/esm/build/webpack/loaders/next-edge-app-route-loader/handle'
-
-    enhanceGlobals()
-
-    import * as mod from ${JSON.stringify(pageModPath)}
-
-    const render = getHandle({
-      mod,
-      page: ${JSON.stringify(page)},
-      nextConfigOuput: ${
-        nextConfigOutput ? JSON.stringify(nextConfigOutput) : 'undefined'
-      }
-    })
-
-    export const ComponentMod = mod
-
-    export default function(opts) {
-      return adapter({
-        ...opts,
-        handler: render
-      })
+    const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
+    const modulePath = `${appDirLoader}${stringifiedPagePath.substring(
+      1,
+      stringifiedPagePath.length - 1
+    )}?${WEBPACK_RESOURCE_QUERIES.edgeSSREntry}&${
+      WEBPACK_RESOURCE_QUERIES.metadata
     }`
 
-  return transformed
-}
+    return `
+    import { EdgeRouteModuleWrapper } from 'next/dist/esm/server/web/edge-route-module-wrapper'
+    import * as module from ${JSON.stringify(modulePath)}
+
+    export const ComponentMod = module
+
+    export default EdgeRouteModuleWrapper.wrap(module.routeModule)`
+  }
+
+export default EdgeAppRouteLoader

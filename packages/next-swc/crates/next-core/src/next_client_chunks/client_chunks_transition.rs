@@ -1,20 +1,23 @@
 use anyhow::Result;
 use turbo_tasks::Value;
-use turbo_tasks_fs::FileSystemPathVc;
-use turbopack::{
-    ecmascript::chunk::EcmascriptChunkPlaceableVc,
-    module_options::ModuleOptionsContextVc,
-    resolve_options_context::ResolveOptionsContextVc,
-    transition::{Transition, TransitionVc},
-    ModuleAssetContextVc,
+use turbopack_binding::{
+    turbo::tasks_fs::FileSystemPathVc,
+    turbopack::{
+        core::{asset::AssetVc, chunk::ChunkingContextVc, compile_time_info::CompileTimeInfoVc},
+        node::execution_context::ExecutionContextVc,
+        turbopack::{
+            ecmascript::chunk::EcmascriptChunkPlaceableVc,
+            module_options::ModuleOptionsContextVc,
+            resolve_options_context::ResolveOptionsContextVc,
+            transition::{Transition, TransitionVc},
+            ModuleAssetContextVc,
+        },
+    },
 };
-use turbopack_core::{
-    asset::AssetVc, chunk::ChunkingContextVc, compile_time_info::CompileTimeInfoVc,
-};
-use turbopack_node::execution_context::ExecutionContextVc;
 
 use super::with_chunks::WithChunksAsset;
 use crate::{
+    mode::NextMode,
     next_client::context::{
         get_client_chunking_context, get_client_module_options_context,
         get_client_resolve_options_context, ClientContextType,
@@ -38,6 +41,7 @@ impl NextClientChunksTransitionVc {
         project_path: FileSystemPathVc,
         execution_context: ExecutionContextVc,
         ty: Value<ClientContextType>,
+        mode: NextMode,
         server_root: FileSystemPathVc,
         client_compile_time_info: CompileTimeInfoVc,
         next_config: NextConfigVc,
@@ -54,6 +58,7 @@ impl NextClientChunksTransitionVc {
             execution_context,
             client_compile_time_info.environment(),
             ty,
+            mode,
             next_config,
         );
         NextClientChunksTransition {
@@ -62,6 +67,7 @@ impl NextClientChunksTransitionVc {
             client_resolve_options_context: get_client_resolve_options_context(
                 project_path,
                 ty,
+                mode,
                 next_config,
                 execution_context,
             ),
@@ -108,7 +114,6 @@ impl Transition for NextClientChunksTransition {
             if let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? {
                 WithChunksAsset {
                     asset: placeable,
-                    server_root: self.server_root,
                     chunking_context: self.client_chunking_context,
                 }
                 .cell()

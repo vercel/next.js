@@ -1,7 +1,5 @@
 import * as React from 'react'
 
-import { Issue } from '@vercel/turbopack-dev-runtime/types/protocol'
-
 import {
   TYPE_UNHANDLED_ERROR,
   TYPE_UNHANDLED_REJECTION,
@@ -130,47 +128,6 @@ function useResolvedErrors(
   return [readyErrors, isLoading]
 }
 
-const enum DisplayState {
-  Fullscreen,
-  Minimized,
-  Hidden,
-}
-
-type DisplayStateAction = (e?: MouseEvent | TouchEvent) => void
-
-type DisplayStateActions = {
-  fullscreen: DisplayStateAction
-  minimize: DisplayStateAction
-  hide: DisplayStateAction
-}
-
-function useDisplayState(
-  initialState: DisplayState
-): [DisplayState, DisplayStateActions] {
-  const [displayState, setDisplayState] =
-    React.useState<DisplayState>(initialState)
-
-  const actions = React.useMemo<DisplayStateActions>(
-    () => ({
-      fullscreen: (e) => {
-        e?.preventDefault()
-        setDisplayState(DisplayState.Fullscreen)
-      },
-      minimize: (e) => {
-        e?.preventDefault()
-        setDisplayState(DisplayState.Minimized)
-      },
-      hide: (e) => {
-        e?.preventDefault()
-        setDisplayState(DisplayState.Hidden)
-      },
-    }),
-    []
-  )
-
-  return [displayState, actions]
-}
-
 const enum TabId {
   TurbopackErrors = 'turbopack-issues',
   TurbopackWarnings = 'turbopack-warnings',
@@ -198,11 +155,12 @@ function isRuntimeWarning(error: ReadyRuntimeError) {
     'This Suspense boundary received an update before it finished hydrating.',
     'Hydration failed because the initial UI does not match what was rendered on the server.',
     'There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.',
+    'There was an error while hydrating this Suspense boundary. Switched to client rendering.',
   ].some((message) => error.error.message.includes(message))
 }
 
-interface TabConfig {
-  id: string
+interface TabBase {
+  id: TabId
   icon: any
   title: {
     one: string
@@ -210,10 +168,16 @@ interface TabConfig {
     short: string
   }
   message: any
-  items: (input: { readyErrors: ReadyRuntimeError[]; issues: Issue[] }) => any[]
   autoOpen: boolean
   severity: 'error' | 'warning' | 'none'
   as: any
+}
+
+interface TabConfig extends TabBase {
+  items: (input: {
+    readyErrors: ReadyRuntimeError[]
+    issues: Issue[]
+  }) => ReadyRuntimeError[] | Issue[]
 }
 
 const TABS: TabConfig[] = [
@@ -225,9 +189,7 @@ const TABS: TabConfig[] = [
       many: 'Runtime Errors',
       short: 'Err',
     },
-    message: (
-      <>Unhandled errors that happened during execution of application code.</>
-    ),
+    message: <>Unhandled errors reported when running the application.</>,
     items: ({ readyErrors }) => {
       return readyErrors.filter((e) => !isRuntimeWarning(e))
     },
@@ -245,7 +207,7 @@ const TABS: TabConfig[] = [
     },
     message: (
       <>
-        Error that happened during compilation of applications code.
+        Errors reported when compiling the application.
         <br />
         The application might work partially, but that's unlikely.
       </>
@@ -262,12 +224,12 @@ const TABS: TabConfig[] = [
     icon: <AlertOctagon />,
     title: {
       one: 'Runtime Warnings',
-      many: 'Runtime Warningss',
+      many: 'Runtime Warnings',
       short: 'Warn',
     },
     message: (
       <>
-        Unhandled errors that happened during execution of application code.
+        Unhandled errors reported when running the application.
         <br />
         The application might work partially, but that's unlikely.
       </>
@@ -289,10 +251,10 @@ const TABS: TabConfig[] = [
     },
     message: (
       <>
-        Warnings that were found during compilation of applications code.
+        Warnings reported when compiling the application.
         <br />
-        The application probably work, but these issues should still be
-        addressed eventually.
+        The application will probably work regardless, but these issues should
+        be addressed eventually.
       </>
     ),
     items: ({ issues }) => {
@@ -312,8 +274,7 @@ const TABS: TabConfig[] = [
     },
     message: (
       <>
-        Errors or warnings that happened during compilation of non-application
-        code.
+        Errors or warnings reported while compiling external code.
         <br />
         The application might be affected by them.
       </>
@@ -327,6 +288,10 @@ const TABS: TabConfig[] = [
   },
 ]
 
+interface Tab extends TabBase {
+  items: ReadyRuntimeError[] | Issue[]
+}
+
 // "instantiates" all tabs, filters out the ones that don't have any items
 function createTabs({
   issues,
@@ -334,7 +299,7 @@ function createTabs({
 }: {
   issues: Issue[]
   readyErrors: ReadyRuntimeError[]
-}) {
+}): Tab[] {
   const tabs = TABS.map((tab) => ({
     ...tab,
     items: tab.items({ issues, readyErrors }),
@@ -347,86 +312,287 @@ function itemHash(item: object) {
   return JSON.stringify(item)
 }
 
-export function Errors({ issues, errors }: ErrorsProps) {
-  const [readyErrors, _isLoading] = useResolvedErrors(errors)
-
-  const tabs = React.useMemo(
-    () => createTabs({ issues, readyErrors }),
-    [issues, readyErrors]
-  )
-
-  // Selected tab, null means it's closed
-  const [selectedTab, setSelectedTab] = React.useState<string | null>(null)
-
-  // Toast is hidden
-  const [hidden, setHidden] = React.useState(false)
-
-  // Already seen issue ids, to auto open the dialog on new errors
-  const [seenIds, setSeenIds] = React.useState(() => new Set())
-
-  React.useEffect(() => {
-    const newSeenIds = new Set()
-    let change = false
-    let autoOpen = false
-
-    // When the selected tab disappears we will go to another important tab or close the overlay
-    if (selectedTab && !tabs.some((tab) => tab.id === selectedTab)) {
-      const otherImportantTab = tabs.find((tab) => tab.autoOpen)
-      if (otherImportantTab) {
-        setSelectedTab(otherImportantTab.id)
-      } else {
-        setSelectedTab(null)
-      }
-    } else {
-      autoOpen = true
+type DisplayState =
+  | {
+      type: 'fullscreen'
+      tab: TabId
+    }
+  | {
+      type: 'minimized'
+    }
+  | {
+      type: 'hidden'
     }
 
-    // When there is a new item we open the overlay when autoOpen is set
-    for (const tab of tabs) {
-      for (const item of tab.items) {
-        newSeenIds.add(itemHash(item))
-        if (!seenIds.has(itemHash(item))) {
-          change = true
-          setHidden(false)
-          if (autoOpen && tab.autoOpen) {
-            setSelectedTab(tab.id)
+type ErrorsState = {
+  tabs: Tab[]
+  display: DisplayState
+  errorCount: number
+  warningCount: number
+
+  seenIds: Set<string>
+  issues: Issue[]
+  readyErrors: ReadyRuntimeError[]
+  lastSelectedTab: TabId | null
+}
+
+enum ErrorsActionType {
+  UpdateIssues = 'update-issues',
+  UpdateErrors = 'update-errors',
+  SelectTab = 'select-tab',
+  Fullscreen = 'fullscreen',
+  Minimize = 'minimize',
+  Hide = 'hide',
+}
+
+type UpdateIssuesAction = {
+  type: typeof ErrorsActionType.UpdateIssues
+  issues: Issue[]
+}
+
+type UpdateErrorsAction = {
+  type: typeof ErrorsActionType.UpdateErrors
+  readyErrors: ReadyRuntimeError[]
+}
+
+type SelectTabAction = {
+  type: typeof ErrorsActionType.SelectTab
+  tabId: TabId
+}
+
+type FullscreenAction = {
+  type: typeof ErrorsActionType.Fullscreen
+}
+
+type MinimizeAction = {
+  type: typeof ErrorsActionType.Minimize
+}
+
+type HideAction = {
+  type: typeof ErrorsActionType.Hide
+}
+
+type ErrorsAction =
+  | UpdateIssuesAction
+  | UpdateErrorsAction
+  | SelectTabAction
+  | FullscreenAction
+  | MinimizeAction
+  | HideAction
+
+// puts item
+function prependNewItems<T extends object>(
+  items: T[],
+  seenIds: Set<string>
+): T[] {
+  const newItems = []
+  let newIdx = 0
+
+  for (const item of items) {
+    if (seenIds.has(itemHash(item))) {
+      newItems.push(item)
+    } else {
+      newItems.splice(newIdx, 0, item)
+    }
+  }
+
+  return newItems
+}
+
+function reducer(oldState: ErrorsState, action: ErrorsAction): ErrorsState {
+  let state = oldState
+  switch (action.type) {
+    case ErrorsActionType.UpdateIssues: {
+      if (action.issues == oldState.issues) {
+        return oldState
+      }
+
+      const issues = prependNewItems(action.issues, oldState.seenIds)
+
+      state = {
+        ...oldState,
+        issues,
+        tabs: createTabs({
+          issues,
+          readyErrors: oldState.readyErrors,
+        }),
+      }
+      break
+    }
+    case ErrorsActionType.UpdateErrors: {
+      if (action.readyErrors == oldState.readyErrors) {
+        return oldState
+      }
+
+      const readyErrors = prependNewItems(action.readyErrors, oldState.seenIds)
+
+      state = {
+        ...oldState,
+        readyErrors,
+        tabs: createTabs({
+          issues: oldState.issues,
+          readyErrors,
+        }),
+      }
+      break
+    }
+    case ErrorsActionType.SelectTab: {
+      state = {
+        ...oldState,
+        display: {
+          type: 'fullscreen',
+          tab: action.tabId,
+        },
+      }
+      break
+    }
+    case ErrorsActionType.Fullscreen: {
+      state = {
+        ...oldState,
+        display: {
+          type: 'fullscreen',
+          tab: oldState.lastSelectedTab || TabId.TurbopackErrors,
+        },
+      }
+      break
+    }
+    case ErrorsActionType.Minimize: {
+      return {
+        ...oldState,
+        display: {
+          type: 'minimized',
+        },
+      }
+    }
+    case ErrorsActionType.Hide: {
+      return {
+        ...oldState,
+        display: {
+          type: 'hidden',
+        },
+      }
+    }
+  }
+
+  let autoOpen = false
+
+  // When the selected tab disappears we will go to another important tab or close the overlay
+  if (
+    state.display.type == 'fullscreen' &&
+    !state.tabs.map((tab) => tab.id).includes(state.display.tab)
+  ) {
+    const otherImportantTab = state.tabs.find((tab) => tab.autoOpen)
+    if (otherImportantTab) {
+      state.display.tab = otherImportantTab.id
+    } else {
+      state.display = {
+        type: 'hidden',
+      }
+    }
+  } else {
+    autoOpen = true
+  }
+
+  state.seenIds = new Set()
+  // When there is a new item we open the overlay when autoOpen is set
+  for (const tab of state.tabs) {
+    for (const item of tab.items) {
+      state.seenIds.add(itemHash(item))
+      if (!oldState.seenIds.has(itemHash(item))) {
+        if (state.display.type == 'hidden') {
+          state.display = {
+            type: 'minimized',
+          }
+        }
+
+        if (autoOpen && tab.autoOpen) {
+          state.display = {
+            type: 'fullscreen',
+            tab: tab.id,
           }
         }
       }
     }
-
-    if (change || newSeenIds.size !== seenIds.size) setSeenIds(newSeenIds)
-  }, [selectedTab, tabs, seenIds])
-
-  // This component shouldn't be rendered with no errors, but if it is, let's
-  // handle it gracefully by rendering nothing.
-  if (tabs.length === 0) {
-    return null
   }
 
-  if (hidden) {
-    return null
-  }
-
-  if (selectedTab === null || !tabs.some((tab) => tab.id === selectedTab)) {
-    const errors = tabs.reduce(
+  if (state.tabs !== oldState.tabs) {
+    state.errorCount = state.tabs.reduce(
       (sum, tab) => sum + (tab.severity === 'error' ? tab.items.length : 0),
       0
     )
-    const warnings = tabs.reduce(
+    state.warningCount = state.tabs.reduce(
       (sum, tab) => sum + (tab.severity === 'warning' ? tab.items.length : 0),
       0
     )
+  }
 
-    if (errors === 0 && warnings === 0) return null
+  if (
+    state.tabs.length === 0 ||
+    (state.errorCount === 0 && state.warningCount === 0)
+  ) {
+    state.display = {
+      type: 'hidden',
+    }
+  }
 
+  if (state.display.type === 'fullscreen') {
+    state.lastSelectedTab = state.display.tab
+  }
+
+  return state
+}
+
+export function Errors({ issues, errors }: ErrorsProps) {
+  const [readyErrors, _isLoading] = useResolvedErrors(errors)
+
+  const [{ tabs, display, errorCount, warningCount }, dispatch] =
+    React.useReducer<React.Reducer<ErrorsState, ErrorsAction>, null>(
+      reducer,
+      null,
+      () =>
+        reducer(
+          {
+            seenIds: new Set(),
+            tabs: [],
+            lastSelectedTab: null,
+            display: {
+              type: 'hidden',
+            },
+            issues: [],
+            readyErrors,
+            errorCount: 0,
+            warningCount: 0,
+          },
+          { type: ErrorsActionType.UpdateIssues, issues }
+        )
+    )
+
+  React.useEffect(() => {
+    dispatch({ type: ErrorsActionType.UpdateIssues, issues })
+  }, [issues])
+  React.useEffect(() => {
+    dispatch({ type: ErrorsActionType.UpdateErrors, readyErrors })
+  }, [readyErrors])
+
+  function setSelectedTab(tabId: string) {
+    dispatch({
+      type: ErrorsActionType.SelectTab,
+      tabId: tabId as TabId,
+    })
+  }
+
+  if (display.type == 'hidden') {
+    return null
+  }
+
+  if (display.type == 'minimized') {
     return (
       <ErrorsToast
-        errorCount={errors}
-        warningCount={warnings}
-        severity={errors > 0 ? 'error' : 'warning'}
+        errorCount={errorCount}
+        warningCount={warningCount}
+        severity={errorCount > 0 ? 'error' : 'warning'}
         onClick={() => setSelectedTab(tabs[0].id)}
-        onClose={() => setHidden(true)}
+        onClose={() => dispatch({ type: ErrorsActionType.Hide })}
       />
     )
   }
@@ -435,16 +601,16 @@ export function Errors({ issues, errors }: ErrorsProps) {
     <ErrorsDialog
       aria-labelledby="nextjs__container_errors_label"
       aria-describedby="nextjs__container_errors_desc"
-      onClose={() => setSelectedTab(null)}
+      onClose={() => dispatch({ type: ErrorsActionType.Minimize })}
     >
       <Tabs
         defaultId={TabId.RuntimeErrors}
-        selectedId={selectedTab}
+        selectedId={display.tab}
         onChange={setSelectedTab}
       >
         <DialogHeader
           className="errors-header"
-          close={() => setSelectedTab(null)}
+          close={() => dispatch({ type: ErrorsActionType.Minimize })}
         >
           <DialogHeaderTabList>
             {tabs.map((tab, i) => (

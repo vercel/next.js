@@ -1,6 +1,8 @@
 import React from 'react'
 import type { fetchServerResponse as fetchServerResponseType } from '../fetch-server-response'
 import type { FlightData } from '../../../../server/app-render/types'
+
+const buildId = 'development'
 const flightData: FlightData = [
   [
     'children',
@@ -10,7 +12,7 @@ const flightData: FlightData = [
     [
       'about',
       {
-        children: ['', {}],
+        children: ['__PAGE__', {}],
       },
     ],
     <h1>About Page!</h1>,
@@ -31,7 +33,7 @@ const demographicsFlightData: FlightData = [
             audience: [
               'demographics',
               {
-                children: ['', {}],
+                children: ['__PAGE__', {}],
               },
             ],
           },
@@ -80,6 +82,7 @@ import {
   ACTION_NAVIGATE,
   ACTION_PREFETCH,
   PrefetchAction,
+  PrefetchKind,
 } from '../router-reducer-types'
 import { navigateReducer } from './navigate-reducer'
 import { prefetchReducer } from './prefetch-reducer'
@@ -91,7 +94,7 @@ const getInitialRouterStateTree = (): FlightRouterState => [
     children: [
       'linking',
       {
-        children: ['', {}],
+        children: ['__PAGE__', {}],
       },
     ],
   },
@@ -136,7 +139,7 @@ describe('navigateReducer', () => {
                   'children',
                   new Map([
                     [
-                      '',
+                      '__PAGE__',
                       {
                         status: CacheStates.READY,
                         data: null,
@@ -156,6 +159,7 @@ describe('navigateReducer', () => {
     ])
 
     const state = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -185,6 +189,7 @@ describe('navigateReducer', () => {
     )
 
     const expectedState: ReturnType<typeof navigateReducer> = {
+      buildId,
       prefetchCache: new Map(),
       pushRef: {
         mpaNavigation: false,
@@ -193,8 +198,12 @@ describe('navigateReducer', () => {
       focusAndScrollRef: {
         apply: true,
         hashFragment: null,
+        segmentPaths: [
+          ['children', 'linking', 'children', 'about', 'children'],
+        ],
       },
       canonicalUrl: '/linking/about',
+      nextUrl: '/linking/about',
       cache: {
         status: CacheStates.READY,
         data: null,
@@ -217,7 +226,7 @@ describe('navigateReducer', () => {
                       'children',
                       new Map([
                         [
-                          '',
+                          '__PAGE__',
                           {
                             status: CacheStates.READY,
                             data: null,
@@ -236,7 +245,7 @@ describe('navigateReducer', () => {
                                 'children',
                                 new Map([
                                   [
-                                    '',
+                                    '__PAGE__',
                                     {
                                       status: CacheStates.LAZY_INITIALIZED,
                                       data: null,
@@ -271,7 +280,7 @@ describe('navigateReducer', () => {
           children: [
             'linking',
             {
-              children: ['about', { children: ['', {}] }],
+              children: ['about', { children: ['__PAGE__', {}] }],
             },
           ],
         },
@@ -306,7 +315,7 @@ describe('navigateReducer', () => {
                   'children',
                   new Map([
                     [
-                      '',
+                      '__PAGE__',
                       {
                         status: CacheStates.READY,
                         data: null,
@@ -326,6 +335,7 @@ describe('navigateReducer', () => {
     ])
 
     const state = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -336,6 +346,7 @@ describe('navigateReducer', () => {
     })
 
     const state2 = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -368,6 +379,7 @@ describe('navigateReducer', () => {
     )
 
     const expectedState: ReturnType<typeof navigateReducer> = {
+      buildId,
       prefetchCache: new Map(),
       pushRef: {
         mpaNavigation: false,
@@ -376,8 +388,12 @@ describe('navigateReducer', () => {
       focusAndScrollRef: {
         apply: true,
         hashFragment: null,
+        segmentPaths: [
+          ['children', 'linking', 'children', 'about', 'children'],
+        ],
       },
       canonicalUrl: '/linking/about',
+      nextUrl: '/linking/about',
       cache: {
         status: CacheStates.READY,
         data: null,
@@ -400,7 +416,7 @@ describe('navigateReducer', () => {
                       'children',
                       new Map([
                         [
-                          '',
+                          '__PAGE__',
                           {
                             status: CacheStates.READY,
                             data: null,
@@ -419,7 +435,7 @@ describe('navigateReducer', () => {
                                 'children',
                                 new Map([
                                   [
-                                    '',
+                                    '__PAGE__',
                                     {
                                       status: CacheStates.LAZY_INITIALIZED,
                                       data: null,
@@ -454,7 +470,7 @@ describe('navigateReducer', () => {
           children: [
             'linking',
             {
-              children: ['about', { children: ['', {}] }],
+              children: ['about', { children: ['__PAGE__', {}] }],
             },
           ],
         },
@@ -489,7 +505,7 @@ describe('navigateReducer', () => {
                   'children',
                   new Map([
                     [
-                      '',
+                      '__PAGE__',
                       {
                         status: CacheStates.READY,
                         data: null,
@@ -509,6 +525,7 @@ describe('navigateReducer', () => {
     ])
 
     const state = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -519,6 +536,7 @@ describe('navigateReducer', () => {
     })
 
     const state2 = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -554,6 +572,7 @@ describe('navigateReducer', () => {
     )
 
     const expectedState: ReturnType<typeof navigateReducer> = {
+      buildId,
       prefetchCache: new Map(),
       pushRef: {
         mpaNavigation: true,
@@ -562,8 +581,10 @@ describe('navigateReducer', () => {
       focusAndScrollRef: {
         apply: false,
         hashFragment: null,
+        segmentPaths: [],
       },
       canonicalUrl: 'https://example.vercel.sh/',
+      nextUrl: '/linking',
       cache: {
         status: CacheStates.READY,
         data: null,
@@ -586,7 +607,7 @@ describe('navigateReducer', () => {
                       'children',
                       new Map([
                         [
-                          '',
+                          '__PAGE__',
                           {
                             status: CacheStates.READY,
                             data: null,
@@ -611,7 +632,7 @@ describe('navigateReducer', () => {
           children: [
             'linking',
             {
-              children: ['', {}],
+              children: ['__PAGE__', {}],
             },
           ],
         },
@@ -646,7 +667,7 @@ describe('navigateReducer', () => {
                   'children',
                   new Map([
                     [
-                      '',
+                      '__PAGE__',
                       {
                         status: CacheStates.READY,
                         data: null,
@@ -666,6 +687,7 @@ describe('navigateReducer', () => {
     ])
 
     const state = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -676,6 +698,7 @@ describe('navigateReducer', () => {
     })
 
     const state2 = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -711,6 +734,7 @@ describe('navigateReducer', () => {
     )
 
     const expectedState: ReturnType<typeof navigateReducer> = {
+      buildId,
       prefetchCache: new Map(),
       pushRef: {
         mpaNavigation: true,
@@ -719,8 +743,10 @@ describe('navigateReducer', () => {
       focusAndScrollRef: {
         apply: false,
         hashFragment: null,
+        segmentPaths: [],
       },
       canonicalUrl: 'https://example.vercel.sh/',
+      nextUrl: '/linking',
       cache: {
         status: CacheStates.READY,
         data: null,
@@ -743,7 +769,7 @@ describe('navigateReducer', () => {
                       'children',
                       new Map([
                         [
-                          '',
+                          '__PAGE__',
                           {
                             status: CacheStates.READY,
                             data: null,
@@ -768,7 +794,7 @@ describe('navigateReducer', () => {
           children: [
             'linking',
             {
-              children: ['', {}],
+              children: ['__PAGE__', {}],
             },
           ],
         },
@@ -803,7 +829,7 @@ describe('navigateReducer', () => {
                   'children',
                   new Map([
                     [
-                      '',
+                      '__PAGE__',
                       {
                         status: CacheStates.READY,
                         data: null,
@@ -823,6 +849,7 @@ describe('navigateReducer', () => {
     ])
 
     const state = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -833,6 +860,7 @@ describe('navigateReducer', () => {
     })
 
     const state2 = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -865,6 +893,7 @@ describe('navigateReducer', () => {
     )
 
     const expectedState: ReturnType<typeof navigateReducer> = {
+      buildId,
       prefetchCache: new Map(),
       pushRef: {
         mpaNavigation: false,
@@ -873,8 +902,10 @@ describe('navigateReducer', () => {
       focusAndScrollRef: {
         apply: true,
         hashFragment: null,
+        segmentPaths: [],
       },
       canonicalUrl: '/linking/about',
+      nextUrl: '/linking/about',
       cache: {
         status: CacheStates.READY,
         data: null,
@@ -897,7 +928,7 @@ describe('navigateReducer', () => {
                       'children',
                       new Map([
                         [
-                          '',
+                          '__PAGE__',
                           {
                             status: CacheStates.READY,
                             data: null,
@@ -968,7 +999,7 @@ describe('navigateReducer', () => {
                   'children',
                   new Map([
                     [
-                      '',
+                      '__PAGE__',
                       {
                         status: CacheStates.READY,
                         data: null,
@@ -991,9 +1022,11 @@ describe('navigateReducer', () => {
     const prefetchAction: PrefetchAction = {
       type: ACTION_PREFETCH,
       url,
+      kind: PrefetchKind.AUTO,
     }
 
     const state = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -1008,6 +1041,7 @@ describe('navigateReducer', () => {
     await state.prefetchCache.get(url.pathname + url.search)?.data
 
     const state2 = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -1052,7 +1086,7 @@ describe('navigateReducer', () => {
           [
             'about',
             {
-              children: ['', {}],
+              children: ['__PAGE__', {}],
             },
           ],
           <h1>About Page!</h1>,
@@ -1067,18 +1101,22 @@ describe('navigateReducer', () => {
     await prom
 
     const expectedState: ReturnType<typeof navigateReducer> = {
+      buildId,
       prefetchCache: new Map([
         [
           '/linking/about',
           {
             data: record,
+            kind: PrefetchKind.AUTO,
+            lastUsedTime: null,
+            prefetchTime: expect.any(Number),
             treeAtTimeOfPrefetch: [
               '',
               {
                 children: [
                   'linking',
                   {
-                    children: ['', {}],
+                    children: ['__PAGE__', {}],
                   },
                 ],
               },
@@ -1096,8 +1134,12 @@ describe('navigateReducer', () => {
       focusAndScrollRef: {
         apply: true,
         hashFragment: null,
+        segmentPaths: [
+          ['children', 'linking', 'children', 'about', 'children'],
+        ],
       },
       canonicalUrl: '/linking/about',
+      nextUrl: '/linking/about',
       cache: {
         status: CacheStates.READY,
         data: null,
@@ -1120,7 +1162,7 @@ describe('navigateReducer', () => {
                       'children',
                       new Map([
                         [
-                          '',
+                          '__PAGE__',
                           {
                             status: CacheStates.READY,
                             data: null,
@@ -1138,7 +1180,7 @@ describe('navigateReducer', () => {
                                 'children',
                                 new Map([
                                   [
-                                    '',
+                                    '__PAGE__',
                                     {
                                       status: CacheStates.LAZY_INITIALIZED,
                                       subTreeData: null,
@@ -1174,7 +1216,7 @@ describe('navigateReducer', () => {
           children: [
             'linking',
             {
-              children: ['about', { children: ['', {}] }],
+              children: ['about', { children: ['__PAGE__', {}] }],
             },
           ],
         },
@@ -1194,9 +1236,9 @@ describe('navigateReducer', () => {
         children: [
           'parallel-tab-bar',
           {
-            audience: ['', {}],
-            views: ['', {}],
-            children: ['', {}],
+            audience: ['__PAGE__', {}],
+            views: ['__PAGE__', {}],
+            children: ['__PAGE__', {}],
           },
         ],
       },
@@ -1225,7 +1267,7 @@ describe('navigateReducer', () => {
                   'audience',
                   new Map([
                     [
-                      '',
+                      '__PAGE__',
                       {
                         status: CacheStates.READY,
                         data: null,
@@ -1239,7 +1281,7 @@ describe('navigateReducer', () => {
                   'views',
                   new Map([
                     [
-                      '',
+                      '__PAGE__',
                       {
                         status: CacheStates.READY,
                         data: null,
@@ -1253,7 +1295,7 @@ describe('navigateReducer', () => {
                   'children',
                   new Map([
                     [
-                      '',
+                      '__PAGE__',
                       {
                         status: CacheStates.READY,
                         data: null,
@@ -1273,6 +1315,7 @@ describe('navigateReducer', () => {
     ])
 
     const state = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -1283,6 +1326,7 @@ describe('navigateReducer', () => {
     })
 
     const state2 = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -1315,6 +1359,7 @@ describe('navigateReducer', () => {
     )
 
     const expectedState: ReturnType<typeof navigateReducer> = {
+      buildId,
       prefetchCache: new Map(),
       pushRef: {
         mpaNavigation: false,
@@ -1323,8 +1368,18 @@ describe('navigateReducer', () => {
       focusAndScrollRef: {
         apply: true,
         hashFragment: null,
+        segmentPaths: [
+          [
+            'children',
+            'parallel-tab-bar',
+            'audience',
+            'demographics',
+            'children',
+          ],
+        ],
       },
       canonicalUrl: '/parallel-tab-bar/demographics',
+      nextUrl: '/parallel-tab-bar/demographics',
       cache: {
         status: CacheStates.READY,
         data: null,
@@ -1347,7 +1402,7 @@ describe('navigateReducer', () => {
                       'audience',
                       new Map([
                         [
-                          '',
+                          '__PAGE__',
                           {
                             status: CacheStates.READY,
                             data: null,
@@ -1366,7 +1421,7 @@ describe('navigateReducer', () => {
                                 'children',
                                 new Map([
                                   [
-                                    '',
+                                    '__PAGE__',
                                     {
                                       status: CacheStates.LAZY_INITIALIZED,
                                       data: null,
@@ -1390,7 +1445,7 @@ describe('navigateReducer', () => {
                       'views',
                       new Map([
                         [
-                          '',
+                          '__PAGE__',
                           {
                             status: CacheStates.READY,
                             data: null,
@@ -1404,7 +1459,7 @@ describe('navigateReducer', () => {
                       'children',
                       new Map([
                         [
-                          '',
+                          '__PAGE__',
                           {
                             status: CacheStates.READY,
                             data: null,
@@ -1429,9 +1484,9 @@ describe('navigateReducer', () => {
           children: [
             'parallel-tab-bar',
             {
-              audience: ['demographics', { children: ['', {}] }],
-              views: ['', {}],
-              children: ['', {}],
+              audience: ['demographics', { children: ['__PAGE__', {}] }],
+              views: ['__PAGE__', {}],
+              children: ['__PAGE__', {}],
             },
           ],
         },

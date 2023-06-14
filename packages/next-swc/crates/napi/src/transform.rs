@@ -26,9 +26,9 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
-use std::fs::read_to_string;
 use std::{
     cell::RefCell,
+    fs::read_to_string,
     panic::{catch_unwind, AssertUnwindSafe},
     rc::Rc,
     sync::Arc,
@@ -37,12 +37,12 @@ use std::{
 use anyhow::{anyhow, bail, Context as _};
 use fxhash::FxHashSet;
 use napi::bindgen_prelude::*;
-use next_binding::swc::core::{
+use next_swc::{custom_before_pass, TransformOptions};
+use turbopack_binding::swc::core::{
     base::{try_with_handler, Compiler, TransformOutput},
-    common::{comments::SingleThreadedComments, errors::ColorConfig, FileName, GLOBALS},
+    common::{comments::SingleThreadedComments, errors::ColorConfig, FileName, Mark, GLOBALS},
     ecma::transforms::base::pass::noop,
 };
-use next_swc::{custom_before_pass, TransformOptions};
 
 use crate::{complete_output, get_compiler, util::MapErr};
 
@@ -76,7 +76,7 @@ impl Task for TransformTask {
             let res = catch_unwind(AssertUnwindSafe(|| {
                 try_with_handler(
                     self.c.cm.clone(),
-                    next_binding::swc::core::base::HandlerOpts {
+                    turbopack_binding::swc::core::base::HandlerOpts {
                         color: ColorConfig::Always,
                         skip_filename: skip_filename(),
                     },
@@ -107,7 +107,9 @@ impl Task for TransformTask {
                                     )
                                 }
                             };
-                            let options = options.patch(&fm);
+                            let unresolved_mark = Mark::new();
+                            let mut options = options.patch(&fm);
+                            options.swc.unresolved_mark = Some(unresolved_mark);
 
                             let cm = self.c.cm.clone();
                             let file = fm.clone();
@@ -126,6 +128,7 @@ impl Task for TransformTask {
                                         &options,
                                         comments.clone(),
                                         eliminated_packages.clone(),
+                                        unresolved_mark,
                                     )
                                 },
                                 |_| noop(),

@@ -5,6 +5,7 @@
     "area: examples": ["examples/**"],
     "area: Font Optimization": ["**/*font*"],
     "area: tests": ["test/**", "bench/**"],
+    "area: Turbopack": ["packages/next-swc/crates/next-*/**"],
     "created-by: Chrome Aurora": [
       { "type": "user", "pattern": "atcastle" },
       { "type": "user", "pattern": "devknoll" },
@@ -17,29 +18,44 @@
     "created-by: Next.js team": [
       { "type": "user", "pattern": "acdlite" },
       { "type": "user", "pattern": "balazsorban44" },
-      { "type": "user", "pattern": "Brooooooklyn" },
       { "type": "user", "pattern": "feedthejim" },
-      { "type": "user", "pattern": "ForsakenHarmony" },
       { "type": "user", "pattern": "gnoff" },
       { "type": "user", "pattern": "hanneslund" },
       { "type": "user", "pattern": "huozhi" },
       { "type": "user", "pattern": "ijjk" },
       { "type": "user", "pattern": "JanKaifer" },
-      { "type": "user", "pattern": "kdy1" },
-      { "type": "user", "pattern": "kwonoj" },
-      { "type": "user", "pattern": "leerob" },
-      { "type": "user", "pattern": "padmaia" },
+      { "type": "user", "pattern": "javivelasco" },
+      { "type": "user", "pattern": "kikobeats" },
+      { "type": "user", "pattern": "schniz" },
       { "type": "user", "pattern": "sebmarkbage" },
       { "type": "user", "pattern": "shuding" },
-      { "type": "user", "pattern": "sokra" },
       { "type": "user", "pattern": "styfle" },
       { "type": "user", "pattern": "timneutkens" },
       { "type": "user", "pattern": "wyattjoh" }
     ],
-    "created-by: Next.js docs team": [
+    "created-by: Next.js DevEx team": [
+      { "type": "user", "pattern": "leerob" },
       { "type": "user", "pattern": "ismaelrumzan" },
-      { "type": "user", "pattern": "MaedahBatool" },
-      { "type": "user", "pattern": "molebox" }
+      { "type": "user", "pattern": "molebox" },
+      { "type": "user", "pattern": "delbaoliveira" },
+      { "type": "user", "pattern": "lydiahallie" },
+      { "type": "user", "pattern": "steven-tey" },
+      { "type": "user", "pattern": "nutlope" },
+      { "type": "user", "pattern": "stephdietz" },
+      { "type": "user", "pattern": "timeyoutakeit" },
+      { "type": "user", "pattern": "s3prototype" },
+      { "type": "user", "pattern": "manovotny" }
+    ],
+    "created-by: web-tooling team": [
+      { "type": "user", "pattern": "alexkirsz" },
+      { "type": "user", "pattern": "Brooooooklyn" },
+      { "type": "user", "pattern": "ForsakenHarmony" },
+      { "type": "user", "pattern": "jridgewell" },
+      { "type": "user", "pattern": "kdy1" },
+      { "type": "user", "pattern": "kwonoj" },
+      { "type": "user", "pattern": "padmaia" },
+      { "type": "user", "pattern": "sokra" },
+      { "type": "user", "pattern": "wbinnssmith" }
     ],
     "type: next": [
       "packages/eslint-config-next/**",

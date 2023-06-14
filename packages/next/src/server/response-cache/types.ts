@@ -1,3 +1,4 @@
+import type { OutgoingHttpHeaders } from 'http'
 import type RenderResult from '../render-result'
 
 export interface ResponseCacheBase {
@@ -5,7 +6,7 @@ export interface ResponseCacheBase {
     key: string | null,
     responseGenerator: ResponseGenerator,
     context: {
-      isManualRevalidate?: boolean
+      isOnDemandRevalidate?: boolean
       isPrefetch?: boolean
       incrementalCache: IncrementalCache
     }
@@ -18,6 +19,7 @@ export interface CachedFetchValue {
     headers: { [k: string]: string }
     body: string
     status?: number
+    tags?: string[]
   }
   revalidate: number
 }
@@ -33,6 +35,8 @@ interface CachedPageValue {
   // expects that type instead of a string
   html: RenderResult
   pageData: Object
+  status?: number
+  headers?: OutgoingHttpHeaders
 }
 
 export interface CachedRouteValue {
@@ -41,7 +45,7 @@ export interface CachedRouteValue {
   // expects that type instead of a string
   body: Buffer
   status: number
-  headers: Record<string, undefined | string | string[]>
+  headers: OutgoingHttpHeaders
 }
 
 export interface CachedImageValue {
@@ -59,13 +63,16 @@ interface IncrementalCachedPageValue {
   // the string value
   html: string
   pageData: Object
+  headers?: OutgoingHttpHeaders
+  status?: number
 }
 
 export type IncrementalCacheEntry = {
   curRevalidate?: number | false
   // milliseconds to revalidate after
   revalidateAfter: number | false
-  isStale?: boolean
+  // -1 here dictates a blocking revalidate should be used
+  isStale?: boolean | -1
   value: IncrementalCacheValue | null
 }
 
@@ -85,13 +92,13 @@ export type ResponseCacheValue =
 export type ResponseCacheEntry = {
   revalidate?: number | false
   value: ResponseCacheValue | null
-  isStale?: boolean
+  isStale?: boolean | -1
   isMiss?: boolean
 }
 
 export type ResponseGenerator = (
   hasResolved: boolean,
-  hadCache: boolean
+  cacheEntry?: IncrementalCacheItem
 ) => Promise<ResponseCacheEntry | null>
 
 export type IncrementalCacheItem = {
@@ -99,7 +106,7 @@ export type IncrementalCacheItem = {
   curRevalidate?: number | false
   revalidate?: number | false
   value: IncrementalCacheValue | null
-  isStale?: boolean
+  isStale?: boolean | -1
   isMiss?: boolean
 } | null
 

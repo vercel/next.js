@@ -1,6 +1,6 @@
-use next_binding::swc::core::{
-    ecma::ast::*,
-    ecma::visit::{Visit, VisitWith},
+use turbopack_binding::swc::core::ecma::{
+    ast::*,
+    visit::{Visit, VisitWith},
 };
 
 pub(crate) fn contains_cjs(m: &Module) -> bool {

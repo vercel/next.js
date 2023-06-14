@@ -1,8 +1,14 @@
 import { NextVanillaSpanAllowlist, SpanTypes } from './constants'
 
-import type { ContextAPI, Span, SpanOptions, Tracer } from '@opentelemetry/api'
+import type {
+  ContextAPI,
+  Span,
+  SpanOptions,
+  Tracer,
+  AttributeValue,
+} from 'next/dist/compiled/@opentelemetry/api'
 
-let api: typeof import('@opentelemetry/api')
+let api: typeof import('next/dist/compiled/@opentelemetry/api')
 
 // we want to allow users to use their own version of @opentelemetry/api if they
 // want to, so we try to require it first, and if it fails we fall back to the
@@ -11,10 +17,14 @@ let api: typeof import('@opentelemetry/api')
 // @opentelemetry/tracing that is used, and we don't want to force users to use
 // the version that is bundled with Next.js.
 // the API is ~stable, so this should be fine
-try {
+if (process.env.NEXT_RUNTIME === 'edge') {
   api = require('@opentelemetry/api')
-} catch (err) {
-  api = require('next/dist/compiled/@opentelemetry/api')
+} else {
+  try {
+    api = require('@opentelemetry/api')
+  } catch (err) {
+    api = require('next/dist/compiled/@opentelemetry/api')
+  }
 }
 
 const { context, trace, SpanStatusCode, SpanKind } = api
@@ -31,9 +41,11 @@ const closeSpanWithError = (span: Span, error?: Error) => {
   span.end()
 }
 
-type TracerSpanOptions = SpanOptions & {
+type TracerSpanOptions = Omit<SpanOptions, 'attributes'> & {
   parentSpan?: Span
   spanName?: string
+  attributes?: Partial<Record<AttributeNames, AttributeValue | undefined>>
+  hideSpan?: boolean
 }
 
 interface NextTracer {
@@ -117,6 +129,23 @@ interface NextTracer {
   getActiveScopeSpan(): Span | undefined
 }
 
+type NextAttributeNames =
+  | 'next.route'
+  | 'next.page'
+  | 'next.span_name'
+  | 'next.span_type'
+type OTELAttributeNames = `http.${string}` | `net.${string}`
+type AttributeNames = NextAttributeNames | OTELAttributeNames
+
+/** we use this map to propagate attributes from nested spans to the top span */
+const rootSpanAttributesStore = new Map<
+  number,
+  Map<AttributeNames, AttributeValue | undefined>
+>()
+const rootSpanIdKey = api.createContextKey('next.rootSpanId')
+let lastSpanId = 0
+const getSpanId = () => lastSpanId++
+
 class NextTracerImpl implements NextTracer {
   /**
    * Returns an instance to the trace with configured name.
@@ -177,8 +206,9 @@ class NextTracerImpl implements NextTracer {
           }
 
     if (
-      !NextVanillaSpanAllowlist.includes(type) &&
-      process.env.NEXT_OTEL_VERBOSE !== '1'
+      (!NextVanillaSpanAllowlist.includes(type) &&
+        process.env.NEXT_OTEL_VERBOSE !== '1') ||
+      options.hideSpan
     ) {
       return fn()
     }
@@ -186,9 +216,17 @@ class NextTracerImpl implements NextTracer {
     const spanName = options.spanName ?? type
 
     // Trying to get active scoped span to assign parent. If option specifies parent span manually, will try to use it.
-    const spanContext = this.getSpanContext(
+    let spanContext = this.getSpanContext(
       options?.parentSpan ?? this.getActiveScopeSpan()
     )
+    let isRootSpan = false
+
+    if (!spanContext) {
+      spanContext = api.ROOT_CONTEXT
+      isRootSpan = true
+    }
+
+    const spanId = getSpanId()
 
     options.attributes = {
       'next.span_name': spanName,
@@ -196,39 +234,53 @@ class NextTracerImpl implements NextTracer {
       ...options.attributes,
     }
 
-    const runWithContext = (actualFn: (span: Span) => T | Promise<T>) =>
-      spanContext
-        ? this.getTracerInstance().startActiveSpan(
-            spanName,
-            options,
-            spanContext,
-            actualFn
-          )
-        : this.getTracerInstance().startActiveSpan(spanName, options, actualFn)
+    return api.context.with(spanContext.setValue(rootSpanIdKey, spanId), () =>
+      this.getTracerInstance().startActiveSpan(
+        spanName,
+        options,
+        (span: Span) => {
+          const onCleanup = () => {
+            rootSpanAttributesStore.delete(spanId)
+          }
+          if (isRootSpan) {
+            rootSpanAttributesStore.set(
+              spanId,
+              new Map(
+                Object.entries(options.attributes ?? {}) as [
+                  AttributeNames,
+                  AttributeValue | undefined
+                ][]
+              )
+            )
+          }
+          try {
+            if (fn.length > 1) {
+              return fn(span, (err?: Error) => closeSpanWithError(span, err))
+            }
 
-    return runWithContext((span: Span) => {
-      try {
-        if (fn.length > 1) {
-          return fn(span, (err?: Error) => closeSpanWithError(span, err))
+            const result = fn(span)
+
+            if (isPromise(result)) {
+              result
+                .then(
+                  () => span.end(),
+                  (err) => closeSpanWithError(span, err)
+                )
+                .finally(onCleanup)
+            } else {
+              span.end()
+              onCleanup()
+            }
+
+            return result
+          } catch (err: any) {
+            closeSpanWithError(span, err)
+            onCleanup()
+            throw err
+          }
         }
-
-        const result = fn(span)
-
-        if (isPromise(result)) {
-          result.then(
-            () => span.end(),
-            (err) => closeSpanWithError(span, err)
-          )
-        } else {
-          span.end()
-        }
-
-        return result
-      } catch (err: any) {
-        closeSpanWithError(span, err)
-        throw err
-      }
-    })
+      )
+    )
   }
 
   public wrap<T = (...args: Array<any>) => any>(type: SpanTypes, fn: T): T
@@ -296,6 +348,11 @@ class NextTracerImpl implements NextTracer {
       : undefined
 
     return spanContext
+  }
+
+  public getRootSpanAttributes() {
+    const spanId = context.active().getValue(rootSpanIdKey) as number
+    return rootSpanAttributesStore.get(spanId)
   }
 }
 

@@ -15,7 +15,7 @@ export function ComponentStackFrameRow({
 
   return (
     <div data-nextjs-component-stack-frame>
-      <h6>{component}</h6>
+      <h3>{component}</h3>
       {file ? (
         <div
           tabIndex={10} // match CallStackFrame

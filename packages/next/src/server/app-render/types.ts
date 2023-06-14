@@ -6,7 +6,7 @@ import type {
 } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 
-import zod from 'next/dist/compiled/zod'
+import zod from 'zod'
 
 export type DynamicParamTypes = 'catchall' | 'optional-catchall' | 'dynamic'
 
@@ -100,6 +100,17 @@ export type FlightDataPath =
  */
 export type FlightData = Array<FlightDataPath> | string
 
+export type ActionResult = Promise<any>
+
+// Response from `createFromFetch` for normal rendering
+export type NextFlightResponse = [buildId: string, flightData: FlightData]
+
+// Response from `createFromFetch` for server actions. Action's flight data can be null
+export type ActionFlightResponse = [
+  ActionResult,
+  [buildId: NextFlightResponse[0], flightData: NextFlightResponse[1] | null]
+]
+
 /**
  * Property holding the current subTreeData.
  */
@@ -114,6 +125,7 @@ export type ChildProp = {
 export type RenderOptsPartial = {
   err?: Error | null
   dev?: boolean
+  buildId: string
   clientReferenceManifest?: ClientReferenceManifest
   serverCSSManifest?: ClientCSSReferenceManifest
   supportsDynamicHTML: boolean
@@ -125,7 +137,11 @@ export type RenderOptsPartial = {
   incrementalCache?: import('../lib/incremental-cache').IncrementalCache
   isRevalidate?: boolean
   nextExport?: boolean
+  nextConfigOutput?: 'standalone' | 'export'
   appDirDevErrorLogger?: (err: any) => Promise<void>
+  originalPathname?: string
+  isDraftMode?: boolean
+  deploymentId?: string
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
