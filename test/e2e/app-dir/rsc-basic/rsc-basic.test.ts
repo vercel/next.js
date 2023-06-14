@@ -96,11 +96,11 @@ createNextDescribe(
         '<meta name="viewport" content="width=device-width, initial-scale=1"/>'
       )
 
-      expect(homeHTML).toContain('component:index.server')
       expect(homeHTML).toContain('header:test-util')
 
       const inlineFlightContents = []
       const $ = cheerio.load(homeHTML)
+      expect($('h1').text()).toBe('component:index.server')
       $('script').each((_index, tag) => {
         const content = $(tag).text()
         if (content) inlineFlightContents.push(content)
@@ -117,6 +117,9 @@ createNextDescribe(
         internalQueries.some((query) => content.includes(query))
       )
       expect(hasNextInternalQuery).toBe(false)
+      expect(next.cliOutput).not.toContain(
+        'Each child in a list should have a unique "key" prop'
+      )
     })
 
     it('should reuse the inline flight response without sending extra requests', async () => {
@@ -390,13 +393,14 @@ createNextDescribe(
     it('should support streaming for flight response', async () => {
       await next
         .fetch('/', {
-          headers: {
-            ['RSC'.toString()]: '1',
-          },
+          headers: { RSC: '1' },
         })
         .then(async (response) => {
           const result = await resolveStreamResponse(response)
           expect(result).toContain('component:index.server')
+          expect(result).toMatch(
+            isNextDev ? /0:\["development",/ : /0:\[".*?",/
+          )
         })
     })
 

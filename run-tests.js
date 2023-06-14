@@ -341,6 +341,7 @@ async function main() {
           stdio: ['ignore', 'pipe', 'pipe'],
           env: {
             ...process.env,
+            IS_RETRY: isRetry ? 'true' : undefined,
             RECORD_REPLAY: shouldRecordTestWithReplay,
             // run tests in headless mode by default
             HEADLESS: 'true',
@@ -458,16 +459,7 @@ async function main() {
           )
           break
         } catch (err) {
-          // jest-hast-map can cause a false failure do to
-          // the .next/package.json generated
-          const isJestHasteError =
-            (err.output?.includes('Error: Cannot parse') ||
-              err.output?.includes(
-                'Haste module map. It cannot be resolved'
-              )) &&
-            err.output?.includes('jest-haste-map')
-
-          if (i < numRetries || isJestHasteError) {
+          if (i < numRetries) {
             try {
               let testDir = path.dirname(path.join(__dirname, test))
 

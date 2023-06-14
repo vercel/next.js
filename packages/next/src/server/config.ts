@@ -459,6 +459,14 @@ function assignDefaults(
     }
   }
 
+  // only leverage deploymentId
+  if (result.experimental?.useDeploymentId && process.env.NEXT_DEPLOYMENT_ID) {
+    if (!result.experimental) {
+      result.experimental = {}
+    }
+    result.experimental.deploymentId = process.env.NEXT_DEPLOYMENT_ID
+  }
+
   // use the closest lockfile as tracing root
   if (!result.experimental?.outputFileTracingRoot) {
     let rootDir = findRootDir(dir)
@@ -528,6 +536,13 @@ function assignDefaults(
         if (!item || typeof item !== 'object') return true
         if (!item.defaultLocale) return true
         if (!item.domain || typeof item.domain !== 'string') return true
+
+        if (item.domain.includes(':')) {
+          console.warn(
+            `i18n domain: "${item.domain}" is invalid it should be a valid domain without protocol (https://) or port (:3000) e.g. example.vercel.sh`
+          )
+          return true
+        }
 
         const defaultLocaleDuplicate = i18n.domains?.find(
           (altItem) =>

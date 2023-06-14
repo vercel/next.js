@@ -305,7 +305,7 @@ function generateCacheKey(request) {
   }
 }
 
-var ReactVersion = '18.3.0-canary-16d053d59-20230506';
+var ReactVersion = '18.3.0-canary-1cea38448-20230530';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -1770,8 +1770,7 @@ function useId() {
   return dispatcher.useId();
 }
 function use(usable) {
-  var dispatcher = resolveDispatcher(); // $FlowFixMe[not-a-function] This is unstable, thus optional
-
+  var dispatcher = resolveDispatcher();
   return dispatcher.use(usable);
 }
 

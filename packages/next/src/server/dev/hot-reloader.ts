@@ -1,6 +1,9 @@
-import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
 import type { NextConfigComplete } from '../config-shared'
 import type { CustomRoutes } from '../../lib/load-custom-routes'
+import type { Duplex } from 'stream'
+import type { Telemetry } from '../../telemetry/storage'
+
+import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
 import { getOverlayMiddleware } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
 import { IncomingMessage, ServerResponse } from 'http'
 import { WebpackHotMiddleware } from './hot-middleware'
@@ -56,7 +59,6 @@ import { promises as fs } from 'fs'
 import { UnwrapPromise } from '../../lib/coalesced-function'
 import { getRegistry } from '../../lib/helpers/get-registry'
 import { RouteMatch } from '../future/route-matches/route-match'
-import type { Telemetry } from '../../telemetry/storage'
 import { parseVersionInfo, VersionInfo } from './parse-version-info'
 import { isAPIRoute } from '../../lib/is-api-route'
 import { getRouteLoaderEntry } from '../../build/webpack/loaders/next-route-loader'
@@ -325,7 +327,7 @@ export default class HotReloader {
     return { finished }
   }
 
-  public onHMR(req: IncomingMessage, _res: ServerResponse, head: Buffer) {
+  public onHMR(req: IncomingMessage, _socket: Duplex, head: Buffer) {
     wsServer.handleUpgrade(req, req.socket, head, (client) => {
       this.webpackHotMiddleware?.onHMR(client)
       this.onDemandEntries?.onHMR(client)
@@ -791,6 +793,9 @@ export default class HotReloader {
                       assetPrefix: this.config.assetPrefix,
                       nextConfigOutput: this.config.output,
                       preferredRegion: staticInfo.preferredRegion,
+                      middlewareConfig: Buffer.from(
+                        JSON.stringify(staticInfo.middleware || {})
+                      ).toString('base64'),
                     }).import
                   : undefined
 
@@ -875,6 +880,9 @@ export default class HotReloader {
                     assetPrefix: this.config.assetPrefix,
                     nextConfigOutput: this.config.output,
                     preferredRegion: staticInfo.preferredRegion,
+                    middlewareConfig: Buffer.from(
+                      JSON.stringify(staticInfo.middleware || {})
+                    ).toString('base64'),
                   })
                 } else if (
                   !isAPIRoute(page) &&
@@ -886,6 +894,9 @@ export default class HotReloader {
                     page,
                     absolutePagePath: relativeRequest,
                     preferredRegion: staticInfo.preferredRegion,
+                    middlewareConfig: Buffer.from(
+                      JSON.stringify(staticInfo.middleware || {})
+                    ).toString('base64'),
                   })
                 } else {
                   value = relativeRequest

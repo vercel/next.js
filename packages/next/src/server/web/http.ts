@@ -16,7 +16,7 @@ export const HTTP_METHODS = [
  * A type representing the valid HTTP methods that can be implemented by
  * Next.js's Custom App Routes.
  */
-export type HTTP_METHOD = typeof HTTP_METHODS[number]
+export type HTTP_METHOD = (typeof HTTP_METHODS)[number]
 
 /**
  * Checks to see if the passed string is an HTTP method. Note that this is case

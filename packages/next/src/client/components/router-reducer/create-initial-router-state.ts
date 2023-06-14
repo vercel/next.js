@@ -8,6 +8,7 @@ import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-
 import { extractPathFromFlightRouterState } from './compute-changed-path'
 
 export interface InitialRouterStateParameters {
+  buildId: string
   initialTree: FlightRouterState
   initialCanonicalUrl: string
   children: ReactNode
@@ -18,6 +19,7 @@ export interface InitialRouterStateParameters {
 }
 
 export function createInitialRouterState({
+  buildId,
   initialTree,
   children,
   initialCanonicalUrl,
@@ -40,6 +42,7 @@ export function createInitialRouterState({
   }
 
   return {
+    buildId,
     tree: initialTree,
     cache,
     prefetchCache: new Map(),
