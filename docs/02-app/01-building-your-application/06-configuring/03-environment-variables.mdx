@@ -55,11 +55,11 @@ This loads `process.env.DB_HOST`, `process.env.DB_USER`, and `process.env.DB_PAS
 Next.js will automatically expand variables that use `$` to reference other variables e.g. `$VARIABLE` inside of your `.env*` files. This allows you to reference other secrets. For example:
 
 ```txt filename=".env"
-TWITTER_USER=vercel
+TWITTER_USER=nextjs
 TWITTER_URL=https://twitter.com/$TWITTER_USER
 ```
 
-In the above example, `process.env.TWITTER_URL` would be set to `http://twitter.com/vercel`.
+In the above example, `process.env.TWITTER_URL` would be set to `https://twitter.com/nextjs`.
 
 > **Good to know**: If you need to use variable with a `$` in the actual value, it needs to be escaped e.g. `\$`.
 
