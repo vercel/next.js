@@ -503,8 +503,65 @@ createNextDescribe(
         }, 'success')
       })
 
+      it('should revalidate when cookies.set is called in a client action', async () => {
+        const browser = await next.browser('/revalidate')
+        await browser.refresh()
+
+        let randomCookie
+        await check(async () => {
+          randomCookie = JSON.parse(
+            await browser.elementByCss('#random-cookie').text()
+          ).value
+          return randomCookie ? 'success' : 'failure'
+        }, 'success')
+
+        console.log(123, await browser.elementByCss('body').text())
+
+        await browser.elementByCss('#another').click()
+        await check(async () => {
+          return browser.elementByCss('#title').text()
+        }, 'another route')
+
+        const newRandomCookie = JSON.parse(
+          await browser.elementByCss('#random-cookie').text()
+        ).value
+
+        console.log(456, await browser.elementByCss('body').text())
+
+        // Should be the same value
+        expect(randomCookie).toEqual(newRandomCookie)
+
+        await browser.elementByCss('#back').click()
+
+        // Modify the cookie
+        await browser.elementByCss('#set-cookie').click()
+
+        // Should be different
+        let revalidatedRandomCookie
+        await check(async () => {
+          revalidatedRandomCookie = JSON.parse(
+            await browser.elementByCss('#random-cookie').text()
+          ).value
+          return randomCookie !== revalidatedRandomCookie
+            ? 'success'
+            : 'failure'
+        }, 'success')
+
+        await browser.elementByCss('#another').click()
+
+        // The other page should be revalidated too
+        await check(async () => {
+          const newRandomCookie = await JSON.parse(
+            await browser.elementByCss('#random-cookie').text()
+          ).value
+          return revalidatedRandomCookie === newRandomCookie
+            ? 'success'
+            : 'failure'
+        }, 'success')
+      })
+
       it.each(['tag', 'path'])(
-        'should invalidate client cache when %s is revalidate',
+        'should invalidate client cache when %s is revalidated',
         async (type) => {
           const browser = await next.browser('/revalidate')
           await browser.refresh()
@@ -527,10 +584,15 @@ createNextDescribe(
 
           await browser.elementByCss('#back').click()
 
-          if (type === 'tag') {
-            await browser.elementByCss('#revalidate-thankyounext').click()
-          } else {
-            await browser.elementByCss('#revalidate-path').click()
+          switch (type) {
+            case 'tag':
+              await browser.elementByCss('#revalidate-thankyounext').click()
+              break
+            case 'path':
+              await browser.elementByCss('#revalidate-path').click()
+              break
+            default:
+              throw new Error(`Invalid type: ${type}`)
           }
 
           // Should be different
