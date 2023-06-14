@@ -96,7 +96,7 @@ interface ExperimentalTurboOptions {
   /**
    * (`next --turbo` only) A mapping of aliased imports to modules to load in their place.
    *
-   * @see [Resolve Alias](https://nextjs.org/docs/api-reference/next.config.js/resolve-alias)
+   * @see [Resolve Alias](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#resolve-alias)
    */
   resolveAlias?: Record<
     string,
@@ -106,7 +106,7 @@ interface ExperimentalTurboOptions {
   /**
    * (`next --turbo` only) A list of webpack loaders to apply when running with Turbopack.
    *
-   * @see [Turbopack Loaders](https://nextjs.org/docs/api-reference/next.config.js/turbopack-loaders)
+   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
    */
   loaders?: Record<string, TurboLoaderItem[]>
 }
@@ -144,6 +144,10 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  caseSensitiveRoutes?: boolean
+  useDeploymentId?: boolean
+  useDeploymentIdServerActions?: boolean
+  deploymentId?: string
   logging?: 'verbose'
   appDocumentPreloading?: boolean
   strictNextHead?: boolean
@@ -168,6 +172,7 @@ export interface ExperimentalConfig {
   swcMinify?: boolean
   swcFileReading?: boolean
   cpus?: number
+  memoryBasedWorkersCount?: boolean
   sharedPool?: boolean
   proxyTimeout?: number
   isrFlushToDisk?: boolean
@@ -228,7 +233,7 @@ export interface ExperimentalConfig {
    */
   serverComponentsExternalPackages?: string[]
 
-  webVitalsAttribution?: Array<typeof WEB_VITALS[number]>
+  webVitalsAttribution?: Array<(typeof WEB_VITALS)[number]>
 
   turbo?: ExperimentalTurboOptions
   turbotrace?: {
@@ -659,7 +664,11 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
-    appDocumentPreloading: true,
+    caseSensitiveRoutes: false,
+    useDeploymentId: false,
+    deploymentId: undefined,
+    useDeploymentIdServerActions: false,
+    appDocumentPreloading: undefined,
     clientRouterFilter: false,
     clientRouterFilterRedirects: false,
     fetchCacheKeyPrefix: '',
@@ -673,6 +682,7 @@ export const defaultConfig: NextConfig = {
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
+    memoryBasedWorkersCount: false,
     sharedPool: true,
     isrFlushToDisk: true,
     workerThreads: false,

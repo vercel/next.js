@@ -1,20 +1,36 @@
-import { fetchCategoryBySlug, PageProps } from '@/lib/getCategories';
-import { Boundary } from '@/ui/Boundary';
-import { use } from 'react';
-import { Counter } from '../ClickCounter';
-import SubCategoryNav from '../SubCategoryNav';
+import { getCategories, getCategory } from '#/app/api/categories/getCategories'
+import { Boundary } from '#/ui/boundary'
+import { TabGroup } from '#/ui/tab-group'
+import { Counter } from '../context-click-counter'
 
-export default function Layout({ children, params }: PageProps) {
-  const category = use(fetchCategoryBySlug(params.categorySlug));
-  if (!category) return null;
+export default async function Layout({
+  children,
+  params,
+}: {
+  children: React.ReactNode
+  params: { categorySlug: string }
+}) {
+  const category = await getCategory({ slug: params.categorySlug })
+  const categories = await getCategories({ parent: params.categorySlug })
 
   return (
     <Boundary labels={['Layout [Server Component]']} animateRerendering={false}>
       <div className="space-y-9">
-        <SubCategoryNav category={category} />
+        <TabGroup
+          path={`/context/${category.slug}`}
+          items={[
+            {
+              text: 'All',
+            },
+            ...categories.map((x) => ({
+              text: x.name,
+              slug: x.slug,
+            })),
+          ]}
+        />
         <Counter />
         <div>{children}</div>
       </div>
     </Boundary>
-  );
+  )
 }

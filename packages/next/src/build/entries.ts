@@ -52,6 +52,9 @@ import { EdgeFunctionLoaderOptions } from './webpack/loaders/next-edge-function-
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { normalizeMetadataRoute } from '../lib/metadata/get-metadata-route'
 import { fileExists } from '../lib/file-exists'
+import { getRouteLoaderEntry } from './webpack/loaders/next-route-loader'
+import { isInternalPathname } from '../lib/is-internal-pathname'
+import { isStaticMetadataRouteFile } from '../lib/metadata/is-metadata-route'
 
 export async function getStaticInfoIncludingLayouts({
   isInsideAppDir,
@@ -125,6 +128,13 @@ export async function getStaticInfoIncludingLayouts({
     }
     if (pageStaticInfo.preferredRegion) {
       staticInfo.preferredRegion = pageStaticInfo.preferredRegion
+    }
+
+    // if it's static metadata route, don't inherit runtime from layout
+    const relativePath = pageFilePath.replace(appDir, '')
+    if (isStaticMetadataRouteFile(relativePath)) {
+      delete staticInfo.runtime
+      delete staticInfo.preferredRegion
     }
   }
   return staticInfo
@@ -344,7 +354,9 @@ export function getEdgeServerEntry(opts: {
     dev: opts.isDev,
     isServerComponent: opts.isServerComponent,
     page: opts.page,
-    stringifiedConfig: JSON.stringify(opts.config),
+    stringifiedConfig: Buffer.from(JSON.stringify(opts.config)).toString(
+      'base64'
+    ),
     pagesType: opts.pagesType,
     appDirLoader: Buffer.from(opts.appDirLoader || '').toString('base64'),
     sriEnabled: !opts.isDev && !!opts.config.experimental.sri?.algorithm,
@@ -538,7 +550,7 @@ export async function createEntrypoints(
             // server compiler inject them instead.
           } else {
             client[clientBundlePath] = getClientEntry({
-              absolutePagePath: mappings[page],
+              absolutePagePath,
               page,
             })
           }
@@ -549,7 +561,7 @@ export async function createEntrypoints(
             server[serverBundlePath] = getAppEntry({
               page,
               name: serverBundlePath,
-              pagePath: mappings[page],
+              pagePath: absolutePagePath,
               appDir,
               appPaths: matchedAppPaths,
               pageExtensions,
@@ -558,16 +570,26 @@ export async function createEntrypoints(
               nextConfigOutput: config.output,
               preferredRegion: staticInfo.preferredRegion,
             })
-          } else {
-            if (isInstrumentationHookFile(page) && pagesType === 'root') {
-              server[serverBundlePath.replace('src/', '')] = {
-                import: mappings[page],
-                // the '../' is needed to make sure the file is not chunked
-                filename: `../${INSTRUMENTATION_HOOK_FILENAME}.js`,
-              }
-            } else {
-              server[serverBundlePath] = [mappings[page]]
+          } else if (isInstrumentationHookFile(page) && pagesType === 'root') {
+            server[serverBundlePath.replace('src/', '')] = {
+              import: absolutePagePath,
+              // the '../' is needed to make sure the file is not chunked
+              filename: `../${INSTRUMENTATION_HOOK_FILENAME}.js`,
             }
+          } else if (
+            !isAPIRoute(page) &&
+            !isMiddlewareFile(page) &&
+            !isInternalPathname(absolutePagePath)
+          ) {
+            server[serverBundlePath] = [
+              getRouteLoaderEntry({
+                page,
+                absolutePagePath,
+                preferredRegion: staticInfo.preferredRegion,
+              }),
+            ]
+          } else {
+            server[serverBundlePath] = [absolutePagePath]
           }
         },
         onEdgeServer: () => {
@@ -577,7 +599,7 @@ export async function createEntrypoints(
             appDirLoader = getAppEntry({
               name: serverBundlePath,
               page,
-              pagePath: mappings[page],
+              pagePath: absolutePagePath,
               appDir: appDir!,
               appPaths: matchedAppPaths,
               pageExtensions,
@@ -596,7 +618,7 @@ export async function createEntrypoints(
           edgeServer[normalizedServerBundlePath] = getEdgeServerEntry({
             ...params,
             rootDir,
-            absolutePagePath: mappings[page],
+            absolutePagePath: absolutePagePath,
             bundlePath: clientBundlePath,
             isDev: false,
             isServerComponent,

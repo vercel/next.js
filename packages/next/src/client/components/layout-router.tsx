@@ -211,6 +211,8 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
 
       // State is mutated to ensure that the focus and scroll is applied only once.
       focusAndScrollRef.apply = false
+      focusAndScrollRef.hashFragment = null
+      focusAndScrollRef.segmentPaths = []
 
       handleSmoothScroll(
         () => {
@@ -318,7 +320,7 @@ function InnerLayoutRouter({
     throw new Error('invariant global layout router not mounted')
   }
 
-  const { changeByServerResponse, tree: fullTree } = context
+  const { buildId, changeByServerResponse, tree: fullTree } = context
 
   // Read segment path from the parallel router cache node.
   let childNode = childNodes.get(cacheKey)
@@ -366,7 +368,8 @@ function InnerLayoutRouter({
       data: fetchServerResponse(
         new URL(url, location.origin),
         refetchTree,
-        context.nextUrl
+        context.nextUrl,
+        buildId
       ),
       subTreeData: null,
       head:

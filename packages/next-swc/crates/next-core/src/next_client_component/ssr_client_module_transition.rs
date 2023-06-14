@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_binding::turbopack::{
+use turbopack_binding::turbopack::{
     core::{asset::AssetVc, compile_time_info::CompileTimeInfoVc},
     turbopack::{
         ecmascript::chunk::EcmascriptChunkPlaceableVc,

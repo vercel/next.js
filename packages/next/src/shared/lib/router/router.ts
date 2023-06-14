@@ -792,18 +792,18 @@ export default class Router implements BaseRouter {
       const dynamicFilterData: typeof staticFilterData = process.env
         .__NEXT_CLIENT_ROUTER_D_FILTER as any
 
-      if (staticFilterData?.hashes) {
+      if (staticFilterData?.numHashes) {
         this._bfl_s = new BloomFilter(
-          staticFilterData.size,
-          staticFilterData.hashes
+          staticFilterData.numItems,
+          staticFilterData.errorRate
         )
         this._bfl_s.import(staticFilterData)
       }
 
-      if (dynamicFilterData?.hashes) {
+      if (dynamicFilterData?.numHashes) {
         this._bfl_d = new BloomFilter(
-          dynamicFilterData.size,
-          dynamicFilterData.hashes
+          dynamicFilterData.numItems,
+          dynamicFilterData.errorRate
         )
         this._bfl_d.import(dynamicFilterData)
       }
@@ -1082,8 +1082,8 @@ export default class Router implements BaseRouter {
           ) {
             matchesBflStatic =
               matchesBflStatic ||
-              !!this._bfl_s?.has(asNoSlash) ||
-              !!this._bfl_s?.has(asNoSlashLocale)
+              !!this._bfl_s?.contains(asNoSlash) ||
+              !!this._bfl_s?.contains(asNoSlashLocale)
 
             for (const normalizedAS of [asNoSlash, asNoSlashLocale]) {
               // if any sub-path of as matches a dynamic filter path
@@ -1095,7 +1095,7 @@ export default class Router implements BaseRouter {
                 i++
               ) {
                 const currentPart = curAsParts.slice(0, i).join('/')
-                if (currentPart && this._bfl_d?.has(currentPart)) {
+                if (currentPart && this._bfl_d?.contains(currentPart)) {
                   matchesBflDynamic = true
                   break
                 }

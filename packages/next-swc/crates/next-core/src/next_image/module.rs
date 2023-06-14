@@ -1,17 +1,14 @@
 use anyhow::Result;
 use indexmap::indexmap;
-use turbo_binding::{
+use turbopack_binding::{
     turbo::tasks::Value,
     turbopack::{
         core::{
             asset::AssetVc,
             context::{AssetContext, AssetContextVc},
             plugin::{CustomModuleType, CustomModuleTypeVc},
+            reference_type::{InnerAssetsVc, ReferenceType},
             resolve::ModulePartVc,
-        },
-        ecmascript::{
-            EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc,
-            EcmascriptOptions, InnerAssetsVc,
         },
         r#static::StaticModuleAssetVc,
     },
@@ -47,25 +44,18 @@ impl StructuredImageModuleType {
         source: AssetVc,
         blur_placeholder_mode: BlurPlaceholderMode,
         context: AssetContextVc,
-    ) -> EcmascriptModuleAssetVc {
+    ) -> AssetVc {
         let static_asset = StaticModuleAssetVc::new(source, context);
-        EcmascriptModuleAssetVc::new_with_inner_assets(
+        context.process(
             StructuredImageSourceAsset {
                 image: source,
                 blur_placeholder_mode,
             }
             .cell()
             .into(),
-            context,
-            Value::new(EcmascriptModuleAssetType::Ecmascript),
-            EcmascriptInputTransformsVc::empty(),
-            Value::new(EcmascriptOptions {
-                ..Default::default()
-            }),
-            context.compile_time_info(),
-            InnerAssetsVc::cell(indexmap!(
+            Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap!(
                 "IMAGE".to_string() => static_asset.into()
-            )),
+            )))),
         )
     }
 }
@@ -89,6 +79,6 @@ impl CustomModuleType for StructuredImageModuleType {
         context: AssetContextVc,
         _part: Option<ModulePartVc>,
     ) -> AssetVc {
-        StructuredImageModuleType::create_module(source, self.blur_placeholder_mode, context).into()
+        StructuredImageModuleType::create_module(source, self.blur_placeholder_mode, context)
     }
 }

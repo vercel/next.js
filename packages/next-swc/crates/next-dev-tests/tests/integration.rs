@@ -35,13 +35,14 @@ use next_dev::{EntryRequest, NextDevServerBuilder};
 use owo_colors::OwoColorize;
 use regex::{Captures, Regex, Replacer};
 use serde::Deserialize;
+use tempdir::TempDir;
 use tokio::{
     net::TcpSocket,
     sync::mpsc::{unbounded_channel, UnboundedSender},
     task::JoinSet,
 };
 use tungstenite::{error::ProtocolError::ResetWithoutClosingHandshake, Error::Protocol};
-use turbo_binding::{
+use turbopack_binding::{
     turbo::{
         tasks::{
             debug::{ValueDebug, ValueDebugStringReadRef},
@@ -278,7 +279,7 @@ async fn run_test(resource: PathBuf) -> JsResult {
     .eager_compile(false)
     .hostname(requested_addr.ip())
     .port(requested_addr.port())
-    .log_level(turbo_binding::turbopack::core::issue::IssueSeverity::Warning)
+    .log_level(turbopack_binding::turbopack::core::issue::IssueSeverity::Warning)
     .log_detail(true)
     .issue_reporter(Box::new(move || {
         TestIssueReporterVc::new(issue_tx.clone()).into()
@@ -351,8 +352,11 @@ async fn run_test(resource: PathBuf) -> JsResult {
     result
 }
 
-async fn create_browser(is_debugging: bool) -> Result<(Browser, JoinSet<()>)> {
+async fn create_browser(is_debugging: bool) -> Result<(Browser, TempDir, JoinSet<()>)> {
     let mut config_builder = BrowserConfig::builder();
+    config_builder = config_builder.no_sandbox();
+    let tmp = TempDir::new("chromiumoxid").unwrap();
+    config_builder = config_builder.user_data_dir(&tmp);
     if is_debugging {
         config_builder = config_builder
             .with_head()
@@ -386,7 +390,7 @@ async fn create_browser(is_debugging: bool) -> Result<(Browser, JoinSet<()>)> {
         }
     });
 
-    Ok((browser, set))
+    Ok((browser, tmp, set))
 }
 
 const TURBOPACK_READY_BINDING: &str = "TURBOPACK_READY";
@@ -400,8 +404,10 @@ const BINDINGS: [&str; 3] = [
 
 async fn run_browser(addr: SocketAddr, project_dir: &Path) -> Result<JsResult> {
     let is_debugging = *DEBUG_BROWSER;
-    let (browser, mut handle) = create_browser(is_debugging).await?;
+    println!("starting browser...");
+    let (browser, _tmp, mut handle) = create_browser(is_debugging).await?;
 
+    println!("open about:blank...");
     // `browser.new_page()` opens a tab, navigates to the destination, and waits for
     // the page to load. chromiumoxide/Chrome DevTools Protocol has been flakey,
     // returning `ChannelSendError`s (WEB-259). Retry if necessary.
@@ -435,10 +441,12 @@ async fn run_browser(addr: SocketAddr, project_dir: &Path) -> Result<JsResult> {
         .await
         .context("Unable to listen to response received events")?;
 
+    println!("start navigating to http://{addr}...");
     page.evaluate_expression(format!("window.location='http://{addr}'"))
         .await
         .context("Unable to evaluate javascript to naviagate to target page")?;
 
+    println!("waiting for navigation...");
     // Wait for the next network response event
     // This is the HTML page that we're testing
     network_response_events.next().await.context(
@@ -452,6 +460,7 @@ async fn run_browser(addr: SocketAddr, project_dir: &Path) -> Result<JsResult> {
         .await;
     }
 
+    println!("finished navigation to http://{addr}");
     let mut errors_next = errors.next();
     let mut bindings_next = binding_events.next();
     let mut console_next = console_events.next();

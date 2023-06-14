@@ -2,7 +2,7 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use indoc::writedoc;
-use turbo_binding::{
+use turbopack_binding::{
     turbo::{
         tasks::{primitives::StringVc, TryJoinIterExt, Value},
         tasks_fs::rope::RopeBuilder,
@@ -11,19 +11,19 @@ use turbo_binding::{
         core::{
             asset::{Asset, AssetContentVc, AssetVc, AssetsVc},
             chunk::{
-                availability_info::AvailabilityInfo, ChunkGroupReferenceVc, ChunkItem, ChunkItemVc,
-                ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContext, ChunkingContextVc,
+                availability_info::AvailabilityInfo, ChunkDataVc, ChunkGroupReferenceVc, ChunkItem,
+                ChunkItemVc, ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContext,
+                ChunkingContextVc, ChunksDataVc,
             },
             ident::AssetIdentVc,
             reference::AssetReferencesVc,
         },
-        dev::{ChunkDataVc, ChunksDataVc},
         ecmascript::{
             chunk::{
-                EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
-                EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc,
-                EcmascriptChunkVc, EcmascriptChunkingContextVc, EcmascriptExports,
-                EcmascriptExportsVc,
+                EcmascriptChunkData, EcmascriptChunkItem, EcmascriptChunkItemContent,
+                EcmascriptChunkItemContentVc, EcmascriptChunkItemVc, EcmascriptChunkPlaceable,
+                EcmascriptChunkPlaceableVc, EcmascriptChunkVc, EcmascriptChunkingContextVc,
+                EcmascriptExports, EcmascriptExportsVc,
             },
             utils::StringifyJs,
         },
@@ -161,7 +161,7 @@ impl EcmascriptChunkItem for WithChunksChunkItem {
         let chunks_data = chunks_data.iter().try_join().await?;
         let chunks_data: Vec<_> = chunks_data
             .iter()
-            .map(|chunk_data| chunk_data.runtime_chunk_data())
+            .map(|chunk_data| EcmascriptChunkData::new(chunk_data))
             .collect();
 
         let module_id = &*inner
