@@ -3,7 +3,6 @@ const fs = require('fs-extra')
 const exec = require('../util/exec')
 const { remove } = require('fs-extra')
 const logger = require('../util/logger')
-const semver = require('semver')
 const execa = require('execa')
 
 module.exports = (actionInfo) => {
@@ -14,21 +13,16 @@ module.exports = (actionInfo) => {
         `git clone ${actionInfo.gitRoot}${repoPath} --single-branch --branch ${branch} --depth=${depth} ${dest}`
       )
     },
-    async getLastStable(repoDir = '', ref) {
-      const { stdout } = await exec(`cd ${repoDir} && git tag -l`)
-      const tags = stdout.trim().split('\n')
-      let lastStableTag
+    async getLastStable(repoDir = '') {
+      const { stdout } = await exec(`cd ${repoDir} && git describe`)
+      const tag = stdout.trim()
 
-      for (let i = tags.length - 1; i >= 0; i--) {
-        const curTag = tags[i]
-        // stable doesn't include `-canary` or `-beta`
-        if (!curTag.includes('-') && !ref.includes(curTag)) {
-          if (!lastStableTag || semver.gt(curTag, lastStableTag)) {
-            lastStableTag = curTag
-          }
-        }
+      if (!tag || !tag.startsWith('v')) {
+        throw new Error(`Failed to get tag info ${stdout}`)
       }
-      return lastStableTag
+      const tagParts = tag.split('-canary')[0].split('.')
+      // last stable tag will always be 1 patch less than canary
+      return `${tagParts[0]}.${tagParts[1]}.${Number(tagParts[2]) - 1}`
     },
     async getCommitId(repoDir = '') {
       const { stdout } = await exec(`cd ${repoDir} && git rev-parse HEAD`)
@@ -79,6 +73,7 @@ module.exports = (actionInfo) => {
         }
         const pkgData = require(pkgDataPath)
         const { name } = pkgData
+
         pkgDatas.set(name, {
           pkgDataPath,
           pkg,
@@ -103,7 +98,7 @@ module.exports = (actionInfo) => {
           if (!pkgData.files) {
             pkgData.files = []
           }
-          pkgData.files.push('native/*')
+          pkgData.files.push('native')
           require('console').log(
             'using swc binaries: ',
             await exec(`ls ${path.join(path.dirname(pkgDataPath), 'native')}`)
@@ -124,16 +119,9 @@ module.exports = (actionInfo) => {
               pkgData.dependencies['@next/swc'] =
                 pkgDatas.get('@next/swc').packedPkgPath
             } else {
-              pkgData.files.push('native/*')
+              pkgData.files.push('native')
             }
           }
-        }
-
-        if (pkgData?.scripts?.prepublishOnly) {
-          // There's a bug in `pnpm pack` where it will run
-          // the prepublishOnly script and that will fail.
-          // See https://github.com/pnpm/pnpm/issues/2941
-          delete pkgData.scripts.prepublishOnly
         }
 
         await fs.writeFile(
@@ -147,21 +135,17 @@ module.exports = (actionInfo) => {
       // to the correct versions
       await Promise.all(
         Array.from(pkgDatas.keys()).map(async (pkgName) => {
-          const { pkg, pkgPath, pkgData, packedPkgPath } = pkgDatas.get(pkgName)
-          // Copied from pnpm source: https://github.com/pnpm/pnpm/blob/5a5512f14c47f4778b8d2b6d957fb12c7ef40127/releasing/plugin-commands-publishing/src/pack.ts#L96
-          const tmpTarball = path.join(
-            pkgPath,
-            `${pkgData.name.replace('@', '').replace('/', '-')}-${
-              pkgData.version
-            }.tgz`
-          )
-          await execa('pnpm', ['pack'], {
+          const { pkgPath, packedPkgPath } = pkgDatas.get(pkgName)
+
+          await execa('yarn', ['pack', '-f', packedPkgPath], {
             cwd: pkgPath,
+            env: {
+              ...process.env,
+              COREPACK_ENABLE_STRICT: '0',
+            },
           })
-          await fs.copyFile(tmpTarball, packedPkgPath)
         })
       )
-
       return pkgPaths
     },
   }
