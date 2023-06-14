@@ -329,8 +329,6 @@ function warnAboutExperimentalEdge(apiRoute: string | null) {
   if (apiRouteWarnings.has(apiRoute)) {
     return
   }
-
-  console.log({ apiRoute })
   Log.warn(
     apiRoute
       ? `${apiRoute} provided runtime 'experimental-edge'. It can be updated to 'edge' instead.`
