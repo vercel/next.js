@@ -1,5 +1,5 @@
 import {
-  ActionFlightData,
+  ActionFlightResponse,
   ActionResult,
   FlightData,
 } from '../../../../server/app-render/types'
@@ -32,6 +32,7 @@ type FetchServerActionResult = {
   actionFlightData?: FlightData | undefined | null
   revalidatedParts: {
     tag: boolean
+    cookie: boolean
     paths: string[]
   }
 }
@@ -67,16 +68,18 @@ async function fetchServerAction(
   let revalidatedParts: FetchServerActionResult['revalidatedParts']
   try {
     const revalidatedHeader = JSON.parse(
-      res.headers.get('x-action-revalidated') || '[0,[]]'
+      res.headers.get('x-action-revalidated') || '[[],0,0]'
     )
     revalidatedParts = {
-      tag: !!revalidatedHeader[0],
-      paths: revalidatedHeader[1] || [],
+      paths: revalidatedHeader[0] || [],
+      tag: !!revalidatedHeader[1],
+      cookie: revalidatedHeader[2],
     }
   } catch (e) {
     revalidatedParts = {
-      tag: false,
       paths: [],
+      tag: false,
+      cookie: false,
     }
   }
 
@@ -88,20 +91,24 @@ async function fetchServerAction(
     res.headers.get('content-type') === RSC_CONTENT_TYPE_HEADER
 
   if (isFlightResponse) {
-    const result = await createFromFetch(Promise.resolve(res), {
-      callServer,
-    })
+    const response: ActionFlightResponse = await createFromFetch(
+      Promise.resolve(res),
+      {
+        callServer,
+      }
+    )
+
     // if it was a redirection, then result is just a regular RSC payload
     if (location) {
+      const [, payload] = response
       return {
-        actionFlightData: result as FlightData,
+        actionFlightData: payload?.[1],
         redirectLocation,
         revalidatedParts,
       }
       // otherwise it's a tuple of [actionResult, actionFlightData]
     } else {
-      const [actionResult, actionFlightData] =
-        (result as ActionFlightData | undefined) ?? []
+      const [actionResult, [, actionFlightData]] = response ?? []
       return {
         actionResult,
         actionFlightData,
@@ -149,7 +156,7 @@ export function serverActionReducer(
 
     // Invalidate the cache for the revalidated parts. This has to be done before the
     // cache is updated with the action's flight data again.
-    if (revalidatedParts.tag) {
+    if (revalidatedParts.tag || revalidatedParts.cookie) {
       // Invalidate everything if the tag is set.
       state.prefetchCache.clear()
     } else if (revalidatedParts.paths.length > 0) {

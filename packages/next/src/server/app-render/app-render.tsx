@@ -224,6 +224,13 @@ export async function renderToHTMLOrFlight(
     staticGenerationStore.fetchMetrics = []
     ;(renderOpts as any).fetchMetrics = staticGenerationStore.fetchMetrics
 
+    const requestStore = requestAsyncStorage.getStore()
+    if (!requestStore) {
+      throw new Error(
+        `Invariant: Render expects to have requestAsyncStorage, none found`
+      )
+    }
+
     // don't modify original query object
     query = { ...query }
     stripInternalQueries(query)
@@ -1206,10 +1213,14 @@ export async function renderToHTMLOrFlight(
             })
           ).map((path) => path.slice(1)) // remove the '' (root) segment
 
+      const buildIdFlightDataPair = [renderOpts.buildId, flightData]
+
       // For app dir, use the bundled version of Fizz renderer (renderToReadableStream)
       // which contains the subset React.
       const readable = ComponentMod.renderToReadableStream(
-        options ? [options.actionResult, flightData] : flightData,
+        options
+          ? [options.actionResult, buildIdFlightDataPair]
+          : buildIdFlightDataPair,
         clientReferenceManifest.clientModules,
         {
           context: serverContexts,
@@ -1329,6 +1340,7 @@ export async function renderToHTMLOrFlight(
           <>
             {styles}
             <AppRouter
+              buildId={renderOpts.buildId}
               assetPrefix={assetPrefix}
               initialCanonicalUrl={pathname}
               initialTree={initialTree}
@@ -1612,6 +1624,7 @@ export async function renderToHTMLOrFlight(
       serverActionsManifest,
       generateFlight,
       staticGenerationStore,
+      requestStore,
     })
 
     if (actionRequestResult === 'not-found') {

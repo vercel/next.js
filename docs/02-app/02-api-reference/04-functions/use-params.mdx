@@ -5,8 +5,6 @@ description: API Reference for the useParams hook.
 
 `useParams` is a **Client Component** hook that lets you read a route's [dynamic params](/docs/app/building-your-application/routing/dynamic-routes) filled in by the current URL.
 
-> **Note:** Support for `useParams` is added in Next.js 13.3.
-
 ```tsx filename="app/example-client-component.tsx" switcher
 'use client'
 
@@ -67,3 +65,9 @@ For example:
 | `app/shop/[slug]/page.js`       | `/shop/1`   | `{ slug: '1' }`           |
 | `app/shop/[tag]/[item]/page.js` | `/shop/1/2` | `{ tag: '1', item: '2' }` |
 | `app/shop/[...slug]/page.js`    | `/shop/1/2` | `{ slug: ['1', '2'] }`    |
+
+## Version History
+
+| Version   | Changes                 |
+| --------- | ----------------------- |
+| `v13.3.0` | `useParams` introduced. |

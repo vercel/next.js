@@ -11,11 +11,7 @@ import type { NextConfig, NextConfigComplete } from './config-shared'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { ParsedUrlQuery } from 'querystring'
 import type { RenderOpts, RenderOptsPartial } from './render'
-import type {
-  ResponseCacheBase,
-  ResponseCacheEntry,
-  ResponseCacheValue,
-} from './response-cache'
+import type { ResponseCacheBase, ResponseCacheEntry } from './response-cache'
 import type { UrlWithParsedQuery } from 'url'
 import {
   NormalizeError,
@@ -81,6 +77,7 @@ import {
   RSC,
   RSC_VARY_HEADER,
   FLIGHT_PARAMETERS,
+  NEXT_RSC_UNION_QUERY,
 } from '../client/components/app-router-headers'
 import {
   MatchOptions,
@@ -1786,9 +1783,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         result = await module.render(
           (req as NodeNextRequest).originalRequest,
           (res as NodeNextResponse).originalResponse,
-          pathname,
-          query,
-          renderOpts
+          { page: pathname, params: match.params, query, renderOpts }
         )
       } else {
         // If we didn't match a page, we should fallback to using the legacy
@@ -1840,23 +1835,40 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         throw err
       }
 
-      let value: ResponseCacheValue | null
+      // Based on the metadata, we can determine what kind of cache result we
+      // should return.
+
+      // Handle `isNotFound`.
       if (metadata.isNotFound) {
-        value = null
-      } else if (metadata.isRedirect) {
-        value = { kind: 'REDIRECT', props: metadata.pageData }
-      } else {
-        if (result.isNull()) {
-          return null
+        return { value: null, revalidate: metadata.revalidate }
+      }
+
+      // Handle `isRedirect`.
+      if (metadata.isRedirect) {
+        return {
+          value: {
+            kind: 'REDIRECT',
+            props: metadata.pageData,
+          },
+          revalidate: metadata.revalidate,
         }
-        value = {
+      }
+
+      // Handle `isNull`.
+      if (result.isNull()) {
+        return { value: null, revalidate: metadata.revalidate }
+      }
+
+      // We now have a valid HTML result that we can return to the user.
+      return {
+        value: {
           kind: 'PAGE',
           html: result,
           pageData: metadata.pageData,
           headers,
-        }
+        },
+        revalidate: metadata.revalidate,
       }
-      return { revalidate: metadata.revalidate, value }
     }
 
     const cacheEntry = await this.responseCache.get(
@@ -2218,6 +2230,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const { res, query, pathname } = ctx
     let page = pathname
     const bubbleNoFallback = !!query._nextBubbleNoFallback
+    delete query[NEXT_RSC_UNION_QUERY]
     delete query._nextBubbleNoFallback
 
     const options: MatchOptions = {
