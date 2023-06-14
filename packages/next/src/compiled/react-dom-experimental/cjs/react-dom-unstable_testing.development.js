@@ -8263,7 +8263,8 @@ function shallowEqual(objA, objB) {
   for (var i = 0; i < keysA.length; i++) {
     var currentKey = keysA[i];
 
-    if (!hasOwnProperty.call(objB, currentKey) || !objectIs(objA[currentKey], objB[currentKey])) {
+    if (!hasOwnProperty.call(objB, currentKey) || // $FlowFixMe[incompatible-use] lost refinement of `objB`
+    !objectIs(objA[currentKey], objB[currentKey])) {
       return false;
     }
   }
@@ -11758,8 +11759,6 @@ function mountSyncExternalStore(subscribe, getSnapshot, getServerSnapshot) {
   // clean-up function, and we track the deps correctly, we can call pushEffect
   // directly, without storing any additional state. For the same reason, we
   // don't need to set a static flag, either.
-  // TODO: We can move this to the passive phase once we add a pre-commit
-  // consistency check. See the next comment.
 
   fiber.flags |= Passive$1;
   pushEffect(HasEffect | Passive, updateStoreInstance.bind(null, fiber, inst, nextSnapshot, getSnapshot), createEffectInstance(), null);
@@ -11772,16 +11771,28 @@ function updateSyncExternalStore(subscribe, getSnapshot, getServerSnapshot) {
   // normal rules of React, and only works because store updates are
   // always synchronous.
 
-  var nextSnapshot = getSnapshot();
+  var nextSnapshot;
+  var isHydrating = getIsHydrating();
 
-  {
-    if (!didWarnUncachedGetSnapshot) {
-      var cachedSnapshot = getSnapshot();
+  if (isHydrating) {
+    // Needed for strict mode double render
+    if (getServerSnapshot === undefined) {
+      throw new Error('Missing getServerSnapshot, which is required for ' + 'server-rendered content. Will revert to client rendering.');
+    }
 
-      if (!objectIs(nextSnapshot, cachedSnapshot)) {
-        error('The result of getSnapshot should be cached to avoid an infinite loop');
+    nextSnapshot = getServerSnapshot();
+  } else {
+    nextSnapshot = getSnapshot();
 
-        didWarnUncachedGetSnapshot = true;
+    {
+      if (!didWarnUncachedGetSnapshot) {
+        var cachedSnapshot = getSnapshot();
+
+        if (!objectIs(nextSnapshot, cachedSnapshot)) {
+          error('The result of getSnapshot should be cached to avoid an infinite loop');
+
+          didWarnUncachedGetSnapshot = true;
+        }
       }
     }
   }
@@ -11800,7 +11811,7 @@ function updateSyncExternalStore(subscribe, getSnapshot, getServerSnapshot) {
   // this can happen all the time, but even in synchronous mode, an earlier
   // effect may have mutated the store.
 
-  if (inst.getSnapshot !== getSnapshot || snapshotChanged || // Check if the susbcribe function changed. We can save some memory by
+  if (inst.getSnapshot !== getSnapshot || snapshotChanged || // Check if the subscribe function changed. We can save some memory by
   // checking whether we scheduled a subscription effect above.
   workInProgressHook !== null && workInProgressHook.memoizedState.tag & HasEffect) {
     fiber.flags |= Passive$1;
@@ -11814,7 +11825,7 @@ function updateSyncExternalStore(subscribe, getSnapshot, getServerSnapshot) {
       throw new Error('Expected a work-in-progress root. This is a bug in React. Please file an issue.');
     }
 
-    if (!includesBlockingLane(root, renderLanes$1)) {
+    if (!isHydrating && !includesBlockingLane(root, renderLanes$1)) {
       pushStoreConsistencyCheck(fiber, getSnapshot, nextSnapshot);
     }
   }
@@ -12048,7 +12059,8 @@ function updateEffectImpl(fiberFlags, hookFlags, create, deps) {
   var hook = updateWorkInProgressHook();
   var nextDeps = deps === undefined ? null : deps;
   var effect = hook.memoizedState;
-  var inst = effect.inst; // currentHook is null when rerendering after a render phase state update.
+  var inst = effect.inst; // currentHook is null on initial mount when rerendering after a render phase
+  // state update or for strict mode.
 
   if (currentHook !== null) {
     if (nextDeps !== null) {
@@ -13238,7 +13250,7 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
     useSyncExternalStore: function (subscribe, getSnapshot, getServerSnapshot) {
       currentHookNameInDev = 'useSyncExternalStore';
       updateHookTypesDev();
-      return updateSyncExternalStore(subscribe, getSnapshot);
+      return updateSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
     },
     useId: function () {
       currentHookNameInDev = 'useId';
@@ -13378,7 +13390,7 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
     useSyncExternalStore: function (subscribe, getSnapshot, getServerSnapshot) {
       currentHookNameInDev = 'useSyncExternalStore';
       updateHookTypesDev();
-      return updateSyncExternalStore(subscribe, getSnapshot);
+      return updateSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
     },
     useId: function () {
       currentHookNameInDev = 'useId';
@@ -13702,7 +13714,7 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       currentHookNameInDev = 'useSyncExternalStore';
       warnInvalidHookAccess();
       updateHookTypesDev();
-      return updateSyncExternalStore(subscribe, getSnapshot);
+      return updateSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
     },
     useId: function () {
       currentHookNameInDev = 'useId';
@@ -13867,7 +13879,7 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       currentHookNameInDev = 'useSyncExternalStore';
       warnInvalidHookAccess();
       updateHookTypesDev();
-      return updateSyncExternalStore(subscribe, getSnapshot);
+      return updateSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
     },
     useId: function () {
       currentHookNameInDev = 'useId';
@@ -22513,18 +22525,28 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
     case SuspenseComponent:
       {
         recursivelyTraverseMutationEffects(root, finishedWork);
-        commitReconciliationEffects(finishedWork);
+        commitReconciliationEffects(finishedWork); // TODO: We should mark a flag on the Suspense fiber itself, rather than
+        // relying on the Offscreen fiber having a flag also being marked. The
+        // reason is that this offscreen fiber might not be part of the work-in-
+        // progress tree! It could have been reused from a previous render. This
+        // doesn't lead to incorrect behavior because we don't rely on the flag
+        // check alone; we also compare the states explicitly below. But for
+        // modeling purposes, we _should_ be able to rely on the flag check alone.
+        // So this is a bit fragile.
+        //
+        // Also, all this logic could/should move to the passive phase so it
+        // doesn't block paint.
+
         var offscreenFiber = finishedWork.child;
 
         if (offscreenFiber.flags & Visibility) {
-          var newState = offscreenFiber.memoizedState;
-          var isHidden = newState !== null;
+          // Throttle the appearance and disappearance of Suspense fallbacks.
+          var isShowingFallback = finishedWork.memoizedState !== null;
+          var wasShowingFallback = current !== null && current.memoizedState !== null;
 
-          if (isHidden) {
-            var wasHidden = offscreenFiber.alternate !== null && offscreenFiber.alternate.memoizedState !== null;
-
-            if (!wasHidden) {
-              // TODO: Move to passive phase
+          {
+            if (isShowingFallback !== wasShowingFallback) {
+              // A fallback is either appearing or disappearing.
               markCommitTimeOfFallback();
             }
           }
@@ -22556,11 +22578,9 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
           }
         }
 
-        var _newState = finishedWork.memoizedState;
-
-        var _isHidden = _newState !== null;
-
-        var _wasHidden = current !== null && current.memoizedState !== null;
+        var newState = finishedWork.memoizedState;
+        var isHidden = newState !== null;
+        var wasHidden = current !== null && current.memoizedState !== null;
 
         if (finishedWork.mode & ConcurrentMode) {
           // Before committing the children, track on the stack whether this
@@ -22568,8 +22588,8 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
           // effects again.
           var prevOffscreenSubtreeIsHidden = offscreenSubtreeIsHidden;
           var prevOffscreenSubtreeWasHidden = offscreenSubtreeWasHidden;
-          offscreenSubtreeIsHidden = prevOffscreenSubtreeIsHidden || _isHidden;
-          offscreenSubtreeWasHidden = prevOffscreenSubtreeWasHidden || _wasHidden;
+          offscreenSubtreeIsHidden = prevOffscreenSubtreeIsHidden || isHidden;
+          offscreenSubtreeWasHidden = prevOffscreenSubtreeWasHidden || wasHidden;
           recursivelyTraverseMutationEffects(root, finishedWork);
           offscreenSubtreeWasHidden = prevOffscreenSubtreeWasHidden;
           offscreenSubtreeIsHidden = prevOffscreenSubtreeIsHidden;
@@ -22589,20 +22609,20 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
         if (flags & Visibility) {
           // Track the current state on the Offscreen instance so we can
           // read it during an event
-          if (_isHidden) {
+          if (isHidden) {
             offscreenInstance._visibility &= ~OffscreenVisible;
           } else {
             offscreenInstance._visibility |= OffscreenVisible;
           }
 
-          if (_isHidden) {
+          if (isHidden) {
             var isUpdate = current !== null;
             var wasHiddenByAncestorOffscreen = offscreenSubtreeIsHidden || offscreenSubtreeWasHidden; // Only trigger disapper layout effects if:
             //   - This is an update, not first mount.
             //   - This Offscreen was not hidden before.
             //   - Ancestor Offscreen was not hidden in previous commit.
 
-            if (isUpdate && !_wasHidden && !wasHiddenByAncestorOffscreen) {
+            if (isUpdate && !wasHidden && !wasHiddenByAncestorOffscreen) {
               if ((finishedWork.mode & ConcurrentMode) !== NoMode) {
                 // Disappear the layout effects of all the children
                 recursivelyTraverseDisappearLayoutEffects(finishedWork);
@@ -22614,7 +22634,7 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
           if (!isOffscreenManual(finishedWork)) {
             // TODO: This needs to run whenever there's an insertion or update
             // inside a hidden Offscreen tree.
-            hideOrUnhideAllChildren(finishedWork, _isHidden);
+            hideOrUnhideAllChildren(finishedWork, isHidden);
           }
         } // TODO: Move to passive phase
 
@@ -24396,11 +24416,13 @@ var workInProgressRootPingedLanes = NoLanes; // Errors that are thrown during th
 var workInProgressRootConcurrentErrors = null; // These are errors that we recovered from without surfacing them to the UI.
 // We will log them once the tree commits.
 
-var workInProgressRootRecoverableErrors = null; // The most recent time we committed a fallback. This lets us ensure a train
-// model where we don't commit new loading states in too quick succession.
+var workInProgressRootRecoverableErrors = null; // The most recent time we either committed a fallback, or when a fallback was
+// filled in with the resolved UI. This lets us throttle the appearance of new
+// content as it streams in, to minimize jank.
+// TODO: Think of a better name for this variable?
 
 var globalMostRecentFallbackTime = 0;
-var FALLBACK_THROTTLE_MS = 500; // The absolute time for when we should start giving up on rendering
+var FALLBACK_THROTTLE_MS = 300; // The absolute time for when we should start giving up on rendering
 // more and prefer CPU suspense heuristics instead.
 
 var workInProgressRootRenderTargetTime = Infinity; // How long a render is supposed to take before we start following CPU
@@ -28287,7 +28309,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks) {
   return root;
 }
 
-var ReactVersion = '18.3.0-experimental-16d053d59-20230506';
+var ReactVersion = '18.3.0-experimental-1cea38448-20230530';
 
 function createPortal$1(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {
@@ -35952,11 +35974,25 @@ function clearContainerSparingly(container) {
           detachDeletedInstance(element);
           continue;
         }
+      // Script tags are retained to avoid an edge case bug. Normally scripts will execute if they
+      // are ever inserted into the DOM. However when streaming if a script tag is opened but not
+      // yet closed some browsers create and insert the script DOM Node but the script cannot execute
+      // yet until the closing tag is parsed. If something causes React to call clearContainer while
+      // this DOM node is in the document but not yet executable the DOM node will be removed from the
+      // document and when the script closing tag comes in the script will not end up running. This seems
+      // to happen in Chrome/Firefox but not Safari at the moment though this is not necessarily specified
+      // behavior so it could change in future versions of browsers. While leaving all scripts is broader
+      // than strictly necessary this is the least amount of additional code to avoid this breaking
+      // edge case.
+      //
+      // Style tags are retained because they may likely come from 3rd party scripts and extensions
 
+      case 'SCRIPT':
       case 'STYLE':
         {
           continue;
         }
+      // Stylesheet tags are retained because tehy may likely come from 3rd party scripts and extensions
 
       case 'LINK':
         {
@@ -36003,7 +36039,17 @@ function canHydrateInstance(instance, type, props, inRootOrSingleton) {
 
     } else if (!inRootOrSingleton || !enableHostSingletons) {
       // Match
-      if (type === 'input' && element.type === 'hidden' && anyProps.type !== 'hidden') ; else {
+      if (type === 'input' && element.type === 'hidden') {
+        {
+          checkAttributeStringCoercion(anyProps.name, 'name');
+        }
+
+        var name = anyProps.name == null ? null : '' + anyProps.name;
+
+        if (anyProps.type !== 'hidden' || element.getAttribute('name') !== name) ; else {
+          return element;
+        }
+      } else {
         return element;
       }
     } else if (isMarkedHoistable(element)) ; else {
@@ -36625,7 +36671,7 @@ function clearSingleton(instance) {
     var nextNode = node.nextSibling;
     var nodeName = node.nodeName;
 
-    if (isMarkedHoistable(node) || nodeName === 'HEAD' || nodeName === 'BODY' || nodeName === 'STYLE' || nodeName === 'LINK' && node.rel.toLowerCase() === 'stylesheet') ; else {
+    if (isMarkedHoistable(node) || nodeName === 'HEAD' || nodeName === 'BODY' || nodeName === 'SCRIPT' || nodeName === 'STYLE' || nodeName === 'LINK' && node.rel.toLowerCase() === 'stylesheet') ; else {
       element.removeChild(node);
     }
 

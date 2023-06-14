@@ -580,7 +580,7 @@ export async function apiResolver(
         )
       }
 
-      endResponse.apply(apiRes, args)
+      return endResponse.apply(apiRes, args)
     }
     apiRes.status = (statusCode) => sendStatusCode(apiRes, statusCode)
     apiRes.send = (data) => sendData(apiReq, apiRes, data)

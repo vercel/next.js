@@ -31,10 +31,6 @@ function readFinalStringChunk(decoder, buffer) {
   return decoder.decode(buffer);
 }
 
-function parseModel(response, json) {
-  return JSON.parse(json, response._fromJSON);
-}
-
 // eslint-disable-next-line no-unused-vars
 function resolveClientReference(bundlerConfig, metadata) {
   if (bundlerConfig) {
@@ -456,7 +452,6 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
         if (typeof value === 'string') {
           substr = value;
         } else if (typeof value === 'object' && value !== null) {
-          // $FlowFixMe[incompatible-call] found when upgrading Flow
           substr = '{' + describeObjectForErrorMessage(value) + '}';
         } else {
           substr = '{' + describeValueForErrorMessage(value) + '}';
@@ -489,7 +484,6 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
         var _substr = void 0;
 
         if (typeof _value === 'object' && _value !== null) {
-          // $FlowFixMe[incompatible-call] found when upgrading Flow
           _substr = describeObjectForErrorMessage(_value);
         } else {
           _substr = describeValueForErrorMessage(_value);
@@ -528,7 +522,6 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
         var _substr2 = void 0;
 
         if (name === expandedName && typeof _value2 === 'object' && _value2 !== null) {
-          // $FlowFixMe[incompatible-call] found when upgrading Flow
           _substr2 = describeObjectForErrorMessage(_value2);
         } else {
           _substr2 = describeValueForErrorMessage(_value2);
@@ -569,7 +562,6 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
         var _substr3 = void 0;
 
         if (typeof _value3 === 'object' && _value3 !== null) {
-          // $FlowFixMe[incompatible-call] found when upgrading Flow
           _substr3 = describeObjectForErrorMessage(_value3);
         } else {
           _substr3 = describeValueForErrorMessage(_value3);
@@ -784,7 +776,7 @@ function processReply(root, formFieldPrefix, resolve, reject) {
       if (value[value.length - 1] === 'Z') {
         // Possibly a Date, whose toJSON automatically calls toISOString
         // $FlowFixMe[incompatible-use]
-        var _originalValue = parent[key]; // $FlowFixMe[method-unbinding]
+        var _originalValue = parent[key];
 
         if (_originalValue instanceof Date) {
           return serializeDateFromDateJSON(value);
@@ -1506,6 +1498,7 @@ function parseModelString(response, parentObject, key, value) {
 
   return value;
 }
+
 function parseModelTuple(response, value) {
   var tuple = value;
 
@@ -1522,15 +1515,26 @@ function missingCall() {
   throw new Error('Trying to call a function from "use server" but the callServer option ' + 'was not implemented in your router runtime.');
 }
 
-function createResponse$1(bundlerConfig, callServer) {
+function createResponse(bundlerConfig, callServer) {
   var chunks = new Map();
   var response = {
     _bundlerConfig: bundlerConfig,
     _callServer: callServer !== undefined ? callServer : missingCall,
-    _chunks: chunks
+    _chunks: chunks,
+    _partialRow: '',
+    _stringDecoder: null,
+    _fromJSON: null
   };
+
+  {
+    response._stringDecoder = createStringDecoder();
+  } // Don't inline this call because it causes closure to outline the call above.
+
+
+  response._fromJSON = createFromJSONCallback(response);
   return response;
 }
+
 function resolveModel(response, id, model) {
   var chunks = response._chunks;
   var chunk = chunks.get(id);
@@ -1541,6 +1545,7 @@ function resolveModel(response, id, model) {
     resolveModelChunk(chunk, model);
   }
 }
+
 function resolveModule(response, id, model) {
   var chunks = response._chunks;
   var chunk = chunks.get(id);
@@ -1581,6 +1586,7 @@ function resolveModule(response, id, model) {
     }
   }
 }
+
 function resolveErrorDev(response, id, digest, message, stack) {
 
 
@@ -1597,16 +1603,10 @@ function resolveErrorDev(response, id, digest, message, stack) {
     triggerErrorOnChunk(chunk, errorWithDigest);
   }
 }
+
 function resolveHint(response, code, model) {
   var hintModel = parseModel(response, model);
   dispatchHint(code, hintModel);
-}
-function close(response) {
-  // In case there are any remaining unresolved chunks, they won't
-  // be resolved now. So we need to issue an error to those.
-  // Ideally we should be able to early bail out if we kept a
-  // ref count of pending chunks.
-  reportGlobalError(response, new Error('Connection closed.'));
 }
 
 function processFullRow(response, row) {
@@ -1684,6 +1684,10 @@ function processBinaryChunk(response, chunk) {
   response._partialRow += readPartialStringChunk(stringDecoder, chunk);
 }
 
+function parseModel(response, json) {
+  return JSON.parse(json, response._fromJSON);
+}
+
 function createFromJSONCallback(response) {
   // $FlowFixMe[missing-this-annot]
   return function (key, value) {
@@ -1700,20 +1704,12 @@ function createFromJSONCallback(response) {
   };
 }
 
-function createResponse(bundlerConfig, callServer) {
-  // NOTE: CHECK THE COMPILER OUTPUT EACH TIME YOU CHANGE THIS.
-  // It should be inlined to one object literal but minor changes can break it.
-  var stringDecoder = createStringDecoder() ;
-  var response = createResponse$1(bundlerConfig, callServer);
-  response._partialRow = '';
-
-  {
-    response._stringDecoder = stringDecoder;
-  } // Don't inline this call because it causes closure to outline the call above.
-
-
-  response._fromJSON = createFromJSONCallback(response);
-  return response;
+function close(response) {
+  // In case there are any remaining unresolved chunks, they won't
+  // be resolved now. So we need to issue an error to those.
+  // Ideally we should be able to early bail out if we kept a
+  // ref count of pending chunks.
+  reportGlobalError(response, new Error('Connection closed.'));
 }
 
 function noServerCall() {

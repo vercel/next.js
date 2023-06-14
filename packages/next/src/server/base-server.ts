@@ -31,6 +31,9 @@ import type { PayloadOptions } from './send-payload'
 import type { PrerenderManifest } from '../build'
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
+import type { PagesRouteModule } from './future/route-modules/pages/module'
+import type { NodeNextRequest, NodeNextResponse } from './base-http/node'
+import type { AppRouteRouteMatch } from './future/route-matches/app-route-route-match'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/redirect-status'
@@ -78,6 +81,7 @@ import {
   RSC,
   RSC_VARY_HEADER,
   FLIGHT_PARAMETERS,
+  NEXT_RSC_UNION_QUERY,
 } from '../client/components/app-router-headers'
 import {
   MatchOptions,
@@ -105,6 +109,7 @@ import {
   toNodeOutgoingHttpHeaders,
 } from './web/utils'
 import { NEXT_QUERY_PARAM_PREFIX } from '../lib/constants'
+import { isRouteMatch } from './future/route-matches/route-match'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -667,8 +672,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
       // in minimal mode we detect RSC revalidate if the .rsc
       // path is requested
-      if (this.minimalMode && req.url.endsWith('.rsc')) {
-        parsedUrl.query.__nextDataReq = '1'
+      if (this.minimalMode) {
+        if (req.url.endsWith('.rsc')) {
+          parsedUrl.query.__nextDataReq = '1'
+        } else if (req.headers['x-now-route-matches']) {
+          for (const param of FLIGHT_PARAMETERS) {
+            delete req.headers[param.toString().toLowerCase()]
+          }
+        }
       }
 
       req.url = normalizeRscPath(req.url, this.hasAppDir)
@@ -779,6 +790,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             i18n: this.nextConfig.i18n,
             basePath: this.nextConfig.basePath,
             rewrites: this.customRoutes.rewrites,
+            caseSensitive: !!this.nextConfig.experimental.caseSensitiveRoutes,
           })
 
           // Ensure parsedUrl.pathname includes locale before processing
@@ -1315,7 +1327,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         hasStaticPaths = true
       }
 
-      if (hasFallback || staticPaths?.includes(resolvedUrlPathname)) {
+      if (
+        hasFallback ||
+        staticPaths?.includes(resolvedUrlPathname) ||
+        // this signals revalidation in deploy environments
+        // TODO: make this more generic
+        req.headers['x-now-route-matches']
+      ) {
         isSSG = true
       } else if (!this.renderOpts.dev) {
         const manifest = this.getPrerenderManifest()
@@ -1344,25 +1362,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       res.setHeader('x-middleware-skip', '1')
       res.body('{}').send()
       return null
-    }
-
-    if (isAppPath) {
-      res.setHeader('vary', RSC_VARY_HEADER)
-
-      if (isSSG && req.headers[RSC.toLowerCase()]) {
-        if (!this.minimalMode) {
-          isDataReq = true
-        }
-        // strip header so we generate HTML still
-        if (
-          !isEdgeRuntime(opts.runtime) ||
-          (this.serverOptions as any).webServerConfig
-        ) {
-          for (const param of FLIGHT_PARAMETERS) {
-            delete req.headers[param.toString().toLowerCase()]
-          }
-        }
-      }
     }
 
     delete query.__nextDataReq
@@ -1487,6 +1486,25 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
     }
 
+    if (isAppPath) {
+      res.setHeader('vary', RSC_VARY_HEADER)
+
+      if (!isPreviewMode && isSSG && req.headers[RSC.toLowerCase()]) {
+        if (!this.minimalMode) {
+          isDataReq = true
+        }
+        // strip header so we generate HTML still
+        if (
+          !isEdgeRuntime(opts.runtime) ||
+          (this.serverOptions as any).webServerConfig
+        ) {
+          for (const param of FLIGHT_PARAMETERS) {
+            delete req.headers[param.toString().toLowerCase()]
+          }
+        }
+      }
+    }
+
     let isOnDemandRevalidate = false
     let revalidateOnlyGenerated = false
 
@@ -1605,95 +1623,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const supportsDynamicHTML =
         (!isDataReq && opts.dev) || !(isSSG || hasStaticPaths)
 
-      const match =
-        pathname !== '/_error' && !is404Page && !is500Page
-          ? getRequestMeta(req, '_nextMatch')
-          : undefined
-
-      if (match) {
-        const context: RouteHandlerManagerContext = {
-          params: match.params,
-          prerenderManifest: this.getPrerenderManifest(),
-          staticGenerationContext: {
-            originalPathname: components.ComponentMod.originalPathname,
-            supportsDynamicHTML,
-            incrementalCache,
-            isRevalidate: isSSG,
-          },
-        }
-
-        try {
-          // Handle the match and collect the response if it's a static response.
-          const response = await this.handlers.handle(match, req, context)
-          if (response) {
-            ;(req as any).fetchMetrics = (
-              context.staticGenerationContext as any
-            ).fetchMetrics
-
-            const cacheTags = (context.staticGenerationContext as any).fetchTags
-
-            // If the request is for a static response, we can cache it so long
-            // as it's not edge.
-            if (isSSG && process.env.NEXT_RUNTIME !== 'edge') {
-              const blob = await response.blob()
-
-              // Copy the headers from the response.
-              const headers = toNodeOutgoingHttpHeaders(response.headers)
-
-              if (cacheTags) {
-                headers['x-next-cache-tags'] = cacheTags
-              }
-
-              if (!headers['content-type'] && blob.type) {
-                headers['content-type'] = blob.type
-              }
-              let revalidate: number | false | undefined =
-                context.staticGenerationContext.store?.revalidate
-
-              if (typeof revalidate == 'undefined') {
-                revalidate = false
-              }
-
-              // Create the cache entry for the response.
-              const cacheEntry: ResponseCacheEntry = {
-                value: {
-                  kind: 'ROUTE',
-                  status: response.status,
-                  body: Buffer.from(await blob.arrayBuffer()),
-                  headers,
-                },
-                revalidate,
-              }
-
-              return cacheEntry
-            }
-
-            // Send the response now that we have copied it into the cache.
-            await sendResponse(req, res, response)
-
-            return null
-          }
-        } catch (err) {
-          // If an error was thrown while handling an app route request, we
-          // should return a 500 response.
-          if (match.definition.kind === RouteKind.APP_ROUTE) {
-            // If this is during static generation, throw the error again.
-            if (isSSG) throw err
-
-            // Otherwise, send a 500 response.
-            Log.error(err)
-            await sendResponse(req, res, handleInternalServerErrorResponse())
-
-            return null
-          }
-        }
-      }
-
-      let pageData: any
-      let body: RenderResult
-      let isrRevalidate: number | false
-      let isNotFound: boolean | undefined
-      let isRedirect: boolean | undefined
       let headers: OutgoingHttpHeaders | undefined
 
       const origQuery = parseUrl(req.url || '', true).query
@@ -1747,40 +1676,153 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         isDraftMode: isPreviewMode,
       }
 
-      const renderResult = await this.renderHTML(
-        req,
-        res,
-        pathname,
-        query,
-        renderOpts
-      )
+      // Legacy render methods will return a render result that needs to be
+      // served by the server.
+      let result: RenderResult
 
-      body = renderResult
+      // We want to use the match when we're not trying to render an error page.
+      const match =
+        pathname !== '/_error' && !is404Page && !is500Page
+          ? getRequestMeta(req, '_nextMatch')
+          : undefined
 
-      const renderResultMeta = renderResult.metadata()
+      if (
+        match &&
+        isRouteMatch<AppRouteRouteMatch>(match, RouteKind.APP_ROUTE)
+      ) {
+        const context: RouteHandlerManagerContext = {
+          params: match.params,
+          prerenderManifest: this.getPrerenderManifest(),
+          staticGenerationContext: {
+            originalPathname: components.ComponentMod.originalPathname,
+            supportsDynamicHTML,
+            incrementalCache,
+            isRevalidate: isSSG,
+          },
+        }
 
-      pageData = renderResultMeta.pageData
-      isrRevalidate = renderResultMeta.revalidate
-      isNotFound = renderResultMeta.isNotFound
-      isRedirect = renderResultMeta.isRedirect
+        try {
+          // Handle the match and collect the response if it's a static response.
+          const response = await this.handlers.handle(match, req, context)
 
+          ;(req as any).fetchMetrics = (
+            context.staticGenerationContext as any
+          ).fetchMetrics
+
+          const cacheTags = (context.staticGenerationContext as any).fetchTags
+
+          // If the request is for a static response, we can cache it so long
+          // as it's not edge.
+          if (isSSG && process.env.NEXT_RUNTIME !== 'edge') {
+            const blob = await response.blob()
+
+            // Copy the headers from the response.
+            headers = toNodeOutgoingHttpHeaders(response.headers)
+
+            if (cacheTags) {
+              headers['x-next-cache-tags'] = cacheTags
+            }
+
+            if (!headers['content-type'] && blob.type) {
+              headers['content-type'] = blob.type
+            }
+            let revalidate: number | false | undefined =
+              context.staticGenerationContext.store?.revalidate
+
+            if (typeof revalidate == 'undefined') {
+              revalidate = false
+            }
+
+            // Create the cache entry for the response.
+            const cacheEntry: ResponseCacheEntry = {
+              value: {
+                kind: 'ROUTE',
+                status: response.status,
+                body: Buffer.from(await blob.arrayBuffer()),
+                headers,
+              },
+              revalidate,
+            }
+
+            return cacheEntry
+          }
+
+          // Send the response now that we have copied it into the cache.
+          await sendResponse(req, res, response)
+
+          return null
+        } catch (err) {
+          // If this is during static generation, throw the error again.
+          if (isSSG) throw err
+
+          Log.error(err)
+
+          // Otherwise, send a 500 response.
+          await sendResponse(req, res, handleInternalServerErrorResponse())
+
+          return null
+        }
+      }
+      // If we've matched a page while not in edge where the module exports a
+      // `routeModule`, then we should be able to render it using the provided
+      // `render` method.
+      else if (
+        match &&
+        isRouteMatch(match, RouteKind.PAGES) &&
+        process.env.NEXT_RUNTIME !== 'edge' &&
+        components.ComponentMod.routeModule
+      ) {
+        const module: PagesRouteModule = components.ComponentMod.routeModule
+
+        // Due to the way we pass data by mutating `renderOpts`, we can't extend
+        // the object here but only updating its `clientReferenceManifest`
+        // field.
+        // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
+        renderOpts.nextFontManifest = this.nextFontManifest
+
+        // Call the built-in render method on the module. We cast these to
+        // NodeNextRequest and NodeNextResponse because we know that we're
+        // in the node runtime because we check that we're not in edge mode
+        // above.
+        result = await module.render(
+          (req as NodeNextRequest).originalRequest,
+          (res as NodeNextResponse).originalResponse,
+          pathname,
+          query,
+          renderOpts
+        )
+      } else {
+        // If we didn't match a page, we should fallback to using the legacy
+        // render method.
+        result = await this.renderHTML(req, res, pathname, query, renderOpts)
+      }
+
+      const { metadata } = result
+
+      // Add any fetch tags that were on the page to the response headers.
       const cacheTags = (renderOpts as any).fetchTags
-
       if (cacheTags) {
         headers = {
           'x-next-cache-tags': cacheTags,
         }
       }
+
+      // Pull any fetch metrics from the render onto the request.
       ;(req as any).fetchMetrics = (renderOpts as any).fetchMetrics
 
       // we don't throw static to dynamic errors in dev as isSSG
       // is a best guess in dev since we don't have the prerender pass
       // to know whether the path is actually static or not
-      if (isAppPath && isSSG && isrRevalidate === 0 && !this.renderOpts.dev) {
+      if (
+        isAppPath &&
+        isSSG &&
+        metadata.revalidate === 0 &&
+        !this.renderOpts.dev
+      ) {
         const staticBailoutInfo: {
           stack?: string
           description?: string
-        } = renderResultMeta.staticBailoutInfo || {}
+        } = metadata.staticBailoutInfo || {}
 
         const err = new Error(
           `Page changed from static to dynamic at runtime ${urlPathname}${
@@ -1800,17 +1842,22 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
 
       let value: ResponseCacheValue | null
-      if (isNotFound) {
+      if (metadata.isNotFound) {
         value = null
-      } else if (isRedirect) {
-        value = { kind: 'REDIRECT', props: pageData }
+      } else if (metadata.isRedirect) {
+        value = { kind: 'REDIRECT', props: metadata.pageData }
       } else {
-        if (body.isNull()) {
+        if (result.isNull()) {
           return null
         }
-        value = { kind: 'PAGE', html: body, pageData, headers }
+        value = {
+          kind: 'PAGE',
+          html: result,
+          pageData: metadata.pageData,
+          headers,
+        }
       }
-      return { revalidate: isrRevalidate, value }
+      return { revalidate: metadata.revalidate, value }
     }
 
     const cacheEntry = await this.responseCache.get(
@@ -2172,6 +2219,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const { res, query, pathname } = ctx
     let page = pathname
     const bubbleNoFallback = !!query._nextBubbleNoFallback
+    delete query[NEXT_RSC_UNION_QUERY]
     delete query._nextBubbleNoFallback
 
     const options: MatchOptions = {
@@ -2371,6 +2419,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     ctx: RequestContext,
     err: Error | null
   ): Promise<ResponsePayload | null> {
+    // Short-circuit favicon.ico in development to avoid compiling 404 page when the app has no favicon.ico.
+    // Since favicon.ico is automatically requested by the browser.
+    if (this.renderOpts.dev && ctx.pathname === '/favicon.ico') {
+      return {
+        type: 'html',
+        body: new RenderResult(''),
+      }
+    }
     const { res, query } = ctx
     try {
       let result: null | FindComponentsResult = null

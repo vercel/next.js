@@ -1,7 +1,8 @@
 import { draftMode } from 'next/headers'
 import { redirect } from 'next/navigation'
 
-export function GET() {
+export function GET(req: Request) {
   draftMode().enable()
-  return redirect('/some-other-page')
+  const to = new URL(req.url).searchParams.get('to') ?? '/some-other-page'
+  return redirect(to)
 }
