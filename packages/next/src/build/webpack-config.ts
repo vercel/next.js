@@ -1941,10 +1941,6 @@ export default async function getBaseWebpackConfig(
                   ],
                 },
                 resolve: {
-                  mainFields: isEdgeServer
-                    ? mainFieldsPerCompiler[COMPILER_NAMES.edgeServer]
-                    : // Prefer module fields over main fields for isomorphic packages on server layer
-                      ['module', 'main'],
                   conditionNames: reactServerCondition,
                   alias: {
                     // If missing the alias override here, the default alias will be used which aliases
