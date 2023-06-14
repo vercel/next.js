@@ -1430,10 +1430,6 @@ export default class DevServer extends Server {
     return undefined
   }
 
-  protected getServerCSSManifest() {
-    return undefined
-  }
-
   protected getNextFontManifest() {
     return undefined
   }
@@ -1747,7 +1743,6 @@ export default class DevServer extends Server {
       // manifest.
       if (!!this.appDir) {
         this.clientReferenceManifest = super.getServerComponentManifest()
-        this.serverCSSManifest = super.getServerCSSManifest()
       }
       this.nextFontManifest = super.getNextFontManifest()
       // before we re-evaluate a route module, we want to restore globals that might

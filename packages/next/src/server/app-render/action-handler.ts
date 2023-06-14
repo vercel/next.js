@@ -383,6 +383,18 @@ export async function handleAction({
           }
         }
 
+        // actions.js
+        // app/page.js
+        //   action woker1
+        //     appRender1
+
+        // app/foo/page.js
+        //   action worker2
+        //     appRender
+
+        // / -> fire action -> POST / -> appRender1 -> modId for the action file
+        // /foo -> fire action -> POST /foo -> appRender2 -> modId for the action file
+
         const actionModId =
           serverActionsManifest[
             process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
