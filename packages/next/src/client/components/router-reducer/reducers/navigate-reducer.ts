@@ -157,9 +157,16 @@ export function navigateReducer(
     temporaryCacheNode.subTreeData = state.cache.subTreeData
     temporaryCacheNode.parallelRoutes = new Map(state.cache.parallelRoutes)
 
-    const data = createRecordFromThenable(
-      fetchServerResponse(url, optimisticTree, state.nextUrl, state.buildId)
-    )
+    let data: ReturnType<typeof createRecordFromThenable> | undefined
+
+    const fetchResponse = () => {
+      if (!data) {
+        data = createRecordFromThenable(
+          fetchServerResponse(url, optimisticTree, state.nextUrl, state.buildId)
+        )
+      }
+      return data
+    }
 
     // TODO-APP: segments.slice(1) strips '', we can get rid of '' altogether.
     // TODO-APP: re-evaluate if we need to strip the last segment
@@ -174,7 +181,7 @@ export function navigateReducer(
       temporaryCacheNode,
       state.cache,
       optimisticFlightSegmentPath,
-      () => data,
+      fetchResponse,
       true
     )
 

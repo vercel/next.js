@@ -126,7 +126,7 @@ The following fields are **optional**:
 | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `nav_title` | Overrides the page's title in the navigation. This is useful when the page's title is too long to fit. If not provided, the `title` field is used. |
 | `source`    | Pulls content into a shared page. See [Shared Pages](#shared-pages).                                                                               |
-| `related`   | A list of related pages at the bottom of the document. These will automatically be turned into cards.                                              |
+| `related`   | A list of related pages at the bottom of the document. These will automatically be turned into cards. See [Related Links](#related-links).         |
 
 ```yaml filename="optional-fields.mdx"
 ---
@@ -326,7 +326,7 @@ Related Links guide the user's learning journey by adding links to logical next 
 
 Create related links using the `related` field in the page's metadata.
 
-```yaml filename="related.mdx"
+```yaml filename="example.mdx"
 ---
 related:
   description: Learn how to quickly get started with your first application.

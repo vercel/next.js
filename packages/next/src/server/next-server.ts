@@ -1542,10 +1542,6 @@ export default class NextNodeServer extends BaseServer {
           }
         }
 
-        if (match) {
-          addRequestMeta(req, '_nextMatch', match)
-        }
-
         // Try to handle the given route with the configured handlers.
         if (match) {
           // Add the match to the request so we don't have to re-run the matcher
