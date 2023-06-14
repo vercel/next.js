@@ -15,14 +15,11 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  desc: {
-    textAlign: 'left',
-  },
   text: {
     fontSize: '14px',
     fontWeight: 400,
-    lineHeight: '3em',
-    margin: 0,
+    lineHeight: '28px',
+    margin: '0 8px',
   },
 } as const
 
@@ -108,7 +105,7 @@ export default function GlobalError({ error }: { error: any }) {
       <head></head>
       <body>
         <div style={styles.error}>
-          <div style={styles.desc}>
+          <div>
             <h2 style={styles.text}>
               Application error: a client-side exception has occurred (see the
               browser console for more information).

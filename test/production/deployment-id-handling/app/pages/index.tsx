@@ -6,6 +6,17 @@ export default function Page() {
     <>
       <p>hello pages</p>
       <Image src={testImage} alt="test image" />
+
+      <button
+        onClick={() => {
+          import('../data').then((mod) => {
+            console.log('loaded data', mod)
+          })
+        }}
+        id="dynamic-import"
+      >
+        click me
+      </button>
     </>
   )
 }

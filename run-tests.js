@@ -341,6 +341,7 @@ async function main() {
           stdio: ['ignore', 'pipe', 'pipe'],
           env: {
             ...process.env,
+            IS_RETRY: isRetry ? 'true' : undefined,
             RECORD_REPLAY: shouldRecordTestWithReplay,
             // run tests in headless mode by default
             HEADLESS: 'true',
