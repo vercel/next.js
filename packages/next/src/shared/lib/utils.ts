@@ -50,7 +50,7 @@ export type NextWebVitalsMetric = {
 } & (
   | {
       label: 'web-vital'
-      name: typeof WEB_VITALS[number]
+      name: (typeof WEB_VITALS)[number]
     }
   | {
       label: 'custom'

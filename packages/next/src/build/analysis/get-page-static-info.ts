@@ -40,6 +40,7 @@ export interface PageStaticInfo {
   ssr?: boolean
   rsc?: RSCModuleType
   middleware?: Partial<MiddlewareConfig>
+  amp?: boolean | 'hybrid'
 }
 
 const CLIENT_MODULE_LABEL =
@@ -412,7 +413,7 @@ export async function getPageStaticInfo(params: {
     }
     if (pageType === 'app') {
       if (config) {
-        const message = `\`export const config\` in ${pageFilePath} is deprecated. Please change \`runtime\` property to segment export config. See https://beta.nextjs.org/docs/api-reference/segment-config`
+        const message = `\`export const config\` in ${pageFilePath} is deprecated. Please change \`runtime\` property to segment export config. See https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config`
         if (isDev) {
           Log.warnOnce(message)
         } else {
@@ -488,6 +489,7 @@ export async function getPageStaticInfo(params: {
       ssr,
       ssg,
       rsc,
+      amp: config.amp || false,
       ...(middlewareConfig && { middleware: middlewareConfig }),
       ...(resolvedRuntime && { runtime: resolvedRuntime }),
       preferredRegion,
@@ -498,6 +500,7 @@ export async function getPageStaticInfo(params: {
     ssr: false,
     ssg: false,
     rsc: RSC_MODULE_TYPES.server,
+    amp: false,
     runtime: undefined,
   }
 }

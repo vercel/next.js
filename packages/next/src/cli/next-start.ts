@@ -54,7 +54,7 @@ const nextStart: CliCommand = async (argv) => {
   }
 
   const dir = getProjectDir(args._[0])
-  const host = args['--hostname'] || '0.0.0.0'
+  const host = args['--hostname']
   const port = getPort(args)
 
   const keepAliveTimeoutArg: number | undefined = args['--keepAliveTimeout']

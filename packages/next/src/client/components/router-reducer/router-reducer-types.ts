@@ -42,6 +42,8 @@ export interface ServerActionMutable {
   inFlightServerAction?: Promise<any> | null
   serverActionApplied?: boolean
   previousTree?: FlightRouterState
+  previousUrl?: string
+  prefetchCache?: AppRouterState['prefetchCache']
 }
 
 /**
@@ -217,6 +219,11 @@ export type PrefetchCacheEntry = {
  * Handles keeping the state of app-router.
  */
 export type AppRouterState = {
+  /**
+   * The buildId is used to do a mpaNavigation when the server returns a different buildId.
+   * It is used to avoid issues where an older version of the app is loaded in the browser while the server has a new version.
+   */
+  buildId: string
   /**
    * The router state, this is written into the history state in app-router using replaceState/pushState.
    * - Has to be serializable as it is written into the history state.

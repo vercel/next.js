@@ -43,7 +43,7 @@ import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/lazy-dynamic/no-ssr-erro
 import { createRequestResponseMocks } from '../server/lib/mock-request'
 import { NodeNextRequest } from '../server/base-http/node'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
-import { toNodeHeaders } from '../server/web/utils'
+import { toNodeOutgoingHttpHeaders } from '../server/web/utils'
 import { RouteModuleLoader } from '../server/future/helpers/module-loader/route-module-loader'
 import { NextRequestAdapter } from '../server/web/spec-extension/adapters/next-request'
 import * as ciEnvironment from '../telemetry/ci-info'
@@ -119,6 +119,7 @@ interface RenderOpts {
   incrementalCache?: IncrementalCache
   strictNextHead?: boolean
   originalPathname?: string
+  deploymentId?: string
 }
 
 export default async function exportPage({
@@ -155,6 +156,9 @@ export default async function exportPage({
     }
 
     try {
+      if (renderOpts.deploymentId) {
+        process.env.__NEXT_DEPLOYMENT_ID = renderOpts.deploymentId
+      }
       const { query: originalQuery = {} } = pathMap
       const { page } = pathMap
       const pathname = normalizeAppPath(page)
@@ -371,6 +375,7 @@ export default async function exportPage({
             },
             serverDistDir: join(distDir, 'server'),
             CurCacheHandler: CacheHandler,
+            minimalMode: ciEnvironment.hasNextSupport,
           })
           ;(globalThis as any).__incrementalCache = incrementalCache
           curRenderOpts.incrementalCache = incrementalCache
@@ -423,7 +428,9 @@ export default async function exportPage({
             const filename = posix.join(distDir, 'server', 'app', page)
 
             // Load the module for the route.
-            const module = RouteModuleLoader.load<AppRouteRouteModule>(filename)
+            const module = await RouteModuleLoader.load<AppRouteRouteModule>(
+              filename
+            )
 
             // Call the handler with the request and context from the module.
             const response = await module.handle(request, context)
@@ -442,7 +449,7 @@ export default async function exportPage({
                 context.staticGenerationContext.store?.revalidate || false
 
               results.fromBuildExportRevalidate = revalidate
-              const headers = toNodeHeaders(response.headers)
+              const headers = toNodeOutgoingHttpHeaders(response.headers)
               const cacheTags = (context.staticGenerationContext as any)
                 .fetchTags
 
@@ -495,9 +502,9 @@ export default async function exportPage({
               curRenderOpts as any
             )
             const html = result.toUnchunkedString()
-            const renderResultMeta = result.metadata()
-            const flightData = renderResultMeta.pageData
-            const revalidate = renderResultMeta.revalidate
+            const { metadata } = result
+            const flightData = metadata.pageData
+            const revalidate = metadata.revalidate
             results.fromBuildExportRevalidate = revalidate
 
             if (revalidate !== 0) {
@@ -531,7 +538,7 @@ export default async function exportPage({
               )
             }
 
-            const staticBailoutInfo = renderResultMeta.staticBailoutInfo || {}
+            const staticBailoutInfo = metadata.staticBailoutInfo || {}
 
             if (
               revalidate === 0 &&
@@ -620,7 +627,7 @@ export default async function exportPage({
         }
       }
 
-      results.ssgNotFound = renderResult?.metadata().isNotFound
+      results.ssgNotFound = renderResult?.metadata.isNotFound
 
       const validateAmp = async (
         rawAmpHtml: string,
@@ -694,9 +701,8 @@ export default async function exportPage({
         }
       }
 
-      const renderResultMeta =
-        renderResult?.metadata() || ampRenderResult?.metadata() || {}
-      if (renderResultMeta.pageData) {
+      const metadata = renderResult?.metadata || ampRenderResult?.metadata || {}
+      if (metadata.pageData) {
         const dataFile = join(
           pagesDataDir,
           htmlFilename.replace(/\.html$/, '.json')
@@ -705,19 +711,19 @@ export default async function exportPage({
         await promises.mkdir(dirname(dataFile), { recursive: true })
         await promises.writeFile(
           dataFile,
-          JSON.stringify(renderResultMeta.pageData),
+          JSON.stringify(metadata.pageData),
           'utf8'
         )
 
         if (hybridAmp) {
           await promises.writeFile(
             dataFile.replace(/\.json$/, '.amp.json'),
-            JSON.stringify(renderResultMeta.pageData),
+            JSON.stringify(metadata.pageData),
             'utf8'
           )
         }
       }
-      results.fromBuildExportRevalidate = renderResultMeta.revalidate
+      results.fromBuildExportRevalidate = metadata.revalidate
 
       if (!results.ssgNotFound) {
         // don't attempt writing to disk if getStaticProps returned not found

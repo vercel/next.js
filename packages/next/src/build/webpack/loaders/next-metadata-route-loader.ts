@@ -1,8 +1,8 @@
 import type webpack from 'webpack'
 import fs from 'fs'
 import path from 'path'
-import { METADATA_RESOURCE_QUERY } from './metadata/discover'
 import { imageExtMimeTypeMap } from '../../../lib/mime-type'
+import { WEBPACK_RESOURCE_QUERIES } from '../../../lib/constants'
 
 const cacheHeader = {
   none: 'no-cache, no-store',
@@ -51,13 +51,11 @@ const contentType = ${JSON.stringify(getContentType(resourcePath))}
 const buffer = Buffer.from(${JSON.stringify(
     (
       await fs.promises.readFile(
-        resourcePath.replace(METADATA_RESOURCE_QUERY, ''),
-        {
-          encoding: 'utf-8',
-        }
+        resourcePath.replace('?' + WEBPACK_RESOURCE_QUERIES.metadata, '')
       )
-    ).toString()
-  )})
+    ).toString('base64')
+  )}, 'base64'
+  )
 
 export function GET() {
   return new NextResponse(buffer, {

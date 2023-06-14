@@ -29,10 +29,10 @@ createNextDescribe(
       const text = await link.text()
       const href = await link.getAttribute('href')
       expect(text).toEqual(
-        'https://beta.nextjs.org/docs/data-fetching/fundamentals'
+        'https://nextjs.org/docs/app/building-your-application/data-fetching'
       )
       expect(href).toEqual(
-        'https://beta.nextjs.org/docs/data-fetching/fundamentals'
+        'https://nextjs.org/docs/app/building-your-application/data-fetching'
       )
 
       await cleanup()

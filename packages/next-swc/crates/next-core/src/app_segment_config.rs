@@ -7,7 +7,9 @@ use swc_core::{
     common::{source_map::Pos, Span, Spanned},
     ecma::ast::{Expr, Ident, Program},
 };
-use turbo_binding::turbopack::{
+use turbo_tasks::{primitives::StringVc, trace::TraceRawVcs};
+use turbo_tasks_fs::FileSystemPathVc;
+use turbopack_binding::turbopack::{
     core::{
         asset::{Asset, AssetVc},
         ident::AssetIdentVc,
@@ -21,8 +23,6 @@ use turbo_binding::turbopack::{
         EcmascriptModuleAssetVc,
     },
 };
-use turbo_tasks::{primitives::StringVc, trace::TraceRawVcs};
-use turbo_tasks_fs::FileSystemPathVc;
 
 use crate::util::NextRuntime;
 
@@ -128,7 +128,10 @@ impl Issue for NextSegmentConfigParsingIssue {
 
     #[turbo_tasks::function]
     fn documentation_link(&self) -> StringVc {
-        StringVc::cell("https://beta.nextjs.org/docs/api-reference/segment-config".to_string())
+        StringVc::cell(
+            "https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config"
+                .to_string(),
+        )
     }
 
     #[turbo_tasks::function]

@@ -2,8 +2,8 @@ import { postBySlugQuery } from '../../lib/queries'
 import { previewClient } from '../../lib/sanity.server'
 
 function redirectToPreview(res, Location) {
-  // Enable Preview Mode by setting the cookies
-  res.setPreviewData({})
+  // Enable Draft Mode by setting the cookie
+  res.setDraftMode({ enable: true })
   // Redirect to a preview capable route
   res.writeHead(307, { Location })
   res.end()

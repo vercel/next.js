@@ -1,6 +1,8 @@
 import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import { BrowserInterface } from 'test/lib/browsers/base'
+import fs from 'fs/promises'
+import path from 'path'
 import cheerio from 'cheerio'
 
 createNextDescribe(
@@ -8,7 +10,7 @@ createNextDescribe(
   {
     files: __dirname,
   },
-  ({ next, isNextDev, isNextStart }) => {
+  ({ next, isNextDev, isNextStart, isNextDeploy }) => {
     const getTitle = (browser: BrowserInterface) =>
       browser.elementByCss('title').text()
 
@@ -74,7 +76,7 @@ createNextDescribe(
        * @example
        *
        * const $ = await next.render$('html')
-       * const matchHtml = createHtmlMatcher($)
+       * const matchHtml = createMultiHtmlMatcher($)
        * await matchHtml('meta', 'name', 'property', {
        *   description: 'description',
        *   og: 'og:description'
@@ -335,6 +337,11 @@ createNextDescribe(
           rel: 'alternate',
           href: 'https://example.com/alternates/child/de-DE',
         })
+
+        await browser.loadPage(next.url + '/alternates/child/123')
+        await matchDom('link', 'rel="canonical"', {
+          href: 'https://example.com/alternates/child/123',
+        })
       })
 
       it('should support robots tags', async () => {
@@ -407,12 +414,42 @@ createNextDescribe(
         )
       })
 
+      it('should render root not-found with default metadata', async () => {
+        const $ = await next.render$('/does-not-exist')
+
+        // Should contain default metadata and noindex tag
+        const matchHtml = createMultiHtmlMatcher($)
+        expect($('meta[charset="utf-8"]').length).toBe(1)
+        await matchHtml('meta', 'name', 'content', {
+          viewport: 'width=device-width, initial-scale=1',
+          robots: 'noindex',
+        })
+      })
+
       it('should support notFound in generateMetadata', async () => {
-        // TODO-APP: support custom not-found for generateMetadata
         const res = await next.fetch('/async/not-found')
         expect(res.status).toBe(404)
         const html = await res.text()
-        expect(html).toContain('root not found page')
+        const $ = cheerio.load(html)
+
+        // TODO-APP: support render custom not-found in SSR for generateMetadata.
+        // Check contains root not-found payload in flight response for now.
+        let hasRootNotFoundFlight = false
+        for (const el of $('script').toArray()) {
+          const text = $(el).text()
+          if (text.includes('root not found page')) {
+            hasRootNotFoundFlight = true
+          }
+        }
+        expect(hasRootNotFoundFlight).toBe(true)
+
+        // Should contain default metadata and noindex tag
+        const matchHtml = createMultiHtmlMatcher($)
+        expect($('meta[charset="utf-8"]').length).toBe(1)
+        await matchHtml('meta', 'name', 'content', {
+          viewport: 'width=device-width, initial-scale=1',
+          robots: 'noindex',
+        })
 
         const browser = await next.browser('/async/not-found')
         expect(await browser.elementByCss('h2').text()).toBe(
@@ -463,6 +500,19 @@ createNextDescribe(
           'og:image:height': ['600', '1600'],
           'og:image:alt': 'My custom alt',
         })
+
+        await matchMultiDom('meta', 'name', 'content', {
+          'twitter:card': 'summary',
+          'twitter:title': 'My custom title',
+          'twitter:description': 'My custom description',
+          'twitter:image': [
+            'https://example.com/image.png',
+            'https://example.com/image2.png',
+          ],
+          'twitter:image:width': ['800', '1800'],
+          'twitter:image:height': ['600', '1600'],
+          'twitter:image:alt': 'My custom alt',
+        })
       })
 
       it('should support opengraph with article type', async () => {
@@ -491,7 +541,13 @@ createNextDescribe(
             ? expect.stringMatching(
                 /http:\/\/localhost:\d+\/opengraph\/static\/opengraph-image.png\?b76e8f0282c93c8e/
               )
-            : 'https://example.com/opengraph/static/opengraph-image.png?b76e8f0282c93c8e',
+            : expect.stringMatching(
+                new RegExp(
+                  `https:\\/\\/(${
+                    isNextDeploy ? '.*?\\.vercel\\.app' : 'example\\.com'
+                  })\\/opengraph\\/static\\/opengraph-image.png\\?b76e8f0282c93c8e`
+                )
+              ),
         })
 
         await match('meta', 'name', 'content', {
@@ -499,7 +555,13 @@ createNextDescribe(
             ? expect.stringMatching(
                 /http:\/\/localhost:\d+\/opengraph\/static\/twitter-image.png\?b76e8f0282c93c8e/
               )
-            : 'https://example.com/opengraph/static/twitter-image.png?b76e8f0282c93c8e',
+            : expect.stringMatching(
+                new RegExp(
+                  `https:\\/\\/(${
+                    isNextDeploy ? '.*?\\.vercel\\.app' : 'example\\.com'
+                  })\\/opengraph\\/static\\/twitter-image.png\\?b76e8f0282c93c8e`
+                )
+              ),
           'twitter:image:alt': 'A alt txt for twitter',
           'twitter:card': 'summary_large_image',
         })
@@ -568,6 +630,18 @@ createNextDescribe(
         const icon = $('link[rel="icon"]')
         expect(icon.attr('href')).toBe('/favicon.ico')
         expect(icon.attr('sizes')).toBe('any')
+
+        if (!isNextDeploy) {
+          const faviconFileBuffer = await fs.readFile(
+            path.join(next.testDir, 'app/favicon.ico')
+          )
+          const faviconResponse = Buffer.from(
+            await next.fetch('/favicon.ico').then((res) => res.arrayBuffer())
+          )
+          return expect(
+            Buffer.compare(faviconResponse, faviconFileBuffer)
+          ).toBe(0)
+        }
       })
     })
 

@@ -1,5 +1,6 @@
 import type { AsyncLocalStorage } from 'async_hooks'
 import type { IncrementalCache } from '../../server/lib/incremental-cache'
+import type { DynamicServerError } from './hooks-server-context'
 import { createAsyncLocalStorage } from './async-local-storage'
 
 export interface StaticGenerationStore {
@@ -15,6 +16,7 @@ export interface StaticGenerationStore {
   fetchCache?:
     | 'only-cache'
     | 'force-cache'
+    | 'default-cache'
     | 'force-no-store'
     | 'default-no-store'
     | 'only-no-store'
@@ -26,6 +28,7 @@ export interface StaticGenerationStore {
 
   dynamicUsageDescription?: string
   dynamicUsageStack?: string
+  dynamicUsageErr?: DynamicServerError
 
   nextFetchId?: number
   pathWasRevalidated?: boolean

@@ -19,8 +19,8 @@ export default async function handler(
     return res.status(401).end(`${validationResp.message}`)
   }
 
-  //enable preview mode
-  res.setPreviewData({})
+  // Enable Draft Mode by setting the cookie
+  res.setDraftMode({ enable: true })
 
   // Redirect to the slug
   if (!('slug' in validationResp)) {

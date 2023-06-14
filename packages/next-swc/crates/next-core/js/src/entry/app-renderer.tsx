@@ -25,7 +25,7 @@ import type { RenderOpts } from 'next/dist/server/app-render/types'
 
 import { renderToHTMLOrFlight } from 'next/dist/server/app-render/app-render'
 import { RSC_VARY_HEADER } from 'next/dist/client/components/app-router-headers'
-import { headersFromEntries } from '../internal/headers'
+import { headersFromEntries, initProxiedHeaders } from '../internal/headers'
 import { parse, ParsedUrlQuery } from 'node:querystring'
 import { PassThrough } from 'node:stream'
 ;('TURBOPACK { transition: next-layout-entry; chunking-type: isolatedParallel }')
@@ -191,9 +191,6 @@ async function runOperation(renderData: RenderData) {
         if (prop === 'clientModules') {
           return clientModulesProxy
         }
-        if (prop === 'cssFiles') {
-          return new Proxy({} as any, cssFilesProxyMethods)
-        }
       },
     }
   }
@@ -219,13 +216,6 @@ async function runOperation(renderData: RenderData) {
       return needed
     }
   }
-  const cssFilesProxyMethods = {
-    get(_target: any, prop: string) {
-      const cssChunks = JSON.parse(prop)
-      // TODO(WEB-856) subscribe to changes
-      return cssChunks.map(toPath)
-    },
-  }
   const cssImportProxyMethods = {
     get(_target: any, prop: string) {
       const cssChunks = JSON.parse(prop.replace(/\.js$/, ''))
@@ -247,7 +237,10 @@ async function runOperation(renderData: RenderData) {
   const req: IncomingMessage = {
     url: renderData.originalUrl,
     method: renderData.method,
-    headers: headersFromEntries(renderData.rawHeaders),
+    headers: initProxiedHeaders(
+      headersFromEntries(renderData.rawHeaders),
+      renderData.data?.serverInfo
+    ),
   } as any
 
   const res = createServerResponse(req, renderData.path)
@@ -256,7 +249,11 @@ async function runOperation(renderData: RenderData) {
   const renderOpt: Omit<
     RenderOpts,
     'App' | 'Document' | 'Component' | 'pathname'
-  > & { params: ParsedUrlQuery } = {
+  > & {
+    params: ParsedUrlQuery
+  } = {
+    // TODO: give an actual buildId when next build is supported
+    buildId: 'development',
     params: renderData.params,
     supportsDynamicHTML: true,
     dev: true,
