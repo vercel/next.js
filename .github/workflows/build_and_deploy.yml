@@ -472,6 +472,8 @@ jobs:
           name: next-swc-binaries
           path: packages/next-swc/native
 
+      - run: cp -r packages/next-swc/native .github/actions/next-stats-action/native
+
       - run: ./scripts/release-stats.sh
       - uses: ./.github/actions/next-stats-action
         env:
