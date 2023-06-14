@@ -99,7 +99,6 @@ createNextDescribe(
           await check(
             async () => {
               const val = await browser.eval('window.pageYOffset')
-              console.log({ val })
               return val.toString()
             },
             expectedScroll.toString(),
