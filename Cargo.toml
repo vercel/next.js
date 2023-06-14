@@ -38,7 +38,7 @@ next-transform-strip-page-exports = { path = "packages/next-swc/crates/next-tran
 
 # SWC crates
 # Keep consistent with preset_env_base through swc_core
-swc_core = { version = "0.78.2" }
+swc_core = { version = "0.78.3" }
 testing = { version = "0.33.13" }
 
 # Turbo crates
