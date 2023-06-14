@@ -2,15 +2,17 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import type { User, Comment } from '../interfaces'
 import redis from './redis'
 import getUser from './getUser'
+import clearUrl from './clearUrl'
 
 export default async function deleteComments(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const { url, comment }: { url: string; comment: Comment } = req.body
+  const url = clearUrl(req.headers.referer)
+  const { comment }: { url: string; comment: Comment } = req.body
   const { authorization } = req.headers
 
-  if (!url || !comment || !authorization) {
+  if (!comment || !authorization) {
     return res.status(400).json({ message: 'Missing parameter.' })
   }
 

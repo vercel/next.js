@@ -18,24 +18,24 @@ Both components are using a custom hook `useStore` to pull in the `Store` from t
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-mobx-react-lite)
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-mobx)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-mobx-react-lite&project-name=with-mobx-react-lite&repository-name=with-mobx-react-lite)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-mobx&project-name=with-mobx&repository-name=with-mobx)
 
 ## How to use
 
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-mobx-react-lite with-mobx-react-lite-app
+npx create-next-app --example with-mobx with-mobx-app
 ```
 
 ```bash
-yarn create next-app --example with-mobx-react-lite with-mobx-react-lite-app
+yarn create next-app --example with-mobx with-mobx-app
 ```
 
 ```bash
-pnpm create next-app --example with-mobx-react-lite with-mobx-react-lite-app
+pnpm create next-app --example with-mobx with-mobx-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

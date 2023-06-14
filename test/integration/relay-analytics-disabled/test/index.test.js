@@ -45,7 +45,7 @@ describe('Analytics relayer (disabled)', () => {
 
     expect(beacons.length).toBe(0)
 
-    expect(stdout).not.toMatch('Next.js Analytics')
+    expect(stdout).not.toMatch('Next.js Speed Insights')
 
     await browser.close()
   })

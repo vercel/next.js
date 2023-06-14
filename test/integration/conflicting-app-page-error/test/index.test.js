@@ -9,6 +9,7 @@ import {
   launchApp,
   nextBuild,
   waitFor,
+  check,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
@@ -19,16 +20,28 @@ let output = ''
 
 function runTests({ dev }) {
   it('should print error for conflicting app/page', async () => {
-    expect(output).toMatch(/Conflicting app and page files were found/)
+    await check(() => output, /Conflicting app and page files were found/)
 
-    for (const conflict of ['/hello', '/another']) {
-      expect(output).toContain(conflict)
+    for (const [pagePath, appPath] of [
+      ['pages/index.js', 'app/page.js'],
+      ['pages/hello.js', 'app/hello/page.js'],
+      ['pages/another.js', 'app/another/page.js'],
+    ]) {
+      expect(output).toContain(`"${pagePath}" - "${appPath}"`)
     }
-    expect(output).not.toContain('/index')
+    expect(output).not.toContain('/non-conflict-pages')
     expect(output).not.toContain('/non-conflict')
   })
 
   if (dev) {
+    it('should show error overlay for /', async () => {
+      const browser = await webdriver(appPort, '/')
+      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        'Conflicting app and page file found: "app/page.js" and "pages/index.js". Please remove one to continue.'
+      )
+    })
+
     it('should show error overlay for /hello', async () => {
       const browser = await webdriver(appPort, '/hello')
       expect(await hasRedbox(browser, true)).toBe(true)
@@ -45,11 +58,11 @@ function runTests({ dev }) {
       )
     })
 
-    it('should not show error overlay for /', async () => {
-      const browser = await webdriver(appPort, '/')
+    it('should not show error overlay for /non-conflict-pages', async () => {
+      const browser = await webdriver(appPort, '/non-conflict-pages')
       expect(await hasRedbox(browser, false)).toBe(false)
       expect(await getRedboxHeader(browser)).toBe(null)
-      expect(await browser.elementByCss('p').text()).toBe('index page')
+      expect(await browser.elementByCss('h1').text()).toBe('Hello World!')
     })
 
     it('should not show error overlay for /non-conflict', async () => {

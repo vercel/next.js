@@ -1,6 +1,7 @@
 /* eslint-env jest */
 
 import {
+  check,
   findPort,
   killApp,
   launchApp,
@@ -58,12 +59,15 @@ describe('Image Component Trailing Slash Tests', () => {
       try {
         browser = await webdriver(appPort, '/')
         const id = 'test1'
-        const srcImage = await browser.eval(
-          `document.getElementById('${id}').src`
-        )
-        expect(srcImage).toMatch(
-          /\/_next\/image\/\?url=%2F_next%2Fstatic%2Fmedia%2Ftest(.+).jpg&w=828&q=75/
-        )
+        await check(async () => {
+          const srcImage = await browser.eval(
+            `document.getElementById('${id}').src`
+          )
+          expect(srcImage).toMatch(
+            /\/_next\/image\/\?url=%2F_next%2Fstatic%2Fmedia%2Ftest(.+).jpg&w=828&q=75/
+          )
+          return 'success'
+        }, 'success')
       } finally {
         if (browser) {
           await browser.close()

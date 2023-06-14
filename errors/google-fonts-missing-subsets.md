@@ -1,4 +1,4 @@
-# Missing specified subset for a `@next/font/google` font
+# Missing specified subset for a `next/font/google` font
 
 #### Why This Error Occurred
 
@@ -6,29 +6,25 @@ Preload is enabled for a font that is missing a specified subset.
 
 #### Possible Ways to Fix It
 
-Specify which subsets to preload for that font.
-
-- On a font per font basis by adding it to the function call
+##### Specify which subsets to preload for that font.
 
 ```js
 const inter = Inter({ subsets: ['latin'] })
 ```
 
-- Globally for all your fonts
+Note: previously it was possible to specify default subsets in your `next.config.js` with the `experimental.fontLoaders` option, but this is no longer supported.
+
+##### Disable preloading for that font
+
+If it's not possible to preload your intended subset you can disable preloading.
 
 ```js
-// next.config.js
-module.exports = {
-  experimental: {
-    fontLoaders: [
-      { loader: '@next/font/google', options: { subsets: ['latin'] } },
-    ],
-  },
-}
+const notoSansJapanese = Noto_Sans_JP({
+  weight: '400',
+  preload: false,
+})
 ```
-
-If both are configured, the subset in the function call is used.
 
 ### Useful Links
 
-[Specifying a subset](https://beta.nextjs.org/docs/optimizing/fonts#specifying-a-subset)
+[Specifying a subset](https://nextjs.org/docs/basic-features/font-optimization#specifying-a-subset)

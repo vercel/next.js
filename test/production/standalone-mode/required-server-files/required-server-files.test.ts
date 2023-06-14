@@ -22,21 +22,31 @@ describe('should set-up next', () => {
   let stderr = ''
   let requiredFilesManifest
 
-  beforeAll(async () => {
+  const setupNext = async ({
+    nextEnv,
+    minimalMode,
+  }: {
+    nextEnv?: boolean
+    minimalMode?: boolean
+  }) => {
     // test build against environment with next support
-    process.env.NOW_BUILDER = '1'
+    process.env.NOW_BUILDER = nextEnv ? '1' : ''
 
     next = await createNext({
       files: {
         pages: new FileRef(join(__dirname, 'pages')),
         lib: new FileRef(join(__dirname, 'lib')),
         'middleware.js': new FileRef(join(__dirname, 'middleware.js')),
+        'cache-handler.js': new FileRef(join(__dirname, 'cache-handler.js')),
         'data.txt': new FileRef(join(__dirname, 'data.txt')),
         '.env': new FileRef(join(__dirname, '.env')),
         '.env.local': new FileRef(join(__dirname, '.env.local')),
         '.env.production': new FileRef(join(__dirname, '.env.production')),
       },
       nextConfig: {
+        experimental: {
+          incrementalCacheHandlerPath: './cache-handler.js',
+        },
         eslint: {
           ignoreDuringBuilds: true,
         },
@@ -101,9 +111,9 @@ describe('should set-up next', () => {
     const testServer = join(next.testDir, 'standalone/server.js')
     await fs.writeFile(
       testServer,
-      (await fs.readFile(testServer, 'utf8'))
-        .replace('console.error(err)', `console.error('top-level', err)`)
-        .replace('conf:', 'minimalMode: true,conf:')
+      (
+        await fs.readFile(testServer, 'utf8')
+      ).replace('conf:', `minimalMode: ${minimalMode},conf:`)
     )
     appPort = await findPort()
     server = await initNextServerScript(
@@ -117,13 +127,15 @@ describe('should set-up next', () => {
       {
         cwd: next.testDir,
         onStderr(msg) {
-          if (msg.includes('top-level')) {
-            errors.push(msg)
-          }
+          errors.push(msg)
           stderr += msg
         },
       }
     )
+  }
+
+  beforeAll(async () => {
+    await setupNext({ nextEnv: true, minimalMode: true })
   })
   afterAll(async () => {
     await next.destroy()
@@ -283,10 +295,20 @@ describe('should set-up next', () => {
     )
   })
 
-  it('`compress` should be `true` by default', async () => {
+  it('`compress` should be `false` in nextEnv', async () => {
     expect(
       await fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')
-    ).toContain('"compress":true')
+    ).toContain('"compress":false')
+  })
+
+  it('`incrementalCacheHandlerPath` should have correct path', async () => {
+    expect(
+      await fs.pathExists(join(next.testDir, 'standalone/cache-handler.js'))
+    ).toBe(true)
+
+    expect(
+      await fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')
+    ).toContain('"incrementalCacheHandlerPath":"../cache-handler.js"')
   })
 
   it('should output middleware correctly', async () => {
@@ -311,6 +333,8 @@ describe('should set-up next', () => {
     expect(typeof requiredFilesManifest.config.configFile).toBe('undefined')
     expect(typeof requiredFilesManifest.config.trailingSlash).toBe('boolean')
     expect(typeof requiredFilesManifest.appDir).toBe('string')
+    // not in a monorepo so relative app dir is empty string
+    expect(requiredFilesManifest.relativeAppDir).toBe('')
   })
 
   it('should de-dupe HTML/data requests', async () => {
@@ -390,7 +414,7 @@ describe('should set-up next', () => {
     expect(props2.gspCalls).not.toBe(props.gspCalls)
   })
 
-  it('should not 404 for onlyGenerated manual revalidate in minimal mode', async () => {
+  it('should not 404 for onlyGenerated on-demand revalidate in minimal mode', async () => {
     const previewProps = JSON.parse(
       await next.readFile('standalone/.next/prerender-manifest.json')
     ).preview
@@ -558,7 +582,7 @@ describe('should set-up next', () => {
   it('should render dynamic SSR page correctly with x-matched-path', async () => {
     const html = await renderViaHTTP(
       appPort,
-      '/some-other-path?slug=first',
+      '/some-other-path?nxtPslug=first',
       undefined,
       {
         headers: {
@@ -575,7 +599,7 @@ describe('should set-up next', () => {
 
     const html2 = await renderViaHTTP(
       appPort,
-      '/some-other-path?slug=second',
+      '/some-other-path?nxtPslug=second',
       undefined,
       {
         headers: {
@@ -594,7 +618,7 @@ describe('should set-up next', () => {
     const html3 = await renderViaHTTP(appPort, '/some-other-path', undefined, {
       headers: {
         'x-matched-path': '/dynamic/[slug]',
-        'x-now-route-matches': '1=second&slug=second',
+        'x-now-route-matches': '1=second&nxtPslug=second',
       },
     })
     const $3 = cheerio.load(html3)
@@ -691,7 +715,7 @@ describe('should set-up next', () => {
   it('should return data correctly with x-matched-path', async () => {
     const res = await fetchViaHTTP(
       appPort,
-      `/_next/data/${next.buildId}/dynamic/first.json?slug=first`,
+      `/_next/data/${next.buildId}/dynamic/first.json?nxtPslug=first`,
       undefined,
       {
         headers: {
@@ -749,7 +773,7 @@ describe('should set-up next', () => {
       {
         headers: {
           'x-matched-path': '/catch-all/[[...rest]]',
-          'x-now-route-matches': '1=hello&catchAll=hello',
+          'x-now-route-matches': '1=hello&nxtPcatchAll=hello',
         },
       }
     )
@@ -768,7 +792,7 @@ describe('should set-up next', () => {
       {
         headers: {
           'x-matched-path': '/catch-all/[[...rest]]',
-          'x-now-route-matches': '1=hello/world&catchAll=hello/world',
+          'x-now-route-matches': '1=hello/world&nxtPcatchAll=hello/world',
         },
       }
     )
@@ -806,7 +830,7 @@ describe('should set-up next', () => {
       {
         headers: {
           'x-matched-path': `/_next/data/${next.buildId}/catch-all/[[...rest]].json`,
-          'x-now-route-matches': '1=hello&rest=hello',
+          'x-now-route-matches': '1=hello&nxtPrest=hello',
         },
       }
     )
@@ -823,7 +847,7 @@ describe('should set-up next', () => {
       {
         headers: {
           'x-matched-path': `/_next/data/${next.buildId}/catch-all/[[...rest]].json`,
-          'x-now-route-matches': '1=hello/world&rest=hello/world',
+          'x-now-route-matches': '1=hello/world&nxtPrest=hello/world',
         },
       }
     )
@@ -929,7 +953,7 @@ describe('should set-up next', () => {
     errors = []
     const res = await fetchViaHTTP(appPort, '/errors/gip', { crash: '1' })
     expect(res.status).toBe(500)
-    expect(await res.text()).toBe('internal server error')
+    expect(await res.text()).toBe('Internal Server Error')
 
     await check(
       () => (errors[0].includes('gip hit an oops') ? 'success' : errors[0]),
@@ -941,7 +965,7 @@ describe('should set-up next', () => {
     errors = []
     const res = await fetchViaHTTP(appPort, '/errors/gssp', { crash: '1' })
     expect(res.status).toBe(500)
-    expect(await res.text()).toBe('internal server error')
+    expect(await res.text()).toBe('Internal Server Error')
     await check(
       () => (errors[0].includes('gssp hit an oops') ? 'success' : errors[0]),
       'success'
@@ -952,7 +976,7 @@ describe('should set-up next', () => {
     errors = []
     const res = await fetchViaHTTP(appPort, '/errors/gsp/crash')
     expect(res.status).toBe(500)
-    expect(await res.text()).toBe('internal server error')
+    expect(await res.text()).toBe('Internal Server Error')
     await check(
       () => (errors[0].includes('gsp hit an oops') ? 'success' : errors[0]),
       'success'
@@ -963,7 +987,7 @@ describe('should set-up next', () => {
     errors = []
     const res = await fetchViaHTTP(appPort, '/api/error')
     expect(res.status).toBe(500)
-    expect(await res.text()).toBe('internal server error')
+    expect(await res.text()).toBe('Internal Server Error')
     await check(
       () =>
         errors[0].includes('some error from /api/error')
@@ -1099,7 +1123,7 @@ describe('should set-up next', () => {
         headers: {
           'x-matched-path': '/optional-ssg/[[...rest]]',
           'x-now-route-matches':
-            '1=en%2Fes%2Fhello%252Fworld&rest=en%2Fes%2Fhello%252Fworld',
+            '1=en%2Fes%2Fhello%252Fworld&nxtPrest=en%2Fes%2Fhello%252Fworld',
         },
       }
     )
@@ -1133,7 +1157,7 @@ describe('should set-up next', () => {
     const res = await fetchViaHTTP(
       appPort,
       '/api/optional/index',
-      { rest: 'index', another: 'value' },
+      { nxtPrest: 'index', another: 'value' },
       {
         headers: {
           'x-matched-path': '/api/optional/[[...rest]]',
@@ -1242,9 +1266,14 @@ describe('should set-up next', () => {
     expect(envVariables.envLocal).toBeUndefined()
   })
 
-  it('should run middleware correctly without minimalMode', async () => {
+  it('should run middleware correctly (without minimalMode, with wasm)', async () => {
+    await next.destroy()
     await killApp(server)
-    const testServer = join(next.testDir, 'standalone/server.js')
+    await setupNext({ nextEnv: false, minimalMode: false })
+
+    const standaloneDir = join(next.testDir, 'standalone')
+
+    const testServer = join(standaloneDir, 'server.js')
     await fs.writeFile(
       testServer,
       (
@@ -1263,9 +1292,7 @@ describe('should set-up next', () => {
       {
         cwd: next.testDir,
         onStderr(msg) {
-          if (msg.includes('top-level')) {
-            errors.push(msg)
-          }
+          errors.push(msg)
           stderr += msg
         },
       }
@@ -1274,5 +1301,20 @@ describe('should set-up next', () => {
     const res = await fetchViaHTTP(appPort, '/')
     expect(res.status).toBe(200)
     expect(await res.text()).toContain('index page')
+
+    expect(fs.existsSync(join(standaloneDir, '.next/server/edge-chunks'))).toBe(
+      true
+    )
+
+    const resImageResponse = await fetchViaHTTP(
+      appPort,
+      '/a-non-existent-page/to-test-with-middleware'
+    )
+
+    expect(resImageResponse.status).toBe(200)
+    expect(resImageResponse.headers.get('content-type')).toBe('image/png')
+
+    // when not in next env should be compress: true
+    expect(fs.readFileSync(testServer, 'utf8')).toContain('"compress":true')
   })
 })

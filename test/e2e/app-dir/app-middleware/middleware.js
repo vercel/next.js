@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server'
 
+// It should be able to import `headers` inside middleware
+import { headers } from 'next/headers'
+console.log(!!headers)
+
 /**
  * @param {import('next/server').NextRequest} request
  */
@@ -20,6 +24,11 @@ export async function middleware(request) {
       const [key, value] = kv.split('=')
       headers.set(key, value)
     }
+  }
+
+  if (request.nextUrl.pathname.includes('/rewrite-to-app')) {
+    request.nextUrl.pathname = '/headers'
+    return NextResponse.rewrite(request.nextUrl)
   }
 
   return NextResponse.next({

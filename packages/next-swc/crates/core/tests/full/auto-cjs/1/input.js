@@ -1,7 +1,5 @@
-import mixed from 'esm';
+import mixed from 'esm'
 
+console.log(mixed.foo)
 
-console.log(mixed.foo);
-
-
-module.exports = mixed;
+module.exports = mixed

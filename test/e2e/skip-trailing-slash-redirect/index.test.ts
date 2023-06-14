@@ -2,6 +2,7 @@ import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { check, fetchViaHTTP } from 'next-test-utils'
 import { join } from 'path'
+import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 
 describe('skip-trailing-slash-redirect', () => {
@@ -14,6 +15,65 @@ describe('skip-trailing-slash-redirect', () => {
     })
   })
   afterAll(() => next.destroy())
+
+  it.each(['EN', 'JA-JP'])(
+    'should be able to redirect locale casing $1',
+    async (locale) => {
+      const res = await next.fetch(`/${locale}`, { redirect: 'manual' })
+      expect(res.status).toBe(307)
+      expect(new URL(res.headers.get('location'), 'http://n').pathname).toBe(
+        `/${locale.toLowerCase()}`
+      )
+    }
+  )
+
+  it.each([
+    { pathname: '/chained-rewrite-ssg' },
+    { pathname: '/chained-rewrite-static' },
+    { pathname: '/chained-rewrite-ssr' },
+    { pathname: '/docs/first' },
+    { pathname: '/docs-auto-static/first' },
+    { pathname: '/docs-ssr/first' },
+  ])(
+    'should handle external rewrite correctly $pathname',
+    async ({ pathname }) => {
+      const res = await fetchViaHTTP(next.url, pathname, undefined, {
+        redirect: 'manual',
+      })
+      expect(res.status).toBe(200)
+
+      const html = await res.text()
+      const $ = cheerio.load(html)
+
+      if (!pathname.includes('static')) {
+        expect(JSON.parse($('#props').text()).params).toEqual({
+          slug: 'first',
+        })
+        expect(JSON.parse($('#query').text())).toEqual({
+          slug: 'first',
+        })
+      }
+
+      const browser = await webdriver(next.url, '/docs', {
+        waitHydration: false,
+      })
+      await check(
+        () => browser.eval('next.router.isReady ? "yes": "no"'),
+        'yes'
+      )
+      await check(() => browser.elementByCss('#mounted').text(), 'yes')
+      await browser.eval('window.beforeNav = 1')
+
+      await browser.elementByCss(`#${pathname.replace(/\//g, '')}`).click()
+      await check(async () => {
+        const query = JSON.parse(await browser.elementByCss('#query').text())
+        expect(query).toEqual({ slug: 'first' })
+        return 'success'
+      }, 'success')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+    }
+  )
 
   it('should allow rewriting invalid buildId correctly', async () => {
     const res = await fetchViaHTTP(
@@ -33,6 +93,21 @@ describe('skip-trailing-slash-redirect', () => {
       await check(() => next.cliOutput, /missing-id rewrite/)
       expect(next.cliOutput).toContain('/_next/data/missing-id/hello.json')
     }
+  })
+
+  it('should provide original _next/data URL with skipMiddlewareUrlNormalize', async () => {
+    const res = await fetchViaHTTP(
+      next.url,
+      `/_next/data/${next.buildId}/valid.json`,
+      undefined,
+      {
+        headers: {
+          'x-nextjs-data': '1',
+        },
+      }
+    )
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain('Example Domain')
   })
 
   it('should allow response body from middleware with flag', async () => {
@@ -88,7 +163,7 @@ describe('skip-trailing-slash-redirect', () => {
   it('should correct skip URL normalizing in middleware', async () => {
     let res = await fetchViaHTTP(
       next.url,
-      '/middleware-rewrite-with-slash',
+      `/_next/data/${next.buildId}/middleware-rewrite-with-slash.json`,
       undefined,
       { redirect: 'manual', headers: { 'x-nextjs-data': '1' } }
     )
@@ -96,7 +171,7 @@ describe('skip-trailing-slash-redirect', () => {
 
     res = await fetchViaHTTP(
       next.url,
-      '/middleware-rewrite-without-slash',
+      `/_next/data/${next.buildId}/middleware-rewrite-without-slash.json`,
       undefined,
       { redirect: 'manual', headers: { 'x-nextjs-data': '1' } }
     )
@@ -157,6 +232,54 @@ describe('skip-trailing-slash-redirect', () => {
     })
     expect(res.status).toBe(200)
     expect(await res.text()).toContain('another page')
+  })
+
+  it('should not apply trailing slash to links on client', async () => {
+    const browser = await webdriver(next.url, '/')
+    await browser.eval('window.beforeNav = 1')
+
+    expect(
+      new URL(
+        await browser.elementByCss('#to-another').getAttribute('href'),
+        'http://n'
+      ).pathname
+    ).toBe('/another')
+
+    await browser.elementByCss('#to-another').click()
+    await browser.waitForElementByCss('#another')
+
+    expect(await browser.eval('window.location.pathname')).toBe('/another')
+
+    await browser.back().waitForElementByCss('#to-another')
+
+    expect(
+      new URL(
+        await browser
+          .elementByCss('#to-another-with-slash')
+          .getAttribute('href'),
+        'http://n'
+      ).pathname
+    ).toBe('/another/')
+
+    await browser.elementByCss('#to-another-with-slash').click()
+    await browser.waitForElementByCss('#another')
+
+    expect(await browser.eval('window.location.pathname')).toBe('/another/')
+
+    await browser.back().waitForElementByCss('#to-another')
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+  })
+
+  it('should not apply trailing slash on load on client', async () => {
+    let browser = await webdriver(next.url, '/another')
+    await check(() => browser.eval('next.router.isReady ? "yes": "no"'), 'yes')
+
+    expect(await browser.eval('location.pathname')).toBe('/another')
+
+    browser = await webdriver(next.url, '/another/')
+    await check(() => browser.eval('next.router.isReady ? "yes": "no"'), 'yes')
+
+    expect(await browser.eval('location.pathname')).toBe('/another/')
   })
 
   it('should respond to index correctly', async () => {

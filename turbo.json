@@ -5,13 +5,29 @@
       "dependsOn": ["^build-native"],
       "outputs": ["native/*.node"]
     },
+    "build-native-release": {
+      "dependsOn": ["^build-native-release"],
+      "outputs": ["native/*.node"]
+    },
     "build-native-no-plugin": {
       "dependsOn": ["^build-native-no-plugin"],
+      "outputs": ["native/*.node"]
+    },
+    "build-native-no-plugin-woa": {
+      "dependsOn": ["^build-native-no-plugin-woa"],
+      "outputs": ["native/*.node"]
+    },
+    "build-native-no-plugin-woa-release": {
+      "dependsOn": ["^build-native-no-plugin-woa-release"],
       "outputs": ["native/*.node"]
     },
     "build-wasm": {
       "dependsOn": ["^build-wasm"],
       "outputs": ["crates/wasm/pkg/*"]
+    },
+    "cache-build-native": {
+      "dependsOn": ["^cache-build-native"],
+      "outputs": ["native/*.node"]
     },
     "build": {
       "dependsOn": ["^build"],
@@ -21,6 +37,14 @@
       "dependsOn": ["^dev"],
       "outputs": ["dist/**"]
     },
-    "typescript": {}
+    "typescript": {},
+    "rust-check": {},
+    "test-cargo-unit": {},
+    "test-cargo-integration": {},
+    "test-cargo-bench": {},
+    "//#get-test-timings": {
+      "inputs": ["run-tests.js"],
+      "outputs": ["test-timings.json"]
+    }
   }
 }

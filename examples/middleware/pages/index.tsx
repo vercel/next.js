@@ -7,17 +7,17 @@ const Home: NextPage = () => {
       <h1>Index</h1>
       <p>
         <Link href="/about" passHref>
-          <a>Go to about page (will redirect)</a>
+          Go to about page (will redirect)
         </Link>
       </p>
       <p>
         <Link href="/another" passHref>
-          <a>Go to another page (will rewrite)</a>
+          Go to another page (will rewrite)
         </Link>
       </p>
       <p>
         <Link href="/about2" passHref>
-          <a>Go to about 2 page (no redirect or rewrite)</a>
+          Go to about 2 page (no redirect or rewrite)
         </Link>
       </p>
     </div>

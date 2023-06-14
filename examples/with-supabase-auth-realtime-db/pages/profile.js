@@ -18,9 +18,7 @@ export default function Profile({ user }) {
           </Typography.Text>
 
           <Typography.Text>
-            <Link href="/">
-              <a>Static example with useSWR</a>
-            </Link>
+            <Link href="/">Static example with useSWR</Link>
           </Typography.Text>
         </Space>
       </Card>

@@ -31,7 +31,7 @@ After running this codemod, you can optionally upgrade `next/legacy/image` to th
 npx @next/codemod next-image-experimental .
 ```
 
-Please note this second codemod is experimental and only covers static usage, not dynamic usage (such `<Image {...props} />`).
+Please note this second codemod is experimental and only covers static usage (such as `<Image src={img} layout="responsive" />`) but not dynamic usage (such as `<Image {...props} />`).
 
 ### Useful Links
 

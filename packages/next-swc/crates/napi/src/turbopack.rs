@@ -1,157 +1,109 @@
-use std::{
-    future::join,
-    net::{IpAddr, Ipv4Addr},
-    path::PathBuf,
-    time::{Duration, Instant},
-};
+use std::convert::TryFrom;
+
+use napi::bindgen_prelude::*;
+use next_build::{next_build as turbo_next_build, NextBuildOptions};
+use next_dev::{devserver_options::DevServerOptions, start_server};
 
 use crate::util::MapErr;
-use napi::bindgen_prelude::*;
-use next_dev::{register, NextDevServerBuilder};
-use owo_colors::OwoColorize;
-use serde::Deserialize;
-use turbo_tasks::{util::FormatDuration, TurboTasks};
-use turbo_tasks_memory::MemoryBackend;
-use turbopack_core::issue::IssueSeverity;
-
-#[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-#[allow(unused)]
-struct TurboDevServerOptions {
-    #[serde(default = "default_port")]
-    port: u16,
-
-    #[serde(default = "default_host")]
-    hostname: IpAddr,
-
-    #[serde(default)]
-    eager_compile: bool,
-
-    #[serde(default)]
-    log_level: Option<IssueSeverity>,
-
-    #[serde(default)]
-    show_all: bool,
-
-    #[serde(default)]
-    log_detail: bool,
-
-    #[serde(default = "default_dir")]
-    dir: PathBuf,
-
-    #[serde(default = "default_dir")]
-    root_dir: PathBuf,
-
-    #[serde(default)]
-    allow_retry: bool,
-
-    #[serde(default)]
-    dev: bool,
-
-    #[serde(default)]
-    is_next_dev_command: bool,
-
-    #[serde(default)]
-    server_components_external_packages: Vec<String>,
-}
-
-fn default_port() -> u16 {
-    3000
-}
-
-fn default_host() -> IpAddr {
-    IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0))
-}
-
-fn default_dir() -> PathBuf {
-    std::env::current_dir().expect("Current dir should be accessible")
-}
-
-async fn start_server(options: TurboDevServerOptions) -> napi::Result<()> {
-    let start = Instant::now();
-
-    register();
-
-    let tt = TurboTasks::new(MemoryBackend::new());
-    let tt_clone = tt.clone();
-
-    let dir = options
-        .dir
-        .canonicalize()
-        .expect("Cannot canonicalize project directory")
-        .to_str()
-        .expect("project directory contains invalid characters")
-        .to_string();
-
-    let root_dir = options
-        .root_dir
-        .canonicalize()
-        .expect("Cannot canonicalize project directory")
-        .to_str()
-        .expect("project directory contains invalid characters")
-        .to_string();
-
-    //server_component_external
-
-    let mut server = NextDevServerBuilder::new(tt, dir, root_dir)
-        .entry_request("src/index".into())
-        .eager_compile(options.eager_compile)
-        .hostname(options.hostname)
-        .port(options.port)
-        .log_detail(options.log_detail)
-        .show_all(options.show_all)
-        .log_level(
-            options
-                .log_level
-                .map_or_else(|| IssueSeverity::Warning, |l| l),
-        );
-
-    for package in options.server_components_external_packages {
-        server = server.server_component_external(package);
-    }
-
-    let server = server.build().await.convert_err()?;
-
-    let index_uri = if server.addr.ip().is_loopback() || server.addr.ip().is_unspecified() {
-        format!("http://localhost:{}", server.addr.port())
-    } else {
-        format!("http://{}", server.addr)
-    };
-    println!(
-        "{} - started server on {}:{}, url: {}",
-        "ready".green(),
-        server.addr.ip(),
-        server.addr.port(),
-        index_uri
-    );
-
-    let stats_future = async move {
-        println!(
-            "{event_type} - initial compilation {start}",
-            event_type = "event".purple(),
-            start = FormatDuration(start.elapsed()),
-        );
-
-        loop {
-            let (elapsed, _count) = tt_clone
-                .get_or_wait_update_info(Duration::from_millis(100))
-                .await;
-            println!(
-                "{event_type} - updated in {elapsed}",
-                event_type = "event".purple(),
-                elapsed = FormatDuration(elapsed),
-            );
-        }
-    };
-
-    join!(stats_future, async { server.future.await.unwrap() }).await;
-
-    Ok(())
-}
 
 #[napi]
 pub async fn start_turbo_dev(options: Buffer) -> napi::Result<()> {
-    let options: TurboDevServerOptions = serde_json::from_slice(&options)?;
+    let options: DevServerOptions = serde_json::from_slice(&options)?;
+    start_server(&options).await.convert_err()
+}
 
-    start_server(options).await
+#[napi(object, object_to_js = false)]
+#[derive(Debug)]
+pub struct NextBuildContext {
+    pub dir: Option<String>,
+    pub app_dir: Option<String>,
+    pub pages_dir: Option<String>,
+    pub rewrites: Option<Rewrites>,
+    pub original_rewrites: Option<Rewrites>,
+    pub original_redirects: Option<Vec<Redirect>>,
+}
+
+#[napi(object, object_to_js = false)]
+#[derive(Debug)]
+pub struct Rewrites {
+    pub fallback: Vec<Rewrite>,
+    pub after_files: Vec<Rewrite>,
+    pub before_files: Vec<Rewrite>,
+}
+
+#[napi(object, object_to_js = false)]
+#[derive(Debug)]
+pub struct Rewrite {
+    pub source: String,
+    pub destination: String,
+}
+
+#[napi(object, object_to_js = false)]
+#[derive(Debug)]
+pub struct Redirect {
+    pub source: String,
+    pub destination: String,
+    pub permanent: Option<bool>,
+    pub status_code: Option<u32>,
+    pub has: Option<RouteHas>,
+    pub missing: Option<RouteHas>,
+}
+
+#[derive(Debug)]
+pub struct RouteHas {
+    pub r#type: RouteType,
+    pub key: Option<String>,
+    pub value: Option<String>,
+}
+
+#[derive(Debug)]
+pub enum RouteType {
+    Header,
+    Query,
+    Cookie,
+    Host,
+}
+
+impl TryFrom<String> for RouteType {
+    type Error = napi::Error;
+
+    fn try_from(value: String) -> Result<Self> {
+        match value.as_str() {
+            "header" => Ok(RouteType::Header),
+            "query" => Ok(RouteType::Query),
+            "cookie" => Ok(RouteType::Cookie),
+            "host" => Ok(RouteType::Host),
+            _ => Err(napi::Error::new(
+                napi::Status::InvalidArg,
+                "Invalid route type",
+            )),
+        }
+    }
+}
+
+impl FromNapiValue for RouteHas {
+    unsafe fn from_napi_value(env: sys::napi_env, napi_val: sys::napi_value) -> Result<Self> {
+        let object = Object::from_napi_value(env, napi_val)?;
+        let r#type = object.get_named_property::<String>("type")?;
+        Ok(RouteHas {
+            r#type: RouteType::try_from(r#type)?,
+            key: object.get("key")?,
+            value: object.get("value")?,
+        })
+    }
+}
+
+impl From<NextBuildContext> for NextBuildOptions {
+    fn from(value: NextBuildContext) -> Self {
+        Self {
+            dir: value.dir,
+            memory_limit: None,
+            full_stats: None,
+        }
+    }
+}
+
+#[napi]
+pub async fn next_build(ctx: NextBuildContext) -> napi::Result<()> {
+    turbo_next_build(ctx.into()).await.convert_err()
 }

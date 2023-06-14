@@ -1,6 +1,8 @@
 /// <reference types="node" />
 /// <reference types="react" />
+/// <reference types="react/experimental" />
 /// <reference types="react-dom" />
+/// <reference types="react-dom/experimental" />
 
 import React from 'react'
 import { ParsedUrlQuery } from 'querystring'
@@ -23,10 +25,29 @@ import {
 // @ts-ignore This path is generated at build time and conflicts otherwise
 import next from '../dist/server/next'
 
-export type ServerRuntime = 'nodejs' | 'experimental-edge' | undefined
+export type ServerRuntime = 'nodejs' | 'experimental-edge' | 'edge' | undefined
 
 // @ts-ignore This path is generated at build time and conflicts otherwise
 export { NextConfig } from '../dist/server/config'
+
+export type {
+  Metadata,
+  MetadataRoute,
+  ResolvedMetadata,
+  ResolvingMetadata, // @ts-ignore This path is generated at build time and conflicts otherwise
+} from '../dist/lib/metadata/types/metadata-interface'
+
+/**
+ * Stub route type for typedRoutes before `next dev` or `next build` is run
+ * @link https://beta.nextjs.org/docs/configuring/typescript#statically-typed-links
+ * @example
+ * ```ts
+ * import type { Route } from 'next'
+ * // ...
+ * router.push(returnToPath as Route)
+ * ```
+ */
+export type Route = string & {}
 
 // Extend the React types with missing properties
 declare module 'react' {
@@ -35,14 +56,11 @@ declare module 'react' {
     amp?: string
   }
 
-  // <link nonce=""> support
-  interface LinkHTMLAttributes<T> extends HTMLAttributes<T> {
-    nonce?: string
+  // <img fetchPriority=""> support
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- It's actually required for module augmentation to work.
+  interface ImgHTMLAttributes<T> {
+    fetchPriority?: 'high' | 'low' | 'auto' | undefined
   }
-
-  // TODO-APP: check if this is the right type.
-  function use<T>(promise: Promise<T> | React.Context<T>): T
-  function cache<T extends Function>(fn: T): T
 }
 
 export type Redirect =
@@ -60,7 +78,11 @@ export type Redirect =
 /**
  * `Page` type, use it as a guide to create `pages`.
  */
-export type NextPage<P = {}, IP = P> = NextComponentType<NextPageContext, IP, P>
+export type NextPage<Props = {}, InitialProps = Props> = NextComponentType<
+  NextPageContext,
+  InitialProps,
+  Props
+>
 
 export type FileSizeSuffix = `${
   | 'k'
@@ -110,7 +132,15 @@ export type PageConfig = {
   runtime?: ServerRuntime
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
+  /**
+   * @deprecated this config has been removed in favor of the next.config.js option
+   */
+  // TODO: remove in next minor release (current v13.1.1)
   unstable_includeFiles?: string[]
+  /**
+   * @deprecated this config has been removed in favor of the next.config.js option
+   */
+  // TODO: remove in next minor release (current v13.1.1)
   unstable_excludeFiles?: string[]
 }
 
@@ -124,30 +154,50 @@ export {
 
 export type PreviewData = string | false | object | undefined
 
+/**
+ * Context object passed into `getStaticProps`.
+ * @link https://nextjs.org/docs/api-reference/data-fetching/get-static-props#context-parameter
+ */
 export type GetStaticPropsContext<
-  Q extends ParsedUrlQuery = ParsedUrlQuery,
-  D extends PreviewData = PreviewData
+  Params extends ParsedUrlQuery = ParsedUrlQuery,
+  Preview extends PreviewData = PreviewData
 > = {
-  params?: Q
+  params?: Params
   preview?: boolean
-  previewData?: D
+  previewData?: Preview
+  draftMode?: boolean
   locale?: string
   locales?: string[]
   defaultLocale?: string
 }
 
-export type GetStaticPropsResult<P> =
-  | { props: P; revalidate?: number | boolean }
+/**
+ * The return type of `getStaticProps`.
+ * @link https://nextjs.org/docs/api-reference/data-fetching/get-static-props#getstaticprops-return-values
+ */
+export type GetStaticPropsResult<Props> =
+  | { props: Props; revalidate?: number | boolean }
   | { redirect: Redirect; revalidate?: number | boolean }
   | { notFound: true; revalidate?: number | boolean }
 
+/**
+ * Static Site Generation feature for Next.js.
+ * @link https://nextjs.org/docs/basic-features/data-fetching/get-static-props
+ * @link https://nextjs.org/docs/basic-features/typescript#static-generation-and-server-side-rendering
+ * @example
+ * ```ts
+ * export const getStaticProps: GetStaticProps = async (context) => {
+ *   // ...
+ * }
+ * ```
+ */
 export type GetStaticProps<
-  P extends { [key: string]: any } = { [key: string]: any },
-  Q extends ParsedUrlQuery = ParsedUrlQuery,
-  D extends PreviewData = PreviewData
+  Props extends { [key: string]: any } = { [key: string]: any },
+  Params extends ParsedUrlQuery = ParsedUrlQuery,
+  Preview extends PreviewData = PreviewData
 > = (
-  context: GetStaticPropsContext<Q, D>
-) => Promise<GetStaticPropsResult<P>> | GetStaticPropsResult<P>
+  context: GetStaticPropsContext<Params, Preview>
+) => Promise<GetStaticPropsResult<Props>> | GetStaticPropsResult<Props>
 
 export type InferGetStaticPropsType<T extends (args: any) => any> = Extract<
   Awaited<ReturnType<T>>,
@@ -159,45 +209,81 @@ export type GetStaticPathsContext = {
   defaultLocale?: string
 }
 
-export type GetStaticPathsResult<P extends ParsedUrlQuery = ParsedUrlQuery> = {
-  paths: Array<string | { params: P; locale?: string }>
+/**
+ * The return type of `getStaticPaths`.
+ * @link https://nextjs.org/docs/api-reference/data-fetching/get-static-paths#getstaticpaths-return-values
+ */
+export type GetStaticPathsResult<
+  Params extends ParsedUrlQuery = ParsedUrlQuery
+> = {
+  paths: Array<string | { params: Params; locale?: string }>
   fallback: boolean | 'blocking'
 }
 
-export type GetStaticPaths<P extends ParsedUrlQuery = ParsedUrlQuery> = (
+/**
+ * Define a list of paths to be statically generated if dynamic routes exist.
+ * @link https://nextjs.org/docs/basic-features/data-fetching/get-static-paths
+ * @link https://nextjs.org/docs/basic-features/typescript#static-generation-and-server-side-rendering
+ * @example
+ * ```ts
+ * export const getStaticPaths: GetStaticPaths = async () => {
+ *  // ...
+ * }
+ * ```
+ */
+export type GetStaticPaths<Params extends ParsedUrlQuery = ParsedUrlQuery> = (
   context: GetStaticPathsContext
-) => Promise<GetStaticPathsResult<P>> | GetStaticPathsResult<P>
+) => Promise<GetStaticPathsResult<Params>> | GetStaticPathsResult<Params>
 
+/**
+ * Context object passed into `getServerSideProps`.
+ * @link https://nextjs.org/docs/api-reference/data-fetching/get-server-side-props#context-parameter
+ */
 export type GetServerSidePropsContext<
-  Q extends ParsedUrlQuery = ParsedUrlQuery,
-  D extends PreviewData = PreviewData
+  Params extends ParsedUrlQuery = ParsedUrlQuery,
+  Preview extends PreviewData = PreviewData
 > = {
   req: IncomingMessage & {
     cookies: NextApiRequestCookies
   }
   res: ServerResponse
-  params?: Q
+  params?: Params
   query: ParsedUrlQuery
   preview?: boolean
-  previewData?: D
+  previewData?: Preview
+  draftMode?: boolean
   resolvedUrl: string
   locale?: string
   locales?: string[]
   defaultLocale?: string
 }
 
-export type GetServerSidePropsResult<P> =
-  | { props: P | Promise<P> }
+/**
+ * The return type of `getServerSideProps`.
+ * @link https://nextjs.org/docs/api-reference/data-fetching/get-server-side-props#getserversideprops-return-values
+ */
+export type GetServerSidePropsResult<Props> =
+  | { props: Props | Promise<Props> }
   | { redirect: Redirect }
   | { notFound: true }
 
+/**
+ * Server-side Rendering feature for Next.js.
+ * @link https://nextjs.org/docs/basic-features/data-fetching/get-server-side-props
+ * @link https://nextjs.org/docs/basic-features/typescript#static-generation-and-server-side-rendering
+ * @example
+ * ```ts
+ * export const getServerSideProps: GetServerSideProps = async (context) => {
+ *  // ...
+ * }
+ */
 export type GetServerSideProps<
-  P extends { [key: string]: any } = { [key: string]: any },
-  Q extends ParsedUrlQuery = ParsedUrlQuery,
-  D extends PreviewData = PreviewData
+  Props extends { [key: string]: any } = { [key: string]: any },
+  Params extends ParsedUrlQuery = ParsedUrlQuery,
+  Preview extends PreviewData = PreviewData
 > = (
-  context: GetServerSidePropsContext<Q, D>
-) => Promise<GetServerSidePropsResult<P>>
+  context: GetServerSidePropsContext<Params, Preview>
+) => Promise<GetServerSidePropsResult<Props>>
 
 export type InferGetServerSidePropsType<T extends (args: any) => any> = Awaited<
   Extract<Awaited<ReturnType<T>>, { props: any }>['props']
