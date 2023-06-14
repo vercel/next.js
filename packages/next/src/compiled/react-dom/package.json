@@ -25,10 +25,10 @@
   },
   "dependencies": {
     "loose-envify": "^1.1.0",
-    "scheduler": "0.24.0-next-6eadbe0c4-20230425"
+    "scheduler": "0.24.0-canary-1cea38448-20230530"
   },
   "peerDependencies": {
-    "react": "18.3.0-next-6eadbe0c4-20230425"
+    "react": "18.3.0-canary-1cea38448-20230530"
   },
   "browser": {
     "./server.js": "./server.browser.js"

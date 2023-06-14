@@ -27,7 +27,6 @@ import {
   SYMBOL_PREVIEW_DATA,
   RESPONSE_LIMIT_DEFAULT,
 } from './index'
-import { createRequestResponseMocks } from '../lib/mock-request'
 import { getTracer } from '../lib/trace/tracer'
 import { NodeSpan } from '../lib/trace/constants'
 import { RequestCookies } from '../web/spec-extension/cookies'
@@ -36,6 +35,7 @@ import {
   PRERENDER_REVALIDATE_HEADER,
   PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
 } from '../../lib/constants'
+import { invokeRequest } from '../lib/server-ipc/invoke-request'
 
 export function tryGetPreviewData(
   req: IncomingMessage | BaseNextRequest | Request,
@@ -194,7 +194,14 @@ export async function parseBody(
 type ApiContext = __ApiPreviewProps & {
   trustHostHeader?: boolean
   allowedRevalidateHeaderKeys?: string[]
-  revalidate?: (_req: IncomingMessage, _res: ServerResponse) => Promise<any>
+  hostname?: string
+  revalidate?: (config: {
+    urlPath: string
+    revalidateHeaders: { [key: string]: string | string[] }
+    opts: { unstable_onlyGenerated?: boolean }
+  }) => Promise<any>
+
+  // (_req: IncomingMessage, _res: ServerResponse) => Promise<any>
 }
 
 function getMaxContentLength(responseLimit?: ResponseLimit) {
@@ -453,20 +460,44 @@ async function revalidate(
         throw new Error(`Invalid response ${res.status}`)
       }
     } else if (context.revalidate) {
-      const mocked = createRequestResponseMocks({
-        url: urlPath,
-        headers: revalidateHeaders,
-      })
+      // We prefer to use the IPC call if running under the workers mode.
+      const ipcPort = process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT
+      if (ipcPort) {
+        const ipcKey = process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY
+        const res = await invokeRequest(
+          `http://${
+            context.hostname
+          }:${ipcPort}?key=${ipcKey}&method=revalidate&args=${encodeURIComponent(
+            JSON.stringify([{ urlPath, revalidateHeaders, opts }])
+          )}`,
+          {
+            method: 'GET',
+            headers: {},
+          }
+        )
 
-      await context.revalidate(mocked.req, mocked.res)
-      await mocked.res.hasStreamed
+        const chunks = []
 
-      if (
-        mocked.res.getHeader('x-nextjs-cache') !== 'REVALIDATED' &&
-        !(mocked.res.statusCode === 404 && opts.unstable_onlyGenerated)
-      ) {
-        throw new Error(`Invalid response ${mocked.res.statusCode}`)
+        for await (const chunk of res) {
+          if (chunk) {
+            chunks.push(chunk)
+          }
+        }
+        const body = Buffer.concat(chunks).toString()
+        const result = JSON.parse(body)
+
+        if (result.err) {
+          throw new Error(result.err.message)
+        }
+
+        return
       }
+
+      await context.revalidate({
+        urlPath,
+        revalidateHeaders,
+        opts,
+      })
     } else {
       throw new Error(
         `Invariant: required internal revalidate method not passed to api-utils`
@@ -549,7 +580,7 @@ export async function apiResolver(
         )
       }
 
-      endResponse.apply(apiRes, args)
+      return endResponse.apply(apiRes, args)
     }
     apiRes.status = (statusCode) => sendStatusCode(apiRes, statusCode)
     apiRes.send = (data) => sendData(apiReq, apiRes, data)

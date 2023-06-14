@@ -156,6 +156,10 @@ declare module 'next/dist/compiled/babel/preset-env' {
   const anyType: any
   export default anyType
 }
+declare module 'watchpack' {
+  const anyType: any
+  export default anyType
+}
 declare module 'next/dist/compiled/babel/core' {
   export * from '@babel/core'
 }
@@ -454,10 +458,5 @@ declare module 'next/dist/compiled/is-animated' {
 
 declare module 'next/dist/compiled/@opentelemetry/api' {
   import * as m from '@opentelemetry/api'
-  export = m
-}
-
-declare module 'next/dist/compiled/zod' {
-  import m from 'zod'
   export = m
 }

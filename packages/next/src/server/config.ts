@@ -1,13 +1,5 @@
 import { existsSync } from 'fs'
-import {
-  basename,
-  extname,
-  join,
-  relative,
-  isAbsolute,
-  resolve,
-  dirname,
-} from 'path'
+import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import { Agent as HttpAgent } from 'http'
 import { Agent as HttpsAgent } from 'https'
@@ -26,8 +18,9 @@ import {
 } from './config-shared'
 import { loadWebpackHook } from './config-utils'
 import { ImageConfig, imageConfigDefault } from '../shared/lib/image-config'
-import { loadEnvConfig } from '@next/env'
+import { loadEnvConfig, updateInitialEnv } from '@next/env'
 import { flushAndExit } from '../telemetry/flush-and-exit'
+import { findRootDir } from '../lib/find-root'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
@@ -45,11 +38,6 @@ const experimentalWarning = execOnce(
       `Experimental features are not covered by semver, and may cause unexpected or broken application behavior. ` +
         `Use at your own risk.`
     )
-    if (features.includes('appDir')) {
-      Log.info(
-        `Thank you for testing \`appDir\` please leave your feedback at https://nextjs.link/app-feedback`
-      )
-    }
 
     console.warn()
   }
@@ -140,17 +128,6 @@ function assignDefaults(
           for (const featureName of Object.keys(
             value
           ) as (keyof ExperimentalConfig)[]) {
-            const featureValue = value[featureName]
-            if (featureName === 'appDir' && featureValue === true) {
-              // auto enable clientRouterFilter if not manually set
-              // when appDir is enabled
-              if (
-                typeof userConfig.experimental.clientRouterFilter ===
-                'undefined'
-              ) {
-                userConfig.experimental.clientRouterFilter = true
-              }
-            }
             if (
               value[featureName] !== defaultConfig.experimental[featureName]
             ) {
@@ -462,6 +439,13 @@ function assignDefaults(
   )
 
   if (
+    typeof userConfig.experimental?.clientRouterFilter === 'undefined' &&
+    result.experimental?.appDir
+  ) {
+    result.experimental.clientRouterFilter = true
+  }
+
+  if (
     result.experimental?.outputFileTracingRoot &&
     !isAbsolute(result.experimental.outputFileTracingRoot)
   ) {
@@ -475,23 +459,26 @@ function assignDefaults(
     }
   }
 
+  // only leverage deploymentId
+  if (result.experimental?.useDeploymentId && process.env.NEXT_DEPLOYMENT_ID) {
+    if (!result.experimental) {
+      result.experimental = {}
+    }
+    result.experimental.deploymentId = process.env.NEXT_DEPLOYMENT_ID
+  }
+
   // use the closest lockfile as tracing root
   if (!result.experimental?.outputFileTracingRoot) {
-    const lockFiles: string[] = [
-      'package-lock.json',
-      'yarn.lock',
-      'pnpm-lock.yaml',
-    ]
-    const foundLockfile = findUp.sync(lockFiles, { cwd: dir })
+    let rootDir = findRootDir(dir)
 
-    if (foundLockfile) {
+    if (rootDir) {
       if (!result.experimental) {
         result.experimental = {}
       }
       if (!defaultConfig.experimental) {
         defaultConfig.experimental = {}
       }
-      result.experimental.outputFileTracingRoot = dirname(foundLockfile)
+      result.experimental.outputFileTracingRoot = rootDir
       defaultConfig.experimental.outputFileTracingRoot =
         result.experimental.outputFileTracingRoot
     }
@@ -689,6 +676,10 @@ export default async function loadConfig(
   rawConfig?: boolean,
   silent?: boolean
 ): Promise<NextConfigComplete> {
+  if (process.env.__NEXT_PRIVATE_STANDALONE_CONFIG) {
+    return JSON.parse(process.env.__NEXT_PRIVATE_STANDALONE_CONFIG)
+  }
+
   const curLog = silent
     ? {
         warn: () => {},
@@ -722,6 +713,8 @@ export default async function loadConfig(
     let userConfigModule: any
 
     try {
+      const envBefore = Object.assign({}, process.env)
+
       // `import()` expects url-encoded strings, so the path must be properly
       // escaped and (especially on Windows) absolute paths must pe prefixed
       // with the `file://` protocol
@@ -733,6 +726,14 @@ export default async function loadConfig(
       } else {
         userConfigModule = await import(pathToFileURL(path).href)
       }
+      const newEnv: typeof process.env = {} as any
+
+      for (const key of Object.keys(process.env)) {
+        if (envBefore[key] !== process.env[key]) {
+          newEnv[key] = process.env[key]
+        }
+      }
+      updateInitialEnv(newEnv)
 
       if (rawConfig) {
         return userConfigModule
@@ -782,12 +783,6 @@ export default async function loadConfig(
           curLog.warn(message)
         }
       }
-    }
-
-    if (Object.keys(userConfig).length === 0) {
-      curLog.warn(
-        `Detected ${configFileName}, no exported configuration found. https://nextjs.org/docs/messages/empty-configuration`
-      )
     }
 
     if (userConfig.target && userConfig.target !== 'server') {

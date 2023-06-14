@@ -35,7 +35,7 @@ if (typeof window === 'undefined') {
 }
 
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
-type LoadingValue = typeof VALID_LOADING_VALUES[number]
+type LoadingValue = (typeof VALID_LOADING_VALUES)[number]
 type ImageConfig = ImageConfigComplete & {
   allSizes: number[]
   output?: 'standalone' | 'export'
@@ -970,6 +970,7 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
               imageSrcSet={imgAttributes.srcSet}
               imageSizes={imgAttributes.sizes}
               crossOrigin={rest.crossOrigin}
+              referrerPolicy={rest.referrerPolicy}
               {...getDynamicProps(fetchPriority)}
             />
           </Head>

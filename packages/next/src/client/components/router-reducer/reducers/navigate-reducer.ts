@@ -140,7 +140,7 @@ export function navigateReducer(
   ) {
     const segments = pathname.split('/')
     // TODO-APP: figure out something better for index pages
-    segments.push('')
+    segments.push('__PAGE__')
 
     // Optimistic tree case.
     // If the optimistic tree is deeper than the current state leave that deeper part out of the fetch
@@ -158,14 +158,14 @@ export function navigateReducer(
     temporaryCacheNode.parallelRoutes = new Map(state.cache.parallelRoutes)
 
     const data = createRecordFromThenable(
-      fetchServerResponse(url, optimisticTree, state.nextUrl)
+      fetchServerResponse(url, optimisticTree, state.nextUrl, state.buildId)
     )
 
     // TODO-APP: segments.slice(1) strips '', we can get rid of '' altogether.
     // TODO-APP: re-evaluate if we need to strip the last segment
     const optimisticFlightSegmentPath = segments
       .slice(1)
-      .map((segment) => ['children', segment === '' ? '__PAGE__' : segment])
+      .map((segment) => ['children', segment])
       .flat()
 
     // Copy existing cache nodes as far as possible and fill in `data` property with the started data fetch.
@@ -204,7 +204,7 @@ export function navigateReducer(
   // If we don't have a prefetch value, we need to create one
   if (!prefetchValues) {
     const data = createRecordFromThenable(
-      fetchServerResponse(url, state.tree, state.nextUrl)
+      fetchServerResponse(url, state.tree, state.nextUrl, state.buildId)
     )
 
     const newPrefetchValue = {
@@ -288,7 +288,9 @@ export function navigateReducer(
           currentCache,
           flightSegmentPath,
           treePatch,
-          () => fetchServerResponse(url, newTree!, state.nextUrl)
+          // eslint-disable-next-line no-loop-func
+          () =>
+            fetchServerResponse(url, currentTree, state.nextUrl, state.buildId)
         )
       }
 

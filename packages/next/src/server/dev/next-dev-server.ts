@@ -17,7 +17,7 @@ import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import findUp from 'next/dist/compiled/find-up'
 import { join as pathJoin, relative, resolve as pathResolve, sep } from 'path'
-import Watchpack from 'next/dist/compiled/watchpack'
+import Watchpack from 'watchpack'
 import { ampValidation } from '../../build/output'
 import {
   INSTRUMENTATION_HOOK_FILENAME,
@@ -68,9 +68,11 @@ import * as Log from '../../build/output/log'
 import isError, { getProperError } from '../../lib/is-error'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import { getSortedRoutes } from '../../shared/lib/router/utils'
-import { runDependingOnPageType } from '../../build/entries'
+import {
+  getStaticInfoIncludingLayouts,
+  runDependingOnPageType,
+} from '../../build/entries'
 import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
-import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import {
@@ -103,7 +105,7 @@ import { IncrementalCache } from '../lib/incremental-cache'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import { NextUrlWithParsedQuery } from '../request-meta'
 import { deserializeErr, errorToJSON } from '../render'
-import { invokeRequest } from '../lib/server-ipc'
+import { invokeRequest } from '../lib/server-ipc/invoke-request'
 import { generateInterceptionRoutesRewrites } from '../../lib/generate-interception-routes-rewrites'
 
 // Load ReactDevOverlay only when needed
@@ -126,7 +128,7 @@ export interface Options extends ServerOptions {
 export default class DevServer extends Server {
   private devReady: Promise<void>
   private setDevReady?: Function
-  private webpackWatcher?: Watchpack | null
+  private webpackWatcher?: any | null
   private hotReloader?: HotReloader
   private isCustomServer: boolean
   protected sortedRoutes?: string[]
@@ -498,12 +500,14 @@ export default class DevServer extends Server {
             pagesType: 'root',
           })
 
-          const staticInfo = await getPageStaticInfo({
+          const staticInfo = await getStaticInfoIncludingLayouts({
             pageFilePath: fileName,
-            nextConfig: this.nextConfig,
+            config: this.nextConfig,
+            appDir: this.appDir,
             page: rootFile,
             isDev: true,
-            pageType: isAppPath ? 'app' : 'pages',
+            isInsideAppDir: isAppPath,
+            pageExtensions: this.nextConfig.pageExtensions,
           })
 
           if (isMiddlewareFile(rootFile)) {
@@ -789,10 +793,12 @@ export default class DevServer extends Server {
           : undefined
 
         this.customRoutes = await loadCustomRoutes(this.nextConfig)
-        this.customRoutes.rewrites.beforeFiles.unshift(
+        const { rewrites } = this.customRoutes
+
+        this.customRoutes.rewrites.beforeFiles.push(
           ...generateInterceptionRoutesRewrites(Object.keys(appPaths))
         )
-        const { rewrites } = this.customRoutes
+
         if (
           rewrites.beforeFiles.length ||
           rewrites.afterFiles.length ||
@@ -876,7 +882,7 @@ export default class DevServer extends Server {
         typeCheckPreflight: false,
         tsconfigPath: this.nextConfig.typescript.tsconfigPath,
         disableStaticImages: this.nextConfig.images.disableStaticImages,
-        isAppDirEnabled: !!this.appDir,
+        hasAppDir: !!this.appDir,
         hasPagesDir: !!this.pagesDir,
       })
 
@@ -1103,7 +1109,7 @@ export default class DevServer extends Server {
               this.hotReloader?.onHMR(req, socket, head)
             }
           } else {
-            this.handleUpgrade(req, socket, head)
+            this.handleUpgrade(req as any as NodeNextRequest, socket, head)
           }
         })
       }
@@ -1271,9 +1277,10 @@ export default class DevServer extends Server {
 
   private async invokeIpcMethod(method: string, args: any[]): Promise<any> {
     const ipcPort = process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT
+    const ipcKey = process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY
     if (ipcPort) {
       const res = await invokeRequest(
-        `http://${this.hostname}:${ipcPort}?method=${
+        `http://${this.hostname}:${ipcPort}?key=${ipcKey}&method=${
           method as string
         }&args=${encodeURIComponent(JSON.stringify(args))}`,
         {
@@ -1323,10 +1330,12 @@ export default class DevServer extends Server {
     if (isError(err) && err.stack) {
       try {
         const frames = parseStack(err.stack!)
+        // Filter out internal edge related runtime stack
         const frame = frames.find(
           ({ file }) =>
             !file?.startsWith('eval') &&
             !file?.includes('web/adapter') &&
+            !file?.includes('web/globals') &&
             !file?.includes('sandbox/context') &&
             !file?.includes('<anonymous>')
         )

@@ -264,8 +264,23 @@ const configSchema = {
         cpus: {
           type: 'number',
         },
+        memoryBasedWorkersCount: {
+          type: 'boolean',
+        },
         craCompat: {
           type: 'boolean',
+        },
+        caseSensitiveRoutes: {
+          type: 'boolean',
+        },
+        useDeploymentId: {
+          type: 'boolean',
+        },
+        useDeploymentIdServerActions: {
+          type: 'boolean',
+        },
+        deploymentId: {
+          type: 'string',
         },
         disableOptimizedLoading: {
           type: 'boolean',
@@ -483,6 +498,9 @@ const configSchema = {
               type: 'integer',
             },
           },
+        },
+        logging: {
+          type: 'string',
         },
       },
       type: 'object',

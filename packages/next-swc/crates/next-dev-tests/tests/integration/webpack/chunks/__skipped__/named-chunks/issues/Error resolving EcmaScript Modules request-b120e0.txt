@@ -1,0 +1,28 @@
+PlainIssue {
+    severity: Error,
+    context: "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/webpack/chunks/__skipped__/named-chunks/input/index.js",
+    category: "resolve",
+    title: "Error resolving EcmaScript Modules request",
+    description: "unable to resolve relative \"./empty?import3-in-chunk2\"",
+    detail: "It was not possible to find the requested file.\nParsed request as written in source code: relative \"./empty?import3-in-chunk2\"\nPath where resolving has started: [project]/packages/next-swc/crates/next-dev-tests/tests/temp/webpack/chunks/__skipped__/named-chunks/input/index.js\nType of request: EcmaScript Modules request\nImport map: No import map entry\n",
+    documentation_link: "",
+    source: Some(
+        PlainIssueSource {
+            asset: PlainAsset {
+                ident: "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/webpack/chunks/__skipped__/named-chunks/input/index.js",
+            },
+            start: SourcePos {
+                line: 124,
+                column: 5,
+            },
+            end: SourcePos {
+                line: 127,
+                column: 0,
+            },
+        },
+    ),
+    sub_issues: [],
+    processing_path: Some(
+        [],
+    ),
+}

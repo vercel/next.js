@@ -8,15 +8,15 @@ use indexmap::{indexmap, map::Entry, IndexMap};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use turbo_binding::{
-    turbo::tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc},
-    turbopack::core::issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
-};
 use turbo_tasks::{
     debug::ValueDebugFormat,
     primitives::{StringVc, StringsVc},
     trace::TraceRawVcs,
     CompletionVc, CompletionsVc,
+};
+use turbopack_binding::{
+    turbo::tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc},
+    turbopack::core::issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
 };
 
 use crate::next_config::NextConfigVc;
@@ -69,7 +69,7 @@ impl Components {
             template: a.template.or(b.template),
             not_found: a.not_found.or(b.not_found),
             default: a.default.or(b.default),
-            route: a.default.or(b.route),
+            route: a.route.or(b.route),
             metadata: Metadata::merge(&a.metadata, &b.metadata),
         }
     }
@@ -552,7 +552,7 @@ pub fn get_entrypoints(app_dir: FileSystemPathVc, page_extensions: StringsVc) ->
 }
 
 #[turbo_tasks::function]
-pub fn directory_tree_to_entrypoints(
+fn directory_tree_to_entrypoints(
     app_dir: FileSystemPathVc,
     directory_tree: DirectoryTreeVc,
 ) -> EntrypointsVc {

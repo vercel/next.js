@@ -2,7 +2,11 @@ use anyhow::{Context, Result};
 use indexmap::IndexMap;
 use mime::{APPLICATION_JAVASCRIPT_UTF_8, APPLICATION_JSON};
 use serde::Serialize;
-use turbo_binding::{
+use turbo_tasks::{
+    graph::{GraphTraversal, NonDeterministic},
+    primitives::{StringReadRef, StringVc, StringsVc},
+};
+use turbopack_binding::{
     turbo::{tasks::TryJoinIterExt, tasks_fs::File},
     turbopack::{
         core::{
@@ -18,15 +22,11 @@ use turbo_binding::{
         },
     },
 };
-use turbo_tasks::{
-    graph::{GraphTraversal, NonDeterministic},
-    primitives::{StringReadRef, StringVc, StringsVc},
-};
 
 use crate::{
     embed_js::next_js_file,
     next_config::{NextConfigVc, RewritesReadRef},
-    util::get_asset_path_from_route,
+    util::get_asset_path_from_pathname,
 };
 
 /// A content source which creates the next.js `_devPagesManifest.json` and
@@ -78,13 +78,7 @@ impl DevManifestContentSourceVc {
         let mut routes = routes
             .into_iter()
             .flatten()
-            .map(|s| {
-                if !s.starts_with('/') {
-                    format!("/{}", s)
-                } else {
-                    s.to_string()
-                }
-            })
+            .map(|route| route.clone_value())
             .collect::<Vec<_>>();
 
         routes.sort_by_cached_key(|s| s.split('/').map(PageSortKey::from).collect::<Vec<_>>());
@@ -117,12 +111,12 @@ impl DevManifestContentSourceVc {
         let sorted_pages = &*self.find_pages().await?;
         let routes = sorted_pages
             .iter()
-            .map(|p| {
+            .map(|pathname| {
                 (
-                    p,
+                    pathname,
                     vec![format!(
-                        "_next/static/chunks/pages/{}",
-                        get_asset_path_from_route(p, ".js")
+                        "_next/static/chunks/pages{}",
+                        get_asset_path_from_pathname(pathname, ".js")
                     )],
                 )
             })
@@ -180,7 +174,11 @@ impl ContentSource for DevManifestContentSource {
                 File::from(build_manifest.as_str()).with_content_type(APPLICATION_JAVASCRIPT_UTF_8)
             }
             "_next/static/development/_devMiddlewareManifest.json" => {
-                // empty middleware manifest
+                // If there is actual middleware, this request will have been handled by the
+                // node router in next-core/js/src/entry/router.ts and
+                // next/src/server/lib/route-resolver.ts.
+                // If we've reached this point, then there is no middleware and we need to
+                // respond with an empty `MiddlewareMatcher[]`.
                 File::from("[]").with_content_type(APPLICATION_JSON)
             }
             _ => return Ok(ContentSourceResultVc::not_found()),

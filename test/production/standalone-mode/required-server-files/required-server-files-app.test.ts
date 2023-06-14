@@ -71,9 +71,9 @@ describe('should set-up next', () => {
     const testServer = join(next.testDir, 'standalone/server.js')
     await fs.writeFile(
       testServer,
-      (await fs.readFile(testServer, 'utf8'))
-        .replace('console.error(err)', `console.error('top-level', err)`)
-        .replace('conf:', `minimalMode: ${minimalMode},conf:`)
+      (
+        await fs.readFile(testServer, 'utf8')
+      ).replace('conf:', `minimalMode: ${minimalMode},conf:`)
     )
     appPort = await findPort()
     server = await initNextServerScript(
@@ -100,10 +100,10 @@ describe('should set-up next', () => {
 
   it('should send cache tags in minimal mode for ISR', async () => {
     for (const [path, tags] of [
-      ['/isr/first', 'isr-page,/isr/[slug]'],
-      ['/isr/second', 'isr-page,/isr/[slug]'],
-      ['/api/isr/first', 'isr-page,/api/isr/[slug]'],
-      ['/api/isr/second', 'isr-page,/api/isr/[slug]'],
+      ['/isr/first', 'isr-page,/isr/[slug]/page'],
+      ['/isr/second', 'isr-page,/isr/[slug]/page'],
+      ['/api/isr/first', 'isr-page,/api/isr/[slug]/route'],
+      ['/api/isr/second', 'isr-page,/api/isr/[slug]/route'],
     ]) {
       const res = await fetchViaHTTP(appPort, path, undefined, {
         redirect: 'manual',
@@ -126,5 +126,13 @@ describe('should set-up next', () => {
       expect(res.status).toBe(200)
       expect(res.headers.get('x-next-cache-tags')).toBeFalsy()
     }
+  })
+
+  it('should handle correctly not-found.js', async () => {
+    const res = await fetchViaHTTP(appPort, '/not-found/does-not-exist')
+    expect(res.status).toBe(404)
+    const html = await res.text()
+    expect(html).toContain('not-found-page-404')
+    expect(html).not.toContain('not-found-page-200')
   })
 })

@@ -67,10 +67,10 @@ const program = new Commander.Command(packageJson.name)
 `
   )
   .option(
-    '--app-dir',
+    '--app',
     `
 
-  Initialize as an \`app/\` directory project.
+  Initialize as an App Router project.
 `
   )
   .option(
@@ -91,14 +91,21 @@ const program = new Commander.Command(packageJson.name)
     '--use-npm',
     `
 
-  Explicitly tell the CLI to bootstrap the app using npm
+  Explicitly tell the CLI to bootstrap the application using npm
 `
   )
   .option(
     '--use-pnpm',
     `
 
-  Explicitly tell the CLI to bootstrap the app using pnpm
+  Explicitly tell the CLI to bootstrap the application using pnpm
+`
+  )
+  .option(
+    '--use-yarn',
+    `
+
+  Explicitly tell the CLI to bootstrap the application using Yarn
 `
   )
   .option(
@@ -134,6 +141,8 @@ const packageManager = !!program.useNpm
   ? 'npm'
   : !!program.usePnpm
   ? 'pnpm'
+  : !!program.useYarn
+  ? 'yarn'
   : getPkgManager()
 
 async function run(): Promise<void> {
@@ -340,24 +349,21 @@ async function run(): Promise<void> {
       }
     }
 
-    if (
-      !process.argv.includes('--app-dir') &&
-      !process.argv.includes('--no-app-dir')
-    ) {
+    if (!process.argv.includes('--app') && !process.argv.includes('--no-app')) {
       if (ciInfo.isCI) {
-        program.appDir = false
+        program.app = true
       } else {
-        const styledAppDir = chalk.hex('#007acc')('`app/` directory')
-        const { appDir } = await prompts({
+        const styledAppDir = chalk.hex('#007acc')('App Router')
+        const { appRouter } = await prompts({
           onState: onPromptState,
           type: 'toggle',
-          name: 'appDir',
-          message: `Would you like to use ${styledAppDir} with this project?`,
-          initial: false,
+          name: 'appRouter',
+          message: `Use ${styledAppDir} (recommended)?`,
+          initial: true,
           active: 'Yes',
           inactive: 'No',
         })
-        program.appDir = Boolean(appDir)
+        program.app = Boolean(appRouter)
       }
     }
 
@@ -410,7 +416,7 @@ async function run(): Promise<void> {
       typescript: program.typescript,
       tailwind: program.tailwind,
       eslint: program.eslint,
-      appDir: program.appDir,
+      appRouter: program.app,
       srcDir: program.srcDir,
       importAlias: program.importAlias,
     })
@@ -438,7 +444,7 @@ async function run(): Promise<void> {
       typescript: program.typescript,
       eslint: program.eslint,
       tailwind: program.tailwind,
-      appDir: program.appDir,
+      appRouter: program.app,
       srcDir: program.srcDir,
       importAlias: program.importAlias,
     })

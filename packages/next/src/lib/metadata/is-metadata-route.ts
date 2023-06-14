@@ -1,3 +1,5 @@
+import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
+
 export const STATIC_METADATA_IMAGES = {
   icon: {
     filename: 'icon',
@@ -102,7 +104,14 @@ export function isMetadataRouteFile(
     ),
   ]
 
-  return metadataRouteFilesRegex.some((r) => r.test(appDirRelativePath))
+  const normalizedAppDirRelativePath = normalizePathSep(appDirRelativePath)
+  return metadataRouteFilesRegex.some((r) =>
+    r.test(normalizedAppDirRelativePath)
+  )
+}
+
+export function isStaticMetadataRouteFile(appDirRelativePath: string) {
+  return isMetadataRouteFile(appDirRelativePath, [], true)
 }
 
 /*

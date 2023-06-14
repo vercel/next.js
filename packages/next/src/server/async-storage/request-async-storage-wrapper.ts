@@ -18,7 +18,7 @@ import {
 } from '../web/spec-extension/adapters/request-cookies'
 import { RequestCookies, ResponseCookies } from '../web/spec-extension/cookies'
 import { __ApiPreviewProps } from '../api-utils'
-import { DraftMode } from './draft-mode'
+import { DraftModeProvider } from './draft-mode-provider'
 
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
   const cleaned = HeadersAdapter.from(headers)
@@ -41,7 +41,7 @@ function getMutableCookies(
   res: ServerResponse | BaseNextResponse | undefined
 ): ResponseCookies {
   const cookies = new RequestCookies(HeadersAdapter.from(headers))
-  return MutableRequestCookiesAdapter.seal(cookies, res)
+  return MutableRequestCookiesAdapter.wrap(cookies, res)
 }
 
 export type RequestContext = {
@@ -79,7 +79,7 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
       headers?: ReadonlyHeaders
       cookies?: ReadonlyRequestCookies
       mutableCookies?: ResponseCookies
-      draftMode?: DraftMode
+      draftMode?: DraftModeProvider
     } = {}
 
     const store: RequestStore = {
@@ -109,7 +109,7 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
       },
       get draftMode() {
         if (!cache.draftMode) {
-          cache.draftMode = new DraftMode(
+          cache.draftMode = new DraftModeProvider(
             previewProps,
             req,
             this.cookies,

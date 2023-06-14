@@ -5,21 +5,23 @@ import type { ModuleReference, CollectedMetadata } from './metadata/types'
 import path from 'path'
 import { stringify } from 'querystring'
 import chalk from 'next/dist/compiled/chalk'
-import { NODE_RESOLVE_OPTIONS } from '../../webpack-config'
 import { getModuleBuildInfo } from './get-module-build-info'
 import { verifyRootLayout } from '../../../lib/verifyRootLayout'
 import * as Log from '../../output/log'
-import { APP_DIR_ALIAS } from '../../../lib/constants'
+import { APP_DIR_ALIAS, WEBPACK_RESOURCE_QUERIES } from '../../../lib/constants'
 import {
   createMetadataExportsCode,
   createStaticMetadataFromRoute,
-  METADATA_RESOURCE_QUERY,
 } from './metadata/discover'
 import { promises as fs } from 'fs'
 import { isAppRouteRoute } from '../../../lib/is-app-route-route'
 import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
 import { NextConfig } from '../../../server/config-shared'
 import { AppPathnameNormalizer } from '../../../server/future/normalizers/built/app/app-pathname-normalizer'
+import { RouteKind } from '../../../server/future/route-kind'
+import { AppRouteRouteModuleOptions } from '../../../server/future/route-modules/app-route/module'
+import { AppBundlePathNormalizer } from '../../../server/future/normalizers/built/app/app-bundle-path-normalizer'
+import { FileType, fileExists } from '../../../lib/file-exists'
 
 export type AppLoaderOptions = {
   name: string
@@ -33,11 +35,10 @@ export type AppLoaderOptions = {
   rootDir?: string
   tsconfigPath?: string
   isDev?: boolean
+  basePath: string
   nextConfigOutput?: NextConfig['output']
 }
 type AppLoader = webpack.LoaderDefinitionFunction<AppLoaderOptions>
-
-const isNotResolvedError = (err: any) => err.message.includes("Can't resolve")
 
 const FILE_TYPES = {
   layout: 'layout',
@@ -50,10 +51,13 @@ const FILE_TYPES = {
 const GLOBAL_ERROR_FILE_TYPE = 'global-error'
 const PAGE_SEGMENT = 'page$'
 
+type DirResolver = (pathToResolve: string) => string
 type PathResolver = (
+  pathname: string
+) => Promise<string | undefined> | string | undefined
+export type MetadataResolver = (
   pathname: string,
-  resolveDir?: boolean,
-  internal?: boolean
+  extensions: readonly string[]
 ) => Promise<string | undefined>
 
 export type ComponentsType = {
@@ -70,14 +74,14 @@ async function createAppRouteCode({
   name,
   page,
   pagePath,
-  resolver,
+  resolveAppRoute,
   pageExtensions,
   nextConfigOutput,
 }: {
   name: string
   page: string
   pagePath: string
-  resolver: PathResolver
+  resolveAppRoute: PathResolver
   pageExtensions: string[]
   nextConfigOutput: NextConfig['output']
 }): Promise<string> {
@@ -87,7 +91,7 @@ async function createAppRouteCode({
 
   // This, when used with the resolver will give us the pathname to the built
   // route handler file.
-  let resolvedPagePath = await resolver(routePath)
+  let resolvedPagePath = await resolveAppRoute(routePath)
   if (!resolvedPagePath) {
     throw new Error(
       `Invariant: could not resolve page path for ${name} at ${routePath}`
@@ -99,28 +103,32 @@ async function createAppRouteCode({
   const filename = path.parse(resolvedPagePath).name
   if (isMetadataRoute(name) && filename !== 'route') {
     resolvedPagePath = `next-metadata-route-loader?${stringify({
+      page,
       pageExtensions,
-    })}!${resolvedPagePath + METADATA_RESOURCE_QUERY}`
+    })}!${resolvedPagePath + '?' + WEBPACK_RESOURCE_QUERIES.metadata}`
   }
 
   // References the route handler file to load found in `./routes/${kind}.ts`.
   // TODO: allow switching to the different kinds of routes
   const kind = 'app-route'
-  const normalizer = new AppPathnameNormalizer()
-  const pathname = normalizer.normalize(page)
+  const pathname = new AppPathnameNormalizer().normalize(page)
+  const bundlePath = new AppBundlePathNormalizer().normalize(page)
 
   // This is providing the options defined by the route options type found at
   // ./routes/${kind}.ts. This is stringified here so that the literal for
   // `userland` can reference the variable for `userland` that's in scope for
   // the loader code.
-  const options = `{
-    userland,
-    pathname: ${JSON.stringify(pathname)},
-    resolvedPagePath: ${JSON.stringify(resolvedPagePath)},
-    nextConfigOutput: ${
-      nextConfigOutput ? JSON.stringify(nextConfigOutput) : 'undefined'
+  const options: Omit<AppRouteRouteModuleOptions, 'userland'> = {
+    definition: {
+      kind: RouteKind.APP_ROUTE,
+      page,
+      pathname,
+      filename,
+      bundlePath,
     },
-  }`
+    resolvedPagePath,
+    nextConfigOutput,
+  }
 
   return `
     import 'next/dist/server/node-polyfill-headers'
@@ -129,7 +137,11 @@ async function createAppRouteCode({
 
     import * as userland from ${JSON.stringify(resolvedPagePath)}
 
-    const routeModule = new RouteModule(${options})
+    const options = ${JSON.stringify(options)}
+    const routeModule = new RouteModule({
+      ...options,
+      userland,
+    })
 
     // Pull out the exports that we need to expose from the module. This should
     // be eliminated when we've moved the other routes to the new format. These
@@ -142,6 +154,8 @@ async function createAppRouteCode({
       staticGenerationBailout
     } = routeModule
 
+    const originalPathname = "${page}"
+
     export {
       routeModule,
       requestAsyncStorage,
@@ -149,6 +163,7 @@ async function createAppRouteCode({
       serverHooks,
       headerHooks,
       staticGenerationBailout,
+      originalPathname
     }`
 }
 
@@ -167,21 +182,29 @@ const isDirectory = async (pathname: string) => {
 async function createTreeCodeFromPath(
   pagePath: string,
   {
+    resolveDir,
     resolver,
-    resolvePath,
     resolveParallelSegments,
-    loaderContext,
+    metadataResolver,
     pageExtensions,
+    basePath,
   }: {
+    resolveDir: DirResolver
     resolver: PathResolver
-    resolvePath: (pathname: string) => Promise<string>
+    metadataResolver: MetadataResolver
     resolveParallelSegments: (
       pathname: string
     ) => [key: string, segment: string | string[]][]
     loaderContext: webpack.LoaderContext<AppLoaderOptions>
     pageExtensions: string[]
+    basePath: string
   }
-) {
+): Promise<{
+  treeCode: string
+  pages: string
+  rootLayout: string | undefined
+  globalError: string | undefined
+}> {
   const splittedPath = pagePath.split(/[\\/]/)
   const appDirPrefix = splittedPath[0]
   const pages: string[] = []
@@ -192,9 +215,8 @@ async function createTreeCodeFromPath(
   async function resolveAdjacentParallelSegments(
     segmentPath: string
   ): Promise<string[]> {
-    const absoluteSegmentPath = await resolver(
-      `${appDirPrefix}${segmentPath}`,
-      true
+    const absoluteSegmentPath = await resolveDir(
+      `${appDirPrefix}${segmentPath}`
     )
 
     if (!absoluteSegmentPath) {
@@ -248,23 +270,17 @@ async function createTreeCodeFromPath(
 
     let metadata: Awaited<ReturnType<typeof createStaticMetadataFromRoute>> =
       null
-    try {
-      const routerDirPath = `${appDirPrefix}${segmentPath}`
-      const resolvedRouteDir = await resolver(routerDirPath, true)
+    const routerDirPath = `${appDirPrefix}${segmentPath}`
+    const resolvedRouteDir = await resolveDir(routerDirPath)
 
-      if (resolvedRouteDir) {
-        metadata = await createStaticMetadataFromRoute(resolvedRouteDir, {
-          segment: segmentPath,
-          resolvePath,
-          isRootLayoutOrRootPage,
-          loaderContext,
-          pageExtensions,
-        })
-      }
-    } catch (err: any) {
-      if (isNotResolvedError(err)) {
-        throw err
-      }
+    if (resolvedRouteDir) {
+      metadata = await createStaticMetadataFromRoute(resolvedRouteDir, {
+        basePath,
+        segment: segmentPath,
+        metadataResolver,
+        isRootLayoutOrRootPage,
+        pageExtensions,
+      })
     }
 
     for (const [parallelKey, parallelSegment] of parallelSegments) {
@@ -363,12 +379,7 @@ async function createTreeCodeFromPath(
         const defaultPath =
           (await resolver(
             `${appDirPrefix}${segmentPath}/${actualSegment}/default`
-          )) ??
-          (await resolver(
-            `next/dist/client/components/parallel-route-default`,
-            false,
-            true
-          ))
+          )) ?? 'next/dist/client/components/parallel-route-default'
 
         props[normalizeParallelKey(adjacentParallelSegment)] = `[
           '__DEFAULT__',
@@ -423,6 +434,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     isDev,
     nextConfigOutput,
     preferredRegion,
+    basePath,
   } = loaderOptions
 
   const buildInfo = getModuleBuildInfo((this as any)._module)
@@ -434,20 +446,6 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   }
 
   const extensions = pageExtensions.map((extension) => `.${extension}`)
-
-  const resolveOptions: any = {
-    ...NODE_RESOLVE_OPTIONS,
-    extensions,
-  }
-
-  const resolve = this.getResolve(resolveOptions)
-
-  // a resolver for internal next files. We need to override the extensions, in case
-  // a project doesn't have the same ones as used by next.
-  const internalResolve = this.getResolve({
-    ...resolveOptions,
-    extensions: [...extensions, '.js', '.jsx', '.ts', '.tsx'],
-  })
 
   const normalizedAppPaths =
     typeof appPaths === 'string' ? [appPaths] : appPaths || []
@@ -483,29 +481,55 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
     return Object.entries(matched)
   }
-  const resolver: PathResolver = async (pathname, resolveDir, internal) => {
-    if (resolveDir) {
-      return createAbsolutePath(appDir, pathname)
-    }
 
-    try {
-      const resolved = await (internal ? internalResolve : resolve)(
-        this.rootContext,
-        pathname
-      )
-      this.addDependency(resolved)
-      return resolved
-    } catch (err: any) {
-      const absolutePath = createAbsolutePath(appDir, pathname)
-      for (const ext of extensions) {
-        const absolutePathWithExtension = `${absolutePath}${ext}`
+  const resolveDir: DirResolver = (pathToResolve) => {
+    return createAbsolutePath(appDir, pathToResolve)
+  }
+
+  const resolveAppRoute: PathResolver = (pathToResolve) => {
+    return createAbsolutePath(appDir, pathToResolve)
+  }
+
+  const resolver: PathResolver = async (pathname) => {
+    const absolutePath = createAbsolutePath(appDir, pathname)
+
+    let result: string | undefined
+
+    for (const ext of extensions) {
+      const absolutePathWithExtension = `${absolutePath}${ext}`
+      if (
+        !result &&
+        (await fileExists(absolutePathWithExtension, FileType.File))
+      ) {
+        // Ensures we call `addMissingDependency` for all files that didn't match
+        result = absolutePathWithExtension
+      } else {
         this.addMissingDependency(absolutePathWithExtension)
       }
-      if (isNotResolvedError(err)) {
-        return undefined
-      }
-      throw err
     }
+
+    return result
+  }
+
+  const metadataResolver: MetadataResolver = async (pathname, exts) => {
+    const absolutePath = createAbsolutePath(appDir, pathname)
+
+    let result: string | undefined
+
+    for (const ext of exts) {
+      // Compared to `resolver` above the exts do not have the `.` included already, so it's added here.
+      const absolutePathWithExtension = `${absolutePath}.${ext}`
+      if (
+        !result &&
+        (await fileExists(absolutePathWithExtension, FileType.File))
+      ) {
+        result = absolutePathWithExtension
+      } else {
+        this.addMissingDependency(absolutePathWithExtension)
+      }
+    }
+
+    return result
   }
 
   if (isAppRouteRoute(name)) {
@@ -514,26 +538,23 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       page: loaderOptions.page,
       name,
       pagePath,
-      resolver,
+      resolveAppRoute,
       pageExtensions,
       nextConfigOutput,
     })
   }
 
-  const {
-    treeCode,
-    pages: pageListCode,
-    rootLayout,
-    globalError,
-  } = await createTreeCodeFromPath(pagePath, {
+  let treeCodeResult = await createTreeCodeFromPath(pagePath, {
+    resolveDir,
     resolver,
-    resolvePath: (pathname: string) => resolve(this.rootContext, pathname),
+    metadataResolver,
     resolveParallelSegments,
     loaderContext: this,
     pageExtensions,
+    basePath,
   })
 
-  if (!rootLayout) {
+  if (!treeCodeResult.rootLayout) {
     if (!isDev) {
       // If we're building and missing a root layout, exit the build
       Log.error(
@@ -567,18 +588,29 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
         throw new Error(message)
       }
+
+      // Get the new result with the created root layout.
+      treeCodeResult = await createTreeCodeFromPath(pagePath, {
+        resolveDir,
+        resolver,
+        metadataResolver,
+        resolveParallelSegments,
+        loaderContext: this,
+        pageExtensions,
+        basePath,
+      })
     }
   }
 
   const result = `
-    export ${treeCode}
-    export ${pageListCode}
+    export ${treeCodeResult.treeCode}
+    export ${treeCodeResult.pages}
 
     export { default as AppRouter } from 'next/dist/client/components/app-router'
     export { default as LayoutRouter } from 'next/dist/client/components/layout-router'
     export { default as RenderFromTemplateContext } from 'next/dist/client/components/render-from-template-context'
     export { default as GlobalError } from ${JSON.stringify(
-      globalError || 'next/dist/client/components/error-boundary'
+      treeCodeResult.globalError || 'next/dist/client/components/error-boundary'
     )}
 
     export { staticGenerationAsyncStorage } from 'next/dist/client/components/static-generation-async-storage'
@@ -592,9 +624,11 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
     export * as serverHooks from 'next/dist/client/components/hooks-server-context'
 
-    export { renderToReadableStream, decodeReply } from 'react-server-dom-webpack/server.edge'
+    export { renderToReadableStream, decodeReply, decodeAction } from 'react-server-dom-webpack/server.edge'
     export const __next_app_webpack_require__ = __webpack_require__
     export { preloadStyle, preloadFont, preconnect } from 'next/dist/server/app-render/rsc/preloads'
+
+    export const originalPathname = "${page}"
   `
 
   return result

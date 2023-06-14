@@ -51,7 +51,7 @@ ${
     : `import type { ResolvingMetadata } from 'next/dist/lib/metadata/types/metadata-interface.js'`
 }
 
-type TEntry = typeof entry
+type TEntry = typeof import('${relativePath}.js')
 
 // Check that the entry is a valid entry
 checkFields<Diff<{
@@ -67,11 +67,7 @@ checkFields<Diff<{
   dynamicParams?: boolean
   fetchCache?: 'auto' | 'force-no-store' | 'only-no-store' | 'default-no-store' | 'default-cache' | 'only-cache' | 'force-cache'
   preferredRegion?: 'auto' | 'global' | 'home' | string | string[]
-  ${
-    options.type === 'page' || options.type === 'route'
-      ? "runtime?: 'nodejs' | 'experimental-edge' | 'edge'"
-      : ''
-  }
+  runtime?: 'nodejs' | 'experimental-edge' | 'edge'
   ${
     options.type === 'route'
       ? ''
@@ -366,6 +362,7 @@ function createRouteDefinitions() {
  */
 declare namespace __next_route_internal_types__ {
   type SearchOrHash = \`?\${string}\` | \`#\${string}\`
+  type WithProtocol = \`\${string}:\${string}\`
 
   type Suffix = '' | SearchOrHash
 
@@ -398,6 +395,8 @@ declare namespace __next_route_internal_types__ {
       // This keeps autocompletion working for static routes.
       '| StaticRoutes'
     }
+    | SearchOrHash
+    | WithProtocol
     | \`\${StaticRoutes}\${SearchOrHash}\`
     | (T extends \`\${DynamicRoutes<infer _>}\${Suffix}\` ? T : never)
     `

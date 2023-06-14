@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useTestHarness } from '@turbo/pack-test-harness'
 import { Inter } from 'next/font/google'
 
 const interNoArgs = Inter()
@@ -7,10 +7,7 @@ const interWithVariableName = Inter({
 })
 
 export default function Home() {
-  useEffect(() => {
-    // Only run on client
-    import('@turbo/pack-test-harness').then(runTests)
-  })
+  useTestHarness(runTests)
 
   return <div className={interNoArgs.className}>Test</div>
 }
@@ -20,7 +17,7 @@ function runTests() {
     expect(interNoArgs).toEqual({
       className: 'className__inter_34ab8b4d__7bdff866',
       style: {
-        fontFamily: "'__Inter_34ab8b'",
+        fontFamily: "'__Inter_34ab8b', '__Inter_Fallback_34ab8b'",
         fontStyle: 'normal',
       },
     })
@@ -29,7 +26,9 @@ function runTests() {
   it('includes a rule styling the exported className', async () => {
     const matchingRule = await getRuleMatchingClassName(interNoArgs.className)
     expect(matchingRule).toBeTruthy()
-    expect(matchingRule.style.fontFamily).toEqual('__Inter_34ab8b')
+    expect(matchingRule.style.fontFamily).toEqual(
+      '__Inter_34ab8b, __Inter_Fallback_34ab8b'
+    )
     expect(matchingRule.style.fontStyle).toEqual('normal')
   })
 
@@ -37,7 +36,7 @@ function runTests() {
     expect(interWithVariableName).toEqual({
       className: 'className__inter_c6e282f1__e152ac0c',
       style: {
-        fontFamily: "'__Inter_c6e282'",
+        fontFamily: "'__Inter_c6e282', '__Inter_Fallback_c6e282'",
         fontStyle: 'normal',
       },
       variable: 'variable__inter_c6e282f1__e152ac0c',
@@ -47,7 +46,7 @@ function runTests() {
       interWithVariableName.variable
     )
     expect(matchingRule.styleMap.get('--my-font').toString().trim()).toBe(
-      '"__Inter_c6e282"'
+      '"__Inter_c6e282", "__Inter_Fallback_c6e282"'
     )
   })
 }

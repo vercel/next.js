@@ -1,12 +1,9 @@
 import Head from 'next/head'
 import Image from 'next/image'
-import { useEffect } from 'react'
+import { useTestHarness } from '@turbo/pack-test-harness'
 
 const Home = () => {
-  useEffect(() => {
-    // Only run on client
-    import('@turbo/pack-test-harness').then(runTests)
-  })
+  useTestHarness(runTests)
   return (
     <div className="flex min-h-screen flex-col items-center justify-center py-2">
       <Head>

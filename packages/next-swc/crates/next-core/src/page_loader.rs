@@ -2,29 +2,28 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use indexmap::indexmap;
-use turbo_binding::{
+use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value};
+use turbopack_binding::{
     turbo::tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPathVc},
     turbopack::{
         core::{
             asset::{Asset, AssetContentVc, AssetVc, AssetsVc},
-            chunk::{ChunkableAsset, ChunkingContext, ChunkingContextVc, EvaluatableAssetsVc},
+            chunk::{
+                ChunkDataVc, ChunkableAsset, ChunkingContext, ChunkingContextVc, ChunksDataVc,
+                EvaluatableAssetVc, EvaluatableAssetsVc,
+            },
             context::{AssetContext, AssetContextVc},
             ident::AssetIdentVc,
             reference::{AssetReferencesVc, SingleAssetReferenceVc},
-            reference_type::{EntryReferenceSubType, ReferenceType},
+            reference_type::{EntryReferenceSubType, InnerAssetsVc, ReferenceType},
             virtual_asset::VirtualAssetVc,
         },
-        dev::{ChunkDataVc, ChunksDataVc},
         dev_server::source::{asset_graph::AssetGraphContentSourceVc, ContentSourceVc},
-        ecmascript::{
-            utils::StringifyJs, EcmascriptInputTransform, EcmascriptInputTransformsVc,
-            EcmascriptModuleAssetType, EcmascriptModuleAssetVc, InnerAssetsVc,
-        },
+        ecmascript::{chunk::EcmascriptChunkData, utils::StringifyJs},
     },
 };
-use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value};
 
-use crate::{embed_js::next_js_file_path, util::get_asset_path_from_route};
+use crate::{embed_js::next_js_file_path, util::get_asset_path_from_pathname};
 
 #[turbo_tasks::function]
 pub async fn create_page_loader(
@@ -65,7 +64,7 @@ impl PageLoaderAssetVc {
         writeln!(
             result,
             "const PAGE_PATH = {};\n",
-            StringifyJs(&format_args!("/{}", &*this.pathname.await?))
+            StringifyJs(&*this.pathname.await?)
         )?;
 
         let page_loader_path = next_js_file_path("entry/page-loader.ts");
@@ -87,23 +86,22 @@ impl PageLoaderAssetVc {
 
         let loader_entry_asset = self.get_loader_entry_asset();
 
-        let asset = EcmascriptModuleAssetVc::new_with_inner_assets(
+        let module = this.client_context.process(
             loader_entry_asset,
-            this.client_context,
-            Value::new(EcmascriptModuleAssetType::Typescript),
-            EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
-                use_define_for_class_fields: false,
-            }]),
-            Default::default(),
-            this.client_context.compile_time_info(),
-            InnerAssetsVc::cell(indexmap! {
-                "PAGE".to_string() => this.client_context.process(this.entry_asset, Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)))
-            }),
+            Value::new(ReferenceType::Internal(
+                InnerAssetsVc::cell(indexmap! {
+                    "PAGE".to_string() => this.client_context.process(this.entry_asset, Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)))
+                })
+            )),
         );
 
+        let Some(module) = EvaluatableAssetVc::resolve_from(module).await? else {
+            bail!("internal module must be evaluatable");
+        };
+
         Ok(this.client_chunking_context.evaluated_chunk_group(
-            asset.as_root_chunk(this.client_chunking_context),
-            EvaluatableAssetsVc::one(asset.into()),
+            module.as_root_chunk(this.client_chunking_context),
+            EvaluatableAssetsVc::one(module),
         ))
     }
 
@@ -126,11 +124,10 @@ fn page_loader_chunk_reference_description() -> StringVc {
 impl Asset for PageLoaderAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<AssetIdentVc> {
-        Ok(AssetIdentVc::from_path(
-            self.server_root
-                .join("_next/static/chunks/pages")
-                .join(&get_asset_path_from_route(&self.pathname.await?, ".js")),
-        ))
+        Ok(AssetIdentVc::from_path(self.server_root.join(&format!(
+            "_next/static/chunks/pages{}",
+            get_asset_path_from_pathname(&self.pathname.await?, ".js")
+        ))))
     }
 
     #[turbo_tasks::function]
@@ -141,7 +138,7 @@ impl Asset for PageLoaderAsset {
         let chunks_data = chunks_data.iter().try_join().await?;
         let chunks_data: Vec<_> = chunks_data
             .iter()
-            .map(|chunk_data| chunk_data.runtime_chunk_data())
+            .map(|chunk_data| EcmascriptChunkData::new(chunk_data))
             .collect();
 
         let content = format!(
