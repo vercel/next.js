@@ -198,7 +198,7 @@ export const styles = css`
     font-family: var(--font-stack-monospace);
     color: var(--color-stack-h6);
   }
-  [data-nextjs-call-stack-frame] > h6[data-nextjs-frame-expanded='false'] {
+  [data-nextjs-call-stack-frame] > h3[data-nextjs-frame-expanded='false'] {
     color: var(--color-stack-headline);
   }
   [data-nextjs-call-stack-frame] > div {
