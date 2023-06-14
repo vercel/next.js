@@ -31,8 +31,8 @@ export default async function handler(
             price_data: {
               currency: CURRENCY,
               product_data: {
-                name: 'Custom amount donation'
-              }
+                name: 'Custom amount donation',
+              },
             },
           },
         ],
