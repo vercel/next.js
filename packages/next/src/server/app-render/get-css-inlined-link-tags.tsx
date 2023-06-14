@@ -14,6 +14,7 @@ export function getCssInlinedLinkTags(
 
   const entryCSSFiles =
     clientReferenceManifest.entryCSSFiles[filePathWithoutExt]
+
   if (entryCSSFiles) {
     for (const file of entryCSSFiles.files) {
       if (!injectedCSS.has(file)) {

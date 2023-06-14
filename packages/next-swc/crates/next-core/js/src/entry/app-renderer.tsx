@@ -135,29 +135,6 @@ async function runOperation(renderData: RenderData) {
     }
   }
 
-  const proxyMethodsForEntryCSS: ProxyHandler<
-    ClientReferenceManifest['entryCSSFiles']
-  > = {
-    get(_target, prop: string) {
-      try {
-        const cssChunks = JSON.parse(prop)
-        // TODO(WEB-856) subscribe to changes
-
-        // This return value is passed to proxyMethodsNested for clientModules
-        return {
-          modules: [],
-          files: cssChunks.filter(filterAvailable).map(toPath),
-        }
-      } catch (err) {
-        console.error('Failed to parse CSS chunks:', err, '\nProp:', prop)
-        return {
-          modules: [],
-          files: [],
-        }
-      }
-    },
-  }
-
   const proxyMethodsNested = (
     type: 'ssrModuleMapping' | 'clientModules' | 'entryCSSFiles'
   ): ProxyHandler<
@@ -192,7 +169,22 @@ async function runOperation(renderData: RenderData) {
           }
         }
         if (type === 'entryCSSFiles') {
-          return new Proxy({}, proxyMethodsForEntryCSS)
+          try {
+            const cssChunks = JSON.parse(key)
+            // TODO(WEB-856) subscribe to changes
+
+            // This return value is passed to proxyMethodsNested for clientModules
+            return {
+              modules: [],
+              files: cssChunks.filter(filterAvailable).map(toPath),
+            }
+          } catch (err) {
+            console.error('Failed to parse CSS chunks:', err, '\nProp:', key)
+            return {
+              modules: [],
+              files: [],
+            }
+          }
         }
       },
     }
