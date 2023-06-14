@@ -12,18 +12,6 @@ description: 'Learn how to create or update static pages at runtime with Increme
 
 </details>
 
-<details>
-  <summary>Version History</summary>
-
-| Version   | Changes                                                                                 |
-| --------- | --------------------------------------------------------------------------------------- |
-| `v12.2.0` | On-Demand ISR is stable                                                                 |
-| `v12.1.0` | On-Demand ISR added (beta).                                                             |
-| `v12.0.0` | [Bot-aware ISR fallback](https://nextjs.org/blog/next-12#bot-aware-isr-fallback) added. |
-| `v9.5.0`  | Base Path added.                                                                        |
-
-</details>
-
 Next.js allows you to create or update static pages _after_ you’ve built your site. Incremental Static Regeneration (ISR) enables you to use static-generation on a per-page basis, **without needing to rebuild the entire site**. With ISR, you can retain the benefits of static while scaling to millions of pages.
 
 > **Good to know**: The [`edge` runtime](/docs/pages/api-reference/edge) is currently not compatible with ISR, although you can leverage `stale-while-revalidate` by setting the `cache-control` header manually.
@@ -199,3 +187,12 @@ module.exports = {
 ```
 
 > **Good to know**: You might need to consider a race condition between multiple pods trying to update the cache at the same time, depending on how your shared mount is configured.
+
+## Version History
+
+| Version   | Changes                                                                                 |
+| --------- | --------------------------------------------------------------------------------------- |
+| `v12.2.0` | On-Demand ISR is stable                                                                 |
+| `v12.1.0` | On-Demand ISR added (beta).                                                             |
+| `v12.0.0` | [Bot-aware ISR fallback](https://nextjs.org/blog/next-12#bot-aware-isr-fallback) added. |
+| `v9.5.0`  | Base Path added.                                                                        |
