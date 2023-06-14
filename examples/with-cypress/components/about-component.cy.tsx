@@ -4,7 +4,6 @@ import AboutComponent from './about-component'
 // If you're using ESLint on your project, we recommend installing the ESLint Cypress plugin instead:
 // https://github.com/cypress-io/eslint-plugin-cypress
 
-
 // Cypress Component Test
 describe('<AboutComponent />', () => {
   it('should render and display expected content', () => {

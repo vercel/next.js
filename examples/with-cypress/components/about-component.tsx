@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import React from "react";
+import React from 'react'
 import styles from '../styles/Home.module.css'
 
 export default function AboutComponent() {
@@ -10,5 +10,5 @@ export default function AboutComponent() {
         <Link href="/">&larr; Go Back</Link>
       </p>
     </>
-  );
+  )
 }

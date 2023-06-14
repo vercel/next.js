@@ -5,7 +5,7 @@ export default function About() {
   return (
     <div className={styles.container}>
       <main className={styles.main}>
-      <AboutComponent/>
+        <AboutComponent />
       </main>
     </div>
   )
