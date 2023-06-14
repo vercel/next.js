@@ -2,6 +2,18 @@
 // Only tests that are actively testing against Turbopack should
 // be enabled here
 const enabledTests = [
+  // [NOTE]: ref: https://github.com/vercel/next.js/pull/51186#pullrequestreview-1479976003
+  // these tests are testing against prod, which doesn't uses turbopack.
+  // Enable once we have --build support
+  //
+  //'test/integration/prerender-invalid-catchall-params/test/index.test.js',
+  //'test/integration/prerender-legacy/test/index.test.js',
+  //'test/integration/prerender-no-revalidate/test/index.test.js',
+  //'test/integration/production-browser-sourcemaps/test/index.test.js',
+  //'test/integration/production-nav/test/index.test.js',
+  //'test/integration/query-with-encoding/test/index.test.js',
+  //'test/integration/react-profiling-mode/test/index.test.js',
+
   'test/development/acceptance-app/ReactRefreshLogBoxMisc.test.ts',
   'test/development/acceptance-app/ReactRefreshRequire.test.ts',
   'test/development/acceptance-app/dynamic-error.test.ts',
@@ -213,20 +225,13 @@ const enabledTests = [
   'test/integration/polyfills/test/index.test.js',
   'test/integration/port-env-var/test/index.test.js',
   'test/integration/preload-viewport/test/index.test.js',
-  'test/integration/prerender-invalid-catchall-params/test/index.test.js',
   'test/integration/prerender-invalid-paths/test/index.test.js',
-  'test/integration/prerender-legacy/test/index.test.js',
-  'test/integration/prerender-no-revalidate/test/index.test.js',
   'test/integration/prerender-revalidate/test/index.test.js',
-  'test/integration/production-browser-sourcemaps/test/index.test.js',
   'test/integration/production-build-dir/test/index.test.js',
   'test/integration/production-config/test/index.test.js',
-  'test/integration/production-nav/test/index.test.js',
   'test/integration/production-start-no-build/test/index.test.js',
   'test/integration/production/test/index.test.js',
-  'test/integration/query-with-encoding/test/index.test.js',
   'test/integration/re-export-all-exports-from-page-disallowed/test/index.test.js',
-  'test/integration/react-profiling-mode/test/index.test.js',
   'test/integration/react-streaming/test/index.test.js',
   'test/integration/read-only-source-hmr/test/index.test.js',
   'test/integration/relay-analytics-disabled/test/index.test.js',
