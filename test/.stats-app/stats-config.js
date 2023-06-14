@@ -81,8 +81,6 @@ module.exports = {
             module.exports = {
               experimental: {
                 appDir: true,
-                // remove after next stable release (current v12.3.1)
-                serverComponents: true,
               },
               generateBuildId: () => 'BUILD_ID',
               webpack(config) {
@@ -103,8 +101,6 @@ module.exports = {
           module.exports = {
               experimental: {
                 appDir: true,
-                // remove after next stable relase (current v12.3.1)
-                serverComponents: true,
               },
               generateBuildId: () => 'BUILD_ID'
             }

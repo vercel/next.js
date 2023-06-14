@@ -8,12 +8,12 @@ export default function Index() {
     workerRef.current.onmessage = (event: MessageEvent<number>) =>
       alert(`WebWorker Response => ${event.data}`)
     return () => {
-      workerRef.current.terminate()
+      workerRef.current?.terminate()
     }
   }, [])
 
   const handleWork = useCallback(async () => {
-    workerRef.current.postMessage(100000)
+    workerRef.current?.postMessage(100000)
   }, [])
 
   return (

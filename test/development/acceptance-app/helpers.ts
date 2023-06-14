@@ -2,16 +2,16 @@ import {
   getRedboxDescription,
   getRedboxHeader,
   getRedboxSource,
-  hasErrorToast,
   hasRedbox,
-  waitForAndOpenRuntimeError,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { NextInstance } from 'test/lib/next-modes/base'
 
 export async function sandbox(
   next: NextInstance,
-  initialFiles?: Map<string, string>
+  initialFiles?: Map<string, string>,
+  initialUrl: string = '/',
+  webDriverOptions: any = undefined
 ) {
   await next.stop()
   await next.clean()
@@ -22,7 +22,7 @@ export async function sandbox(
     }
   }
   await next.start()
-  const browser = await webdriver(next.appPort, '/')
+  const browser = await webdriver(next.url, initialUrl, webDriverOptions)
   return {
     browser,
     session: {
@@ -102,11 +102,14 @@ export async function sandbox(
       async hasRedbox(expected = false) {
         return hasRedbox(browser, expected)
       },
-      async hasErrorToast(expected = false) {
-        return hasErrorToast(browser, expected)
-      },
-      async waitForAndOpenRuntimeError() {
-        await waitForAndOpenRuntimeError(browser)
+      async hasErrorToast() {
+        return browser.eval(() => {
+          return Boolean(
+            Array.from(document.querySelectorAll('nextjs-portal')).find((p) =>
+              p.shadowRoot.querySelector('[data-nextjs-toast]')
+            )
+          )
+        })
       },
       async getRedboxDescription() {
         return getRedboxDescription(browser)
@@ -119,6 +122,20 @@ export async function sandbox(
           return `${header}\n\n${source}`
         }
         return source
+      },
+      async getRedboxComponentStack() {
+        await browser.waitForElementByCss('[data-nextjs-component-stack-frame]')
+        const componentStackFrameElements = await browser.elementsByCss(
+          '[data-nextjs-component-stack-frame]'
+        )
+        const componentStackFrameTexts = await Promise.all(
+          componentStackFrameElements.map((f) => f.innerText())
+        )
+
+        return componentStackFrameTexts.join('\n')
+      },
+      async waitForAndOpenRuntimeError() {
+        return browser.waitForElementByCss('[data-nextjs-toast]').click()
       },
     },
     async cleanup() {

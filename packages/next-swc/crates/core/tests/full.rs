@@ -1,20 +1,25 @@
+use std::path::{Path, PathBuf};
+
 use next_swc::{custom_before_pass, TransformOptions};
 use serde::de::DeserializeOwned;
-use std::path::{Path, PathBuf};
-use swc_core::{
-    base::Compiler,
-    common::comments::SingleThreadedComments,
-    ecma::parser::{Syntax, TsConfig},
-    ecma::transforms::base::pass::noop,
+use turbopack_binding::swc::{
+    core::{
+        base::Compiler,
+        common::{comments::SingleThreadedComments, Mark},
+        ecma::{
+            parser::{Syntax, TsConfig},
+            transforms::base::pass::noop,
+        },
+    },
+    testing::{NormalizedOutput, Tester},
 };
-use testing::{NormalizedOutput, Tester};
 
-#[testing::fixture("tests/full/**/input.js")]
+#[turbopack_binding::swc::testing::fixture("tests/full/**/input.js")]
 fn full(input: PathBuf) {
     test(&input, true);
 }
 
-#[testing::fixture("tests/loader/**/input.js")]
+#[turbopack_binding::swc::testing::fixture("tests/loader/**/input.js")]
 fn loader(input: PathBuf) {
     test(&input, false);
 }
@@ -29,14 +34,16 @@ fn test(input: &Path, minify: bool) {
             let fm = cm.load_file(input).expect("failed to load file");
 
             let options = TransformOptions {
-                swc: swc_core::base::config::Options {
+                swc: turbopack_binding::swc::core::base::config::Options {
                     swcrc: true,
                     output_path: Some(output.clone()),
 
-                    config: swc_core::base::config::Config {
-                        is_module: swc_core::base::config::IsModule::Bool(true),
+                    config: turbopack_binding::swc::core::base::config::Config {
+                        is_module: Some(
+                            turbopack_binding::swc::core::base::config::IsModule::Bool(true),
+                        ),
 
-                        jsc: swc_core::base::config::JscConfig {
+                        jsc: turbopack_binding::swc::core::base::config::JscConfig {
                             minify: if minify {
                                 Some(assert_json("{ \"compress\": true, \"mangle\": true }"))
                             } else {
@@ -68,9 +75,14 @@ fn test(input: &Path, minify: bool) {
                 emotion: Some(assert_json("{}")),
                 modularize_imports: None,
                 font_loaders: None,
+                app_dir: None,
+                server_actions: None,
+                cjs_require_optimizer: None,
             };
 
-            let options = options.patch(&fm);
+            let unresolved_mark = Mark::new();
+            let mut options = options.patch(&fm);
+            options.swc.unresolved_mark = Some(unresolved_mark);
 
             let comments = SingleThreadedComments::default();
             match c.process_js_with_custom_pass(
@@ -86,6 +98,7 @@ fn test(input: &Path, minify: bool) {
                         &options,
                         comments.clone(),
                         Default::default(),
+                        unresolved_mark,
                     )
                 },
                 |_| noop(),

@@ -10,11 +10,6 @@ import {
   renderViaHTTP,
 } from 'next-test-utils'
 
-const react18Deps = {
-  react: '^18.0.0',
-  'react-dom': '^18.0.0',
-}
-
 const isNextProd = !(global as any).isNextDev && !(global as any).isNextDeploy
 
 describe('streaming SSR with custom next configs', () => {
@@ -22,16 +17,7 @@ describe('streaming SSR with custom next configs', () => {
 
   beforeAll(async () => {
     next = await createNext({
-      files: {
-        'app/page.js': `
-        export default function Page() {
-          return 'fake-app' /* this should not enable appDir */
-        }
-      `,
-        pages: new FileRef(join(__dirname, 'streaming-ssr/pages')),
-      },
-      nextConfig: require(join(__dirname, 'streaming-ssr/next.config.js')),
-      dependencies: react18Deps,
+      files: join(__dirname, 'streaming-ssr'),
       installCommand: 'npm install',
     })
   })
@@ -116,7 +102,6 @@ if (isNextProd) {
           'server.js': new FileRef(join(__dirname, 'custom-server/server.js')),
         },
         nextConfig: require(join(__dirname, 'custom-server/next.config.js')),
-        dependencies: react18Deps,
       })
       await next.stop()
 
@@ -164,9 +149,6 @@ if (isNextProd) {
           }`,
         },
         nextConfig: {
-          experimental: {
-            runtime: 'nodejs',
-          },
           webpack(config, { nextRuntime }) {
             const path = require('path')
             const fs = require('fs')
@@ -185,7 +167,6 @@ if (isNextProd) {
             return config
           },
         },
-        dependencies: react18Deps,
       })
     })
     afterAll(() => {

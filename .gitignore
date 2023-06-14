@@ -27,6 +27,8 @@ test/**/next-env.d.ts
 .DS_Store
 /e2e-tests
 test/tmp/**
+test/.trace
+test/traces
 
 # Editors
 **/.idea
@@ -47,3 +49,4 @@ test-timings.json
 # Cache
 *.tsbuildinfo
 .swc/
+.turbo

@@ -9,6 +9,9 @@ const declarationFile = join(fixtureDir, 'next-env.d.ts')
 const imageImportsEnabled = false
 
 describe('find config', () => {
+  beforeEach(async () => {
+    await fs.ensureDir(fixtureDir)
+  })
   afterEach(() => fs.remove(declarationFile))
 
   it('should preserve CRLF EOL', async () => {
@@ -25,10 +28,14 @@ describe('find config', () => {
       '// see https://nextjs.org/docs/basic-features/typescript for more information.' +
       eol
 
-    await fs.ensureDir(fixtureDir)
     await fs.writeFile(declarationFile, content)
 
-    await writeAppTypeDeclarations(fixtureDir, imageImportsEnabled)
+    await writeAppTypeDeclarations({
+      baseDir: fixtureDir,
+      imageImportsEnabled,
+      hasPagesDir: false,
+      isAppDirEnabled: false,
+    })
     expect(await fs.readFile(declarationFile, 'utf8')).toBe(content)
   })
 
@@ -46,10 +53,14 @@ describe('find config', () => {
       '// see https://nextjs.org/docs/basic-features/typescript for more information.' +
       eol
 
-    await fs.ensureDir(fixtureDir)
     await fs.writeFile(declarationFile, content)
 
-    await writeAppTypeDeclarations(fixtureDir, imageImportsEnabled)
+    await writeAppTypeDeclarations({
+      baseDir: fixtureDir,
+      imageImportsEnabled,
+      hasPagesDir: false,
+      isAppDirEnabled: false,
+    })
     expect(await fs.readFile(declarationFile, 'utf8')).toBe(content)
   })
 
@@ -67,8 +78,36 @@ describe('find config', () => {
       '// see https://nextjs.org/docs/basic-features/typescript for more information.' +
       eol
 
-    await fs.ensureDir(fixtureDir)
-    await writeAppTypeDeclarations(fixtureDir, imageImportsEnabled)
+    await writeAppTypeDeclarations({
+      baseDir: fixtureDir,
+      imageImportsEnabled,
+      hasPagesDir: false,
+      isAppDirEnabled: false,
+    })
     expect(await fs.readFile(declarationFile, 'utf8')).toBe(content)
+  })
+
+  it('should include navigation types if app directory is enabled', async () => {
+    await writeAppTypeDeclarations({
+      baseDir: fixtureDir,
+      imageImportsEnabled,
+      hasPagesDir: false,
+      isAppDirEnabled: true,
+    })
+
+    await expect(fs.readFile(declarationFile, 'utf8')).resolves.not.toContain(
+      'next/navigation-types/compat/navigation'
+    )
+
+    await writeAppTypeDeclarations({
+      baseDir: fixtureDir,
+      imageImportsEnabled,
+      hasPagesDir: true,
+      isAppDirEnabled: true,
+    })
+
+    await expect(fs.readFile(declarationFile, 'utf8')).resolves.toContain(
+      'next/navigation-types/compat/navigation'
+    )
   })
 })

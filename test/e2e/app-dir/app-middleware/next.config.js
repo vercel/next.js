@@ -1,6 +1,6 @@
 module.exports = {
   experimental: {
-    appDir: true,
-    allowMiddlewareResponseBody: true,
+    clientRouterFilter: true,
+    clientRouterFilterRedirects: true,
   },
 }

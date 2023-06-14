@@ -1,5 +1,7 @@
 if (process.env.POLYFILL_FETCH) {
   global.fetch = require('node-fetch').default
+  global.Request = require('node-fetch').Request
+  global.Headers = require('node-fetch').Headers
 }
 
 const { readFileSync } = require('fs')
@@ -17,8 +19,8 @@ const app = next({ dev, hostname: 'localhost', port, dir })
 const handleNextRequests = app.getRequestHandler()
 
 const httpOptions = {
-  key: readFileSync(join(__dirname, 'ssh/privkey.pem')),
-  cert: readFileSync(join(__dirname, 'ssh/cert.pem')),
+  key: readFileSync(join(__dirname, 'ssh/localhost-key.pem')),
+  cert: readFileSync(join(__dirname, 'ssh/localhost.pem')),
 }
 
 app.prepare().then(() => {
