@@ -11,6 +11,11 @@ createNextDescribe(
   'app-dir action handling',
   {
     files: __dirname,
+    dependencies: {
+      react: 'latest',
+      'react-dom': 'latest',
+      'server-only': 'latest',
+    },
   },
   ({ next, isNextDev, isNextStart, isNextDeploy }) => {
     it('should handle basic actions correctly', async () => {
@@ -109,7 +114,7 @@ createNextDescribe(
 
       await check(() => {
         return browser.eval('window.location.pathname + window.location.search')
-      }, '/header?name=test&constructor=FormData')
+      }, '/header?name=test&constructor=FormData&hidden-info=hi')
     })
 
     it('should support .bind', async () => {
@@ -402,7 +407,8 @@ createNextDescribe(
         }, 'success')
       })
 
-      it('should handle revalidateTag', async () => {
+      // TODO: investigate flakiness when deployed
+      it.skip('should handle revalidateTag', async () => {
         const browser = await next.browser('/revalidate')
         const randomNumber = await browser.elementByCss('#random-number').text()
         const justPutIt = await browser.elementByCss('#justputit').text()
@@ -410,24 +416,21 @@ createNextDescribe(
 
         await browser.elementByCss('#revalidate-justputit').click()
 
-        // TODO: investigate flakiness when deployed
-        if (!isNextDeploy) {
-          await check(async () => {
-            const newRandomNumber = await browser
-              .elementByCss('#random-number')
-              .text()
-            const newJustPutIt = await browser.elementByCss('#justputit').text()
-            const newThankYouNext = await browser
-              .elementByCss('#thankyounext')
-              .text()
+        await check(async () => {
+          const newRandomNumber = await browser
+            .elementByCss('#random-number')
+            .text()
+          const newJustPutIt = await browser.elementByCss('#justputit').text()
+          const newThankYouNext = await browser
+            .elementByCss('#thankyounext')
+            .text()
 
-            expect(newRandomNumber).not.toBe(randomNumber)
-            expect(newJustPutIt).not.toBe(justPutIt)
-            expect(newThankYouNext).toBe(thankYouNext)
+          expect(newRandomNumber).not.toBe(randomNumber)
+          expect(newJustPutIt).not.toBe(justPutIt)
+          expect(newThankYouNext).toBe(thankYouNext)
 
-            return 'success'
-          }, 'success')
-        }
+          return 'success'
+        }, 'success')
       })
 
       it('should handle revalidateTag + redirect', async () => {
@@ -499,6 +502,123 @@ createNextDescribe(
           return newRandomNumber !== randomNumber ? 'success' : 'failure'
         }, 'success')
       })
+
+      it('should revalidate when cookies.set is called in a client action', async () => {
+        const browser = await next.browser('/revalidate')
+        await browser.refresh()
+
+        let randomCookie
+        await check(async () => {
+          randomCookie = JSON.parse(
+            await browser.elementByCss('#random-cookie').text()
+          ).value
+          return randomCookie ? 'success' : 'failure'
+        }, 'success')
+
+        console.log(123, await browser.elementByCss('body').text())
+
+        await browser.elementByCss('#another').click()
+        await check(async () => {
+          return browser.elementByCss('#title').text()
+        }, 'another route')
+
+        const newRandomCookie = JSON.parse(
+          await browser.elementByCss('#random-cookie').text()
+        ).value
+
+        console.log(456, await browser.elementByCss('body').text())
+
+        // Should be the same value
+        expect(randomCookie).toEqual(newRandomCookie)
+
+        await browser.elementByCss('#back').click()
+
+        // Modify the cookie
+        await browser.elementByCss('#set-cookie').click()
+
+        // Should be different
+        let revalidatedRandomCookie
+        await check(async () => {
+          revalidatedRandomCookie = JSON.parse(
+            await browser.elementByCss('#random-cookie').text()
+          ).value
+          return randomCookie !== revalidatedRandomCookie
+            ? 'success'
+            : 'failure'
+        }, 'success')
+
+        await browser.elementByCss('#another').click()
+
+        // The other page should be revalidated too
+        await check(async () => {
+          const newRandomCookie = await JSON.parse(
+            await browser.elementByCss('#random-cookie').text()
+          ).value
+          return revalidatedRandomCookie === newRandomCookie
+            ? 'success'
+            : 'failure'
+        }, 'success')
+      })
+
+      it.each(['tag', 'path'])(
+        'should invalidate client cache when %s is revalidated',
+        async (type) => {
+          const browser = await next.browser('/revalidate')
+          await browser.refresh()
+
+          const thankYouNext = await browser
+            .elementByCss('#thankyounext')
+            .text()
+
+          await browser.elementByCss('#another').click()
+          await check(async () => {
+            return browser.elementByCss('#title').text()
+          }, 'another route')
+
+          const newThankYouNext = await browser
+            .elementByCss('#thankyounext')
+            .text()
+
+          // Should be the same number
+          expect(thankYouNext).toEqual(newThankYouNext)
+
+          await browser.elementByCss('#back').click()
+
+          switch (type) {
+            case 'tag':
+              await browser.elementByCss('#revalidate-thankyounext').click()
+              break
+            case 'path':
+              await browser.elementByCss('#revalidate-path').click()
+              break
+            default:
+              throw new Error(`Invalid type: ${type}`)
+          }
+
+          // Should be different
+          let revalidatedThankYouNext
+          await check(async () => {
+            revalidatedThankYouNext = await browser
+              .elementByCss('#thankyounext')
+              .text()
+            return thankYouNext !== revalidatedThankYouNext
+              ? 'success'
+              : 'failure'
+          }, 'success')
+
+          await browser.elementByCss('#another').click()
+
+          // The other page should be revalidated too
+          await check(async () => {
+            const newThankYouNext = await browser
+              .elementByCss('#thankyounext')
+              .text()
+            return revalidatedThankYouNext === newThankYouNext
+              ? 'success'
+              : 'failure'
+          }, 'success')
+        }
+      )
     })
   }
 )

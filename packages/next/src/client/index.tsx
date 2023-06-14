@@ -63,6 +63,21 @@ declare global {
   }
 }
 
+// ensure dynamic imports have deployment id added if enabled
+const getChunkScriptFilename = __webpack_require__.u
+
+// eslint-disable-next-line no-undef
+__webpack_require__.u = (chunkId: any) => {
+  return (
+    getChunkScriptFilename(chunkId) +
+    `${
+      process.env.__NEXT_DEPLOYMENT_ID
+        ? `?dpl=${process.env.__NEXT_DEPLOYMENT_ID}`
+        : ''
+    }`
+  )
+}
+
 type RenderRouteInfo = PrivateRouteInfo & {
   App: AppComponent
   scroll?: { x: number; y: number } | null

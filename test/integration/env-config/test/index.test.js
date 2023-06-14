@@ -27,6 +27,7 @@ const getEnvFromHtml = async (path) => {
   const env = JSON.parse($('p').text())
   env.nextConfigEnv = $('#nextConfigEnv').text()
   env.nextConfigPublicEnv = $('#nextConfigPublicEnv').text()
+  env.nextConfigNewPublicEnv = $('#nextConfigNewPublicEnv').text()
   return env
 }
 
@@ -66,6 +67,7 @@ const runTests = (mode = 'dev', didReload = false) => {
     }
     expect(data.nextConfigEnv).toBe('hello from next.config.js')
     expect(data.nextConfigPublicEnv).toBe('hello again from next.config.js')
+    expect(data.nextConfigNewPublicEnv).toBe('hello set in next.config.js')
   }
 
   it('should have process environment override .env', async () => {

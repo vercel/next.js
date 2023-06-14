@@ -1,6 +1,9 @@
 import React from 'react'
 import type { fetchServerResponse } from '../fetch-server-response'
 import type { FlightData } from '../../../../server/app-render/types'
+
+const buildId = 'development'
+
 jest.mock('../fetch-server-response', () => {
   const flightData: FlightData = [
     [
@@ -119,6 +122,7 @@ describe('refreshReducer', () => {
     ])
 
     const state = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -144,6 +148,7 @@ describe('refreshReducer', () => {
     )
 
     const expectedState: ReturnType<typeof refreshReducer> = {
+      buildId,
       prefetchCache: new Map(),
       pushRef: {
         mpaNavigation: false,
@@ -265,6 +270,7 @@ describe('refreshReducer', () => {
     ])
 
     const state = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -275,6 +281,7 @@ describe('refreshReducer', () => {
     })
 
     const state2 = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -303,6 +310,7 @@ describe('refreshReducer', () => {
     )
 
     const expectedState: ReturnType<typeof refreshReducer> = {
+      buildId,
       prefetchCache: new Map(),
       pushRef: {
         mpaNavigation: false,
@@ -448,6 +456,7 @@ describe('refreshReducer', () => {
     ])
 
     const state = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -458,6 +467,7 @@ describe('refreshReducer', () => {
     })
 
     const state2 = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -486,6 +496,7 @@ describe('refreshReducer', () => {
     )
 
     const expectedState: ReturnType<typeof refreshReducer> = {
+      buildId,
       prefetchCache: new Map(),
       pushRef: {
         mpaNavigation: false,
@@ -677,6 +688,7 @@ describe('refreshReducer', () => {
     }
 
     const state = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -689,6 +701,7 @@ describe('refreshReducer', () => {
     state.prefetchCache.set('/linking/about', prefetchItem)
 
     const state2 = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -718,6 +731,7 @@ describe('refreshReducer', () => {
     )
 
     const expectedState: ReturnType<typeof refreshReducer> = {
+      buildId,
       prefetchCache: new Map(),
       pushRef: {
         mpaNavigation: false,

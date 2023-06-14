@@ -1,4 +1,5 @@
-import { DraftModeProvider } from '../../server/async-storage/draft-mode-provider'
+import type { DraftModeProvider } from '../../server/async-storage/draft-mode-provider'
+
 import { staticGenerationBailout } from './static-generation-bailout'
 
 export class DraftMode {

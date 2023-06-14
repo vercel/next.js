@@ -10,7 +10,7 @@ use std::{
     future::{join, Future},
     io::{stdout, Write},
     net::{IpAddr, SocketAddr},
-    path::{PathBuf, MAIN_SEPARATOR},
+    path::{Path, PathBuf, MAIN_SEPARATOR},
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -25,7 +25,9 @@ use next_core::{
     next_image::NextImageContentSourceVc, pages_structure::find_pages_structure,
     router_source::NextRouterContentSourceVc, source_map::NextSourceMapTraceContentSourceVc,
 };
+use once_cell::sync::Lazy;
 use owo_colors::OwoColorize;
+use tracing_subscriber::{prelude::*, EnvFilter, Registry};
 use turbo_tasks::{
     util::{FormatBytes, FormatDuration},
     StatsType, TransientInstance, TurboTasks, TurboTasksBackendApi, UpdateInfo, Value,
@@ -38,7 +40,15 @@ use turbopack_binding::{
         tasks_memory::MemoryBackend,
     },
     turbopack::{
-        cli_utils::issue::{ConsoleUiVc, LogOptions},
+        cli_utils::{
+            exit::ExitGuard,
+            issue::{ConsoleUiVc, LogOptions},
+            raw_trace::RawTraceLayer,
+            trace_writer::TraceWriter,
+            tracing_presets::{
+                TRACING_OVERVIEW_TARGETS, TRACING_TURBOPACK_TARGETS, TRACING_TURBO_TASKS_TARGETS,
+            },
+        },
         core::{
             environment::{ServerAddr, ServerAddrVc},
             issue::{IssueReporterVc, IssueSeverity},
@@ -288,7 +298,11 @@ async fn source(
 ) -> Result<ContentSourceVc> {
     let output_fs = output_fs(&project_dir);
     let fs = project_fs(&root_dir);
-    let project_relative = project_dir.strip_prefix(&root_dir).unwrap();
+    let project_relative = project_dir.strip_prefix(&root_dir).unwrap_or_else(|| {
+        panic!(
+            "project directory '{project_dir}' exists outside of the root directory '{root_dir}'"
+        )
+    });
     let project_relative = project_relative
         .strip_prefix(MAIN_SEPARATOR)
         .unwrap_or(project_relative)
@@ -424,12 +438,81 @@ pub fn register() {
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }
 
+static TRACING_NEXT_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
+    [
+        &TRACING_OVERVIEW_TARGETS[..],
+        &[
+            "next_dev=trace",
+            "next_core=trace",
+            "next_font=trace",
+            "turbopack_node=trace",
+        ],
+    ]
+    .concat()
+});
+static TRACING_NEXT_TURBOPACK_TARGETS: Lazy<Vec<&str>> =
+    Lazy::new(|| [&TRACING_NEXT_TARGETS[..], &TRACING_TURBOPACK_TARGETS[..]].concat());
+static TRACING_NEXT_TURBO_TASKS_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
+    [
+        &TRACING_TURBOPACK_TARGETS[..],
+        &TRACING_TURBO_TASKS_TARGETS[..],
+    ]
+    .concat()
+});
+
 /// Start a devserver with the given options.
 pub async fn start_server(options: &DevServerOptions) -> Result<()> {
     let start = Instant::now();
 
     #[cfg(feature = "tokio_console")]
     console_subscriber::init();
+
+    let trace = std::env::var("NEXT_TURBOPACK_TRACING").ok();
+
+    let _guard = if let Some(mut trace) = trace {
+        // Trace presets
+        match trace.as_str() {
+            "overview" => {
+                trace = TRACING_OVERVIEW_TARGETS.join(",");
+            }
+            "next" => {
+                trace = TRACING_NEXT_TARGETS.join(",");
+            }
+            "turbopack" => {
+                trace = TRACING_NEXT_TURBOPACK_TARGETS.join(",");
+            }
+            "turbo-tasks" => {
+                trace = TRACING_NEXT_TURBO_TASKS_TARGETS.join(",");
+            }
+            _ => {}
+        }
+
+        let subscriber = Registry::default();
+
+        let subscriber = subscriber.with(EnvFilter::builder().parse(trace).unwrap());
+
+        let internal_dir = options
+            .dir
+            .as_deref()
+            .unwrap_or_else(|| Path::new("."))
+            .join(".next");
+        std::fs::create_dir_all(&internal_dir)
+            .context("Unable to create .next directory")
+            .unwrap();
+        let trace_file = internal_dir.join("trace.log");
+        let trace_writer = std::fs::File::create(trace_file).unwrap();
+        let (trace_writer, guard) = TraceWriter::new(trace_writer);
+        let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
+
+        let guard = ExitGuard::new(guard).unwrap();
+
+        subscriber.init();
+
+        Some(guard)
+    } else {
+        None
+    };
+
     register();
 
     let dir = options

@@ -1,7 +1,5 @@
 import { StackFrame } from 'stacktrace-parser'
 
-import type { Issue } from '@vercel/turbopack-dev/types/protocol'
-
 export const TYPE_BUILD_OK = 'build-ok'
 export const TYPE_TURBOPACK_ISSUES = 'turbopack-error'
 export const TYPE_BEFORE_REFRESH = 'before-fast-refresh'
