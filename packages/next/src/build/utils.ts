@@ -111,14 +111,6 @@ function sum(a: ReadonlyArray<number>): number {
   return a.reduce((size, stat) => size + stat, 0)
 }
 
-function denormalizeAppPagePath(page: string): string {
-  // `/` is normalized to `/index` and `/index` is normalized to `/index/index`
-  if (page.endsWith('/index')) {
-    page = page.replace(/\/index$/, '')
-  }
-  return page + '/page'
-}
-
 type ComputeFilesGroup = {
   files: ReadonlyArray<string>
   size: {
