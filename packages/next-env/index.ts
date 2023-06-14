@@ -15,6 +15,10 @@ let combinedEnv: Env | undefined = undefined
 let cachedLoadedEnvFiles: LoadedEnvFiles = []
 let previousLoadedEnvFiles: LoadedEnvFiles = []
 
+export function updateInitialEnv(newEnv: Env) {
+  Object.assign(initialEnv || {}, newEnv)
+}
+
 type Log = {
   info: (...args: any[]) => void
   error: (...args: any[]) => void

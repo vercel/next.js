@@ -2,13 +2,15 @@
 // the other imports
 import { IPC } from '@vercel/turbopack-node/ipc/index'
 
-import type { RenderData } from 'types/turbopack'
-import type { Ipc } from '@vercel/turbopack-node/ipc/index'
 import type { ClientRequest, IncomingMessage, Server } from 'node:http'
 import type { ServerResponse } from 'node:http'
+import { Buffer } from 'node:buffer'
+
+import type { Ipc } from '@vercel/turbopack-node/ipc/index'
+
+import type { RenderData } from 'types/turbopack'
 import { createServer, makeRequest } from '../internal/server'
 import { toPairs } from '../internal/headers'
-import { Buffer } from 'node:buffer'
 
 const ipc = IPC as Ipc<IpcIncomingMessage, IpcOutgoingMessage>
 
@@ -119,7 +121,8 @@ export default function startHandler(handler: Handler): void {
       renderData.method,
       renderData.path,
       renderData.rawQuery,
-      renderData.rawHeaders
+      renderData.rawHeaders,
+      renderData.data?.serverInfo
     )
 
     return {

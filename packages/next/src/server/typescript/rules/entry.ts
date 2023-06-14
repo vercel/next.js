@@ -8,19 +8,21 @@ import {
 } from '../constant'
 import { getTs, isPageFile, isPositionInsideNode } from '../utils'
 
+import type tsModule from 'typescript/lib/tsserverlibrary'
+
 const entry = {
   // Give auto completion for the component's props
   getCompletionsAtPosition(
     fileName: string,
-    node: ts.FunctionDeclaration,
+    node: tsModule.FunctionDeclaration,
     position: number
   ) {
     const ts = getTs()
-    const entries: ts.CompletionEntry[] = []
+    const entries: tsModule.CompletionEntry[] = []
 
     // Default export function might not accept parameters
     const paramNode = node.parameters?.[0] as
-      | ts.ParameterDeclaration
+      | tsModule.ParameterDeclaration
       | undefined
 
     if (paramNode && isPositionInsideNode(position, paramNode)) {
@@ -71,7 +73,7 @@ const entry = {
                   labelDetails: {
                     description: `Next.js ${type} prop`,
                   },
-                } as ts.CompletionEntry)
+                } as tsModule.CompletionEntry)
               }
             }
 
@@ -93,7 +95,7 @@ const entry = {
                   labelDetails: {
                     description: `Next.js ${type} prop type`,
                   },
-                } as ts.CompletionEntry)
+                } as tsModule.CompletionEntry)
               }
 
               break
@@ -109,8 +111,8 @@ const entry = {
   // Give error diagnostics for the component
   getSemanticDiagnostics(
     fileName: string,
-    source: ts.SourceFile,
-    node: ts.FunctionDeclaration
+    source: tsModule.SourceFile,
+    node: tsModule.FunctionDeclaration
   ) {
     const ts = getTs()
 
@@ -136,11 +138,11 @@ const entry = {
       type = 'layout'
     }
 
-    const diagnostics: ts.Diagnostic[] = []
+    const diagnostics: tsModule.Diagnostic[] = []
 
     const props = node.parameters?.[0]?.name
     if (props && ts.isObjectBindingPattern(props)) {
-      for (const prop of (props as ts.ObjectBindingPattern).elements) {
+      for (const prop of props.elements) {
         const propName = (prop.propertyName || prop.name).getText()
         if (!validProps.includes(propName)) {
           diagnostics.push({

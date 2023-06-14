@@ -71,6 +71,15 @@ declare module 'ROUTE_MODULE' {
   }
 }
 
+declare module 'BOOTSTRAP_CONFIG' {
+  import type { RouteKind } from 'next/dist/server/future/route-kind'
+
+  export const NAME: string
+  export const PAGE: string
+  export const PATHNAME: string
+  export const KIND: RouteKind
+}
+
 declare module 'CLIENT_MODULE' {
   export const __turbopack_module_id__: string
 }

@@ -1,11 +1,7 @@
+import type { Router } from 'next/dist/client/router'
+import type { MittEmitter } from 'next/dist/shared/lib/mitt'
+
 declare global {
-  type ChunkData =
-    | string
-    | {
-        path: string
-        included: (string | number)[]
-        excluded: (string | number)[]
-      }
   function __turbopack_require__(name: any): any
   function __turbopack_load__(path: ChunkData): any
   function __webpack_require__(name: any): any
@@ -20,7 +16,9 @@ declare global {
   )[]
   var next: {
     version: string
-    appDir: boolean
+    appDir?: boolean
+    router?: Router
+    emitter?: MittEmitter<string>
   }
 
   function __turbopack_load_page_chunks__(
@@ -35,6 +33,12 @@ declare global {
       callback: (...args: TArgs) => R,
       ...args: TArgs
     ): R
+  }
+
+  // This is a hack to allow us to use Turbopack's `module.hot` API in
+  // TypeScript modules.
+  interface NodeModule {
+    hot: Hot
   }
 }
 

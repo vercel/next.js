@@ -59,7 +59,7 @@ describe('Middleware development errors', () => {
       await check(
         () => stripAnsi(context.logs.output),
         new RegExp(
-          `error - middleware.js \\(\\d+:\\d+\\) @ Object.default \\[as handler\\]\nerror - boom`,
+          `- error middleware.js \\(\\d+:\\d+\\) @ Object.default \\[as handler\\]\n- error boom`,
           'm'
         )
       )
@@ -93,7 +93,7 @@ describe('Middleware development errors', () => {
       await fetchViaHTTP(context.appPort, '/')
       await check(
         () => stripAnsi(context.logs.output),
-        new RegExp(`error - unhandledRejection: Error: async boom!`, 'm')
+        new RegExp(`- error unhandledRejection: Error: async boom!`, 'm')
       )
       // expect(output).not.toContain(
       //   'webpack-internal:///(middleware)/./middleware.js'
@@ -123,7 +123,7 @@ describe('Middleware development errors', () => {
       await check(
         () => stripAnsi(context.logs.output),
         new RegExp(
-          `error - middleware.js \\(\\d+:\\d+\\) @ eval\nerror - test is not defined`,
+          `- error middleware.js \\(\\d+:\\d+\\) @ eval\n- error test is not defined`,
           'm'
         )
       )
@@ -157,7 +157,7 @@ describe('Middleware development errors', () => {
       await check(
         () => stripAnsi(context.logs.output),
         new RegExp(
-          `error - middleware.js \\(\\d+:\\d+\\) @ <unknown>\nerror - booooom!`,
+          `- error middleware.js \\(\\d+:\\d+\\) @ <unknown>\n- error booooom!`,
           'm'
         )
       )
@@ -194,7 +194,7 @@ describe('Middleware development errors', () => {
       await fetchViaHTTP(context.appPort, '/')
       await check(
         () => stripAnsi(context.logs.output),
-        new RegExp(`error - unhandledRejection: Error: you shall see me`, 'm')
+        new RegExp(`- error unhandledRejection: Error: you shall see me`, 'm')
       )
       // expect(output).not.toContain(
       //   'webpack-internal:///(middleware)/./middleware.js'

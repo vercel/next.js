@@ -17,7 +17,7 @@ if (process.env.NODE_ENV !== "production") {
 var React = require("next/dist/compiled/react-experimental");
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-experimental-c8369527e-20230420';
+var ReactVersion = '18.3.0-experimental-1cea38448-20230530';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -287,7 +287,7 @@ function checkHtmlStringCoercion(value) {
 }
 
 // -----------------------------------------------------------------------------
-var enableFloat = true;
+var enableFloat = true; // Enables unstable_useMemoCache hook, intended as a compilation target for
 
 // $FlowFixMe[method-unbinding]
 var hasOwnProperty = Object.prototype.hasOwnProperty;
@@ -1601,6 +1601,7 @@ var clientRenderBoundary = '$RX=function(b,c,d,e){var a=document.getElementById(
 var completeBoundary = '$RC=function(b,c,e){c=document.getElementById(c);c.parentNode.removeChild(c);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var d=a.data;if("/$"===d)if(0===f)break;else f--;else"$"!==d&&"$?"!==d&&"$!"!==d||f++}d=a.nextSibling;e.removeChild(a);a=d}while(a);for(;c.firstChild;)e.insertBefore(c.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};';
 var completeBoundaryWithStyles = '$RM=new Map;\n$RR=function(r,t,w){for(var u=$RC,n=$RM,p=new Map,q=document,g,b,h=q.querySelectorAll("link[data-precedence],style[data-precedence]"),v=[],k=0;b=h[k++];)"not all"===b.getAttribute("media")?v.push(b):("LINK"===b.tagName&&n.set(b.getAttribute("href"),b),p.set(b.dataset.precedence,g=b));b=0;h=[];var l,a;for(k=!0;;){if(k){var f=w[b++];if(!f){k=!1;b=0;continue}var c=!1,m=0;var d=f[m++];if(a=n.get(d)){var e=a._p;c=!0}else{a=q.createElement("link");a.href=d;a.rel="stylesheet";for(a.dataset.precedence=\nl=f[m++];e=f[m++];)a.setAttribute(e,f[m++]);e=a._p=new Promise(function(x,y){a.onload=x;a.onerror=y});n.set(d,a)}d=a.getAttribute("media");!e||"l"===e.s||d&&!matchMedia(d).matches||h.push(e);if(c)continue}else{a=v[b++];if(!a)break;l=a.getAttribute("data-precedence");a.removeAttribute("media")}c=p.get(l)||g;c===g&&(g=a);p.set(l,a);c?c.parentNode.insertBefore(a,c.nextSibling):(c=q.head,c.insertBefore(a,c.firstChild))}Promise.all(h).then(u.bind(null,r,t,""),u.bind(null,r,t,"Resource failed to load"))};';
 var completeSegment = '$RS=function(a,b){a=document.getElementById(a);b=document.getElementById(b);for(a.parentNode.removeChild(a);a.firstChild;)b.parentNode.insertBefore(a.firstChild,b);b.parentNode.removeChild(b)};';
+var formReplaying = 'addEventListener("submit",function(a){if(!a.defaultPrevented){var c=a.target,d=a.submitter,e=c.action,b=d;if(d){var f=d.getAttribute("formAction");null!=f&&(e=f,b=null)}"javascript:throw new Error(\'A React form was unexpectedly submitted.\')"===e&&(a.preventDefault(),b?(a=document.createElement("input"),a.name=b.name,a.value=b.value,b.parentNode.insertBefore(a,b),b=new FormData(c),a.parentNode.removeChild(a)):b=new FormData(c),a=c.getRootNode(),(a.$$reactFormReplay=a.$$reactFormReplay||[]).push(c,\nd,b))}});';
 
 function getValueDescriptorExpectingObjectForWarning(thing) {
   return thing === null ? '`null`' : thing === undefined ? '`undefined`' : thing === '' ? 'an empty string' : "something with type \"" + typeof thing + "\"";
@@ -1906,6 +1907,16 @@ function describeDifferencesForPreinitOverScript(newProps, currentProps) {
   return description;
 }
 
+// same object across all transitions.
+
+var sharedNotPendingObject = {
+  pending: false,
+  data: null,
+  method: null,
+  action: null
+};
+var NotPending = Object.freeze(sharedNotPendingObject) ;
+
 var ReactDOMSharedInternals = ReactDOM.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
 var ReactDOMCurrentDispatcher = ReactDOMSharedInternals.Dispatcher;
@@ -1914,19 +1925,9 @@ var ReactDOMServerDispatcher = {
   preconnect: preconnect,
   preload: preload,
   preinit: preinit
-} ;
-var currentResources = null;
-var currentResourcesStack = [];
-function prepareToRender(resources) {
-  currentResourcesStack.push(currentResources);
-  currentResources = resources;
-  var previousHostDispatcher = ReactDOMCurrentDispatcher.current;
+};
+function prepareHostDispatcher() {
   ReactDOMCurrentDispatcher.current = ReactDOMServerDispatcher;
-  return previousHostDispatcher;
-}
-function cleanupAfterRender(previousDispatcher) {
-  currentResources = currentResourcesStack.pop();
-  ReactDOMCurrentDispatcher.current = previousDispatcher;
 } // Used to distinguish these contexts from ones used in other renderers.
 var ScriptStreamingFormat = 0;
 var DataStreamingFormat = 1;
@@ -1944,13 +1945,17 @@ var SentClientRenderFunction
 = 4;
 var SentStyleInsertionFunction
 /*       */
-= 8; // Per response, global state that is not contextual to the rendering subtree.
+= 8;
+var SentFormReplayingRuntime
+/*         */
+= 16; // Per response, global state that is not contextual to the rendering subtree.
 
 var dataElementQuotedEnd = stringToPrecomputedChunk('"></template>');
 var startInlineScript = stringToPrecomputedChunk('<script>');
 var endInlineScript = stringToPrecomputedChunk('</script>');
 var startScriptSrc = stringToPrecomputedChunk('<script src="');
 var startModuleSrc = stringToPrecomputedChunk('<script type="module" src="');
+var scriptNonce = stringToPrecomputedChunk('" nonce="');
 var scriptIntegirty = stringToPrecomputedChunk('" integrity="');
 var endAsyncScript = stringToPrecomputedChunk('" async=""></script>');
 /**
@@ -1985,7 +1990,7 @@ function createResponseState(identifierPrefix, nonce, bootstrapScriptContent, bo
   var idPrefix = identifierPrefix === undefined ? '' : identifierPrefix;
   var inlineScriptWithNonce = nonce === undefined ? startInlineScript : stringToPrecomputedChunk('<script nonce="' + escapeTextForBrowser(nonce) + '">');
   var bootstrapChunks = [];
-  var externalRuntimeDesc = null;
+  var externalRuntimeScript = null;
   var streamingFormat = ScriptStreamingFormat;
 
   if (bootstrapScriptContent !== undefined) {
@@ -1998,12 +2003,27 @@ function createResponseState(identifierPrefix, nonce, bootstrapScriptContent, bo
       streamingFormat = DataStreamingFormat;
 
       if (typeof externalRuntimeConfig === 'string') {
-        externalRuntimeDesc = {
+        externalRuntimeScript = {
           src: externalRuntimeConfig,
-          integrity: undefined
+          chunks: []
         };
+        pushScriptImpl(externalRuntimeScript.chunks, {
+          src: externalRuntimeConfig,
+          async: true,
+          integrity: undefined,
+          nonce: nonce
+        });
       } else {
-        externalRuntimeDesc = externalRuntimeConfig;
+        externalRuntimeScript = {
+          src: externalRuntimeConfig.src,
+          chunks: []
+        };
+        pushScriptImpl(externalRuntimeScript.chunks, {
+          src: externalRuntimeConfig.src,
+          async: true,
+          integrity: externalRuntimeConfig.integrity,
+          nonce: nonce
+        });
       }
     }
   }
@@ -2014,6 +2034,10 @@ function createResponseState(identifierPrefix, nonce, bootstrapScriptContent, bo
       var src = typeof scriptConfig === 'string' ? scriptConfig : scriptConfig.src;
       var integrity = typeof scriptConfig === 'string' ? undefined : scriptConfig.integrity;
       bootstrapChunks.push(startScriptSrc, stringToChunk(escapeTextForBrowser(src)));
+
+      if (nonce) {
+        bootstrapChunks.push(scriptNonce, stringToChunk(escapeTextForBrowser(nonce)));
+      }
 
       if (integrity) {
         bootstrapChunks.push(scriptIntegirty, stringToChunk(escapeTextForBrowser(integrity)));
@@ -2033,6 +2057,10 @@ function createResponseState(identifierPrefix, nonce, bootstrapScriptContent, bo
 
       bootstrapChunks.push(startModuleSrc, stringToChunk(escapeTextForBrowser(_src)));
 
+      if (nonce) {
+        bootstrapChunks.push(scriptNonce, stringToChunk(escapeTextForBrowser(nonce)));
+      }
+
       if (_integrity) {
         bootstrapChunks.push(scriptIntegirty, stringToChunk(escapeTextForBrowser(_integrity)));
       }
@@ -2051,7 +2079,7 @@ function createResponseState(identifierPrefix, nonce, bootstrapScriptContent, bo
     streamingFormat: streamingFormat,
     startInlineScript: inlineScriptWithNonce,
     instructions: NothingSent,
-    externalRuntimeConfig: externalRuntimeDesc,
+    externalRuntimeScript: externalRuntimeScript,
     htmlChunks: null,
     headChunks: null,
     hasBody: false,
@@ -2059,7 +2087,8 @@ function createResponseState(identifierPrefix, nonce, bootstrapScriptContent, bo
     preconnectChunks: [],
     preloadChunks: [],
     hoistableChunks: [],
-    stylesToHoist: false
+    stylesToHoist: false,
+    nonce: nonce
   };
 } // Constants for the insertion mode we're currently writing in. We don't encode all HTML5 insertion
 // modes. We only include the variants as they matter for the sake of our purposes.
@@ -2300,14 +2329,44 @@ function pushStringAttribute(target, name, value) // not null or undefined
   if (typeof value !== 'function' && typeof value !== 'symbol' && typeof value !== 'boolean') {
     target.push(attributeSeparator, stringToChunk(name), attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
   }
+}
+
+function makeFormFieldPrefix(responseState) {
+  // I'm just reusing this counter. It's not really the same namespace as "name".
+  // It could just be its own counter.
+  var id = responseState.nextSuspenseID++;
+  return responseState.idPrefix + id;
 } // Since this will likely be repeated a lot in the HTML, we use a more concise message
 // than on the client and hopefully it's googleable.
 
 
 var actionJavaScriptURL = stringToPrecomputedChunk(escapeTextForBrowser( // eslint-disable-next-line no-script-url
 "javascript:throw new Error('A React form was unexpectedly submitted.')"));
+var startHiddenInputChunk = stringToPrecomputedChunk('<input type="hidden"');
 
-function pushFormActionAttribute(target, formAction, formEncType, formMethod, formTarget, name) {
+function pushAdditionalFormField(value, key) {
+  var target = this;
+  target.push(startHiddenInputChunk);
+
+  if (typeof value !== 'string') {
+    throw new Error('File/Blob fields are not yet supported in progressive forms. ' + 'It probably means you are closing over binary data or FormData in a Server Action.');
+  }
+
+  pushStringAttribute(target, 'name', key);
+  pushStringAttribute(target, 'value', value);
+  target.push(endOfStartTagSelfClosing);
+}
+
+function pushAdditionalFormFields(target, formData) {
+  if (formData !== null) {
+    // $FlowFixMe[prop-missing]: FormData has forEach.
+    formData.forEach(pushAdditionalFormField, target);
+  }
+}
+
+function pushFormActionAttribute(target, responseState, formAction, formEncType, formMethod, formTarget, name) {
+  var formData = null;
+
   if (typeof formAction === 'function') {
     // Function form actions cannot control the form properties
     {
@@ -2328,36 +2387,58 @@ function pushFormActionAttribute(target, formAction, formEncType, formMethod, fo
 
         error('Cannot specify a formTarget for a button that specifies a function as a formAction. ' + 'The function will always be executed in the same window.');
       }
-    } // Set a javascript URL that doesn't do anything. We don't expect this to be invoked
-    // because we'll preventDefault in the Fizz runtime, but it can happen if a form is
-    // manually submitted or if someone calls stopPropagation before React gets the event.
-    // If CSP is used to block javascript: URLs that's fine too. It just won't show this
-    // error message but the URL will be logged.
-
-
-    target.push(attributeSeparator, stringToChunk('formAction'), attributeAssign, actionJavaScriptURL, attributeEnd);
-  } else {
-    // Plain form actions support all the properties, so we have to emit them.
-    if (name !== null) {
-      pushAttribute(target, 'name', name);
     }
 
-    if (formAction !== null) {
-      pushAttribute(target, 'formAction', formAction);
-    }
+    var customAction = formAction.$$FORM_ACTION;
 
-    if (formEncType !== null) {
-      pushAttribute(target, 'formEncType', formEncType);
-    }
-
-    if (formMethod !== null) {
-      pushAttribute(target, 'formMethod', formMethod);
-    }
-
-    if (formTarget !== null) {
-      pushAttribute(target, 'formTarget', formTarget);
+    if (typeof customAction === 'function') {
+      // This action has a custom progressive enhancement form that can submit the form
+      // back to the server if it's invoked before hydration. Such as a Server Action.
+      var prefix = makeFormFieldPrefix(responseState);
+      var customFields = formAction.$$FORM_ACTION(prefix);
+      name = customFields.name;
+      formAction = customFields.action || '';
+      formEncType = customFields.encType;
+      formMethod = customFields.method;
+      formTarget = customFields.target;
+      formData = customFields.data;
+    } else {
+      // Set a javascript URL that doesn't do anything. We don't expect this to be invoked
+      // because we'll preventDefault in the Fizz runtime, but it can happen if a form is
+      // manually submitted or if someone calls stopPropagation before React gets the event.
+      // If CSP is used to block javascript: URLs that's fine too. It just won't show this
+      // error message but the URL will be logged.
+      target.push(attributeSeparator, stringToChunk('formAction'), attributeAssign, actionJavaScriptURL, attributeEnd);
+      name = null;
+      formAction = null;
+      formEncType = null;
+      formMethod = null;
+      formTarget = null;
+      injectFormReplayingRuntime(responseState);
     }
   }
+
+  if (name != null) {
+    pushAttribute(target, 'name', name);
+  }
+
+  if (formAction != null) {
+    pushAttribute(target, 'formAction', formAction);
+  }
+
+  if (formEncType != null) {
+    pushAttribute(target, 'formEncType', formEncType);
+  }
+
+  if (formMethod != null) {
+    pushAttribute(target, 'formMethod', formMethod);
+  }
+
+  if (formTarget != null) {
+    pushAttribute(target, 'formTarget', formTarget);
+  }
+
+  return formData;
 }
 
 function pushAttribute(target, name, value) // not null or undefined
@@ -2859,7 +2940,19 @@ function pushStartOption(target, props, formatContext) {
   return children;
 }
 
-function pushStartForm(target, props) {
+var formReplayingRuntimeScript = stringToPrecomputedChunk(formReplaying);
+
+function injectFormReplayingRuntime(responseState) {
+  // If we haven't sent it yet, inject the runtime that tracks submitted JS actions
+  // for later replaying by Fiber. If we use an external runtime, we don't need
+  // to emit anything. It's always used.
+  if ((responseState.instructions & SentFormReplayingRuntime) === NothingSent && (!responseState.externalRuntimeScript)) {
+    responseState.instructions |= SentFormReplayingRuntime;
+    responseState.bootstrapChunks.unshift(responseState.startInlineScript, formReplayingRuntimeScript, endInlineScript);
+  }
+}
+
+function pushStartForm(target, props, responseState) {
   target.push(startChunkForTag('form'));
   var children = null;
   var innerHTML = null;
@@ -2908,6 +3001,9 @@ function pushStartForm(target, props) {
     }
   }
 
+  var formData = null;
+  var formActionName = null;
+
   if (typeof formAction === 'function') {
     // Function form actions cannot control the form properties
     {
@@ -2922,34 +3018,61 @@ function pushStartForm(target, props) {
 
         error('Cannot specify a target for a form that specifies a function as the action. ' + 'The function will always be executed in the same window.');
       }
-    } // Set a javascript URL that doesn't do anything. We don't expect this to be invoked
-    // because we'll preventDefault in the Fizz runtime, but it can happen if a form is
-    // manually submitted or if someone calls stopPropagation before React gets the event.
-    // If CSP is used to block javascript: URLs that's fine too. It just won't show this
-    // error message but the URL will be logged.
-
-
-    target.push(attributeSeparator, stringToChunk('action'), attributeAssign, actionJavaScriptURL, attributeEnd);
-  } else {
-    // Plain form actions support all the properties, so we have to emit them.
-    if (formAction !== null) {
-      pushAttribute(target, 'action', formAction);
     }
 
-    if (formEncType !== null) {
-      pushAttribute(target, 'encType', formEncType);
-    }
+    var customAction = formAction.$$FORM_ACTION;
 
-    if (formMethod !== null) {
-      pushAttribute(target, 'method', formMethod);
-    }
-
-    if (formTarget !== null) {
-      pushAttribute(target, 'target', formTarget);
+    if (typeof customAction === 'function') {
+      // This action has a custom progressive enhancement form that can submit the form
+      // back to the server if it's invoked before hydration. Such as a Server Action.
+      var prefix = makeFormFieldPrefix(responseState);
+      var customFields = formAction.$$FORM_ACTION(prefix);
+      formAction = customFields.action || '';
+      formEncType = customFields.encType;
+      formMethod = customFields.method;
+      formTarget = customFields.target;
+      formData = customFields.data;
+      formActionName = customFields.name;
+    } else {
+      // Set a javascript URL that doesn't do anything. We don't expect this to be invoked
+      // because we'll preventDefault in the Fizz runtime, but it can happen if a form is
+      // manually submitted or if someone calls stopPropagation before React gets the event.
+      // If CSP is used to block javascript: URLs that's fine too. It just won't show this
+      // error message but the URL will be logged.
+      target.push(attributeSeparator, stringToChunk('action'), attributeAssign, actionJavaScriptURL, attributeEnd);
+      formAction = null;
+      formEncType = null;
+      formMethod = null;
+      formTarget = null;
+      injectFormReplayingRuntime(responseState);
     }
   }
 
+  if (formAction != null) {
+    pushAttribute(target, 'action', formAction);
+  }
+
+  if (formEncType != null) {
+    pushAttribute(target, 'encType', formEncType);
+  }
+
+  if (formMethod != null) {
+    pushAttribute(target, 'method', formMethod);
+  }
+
+  if (formTarget != null) {
+    pushAttribute(target, 'target', formTarget);
+  }
+
   target.push(endOfStartTag);
+
+  if (formActionName !== null) {
+    target.push(startHiddenInputChunk);
+    pushStringAttribute(target, 'name', formActionName);
+    target.push(endOfStartTagSelfClosing);
+    pushAdditionalFormFields(target, formData);
+  }
+
   pushInnerHTML(target, innerHTML, children);
 
   if (typeof children === 'string') {
@@ -2962,7 +3085,7 @@ function pushStartForm(target, props) {
   return children;
 }
 
-function pushInput(target, props) {
+function pushInput(target, props, responseState) {
   {
     checkControlledValueProps('input', props);
   }
@@ -3042,7 +3165,7 @@ function pushInput(target, props) {
     }
   }
 
-  pushFormActionAttribute(target, formAction, formEncType, formMethod, formTarget, name);
+  var formData = pushFormActionAttribute(target, responseState, formAction, formEncType, formMethod, formTarget, name);
 
   {
     if (checked !== null && defaultChecked !== null && !didWarnDefaultChecked) {
@@ -3070,11 +3193,13 @@ function pushInput(target, props) {
     pushAttribute(target, 'value', defaultValue);
   }
 
-  target.push(endOfStartTagSelfClosing);
+  target.push(endOfStartTagSelfClosing); // We place any additional hidden form fields after the input.
+
+  pushAdditionalFormFields(target, formData);
   return null;
 }
 
-function pushStartButton(target, props) {
+function pushStartButton(target, props, responseState) {
   target.push(startChunkForTag('button'));
   var children = null;
   var innerHTML = null;
@@ -3136,8 +3261,10 @@ function pushStartButton(target, props) {
     }
   }
 
-  pushFormActionAttribute(target, formAction, formEncType, formMethod, formTarget, name);
-  target.push(endOfStartTag);
+  var formData = pushFormActionAttribute(target, responseState, formAction, formEncType, formMethod, formTarget, name);
+  target.push(endOfStartTag); // We place any additional hidden form fields we need to include inside the button itself.
+
+  pushAdditionalFormFields(target, formData);
   pushInnerHTML(target, innerHTML, children);
 
   if (typeof children === 'string') {
@@ -3378,18 +3505,23 @@ function pushLink(target, props, responseState, resources, textEmbedded, inserti
         if (!_resource) {
           var resourceProps = stylesheetPropsFromRawProps(props);
           var preloadResource = resources.preloadsMap.get(key);
+          var state = NoState;
 
           if (preloadResource) {
             // If we already had a preload we don't want that resource to flush directly.
             // We let the newly created resource govern flushing.
             preloadResource.state |= Blocked;
             adoptPreloadPropsForStylesheetProps(resourceProps, preloadResource.props);
+
+            if (preloadResource.state & Flushed) {
+              state = PreloadFlushed;
+            }
           }
 
           _resource = {
             type: 'stylesheet',
             chunks: [],
-            state: NoState,
+            state: state,
             props: resourceProps
           };
           resources.stylesMap.set(key, _resource);
@@ -4221,13 +4353,13 @@ function pushStartInstance(target, type, props, resources, responseState, format
       return pushStartTextArea(target, props);
 
     case 'input':
-      return pushInput(target, props);
+      return pushInput(target, props, responseState);
 
     case 'button':
-      return pushStartButton(target, props);
+      return pushStartButton(target, props, responseState);
 
     case 'form':
-      return pushStartForm(target, props);
+      return pushStartForm(target, props, responseState);
 
     case 'menuitem':
       return pushStartMenuItem(target, props);
@@ -4365,7 +4497,8 @@ function pushEndInstance(target, type, props, responseState, formatContext) {
 
   target.push(endTag1, stringToChunk(type), endTag2);
 }
-function writeCompletedRoot(destination, responseState) {
+
+function writeBootstrap(destination, responseState) {
   var bootstrapChunks = responseState.bootstrapChunks;
   var i = 0;
 
@@ -4374,10 +4507,16 @@ function writeCompletedRoot(destination, responseState) {
   }
 
   if (i < bootstrapChunks.length) {
-    return writeChunkAndReturn(destination, bootstrapChunks[i]);
+    var lastChunk = bootstrapChunks[i];
+    bootstrapChunks.length = 0;
+    return writeChunkAndReturn(destination, lastChunk);
   }
 
   return true;
+}
+
+function writeCompletedRoot(destination, responseState) {
+  return writeBootstrap(destination, responseState);
 } // Structural Nodes
 // A placeholder is a node inside a hidden partial tree that can be filled in later, but before
 // display. It's never visible to users. We use the template tag because it can be used in every
@@ -4729,11 +4868,15 @@ function writeCompletedBoundaryInstruction(destination, responseState, boundaryI
     }
   }
 
+  var writeMore;
+
   if (scriptFormat) {
-    return writeChunkAndReturn(destination, completeBoundaryScriptEnd);
+    writeMore = writeChunkAndReturn(destination, completeBoundaryScriptEnd);
   } else {
-    return writeChunkAndReturn(destination, completeBoundaryDataEnd);
+    writeMore = writeChunkAndReturn(destination, completeBoundaryDataEnd);
   }
+
+  return writeBootstrap(destination, responseState) && writeMore;
 }
 var clientRenderScript1Full = stringToPrecomputedChunk(clientRenderBoundary + ';$RX("');
 var clientRenderScript1Partial = stringToPrecomputedChunk('$RX("');
@@ -5049,10 +5192,9 @@ function flushAllStylesInPreamble(set, precedence) {
 }
 
 function preloadLateStyle(resource) {
-  {
-    if (resource.state & PreloadFlushed) {
-      error('React encountered a Stylesheet Resource that already flushed a Preload when it was not expected to. This is a bug in React.');
-    }
+  if (resource.state & PreloadFlushed) {
+    // This resource has already had a preload flushed
+    return;
   }
 
   if (resource.type === 'style') {
@@ -5083,19 +5225,16 @@ function preloadLateStyles(set, precedence) {
 
 function writePreamble(destination, resources, responseState, willFlushAllSegments) {
   // This function must be called exactly once on every request
-  if (!willFlushAllSegments && responseState.externalRuntimeConfig) {
+  if (!willFlushAllSegments && responseState.externalRuntimeScript) {
     // If the root segment is incomplete due to suspended tasks
     // (e.g. willFlushAllSegments = false) and we are using data
     // streaming format, ensure the external runtime is sent.
     // (User code could choose to send this even earlier by calling
     //  preinit(...), if they know they will suspend).
-    var _responseState$extern = responseState.externalRuntimeConfig,
+    var _responseState$extern = responseState.externalRuntimeScript,
         src = _responseState$extern.src,
-        integrity = _responseState$extern.integrity;
-    preinitImpl(resources, src, {
-      as: 'script',
-      integrity: integrity
-    });
+        chunks = _responseState$extern.chunks;
+    internalPreinitScript(resources, src, chunks);
   }
 
   var htmlChunks = responseState.htmlChunks;
@@ -5150,10 +5289,10 @@ function writePreamble(destination, resources, responseState, willFlushAllSegmen
     var key = getResourceKey(resource.props.as, resource.props.href);
 
     if (resources.stylesMap.has(key)) ; else {
-      var chunks = resource.chunks;
+      var _chunks = resource.chunks;
 
-      for (i = 0; i < chunks.length; i++) {
-        writeChunk(destination, chunks[i]);
+      for (i = 0; i < _chunks.length; i++) {
+        writeChunk(destination, _chunks[i]);
       }
     }
   });
@@ -5683,17 +5822,19 @@ function getResourceKey(as, href) {
 }
 
 function prefetchDNS(href, options) {
-  if (!currentResources) {
-    // While we expect that preconnect calls are primarily going to be observed
-    // during render because effects and events don't run on the server it is
-    // still possible that these get called in module scope. This is valid on
-    // the client since there is still a document to interact with but on the
-    // server we need a request to associate the call to. Because of this we
-    // simply return and do not warn.
+
+  var request = resolveRequest();
+
+  if (!request) {
+    // In async contexts we can sometimes resolve resources from AsyncLocalStorage. If we can't we can also
+    // possibly get them from the stack if we are not in an async context. Since we were not able to resolve
+    // the resources for this call in either case we opt to do nothing. We can consider making this a warning
+    // but there may be times where calling a function outside of render is intentional (i.e. to warm up data
+    // fetching) and we don't want to warn in those cases.
     return;
   }
 
-  var resources = currentResources;
+  var resources = getResources(request);
 
   {
     if (typeof href !== 'string' || !href) {
@@ -5726,20 +5867,23 @@ function prefetchDNS(href, options) {
     }
 
     resources.preconnects.add(resource);
+    flushResources(request);
   }
 }
 function preconnect(href, options) {
-  if (!currentResources) {
-    // While we expect that preconnect calls are primarily going to be observed
-    // during render because effects and events don't run on the server it is
-    // still possible that these get called in module scope. This is valid on
-    // the client since there is still a document to interact with but on the
-    // server we need a request to associate the call to. Because of this we
-    // simply return and do not warn.
+
+  var request = resolveRequest();
+
+  if (!request) {
+    // In async contexts we can sometimes resolve resources from AsyncLocalStorage. If we can't we can also
+    // possibly get them from the stack if we are not in an async context. Since we were not able to resolve
+    // the resources for this call in either case we opt to do nothing. We can consider making this a warning
+    // but there may be times where calling a function outside of render is intentional (i.e. to warm up data
+    // fetching) and we don't want to warn in those cases.
     return;
   }
 
-  var resources = currentResources;
+  var resources = getResources(request);
 
   {
     if (typeof href !== 'string' || !href) {
@@ -5772,20 +5916,23 @@ function preconnect(href, options) {
     }
 
     resources.preconnects.add(resource);
+    flushResources(request);
   }
 }
 function preload(href, options) {
-  if (!currentResources) {
-    // While we expect that preload calls are primarily going to be observed
-    // during render because effects and events don't run on the server it is
-    // still possible that these get called in module scope. This is valid on
-    // the client since there is still a document to interact with but on the
-    // server we need a request to associate the call to. Because of this we
-    // simply return and do not warn.
+
+  var request = resolveRequest();
+
+  if (!request) {
+    // In async contexts we can sometimes resolve resources from AsyncLocalStorage. If we can't we can also
+    // possibly get them from the stack if we are not in an async context. Since we were not able to resolve
+    // the resources for this call in either case we opt to do nothing. We can consider making this a warning
+    // but there may be times where calling a function outside of render is intentional (i.e. to warm up data
+    // fetching) and we don't want to warn in those cases.
     return;
   }
 
-  var resources = currentResources;
+  var resources = getResources(request);
 
   {
     if (typeof href !== 'string' || !href) {
@@ -5876,25 +6023,26 @@ function preload(href, options) {
           resources.explicitOtherPreloads.add(resource);
         }
     }
+
+    flushResources(request);
   }
 }
+
 function preinit(href, options) {
-  if (!currentResources) {
-    // While we expect that preinit calls are primarily going to be observed
-    // during render because effects and events don't run on the server it is
-    // still possible that these get called in module scope. This is valid on
-    // the client since there is still a document to interact with but on the
-    // server we need a request to associate the call to. Because of this we
-    // simply return and do not warn.
+
+  var request = resolveRequest();
+
+  if (!request) {
+    // In async contexts we can sometimes resolve resources from AsyncLocalStorage. If we can't we can also
+    // possibly get them from the stack if we are not in an async context. Since we were not able to resolve
+    // the resources for this call in either case we opt to do nothing. We can consider making this a warning
+    // but there may be times where calling a function outside of render is intentional (i.e. to warm up data
+    // fetching) and we don't want to warn in those cases.
     return;
   }
 
-  preinitImpl(currentResources, href, options);
-} // On the server, preinit may be called outside of render when sending an
-// external SSR runtime as part of the initial resources payload. Since this
-// is an internal React call, we do not need to use the resources stack.
+  var resources = getResources(request);
 
-function preinitImpl(resources, href, options) {
   {
     if (typeof href !== 'string' || !href) {
       error('ReactDOM.preinit(): Expected the `href` argument (first) to be a non-empty string but encountered %s instead.', getValueDescriptorExpectingObjectForWarning(href));
@@ -5954,10 +6102,17 @@ function preinitImpl(resources, href, options) {
           }
 
           if (!resource) {
+            var state = NoState;
+            var preloadResource = resources.preloadsMap.get(key);
+
+            if (preloadResource && preloadResource.state & Flushed) {
+              state = PreloadFlushed;
+            }
+
             resource = {
               type: 'stylesheet',
               chunks: [],
-              state: NoState,
+              state: state,
               props: stylesheetPropsFromPreinitOptions(href, precedence, options)
             };
             resources.stylesMap.set(key, resource);
@@ -5994,6 +6149,7 @@ function preinitImpl(resources, href, options) {
             }
 
             precedenceSet.add(resource);
+            flushResources(request);
           }
 
           return;
@@ -6058,12 +6214,31 @@ function preinitImpl(resources, href, options) {
 
             resources.scripts.add(_resource3);
             pushScriptImpl(_resource3.chunks, _resourceProps);
+            flushResources(request);
           }
 
           return;
         }
     }
   }
+}
+
+function internalPreinitScript(resources, src, chunks) {
+  var key = getResourceKey('script', src);
+  var resource = resources.scriptsMap.get(key);
+
+  if (!resource) {
+    resource = {
+      type: 'script',
+      chunks: chunks,
+      state: NoState,
+      props: null
+    };
+    resources.scriptsMap.set(key, resource);
+    resources.scripts.add(resource);
+  }
+
+  return;
 }
 
 function preloadPropsFromPreloadOptions(href, as, options) {
@@ -6083,6 +6258,7 @@ function preloadAsStylePropsFromProps(href, props) {
     as: 'style',
     href: href,
     crossOrigin: props.crossOrigin,
+    fetchPriority: props.fetchPriority,
     integrity: props.integrity,
     media: props.media,
     hrefLang: props.hrefLang,
@@ -6096,7 +6272,9 @@ function preloadAsScriptPropsFromProps(href, props) {
     as: 'script',
     href: href,
     crossOrigin: props.crossOrigin,
+    fetchPriority: props.fetchPriority,
     integrity: props.integrity,
+    nonce: props.nonce,
     referrerPolicy: props.referrerPolicy
   };
 }
@@ -6128,7 +6306,8 @@ function scriptPropsFromPreinitOptions(src, options) {
     src: src,
     async: true,
     crossOrigin: options.crossOrigin,
-    integrity: options.integrity
+    integrity: options.integrity,
+    nonce: options.nonce
   };
 }
 
@@ -6204,6 +6383,8 @@ function getAsResourceDEV(resource) {
     return null;
   }
 }
+
+var NotPendingTransition = NotPending;
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -8202,6 +8383,20 @@ function useTransition() {
   return [false, unsupportedStartTransition];
 }
 
+function useHostTransitionStatus() {
+  resolveCurrentlyRenderingComponent();
+  return NotPendingTransition;
+}
+
+function unsupportedSetOptimisticState() {
+  throw new Error('Cannot update optimistic state while rendering.');
+}
+
+function useOptimistic(passthrough, reducer) {
+  resolveCurrentlyRenderingComponent();
+  return [passthrough, unsupportedSetOptimisticState];
+}
+
 function useId() {
   var task = currentlyRenderingTask;
   var treeId = getTreeId(task.treeContext);
@@ -8265,6 +8460,7 @@ function noop$1() {}
 
 var HooksDispatcher = {
   readContext: readContext,
+  use: use,
   useContext: useContext,
   useMemo: useMemo,
   useReducer: useReducer,
@@ -8300,7 +8496,11 @@ var HooksDispatcher = {
 }
 
 {
-  HooksDispatcher.use = use;
+  HooksDispatcher.useHostTransitionStatus = useHostTransitionStatus;
+}
+
+{
+  HooksDispatcher.useOptimistic = useOptimistic;
 }
 
 var currentResponseState = null;
@@ -8388,11 +8588,13 @@ function defaultErrorHandler(error) {
 function noop() {}
 
 function createRequest(children, responseState, rootFormatContext, progressiveChunkSize, onError, onAllReady, onShellReady, onShellError, onFatalError) {
+  prepareHostDispatcher();
   var pingedTasks = [];
   var abortSet = new Set();
   var resources = createResources();
   var request = {
     destination: null,
+    flushScheduled: false,
     responseState: responseState,
     progressiveChunkSize: progressiveChunkSize === undefined ? DEFAULT_PROGRESSIVE_CHUNK_SIZE : progressiveChunkSize,
     status: OPEN,
@@ -8422,12 +8624,19 @@ function createRequest(children, responseState, rootFormatContext, progressiveCh
   pingedTasks.push(rootTask);
   return request;
 }
+var currentRequest = null;
+function resolveRequest() {
+  if (currentRequest) return currentRequest;
+
+  return null;
+}
 
 function pingTask(request, task) {
   var pingedTasks = request.pingedTasks;
   pingedTasks.push(task);
 
-  if (pingedTasks.length === 1) {
+  if (request.pingedTasks.length === 1) {
+    request.flushScheduled = request.destination !== null;
     scheduleWork(function () {
       return performWork(request);
     });
@@ -9352,10 +9561,13 @@ function spawnNewSuspendedTask(request, task, thenableState, x) {
 
 
 function renderNode(request, task, node) {
-  // TODO: Store segment.children.length here and reset it in case something
+  // Store how much we've pushed at this point so we can reset it in case something
   // suspended partially through writing something.
-  // Snapshot the current context in case something throws to interrupt the
+  var segment = task.blockedSegment;
+  var childrenLength = segment.children.length;
+  var chunkLength = segment.chunks.length; // Snapshot the current context in case something throws to interrupt the
   // process.
+
   var previousFormatContext = task.blockedSegment.formatContext;
   var previousLegacyContext = task.legacyContext;
   var previousContext = task.context;
@@ -9368,7 +9580,10 @@ function renderNode(request, task, node) {
   try {
     return renderNodeDestructive(request, task, null, node);
   } catch (thrownValue) {
-    resetHooksState();
+    resetHooksState(); // Reset the write pointers to where we started.
+
+    segment.children.length = childrenLength;
+    segment.chunks.length = chunkLength;
     var x = thrownValue === SuspenseException ? // This is a special type of exception used for Suspense. For historical
     // reasons, the rest of the Suspense implementation expects the thrown
     // value to be a thenable, because before `use` existed that was the
@@ -9640,6 +9855,9 @@ function retryTask(request, task) {
     currentTaskInDEV = task;
   }
 
+  var childrenLength = segment.children.length;
+  var chunkLength = segment.chunks.length;
+
   try {
     // We call the destructive form that mutates this task. That way if something
     // suspends again, we can reuse the same task instead of spawning a new one.
@@ -9654,7 +9872,10 @@ function retryTask(request, task) {
     segment.status = COMPLETED;
     finishedTask(request, task.blockedBoundary, segment);
   } catch (thrownValue) {
-    resetHooksState();
+    resetHooksState(); // Reset the write pointers to where we started.
+
+    segment.children.length = childrenLength;
+    segment.chunks.length = chunkLength;
     var x = thrownValue === SuspenseException ? // This is a special type of exception used for Suspense. For historical
     // reasons, the rest of the Suspense implementation expects the thrown
     // value to be a thenable, because before `use` existed that was the
@@ -9698,7 +9919,8 @@ function performWork(request) {
     ReactCurrentCache.current = DefaultCacheDispatcher;
   }
 
-  var previousHostDispatcher = prepareToRender(request.resources);
+  var prevRequest = currentRequest;
+  currentRequest = request;
   var prevGetCurrentStackImpl;
 
   {
@@ -9734,8 +9956,6 @@ function performWork(request) {
       ReactCurrentCache.current = prevCacheDispatcher;
     }
 
-    cleanupAfterRender(previousHostDispatcher);
-
     {
       ReactDebugCurrentFrame.getCurrentStack = prevGetCurrentStackImpl;
     }
@@ -9750,6 +9970,8 @@ function performWork(request) {
       // we'll to restore the context to what it was before returning.
       switchContext(prevContext);
     }
+
+    currentRequest = prevRequest;
   }
 }
 
@@ -10063,6 +10285,8 @@ function flushCompletedQueues(request, destination) {
     if (request.allPendingTasks === 0 && request.pingedTasks.length === 0 && request.clientRenderedBoundaries.length === 0 && request.completedBoundaries.length === 0 // We don't need to check any partially completed segments because
     // either they have pending task or they're complete.
     ) {
+        request.flushScheduled = false;
+
         {
           writePostamble(destination, request.responseState);
         }
@@ -10084,10 +10308,28 @@ function flushCompletedQueues(request, destination) {
 }
 
 function startWork(request) {
-  scheduleWork(function () {
-    return performWork(request);
-  });
+  request.flushScheduled = request.destination !== null;
+
+  {
+    scheduleWork(function () {
+      return performWork(request);
+    });
+  }
 }
+
+function enqueueFlush(request) {
+  if (request.flushScheduled === false && // If there are pinged tasks we are going to flush anyway after work completes
+  request.pingedTasks.length === 0 && // If there is no destination there is nothing we can flush to. A flush will
+  // happen when we start flowing again
+  request.destination !== null) {
+    var destination = request.destination;
+    request.flushScheduled = true;
+    scheduleWork(function () {
+      return flushCompletedQueues(request, destination);
+    });
+  }
+}
+
 function startFlowing(request, destination) {
   if (request.status === CLOSING) {
     request.status = CLOSED;
@@ -10133,6 +10375,12 @@ function abort(request, reason) {
     logRecoverableError(request, error);
     fatalError(request, error);
   }
+}
+function flushResources(request) {
+  enqueueFlush(request);
+}
+function getResources(request) {
+  return request.resources;
 }
 
 function renderToReadableStream(children, options) {

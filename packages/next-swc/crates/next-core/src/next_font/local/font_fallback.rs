@@ -3,7 +3,7 @@ use allsorts::{
     Font,
 };
 use anyhow::{bail, Context, Result};
-use turbo_binding::turbo::{
+use turbopack_binding::turbo::{
     tasks::primitives::{StringVc, StringsVc, U32Vc},
     tasks_fs::{FileContent, FileSystemPathVc},
 };
@@ -107,6 +107,8 @@ async fn get_font_adjustment(
         .units_per_em as f64;
 
     let fallback_avg_width = fallback_font.az_avg_width / fallback_font.units_per_em as f64;
+    // TODO: Use xWidthAvg like next/google.
+    //       JS implementation: https://github.com/seek-oss/capsize/blob/42d6dc39d58247bc6b9e013a4b1c4463bf287dca/packages/unpack/src/index.ts#L7-L83
     let size_adjust = match az_avg_width {
         Some(az_avg_width) => az_avg_width as f64 / units_per_em / fallback_avg_width,
         None => 1.0,

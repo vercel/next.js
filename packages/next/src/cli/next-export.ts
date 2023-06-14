@@ -2,7 +2,8 @@
 import { resolve, join } from 'path'
 import { existsSync } from 'fs'
 import arg from 'next/dist/compiled/arg/index.js'
-import exportApp, { ExportError } from '../export'
+import chalk from 'next/dist/compiled/chalk'
+import exportApp, { ExportError, ExportOptions } from '../export'
 import * as Log from '../build/output/log'
 import { printAndExit } from '../server/lib/utils'
 import { CliCommand } from '../lib/commands'
@@ -21,8 +22,8 @@ const nextExport: CliCommand = (argv) => {
 
     // Aliases
     '-h': '--help',
-    '-s': '--silent',
     '-o': '--outdir',
+    '-s': '--silent',
   }
   let args: arg.Result<arg.Spec>
   try {
@@ -36,7 +37,7 @@ const nextExport: CliCommand = (argv) => {
   if (args['--help']) {
     console.log(`
       Description
-        Exports the application for production deployment
+        [DEPRECATED] Exports a static version of the application for production deployment
 
       Usage
         $ next export [options] <dir>
@@ -45,9 +46,15 @@ const nextExport: CliCommand = (argv) => {
       If no directory is provided, the current directory will be used.
 
       Options
-        -h - list this help
-        -o - set the output dir (defaults to 'out')
-        -s - do not print any messages to console
+       --outdir, -o  Set the output dir (defaults to 'out')
+       --silent, -s  Do not print any messages to console
+       --threads     Max number of threads to use
+       --help, -h    List this help
+
+      The "next export" command is deprecated in favor of "output: export" in next.config.js
+      Learn more: ${chalk.cyan(
+        'https://nextjs.org/docs/advanced-features/static-html-export'
+      )}
     `)
     process.exit(0)
   }
@@ -59,12 +66,14 @@ const nextExport: CliCommand = (argv) => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  const options = {
+  const options: ExportOptions = {
     silent: args['--silent'] || false,
     threads: args['--threads'],
     outdir: args['--outdir'] ? resolve(args['--outdir']) : join(dir, 'out'),
+    hasOutdirFromCli: Boolean(args['--outdir']),
     isInvokedFromCli: true,
     hasAppDir: false,
+    buildExport: false,
   }
 
   exportApp(dir, options, nextExportCliSpan)

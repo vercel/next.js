@@ -40,7 +40,7 @@ export default MyDocument
 
 Or as a function component:
 
-```js
+```jsx
 // pages/_document.js
 
 import { Html, Head, Main, NextScript } from 'next/document'

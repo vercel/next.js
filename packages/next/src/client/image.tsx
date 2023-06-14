@@ -35,7 +35,7 @@ if (typeof window === 'undefined') {
 }
 
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
-type LoadingValue = typeof VALID_LOADING_VALUES[number]
+type LoadingValue = (typeof VALID_LOADING_VALUES)[number]
 type ImageConfig = ImageConfigComplete & {
   allSizes: number[]
   output?: 'standalone' | 'export'
@@ -254,8 +254,11 @@ function generateImgAttrs({
 }
 
 function getInt(x: unknown): number | undefined {
-  if (typeof x === 'number' || typeof x === 'undefined') {
+  if (typeof x === 'undefined') {
     return x
+  }
+  if (typeof x === 'number') {
+    return Number.isFinite(x) ? x : NaN
   }
   if (typeof x === 'string' && /^[0-9]+$/.test(x)) {
     return parseInt(x, 10)
@@ -415,101 +418,96 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
   ) => {
     loading = isLazy ? 'lazy' : loading
     return (
-      <>
-        <img
-          {...rest}
-          {...getDynamicProps(fetchPriority)}
-          loading={loading}
-          width={widthInt}
-          height={heightInt}
-          decoding="async"
-          data-nimg={fill ? 'fill' : '1'}
-          className={className}
-          style={{ ...imgStyle, ...blurStyle }}
-          // It's intended to keep `loading` before `src` because React updates
-          // props in order which causes Safari/Firefox to not lazy load properly.
-          // See https://github.com/facebook/react/issues/25883
-          {...imgAttributes}
-          ref={useCallback(
-            (img: ImgElementWithDataProp | null) => {
-              if (forwardedRef) {
-                if (typeof forwardedRef === 'function') forwardedRef(img)
-                else if (typeof forwardedRef === 'object') {
-                  // @ts-ignore - .current is read only it's usually assigned by react internally
-                  forwardedRef.current = img
-                }
+      <img
+        {...rest}
+        {...getDynamicProps(fetchPriority)}
+        loading={loading}
+        width={widthInt}
+        height={heightInt}
+        decoding="async"
+        data-nimg={fill ? 'fill' : '1'}
+        className={className}
+        style={{ ...imgStyle, ...blurStyle }}
+        // It's intended to keep `loading` before `src` because React updates
+        // props in order which causes Safari/Firefox to not lazy load properly.
+        // See https://github.com/facebook/react/issues/25883
+        {...imgAttributes}
+        ref={useCallback(
+          (img: ImgElementWithDataProp | null) => {
+            if (forwardedRef) {
+              if (typeof forwardedRef === 'function') forwardedRef(img)
+              else if (typeof forwardedRef === 'object') {
+                // @ts-ignore - .current is read only it's usually assigned by react internally
+                forwardedRef.current = img
               }
-              if (!img) {
-                return
-              }
-              if (onError) {
-                // If the image has an error before react hydrates, then the error is lost.
-                // The workaround is to wait until the image is mounted which is after hydration,
-                // then we set the src again to trigger the error handler (if there was an error).
-                // eslint-disable-next-line no-self-assign
-                img.src = img.src
-              }
-              if (process.env.NODE_ENV !== 'production') {
-                if (!srcString) {
-                  console.error(
-                    `Image is missing required "src" property:`,
-                    img
-                  )
-                }
-                if (img.getAttribute('alt') === null) {
-                  console.error(
-                    `Image is missing required "alt" property. Please add Alternative Text to describe the image for screen readers and search engines.`
-                  )
-                }
-              }
-              if (img.complete) {
-                handleLoading(
-                  img,
-                  srcString,
-                  placeholder,
-                  onLoadRef,
-                  onLoadingCompleteRef,
-                  setBlurComplete,
-                  unoptimized
-                )
-              }
-            },
-            [
-              srcString,
-              placeholder,
-              onLoadRef,
-              onLoadingCompleteRef,
-              setBlurComplete,
-              onError,
-              unoptimized,
-              forwardedRef,
-            ]
-          )}
-          onLoad={(event) => {
-            const img = event.currentTarget as ImgElementWithDataProp
-            handleLoading(
-              img,
-              srcString,
-              placeholder,
-              onLoadRef,
-              onLoadingCompleteRef,
-              setBlurComplete,
-              unoptimized
-            )
-          }}
-          onError={(event) => {
-            // if the real image fails to load, this will ensure "alt" is visible
-            setShowAltText(true)
-            if (placeholder === 'blur') {
-              // If the real image fails to load, this will still remove the placeholder.
-              setBlurComplete(true)
+            }
+            if (!img) {
+              return
             }
             if (onError) {
-              onError(event)
+              // If the image has an error before react hydrates, then the error is lost.
+              // The workaround is to wait until the image is mounted which is after hydration,
+              // then we set the src again to trigger the error handler (if there was an error).
+              // eslint-disable-next-line no-self-assign
+              img.src = img.src
             }
-          }}
-        />
-      </>
+            if (process.env.NODE_ENV !== 'production') {
+              if (!srcString) {
+                console.error(`Image is missing required "src" property:`, img)
+              }
+              if (img.getAttribute('alt') === null) {
+                console.error(
+                  `Image is missing required "alt" property. Please add Alternative Text to describe the image for screen readers and search engines.`
+                )
+              }
+            }
+            if (img.complete) {
+              handleLoading(
+                img,
+                srcString,
+                placeholder,
+                onLoadRef,
+                onLoadingCompleteRef,
+                setBlurComplete,
+                unoptimized
+              )
+            }
+          },
+          [
+            srcString,
+            placeholder,
+            onLoadRef,
+            onLoadingCompleteRef,
+            setBlurComplete,
+            onError,
+            unoptimized,
+            forwardedRef,
+          ]
+        )}
+        onLoad={(event) => {
+          const img = event.currentTarget as ImgElementWithDataProp
+          handleLoading(
+            img,
+            srcString,
+            placeholder,
+            onLoadRef,
+            onLoadingCompleteRef,
+            setBlurComplete,
+            unoptimized
+          )
+        }}
+        onError={(event) => {
+          // if the real image fails to load, this will ensure "alt" is visible
+          setShowAltText(true)
+          if (placeholder === 'blur') {
+            // If the real image fails to load, this will still remove the placeholder.
+            setBlurComplete(true)
+          }
+          if (onError) {
+            onError(event)
+          }
+        }}
+      />
     )
   }
 )
@@ -543,7 +541,7 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
     forwardedRef
   ) => {
     const configContext = useContext(ImageConfigContext)
-    const config: ImageConfig = useMemo(() => {
+    const config = useMemo<ImageConfig>(() => {
       const c = configEnv || configContext || imageConfigDefault
       const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
       const deviceSizes = c.deviceSizes.sort((a, b) => a - b)
@@ -972,6 +970,7 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
               imageSrcSet={imgAttributes.srcSet}
               imageSizes={imgAttributes.sizes}
               crossOrigin={rest.crossOrigin}
+              referrerPolicy={rest.referrerPolicy}
               {...getDynamicProps(fetchPriority)}
             />
           </Head>

@@ -1,9 +1,10 @@
+import type { OutgoingHttpHeaders } from 'http'
+import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
 import LRUCache from 'next/dist/compiled/lru-cache'
+import { CacheFs } from '../../../shared/lib/utils'
 import path from '../../../shared/lib/isomorphic/path'
 import { CachedFetchValue } from '../../response-cache'
-import { CacheFs } from '../../../shared/lib/utils'
-import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
-import { CACHE_ONE_YEAR } from '../../../lib/constants'
+import { getDerivedTags } from './utils'
 
 type FileSystemCacheContext = Omit<
   CacheHandlerContext,
@@ -26,12 +27,14 @@ export default class FileSystemCache implements CacheHandler {
   private serverDistDir: FileSystemCacheContext['serverDistDir']
   private appDir: boolean
   private tagsManifestPath?: string
+  private revalidatedTags: string[]
 
   constructor(ctx: FileSystemCacheContext) {
     this.fs = ctx.fs
     this.flushToDisk = ctx.flushToDisk
     this.serverDistDir = ctx.serverDistDir
     this.appDir = !!ctx._appDir
+    this.revalidatedTags = ctx.revalidatedTags
 
     if (ctx.maxMemoryCacheSize && !memoryCache) {
       memoryCache = new LRUCache({
@@ -199,12 +202,27 @@ export default class FileSystemCache implements CacheHandler {
                   )
                 ).toString('utf8')
               )
+
+          let meta: { status?: number; headers?: OutgoingHttpHeaders } = {}
+
+          if (isAppPath) {
+            try {
+              meta = JSON.parse(
+                (
+                  await this.fs.readFile(filePath.replace(/\.html$/, '.meta'))
+                ).toString('utf-8')
+              )
+            } catch (_) {}
+          }
+
           data = {
             lastModified: mtime.getTime(),
             value: {
               kind: 'PAGE',
               html: fileData,
               pageData,
+              headers: meta.headers,
+              status: meta.status,
             },
           }
         }
@@ -216,11 +234,21 @@ export default class FileSystemCache implements CacheHandler {
         // unable to get data from disk
       }
     }
+    let cacheTags: undefined | string[]
 
-    if (data && data?.value?.kind === 'FETCH') {
+    if (data?.value?.kind === 'PAGE') {
+      const tagsHeader = data.value.headers?.['x-next-cache-tags']
+
+      if (typeof tagsHeader === 'string') {
+        cacheTags = tagsHeader.split(',')
+      }
+    }
+
+    if (data?.value?.kind === 'PAGE' && cacheTags?.length) {
       this.loadTagsManifest()
-      const innerData = data.value.data
-      const isStale = innerData.tags?.some((tag) => {
+      const derivedTags = getDerivedTags(cacheTags || [])
+
+      const isStale = derivedTags.some((tag) => {
         return (
           tagsManifest?.items[tag]?.revalidatedAt &&
           tagsManifest?.items[tag].revalidatedAt >=
@@ -228,7 +256,30 @@ export default class FileSystemCache implements CacheHandler {
         )
       })
       if (isStale) {
-        data.lastModified = Date.now() - CACHE_ONE_YEAR
+        data.lastModified = -1
+      }
+    }
+
+    if (data && data?.value?.kind === 'FETCH') {
+      this.loadTagsManifest()
+      const innerData = data.value.data
+      const derivedTags = getDerivedTags(innerData.tags || [])
+
+      const wasRevalidated = derivedTags.some((tag) => {
+        if (this.revalidatedTags.includes(tag)) {
+          return true
+        }
+
+        return (
+          tagsManifest?.items[tag]?.revalidatedAt &&
+          tagsManifest?.items[tag].revalidatedAt >=
+            (data?.lastModified || Date.now())
+        )
+      })
+      // When revalidate tag is called we don't return
+      // stale data so it's updated right away
+      if (wasRevalidated) {
+        data = undefined
       }
     }
 
@@ -274,6 +325,16 @@ export default class FileSystemCache implements CacheHandler {
         ).filePath,
         isAppPath ? data.pageData : JSON.stringify(data.pageData)
       )
+
+      if (data.headers || data.status) {
+        await this.fs.writeFile(
+          htmlPath.replace(/\.html$/, '.meta'),
+          JSON.stringify({
+            headers: data.headers,
+            status: data.status,
+          })
+        )
+      }
     } else if (data?.kind === 'FETCH') {
       const { filePath } = await this.getFsPath({
         pathname: key,

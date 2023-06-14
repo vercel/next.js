@@ -8,14 +8,19 @@ import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import path from 'path'
-import type { NextConfig, NextConfigComplete } from '../server/config-shared'
+import {
+  defaultConfig,
+  NextConfig,
+  NextConfigComplete,
+} from '../server/config-shared'
 import { traceGlobals } from '../trace/shared'
 import { Telemetry } from '../telemetry/storage'
 import loadConfig from '../server/config'
 import { findPagesDir } from '../lib/find-pages-dir'
-import { fileExists } from '../lib/file-exists'
+import { findRootDir } from '../lib/find-root'
+import { fileExists, FileType } from '../lib/file-exists'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
-import Watchpack from 'next/dist/compiled/watchpack'
+import Watchpack from 'watchpack'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { getPossibleInstrumentationHookFilenames } from '../build/worker'
 
@@ -156,7 +161,7 @@ const nextDev: CliCommand = async (argv) => {
   dir = getProjectDir(process.env.NEXT_PRIVATE_DEV_DIR || args._[0])
 
   // Check if pages dir exists and warn if not
-  if (!(await fileExists(dir, 'directory'))) {
+  if (!(await fileExists(dir, FileType.Directory))) {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
@@ -211,7 +216,8 @@ const nextDev: CliCommand = async (argv) => {
     allowRetry,
     isDev: true,
     hostname: host,
-    useWorkers: !process.env.__NEXT_DISABLE_MEMORY_WATCHER,
+    // This is required especially for app dir.
+    useWorkers: true,
   }
 
   if (args['--turbo']) {
@@ -238,7 +244,9 @@ const nextDev: CliCommand = async (argv) => {
     const distDir = path.join(dir, rawNextConfig.distDir || '.next')
     const { pagesDir, appDir } = findPagesDir(
       dir,
-      !!rawNextConfig.experimental?.appDir
+      typeof rawNextConfig?.experimental?.appDir === 'undefined'
+        ? !!defaultConfig.experimental?.appDir
+        : !!rawNextConfig.experimental?.appDir
     )
     const telemetry = new Telemetry({
       distDir,
@@ -264,21 +272,11 @@ const nextDev: CliCommand = async (argv) => {
       )
     }
 
-    const turboJson = findUp.sync('turbo.json', { cwd: dir })
-    // eslint-disable-next-line no-shadow
-    const packagePath = findUp.sync('package.json', { cwd: dir })
-
     let bindings: any = await loadBindings()
     let server = bindings.turbo.startDev({
       ...devServerOptions,
       showAll: args['--show-all'] ?? false,
-      root:
-        args['--root'] ??
-        (turboJson
-          ? path.dirname(turboJson)
-          : packagePath
-          ? path.dirname(packagePath)
-          : undefined),
+      root: args['--root'] ?? findRootDir(dir),
     })
     // Start preflight after server is listening and ignore errors:
     preflight().catch(() => {})
@@ -318,16 +316,11 @@ const nextDev: CliCommand = async (argv) => {
 
         const setupFork = async (newDir?: string) => {
           // if we're using workers we can auto restart on config changes
-          if (!devServerOptions.useWorkers && devServerTeardown) {
+          if (process.env.__NEXT_DISABLE_MEMORY_WATCHER && devServerTeardown) {
             Log.info(
               `Detected change, manual restart required due to '__NEXT_DISABLE_MEMORY_WATCHER' usage`
             )
             return
-          }
-
-          const startDir = dir
-          if (newDir) {
-            dir = newDir
           }
 
           if (devServerTeardown) {
@@ -335,6 +328,7 @@ const nextDev: CliCommand = async (argv) => {
             devServerTeardown = undefined
           }
 
+          const startDir = dir
           if (newDir) {
             dir = newDir
             process.env = Object.keys(process.env).reduce((newEnv, key) => {
@@ -378,14 +372,32 @@ const nextDev: CliCommand = async (argv) => {
             process[fd].write(chunk)
           }
 
-          devServerOptions.onStdout = (chunk) => {
-            filterForkErrors(chunk, 'stdout')
+          let resolveCleanup!: (cleanup: () => Promise<void>) => void
+          let cleanupPromise = new Promise<() => Promise<void>>((resolve) => {
+            resolveCleanup = resolve
+          })
+          const cleanupWrapper = async () => {
+            const promise = cleanupPromise
+            cleanupPromise = Promise.resolve(async () => {})
+            const cleanup = await promise
+            await cleanup()
           }
-          devServerOptions.onStderr = (chunk) => {
-            filterForkErrors(chunk, 'stderr')
+          cleanupFns.push(cleanupWrapper)
+          devServerTeardown = cleanupWrapper
+
+          try {
+            devServerOptions.onStdout = (chunk) => {
+              filterForkErrors(chunk, 'stdout')
+            }
+            devServerOptions.onStderr = (chunk) => {
+              filterForkErrors(chunk, 'stderr')
+            }
+            shouldFilter = false
+            resolveCleanup(await startServer(devServerOptions))
+          } finally {
+            // fallback to noop, if not provided
+            resolveCleanup(async () => {})
           }
-          shouldFilter = false
-          devServerTeardown = await startServer(devServerOptions)
 
           if (!config) {
             config = await loadConfig(
@@ -396,14 +408,7 @@ const nextDev: CliCommand = async (argv) => {
               true
             )
           }
-
-          if (config.experimental?.appDir && !devServerOptions.useWorkers) {
-            Log.error(
-              `Disabling dev workers is not supported with appDir enabled`
-            )
-          }
         }
-        cleanupFns.push(() => devServerTeardown?.())
 
         await setupFork()
         await preflight()
@@ -474,7 +479,9 @@ const nextDev: CliCommand = async (argv) => {
           }
 
           previousInstrumentationFiles.clear()
-          knownFiles.forEach((_, key) => previousInstrumentationFiles.add(key))
+          knownFiles.forEach((_: any, key: any) =>
+            previousInstrumentationFiles.add(key)
+          )
         })
 
         const projectFolderWatcher = new Watchpack({

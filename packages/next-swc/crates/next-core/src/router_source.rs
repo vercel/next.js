@@ -1,7 +1,8 @@
 use anyhow::{anyhow, Context, Result};
 use futures::{Stream, TryStreamExt};
 use indexmap::IndexSet;
-use turbo_binding::turbopack::{
+use turbo_tasks::{primitives::StringVc, CompletionVc, CompletionsVc, Value};
+use turbopack_binding::turbopack::{
     core::{
         environment::ServerAddrVc,
         introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc},
@@ -13,7 +14,6 @@ use turbo_binding::turbopack::{
     },
     node::execution_context::ExecutionContextVc,
 };
-use turbo_tasks::{primitives::StringVc, CompletionVc, CompletionsVc, Value};
 
 use crate::{
     app_structure::OptionAppDirVc,

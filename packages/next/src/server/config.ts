@@ -1,13 +1,5 @@
 import { existsSync } from 'fs'
-import {
-  basename,
-  extname,
-  join,
-  relative,
-  isAbsolute,
-  resolve,
-  dirname,
-} from 'path'
+import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import { Agent as HttpAgent } from 'http'
 import { Agent as HttpsAgent } from 'https'
@@ -26,16 +18,11 @@ import {
 } from './config-shared'
 import { loadWebpackHook } from './config-utils'
 import { ImageConfig, imageConfigDefault } from '../shared/lib/image-config'
-import { loadEnvConfig } from '@next/env'
-import { gte as semverGte } from 'next/dist/compiled/semver'
+import { loadEnvConfig, updateInitialEnv } from '@next/env'
 import { flushAndExit } from '../telemetry/flush-and-exit'
+import { findRootDir } from '../lib/find-root'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
-
-const NODE_16_VERSION = '16.8.0'
-const NODE_18_VERSION = '18.0.0'
-const isAboveNodejs16 = semverGte(process.version, NODE_16_VERSION)
-const isAboveNodejs18 = semverGte(process.version, NODE_18_VERSION)
 
 const experimentalWarning = execOnce(
   (configFileName: string, features: string[]) => {
@@ -51,36 +38,14 @@ const experimentalWarning = execOnce(
       `Experimental features are not covered by semver, and may cause unexpected or broken application behavior. ` +
         `Use at your own risk.`
     )
-    if (features.includes('appDir')) {
-      Log.info(
-        `Thank you for testing \`appDir\` please leave your feedback at https://nextjs.link/app-feedback`
-      )
-    }
 
     console.warn()
   }
 )
 
-export function setHttpClientAndAgentOptions(
-  config: {
-    httpAgentOptions?: NextConfig['httpAgentOptions']
-    experimental?: {
-      enableUndici?: boolean
-    }
-  },
-  silent = false
-) {
-  if (isAboveNodejs16) {
-    // Node.js 18 has undici built-in.
-    if (config.experimental?.enableUndici && !isAboveNodejs18) {
-      // When appDir is enabled undici is the default because of Response.clone() issues in node-fetch
-      ;(globalThis as any).__NEXT_USE_UNDICI = config.experimental?.enableUndici
-    }
-  } else if (config.experimental?.enableUndici && !silent) {
-    Log.warn(
-      `\`enableUndici\` option requires Node.js v${NODE_16_VERSION} or greater. Falling back to \`node-fetch\``
-    )
-  }
+export function setHttpClientAndAgentOptions(config: {
+  httpAgentOptions?: NextConfig['httpAgentOptions']
+}) {
   if ((globalThis as any).__NEXT_HTTP_AGENT) {
     // We only need to assign once because we want
     // to reuse the same agent for all requests.
@@ -163,22 +128,6 @@ function assignDefaults(
           for (const featureName of Object.keys(
             value
           ) as (keyof ExperimentalConfig)[]) {
-            const featureValue = value[featureName]
-            if (featureName === 'appDir' && featureValue === true) {
-              if (!isAboveNodejs16) {
-                throw new Error(
-                  `experimental.appDir requires Node v${NODE_16_VERSION} or later.`
-                )
-              }
-              // auto enable clientRouterFilter if not manually set
-              // when appDir is enabled
-              if (
-                typeof userConfig.experimental.clientRouterFilter ===
-                'undefined'
-              ) {
-                userConfig.experimental.clientRouterFilter = true
-              }
-            }
             if (
               value[featureName] !== defaultConfig.experimental[featureName]
             ) {
@@ -312,10 +261,6 @@ function assignDefaults(
     Log.warn(
       `\`outputFileTracingIgnores\` has been moved to \`experimental.outputFileTracingExcludes\`. Please update your ${configFileName} file accordingly.`
     )
-  }
-
-  if (result.experimental?.appDir) {
-    result.experimental.enableUndici = true
   }
 
   if (result.basePath !== '') {
@@ -494,6 +439,13 @@ function assignDefaults(
   )
 
   if (
+    typeof userConfig.experimental?.clientRouterFilter === 'undefined' &&
+    result.experimental?.appDir
+  ) {
+    result.experimental.clientRouterFilter = true
+  }
+
+  if (
     result.experimental?.outputFileTracingRoot &&
     !isAbsolute(result.experimental.outputFileTracingRoot)
   ) {
@@ -507,23 +459,26 @@ function assignDefaults(
     }
   }
 
+  // only leverage deploymentId
+  if (result.experimental?.useDeploymentId && process.env.NEXT_DEPLOYMENT_ID) {
+    if (!result.experimental) {
+      result.experimental = {}
+    }
+    result.experimental.deploymentId = process.env.NEXT_DEPLOYMENT_ID
+  }
+
   // use the closest lockfile as tracing root
   if (!result.experimental?.outputFileTracingRoot) {
-    const lockFiles: string[] = [
-      'package-lock.json',
-      'yarn.lock',
-      'pnpm-lock.yaml',
-    ]
-    const foundLockfile = findUp.sync(lockFiles, { cwd: dir })
+    let rootDir = findRootDir(dir)
 
-    if (foundLockfile) {
+    if (rootDir) {
       if (!result.experimental) {
         result.experimental = {}
       }
       if (!defaultConfig.experimental) {
         defaultConfig.experimental = {}
       }
-      result.experimental.outputFileTracingRoot = dirname(foundLockfile)
+      result.experimental.outputFileTracingRoot = rootDir
       defaultConfig.experimental.outputFileTracingRoot =
         result.experimental.outputFileTracingRoot
     }
@@ -538,7 +493,7 @@ function assignDefaults(
     result.output = undefined
   }
 
-  setHttpClientAndAgentOptions(result || defaultConfig, silent)
+  setHttpClientAndAgentOptions(result || defaultConfig)
 
   if (result.i18n) {
     const { i18n } = result
@@ -581,6 +536,13 @@ function assignDefaults(
         if (!item || typeof item !== 'object') return true
         if (!item.defaultLocale) return true
         if (!item.domain || typeof item.domain !== 'string') return true
+
+        if (item.domain.includes(':')) {
+          console.warn(
+            `i18n domain: "${item.domain}" is invalid it should be a valid domain without protocol (https://) or port (:3000) e.g. example.vercel.sh`
+          )
+          return true
+        }
 
         const defaultLocaleDuplicate = i18n.domains?.find(
           (altItem) =>
@@ -721,6 +683,10 @@ export default async function loadConfig(
   rawConfig?: boolean,
   silent?: boolean
 ): Promise<NextConfigComplete> {
+  if (process.env.__NEXT_PRIVATE_STANDALONE_CONFIG) {
+    return JSON.parse(process.env.__NEXT_PRIVATE_STANDALONE_CONFIG)
+  }
+
   const curLog = silent
     ? {
         warn: () => {},
@@ -754,6 +720,8 @@ export default async function loadConfig(
     let userConfigModule: any
 
     try {
+      const envBefore = Object.assign({}, process.env)
+
       // `import()` expects url-encoded strings, so the path must be properly
       // escaped and (especially on Windows) absolute paths must pe prefixed
       // with the `file://` protocol
@@ -765,6 +733,14 @@ export default async function loadConfig(
       } else {
         userConfigModule = await import(pathToFileURL(path).href)
       }
+      const newEnv: typeof process.env = {} as any
+
+      for (const key of Object.keys(process.env)) {
+        if (envBefore[key] !== process.env[key]) {
+          newEnv[key] = process.env[key]
+        }
+      }
+      updateInitialEnv(newEnv)
 
       if (rawConfig) {
         return userConfigModule
@@ -814,12 +790,6 @@ export default async function loadConfig(
           curLog.warn(message)
         }
       }
-    }
-
-    if (Object.keys(userConfig).length === 0) {
-      curLog.warn(
-        `Detected ${configFileName}, no exported configuration found. https://nextjs.org/docs/messages/empty-configuration`
-      )
     }
 
     if (userConfig.target && userConfig.target !== 'server') {
@@ -877,6 +847,6 @@ export default async function loadConfig(
     silent
   ) as NextConfigComplete
   completeConfig.configFileName = configFileName
-  setHttpClientAndAgentOptions(completeConfig, silent)
+  setHttpClientAndAgentOptions(completeConfig)
   return completeConfig
 }

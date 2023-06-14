@@ -42,6 +42,10 @@ export type MetadataItems = [
   StaticMetadata
 ][]
 
+type MetadataAccumulationOptions = {
+  pathname: string
+}
+
 function mergeStaticMetadata(
   metadata: ResolvedMetadata,
   staticFilesMetadata: StaticMetadata
@@ -354,8 +358,17 @@ export async function resolveMetadata({
   return metadataItems
 }
 
-type MetadataAccumulationOptions = {
-  pathname: string
+function postProcessMetadata(metadata: ResolvedMetadata): ResolvedMetadata {
+  const { openGraph, twitter } = metadata
+  if (openGraph && !twitter) {
+    const overlappedProps = {
+      title: openGraph.title,
+      description: openGraph.description,
+      images: openGraph.images,
+    }
+    metadata.twitter = resolveTwitter(overlappedProps, metadata.metadataBase)
+  }
+  return metadata
 }
 
 export async function accumulateMetadata(
@@ -408,9 +421,7 @@ export async function accumulateMetadata(
       const currentResolvedMetadata: ResolvedMetadata =
         process.env.NODE_ENV === 'development'
           ? Object.freeze(
-              require('next/dist/compiled/@edge-runtime/primitives/structured-clone').structuredClone(
-                resolvedMetadata
-              )
+              require('./clone-metadata').cloneMetadata(resolvedMetadata)
             )
           : resolvedMetadata
 
@@ -446,5 +457,5 @@ export async function accumulateMetadata(
     }
   }
 
-  return resolvedMetadata
+  return postProcessMetadata(resolvedMetadata)
 }

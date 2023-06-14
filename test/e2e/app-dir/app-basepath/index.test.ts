@@ -27,5 +27,12 @@ createNextDescribe(
           .text()
       ).toBe(`Page 2`)
     })
+
+    it('should prefix metadata og image with basePath', async () => {
+      const $ = await next.render$('/base/another')
+      const ogImageHref = $('meta[property="og:image"]').attr('content')
+
+      expect(ogImageHref).toContain('/base/another/opengraph-image.png')
+    })
   }
 )

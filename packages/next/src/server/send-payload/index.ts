@@ -63,9 +63,13 @@ export async function sendRenderResult({
     res.setHeader('X-Powered-By', 'Next.js')
   }
 
+  if (options != null) {
+    setRevalidateHeaders(res, options)
+  }
+
   const payload = result.isDynamic() ? null : await result.toUnchunkedString()
 
-  if (payload) {
+  if (payload !== null) {
     const etag = generateEtags ? generateETag(payload) : undefined
     if (sendEtagResponse(req, res, etag)) {
       return
@@ -91,13 +95,9 @@ export async function sendRenderResult({
     res.setHeader('Content-Length', Buffer.byteLength(payload))
   }
 
-  if (options != null) {
-    setRevalidateHeaders(res, options)
-  }
-
   if (req.method === 'HEAD') {
     res.end(null)
-  } else if (payload) {
+  } else if (payload !== null) {
     res.end(payload)
   } else {
     await result.pipe(res)

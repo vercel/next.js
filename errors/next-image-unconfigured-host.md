@@ -2,7 +2,7 @@
 
 #### Why This Error Occurred
 
-One of your pages that leverages the `next/image` component, passed a `src` value that uses a hostname in the URL that isn't defined in the `images.remotePatterns` or `images.domains` in `next.config.js`.
+One of your pages that leverages the `next/image` component, passed a `src` value that uses a hostname in the URL that isn't defined in the `images.remotePatterns` in `next.config.js`.
 
 #### Possible Ways to Fix It
 
@@ -15,7 +15,7 @@ module.exports = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'example.com',
+        hostname: 'assets.example.com',
         port: '',
         pathname: '/account123/**',
       },
@@ -24,18 +24,19 @@ module.exports = {
 }
 ```
 
-If you are using an older version of Next.js prior to 12.3.0, you can use `images.domains` instead:
+#### Fixing older versions of Next.js
 
-```js
-// next.config.js
-module.exports = {
+<details>
+  <summary>Using Next.js prior to 12.3.0?</summary>
+  <p>Older versions of Next.js can configure <code>images.domains</code> instead:</p>
+  <pre><code>module.exports = {
   images: {
     domains: ['assets.example.com'],
   },
-}
-```
+}</code></pre>
+</details>
 
 ### Useful Links
 
-- [Image Optimization Documentation](https://nextjs.org/docs/basic-features/image-optimization)
-- [Remote Patterns Documentation](https://nextjs.org/docs/api-reference/next/image#remote-patterns)
+- [Image Optimization Documentation](https://nextjs.org/docs/pages/building-your-application/optimizing/images)
+- [Remote Patterns Documentation](https://nextjs.org/docs/pages/api-reference/components/image#remotepatterns)
