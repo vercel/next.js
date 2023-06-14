@@ -1,4 +1,7 @@
 module.exports = {
+  experimental: {
+    caseSensitiveRoutes: true,
+  },
   async rewrites() {
     // no-rewrites comment
     return {

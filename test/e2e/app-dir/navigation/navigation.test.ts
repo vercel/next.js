@@ -1,6 +1,6 @@
 import { createNextDescribe } from 'e2e-utils'
-import webdriver from 'next-webdriver'
 import { check } from 'next-test-utils'
+import type { Request } from 'playwright-chromium'
 
 createNextDescribe(
   'app dir - navigation',
@@ -10,7 +10,7 @@ createNextDescribe(
   ({ next, isNextDev, isNextDeploy }) => {
     describe('query string', () => {
       it('should set query correctly', async () => {
-        const browser = await webdriver(next.url, '/')
+        const browser = await next.browser('/')
         expect(await browser.elementById('query').text()).toMatchInlineSnapshot(
           `""`
         )
@@ -24,6 +24,35 @@ createNextDescribe(
 
         const url = new URL(await browser.url())
         expect(url.searchParams.toString()).toMatchInlineSnapshot(`"a=b&c=d"`)
+      })
+
+      it('should handle unicode search params', async () => {
+        const requests = []
+
+        const browser = await next.browser('/search-params?name=名')
+        browser.on('request', async (req: Request) => {
+          const res = await req.response()
+          requests.push([
+            new URL(req.url()).pathname,
+            res.ok(),
+            await res.headers(),
+          ])
+        })
+        expect(await browser.elementById('name').text()).toBe('名')
+        await browser.elementById('link').click()
+
+        await check(async () => {
+          return requests.some((requestPair) => {
+            const [pathname, ok, headers] = requestPair
+            return (
+              pathname === '/' &&
+              ok &&
+              headers['content-type'] === 'text/x-component'
+            )
+          })
+            ? 'success'
+            : JSON.stringify(requests)
+        }, 'success')
       })
     })
 
@@ -52,6 +81,38 @@ createNextDescribe(
         await checkLink(50, 730)
         await checkLink(160, 2270)
         await checkLink(300, 4230)
+        await checkLink(500, 7030) // this one is hash only (`href="#hash-500"`)
+        await checkLink('top', 0)
+        await checkLink('non-existent', 0)
+      })
+    })
+
+    describe('hash-with-scroll-offset', () => {
+      it('should scroll to the specified hash', async () => {
+        const browser = await next.browser('/hash-with-scroll-offset')
+
+        const checkLink = async (
+          val: number | string,
+          expectedScroll: number
+        ) => {
+          await browser.elementByCss(`#link-to-${val.toString()}`).click()
+          await check(
+            async () => {
+              const val = await browser.eval('window.pageYOffset')
+              return val.toString()
+            },
+            expectedScroll.toString(),
+            true,
+            // Try maximum of 15 seconds
+            15
+          )
+        }
+
+        await checkLink(6, 94)
+        await checkLink(50, 710)
+        await checkLink(160, 2250)
+        await checkLink(300, 4210)
+        await checkLink(500, 7010) // this one is hash only (`href="#hash-500"`)
         await checkLink('top', 0)
         await checkLink('non-existent', 0)
       })
@@ -102,6 +163,60 @@ createNextDescribe(
           true,
           // Try maximum of 15 seconds
           15
+        )
+      })
+    })
+
+    describe('relative hashes and queries', () => {
+      const pathname = '/nested-relative-query-and-hash'
+
+      it('should work with a hash-only href', async () => {
+        const browser = await next.browser(pathname)
+        await browser.elementByCss('#link-to-h1-hash-only').click()
+
+        await check(() => browser.url(), next.url + pathname + '#h1')
+      })
+
+      it('should work with a hash-only `router.push(...)`', async () => {
+        const browser = await next.browser(pathname)
+        await browser.elementByCss('#button-to-h3-hash-only').click()
+
+        await check(() => browser.url(), next.url + pathname + '#h3')
+      })
+
+      it('should work with a query-only href', async () => {
+        const browser = await next.browser(pathname)
+        await browser.elementByCss('#link-to-dummy-query').click()
+
+        await check(() => browser.url(), next.url + pathname + '?foo=1&bar=2')
+      })
+
+      it('should work with both relative hashes and queries', async () => {
+        const browser = await next.browser(pathname)
+        await browser.elementByCss('#link-to-h2-with-hash-and-query').click()
+
+        await check(() => browser.url(), next.url + pathname + '?here=ok#h2')
+
+        // Only update hash
+        await browser.elementByCss('#link-to-h1-hash-only').click()
+        await check(() => browser.url(), next.url + pathname + '?here=ok#h1')
+
+        // Replace all with new query
+        await browser.elementByCss('#link-to-dummy-query').click()
+        await check(() => browser.url(), next.url + pathname + '?foo=1&bar=2')
+
+        // Add hash to existing query
+        await browser.elementByCss('#link-to-h1-hash-only').click()
+        await check(
+          () => browser.url(),
+          next.url + pathname + '?foo=1&bar=2#h1'
+        )
+
+        // Update hash again via `router.push(...)`
+        await browser.elementByCss('#button-to-h3-hash-only').click()
+        await check(
+          () => browser.url(),
+          next.url + pathname + '?foo=1&bar=2#h3'
         )
       })
     })
@@ -332,6 +447,38 @@ createNextDescribe(
         }
 
         expect(stored).toEqual(expected)
+      })
+    })
+
+    describe('navigation between pages and app', () => {
+      it('should not contain _rsc query while navigating from app to pages', async () => {
+        // Initiate with app
+        const browser = await next.browser('/assertion/page')
+        await browser
+          .elementByCss('#link-to-pages')
+          .click()
+          .waitForElementByCss('#link-to-app')
+        expect(await browser.url()).toBe(next.url + '/some')
+        await browser
+          .elementByCss('#link-to-app')
+          .click()
+          .waitForElementByCss('#link-to-pages')
+        expect(await browser.url()).toBe(next.url + '/assertion/page')
+      })
+
+      it('should not contain _rsc query while navigating from pages to app', async () => {
+        // Initiate with pages
+        const browser = await next.browser('/some')
+        await browser
+          .elementByCss('#link-to-app')
+          .click()
+          .waitForElementByCss('#link-to-pages')
+        expect(await browser.url()).toBe(next.url + '/assertion/page')
+        await browser
+          .elementByCss('#link-to-pages')
+          .click()
+          .waitForElementByCss('#link-to-app')
+        expect(await browser.url()).toBe(next.url + '/some')
       })
     })
 

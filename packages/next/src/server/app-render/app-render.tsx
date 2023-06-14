@@ -362,6 +362,20 @@ export async function renderToHTMLOrFlight(
 
     const assetPrefix = renderOpts.assetPrefix || ''
 
+    const getAssetQueryString = (addTimestamp: boolean) => {
+      const isDev = process.env.NODE_ENV === 'development'
+      let qs = ''
+
+      if (isDev && addTimestamp) {
+        qs += `?v=${Date.now()}`
+      }
+
+      if (renderOpts.deploymentId) {
+        qs += `${isDev ? '&' : '?'}dpl=${renderOpts.deploymentId}`
+      }
+      return qs
+    }
+
     const createComponentAndStyles = async ({
       filePath,
       getComponent,
@@ -389,9 +403,9 @@ export async function renderToHTMLOrFlight(
             // Because of this, we add a `?v=` query to bypass the cache during
             // development. We need to also make sure that the number is always
             // increasing.
-            const fullHref = `${assetPrefix}/_next/${href}${
-              process.env.NODE_ENV === 'development' ? `?v=${Date.now()}` : ''
-            }`
+            const fullHref = `${assetPrefix}/_next/${href}${getAssetQueryString(
+              true
+            )}`
 
             // `Precedence` is an opt-in signal for React to handle resource
             // loading and deduplication, etc. It's also used as the key to sort
@@ -458,7 +472,9 @@ export async function renderToHTMLOrFlight(
             const fontFilename = preloadedFontFiles[i]
             const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFilename)![1]
             const type = `font/${ext}`
-            const href = `${assetPrefix}/_next/${fontFilename}`
+            const href = `${assetPrefix}/_next/${fontFilename}${getAssetQueryString(
+              false
+            )}`
             ComponentMod.preloadFont(href, type)
           }
         } else {
@@ -481,9 +497,9 @@ export async function renderToHTMLOrFlight(
             // Because of this, we add a `?v=` query to bypass the cache during
             // development. We need to also make sure that the number is always
             // increasing.
-            const fullHref = `${assetPrefix}/_next/${href}${
-              process.env.NODE_ENV === 'development' ? `?v=${Date.now()}` : ''
-            }`
+            const fullHref = `${assetPrefix}/_next/${href}${getAssetQueryString(
+              true
+            )}`
 
             // `Precedence` is an opt-in signal for React to handle resource
             // loading and deduplication, etc. It's also used as the key to sort
@@ -687,6 +703,10 @@ export async function renderToHTMLOrFlight(
 
           throw new DynamicServerError(dynamicUsageDescription)
         }
+      }
+
+      if (staticGenerationStore?.dynamicUsageErr) {
+        throw staticGenerationStore.dynamicUsageErr
       }
 
       /**
@@ -1186,10 +1206,14 @@ export async function renderToHTMLOrFlight(
             })
           ).map((path) => path.slice(1)) // remove the '' (root) segment
 
+      const buildIdFlightDataPair = [renderOpts.buildId, flightData]
+
       // For app dir, use the bundled version of Fizz renderer (renderToReadableStream)
       // which contains the subset React.
       const readable = ComponentMod.renderToReadableStream(
-        options ? [options.actionResult, flightData] : flightData,
+        options
+          ? [options.actionResult, buildIdFlightDataPair]
+          : buildIdFlightDataPair,
         clientReferenceManifest.clientModules,
         {
           context: serverContexts,
@@ -1309,6 +1333,7 @@ export async function renderToHTMLOrFlight(
           <>
             {styles}
             <AppRouter
+              buildId={renderOpts.buildId}
               assetPrefix={assetPrefix}
               initialCanonicalUrl={pathname}
               initialTree={initialTree}
@@ -1392,7 +1417,9 @@ export async function renderToHTMLOrFlight(
               polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
           )
           .map((polyfill) => ({
-            src: `${assetPrefix}/_next/${polyfill}`,
+            src: `${assetPrefix}/_next/${polyfill}${getAssetQueryString(
+              false
+            )}`,
             integrity: subresourceIntegrityManifest?.[polyfill],
           }))
 
@@ -1436,8 +1463,12 @@ export async function renderToHTMLOrFlight(
             ReactDOMServer: require('react-dom/server.edge'),
             element: (
               <>
-                {Array.from(serverInsertedHTMLCallbacks).map((callback) =>
-                  callback()
+                {Array.from(serverInsertedHTMLCallbacks).map(
+                  (callback, index) => (
+                    <React.Fragment key={'_next_insert' + index}>
+                      {callback()}
+                    </React.Fragment>
+                  )
                 )}
                 {polyfillsFlushed
                   ? null
@@ -1471,11 +1502,17 @@ export async function renderToHTMLOrFlight(
               bootstrapScripts: [
                 ...(subresourceIntegrityManifest
                   ? buildManifest.rootMainFiles.map((src) => ({
-                      src: `${assetPrefix}/_next/` + src,
+                      src:
+                        `${assetPrefix}/_next/` +
+                        src +
+                        getAssetQueryString(false),
                       integrity: subresourceIntegrityManifest[src],
                     }))
                   : buildManifest.rootMainFiles.map(
-                      (src) => `${assetPrefix}/_next/` + src
+                      (src) =>
+                        `${assetPrefix}/_next/` +
+                        src +
+                        getAssetQueryString(false)
                     )),
               ],
             },
@@ -1547,11 +1584,15 @@ export async function renderToHTMLOrFlight(
               // Include hydration scripts in the HTML
               bootstrapScripts: subresourceIntegrityManifest
                 ? buildManifest.rootMainFiles.map((src) => ({
-                    src: `${assetPrefix}/_next/` + src,
+                    src:
+                      `${assetPrefix}/_next/` +
+                      src +
+                      getAssetQueryString(false),
                     integrity: subresourceIntegrityManifest[src],
                   }))
                 : buildManifest.rootMainFiles.map(
-                    (src) => `${assetPrefix}/_next/` + src
+                    (src) =>
+                      `${assetPrefix}/_next/` + src + getAssetQueryString(false)
                   ),
             },
           })

@@ -45,7 +45,14 @@ const chunkFilenameMap: any = {}
 
 // eslint-disable-next-line no-undef
 __webpack_require__.u = (chunkId: any) => {
-  return encodeURI(chunkFilenameMap[chunkId] || getChunkScriptFilename(chunkId))
+  return (
+    encodeURI(chunkFilenameMap[chunkId] || getChunkScriptFilename(chunkId)) +
+    `${
+      process.env.__NEXT_DEPLOYMENT_ID
+        ? `?dpl=${process.env.__NEXT_DEPLOYMENT_ID}`
+        : ''
+    }`
+  )
 }
 
 // Ignore the module ID transform in client.
@@ -237,6 +244,7 @@ export function hydrate() {
       reactRoot.render(
         <GlobalLayoutRouterContext.Provider
           value={{
+            buildId: 'development',
             tree: rootLayoutMissingTagsError.tree,
             changeByServerResponse: () => {},
             focusAndScrollRef: {

@@ -16,7 +16,7 @@ import { getMiddlewareMatchers } from '../../build/analysis/get-page-static-info
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import {
   CLIENT_STATIC_FILES_PATH,
-  DEV_CLIENT_PAGES_MANIFEST,
+  DEV_MIDDLEWARE_MANIFEST,
 } from '../../shared/lib/constants'
 import type { BaseNextRequest } from '../base-http'
 
@@ -156,7 +156,7 @@ export async function makeResolver(
     }
 
     type GetEdgeFunctionInfo =
-      typeof DevServer['prototype']['getEdgeFunctionInfo']
+      (typeof DevServer)['prototype']['getEdgeFunctionInfo']
     const getEdgeFunctionInfo = (
       original: GetEdgeFunctionInfo
     ): GetEdgeFunctionInfo => {
@@ -165,7 +165,6 @@ export async function makeResolver(
           return {
             name: 'middleware',
             paths: middleware.files.map((file) => join(process.cwd(), file)),
-            env: Object.keys(process.env),
             wasm: [],
             assets: [],
           }
@@ -193,20 +192,6 @@ export async function makeResolver(
 
   // @ts-expect-error protected
   const buildId = devServer.buildId
-
-  const pagesManifestRoute = routes.fsRoutes.find(
-    (r) =>
-      r.name ===
-      `_next/${CLIENT_STATIC_FILES_PATH}/${buildId}/${DEV_CLIENT_PAGES_MANIFEST}`
-  )
-  if (pagesManifestRoute) {
-    // make sure turbopack serves this
-    pagesManifestRoute.fn = () => {
-      return {
-        finished: true,
-      }
-    }
-  }
 
   const router = new Router({
     ...routes,
@@ -246,6 +231,8 @@ export async function makeResolver(
       route.type === 'header' ||
       route.name === 'catchall route' ||
       route.name === 'middleware catchall' ||
+      route.name ===
+        `_next/${CLIENT_STATIC_FILES_PATH}/${buildId}/${DEV_MIDDLEWARE_MANIFEST}` ||
       route.name?.includes('check')
     )
   })
@@ -253,7 +240,7 @@ export async function makeResolver(
   return async function resolveRoute(
     _req: IncomingMessage,
     _res: ServerResponse
-  ) {
+  ): Promise<RouteResult | void> {
     const req = new NodeNextRequest(_req)
     const res = new NodeNextResponse(_res)
     const parsedUrl = url.parse(req.url!, true)
@@ -263,15 +250,28 @@ export async function makeResolver(
 
     await router.execute(req, res, parsedUrl)
 
-    if (!res.originalResponse.headersSent) {
-      res.setHeader('x-nextjs-route-result', '1')
-      const routeResult: RouteResult = routeResults.get(req) ?? {
-        type: 'none',
-      }
-
-      res.body(JSON.stringify(routeResult)).send()
+    // If the headers are sent, then this was handled by middleware and there's
+    // nothing for us to do.
+    if (res.originalResponse.headersSent) {
+      return
     }
 
-    routeResults.delete(req)
+    // The response won't be used, but we need to close the request so that the
+    // ClientResponse's promise will resolve. We signal that this response is
+    // unneeded via the header.
+    res.setHeader('x-nextjs-route-result', '1')
+    res.send()
+
+    // If we have a routeResult, then we hit the catchAllRoute during execution
+    // and this is a rewrite request.
+    const routeResult = routeResults.get(req)
+    if (routeResult) {
+      routeResults.delete(req)
+      return routeResult
+    }
+
+    // Finally, if the catchall didn't match, than this request is invalid
+    // (maybe they're missing the basePath?)
+    return { type: 'none' }
   }
 }

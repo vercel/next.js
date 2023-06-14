@@ -39,7 +39,7 @@ if (typeof window === 'undefined') {
 }
 
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
-type LoadingValue = typeof VALID_LOADING_VALUES[number]
+type LoadingValue = (typeof VALID_LOADING_VALUES)[number]
 type ImageConfig = ImageConfigComplete & { allSizes: number[] }
 export type ImageLoader = (resolverProps: ImageLoaderProps) => string
 
@@ -148,7 +148,11 @@ function defaultLoader({
         )
       }
 
-      if (process.env.NODE_ENV !== 'test') {
+      if (
+        process.env.NODE_ENV !== 'test' &&
+        // micromatch isn't compatible with edge runtime
+        process.env.NEXT_RUNTIME !== 'edge'
+      ) {
         // We use dynamic require because this should only error in development
         const { hasMatch } = require('../../shared/lib/match-remote-pattern')
         if (!hasMatch(config.domains, config.remotePatterns, parsedSrc)) {
@@ -190,7 +194,7 @@ const VALID_LAYOUT_VALUES = [
   'responsive',
   undefined,
 ] as const
-type LayoutValue = typeof VALID_LAYOUT_VALUES[number]
+type LayoutValue = (typeof VALID_LAYOUT_VALUES)[number]
 
 type PlaceholderValue = 'blur' | 'empty'
 
