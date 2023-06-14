@@ -140,16 +140,13 @@ async function runOperation(renderData: RenderData) {
   > = {
     get(_target, prop: string) {
       try {
-        const cssChunks = JSON.parse(prop.replace(/\.js$/, ''))
+        const cssChunks = JSON.parse(prop)
         // TODO(WEB-856) subscribe to changes
 
         // This return value is passed to proxyMethodsNested for clientModules
         return {
           modules: [],
-          files: cssChunks
-            .filter(filterAvailable)
-            .map(toPath)
-            .map((chunk: string) => JSON.stringify([chunk, [chunk]])),
+          files: cssChunks.filter(filterAvailable).map(toPath),
         }
       } catch (err) {
         console.error('Failed to parse CSS chunks:', err, '\nProp:', prop)
