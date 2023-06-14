@@ -14,7 +14,6 @@ createNextDescribe(
     files: __dirname,
     env: {
       NEXT_DEBUG_BUILD: '1',
-      NEXT_PRIVATE_DEBUG_CACHE: '1',
       ...(process.env.CUSTOM_CACHE_HANDLER
         ? {
             CUSTOM_CACHE_HANDLER: process.env.CUSTOM_CACHE_HANDLER,
@@ -33,6 +32,21 @@ createNextDescribe(
         )
         buildCliOutputIndex = next.cliOutput.length
       }
+    })
+
+    it('should correctly include headers instance in cache key', async () => {
+      const res = await next.fetch('/variable-revalidate/headers-instance')
+      expect(res.status).toBe(200)
+
+      const html = await res.text()
+      const $ = cheerio.load(html)
+
+      const data1 = $('#page-data').text()
+      const data2 = $('#page-data2').text()
+      expect(data1).not.toBe(data2)
+
+      expect(data1).toBeTruthy()
+      expect(data2).toBeTruthy()
     })
 
     it.skip.each([
@@ -573,6 +587,9 @@ createNextDescribe(
           'variable-revalidate/encoding.html',
           'variable-revalidate/encoding.rsc',
           'variable-revalidate/encoding/page.js',
+          'variable-revalidate/headers-instance.html',
+          'variable-revalidate/headers-instance.rsc',
+          'variable-revalidate/headers-instance/page.js',
           'variable-revalidate/no-store/page.js',
           'variable-revalidate/post-method-request/page.js',
           'variable-revalidate/post-method.html',
@@ -813,6 +830,11 @@ createNextDescribe(
             dataRoute: '/variable-revalidate/encoding.rsc',
             initialRevalidateSeconds: 3,
             srcRoute: '/variable-revalidate/encoding',
+          },
+          '/variable-revalidate/headers-instance': {
+            dataRoute: '/variable-revalidate/headers-instance.rsc',
+            initialRevalidateSeconds: 10,
+            srcRoute: '/variable-revalidate/headers-instance',
           },
           '/variable-revalidate/post-method': {
             dataRoute: '/variable-revalidate/post-method.rsc',

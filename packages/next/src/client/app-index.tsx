@@ -244,6 +244,7 @@ export function hydrate() {
       reactRoot.render(
         <GlobalLayoutRouterContext.Provider
           value={{
+            buildId: 'development',
             tree: rootLayoutMissingTagsError.tree,
             changeByServerResponse: () => {},
             focusAndScrollRef: {
