@@ -216,7 +216,7 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
 
       handleSmoothScroll(
         () => {
-          // In case of hash scroll we need to scroll to the top of the element
+          // In case of hash scroll, we only need to scroll the element into view
           if (hashFragment) {
             ;(domNode as HTMLElement).scrollIntoView()
 
