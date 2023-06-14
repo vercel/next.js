@@ -96,7 +96,7 @@ interface ExperimentalTurboOptions {
   /**
    * (`next --turbo` only) A mapping of aliased imports to modules to load in their place.
    *
-   * @see [Resolve Alias](https://nextjs.org/docs/api-reference/next.config.js/resolve-alias)
+   * @see [Resolve Alias](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#resolve-alias)
    */
   resolveAlias?: Record<
     string,
@@ -106,7 +106,7 @@ interface ExperimentalTurboOptions {
   /**
    * (`next --turbo` only) A list of webpack loaders to apply when running with Turbopack.
    *
-   * @see [Turbopack Loaders](https://nextjs.org/docs/api-reference/next.config.js/turbopack-loaders)
+   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
    */
   loaders?: Record<string, TurboLoaderItem[]>
 }

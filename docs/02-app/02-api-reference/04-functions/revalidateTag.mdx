@@ -5,7 +5,7 @@ description: API Reference for the revalidateTag function.
 
 `revalidateTag` allows you to revalidate data associated with a specific cache tag. This is useful for scenarios where you want to update your cached data without waiting for a revalidation period to expire.
 
-```tsx filename="app/api/revalidate/route.ts" switcher
+```ts filename="app/api/revalidate/route.ts" switcher
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidateTag } from 'next/cache'
 
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 }
 ```
 
-```jsx filename="app/api/revalidate/route.js" switcher
+```js filename="app/api/revalidate/route.js" switcher
 import { NextResponse } from 'next/server'
 import { revalidateTag } from 'next/cache'
 
@@ -27,7 +27,7 @@ export async function GET(request) {
 }
 ```
 
-> **Good to know:**
+> **Good to know**:
 >
 > - `revalidateTag` is available in both [Node.js and Edge runtimes](/docs/pages/building-your-application/rendering/edge-and-nodejs-runtimes).
 
@@ -53,7 +53,7 @@ fetch(url, { next: { tags: [...] } });
 
 ### Node.js Runtime
 
-```tsx filename="app/api/revalidate/route.ts" switcher
+```ts filename="app/api/revalidate/route.ts" switcher
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidateTag } from 'next/cache'
 
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
 }
 ```
 
-```jsx filename="app/api/revalidate/route.js" switcher
+```js filename="app/api/revalidate/route.js" switcher
 import { NextResponse } from 'next/server'
 import { revalidateTag } from 'next/cache'
 
@@ -77,7 +77,7 @@ export async function GET(request) {
 
 ### Edge Runtime
 
-```tsx filename="app/api/revalidate/route.ts" switcher
+```ts filename="app/api/revalidate/route.ts" switcher
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidateTag } from 'next/cache'
 
@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
 }
 ```
 
-```jsx filename="app/api/revalidate/route.js" switcher
+```js filename="app/api/revalidate/route.js" switcher
 import { NextResponse } from 'next/server'
 import { revalidateTag } from 'next/cache'
 

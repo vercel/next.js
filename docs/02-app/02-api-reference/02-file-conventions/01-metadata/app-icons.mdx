@@ -1,9 +1,9 @@
 ---
-title: favicon, apple-icon, and icon
+title: favicon, icon, and apple-icon
 description: API Reference for the Favicon, Icon and Apple Icon file conventions.
 ---
 
-The `favicon`, `apple-icon` or, `icon` file conventions allow you to set icons for your application.
+The `favicon`, `icon`, or `apple-icon` file conventions allow you to set icons for your application.
 
 They are useful for adding app icons that appear in places like web browser tabs, phone home screens, and search engine results.
 
@@ -14,15 +14,16 @@ There are two ways to set app icons:
 
 ## Image files (.ico, .jpg, .png)
 
-Use an image file to set an app icon by placing a `favicon`, `icon`, or `apple-icon` image file the root `/app` segment.
+Use an image file to set an app icon by placing a `favicon`, `icon`, or `apple-icon` image file within your `/app` directory.
+The `favicon` image can only be located in the top level of `app/`.
 
 Next.js will evaluate the file and automatically add the appropriate tags to your app's `<head>` element.
 
-| File convention             | Supported file types                    |
-| --------------------------- | --------------------------------------- |
-| [`favicon`](#favicon)       | `.ico`                                  |
-| [`icon`](#icon)             | `.ico`, `.jpg`, `.jpeg`, `.png`, `.svg` |
-| [`apple-icon`](#apple-icon) | `.jpg`, `.jpeg`, `.png`,                |
+| File convention             | Supported file types                    | Valid locations |
+| --------------------------- | --------------------------------------- | --------------- |
+| [`favicon`](#favicon)       | `.ico`                                  | `app/`          |
+| [`icon`](#icon)             | `.ico`, `.jpg`, `.jpeg`, `.png`, `.svg` | `app/**/*`      |
+| [`apple-icon`](#apple-icon) | `.jpg`, `.jpeg`, `.png`                 | `app/**/*`      |
 
 ### `favicon`
 
@@ -34,7 +35,7 @@ Add a `favicon.ico` image file to the root `/app` route segment.
 
 ### `icon`
 
-Add an `icon.(ico|jpg|jpeg|png|svg)` image file to the root `/app` route segment.
+Add an `icon.(ico|jpg|jpeg|png|svg)` image file.
 
 ```html filename="<head> output"
 <link
@@ -47,7 +48,7 @@ Add an `icon.(ico|jpg|jpeg|png|svg)` image file to the root `/app` route segment
 
 ### `apple-icon`
 
-Add an `apple-icon.(jpg|jpeg|png)` image file to the root `/app` route segment.
+Add an `apple-icon.(jpg|jpeg|png)` image file.
 
 ```html filename="<head> output"
 <link
@@ -61,7 +62,7 @@ Add an `apple-icon.(jpg|jpeg|png)` image file to the root `/app` route segment.
 > **Good to know**
 >
 > - You can set multiple icons by adding a number suffix to the file name. For example, `icon1.png`, `icon2.png`, etc. Numbered files will sort lexically.
-> - App icons can only be set in the root `/app` segment.
+> - Favicons can only be set in the root `/app` segment. If you need more granularity, you can use [`icon`](#icon).
 > - The appropriate `<link>` tags and attributes such as `rel`, `href`, `type`, and `sizes` are determined by the icon type and metadata of the evaluated file.
 >   - For example, a 32 by 32px `.png` file will have `type="image/png"` and `sizes="32x32"` attributes.
 > - `sizes="any"` is added to `favicon.ico` output to [avoid a browser bug](https://evilmartians.com/chronicles/how-to-favicon-in-2021-six-files-that-fit-most-needs) where an `.ico` icon is favored over `.svg`.
@@ -206,7 +207,7 @@ export default function Icon({ params }) {
 
 The default export function should return a `Blob` | `ArrayBuffer` | `TypedArray` | `DataView` | `ReadableStream` | `Response`.
 
-> **Note:** `ImageResponse` satisfies this return type.
+> **Good to know**: `ImageResponse` satisfies this return type.
 
 ### Config exports
 
@@ -275,3 +276,9 @@ export const runtime = 'edge'
 
 export default function Icon() {}
 ```
+
+## Version History
+
+| Version   | Changes                                      |
+| --------- | -------------------------------------------- |
+| `v13.3.0` | `favicon` `icon` and `apple-icon` introduced |
