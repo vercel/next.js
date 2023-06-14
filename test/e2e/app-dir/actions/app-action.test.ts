@@ -591,6 +591,8 @@ createNextDescribe(
             case 'path':
               await browser.elementByCss('#revalidate-path').click()
               break
+            default:
+              throw new Error(`Invalid type: ${type}`)
           }
 
           // Should be different
