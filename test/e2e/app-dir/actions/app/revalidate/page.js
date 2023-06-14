@@ -51,7 +51,7 @@ export default async function Page() {
         </span>{' '}
         <span>
           <Link href="/revalidate-2" id="another">
-            /revalidate/another-route
+            /revalidate-2
           </Link>
         </span>
       </p>
