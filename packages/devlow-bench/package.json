@@ -6,8 +6,8 @@
   "main": "dist/index.js",
   "bin": "dist/cli.js",
   "scripts": {
-    "prerelease": "pnpm run build",
-    "build": "tsc"
+    "prerelease": "pnpm run build:ts",
+    "build:ts": "tsc"
   },
   "files": [
     "dist"
