@@ -31,7 +31,7 @@ export default function Page() {
 }
 ```
 
-> **Good to know:**
+> **Good to know**:
 >
 > - `headers()` is a **[Dynamic Function](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#dynamic-functions)** whose returned values cannot be known ahead of time. Using it in a layout or page will opt a route into **[dynamic rendering](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#dynamic-rendering)** at request time.
 
@@ -80,3 +80,9 @@ export default async function UserPage() {
   return <h1>{user.name}</h1>
 }
 ```
+
+## Version History
+
+| Version   | Changes               |
+| --------- | --------------------- |
+| `v13.0.0` | `headers` introduced. |

@@ -28,7 +28,7 @@ export default function Page({
 }
 ```
 
-```jsx filename="pages/index.jsx" switcher
+```jsx filename="pages/index.js" switcher
 export const getStaticProps = async () => {
   const res = await fetch('https://api.github.com/repos/vercel/next.js')
   const repo = await res.json()
@@ -125,7 +125,7 @@ export async function getStaticProps(context) {
 }
 ```
 
-> **Note**: `notFound` is not needed for [`fallback: false`](/docs/pages/api-reference/functions/get-static-paths#fallback-false) mode as only paths returned from `getStaticPaths` will be pre-rendered.
+> **Good to know**: `notFound` is not needed for [`fallback: false`](/docs/pages/api-reference/functions/get-static-paths#fallback-false) mode as only paths returned from `getStaticPaths` will be pre-rendered.
 
 ### `redirect`
 

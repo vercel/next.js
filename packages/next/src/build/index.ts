@@ -1132,10 +1132,6 @@ export default async function build(
         : config.experimental.cpus || 4
 
       function createStaticWorker(type: 'app' | 'pages') {
-        const numWorkersPerType = isAppDirEnabled
-          ? Math.max(1, ~~(numWorkers / 2))
-          : numWorkers
-
         let infoPrinted = false
 
         return new Worker(staticWorkerPath, {
@@ -1169,7 +1165,7 @@ export default async function build(
               infoPrinted = true
             }
           },
-          numWorkers: numWorkersPerType,
+          numWorkers,
           forkOptions: {
             env: {
               ...process.env,
@@ -1761,6 +1757,12 @@ export default async function build(
 
           if (config.outputFileTracing) {
             for (let page of pageKeys.pages) {
+              // edge routes have no trace files
+              const pageInfo = pageInfos.get(page)
+              if (pageInfo?.runtime === 'edge') {
+                continue
+              }
+
               const combinedIncludes = new Set<string>()
               const combinedExcludes = new Set<string>()
 

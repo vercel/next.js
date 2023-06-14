@@ -37,6 +37,7 @@ rand = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+tempdir = "0.3.7"
 testing = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 # For matching on errors from chromiumoxide. Keep in

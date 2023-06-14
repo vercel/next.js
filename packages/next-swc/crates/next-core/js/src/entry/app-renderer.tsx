@@ -267,7 +267,11 @@ async function runOperation(renderData: RenderData) {
   const renderOpt: Omit<
     RenderOpts,
     'App' | 'Document' | 'Component' | 'pathname'
-  > & { params: ParsedUrlQuery } = {
+  > & {
+    params: ParsedUrlQuery
+  } = {
+    // TODO: give an actual buildId when next build is supported
+    buildId: 'development',
     params: renderData.params,
     supportsDynamicHTML: true,
     dev: true,

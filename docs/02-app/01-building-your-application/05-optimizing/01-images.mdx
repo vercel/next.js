@@ -10,15 +10,15 @@ related:
 ---
 
 <details>
-  <summary>
-    <b>Examples</b>
-  </summary>
+  <summary>Examples</summary>
 
 - [Image Component](https://github.com/vercel/next.js/tree/canary/examples/image-component)
 
 </details>
 
-The Next.js Image component extends the HTML `<img>` element with:
+According to [Web Almanac](https://almanac.httparchive.org), images account for a huge portion of the typical website’s [page weight](https://almanac.httparchive.org/en/2022/page-weight#content-type-and-file-formats) and can have a sizable impact on your website's [LCP performance](https://almanac.httparchive.org/en/2022/performance#lcp-image-optimization).
+
+The Next.js Image component extends the HTML `<img>` element with features for automatic image optimization:
 
 - **Size Optimization:** Automatically serve correctly sized images for each device, using modern image formats like WebP and AVIF.
 - **Visual Stability:** Prevent [layout shift](/learn/seo/web-performance/cls) automatically when images are loading.
@@ -27,7 +27,7 @@ The Next.js Image component extends the HTML `<img>` element with:
 
 ## Usage
 
-```jsx
+```js
 import Image from 'next/image'
 ```
 

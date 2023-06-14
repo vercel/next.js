@@ -99,7 +99,14 @@ export type FlightData = Array<FlightDataPath> | string
 
 export type ActionResult = Promise<any>
 
-export type ActionFlightData = [ActionResult, FlightData | null]
+// Response from `createFromFetch` for normal rendering
+export type NextFlightResponse = [buildId: string, flightData: FlightData]
+
+// Response from `createFromFetch` for server actions. Action's flight data can be null
+export type ActionFlightResponse = [
+  ActionResult,
+  [buildId: NextFlightResponse[0], flightData: NextFlightResponse[1] | null]
+]
 
 /**
  * Property holding the current subTreeData.
@@ -115,6 +122,7 @@ export type ChildProp = {
 export type RenderOptsPartial = {
   err?: Error | null
   dev?: boolean
+  buildId: string
   clientReferenceManifest?: ClientReferenceManifest
   supportsDynamicHTML: boolean
   runtime?: ServerRuntime

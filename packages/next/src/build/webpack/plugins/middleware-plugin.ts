@@ -21,10 +21,7 @@ import {
   NEXT_FONT_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
 } from '../../../shared/lib/constants'
-import {
-  getPageStaticInfo,
-  MiddlewareConfig,
-} from '../../analysis/get-page-static-info'
+import { MiddlewareConfig } from '../../analysis/get-page-static-info'
 import { Telemetry } from '../../../telemetry/storage'
 import { traceGlobals } from '../../../trace/shared'
 import { EVENT_BUILD_FEATURE_USAGE } from '../../../telemetry/events'
@@ -249,11 +246,11 @@ function isNodeJsModule(moduleName: string) {
 
 function isDynamicCodeEvaluationAllowed(
   fileName: string,
-  edgeFunctionConfig?: Partial<MiddlewareConfig>,
+  middlewareConfig?: MiddlewareConfig,
   rootDir?: string
 ) {
   const name = fileName.replace(rootDir ?? '', '')
-  return isMatch(name, edgeFunctionConfig?.unstable_allowDynamicGlobs ?? [])
+  return isMatch(name, middlewareConfig?.unstable_allowDynamicGlobs ?? [])
 }
 
 function buildUnsupportedApiError({
@@ -509,47 +506,16 @@ Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`,
   }
 }
 
-async function findEntryEdgeFunctionConfig(
-  entryDependency: any,
-  resolver: webpack.Resolver
-) {
-  if (entryDependency?.request?.startsWith('next-')) {
-    const absolutePagePath =
-      new URL(entryDependency.request, 'http://example.org').searchParams.get(
-        'absolutePagePath'
-      ) ?? ''
-    const pageFilePath = await new Promise((resolve) =>
-      resolver.resolve({}, '/', absolutePagePath, {}, (err, path) =>
-        resolve(err || path)
-      )
-    )
-    if (typeof pageFilePath === 'string') {
-      return {
-        file: pageFilePath,
-        config: (
-          await getPageStaticInfo({
-            nextConfig: {},
-            pageFilePath,
-            isDev: false,
-            pageType: 'root',
-          })
-        ).middleware,
-      }
-    }
-  }
-}
-
 function getExtractMetadata(params: {
   compilation: webpack.Compilation
   compiler: webpack.Compiler
   dev: boolean
   metadataByEntry: Map<string, EntryMetadata>
-}) {
+}): () => Promise<void> {
   const { dev, compilation, metadataByEntry, compiler } = params
   const { webpack: wp } = compiler
   return async () => {
     metadataByEntry.clear()
-    const resolver = compilation.resolverFactory.get('normal')
     const telemetry: Telemetry | undefined = traceGlobals.get('telemetry')
 
     for (const [entryName, entry] of compilation.entries) {
@@ -558,10 +524,6 @@ function getExtractMetadata(params: {
         continue
       }
       const entryDependency = entry.dependencies?.[0]
-      const edgeFunctionConfig = await findEntryEdgeFunctionConfig(
-        entryDependency,
-        resolver
-      )
       const { rootDir, route } = getModuleBuildInfo(
         compilation.moduleGraph.getResolvedModule(entryDependency)
       )
@@ -582,6 +544,20 @@ function getExtractMetadata(params: {
         wasmBindings: new Map(),
         assetBindings: new Map(),
       }
+
+      if (route?.middlewareConfig?.regions) {
+        entryMetadata.regions = route.middlewareConfig.regions
+      }
+
+      if (route?.preferredRegion) {
+        const preferredRegion = route.preferredRegion
+        entryMetadata.regions =
+          // Ensures preferredRegion is always an array in the manifest.
+          typeof preferredRegion === 'string'
+            ? [preferredRegion]
+            : preferredRegion
+      }
+
       let ogImageGenerationCount = 0
 
       for (const module of modules) {
@@ -623,13 +599,12 @@ function getExtractMetadata(params: {
           if (/node_modules[\\/]regenerator-runtime[\\/]runtime\.js/.test(id)) {
             continue
           }
-
-          if (edgeFunctionConfig?.config?.unstable_allowDynamicGlobs) {
+          if (route?.middlewareConfig?.unstable_allowDynamicGlobs) {
             telemetry?.record({
               eventName: 'NEXT_EDGE_ALLOW_DYNAMIC_USED',
               payload: {
-                ...edgeFunctionConfig,
-                file: edgeFunctionConfig.file.replace(rootDir ?? '', ''),
+                file: route?.absolutePagePath.replace(rootDir ?? '', ''),
+                config: route?.middlewareConfig,
                 fileWithDynamicCode: module.userRequest.replace(
                   rootDir ?? '',
                   ''
@@ -640,7 +615,7 @@ function getExtractMetadata(params: {
           if (
             !isDynamicCodeEvaluationAllowed(
               module.userRequest,
-              edgeFunctionConfig?.config,
+              route?.middlewareConfig,
               rootDir
             )
           ) {
@@ -658,19 +633,6 @@ function getExtractMetadata(params: {
               })
             )
           }
-        }
-
-        if (edgeFunctionConfig?.config?.regions) {
-          entryMetadata.regions = edgeFunctionConfig.config.regions
-        }
-
-        if (route?.preferredRegion) {
-          const preferredRegion = route.preferredRegion
-          entryMetadata.regions =
-            // Ensures preferredRegion is always an array in the manifest.
-            typeof preferredRegion === 'string'
-              ? [preferredRegion]
-              : preferredRegion
         }
 
         /**
