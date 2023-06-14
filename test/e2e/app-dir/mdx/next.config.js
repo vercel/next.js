@@ -14,7 +14,7 @@ const nextConfig = {
   },
 }
 
-if (shouldUseMdxRs) {
+if (!shouldUseMdxRs) {
   nextConfig.experimental.turbo = {
     rules: {
       '*.mdx': [
