@@ -1232,6 +1232,7 @@ function runTests({ dev }) {
       expect(manifest).toEqual({
         version: 3,
         pages404: true,
+        caseSensitive: false,
         basePath: '',
         headers: [],
         rewrites: [],

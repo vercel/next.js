@@ -83,7 +83,7 @@ function runTests() {
 
   it('should link to imported image', async () => {
     const img = document.querySelector('#imported')
-    expect(img.src).toContain(encodeURIComponent('_next/static/assets'))
+    expect(img.src).toContain(encodeURIComponent('_next/static/media'))
 
     const res = await fetch(img.src)
     expect(res.status).toBe(200)
@@ -91,7 +91,7 @@ function runTests() {
 
   it('should link to imported svg image', async () => {
     const img = document.querySelector('#svg')
-    expect(img.src).toContain('_next/static/assets')
+    expect(img.src).toContain('_next/static/media')
 
     const res = await fetch(img.src)
     expect(res.status).toBe(200)
@@ -107,7 +107,7 @@ function runTests() {
 
   it('should link to imported broken image', async () => {
     const img = document.querySelector('#broken')
-    expect(img.src).toContain(encodeURIComponent('_next/static/assets'))
+    expect(img.src).toContain(encodeURIComponent('_next/static/media'))
 
     const res = await fetch(img.src)
     expect(res.status).toBe(404)
@@ -115,7 +115,7 @@ function runTests() {
 
   it('should link to imported broken svg image', async () => {
     const img = document.querySelector('#broken-svg')
-    expect(img.src).toContain('_next/static/assets')
+    expect(img.src).toContain('_next/static/media')
 
     const res = await fetch(img.src)
     expect(res.status).toBe(200)

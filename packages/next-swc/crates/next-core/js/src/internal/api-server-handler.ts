@@ -121,7 +121,8 @@ export default function startHandler(handler: Handler): void {
       renderData.method,
       renderData.path,
       renderData.rawQuery,
-      renderData.rawHeaders
+      renderData.rawHeaders,
+      renderData.data?.serverInfo
     )
 
     return {
