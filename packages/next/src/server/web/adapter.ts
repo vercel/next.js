@@ -17,8 +17,7 @@ import {
   RSC,
 } from '../../client/components/app-router-headers'
 import { NEXT_QUERY_PARAM_PREFIX } from '../../lib/constants'
-
-declare const _ENTRIES: any
+import { ensureInstrumentationRegistered } from './globals'
 
 class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -57,29 +56,6 @@ export type AdapterOptions = {
   page: string
   request: RequestData
   IncrementalCache?: typeof import('../lib/incremental-cache').IncrementalCache
-}
-
-async function registerInstrumentation() {
-  if (
-    '_ENTRIES' in globalThis &&
-    _ENTRIES.middleware_instrumentation &&
-    _ENTRIES.middleware_instrumentation.register
-  ) {
-    try {
-      await _ENTRIES.middleware_instrumentation.register()
-    } catch (err: any) {
-      err.message = `An error occurred while loading instrumentation hook: ${err.message}`
-      throw err
-    }
-  }
-}
-
-let registerInstrumentationPromise: Promise<void> | null = null
-function ensureInstrumentationRegistered() {
-  if (!registerInstrumentationPromise) {
-    registerInstrumentationPromise = registerInstrumentation()
-  }
-  return registerInstrumentationPromise
 }
 
 export async function adapter(
@@ -141,14 +117,14 @@ export async function adapter(
     }
   }
 
-  // Strip internal query parameters off the request.
-  stripInternalSearchParams(requestUrl.searchParams, true)
+  const normalizeUrl = process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
+    ? new URL(params.request.url)
+    : requestUrl
 
   const request = new NextRequestHint({
     page: params.page,
-    input: process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
-      ? params.request.url
-      : String(requestUrl),
+    // Strip internal query parameters off the request.
+    input: stripInternalSearchParams(normalizeUrl, true).toString(),
     init: {
       body: params.request.body,
       geo: params.request.geo,
@@ -317,51 +293,4 @@ export async function adapter(
     response: finalResponse,
     waitUntil: Promise.all(event[waitUntilSymbol]),
   }
-}
-
-function getUnsupportedModuleErrorMessage(module: string) {
-  // warning: if you change these messages, you must adjust how react-dev-overlay's middleware detects modules not found
-  return `The edge runtime does not support Node.js '${module}' module.
-Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`
-}
-
-function __import_unsupported(moduleName: string) {
-  const proxy: any = new Proxy(function () {}, {
-    get(_obj, prop) {
-      if (prop === 'then') {
-        return {}
-      }
-      throw new Error(getUnsupportedModuleErrorMessage(moduleName))
-    },
-    construct() {
-      throw new Error(getUnsupportedModuleErrorMessage(moduleName))
-    },
-    apply(_target, _this, args) {
-      if (typeof args[0] === 'function') {
-        return args[0](proxy)
-      }
-      throw new Error(getUnsupportedModuleErrorMessage(moduleName))
-    },
-  })
-  return new Proxy({}, { get: () => proxy })
-}
-
-export function enhanceGlobals() {
-  // The condition is true when the "process" module is provided
-  if (process !== global.process) {
-    // prefer local process but global.process has correct "env"
-    process.env = global.process.env
-    global.process = process
-  }
-
-  // to allow building code that import but does not use node.js modules,
-  // webpack will expect this function to exist in global scope
-  Object.defineProperty(globalThis, '__import_unsupported', {
-    value: __import_unsupported,
-    enumerable: false,
-    configurable: false,
-  })
-
-  // Eagerly fire instrumentation hook to make the startup faster.
-  void ensureInstrumentationRegistered()
 }

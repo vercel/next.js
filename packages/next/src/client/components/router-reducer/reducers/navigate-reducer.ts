@@ -158,7 +158,7 @@ export function navigateReducer(
     temporaryCacheNode.parallelRoutes = new Map(state.cache.parallelRoutes)
 
     const data = createRecordFromThenable(
-      fetchServerResponse(url, optimisticTree, state.nextUrl)
+      fetchServerResponse(url, optimisticTree, state.nextUrl, state.buildId)
     )
 
     // TODO-APP: segments.slice(1) strips '', we can get rid of '' altogether.
@@ -204,7 +204,7 @@ export function navigateReducer(
   // If we don't have a prefetch value, we need to create one
   if (!prefetchValues) {
     const data = createRecordFromThenable(
-      fetchServerResponse(url, state.tree, state.nextUrl)
+      fetchServerResponse(url, state.tree, state.nextUrl, state.buildId)
     )
 
     const newPrefetchValue = {
@@ -289,7 +289,8 @@ export function navigateReducer(
           flightSegmentPath,
           treePatch,
           // eslint-disable-next-line no-loop-func
-          () => fetchServerResponse(url, currentTree, state.nextUrl)
+          () =>
+            fetchServerResponse(url, currentTree, state.nextUrl, state.buildId)
         )
       }
 

@@ -31,7 +31,7 @@ export const ShadowPortal: React.FC<ShadowPortalProps> = function Portal({
   }, [globalOverlay])
 
   return shadowNode.current ? (
-    createPortal(children, shadowNode.current as any)
+    createPortal(children, shadowNode.current)
   ) : globalOverlay ? null : (
     <span ref={mountNode} />
   )
