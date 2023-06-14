@@ -11,6 +11,12 @@ createNextDescribe(
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
     if (isNextStart) {
+      it('should have correct size in build output', async () => {
+        expect(next.cliOutput).toMatch(
+          /\/dashboard\/another.*? [^0]{1,} [\w]{1,}B/
+        )
+      })
+
       it('should have correct preferredRegion values in manifest', async () => {
         const middlewareManifest = JSON.parse(
           await next.readFile('.next/server/middleware-manifest.json')
