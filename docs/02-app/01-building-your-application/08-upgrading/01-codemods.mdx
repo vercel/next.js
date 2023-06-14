@@ -31,20 +31,20 @@ Replacing `<transform>` and `<path>` with appropriate values.
 ##### `built-in-next-font`
 
 ```bash filename="Terminal"
-npx @next/codemod@latest built-in-next-font
+npx @next/codemod@latest built-in-next-font .
 ```
 
 This codemod uninstalls the `@next/font` package and transforms `@next/font` imports into the built-in `next/font`.
 
 For example:
 
-```jsx
+```js
 import { Inter } from '@next/font/google'
 ```
 
 Transforms into:
 
-```jsx
+```js
 import { Inter } from 'next/font/google'
 ```
 
@@ -55,7 +55,7 @@ import { Inter } from 'next/font/google'
 ##### `next-image-to-legacy-image`
 
 ```bash filename="Terminal"
-npx @next/codemod@latest next-image-to-legacy-image ./pages
+npx @next/codemod@latest next-image-to-legacy-image .
 ```
 
 Safely renames `next/image` imports in existing Next.js 10, 11, or 12 applications to `next/legacy/image` in Next.js 13. Also renames `next/future/image` to `next/image`.
@@ -99,7 +99,7 @@ export default function Home() {
 ##### `next-image-experimental`
 
 ```bash filename="Terminal"
-npx @next/codemod@latest next-image-experimental ./pages
+npx @next/codemod@latest next-image-experimental .
 ```
 
 Dangerously migrates from `next/legacy/image` to the new `next/image` by adding inline styles and removing unused props.
@@ -115,7 +115,7 @@ Dangerously migrates from `next/legacy/image` to the new `next/image` by adding 
 ##### `new-link`
 
 ```bash filename="Terminal"
-npx @next/codemod@latest new-link ./pages
+npx @next/codemod@latest new-link .
 ```
 
 Remove `<a>` tags inside [Link Components](/docs/app/api-reference/components/link), or add a `legacyBehavior` prop to Links that cannot be auto-fixed.

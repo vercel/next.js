@@ -395,7 +395,7 @@ If you need to revalidate the cache of a page that has been [statically generate
 
 This header controls DNS prefetching, allowing browsers to proactively perform domain name resolution on external links, images, CSS, JavaScript, and more. This prefetching is performed in the background, so the [DNS](https://developer.mozilla.org/en-US/docs/Glossary/DNS) is more likely to be resolved by the time the referenced items are needed. This reduces latency when the user clicks a link.
 
-```jsx
+```js
 {
   key: 'X-DNS-Prefetch-Control',
   value: 'on'
@@ -408,7 +408,7 @@ This header informs browsers it should only be accessed using HTTPS, instead of 
 
 If you're deploying to [Vercel](https://vercel.com/docs/concepts/edge-network/headers#strict-transport-security?utm_source=next-site&utm_medium=docs&utm_campaign=next-website), this header is not necessary as it's automatically added to all deployments unless you declare [`headers`](/docs/pages/api-reference/next-config-js/headers) in your `next.config.js`.
 
-```jsx
+```js
 {
   key: 'Strict-Transport-Security',
   value: 'max-age=63072000; includeSubDomains; preload'
@@ -419,7 +419,7 @@ If you're deploying to [Vercel](https://vercel.com/docs/concepts/edge-network/he
 
 This header stops pages from loading when they detect reflected cross-site scripting (XSS) attacks. Although this protection is not necessary when sites implement a strong [`Content-Security-Policy`](#content-security-policy) disabling the use of inline JavaScript (`'unsafe-inline'`), it can still provide protection for older web browsers that don't support CSP.
 
-```jsx
+```js
 {
   key: 'X-XSS-Protection',
   value: '1; mode=block'
@@ -430,7 +430,7 @@ This header stops pages from loading when they detect reflected cross-site scrip
 
 This header indicates whether the site should be allowed to be displayed within an `iframe`. This can prevent against clickjacking attacks. This header has been superseded by CSP's `frame-ancestors` option, which has better support in modern browsers.
 
-```jsx
+```js
 {
   key: 'X-Frame-Options',
   value: 'SAMEORIGIN'
@@ -441,7 +441,7 @@ This header indicates whether the site should be allowed to be displayed within 
 
 This header allows you to control which features and APIs can be used in the browser. It was previously named `Feature-Policy`. You can view the full list of permission options [here](https://github.com/w3c/webappsec-permissions-policy/blob/main/features.md).
 
-```jsx
+```js
 {
   key: 'Permissions-Policy',
   value: 'camera=(), microphone=(), geolocation=(), browsing-topics=()'
@@ -452,7 +452,7 @@ This header allows you to control which features and APIs can be used in the bro
 
 This header prevents the browser from attempting to guess the type of content if the `Content-Type` header is not explicitly set. This can prevent XSS exploits for websites that allow users to upload and share files. For example, a user trying to download an image, but having it treated as a different `Content-Type` like an executable, which could be malicious. This header also applies to downloading browser extensions. The only valid value for this header is `nosniff`.
 
-```jsx
+```js
 {
   key: 'X-Content-Type-Options',
   value: 'nosniff'
@@ -463,7 +463,7 @@ This header prevents the browser from attempting to guess the type of content if
 
 This header controls how much information the browser includes when navigating from the current website (origin) to another. You can read about the different options [here](https://scotthelme.co.uk/a-new-security-header-referrer-policy/).
 
-```jsx
+```js
 {
   key: 'Referrer-Policy',
   value: 'origin-when-cross-origin'
@@ -478,7 +478,7 @@ You can read about the many different CSP options [here](https://developer.mozil
 
 You can add Content Security Policy directives using a template string.
 
-```jsx
+```js
 // Before defining your Security Headers
 // add Content Security Policy directives using a template string.
 

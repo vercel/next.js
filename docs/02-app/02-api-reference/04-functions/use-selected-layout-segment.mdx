@@ -15,7 +15,7 @@ import { useSelectedLayoutSegment } from 'next/navigation'
 export default function ExampleClientComponent() {
   const segment = useSelectedLayoutSegment()
 
-  return <>Active segment: {segment}</>
+  return <p>Active segment: {segment}</p>
 }
 ```
 
@@ -27,11 +27,11 @@ import { useSelectedLayoutSegment } from 'next/navigation'
 export default function ExampleClientComponent() {
   const segment = useSelectedLayoutSegment()
 
-  return <>Active segment: {segment}</>
+  return <p>Active segment: {segment}</p>
 }
 ```
 
-> **Good to know:**
+> **Good to know**:
 >
 > - Since `useSelectedLayoutSegment` is a [Client Component](/docs/getting-started/react-essentials#client-components) hook, and Layouts are [Server Components](/docs/getting-started/react-essentials#server-components) by default, `useSelectedLayoutSegment` is usually called via a Client Component that is imported into a Layout.
 > - `useSelectedLayoutSegment` only returns the segment one level down. To return all active segments, see [`useSelectedLayoutSegments`](/docs/app/api-reference/functions/use-selected-layout-segments)
@@ -145,7 +145,7 @@ export default async function Layout({
 }
 ```
 
-```js filename="app/blog/layout.js" switcher
+```jsx filename="app/blog/layout.js" switcher
 // Import the Client Component into a parent Layout (Server Component)
 import { BlogNavLink } from './blog-nav-link'
 import getFeaturedPosts from './get-featured-posts'
@@ -164,3 +164,9 @@ export default async function Layout({ children }) {
   )
 }
 ```
+
+## Version History
+
+| Version   | Changes                                |
+| --------- | -------------------------------------- |
+| `v13.0.0` | `useSelectedLayoutSegment` introduced. |

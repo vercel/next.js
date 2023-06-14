@@ -322,33 +322,6 @@ async function main() {
 
       const shouldRecordTestWithReplay = process.env.RECORD_REPLAY && isRetry
 
-      let shouldEnableTestTrace = false
-      let traceInitPath = null
-
-      try {
-        traceInitPath = require.resolve('dd-trace/ci/init')
-        // Enable trace only if tracer (dd-trace) can be resolved
-        shouldEnableTestTrace =
-          process.env.DATADOG_API_KEY && process.env.DATADOG_TRACE_NEXTJS_TEST
-      } catch (e) {
-        shouldEnableTestTrace = false
-      }
-
-      const traceEnv =
-        shouldEnableTestTrace && traceInitPath
-          ? {
-              DD_API_KEY: process.env.DATADOG_API_KEY,
-              DD_CIVISIBILITY_AGENTLESS_ENABLED: 1,
-              DD_ENV: 'ci',
-              DD_SERVICE: 'nextjs',
-              NODE_OPTIONS: `-r ${traceInitPath}`,
-            }
-          : {}
-
-      if (shouldEnableTestTrace) {
-        console.log(`Running test with Datadog tracing enabled`)
-      }
-
       const child = spawn(
         jestPath,
         [
@@ -368,7 +341,7 @@ async function main() {
           stdio: ['ignore', 'pipe', 'pipe'],
           env: {
             ...process.env,
-            ...traceEnv,
+            IS_RETRY: isRetry ? 'true' : undefined,
             RECORD_REPLAY: shouldRecordTestWithReplay,
             // run tests in headless mode by default
             HEADLESS: 'true',
