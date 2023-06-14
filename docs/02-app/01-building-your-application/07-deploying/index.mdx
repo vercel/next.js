@@ -60,7 +60,7 @@ Next.js can be deployed to any hosting provider that supports Node.js. For examp
 
 First, ensure your `package.json` has the `"build"` and `"start"` scripts:
 
-```json
+```json filename="package.json"
 {
   "scripts": {
     "dev": "next dev",
@@ -102,7 +102,7 @@ The following services support Next.js `v12+`. Below, you’ll find examples or 
 - [Railway](https://docs.railway.app/getting-started)
 - [Render](https://render.com/docs/deploy-nextjs-app)
 
-> **Note**: There are also managed platforms that allow you to use a Dockerfile as shown in the [example above](#docker-image).
+> **Good to know**: There are also managed platforms that allow you to use a Dockerfile as shown in the [example above](#docker-image).
 
 ### Static Only
 
@@ -122,7 +122,7 @@ You can also manually deploy the output from [`output: 'export'`](/docs/app/buil
 - [Terraform](https://github.com/milliHQ/terraform-aws-next-js)
 - [SST](https://docs.sst.dev/start/nextjs)
 
-> **Note**: Not all serverless providers implement the [Next.js Build API](#nextjs-build-api) from `next start`. Please check with the provider to see what features are supported.
+> **Good to know**: Not all serverless providers implement the [Next.js Build API](#nextjs-build-api) from `next start`. Please check with the provider to see what features are supported.
 
 ## Automatic Updates
 
@@ -130,7 +130,7 @@ When you deploy your Next.js application, you want to see the latest version wit
 
 Next.js will automatically load the latest version of your application in the background when routing. For client-side navigations, `next/link` will temporarily function as a normal `<a>` tag.
 
-**Note**: If a new page (with an old version) has already been prefetched by `next/link`, Next.js will use the old version. Navigating to a page that has _not_ been prefetched (and is not cached at the CDN level) will load the latest version.
+> **Good to know**: If a new page (with an old version) has already been prefetched by `next/link`, Next.js will use the old version. Navigating to a page that has _not_ been prefetched (and is not cached at the CDN level) will load the latest version.
 
 ## Manual Graceful shutdowns
 
@@ -138,7 +138,7 @@ When self-hosting, you might want to run code when the server shuts down on `SIG
 
 You can set the env variable `NEXT_MANUAL_SIG_HANDLE` to `true` and then register a handler for that signal inside your `_document.js` file. You will need to register the env variable directly in the `package.json` script, not in the `.env` file.
 
-> **Note**: Manual signal handling is not available in `next dev`.
+> **Good to know**: Manual signal handling is not available in `next dev`.
 
 ```json filename="package.json"
 {

@@ -28,7 +28,7 @@ export default function Page({
 }
 ```
 
-```jsx filename="pages/index.jsx" switcher
+```jsx filename="pages/index.js" switcher
 export const getStaticProps = async () => {
   const res = await fetch('https://api.github.com/repos/vercel/next.js')
   const repo = await res.json()
@@ -100,7 +100,7 @@ export async function getStaticProps() {
 }
 ```
 
-```js filename="pages/blog.js" switcher
+```jsx filename="pages/blog.js" switcher
 // posts will be populated at build time by getStaticProps()
 export default function Blog({ posts }) {
   return (
@@ -141,7 +141,7 @@ This means that instead of fetching an **API route** from `getStaticProps` (that
 
 Take the following example. An API route is used to fetch some data from a CMS. That API route is then called directly from `getStaticProps`. This produces an additional call, reducing performance. Instead, the logic for fetching the data from the CMS can be shared by using a `lib/` directory. Then it can be shared with `getStaticProps`.
 
-```jsx filename="lib/load-posts.js"
+```js filename="lib/load-posts.js"
 // The following function is shared
 // with getStaticProps and API routes
 // from a `lib/` directory
@@ -152,7 +152,9 @@ export async function loadPosts() {
 
   return data
 }
+```
 
+```jsx filename="pages/blog.js"
 // pages/blog.js
 import { loadPosts } from '../lib/load-posts'
 
@@ -187,7 +189,7 @@ One of the reasons for this restriction is that React needs to have all the requ
 
 Also, you must use export `getStaticProps` as a standalone function — it will **not** work if you add `getStaticProps` as a property of the page component.
 
-> **Note**: if you have created a [custom app](/docs/pages/building-your-application/routing/custom-app), ensure you are passing the `pageProps` to the page component as shown in the linked document, otherwise the props will be empty.
+> **Good to know**: if you have created a [custom app](/docs/pages/building-your-application/routing/custom-app), ensure you are passing the `pageProps` to the page component as shown in the linked document, otherwise the props will be empty.
 
 ## Runs on every request in development
 

@@ -1770,6 +1770,12 @@ export default async function build(
 
           if (config.outputFileTracing) {
             for (let page of pageKeys.pages) {
+              // edge routes have no trace files
+              const pageInfo = pageInfos.get(page)
+              if (pageInfo?.runtime === 'edge') {
+                continue
+              }
+
               const combinedIncludes = new Set<string>()
               const combinedExcludes = new Set<string>()
 

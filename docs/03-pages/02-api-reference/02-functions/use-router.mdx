@@ -55,9 +55,7 @@ The following methods are included inside `router`:
 ### router.push
 
 <details>
-  <summary>
-    Examples
-  </summary>
+  <summary>Examples</summary>
 
 - [Using Router](https://github.com/vercel/next.js/tree/canary/examples/using-router)
 
@@ -65,7 +63,7 @@ The following methods are included inside `router`:
 
 Handles client-side transitions, this method is useful for cases where [`next/link`](/docs/pages/api-reference/components/link) is not enough.
 
-```jsx
+```js
 router.push(url, as, options)
 ```
 
@@ -209,7 +207,7 @@ export default function ReadMore({ post }) {
 
 Similar to the `replace` prop in [`next/link`](/docs/pages/api-reference/components/link), `router.replace` will prevent adding a new URL entry into the `history` stack.
 
-```jsx
+```js
 router.replace(url, as, options)
 ```
 
@@ -237,7 +235,7 @@ Prefetch pages for faster client-side transitions. This method is only useful fo
 
 > This is a production only feature. Next.js doesn't prefetch pages in development.
 
-```jsx
+```js
 router.prefetch(url, as, options)
 ```
 
@@ -287,7 +285,7 @@ export default function Login() {
 
 In some cases (for example, if using a [Custom Server](/docs/pages/building-your-application/configuring/custom-server)), you may wish to listen to [popstate](https://developer.mozilla.org/en-US/docs/Web/Events/popstate) and do something before the router acts on it.
 
-```jsx
+```js
 router.beforePopState(cb)
 ```
 
@@ -363,9 +361,7 @@ export default function Page() {
 ### router.events
 
 <details>
-  <summary>
-    Examples
-  </summary>
+  <summary>Examples</summary>
 
 - [With a page loading indicator](https://github.com/vercel/next.js/tree/canary/examples/with-loading)
 
@@ -381,7 +377,7 @@ You can listen to different events happening inside the Next.js Router. Here's a
 - `hashChangeStart(url, { shallow })` - Fires when the hash will change but not the page
 - `hashChangeComplete(url, { shallow })` - Fires when the hash has changed but not the page
 
-> **Note**: Here `url` is the URL shown in the browser, including the [`basePath`](/docs/app/api-reference/next-config-js/basePath).
+> **Good to know**: Here `url` is the URL shown in the browser, including the [`basePath`](/docs/app/api-reference/next-config-js/basePath).
 
 For example, to listen to the router event `routeChangeStart`, open or create `pages/_app.js` and subscribe to the event, like so:
 
