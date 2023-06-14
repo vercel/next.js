@@ -1,7 +1,4 @@
 module.exports = {
-  experimental: {
-    appDir: true,
-  },
   rewrites: async () => {
     return {
       afterFiles: [

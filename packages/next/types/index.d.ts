@@ -2,6 +2,7 @@
 /// <reference types="react" />
 /// <reference types="react/experimental" />
 /// <reference types="react-dom" />
+/// <reference types="react-dom/experimental" />
 
 import React from 'react'
 import { ParsedUrlQuery } from 'querystring'
@@ -35,6 +36,18 @@ export type {
   ResolvedMetadata,
   ResolvingMetadata, // @ts-ignore This path is generated at build time and conflicts otherwise
 } from '../dist/lib/metadata/types/metadata-interface'
+
+/**
+ * Stub route type for typedRoutes before `next dev` or `next build` is run
+ * @link https://beta.nextjs.org/docs/configuring/typescript#statically-typed-links
+ * @example
+ * ```ts
+ * import type { Route } from 'next'
+ * // ...
+ * router.push(returnToPath as Route)
+ * ```
+ */
+export type Route = string & {}
 
 // Extend the React types with missing properties
 declare module 'react' {
@@ -238,6 +251,7 @@ export type GetServerSidePropsContext<
   query: ParsedUrlQuery
   preview?: boolean
   previewData?: Preview
+  draftMode?: boolean
   resolvedUrl: string
   locale?: string
   locales?: string[]

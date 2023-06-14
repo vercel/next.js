@@ -204,6 +204,13 @@ function runTests(mode) {
           'link[rel=preload][as=image][crossorigin=anonymous][imagesrcset*="test.jpg"]'
         )
       ).toHaveLength(1)
+
+      // should preload with referrerpolicy
+      expect(
+        await browser.elementsByCss(
+          'link[rel=preload][as=image][referrerpolicy="no-referrer"][imagesrcset*="test.png"]'
+        )
+      ).toHaveLength(1)
     } finally {
       if (browser) {
         await browser.close()
@@ -821,6 +828,15 @@ function runTests(mode) {
       expect(await hasRedbox(browser, true)).toBe(true)
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/test.jpg" has invalid "width" property. Expected a numeric value in pixels but received "100%".`
+      )
+    })
+
+    it('should show error when invalid Infinity width prop', async () => {
+      const browser = await webdriver(appPort, '/invalid-Infinity-width')
+
+      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        `Image with src "/test.jpg" has invalid "width" property. Expected a numeric value in pixels but received "Infinity".`
       )
     })
 

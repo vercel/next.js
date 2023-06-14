@@ -8,6 +8,7 @@ import {
 } from '../router-reducer-types'
 import { createRecordFromThenable } from '../create-record-from-thenable'
 import { prunePrefetchCache } from './prune-prefetch-cache'
+import { NEXT_RSC_UNION_QUERY } from '../../app-router-headers'
 
 export function prefetchReducer(
   state: ReadonlyReducerState,
@@ -17,6 +18,8 @@ export function prefetchReducer(
   prunePrefetchCache(state.prefetchCache)
 
   const { url } = action
+  url.searchParams.delete(NEXT_RSC_UNION_QUERY)
+
   const href = createHrefFromUrl(
     url,
     // Ensures the hash is not part of the cache key as it does not affect fetching the server
@@ -30,7 +33,6 @@ export function prefetchReducer(
      * where we didn't have the prefetch intent. We want to update it to the new, more accurate, kind here.
      */
     if (cacheEntry.kind === PrefetchKind.TEMPORARY) {
-      console.log(href, action.kind, cacheEntry)
       state.prefetchCache.set(href, {
         ...cacheEntry,
         kind: action.kind,
@@ -58,6 +60,7 @@ export function prefetchReducer(
       // initialTree is used when history.state.tree is missing because the history state is set in `useEffect` below, it being missing means this is the hydration case.
       state.tree,
       state.nextUrl,
+      state.buildId,
       action.kind
     )
   )

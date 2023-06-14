@@ -3,9 +3,9 @@ import type { RouteDefinition } from '../future/route-definitions/route-definiti
 import type { RouteModule } from '../future/route-modules/route-module'
 import type { NextRequest } from './spec-extension/request'
 
-import { adapter, enhanceGlobals, type AdapterOptions } from './adapter'
+import './globals'
+import { adapter, type AdapterOptions } from './adapter'
 import { IncrementalCache } from '../lib/incremental-cache'
-enhanceGlobals()
 
 import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
 import { RouteMatcher } from '../future/route-matchers/route-matcher'
@@ -82,6 +82,17 @@ export class EdgeRouteModuleWrapper {
     // match (if any).
     const context: RouteHandlerManagerContext = {
       params: match.params,
+      prerenderManifest: {
+        version: 4,
+        routes: {},
+        dynamicRoutes: {},
+        preview: {
+          previewModeEncryptionKey: '',
+          previewModeId: '',
+          previewModeSigningKey: '',
+        },
+        notFoundRoutes: [],
+      },
       staticGenerationContext: {
         supportsDynamicHTML: true,
       },

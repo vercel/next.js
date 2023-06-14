@@ -93,7 +93,7 @@ function webpack5(this: ReactFreshWebpackPlugin, compiler: WebpackCompiler) {
     }
 
     generate() {
-      const { runtimeTemplate } = this.compilation
+      const { runtimeTemplate } = this.compilation!
       return Template.asString([
         `if (${RuntimeGlobals.interceptModuleExecution}) {`,
         `${

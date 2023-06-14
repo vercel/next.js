@@ -1,25 +1,25 @@
 use anyhow::Result;
-use turbo_binding::turbopack::{
-    core::{
-        asset::AssetVc,
-        resolve::{find_context_file, node::node_cjs_resolve_options, FindContextFileResult},
-        source_asset::SourceAssetVc,
-    },
-    ecmascript::typescript::resolve::{read_from_tsconfigs, read_tsconfigs, tsconfig},
-    ecmascript_plugin::transform::emotion::{
-        EmotionTransformConfig, EmotionTransformConfigVc, OptionEmotionTransformConfigVc,
-    },
-    turbopack::module_options::{
-        DecoratorsKind, DecoratorsOptions, DecoratorsOptionsVc, JsxTransformOptions,
-        JsxTransformOptionsVc, OptionStyledComponentsTransformConfigVc,
-        StyledComponentsTransformConfig, TypescriptTransformOptions, TypescriptTransformOptionsVc,
+use turbopack_binding::{
+    turbo::tasks_fs::{FileJsonContentVc, FileSystemPathVc},
+    turbopack::{
+        core::{
+            asset::AssetVc,
+            resolve::{find_context_file, node::node_cjs_resolve_options, FindContextFileResult},
+            source_asset::SourceAssetVc,
+        },
+        dev::react_refresh::assert_can_resolve_react_refresh,
+        ecmascript::typescript::resolve::{read_from_tsconfigs, read_tsconfigs, tsconfig},
+        turbopack::{
+            module_options::{
+                DecoratorsKind, DecoratorsOptions, DecoratorsOptionsVc, JsxTransformOptions,
+                JsxTransformOptionsVc, TypescriptTransformOptions, TypescriptTransformOptionsVc,
+            },
+            resolve_options_context::ResolveOptionsContextVc,
+        },
     },
 };
-use turbo_tasks_fs::{FileJsonContentVc, FileSystemPathVc};
 
-use crate::next_config::{
-    EmotionTransformOptionsOrBoolean, NextConfigVc, StyledComponentsTransformOptionsOrBoolean,
-};
+use crate::mode::NextMode;
 
 async fn get_typescript_options(
     project_path: FileSystemPathVc,
@@ -125,16 +125,28 @@ pub async fn get_decorators_transform_options(
 #[turbo_tasks::function]
 pub async fn get_jsx_transform_options(
     project_path: FileSystemPathVc,
+    mode: NextMode,
+    resolve_options_context: Option<ResolveOptionsContextVc>,
 ) -> Result<JsxTransformOptionsVc> {
     let tsconfig = get_typescript_options(project_path).await;
+
+    let enable_react_refresh = if let Some(resolve_options_context) = resolve_options_context {
+        assert_can_resolve_react_refresh(project_path, resolve_options_context)
+            .await?
+            .is_found()
+    } else {
+        false
+    };
 
     // [NOTE]: ref: WEB-901
     // next.js does not allow to overriding react runtime config via tsconfig /
     // jsconfig, it forces overrides into automatic runtime instead.
     // [TODO]: we need to emit / validate config message like next.js devserver does
     let react_transform_options = JsxTransformOptions {
+        development: mode.is_react_development(),
         import_source: None,
         runtime: Some("automatic".to_string()),
+        react_refresh: enable_react_refresh,
     };
 
     let react_transform_options = if let Some(tsconfig) = tsconfig {
@@ -155,73 +167,4 @@ pub async fn get_jsx_transform_options(
     };
 
     Ok(react_transform_options.cell())
-}
-
-#[turbo_tasks::function]
-pub async fn get_emotion_compiler_config(
-    next_config: NextConfigVc,
-) -> Result<OptionEmotionTransformConfigVc> {
-    let emotion_compiler_config = next_config
-        .await?
-        .compiler
-        .as_ref()
-        .map(|value| {
-            value
-                .emotion
-                .as_ref()
-                .map(|value| {
-                    let options = match value {
-                        EmotionTransformOptionsOrBoolean::Boolean(true) => {
-                            Some(EmotionTransformConfigVc::cell(EmotionTransformConfig {
-                                ..Default::default()
-                            }))
-                        }
-                        EmotionTransformOptionsOrBoolean::Boolean(false) => None,
-                        EmotionTransformOptionsOrBoolean::Options(value) => {
-                            Some(EmotionTransformConfigVc::cell(value.clone()))
-                        }
-                    };
-
-                    OptionEmotionTransformConfigVc::cell(options)
-                })
-                .unwrap_or_else(|| OptionEmotionTransformConfigVc::cell(None))
-        })
-        .unwrap_or_else(|| OptionEmotionTransformConfigVc::cell(None));
-
-    Ok(emotion_compiler_config)
-}
-
-#[turbo_tasks::function]
-pub async fn get_styled_components_compiler_config(
-    next_config: NextConfigVc,
-) -> Result<OptionStyledComponentsTransformConfigVc> {
-    let styled_components_compiler_config = next_config
-        .await?
-        .compiler
-        .as_ref()
-        .map(|value| {
-            value
-                .styled_components
-                .as_ref()
-                .map(|value| {
-                    let options = match value {
-                        StyledComponentsTransformOptionsOrBoolean::Boolean(true) => Some(
-                            StyledComponentsTransformConfig {
-                                ..Default::default()
-                            }
-                            .cell(),
-                        ),
-                        StyledComponentsTransformOptionsOrBoolean::Boolean(false) => None,
-                        StyledComponentsTransformOptionsOrBoolean::Options(value) => {
-                            Some(value.clone().cell())
-                        }
-                    };
-
-                    OptionStyledComponentsTransformConfigVc::cell(options)
-                })
-                .unwrap_or_else(|| OptionStyledComponentsTransformConfigVc::cell(None))
-        })
-        .unwrap_or_else(|| OptionStyledComponentsTransformConfigVc::cell(None));
-
-    Ok(styled_components_compiler_config)
 }
