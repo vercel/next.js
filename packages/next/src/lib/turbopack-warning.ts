@@ -19,6 +19,7 @@ const supportedTurbopackNextConfigOptions = [
   'reactStrictMode',
   'swcMinify',
   'transpilePackages',
+  'sassOptions.includePaths',
   'experimental.appDir',
   'experimental.serverComponentsExternalPackages',
   'experimental.turbo',
