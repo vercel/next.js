@@ -573,7 +573,7 @@ describe('i18n Support', () => {
     nextConfig.restore()
     expect(code).toBe(1)
     expect(stderr).toContain(
-      `i18n domain: "hello:3000" is invalid it should be a valid domain without https:// or port e.g. example.vercel.sh`
+      `i18n domain: "hello:3000" is invalid it should be a valid domain without protocol (https://) or port (:3000) e.g. example.vercel.sh`
     )
   })
 })

@@ -539,7 +539,7 @@ function assignDefaults(
 
         if (item.domain.includes(':')) {
           console.warn(
-            `i18n domain: "${item.domain}" is invalid it should be a valid domain without https:// or port e.g. example.vercel.sh`
+            `i18n domain: "${item.domain}" is invalid it should be a valid domain without protocol (https://) or port (:3000) e.g. example.vercel.sh`
           )
           return true
         }
