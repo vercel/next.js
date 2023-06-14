@@ -224,6 +224,13 @@ export async function renderToHTMLOrFlight(
     staticGenerationStore.fetchMetrics = []
     ;(renderOpts as any).fetchMetrics = staticGenerationStore.fetchMetrics
 
+    const requestStore = requestAsyncStorage.getStore()
+    if (!requestStore) {
+      throw new Error(
+        `Invariant: Render expects to have requestAsyncStorage, none found`
+      )
+    }
+
     // don't modify original query object
     query = { ...query }
     stripInternalQueries(query)
@@ -1617,6 +1624,7 @@ export async function renderToHTMLOrFlight(
       serverActionsManifest,
       generateFlight,
       staticGenerationStore,
+      requestStore,
     })
 
     if (actionRequestResult === 'not-found') {
