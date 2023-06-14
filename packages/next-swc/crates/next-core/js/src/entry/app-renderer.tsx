@@ -171,8 +171,6 @@ async function runOperation(renderData: RenderData) {
         if (type === 'entryCSSFiles') {
           const cssChunks = JSON.parse(key)
           // TODO(WEB-856) subscribe to changes
-
-          // This return value is passed to proxyMethodsNested for clientModules
           return {
             modules: [],
             files: cssChunks.filter(filterAvailable).map(toPath),
