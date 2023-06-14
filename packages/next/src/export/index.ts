@@ -154,6 +154,7 @@ export interface ExportOptions {
   exportAppPageWorker?: typeof import('./worker').default
   endWorker?: () => Promise<void>
   nextConfig?: NextConfigComplete
+  hasOutdirFromCli?: boolean
 }
 
 export default async function exportApp(
@@ -184,6 +185,11 @@ export default async function exportApp(
     // Running 'next export'
     if (options.isInvokedFromCli) {
       if (isExportOutput) {
+        if (options.hasOutdirFromCli) {
+          throw new ExportError(
+            '"next export -o <dir>" cannot be used when "output: export" is configured in next.config.js. Instead add "distDir" in next.config.js https://nextjs.org/docs/advanced-features/static-html-export'
+          )
+        }
         Log.warn(
           '"next export" is no longer needed when "output: export" is configured in next.config.js https://nextjs.org/docs/advanced-features/static-html-export'
         )
@@ -493,6 +499,7 @@ export default async function exportApp(
           }
         : {}),
       strictNextHead: !!nextConfig.experimental.strictNextHead,
+      deploymentId: nextConfig.experimental.deploymentId,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig

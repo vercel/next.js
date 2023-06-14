@@ -603,8 +603,8 @@ fn insert_package_alias(import_map: &mut ImportMap, prefix: &str, package_root: 
 fn insert_turbopack_dev_alias(import_map: &mut ImportMap) {
     insert_package_alias(
         import_map,
-        "@vercel/turbopack-dev/",
-        turbopack_binding::turbopack::dev::embed_js::embed_fs().root(),
+        "@vercel/turbopack-ecmascript-runtime/",
+        turbopack_binding::turbopack::ecmascript_runtime::embed_fs().root(),
     );
 }
 

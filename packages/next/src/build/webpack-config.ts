@@ -4,6 +4,8 @@ import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import path from 'path'
+import semver from 'next/dist/compiled/semver'
+
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import {
   DOT_NEXT_ALIAS,
@@ -14,6 +16,7 @@ import {
   RSC_ACTION_PROXY_ALIAS,
   RSC_ACTION_CLIENT_WRAPPER_ALIAS,
   RSC_ACTION_VALIDATE_ALIAS,
+  WEBPACK_RESOURCE_QUERIES,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
@@ -64,7 +67,6 @@ import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plu
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
 import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plugin'
 import { getSupportedBrowsers } from './utils'
-import { METADATA_RESOURCE_QUERY } from './webpack/loaders/metadata/discover'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -97,15 +99,23 @@ const reactPackagesRegex = /^(react|react-dom|react-server-dom-webpack)($|\/)/
 const asyncStoragesRegex =
   /next[\\/]dist[\\/]client[\\/]components[\\/](static-generation-async-storage|action-async-storage|request-async-storage)/
 
+// exports.<conditionName>
+const edgeConditionNames = [
+  'edge-light',
+  'worker',
+  // inherits the default conditions
+  '...',
+]
+
+// packageJson.<mainField>
 const mainFieldsPerCompiler: Record<CompilerNameValues, string[]> = {
   [COMPILER_NAMES.server]: ['main', 'module'],
   [COMPILER_NAMES.client]: ['browser', 'module', 'main'],
   [COMPILER_NAMES.edgeServer]: [
     'edge-light',
     'worker',
-    'browser',
-    'module',
-    'main',
+    // inherits the default conditions
+    '...',
   ],
 }
 
@@ -250,6 +260,12 @@ export function getDefineEnv({
     'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production'),
     'process.env.NEXT_RUNTIME': JSON.stringify(
       isEdgeServer ? 'edge' : isNodeServer ? 'nodejs' : undefined
+    ),
+    'process.env.__NEXT_ACTIONS_DEPLOYMENT_ID': JSON.stringify(
+      config.experimental.useDeploymentIdServerActions
+    ),
+    'process.env.__NEXT_DEPLOYMENT_ID': JSON.stringify(
+      config.experimental.deploymentId
     ),
     'process.env.__NEXT_FETCH_CACHE_KEY_PREFIX':
       JSON.stringify(fetchCacheKeyPrefix),
@@ -847,8 +863,8 @@ export default async function getBaseWebpackConfig(
         rootDir: dir,
         pagesDir,
         appDir,
-        hasServerComponents,
         hasReactRefresh: dev && isClient,
+        hasServerComponents: true,
         fileReading: config.experimental.swcFileReading,
         nextConfig: config,
         jsConfig,
@@ -874,13 +890,20 @@ export default async function getBaseWebpackConfig(
     : []
   const swcLoaderForClientLayer = hasServerComponents
     ? useSWCLoader
-      ? [getSwcLoader({ isServerLayer: false })]
+      ? [getSwcLoader({ hasServerComponents, isServerLayer: false })]
       : // When using Babel, we will have to add the SWC loader
         // as an additional pass to handle RSC correctly.
         // This will cause some performance overhead but
         // acceptable as Babel will not be recommended.
         [getSwcLoader({ isServerLayer: false }), getBabelLoader()]
     : []
+  const swcLoaderForMiddlewareLayer = useSWCLoader
+    ? getSwcLoader({ hasServerComponents: false })
+    : // When using Babel, we will have to use SWC to do the optimization
+      // for middleware to tree shake the unused default optimized imports like "next/server".
+      // This will cause some performance overhead but
+      // acceptable as Babel will not be recommended.
+      [getSwcLoader({ hasServerComponents: false }), getBabelLoader()]
 
   // Loader for API routes needs to be differently configured as it shouldn't
   // have RSC transpiler enabled, so syntax checks such as invalid imports won't
@@ -905,12 +928,9 @@ export default async function getBaseWebpackConfig(
 
   const reactServerCondition = [
     'react-server',
-    ...mainFieldsPerCompiler[
-      isEdgeServer ? COMPILER_NAMES.edgeServer : COMPILER_NAMES.server
-    ],
-    'node',
-    'import',
-    'require',
+    ...(isEdgeServer ? edgeConditionNames : []),
+    // inherits the default conditions
+    '...',
   ]
 
   const clientEntries = isClient
@@ -1032,8 +1052,18 @@ export default async function getBaseWebpackConfig(
 
   let hasExternalOtelApiPackage = false
   try {
-    require.resolve('@opentelemetry/api')
-    hasExternalOtelApiPackage = true
+    const opentelemetryPackageJson = require('@opentelemetry/api/package.json')
+    if (opentelemetryPackageJson.version) {
+      // 0.19.0 is the first version of the package that has the `tracer.getSpan` API that we need:
+      // https://github.com/vercel/next.js/issues/48118
+      if (semver.gte(opentelemetryPackageJson.version, '0.19.0')) {
+        hasExternalOtelApiPackage = true
+      } else {
+        throw new Error(
+          `Installed "@opentelemetry/api" with version ${opentelemetryPackageJson.version} is not supported by Next.js. Please upgrade to 0.19.0 or newer version.`
+        )
+      }
+    }
   } catch {}
 
   const resolveConfig: webpack.Configuration['resolve'] = {
@@ -1146,11 +1176,7 @@ export default async function getBaseWebpackConfig(
       : undefined),
     mainFields: mainFieldsPerCompiler[compilerType],
     ...(isEdgeServer && {
-      conditionNames: [
-        ...mainFieldsPerCompiler[COMPILER_NAMES.edgeServer],
-        'import',
-        'node',
-      ],
+      conditionNames: edgeConditionNames,
     }),
     plugins: [],
   }
@@ -1669,6 +1695,10 @@ export default async function getBaseWebpackConfig(
             framework: {
               chunks: 'all',
               name: 'framework',
+              // Ensures the framework chunk is not created for App Router.
+              layer(layer: any) {
+                return layer === null || layer === undefined
+              },
               test(module: any) {
                 const resource = module.nameForCondition?.()
                 return resource
@@ -1693,6 +1723,7 @@ export default async function getBaseWebpackConfig(
                 )
               },
               name(module: {
+                layer: string | null | undefined
                 type: string
                 libIdent?: Function
                 updateHash: (hash: crypto.Hash) => void
@@ -1707,6 +1738,13 @@ export default async function getBaseWebpackConfig(
                     )
                   }
                   hash.update(module.libIdent({ context: dir }))
+                }
+
+                // Ensures the name of the chunk is not the same between two modules in different layers
+                // E.g. if you import 'button-library' in App Router and Pages Router we don't want these to be bundled in the same chunk
+                // as they're never used on the same page.
+                if (module.layer) {
+                  hash.update(module.layer)
                 }
 
                 return hash.digest('hex').substring(0, 8)
@@ -1778,7 +1816,13 @@ export default async function getBaseWebpackConfig(
     output: {
       // we must set publicPath to an empty value to override the default of
       // auto which doesn't work in IE11
-      publicPath: `${config.assetPrefix || ''}/_next/`,
+      publicPath: `${
+        config.assetPrefix
+          ? config.assetPrefix.endsWith('/')
+            ? config.assetPrefix.slice(0, -1)
+            : config.assetPrefix
+          : ''
+      }/_next/`,
       path: !dev && isNodeServer ? path.join(outputPath, 'chunks') : outputPath,
       // On the server we don't use hashes
       filename:
@@ -1897,6 +1941,10 @@ export default async function getBaseWebpackConfig(
                   ],
                 },
                 resolve: {
+                  mainFields: isEdgeServer
+                    ? mainFieldsPerCompiler[COMPILER_NAMES.edgeServer]
+                    : // Prefer module fields over main fields for isomorphic packages on server layer
+                      ['module', 'main'],
                   conditionNames: reactServerCondition,
                   alias: {
                     // If missing the alias override here, the default alias will be used which aliases
@@ -1939,7 +1987,9 @@ export default async function getBaseWebpackConfig(
               // be in the SSR layer — here we convert the actual page request to
               // the RSC layer via a webpack rule.
               {
-                resourceQuery: /__edge_ssr_entry__/,
+                resourceQuery: new RegExp(
+                  WEBPACK_RESOURCE_QUERIES.edgeSSREntry
+                ),
                 layer: WEBPACK_LAYERS.server,
               },
             ]
@@ -2022,7 +2072,7 @@ export default async function getBaseWebpackConfig(
             {
               test: codeCondition.test,
               issuerLayer: WEBPACK_LAYERS.middleware,
-              use: defaultLoaders.babel,
+              use: swcLoaderForMiddlewareLayer,
             },
             ...(hasServerComponents
               ? [
@@ -2036,7 +2086,9 @@ export default async function getBaseWebpackConfig(
                   },
                   {
                     test: codeCondition.test,
-                    resourceQuery: /__edge_ssr_entry__/,
+                    resourceQuery: new RegExp(
+                      WEBPACK_RESOURCE_QUERIES.edgeSSREntry
+                    ),
                     use: swcLoaderForServerLayer,
                   },
                   {
@@ -2084,10 +2136,12 @@ export default async function getBaseWebpackConfig(
                 loader: 'next-image-loader',
                 issuer: { not: regexLikeCss },
                 dependency: { not: ['url'] },
-                resourceQuery: { not: [METADATA_RESOURCE_QUERY] },
+                resourceQuery: {
+                  not: [new RegExp(WEBPACK_RESOURCE_QUERIES.metadata)],
+                },
                 options: {
-                  isServer: isNodeServer || isEdgeServer,
                   isDev: dev,
+                  compilerType,
                   basePath: config.basePath,
                   assetPrefix: config.assetPrefix,
                 },

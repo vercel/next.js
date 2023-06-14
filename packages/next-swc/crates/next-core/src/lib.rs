@@ -6,7 +6,6 @@ mod app_render;
 mod app_segment_config;
 mod app_source;
 pub mod app_structure;
-mod asset_helpers;
 mod babel;
 mod bootstrap;
 mod embed_js;

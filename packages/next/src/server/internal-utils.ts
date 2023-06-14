@@ -1,3 +1,4 @@
+import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 import type { NextParsedUrlQuery } from './request-meta'
 
 const INTERNAL_QUERY_NAMES = [
@@ -6,9 +7,10 @@ const INTERNAL_QUERY_NAMES = [
   '__nextInferredLocaleFromDefault',
   '__nextDefaultLocale',
   '__nextIsNotFound',
+  NEXT_RSC_UNION_QUERY,
 ] as const
 
-const EXTENDED_INTERNAL_QUERY_NAMES = ['__nextDataReq'] as const
+const EDGE_EXTENDED_INTERNAL_QUERY_NAMES = ['__nextDataReq'] as const
 
 export function stripInternalQueries(query: NextParsedUrlQuery) {
   for (const name of INTERNAL_QUERY_NAMES) {
@@ -16,19 +18,21 @@ export function stripInternalQueries(query: NextParsedUrlQuery) {
   }
 }
 
-export function stripInternalSearchParams(
-  searchParams: URLSearchParams,
-  extended?: boolean
-) {
+export function stripInternalSearchParams<T extends string | URL>(
+  url: T,
+  isEdge: boolean
+): T {
+  const isStringUrl = typeof url === 'string'
+  const instance = isStringUrl ? new URL(url) : (url as URL)
   for (const name of INTERNAL_QUERY_NAMES) {
-    searchParams.delete(name)
+    instance.searchParams.delete(name)
   }
 
-  if (extended) {
-    for (const name of EXTENDED_INTERNAL_QUERY_NAMES) {
-      searchParams.delete(name)
+  if (isEdge) {
+    for (const name of EDGE_EXTENDED_INTERNAL_QUERY_NAMES) {
+      instance.searchParams.delete(name)
     }
   }
 
-  return searchParams
+  return (isStringUrl ? instance.toString() : instance) as T
 }
