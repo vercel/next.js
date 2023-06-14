@@ -39,6 +39,44 @@ let appPort
 let app
 
 const runTests = (isDev = false, isTurbo = false) => {
+  it.each([
+    {
+      path: '/to-ANOTHER',
+      content: /could not be found/,
+      status: 404,
+    },
+    {
+      path: '/HELLO-world',
+      content: /could not be found/,
+      status: 404,
+    },
+    {
+      path: '/docs/GITHUB',
+      content: /could not be found/,
+      status: 404,
+    },
+    {
+      path: '/add-HEADER',
+      content: /could not be found/,
+      status: 404,
+    },
+  ])(
+    'should honor caseSensitiveRoutes config for $path',
+    async ({ path, status, content }) => {
+      const res = await fetchViaHTTP(appPort, path, undefined, {
+        redirect: 'manual',
+      })
+
+      if (status) {
+        expect(res.status).toBe(status)
+      }
+
+      if (content) {
+        expect(await res.text()).toMatch(content)
+      }
+    }
+  )
+
   it('should successfully rewrite a WebSocket request', async () => {
     // TODO: remove once test failure has been fixed
     if (isTurbo) return
@@ -1534,6 +1572,7 @@ const runTests = (isDev = false, isTurbo = false) => {
       expect(manifest).toEqual({
         version: 3,
         pages404: true,
+        caseSensitive: true,
         basePath: '',
         dataRoutes: [
           {

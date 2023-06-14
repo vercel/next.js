@@ -6,7 +6,7 @@ export function traverseModules(
   callback: (
     mod: any,
     chunk: webpack.Chunk,
-    chunkGroup: typeof compilation.chunkGroups[0],
+    chunkGroup: (typeof compilation.chunkGroups)[0],
     modId: string | number
   ) => any
 ) {

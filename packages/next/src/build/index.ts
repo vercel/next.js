@@ -712,6 +712,7 @@ export default async function build(
           varyHeader: typeof RSC_VARY_HEADER
         }
         skipMiddlewareUrlNormalize?: boolean
+        caseSensitive?: boolean
       } = nextBuildSpan.traceChild('generate-routes-manifest').traceFn(() => {
         const sortedRoutes = getSortedRoutes([
           ...pageKeys.pages,
@@ -731,6 +732,7 @@ export default async function build(
         return {
           version: 3,
           pages404: true,
+          caseSensitive: !!config.experimental.caseSensitiveRoutes,
           basePath: config.basePath,
           redirects: redirects.map((r: any) => buildCustomRoute(r, 'redirect')),
           headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
@@ -2934,7 +2936,9 @@ export default async function build(
         )
         await promises.writeFile(
           path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
-          `self.__PRERENDER_MANIFEST=${JSON.stringify(prerenderManifest)}`,
+          `self.__PRERENDER_MANIFEST=${JSON.stringify(
+            JSON.stringify(prerenderManifest)
+          )}`,
           'utf8'
         )
         await generateClientSsgManifest(prerenderManifest, {
@@ -2957,7 +2961,9 @@ export default async function build(
         )
         await promises.writeFile(
           path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
-          `self.__PRERENDER_MANIFEST=${JSON.stringify(prerenderManifest)}`,
+          `self.__PRERENDER_MANIFEST=${JSON.stringify(
+            JSON.stringify(prerenderManifest)
+          )}`,
           'utf8'
         )
       }

@@ -45,6 +45,10 @@ function parseCookieString(cookie) {
     if (!pair)
       continue;
     const splitAt = pair.indexOf("=");
+    if (splitAt === -1) {
+      map.set(pair, "true");
+      continue;
+    }
     const [key, value] = [pair.slice(0, splitAt), pair.slice(splitAt + 1)];
     try {
       map.set(key, decodeURIComponent(value != null ? value : "true"));

@@ -1,6 +1,6 @@
 import { createNextDescribe } from 'e2e-utils'
-import webdriver from 'next-webdriver'
 import { check } from 'next-test-utils'
+import type { Request } from 'playwright-chromium'
 
 createNextDescribe(
   'app dir - navigation',
@@ -10,7 +10,7 @@ createNextDescribe(
   ({ next, isNextDev, isNextDeploy }) => {
     describe('query string', () => {
       it('should set query correctly', async () => {
-        const browser = await webdriver(next.url, '/')
+        const browser = await next.browser('/')
         expect(await browser.elementById('query').text()).toMatchInlineSnapshot(
           `""`
         )
@@ -24,6 +24,35 @@ createNextDescribe(
 
         const url = new URL(await browser.url())
         expect(url.searchParams.toString()).toMatchInlineSnapshot(`"a=b&c=d"`)
+      })
+
+      it('should handle unicode search params', async () => {
+        const requests = []
+
+        const browser = await next.browser('/search-params?name=名')
+        browser.on('request', async (req: Request) => {
+          const res = await req.response()
+          requests.push([
+            new URL(req.url()).pathname,
+            res.ok(),
+            await res.headers(),
+          ])
+        })
+        expect(await browser.elementById('name').text()).toBe('名')
+        await browser.elementById('link').click()
+
+        await check(async () => {
+          return requests.some((requestPair) => {
+            const [pathname, ok, headers] = requestPair
+            return (
+              pathname === '/' &&
+              ok &&
+              headers['content-type'] === 'text/x-component'
+            )
+          })
+            ? 'success'
+            : JSON.stringify(requests)
+        }, 'success')
       })
     })
 
@@ -387,6 +416,38 @@ createNextDescribe(
         }
 
         expect(stored).toEqual(expected)
+      })
+    })
+
+    describe('navigation between pages and app', () => {
+      it('should not contain _rsc query while navigating from app to pages', async () => {
+        // Initiate with app
+        const browser = await next.browser('/assertion/page')
+        await browser
+          .elementByCss('#link-to-pages')
+          .click()
+          .waitForElementByCss('#link-to-app')
+        expect(await browser.url()).toBe(next.url + '/some')
+        await browser
+          .elementByCss('#link-to-app')
+          .click()
+          .waitForElementByCss('#link-to-pages')
+        expect(await browser.url()).toBe(next.url + '/assertion/page')
+      })
+
+      it('should not contain _rsc query while navigating from pages to app', async () => {
+        // Initiate with pages
+        const browser = await next.browser('/some')
+        await browser
+          .elementByCss('#link-to-app')
+          .click()
+          .waitForElementByCss('#link-to-pages')
+        expect(await browser.url()).toBe(next.url + '/assertion/page')
+        await browser
+          .elementByCss('#link-to-pages')
+          .click()
+          .waitForElementByCss('#link-to-app')
+        expect(await browser.url()).toBe(next.url + '/some')
       })
     })
 
