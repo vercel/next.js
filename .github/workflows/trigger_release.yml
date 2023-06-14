@@ -25,8 +25,7 @@ name: Trigger Release
 
 env:
   NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 1.6.3
-  RUST_TOOLCHAIN: nightly-2023-03-09
+  TURBO_VERSION: 1.9.6
   PNPM_VERSION: 7.24.3
   NODE_MAINTENANCE_VERSION: 16
   NODE_LTS_VERSION: 18
@@ -49,9 +48,9 @@ jobs:
           node-version: 18
           check-latest: true
 
-      - run: git clone https://ijjk:${{ secrets.START_RELEASE_TOKEN }}@github.com/vercel/next.js.git --depth=25 .
+      - run: git clone https://github.com/vercel/next.js.git --depth=25 .
 
-      - run: git describe || 'echo failed to get tag'
+      - run: git describe || echo 'failed to get tag'
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network

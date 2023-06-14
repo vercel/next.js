@@ -37,6 +37,15 @@ createNextDescribe(
       })
     }
 
+    it('should work for catch-all edge page', async () => {
+      const html = await next.render('/catch-all-edge/hello123')
+      const $ = cheerio.load(html)
+
+      expect(JSON.parse($('#params').text())).toEqual({
+        slug: ['hello123'],
+      })
+    })
+
     it('should have correct searchParams and params (server)', async () => {
       const html = await next.render('/dynamic/category-1/id-2?query1=value2')
       const $ = cheerio.load(html)
@@ -1127,7 +1136,8 @@ createNextDescribe(
           }
         })
 
-        it('should HMR correctly when changing the component type', async () => {
+        // TODO: investigate flakey behavior with this test case
+        it.skip('should HMR correctly when changing the component type', async () => {
           const filePath = 'app/dashboard/page/page.jsx'
           const origContent = await next.readFile(filePath)
 

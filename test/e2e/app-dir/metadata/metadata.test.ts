@@ -500,6 +500,19 @@ createNextDescribe(
           'og:image:height': ['600', '1600'],
           'og:image:alt': 'My custom alt',
         })
+
+        await matchMultiDom('meta', 'name', 'content', {
+          'twitter:card': 'summary',
+          'twitter:title': 'My custom title',
+          'twitter:description': 'My custom description',
+          'twitter:image': [
+            'https://example.com/image.png',
+            'https://example.com/image2.png',
+          ],
+          'twitter:image:width': ['800', '1800'],
+          'twitter:image:height': ['600', '1600'],
+          'twitter:image:alt': 'My custom alt',
+        })
       })
 
       it('should support opengraph with article type', async () => {
@@ -528,7 +541,13 @@ createNextDescribe(
             ? expect.stringMatching(
                 /http:\/\/localhost:\d+\/opengraph\/static\/opengraph-image.png\?b76e8f0282c93c8e/
               )
-            : 'https://example.com/opengraph/static/opengraph-image.png?b76e8f0282c93c8e',
+            : expect.stringMatching(
+                new RegExp(
+                  `https:\\/\\/(${
+                    isNextDeploy ? '.*?\\.vercel\\.app' : 'example\\.com'
+                  })\\/opengraph\\/static\\/opengraph-image.png\\?b76e8f0282c93c8e`
+                )
+              ),
         })
 
         await match('meta', 'name', 'content', {
@@ -536,7 +555,13 @@ createNextDescribe(
             ? expect.stringMatching(
                 /http:\/\/localhost:\d+\/opengraph\/static\/twitter-image.png\?b76e8f0282c93c8e/
               )
-            : 'https://example.com/opengraph/static/twitter-image.png?b76e8f0282c93c8e',
+            : expect.stringMatching(
+                new RegExp(
+                  `https:\\/\\/(${
+                    isNextDeploy ? '.*?\\.vercel\\.app' : 'example\\.com'
+                  })\\/opengraph\\/static\\/twitter-image.png\\?b76e8f0282c93c8e`
+                )
+              ),
           'twitter:image:alt': 'A alt txt for twitter',
           'twitter:card': 'summary_large_image',
         })

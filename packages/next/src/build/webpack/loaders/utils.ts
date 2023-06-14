@@ -6,7 +6,7 @@ const imageRegex = new RegExp(`\\.(${imageExtensions.join('|')})$`)
 
 export function isClientComponentEntryModule(mod: {
   resource: string
-  buildInfo: any
+  buildInfo?: any
 }) {
   const rscInfo = mod.buildInfo.rsc
   const hasClientDirective = rscInfo?.isClientRef
@@ -40,9 +40,9 @@ export function isCSSMod(mod: {
 
 export function getActions(mod: {
   resource: string
-  buildInfo: any
+  buildInfo?: any
 }): undefined | string[] {
-  return mod.buildInfo.rsc?.actions
+  return mod.buildInfo?.rsc?.actions
 }
 
 export function generateActionId(filePath: string, exportName: string) {

@@ -28,7 +28,7 @@ import {
   PAGES_DIR_ALIAS,
   INSTRUMENTATION_HOOK_FILENAME,
 } from '../lib/constants'
-import { fileExists } from '../lib/file-exists'
+import { FileType, fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
 import loadCustomRoutes, {
   CustomRoutes,
@@ -588,7 +588,7 @@ export default async function build(
           for (const page in mappedPages) {
             const hasPublicPageFile = await fileExists(
               path.join(publicDir, page === '/' ? '/index' : page),
-              'file'
+              FileType.File
             )
             if (hasPublicPageFile) {
               conflictingPublicFiles.push(page)
@@ -712,6 +712,7 @@ export default async function build(
           varyHeader: typeof RSC_VARY_HEADER
         }
         skipMiddlewareUrlNormalize?: boolean
+        caseSensitive?: boolean
       } = nextBuildSpan.traceChild('generate-routes-manifest').traceFn(() => {
         const sortedRoutes = getSortedRoutes([
           ...pageKeys.pages,
@@ -731,6 +732,7 @@ export default async function build(
         return {
           version: 3,
           pages404: true,
+          caseSensitive: !!config.experimental.caseSensitiveRoutes,
           basePath: config.basePath,
           redirects: redirects.map((r: any) => buildCustomRoute(r, 'redirect')),
           headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
@@ -1139,10 +1141,6 @@ export default async function build(
         : config.experimental.cpus || 4
 
       function createStaticWorker(type: 'app' | 'pages') {
-        const numWorkersPerType = isAppDirEnabled
-          ? Math.max(1, ~~(numWorkers / 2))
-          : numWorkers
-
         let infoPrinted = false
 
         return new Worker(staticWorkerPath, {
@@ -1176,7 +1174,7 @@ export default async function build(
               infoPrinted = true
             }
           },
-          numWorkers: numWorkersPerType,
+          numWorkers,
           forkOptions: {
             env: {
               ...process.env,
@@ -1193,16 +1191,20 @@ export default async function build(
             ? [
                 'hasCustomGetInitialProps',
                 'isPageStatic',
-                'getNamedExports',
+                'getDefinedNamedExports',
                 'exportPage',
               ]
-            : ['hasCustomGetInitialProps', 'isPageStatic', 'getNamedExports'],
+            : [
+                'hasCustomGetInitialProps',
+                'isPageStatic',
+                'getDefinedNamedExports',
+              ],
         }) as Worker &
           Pick<
             typeof import('./worker'),
             | 'hasCustomGetInitialProps'
             | 'isPageStatic'
-            | 'getNamedExports'
+            | 'getDefinedNamedExports'
             | 'exportPage'
           >
       }
@@ -1275,7 +1277,7 @@ export default async function build(
             true
           )
 
-        const namedExportsPromise = pagesStaticWorkers.getNamedExports(
+        const namedExportsPromise = pagesStaticWorkers.getDefinedNamedExports(
           appPageToCheck,
           distDir,
           runtimeEnvConfig
@@ -1764,6 +1766,12 @@ export default async function build(
 
           if (config.outputFileTracing) {
             for (let page of pageKeys.pages) {
+              // edge routes have no trace files
+              const pageInfo = pageInfos.get(page)
+              if (pageInfo?.runtime === 'edge') {
+                continue
+              }
+
               const combinedIncludes = new Set<string>()
               const combinedExcludes = new Set<string>()
 
@@ -2924,7 +2932,9 @@ export default async function build(
         )
         await promises.writeFile(
           path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
-          `self.__PRERENDER_MANIFEST=${JSON.stringify(prerenderManifest)}`,
+          `self.__PRERENDER_MANIFEST=${JSON.stringify(
+            JSON.stringify(prerenderManifest)
+          )}`,
           'utf8'
         )
         await generateClientSsgManifest(prerenderManifest, {
@@ -2947,7 +2957,9 @@ export default async function build(
         )
         await promises.writeFile(
           path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
-          `self.__PRERENDER_MANIFEST=${JSON.stringify(prerenderManifest)}`,
+          `self.__PRERENDER_MANIFEST=${JSON.stringify(
+            JSON.stringify(prerenderManifest)
+          )}`,
           'utf8'
         )
       }

@@ -18,6 +18,11 @@ interface Options {
    * to match.
    */
   strict?: boolean
+
+  /**
+   * When true the matcher will be case-sensitive, defaults to false
+   */
+  sensitive?: boolean
 }
 
 /**
@@ -29,7 +34,8 @@ export function getPathMatch(path: string, options?: Options) {
   const keys: Key[] = []
   const regexp = pathToRegexp(path, keys, {
     delimiter: '/',
-    sensitive: false,
+    sensitive:
+      typeof options?.sensitive === 'boolean' ? options.sensitive : false,
     strict: options?.strict,
   })
 

@@ -1389,7 +1389,6 @@ export async function isPageStatic({
       if (pathIsEdgeRuntime) {
         const runtime = await getRuntimeContext({
           paths: edgeInfo.files.map((file: string) => path.join(distDir, file)),
-          env: edgeInfo.env,
           edgeFunctionEntry: {
             ...edgeInfo,
             wasm: (edgeInfo.wasm ?? []).map((binding: AssetBinding) => ({
@@ -1678,11 +1677,11 @@ export async function hasCustomGetInitialProps(
   return mod.getInitialProps !== mod.origGetInitialProps
 }
 
-export async function getNamedExports(
+export async function getDefinedNamedExports(
   page: string,
   distDir: string,
   runtimeEnvConfig: any
-): Promise<Array<string>> {
+): Promise<ReadonlyArray<string>> {
   require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
   const components = await loadComponents({
     distDir,
@@ -1690,9 +1689,10 @@ export async function getNamedExports(
     hasServerComponents: false,
     isAppPath: false,
   })
-  let mod = components.ComponentMod
 
-  return Object.keys(mod)
+  return Object.keys(components.ComponentMod).filter((key) => {
+    return typeof components.ComponentMod[key] !== 'undefined'
+  })
 }
 
 export function detectConflictingPaths(
@@ -1922,20 +1922,21 @@ export async function copyTracedFiles(
     serverOutputPath,
     `${
       moduleType
-        ? `import http from 'http'
+        ? `\
+import http from 'http'
 import path from 'path'
 import { fileURLToPath } from 'url'
-const __dirname = fileURLToPath(new URL('.', import.meta.url))
 import { createServerHandler } from 'next/dist/server/lib/render-server-standalone.js'
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url))
 `
-        : `
+        : `\
 const http = require('http')
 const path = require('path')
 const { createServerHandler } = require('next/dist/server/lib/render-server-standalone')`
     }
 
 const dir = path.join(__dirname)
-
 process.env.NODE_ENV = 'production'
 process.chdir(__dirname)
 
@@ -1956,6 +1957,7 @@ const nextConfig = ${JSON.stringify({
 
 process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(nextConfig)
 
+
 createServerHandler({
   port: currentPort,
   hostname,
@@ -1971,7 +1973,7 @@ createServerHandler({
       res.end('Internal Server Error')
     }
   })
-  
+
   if (
     !Number.isNaN(keepAliveTimeout) &&
       Number.isFinite(keepAliveTimeout) &&
@@ -1984,7 +1986,7 @@ createServerHandler({
       console.error("Failed to start server", err)
       process.exit(1)
     }
-  
+
     console.log(
       'Listening on port',
       currentPort,

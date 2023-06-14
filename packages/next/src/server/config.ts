@@ -1,13 +1,5 @@
 import { existsSync } from 'fs'
-import {
-  basename,
-  extname,
-  join,
-  relative,
-  isAbsolute,
-  resolve,
-  dirname,
-} from 'path'
+import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import { Agent as HttpAgent } from 'http'
 import { Agent as HttpsAgent } from 'https'
@@ -28,6 +20,7 @@ import { loadWebpackHook } from './config-utils'
 import { ImageConfig, imageConfigDefault } from '../shared/lib/image-config'
 import { loadEnvConfig, updateInitialEnv } from '@next/env'
 import { flushAndExit } from '../telemetry/flush-and-exit'
+import { findRootDir } from '../lib/find-root'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
@@ -466,23 +459,26 @@ function assignDefaults(
     }
   }
 
+  // only leverage deploymentId
+  if (result.experimental?.useDeploymentId && process.env.NEXT_DEPLOYMENT_ID) {
+    if (!result.experimental) {
+      result.experimental = {}
+    }
+    result.experimental.deploymentId = process.env.NEXT_DEPLOYMENT_ID
+  }
+
   // use the closest lockfile as tracing root
   if (!result.experimental?.outputFileTracingRoot) {
-    const lockFiles: string[] = [
-      'package-lock.json',
-      'yarn.lock',
-      'pnpm-lock.yaml',
-    ]
-    const foundLockfile = findUp.sync(lockFiles, { cwd: dir })
+    let rootDir = findRootDir(dir)
 
-    if (foundLockfile) {
+    if (rootDir) {
       if (!result.experimental) {
         result.experimental = {}
       }
       if (!defaultConfig.experimental) {
         defaultConfig.experimental = {}
       }
-      result.experimental.outputFileTracingRoot = dirname(foundLockfile)
+      result.experimental.outputFileTracingRoot = rootDir
       defaultConfig.experimental.outputFileTracingRoot =
         result.experimental.outputFileTracingRoot
     }
