@@ -24,24 +24,18 @@ use crate::{
 };
 
 /// An entry in the Google fonts metrics map
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct FontMetricsMapEntry {
-    #[allow(unused)]
-    family_name: String,
     category: String,
-    #[allow(unused)]
-    cap_height: i32,
     ascent: i32,
     descent: i32,
     line_gap: u32,
     units_per_em: u32,
-    #[allow(unused)]
-    x_height: i32,
     x_width_avg: f64,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub(super) struct FontMetricsMap(pub HashMap<String, FontMetricsMapEntry>);
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -61,49 +55,44 @@ pub(super) async fn get_font_fallback(
         Some(fallback) => FontFallback::Manual(StringsVc::cell(fallback.clone())).cell(),
         None => {
             let metrics_json =
-                load_next_json(context, "/dist/server/capsize-font-metrics.json").await;
-            match metrics_json {
-                Ok(metrics_json) => {
-                    let fallback = lookup_fallback(
-                        &options.font_family,
-                        metrics_json,
-                        options.adjust_font_fallback,
-                    );
+                load_next_json(context, "/dist/server/capsize-font-metrics.json").await?;
+            let fallback = lookup_fallback(
+                &options.font_family,
+                metrics_json,
+                options.adjust_font_fallback,
+            );
 
-                    match fallback {
-                        Ok(fallback) => FontFallback::Automatic(
-                            AutomaticFontFallback {
-                                scoped_font_family: get_scoped_font_family(
-                                    FontFamilyType::Fallback.cell(),
-                                    options_vc.font_family(),
-                                    request_hash,
-                                ),
-                                local_font_family: StringVc::cell(fallback.font_family),
-                                adjustment: fallback.adjustment,
-                            }
-                            .cell(),
-                        )
-                        .cell(),
-                        Err(_) => {
-                            NextFontIssue {
-                                path: context,
-                                title: StringVc::cell(format!(
-                                    "Failed to find font override values for font `{}`",
-                                    &options.font_family,
-                                )),
-                                description: StringVc::cell(
-                                    "Skipping generating a fallback font.".to_owned(),
-                                ),
-                                severity: IssueSeverity::Warning.cell(),
-                            }
-                            .cell()
-                            .as_issue()
-                            .emit();
-                            FontFallback::Error.cell()
-                        }
+            match fallback {
+                Ok(fallback) => FontFallback::Automatic(
+                    AutomaticFontFallback {
+                        scoped_font_family: get_scoped_font_family(
+                            FontFamilyType::Fallback.cell(),
+                            options_vc.font_family(),
+                            request_hash,
+                        ),
+                        local_font_family: StringVc::cell(fallback.font_family),
+                        adjustment: fallback.adjustment,
                     }
+                    .cell(),
+                )
+                .cell(),
+                Err(_) => {
+                    NextFontIssue {
+                        path: context,
+                        title: StringVc::cell(format!(
+                            "Failed to find font override values for font `{}`",
+                            &options.font_family,
+                        )),
+                        description: StringVc::cell(
+                            "Skipping generating a fallback font.".to_owned(),
+                        ),
+                        severity: IssueSeverity::Warning.cell(),
+                    }
+                    .cell()
+                    .as_issue()
+                    .emit();
+                    FontFallback::Error.cell()
                 }
-                Err(_) => FontFallback::Error.cell(),
             }
         }
     })
@@ -154,7 +143,8 @@ fn lookup_fallback(
         // Derived from
         // https://github.com/vercel/next.js/blob/7bfd5829999b1d203e447d30de7e29108c31934a/packages/next/src/server/font-utils.ts#L131
         let main_font_avg_width = metrics.x_width_avg / metrics.units_per_em as f64;
-        let fallback_font_avg_width = fallback.x_width_avg / fallback.units_per_em as f64;
+        let fallback_metrics = font_metrics_map.0.get(&fallback.capsize_key).unwrap();
+        let fallback_font_avg_width = fallback_metrics.x_width_avg / fallback.units_per_em as f64;
         let size_adjust = main_font_avg_width / fallback_font_avg_width;
 
         let ascent = metrics.ascent as f64 / (metrics.units_per_em as f64 * size_adjust);
@@ -200,7 +190,18 @@ mod tests {
                     "unitsPerEm": 2816,
                     "xHeight": 1536,
                     "xWidthAvg": 1335
-                  }
+                },
+                "arial": {
+                    "familyName": "Arial",
+                    "category": "sans-serif",
+                    "capHeight": 1467,
+                    "ascent": 1854,
+                    "descent": -434,
+                    "lineGap": 67,
+                    "unitsPerEm": 2048,
+                    "xHeight": 1062,
+                    "xWidthAvg": 904
+                }
             }
         "#,
         )?;
@@ -210,10 +211,10 @@ mod tests {
             Fallback {
                 font_family: "Arial".to_owned(),
                 adjustment: Some(FontAdjustment {
-                    ascent: 0.9324334770490376,
-                    descent: -0.23242476700635833,
+                    ascent: 0.901_989_700_374_532,
+                    descent: -0.224_836_142_322_097_4,
                     line_gap: 0.0,
-                    size_adjust: 1.0389481114147647
+                    size_adjust: 1.074_014_481_094_127
                 })
             }
         );
@@ -235,7 +236,18 @@ mod tests {
                     "unitsPerEm": 2048,
                     "xHeight": 1082,
                     "xWidthAvg": 969
-                  }
+                },
+                "timesNewRoman": {
+                    "familyName": "Times New Roman",
+                    "category": "serif",
+                    "capHeight": 1356,
+                    "ascent": 1825,
+                    "descent": -443,
+                    "lineGap": 87,
+                    "unitsPerEm": 2048,
+                    "xHeight": 916,
+                    "xWidthAvg": 819
+                }
             }
         "#,
         )?;
@@ -245,10 +257,10 @@ mod tests {
             Fallback {
                 font_family: "Times New Roman".to_owned(),
                 adjustment: Some(FontAdjustment {
-                    ascent: 0.9239210539440684,
-                    descent: -0.23894510015794873,
+                    ascent: 0.885_645_438_273_993_8,
+                    descent: -0.229_046_234_036_377_7,
                     line_gap: 0.0,
-                    size_adjust: 1.134135387462914
+                    size_adjust: 1.183_150_183_150_183_2
                 })
             }
         );

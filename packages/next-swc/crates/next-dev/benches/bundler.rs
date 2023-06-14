@@ -1,6 +1,7 @@
 use std::{
     fs,
-    path::Path,
+    io::{self, Write},
+    path::{Path, PathBuf},
     process::{Child, Command, Stdio},
 };
 
@@ -44,17 +45,29 @@ impl Bundler for TurboNext {
     }
 
     fn prepare(&self, install_dir: &Path) -> Result<()> {
-        let package_json = include_str!("../../../../next/package.json");
-        let data: serde_json::Value = serde_json::from_str(package_json)?;
-        let version = data
-            .as_object()
-            .unwrap()
-            .get("version")
-            .unwrap()
-            .as_str()
-            .unwrap();
-        npm::install(install_dir, &[NpmPackage::new("next", version)])
-            .context("failed to install from npm")?;
+        let repo_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../..")
+            .canonicalize()?;
+
+        let build = Command::new("pnpm")
+            .args(["build"])
+            .current_dir(&repo_path)
+            .output()?;
+
+        npm::install(
+            install_dir,
+            &[NpmPackage::new(
+                "next",
+                &repo_path.join("packages/next").to_string_lossy(),
+            )],
+        )
+        .context("failed to install from npm")?;
+
+        if !build.status.success() {
+            io::stdout().write_all(&build.stdout)?;
+            io::stderr().write_all(&build.stderr)?;
+            return Err(anyhow!("pnpm build failed. See above."));
+        }
 
         fs::write(
             install_dir.join("next.config.js"),
