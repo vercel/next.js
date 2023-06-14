@@ -169,21 +169,13 @@ async function runOperation(renderData: RenderData) {
           }
         }
         if (type === 'entryCSSFiles') {
-          try {
-            const cssChunks = JSON.parse(key)
-            // TODO(WEB-856) subscribe to changes
+          const cssChunks = JSON.parse(key)
+          // TODO(WEB-856) subscribe to changes
 
-            // This return value is passed to proxyMethodsNested for clientModules
-            return {
-              modules: [],
-              files: cssChunks.filter(filterAvailable).map(toPath),
-            }
-          } catch (err) {
-            console.error('Failed to parse CSS chunks:', err, '\nProp:', key)
-            return {
-              modules: [],
-              files: [],
-            }
+          // This return value is passed to proxyMethodsNested for clientModules
+          return {
+            modules: [],
+            files: cssChunks.filter(filterAvailable).map(toPath),
           }
         }
       },
