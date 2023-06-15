@@ -3,8 +3,8 @@ import { Providers } from '@/lib/providers'
 import { Nav } from './components'
 
 /* Instruments */
-import styles from './styles/main.module.scss'
-import './styles/globals.scss'
+import styles from './styles/layout.module.css'
+import './styles/globals.css'
 
 export default function RootLayout(props: React.PropsWithChildren) {
   return (
@@ -14,13 +14,13 @@ export default function RootLayout(props: React.PropsWithChildren) {
           <section className={styles.container}>
             <Nav />
 
-            <header>
+            <header className={styles.header}>
               <img src="/logo.svg" className={styles.logo} alt="logo" />
             </header>
 
-            <main>{props.children}</main>
+            <main className={styles.main}>{props.children}</main>
 
-            <footer>
+            <footer className={styles.footer}>
               <span>Learn </span>
               <a
                 className={styles.link}

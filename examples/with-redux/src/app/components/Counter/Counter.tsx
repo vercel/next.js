@@ -12,7 +12,7 @@ import {
   incrementAsync,
   incrementIfOddAsync,
 } from '@/lib/redux'
-import styles from './counter.module.scss'
+import styles from './counter.module.css'
 
 export const Counter = () => {
   const dispatch = useDispatch()
