@@ -476,12 +476,6 @@ export default function HotReload({
     const handler = (event: MessageEvent<PongEvent>) => {
       if (!event.data.includes('{')) return
       try {
-        const payload = JSON.parse(event.data)
-
-        // if (!payload.action) {
-        //   return
-        // }
-
         try {
           processMessage(event, sendMessage, router, dispatcher)
         } catch (ex) {

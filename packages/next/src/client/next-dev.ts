@@ -55,6 +55,7 @@ initialize({ webpackHMR })
       let buildIndicatorHandler: any = () => {}
 
       function devPagesManifestListener(event: any) {
+        console.log('event.data', event.data)
         if (event.data.includes('devPagesManifest')) {
           fetch(
             `${assetPrefix}/_next/static/development/_devPagesManifest.json`
