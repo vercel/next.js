@@ -11,7 +11,11 @@ import type { NextConfig, NextConfigComplete } from './config-shared'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { ParsedUrlQuery } from 'querystring'
 import type { RenderOpts, RenderOptsPartial } from './render'
-import type { ResponseCacheBase, ResponseCacheEntry } from './response-cache'
+import type {
+  ResponseCacheBase,
+  ResponseCacheEntry,
+  ResponseCacheValue,
+} from './response-cache'
 import type { UrlWithParsedQuery } from 'url'
 import {
   NormalizeError,
@@ -1777,7 +1781,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         result = await module.render(
           (req as NodeNextRequest).originalRequest,
           (res as NodeNextResponse).originalResponse,
-          { page: pathname, params: match.params, query, renderOpts }
+          pathname,
+          query,
+          renderOpts
         )
       } else {
         // If we didn't match a page, we should fallback to using the legacy
@@ -1829,40 +1835,23 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         throw err
       }
 
-      // Based on the metadata, we can determine what kind of cache result we
-      // should return.
-
-      // Handle `isNotFound`.
+      let value: ResponseCacheValue | null
       if (metadata.isNotFound) {
-        return { value: null, revalidate: metadata.revalidate }
-      }
-
-      // Handle `isRedirect`.
-      if (metadata.isRedirect) {
-        return {
-          value: {
-            kind: 'REDIRECT',
-            props: metadata.pageData,
-          },
-          revalidate: metadata.revalidate,
+        value = null
+      } else if (metadata.isRedirect) {
+        value = { kind: 'REDIRECT', props: metadata.pageData }
+      } else {
+        if (result.isNull()) {
+          return null
         }
-      }
-
-      // Handle `isNull`.
-      if (result.isNull()) {
-        return { value: null, revalidate: metadata.revalidate }
-      }
-
-      // We now have a valid HTML result that we can return to the user.
-      return {
-        value: {
+        value = {
           kind: 'PAGE',
           html: result,
           pageData: metadata.pageData,
           headers,
-        },
-        revalidate: metadata.revalidate,
+        }
       }
+      return { revalidate: metadata.revalidate, value }
     }
 
     const cacheEntry = await this.responseCache.get(
