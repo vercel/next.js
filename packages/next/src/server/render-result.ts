@@ -12,15 +12,13 @@ export type RenderResultMetadata = {
   isRedirect?: boolean
 }
 
-type RenderResultResponse = string | ReadableStream<Uint8Array> | null
-
 export default class RenderResult {
-  private readonly _response: RenderResultResponse
+  private readonly _response: string | ReadableStream<Uint8Array> | null
   private readonly _contentType: ContentTypeOption
   private readonly _metadata: RenderResultMetadata
 
   constructor(
-    response: RenderResultResponse,
+    response: string | ReadableStream<Uint8Array> | null,
     {
       contentType,
       ...metadata
@@ -31,10 +29,6 @@ export default class RenderResult {
     this._response = response
     this._contentType = contentType
     this._metadata = metadata
-  }
-
-  get body(): Readonly<RenderResultResponse> {
-    return this._response
   }
 
   get metadata(): Readonly<RenderResultMetadata> {
