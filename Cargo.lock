@@ -7403,7 +7403,7 @@ dependencies = [
 [[package]]
 name = "turbopack-build"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230526.5#e1f7c46fff2ee6deaa191e00ace412781c328023"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230612.1#6c55f3ddc263cd30e6f776611147d487323271b0"
 dependencies = [
  "anyhow",
  "indexmap",

@@ -64,7 +64,7 @@ pub async fn create_page_loader_entry_asset(
     writeln!(
         result,
         "const PAGE_PATH = {};\n",
-        StringifyJs(&format_args!("/{}", &*pathname.await?))
+        StringifyJs(&*pathname.await?)
     )?;
 
     let page_loader_path = next_js_file_path("entry/page-loader.ts");
