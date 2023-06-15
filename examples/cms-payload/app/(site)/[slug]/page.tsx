@@ -1,4 +1,3 @@
-import React from 'react'
 import { notFound } from 'next/navigation'
 import { getPayloadClient } from '../../../payload/payloadClient'
 import Blocks from '../../../components/Blocks'
