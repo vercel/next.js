@@ -62,7 +62,6 @@ import {
   APP_PATHS_MANIFEST,
   APP_PATH_ROUTES_MANIFEST,
   APP_BUILD_MANIFEST,
-  FLIGHT_SERVER_CSS_MANIFEST,
   RSC_MODULE_TYPES,
   NEXT_FONT_MANIFEST,
   SUBRESOURCE_INTEGRITY_MANIFEST,
@@ -895,14 +894,6 @@ export default async function build(
                   ),
                   path.join(
                     SERVER_DIRECTORY,
-                    FLIGHT_SERVER_CSS_MANIFEST + '.js'
-                  ),
-                  path.join(
-                    SERVER_DIRECTORY,
-                    FLIGHT_SERVER_CSS_MANIFEST + '.json'
-                  ),
-                  path.join(
-                    SERVER_DIRECTORY,
                     SERVER_REFERENCE_MANIFEST + '.js'
                   ),
                   path.join(
@@ -1141,10 +1132,6 @@ export default async function build(
         : config.experimental.cpus || 4
 
       function createStaticWorker(type: 'app' | 'pages') {
-        const numWorkersPerType = isAppDirEnabled
-          ? Math.max(1, ~~(numWorkers / 2))
-          : numWorkers
-
         let infoPrinted = false
 
         return new Worker(staticWorkerPath, {
@@ -1178,7 +1165,7 @@ export default async function build(
               infoPrinted = true
             }
           },
-          numWorkers: numWorkersPerType,
+          numWorkers,
           forkOptions: {
             env: {
               ...process.env,
@@ -1770,6 +1757,12 @@ export default async function build(
 
           if (config.outputFileTracing) {
             for (let page of pageKeys.pages) {
+              // edge routes have no trace files
+              const pageInfo = pageInfos.get(page)
+              if (pageInfo?.runtime === 'edge') {
+                continue
+              }
+
               const combinedIncludes = new Set<string>()
               const combinedExcludes = new Set<string>()
 

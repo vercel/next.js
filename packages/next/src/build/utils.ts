@@ -64,6 +64,7 @@ import { IncrementalCache } from '../server/lib/incremental-cache'
 import { patchFetch } from '../server/lib/patch-fetch'
 import { nodeFs } from '../server/lib/node-fs-methods'
 import * as ciEnvironment from '../telemetry/ci-info'
+import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -108,14 +109,6 @@ function intersect<T>(main: ReadonlyArray<T>, sub: ReadonlyArray<T>): T[] {
 
 function sum(a: ReadonlyArray<number>): number {
   return a.reduce((size, stat) => size + stat, 0)
-}
-
-function denormalizeAppPagePath(page: string): string {
-  // `/` is normalized to `/index` and `/index` is normalized to `/index/index`
-  if (page.endsWith('/index')) {
-    page = page.replace(/\/index$/, '')
-  }
-  return page + '/page'
 }
 
 type ComputeFilesGroup = {
@@ -773,6 +766,18 @@ export async function getJsPageSizeInKb(
     throw new Error('expected appBuildManifest with an "app" pageType')
   }
 
+  // Normalize appBuildManifest keys
+  if (routerType === 'app') {
+    pageManifest.pages = Object.entries(pageManifest.pages).reduce(
+      (acc: Record<string, string[]>, [key, value]) => {
+        const newKey = normalizeAppPath(key)
+        acc[newKey] = value as string[]
+        return acc
+      },
+      {}
+    )
+  }
+
   // If stats was not provided, then compute it again.
   const stats =
     cachedStats ??
@@ -788,10 +793,11 @@ export async function getJsPageSizeInKb(
     throw new Error('expected "app" manifest data with an "app" pageType')
   }
 
-  const pagePath =
-    routerType === 'pages'
-      ? denormalizePagePath(page)
-      : denormalizeAppPagePath(page)
+  // Denormalization is not needed for "app" dir, as we normalize the keys of appBuildManifest instead
+  let pagePath = page
+  if (routerType === 'pages') {
+    pagePath = denormalizePagePath(page)
+  }
 
   const fnFilterJs = (entry: string) => entry.endsWith('.js')
 
@@ -1922,20 +1928,21 @@ export async function copyTracedFiles(
     serverOutputPath,
     `${
       moduleType
-        ? `import http from 'http'
+        ? `\
+import http from 'http'
 import path from 'path'
 import { fileURLToPath } from 'url'
-const __dirname = fileURLToPath(new URL('.', import.meta.url))
 import { createServerHandler } from 'next/dist/server/lib/render-server-standalone.js'
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url))
 `
-        : `
+        : `\
 const http = require('http')
 const path = require('path')
 const { createServerHandler } = require('next/dist/server/lib/render-server-standalone')`
     }
 
 const dir = path.join(__dirname)
-
 process.env.NODE_ENV = 'production'
 process.chdir(__dirname)
 
@@ -1955,6 +1962,7 @@ const nextConfig = ${JSON.stringify({
     })}
 
 process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(nextConfig)
+
 
 createServerHandler({
   port: currentPort,

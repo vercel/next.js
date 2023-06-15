@@ -18,7 +18,7 @@ export default function Page() {
       </ul>
 
       <div className="flex gap-2">
-        <ExternalLink href="https://nextjs.org/docs/rendering/server-and-client-components#using-context">
+        <ExternalLink href="https://nextjs.org/docs/getting-started/react-essentials#using-context-in-client-components">
           Docs
         </ExternalLink>
         <ExternalLink href="https://github.com/vercel/app-playground/tree/main/app/context">

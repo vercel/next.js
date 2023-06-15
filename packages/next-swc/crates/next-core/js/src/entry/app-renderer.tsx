@@ -16,10 +16,7 @@ declare global {
 
 import type { Ipc } from '@vercel/turbopack-node/ipc/index'
 import type { IncomingMessage } from 'node:http'
-import type {
-  ClientCSSReferenceManifest,
-  ClientReferenceManifest,
-} from 'next/dist/build/webpack/plugins/flight-manifest-plugin'
+import type { ClientReferenceManifest } from 'next/dist/build/webpack/plugins/flight-manifest-plugin'
 import type { RenderData } from 'types/turbopack'
 import type { RenderOpts } from 'next/dist/server/app-render/types'
 
@@ -139,10 +136,11 @@ async function runOperation(renderData: RenderData) {
   }
 
   const proxyMethodsNested = (
-    type: 'ssrModuleMapping' | 'clientModules'
+    type: 'ssrModuleMapping' | 'clientModules' | 'entryCSSFiles'
   ): ProxyHandler<
     | ClientReferenceManifest['ssrModuleMapping']
     | ClientReferenceManifest['clientModules']
+    | ClientReferenceManifest['entryCSSFiles']
   > => {
     return {
       get(_target, key: string) {
@@ -170,6 +168,14 @@ async function runOperation(renderData: RenderData) {
             chunks: JSON.parse(id)[1],
           }
         }
+        if (type === 'entryCSSFiles') {
+          const cssChunks = JSON.parse(key)
+          // TODO(WEB-856) subscribe to changes
+          return {
+            modules: [],
+            files: cssChunks.filter(filterAvailable).map(toPath),
+          }
+        }
       },
     }
   }
@@ -183,6 +189,10 @@ async function runOperation(renderData: RenderData) {
       {},
       proxyMethodsNested('ssrModuleMapping')
     )
+    const entryCSSFilesProxy = new Proxy(
+      {},
+      proxyMethodsNested('entryCSSFiles')
+    )
     return {
       get(_target: any, prop: string) {
         if (prop === 'ssrModuleMapping') {
@@ -190,6 +200,9 @@ async function runOperation(renderData: RenderData) {
         }
         if (prop === 'clientModules') {
           return clientModulesProxy
+        }
+        if (prop === 'entryCSSFiles') {
+          return entryCSSFilesProxy
         }
       },
     }
@@ -216,24 +229,8 @@ async function runOperation(renderData: RenderData) {
       return needed
     }
   }
-  const cssImportProxyMethods = {
-    get(_target: any, prop: string) {
-      const cssChunks = JSON.parse(prop.replace(/\.js$/, ''))
-      // TODO(WEB-856) subscribe to changes
-
-      // This return value is passed to proxyMethodsNested for clientModules
-      return cssChunks
-        .filter(filterAvailable)
-        .map(toPath)
-        .map((chunk: string) => JSON.stringify([chunk, [chunk]]))
-    },
-  }
   const manifest: ClientReferenceManifest = new Proxy({} as any, proxyMethods())
 
-  const serverCSSManifest: ClientCSSReferenceManifest = {
-    cssImports: new Proxy({} as any, cssImportProxyMethods),
-    cssModules: {},
-  }
   const req: IncomingMessage = {
     url: renderData.originalUrl,
     method: renderData.method,
@@ -249,7 +246,11 @@ async function runOperation(renderData: RenderData) {
   const renderOpt: Omit<
     RenderOpts,
     'App' | 'Document' | 'Component' | 'pathname'
-  > & { params: ParsedUrlQuery } = {
+  > & {
+    params: ParsedUrlQuery
+  } = {
+    // TODO: give an actual buildId when next build is supported
+    buildId: 'development',
     params: renderData.params,
     supportsDynamicHTML: true,
     dev: true,
@@ -271,7 +272,6 @@ async function runOperation(renderData: RenderData) {
       pages: ['page.js'],
     },
     clientReferenceManifest: manifest,
-    serverCSSManifest,
     runtime: 'nodejs',
     serverComponents: true,
     assetPrefix: '',

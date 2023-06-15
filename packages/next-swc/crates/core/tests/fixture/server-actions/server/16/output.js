@@ -9,7 +9,7 @@ export function Item({ id1 , id2  }) {
     ], $$ACTION_0, $$ACTION_1), $$ACTION_0);
     return <Button action={deleteItem}>Delete</Button>;
 }
-export const $$ACTION_1 = async ($$ACTION_ARG_0, $$ACTION_ARG_1)=>{
+export var $$ACTION_1 = async ($$ACTION_ARG_0, $$ACTION_ARG_1)=>{
     await deleteFromDb($$ACTION_ARG_0);
     await deleteFromDb(v1);
     await deleteFromDb($$ACTION_ARG_1);
@@ -31,7 +31,7 @@ const g = (x)=>{
         x
     ], $$ACTION_3, $$ACTION_4), $$ACTION_3);
 };
-export const $$ACTION_4 = async ($$ACTION_ARG_0, y, ...z)=>{
+export var $$ACTION_4 = async ($$ACTION_ARG_0, y, ...z)=>{
     return $$ACTION_ARG_0 + y + z[0];
 };
 var $$ACTION_3;
