@@ -62,7 +62,7 @@ Once you've submitted your contribution, the Next.js or Developer Experience tea
 
 Please let us know if you have any questions or need further assistance in your PR's comments. Thank you for contributing to the Next.js docs and being a part of our community!
 
-> **Tip:** Run `pnpm lint-fix` to automatically fix Prettier and ESLint errors before submitting your PR.
+> **Tip:** Run `pnpm prettier-fix` to run Prettier before submitting your PR.
 
 ## File Structure
 
@@ -131,11 +131,11 @@ The following fields are **optional**:
 ```yaml filename="optional-fields.mdx"
 ---
 nav_title: Nav Item Title
-source: /app/building-your-application/optimizing/images
+source: app/building-your-application/optimizing/images
 related:
   description: See the image component API reference.
   links:
-    - /app/api-reference/components/image
+    - app/api-reference/components/image
 ---
 ```
 
@@ -326,7 +326,7 @@ Related Links guide the user's learning journey by adding links to logical next 
 
 Create related links using the `related` field in the page's metadata.
 
-```yaml filename="related-links.mdx"
+```yaml filename="example.mdx"
 ---
 related:
   description: Learn how to quickly get started with your first application.

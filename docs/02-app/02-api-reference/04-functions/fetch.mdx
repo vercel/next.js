@@ -93,3 +93,9 @@ Set the cache lifetime of a resource (in seconds).
 > - If two fetch requests with the same URL in the same route have different `revalidate` values, the lower value will be used.
 > - As a convenience, it is not necessary to set the `cache` option if `revalidate` is set to a number since `0` implies `cache: 'no-store'` and a positive value implies `cache: 'force-cache'`.
 > - Conflicting options such as `{ revalidate: 0, cache: 'force-cache' }` or `{ revalidate: 10, cache: 'no-store' }` will cause an error.
+
+## Version History
+
+| Version   | Changes             |
+| --------- | ------------------- |
+| `v13.0.0` | `fetch` introduced. |

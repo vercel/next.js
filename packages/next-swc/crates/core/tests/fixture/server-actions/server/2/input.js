@@ -6,3 +6,7 @@ async function myAction(a, b, c) {
 export default function Page() {
   return <Button action={myAction}>Delete</Button>
 }
+
+export const action = withValidate(async () => {
+  'use server'
+})

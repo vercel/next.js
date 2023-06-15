@@ -27,7 +27,7 @@ export function Item({ id1, id2 }) {
 
     </>;
 }
-export const $$ACTION_1 = async ($$ACTION_ARG_0, $$ACTION_ARG_1)=>{
+export var $$ACTION_1 = async ($$ACTION_ARG_0, $$ACTION_ARG_1)=>{
     await deleteFromDb($$ACTION_ARG_0);
     await deleteFromDb(v1);
     await deleteFromDb($$ACTION_ARG_1);

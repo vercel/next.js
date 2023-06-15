@@ -49,7 +49,9 @@ export class RequestCookiesAdapter {
 
 const SYMBOL_MODIFY_COOKIE_VALUES = Symbol.for('next.mutated.cookies')
 
-function getModifiedCookieValues(cookies: ResponseCookies): ResponseCookie[] {
+export function getModifiedCookieValues(
+  cookies: ResponseCookies
+): ResponseCookie[] {
   const modified: ResponseCookie[] | undefined = (cookies as unknown as any)[
     SYMBOL_MODIFY_COOKIE_VALUES
   ]

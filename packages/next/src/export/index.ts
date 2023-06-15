@@ -25,7 +25,6 @@ import {
   EXPORT_DETAIL,
   EXPORT_MARKER,
   CLIENT_REFERENCE_MANIFEST,
-  FLIGHT_SERVER_CSS_MANIFEST,
   NEXT_FONT_MANIFEST,
   MIDDLEWARE_MANIFEST,
   PAGES_MANIFEST,
@@ -485,11 +484,6 @@ export default async function exportApp(
               distDir,
               SERVER_DIRECTORY,
               CLIENT_REFERENCE_MANIFEST + '.json'
-            )),
-            serverCSSManifest: require(join(
-              distDir,
-              SERVER_DIRECTORY,
-              FLIGHT_SERVER_CSS_MANIFEST + '.json'
             )),
             serverActionsManifest: require(join(
               distDir,

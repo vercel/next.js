@@ -44,7 +44,6 @@ import {
   CLIENT_REFERENCE_MANIFEST,
   CLIENT_PUBLIC_FILES_PATH,
   APP_PATHS_MANIFEST,
-  FLIGHT_SERVER_CSS_MANIFEST,
   SERVER_DIRECTORY,
   NEXT_FONT_MANIFEST,
   PHASE_PRODUCTION_BUILD,
@@ -960,7 +959,6 @@ export default class NextNodeServer extends BaseServer {
     // object here but only updating its `clientReferenceManifest` field.
     // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
     renderOpts.clientReferenceManifest = this.clientReferenceManifest
-    renderOpts.serverCSSManifest = this.serverCSSManifest
     renderOpts.nextFontManifest = this.nextFontManifest
 
     if (this.hasAppDir && renderOpts.isAppPath) {
@@ -1166,15 +1164,6 @@ export default class NextNodeServer extends BaseServer {
       this.distDir,
       'server',
       CLIENT_REFERENCE_MANIFEST + '.json'
-    ))
-  }
-
-  protected getServerCSSManifest() {
-    if (!this.hasAppDir) return undefined
-    return require(join(
-      this.distDir,
-      'server',
-      FLIGHT_SERVER_CSS_MANIFEST + '.json'
     ))
   }
 
@@ -1540,10 +1529,6 @@ export default class NextNodeServer extends BaseServer {
               finished: true,
             }
           }
-        }
-
-        if (match) {
-          addRequestMeta(req, '_nextMatch', match)
         }
 
         // Try to handle the given route with the configured handlers.
