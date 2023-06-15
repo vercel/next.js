@@ -3,7 +3,6 @@
 /* Core */
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import cx from 'classnames'
 
 /* Instruments */
 import styles from '../styles/layout.module.css'
@@ -14,15 +13,13 @@ export const Nav = () => {
   return (
     <nav className={styles.nav}>
       <Link
-        className={cx(styles.link, { [styles.active]: pathname === '/' })}
+        className={`${styles.link} ${pathname === '/' ? styles.active : ''}`}
         href="/"
       >
         Home
       </Link>
       <Link
-        className={cx(styles.link, {
-          [styles.active]: pathname === '/verify',
-        })}
+        className={`${styles.link} ${pathname === '/verify' ? styles.active : ''}}
         href="/verify"
       >
         Verify
