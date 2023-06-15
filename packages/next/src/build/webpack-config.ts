@@ -1520,7 +1520,7 @@ export default async function getBaseWebpackConfig(
       (isEsm && isAppLayer)
 
     if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
-      if (layer === WEBPACK_LAYERS.server) {
+      if (layer === WEBPACK_LAYERS.server || layer === WEBPACK_LAYERS.action) {
         // All packages should be bundled for the server layer if they're not opted out.
         // This option takes priority over the transpilePackages option.
 
