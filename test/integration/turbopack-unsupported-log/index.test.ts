@@ -2,8 +2,8 @@ import { findPort, killApp, launchApp, renderViaHTTP } from 'next-test-utils'
 import fs from 'fs-extra'
 import { join } from 'path'
 
-if (process.env.TURBOPACK) {
-  describe('turbopack unsupported features log', () => {
+describe('turbopack unsupported features log', () => {
+  if (process.env.TURBOPACK) {
     const appDir = join(__dirname, 'app')
 
     it('should not warn by default', async () => {
@@ -90,5 +90,7 @@ if (process.env.TURBOPACK) {
         await fs.remove(nextConfigPath)
       }
     })
-  })
-}
+  } else {
+    it.skip('turobpack only', () => {})
+  }
+})
