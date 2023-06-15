@@ -1,10 +1,9 @@
 {
-  "description": "Demo of Payload deployed as Vercel functions within NextJS",
+  "description": "Demo of Payload and Next.js",
   "license": "MIT",
   "scripts": {
     "dev": "next dev",
     "start": "next start",
-    "lint": "next lint",
     "install:payload": "next-payload install",
     "build:next": "next build",
     "build": "yarn build:next",
@@ -39,8 +38,6 @@
     "@types/react": "^18.0.28",
     "copyfiles": "^2.4.1",
     "cross-env": "^7.0.3",
-    "eslint": "8.31.0",
-    "eslint-config-next": "13.1.1",
     "nodemon": "^2.0.6",
     "ts-node": "^9.1.1",
     "typescript": "^4.8.4"
