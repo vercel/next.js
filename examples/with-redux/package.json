@@ -4,13 +4,11 @@
     "dev": "next",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "typecheck": "tsc"
   },
   "dependencies": {
     "@reduxjs/toolkit": "1.9.5",
     "classnames": "2.3.2",
-    "next": "13.4.5",
+    "next": "latest",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "react-redux": "8.1.0",
