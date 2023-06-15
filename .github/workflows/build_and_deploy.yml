@@ -418,6 +418,9 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
       VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
       VERCEL_TEST_TEAM: vtest314-next-e2e-tests
+      # run all tests so we can see all failures even if
+      # some flake or aren't patched yet
+      NEXT_TEST_CONTINUE_ON_ERROR: 1
     steps:
       - uses: actions/cache@v3
         timeout-minutes: 5
