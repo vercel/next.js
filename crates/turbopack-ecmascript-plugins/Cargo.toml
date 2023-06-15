@@ -10,9 +10,13 @@ autobenches = false
 bench = false
 
 [features]
+default = ["swc_ecma_transform_plugin"]
 transform_emotion = []
 # [NOTE]: Be careful to explicitly enable this only for the supported platform / targets.
-swc_ecma_transform_plugin = ["swc_core/plugin_transform_host_native"]
+swc_ecma_transform_plugin = [
+  "swc_core/plugin_transform_host_native",
+  "swc_core/plugin_transform_host_native_shared_runtime",
+]
 
 [dependencies]
 anyhow = { workspace = true }
