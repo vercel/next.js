@@ -1,0 +1,25 @@
+{
+  "private": true,
+  "type": "module",
+  "exports": "./lib/index.js",
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "build": "ncc -m -o ./lib build src/index.js --license licenses.txt"
+  },
+  "devDependencies": {
+    "@vercel/ncc": "0.34.0"
+  },
+  "dependencies": {
+    "unified": "8.4.1",
+    "remark-parse": "7.0.1",
+    "remark-rehype": "5.0.0",
+    "rehype-raw": "4.0.1",
+    "unist-util-visit": "2.0.0",
+    "github-slugger": "1.2.0",
+    "gray-matter": "4.0.2",
+    "@actions/core": "^1.10.0",
+    "@actions/github": "^5.1.1"
+  }
+}
