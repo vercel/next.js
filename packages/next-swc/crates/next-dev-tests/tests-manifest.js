@@ -254,6 +254,7 @@ const enabledTests = [
   'test/integration/static-page-name/test/index.test.js',
   'test/integration/styled-jsx-plugin/test/index.test.js',
   'test/integration/tsconfig-verifier/test/index.test.js',
+  'test/integration/turbopack-unsupported-log/index.test.ts',
   'test/integration/turbotrace-with-webpack-worker/test/index.test.js',
   'test/integration/typeof-window-replace/test/index.test.js',
   'test/integration/typescript-baseurl/test/index.test.js',
