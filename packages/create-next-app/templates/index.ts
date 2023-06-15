@@ -51,7 +51,8 @@ export const installTemplate = async ({
   const templatePath = path.join(__dirname, template, mode)
   const copySource = ['**']
   if (!eslint) copySource.push('!eslintrc.json')
-  if (!tailwind) copySource.push('!tailwind.config.js', '!postcss.config.js')
+  if (!tailwind)
+    copySource.push('!tailwind.config.{js,ts}', '!postcss.config.js')
 
   await cpy(copySource, root, {
     parents: true,
@@ -145,7 +146,9 @@ export const installTemplate = async ({
     )
 
     if (tailwind) {
-      const tailwindConfigFile = path.join(root, 'tailwind.config.js')
+      const configFileName =
+        mode === 'ts' ? 'tailwind.config.ts' : 'tailwind.config.js'
+      const tailwindConfigFile = path.join(root, configFileName)
       await fs.promises.writeFile(
         tailwindConfigFile,
         (
