@@ -14,7 +14,6 @@ const enabledTests = [
   'test/development/basic/define-class-fields.test.ts',
   'test/development/basic/emotion-swc.test.ts',
   'test/development/basic/legacy-decorators.test.ts',
-  'test/development/basic/styled-components-disabled.test.ts',
   'test/development/basic/tailwind-jit.test.ts',
   'test/development/basic/theme-ui.test.ts',
   'test/development/dotenv-default-expansion/index.test.ts',
