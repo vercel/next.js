@@ -7,7 +7,6 @@ import raw from 'rehype-raw'
 import visit from 'unist-util-visit'
 import GithubSlugger from 'github-slugger'
 import matter from 'gray-matter'
-import * as core from '@actions/core'
 import * as github from '@actions/github'
 
 /**
@@ -27,7 +26,7 @@ import * as github from '@actions/github'
  *    to the console.
  */
 
-const DOCS_PATH = './content/docs/'
+const DOCS_PATH = './docs/'
 const INTERNAL_DOCS_PATH = '/docs/'
 const EXCLUDED_HASHES = ['top']
 const EXCLUDED_PATHS = ['/docs/messages/']
