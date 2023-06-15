@@ -5,6 +5,7 @@ export default () => {
   const devClient = connect()
 
   devClient.subscribeToHmrEvent((obj: any) => {
+    console.log('subscribeToHmrEvent', obj)
     if (obj.action === 'reloadPage') {
       sendMessage(
         JSON.stringify({

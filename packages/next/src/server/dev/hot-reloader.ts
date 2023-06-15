@@ -330,11 +330,7 @@ export default class HotReloader {
   }
 
   public reportError(errorMessage: string): void {
-    console.log('reportError serverError', errorMessage)
-    this.send('serverError', { message: errorMessage })
-    // await renderScriptError(res, error, {
-    //   verbose: true,
-    // })
+    this.send({ event: 'serverError', error: errorMessage })
   }
 
   public onHMR(req: IncomingMessage, _socket: Duplex, head: Buffer) {
@@ -1128,7 +1124,6 @@ export default class HotReloader {
     this.multiCompiler.compilers[1].hooks.done.tap(
       'NextjsHotReloaderForServer',
       (stats) => {
-        const prevServerError = this.serverError
         this.serverError = null
         this.serverStats = stats
 
@@ -1142,7 +1137,7 @@ export default class HotReloader {
         // the rest of the files will be triggered by the client compilation
         const documentChunk = compilation.namedChunks.get('pages/_document')
         // If the document chunk can't be found we do nothing
-        console.log('1', prevServerError)
+
         if (!documentChunk) {
           return
         }
