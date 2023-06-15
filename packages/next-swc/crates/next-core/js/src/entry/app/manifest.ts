@@ -1,6 +1,4 @@
-import type {
-  ClientReferenceManifest,
-} from 'next/dist/build/webpack/plugins/flight-manifest-plugin'
+import type { ClientReferenceManifest } from 'next/dist/build/webpack/plugins/flight-manifest-plugin'
 
 export function createManifests() {
   const proxyMethodsForModule = (
@@ -116,7 +114,6 @@ export function createManifests() {
     {} as any,
     proxyMethods()
   )
-
 
   return { clientReferenceManifest }
 }
