@@ -28,10 +28,8 @@ export async function sendResponse(
         for (const cookie of splitCookiesString(value)) {
           res.appendHeader(name, cookie)
         }
-      } else if (res.hasHeader(name)) {
-        res.appendHeader(name, value)
       } else {
-        res.setHeader(name, value)
+        res.appendHeader(name, value)
       }
     })
 
