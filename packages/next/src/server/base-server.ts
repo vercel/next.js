@@ -65,7 +65,11 @@ import * as Log from '../build/output/log'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
 import { getUtils } from './server-utils'
 import isError, { getProperError } from '../lib/is-error'
-import { addRequestMeta, getRequestMeta } from './request-meta'
+import {
+  addRequestMeta,
+  getRequestMeta,
+  removeRequestMeta,
+} from './request-meta'
 
 import { ImageConfigComplete } from '../shared/lib/image-config'
 import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
@@ -2527,6 +2531,17 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         throw new WrappedBuildError(
           new Error('missing required error components')
         )
+      }
+
+      // If the page has a route module, use it for the new match. If it doesn't
+      // have a route module, remove the match.
+      if (result.components.ComponentMod.routeModule) {
+        addRequestMeta(ctx.req, '_nextMatch', {
+          definition: result.components.ComponentMod.routeModule.definition,
+          params: undefined,
+        })
+      } else {
+        removeRequestMeta(ctx.req, '_nextMatch')
       }
 
       try {
