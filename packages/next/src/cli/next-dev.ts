@@ -113,6 +113,10 @@ function watchConfigFiles(
 }
 
 const nextDev: CliCommand = async (argv) => {
+  if (1) {
+    process.exit(1)
+  }
+
   const validArgs: arg.Spec = {
     // Types
     '--help': Boolean,
