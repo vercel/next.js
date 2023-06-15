@@ -71,7 +71,7 @@ createNextDescribe(
       } catch {}
     })
 
-    it('should error if serverActions is not enabled', async function () {
+    it('should error if serverActionsSizeLimit config is in invalid', async function () {
       expect(next.cliOutput).toContain(
         'Server Actions Size Limit must exceed 1 in number or filesize format'
       )
