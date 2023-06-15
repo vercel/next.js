@@ -63,6 +63,7 @@ import { parseVersionInfo, VersionInfo } from './parse-version-info'
 import { isAPIRoute } from '../../lib/is-api-route'
 import { getRouteLoaderEntry } from '../../build/webpack/loaders/next-route-loader'
 import { isInternalPathname } from '../../lib/is-internal-pathname'
+import { nonNullable } from '../../lib/non-nullable'
 
 function diff(a: Set<any>, b: Set<any>) {
   return new Set([...a].filter((v) => !b.has(v)))
@@ -187,6 +188,7 @@ export default class HotReloader {
   private serverError: Error | null = null
   private serverPrevDocumentHash: string | null
   private serverChunkNames?: Set<string>
+  private serverChunkHashes?: Set<string>
   private prevChunkNames?: Set<any>
   private onDemandEntries?: ReturnType<typeof onDemandEntryHandler>
   private previewProps: __ApiPreviewProps
@@ -325,6 +327,14 @@ export default class HotReloader {
     }
 
     return { finished }
+  }
+
+  public reportError(errorMessage: string): void {
+    console.log('reportError serverError', errorMessage)
+    this.send('serverError', { message: errorMessage })
+    // await renderScriptError(res, error, {
+    //   verbose: true,
+    // })
   }
 
   public onHMR(req: IncomingMessage, _socket: Duplex, head: Buffer) {
@@ -1102,7 +1112,8 @@ export default class HotReloader {
       (err: Error) => {
         this.serverError = err
         this.serverStats = null
-        this.serverChunkNames = undefined
+        // this.serverChunkNames = undefined
+        // this.serverChunkHashes = undefined
       }
     )
 
@@ -1117,6 +1128,7 @@ export default class HotReloader {
     this.multiCompiler.compilers[1].hooks.done.tap(
       'NextjsHotReloaderForServer',
       (stats) => {
+        const prevServerError = this.serverError
         this.serverError = null
         this.serverStats = stats
 
@@ -1130,6 +1142,7 @@ export default class HotReloader {
         // the rest of the files will be triggered by the client compilation
         const documentChunk = compilation.namedChunks.get('pages/_document')
         // If the document chunk can't be found we do nothing
+        console.log('1', prevServerError)
         if (!documentChunk) {
           return
         }
@@ -1141,29 +1154,41 @@ export default class HotReloader {
         }
 
         // If _document.js didn't change we don't trigger a reload
-        if (documentChunk.hash === this.serverPrevDocumentHash) {
-          return
-        }
+        // if (documentChunk.hash === this.serverPrevDocumentHash) {
+        //   return
+        // }
 
         // As document chunk will change if new app pages are joined,
         // since react bundle is different it will effect the chunk hash.
         // So we diff the chunk changes, if there's only new app page chunk joins,
         // then we don't trigger a reload by checking pages/_document chunk change.
+
         if (this.appDir) {
           const chunkNames = new Set(compilation.namedChunks.keys())
+          const chunkHashes = new Set(
+            [...compilation.namedChunks.values()]
+              .map((chunk) => chunk.hash)
+              .filter(nonNullable)
+          )
           const diffChunkNames = difference<string>(
             this.serverChunkNames || new Set(),
             chunkNames
           )
+          const diffChunkHashes = difference<string>(
+            this.serverChunkHashes || new Set(),
+            chunkHashes
+          )
 
-          if (
-            diffChunkNames.length === 0 ||
-            diffChunkNames.every((chunkName) => chunkName.startsWith('app/'))
-          ) {
-            return
-          }
           this.serverChunkNames = chunkNames
+          this.serverChunkHashes = chunkHashes
+
+          // console.log('hot:update', chunkNames, chunkHashes)
+          // if (diffChunkNames.length === 0 && diffChunkHashes.length === 0) {
+          //   console.log('no change', this.serverError)
+          //   return
+          // }
         }
+        // console.log('4')
 
         // Notify reload to reload the page, as _document.js was changed (different hash)
         this.send('reloadPage')
@@ -1330,6 +1355,7 @@ export default class HotReloader {
   public async getCompilationErrors(page: string) {
     const getErrors = ({ compilation }: webpack.Stats) => {
       const failedPages = erroredPages(compilation)
+      console.log('failedPages', failedPages)
       const normalizedPage = normalizePathSep(page)
       // If there is an error related to the requesting page we display it instead of the first error
       return failedPages[normalizedPage]?.length > 0

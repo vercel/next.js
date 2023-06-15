@@ -427,6 +427,7 @@ export default class DevServer extends Server {
       const fileWatchTimes = new Map()
       let enabledTypeScript = this.usingTypeScript
       let previousClientRouterFilters: any
+      let previousConflictingPage: any
 
       wp.on('aggregated', async () => {
         let middlewareMatchers: MiddlewareMatcher[] | undefined
@@ -440,6 +441,7 @@ export default class DevServer extends Server {
 
         let envChange = false
         let tsconfigChange = false
+        let conflictingPageChange = false
 
         devPageFiles.clear()
 
@@ -598,17 +600,28 @@ export default class DevServer extends Server {
         }
 
         const numConflicting = conflictingAppPagePaths.size
+        if (numConflicting !== previousConflictingPage) {
+          conflictingPageChange = true
+        }
+        previousConflictingPage = numConflicting
+
         if (numConflicting > 0) {
-          Log.error(
-            `Conflicting app and page file${
-              numConflicting === 1 ? ' was' : 's were'
-            } found, please remove the conflicting files to continue:`
-          )
+          let errorMessage = `Conflicting app and page file${
+            numConflicting === 1 ? ' was' : 's were'
+          } found, please remove the conflicting files to continue:\n`
+
           for (const p of conflictingAppPagePaths) {
             const appPath = relative(this.dir, appPageFilePaths.get(p)!)
             const pagesPath = relative(this.dir, pagesPageFilePaths.get(p)!)
-            Log.error(`  "${pagesPath}" - "${appPath}"`)
+            errorMessage += `  "${pagesPath}" - "${appPath}"\n`
           }
+
+          console.log(
+            'report error',
+            numConflicting,
+            this.hotReloader?.reportError
+          )
+          this.hotReloader?.reportError(errorMessage)
         }
         let clientRouterFilters: any
 
@@ -736,6 +749,18 @@ export default class DevServer extends Server {
             }
           })
           this.hotReloader?.invalidate()
+        }
+
+        if (conflictingPageChange) {
+          console.log(
+            'conflicting page changed',
+            'numConflicting',
+            numConflicting
+          )
+          if (numConflicting === 0) {
+            // this.hotReloader?.invalidate()
+            // this.hotReloader?.send(undefined, { devPagesManifest: true })
+          }
         }
 
         if (nestedMiddleware.length > 0) {
@@ -997,9 +1022,11 @@ export default class DevServer extends Server {
       )
     }
     if (appFile && pagesFile) {
-      throw new Error(
-        `Conflicting app and page file found: "app${appFile}" and "pages${pagesFile}". Please remove one to continue.`
-      )
+      // const error = new Error(
+      //   `Conflicting app and page file found: "app${appFile}" and "pages${pagesFile}". Please remove one to continue.`
+      // )
+      // throw error
+      return false
     }
 
     return Boolean(appFile || pagesFile)

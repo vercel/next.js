@@ -55,19 +55,20 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
           duplicate.definition.kind === RouteKind.PAGES_API
       )
     ) {
-      throw new Error(
-        `Conflicting app and page file found: ${matcher.duplicated
-          // Sort the error output so that the app pages (starting with "app")
-          // are first.
-          .sort((a, b) =>
-            a.definition.filename.localeCompare(b.definition.filename)
-          )
-          .map(
-            (duplicate) =>
-              `"${path.relative(this.dir, duplicate.definition.filename)}"`
-          )
-          .join(' and ')}. Please remove one to continue.`
-      )
+      // Log.error(
+      //   `Conflicting app and page file found: ${matcher.duplicated
+      //     // Sort the error output so that the app pages (starting with "app")
+      //     // are first.
+      //     .sort((a, b) =>
+      //       a.definition.filename.localeCompare(b.definition.filename)
+      //     )
+      //     .map(
+      //       (duplicate) =>
+      //         `"${path.relative(this.dir, duplicate.definition.filename)}"`
+      //     )
+      //     .join(' and ')}. Please remove one to continue.`
+      // )
+      return null
     }
 
     return match

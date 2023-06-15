@@ -64,12 +64,17 @@ export default function connect() {
   register()
 
   addMessageListener((event) => {
-    if (!event.data.includes('action')) return
-
     try {
-      processMessage(event)
-    } catch (ex) {
-      console.warn('Invalid HMR message: ' + event.data + '\n', ex)
+      const payload = JSON.parse(event.data)
+      if (!payload.action) return
+
+      try {
+        processMessage(event)
+      } catch (ex) {
+        console.warn('Invalid HMR message: ' + event.data + '\n', ex)
+      }
+    } catch (err) {
+      console.error('Invalid HMR message: ' + event.data + '\n', err)
     }
   })
 
@@ -228,6 +233,7 @@ function handleAvailableHash(hash: string) {
 // Handle messages from the server.
 function processMessage(e: any) {
   const obj = JSON.parse(e.data)
+  console.log('hot-dev-client', obj.action)
   switch (obj.action) {
     case 'building': {
       startLatency = Date.now()
@@ -272,6 +278,11 @@ function processMessage(e: any) {
         })
       )
       return handleSuccess()
+    }
+    case 'serverError': {
+      const error = new Error(obj.message)
+      console.log('error', error)
+      return handleErrors([error])
     }
     case 'serverComponentChanges': {
       // Server component changes don't apply to `pages`.

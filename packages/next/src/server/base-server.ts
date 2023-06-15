@@ -978,10 +978,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       res.statusCode = 200
       return await this.run(req, res, parsedUrl)
     } catch (err: any) {
+      console.log('base-server:err', err)
       if (
         (err && typeof err === 'object' && err.code === 'ERR_INVALID_URL') ||
         err instanceof DecodeError ||
-        err instanceof NormalizeError
+        err instanceof NormalizeError ||
+        (err && err.name === 'ConflictError')
       ) {
         res.statusCode = 400
         return this.renderError(null, req, res, '/_error', {})
