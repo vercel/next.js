@@ -5,26 +5,33 @@ import httpProxy from 'next/dist/compiled/http-proxy'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import { normalizeRepeatedSlashes } from '../../shared/lib/utils'
 
-const renderServerPath = require.resolve('./render-server')
-
 export const createServerHandler = async ({
   port,
   hostname,
   dir,
+  dev = false,
   minimalMode,
 }: {
   port: number
   hostname: string
   dir: string
+  dev?: boolean
   minimalMode: boolean
 }) => {
-  const routerWorker = new Worker(renderServerPath, {
+  const nextConfig = JSON.parse(
+    process.env.__NEXT_PRIVATE_STANDALONE_CONFIG || '{}'
+  )
+  const routerWorker = new Worker(require.resolve('./render-server'), {
     numWorkers: 1,
     maxRetries: 10,
     forkOptions: {
       env: {
         FORCE_COLOR: '1',
         ...process.env,
+        __NEXT_PRIVATE_PREBUNDLED_REACT: nextConfig?.experimental
+          ?.useServerActions
+          ? 'experimental'
+          : 'next',
       },
     },
     exposedMethods: ['initialize'],
@@ -60,10 +67,11 @@ export const createServerHandler = async ({
   const { port: routerPort } = await routerWorker.initialize({
     dir,
     port,
-    dev: false,
+    dev,
     hostname,
     minimalMode,
     workerType: 'router',
+    isNodeDebugging: false,
   })
   didInitialize = true
 

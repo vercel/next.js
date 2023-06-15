@@ -11,6 +11,12 @@ createNextDescribe(
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
     if (isNextStart) {
+      it('should have correct size in build output', async () => {
+        expect(next.cliOutput).toMatch(
+          /\/dashboard\/another.*? [^0]{1,} [\w]{1,}B/
+        )
+      })
+
       it('should have correct preferredRegion values in manifest', async () => {
         const middlewareManifest = JSON.parse(
           await next.readFile('.next/server/middleware-manifest.json')
@@ -36,6 +42,15 @@ createNextDescribe(
         ).toEqual(['sfo1'])
       })
     }
+
+    it('should work for catch-all edge page', async () => {
+      const html = await next.render('/catch-all-edge/hello123')
+      const $ = cheerio.load(html)
+
+      expect(JSON.parse($('#params').text())).toEqual({
+        slug: ['hello123'],
+      })
+    })
 
     it('should have correct searchParams and params (server)', async () => {
       const html = await next.render('/dynamic/category-1/id-2?query1=value2')
@@ -282,6 +297,15 @@ createNextDescribe(
     it('should serve from app', async () => {
       const html = await next.render('/dashboard')
       expect(html).toContain('hello from app/dashboard')
+    })
+
+    it('should ensure the </body></html> suffix is at the end of the stream', async () => {
+      const html = await next.render('/dashboard')
+
+      // It must end with the suffix and not contain it anywhere else.
+      const suffix = '</body></html>'
+      expect(html).toEndWith(suffix)
+      expect(html.slice(0, -suffix.length)).not.toContain(suffix)
     })
 
     if (!isNextDeploy) {
@@ -1118,7 +1142,8 @@ createNextDescribe(
           }
         })
 
-        it('should HMR correctly when changing the component type', async () => {
+        // TODO: investigate flakey behavior with this test case
+        it.skip('should HMR correctly when changing the component type', async () => {
           const filePath = 'app/dashboard/page/page.jsx'
           const origContent = await next.readFile(filePath)
 

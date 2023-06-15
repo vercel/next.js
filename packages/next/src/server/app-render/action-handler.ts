@@ -22,6 +22,11 @@ import { FlightRenderResult } from './flight-render-result'
 import { ActionResult } from './types'
 import { ActionAsyncStorage } from '../../client/components/action-async-storage'
 import { filterReqHeaders, forbiddenHeaders } from '../lib/server-ipc/utils'
+import {
+  appendMutableCookies,
+  getModifiedCookieValues,
+} from '../web/spec-extension/adapters/request-cookies'
+import { RequestStore } from '../../client/components/request-async-storage'
 
 function nodeToWebReadableStream(nodeReadable: import('stream').Readable) {
   if (process.env.NEXT_RUNTIME !== 'edge') {
@@ -126,6 +131,44 @@ function fetchIPv4v6(
   })
 }
 
+async function addRevalidationHeader(
+  res: ServerResponse,
+  {
+    staticGenerationStore,
+    requestStore,
+  }: {
+    staticGenerationStore: StaticGenerationStore
+    requestStore: RequestStore
+  }
+) {
+  await Promise.all(staticGenerationStore.pendingRevalidates || [])
+
+  // If a tag was revalidated, the client router needs to invalidate all the
+  // client router cache as they may be stale. And if a path was revalidated, the
+  // client needs to invalidate all subtrees below that path.
+
+  // To keep the header size small, we use a tuple of
+  // [[revalidatedPaths], isTagRevalidated ? 1 : 0, isCookieRevalidated ? 1 : 0]
+  // instead of a JSON object.
+
+  // TODO-APP: Currently the prefetch cache doesn't have subtree information,
+  // so we need to invalidate the entire cache if a path was revalidated.
+  // TODO-APP: Currently paths are treated as tags, so the second element of the tuple
+  // is always empty.
+
+  const isTagRevalidated = staticGenerationStore.revalidatedTags?.length ? 1 : 0
+  const isCookieRevalidated = getModifiedCookieValues(
+    requestStore.mutableCookies
+  ).length
+    ? 1
+    : 0
+
+  res.setHeader(
+    'x-action-revalidated',
+    JSON.stringify([[], isTagRevalidated, isCookieRevalidated])
+  )
+}
+
 async function createRedirectRenderResult(
   req: IncomingMessage,
   res: ServerResponse,
@@ -201,6 +244,7 @@ export async function handleAction({
   serverActionsManifest,
   generateFlight,
   staticGenerationStore,
+  requestStore,
 }: {
   req: IncomingMessage
   res: ServerResponse
@@ -213,6 +257,7 @@ export async function handleAction({
     asNotFound?: boolean
   }) => Promise<RenderResult>
   staticGenerationStore: StaticGenerationStore
+  requestStore: RequestStore
 }): Promise<undefined | RenderResult | 'not-found'> {
   let actionId = req.headers[ACTION.toLowerCase()] as string
   const contentType = req.headers['content-type']
@@ -338,6 +383,18 @@ export async function handleAction({
           }
         }
 
+        // actions.js
+        // app/page.js
+        //   action woker1
+        //     appRender1
+
+        // app/foo/page.js
+        //   action worker2
+        //     appRender
+
+        // / -> fire action -> POST / -> appRender1 -> modId for the action file
+        // /foo -> fire action -> POST /foo -> appRender2 -> modId for the action file
+
         const actionModId =
           serverActionsManifest[
             process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
@@ -349,7 +406,10 @@ export async function handleAction({
 
         // For form actions, we need to continue rendering the page.
         if (isFetchAction) {
-          await Promise.all(staticGenerationStore.pendingRevalidates || [])
+          await addRevalidationHeader(res, {
+            staticGenerationStore,
+            requestStore,
+          })
 
           actionResult = await generateFlight({
             actionResult: Promise.resolve(returnVal),
@@ -366,7 +426,10 @@ export async function handleAction({
 
         // if it's a fetch action, we don't want to mess with the status code
         // and we'll handle it on the client router
-        await Promise.all(staticGenerationStore.pendingRevalidates || [])
+        await addRevalidationHeader(res, {
+          staticGenerationStore,
+          requestStore,
+        })
 
         if (isFetchAction) {
           return createRedirectRenderResult(
@@ -377,13 +440,27 @@ export async function handleAction({
           )
         }
 
+        if (err.mutableCookies) {
+          const headers = new Headers()
+
+          // If there were mutable cookies set, we need to set them on the
+          // response.
+          if (appendMutableCookies(headers, err.mutableCookies)) {
+            res.setHeader('set-cookie', Array.from(headers.values()))
+          }
+        }
+
         res.setHeader('Location', redirectUrl)
         res.statusCode = 303
         return new RenderResult('')
       } else if (isNotFoundError(err)) {
         res.statusCode = 404
 
-        await Promise.all(staticGenerationStore.pendingRevalidates || [])
+        await addRevalidationHeader(res, {
+          staticGenerationStore,
+          requestStore,
+        })
+
         if (isFetchAction) {
           const promise = Promise.reject(err)
           try {

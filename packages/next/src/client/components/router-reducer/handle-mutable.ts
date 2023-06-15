@@ -10,6 +10,7 @@ export function handleMutable(
   mutable: Mutable
 ): ReducerState {
   return {
+    buildId: state.buildId,
     // Set href.
     canonicalUrl:
       typeof mutable.canonicalUrl !== 'undefined'
