@@ -118,7 +118,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
-      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/packages/next-swc/crates/next-dev-tests/tests-manifest.js" __INTERNAL_NEXT_DEV_TEST_TURBO_DEV=TRUE __INTERNAL_CUSTOM_TURBOPACK_BINDINGS="$(pwd)/packages/next-swc/native/next-swc.linux-x64-gnu.node" __INTERNAL_NEXT_DEV_TEST_TURBO_GLOB_MATCH="*" NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_MODE=dev node run-tests.js --type development --timings -c ${TEST_CONCURRENCY}
+      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/packages/next-swc/crates/next-dev-tests/tests-manifest.js" TURBOPACK=1 __INTERNAL_CUSTOM_TURBOPACK_BINDINGS="$(pwd)/packages/next-swc/native/next-swc.linux-x64-gnu.node" NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_MODE=dev node run-tests.js --type development --timings -c ${TEST_CONCURRENCY}
     secrets: inherit
 
   test-next-swc-wasm:
