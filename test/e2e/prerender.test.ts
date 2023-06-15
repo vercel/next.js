@@ -16,6 +16,7 @@ import {
   waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
+import stripAnsi from 'strip-ansi'
 
 describe('Prerender', () => {
   let next: NextInstance
@@ -967,6 +968,39 @@ describe('Prerender', () => {
     })
 
     if ((global as any).isNextDev) {
+      it('should show warning every time page with large amount of page data is returned', async () => {
+        await renderViaHTTP(next.url, '/large-page-data-ssr')
+        await check(
+          () => next.cliOutput,
+          /Warning: data for page "\/large-page-data-ssr" is 256 kB which exceeds the threshold of 128 kB, this amount of data can reduce performance/
+        )
+
+        const outputIndex = next.cliOutput.length
+        await renderViaHTTP(next.url, '/large-page-data-ssr')
+        await check(
+          () => next.cliOutput.slice(outputIndex),
+          /Warning: data for page "\/large-page-data-ssr" is 256 kB which exceeds the threshold of 128 kB, this amount of data can reduce performance/
+        )
+      })
+    }
+
+    if ((global as any).isNextStart) {
+      it('should only show warning once per page when large amount of page data is returned', async () => {
+        await renderViaHTTP(next.url, '/large-page-data-ssr')
+        await check(
+          () => next.cliOutput,
+          /Warning: data for page "\/large-page-data-ssr" is 256 kB which exceeds the threshold of 128 kB, this amount of data can reduce performance/
+        )
+
+        const outputIndex = next.cliOutput.length
+        await renderViaHTTP(next.url, '/large-page-data-ssr')
+        expect(next.cliOutput.slice(outputIndex)).not.toInclude(
+          'Warning: data for page'
+        )
+      })
+    }
+
+    if ((global as any).isNextDev) {
       it('should not show warning from url prop being returned', async () => {
         const urlPropPage = 'pages/url-prop.js'
         await next.patchFile(
@@ -1282,10 +1316,10 @@ describe('Prerender', () => {
               ),
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/api\\-docs/(?<slug>.+?)\\.json$`,
+              )}/api\\-docs/(?<nxtPslug>.+?)\\.json$`,
               page: '/api-docs/[...slug]',
               routeKeys: {
-                slug: 'slug',
+                nxtPslug: 'nxtPslug',
               },
             },
             {
@@ -1312,9 +1346,9 @@ describe('Prerender', () => {
               ),
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/blocking\\-fallback/(?<slug>[^/]+?)\\.json$`,
+              )}/blocking\\-fallback/(?<nxtPslug>[^/]+?)\\.json$`,
               page: '/blocking-fallback/[slug]',
-              routeKeys: { slug: 'slug' },
+              routeKeys: { nxtPslug: 'nxtPslug' },
             },
             {
               dataRouteRegex: normalizeRegEx(
@@ -1324,9 +1358,9 @@ describe('Prerender', () => {
               ),
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/blocking\\-fallback\\-once/(?<slug>[^/]+?)\\.json$`,
+              )}/blocking\\-fallback\\-once/(?<nxtPslug>[^/]+?)\\.json$`,
               page: '/blocking-fallback-once/[slug]',
-              routeKeys: { slug: 'slug' },
+              routeKeys: { nxtPslug: 'nxtPslug' },
             },
             {
               dataRouteRegex: normalizeRegEx(
@@ -1336,9 +1370,9 @@ describe('Prerender', () => {
               ),
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/blocking\\-fallback\\-some/(?<slug>[^/]+?)\\.json$`,
+              )}/blocking\\-fallback\\-some/(?<nxtPslug>[^/]+?)\\.json$`,
               page: '/blocking-fallback-some/[slug]',
-              routeKeys: { slug: 'slug' },
+              routeKeys: { nxtPslug: 'nxtPslug' },
             },
             {
               dataRouteRegex: normalizeRegEx(
@@ -1349,7 +1383,7 @@ describe('Prerender', () => {
             {
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/blog/(?<post>[^/]+?)\\.json$`,
+              )}/blog/(?<nxtPpost>[^/]+?)\\.json$`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
@@ -1357,13 +1391,13 @@ describe('Prerender', () => {
               ),
               page: '/blog/[post]',
               routeKeys: {
-                post: 'post',
+                nxtPpost: 'nxtPpost',
               },
             },
             {
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/blog/(?<post>[^/]+?)/(?<comment>[^/]+?)\\.json$`,
+              )}/blog/(?<nxtPpost>[^/]+?)/(?<nxtPcomment>[^/]+?)\\.json$`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
@@ -1371,14 +1405,14 @@ describe('Prerender', () => {
               ),
               page: '/blog/[post]/[comment]',
               routeKeys: {
-                post: 'post',
-                comment: 'comment',
+                nxtPpost: 'nxtPpost',
+                nxtPcomment: 'nxtPcomment',
               },
             },
             {
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/catchall/(?<slug>.+?)\\.json$`,
+              )}/catchall/(?<nxtPslug>.+?)\\.json$`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
@@ -1386,13 +1420,13 @@ describe('Prerender', () => {
               ),
               page: '/catchall/[...slug]',
               routeKeys: {
-                slug: 'slug',
+                nxtPslug: 'nxtPslug',
               },
             },
             {
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/catchall\\-explicit/(?<slug>.+?)\\.json$`,
+              )}/catchall\\-explicit/(?<nxtPslug>.+?)\\.json$`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
@@ -1400,13 +1434,13 @@ describe('Prerender', () => {
               ),
               page: '/catchall-explicit/[...slug]',
               routeKeys: {
-                slug: 'slug',
+                nxtPslug: 'nxtPslug',
               },
             },
             {
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/catchall\\-optional(?:/(?<slug>.+?))?\\.json$`,
+              )}/catchall\\-optional(?:/(?<nxtPslug>.+?))?\\.json$`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
@@ -1414,7 +1448,7 @@ describe('Prerender', () => {
               ),
               page: '/catchall-optional/[[...slug]]',
               routeKeys: {
-                slug: 'slug',
+                nxtPslug: 'nxtPslug',
               },
             },
             {
@@ -1433,10 +1467,10 @@ describe('Prerender', () => {
               ),
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/dynamic/(?<slug>[^/]+?)\\.json$`,
+              )}/dynamic/(?<nxtPslug>[^/]+?)\\.json$`,
               page: '/dynamic/[slug]',
               routeKeys: {
-                slug: 'slug',
+                nxtPslug: 'nxtPslug',
               },
             },
             {
@@ -1447,10 +1481,10 @@ describe('Prerender', () => {
               ),
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/fallback\\-only/(?<slug>[^/]+?)\\.json$`,
+              )}/fallback\\-only/(?<nxtPslug>[^/]+?)\\.json$`,
               page: '/fallback-only/[slug]',
               routeKeys: {
-                slug: 'slug',
+                nxtPslug: 'nxtPslug',
               },
             },
             // TODO: investigate index/index
@@ -1465,7 +1499,7 @@ describe('Prerender', () => {
             {
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/lang/(?<lang>[^/]+?)/about\\.json$`,
+              )}/lang/(?<nxtPlang>[^/]+?)/about\\.json$`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
@@ -1473,7 +1507,7 @@ describe('Prerender', () => {
               ),
               page: '/lang/[lang]/about',
               routeKeys: {
-                lang: 'lang',
+                nxtPlang: 'nxtPlang',
               },
             },
             {
@@ -1483,9 +1517,15 @@ describe('Prerender', () => {
               page: '/large-page-data',
             },
             {
+              dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+                next.buildId
+              )}\\/large-page-data-ssr.json$`,
+              page: '/large-page-data-ssr',
+            },
+            {
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/non\\-json/(?<p>[^/]+?)\\.json$`,
+              )}/non\\-json/(?<nxtPp>[^/]+?)\\.json$`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
@@ -1493,13 +1533,13 @@ describe('Prerender', () => {
               ),
               page: '/non-json/[p]',
               routeKeys: {
-                p: 'p',
+                nxtPp: 'nxtPp',
               },
             },
             {
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/non\\-json\\-blocking/(?<p>[^/]+?)\\.json$`,
+              )}/non\\-json\\-blocking/(?<nxtPp>[^/]+?)\\.json$`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
@@ -1507,7 +1547,7 @@ describe('Prerender', () => {
               ),
               page: '/non-json-blocking/[p]',
               routeKeys: {
-                p: 'p',
+                nxtPp: 'nxtPp',
               },
             },
             {
@@ -1527,9 +1567,15 @@ describe('Prerender', () => {
               page: '/something',
             },
             {
+              dataRouteRegex: normalizeRegEx(
+                `^\\/_next\\/data\\/${escapeRegex(next.buildId)}\\/ssr.json$`
+              ),
+              page: '/ssr',
+            },
+            {
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/user/(?<user>[^/]+?)/profile\\.json$`,
+              )}/user/(?<nxtPuser>[^/]+?)/profile\\.json$`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
@@ -1537,7 +1583,7 @@ describe('Prerender', () => {
               ),
               page: '/user/[user]/profile',
               routeKeys: {
-                user: 'user',
+                nxtPuser: 'nxtPuser',
               },
             },
           ])
@@ -1560,7 +1606,7 @@ describe('Prerender', () => {
             }
           })
 
-          expect(manifest.version).toBe(3)
+          expect(manifest.version).toBe(4)
           expect(manifest.routes).toEqual(expectedManifestRoutes())
           expect(manifest.dynamicRoutes).toEqual({
             '/api-docs/[...slug]': {
@@ -1772,7 +1818,17 @@ describe('Prerender', () => {
         })
       }
 
-      it('should revalidate manual revalidate with preview cookie', async () => {
+      it('should not throw error for on-demand revalidate for SSR path', async () => {
+        const res = await fetchViaHTTP(next.url, '/api/manual-revalidate', {
+          pathname: '/ssr',
+        })
+
+        expect(res.status).toBe(200)
+        expect(await res.json()).toEqual({ revalidated: false })
+        expect(stripAnsi(next.cliOutput)).not.toContain('hasHeader')
+      })
+
+      it('should revalidate on-demand revalidate with preview cookie', async () => {
         const initialRes = await fetchViaHTTP(next.url, '/preview')
         expect(initialRes.status).toBe(200)
 
@@ -2077,7 +2133,7 @@ describe('Prerender', () => {
     }
 
     if (!isDev) {
-      it('should handle manual revalidate for fallback: blocking', async () => {
+      it('should handle on-demand revalidate for fallback: blocking', async () => {
         const beforeRevalidate = Date.now()
         const res = await fetchViaHTTP(
           next.url,
@@ -2191,7 +2247,7 @@ describe('Prerender', () => {
         )
       })
 
-      it('should not manual revalidate for fallback: blocking with onlyGenerated if not generated', async () => {
+      it('should not on-demand revalidate for fallback: blocking with onlyGenerated if not generated', async () => {
         const res = await fetchViaHTTP(
           next.url,
           '/api/manual-revalidate',
@@ -2218,7 +2274,7 @@ describe('Prerender', () => {
         expect(next.cliOutput).toContain(`getStaticProps test-if-generated-1`)
       })
 
-      it('should manual revalidate for fallback: blocking with onlyGenerated if generated', async () => {
+      it('should on-demand revalidate for fallback: blocking with onlyGenerated if generated', async () => {
         const beforeRevalidate = Date.now()
         const res = await fetchViaHTTP(
           next.url,
@@ -2231,8 +2287,8 @@ describe('Prerender', () => {
         const html = await res.text()
         const $ = cheerio.load(html)
         const initialTime = $('#time').text()
-        expect(res.headers.get('x-nextjs-cache')).toMatch(/MISS/)
         expect($('p').text()).toMatch(/Post:.*?test-if-generated-2/)
+        expect(res.headers.get('x-nextjs-cache')).toMatch(/MISS/)
 
         const res2 = await fetchViaHTTP(
           next.url,
@@ -2240,9 +2296,9 @@ describe('Prerender', () => {
         )
         const html2 = await res2.text()
         const $2 = cheerio.load(html2)
-        expect(res2.headers.get('x-nextjs-cache')).toMatch(/(HIT|STALE)/)
 
         expect(initialTime).toBe($2('#time').text())
+        expect(res2.headers.get('x-nextjs-cache')).toMatch(/(HIT|STALE)/)
 
         const res3 = await fetchViaHTTP(
           next.url,
@@ -2268,7 +2324,7 @@ describe('Prerender', () => {
         expect(res4.headers.get('x-nextjs-cache')).toMatch(/(HIT|STALE)/)
       })
 
-      it('should manual revalidate for revalidate: false', async () => {
+      it('should on-demand revalidate for revalidate: false', async () => {
         const html = await renderViaHTTP(
           next.url,
           '/blocking-fallback-once/test-manual-1'
@@ -2307,7 +2363,7 @@ describe('Prerender', () => {
         expect($4('#time').text()).not.toBe(initialTime)
       })
 
-      it('should manual revalidate that returns notFound: true', async () => {
+      it('should on-demand revalidate that returns notFound: true', async () => {
         const res = await fetchViaHTTP(
           next.url,
           '/blocking-fallback-once/404-on-manual-revalidate'
@@ -2348,7 +2404,7 @@ describe('Prerender', () => {
         expect(res3.headers.get('x-nextjs-cache')).toBe('HIT')
       })
 
-      it('should handle manual revalidate for fallback: false', async () => {
+      it('should handle on-demand revalidate for fallback: false', async () => {
         const res = await fetchViaHTTP(
           next.url,
           '/catchall-explicit/test-manual-1'

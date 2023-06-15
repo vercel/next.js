@@ -1,6 +1,6 @@
-use next_binding::swc::core::{
-    ecma::ast::*,
-    ecma::visit::{Visit, VisitWith},
+use turbopack_binding::swc::core::ecma::{
+    ast::*,
+    visit::{Visit, VisitWith},
 };
 
 pub(crate) fn contains_cjs(m: &Module) -> bool {
@@ -20,7 +20,10 @@ impl Visit for CjsFinder {
     fn visit_member_expr(&mut self, e: &MemberExpr) {
         if let Expr::Ident(obj) = &*e.obj {
             if let MemberProp::Ident(prop) = &e.prop {
-                if &*obj.sym == "module" && &*prop.sym == "exports" {
+                // Detect `module.exports` and `exports.__esModule`
+                if (&*obj.sym == "module" && &*prop.sym == "exports")
+                    || (&*obj.sym == "exports" && &*prop.sym == "__esModule")
+                {
                     self.found = true;
                     return;
                 }
@@ -31,9 +34,35 @@ impl Visit for CjsFinder {
         e.prop.visit_with(self);
     }
 
-    fn visit_str(&mut self, s: &Str) {
-        if s.value.contains("__esModule") {
-            self.found = true;
+    // Detect `Object.defineProperty(exports, "__esModule", ...)`
+    // Note that `Object.defineProperty(module.exports, ...)` will be handled by
+    // `visit_member_expr`.
+    fn visit_call_expr(&mut self, e: &CallExpr) {
+        if let Callee::Expr(expr) = &e.callee {
+            if let Expr::Member(member_expr) = &**expr {
+                if let (Expr::Ident(obj), MemberProp::Ident(prop)) =
+                    (&*member_expr.obj, &member_expr.prop)
+                {
+                    if &*obj.sym == "Object" && &*prop.sym == "defineProperty" {
+                        if let Some(ExprOrSpread { expr: expr0, .. }) = e.args.get(0) {
+                            if let Expr::Ident(arg0) = &**expr0 {
+                                if &*arg0.sym == "exports" {
+                                    if let Some(ExprOrSpread { expr: expr1, .. }) = e.args.get(1) {
+                                        if let Expr::Lit(Lit::Str(arg1)) = &**expr1 {
+                                            if &*arg1.value == "__esModule" {
+                                                self.found = true;
+                                                return;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
+
+        e.callee.visit_with(self);
     }
 }

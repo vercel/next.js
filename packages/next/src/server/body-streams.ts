@@ -32,14 +32,14 @@ function replaceRequestBody<T extends IncomingMessage>(
   return base
 }
 
-export interface ClonableBody {
+export interface CloneableBody {
   finalize(): Promise<void>
   cloneBodyStream(): Readable
 }
 
-export function getClonableBody<T extends IncomingMessage>(
+export function getCloneableBody<T extends IncomingMessage>(
   readable: T
-): ClonableBody {
+): CloneableBody {
   let buffered: Readable | null = null
 
   const endPromise = new Promise<void | { error?: unknown }>(

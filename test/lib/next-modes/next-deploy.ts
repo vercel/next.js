@@ -52,7 +52,7 @@ export class NextDeployInstance extends NextInstance {
     // link the project
     const linkRes = await execa(
       'vercel',
-      ['link', '-p', TEST_PROJECT_NAME, '--confirm', ...vercelFlags],
+      ['link', '-p', TEST_PROJECT_NAME, '--yes', ...vercelFlags],
       {
         cwd: this.testDir,
         env: vercelEnv,
@@ -75,17 +75,17 @@ export class NextDeployInstance extends NextInstance {
       additionalEnv.push(`${key}=${this.env[key]}`)
     }
 
-    if (process.env.VERCEL_CLI_VERSION) {
-      additionalEnv.push('--build-env')
-      additionalEnv.push(`VERCEL_CLI_VERSION=${process.env.VERCEL_CLI_VERSION}`)
-    }
+    additionalEnv.push('--build-env')
+    additionalEnv.push(
+      `VERCEL_CLI_VERSION=${process.env.VERCEL_CLI_VERSION || 'vercel@latest'}`
+    )
 
     const deployRes = await execa(
       'vercel',
       [
         'deploy',
         '--build-env',
-        'NEXT_PRIVATE_TEST_MODE=1',
+        'NEXT_PRIVATE_TEST_MODE=e2e',
         '--build-env',
         'NEXT_TELEMETRY_DISABLED=1',
         ...additionalEnv,

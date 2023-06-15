@@ -1,19 +1,22 @@
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
 use regex::Regex;
 use serde::Deserialize;
-
-use next_binding::swc::core::{
+use turbopack_binding::swc::core::{
     common::{
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
         FileName, Span, Spanned, DUMMY_SP,
     },
-    ecma::ast::*,
-    ecma::atoms::{js_word, JsWord},
-    ecma::utils::{prepend_stmts, quote_ident, quote_str, ExprFactory},
-    ecma::visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
+    ecma::{
+        ast::*,
+        atoms::{js_word, JsWord},
+        utils::{prepend_stmts, quote_ident, quote_str, ExprFactory},
+        visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
+    },
 };
+
+use crate::auto_cjs::contains_cjs;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(untagged)]
@@ -42,6 +45,7 @@ struct ReactServerComponents<C: Comments> {
     filepath: String,
     app_dir: Option<PathBuf>,
     comments: C,
+    export_names: Vec<String>,
     invalid_server_imports: Vec<JsWord>,
     invalid_client_imports: Vec<JsWord>,
     invalid_server_react_apis: Vec<JsWord>,
@@ -57,17 +61,24 @@ impl<C: Comments> VisitMut for ReactServerComponents<C> {
     noop_visit_mut_type!();
 
     fn visit_mut_module(&mut self, module: &mut Module) {
-        let (is_client_entry, imports) = self.collect_top_level_directives_and_imports(module);
+        let (is_client_entry, is_action_file, imports) =
+            self.collect_top_level_directives_and_imports(module);
+        let is_cjs = contains_cjs(module);
 
         if self.is_server {
             if !is_client_entry {
                 self.assert_server_graph(&imports, module);
             } else {
-                self.to_module_ref(module);
+                self.to_module_ref(module, is_cjs);
                 return;
             }
         } else {
-            self.assert_client_graph(&imports, module);
+            if !is_action_file {
+                self.assert_client_graph(&imports, module);
+            }
+            if is_client_entry {
+                self.prepend_comment_node(module, is_cjs);
+            }
         }
         module.visit_mut_children_with(self)
     }
@@ -77,12 +88,26 @@ impl<C: Comments> ReactServerComponents<C> {
     // Collects top level directives and imports, then removes specific ones
     // from the AST.
     fn collect_top_level_directives_and_imports(
-        &self,
+        &mut self,
         module: &mut Module,
-    ) -> (bool, Vec<ModuleImports>) {
+    ) -> (bool, bool, Vec<ModuleImports>) {
         let mut imports: Vec<ModuleImports> = vec![];
         let mut finished_directives = false;
         let mut is_client_entry = false;
+        let mut is_action_file = false;
+
+        fn panic_both_directives(span: Span) {
+            // It's not possible to have both directives in the same file.
+            HANDLER.with(|handler| {
+                handler
+                    .struct_span_err(
+                        span,
+                        "It's not possible to have both `use client` and `use server` directives \
+                         in the same file.",
+                    )
+                    .emit()
+            })
+        }
 
         let _ = &module.body.retain(|item| {
             match item {
@@ -99,6 +124,10 @@ impl<C: Comments> ReactServerComponents<C> {
                                     if &**value == "use client" {
                                         if !finished_directives {
                                             is_client_entry = true;
+
+                                            if is_action_file {
+                                                panic_both_directives(expr_stmt.span)
+                                            }
                                         } else {
                                             HANDLER.with(|handler| {
                                                 handler
@@ -112,6 +141,12 @@ impl<C: Comments> ReactServerComponents<C> {
 
                                         // Remove the directive.
                                         return false;
+                                    } else if &**value == "use server" && !finished_directives {
+                                        is_action_file = true;
+
+                                        if is_client_entry {
+                                            panic_both_directives(expr_stmt.span)
+                                        }
                                     }
                                 }
                                 // Match `ParenthesisExpression` which is some formatting tools
@@ -169,6 +204,58 @@ impl<C: Comments> ReactServerComponents<C> {
 
                     finished_directives = true;
                 }
+                // Collect all export names.
+                ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(e)) => {
+                    for specifier in &e.specifiers {
+                        self.export_names.push(match specifier {
+                            ExportSpecifier::Default(_) => "default".to_string(),
+                            ExportSpecifier::Namespace(_) => "*".to_string(),
+                            ExportSpecifier::Named(named) => match &named.exported {
+                                Some(exported) => match &exported {
+                                    ModuleExportName::Ident(i) => i.sym.to_string(),
+                                    ModuleExportName::Str(s) => s.value.to_string(),
+                                },
+                                _ => match &named.orig {
+                                    ModuleExportName::Ident(i) => i.sym.to_string(),
+                                    ModuleExportName::Str(s) => s.value.to_string(),
+                                },
+                            },
+                        })
+                    }
+                }
+                ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl { decl, .. })) => {
+                    match decl {
+                        Decl::Class(ClassDecl { ident, .. }) => {
+                            self.export_names.push(ident.sym.to_string());
+                        }
+                        Decl::Fn(FnDecl { ident, .. }) => {
+                            self.export_names.push(ident.sym.to_string());
+                        }
+                        Decl::Var(var) => {
+                            for decl in &var.decls {
+                                if let Pat::Ident(ident) = &decl.name {
+                                    self.export_names.push(ident.id.sym.to_string());
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultDecl(ExportDefaultDecl {
+                    decl: _,
+                    ..
+                })) => {
+                    self.export_names.push("default".to_string());
+                }
+                ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(ExportDefaultExpr {
+                    expr: _,
+                    ..
+                })) => {
+                    self.export_names.push("default".to_string());
+                }
+                ModuleItem::ModuleDecl(ModuleDecl::ExportAll(_)) => {
+                    self.export_names.push("*".to_string());
+                }
                 _ => {
                     finished_directives = true;
                 }
@@ -176,12 +263,12 @@ impl<C: Comments> ReactServerComponents<C> {
             true
         });
 
-        (is_client_entry, imports)
+        (is_client_entry, is_action_file, imports)
     }
 
     // Convert the client module to the module reference code and add a special
     // comment to the top of the file.
-    fn to_module_ref(&self, module: &mut Module) {
+    fn to_module_ref(&self, module: &mut Module, is_cjs: bool) {
         // Clear all the statements and module declarations.
         module.body.clear();
 
@@ -238,18 +325,10 @@ impl<C: Comments> ReactServerComponents<C> {
             .into_iter(),
         );
 
-        // Prepend a special comment to the top of the file.
-        self.comments.add_leading(
-            module.span.lo,
-            Comment {
-                span: DUMMY_SP,
-                kind: CommentKind::Block,
-                text: " __next_internal_client_entry_do_not_use__ ".into(),
-            },
-        );
+        self.prepend_comment_node(module, is_cjs);
     }
 
-    fn assert_server_graph(&self, imports: &Vec<ModuleImports>, module: &Module) {
+    fn assert_server_graph(&self, imports: &[ModuleImports], module: &Module) {
         for import in imports {
             let source = import.source.0.clone();
             if self.invalid_server_imports.contains(&source) {
@@ -292,7 +371,7 @@ impl<C: Comments> ReactServerComponents<C> {
             }
         }
 
-        self.assert_invalid_api(module);
+        self.assert_invalid_api(module, false);
         self.assert_server_filename(module);
     }
 
@@ -321,7 +400,7 @@ impl<C: Comments> ReactServerComponents<C> {
         }
     }
 
-    fn assert_client_graph(&self, imports: &Vec<ModuleImports>, module: &Module) {
+    fn assert_client_graph(&self, imports: &[ModuleImports], module: &Module) {
         for import in imports {
             let source = import.source.0.clone();
             if self.invalid_client_imports.contains(&source) {
@@ -336,48 +415,48 @@ impl<C: Comments> ReactServerComponents<C> {
             }
         }
 
-        self.assert_invalid_api(module);
+        self.assert_invalid_api(module, true);
     }
 
-    fn assert_invalid_api(&self, module: &Module) {
-        // Assert `getServerSideProps` and `getStaticProps` exports.
+    fn assert_invalid_api(&self, module: &Module, is_client_entry: bool) {
         let is_layout_or_page = Regex::new(r"/(page|layout)\.(ts|js)x?$")
             .unwrap()
             .is_match(&self.filepath);
 
         if is_layout_or_page {
             let mut span = DUMMY_SP;
-            let mut has_get_server_side_props = false;
-            let mut has_get_static_props = false;
+            let mut invalid_export_name = String::new();
+            let mut invalid_exports: HashMap<String, bool> = HashMap::new();
 
-            'matcher: for export in &module.body {
+            fn invalid_exports_matcher(
+                export_name: &str,
+                invalid_exports: &mut HashMap<String, bool>,
+            ) -> bool {
+                match export_name {
+                    "getServerSideProps" | "getStaticProps" | "generateMetadata" | "metadata" => {
+                        invalid_exports.insert(export_name.to_string(), true);
+                        true
+                    }
+                    _ => false,
+                }
+            }
+
+            for export in &module.body {
                 match export {
                     ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(export)) => {
                         for specifier in &export.specifiers {
                             if let ExportSpecifier::Named(named) = specifier {
                                 match &named.orig {
                                     ModuleExportName::Ident(i) => {
-                                        if i.sym == *"getServerSideProps" {
-                                            has_get_server_side_props = true;
+                                        if invalid_exports_matcher(&i.sym, &mut invalid_exports) {
                                             span = named.span;
-                                            break 'matcher;
-                                        }
-                                        if i.sym == *"getStaticProps" {
-                                            has_get_static_props = true;
-                                            span = named.span;
-                                            break 'matcher;
+                                            invalid_export_name = i.sym.to_string();
                                         }
                                     }
                                     ModuleExportName::Str(s) => {
-                                        if s.value == *"getServerSideProps" {
-                                            has_get_server_side_props = true;
+                                        if invalid_exports_matcher(&s.value, &mut invalid_exports) {
                                             span = named.span;
-                                            break 'matcher;
-                                        }
-                                        if s.value == *"getStaticProps" {
-                                            has_get_static_props = true;
-                                            span = named.span;
-                                            break 'matcher;
+                                            invalid_export_name = s.value.to_string();
                                         }
                                     }
                                 }
@@ -386,29 +465,17 @@ impl<C: Comments> ReactServerComponents<C> {
                     }
                     ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export)) => match &export.decl {
                         Decl::Fn(f) => {
-                            if f.ident.sym == *"getServerSideProps" {
-                                has_get_server_side_props = true;
+                            if invalid_exports_matcher(&f.ident.sym, &mut invalid_exports) {
                                 span = f.ident.span;
-                                break 'matcher;
-                            }
-                            if f.ident.sym == *"getStaticProps" {
-                                has_get_static_props = true;
-                                span = f.ident.span;
-                                break 'matcher;
+                                invalid_export_name = f.ident.sym.to_string();
                             }
                         }
                         Decl::Var(v) => {
                             for decl in &v.decls {
                                 if let Pat::Ident(i) = &decl.name {
-                                    if i.sym == *"getServerSideProps" {
-                                        has_get_server_side_props = true;
+                                    if invalid_exports_matcher(&i.sym, &mut invalid_exports) {
                                         span = i.span;
-                                        break 'matcher;
-                                    }
-                                    if i.sym == *"getStaticProps" {
-                                        has_get_static_props = true;
-                                        span = i.span;
-                                        break 'matcher;
+                                        invalid_export_name = i.sym.to_string();
                                     }
                                 }
                             }
@@ -419,25 +486,68 @@ impl<C: Comments> ReactServerComponents<C> {
                 }
             }
 
-            if has_get_server_side_props || has_get_static_props {
+            // Assert invalid metadata and generateMetadata exports.
+            let has_gm_export = invalid_exports.contains_key("generateMetadata");
+            let has_metadata_export = invalid_exports.contains_key("metadata");
+
+            // Client entry can't export `generateMetadata` or `metadata`.
+            if is_client_entry {
+                if has_gm_export || has_metadata_export {
+                    HANDLER.with(|handler| {
+                        handler
+                            .struct_span_err(
+                                span,
+                                format!(
+                                    "NEXT_RSC_ERR_CLIENT_METADATA_EXPORT: {}",
+                                    invalid_export_name
+                                )
+                                .as_str(),
+                            )
+                            .emit()
+                    })
+                }
+            } else {
+                // Server entry can't export `generateMetadata` and `metadata` together.
+                if has_gm_export && has_metadata_export {
+                    HANDLER.with(|handler| {
+                        handler
+                            .struct_span_err(span, "NEXT_RSC_ERR_CONFLICT_METADATA_EXPORT")
+                            .emit()
+                    })
+                }
+            }
+            // Assert `getServerSideProps` and `getStaticProps` exports.
+            if invalid_export_name == "getServerSideProps"
+                || invalid_export_name == "getStaticProps"
+            {
                 HANDLER.with(|handler| {
                     handler
                         .struct_span_err(
                             span,
-                            format!(
-                                "NEXT_RSC_ERR_INVALID_API: {}",
-                                if has_get_server_side_props {
-                                    "getServerSideProps"
-                                } else {
-                                    "getStaticProps"
-                                }
-                            )
-                            .as_str(),
+                            format!("NEXT_RSC_ERR_INVALID_API: {}", invalid_export_name).as_str(),
                         )
                         .emit()
                 })
             }
         }
+    }
+
+    fn prepend_comment_node(&self, module: &Module, is_cjs: bool) {
+        // Prepend a special comment to the top of the file that contains
+        // module export names and the detected module type.
+        self.comments.add_leading(
+            module.span.lo,
+            Comment {
+                span: DUMMY_SP,
+                kind: CommentKind::Block,
+                text: format!(
+                    " __next_internal_client_entry_do_not_use__ {} {} ",
+                    self.export_names.join(","),
+                    if is_cjs { "cjs" } else { "auto" }
+                )
+                .into(),
+            },
+        );
     }
 }
 
@@ -456,6 +566,7 @@ pub fn server_components<C: Comments>(
         comments,
         filepath: filename.to_string(),
         app_dir,
+        export_names: vec![],
         invalid_server_imports: vec![
             JsWord::from("client-only"),
             JsWord::from("react-dom/client"),
@@ -467,6 +578,8 @@ pub fn server_components<C: Comments>(
             JsWord::from("findDOMNode"),
             JsWord::from("flushSync"),
             JsWord::from("unstable_batchedUpdates"),
+            JsWord::from("experimental_useFormStatus"),
+            JsWord::from("experimental_useOptimistic"),
         ],
         invalid_server_react_apis: vec![
             JsWord::from("Component"),

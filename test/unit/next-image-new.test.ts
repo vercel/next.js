@@ -7,7 +7,7 @@ import cheerio from 'cheerio'
 describe('Image rendering', () => {
   it('should render Image on its own', async () => {
     const element = React.createElement(Image, {
-      alt: 'unit-image',
+      alt: 'a nice image',
       id: 'unit-image',
       src: '/test.png',
       width: 100,
@@ -17,9 +17,20 @@ describe('Image rendering', () => {
     const html = ReactDOM.renderToString(element)
     const $ = cheerio.load(html)
     const img = $('#unit-image')
-    expect(img.attr('id')).toBe('unit-image')
-    expect(img.attr('src')).toContain('test.png')
-    expect(img.attr('srcset')).toContain('test.png')
+    // order matters here
+    expect(img.attr()).toStrictEqual({
+      alt: 'a nice image',
+      id: 'unit-image',
+      loading: 'eager',
+      width: '100',
+      height: '100',
+      decoding: 'async',
+      'data-nimg': '1',
+      style: 'color:transparent',
+      srcset:
+        '/_next/image?url=%2Ftest.png&w=128&q=75 1x, /_next/image?url=%2Ftest.png&w=256&q=75 2x',
+      src: '/_next/image?url=%2Ftest.png&w=256&q=75',
+    })
   })
 
   it('should only render noscript element when lazy loading', async () => {

@@ -1,51 +1,58 @@
 import type { ResolvedMetadata } from '../types/metadata-interface'
 
 import React from 'react'
+import { AlternateLinkDescriptor } from '../types/alternative-urls-types'
+import { MetaFilter } from './meta'
 
-export function ResolvedAlternatesMetadata({
-  metadata,
+function AlternateLink({
+  descriptor,
+  ...props
 }: {
-  metadata: ResolvedMetadata
-}) {
+  descriptor: AlternateLinkDescriptor
+} & React.LinkHTMLAttributes<HTMLLinkElement>) {
+  if (!descriptor.url) return null
   return (
-    <>
-      {metadata.alternates.canonical ? (
-        <link rel="canonical" href={metadata.alternates.canonical.toString()} />
-      ) : null}
-      {Object.entries(metadata.alternates.languages).map(([locale, url]) =>
-        url ? (
-          <link
-            key={locale}
-            rel="alternate"
-            hrefLang={locale}
-            href={url.toString()}
-          />
-        ) : null
-      )}
-      {metadata.alternates.media
-        ? Object.entries(metadata.alternates.media).map(([media, url]) =>
-            url ? (
-              <link
-                key={media}
-                rel="alternate"
-                media={media}
-                href={url.toString()}
-              />
-            ) : null
-          )
-        : null}
-      {metadata.alternates.types
-        ? Object.entries(metadata.alternates.types).map(([type, url]) =>
-            url ? (
-              <link
-                key={type}
-                rel="alternate"
-                type={type}
-                href={url.toString()}
-              />
-            ) : null
-          )
-        : null}
-    </>
+    <link
+      {...props}
+      {...(descriptor.title && { title: descriptor.title })}
+      href={descriptor.url.toString()}
+    />
   )
+}
+
+export function AlternatesMetadata({
+  alternates,
+}: {
+  alternates: ResolvedMetadata['alternates']
+}) {
+  if (!alternates) return null
+
+  const { canonical, languages, media, types } = alternates
+
+  return MetaFilter([
+    canonical
+      ? AlternateLink({ rel: 'canonical', descriptor: canonical })
+      : null,
+    languages
+      ? Object.entries(languages).flatMap(([locale, descriptors]) =>
+          descriptors?.map((descriptor) =>
+            AlternateLink({ rel: 'alternate', hrefLang: locale, descriptor })
+          )
+        )
+      : null,
+    media
+      ? Object.entries(media).flatMap(([mediaName, descriptors]) =>
+          descriptors?.map((descriptor) =>
+            AlternateLink({ rel: 'alternate', media: mediaName, descriptor })
+          )
+        )
+      : null,
+    types
+      ? Object.entries(types).flatMap(([type, descriptors]) =>
+          descriptors?.map((descriptor) =>
+            AlternateLink({ rel: 'alternate', type, descriptor })
+          )
+        )
+      : null,
+  ])
 }

@@ -3,6 +3,23 @@
  * Metadata types
  *
  */
+
+export interface DeprecatedMetadataFields {
+  /**
+   * Deprecated options that have a preferred method
+   * @deprecated Use appWebApp to configure apple-mobile-web-app-capable which provides
+   * @see https://www.appsloveworld.com/coding/iphone/11/difference-between-apple-mobile-web-app-capable-and-apple-touch-fullscreen-ipho
+   */
+  'apple-touch-fullscreen'?: never
+
+  /**
+   * Obsolete since iOS 7.
+   * @see https://web.dev/apple-touch-icon/
+   * @deprecated use icons.apple or instead
+   */
+  'apple-touch-icon-precomposed'?: never
+}
+
 export type TemplateString =
   | DefaultTemplateString
   | AbsoluteTemplateString
@@ -45,7 +62,7 @@ export type ColorSchemeEnum =
   | 'dark light'
   | 'only light'
 
-export type Robots = {
+type RobotsInfo = {
   // all and none will be inferred from index/follow boolean options
   index?: boolean
   follow?: boolean
@@ -59,9 +76,22 @@ export type Robots = {
   nosnippet?: boolean
   noimageindex?: boolean
   nocache?: boolean
-
+  notranslate?: boolean
+  indexifembedded?: boolean
+  nositelinkssearchbox?: boolean
+  unavailable_after?: string
+  'max-video-preview'?: number | string
+  'max-image-preview'?: 'none' | 'standard' | 'large'
+  'max-snippet'?: number
+}
+export type Robots = RobotsInfo & {
   // if you want to specify an alternate robots just for google
-  googleBot?: string | Robots
+  googleBot?: string | RobotsInfo
+}
+
+export type ResolvedRobots = {
+  basic: string | null
+  googleBot: string | null
 }
 
 export type IconURL = string | URL
@@ -70,32 +100,58 @@ export type IconDescriptor = {
   url: string | URL
   type?: string
   sizes?: string
-  // defaults to rel="icon" unless superceded by Icons map
+  /** defaults to rel="icon" unless superseded by Icons map */
   rel?: string
+  media?: string
+  /**
+   * @see https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/fetchPriority
+   */
+  fetchPriority?: 'high' | 'low' | 'auto'
 }
+
 export type Icons = {
-  // rel="icon"
+  /** rel="icon" */
   icon?: Icon | Icon[]
-  // rel="shortcut icon"
+  /** rel="shortcut icon" */
   shortcut?: Icon | Icon[]
-  // rel="apple-touch-icon"
+  /**
+   * @see https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/ConfiguringWebApplications/ConfiguringWebApplications.html
+   * rel="apple-touch-icon"
+   */
   apple?: Icon | Icon[]
-  // rel inferred from descriptor, defaults to "icon"
+  /** rel inferred from descriptor, defaults to "icon" */
   other?: IconDescriptor | IconDescriptor[]
 }
 
 export type Verification = {
   google?: null | string | number | (string | number)[]
   yahoo?: null | string | number | (string | number)[]
+  yandex?: null | string | number | (string | number)[]
+  me?: null | string | number | (string | number)[]
   // if you ad-hoc additional verification
   other?: {
     [name: string]: string | number | (string | number)[]
   }
 }
 
+export type ResolvedVerification = {
+  google?: null | (string | number)[]
+  yahoo?: null | (string | number)[]
+  yandex?: null | (string | number)[]
+  me?: null | (string | number)[]
+  other?: {
+    [name: string]: (string | number)[]
+  }
+}
+
 export type ResolvedIcons = {
-  icon?: IconDescriptor[]
+  icon: IconDescriptor[]
+  apple: IconDescriptor[]
   shortcut?: IconDescriptor[]
-  apple?: IconDescriptor[]
   other?: IconDescriptor[]
+}
+
+export type ThemeColorDescriptor = {
+  color: string
+  media?: string
 }

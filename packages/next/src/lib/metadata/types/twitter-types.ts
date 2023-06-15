@@ -1,3 +1,5 @@
+// Reference: https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/markup
+
 import type { AbsoluteTemplateString, TemplateString } from './metadata-types'
 
 export type Twitter =
@@ -13,8 +15,8 @@ type TwitterMetadata = {
   siteId?: string // id for account associated to the site itself
   creator?: string // username for the account associated to the creator of the content on the site
   creatorId?: string // id for the account associated to the creator of the content on the site
-  title?: string | TemplateString
   description?: string
+  title?: string | TemplateString
   images?: TwitterImage | Array<TwitterImage>
 }
 type TwitterSummary = TwitterMetadata & {
@@ -31,7 +33,7 @@ type TwitterApp = TwitterMetadata & {
   card: 'app'
   app: TwitterAppDescriptor
 }
-type TwitterAppDescriptor = {
+export type TwitterAppDescriptor = {
   id: {
     iphone?: string | number
     ipad?: string | number
@@ -42,14 +44,14 @@ type TwitterAppDescriptor = {
     ipad?: string | URL
     googleplay?: string | URL
   }
-  country?: string
+  name?: string
 }
 
 type TwitterImage = string | TwitterImageDescriptor | URL
 type TwitterImageDescriptor = {
   url: string | URL
-  secureUrl?: string | URL
   alt?: string
+  secureUrl?: string | URL
   type?: string
   width?: string | number
   height?: string | number
@@ -61,6 +63,30 @@ type TwitterPlayerDescriptor = {
   height: number
 }
 
-export type ResolvedTwitterMetadata = Omit<TwitterMetadata, 'title'> & {
-  title: AbsoluteTemplateString | null
+type ResolvedTwitterImage = {
+  url: string | URL
+  alt?: string
+  secureUrl?: string | URL
+  type?: string
+  width?: string | number
+  height?: string | number
 }
+type ResolvedTwitterSummary = {
+  site: string | null
+  siteId: string | null
+  creator: string | null
+  creatorId: string | null
+  description: string | null
+  title: AbsoluteTemplateString
+  images?: Array<ResolvedTwitterImage>
+}
+type ResolvedTwitterPlayer = ResolvedTwitterSummary & {
+  players: Array<TwitterPlayerDescriptor>
+}
+type ResolvedTwitterApp = ResolvedTwitterSummary & { app: TwitterAppDescriptor }
+
+export type ResolvedTwitterMetadata =
+  | ({ card: 'summary' } & ResolvedTwitterSummary)
+  | ({ card: 'summary_large_image' } & ResolvedTwitterSummary)
+  | ({ card: 'player' } & ResolvedTwitterPlayer)
+  | ({ card: 'app' } & ResolvedTwitterApp)

@@ -12,6 +12,16 @@ export type AppLinks = {
   windows_universal?: AppLinksWindows | Array<AppLinksWindows>
   web?: AppLinksWeb | Array<AppLinksWeb>
 }
+export type ResolvedAppLinks = {
+  ios?: Array<AppLinksApple>
+  iphone?: Array<AppLinksApple>
+  ipad?: Array<AppLinksApple>
+  android?: Array<AppLinksAndroid>
+  windows_phone?: Array<AppLinksWindows>
+  windows?: Array<AppLinksWindows>
+  windows_universal?: Array<AppLinksWindows>
+  web?: Array<AppLinksWeb>
+}
 export type AppLinksApple = {
   url: string | URL
   app_store_id?: string | number
@@ -49,6 +59,9 @@ export type Viewport = {
   initialScale?: number
   minimumScale?: number
   maximumScale?: number
+  userScalable?: boolean
+  viewportFit?: 'auto' | 'cover' | 'contain'
+  interactiveWidget?: 'resizes-visual' | 'resizes-content' | 'overlays-content'
 }
 
 // Apple Web App
@@ -66,6 +79,13 @@ export type AppleImage = string | AppleImageDescriptor
 export type AppleImageDescriptor = {
   url: string
   media?: string
+}
+
+export type ResolvedAppleWebApp = {
+  capable: boolean
+  title?: string | null
+  startupImage?: AppleImageDescriptor[] | null
+  statusBarStyle?: 'default' | 'black' | 'black-translucent'
 }
 
 // Format Detection

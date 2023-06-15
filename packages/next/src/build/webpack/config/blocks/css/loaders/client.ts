@@ -2,15 +2,19 @@ import type { webpack } from 'next/dist/compiled/webpack/webpack'
 
 export function getClientStyleLoader({
   hasAppDir,
+  isAppDir,
   isDevelopment,
   assetPrefix,
 }: {
   hasAppDir: boolean
+  isAppDir?: boolean
   isDevelopment: boolean
   assetPrefix: string
 }): webpack.RuleSetUseItem {
+  const shouldEnableApp = typeof isAppDir === 'boolean' ? isAppDir : hasAppDir
+
   // Keep next-style-loader for development mode in `pages/`
-  if (isDevelopment && !hasAppDir) {
+  if (isDevelopment && !shouldEnableApp) {
     return {
       loader: 'next-style-loader',
       options: {

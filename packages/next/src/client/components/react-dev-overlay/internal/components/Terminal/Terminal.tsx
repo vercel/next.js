@@ -1,32 +1,64 @@
 import Anser from 'next/dist/compiled/anser'
 import * as React from 'react'
+import { HotlinkedText } from '../hot-linked-text'
 import { EditorLink } from './EditorLink'
 
 export type TerminalProps = { content: string }
 
-function getImportTraceFiles(content: string): [string, string[]] {
-  if (/ReactServerComponentsError:/.test(content)) {
-    // It's an RSC Build Error
-    const lines = content.split('\n')
+function getFile(lines: string[]) {
+  const contentFileName = lines.shift()
+  if (!contentFileName) return null
+  const [fileName, line, column] = contentFileName.split(':')
 
+  const parsedLine = Number(line)
+  const parsedColumn = Number(column)
+  const hasLocation = !Number.isNaN(parsedLine) && !Number.isNaN(parsedColumn)
+
+  return {
+    fileName: hasLocation ? fileName : contentFileName,
+    location: hasLocation
+      ? {
+          line: parsedLine,
+          column: parsedColumn,
+        }
+      : undefined,
+  }
+}
+
+function getImportTraceFiles(lines: string[]) {
+  if (
+    lines.some((line) => /ReactServerComponentsError:/.test(line)) ||
+    lines.some((line) => /Import trace for requested module:/.test(line))
+  ) {
     // Grab the lines at the end containing the files
     const files = []
-    while (/app\/.+\./.test(lines[lines.length - 1])) {
+    while (
+      /.+\..+/.test(lines[lines.length - 1]) &&
+      !lines[lines.length - 1].includes(':')
+    ) {
       const file = lines.pop()!.trim()
       files.unshift(file)
     }
 
-    return [lines.join('\n'), files]
+    return files
   }
 
-  return [content, []]
+  return []
+}
+
+function getEditorLinks(content: string) {
+  const lines = content.split('\n')
+  const file = getFile(lines)
+  const importTraceFiles = getImportTraceFiles(lines)
+
+  return { file, source: lines.join('\n'), importTraceFiles }
 }
 
 export const Terminal: React.FC<TerminalProps> = function Terminal({
   content,
 }) {
-  const [source, editorLinks] = React.useMemo(
-    () => getImportTraceFiles(content),
+  const { file, source, importTraceFiles } = React.useMemo(
+    () => getEditorLinks(content),
     [content]
   )
 
@@ -40,6 +72,14 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
 
   return (
     <div data-nextjs-terminal>
+      {file && (
+        <EditorLink
+          isSourceFile
+          key={file.fileName}
+          file={file.fileName}
+          location={file.location}
+        />
+      )}
       <pre>
         {decoded.map((entry, index) => (
           <span
@@ -53,11 +93,15 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
                 : undefined),
             }}
           >
-            {entry.content}
+            <HotlinkedText text={entry.content} />
           </span>
         ))}
-        {editorLinks.map((file) => (
-          <EditorLink key={file} file={file} />
+        {importTraceFiles.map((importTraceFile) => (
+          <EditorLink
+            isSourceFile={false}
+            key={importTraceFile}
+            file={importTraceFile}
+          />
         ))}
       </pre>
     </div>

@@ -1,0 +1,7 @@
+
+  x You can not use getStaticProps or getStaticPaths with getServerSideProps. To use SSG, please remove getServerSideProps
+   ,-[input.js:1:1]
+ 1 | export async function getStaticPaths() {}
+ 2 | export const getServerSideProps = function getServerSideProps() {}
+   :              ^^^^^^^^^^^^^^^^^^
+   `----

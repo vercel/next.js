@@ -6,9 +6,9 @@ import {
   ImageConfigComplete,
   imageConfigDefault,
 } from '../shared/lib/image-config'
-import { ServerRuntime } from 'next/types'
 import { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/subresource-integrity-plugin'
 import { WEB_VITALS } from '../shared/lib/utils'
+import type { NextParsedUrlQuery } from './request-meta'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -46,6 +46,71 @@ export interface TypeScriptConfig {
   tsconfigPath?: string
 }
 
+export interface EmotionConfig {
+  sourceMap?: boolean
+  autoLabel?: 'dev-only' | 'always' | 'never'
+  labelFormat?: string
+  importMap?: {
+    [importName: string]: {
+      [exportName: string]: {
+        canonicalImport?: [string, string]
+        styledBaseImport?: [string, string]
+      }
+    }
+  }
+}
+
+export interface StyledComponentsConfig {
+  /**
+   * Enabled by default in development, disabled in production to reduce file size,
+   * setting this will override the default for all environments.
+   */
+  displayName?: boolean
+  topLevelImportPaths?: string[]
+  ssr?: boolean
+  fileName?: boolean
+  meaninglessFileNames?: string[]
+  minify?: boolean
+  transpileTemplateLiterals?: boolean
+  namespace?: string
+  pure?: boolean
+  cssProp?: boolean
+}
+
+type JSONValue =
+  | string
+  | number
+  | boolean
+  | JSONValue[]
+  | { [k: string]: JSONValue }
+
+type TurboLoaderItem =
+  | string
+  | {
+      loader: string
+      // At the moment, Turbopack options must be JSON-serializable, so restrict values.
+      options: Record<string, JSONValue>
+    }
+
+interface ExperimentalTurboOptions {
+  /**
+   * (`next --turbo` only) A mapping of aliased imports to modules to load in their place.
+   *
+   * @see [Resolve Alias](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#resolve-alias)
+   */
+  resolveAlias?: Record<
+    string,
+    string | string[] | Record<string, string | string[]>
+  >
+
+  /**
+   * (`next --turbo` only) A list of webpack loaders to apply when running with Turbopack.
+   *
+   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
+   */
+  loaders?: Record<string, TurboLoaderItem[]>
+}
+
 export interface WebpackConfigContext {
   /** Next.js root directory */
   dir: string
@@ -79,11 +144,25 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  caseSensitiveRoutes?: boolean
+  useDeploymentId?: boolean
+  useDeploymentIdServerActions?: boolean
+  deploymentId?: string
+  logging?: 'verbose'
+  appDocumentPreloading?: boolean
+  strictNextHead?: boolean
+  clientRouterFilter?: boolean
+  clientRouterFilterRedirects?: boolean
+  // decimal for percent for possible false positives
+  // e.g. 0.01 for 10% potential false matches lower
+  // percent increases size of the filter
+  clientRouterFilterAllowedRate?: number
+  externalMiddlewareRewritesResolve?: boolean
+  extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
-  fetchCache?: boolean
+  fetchCacheKeyPrefix?: string
   optimisticClientCache?: boolean
   middlewarePrefetch?: 'strict' | 'flexible'
-  preCompiledNextServer?: boolean
   legacyBrowsers?: boolean
   manualClientBasePath?: boolean
   newNextLinkBehavior?: boolean
@@ -93,6 +172,7 @@ export interface ExperimentalConfig {
   swcMinify?: boolean
   swcFileReading?: boolean
   cpus?: number
+  memoryBasedWorkersCount?: boolean
   sharedPool?: boolean
   proxyTimeout?: number
   isrFlushToDisk?: boolean
@@ -105,6 +185,10 @@ export interface ExperimentalConfig {
   nextScriptWorkers?: boolean
   scrollRestoration?: boolean
   externalDir?: boolean
+  /**
+   * The App Router (app directory) enables support for layouts, Server Components, streaming, and colocated data fetching.
+   * @see https://nextjs.org/docs/app/api-reference/next-config-js/appDir
+   */
   appDir?: boolean
   amp?: {
     optimizer?: any
@@ -116,24 +200,19 @@ export interface ExperimentalConfig {
   craCompat?: boolean
   esmExternals?: boolean | 'loose'
   isrMemoryCacheSize?: number
-  runtime?: Exclude<ServerRuntime, undefined>
   fullySpecified?: boolean
   urlImports?: NonNullable<webpack.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
+  outputFileTracingExcludes?: Record<string, string[]>
   outputFileTracingIgnores?: string[]
+  outputFileTracingIncludes?: Record<string, string[]>
   swcTraceProfiling?: boolean
   forceSwcTransforms?: boolean
 
   /**
-   * The option for the minifier of [SWC compiler](https://swc.rs).
-   * This option is only for debugging the SWC minifier, and will be removed once the SWC minifier is stable.
-   *
-   * @see [SWC Minification](https://nextjs.org/docs/advanced-features/compiler#minification)
+   * This option is removed
    */
-  swcMinifyDebugOptions?: {
-    compress?: object
-    mangle?: object
-  }
+  swcMinifyDebugOptions?: never
   swcPlugins?: Array<[string, Record<string, unknown>]>
   largePageDataBytes?: number
   /**
@@ -142,19 +221,21 @@ export interface ExperimentalConfig {
    * [webpack/webpack#ModuleNotoundError.js#L13-L42](https://github.com/webpack/webpack/blob/2a0536cf510768111a3a6dceeb14cb79b9f59273/lib/ModuleNotFoundError.js#L13-L42)
    */
   fallbackNodePolyfills?: false
-  enableUndici?: boolean
   sri?: {
     algorithm?: SubresourceIntegrityAlgorithm
   }
   adjustFontFallbacks?: boolean
   adjustFontFallbacksWithSizeAdjust?: boolean
 
-  // A list of packages that should be treated as external in the RSC server build
+  /**
+   * A list of packages that should be treated as external in the RSC server build.
+   * @see https://nextjs.org/docs/app/api-reference/next-config-js/serverComponentsExternalPackages
+   */
   serverComponentsExternalPackages?: string[]
 
-  fontLoaders?: Array<{ loader: string; options?: any }>
+  webVitalsAttribution?: Array<(typeof WEB_VITALS)[number]>
 
-  webVitalsAttribution?: Array<typeof WEB_VITALS[number]>
+  turbo?: ExperimentalTurboOptions
   turbotrace?: {
     logLevel?:
       | 'bug'
@@ -169,13 +250,46 @@ export interface ExperimentalConfig {
     logAll?: boolean
     contextDirectory?: string
     processCwd?: string
-    maxFiles?: number
+    /** in `MB` */
+    memoryLimit?: number
   }
+
+  /**
+   * For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
+   * @see https://nextjs.org/docs/app/api-reference/next-config-js/mdxRs
+   */
   mdxRs?: boolean
+
+  /**
+   * Generate Route types and enable type checking for Link and Router.push, etc.
+   * This option requires `appDir` to be enabled first.
+   * @see https://nextjs.org/docs/app/api-reference/next-config-js/typedRoutes
+   */
+  typedRoutes?: boolean
+
+  /**
+   * This option is to enable running the Webpack build in a worker thread.
+   */
+  webpackBuildWorker?: boolean
+
+  /**
+   *
+   */
+  instrumentationHook?: boolean
+
+  /**
+   * Enable `react@experimental` channel for the `app` directory.
+   */
+  serverActions?: boolean
 }
 
 export type ExportPathMap = {
-  [path: string]: { page: string; query?: Record<string, string | string[]> }
+  [path: string]: {
+    page: string
+    query?: NextParsedUrlQuery
+    _isAppDir?: boolean
+    _isDynamicError?: boolean
+  }
 }
 
 /**
@@ -308,11 +422,11 @@ export interface NextConfig extends Record<string, any> {
   compress?: boolean
 
   /**
-   * The field should only be used when a Next.js project is not hosted on Vercel while using Vercel Analytics.
-   * Vercel provides zero-configuration analytics for Next.js projects hosted on Vercel.
+   * The field should only be used when a Next.js project is not hosted on Vercel while using Vercel Speed Insights.
+   * Vercel provides zero-configuration insights for Next.js projects hosted on Vercel.
    *
    * @default ''
-   * @see [Next.js Analytics](https://nextjs.org/analytics)
+   * @see [Next.js Speed Insights](https://nextjs.org/analytics)
    */
   analyticsId?: string
 
@@ -451,50 +565,32 @@ export interface NextConfig extends Record<string, any> {
       src: string
       artifactDirectory?: string
       language?: 'typescript' | 'javascript' | 'flow'
+      eagerEsModules?: boolean
     }
     removeConsole?:
       | boolean
       | {
           exclude?: string[]
         }
-    styledComponents?:
-      | boolean
-      | {
-          /**
-           * Enabled by default in development, disabled in production to reduce file size,
-           * setting this will override the default for all environments.
-           */
-          displayName?: boolean
-          topLevelImportPaths?: string[]
-          ssr?: boolean
-          fileName?: boolean
-          meaninglessFileNames?: string[]
-          minify?: boolean
-          transpileTemplateLiterals?: boolean
-          namespace?: string
-          pure?: boolean
-          cssProp?: boolean
-        }
-    emotion?:
-      | boolean
-      | {
-          sourceMap?: boolean
-          autoLabel?: 'dev-only' | 'always' | 'never'
-          labelFormat?: string
-          importMap?: {
-            [importName: string]: {
-              [exportName: string]: {
-                canonicalImport?: [string, string]
-                styledBaseImport?: [string, string]
-              }
-            }
-          }
-        }
+    styledComponents?: boolean | StyledComponentsConfig
+    emotion?: boolean | EmotionConfig
   }
 
-  output?: 'standalone'
+  /**
+   * The type of build output.
+   * - `undefined`: The default build output, `.next` directory, that works with production mode `next start` or a hosting provider like Vercel
+   * - `'standalone'`: A standalone build output, `.next/standalone` directory, that only includes necessary files/dependencies. Useful for self-hosting in a Docker container.
+   * - `'export'`: An exported build output, `out` directory, that only includes static HTML/CSS/JS. Useful for self-hosting without a Node.js server.
+   * @see [Output File Tracing](https://nextjs.org/docs/advanced-features/output-file-tracing)
+   * @see [Static HTML Export](https://nextjs.org/docs/advanced-features/static-html-export)
+   */
+  output?: 'standalone' | 'export'
 
-  // A list of packages that should always be transpiled and bundled in the server
+  /**
+   * Automatically transpile and bundle dependencies from local packages (like monorepos) or from external dependencies (`node_modules`). This replaces the
+   * `next-transpile-modules` package.
+   * @see [transpilePackages](https://nextjs.org/docs/advanced-features/compiler#module-transpilation)
+   */
   transpilePackages?: string[]
 
   skipMiddlewareUrlNormalize?: boolean
@@ -519,7 +615,6 @@ export interface NextConfig extends Record<string, any> {
 export const defaultConfig: NextConfig = {
   env: {},
   webpack: null,
-  webpackDevMiddleware: null,
   eslint: {
     ignoreDuringBuilds: false,
   },
@@ -535,7 +630,6 @@ export const defaultConfig: NextConfig = {
   generateBuildId: () => null,
   generateEtags: true,
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
-  target: 'server',
   poweredByHeader: true,
   compress: true,
   analyticsId: process.env.VERCEL_ANALYTICS_ID || '',
@@ -560,7 +654,7 @@ export const defaultConfig: NextConfig = {
   excludeDefaultMomentLocales: true,
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
-  reactStrictMode: null,
+  reactStrictMode: false,
   httpAgentOptions: {
     keepAlive: true,
   },
@@ -570,11 +664,16 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
-    preCompiledNextServer: false,
-    fetchCache: false,
+    caseSensitiveRoutes: false,
+    useDeploymentId: false,
+    deploymentId: undefined,
+    useDeploymentIdServerActions: false,
+    appDocumentPreloading: undefined,
+    clientRouterFilter: false,
+    clientRouterFilterRedirects: false,
+    fetchCacheKeyPrefix: '',
     middlewarePrefetch: 'flexible',
     optimisticClientCache: true,
-    runtime: undefined,
     manualClientBasePath: false,
     legacyBrowsers: false,
     newNextLinkBehavior: true,
@@ -583,6 +682,7 @@ export const defaultConfig: NextConfig = {
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
+    memoryBasedWorkersCount: false,
     sharedPool: true,
     isrFlushToDisk: true,
     workerThreads: false,
@@ -597,7 +697,7 @@ export const defaultConfig: NextConfig = {
     swcFileReading: true,
     craCompat: false,
     esmExternals: true,
-    appDir: false,
+    appDir: true,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
     incrementalCacheHandlerPath: undefined,
@@ -606,15 +706,16 @@ export const defaultConfig: NextConfig = {
     swcTraceProfiling: false,
     forceSwcTransforms: false,
     swcPlugins: undefined,
-    swcMinifyDebugOptions: undefined,
     largePageDataBytes: 128 * 1000, // 128KB by default
     disablePostcssPresetEnv: undefined,
     amp: undefined,
     urlImports: undefined,
-    enableUndici: false,
     adjustFontFallbacks: false,
     adjustFontFallbacksWithSizeAdjust: false,
+    turbo: undefined,
     turbotrace: undefined,
+    typedRoutes: false,
+    instrumentationHook: false,
   },
 }
 

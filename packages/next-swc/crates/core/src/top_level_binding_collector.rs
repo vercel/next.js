@@ -1,13 +1,15 @@
 use std::hash::Hash;
 
-use next_binding::swc::core::{
+use turbopack_binding::swc::core::{
     common::{collections::AHashSet, SyntaxContext},
-    ecma::ast::{
-        ClassDecl, FnDecl, Ident, ImportDefaultSpecifier, ImportNamedSpecifier,
-        ImportStarAsSpecifier, ModuleItem, ObjectPatProp, Param, Pat, Stmt, VarDeclarator,
+    ecma::{
+        ast::{
+            ClassDecl, FnDecl, Ident, ImportDefaultSpecifier, ImportNamedSpecifier,
+            ImportStarAsSpecifier, ModuleItem, ObjectPatProp, Param, Pat, Stmt, VarDeclarator,
+        },
+        utils::ident::IdentLike,
+        visit::{noop_visit_type, Visit, VisitWith},
     },
-    ecma::utils::ident::IdentLike,
-    ecma::visit::{noop_visit_type, Visit, VisitWith},
 };
 
 // Modified from swc_ecma_utils/src/lib.rs:BindingCollector.

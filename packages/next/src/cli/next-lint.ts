@@ -5,7 +5,10 @@ import { join } from 'path'
 import chalk from 'next/dist/compiled/chalk'
 
 import { CliCommand } from '../lib/commands'
-import { ESLINT_DEFAULT_DIRS } from '../lib/constants'
+import {
+  ESLINT_DEFAULT_DIRS,
+  ESLINT_DEFAULT_DIRS_WITH_APP,
+} from '../lib/constants'
 import { runLintCheck } from '../lib/eslint/runLintCheck'
 import { printAndExit } from '../server/lib/utils'
 import { Telemetry } from '../telemetry/storage'
@@ -15,6 +18,8 @@ import { eventLintCheckCompleted } from '../telemetry/events'
 import { CompileError } from '../lib/compile-error'
 import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
+import { findPagesDir } from '../lib/find-pages-dir'
+import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 
 const eslintOptions = (args: arg.Spec, defaultCacheLocation: string) => ({
   overrideConfigFile: args['--config'] || null,
@@ -170,8 +175,13 @@ const nextLint: CliCommand = async (argv) => {
   const dirs: string[] = args['--dir'] ?? nextConfig.eslint?.dirs
   const filesToLint = [...(dirs ?? []), ...files]
 
+  // Remove that when the `appDir` will be stable.
+  const directoriesToLint = !!nextConfig.experimental.appDir
+    ? ESLINT_DEFAULT_DIRS_WITH_APP
+    : ESLINT_DEFAULT_DIRS
+
   const pathsToLint = (
-    filesToLint.length ? filesToLint : ESLINT_DEFAULT_DIRS
+    filesToLint.length ? filesToLint : directoriesToLint
   ).reduce((res: string[], d: string) => {
     const currDir = join(baseDir, d)
     if (!existsSync(currDir)) return res
@@ -188,6 +198,21 @@ const nextLint: CliCommand = async (argv) => {
   const distDir = join(baseDir, nextConfig.distDir)
   const defaultCacheLocation = join(distDir, 'cache', 'eslint/')
   const hasAppDir = !!nextConfig.experimental.appDir
+  const { pagesDir, appDir } = findPagesDir(
+    baseDir,
+    !!nextConfig.experimental.appDir
+  )
+
+  await verifyTypeScriptSetup({
+    dir: baseDir,
+    distDir: nextConfig.distDir,
+    intentDirs: [pagesDir, appDir].filter(Boolean) as string[],
+    typeCheckPreflight: false,
+    tsconfigPath: nextConfig.typescript.tsconfigPath,
+    disableStaticImages: nextConfig.images.disableStaticImages,
+    hasAppDir: !!appDir,
+    hasPagesDir: !!pagesDir,
+  })
 
   runLintCheck(baseDir, pathsToLint, hasAppDir, {
     lintDuringBuild: false,
