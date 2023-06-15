@@ -32,6 +32,7 @@ type FetchServerActionResult = {
   actionFlightData?: FlightData | undefined | null
   revalidatedParts: {
     tag: boolean
+    cookie: boolean
     paths: string[]
   }
 }
@@ -67,16 +68,18 @@ async function fetchServerAction(
   let revalidatedParts: FetchServerActionResult['revalidatedParts']
   try {
     const revalidatedHeader = JSON.parse(
-      res.headers.get('x-action-revalidated') || '[0,[]]'
+      res.headers.get('x-action-revalidated') || '[[],0,0]'
     )
     revalidatedParts = {
-      tag: !!revalidatedHeader[0],
-      paths: revalidatedHeader[1] || [],
+      paths: revalidatedHeader[0] || [],
+      tag: !!revalidatedHeader[1],
+      cookie: revalidatedHeader[2],
     }
   } catch (e) {
     revalidatedParts = {
-      tag: false,
       paths: [],
+      tag: false,
+      cookie: false,
     }
   }
 
@@ -153,7 +156,7 @@ export function serverActionReducer(
 
     // Invalidate the cache for the revalidated parts. This has to be done before the
     // cache is updated with the action's flight data again.
-    if (revalidatedParts.tag) {
+    if (revalidatedParts.tag || revalidatedParts.cookie) {
       // Invalidate everything if the tag is set.
       state.prefetchCache.clear()
     } else if (revalidatedParts.paths.length > 0) {

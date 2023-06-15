@@ -94,6 +94,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
+      skipForRelease: 'yes'
       needsRust: 'yes'
       skipNativeBuild: 'yes'
       afterBuild: xvfb-run turbo run test-cargo-bench

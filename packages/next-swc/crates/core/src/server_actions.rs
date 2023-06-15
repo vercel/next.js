@@ -261,7 +261,7 @@ impl<C: Comments> ServerActions<C> {
                     span: DUMMY_SP,
                     decl: Decl::Var(Box::new(VarDecl {
                         span: DUMMY_SP,
-                        kind: VarDeclKind::Const,
+                        kind: VarDeclKind::Var,
                         declare: Default::default(),
                         decls: vec![VarDeclarator {
                             span: DUMMY_SP,
@@ -942,7 +942,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 span: DUMMY_SP,
                                 decl: Decl::Var(Box::new(VarDecl {
                                     span: DUMMY_SP,
-                                    kind: VarDeclKind::Const,
+                                    kind: VarDeclKind::Var,
                                     declare: false,
                                     decls: vec![VarDeclarator {
                                         span: DUMMY_SP,

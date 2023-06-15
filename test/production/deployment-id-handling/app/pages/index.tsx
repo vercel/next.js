@@ -1,10 +1,11 @@
 import testImage from '../public/test.jpg'
 import Image from 'next/image'
+import styles from './styles.module.css'
 
 export default function Page() {
   return (
     <>
-      <p>hello pages</p>
+      <p className={styles.template}>hello pages</p>
       <Image src={testImage} alt="test image" />
 
       <button

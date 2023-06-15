@@ -31,7 +31,6 @@ export function getRender({
   pagesRenderToHTML,
   clientReferenceManifest,
   subresourceIntegrityManifest,
-  serverCSSManifest,
   serverActionsManifest,
   config,
   buildId,
@@ -53,7 +52,6 @@ export function getRender({
   reactLoadableManifest: ReactLoadableManifest
   subresourceIntegrityManifest?: Record<string, string>
   clientReferenceManifest?: ClientReferenceManifest
-  serverCSSManifest: any
   serverActionsManifest: any
   appServerMod: any
   config: NextConfigComplete
@@ -88,7 +86,6 @@ export function getRender({
         supportsDynamicHTML: true,
         disableOptimizedLoading: true,
         clientReferenceManifest,
-        serverCSSManifest,
         serverActionsManifest,
       },
       appRenderToHTML,

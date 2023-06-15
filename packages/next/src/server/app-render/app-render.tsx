@@ -59,7 +59,6 @@ import { createErrorHandler } from './create-error-handler'
 import { getShortDynamicParamType } from './get-short-dynamic-param-type'
 import { getSegmentParam } from './get-segment-param'
 import { getCssInlinedLinkTags } from './get-css-inlined-link-tags'
-import { getServerCSSForEntries } from './get-server-css-for-entries'
 import { getPreloadableFonts } from './get-preloadable-fonts'
 import { getScriptNonceFromHeader } from './get-script-nonce-from-header'
 import { renderToString } from './render-to-string'
@@ -162,7 +161,6 @@ export async function renderToHTMLOrFlight(
   const appUsingSizeAdjust = nextFontManifest?.appUsingSizeAdjust
 
   const clientReferenceManifest = renderOpts.clientReferenceManifest!
-  const serverCSSManifest = renderOpts.serverCSSManifest!
 
   const capturedErrors: Error[] = []
   const allCapturedErrors: Error[] = []
@@ -223,6 +221,13 @@ export async function renderToHTMLOrFlight(
     }
     staticGenerationStore.fetchMetrics = []
     ;(renderOpts as any).fetchMetrics = staticGenerationStore.fetchMetrics
+
+    const requestStore = requestAsyncStorage.getStore()
+    if (!requestStore) {
+      throw new Error(
+        `Invariant: Render expects to have requestAsyncStorage, none found`
+      )
+    }
 
     // don't modify original query object
     query = { ...query }
@@ -351,15 +356,6 @@ export async function renderToHTMLOrFlight(
 
     let defaultRevalidate: false | undefined | number = false
 
-    // Collect all server CSS imports used by this specific entry (or entries, for parallel routes).
-    // Not that we can't rely on the CSS manifest because it tracks CSS imports per module,
-    // which can be used by multiple entries and cannot be tree-shaked in the module graph.
-    // More info: https://github.com/vercel/next.js/issues/41018
-    const serverCSSForEntries = getServerCSSForEntries(
-      serverCSSManifest!,
-      ComponentMod.pages
-    )
-
     const assetPrefix = renderOpts.assetPrefix || ''
 
     const getAssetQueryString = (addTimestamp: boolean) => {
@@ -389,9 +385,7 @@ export async function renderToHTMLOrFlight(
     }): Promise<any> => {
       const cssHrefs = getCssInlinedLinkTags(
         clientReferenceManifest,
-        serverCSSManifest!,
         filePath,
-        serverCSSForEntries,
         injectedCSS
       )
 
@@ -448,9 +442,7 @@ export async function renderToHTMLOrFlight(
       const stylesheets: string[] = layoutOrPagePath
         ? getCssInlinedLinkTags(
             clientReferenceManifest,
-            serverCSSManifest!,
             layoutOrPagePath,
-            serverCSSForEntries,
             injectedCSSWithCurrentLayout,
             true
           )
@@ -458,9 +450,8 @@ export async function renderToHTMLOrFlight(
 
       const preloadedFontFiles = layoutOrPagePath
         ? getPreloadableFonts(
-            serverCSSManifest!,
+            clientReferenceManifest,
             nextFontManifest,
-            serverCSSForEntries,
             layoutOrPagePath,
             injectedFontPreloadTagsWithCurrentLayout
           )
@@ -1107,16 +1098,13 @@ export async function renderToHTMLOrFlight(
         if (layoutPath) {
           getCssInlinedLinkTags(
             clientReferenceManifest,
-            serverCSSManifest!,
             layoutPath,
-            serverCSSForEntries,
             injectedCSSWithCurrentLayout,
             true
           )
           getPreloadableFonts(
-            serverCSSManifest!,
+            clientReferenceManifest,
             nextFontManifest,
-            serverCSSForEntries,
             layoutPath,
             injectedFontPreloadTagsWithCurrentLayout
           )
@@ -1617,6 +1605,7 @@ export async function renderToHTMLOrFlight(
       serverActionsManifest,
       generateFlight,
       staticGenerationStore,
+      requestStore,
     })
 
     if (actionRequestResult === 'not-found') {
