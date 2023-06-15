@@ -1,8 +1,6 @@
-import type { Issue } from '@vercel/turbopack-dev/types/protocol'
-
 import * as Bus from './internal/bus'
 import { parseStack } from './internal/helpers/parseStack'
-import { setHooks } from '@vercel/turbopack-dev/client/hmr-client'
+import { setHooks } from '@vercel/turbopack-ecmascript-runtime/dev/client/hmr-client'
 
 let isRegistered = false
 let stackTraceLimit: number | undefined = undefined

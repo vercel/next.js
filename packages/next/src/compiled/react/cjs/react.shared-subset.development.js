@@ -231,7 +231,10 @@ function generateCacheKey(request) {
         url = resource;
       } else {
         // Normalize the request.
-        var request = new Request(resource, options);
+        // if resource is not a string or a URL (its an instance of Request)
+        // then do not instantiate a new Request but instead
+        // reuse the request as to not disturb the body in the event it's a ReadableStream.
+        var request = typeof resource === 'string' || resource instanceof URL ? new Request(resource, options) : resource;
 
         if (request.method !== 'GET' && request.method !== 'HEAD' || // $FlowFixMe[prop-missing]: keepalive is real
         request.keepalive) {
@@ -302,7 +305,7 @@ function generateCacheKey(request) {
   }
 }
 
-var ReactVersion = '18.3.0-next-85de6fde5-20230328';
+var ReactVersion = '18.3.0-canary-1cea38448-20230530';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -742,7 +745,6 @@ function getComponentNameFromType(type) {
           return (context2.displayName || context2._globalName) + '.Provider';
         }
 
-      // eslint-disable-next-line no-fallthrough
     }
   }
 
@@ -1768,8 +1770,7 @@ function useId() {
   return dispatcher.useId();
 }
 function use(usable) {
-  var dispatcher = resolveDispatcher(); // $FlowFixMe[not-a-function] This is unstable, thus optional
-
+  var dispatcher = resolveDispatcher();
   return dispatcher.use(usable);
 }
 

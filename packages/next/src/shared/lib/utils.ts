@@ -50,7 +50,7 @@ export type NextWebVitalsMetric = {
 } & (
   | {
       label: 'web-vital'
-      name: typeof WEB_VITALS[number]
+      name: (typeof WEB_VITALS)[number]
     }
   | {
       label: 'custom'
@@ -215,6 +215,8 @@ export interface NextApiRequest extends IncomingMessage {
 
   env: Env
 
+  draftMode?: boolean
+
   preview?: boolean
   /**
    * Preview data set on the request, if any
@@ -242,6 +244,11 @@ export type NextApiResponse<Data = any> = ServerResponse & {
   status: (statusCode: number) => NextApiResponse<Data>
   redirect(url: string): NextApiResponse<Data>
   redirect(status: number, url: string): NextApiResponse<Data>
+
+  /**
+   * Set draft mode
+   */
+  setDraftMode: (options: { enable: boolean }) => NextApiResponse<Data>
 
   /**
    * Set preview data for Next.js' prerender mode

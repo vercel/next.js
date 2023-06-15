@@ -1,1 +1,1 @@
-throw new Error("This is node.js only");
+throw new Error('This is node.js only')

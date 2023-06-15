@@ -4,7 +4,9 @@ import childProcess from 'child_process'
 
 import chalk from 'next/dist/compiled/chalk'
 import arg from 'next/dist/compiled/arg/index.js'
-import fetch from 'next/dist/compiled/node-fetch'
+const { fetch } = require('next/dist/compiled/undici') as {
+  fetch: typeof global.fetch
+}
 import { printAndExit } from '../server/lib/utils'
 import { CliCommand } from '../lib/commands'
 import isError from '../lib/is-error'
@@ -50,9 +52,12 @@ const nextInfo: CliCommand = async (argv) => {
       `
       Description
         Prints relevant details about the current system which can be used to report Next.js bugs
-        
+
       Usage
         $ next info
+
+      Options
+        --help, -h  Displays this message
 
       Learn more: ${chalk.cyan(
         'https://nextjs.org/docs/api-reference/cli#info'
@@ -78,6 +83,7 @@ const nextInfo: CliCommand = async (argv) => {
       eslint-config-next: ${getPackageVersion('eslint-config-next')}
       react: ${getPackageVersion('react')}
       react-dom: ${getPackageVersion('react-dom')}
+      typescript: ${getPackageVersion('typescript')}
 `)
 
   try {

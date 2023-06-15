@@ -1,6 +1,33 @@
 import { createNextDescribe } from 'e2e-utils'
 import { check, waitFor } from 'next-test-utils'
 
+// @ts-ignore
+import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
+
+const browserConfigWithFixedTime = {
+  beforePageLoad: (page) => {
+    page.addInitScript(() => {
+      const startTime = new Date()
+      const fixedTime = new Date('2023-04-17T00:00:00Z')
+
+      // Override the Date constructor
+      // @ts-ignore
+      // eslint-disable-next-line no-native-reassign
+      Date = class extends Date {
+        constructor() {
+          super()
+          // @ts-ignore
+          return new startTime.constructor(fixedTime)
+        }
+
+        static now() {
+          return fixedTime.getTime()
+        }
+      }
+    })
+  },
+}
+
 createNextDescribe(
   'app dir prefetching',
   {
@@ -14,8 +41,12 @@ createNextDescribe(
       return
     }
 
+    it('NEXT_RSC_UNION_QUERY query name is _rsc', async () => {
+      expect(NEXT_RSC_UNION_QUERY).toBe('_rsc')
+    })
+
     it('should show layout eagerly when prefetched with loading one level down', async () => {
-      const browser = await next.browser('/')
+      const browser = await next.browser('/', browserConfigWithFixedTime)
       // Ensure the page is prefetched
       await waitFor(1000)
 
@@ -50,7 +81,7 @@ createNextDescribe(
     })
 
     it('should not fetch again when a static page was prefetched', async () => {
-      const browser = await next.browser('/404')
+      const browser = await next.browser('/404', browserConfigWithFixedTime)
       let requests: string[] = []
 
       browser.on('request', (req) => {
@@ -58,9 +89,15 @@ createNextDescribe(
       })
       await browser.eval('location.href = "/"')
 
-      await browser.eval('window.nd.router.prefetch("/static-page")')
+      await browser.eval(
+        'window.nd.router.prefetch("/static-page", {kind: "auto"})'
+      )
+
       await check(() => {
-        return requests.some((req) => req.includes('static-page'))
+        return requests.some(
+          (req) =>
+            req.includes('static-page') && !req.includes(NEXT_RSC_UNION_QUERY)
+        )
           ? 'success'
           : JSON.stringify(requests)
       }, 'success')
@@ -76,7 +113,7 @@ createNextDescribe(
     })
 
     it('should not fetch again when a static page was prefetched when navigating to it twice', async () => {
-      const browser = await next.browser('/404')
+      const browser = await next.browser('/404', browserConfigWithFixedTime)
       let requests: string[] = []
 
       browser.on('request', (req) => {
@@ -84,9 +121,14 @@ createNextDescribe(
       })
       await browser.eval('location.href = "/"')
 
-      await browser.eval('window.nd.router.prefetch("/static-page")')
+      await browser.eval(
+        `window.nd.router.prefetch("/static-page", {kind: "auto"})`
+      )
       await check(() => {
-        return requests.some((req) => req.includes('static-page'))
+        return requests.some(
+          (req) =>
+            req.includes('static-page') && !req.includes(NEXT_RSC_UNION_QUERY)
+        )
           ? 'success'
           : JSON.stringify(requests)
       }, 'success')
@@ -108,7 +150,10 @@ createNextDescribe(
         .waitForElementByCss('#static-page')
 
       expect(
-        requests.filter((request) => request === '/static-page').length
+        requests.filter(
+          (request) =>
+            request === '/static-page' || request.includes(NEXT_RSC_UNION_QUERY)
+        ).length
       ).toBe(1)
     })
 
@@ -131,7 +176,11 @@ createNextDescribe(
       for (let i = 0; i < 5; i++) {
         await waitFor(500)
         expect(
-          requests.filter((request) => request === '/static-page').length
+          requests.filter(
+            (request) =>
+              request === '/static-page' ||
+              request.includes(NEXT_RSC_UNION_QUERY)
+          ).length
         ).toBe(0)
       }
     })

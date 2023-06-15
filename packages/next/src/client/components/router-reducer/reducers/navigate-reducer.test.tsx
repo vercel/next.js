@@ -1,6 +1,8 @@
 import React from 'react'
 import type { fetchServerResponse as fetchServerResponseType } from '../fetch-server-response'
 import type { FlightData } from '../../../../server/app-render/types'
+
+const buildId = 'development'
 const flightData: FlightData = [
   [
     'children',
@@ -80,6 +82,7 @@ import {
   ACTION_NAVIGATE,
   ACTION_PREFETCH,
   PrefetchAction,
+  PrefetchKind,
 } from '../router-reducer-types'
 import { navigateReducer } from './navigate-reducer'
 import { prefetchReducer } from './prefetch-reducer'
@@ -156,6 +159,7 @@ describe('navigateReducer', () => {
     ])
 
     const state = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -185,6 +189,7 @@ describe('navigateReducer', () => {
     )
 
     const expectedState: ReturnType<typeof navigateReducer> = {
+      buildId,
       prefetchCache: new Map(),
       pushRef: {
         mpaNavigation: false,
@@ -330,6 +335,7 @@ describe('navigateReducer', () => {
     ])
 
     const state = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -340,6 +346,7 @@ describe('navigateReducer', () => {
     })
 
     const state2 = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -372,6 +379,7 @@ describe('navigateReducer', () => {
     )
 
     const expectedState: ReturnType<typeof navigateReducer> = {
+      buildId,
       prefetchCache: new Map(),
       pushRef: {
         mpaNavigation: false,
@@ -517,6 +525,7 @@ describe('navigateReducer', () => {
     ])
 
     const state = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -527,6 +536,7 @@ describe('navigateReducer', () => {
     })
 
     const state2 = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -562,6 +572,7 @@ describe('navigateReducer', () => {
     )
 
     const expectedState: ReturnType<typeof navigateReducer> = {
+      buildId,
       prefetchCache: new Map(),
       pushRef: {
         mpaNavigation: true,
@@ -676,6 +687,7 @@ describe('navigateReducer', () => {
     ])
 
     const state = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -686,6 +698,7 @@ describe('navigateReducer', () => {
     })
 
     const state2 = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -721,6 +734,7 @@ describe('navigateReducer', () => {
     )
 
     const expectedState: ReturnType<typeof navigateReducer> = {
+      buildId,
       prefetchCache: new Map(),
       pushRef: {
         mpaNavigation: true,
@@ -835,6 +849,7 @@ describe('navigateReducer', () => {
     ])
 
     const state = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -845,6 +860,7 @@ describe('navigateReducer', () => {
     })
 
     const state2 = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -877,6 +893,7 @@ describe('navigateReducer', () => {
     )
 
     const expectedState: ReturnType<typeof navigateReducer> = {
+      buildId,
       prefetchCache: new Map(),
       pushRef: {
         mpaNavigation: false,
@@ -1005,9 +1022,11 @@ describe('navigateReducer', () => {
     const prefetchAction: PrefetchAction = {
       type: ACTION_PREFETCH,
       url,
+      kind: PrefetchKind.AUTO,
     }
 
     const state = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -1022,6 +1041,7 @@ describe('navigateReducer', () => {
     await state.prefetchCache.get(url.pathname + url.search)?.data
 
     const state2 = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -1081,11 +1101,15 @@ describe('navigateReducer', () => {
     await prom
 
     const expectedState: ReturnType<typeof navigateReducer> = {
+      buildId,
       prefetchCache: new Map([
         [
           '/linking/about',
           {
             data: record,
+            kind: PrefetchKind.AUTO,
+            lastUsedTime: null,
+            prefetchTime: expect.any(Number),
             treeAtTimeOfPrefetch: [
               '',
               {
@@ -1291,6 +1315,7 @@ describe('navigateReducer', () => {
     ])
 
     const state = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -1301,6 +1326,7 @@ describe('navigateReducer', () => {
     })
 
     const state2 = createInitialRouterState({
+      buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -1333,6 +1359,7 @@ describe('navigateReducer', () => {
     )
 
     const expectedState: ReturnType<typeof navigateReducer> = {
+      buildId,
       prefetchCache: new Map(),
       pushRef: {
         mpaNavigation: false,

@@ -1,9 +1,9 @@
 export default function Page() {
-  return <div />;
+  return <div />
 }
 
 Page.getInitialProps = function () {
   return {
     prop: true,
-  };
-};
+  }
+}

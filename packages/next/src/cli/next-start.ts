@@ -45,16 +45,16 @@ const nextStart: CliCommand = async (argv) => {
       If no directory is provided, the current directory will be used.
 
       Options
-        --port, -p      A port number on which to start the application
-        --hostname, -H  Hostname on which to start the application (default: 0.0.0.0)
+        --port, -p          A port number on which to start the application
+        --hostname, -H      Hostname on which to start the application (default: 0.0.0.0)
         --keepAliveTimeout  Max milliseconds to wait before closing inactive connections
-        --help, -h      Displays this message
+        --help, -h          Displays this message
     `)
     process.exit(0)
   }
 
   const dir = getProjectDir(args._[0])
-  const host = args['--hostname'] || '0.0.0.0'
+  const host = args['--hostname']
   const port = getPort(args)
 
   const keepAliveTimeoutArg: number | undefined = args['--keepAliveTimeout']

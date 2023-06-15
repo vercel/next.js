@@ -13,6 +13,7 @@ const hookPropertyMap = new Map([
   ['react-dom/client', `${reactDomDir}/client`],
   ['react-dom/server', `${reactDomDir}/server`],
   ['react-dom/server.browser', `${reactDomDir}/server.browser`],
+  ['react-dom/server.edge', `${reactDomDir}/server.edge`],
 ])
 
 const resolveFilename = mod._resolveFilename

@@ -1,4 +1,4 @@
-import css from 'styled-jsx/css';
+import css from 'styled-jsx/css'
 
 export default css`
   @media (max-width: 870px) {
@@ -7,4 +7,4 @@ export default css`
       display: none;
     }
   }
-`;
+`

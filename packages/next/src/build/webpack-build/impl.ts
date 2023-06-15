@@ -62,7 +62,7 @@ export async function webpackBuildImpl(
   duration: number
   pluginState: any
   turbotraceContext?: TurbotraceContext
-  serializedPagesManifestEntries?: typeof NextBuildContext['serializedPagesManifestEntries']
+  serializedPagesManifestEntries?: (typeof NextBuildContext)['serializedPagesManifestEntries']
 }> {
   let result: CompilerResult | null = {
     warnings: [],
@@ -107,6 +107,9 @@ export async function webpackBuildImpl(
     reactProductionProfiling: NextBuildContext.reactProductionProfiling!,
     noMangling: NextBuildContext.noMangling!,
     clientRouterFilters: NextBuildContext.clientRouterFilters!,
+    previewModeId: NextBuildContext.previewModeId!,
+    allowedRevalidateHeaderKeys: NextBuildContext.allowedRevalidateHeaderKeys!,
+    fetchCacheKeyPrefix: NextBuildContext.fetchCacheKeyPrefix!,
   }
 
   const configs = await runWebpackSpan

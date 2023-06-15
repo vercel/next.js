@@ -23,7 +23,7 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
 }
-          var ReactVersion = '18.3.0-next-85de6fde5-20230328';
+          var ReactVersion = '18.3.0-canary-1cea38448-20230530';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -631,7 +631,6 @@ function getComponentNameFromType(type) {
           return (context2.displayName || context2._globalName) + '.Provider';
         }
 
-      // eslint-disable-next-line no-fallthrough
     }
   }
 
@@ -1816,8 +1815,7 @@ function useCacheRefresh() {
   return dispatcher.useCacheRefresh();
 }
 function use(usable) {
-  var dispatcher = resolveDispatcher(); // $FlowFixMe[not-a-function] This is unstable, thus optional
-
+  var dispatcher = resolveDispatcher();
   return dispatcher.use(usable);
 }
 

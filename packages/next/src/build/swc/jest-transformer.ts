@@ -37,7 +37,8 @@ import type {
 import type { Config } from '@jest/types'
 import type { NextConfig, ExperimentalConfig } from '../../server/config-shared'
 
-export interface JestTransformerConfig {
+type TransformerConfig = Config.TransformerConfig[1]
+export interface JestTransformerConfig extends TransformerConfig {
   jsConfig: any
   resolvedBaseUrl?: string
   pagesDir?: string
@@ -82,11 +83,9 @@ const createTransformer: TransformerCreator<
   process(src, filename, jestOptions) {
     const jestConfig = getJestConfig(jestOptions)
 
-    let swcTransformOpts = getJestSWCOptions({
+    const swcTransformOpts = getJestSWCOptions({
       // When target is node it's similar to the server option set in SWC.
-      isServer: jestConfig.testEnvironment
-        ? jestConfig.testEnvironment === 'node'
-        : false,
+      isServer: jestConfig.testEnvironment === 'node',
       filename,
       jsConfig: inputOptions?.jsConfig,
       resolvedBaseUrl: inputOptions?.resolvedBaseUrl,

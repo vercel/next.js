@@ -2,6 +2,20 @@ import { createNextDescribe, FileRef } from 'e2e-utils'
 import { getRedboxSource, hasRedbox } from 'next-test-utils'
 import { join } from 'path'
 
+// TODO-APP: due to a current implementation limitation, we don't have proper tree
+// shaking when across the server/client boundaries (e.g. all referenced client
+// modules by a server module will be included in the bundle even it's not actually
+// used by that server module).
+// This is a known limitation of flight-client-entry-plugin and we will improve
+// this in the future.
+// TODO-APP: After the above issue is fixed, we should change this function to
+// be strictly equal instead: `expect(arr).toEqual(expected)`.
+function containObjects(arr: any[], expected: any[]) {
+  for (const o of expected) {
+    expect(arr).toContainEqual(o)
+  }
+}
+
 const getAttrs = (elems: Cheerio) =>
   Array.from(elems)
     .map((elem) => elem.attribs)
@@ -231,31 +245,27 @@ describe.each([['app'], ['app-old']])('%s', (fixture: string) => {
             expect($('link[rel="preconnect"]').length).toBe(0)
 
             // From root layout
-            expect($('link[as="font"]').length).toBe(3)
-            expect(getAttrs($('link[as="font"]'))).toEqual([
+            containObjects(getAttrs($('link[as="font"]')), [
               {
                 as: 'font',
-                crossorigin: 'anonymous',
+                crossorigin: '',
                 href: '/_next/static/media/b2104791981359ae-s.p.woff2',
                 rel: 'preload',
                 type: 'font/woff2',
-                'data-next-font': 'size-adjust',
               },
               {
                 as: 'font',
-                crossorigin: 'anonymous',
+                crossorigin: '',
                 href: '/_next/static/media/b61859a50be14c53-s.p.woff2',
                 rel: 'preload',
                 type: 'font/woff2',
-                'data-next-font': 'size-adjust',
               },
               {
                 as: 'font',
-                crossorigin: 'anonymous',
+                crossorigin: '',
                 href: '/_next/static/media/e9b9dc0d8ba35f48-s.p.woff2',
                 rel: 'preload',
                 type: 'font/woff2',
-                'data-next-font': 'size-adjust',
               },
             ])
           })
@@ -267,30 +277,27 @@ describe.each([['app'], ['app-old']])('%s', (fixture: string) => {
             expect($('link[rel="preconnect"]').length).toBe(0)
 
             // From root layout
-            expect(getAttrs($('link[as="font"]'))).toEqual([
+            containObjects(getAttrs($('link[as="font"]')), [
               {
                 as: 'font',
-                crossorigin: 'anonymous',
+                crossorigin: '',
                 href: '/_next/static/media/e1053f04babc7571-s.p.woff2',
                 rel: 'preload',
                 type: 'font/woff2',
-                'data-next-font': 'size-adjust',
               },
               {
                 as: 'font',
-                crossorigin: 'anonymous',
+                crossorigin: '',
                 href: '/_next/static/media/e9b9dc0d8ba35f48-s.p.woff2',
                 rel: 'preload',
                 type: 'font/woff2',
-                'data-next-font': 'size-adjust',
               },
               {
                 as: 'font',
-                crossorigin: 'anonymous',
+                crossorigin: '',
                 href: '/_next/static/media/feab2c68f2a8e9a4-s.p.woff2',
                 rel: 'preload',
                 type: 'font/woff2',
-                'data-next-font': 'size-adjust',
               },
             ])
           })
@@ -302,22 +309,20 @@ describe.each([['app'], ['app-old']])('%s', (fixture: string) => {
             expect($('link[rel="preconnect"]').length).toBe(0)
 
             // From root layout
-            expect(getAttrs($('link[as="font"]'))).toEqual([
+            containObjects(getAttrs($('link[as="font"]')), [
               {
                 as: 'font',
-                crossorigin: 'anonymous',
+                crossorigin: '',
                 href: '/_next/static/media/75c5faeeb9c86969-s.p.woff2',
                 rel: 'preload',
                 type: 'font/woff2',
-                'data-next-font': 'size-adjust',
               },
               {
                 as: 'font',
-                crossorigin: 'anonymous',
+                crossorigin: '',
                 href: '/_next/static/media/e9b9dc0d8ba35f48-s.p.woff2',
                 rel: 'preload',
                 type: 'font/woff2',
-                'data-next-font': 'size-adjust',
               },
             ])
           })
@@ -329,22 +334,20 @@ describe.each([['app'], ['app-old']])('%s', (fixture: string) => {
             expect($('link[rel="preconnect"]').length).toBe(0)
 
             // From root layout
-            expect(getAttrs($('link[as="font"]'))).toEqual([
+            containObjects(getAttrs($('link[as="font"]')), [
               {
                 as: 'font',
-                crossorigin: 'anonymous',
+                crossorigin: '',
                 href: '/_next/static/media/568e4c6d8123c4d6-s.p.woff2',
                 rel: 'preload',
                 type: 'font/woff2',
-                'data-next-font': 'size-adjust',
               },
               {
                 as: 'font',
-                crossorigin: 'anonymous',
+                crossorigin: '',
                 href: '/_next/static/media/e9b9dc0d8ba35f48-s.p.woff2',
                 rel: 'preload',
                 type: 'font/woff2',
-                'data-next-font': 'size-adjust',
               },
             ])
           })
@@ -359,10 +362,9 @@ describe.each([['app'], ['app-old']])('%s', (fixture: string) => {
               // Preconnect
               expect($('link[rel="preconnect"]').length).toBe(1)
               expect($('link[rel="preconnect"]').get(0).attribs).toEqual({
-                crossorigin: 'anonymous',
+                crossorigin: '',
                 href: '/',
                 rel: 'preconnect',
-                'data-next-font': 'size-adjust',
               })
               // Preload
               expect($('link[as="font"]').length).toBe(0)

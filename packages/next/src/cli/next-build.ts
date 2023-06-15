@@ -18,6 +18,7 @@ const nextBuild: CliCommand = (argv) => {
     '--no-mangling': Boolean,
     '--experimental-app-only': Boolean,
     '--experimental-turbo': Boolean,
+    '--build-mode': String,
     // Aliases
     '-h': '--help',
     '-d': '--debug',
@@ -45,10 +46,12 @@ const nextBuild: CliCommand = (argv) => {
       If no directory is provided, the current directory will be used.
 
       Options
-      --profile                 Can be used to enable React Production Profiling
-      --no-lint                 Disable linting
-      --no-mangling             Disable mangling
-      --experimental-app-only   Only build 'app' routes
+      --profile                Can be used to enable React Production Profiling
+      --no-lint                Disable linting
+      --no-mangling            Disable mangling
+      --experimental-app-only  Only build 'app' routes
+      --experimental-turbo     Enable experimental turbo mode
+      --help, -h               Displays this message
     `,
       0
     )
@@ -78,7 +81,8 @@ const nextBuild: CliCommand = (argv) => {
     !args['--no-lint'],
     args['--no-mangling'],
     args['--experimental-app-only'],
-    args['--experimental-turbo']
+    args['--experimental-turbo'],
+    args['--build-mode'] || 'default'
   ).catch((err) => {
     console.error('')
     if (

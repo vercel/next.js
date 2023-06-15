@@ -30,12 +30,7 @@ ${individualActions
 
 async function endpoint(id, ...args) {
   const action = await actions[id]()
-
-  if (action.$$with_bound === false) {
-    return action.apply(null, args)
-  }
-
-  return action.call(null, args)
+  return action.apply(null, args)
 }
 
 // Using CJS to avoid this to be tree-shaken away due to unused exports.
