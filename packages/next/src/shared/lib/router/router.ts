@@ -1847,6 +1847,21 @@ export default class Router implements BaseRouter {
         '',
         as
       )
+
+      if (method === 'pushState') {
+        // go back and then come forward again immediately, to force :target to update.
+        history.back()
+        window.addEventListener(
+          'popstate',
+          () => {
+            history.forward()
+          },
+          {
+            once: true,
+            passive: true,
+          }
+        )
+      }
     }
   }
 
