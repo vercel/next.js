@@ -3,7 +3,7 @@
   "scripts": {
     "dev": "next",
     "build": "next build",
-    "start": "next start",
+    "start": "next start"
   },
   "dependencies": {
     "@reduxjs/toolkit": "1.9.5",
