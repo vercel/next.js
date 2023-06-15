@@ -5,15 +5,12 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "start": "next start"
   },
   "dependencies": {
     "@supabase/auth-helpers-nextjs": "^0.7.2",
     "autoprefixer": "10.4.14",
-    "eslint": "8.42.0",
-    "eslint-config-next": "13.4.5",
-    "next": "13.4.5",
+    "next": "latest",
     "postcss": "8.4.24",
     "react": "18.2.0",
     "react-dom": "18.2.0",
