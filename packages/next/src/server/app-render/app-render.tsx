@@ -72,6 +72,7 @@ import { handleAction } from './action-handler'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
 import { warn } from '../../build/output/log'
 import { appendMutableCookies } from '../web/spec-extension/adapters/request-cookies'
+import { PHASE_PRODUCTION_SERVER } from '../../shared/lib/constants'
 
 export const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -1596,6 +1597,14 @@ export async function renderToHTMLOrFlight(
       }
     )
 
+    const nextConfig = await renderOpts.loadConfig?.(
+      PHASE_PRODUCTION_SERVER,
+      '/',
+      undefined,
+      undefined,
+      true
+    )
+
     // For action requests, we handle them differently with a special render result.
     const actionRequestResult = await handleAction({
       req,
@@ -1606,6 +1615,7 @@ export async function renderToHTMLOrFlight(
       generateFlight,
       staticGenerationStore,
       requestStore,
+      nextConfig,
     })
 
     if (actionRequestResult === 'not-found') {

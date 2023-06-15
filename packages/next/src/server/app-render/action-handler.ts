@@ -17,7 +17,6 @@ import {
   isRedirectError,
 } from '../../client/components/redirect'
 import RenderResult from '../render-result'
-import loadConfig from '../config'
 import { StaticGenerationStore } from '../../client/components/static-generation-async-storage'
 import { FlightRenderResult } from './flight-render-result'
 import { ActionResult } from './types'
@@ -28,7 +27,7 @@ import {
   getModifiedCookieValues,
 } from '../web/spec-extension/adapters/request-cookies'
 import { RequestStore } from '../../client/components/request-async-storage'
-import { PHASE_PRODUCTION_SERVER } from '../../shared/lib/constants'
+import { NextConfigComplete } from '../../server/config-shared'
 
 function nodeToWebReadableStream(nodeReadable: import('stream').Readable) {
   if (process.env.NEXT_RUNTIME !== 'edge') {
@@ -247,6 +246,7 @@ export async function handleAction({
   generateFlight,
   staticGenerationStore,
   requestStore,
+  nextConfig,
 }: {
   req: IncomingMessage
   res: ServerResponse
@@ -260,6 +260,7 @@ export async function handleAction({
   }) => Promise<RenderResult>
   staticGenerationStore: StaticGenerationStore
   requestStore: RequestStore
+  nextConfig?: NextConfigComplete
 }): Promise<undefined | RenderResult | 'not-found'> {
   let actionId = req.headers[ACTION.toLowerCase()] as string
   const contentType = req.headers['content-type']
@@ -375,16 +376,8 @@ export async function handleAction({
             const { parseBody } =
               require('../api-utils/node') as typeof import('../api-utils/node')
 
-            const nextConfig = await loadConfig(
-              PHASE_PRODUCTION_SERVER,
-              '/',
-              undefined,
-              undefined,
-              true
-            )
-
             const serverActionsSizeLimit =
-              nextConfig.experimental?.serverActionsSizeLimit
+              nextConfig?.experimental?.serverActionsSizeLimit
 
             const actionData =
               (await parseBody(req, serverActionsSizeLimit ?? '1mb')) || ''
