@@ -928,8 +928,7 @@ export function shouldRunTurboDevTest() {
     return true
   }
 
-  // If the test path matches the glob pattern, add additional case to run the test with `--turbo` flag.
-  return isMatch
+  return false
 }
 
 // WEB-168: There are some differences / incompletes in turbopack implementation enforces jest requires to update
