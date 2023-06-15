@@ -1,12 +1,21 @@
-import React from 'react';
+import React from 'react'
 import { notFound } from 'next/navigation'
-import { getPayloadClient } from '../../../payload/payloadClient';
-import Blocks from '../../../components/Blocks';
-import { Hero } from '../../../components/Hero';
-import { AdminBar } from '../../../components/AdminBar';
+import { getPayloadClient } from '../../../payload/payloadClient'
+import Blocks from '../../../components/Blocks'
+import { Hero } from '../../../components/Hero'
+import { AdminBar } from '../../../components/AdminBar'
+import { Metadata } from 'next'
+
+export async function generateMetadata({
+  params: { slug },
+}): Promise<Metadata> {
+  return {
+    title: slug,
+  }
+}
 
 const Page = async ({ params: { slug } }) => {
-  const payload = await getPayloadClient();
+  const payload = await getPayloadClient()
 
   const pages = await payload.find({
     collection: 'pages',
@@ -14,24 +23,24 @@ const Page = async ({ params: { slug } }) => {
       slug: {
         equals: slug || 'home',
       },
-    }
-  });
+    },
+  })
 
-  const page = pages.docs[0];
+  const page = pages.docs[0]
 
   if (!page) return notFound()
 
   return (
-    <React.Fragment>
+    <>
       <AdminBar adminBarProps={{ collection: 'pages', id: page.id }} />
       <Hero {...page.hero} />
       <Blocks blocks={page.layout} />
-    </React.Fragment>
+    </>
   )
 }
 
 export async function generateStaticParams() {
-  const payload = await getPayloadClient();
+  const payload = await getPayloadClient()
 
   const pages = await payload.find({
     collection: 'pages',
@@ -41,4 +50,4 @@ export async function generateStaticParams() {
   return pages.docs.map(({ slug }) => ({ slug }))
 }
 
-export default Page;
+export default Page

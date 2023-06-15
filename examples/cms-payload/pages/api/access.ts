@@ -1,5 +1,9 @@
-import handler, { config as handlerConfig } from '@payloadcms/next-payload/dist/handlers/access'
+import handler from '@payloadcms/next-payload/dist/handlers/access'
 
 export default handler
 
-export const config = handlerConfig
+export const config = {
+  api: {
+    externalResolver: true,
+  },
+}

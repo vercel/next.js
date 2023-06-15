@@ -1,5 +1,10 @@
-import handler, { config as handlerConfig } from '@payloadcms/next-payload/dist/handlers/[collection]/[id]'
+import handler from '@payloadcms/next-payload/dist/handlers/[collection]/[id]'
 
 export default handler
 
-export const config = handlerConfig
+export const config = {
+  api: {
+    bodyParser: false,
+    externalResolver: true,
+  },
+}

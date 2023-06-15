@@ -1,5 +1,9 @@
-import handler, { config as handlerConfig } from '@payloadcms/next-payload/dist/handlers/graphql-playground'
+import handler from '@payloadcms/next-payload/dist/handlers/graphql-playground'
 
 export default handler
 
-export const config = handlerConfig
+export const config = {
+  api: {
+    externalResolver: true,
+  },
+}
