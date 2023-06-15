@@ -295,12 +295,6 @@ const nextDev: CliCommand = async (argv) => {
   } else {
     let cleanupFns: (() => Promise<void> | void)[] = []
     const runDevServer = async () => {
-      if (process.env.__INTERNAL_NEXT_DEV_TEST_TURBO_DEV) {
-        require('console').error(
-          `[ERROR]: Incorrect mode: turbopack test mode is force enabled, shouldn't run dev server`
-        )
-        process.exit(1)
-      }
       const oldCleanupFns = cleanupFns
       cleanupFns = []
       await Promise.allSettled(oldCleanupFns.map((fn) => fn()))
