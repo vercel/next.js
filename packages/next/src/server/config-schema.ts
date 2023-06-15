@@ -304,6 +304,16 @@ const configSchema = {
         serverActions: {
           type: 'boolean',
         },
+        serverActionsSizeLimit: {
+          oneOf: [
+            {
+              type: 'number',
+            },
+            {
+              type: 'string',
+            },
+          ] as any,
+        },
         extensionAlias: {
           type: 'object',
         },
