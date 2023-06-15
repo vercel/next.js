@@ -27,7 +27,8 @@ const {
   renderToReadableStream,
   decodeReply,
   decodeAction,
-} = require('next/dist/compiled/react-server-dom-webpack/server.edge')
+  // eslint-disable-next-line import/no-extraneous-dependencies
+} = require('react-server-dom-webpack/server.edge')
 const { preloadStyle, preloadFont, preconnect } =
   require('next/dist/server/app-render/rsc/preloads') as typeof import('../../server/app-render/rsc/preloads')
 
