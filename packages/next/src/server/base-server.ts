@@ -1678,11 +1678,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // served by the server.
       let result: RenderResult
 
-      // We want to use the match when we're not trying to render an error page.
-      const match =
-        pathname !== '/_error' && !is404Page && !is500Page
-          ? getRequestMeta(req, '_nextMatch')
-          : undefined
+      // Get the match for the page if it exists.
+      const match = getRequestMeta(req, '_nextMatch')
 
       if (
         match &&
@@ -1724,12 +1721,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             if (!headers['content-type'] && blob.type) {
               headers['content-type'] = blob.type
             }
-            let revalidate: number | false | undefined =
-              context.staticGenerationContext.store?.revalidate
 
-            if (typeof revalidate == 'undefined') {
-              revalidate = false
-            }
+            const revalidate =
+              context.staticGenerationContext.store?.revalidate ?? false
 
             // Create the cache entry for the response.
             const cacheEntry: ResponseCacheEntry = {
