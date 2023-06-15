@@ -1,5 +1,11 @@
 import type { IncomingMessage } from 'http'
-import { PassThrough, Readable } from 'stream'
+import {
+  PassThrough,
+  pipeline,
+  type Readable,
+  type TransformCallback,
+  Writable,
+} from 'stream'
 
 export function requestToBodyStream(
   context: { ReadableStream: typeof ReadableStream },
@@ -87,5 +93,47 @@ export function getCloneableBody<T extends IncomingMessage>(
       buffered = p2
       return p1
     },
+  }
+}
+
+export function pipeNodeToNode(src: Readable, dest: Writable) {
+  return new Promise<void>((res, rej) => {
+    pipeline(src, dest, (err) => {
+      dest.end()
+      if (err && err.code !== 'ERR_STREAM_PREMATURE_CLOSE') {
+        rej(err)
+      } else {
+        res()
+      }
+    })
+  })
+}
+
+/**
+ * FlushStream acts as a Writable interface for another Writable. Every time
+ * data is pushed into the stream, it will be immediately written to the other,
+ * and the other writable will be flushed. This allows us to send small chunks
+ * of data to the browser even when GZIP encoding is enabled.
+ */
+export class FlushStream extends Writable {
+  declare _dest: Writable & { flush: () => void }
+
+  constructor(dest: Writable & { flush: () => void }) {
+    super()
+    this._dest = dest
+    this.on('close', () => dest.end())
+    this.on('error', (e) => dest.destroy(e))
+    dest.on('close', () => this.end())
+    dest.on('error', (e) => this.destroy(e))
+  }
+
+  _write(
+    chunk: any,
+    encoding: BufferEncoding,
+    callback: TransformCallback
+  ): void {
+    this._dest.write(chunk, encoding)
+    this._dest.flush()
+    callback()
   }
 }

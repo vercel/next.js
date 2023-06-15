@@ -86,7 +86,7 @@ import { getCustomRoute, stringifyQuery } from './server-route-utils'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
-import { getCloneableBody } from './body-streams'
+import { FlushStream, getCloneableBody, pipeNodeToNode } from './body-streams'
 import { checkIsOnDemandRevalidate } from './api-utils'
 import ResponseCache from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
@@ -986,14 +986,16 @@ export default class NextNodeServer extends BaseServer {
     )
   }
 
-  protected streamResponseChunk(res: NodeNextResponse, chunk: any) {
-    res.originalResponse.write(chunk)
+  private flushingStreamForCompression(res: NodeNextResponse) {
+    const { originalResponse } = res
 
     // When both compression and streaming are enabled, we need to explicitly
     // flush the response to avoid it being buffered by gzip.
-    if (this.compression && 'flush' in res.originalResponse) {
-      ;(res.originalResponse as any).flush()
+    if (this.compression && 'flush' in originalResponse) {
+      return new FlushStream(originalResponse as any)
     }
+
+    return originalResponse
   }
 
   protected async imageOptimizer(
@@ -1525,10 +1527,10 @@ export default class NextNodeServer extends BaseServer {
             res.statusCode = invokeRes.statusCode
             res.statusMessage = invokeRes.statusMessage
 
-            for await (const chunk of invokeRes) {
-              this.streamResponseChunk(res as NodeNextResponse, chunk)
-            }
-            ;(res as NodeNextResponse).originalResponse.end()
+            await pipeNodeToNode(
+              invokeRes,
+              this.flushingStreamForCompression(res as NodeNextResponse)
+            )
             return {
               finished: true,
             }
@@ -2497,6 +2499,8 @@ export default class NextNodeServer extends BaseServer {
                 })
 
                 if (isMiddlewareInvoke && 'response' in result) {
+                  const { pipeBodyStreamToResponse } =
+                    require('next/dist/compiled/edge-runtime') as typeof import('next/dist/compiled/edge-runtime')
                   for (const [key, value] of Object.entries(
                     toNodeOutgoingHttpHeaders(result.response.headers)
                   )) {
@@ -2505,10 +2509,10 @@ export default class NextNodeServer extends BaseServer {
                     }
                   }
                   res.statusCode = result.response.status
-                  for await (const chunk of result.response.body ||
-                    ([] as any)) {
-                    this.streamResponseChunk(res as NodeNextResponse, chunk)
-                  }
+                  await pipeBodyStreamToResponse(
+                    result.response.body,
+                    this.flushingStreamForCompression(res as NodeNextResponse)
+                  )
                   res.send()
                   return {
                     finished: true,
@@ -2679,14 +2683,17 @@ export default class NextNodeServer extends BaseServer {
               res.statusCode = result.response.status
 
               if ((result.response as any).invokeRes) {
-                for await (const chunk of (result.response as any).invokeRes) {
-                  this.streamResponseChunk(res as NodeNextResponse, chunk)
-                }
-                ;(res as NodeNextResponse).originalResponse.end()
+                await pipeNodeToNode(
+                  (result.response as any).invokeRes,
+                  this.flushingStreamForCompression(res as NodeNextResponse)
+                )
               } else {
-                for await (const chunk of result.response.body || ([] as any)) {
-                  this.streamResponseChunk(res as NodeNextResponse, chunk)
-                }
+                const { pipeBodyStreamToResponse } =
+                  require('next/dist/compiled/edge-runtime') as typeof import('next/dist/compiled/edge-runtime')
+                await pipeBodyStreamToResponse(
+                  result.response.body,
+                  this.flushingStreamForCompression(res as NodeNextResponse)
+                )
                 res.send()
               }
               return {
@@ -2864,22 +2871,18 @@ export default class NextNodeServer extends BaseServer {
       }
     })
 
+    // TODO(gal): not sure that we always need to stream
+    const nodeResStream = (params.res as NodeNextResponse).originalResponse
     if (result.response.body) {
-      // TODO(gal): not sure that we always need to stream
-      const nodeResStream = (params.res as NodeNextResponse).originalResponse
-      const { consumeUint8ArrayReadableStream } =
-        require('next/dist/compiled/edge-runtime') as typeof import('next/dist/compiled/edge-runtime')
       try {
-        for await (const chunk of consumeUint8ArrayReadableStream(
-          result.response.body
-        )) {
-          nodeResStream.write(chunk)
-        }
+        const { pipeBodyStreamToResponse } =
+          require('next/dist/compiled/edge-runtime') as typeof import('next/dist/compiled/edge-runtime')
+        await pipeBodyStreamToResponse(result.response.body, nodeResStream)
       } finally {
         nodeResStream.end()
       }
     } else {
-      ;(params.res as NodeNextResponse).originalResponse.end()
+      nodeResStream.end()
     }
 
     return result
