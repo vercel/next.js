@@ -1,15 +1,10 @@
 import { MongoClient, Db } from 'mongodb';
 
 
-const MONGODB_URI = process.env.MONGODB_URI;
-const MONGODB_DB = process.env.MONGODB_DB;
+const uri = process.env.MONGODB_URI;
 
-if (!MONGODB_URI) {
+if (!uri) {
   throw new Error('Invalid/Missing environment variable: "MONGODB_URI"');
-}
-
-if (!MONGODB_DB) {
-  throw new Error('Invalid/Missing environment variable: "MONGODB_DB"');
 }
 
 
@@ -26,18 +21,18 @@ if (process.env.NODE_ENV === 'development') {
   };
 
   if (!globalWithMongo._db) {
-    const client = new MongoClient(MONGODB_URI, options);
+    const client = new MongoClient(uri, options);
     //  (client.connect() is optional starting v4.7)
-    globalWithMongo._db = client.db(MONGODB_DB);
+    globalWithMongo._db = client.db();
   }
   
   db = globalWithMongo._db;
   
 } else {
   // In production mode, it's best to not use a global variable.
-  const client = new MongoClient(MONGODB_URI, options);
+  const client = new MongoClient(uri, options);
   //  (client.connect() is optional starting v4.7)
-  db = client.db(MONGODB_DB);
+  db = client.db();
 }
 
 export default db;
