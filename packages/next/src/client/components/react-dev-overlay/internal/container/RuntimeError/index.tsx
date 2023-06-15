@@ -6,6 +6,7 @@ import { OriginalStackFrame } from '../../helpers/stack-frame'
 import { groupStackFramesByFramework } from '../../helpers/group-stack-frames-by-framework'
 import { CallStackFrame } from './CallStackFrame'
 import { GroupedStackFrames } from './GroupedStackFrames'
+import { ComponentStackFrameRow } from './ComponentStackFrameRow'
 
 export type RuntimeErrorProps = { error: ReadyRuntimeError }
 
@@ -71,7 +72,7 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
     <React.Fragment>
       {firstFrame ? (
         <React.Fragment>
-          <h5>Source</h5>
+          <h2>Source</h2>
           {leadingFrames.map((frame, index) => (
             <CallStackFrame
               key={`leading-frame-${index}-${all}`}
@@ -84,9 +85,22 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
           />
         </React.Fragment>
       ) : undefined}
+
+      {error.componentStackFrames ? (
+        <>
+          <h2>Component Stack</h2>
+          {error.componentStackFrames.map((componentStackFrame, index) => (
+            <ComponentStackFrameRow
+              key={index}
+              componentStackFrame={componentStackFrame}
+            />
+          ))}
+        </>
+      ) : null}
+
       {stackFramesGroupedByFramework.length ? (
         <React.Fragment>
-          <h5>Call Stack</h5>
+          <h2>Call Stack</h2>
           <GroupedStackFrames
             groupedStackFrames={stackFramesGroupedByFramework}
             all={all}
@@ -119,27 +133,32 @@ export const styles = css`
     color: var(--color-accents-3);
   }
 
-  [data-nextjs-call-stack-frame]:not(:last-child) {
+  [data-nextjs-call-stack-frame]:not(:last-child),
+  [data-nextjs-component-stack-frame]:not(:last-child) {
     margin-bottom: var(--size-gap-double);
   }
 
-  [data-nextjs-call-stack-frame] > h6 {
+  [data-nextjs-call-stack-frame] > h3,
+  [data-nextjs-component-stack-frame] > h3 {
     margin-top: 0;
     margin-bottom: var(--size-gap);
     font-family: var(--font-stack-monospace);
+    font-size: var(--size-font);
     color: #222;
   }
-  [data-nextjs-call-stack-frame] > h6[data-nextjs-frame-expanded='false'] {
+  [data-nextjs-call-stack-frame] > h3[data-nextjs-frame-expanded='false'] {
     color: #666;
   }
-  [data-nextjs-call-stack-frame] > div {
+  [data-nextjs-call-stack-frame] > div,
+  [data-nextjs-component-stack-frame] > div {
     display: flex;
     align-items: center;
     padding-left: calc(var(--size-gap) + var(--size-gap-half));
     font-size: var(--size-font-small);
     color: #999;
   }
-  [data-nextjs-call-stack-frame] > div > svg {
+  [data-nextjs-call-stack-frame] > div > svg,
+  [data-nextjs-component-stack-frame] > div > svg {
     width: auto;
     height: var(--size-font-small);
     margin-left: var(--size-gap);
@@ -147,24 +166,19 @@ export const styles = css`
     display: none;
   }
 
-  [data-nextjs-call-stack-frame] > div[data-has-source] {
+  [data-nextjs-call-stack-frame] > div[data-has-source],
+  [data-nextjs-component-stack-frame] > div {
     cursor: pointer;
   }
-  [data-nextjs-call-stack-frame] > div[data-has-source]:hover {
+  [data-nextjs-call-stack-frame] > div[data-has-source]:hover,
+  [data-nextjs-component-stack-frame] > div:hover {
     text-decoration: underline dotted;
   }
-  [data-nextjs-call-stack-frame] > div[data-has-source] > svg {
+  [data-nextjs-call-stack-frame] > div[data-has-source] > svg,
+  [data-nextjs-component-stack-frame] > div > svg {
     display: unset;
   }
 
-  [data-nextjs-call-stack-framework-button] {
-    border: none;
-    background: none;
-    display: flex;
-    align-items: center;
-    padding: 0;
-    margin: var(--size-gap-double) 0;
-  }
   [data-nextjs-call-stack-framework-icon] {
     margin-right: var(--size-gap);
   }
@@ -174,9 +188,25 @@ export const styles = css`
   [data-nextjs-call-stack-framework-icon='react'] {
     color: rgb(20, 158, 202);
   }
-  [data-nextjs-call-stack-framework-button][data-state='open']
-    > [data-nextjs-call-stack-chevron-icon] {
+  [data-nextjs-collapsed-call-stack-details][open]
+    [data-nextjs-call-stack-chevron-icon] {
     transform: rotate(90deg);
+  }
+  [data-nextjs-collapsed-call-stack-details] summary {
+    display: flex;
+    align-items: center;
+    margin: var(--size-gap-double) 0;
+    list-style: none;
+  }
+  [data-nextjs-collapsed-call-stack-details] summary::-webkit-details-marker {
+    display: none;
+  }
+
+  [data-nextjs-collapsed-call-stack-details] h3 {
+    color: #666;
+  }
+  [data-nextjs-collapsed-call-stack-details] [data-nextjs-call-stack-frame] {
+    margin-bottom: var(--size-gap-double);
   }
 `
 

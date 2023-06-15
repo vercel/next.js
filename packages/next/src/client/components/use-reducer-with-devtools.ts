@@ -1,4 +1,4 @@
-import type { reducer } from './reducer'
+import type { reducer } from './router-reducer/router-reducer'
 import type {
   ReducerState,
   ReducerAction,
@@ -143,7 +143,7 @@ function useReducerWithReduxDevtoolsImpl(
 
     devtoolsConnectionRef.current = window.__REDUX_DEVTOOLS_EXTENSION__.connect(
       {
-        instanceId: 1,
+        instanceId: 8000, // Random number that is high to avoid conflicts
         name: 'next-router',
       }
     )

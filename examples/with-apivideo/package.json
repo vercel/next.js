@@ -8,10 +8,10 @@
   "dependencies": {
     "@api.video/nodejs-client": "2.2.5",
     "@api.video/react-player": "^1.0.1",
-    "@api.video/video-uploader": "1.0.4",
+    "@api.video/video-uploader": "^1.1.3",
     "next": "latest",
-    "react": "18.1.0",
-    "react-dom": "18.1.0"
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
   },
   "devDependencies": {
     "@types/node": "17.0.23",

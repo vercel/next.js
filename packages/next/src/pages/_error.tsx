@@ -24,10 +24,11 @@ function _getInitialProps({
   return { statusCode }
 }
 
-const styles: { [k: string]: React.CSSProperties } = {
+const styles: Record<string, React.CSSProperties> = {
   error: {
+    // https://github.com/sindresorhus/modern-normalize/blob/main/modern-normalize.css#L38-L52
     fontFamily:
-      '-apple-system, BlinkMacSystemFont, Roboto, "Segoe UI", "Fira Sans", Avenir, "Helvetica Neue", "Lucida Grande", sans-serif',
+      'system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
     height: '100vh',
     textAlign: 'center',
     display: 'flex',
@@ -35,32 +36,24 @@ const styles: { [k: string]: React.CSSProperties } = {
     alignItems: 'center',
     justifyContent: 'center',
   },
-
   desc: {
-    display: 'inline-block',
-    textAlign: 'left',
-    lineHeight: '49px',
-    height: '49px',
-    verticalAlign: 'middle',
+    lineHeight: '48px',
   },
-
   h1: {
     display: 'inline-block',
-    margin: 0,
-    marginRight: '20px',
-    padding: '0 23px 0 0',
-    fontSize: '24px',
+    margin: '0 20px 0 0',
+    paddingRight: 23,
+    fontSize: 24,
     fontWeight: 500,
     verticalAlign: 'top',
-    lineHeight: '49px',
   },
-
   h2: {
-    fontSize: '14px',
-    fontWeight: 'normal',
-    lineHeight: '49px',
-    margin: 0,
-    padding: 0,
+    fontSize: 14,
+    fontWeight: 400,
+    lineHeight: '28px',
+  },
+  wrap: {
+    display: 'inline-block',
   },
 }
 
@@ -89,10 +82,10 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
               : 'Application error: a client-side exception has occurred'}
           </title>
         </Head>
-        <div>
+        <div style={styles.desc}>
           <style
             dangerouslySetInnerHTML={{
-              __html: `
+              /* CSS minified from
                 body { margin: 0; color: #000; background: #fff; }
                 .next-error-h1 {
                   border-right: 1px solid rgba(0, 0, 0, .3);
@@ -107,7 +100,13 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
                   }
                 }`
                     : ''
-                }`,
+                }
+               */
+              __html: `body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}${
+                withDarkMode
+                  ? '@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}'
+                  : ''
+              }`,
             }}
           />
 
@@ -116,7 +115,7 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
               {statusCode}
             </h1>
           ) : null}
-          <div style={styles.desc}>
+          <div style={styles.wrap}>
             <h2 style={styles.h2}>
               {this.props.title || statusCode ? (
                 title

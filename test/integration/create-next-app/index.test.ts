@@ -13,7 +13,7 @@
 import execa from 'execa'
 import fs from 'fs-extra'
 import path from 'path'
-
+import Conf from 'next/dist/compiled/conf'
 import { useTempDir } from '../../lib/use-temp-dir'
 import {
   projectFilesShouldExist,
@@ -25,15 +25,13 @@ const cli = require.resolve('create-next-app/dist/index.js')
 const exampleRepo = 'https://github.com/vercel/next.js/tree/canary'
 const examplePath = 'examples/basic-css'
 
-const run = (args: string[], options: execa.Options) =>
-  execa('node', [cli].concat(args), options)
+const run = (args: string[], options: execa.Options) => {
+  const conf = new Conf({ projectName: 'create-next-app' })
+  conf.clear()
+  return execa('node', [cli].concat(args), options)
+}
 
 describe('create next app', () => {
-  if (!process.env.NEXT_TEST_CNA) {
-    it('should skip when env is not set', () => {})
-    return
-  }
-
   it('non-empty directory', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'non-empty-directory'
@@ -45,9 +43,11 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-experimental-app',
+          '--app',
+          `--import-alias=@/*`,
         ],
         {
           cwd,
@@ -69,15 +69,17 @@ describe('create next app', () => {
           [
             projectName,
             '--js',
+            '--no-tailwind',
             '--eslint',
             '--no-src-dir',
-            '--no-experimental-app',
+            '--app',
+            `--import-alias=@/*`,
           ],
           { cwd }
         )
 
         expect(res.exitCode).toBe(0)
-        shouldBeJavascriptProject({ cwd, projectName, template: 'default' })
+        shouldBeJavascriptProject({ cwd, projectName, template: 'app' })
       })
     })
   }
@@ -86,7 +88,14 @@ describe('create next app', () => {
     await useTempDir(async (cwd) => {
       const projectName = 'invalid-example-name'
       const res = await run(
-        [projectName, '--js', '--eslint', '--example', 'not a real example'],
+        [
+          projectName,
+          '--js',
+          '--no-tailwind',
+          '--eslint',
+          '--example',
+          'not a real example',
+        ],
         {
           cwd,
           reject: false,
@@ -106,7 +115,14 @@ describe('create next app', () => {
     await useTempDir(async (cwd) => {
       const projectName = 'valid-example'
       const res = await run(
-        [projectName, '--js', '--eslint', '--example', 'basic-css'],
+        [
+          projectName,
+          '--js',
+          '--no-tailwind',
+          '--eslint',
+          '--example',
+          'basic-css',
+        ],
         {
           cwd,
         }
@@ -129,7 +145,14 @@ describe('create next app', () => {
     await useTempDir(async (cwd) => {
       const projectName = 'valid-example-without-package-json'
       const res = await run(
-        [projectName, '--js', '--eslint', '--example', 'with-docker-compose'],
+        [
+          projectName,
+          '--js',
+          '--no-tailwind',
+          '--eslint',
+          '--example',
+          'with-docker-compose',
+        ],
         {
           cwd,
         }
@@ -151,6 +174,7 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--example',
           `${exampleRepo}/${examplePath}`,
@@ -181,6 +205,7 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--example',
           'https://github.com/vercel/nextjs-portfolio-starter/',
@@ -211,6 +236,7 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--example',
           exampleRepo,
@@ -243,6 +269,7 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--example',
           `${exampleRepo}/${examplePath}`,
@@ -278,9 +305,12 @@ describe('create next app', () => {
           [
             projectName,
             '--js',
+            '--no-tailwind',
             '--eslint',
+            '--app',
             '--example',
             '__internal-testing-retry',
+            '--import-alias=@/*',
           ],
           {
             cwd,
@@ -289,7 +319,7 @@ describe('create next app', () => {
         )
 
         expect(res.exitCode).toBe(0)
-        shouldBeJavascriptProject({ cwd, projectName, template: 'default' })
+        shouldBeJavascriptProject({ cwd, projectName, template: 'app' })
       })
     })
   }
@@ -298,7 +328,15 @@ describe('create next app', () => {
     await useTempDir(async (cwd) => {
       const projectName = 'default-example'
       const res = await run(
-        [projectName, '--js', '--eslint', '--example', 'default'],
+        [
+          projectName,
+          '--js',
+          '--no-tailwind',
+          '--eslint',
+          '--example',
+          'default',
+          '--import-alias=@/*',
+        ],
         {
           cwd,
         }
@@ -316,10 +354,12 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--example',
           '--no-src-dir',
-          '--no-experimental-app',
+          '--app',
+          `--import-alias=@/*`,
         ],
         {
           cwd,
@@ -352,9 +392,11 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--no-src-dir',
-          '--no-experimental-app',
+          '--app',
+          `--import-alias=@/*`,
         ],
         {
           cwd,
@@ -388,7 +430,15 @@ describe('create next app', () => {
       }
 
       const res = await run(
-        ['.', '--js', '--eslint', '--no-src-dir', '--no-experimental-app'],
+        [
+          '.',
+          '--js',
+          '--no-tailwind',
+          '--eslint',
+          '--no-src-dir',
+          '--app',
+          `--import-alias=@/*`,
+        ],
         {
           cwd,
           env,
@@ -399,7 +449,7 @@ describe('create next app', () => {
       await fs.remove(tmpBin)
 
       expect(res.exitCode).toBe(0)
-      shouldBeJavascriptProject({ cwd, projectName: '.', template: 'default' })
+      shouldBeJavascriptProject({ cwd, projectName: '.', template: 'app' })
     })
   })
 
@@ -407,7 +457,14 @@ describe('create next app', () => {
     await useTempDir(async (cwd) => {
       const projectName = 'test-project'
       const res = await run(
-        ['--js', '--eslint', '--no-src-dir', '--no-experimental-app'],
+        [
+          '--js',
+          '--no-tailwind',
+          '--eslint',
+          '--no-src-dir',
+          '--app',
+          `--import-alias=@/*`,
+        ],
         {
           cwd,
           input: `${projectName}\n`,
@@ -415,331 +472,7 @@ describe('create next app', () => {
       )
 
       expect(res.exitCode).toBe(0)
-      shouldBeJavascriptProject({ cwd, projectName, template: 'default' })
-    })
-  })
-
-  it('should use npm as the package manager on supplying --use-npm', async () => {
-    await useTempDir(async (cwd) => {
-      const projectName = 'use-npm'
-      const res = await run(
-        [
-          projectName,
-          '--js',
-          '--eslint',
-          '--use-npm',
-          '--no-src-dir',
-          '--no-experimental-app',
-        ],
-        {
-          cwd,
-        }
-      )
-
-      expect(res.exitCode).toBe(0)
-      shouldBeJavascriptProject({ cwd, projectName, template: 'default' })
-    })
-  })
-
-  it('should use npm as the package manager on supplying --use-npm with example', async () => {
-    await useTempDir(async (cwd) => {
-      const projectName = 'use-npm'
-      const res = await run(
-        [
-          projectName,
-          '--js',
-          '--eslint',
-          '--use-npm',
-          '--example',
-          `${exampleRepo}/${examplePath}`,
-        ],
-        { cwd }
-      )
-
-      expect(res.exitCode).toBe(0)
-      projectFilesShouldExist({
-        cwd,
-        projectName,
-        files: [
-          'package.json',
-          'pages/index.tsx',
-          '.gitignore',
-          'package-lock.json',
-          'node_modules/next',
-        ],
-      })
-    })
-  })
-
-  it('should use pnpm as the package manager on supplying --use-pnpm', async () => {
-    await useTempDir(async (cwd) => {
-      const projectName = 'use-pnpm'
-      const res = await run(
-        [
-          projectName,
-          '--js',
-          '--eslint',
-          '--use-pnpm',
-          '--no-src-dir',
-          '--no-experimental-app',
-        ],
-        {
-          cwd,
-        }
-      )
-
-      expect(res.exitCode).toBe(0)
-      projectFilesShouldExist({
-        cwd,
-        projectName,
-        files: [
-          'package.json',
-          'pages/index.js',
-          '.gitignore',
-          '.eslintrc.json',
-          'pnpm-lock.yaml',
-          'node_modules/next',
-        ],
-      })
-    })
-  })
-
-  it('should use pnpm as the package manager on supplying --use-pnpm with example', async () => {
-    try {
-      await execa('pnpm', ['--version'])
-    } catch (_) {
-      // install pnpm if not available
-      await execa('npm', ['i', '-g', 'pnpm'])
-    }
-
-    await useTempDir(async (cwd) => {
-      const projectName = 'use-pnpm'
-      const res = await run(
-        [
-          projectName,
-          '--js',
-          '--eslint',
-          '--use-pnpm',
-          '--example',
-          `${exampleRepo}/${examplePath}`,
-        ],
-        { cwd }
-      )
-
-      expect(res.exitCode).toBe(0)
-      projectFilesShouldExist({
-        cwd,
-        projectName,
-        files: [
-          'package.json',
-          'pages/index.tsx',
-          '.gitignore',
-          'pnpm-lock.yaml',
-          'node_modules/next',
-        ],
-      })
-    })
-  })
-
-  it('should infer npm as the package manager', async () => {
-    await useTempDir(async (cwd) => {
-      const projectName = 'infer-package-manager-npm'
-      const res = await run(
-        [
-          projectName,
-          '--js',
-          '--eslint',
-          '--no-src-dir',
-          '--no-experimental-app',
-        ],
-        {
-          cwd,
-          env: { ...process.env, npm_config_user_agent: 'npm' },
-        }
-      )
-
-      const files = [
-        'package.json',
-        'pages/index.js',
-        '.gitignore',
-        '.eslintrc.json',
-        'package-lock.json',
-        'node_modules/next',
-      ]
-
-      expect(res.exitCode).toBe(0)
-      projectFilesShouldExist({ cwd, projectName, files })
-    })
-  })
-
-  it('should infer npm as the package manager with example', async () => {
-    await useTempDir(async (cwd) => {
-      const projectName = 'infer-package-manager-npm'
-      const res = await run(
-        [
-          projectName,
-          '--js',
-          '--eslint',
-          '--example',
-          `${exampleRepo}/${examplePath}`,
-        ],
-        { cwd, env: { ...process.env, npm_config_user_agent: 'npm' } }
-      )
-
-      const files = [
-        'package.json',
-        'pages/index.tsx',
-        '.gitignore',
-        'package-lock.json',
-        'node_modules/next',
-      ]
-
-      expect(res.exitCode).toBe(0)
-      projectFilesShouldExist({ cwd, projectName, files })
-    })
-  })
-
-  it('should infer yarn as the package manager', async () => {
-    try {
-      await execa('yarn', ['--version'])
-    } catch (_) {
-      // install yarn if not available
-      await execa('npm', ['i', '-g', 'yarn'])
-    }
-
-    await useTempDir(async (cwd) => {
-      const projectName = 'infer-package-manager-yarn'
-      const res = await run(
-        [
-          projectName,
-          '--js',
-          '--eslint',
-          '--no-src-dir',
-          '--no-experimental-app',
-        ],
-        {
-          cwd,
-          env: { ...process.env, npm_config_user_agent: 'yarn' },
-        }
-      )
-
-      const files = [
-        'package.json',
-        'pages/index.js',
-        '.gitignore',
-        '.eslintrc.json',
-        'yarn.lock',
-        'node_modules/next',
-      ]
-
-      expect(res.exitCode).toBe(0)
-      projectFilesShouldExist({ cwd, projectName, files })
-    })
-  })
-
-  it('should infer yarn as the package manager with example', async () => {
-    try {
-      await execa('yarn', ['--version'])
-    } catch (_) {
-      // install yarn if not available
-      await execa('npm', ['i', '-g', 'yarn'])
-    }
-
-    await useTempDir(async (cwd) => {
-      const projectName = 'infer-package-manager-npm'
-      const res = await run(
-        [
-          projectName,
-          '--js',
-          '--eslint',
-          '--example',
-          `${exampleRepo}/${examplePath}`,
-        ],
-        { cwd, env: { ...process.env, npm_config_user_agent: 'yarn' } }
-      )
-
-      const files = [
-        'package.json',
-        'pages/index.tsx',
-        '.gitignore',
-        'yarn.lock',
-        'node_modules/next',
-      ]
-
-      expect(res.exitCode).toBe(0)
-      projectFilesShouldExist({ cwd, projectName, files })
-    })
-  })
-
-  it('should infer pnpm as the package manager', async () => {
-    try {
-      await execa('pnpm', ['--version'])
-    } catch (_) {
-      // install pnpm if not available
-      await execa('npm', ['i', '-g', 'pnpm'])
-    }
-
-    await useTempDir(async (cwd) => {
-      const projectName = 'infer-package-manager'
-      const res = await run(
-        [
-          projectName,
-          '--js',
-          '--eslint',
-          '--no-src-dir',
-          '--no-experimental-app',
-        ],
-        {
-          cwd,
-          env: { ...process.env, npm_config_user_agent: 'pnpm' },
-        }
-      )
-
-      const files = [
-        'package.json',
-        'pages/index.js',
-        '.gitignore',
-        '.eslintrc.json',
-        'pnpm-lock.yaml',
-        'node_modules/next',
-      ]
-
-      expect(res.exitCode).toBe(0)
-      projectFilesShouldExist({ cwd, projectName, files })
-    })
-  })
-
-  it('should infer pnpm as the package manager with example', async () => {
-    try {
-      await execa('pnpm', ['--version'])
-    } catch (_) {
-      // install pnpm if not available
-      await execa('npm', ['i', '-g', 'pnpm'])
-    }
-
-    await useTempDir(async (cwd) => {
-      const projectName = 'infer-package-manager-npm'
-      const res = await run(
-        [
-          projectName,
-          '--js',
-          '--eslint',
-          '--example',
-          `${exampleRepo}/${examplePath}`,
-        ],
-        { cwd, env: { ...process.env, npm_config_user_agent: 'pnpm' } }
-      )
-
-      const files = [
-        'package.json',
-        'pages/index.tsx',
-        '.gitignore',
-        'pnpm-lock.yaml',
-        'node_modules/next',
-      ]
-
-      expect(res.exitCode).toBe(0)
-      projectFilesShouldExist({ cwd, projectName, files })
+      shouldBeJavascriptProject({ cwd, projectName, template: 'app' })
     })
   })
 })

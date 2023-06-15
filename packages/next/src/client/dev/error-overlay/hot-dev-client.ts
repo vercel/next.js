@@ -64,7 +64,7 @@ export default function connect() {
   register()
 
   addMessageListener((event) => {
-    if (event.data.indexOf('action') === -1) return
+    if (!event.data.includes('action')) return
 
     try {
       processMessage(event)
@@ -275,6 +275,8 @@ function processMessage(e: any) {
     }
     case 'serverComponentChanges': {
       // Server component changes don't apply to `pages`.
+      // TODO-APP: Remove reload once the correct overlay is rendered on initial page load in app dir
+      window.location.reload()
       return
     }
     default: {

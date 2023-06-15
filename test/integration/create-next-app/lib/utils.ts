@@ -8,6 +8,7 @@ import { ChildProcess, spawn, SpawnOptions } from 'child_process'
 import { existsSync } from 'fs'
 import { resolve } from 'path'
 import glob from 'glob'
+import Conf from 'next/dist/compiled/conf'
 
 import {
   getProjectSetting,
@@ -21,7 +22,14 @@ const cli = require.resolve('create-next-app/dist/index.js')
 /**
  * Run the built version of `create-next-app` with the given arguments.
  */
-export const createNextApp = (args: string[], options?: SpawnOptions) => {
+export const createNextApp = (
+  args: string[],
+  options?: SpawnOptions,
+  testVersion?: string
+) => {
+  const conf = new Conf({ projectName: 'create-next-app' })
+  conf.clear()
+
   console.log(`[TEST] $ ${cli} ${args.join(' ')}`, { options })
   return spawn('node', [cli].concat(args), {
     ...options,
@@ -35,6 +43,11 @@ export const createNextApp = (args: string[], options?: SpawnOptions) => {
       CONTINUOUS_INTEGRATION: '',
       RUN_ID: '',
       BUILD_NUMBER: '',
+      ...(testVersion
+        ? {
+            NEXT_PRIVATE_TEST_VERSION: testVersion,
+          }
+        : {}),
       ...options.env,
     },
   })
@@ -122,14 +135,17 @@ export const shouldBeTemplateProject = ({
     files: getProjectSetting({ template, mode, setting: 'files', srcDir }),
   })
 
-  projectFilesShouldNotExist({
-    cwd,
-    projectName,
-    files: mapSrcFiles(
-      projectSpecification[template][mode === 'js' ? 'ts' : 'js'].files,
-      srcDir
-    ),
-  })
+  // Tailwind templates share the same files (tailwind.config.js, postcss.config.js)
+  if (template !== 'app-tw' && template !== 'default-tw') {
+    projectFilesShouldNotExist({
+      cwd,
+      projectName,
+      files: mapSrcFiles(
+        projectSpecification[template][mode === 'js' ? 'ts' : 'js'].files,
+        srcDir
+      ),
+    })
+  }
 
   projectDepsShouldBe({
     type: 'dependencies',

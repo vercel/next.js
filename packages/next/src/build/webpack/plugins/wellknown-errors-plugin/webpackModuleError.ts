@@ -10,6 +10,8 @@ import { SimpleWebpackError } from './simpleWebpackError'
 import isError from '../../../../lib/is-error'
 import { getRscError } from './parseRSC'
 import { getNextFontError } from './parseNextFontError'
+import { getNextAppLoaderError } from './parseNextAppLoaderError'
+import { getNextInvalidImportError } from './parseNextInvalidImportError'
 
 function getFileData(
   compilation: webpack.Compilation,
@@ -66,7 +68,8 @@ export async function getModuleBuildError(
   const notFoundError = await getNotFoundError(
     compilation,
     input,
-    sourceFilename
+    sourceFilename,
+    input.module
   )
   if (notFoundError !== false) {
     return notFoundError
@@ -106,6 +109,21 @@ export async function getModuleBuildError(
   const nextFont = getNextFontError(err, input.module)
   if (nextFont !== false) {
     return nextFont
+  }
+
+  const nextAppLoader = getNextAppLoaderError(err, input.module, compiler)
+  if (nextAppLoader !== false) {
+    return nextAppLoader
+  }
+
+  const invalidImportError = getNextInvalidImportError(
+    err,
+    input.module,
+    compilation,
+    compiler
+  )
+  if (invalidImportError !== false) {
+    return invalidImportError
   }
 
   return false

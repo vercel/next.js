@@ -6,6 +6,7 @@ import { styles as leftRightDialogHeader } from '../components/LeftRightDialogHe
 import { styles as overlay } from '../components/Overlay/styles'
 import { styles as terminal } from '../components/Terminal/styles'
 import { styles as toast } from '../components/Toast'
+import { styles as versionStaleness } from '../components/VersionStalenessInfo'
 import { styles as buildErrorStyles } from '../container/BuildError'
 import { styles as rootLayoutErrorStyles } from '../container/RootLayoutError'
 import { styles as containerErrorStyles } from '../container/Errors'
@@ -27,6 +28,7 @@ export function ComponentStyles() {
         ${rootLayoutErrorStyles}
         ${containerErrorStyles}
         ${containerRuntimeErrorStyles}
+        ${versionStaleness}
       `}
     </style>
   )

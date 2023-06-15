@@ -1,7 +1,40 @@
 import { NextResponse } from 'next/server'
 
 export default function handler(req) {
+  const parsedOrigUrl = new URL(req.url)
+  const origPathname = parsedOrigUrl.pathname
+  const lowerPathname = origPathname.toLowerCase()
+
+  // ensure locale casing can be redirected
+  if (
+    (lowerPathname.startsWith('/en') || lowerPathname.startsWith('/ja-jp')) &&
+    origPathname !== lowerPathname &&
+    !lowerPathname.includes('_next')
+  ) {
+    parsedOrigUrl.pathname = lowerPathname
+    return NextResponse.redirect(parsedOrigUrl)
+  }
+
   console.log(req.nextUrl)
+  let { pathname } = req.nextUrl
+
+  if (pathname.includes('docs') || pathname.includes('chained-rewrite')) {
+    if (pathname.startsWith('/en')) {
+      pathname = pathname.replace(/^\/en/, '') || '/'
+    }
+
+    if (pathname === '/docs') {
+      pathname = '/'
+    }
+
+    console.log(
+      `rewriting to https://middleware-external-rewrite-target-epsp8idgo-uncurated-tests.vercel.app${pathname}`
+    )
+
+    return NextResponse.rewrite(
+      `https://middleware-external-rewrite-target-epsp8idgo-uncurated-tests.vercel.app${pathname}`
+    )
+  }
 
   if (req.nextUrl.pathname.startsWith('/_next/data/missing-id')) {
     console.log(`missing-id rewrite: ${req.nextUrl.toString()}`)

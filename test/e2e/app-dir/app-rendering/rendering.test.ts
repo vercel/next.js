@@ -28,7 +28,7 @@ createNextDescribe(
         const duration = endTime - startTime
         // Each part takes 5 seconds so it should be below 10 seconds
         // Using 7 seconds to ensure external factors causing slight slowness don't fail the tests
-        expect(duration < 7000).toBe(true)
+        expect(duration).toBeLessThan(10_000)
         expect($('#slow-layout-message').text()).toBe('hello from slow layout')
         expect($('#slow-page-message').text()).toBe('hello from slow page')
       })

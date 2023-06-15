@@ -83,7 +83,7 @@ describe('i18n Support', () => {
           'utf8'
         )
         expect(content).toContain('500')
-        expect(content).toMatch(/internal server error/i)
+        expect(content).toMatch(/Internal Server Error/i)
       }
     })
   })
@@ -549,5 +549,31 @@ describe('i18n Support', () => {
       'Specified i18n.locales contains the following duplicate locales:'
     )
     expect(stderr).toContain(`eN, fr`)
+  })
+
+  it('should show proper error for invalid locale domain', async () => {
+    nextConfig.write(`
+      module.exports = {
+        i18n: {
+          locales: ['en', 'fr', 'nl', 'eN', 'fr'],
+          domains: [
+            {
+              domain: 'hello:3000',
+              defaultLocale: 'en',
+            }
+          ],
+          defaultLocale: 'en',
+        }
+      }
+    `)
+
+    const { code, stderr } = await nextBuild(appDir, undefined, {
+      stderr: true,
+    })
+    nextConfig.restore()
+    expect(code).toBe(1)
+    expect(stderr).toContain(
+      `i18n domain: "hello:3000" is invalid it should be a valid domain without protocol (https://) or port (:3000) e.g. example.vercel.sh`
+    )
   })
 })

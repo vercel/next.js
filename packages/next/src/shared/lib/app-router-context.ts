@@ -1,8 +1,15 @@
 'use client'
 
+import {
+  FocusAndScrollRef,
+  PrefetchKind,
+} from '../../client/components/router-reducer/router-reducer-types'
+import type { fetchServerResponse } from '../../client/components/router-reducer/fetch-server-response'
+import type {
+  FlightRouterState,
+  FlightData,
+} from '../../server/app-render/types'
 import React from 'react'
-import type { FocusAndScrollRef } from '../../client/components/reducer'
-import type { FlightRouterState, FlightData } from '../../server/app-render'
 
 export type ChildSegmentMap = Map<string, CacheNode>
 
@@ -22,9 +29,7 @@ export type CacheNode =
       /**
        * In-flight request for this node.
        */
-      data: ReturnType<
-        typeof import('../../client/components/app-router').fetchServerResponse
-      > | null
+      data: ReturnType<typeof fetchServerResponse> | null
       head?: React.ReactNode
       /**
        * React Component for this node.
@@ -61,8 +66,14 @@ export type CacheNode =
        */
       parallelRoutes: Map<string, ChildSegmentMap>
     }
-interface NavigateOptions {
+
+export interface NavigateOptions {
+  /** @internal */
   forceOptimisticNavigation?: boolean
+}
+
+export interface PrefetchOptions {
+  kind: PrefetchKind
 }
 
 export interface AppRouterInstance {
@@ -91,7 +102,7 @@ export interface AppRouterInstance {
   /**
    * Prefetch the provided href.
    */
-  prefetch(href: string): void
+  prefetch(href: string, options?: PrefetchOptions): void
 }
 
 export const AppRouterContext = React.createContext<AppRouterInstance | null>(
@@ -103,6 +114,7 @@ export const LayoutRouterContext = React.createContext<{
   url: string
 }>(null as any)
 export const GlobalLayoutRouterContext = React.createContext<{
+  buildId: string
   tree: FlightRouterState
   changeByServerResponse: (
     previousTree: FlightRouterState,
@@ -110,6 +122,7 @@ export const GlobalLayoutRouterContext = React.createContext<{
     overrideCanonicalUrl: URL | undefined
   ) => void
   focusAndScrollRef: FocusAndScrollRef
+  nextUrl: string | null
 }>(null as any)
 
 export const TemplateContext = React.createContext<React.ReactNode>(null as any)

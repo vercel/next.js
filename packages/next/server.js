@@ -3,6 +3,8 @@ const serverExports = {
     .NextRequest,
   NextResponse: require('next/dist/server/web/spec-extension/response')
     .NextResponse,
+  ImageResponse: require('next/dist/server/web/spec-extension/image-response')
+    .ImageResponse,
   userAgentFromString: require('next/dist/server/web/spec-extension/user-agent')
     .userAgentFromString,
   userAgent: require('next/dist/server/web/spec-extension/user-agent')
@@ -21,6 +23,7 @@ module.exports = serverExports
 // make import { xxx } from 'next/server' work
 exports.NextRequest = serverExports.NextRequest
 exports.NextResponse = serverExports.NextResponse
+exports.ImageResponse = serverExports.ImageResponse
 exports.userAgentFromString = serverExports.userAgentFromString
 exports.userAgent = serverExports.userAgent
 exports.URLPattern = serverExports.URLPattern

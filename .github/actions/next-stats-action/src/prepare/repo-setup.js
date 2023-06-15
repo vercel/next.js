@@ -3,37 +3,26 @@ const fs = require('fs-extra')
 const exec = require('../util/exec')
 const { remove } = require('fs-extra')
 const logger = require('../util/logger')
-const semver = require('semver')
-
-const mockTrace = () => ({
-  traceAsyncFn: (fn) => fn(mockTrace()),
-  traceChild: () => mockTrace(),
-})
+const execa = require('execa')
 
 module.exports = (actionInfo) => {
   return {
-    async cloneRepo(repoPath = '', dest = '') {
+    async cloneRepo(repoPath = '', dest = '', branch = '', depth = '20') {
       await remove(dest)
-      await exec(`git clone ${actionInfo.gitRoot}${repoPath} ${dest}`)
+      await exec(
+        `git clone ${actionInfo.gitRoot}${repoPath} --single-branch --branch ${branch} --depth=${depth} ${dest}`
+      )
     },
-    async checkoutRef(ref = '', repoDir = '') {
-      await exec(`cd ${repoDir} && git fetch && git checkout ${ref}`)
-    },
-    async getLastStable(repoDir = '', ref) {
-      const { stdout } = await exec(`cd ${repoDir} && git tag -l`)
-      const tags = stdout.trim().split('\n')
-      let lastStableTag
+    async getLastStable(repoDir = '') {
+      const { stdout } = await exec(`cd ${repoDir} && git describe`)
+      const tag = stdout.trim()
 
-      for (let i = tags.length - 1; i >= 0; i--) {
-        const curTag = tags[i]
-        // stable doesn't include `-canary` or `-beta`
-        if (!curTag.includes('-') && !ref.includes(curTag)) {
-          if (!lastStableTag || semver.gt(curTag, lastStableTag)) {
-            lastStableTag = curTag
-          }
-        }
+      if (!tag || !tag.startsWith('v')) {
+        throw new Error(`Failed to get tag info ${stdout}`)
       }
-      return lastStableTag
+      const tagParts = tag.split('-canary')[0].split('.')
+      // last stable tag will always be 1 patch less than canary
+      return `${tagParts[0]}.${tagParts[1]}.${Number(tagParts[2]) - 1}`
     },
     async getCommitId(repoDir = '') {
       const { stdout } = await exec(`cd ${repoDir} && git rev-parse HEAD`)
@@ -58,117 +47,106 @@ module.exports = (actionInfo) => {
         }
       }
     },
-    async linkPackages({ repoDir = '', nextSwcPkg, parentSpan }) {
-      const rootSpan = parentSpan
-        ? parentSpan.traceChild('linkPackages')
-        : mockTrace()
+    async linkPackages({ repoDir, nextSwcVersion }) {
+      const pkgPaths = new Map()
+      const pkgDatas = new Map()
+      let pkgs
 
-      return await rootSpan.traceAsyncFn(async () => {
-        const pkgPaths = new Map()
-        const pkgDatas = new Map()
-        let pkgs
+      try {
+        pkgs = await fs.readdir(path.join(repoDir, 'packages'))
+      } catch (err) {
+        if (err.code === 'ENOENT') {
+          require('console').log('no packages to link')
+          return pkgPaths
+        }
+        throw err
+      }
 
-        try {
-          pkgs = await fs.readdir(path.join(repoDir, 'packages'))
-        } catch (err) {
-          if (err.code === 'ENOENT') {
-            require('console').log('no packages to link')
-            return pkgPaths
-          }
-          throw err
+      for (const pkg of pkgs) {
+        const pkgPath = path.join(repoDir, 'packages', pkg)
+        const packedPkgPath = path.join(pkgPath, `${pkg}-packed.tgz`)
+
+        const pkgDataPath = path.join(pkgPath, 'package.json')
+        if (!fs.existsSync(pkgDataPath)) {
+          require('console').log(`Skipping ${pkgDataPath}`)
+          continue
+        }
+        const pkgData = require(pkgDataPath)
+        const { name } = pkgData
+
+        pkgDatas.set(name, {
+          pkgDataPath,
+          pkg,
+          pkgPath,
+          pkgData,
+          packedPkgPath,
+        })
+        pkgPaths.set(name, packedPkgPath)
+      }
+
+      for (const pkg of pkgDatas.keys()) {
+        const { pkgDataPath, pkgData } = pkgDatas.get(pkg)
+
+        for (const pkg of pkgDatas.keys()) {
+          const { packedPkgPath } = pkgDatas.get(pkg)
+          if (!pkgData.dependencies || !pkgData.dependencies[pkg]) continue
+          pkgData.dependencies[pkg] = packedPkgPath
         }
 
-        await rootSpan
-          .traceChild('prepare packages for packing')
-          .traceAsyncFn(async () => {
-            for (const pkg of pkgs) {
-              const pkgPath = path.join(repoDir, 'packages', pkg)
-              const packedPkgPath = path.join(pkgPath, `${pkg}-packed.tgz`)
+        // make sure native binaries are included in local linking
+        if (pkg === '@next/swc') {
+          if (!pkgData.files) {
+            pkgData.files = []
+          }
+          pkgData.files.push('native')
+          require('console').log(
+            'using swc binaries: ',
+            await exec(`ls ${path.join(path.dirname(pkgDataPath), 'native')}`)
+          )
+        }
 
-              const pkgDataPath = path.join(pkgPath, 'package.json')
-              if (!fs.existsSync(pkgDataPath)) {
-                require('console').log(`Skipping ${pkgDataPath}`)
-                continue
-              }
-              const pkgData = require(pkgDataPath)
-              const { name } = pkgData
-              pkgDatas.set(name, {
-                pkgDataPath,
-                pkg,
-                pkgPath,
-                pkgData,
-                packedPkgPath,
-              })
-              pkgPaths.set(name, packedPkgPath)
-            }
-
-            for (const pkg of pkgDatas.keys()) {
-              const { pkgDataPath, pkgData } = pkgDatas.get(pkg)
-
-              for (const pkg of pkgDatas.keys()) {
-                const { packedPkgPath } = pkgDatas.get(pkg)
-                if (!pkgData.dependencies || !pkgData.dependencies[pkg])
-                  continue
-                pkgData.dependencies[pkg] = packedPkgPath
-              }
-
-              // make sure native binaries are included in local linking
-              if (pkg === '@next/swc') {
-                if (!pkgData.files) {
-                  pkgData.files = []
-                }
-                pkgData.files.push('native')
-                require('console').log(
-                  'using swc binaries: ',
-                  await exec(
-                    `ls ${path.join(path.dirname(pkgDataPath), 'native')}`
-                  )
-                )
-              }
-
-              if (pkg === 'next') {
-                if (nextSwcPkg) {
-                  Object.assign(pkgData.dependencies, nextSwcPkg)
-                } else {
-                  if (pkgDatas.get('@next/swc')) {
-                    pkgData.dependencies['@next/swc'] =
-                      pkgDatas.get('@next/swc').packedPkgPath
-                  } else {
-                    pkgData.files.push('native')
-                  }
-                }
-              }
-
-              await fs.writeFile(
-                pkgDataPath,
-                JSON.stringify(pkgData, null, 2),
-                'utf8'
-              )
-            }
+        if (pkg === 'next') {
+          console.log('using swc dep', {
+            nextSwcVersion,
+            nextSwcPkg: pkgDatas.get('@next/swc'),
           })
+          if (nextSwcVersion) {
+            Object.assign(pkgData.dependencies, {
+              '@next/swc-linux-x64-gnu': nextSwcVersion,
+            })
+          } else {
+            if (pkgDatas.get('@next/swc')) {
+              pkgData.dependencies['@next/swc'] =
+                pkgDatas.get('@next/swc').packedPkgPath
+            } else {
+              pkgData.files.push('native')
+            }
+          }
+        }
 
-        // wait to pack packages until after dependency paths have been updated
-        // to the correct versions
-        await rootSpan
-          .traceChild('packing packages')
-          .traceAsyncFn(async (packingSpan) => {
-            await Promise.all(
-              Array.from(pkgDatas.keys()).map(async (pkgName) => {
-                await packingSpan
-                  .traceChild(`pack ${pkgName}`)
-                  .traceAsyncFn(async () => {
-                    const { pkg, pkgPath } = pkgDatas.get(pkgName)
-                    await exec(
-                      `cd ${pkgPath} && yarn pack -f '${pkg}-packed.tgz'`,
-                      true
-                    )
-                  })
-              })
-            )
+        await fs.writeFile(
+          pkgDataPath,
+          JSON.stringify(pkgData, null, 2),
+          'utf8'
+        )
+      }
+
+      // wait to pack packages until after dependency paths have been updated
+      // to the correct versions
+      await Promise.all(
+        Array.from(pkgDatas.keys()).map(async (pkgName) => {
+          const { pkgPath, packedPkgPath } = pkgDatas.get(pkgName)
+
+          await execa('yarn', ['pack', '-f', packedPkgPath], {
+            cwd: pkgPath,
+            env: {
+              ...process.env,
+              COREPACK_ENABLE_STRICT: '0',
+            },
           })
-
-        return pkgPaths
-      })
+        })
+      )
+      return pkgPaths
     },
   }
 }

@@ -1,5 +1,5 @@
 [package]
-edition = "2018"
+edition = "2021"
 name = "next-swc-napi"
 version = "0.0.0"
 publish = false
@@ -13,17 +13,26 @@ default = ["rustls-tls"]
 # when build (i.e napi --build --features plugin), same for the wasm as well.
 # this is due to some of transitive dependencies have features cannot be enabled at the same time
 # (i.e wasmer/default vs wasmer/js-default) while cargo merges all the features at once.
-plugin = ["next-binding/__swc_core_binding_napi_plugin", "next-swc/plugin"]
-sentry_native_tls = ["_sentry_native_tls"]
-sentry_rustls = ["_sentry_rustls"]
+plugin = ["turbopack-binding/__swc_core_binding_napi_plugin", "turbopack-binding/__swc_core_binding_napi_plugin_filesystem_cache", "next-swc/plugin"]
+sentry_native_tls = ["sentry", "sentry/native-tls", "native-tls"]
+sentry_rustls = ["sentry", "sentry/rustls", "rustls-tls"]
 
-native-tls = ["next-binding/__turbo_native_tls"]
-rustls-tls = ["next-binding/__turbo_rustls_tls"]
+native-tls = ["next-dev/native-tls"]
+rustls-tls = ["next-dev/rustls-tls"]
+serializable = ["next-dev/serializable"]
+
+# Enable dhat profiling allocator for heap profiling.
+__internal_dhat-heap = ["dhat"]
+# Enable dhat profiling allocator for ad hoc profiling.
+# [Note]: we do not have any ad hoc event in the codebase yet, so enabling this
+# effectively does nothing.
+__internal_dhat-ad-hoc = ["dhat"]
 
 [dependencies]
 anyhow = "1.0.66"
 backtrace = "0.3"
 fxhash = "0.2.1"
+dhat = { workspace = true, optional = true }
 napi = { version = "2", default-features = false, features = [
   "napi3",
   "serde-json",
@@ -32,30 +41,40 @@ napi = { version = "2", default-features = false, features = [
 ] }
 napi-derive = "2"
 next-swc = { version = "0.0.0", path = "../core" }
-once_cell = "1.13.0"
+next-dev = { workspace = true }
+next-build = { workspace = true }
+next-core = { workspace = true }
+turbo-tasks = { workspace = true }
+once_cell = { workspace = true }
 serde = "1"
 serde_json = "1"
-tracing = { version = "0.1.37", features = ["release_max_level_info"] }
+tracing = { version = "0.1.37" }
 tracing-futures = "0.2.5"
 tracing-subscriber = "0.3.9"
 tracing-chrome = "0.5.0"
-next-binding = { git = "https://github.com/vercel/turbo.git", rev = "079505baf1ce03707d28b6c0afb158dca601a11a", features = [
+turbopack-binding = { workspace = true, features = [
   "__swc_core_binding_napi",
-  "__turbo_next_dev_server",
-  "__turbo_node_file_trace",
+  "__feature_node_file_trace",
   "__feature_mdx_rs",
+  "__turbo",
+  "__turbo_tasks",
+  "__turbo_tasks_memory",
+  "__turbopack"
+] }
+
+[target.'cfg(not(all(target_os = "linux", target_env = "musl", target_arch = "aarch64")))'.dependencies]
+turbopack-binding = { workspace = true, features = [
+  "__turbo_tasks_malloc"
 ] }
 
 # There are few build targets we can't use native-tls which default features rely on,
 # allow to specify alternative (rustls) instead via features.
 # Note to opt in rustls default-features should be disabled
 # (--no-default-features --features sentry_rustls)
-_sentry_native_tls = { package = "sentry", version = "0.27.0", optional = true }
-_sentry_rustls = { package = "sentry", version = "0.27.0", default-features = false, features = [
+sentry = { version = "0.27.0", default-features = false, features = [
   "backtrace",
   "contexts",
   "panic",
-  "rustls",
   "reqwest",
 ], optional = true }
 
@@ -63,3 +82,6 @@ _sentry_rustls = { package = "sentry", version = "0.27.0", default-features = fa
 napi-build = "2"
 serde = "1"
 serde_json = "1"
+turbopack-binding = { workspace = true, features = [
+  "__turbo_tasks_build"
+]}

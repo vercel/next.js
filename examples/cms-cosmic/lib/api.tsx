@@ -40,7 +40,9 @@ export const getAllPostsWithSlug = async () => {
   return data.objects
 }
 
-export const getAllPostsForHome = async (preview: boolean): Promise<Post[]> => {
+export const getAllPostsForHome = async (
+  preview: boolean
+): Promise<PostType[]> => {
   const params = {
     query: {
       type: 'posts',

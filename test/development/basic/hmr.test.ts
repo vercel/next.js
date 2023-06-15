@@ -424,7 +424,7 @@ describe.each([[''], ['/docs']])(
 
           await next.patchFile(aboutPage, aboutContent.replace('</div>', 'div'))
 
-          expect(await hasRedbox(browser)).toBe(true)
+          expect(await hasRedbox(browser, true)).toBe(true)
           expect(await getRedboxSource(browser)).toMatch(/Unexpected eof/)
 
           await next.patchFile(aboutPage, aboutContent)
@@ -470,7 +470,7 @@ describe.each([[''], ['/docs']])(
 
           browser = await webdriver(next.url, basePath + '/hmr/contact')
 
-          expect(await hasRedbox(browser)).toBe(true)
+          expect(await hasRedbox(browser, true)).toBe(true)
           expect(await getRedboxSource(browser)).toMatch(/Unexpected eof/)
 
           await next.patchFile(aboutPage, aboutContent)
@@ -512,7 +512,7 @@ describe.each([[''], ['/docs']])(
             aboutContent.replace('export', 'aa=20;\nexport')
           )
 
-          expect(await hasRedbox(browser)).toBe(true)
+          expect(await hasRedbox(browser, true)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatch(/aa is not defined/)
 
           await next.patchFile(aboutPage, aboutContent)
@@ -548,7 +548,7 @@ describe.each([[''], ['/docs']])(
             )
           )
 
-          expect(await hasRedbox(browser)).toBe(true)
+          expect(await hasRedbox(browser, true)).toBe(true)
           expect(await getRedboxSource(browser)).toMatch(/an-expected-error/)
 
           await next.patchFile(aboutPage, aboutContent)
@@ -593,15 +593,15 @@ describe.each([[''], ['/docs']])(
             )
           )
 
-          expect(await hasRedbox(browser)).toBe(true)
+          expect(await hasRedbox(browser, true)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
-          " 1 of 1 unhandled error
-          Server Error
+                      " 1 of 1 unhandled error
+                      Server Error
 
-          Error: The default export is not a React Component in page: \\"/hmr/about5\\"
+                      Error: The default export is not a React Component in page: \\"/hmr/about5\\"
 
-          This error happened while generating the page. Any console logs will be displayed in the terminal window."
-        `)
+                      This error happened while generating the page. Any console logs will be displayed in the terminal window."
+                  `)
 
           await next.patchFile(aboutPage, aboutContent)
 
@@ -646,7 +646,7 @@ describe.each([[''], ['/docs']])(
             )
           )
 
-          expect(await hasRedbox(browser)).toBe(true)
+          expect(await hasRedbox(browser, true)).toBe(true)
           // TODO: Replace this when webpack 5 is the default
           expect(await getRedboxHeader(browser)).toMatch(
             `Objects are not valid as a React child (found: [object RegExp]). If you meant to render a collection of children, use an array instead.`
@@ -696,15 +696,15 @@ describe.each([[''], ['/docs']])(
             )
           )
 
-          expect(await hasRedbox(browser)).toBe(true)
+          expect(await hasRedbox(browser, true)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
-          " 1 of 1 unhandled error
-          Server Error
+                      " 1 of 1 unhandled error
+                      Server Error
 
-          Error: The default export is not a React Component in page: \\"/hmr/about7\\"
+                      Error: The default export is not a React Component in page: \\"/hmr/about7\\"
 
-          This error happened while generating the page. Any console logs will be displayed in the terminal window."
-        `)
+                      This error happened while generating the page. Any console logs will be displayed in the terminal window."
+                  `)
 
           await next.patchFile(aboutPage, aboutContent)
 
@@ -751,23 +751,24 @@ describe.each([[''], ['/docs']])(
             )
           )
 
-          expect(await hasRedbox(browser)).toBe(true)
+          expect(await hasRedbox(browser, true)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(
             `"Failed to compile"`
           )
           expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-          "./components/parse-error.xyz
-          Module parse failed: Unexpected token (3:0)
-          You may need an appropriate loader to handle this file type, currently no loaders are configured to process this file. See https://webpack.js.org/concepts#loaders
-          | This
-          | is
-          > }}}
-          | invalid
-          | js
+                      "./components/parse-error.xyz
+                      Module parse failed: Unexpected token (3:0)
+                      You may need an appropriate loader to handle this file type, currently no loaders are configured to process this file. See https://webpack.js.org/concepts#loaders
+                      | This
+                      | is
+                      > }}}
+                      | invalid
+                      | js
 
-          Import trace for requested module:
-          ./components/parse-error.xyz"
-        `)
+                      Import trace for requested module:
+                      ./components/parse-error.xyz
+                      ./pages/hmr/about8.js"
+                  `)
 
           await next.patchFile(aboutPage, aboutContent)
 
@@ -814,30 +815,35 @@ describe.each([[''], ['/docs']])(
             )
           )
 
-          expect(await hasRedbox(browser)).toBe(true)
+          expect(await hasRedbox(browser, true)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(
             `"Failed to compile"`
           )
-          expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-          "./components/parse-error.js
-          Error: 
-            x Expression expected
-             ,-[1:1]
-           1 | This
-           2 | is
-           3 | }}}
-             : ^
-           4 | invalid
-           5 | js
-             \`----
+          let redboxSource = await getRedboxSource(browser)
 
-          Caused by:
-              0: failed to process input file
-              1: Syntax Error
+          redboxSource = redboxSource.replace(`${next.testDir}`, '.')
+          redboxSource = redboxSource.substring(
+            0,
+            redboxSource.indexOf('`----')
+          )
 
-          Import trace for requested module:
-          ./components/parse-error.js"
-        `)
+          expect(
+            next.normalizeTestDirContent(redboxSource)
+          ).toMatchInlineSnapshot(
+            next.normalizeSnapshot(`
+              "./components/parse-error.js
+              Error: 
+                x Expression expected
+                 ,-[./components/parse-error.js:1:1]
+               1 | This
+               2 | is
+               3 | }}}
+                 : ^
+               4 | invalid
+               5 | js
+                 "
+            `)
+          )
 
           await next.patchFile(aboutPage, aboutContent)
 
@@ -856,7 +862,9 @@ describe.each([[''], ['/docs']])(
             )
           }
 
-          throw err
+          if (!process.env.NEXT_SWC_DEV_BIN) {
+            throw err
+          }
         } finally {
           if (browser) {
             await browser.close()
@@ -872,13 +880,13 @@ describe.each([[''], ['/docs']])(
           browser = await webdriver(next.url, basePath + '/hmr')
           await browser.elementByCss('#error-in-gip-link').click()
 
-          expect(await hasRedbox(browser)).toBe(true)
+          expect(await hasRedbox(browser, true)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
-          " 1 of 1 unhandled error
-          Unhandled Runtime Error
+            " 1 of 1 unhandled error
+            Unhandled Runtime Error
 
-          Error: an-expected-error-in-gip"
-        `)
+            Error: an-expected-error-in-gip"
+          `)
 
           await next.patchFile(
             erroredPage,
@@ -916,15 +924,15 @@ describe.each([[''], ['/docs']])(
         try {
           browser = await webdriver(next.url, basePath + '/hmr/error-in-gip')
 
-          expect(await hasRedbox(browser)).toBe(true)
+          expect(await hasRedbox(browser, true)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
-          " 1 of 1 unhandled error
-          Server Error
+                      " 1 of 1 unhandled error
+                      Server Error
 
-          Error: an-expected-error-in-gip
+                      Error: an-expected-error-in-gip
 
-          This error happened while generating the page. Any console logs will be displayed in the terminal window."
-        `)
+                      This error happened while generating the page. Any console logs will be displayed in the terminal window."
+                  `)
 
           const erroredPage = join('pages', 'hmr', 'error-in-gip.js')
 

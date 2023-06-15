@@ -1,16 +1,24 @@
 # No img element
 
-> Prevent usage of `<img>` element to prevent layout shift and favor [optimized images](https://nextjs.org/docs/basic-features/image-optimization).
+> Prevent usage of `<img>` element due to slower LCP and higher bandwidth.
 
 ### Why This Error Occurred
 
-An `<img>` element was used to display an image.
+An `<img>` element was used to display an image instead of `<Image />` from `next/image`.
 
 ### Possible Ways to Fix It
 
 Use [`next/image`](https://nextjs.org/docs/api-reference/next/image) to improve performance with automatic [Image Optimization](https://nextjs.org/docs/basic-features/image-optimization).
 
-> Note: If deploying to a [managed hosting provider](https://nextjs.org/docs/deployment), remember to check pricing since optimized images might be charged differently that the original images. If self-hosting, remember to install [`sharp`](https://www.npmjs.com/package/sharp) and check if your server has enough storage to cache the optimized images.
+> Note: If deploying to a [managed hosting provider](https://nextjs.org/docs/deployment), remember to check provider pricing since optimized images might be charged differently than the original images.
+>
+> Common image optimization platform pricing:
+>
+> - [Vercel pricing](https://vercel.com/pricing)
+> - [Cloudinary pricing](https://cloudinary.com/pricing)
+> - [imgix pricing](https://imgix.com/pricing)
+
+> Note: If self-hosting, remember to install [`sharp`](https://www.npmjs.com/package/sharp) and check if your server has enough storage to cache the optimized images.
 
 ```jsx
 import Image from 'next/image'
@@ -30,8 +38,6 @@ export default Home
 ```
 
 If you would like to use `next/image` features such as blur-up placeholders but disable Image Optimization, you can do so using [unoptimized](https://nextjs.org/docs/api-reference/next/image#unoptimized).
-
-<br />
 
 Or, use a `<picture>` element with the nested `<img>` element:
 

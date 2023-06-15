@@ -1,17 +1,19 @@
 /* global location */
 import '../build/polyfills/polyfill-module'
+
 import type Router from '../shared/lib/router/router'
-import React from 'react'
-// @ts-expect-error upgrade react types to react 18
-import ReactDOM from 'react-dom/client'
-import { HeadManagerContext } from '../shared/lib/head-manager-context'
-import mitt, { MittEmitter } from '../shared/lib/mitt'
-import { RouterContext } from '../shared/lib/router-context'
-import {
+import type {
   AppComponent,
   AppProps,
   PrivateRouteInfo,
 } from '../shared/lib/router/router'
+
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import { HeadManagerContext } from '../shared/lib/head-manager-context'
+import mitt, { MittEmitter } from '../shared/lib/mitt'
+import { RouterContext } from '../shared/lib/router-context'
+import { handleSmoothScroll } from '../shared/lib/router/utils/handle-smooth-scroll'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import {
   urlQueryToSearchParams,
@@ -61,6 +63,33 @@ declare global {
   }
 }
 
+const addChunkSuffix =
+  (getOriginalChunk: (chunkId: any) => string) => (chunkId: any) => {
+    return (
+      getOriginalChunk(chunkId) +
+      `${
+        process.env.__NEXT_DEPLOYMENT_ID
+          ? `?dpl=${process.env.__NEXT_DEPLOYMENT_ID}`
+          : ''
+      }`
+    )
+  }
+
+// ensure dynamic imports have deployment id added if enabled
+const getChunkScriptFilename = __webpack_require__.u
+// eslint-disable-next-line no-undef
+__webpack_require__.u = addChunkSuffix(getChunkScriptFilename)
+
+// eslint-disable-next-line no-undef
+const getChunkCssFilename = __webpack_require__.k
+// eslint-disable-next-line no-undef
+__webpack_require__.k = addChunkSuffix(getChunkCssFilename)
+
+// eslint-disable-next-line no-undef
+const getMiniCssFilename = __webpack_require__.miniCssF
+// eslint-disable-next-line no-undef
+__webpack_require__.miniCssF = addChunkSuffix(getMiniCssFilename)
+
 type RenderRouteInfo = PrivateRouteInfo & {
   App: AppComponent
   scroll?: { x: number; y: number } | null
@@ -98,6 +127,7 @@ let CachedComponent: React.ComponentType
 ;(self as any).__next_require__ = __webpack_require__
 
 class Container extends React.Component<{
+  children?: React.ReactNode
   fn: (err: Error, info?: any) => void
 }> {
   componentDidCatch(componentErr: Error, info: any) {
@@ -691,15 +721,10 @@ function doRender(input: RenderRouteInfo): Promise<any> {
     }
 
     if (input.scroll) {
-      const htmlElement = document.documentElement
-      const existing = htmlElement.style.scrollBehavior
-      htmlElement.style.scrollBehavior = 'auto'
-      // In Chrome-based browsers we need to force reflow before calling `scrollTo`.
-      // Otherwise it will not pickup the change in scrollBehavior
-      // More info here: https://github.com/vercel/next.js/issues/40719#issuecomment-1336248042
-      htmlElement.getClientRects()
-      window.scrollTo(input.scroll.x, input.scroll.y)
-      htmlElement.style.scrollBehavior = existing
+      const { x, y } = input.scroll
+      handleSmoothScroll(() => {
+        window.scrollTo(x, y)
+      })
     }
   }
 

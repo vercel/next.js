@@ -19,6 +19,9 @@ import { getErrorSource } from '../helpers/nodeStackFrames'
 import { noop as css } from '../helpers/noop-template'
 import { CloseIcon } from '../icons/CloseIcon'
 import { RuntimeError } from './RuntimeError'
+import { VersionStalenessInfo } from '../components/VersionStalenessInfo'
+import type { VersionInfo } from '../../../../../server/dev/parse-version-info'
+import { HotlinkedText } from '../components/hot-linked-text'
 
 export type SupportedErrorEvent = {
   id: number
@@ -27,6 +30,7 @@ export type SupportedErrorEvent = {
 export type ErrorsProps = {
   errors: SupportedErrorEvent[]
   initialDisplayState: DisplayState
+  versionInfo?: VersionInfo
 }
 
 type ReadyErrorEvent = ReadyRuntimeError
@@ -49,38 +53,10 @@ function getErrorSignature(ev: SupportedErrorEvent): string {
   return ''
 }
 
-const HotlinkedText: React.FC<{
-  text: string
-}> = function HotlinkedText(props) {
-  const { text } = props
-
-  const linkRegex = /https?:\/\/[^\s/$.?#].[^\s"]*/i
-  return (
-    <>
-      {linkRegex.test(text)
-        ? text.split(' ').map((word, index, array) => {
-            if (linkRegex.test(word)) {
-              return (
-                <React.Fragment key={`link-${index}`}>
-                  <a href={word}>{word}</a>
-                  {index === array.length - 1 ? '' : ' '}
-                </React.Fragment>
-              )
-            }
-            return index === array.length - 1 ? (
-              <React.Fragment key={`text-${index}`}>{word}</React.Fragment>
-            ) : (
-              <React.Fragment key={`text-${index}`}>{word} </React.Fragment>
-            )
-          })
-        : text}
-    </>
-  )
-}
-
 export const Errors: React.FC<ErrorsProps> = function Errors({
   errors,
   initialDisplayState,
+  versionInfo,
 }) {
   const [lookups, setLookups] = React.useState(
     {} as { [eventId: string]: ReadyErrorEvent }
@@ -271,6 +247,7 @@ export const Errors: React.FC<ErrorsProps> = function Errors({
                 <span>{readyErrors.length}</span> unhandled error
                 {readyErrors.length < 2 ? '' : 's'}
               </small>
+              {versionInfo ? <VersionStalenessInfo {...versionInfo} /> : null}
             </LeftRightDialogHeader>
             <h1 id="nextjs__container_errors_label">
               {isServerError ? 'Server Error' : 'Unhandled Runtime Error'}
@@ -331,11 +308,12 @@ export const styles = css`
     color: var(--color-ansi-red);
   }
 
-  .nextjs-container-errors-body > h5:not(:first-child) {
+  .nextjs-container-errors-body > h2:not(:first-child) {
     margin-top: calc(var(--size-gap-double) + var(--size-gap));
   }
-  .nextjs-container-errors-body > h5 {
+  .nextjs-container-errors-body > h2 {
     margin-bottom: var(--size-gap);
+    font-size: var(--size-font-big);
   }
 
   .nextjs-toast-errors-parent {
