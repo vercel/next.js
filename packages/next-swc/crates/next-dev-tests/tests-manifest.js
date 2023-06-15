@@ -22,7 +22,6 @@ const enabledTests = [
   'test/development/project-directory-with-styled-jsx-suffix/index.test.ts',
   'test/development/repeated-dev-edits/repeated-dev-edits.test.ts',
   'test/development/tsconfig-path-reloading/index.test.ts',
-  'test/development/typescript-auto-install/index.test.ts',
   'test/e2e/app-dir/_allow-underscored-root-directory/_allow-underscored-root-directory.test.ts',
   'test/e2e/app-dir/actions/app-action-export.test.ts',
   'test/e2e/app-dir/app-alias/app-alias.test.ts',
