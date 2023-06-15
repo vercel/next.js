@@ -8,7 +8,6 @@
   },
   "dependencies": {
     "@elastic/elasticsearch": "^8.6.0",
-    "@next/font": "latest",
     "next": "latest",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"

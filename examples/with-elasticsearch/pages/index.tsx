@@ -2,7 +2,7 @@ import type { InferGetServerSidePropsType } from 'next'
 import Head from 'next/head'
 import Image from 'next/image'
 import styles from '@/styles/Home.module.css'
-import { Inter } from '@next/font/google'
+import { Inter } from 'next/font/google'
 import { connectToElasticsearch } from '@/lib/elasticsearch'
 
 const inter = Inter({ subsets: ['latin'] })
