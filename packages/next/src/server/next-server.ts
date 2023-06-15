@@ -28,6 +28,7 @@ import {
 } from '../shared/lib/router/utils/route-matcher'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { RouteMatch } from './future/route-matches/route-match'
+import type { Writable } from 'stream'
 
 import fs from 'fs'
 import { join, relative, resolve, sep, isAbsolute } from 'path'
@@ -986,7 +987,7 @@ export default class NextNodeServer extends BaseServer {
     )
   }
 
-  private flushingStreamForCompression(res: NodeNextResponse) {
+  private flushingStreamForCompression(res: NodeNextResponse): Writable {
     const { originalResponse } = res
 
     // When both compression and streaming are enabled, we need to explicitly
@@ -2511,7 +2512,9 @@ export default class NextNodeServer extends BaseServer {
                   res.statusCode = result.response.status
                   await pipeBodyStreamToResponse(
                     result.response.body,
-                    this.flushingStreamForCompression(res as NodeNextResponse)
+                    this.flushingStreamForCompression(
+                      res as NodeNextResponse
+                    ) as ServerResponse
                   )
                   res.send()
                   return {
@@ -2692,7 +2695,9 @@ export default class NextNodeServer extends BaseServer {
                   require('next/dist/compiled/edge-runtime') as typeof import('next/dist/compiled/edge-runtime')
                 await pipeBodyStreamToResponse(
                   result.response.body,
-                  this.flushingStreamForCompression(res as NodeNextResponse)
+                  this.flushingStreamForCompression(
+                    res as NodeNextResponse
+                  ) as ServerResponse
                 )
                 res.send()
               }
