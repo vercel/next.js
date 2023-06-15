@@ -921,34 +921,13 @@ export function shouldRunTurboDevTest() {
     return false
   }
 
-  const shouldRunTurboDev = !!process.env.__INTERNAL_NEXT_DEV_TEST_TURBO_DEV
+  const shouldRunTurboDev = !!process.env.TURBOPACK
   // short-circuit to run all the test with --turbo enabled skips glob matching costs
   if (shouldRunTurboDev) {
     console.log(
-      `Running tests with --turbo via custom environment variable __INTERNAL_NEXT_DEV_TEST_TURBO_DEV`
+      `Running tests with turbopack via custom environment variable TURBOPACK`
     )
     return true
-  }
-
-  const shouldRunTurboDevWithMatches =
-    !!process.env.__INTERNAL_NEXT_DEV_TEST_TURBO_GLOB_MATCH
-
-  // By default, we do not run any tests with `--turbo` flag.
-  if (!shouldRunTurboDevWithMatches) {
-    return false
-  }
-
-  const glob = require('glob')
-  const matches = glob.sync(
-    process.env.__INTERNAL_NEXT_DEV_TEST_TURBO_GLOB_MATCH
-  )
-  const testPath = expect.getState().testPath
-  const isMatch = matches.some((match) => testPath.includes(match))
-
-  if (isMatch) {
-    console.log(
-      `Running tests with --turbo via custom environment variable __INTERNAL_NEXT_DEV_TEST_TURBO_GLOB_MATCH`
-    )
   }
 
   // If the test path matches the glob pattern, add additional case to run the test with `--turbo` flag.
