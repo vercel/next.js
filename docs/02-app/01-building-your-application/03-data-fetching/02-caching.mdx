@@ -136,7 +136,7 @@ export default async function Page({ params: { id } }) {
 
 Although the `getUser()` function is called twice in the example above, only one query will be made to the database. This is because `getUser()` is wrapped in `cache()`, so the second request can reuse the result from the first request.
 
-> **Good to know:**
+> **Good to know**:
 >
 > - `fetch()` caches requests automatically, so you don't need to wrap functions that use `fetch()` with `cache()`. See [automatic request deduping](/docs/app/building-your-application/data-fetching#automatic-fetch-request-deduping) for more information.
 > - In this new model, we recommend **fetching data directly in the component that needs it**, even if you're requesting the same data in multiple components, rather than passing the data between components as props.
@@ -264,7 +264,7 @@ The `getUser.ts` exports can be used by layouts, pages, or components to give th
 
 ## Segment-level Caching
 
-> **Note:** We recommend using per-request caching for improved granularity and control over caching.
+> **Good to know**: We recommend using per-request caching for improved granularity and control over caching.
 
 Segment-level caching allows you to cache and revalidate data used in route segments.
 
@@ -278,7 +278,7 @@ export const revalidate = 60 // revalidate this segment every 60 seconds
 export const revalidate = 60 // revalidate this segment every 60 seconds
 ```
 
-> **Good to know:**
+> **Good to know**:
 >
 > - If a page, layout, and fetch request inside components all specify a [`revalidate`](/docs/app/api-reference/file-conventions/route-segment-config#revalidate) frequency, the lowest value of the three will be used.
 > - Advanced: You can set `fetchCache` to `'only-cache'` or `'force-cache'` to ensure that all `fetch` requests opt into caching but the revalidation frequency might still be lowered by individual `fetch` requests. See [`fetchCache`](/docs/app/api-reference/file-conventions/route-segment-config) for more information.

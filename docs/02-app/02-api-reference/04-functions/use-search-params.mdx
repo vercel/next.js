@@ -69,7 +69,7 @@ const searchParams = useSearchParams()
 
 - Learn more about other **read-only** methods of [`URLSearchParams`](https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams), including the [`getAll()`](https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams/getAll), [`keys()`](https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams/keys), [`values()`](https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams/values), [`entries()`](https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams/entries), [`forEach()`](https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams/forEach), and [`toString()`](https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams/toString).
 
-> **Good to know:**
+> **Good to know**:
 >
 > - `useSearchParams` is a [Client Component](/docs/getting-started/react-essentials) hook and is **not supported** in [Server Components](/docs/getting-started/react-essentials) to prevent stale values during [partial rendering](/docs/app/building-your-application/routing#partial-rendering).
 > - If an application includes the `/pages` directory, `useSearchParams` will return `ReadonlyURLSearchParams | null`. The `null` value is for compatibility during migration since search params cannot be known during pre-rendering of a page that doesn't use `getServerSideProps`
@@ -174,7 +174,7 @@ export default function Page() {
 
 If a route is [dynamically rendered](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#dynamic-rendering), `useSearchParams` will be available on the server during the initial server render of the Client Component.
 
-> **Note:** Setting the [`dynamic` route segment config option](/docs/app/api-reference/file-conventions/route-segment-config#dynamic) to `force-dynamic` can be used to force dynamic rendering.
+> **Good to know**: Setting the [`dynamic` route segment config option](/docs/app/api-reference/file-conventions/route-segment-config#dynamic) to `force-dynamic` can be used to force dynamic rendering.
 
 For example:
 
@@ -357,3 +357,9 @@ export default function ExampleClientComponent() {
   )
 }
 ```
+
+## Version History
+
+| Version   | Changes                       |
+| --------- | ----------------------------- |
+| `v13.0.0` | `useSearchParams` introduced. |

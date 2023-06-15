@@ -31,7 +31,7 @@ export default function ExampleClientComponent() {
 }
 ```
 
-> **Good to know:**
+> **Good to know**:
 >
 > - Since `useSelectedLayoutSegment` is a [Client Component](/docs/getting-started/react-essentials#client-components) hook, and Layouts are [Server Components](/docs/getting-started/react-essentials#server-components) by default, `useSelectedLayoutSegment` is usually called via a Client Component that is imported into a Layout.
 > - `useSelectedLayoutSegment` only returns the segment one level down. To return all active segments, see [`useSelectedLayoutSegments`](/docs/app/api-reference/functions/use-selected-layout-segments)
@@ -164,3 +164,9 @@ export default async function Layout({ children }) {
   )
 }
 ```
+
+## Version History
+
+| Version   | Changes                                |
+| --------- | -------------------------------------- |
+| `v13.0.0` | `useSelectedLayoutSegment` introduced. |
