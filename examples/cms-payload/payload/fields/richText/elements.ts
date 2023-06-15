@@ -1,6 +1,6 @@
-import { RichTextElement } from 'payload/dist/fields/config/types';
-import label from './label';
-import largeBody from './largeBody';
+import { RichTextElement } from 'payload/dist/fields/config/types'
+import label from './label'
+import largeBody from './largeBody'
 
 const elements: RichTextElement[] = [
   'blockquote',
@@ -12,6 +12,6 @@ const elements: RichTextElement[] = [
   'link',
   largeBody,
   label,
-];
+]
 
-export default elements;
+export default elements

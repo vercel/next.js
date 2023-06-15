@@ -1,11 +1,11 @@
-import { CollectionConfig } from 'payload/types';
-import { publishedOnly } from '../access/publishedOnly';
-import { CallToAction } from '../blocks/CallToAction';
-import { Content } from '../blocks/Content';
-import { MediaBlock } from '../blocks/Media';
-import { hero } from '../fields/hero';
-import { slugField } from '../fields/slug';
-import { regenerateStaticPage } from '../utilities/regenerateStaticPage';
+import { CollectionConfig } from 'payload/types'
+import { publishedOnly } from '../access/publishedOnly'
+import { CallToAction } from '../blocks/CallToAction'
+import { Content } from '../blocks/Content'
+import { MediaBlock } from '../blocks/Media'
+import { hero } from '../fields/hero'
+import { slugField } from '../fields/slug'
+import { regenerateStaticPage } from '../utilities/regenerateStaticPage'
 
 export const Pages: CollectionConfig = {
   slug: 'pages',
@@ -14,19 +14,17 @@ export const Pages: CollectionConfig = {
     defaultColumns: ['title', 'slug', 'updatedAt'],
     preview: (doc, { locale }) => {
       if (doc?.slug) {
-        return `/${doc.slug}${locale ? `?locale=${locale}` : ""}`;
+        return `/${doc.slug}${locale ? `?locale=${locale}` : ''}`
       }
 
-      return '';
+      return ''
     },
   },
   access: {
     read: publishedOnly,
   },
   hooks: {
-    afterChange: [
-      regenerateStaticPage
-    ]
+    afterChange: [regenerateStaticPage],
   },
   fields: [
     {
@@ -39,9 +37,7 @@ export const Pages: CollectionConfig = {
       tabs: [
         {
           label: 'Hero',
-          fields: [
-            hero,
-          ]
+          fields: [hero],
         },
         {
           label: 'Content',
@@ -50,16 +46,12 @@ export const Pages: CollectionConfig = {
               name: 'layout',
               type: 'blocks',
               required: true,
-              blocks: [
-                CallToAction,
-                Content,
-                MediaBlock,
-              ]
-            }
-          ]
-        }
-      ]
+              blocks: [CallToAction, Content, MediaBlock],
+            },
+          ],
+        },
+      ],
     },
     slugField(),
-  ]
+  ],
 }

@@ -1,5 +1,5 @@
-import React, { forwardRef, Ref } from 'react';
-import classes from './index.module.scss';
+import React, { forwardRef, Ref } from 'react'
+import classes from './index.module.scss'
 
 type Props = {
   left?: boolean
@@ -9,27 +9,25 @@ type Props = {
   ref?: Ref<HTMLDivElement>
 }
 
-export const Gutter: React.FC<Props> = forwardRef<HTMLDivElement, Props>((props, ref) => {
-  const {
-    left = true,
-    right = true,
-    className,
-    children
-  } = props;
+export const Gutter: React.FC<Props> = forwardRef<HTMLDivElement, Props>(
+  (props, ref) => {
+    const { left = true, right = true, className, children } = props
 
-  return (
-    <div
-      ref={ref}
-      className={[
-        left && classes.gutterLeft,
-        right && classes.gutterRight,
-        className
-      ].filter(Boolean).join(' ')}
-    >
-      {children}
-    </div>
-  )
-});
+    return (
+      <div
+        ref={ref}
+        className={[
+          left && classes.gutterLeft,
+          right && classes.gutterRight,
+          className,
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
+        {children}
+      </div>
+    )
+  }
+)
 
-
-Gutter.displayName = 'Gutter';
+Gutter.displayName = 'Gutter'

@@ -29,6 +29,6 @@ $spacer-h: calc(var(--block-padding) / 2);
   }
 
   @include mid-break {
-    margin-top: 20px
+    margin-top: 20px;
   }
 }

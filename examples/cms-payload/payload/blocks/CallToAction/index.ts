@@ -1,7 +1,7 @@
-import { Block } from "payload/types";
-import { backgroundColor } from "../../fields/backgroundColor";
-import linkGroup from "../../fields/linkGroup";
-import richText from "../../fields/richText";
+import { Block } from 'payload/types'
+import { backgroundColor } from '../../fields/backgroundColor'
+import linkGroup from '../../fields/linkGroup'
+import richText from '../../fields/richText'
 
 export const CallToAction: Block = {
   slug: 'cta',
@@ -16,7 +16,7 @@ export const CallToAction: Block = {
       appearances: ['primary', 'secondary'],
       overrides: {
         maxRows: 2,
-      }
+      },
     }),
-  ]
+  ],
 }

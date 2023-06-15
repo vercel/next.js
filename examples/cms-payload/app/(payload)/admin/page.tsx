@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react';
+import React from 'react'
 import Root from 'payload/dist/admin/Root'
 
 const PayloadAdmin = () => {
@@ -8,11 +8,11 @@ const PayloadAdmin = () => {
 
   React.useEffect(() => {
     setMounted(true)
-  }, []);
+  }, [])
 
-  if (!mounted) return null;
+  if (!mounted) return null
 
   return <Root />
 }
 
-export default PayloadAdmin;
+export default PayloadAdmin

@@ -26,7 +26,7 @@ pnpm create next-app --example cms-payload cms-payload-app
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-The only thing you need to do to deploy to Vercel is to ensure that you have a Mongo Atlas database connection string and an S3 bucket (if desired). 
+The only thing you need to do to deploy to Vercel is to ensure that you have a Mongo Atlas database connection string and an S3 bucket (if desired).
 
 Fill out the same environment variables that are shown in the `.env.example` with your own values, and then you're good to go!
 
