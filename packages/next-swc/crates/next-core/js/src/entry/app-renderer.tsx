@@ -46,7 +46,7 @@ startOperationStreamHandler(async (renderData: RenderData, respond) => {
 })
 
 async function runOperation(renderData: RenderData) {
-  const { clientReferenceManifest, serverCSSManifest } = createManifests()
+  const { clientReferenceManifest } = createManifests()
 
   const req: IncomingMessage = {
     url: renderData.originalUrl,

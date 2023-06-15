@@ -1,5 +1,4 @@
 import type {
-  ClientCSSReferenceManifest,
   ClientReferenceManifest,
 } from 'next/dist/build/webpack/plugins/flight-manifest-plugin'
 
@@ -15,6 +14,29 @@ export function createManifests() {
           name: prop,
         }
       },
+    }
+  }
+
+  const availableModules = new Set()
+  const toPath = (chunk: ChunkData) =>
+    typeof chunk === 'string' ? chunk : chunk.path
+  /// determines if a chunk is needed based on the current available modules
+  const filterAvailable = (chunk: ChunkData) => {
+    if (typeof chunk === 'string') {
+      return true
+    } else {
+      let includedList = chunk.included || []
+      if (includedList.length === 0) {
+        return true
+      }
+      let needed = false
+      for (const item of includedList) {
+        if (!availableModules.has(item)) {
+          availableModules.add(item)
+          needed = true
+        }
+      }
+      return needed
     }
   }
 
@@ -62,29 +84,6 @@ export function createManifests() {
       },
     }
   }
-
-  const availableModules = new Set()
-  const toPath = (chunk: ChunkData) =>
-    typeof chunk === 'string' ? chunk : chunk.path
-  /// determines if a chunk is needed based on the current available modules
-  const filterAvailable = (chunk: ChunkData) => {
-    if (typeof chunk === 'string') {
-      return true
-    } else {
-      let includedList = chunk.included || []
-      if (includedList.length === 0) {
-        return true
-      }
-      let needed = false
-      for (const item of includedList) {
-        if (!availableModules.has(item)) {
-          availableModules.add(item)
-          needed = true
-        }
-      }
-      return needed
-    }
-  }
   const proxyMethods = (): ProxyHandler<ClientReferenceManifest> => {
     const clientModulesProxy = new Proxy(
       {},
@@ -113,36 +112,13 @@ export function createManifests() {
     }
   }
 
-  const cssImportProxyMethods = {
-    get(_target: any, prop: string) {
-      let cssChunks
-      try {
-        cssChunks = JSON.parse(prop.replace(/\.js$/, ''))
-      } catch (e) {
-        throw new Error(
-          `Unexpected property (${prop}) accessed from proxy manifest`
-        )
-      }
-      // TODO(WEB-856) subscribe to changes
-
-      // This return value is passed to proxyMethodsNested for clientModules
-      return cssChunks
-        .filter(filterAvailable)
-        .map(toPath)
-        .map((chunk: string) => JSON.stringify([chunk, [chunk]]))
-    },
-  }
   const clientReferenceManifest: ClientReferenceManifest = new Proxy(
     {} as any,
     proxyMethods()
   )
 
-  const serverCSSManifest: ClientCSSReferenceManifest = {
-    cssImports: new Proxy({} as any, cssImportProxyMethods),
-    cssModules: {},
-  }
 
-  return { clientReferenceManifest, serverCSSManifest }
+  return { clientReferenceManifest }
 }
 
 export function installRequireAndChunkLoad() {

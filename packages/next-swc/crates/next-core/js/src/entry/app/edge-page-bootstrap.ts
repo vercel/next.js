@@ -15,7 +15,7 @@ installRequireAndChunkLoad()
 
 Error.stackTraceLimit = 100
 
-const { clientReferenceManifest, serverCSSManifest } = createManifests()
+const { clientReferenceManifest } = createManifests()
 
 const MIME_TEXT_HTML_UTF8 = 'text/html; charset=utf-8'
 
@@ -46,7 +46,6 @@ async function render(request: NextRequest, event: NextFetchEvent) {
       pages: ['page.js'],
     },
     clientReferenceManifest,
-    serverCSSManifest,
     runtime: 'nodejs',
     serverComponents: true,
     assetPrefix: '',
