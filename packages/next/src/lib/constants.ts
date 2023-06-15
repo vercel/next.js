@@ -96,3 +96,8 @@ export const WEBPACK_LAYERS = {
   edgeAsset: 'edge-asset',
   appClient: 'app-client',
 }
+
+export const WEBPACK_RESOURCE_QUERIES = {
+  edgeSSREntry: '__next_edge_ssr_entry__',
+  metadata: '__next_metadata__',
+}

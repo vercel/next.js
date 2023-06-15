@@ -20,6 +20,7 @@ import type { StaticGenerationAsyncStorage } from '../client/components/static-g
 import '../server/require-hook'
 import '../server/node-polyfill-fetch'
 import '../server/node-polyfill-crypto'
+import '../server/node-environment'
 import chalk from 'next/dist/compiled/chalk'
 import getGzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
@@ -62,7 +63,8 @@ import { StaticGenerationAsyncStorageWrapper } from '../server/async-storage/sta
 import { IncrementalCache } from '../server/lib/incremental-cache'
 import { patchFetch } from '../server/lib/patch-fetch'
 import { nodeFs } from '../server/lib/node-fs-methods'
-import '../server/node-environment'
+import * as ciEnvironment from '../telemetry/ci-info'
+import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -107,14 +109,6 @@ function intersect<T>(main: ReadonlyArray<T>, sub: ReadonlyArray<T>): T[] {
 
 function sum(a: ReadonlyArray<number>): number {
   return a.reduce((size, stat) => size + stat, 0)
-}
-
-function denormalizeAppPagePath(page: string): string {
-  // `/` is normalized to `/index` and `/index` is normalized to `/index/index`
-  if (page.endsWith('/index')) {
-    page = page.replace(/\/index$/, '')
-  }
-  return page + '/page'
 }
 
 type ComputeFilesGroup = {
@@ -772,6 +766,18 @@ export async function getJsPageSizeInKb(
     throw new Error('expected appBuildManifest with an "app" pageType')
   }
 
+  // Normalize appBuildManifest keys
+  if (routerType === 'app') {
+    pageManifest.pages = Object.entries(pageManifest.pages).reduce(
+      (acc: Record<string, string[]>, [key, value]) => {
+        const newKey = normalizeAppPath(key)
+        acc[newKey] = value as string[]
+        return acc
+      },
+      {}
+    )
+  }
+
   // If stats was not provided, then compute it again.
   const stats =
     cachedStats ??
@@ -787,10 +793,11 @@ export async function getJsPageSizeInKb(
     throw new Error('expected "app" manifest data with an "app" pageType')
   }
 
-  const pagePath =
-    routerType === 'pages'
-      ? denormalizePagePath(page)
-      : denormalizeAppPagePath(page)
+  // Denormalization is not needed for "app" dir, as we normalize the keys of appBuildManifest instead
+  let pagePath = page
+  if (routerType === 'pages') {
+    pagePath = denormalizePagePath(page)
+  }
 
   const fnFilterJs = (entry: string) => entry.endsWith('.js')
 
@@ -1216,6 +1223,7 @@ export async function buildAppStaticPaths({
     }),
     CurCacheHandler: CacheHandler,
     requestHeaders,
+    minimalMode: ciEnvironment.hasNextSupport,
   })
 
   return StaticGenerationAsyncStorageWrapper.wrap(
@@ -1382,11 +1390,11 @@ export async function isPageStatic({
       let prerenderFallback: boolean | 'blocking' | undefined
       let appConfig: AppConfig = {}
       let isClientComponent: boolean = false
+      const pathIsEdgeRuntime = isEdgeRuntime(pageRuntime)
 
-      if (isEdgeRuntime(pageRuntime)) {
+      if (pathIsEdgeRuntime) {
         const runtime = await getRuntimeContext({
           paths: edgeInfo.files.map((file: string) => path.join(distDir, file)),
-          env: edgeInfo.env,
           edgeFunctionEntry: {
             ...edgeInfo,
             wasm: (edgeInfo.wasm ?? []).map((binding: AssetBinding) => ({
@@ -1500,6 +1508,12 @@ export async function isPageStatic({
           },
           {}
         )
+
+        if (appConfig.dynamic === 'force-static' && pathIsEdgeRuntime) {
+          Log.warn(
+            `Page "${page}" is using runtime = 'edge' which is currently incompatible with dynamic = 'force-static'. Please remove either "runtime" or "force-static" for correct behavior`
+          )
+        }
 
         if (appConfig.dynamic === 'force-dynamic') {
           appConfig.revalidate = 0
@@ -1669,11 +1683,11 @@ export async function hasCustomGetInitialProps(
   return mod.getInitialProps !== mod.origGetInitialProps
 }
 
-export async function getNamedExports(
+export async function getDefinedNamedExports(
   page: string,
   distDir: string,
   runtimeEnvConfig: any
-): Promise<Array<string>> {
+): Promise<ReadonlyArray<string>> {
   require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
   const components = await loadComponents({
     distDir,
@@ -1681,9 +1695,10 @@ export async function getNamedExports(
     hasServerComponents: false,
     isAppPath: false,
   })
-  let mod = components.ComponentMod
 
-  return Object.keys(mod)
+  return Object.keys(components.ComponentMod).filter((key) => {
+    return typeof components.ComponentMod[key] !== 'undefined'
+  })
 }
 
 export function detectConflictingPaths(
@@ -1913,20 +1928,21 @@ export async function copyTracedFiles(
     serverOutputPath,
     `${
       moduleType
-        ? `import http from 'http'
+        ? `\
+import http from 'http'
 import path from 'path'
 import { fileURLToPath } from 'url'
-const __dirname = fileURLToPath(new URL('.', import.meta.url))
 import { createServerHandler } from 'next/dist/server/lib/render-server-standalone.js'
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url))
 `
-        : `
+        : `\
 const http = require('http')
 const path = require('path')
 const { createServerHandler } = require('next/dist/server/lib/render-server-standalone')`
     }
 
 const dir = path.join(__dirname)
-
 process.env.NODE_ENV = 'production'
 process.chdir(__dirname)
 
@@ -1936,8 +1952,6 @@ if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
   process.on('SIGTERM', () => process.exit(0))
   process.on('SIGINT', () => process.exit(0))
 }
-
-let handler
 
 const currentPort = parseInt(process.env.PORT, 10) || 3000
 const hostname = process.env.HOSTNAME || 'localhost'
@@ -1949,42 +1963,47 @@ const nextConfig = ${JSON.stringify({
 
 process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(nextConfig)
 
-const server = http.createServer(async (req, res) => {
-  try {
-    await handler(req, res)
-  } catch (err) {
-    console.error(err);
-    res.statusCode = 500
-    res.end('Internal Server Error')
-  }
-})
 
-if (
-  !Number.isNaN(keepAliveTimeout) &&
-    Number.isFinite(keepAliveTimeout) &&
-    keepAliveTimeout >= 0
-) {
-  server.keepAliveTimeout = keepAliveTimeout
-}
-server.listen(currentPort, async (err) => {
-  if (err) {
-    console.error("Failed to start server", err)
-    process.exit(1)
-  }
-
-  handler = await createServerHandler({
-    port: currentPort,
-    hostname,
-    dir,
-    conf: nextConfig,
+createServerHandler({
+  port: currentPort,
+  hostname,
+  dir,
+  conf: nextConfig,
+}).then((nextHandler) => {
+  const server = http.createServer(async (req, res) => {
+    try {
+      await nextHandler(req, res)
+    } catch (err) {
+      console.error(err);
+      res.statusCode = 500
+      res.end('Internal Server Error')
+    }
   })
 
-  console.log(
-    'Listening on port',
-    currentPort,
-    'url: http://' + hostname + ':' + currentPort
-  )
-})`
+  if (
+    !Number.isNaN(keepAliveTimeout) &&
+      Number.isFinite(keepAliveTimeout) &&
+      keepAliveTimeout >= 0
+  ) {
+    server.keepAliveTimeout = keepAliveTimeout
+  }
+  server.listen(currentPort, async (err) => {
+    if (err) {
+      console.error("Failed to start server", err)
+      process.exit(1)
+    }
+
+    console.log(
+      'Listening on port',
+      currentPort,
+      'url: http://' + hostname + ':' + currentPort
+    )
+  });
+
+}).catch(err => {
+  console.error(err);
+  process.exit(1);
+});`
   )
 }
 

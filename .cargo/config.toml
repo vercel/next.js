@@ -16,6 +16,7 @@ linker = "aarch64-linux-musl-gcc"
 rustflags = [
   "--cfg",
   "tokio_unstable",
+  "-Zshare-generics=y",
   "-Csymbol-mangling-version=v0",
   "-Ctarget-feature=-crt-static",
   "-Clink-arg=-lgcc",
@@ -28,6 +29,7 @@ linker = "arm-linux-gnueabihf-gcc"
 rustflags = [
   "--cfg",
   "tokio_unstable",
+  "-Zshare-generics=y",
   "-Csymbol-mangling-version=v0",
   "-Aclippy::too_many_arguments",
 ]

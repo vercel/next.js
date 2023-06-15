@@ -9,10 +9,10 @@ export function Item({ id1 , id2  }) {
     ], $$ACTION_0, $$ACTION_1), $$ACTION_0);
     return <Button action={deleteItem}>Delete</Button>;
 }
-export const $$ACTION_1 = async (id1, v2)=>{
-    await deleteFromDb(id1);
+export var $$ACTION_1 = async ($$ACTION_ARG_0, $$ACTION_ARG_1)=>{
+    await deleteFromDb($$ACTION_ARG_0);
     await deleteFromDb(v1);
-    await deleteFromDb(v2);
+    await deleteFromDb($$ACTION_ARG_1);
 };
 var $$ACTION_0;
 const f = (x)=>{
@@ -23,15 +23,15 @@ const f = (x)=>{
         x
     ], g, $$ACTION_2);
 };
-export async function $$ACTION_2(x, y, ...z) {
-    return x + y + z[0];
+export async function $$ACTION_2($$ACTION_ARG_0, y, ...z) {
+    return $$ACTION_ARG_0 + y + z[0];
 }
 const g = (x)=>{
     f = ($$ACTION_3 = async (...args)=>$$ACTION_4.apply(null, ($$ACTION_3.$$bound || []).concat(args)), __create_action_proxy__("9c0dd1f7c2b3f41d32e10f5c437de3d67ad32c6c", [
         x
     ], $$ACTION_3, $$ACTION_4), $$ACTION_3);
 };
-export const $$ACTION_4 = async (x, y, ...z)=>{
-    return x + y + z[0];
+export var $$ACTION_4 = async ($$ACTION_ARG_0, y, ...z)=>{
+    return $$ACTION_ARG_0 + y + z[0];
 };
 var $$ACTION_3;

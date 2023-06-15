@@ -4,19 +4,22 @@ import {
   revalidateTag,
 } from 'next/cache'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
+
+import { cookies } from 'next/headers'
 
 export default async function Page() {
   const data = await fetch(
     'https://next-data-api-endpoint.vercel.app/api/random?page',
     {
-      next: { revalidate: 360, tags: ['thankyounext'] },
+      next: { revalidate: 3600, tags: ['thankyounext'] },
     }
   ).then((res) => res.text())
 
   const data2 = await fetch(
     'https://next-data-api-endpoint.vercel.app/api/random?a=b',
     {
-      next: { revalidate: 360, tags: ['thankyounext', 'justputit'] },
+      next: { revalidate: 3600, tags: ['thankyounext', 'justputit'] },
     }
   ).then((res) => res.text())
 
@@ -43,12 +46,36 @@ export default async function Page() {
       <p>/revalidate</p>
       <p>
         {' '}
-        revalidate (tags: thankyounext): <span id="thankyounext">{data}</span>
+        revalidate (tags: thankyounext): <span id="thankyounext">
+          {data}
+        </span>{' '}
+        <span>
+          <Link href="/revalidate-2" id="another">
+            /revalidate-2
+          </Link>
+        </span>
       </p>
       <p>
         revalidate (tags: thankyounext, justputit):{' '}
         <span id="justputit">{data2}</span>
       </p>
+      <p>
+        random cookie:{' '}
+        <span id="random-cookie">
+          {JSON.stringify(cookies().get('random'))}
+        </span>
+      </p>
+      <form>
+        <button
+          id="set-cookie"
+          formAction={async () => {
+            'use server'
+            cookies().set('random', `${Math.random()}`)
+          }}
+        >
+          set cookie
+        </button>
+      </form>
       {/* <p>revalidate 10 (tags: thankyounext): {JSON.stringify(cachedData)}</p> */}
       <form>
         <button

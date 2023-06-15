@@ -34,6 +34,95 @@ createNextDescribe(
       }
     })
 
+    it('should correctly include headers instance in cache key', async () => {
+      const res = await next.fetch('/variable-revalidate/headers-instance')
+      expect(res.status).toBe(200)
+
+      const html = await res.text()
+      const $ = cheerio.load(html)
+
+      const data1 = $('#page-data').text()
+      const data2 = $('#page-data2').text()
+      expect(data1).not.toBe(data2)
+
+      expect(data1).toBeTruthy()
+      expect(data2).toBeTruthy()
+    })
+
+    it.skip.each([
+      {
+        path: '/react-fetch-deduping-node',
+      },
+      {
+        path: '/react-fetch-deduping-edge',
+      },
+    ])(
+      'should correctly de-dupe fetch without next cache $path',
+      async ({ path }) => {
+        for (let i = 0; i < 5; i++) {
+          const res = await next.fetch(path, {
+            redirect: 'manual',
+          })
+
+          expect(res.status).toBe(200)
+          const html = await res.text()
+          const $ = cheerio.load(html)
+
+          const data1 = $('#data-1').text()
+          const data2 = $('#data-2').text()
+
+          expect(data1).toBeTruthy()
+          expect(data1).toBe(data2)
+
+          await waitFor(250)
+        }
+      }
+    )
+
+    it.each([
+      { pathname: '/unstable-cache-node' },
+      { pathname: '/unstable-cache-edge' },
+      { pathname: '/api/unstable-cache-node' },
+      { pathname: '/api/unstable-cache-edge' },
+    ])('unstable-cache should work in pages$pathname', async ({ pathname }) => {
+      let res = await next.fetch(pathname)
+      expect(res.status).toBe(200)
+      const isApi = pathname.startsWith('/api')
+      let prevData
+
+      if (isApi) {
+        prevData = await res.json()
+      } else {
+        const initialHtml = await res.text()
+        const initial$ = isApi ? undefined : cheerio.load(initialHtml)
+        prevData = JSON.parse(initial$('#props').text())
+      }
+
+      expect(prevData.data.random).toBeTruthy()
+
+      await check(async () => {
+        res = await next.fetch(pathname)
+        expect(res.status).toBe(200)
+        let curData
+
+        if (isApi) {
+          curData = await res.json()
+        } else {
+          const curHtml = await res.text()
+          const cur$ = cheerio.load(curHtml)
+          curData = JSON.parse(cur$('#props').text())
+        }
+
+        try {
+          expect(curData.data.random).toBeTruthy()
+          expect(curData.data.random).toBe(prevData.data.random)
+        } finally {
+          prevData = curData
+        }
+        return 'success'
+      }, 'success')
+    })
+
     it('should not have cache tags header for non-minimal mode', async () => {
       for (const path of [
         '/ssr-forced',
@@ -396,10 +485,15 @@ createNextDescribe(
           'blog/tim.rsc',
           'blog/tim/first-post.html',
           'blog/tim/first-post.rsc',
+          'default-cache/page.js',
           'dynamic-error/[id]/page.js',
           'dynamic-no-gen-params-ssr/[slug]/page.js',
           'dynamic-no-gen-params/[slug]/page.js',
+          'fetch-no-cache/page.js',
           'flight/[slug]/[slug2]/page.js',
+          'force-cache.html',
+          'force-cache.rsc',
+          'force-cache/page.js',
           'force-dynamic-catch-all/[slug]/[[...id]]/page.js',
           'force-dynamic-no-prerender/[id]/page.js',
           'force-dynamic-prerender/[slug]/page.js',
@@ -456,10 +550,13 @@ createNextDescribe(
           'partial-gen-params-no-additional-slug/fr/second.html',
           'partial-gen-params-no-additional-slug/fr/second.rsc',
           'partial-gen-params/[lang]/[slug]/page.js',
+          'react-fetch-deduping-edge/page.js',
+          'react-fetch-deduping-node/page.js',
           'route-handler-edge/revalidate-360/route.js',
           'route-handler/post/route.js',
           'route-handler/revalidate-360-isr/route.js',
           'route-handler/revalidate-360/route.js',
+          'route-handler/static-cookies/route.js',
           'ssg-draft-mode.html',
           'ssg-draft-mode.rsc',
           'ssg-draft-mode/[[...route]]/page.js',
@@ -490,6 +587,9 @@ createNextDescribe(
           'variable-revalidate/encoding.html',
           'variable-revalidate/encoding.rsc',
           'variable-revalidate/encoding/page.js',
+          'variable-revalidate/headers-instance.html',
+          'variable-revalidate/headers-instance.rsc',
+          'variable-revalidate/headers-instance/page.js',
           'variable-revalidate/no-store/page.js',
           'variable-revalidate/post-method-request/page.js',
           'variable-revalidate/post-method.html',
@@ -576,6 +676,11 @@ createNextDescribe(
             initialRevalidateSeconds: false,
             srcRoute: '/blog/[author]/[slug]',
             dataRoute: '/blog/styfle/second-post.rsc',
+          },
+          '/force-cache': {
+            dataRoute: '/force-cache.rsc',
+            initialRevalidateSeconds: 3,
+            srcRoute: '/force-cache',
           },
           '/hooks/use-pathname/slug': {
             dataRoute: '/hooks/use-pathname/slug.rsc',
@@ -697,6 +802,15 @@ createNextDescribe(
             initialRevalidateSeconds: 10,
             srcRoute: '/route-handler/revalidate-360-isr',
           },
+          '/route-handler/static-cookies': {
+            dataRoute: null,
+            initialHeaders: {
+              'set-cookie': 'theme=light; Path=/,my_company=ACME; Path=/',
+              'x-next-cache-tags': '/route-handler/static-cookies/route',
+            },
+            initialRevalidateSeconds: false,
+            srcRoute: '/route-handler/static-cookies',
+          },
           '/variable-config-revalidate/revalidate-3': {
             dataRoute: '/variable-config-revalidate/revalidate-3.rsc',
             initialRevalidateSeconds: 3,
@@ -716,6 +830,11 @@ createNextDescribe(
             dataRoute: '/variable-revalidate/encoding.rsc',
             initialRevalidateSeconds: 3,
             srcRoute: '/variable-revalidate/encoding',
+          },
+          '/variable-revalidate/headers-instance': {
+            dataRoute: '/variable-revalidate/headers-instance.rsc',
+            initialRevalidateSeconds: 10,
+            srcRoute: '/variable-revalidate/headers-instance',
           },
           '/variable-revalidate/post-method': {
             dataRoute: '/variable-revalidate/post-method.rsc',
@@ -838,6 +957,123 @@ createNextDescribe(
         )
       })
     }
+
+    it('should cache correctly for fetchCache = default-cache', async () => {
+      const res = await next.fetch('/default-cache')
+      expect(res.status).toBe(200)
+
+      let prevHtml = await res.text()
+      let prev$ = cheerio.load(prevHtml)
+
+      await check(async () => {
+        const curRes = await next.fetch('/default-cache')
+        expect(curRes.status).toBe(200)
+
+        const curHtml = await curRes.text()
+        const cur$ = cheerio.load(curHtml)
+
+        try {
+          expect(cur$('#data-no-cache').text()).not.toBe(
+            prev$('#data-no-cache').text()
+          )
+          expect(cur$('#data-force-cache').text()).toBe(
+            prev$('#data-force-cache').text()
+          )
+          expect(cur$('#data-revalidate-cache').text()).toBe(
+            prev$('#data-revalidate-cache').text()
+          )
+          expect(cur$('#data-revalidate-and-fetch-cache').text()).toBe(
+            prev$('#data-revalidate-and-fetch-cache').text()
+          )
+          expect(cur$('#data-revalidate-and-fetch-cache').text()).toBe(
+            prev$('#data-revalidate-and-fetch-cache').text()
+          )
+        } finally {
+          prevHtml = curHtml
+          prev$ = cur$
+        }
+        return 'success'
+      }, 'success')
+    })
+
+    // TODO-APP: investigate flaky test
+    it.skip('should cache correctly for fetchCache = force-cache', async () => {
+      const res = await next.fetch('/force-cache')
+      expect(res.status).toBe(200)
+
+      let prevHtml = await res.text()
+      let prev$ = cheerio.load(prevHtml)
+
+      await check(async () => {
+        const curRes = await next.fetch('/force-cache')
+        expect(curRes.status).toBe(200)
+
+        const curHtml = await curRes.text()
+        const cur$ = cheerio.load(curHtml)
+
+        expect(cur$('#data-no-cache').text()).toBe(
+          prev$('#data-no-cache').text()
+        )
+        expect(cur$('#data-force-cache').text()).toBe(
+          prev$('#data-force-cache').text()
+        )
+        expect(cur$('#data-revalidate-cache').text()).toBe(
+          prev$('#data-revalidate-cache').text()
+        )
+        expect(cur$('#data-revalidate-and-fetch-cache').text()).toBe(
+          prev$('#data-revalidate-and-fetch-cache').text()
+        )
+        expect(cur$('#data-auto-cache').text()).toBe(
+          prev$('#data-auto-cache').text()
+        )
+
+        return 'success'
+      }, 'success')
+
+      if (!isNextDeploy) {
+        expect(next.cliOutput).toContain(
+          'Warning: fetch for https://next-data-api-endpoint.vercel.app/api/random?d4 on /force-cache specified "cache: force-cache" and "revalidate: 3", only one should be specified.'
+        )
+      }
+    })
+
+    it('should cache correctly for cache: no-store', async () => {
+      const res = await next.fetch('/fetch-no-cache')
+      expect(res.status).toBe(200)
+
+      let prevHtml = await res.text()
+      let prev$ = cheerio.load(prevHtml)
+
+      await check(async () => {
+        const curRes = await next.fetch('/fetch-no-cache')
+        expect(curRes.status).toBe(200)
+
+        const curHtml = await curRes.text()
+        const cur$ = cheerio.load(curHtml)
+
+        try {
+          expect(cur$('#data-no-cache').text()).not.toBe(
+            prev$('#data-no-cache').text()
+          )
+          expect(cur$('#data-force-cache').text()).toBe(
+            prev$('#data-force-cache').text()
+          )
+          expect(cur$('#data-revalidate-cache').text()).toBe(
+            prev$('#data-revalidate-cache').text()
+          )
+          expect(cur$('#data-revalidate-and-fetch-cache').text()).toBe(
+            prev$('#data-revalidate-and-fetch-cache').text()
+          )
+          expect(cur$('#data-auto-cache').text()).not.toBe(
+            prev$('#data-auto-cache').text()
+          )
+        } finally {
+          prevHtml = curHtml
+          prev$ = cur$
+        }
+        return 'success'
+      }, 'success')
+    })
 
     if (isDev) {
       it('should bypass fetch cache with cache-control: no-cache', async () => {
@@ -1088,6 +1324,12 @@ createNextDescribe(
         expect($2('#page-data').text()).toBe(pageData)
         return 'success'
       }, 'success')
+
+      if (isNextStart) {
+        expect(next.cliOutput).toContain(
+          `Page "/variable-revalidate-edge/revalidate-3" is using runtime = 'edge' which is currently incompatible with dynamic = 'force-static'. Please remove either "runtime" or "force-static" for correct behavior`
+        )
+      }
     })
 
     it('should honor fetch cache correctly (edge)', async () => {

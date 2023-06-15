@@ -1,6 +1,9 @@
 import { createNextDescribe } from 'e2e-utils'
 import { check, waitFor } from 'next-test-utils'
 
+// @ts-ignore
+import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
+
 const browserConfigWithFixedTime = {
   beforePageLoad: (page) => {
     page.addInitScript(() => {
@@ -37,6 +40,10 @@ createNextDescribe(
       it('should skip next dev for now', () => {})
       return
     }
+
+    it('NEXT_RSC_UNION_QUERY query name is _rsc', async () => {
+      expect(NEXT_RSC_UNION_QUERY).toBe('_rsc')
+    })
 
     it('should show layout eagerly when prefetched with loading one level down', async () => {
       const browser = await next.browser('/', browserConfigWithFixedTime)
@@ -85,8 +92,12 @@ createNextDescribe(
       await browser.eval(
         'window.nd.router.prefetch("/static-page", {kind: "auto"})'
       )
+
       await check(() => {
-        return requests.some((req) => req.includes('static-page'))
+        return requests.some(
+          (req) =>
+            req.includes('static-page') && !req.includes(NEXT_RSC_UNION_QUERY)
+        )
           ? 'success'
           : JSON.stringify(requests)
       }, 'success')
@@ -114,7 +125,10 @@ createNextDescribe(
         `window.nd.router.prefetch("/static-page", {kind: "auto"})`
       )
       await check(() => {
-        return requests.some((req) => req.includes('static-page'))
+        return requests.some(
+          (req) =>
+            req.includes('static-page') && !req.includes(NEXT_RSC_UNION_QUERY)
+        )
           ? 'success'
           : JSON.stringify(requests)
       }, 'success')
@@ -136,7 +150,10 @@ createNextDescribe(
         .waitForElementByCss('#static-page')
 
       expect(
-        requests.filter((request) => request === '/static-page').length
+        requests.filter(
+          (request) =>
+            request === '/static-page' || request.includes(NEXT_RSC_UNION_QUERY)
+        ).length
       ).toBe(1)
     })
 
@@ -159,7 +176,11 @@ createNextDescribe(
       for (let i = 0; i < 5; i++) {
         await waitFor(500)
         expect(
-          requests.filter((request) => request === '/static-page').length
+          requests.filter(
+            (request) =>
+              request === '/static-page' ||
+              request.includes(NEXT_RSC_UNION_QUERY)
+          ).length
         ).toBe(0)
       }
     })

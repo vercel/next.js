@@ -10,7 +10,7 @@ use swc_core::{
         visit::FoldWith,
     },
 };
-use turbo_binding::{
+use turbopack_binding::{
     turbo::tasks_fs::FileSystemPathVc,
     turbopack::{
         ecmascript::{
