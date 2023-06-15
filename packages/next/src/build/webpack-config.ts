@@ -773,8 +773,9 @@ export default async function getBaseWebpackConfig(
   const hasServerComponents = hasAppDir
   const disableOptimizedLoading = true
   const enableTypedRoutes = !!config.experimental.typedRoutes && hasAppDir
-  const serverActions = !!config.experimental.serverActions && hasAppDir
-  const bundledReactChannel = serverActions ? '-experimental' : ''
+  const useServerActions = !!config.experimental.serverActions && hasAppDir
+  const serverActionsSizeLimit = config.experimental.serverActionsSizeLimit
+  const bundledReactChannel = useServerActions ? '-experimental' : ''
 
   if (isClient) {
     if (
@@ -2413,7 +2414,8 @@ export default async function getBaseWebpackConfig(
               appDir,
               dev,
               isEdgeServer,
-              useServerActions: serverActions,
+              useServerActions: useServerActions,
+              serverActionsSizeLimit: serverActionsSizeLimit,
             })),
       hasAppDir &&
         !isClient &&
