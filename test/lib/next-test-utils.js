@@ -376,9 +376,7 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
 // Launch the app in dev mode.
 export function launchApp(dir, port, opts) {
   const options = opts ?? {}
-  const useTurbo = !!process.env.TEST_WASM
-    ? false
-    : options?.turbo ?? shouldRunTurboDevTest()
+  const useTurbo = !!process.env.TEST_WASM ? false : shouldRunTurboDevTest()
 
   return runNextCommandDev(
     [useTurbo ? '--turbo' : undefined, dir, '-p', port].filter(Boolean),
