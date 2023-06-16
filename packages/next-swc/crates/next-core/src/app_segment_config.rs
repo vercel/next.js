@@ -60,7 +60,7 @@ pub struct NextSegmentConfig {
     pub revalidate: Option<bool>,
     pub fetch_cache: Option<NextSegmentFetchCache>,
     pub runtime: Option<NextRuntime>,
-    pub referred_region: Option<String>,
+    pub preferred_region: Option<String>,
 }
 
 #[turbo_tasks::value_impl]
@@ -80,10 +80,10 @@ impl NextSegmentConfig {
         self.revalidate = self.revalidate.or(parent.revalidate);
         self.fetch_cache = self.fetch_cache.or(parent.fetch_cache);
         self.runtime = self.runtime.or(parent.runtime);
-        self.referred_region = self
-            .referred_region
+        self.preferred_region = self
+            .preferred_region
             .take()
-            .or(parent.referred_region.clone());
+            .or(parent.preferred_region.clone());
     }
 
     /// Applies the sibling config to this config, returning an error if there
@@ -120,8 +120,8 @@ impl NextSegmentConfig {
         merge_sibling(&mut self.fetch_cache, &sibling.fetch_cache, "fetchCache")?;
         merge_sibling(&mut self.runtime, &sibling.runtime, "runtime")?;
         merge_sibling(
-            &mut self.referred_region,
-            &sibling.referred_region,
+            &mut self.preferred_region,
+            &sibling.preferred_region,
             "referredRegion",
         )?;
         Ok(())
@@ -325,7 +325,7 @@ fn parse_config_value(
                 return invalid_config("`preferredRegion` needs to be a static string", &value);
             };
 
-            config.referred_region = Some(val.to_string());
+            config.preferred_region = Some(val.to_string());
         }
         _ => {}
     }
