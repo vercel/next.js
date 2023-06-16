@@ -225,11 +225,11 @@ async function validateAllInternalLinks() {
   )
 
   let errorComment =
-    'Hi there :wave:\n\nIt looks like this PR introduces internal broken links to the docs, please take a moment to fix them before merging:\n\n| :heavy_multiplication_x: Broken link | :page_facing_up: File | Link Type         |\n| ----------- | ----------- | ------------ |\n'
+    'Hi there :wave:\n\nIt looks like this PR introduces broken links to the docs, please take a moment to fix them before merging:\n\n| :heavy_multiplication_x: Broken link | :page_facing_up: File | \n| ----------- | ----------- | \n'
 
-  const formatTableRow = (link, docPath, type) => {
+  const formatTableRow = (link, docPath) => {
     const commitSHA = github.context.payload.pull_request.head.sha
-    return `| ${link} | [/${docPath}](https://github.com/vercel/next.js/blob/${commitSHA}/${docPath}) | ${type} |\n`
+    return `| ${link} | [/${docPath}](https://github.com/vercel/next.js/blob/${commitSHA}/${docPath}) | \n`
   }
 
   allErrors.forEach((errors) => {
@@ -243,25 +243,25 @@ async function validateAllInternalLinks() {
 
     if (brokenLinks.length > 0) {
       brokenLinks.forEach((link) => {
-        errorComment += formatTableRow(link, docPath, 'Path')
+        errorComment += formatTableRow(link, docPath)
       })
     }
 
     if (brokenHashes.length > 0) {
       brokenHashes.forEach((hash) => {
-        errorComment += formatTableRow(hash, docPath, 'Hash')
+        errorComment += formatTableRow(hash, docPath)
       })
     }
 
     if (brokenSourceLinks.length > 0) {
       brokenSourceLinks.forEach((link) => {
-        errorComment += formatTableRow(link, docPath, 'Source')
+        errorComment += formatTableRow(link, docPath)
       })
     }
 
     if (brokenRelatedLinks.length > 0) {
       brokenRelatedLinks.forEach((link) => {
-        errorComment += formatTableRow(link, docPath, 'Related')
+        errorComment += formatTableRow(link, docPath)
       })
     }
   })
