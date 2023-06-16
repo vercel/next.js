@@ -35,7 +35,6 @@ const ignoreProps = [
 ]
 
 const insertStylesheets = (stylesheets) => {
-  console.log('here')
   if (typeof window !== 'undefined') {
     let head = document.head
     stylesheets.forEach((stylesheet: string) => {
