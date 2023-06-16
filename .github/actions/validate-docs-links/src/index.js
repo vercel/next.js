@@ -225,7 +225,7 @@ async function validateAllInternalLinks() {
   )
 
   let errorComment =
-    'Hi there :wave:\n\nIt looks like this PR introduces internal broken links to the docs, please take a moment to fix them before merging:\n\n| :heavy-multiplication-x: Broken link | :page_facing_up: Found in... | Link Type         |\n| ----------- | ----------- | ------------ |\n'
+    'Hi there :wave:\n\nIt looks like this PR introduces internal broken links to the docs, please take a moment to fix them before merging:\n\n| :heavy_multiplication_x: Broken link | :page_facing_up: File | Link Type         |\n| ----------- | ----------- | ------------ |\n'
 
   const formatTableRow = (link, docPath, type) => {
     const commitSHA = github.context.payload.pull_request.head.sha
