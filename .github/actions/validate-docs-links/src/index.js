@@ -211,30 +211,43 @@ async function validateAllInternalLinks() {
   )
 
   let errorComment =
-    'Hi there :wave:\n\nIt looks like this PR introduces internal broken links to the docs, please take a moment to fix them before merging:\n\n| :broken-link: Broken link | :page_facing_up: Found in... | Link Type         |\n| ----------- | ----------- | ------------ |\n'
+    'Hi there :wave:\n\nIt looks like this PR introduces internal broken links to the docs, please take a moment to fix them before merging:\n\n| :heavy-multiplication-x: Broken link | :page_facing_up: Found in... | Link Type         |\n| ----------- | ----------- | ------------ |\n'
+
+  const formatTableRow = (link, docPath, type) => {
+    const commitSHA = github.context.payload.pull_request.head.sha
+    return `| ${link} | [/${docPath}](https://github.com/vercel/next.js/blob/${commitSHA}/${docPath}) | ${type} |\n`
+  }
 
   allErrors.forEach((errors) => {
-    if (errors.brokenLinks.length > 0) {
-      errors.brokenLinks.forEach((link) => {
-        errorComment += `| ${link} | [${errors.doc.path}](https://github.com/vercel/next.js/tree/canary/${errors.doc.path}) | Path         |\n`
+    const {
+      doc: { path: docPath },
+      brokenLinks,
+      brokenHashes,
+      brokenSourceLinks,
+      brokenRelatedLinks,
+    } = errors
+
+    if (brokenLinks.length > 0) {
+      brokenLinks.forEach((link) => {
+        errorComment += formatTableRow(link, docPath, 'Path')
       })
     }
 
-    if (errors.brokenHashes.length > 0) {
-      errors.brokenHashes.forEach((hash) => {
-        errorComment += `| ${hash} | ${errors.doc.path} | Hash    |\n`
+    if (brokenHashes.length > 0) {
+      brokenHashes.forEach((hash) => {
+        errorComment += formatTableRow(hash, docPath, 'Hash')
       })
     }
 
-    if (errors.brokenSourceLinks.length > 0) {
-      errors.brokenSourceLinks.forEach((link) => {
-        errorComment += `| ${link} | ${errors.doc.path} | Source  |\n`
+    if (brokenSourceLinks.length > 0) {
+      brokenSourceLinks.forEach((link) => {
+        errorComment += formatTableRow(link, docPath, 'Source')
       })
     }
 
-    if (errors.brokenRelatedLinks.length > 0) {
-      errors.brokenRelatedLinks.forEach((link) => {
-        errorComment += `| ${link} | ${errors.doc.path} | Related |\n`
+    if (brokenRelatedLinks.length > 0) {
+      brokenRelatedLinks.forEach((link) => {
+        errorComment += formatTableRow(link, docPath, 'Related')
       })
     }
   })
@@ -242,7 +255,7 @@ async function validateAllInternalLinks() {
   errorComment += '\nThank you :pray:'
 
   // Create the comment if any errors have been found
-  if (errorComment !== '') {
+  if (allErrors.length > 0) {
     await createGithubComment(errorComment)
   }
 }
