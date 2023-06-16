@@ -126,7 +126,7 @@ routerEvents.forEach((event) => {
 // Export the singletonRouter and this is the public API.
 export default singletonRouter as SingletonRouter
 
-// Reexport the withRoute HOC
+// Reexport the withRouter HOC
 export { default as withRouter } from './with-router'
 
 export function useRouter(): NextRouter {

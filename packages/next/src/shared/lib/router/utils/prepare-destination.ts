@@ -12,6 +12,7 @@ import {
   INTERCEPTION_ROUTE_MARKERS,
   isInterceptionRouteAppPath,
 } from '../../../../server/future/helpers/interception-routes'
+import { NEXT_RSC_UNION_QUERY } from '../../../../client/components/app-router-headers'
 
 /**
  * Ensure only a-zA-Z are used for param names for proper interpolating
@@ -163,6 +164,7 @@ export function prepareDestination(args: {
   delete query.__nextDefaultLocale
   delete query.__nextDataReq
   delete query.__nextInferredLocaleFromDefault
+  delete query[NEXT_RSC_UNION_QUERY]
 
   let escapedDestination = args.destination
 

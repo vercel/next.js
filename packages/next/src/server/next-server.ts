@@ -44,7 +44,6 @@ import {
   CLIENT_REFERENCE_MANIFEST,
   CLIENT_PUBLIC_FILES_PATH,
   APP_PATHS_MANIFEST,
-  FLIGHT_SERVER_CSS_MANIFEST,
   SERVER_DIRECTORY,
   NEXT_FONT_MANIFEST,
   PHASE_PRODUCTION_BUILD,
@@ -110,6 +109,7 @@ import { invokeRequest } from './lib/server-ipc/invoke-request'
 import { filterReqHeaders } from './lib/server-ipc/utils'
 import { createRequestResponseMocks } from './lib/mock-request'
 import chalk from 'next/dist/compiled/chalk'
+import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 
 export * from './base-server'
 
@@ -959,7 +959,6 @@ export default class NextNodeServer extends BaseServer {
     // object here but only updating its `clientReferenceManifest` field.
     // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
     renderOpts.clientReferenceManifest = this.clientReferenceManifest
-    renderOpts.serverCSSManifest = this.serverCSSManifest
     renderOpts.nextFontManifest = this.nextFontManifest
 
     if (this.hasAppDir && renderOpts.isAppPath) {
@@ -1165,15 +1164,6 @@ export default class NextNodeServer extends BaseServer {
       this.distDir,
       'server',
       CLIENT_REFERENCE_MANIFEST + '.json'
-    ))
-  }
-
-  protected getServerCSSManifest() {
-    if (!this.hasAppDir) return undefined
-    return require(join(
-      this.distDir,
-      'server',
-      FLIGHT_SERVER_CSS_MANIFEST + '.json'
     ))
   }
 
@@ -1541,10 +1531,6 @@ export default class NextNodeServer extends BaseServer {
           }
         }
 
-        if (match) {
-          addRequestMeta(req, '_nextMatch', match)
-        }
-
         // Try to handle the given route with the configured handlers.
         if (match) {
           // Add the match to the request so we don't have to re-run the matcher
@@ -1560,6 +1546,7 @@ export default class NextNodeServer extends BaseServer {
                 return { finished: true }
               }
               delete query._nextBubbleNoFallback
+              delete query[NEXT_RSC_UNION_QUERY]
 
               const handledAsEdgeFunction = await this.runEdgeFunction({
                 req,

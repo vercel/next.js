@@ -1,5 +1,6 @@
 import type { RequestHandler } from '../next'
 
+import './cpu-profile'
 import v8 from 'v8'
 import http from 'http'
 import { isIPv6 } from 'net'
@@ -136,6 +137,6 @@ export async function initialize(opts: {
         return reject(err)
       }
     })
-    server.listen(await getFreePort(), opts.hostname)
+    server.listen(await getFreePort(), '0.0.0.0')
   })
 }

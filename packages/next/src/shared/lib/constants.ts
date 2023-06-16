@@ -56,8 +56,6 @@ export const NEXT_CLIENT_SSR_ENTRY_SUFFIX = '.__sc_client__'
 
 // server/client-reference-manifest
 export const CLIENT_REFERENCE_MANIFEST = 'client-reference-manifest'
-// server/flight-server-css-manifest
-export const FLIGHT_SERVER_CSS_MANIFEST = 'flight-server-css-manifest'
 // server/server-reference-manifest
 export const SERVER_REFERENCE_MANIFEST = 'server-reference-manifest'
 // server/middleware-build-manifest.js

@@ -4,8 +4,10 @@ description: With minimal config, and without leaving React, you can start addin
 ---
 
 <details>
-  <summary>Examples</summary>-
-  [AMP](https://github.com/vercel/next.js/tree/canary/examples/amp)
+  <summary>Examples</summary>
+  
+- [AMP](https://github.com/vercel/next.js/tree/canary/examples/amp)
+
 </details>
 
 With Next.js you can turn any React page into an AMP page, with minimal config, and without leaving React.
@@ -97,7 +99,7 @@ Pages are also validated during [Static HTML export](/docs/pages/building-your-a
 
 You can set up custom AMP validator in `next.config.js` as shown below:
 
-```jsx
+```js
 module.exports = {
   amp: {
     validator: './custom_validator.js',
@@ -109,7 +111,7 @@ module.exports = {
 
 To turn off AMP validation add the following code to `next.config.js`
 
-```jsx
+```js
 experimental: {
   amp: {
     skipValidation: true

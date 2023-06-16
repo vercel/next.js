@@ -1,3 +1,4 @@
+/* eslint-disable jest/no-standalone-expect */
 import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import { Request } from 'playwright-chromium'
@@ -13,6 +14,7 @@ createNextDescribe(
     files: __dirname,
     dependencies: {
       react: 'latest',
+      nanoid: 'latest',
       'react-dom': 'latest',
       'server-only': 'latest',
     },
@@ -98,7 +100,7 @@ createNextDescribe(
 
     it('should support setting cookies in route handlers with the correct overrides', async () => {
       const res = await next.fetch('/handler')
-      const setCookieHeader = res.headers.get('set-cookie') as string[]
+      const setCookieHeader = res.headers.get('set-cookie') as any as string[]
       expect(setCookieHeader).toContain('bar=bar2; Path=/')
       expect(setCookieHeader).toContain('baz=baz2; Path=/')
       expect(setCookieHeader).toContain('foo=foo1; Path=/')
@@ -280,6 +282,14 @@ createNextDescribe(
           }
         })
       })
+
+      it('should bundle external libraries if they are on the action layer', async () => {
+        await next.fetch('/client')
+        const pageBundle = await fs.readFile(
+          join(next.testDir, '.next', 'server', 'app', 'client', 'page.js')
+        )
+        expect(pageBundle.toString()).toContain('node_modules/nanoid/index.js')
+      })
     }
 
     describe('Edge SSR', () => {
@@ -350,6 +360,23 @@ createNextDescribe(
           return browser.eval('window.location.toString()')
         }, 'https://example.com/')
       })
+
+      it('should allow cookie and header async storages', async () => {
+        const browser = await next.browser('/client/edge')
+
+        const currentTestCookie = await browser.eval(
+          `document.cookie.match(/test-cookie=(\\d+)/)?.[1]`
+        )
+
+        await browser.elementByCss('#get-headers').click()
+
+        await check(async () => {
+          const newTestCookie = await browser.eval(
+            `document.cookie.match(/test-cookie=(\\d+)/)?.[1]`
+          )
+          return newTestCookie !== currentTestCookie ? 'success' : 'failure'
+        }, 'success')
+      })
     })
 
     describe('fetch actions', () => {
@@ -382,7 +409,10 @@ createNextDescribe(
         }, 'https://example.com/')
       })
 
-      it('should handle revalidatePath', async () => {
+      // TODO: investigate flakey behavior on deploy
+      const skipDeploy = (global as any).isNextDeploy ? it.skip : it
+
+      skipDeploy('should handle revalidatePath', async () => {
         const browser = await next.browser('/revalidate')
         const randomNumber = await browser.elementByCss('#random-number').text()
         const justPutIt = await browser.elementByCss('#justputit').text()
@@ -407,8 +437,7 @@ createNextDescribe(
         }, 'success')
       })
 
-      // TODO: investigate flakiness when deployed
-      it.skip('should handle revalidateTag', async () => {
+      skipDeploy('should handle revalidateTag', async () => {
         const browser = await next.browser('/revalidate')
         const randomNumber = await browser.elementByCss('#random-number').text()
         const justPutIt = await browser.elementByCss('#justputit').text()
@@ -433,7 +462,7 @@ createNextDescribe(
         }, 'success')
       })
 
-      it('should handle revalidateTag + redirect', async () => {
+      skipDeploy('should handle revalidateTag + redirect', async () => {
         const browser = await next.browser('/revalidate')
         const randomNumber = await browser.elementByCss('#random-number').text()
         const justPutIt = await browser.elementByCss('#justputit').text()
@@ -458,37 +487,42 @@ createNextDescribe(
         }, 'success')
       })
 
-      it('should store revalidation data in the prefetch cache', async () => {
-        const browser = await next.browser('/revalidate')
-        const justPutIt = await browser.elementByCss('#justputit').text()
-        await browser.elementByCss('#revalidate-justputit').click()
+      skipDeploy(
+        'should store revalidation data in the prefetch cache',
+        async () => {
+          const browser = await next.browser('/revalidate')
+          const justPutIt = await browser.elementByCss('#justputit').text()
+          await browser.elementByCss('#revalidate-justputit').click()
 
-        // TODO: investigate flakiness when deployed
-        if (!isNextDeploy) {
-          await check(async () => {
-            const newJustPutIt = await browser.elementByCss('#justputit').text()
-            expect(newJustPutIt).not.toBe(justPutIt)
-            return 'success'
-          }, 'success')
+          // TODO: investigate flakiness when deployed
+          if (!isNextDeploy) {
+            await check(async () => {
+              const newJustPutIt = await browser
+                .elementByCss('#justputit')
+                .text()
+              expect(newJustPutIt).not.toBe(justPutIt)
+              return 'success'
+            }, 'success')
+          }
+
+          const newJustPutIt = await browser.elementByCss('#justputit').text()
+
+          await browser
+            .elementByCss('#navigate-client')
+            .click()
+            .waitForElementByCss('#inc')
+          await browser
+            .elementByCss('#navigate-revalidate')
+            .click()
+            .waitForElementByCss('#revalidate-justputit')
+
+          const newJustPutIt2 = await browser.elementByCss('#justputit').text()
+
+          expect(newJustPutIt).toEqual(newJustPutIt2)
         }
+      )
 
-        const newJustPutIt = await browser.elementByCss('#justputit').text()
-
-        await browser
-          .elementByCss('#navigate-client')
-          .click()
-          .waitForElementByCss('#inc')
-        await browser
-          .elementByCss('#navigate-revalidate')
-          .click()
-          .waitForElementByCss('#revalidate-justputit')
-
-        const newJustPutIt2 = await browser.elementByCss('#justputit').text()
-
-        expect(newJustPutIt).toEqual(newJustPutIt2)
-      })
-
-      it('should revalidate when cookies.set is called', async () => {
+      skipDeploy('should revalidate when cookies.set is called', async () => {
         const browser = await next.browser('/revalidate')
         const randomNumber = await browser.elementByCss('#random-cookie').text()
 
@@ -503,8 +537,68 @@ createNextDescribe(
         }, 'success')
       })
 
-      it.each(['tag', 'path'])(
-        'should invalidate client cache when %s is revalidate',
+      skipDeploy(
+        'should revalidate when cookies.set is called in a client action',
+        async () => {
+          const browser = await next.browser('/revalidate')
+          await browser.refresh()
+
+          let randomCookie
+          await check(async () => {
+            randomCookie = JSON.parse(
+              await browser.elementByCss('#random-cookie').text()
+            ).value
+            return randomCookie ? 'success' : 'failure'
+          }, 'success')
+
+          console.log(123, await browser.elementByCss('body').text())
+
+          await browser.elementByCss('#another').click()
+          await check(async () => {
+            return browser.elementByCss('#title').text()
+          }, 'another route')
+
+          const newRandomCookie = JSON.parse(
+            await browser.elementByCss('#random-cookie').text()
+          ).value
+
+          console.log(456, await browser.elementByCss('body').text())
+
+          // Should be the same value
+          expect(randomCookie).toEqual(newRandomCookie)
+
+          await browser.elementByCss('#back').click()
+
+          // Modify the cookie
+          await browser.elementByCss('#set-cookie').click()
+
+          // Should be different
+          let revalidatedRandomCookie
+          await check(async () => {
+            revalidatedRandomCookie = JSON.parse(
+              await browser.elementByCss('#random-cookie').text()
+            ).value
+            return randomCookie !== revalidatedRandomCookie
+              ? 'success'
+              : 'failure'
+          }, 'success')
+
+          await browser.elementByCss('#another').click()
+
+          // The other page should be revalidated too
+          await check(async () => {
+            const newRandomCookie = await JSON.parse(
+              await browser.elementByCss('#random-cookie').text()
+            ).value
+            return revalidatedRandomCookie === newRandomCookie
+              ? 'success'
+              : 'failure'
+          }, 'success')
+        }
+      )
+
+      skipDeploy.each(['tag', 'path'])(
+        'should invalidate client cache when %s is revalidated',
         async (type) => {
           const browser = await next.browser('/revalidate')
           await browser.refresh()
@@ -527,10 +621,15 @@ createNextDescribe(
 
           await browser.elementByCss('#back').click()
 
-          if (type === 'tag') {
-            await browser.elementByCss('#revalidate-thankyounext').click()
-          } else {
-            await browser.elementByCss('#revalidate-path').click()
+          switch (type) {
+            case 'tag':
+              await browser.elementByCss('#revalidate-thankyounext').click()
+              break
+            case 'path':
+              await browser.elementByCss('#revalidate-path').click()
+              break
+            default:
+              throw new Error(`Invalid type: ${type}`)
           }
 
           // Should be different

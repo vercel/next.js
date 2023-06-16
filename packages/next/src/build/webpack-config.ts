@@ -97,7 +97,7 @@ const babelIncludeRegexes: RegExp[] = [
 const reactPackagesRegex = /^(react|react-dom|react-server-dom-webpack)($|\/)/
 
 const asyncStoragesRegex =
-  /next[\\/]dist[\\/]client[\\/]components[\\/](static-generation-async-storage|action-async-storage|request-async-storage)/
+  /next[\\/]dist[\\/](esm[\\/])?client[\\/]components[\\/](static-generation-async-storage|action-async-storage|request-async-storage)/
 
 // exports.<conditionName>
 const edgeConditionNames = [
@@ -1385,7 +1385,7 @@ export default async function getBaseWebpackConfig(
       // so that the DefinePlugin can inject process.env values.
 
       // Treat next internals as non-external for server layer
-      if (layer === WEBPACK_LAYERS.server) {
+      if (layer === WEBPACK_LAYERS.server || layer === WEBPACK_LAYERS.action) {
         return
       }
 
@@ -1520,7 +1520,7 @@ export default async function getBaseWebpackConfig(
       (isEsm && isAppLayer)
 
     if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
-      if (layer === WEBPACK_LAYERS.server) {
+      if (layer === WEBPACK_LAYERS.server || layer === WEBPACK_LAYERS.action) {
         // All packages should be bundled for the server layer if they're not opted out.
         // This option takes priority over the transpilePackages option.
 
@@ -1895,6 +1895,12 @@ export default async function getBaseWebpackConfig(
         ...(hasAppDir
           ? [
               {
+                // Make sure that AsyncLocalStorage module instance is shared between server and client
+                // layers.
+                layer: WEBPACK_LAYERS.shared,
+                test: asyncStoragesRegex,
+              },
+              {
                 // All app dir layers need to use this configured resolution logic
                 issuerLayer: {
                   or: [
@@ -1956,12 +1962,6 @@ export default async function getBaseWebpackConfig(
                 use: {
                   loader: 'next-flight-loader',
                 },
-              },
-              {
-                // Make sure that AsyncLocalStorage module instance is shared between server and client
-                // layers.
-                layer: WEBPACK_LAYERS.shared,
-                test: asyncStoragesRegex,
               },
             ]
           : []),

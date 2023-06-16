@@ -25,7 +25,7 @@ export default function Home() {
     ], $$ACTION_1, $$ACTION_2), $$ACTION_1);
     return null;
 }
-export const $$ACTION_2 = async ($$ACTION_ARG_0, $$ACTION_ARG_1)=>{
+export var $$ACTION_2 = async ($$ACTION_ARG_0, $$ACTION_ARG_1)=>{
     console.log($$ACTION_ARG_0);
     console.log($$ACTION_ARG_1);
 };

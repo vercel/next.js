@@ -9,7 +9,7 @@
     "new-error": "plop error",
     "new-test": "plop test",
     "clean": "lerna clean -y && lerna bootstrap && lerna run clean && lerna exec 'node ../../scripts/rm.mjs dist'",
-    "build": "turbo run build --summarize true",
+    "build": "turbo run build --remote-cache-timeout 60 --summarize true",
     "lerna": "lerna",
     "dev": "turbo run dev --parallel",
     "test-types": "tsc",
@@ -51,7 +51,7 @@
     "clean-trace-jaeger": "node scripts/rm.mjs test/integration/basic/.next && TRACE_TARGET=JAEGER pnpm next build test/integration/basic",
     "debug": "cross-env NEXT_TELEMETRY_DISABLED=1 node --inspect packages/next/dist/bin/next",
     "postinstall": "git config index.skipHash false && node scripts/install-native.mjs",
-    "version": "npx pnpm@7.24.3 install --no-frozen-lockfile && IS_PUBLISH=yes ./scripts/check-pre-compiled.sh && git add .",
+    "version": "npx pnpm@7.32.2 install --no-frozen-lockfile && IS_PUBLISH=yes ./scripts/check-pre-compiled.sh && git add .",
     "prepare": "husky install",
     "sync-react": "node ./scripts/sync-react.js",
     "update-google-fonts": "node ./scripts/update-google-fonts.js"
@@ -152,6 +152,7 @@
     "isomorphic-unfetch": "3.0.0",
     "jest": "27.0.6",
     "jest-extended": "1.2.1",
+    "jest-junit": "16.0.0",
     "json5": "2.2.3",
     "ky": "0.19.1",
     "ky-universal": "0.6.0",
@@ -238,5 +239,5 @@
   "engines": {
     "node": ">=16.8.0"
   },
-  "packageManager": "pnpm@7.24.3"
+  "packageManager": "pnpm@7.32.2"
 }

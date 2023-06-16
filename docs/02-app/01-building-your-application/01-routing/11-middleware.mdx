@@ -81,7 +81,7 @@ export const config = {
 }
 ```
 
-> **Note**: The `matcher` values need to be constants so they can be statically analyzed at build-time. Dynamic values such as variables will be ignored.
+> **Good to know**: The `matcher` values need to be constants so they can be statically analyzed at build-time. Dynamic values such as variables will be ignored.
 
 Configured matchers:
 
@@ -92,7 +92,7 @@ Configured matchers:
 
 Read more details on [path-to-regexp](https://github.com/pillarjs/path-to-regexp#path-to-regexp-1) documentation.
 
-> **Note**: For backward compatibility, Next.js always considers `/public` as `/public/index`. Therefore, a matcher of `/public/:path` will match.
+> **Good to know**: For backward compatibility, Next.js always considers `/public` as `/public/index`. Therefore, a matcher of `/public/:path` will match.
 
 ### Conditional Statements
 
@@ -140,8 +140,8 @@ import type { NextRequest } from 'next/server'
 export function middleware(request: NextRequest) {
   // Assume a "Cookie:nextjs=fast" header to be present on the incoming request
   // Getting cookies from the request using the `RequestCookies` API
-  let cookie = request.cookies.get('nextjs')?.value
-  console.log(cookie) // => 'fast'
+  let cookie = request.cookies.get('nextjs')
+  console.log(cookie) // => { name: 'nextjs', value: 'fast', Path: '/' }
   const allCookies = request.cookies.getAll()
   console.log(allCookies) // => [{ name: 'nextjs', value: 'fast' }]
 
@@ -214,7 +214,7 @@ export function middleware(request) {
 }
 ```
 
-> **Note**: Avoid setting large headers as it might cause [431 Request Header Fields Too Large](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/431) error depending on your backend web server configuration.
+> **Good to know**: Avoid setting large headers as it might cause [431 Request Header Fields Too Large](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/431) error depending on your backend web server configuration.
 
 ## Producing a Response
 
