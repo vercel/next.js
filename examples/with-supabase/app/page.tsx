@@ -74,7 +74,7 @@ export default async function Index() {
       </div>
 
       <p className="text-gray-300 mb-16">
-        Ready to build your app? Head over to `app/page.js` 👉
+        Ready to build your app? Head over to `app/page.tsx` 👉
       </p>
 
       <div className="bg-gray-800 rounded-md p-8 text-gray-300">
@@ -82,11 +82,11 @@ export default async function Index() {
           We have also included examples for creating a Supabase client in:
         </p>
         <ul className="list-disc ml-8">
-          <li>Client Components - `app/client-component-example/page.js`</li>
-          <li>Server Components - `app/server-component-example/page.js`</li>
-          <li>Server Actions - `app/server-action-example/page.js`</li>
-          <li>Route Handlers - `app/route-handler-example/route.js`</li>
-          <li>Middleware - `middleware.js`</li>
+          <li>Client Components - `app/client-component-example/page.tsx`</li>
+          <li>Server Components - `app/server-component-example/page.tsx`</li>
+          <li>Server Actions - `app/server-action-example/page.tsx`</li>
+          <li>Route Handlers - `app/route-handler-example/route.ts`</li>
+          <li>Middleware - `middleware.ts`</li>
         </ul>
       </div>
     </div>

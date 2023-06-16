@@ -11,7 +11,7 @@ export default function Login() {
   const router = useRouter()
   const supabase = createClientComponentClient()
 
-  const handleSignUp = async (e) => {
+  const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     await supabase.auth.signUp({
       email,
@@ -23,12 +23,13 @@ export default function Login() {
     setView('check-email')
   }
 
-  const handleSignIn = async (e) => {
+  const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
+    console.log({ data, error })
     router.push('/')
   }
 
@@ -83,10 +84,7 @@ export default function Login() {
           ) : null}
           {view === 'sign-up' ? (
             <>
-              <button
-                className="bg-green-700 rounded px-4 py-2 text-gray-200 mb-6"
-                onSubmit={handleSignUp}
-              >
+              <button className="bg-green-700 rounded px-4 py-2 text-gray-200 mb-6">
                 Sign Up
               </button>
               <p className="text-sm text-gray-500 text-center">
