@@ -88,13 +88,11 @@ export default function startHandler<T, R>(
                 }
               },
               (error) => {
-                if (error instanceof Error) {
-                  return ipc.sendError(error)
-                } else {
-                  return ipc.sendError(
-                    new Error(`an unknown error occurred: ${error}`)
-                  )
-                }
+                return ipc.sendError(
+                  error instanceof Error
+                    ? error
+                    : new Error(`an unknown error occurred: ${error}`)
+                )
               }
             )
             break
@@ -112,10 +110,7 @@ export default function startHandler<T, R>(
             const msg = await ipc.recv()
 
             switch (msg.type) {
-              case 'bodyChunk': {
-                await operation.onChunk?.(Buffer.from(msg.data))
-                break
-              }
+              case 'bodyChunk':
               case 'bodyText': {
                 await operation.onChunk?.(Buffer.from(msg.data))
                 break
@@ -136,10 +131,7 @@ export default function startHandler<T, R>(
             const msg = await ipc.recv()
 
             switch (msg.type) {
-              case 'bodyChunk': {
-                body = Buffer.concat([body, Buffer.from(msg.data)])
-                break
-              }
+              case 'bodyChunk':
               case 'bodyText': {
                 body = Buffer.concat([body, Buffer.from(msg.data)])
                 break
