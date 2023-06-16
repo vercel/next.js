@@ -30,6 +30,7 @@ export type AppLoaderOptions = {
   appDir: string
   appPaths: readonly string[] | null
   preferredRegion: string | string[] | undefined
+  maxDuration: number | undefined
   pageExtensions: string[]
   assetPrefix: string
   rootDir?: string
@@ -434,6 +435,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     isDev,
     nextConfigOutput,
     preferredRegion,
+    maxDuration,
     basePath,
   } = loaderOptions
 
@@ -443,6 +445,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     page,
     absolutePagePath: createAbsolutePath(appDir, pagePath),
     preferredRegion,
+    maxDuration,
   }
 
   const extensions = pageExtensions.map((extension) => `.${extension}`)

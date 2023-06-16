@@ -21,6 +21,7 @@ import {
   SUBRESOURCE_INTEGRITY_MANIFEST,
   NEXT_FONT_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
+  CompilerNameValues,
 } from '../../../shared/lib/constants'
 import {
   getPageStaticInfo,
@@ -33,6 +34,9 @@ import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { INSTRUMENTATION_HOOK_FILENAME } from '../../../lib/constants'
 import { NextBuildContext } from '../../build-context'
 
+let edgeServerConfig = {}
+let nodeServerConfig = {}
+
 export interface EdgeFunctionDefinition {
   files: string[]
   name: string
@@ -43,11 +47,16 @@ export interface EdgeFunctionDefinition {
   regions?: string[] | string
 }
 
+interface FunctionConfig {
+  maxDuration?: number
+}
+
 export interface MiddlewareManifest {
   version: 2
   sortedMiddleware: string[]
   middleware: { [page: string]: EdgeFunctionDefinition }
   functions: { [page: string]: EdgeFunctionDefinition }
+  config: { [page: string]: FunctionConfig }
 }
 
 interface EntryMetadata {
@@ -57,6 +66,7 @@ interface EntryMetadata {
   wasmBindings: Map<string, string>
   assetBindings: Map<string, string>
   regions?: string[] | string
+  maxDuration?: number
 }
 
 const NAME = 'MiddlewarePlugin'
@@ -142,16 +152,20 @@ function getEntryFiles(
 function getCreateAssets(params: {
   compilation: webpack.Compilation
   metadataByEntry: Map<string, EntryMetadata>
+  compilerType: CompilerNameValues
+  dev: boolean
   opts: {
     sriEnabled: boolean
   }
 }) {
-  const { compilation, metadataByEntry, opts } = params
+  const { compilation, metadataByEntry, opts, compilerType, dev } = params
+
   return (assets: any) => {
     const middlewareManifest: MiddlewareManifest = {
       sortedMiddleware: [],
       middleware: {},
       functions: {},
+      config: {},
       version: 2,
     }
     for (const entrypoint of compilation.entrypoints.values()) {
@@ -161,10 +175,18 @@ function getCreateAssets(params: {
 
       // There should always be metadata for the entrypoint.
       const metadata = metadataByEntry.get(entrypoint.name)
+
+      if (metadata?.maxDuration) {
+        middlewareManifest.config[entrypoint.name] = {
+          maxDuration: metadata.maxDuration,
+        }
+      }
+
       const page =
         metadata?.edgeMiddleware?.page ||
         metadata?.edgeSSR?.page ||
         metadata?.edgeApiFunction?.page
+
       if (!page) {
         continue
       }
@@ -201,6 +223,12 @@ function getCreateAssets(params: {
         ...(metadata.regions && { regions: metadata.regions }),
       }
 
+      if (metadata.maxDuration) {
+        middlewareManifest.config[entrypoint.name] = {
+          maxDuration: metadata.maxDuration,
+        }
+      }
+
       if (metadata.edgeApiFunction || metadata.edgeSSR) {
         middlewareManifest.functions[page] = edgeFunctionDefinition
       } else {
@@ -212,9 +240,31 @@ function getCreateAssets(params: {
       Object.keys(middlewareManifest.middleware)
     )
 
-    assets[MIDDLEWARE_MANIFEST] = new sources.RawSource(
-      JSON.stringify(middlewareManifest, null, 2)
-    )
+    if (compilerType === 'server') {
+      nodeServerConfig = middlewareManifest.config
+    }
+
+    if (compilerType === 'edge-server') {
+      edgeServerConfig = middlewareManifest.config
+
+      const outputPath =
+        `${!dev && compilerType !== 'edge-server' ? '../' : ''}` +
+        MIDDLEWARE_MANIFEST
+
+      assets[outputPath] = new sources.RawSource(
+        JSON.stringify(
+          {
+            ...middlewareManifest,
+            config: {
+              ...nodeServerConfig,
+              ...edgeServerConfig,
+            },
+          },
+          null,
+          2
+        )
+      )
+    }
   }
 }
 
@@ -555,17 +605,32 @@ function getExtractMetadata(params: {
     const telemetry: Telemetry | undefined = traceGlobals.get('telemetry')
 
     for (const [entryName, entry] of compilation.entries) {
+      const entryDependency = entry.dependencies?.[0]
+
+      const { rootDir, route } = getModuleBuildInfo(
+        compilation.moduleGraph.getResolvedModule(entryDependency)
+      )
+
+      const entryMetadata: EntryMetadata = {
+        wasmBindings: new Map(),
+        assetBindings: new Map(),
+      }
+
+      if (route?.maxDuration) {
+        entryMetadata.maxDuration = route.maxDuration
+      }
+
       if (entry.options.runtime !== EDGE_RUNTIME_WEBPACK) {
-        // Only process edge runtime entries
+        if (route?.maxDuration) {
+          metadataByEntry.set(entryName, entryMetadata)
+        }
+        // Do not process non-edge-runtime entries
         continue
       }
-      const entryDependency = entry.dependencies?.[0]
+
       const edgeFunctionConfig = await findEntryEdgeFunctionConfig(
         entryDependency,
         resolver
-      )
-      const { rootDir, route } = getModuleBuildInfo(
-        compilation.moduleGraph.getResolvedModule(entryDependency)
       )
 
       const { moduleGraph } = compilation
@@ -580,10 +645,6 @@ function getExtractMetadata(params: {
       entry.dependencies.forEach(addEntriesFromDependency)
       entry.includeDependencies.forEach(addEntriesFromDependency)
 
-      const entryMetadata: EntryMetadata = {
-        wasmBindings: new Map(),
-        assetBindings: new Map(),
-      }
       let ogImageGenerationCount = 0
 
       for (const module of modules) {
@@ -728,10 +789,20 @@ function getExtractMetadata(params: {
   }
 }
 export default class MiddlewarePlugin {
+  private readonly compilerType: CompilerNameValues
   private readonly dev: boolean
   private readonly sriEnabled: boolean
 
-  constructor({ dev, sriEnabled }: { dev: boolean; sriEnabled: boolean }) {
+  constructor({
+    dev,
+    sriEnabled,
+    compilerType,
+  }: {
+    dev: boolean
+    sriEnabled: boolean
+    compilerType: CompilerNameValues
+  }) {
+    this.compilerType = compilerType
     this.dev = dev
     this.sriEnabled = sriEnabled
   }
@@ -755,6 +826,7 @@ export default class MiddlewarePlugin {
        * Extract all metadata for the entry points in a Map object.
        */
       const metadataByEntry = new Map<string, EntryMetadata>()
+
       compilation.hooks.finishModules.tapPromise(
         NAME,
         getExtractMetadata({
@@ -776,6 +848,8 @@ export default class MiddlewarePlugin {
         getCreateAssets({
           compilation,
           metadataByEntry,
+          compilerType: this.compilerType,
+          dev: this.dev,
           opts: {
             sriEnabled: this.sriEnabled,
           },

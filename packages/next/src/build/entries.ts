@@ -121,6 +121,9 @@ export async function getStaticInfoIncludingLayouts({
       if (layoutStaticInfo.preferredRegion) {
         staticInfo.preferredRegion = layoutStaticInfo.preferredRegion
       }
+      if (layoutStaticInfo.maxDuration) {
+        staticInfo.maxDuration = layoutStaticInfo.maxDuration
+      }
     }
 
     if (pageStaticInfo.runtime) {
@@ -129,12 +132,16 @@ export async function getStaticInfoIncludingLayouts({
     if (pageStaticInfo.preferredRegion) {
       staticInfo.preferredRegion = pageStaticInfo.preferredRegion
     }
+    if (pageStaticInfo.maxDuration) {
+      staticInfo.maxDuration = pageStaticInfo.maxDuration
+    }
 
     // if it's static metadata route, don't inherit runtime from layout
     const relativePath = pageFilePath.replace(appDir, '')
     if (isStaticMetadataRouteFile(relativePath)) {
       delete staticInfo.runtime
       delete staticInfo.preferredRegion
+      delete staticInfo.maxDuration
     }
   }
   return staticInfo
@@ -294,6 +301,7 @@ export function getEdgeServerEntry(opts: {
   appDirLoader?: string
   hasInstrumentationHook?: boolean
   preferredRegion: string | string[] | undefined
+  maxDuration: number | undefined
 }) {
   if (
     opts.pagesType === 'app' &&
@@ -306,6 +314,7 @@ export function getEdgeServerEntry(opts: {
       appDirLoader: Buffer.from(opts.appDirLoader || '').toString('base64'),
       nextConfigOutput: opts.config.output,
       preferredRegion: opts.preferredRegion,
+      maxDuration: opts.maxDuration,
     }
 
     return {
@@ -332,6 +341,7 @@ export function getEdgeServerEntry(opts: {
       page: opts.page,
       rootDir: opts.rootDir,
       preferredRegion: opts.preferredRegion,
+      maxDuration: opts.maxDuration,
     }
 
     return `next-edge-function-loader?${stringify(loaderParams)}!`
@@ -363,6 +373,7 @@ export function getEdgeServerEntry(opts: {
     incrementalCacheHandlerPath:
       opts.config.experimental.incrementalCacheHandlerPath,
     preferredRegion: opts.preferredRegion,
+    maxDuration: opts.maxDuration,
   }
 
   return {
@@ -569,6 +580,7 @@ export async function createEntrypoints(
               assetPrefix: config.assetPrefix,
               nextConfigOutput: config.output,
               preferredRegion: staticInfo.preferredRegion,
+              maxDuration: staticInfo.maxDuration,
             })
           } else if (isInstrumentationHookFile(page) && pagesType === 'root') {
             server[serverBundlePath.replace('src/', '')] = {
@@ -586,6 +598,7 @@ export async function createEntrypoints(
                 page,
                 absolutePagePath,
                 preferredRegion: staticInfo.preferredRegion,
+                maxDuration: staticInfo.maxDuration,
               }),
             ]
           } else {
@@ -609,6 +622,7 @@ export async function createEntrypoints(
               // This isn't used with edge as it needs to be set on the entry module, which will be the `edgeServerEntry` instead.
               // Still passing it here for consistency.
               preferredRegion: staticInfo.preferredRegion,
+              maxDuration: staticInfo.maxDuration,
             }).import
           }
           const normalizedServerBundlePath =
@@ -627,6 +641,7 @@ export async function createEntrypoints(
             pagesType,
             appDirLoader,
             preferredRegion: staticInfo.preferredRegion,
+            maxDuration: staticInfo.maxDuration,
           })
         },
       })

@@ -793,6 +793,7 @@ export default class HotReloader {
                       assetPrefix: this.config.assetPrefix,
                       nextConfigOutput: this.config.output,
                       preferredRegion: staticInfo.preferredRegion,
+                      maxDuration: staticInfo.maxDuration,
                     }).import
                   : undefined
 
@@ -813,6 +814,7 @@ export default class HotReloader {
                     appDirLoader,
                     pagesType: isAppPath ? 'app' : 'pages',
                     preferredRegion: staticInfo.preferredRegion,
+                    maxDuration: staticInfo.maxDuration,
                   }),
                   hasAppDir,
                 })
@@ -877,6 +879,7 @@ export default class HotReloader {
                     assetPrefix: this.config.assetPrefix,
                     nextConfigOutput: this.config.output,
                     preferredRegion: staticInfo.preferredRegion,
+                    maxDuration: staticInfo.maxDuration,
                   })
                 } else if (
                   !isAPIRoute(page) &&
@@ -888,6 +891,7 @@ export default class HotReloader {
                     page,
                     absolutePagePath: relativeRequest,
                     preferredRegion: staticInfo.preferredRegion,
+                    maxDuration: staticInfo.maxDuration,
                   })
                 } else {
                   value = relativeRequest

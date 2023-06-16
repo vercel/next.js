@@ -36,6 +36,7 @@ export interface MiddlewareMatcher {
 export interface PageStaticInfo {
   runtime?: ServerRuntime
   preferredRegion?: string | string[]
+  maxDuration?: number
   ssg?: boolean
   ssr?: boolean
   rsc?: RSCModuleType
@@ -84,6 +85,7 @@ function checkExports(swcAST: any): {
   ssg: boolean
   runtime?: string
   preferredRegion?: string | string[]
+  maxDuration?: number
   generateImageMetadata?: boolean
   generateSitemaps?: boolean
 } {
@@ -97,6 +99,7 @@ function checkExports(swcAST: any): {
     try {
       let runtime: string | undefined
       let preferredRegion: string | string[] | undefined
+      let maxDuration: number | undefined
       let ssr: boolean = false
       let ssg: boolean = false
       let generateImageMetadata: boolean = false
@@ -126,6 +129,10 @@ function checkExports(swcAST: any): {
               } else {
                 preferredRegion = declaration.init.value
               }
+            }
+
+            if (declaration.id.value === 'maxDuration') {
+              maxDuration = declaration.init.value
             }
           }
         }
@@ -179,6 +186,7 @@ function checkExports(swcAST: any): {
         ssg,
         runtime,
         preferredRegion,
+        maxDuration,
         generateImageMetadata,
         generateSitemaps,
       }
@@ -190,6 +198,7 @@ function checkExports(swcAST: any): {
     ssr: false,
     runtime: undefined,
     preferredRegion: undefined,
+    maxDuration: undefined,
     generateImageMetadata: false,
     generateSitemaps: false,
   }
@@ -393,12 +402,13 @@ export async function getPageStaticInfo(params: {
 
   const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
   if (
-    /runtime|preferredRegion|getStaticProps|getServerSideProps|export const config/.test(
+    /runtime|preferredRegion|maxDuration|getStaticProps|getServerSideProps|export const config/.test(
       fileContent
     )
   ) {
     const swcAST = await parseModule(pageFilePath, fileContent)
-    const { ssg, ssr, runtime, preferredRegion } = checkExports(swcAST)
+    const { ssg, ssr, runtime, preferredRegion, maxDuration } =
+      checkExports(swcAST)
     const rsc = getRSCModuleInformation(fileContent).type
 
     // default / failsafe value for config
@@ -493,6 +503,7 @@ export async function getPageStaticInfo(params: {
       ...(middlewareConfig && { middleware: middlewareConfig }),
       ...(resolvedRuntime && { runtime: resolvedRuntime }),
       preferredRegion,
+      maxDuration,
     }
   }
 

@@ -56,6 +56,7 @@ export interface RouteMeta {
   page: string
   absolutePagePath: string
   preferredRegion: string | string[] | undefined
+  maxDuration: number | undefined
 }
 
 export interface EdgeMiddlewareMeta {

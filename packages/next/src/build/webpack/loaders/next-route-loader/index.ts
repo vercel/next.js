@@ -21,6 +21,11 @@ type RouteLoaderOptions = {
   preferredRegion: string | string[] | undefined
 
   /**
+   * The max duration for this route.
+   */
+  maxDuration: number | undefined
+
+  /**
    * The absolute path to the userland page file.
    */
   absolutePagePath: string
@@ -42,7 +47,8 @@ export function getRouteLoaderEntry(query: RouteLoaderOptions): string {
  */
 const loader: webpack.LoaderDefinitionFunction<RouteLoaderOptions> =
   function () {
-    const { page, preferredRegion, absolutePagePath } = this.getOptions()
+    const { page, preferredRegion, absolutePagePath, maxDuration } =
+      this.getOptions()
 
     // Ensure we only run this loader for as a module.
     if (!this._module) {
@@ -55,6 +61,7 @@ const loader: webpack.LoaderDefinitionFunction<RouteLoaderOptions> =
       page,
       absolutePagePath,
       preferredRegion,
+      maxDuration,
     }
 
     const options: Omit<PagesRouteModuleOptions, 'userland'> = {

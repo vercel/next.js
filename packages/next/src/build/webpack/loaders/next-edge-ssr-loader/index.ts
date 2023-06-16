@@ -19,6 +19,7 @@ export type EdgeSSRLoaderQuery = {
   sriEnabled: boolean
   incrementalCacheHandlerPath?: string
   preferredRegion: string | string[] | undefined
+  maxDuration: number | undefined
 }
 
 /*
@@ -51,6 +52,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       sriEnabled,
       incrementalCacheHandlerPath,
       preferredRegion,
+      maxDuration,
     } = this.getOptions()
 
     const stringifiedConfig = Buffer.from(
@@ -74,6 +76,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       page,
       absolutePagePath,
       preferredRegion,
+      maxDuration,
     }
 
     const stringifiedPagePath = stringifyRequest(this, absolutePagePath)

@@ -7,6 +7,7 @@ export type EdgeFunctionLoaderOptions = {
   page: string
   rootDir: string
   preferredRegion: string | string[] | undefined
+  maxDuration: number | undefined
 }
 
 const nextEdgeFunctionLoader: webpack.LoaderDefinitionFunction<EdgeFunctionLoaderOptions> =
@@ -16,6 +17,7 @@ const nextEdgeFunctionLoader: webpack.LoaderDefinitionFunction<EdgeFunctionLoade
       page,
       rootDir,
       preferredRegion,
+      maxDuration,
     }: EdgeFunctionLoaderOptions = this.getOptions()
     const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
     const buildInfo = getModuleBuildInfo(this._module as any)
@@ -23,6 +25,7 @@ const nextEdgeFunctionLoader: webpack.LoaderDefinitionFunction<EdgeFunctionLoade
       page: page || '/',
       absolutePagePath,
       preferredRegion,
+      maxDuration,
     }
     buildInfo.nextEdgeApiFunction = {
       page: page || '/',
