@@ -81,7 +81,7 @@ export type AppRouteHandlerFn = (
    * dynamic route).
    */
   ctx: AppRouteHandlerFnContext
-) => any
+) => unknown
 
 /**
  * AppRouteHandlers describes the handlers for app routes that is provided by
