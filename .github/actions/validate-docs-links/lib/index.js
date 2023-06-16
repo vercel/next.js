@@ -27908,7 +27908,6 @@ var __webpack_exports__ = {}
         e.brokenSourceLinks.length > 0 ||
         e.brokenRelatedLinks.length > 0
     )
-    console.log({ errorsExist: a })
     if (a) {
       await createGithubComment(r)
       throw new Error('Internal broken docs links found. See PR comment.')
