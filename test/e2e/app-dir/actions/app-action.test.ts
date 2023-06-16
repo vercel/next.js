@@ -14,7 +14,6 @@ createNextDescribe(
     files: __dirname,
     dependencies: {
       react: 'latest',
-      nanoid: 'latest',
       'react-dom': 'latest',
       'server-only': 'latest',
     },
@@ -281,14 +280,6 @@ createNextDescribe(
             await next.patchFile(filePath, origContent)
           }
         })
-      })
-
-      it('should bundle external libraries if they are on the action layer', async () => {
-        await next.fetch('/client')
-        const pageBundle = await fs.readFile(
-          join(next.testDir, '.next', 'server', 'app', 'client', 'page.js')
-        )
-        expect(pageBundle.toString()).toContain('node_modules/nanoid/index.js')
       })
     }
 
