@@ -8,7 +8,8 @@ import { NextRequest } from '../request'
 
 export class NextRequestAdapter {
   public static fromBaseNextRequest(request: BaseNextRequest): NextRequest {
-    if (request.constructor.name === 'WebNextRequest') {
+    // TODO: look at refining this check
+    if ('request' in request && (request as WebNextRequest).request) {
       return NextRequestAdapter.fromWebNextRequest(request as WebNextRequest)
     }
 
@@ -29,14 +30,9 @@ export class NextRequestAdapter {
     } else {
       // Grab the full URL from the request metadata.
       const base = getRequestMeta(request, '__NEXT_INIT_URL')
-      if (!base || !base.startsWith('http')) {
-        // Because the URL construction relies on the fact that the URL provided
-        // is absolute, we need to provide a base URL. We can't use the request
-        // URL because it's relative, so we use a dummy URL instead.
-        url = new URL(request.url, 'http://n')
-      } else {
-        url = new URL(request.url, base)
-      }
+      if (!base) throw new Error('Invariant: missing url on request')
+
+      url = new URL(request.url, base)
     }
 
     return new NextRequest(url, {
