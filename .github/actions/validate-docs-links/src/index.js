@@ -210,35 +210,35 @@ async function validateAllInternalLinks() {
   )
 
   let errorComment =
-    'Hi there :wave:\n\nIt looks like this PR introduces internal broken links to the docs, please take a moment to fix them:\n\n| Found in... | Broken link | Type         |\n| ----------- | ----------- | ------------ |\n'
+    'Hi there :wave:\n\nIt looks like this PR introduces internal broken links to the docs, please take a moment to fix them before merging:\n\n| :broken-link: Broken link | :page_facing_up: Found in... | Link Type         |\n| ----------- | ----------- | ------------ |\n'
 
   allErrors.forEach((errors) => {
     if (errors.brokenLinks.length > 0) {
       errors.brokenLinks.forEach((link) => {
-        errorComment += `| ${errors.doc.path} | ${link} | Link         |\n`
+        errorComment += `| ${link} | [${errors.doc.path}](https://github.com/vercel/next.js/tree/canary/${errors.doc.path}) | Path         |\n`
       })
     }
 
     if (errors.brokenHashes.length > 0) {
       errors.brokenHashes.forEach((hash) => {
-        errorComment += `| ${errors.doc.path} | ${hash} | Hash Link    |\n`
+        errorComment += `| ${hash} | ${errors.doc.path} | Hash    |\n`
       })
     }
 
     if (errors.brokenSourceLinks.length > 0) {
       errors.brokenSourceLinks.forEach((link) => {
-        errorComment += `| ${errors.doc.path} | ${link} | Source Link  |\n`
+        errorComment += `| ${link} | ${errors.doc.path} | Source  |\n`
       })
     }
 
     if (errors.brokenRelatedLinks.length > 0) {
       errors.brokenRelatedLinks.forEach((link) => {
-        errorComment += `| ${errors.doc.path} | ${link} | Related Link |\n`
+        errorComment += `| ${link} | ${errors.doc.path} | Related |\n`
       })
     }
   })
 
-  errorComment += 'Thank you :pray:'
+  errorComment += '\nThank you :pray:'
 
   // Create the comment if any errors have been found
   if (errorComment !== '') {

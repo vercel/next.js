@@ -27855,30 +27855,30 @@ var __webpack_exports__ = {}
       })
     )
     let r =
-      'Hi there :wave:\n\nIt looks like this PR introduces internal broken links to the docs, please take a moment to fix them:\n\n| Found in... | Broken link | Type         |\n| ----------- | ----------- | ------------ |\n'
+      'Hi there :wave:\n\nIt looks like this PR introduces internal broken links to the docs, please take a moment to fix them before merging:\n\n| :broken-link: Broken link | :page_facing_up: Found in... | Link Type         |\n| ----------- | ----------- | ------------ |\n'
     t.forEach((e) => {
       if (e.brokenLinks.length > 0) {
         e.brokenLinks.forEach((t) => {
-          r += `| ${e.doc.path} | ${t} | Link         |\n`
+          r += `| ${t} | [${e.doc.path}](https://github.com/vercel/next.js/tree/canary/${e.doc.path}) | Path         |\n`
         })
       }
       if (e.brokenHashes.length > 0) {
         e.brokenHashes.forEach((t) => {
-          r += `| ${e.doc.path} | ${t} | Hash Link    |\n`
+          r += `| ${t} | ${e.doc.path} | Hash    |\n`
         })
       }
       if (e.brokenSourceLinks.length > 0) {
         e.brokenSourceLinks.forEach((t) => {
-          r += `| ${e.doc.path} | ${t} | Source Link  |\n`
+          r += `| ${t} | ${e.doc.path} | Source  |\n`
         })
       }
       if (e.brokenRelatedLinks.length > 0) {
         e.brokenRelatedLinks.forEach((t) => {
-          r += `| ${e.doc.path} | ${t} | Related Link |\n`
+          r += `| ${t} | ${e.doc.path} | Related |\n`
         })
       }
     })
-    r += 'Thank you :pray:'
+    r += '\nThank you :pray:'
     if (r !== '') {
       await createGithubComment(r)
     }
