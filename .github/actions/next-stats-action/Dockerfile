@@ -14,7 +14,7 @@ RUN ln $(which python3) /usr/bin/python
 RUN curl -sfLS https://install-node.vercel.app/v18 | bash -s -- -f
 
 # Install node_modules
-RUN npm i -g pnpm@7.24.3 yarn@1.22.19
+RUN npm i -g pnpm@7.32.2 yarn@1.22.19
 RUN cd /next-stats && pnpm install --production
 
 RUN git config --global user.email 'stats@localhost'
