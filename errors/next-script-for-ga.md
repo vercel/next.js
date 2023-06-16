@@ -18,11 +18,8 @@ import Script from 'next/script'
 function Home() {
   return (
     <div className="container">
-      <Script
-        src="https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID"
-        strategy="afterInteractive"
-      />
-      <Script id="google-analytics" strategy="afterInteractive">
+      <Script src="https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID" />
+      <Script id="google-analytics">
         {`
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments);}
@@ -48,7 +45,7 @@ import Script from 'next/script'
 function Home() {
   return (
     <div className="container">
-      <Script id="google-analytics" strategy="afterInteractive">
+      <Script id="google-analytics">
         {`
           (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
           (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
@@ -74,17 +71,14 @@ import Script from 'next/script'
 function Home() {
   return (
     <div className="container">
-      <Script id="google-analytics" strategy="afterInteractive">
+      <Script id="google-analytics">
         {`
           window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
           ga('create', 'UA-XXXXX-Y', 'auto');
           ga('send', 'pageview');
         `}
       </Script>
-      <Script
-        src="https://www.google-analytics.com/analytics.js"
-        strategy="afterInteractive"
-      />
+      <Script src="https://www.google-analytics.com/analytics.js" />
     </div>
   )
 }
