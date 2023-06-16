@@ -314,7 +314,9 @@ async function createTreeCodeFromPath(
         : [parallelSegment]
 
       subSegmentPath.push(
-        ...normalizedParallelSegments.filter((segment) => segment !== 'page')
+        ...normalizedParallelSegments.filter(
+          (segment) => segment !== PAGE_SEGMENT
+        )
       )
 
       const { treeCode: subtreeCode } = await createSubtreePropsFromSegmentPath(
@@ -476,7 +478,10 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         }
 
         const isParallelRoute = rest[0].startsWith('@')
-
+        if (isParallelRoute && rest.length === 2 && rest[1] === 'page') {
+          matched[rest[0]] = [PAGE_SEGMENT]
+          continue
+        }
         if (isParallelRoute) {
           matched[rest[0]] = rest.slice(1)
           continue
