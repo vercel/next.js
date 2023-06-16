@@ -187,27 +187,6 @@ export class AppRouteRouteModule extends RouteModule<
         )
       }
     }
-  }
-
-  /**
-   * When true, indicates that the global interfaces have been patched via the
-   * `patch()` method.
-   */
-  private hasSetup: boolean = false
-
-  /**
-   * Validates the userland module to ensure the exported methods and properties
-   * are valid.
-   */
-  public async setup() {
-    // If we've already setup, then return.
-    if (this.hasSetup) return
-
-    // Mark the module as setup. The following warnings about the userland
-    // module will run if we're in development. If the module files are modified
-    // when in development, then the require cache will be busted for it and
-    // this method will be called again (resetting the `hasSetup` flag).
-    this.hasSetup = true
 
     // We only warn in development after here, so return if we're not in
     // development.

@@ -62,10 +62,6 @@ export class EdgeRouteModuleWrapper {
   }
 
   private async handler(request: NextRequest): Promise<Response> {
-    // Setup the handler if it hasn't been setup yet. It is the responsibility
-    // of the module to ensure that this is only called once.
-    this.routeModule.setup()
-
     // Get the pathname for the matcher. Pathnames should not have trailing
     // slashes for matching.
     const pathname = removeTrailingSlash(new URL(request.url).pathname)
