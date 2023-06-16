@@ -257,6 +257,7 @@ async function validateAllInternalLinks() {
   // Create the comment if any errors have been found
   if (allErrors.length > 0) {
     await createGithubComment(errorComment)
+    throw new Error('Internal broken docs links found. See PR comment.')
   }
 }
 
