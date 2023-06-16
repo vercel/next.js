@@ -24,6 +24,11 @@ use turbopack_binding::{
 
 use crate::embed_js::next_js_file_path;
 
+/// Transition into edge environment to render an app directory page.
+///
+/// It changes the environment to the provided edge environment, and wraps the
+/// process asset with the provided bootstrap_asset returning the chunks of all
+/// that for running them in the edge sandbox.
 #[turbo_tasks::value(shared)]
 pub struct NextEdgePageTransition {
     pub edge_compile_time_info: CompileTimeInfoVc,
