@@ -19,7 +19,7 @@ function Home() {
   return (
     <div className="container">
       <Script src="https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID" />
-      <Script id="google-analytics">
+      <script>
         {`
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments);}
@@ -27,7 +27,7 @@ function Home() {
 
           gtag('config', 'GA_MEASUREMENT_ID');
         `}
-      </Script>
+      </script>
     </div>
   )
 }
@@ -45,7 +45,7 @@ import Script from 'next/script'
 function Home() {
   return (
     <div className="container">
-      <Script id="google-analytics">
+      <script>
         {`
           (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
           (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
@@ -55,7 +55,7 @@ function Home() {
           ga('create', 'UA-XXXXX-Y', 'auto');
           ga('send', 'pageview');
         `}
-      </Script>
+      </script>
     </div>
   )
 }
@@ -71,13 +71,13 @@ import Script from 'next/script'
 function Home() {
   return (
     <div className="container">
-      <Script id="google-analytics">
+      <script>
         {`
           window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
           ga('create', 'UA-XXXXX-Y', 'auto');
           ga('send', 'pageview');
         `}
-      </Script>
+      </script>
       <Script src="https://www.google-analytics.com/analytics.js" />
     </div>
   )
