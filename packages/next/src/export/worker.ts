@@ -651,7 +651,7 @@ export default async function exportPage({
       }
 
       const html =
-        renderResult && !renderResult.isNull()
+        renderResult && !renderResult.isNull
           ? renderResult.toUnchunkedString()
           : ''
 
@@ -690,7 +690,7 @@ export default async function exportPage({
           }
 
           const ampHtml =
-            ampRenderResult && !ampRenderResult.isNull()
+            ampRenderResult && !ampRenderResult.isNull
               ? ampRenderResult.toUnchunkedString()
               : ''
           if (!curRenderOpts.ampSkipValidation) {

@@ -1835,23 +1835,40 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         throw err
       }
 
-      let value: ResponseCacheValue | null
+      // Based on the metadata, we can determine what kind of cache result we
+      // should return.
+
+      // Handle `isNotFound`.
       if (metadata.isNotFound) {
-        value = null
-      } else if (metadata.isRedirect) {
-        value = { kind: 'REDIRECT', props: metadata.pageData }
-      } else {
-        if (result.isNull()) {
-          return null
+        return { value: null, revalidate: metadata.revalidate }
+      }
+
+      // Handle `isRedirect`.
+      if (metadata.isRedirect) {
+        return {
+          value: {
+            kind: 'REDIRECT',
+            props: metadata.pageData,
+          },
+          revalidate: metadata.revalidate,
         }
-        value = {
+      }
+
+      // Handle `isNull`.
+      if (result.isNull) {
+        return null
+      }
+
+      // We now have a valid HTML result that we can return to the user.
+      return {
+        value: {
           kind: 'PAGE',
           html: result,
           pageData: metadata.pageData,
           headers,
-        }
+        },
+        revalidate: metadata.revalidate,
       }
-      return { revalidate: metadata.revalidate, value }
     }
 
     const cacheEntry = await this.responseCache.get(
