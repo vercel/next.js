@@ -8,12 +8,12 @@ export default async function ServerAction() {
     const title = formData.get('title')
 
     if (title) {
-      // create a Supabase client configured to use cookies
+      // Create a Supabase client configured to use cookies
       const supabase = createServerActionClient({ cookies })
 
-      // this assumes you have a `todos` table with a `title` column
-      // head over to your Supabase project's Table Editor to create a table
-      // https://app.supabase.com/project/_/editor
+      // This assumes you have a `todos` table in Supabase. Check out
+      // the `Create Table and seed with data` section of the README 👇
+      // https://github.com/vercel/next.js/blob/canary/examples/with-supabase/README.md
       await supabase.from('todos').insert({ title })
       revalidatePath('/server-action-example')
     }

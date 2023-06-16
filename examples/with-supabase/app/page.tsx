@@ -33,7 +33,7 @@ export default async function Index() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // this is a Protected Route that can only be accessed by authenticated users
+  // This is a Protected Route that can only be accessed by authenticated users
   // users who are not signed in will be redirected to the `/login` route
   if (!user) {
     redirect('/login')
