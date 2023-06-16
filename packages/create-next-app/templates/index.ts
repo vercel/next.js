@@ -200,11 +200,12 @@ export const installTemplate = async ({
     }`,
   ]
 
+  let devDependencies = []
   /**
    * TypeScript projects will have type definitions and other devDependencies.
    */
   if (mode === 'ts') {
-    dependencies.push(
+    devDependencies.push(
       'typescript',
       '@types/react',
       '@types/node',
@@ -216,15 +217,16 @@ export const installTemplate = async ({
    * Add Tailwind CSS dependencies.
    */
   if (tailwind) {
-    dependencies.push('tailwindcss', 'postcss', 'autoprefixer')
+    devDependencies.push('tailwindcss', 'postcss', 'autoprefixer')
   }
 
   /**
    * Default eslint dependencies.
    */
   if (eslint) {
-    dependencies.push('eslint', 'eslint-config-next')
+    devDependencies.push('eslint', 'eslint-config-next')
   }
+
   /**
    * Install package.json dependencies if they exist.
    */
@@ -237,6 +239,23 @@ export const installTemplate = async ({
     console.log()
 
     await install(root, dependencies, installFlags)
+  }
+
+  /**
+   * Install package.json devDependencies if they exist.
+   */
+  if (devDependencies.length) {
+    console.log()
+    console.log('Installing devDependencies:')
+    for (const devDependency of devDependencies) {
+      console.log(`- ${chalk.cyan(devDependency)}`)
+    }
+    console.log()
+
+    await install(root, devDependencies, {
+      ...installFlags,
+      devDependencies: true,
+    })
   }
 }
 
