@@ -27834,6 +27834,13 @@ var __webpack_exports__ = {}
     const { pull_request: r } = t.payload
     const { number: a } = r
     const { owner: n, repo: i } = t.repo
+    console.log(
+      JSON.stringify(
+        { owner: n, repo: i, number: a, comment: e, pull_request: r },
+        null,
+        2
+      )
+    )
     try {
       await w.issues.createComment({
         owner: n,
