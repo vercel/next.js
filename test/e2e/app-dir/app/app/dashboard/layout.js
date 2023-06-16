@@ -11,3 +11,4 @@ export default function DashboardLayout(props) {
 }
 
 export const preferredRegion = 'iad1'
+export const maxDuration = 10

@@ -8,3 +8,4 @@ export default function HelloPage(props) {
 
 export const runtime = 'experimental-edge'
 export const preferredRegion = ['iad1', 'sfo1']
+export const maxDuration = 10

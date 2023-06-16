@@ -35,6 +35,35 @@ createNextDescribe(
           middlewareManifest.functions['/slow-page-with-loading/page'].regions
         ).toEqual(['sfo1'])
       })
+
+      it('should have correct maxDuration values in manifest', async () => {
+        const middlewareManifest = JSON.parse(
+          await next.readFile('.next/server/middleware-manifest.json')
+        )
+
+        expect(middlewareManifest.config).toMatchInlineSnapshot(`
+          Object {
+            "app/(rootonly)/dashboard/hello/page": Object {
+              "maxDuration": "10",
+            },
+            "app/catch-all-edge/[...slug]/page": Object {
+              "maxDuration": "10",
+            },
+            "app/dashboard/page": Object {
+              "maxDuration": "10",
+            },
+            "app/slow-page-no-loading/page": Object {
+              "maxDuration": "10",
+            },
+            "app/slow-page-with-loading/page": Object {
+              "maxDuration": "10",
+            },
+            "app/test-page/page": Object {
+              "maxDuration": "10",
+            },
+          }
+        `)
+      })
     }
 
     it('should work for catch-all edge page', async () => {

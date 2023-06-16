@@ -4,3 +4,4 @@ export default function Page() {
 
 export const runtime = 'experimental-edge'
 export const preferredRegion = 'home'
+export const maxDuration = 10

@@ -5,6 +5,7 @@ import './style.css'
 
 export const revalidate = 0
 export const preferredRegion = 'sfo1'
+export const maxDuration = 10
 
 async function getData() {
   return {
