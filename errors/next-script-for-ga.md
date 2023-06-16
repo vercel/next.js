@@ -77,7 +77,7 @@ function Home() {
       <Script id="google-analytics" strategy="afterInteractive">
         {`
           window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
-          ga('create', 'GOOGLE_ANALYTICS_ID', 'auto');
+          ga('create', 'UA-XXXXX-Y', 'auto');
           ga('send', 'pageview');
         `}
       </Script>
