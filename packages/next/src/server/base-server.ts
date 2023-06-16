@@ -1781,9 +1781,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         result = await module.render(
           (req as NodeNextRequest).originalRequest,
           (res as NodeNextResponse).originalResponse,
-          pathname,
-          query,
-          renderOpts
+          { page: pathname, params: match.params, query, renderOpts }
         )
       } else {
         // If we didn't match a page, we should fallback to using the legacy
