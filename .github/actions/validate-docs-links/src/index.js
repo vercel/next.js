@@ -189,7 +189,7 @@ async function createGithubComment(comment) {
   )
 
   try {
-    await octokit.issues.createComment({
+    await octokit.rest.issues.createComment({
       owner,
       repo,
       issue_number: number,

@@ -27842,7 +27842,7 @@ var __webpack_exports__ = {}
       )
     )
     try {
-      await w.issues.createComment({
+      await w.rest.issues.createComment({
         owner: n,
         repo: i,
         issue_number: a,
