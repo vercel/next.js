@@ -68,7 +68,8 @@ type AppRouteHandlerFnContext = {
 }
 
 /**
- * Handler function for app routes.
+ * Handler function for app routes. If a non-Response value is returned, an empty
+ * 200 response will be used as the HTTP response instead.
  */
 export type AppRouteHandlerFn = (
   /**
@@ -80,7 +81,7 @@ export type AppRouteHandlerFn = (
    * dynamic route).
    */
   ctx: AppRouteHandlerFnContext
-) => Promise<Response> | Response
+) => any
 
 /**
  * AppRouteHandlers describes the handlers for app routes that is provided by
@@ -356,9 +357,18 @@ export class AppRouteRouteModule extends RouteModule<
                       staticGenerationAsyncStorage:
                         this.staticGenerationAsyncStorage,
                     })
-                    const res = await handler(wrappedRequest, {
+                    const rawRes = await handler(wrappedRequest, {
                       params: context.params,
                     })
+                    const rawResIsResponse = rawRes instanceof Response
+                    if (!rawResIsResponse) {
+                      Log.warn(
+                        `Route handler ${context.staticGenerationContext.originalPathname} resolved without returning a \`Response\` or a \`NextResponse\``
+                      )
+                    }
+                    const res: Response = rawResIsResponse
+                      ? rawRes
+                      : new Response(null)
                     ;(context.staticGenerationContext as any).fetchMetrics =
                       staticGenerationStore.fetchMetrics
 
