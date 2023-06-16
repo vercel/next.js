@@ -27830,29 +27830,29 @@ var __webpack_exports__ = {}
     return r
   }
   const w = d.getOctokit(process.env.GITHUB_TOKEN)
+  const A = d.context.payload.pull_request.head.sha
   async function createGithubComment(e) {
     const { context: t = {} } = l
     const { pull_request: r } = t.payload
     const { number: a } = r
     const { owner: n, repo: i } = t.repo
     try {
-      const { data: r } = await w.rest.issues.createComment({
+      const { data: t } = await w.rest.issues.createComment({
         owner: n,
         repo: i,
         issue_number: a,
         body: e,
       })
-      const o = r.html_url
-      const s = t.payload.pull_request.head.sha
+      const r = t.html_url
       await w.rest.repos.createCommitStatus({
         owner: n,
         repo: i,
-        sha: s,
+        sha: A,
         state: 'failure',
         description:
           'Found broken links in the documentation. Click details to see the comment.',
         context: 'Link Validation',
-        target_url: o,
+        target_url: r,
       })
     } catch (e) {
       console.error(`Error creating comment: ${e}`)
@@ -27869,10 +27869,8 @@ var __webpack_exports__ = {}
     )
     let r =
       'Hi there :wave:\n\nIt looks like this PR introduces broken links to the docs, please take a moment to fix them before merging:\n\n| :heavy_multiplication_x: Broken link | :page_facing_up: File | \n| ----------- | ----------- | \n'
-    const formatTableRow = (e, t) => {
-      const r = d.context.payload.pull_request.head.sha
-      return `| ${e} | [/${t}](https://github.com/vercel/next.js/blob/${r}/${t}) | \n`
-    }
+    const formatTableRow = (e, t) =>
+      `| ${e} | [/${t}](https://github.com/vercel/next.js/blob/${A}/${t}) | \n`
     t.forEach((e) => {
       const {
         doc: { path: t },
@@ -27906,6 +27904,15 @@ var __webpack_exports__ = {}
     if (t.length > 0) {
       await createGithubComment(r)
       throw new Error('Internal broken docs links found. See PR comment.')
+    } else {
+      await w.rest.repos.createCommitStatus({
+        owner: owner,
+        repo: repo,
+        sha: A,
+        state: 'success',
+        description: 'No broken links were found in the docs.',
+        context: 'Link Validation',
+      })
     }
   }
   validateAllInternalLinks()

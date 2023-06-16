@@ -178,6 +178,7 @@ function traverseTreeAndValidateLinks(tree, doc) {
 }
 
 const octokit = github.getOctokit(process.env.GITHUB_TOKEN)
+const commitSHA = github.context.payload.pull_request.head.sha
 
 async function createGithubComment(comment) {
   const { context = {} } = github
@@ -195,11 +196,10 @@ async function createGithubComment(comment) {
 
     const commentUrl = data.html_url
 
-    const sha = context.payload.pull_request.head.sha
     await octokit.rest.repos.createCommitStatus({
       owner,
       repo,
-      sha,
+      sha: commitSHA,
       state: 'failure',
       description:
         'Found broken links in the documentation. Click details to see the comment.',
@@ -228,7 +228,6 @@ async function validateAllInternalLinks() {
     'Hi there :wave:\n\nIt looks like this PR introduces broken links to the docs, please take a moment to fix them before merging:\n\n| :heavy_multiplication_x: Broken link | :page_facing_up: File | \n| ----------- | ----------- | \n'
 
   const formatTableRow = (link, docPath) => {
-    const commitSHA = github.context.payload.pull_request.head.sha
     return `| ${link} | [/${docPath}](https://github.com/vercel/next.js/blob/${commitSHA}/${docPath}) | \n`
   }
 
@@ -272,6 +271,15 @@ async function validateAllInternalLinks() {
   if (allErrors.length > 0) {
     await createGithubComment(errorComment)
     throw new Error('Internal broken docs links found. See PR comment.')
+  } else {
+    await octokit.rest.repos.createCommitStatus({
+      owner,
+      repo,
+      sha: commitSHA,
+      state: 'success',
+      description: 'No broken links were found in the docs.',
+      context: 'Link Validation',
+    })
   }
 }
 
