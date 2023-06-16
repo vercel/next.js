@@ -351,12 +351,7 @@ pub async fn insert_next_server_special_aliases(
 ) -> Result<()> {
     match ty {
         ServerContextType::Pages { pages_dir } => {
-            import_map.insert_exact_alias(
-                "@opentelemetry/api",
-                // TODO(WEB-625) this actually need to prefer the local version of
-                // @opentelemetry/api
-                external_request_to_import_mapping("next/dist/compiled/@opentelemetry/api"),
-            );
+            add_opentelemetry_alias(import_map);
             insert_alias_to_alternatives(
                 import_map,
                 format!("{VIRTUAL_PACKAGE_NAME}/pages/_app"),
@@ -386,12 +381,7 @@ pub async fn insert_next_server_special_aliases(
         ServerContextType::AppSSR { app_dir }
         | ServerContextType::AppRSC { app_dir }
         | ServerContextType::AppRoute { app_dir } => {
-            import_map.insert_exact_alias(
-                "@opentelemetry/api",
-                // TODO(WEB-625) this actually need to prefer the local version of
-                // @opentelemetry/api
-                request_to_import_mapping(app_dir, "next/dist/compiled/@opentelemetry/api"),
-            );
+            add_opentelemetry_alias(import_map);
             import_map.insert_exact_alias(
                 "react",
                 request_to_import_mapping(app_dir, "next/dist/compiled/react"),
@@ -420,6 +410,15 @@ pub async fn insert_next_server_special_aliases(
     }
 
     Ok(())
+}
+
+fn add_opentelemetry_alias(import_map: &mut ImportMap) {
+    import_map.insert_exact_alias(
+        "@opentelemetry/api",
+        // TODO(WEB-625) this actually need to prefer the local version of
+        // @opentelemetry/api
+        external_request_to_import_mapping("next/dist/compiled/@opentelemetry/api"),
+    );
 }
 
 pub fn mdx_import_source_file() -> String {
