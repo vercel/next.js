@@ -27905,7 +27905,7 @@ var __webpack_exports__ = {}
       await createGithubComment(r)
       throw new Error('Internal broken docs links found. See PR comment.')
     } else {
-      await w.rest.repos.createCommitStatus({
+      const e = await w.rest.repos.createCommitStatus({
         owner: owner,
         repo: repo,
         sha: A,
@@ -27913,7 +27913,9 @@ var __webpack_exports__ = {}
         description: 'No broken links were found in the docs.',
         context: 'Link Validation',
       })
+      console.log(e)
     }
+    console.log({ allErrors: t })
   }
   validateAllInternalLinks()
 })()
