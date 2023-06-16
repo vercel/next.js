@@ -591,6 +591,20 @@ export class ClientReferenceEntryPlugin {
       compilation.moduleGraph
         .getOutgoingConnections(mod)
         .forEach((connection: any) => {
+          // We need to ensure you are not importing any disallowed APIs such as
+          // `useState` into your Server Components.
+          if (!isClientComponent) {
+            // During dev: check it only for user code
+            // During prod: check it for all dependencies
+            const isExternalPackage = !modRequest?.includes('node_modules')
+            if (!this.dev || !isExternalPackage) {
+              const importedAPI = connection.dependency.ids[0]
+              if (importedAPI) {
+                console.log(connection.dependency.request, importedAPI)
+              }
+            }
+          }
+
           filterClientComponents(
             connection.dependency,
             inClientComponentBoundary || isClientComponent
