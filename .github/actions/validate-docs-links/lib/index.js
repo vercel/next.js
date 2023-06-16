@@ -27762,9 +27762,10 @@ var __webpack_exports__ = {}
     })
   async function prepareDocumentMapEntry(r) {
     const a = t.relative(m, r)
-    let n = a.replace(/(\d\d-)/g, '')
-    n = n.replace('.mdx', '')
-    n = n.replace('/index', '')
+    const n = a
+      .replace(/(\d\d-)/g, '')
+      .replace('.mdx', '')
+      .replace('/index', '')
     const i = await e.readFile(r, 'utf8')
     const { content: o, data: s } = p(i)
     const d = E.parse(o)
@@ -27835,11 +27836,23 @@ var __webpack_exports__ = {}
     const { number: a } = r
     const { owner: n, repo: i } = t.repo
     try {
-      await w.rest.issues.createComment({
+      const { data: r } = await w.rest.issues.createComment({
         owner: n,
         repo: i,
         issue_number: a,
         body: e,
+      })
+      const o = r.html_url
+      const s = t.payload.pull_request.head.sha
+      await w.rest.repos.createCommitStatus({
+        owner: n,
+        repo: i,
+        sha: s,
+        state: 'failure',
+        description:
+          'Found broken links in the documentation. Click details to see the comment.',
+        context: 'Link Validation',
+        target_url: o,
       })
     } catch (e) {
       console.error(`Error creating comment: ${e}`)
@@ -27855,32 +27868,44 @@ var __webpack_exports__ = {}
       })
     )
     let r =
-      'Hi there :wave:\n\nIt looks like this PR introduces internal broken links to the docs, please take a moment to fix them before merging:\n\n| :broken-link: Broken link | :page_facing_up: Found in... | Link Type         |\n| ----------- | ----------- | ------------ |\n'
+      'Hi there :wave:\n\nIt looks like this PR introduces internal broken links to the docs, please take a moment to fix them before merging:\n\n| :heavy-multiplication-x: Broken link | :page_facing_up: Found in... | Link Type         |\n| ----------- | ----------- | ------------ |\n'
+    const formatTableRow = (e, t, r) => {
+      const a = d.context.payload.pull_request.head.sha
+      return `| ${e} | [/${t}](https://github.com/vercel/next.js/blob/${a}/${t}) | ${r} |\n`
+    }
     t.forEach((e) => {
-      if (e.brokenLinks.length > 0) {
-        e.brokenLinks.forEach((t) => {
-          r += `| ${t} | [${e.doc.path}](https://github.com/vercel/next.js/tree/canary/${e.doc.path}) | Path         |\n`
+      const {
+        doc: { path: t },
+        brokenLinks: a,
+        brokenHashes: n,
+        brokenSourceLinks: i,
+        brokenRelatedLinks: o,
+      } = e
+      if (a.length > 0) {
+        a.forEach((e) => {
+          r += formatTableRow(e, t, 'Path')
         })
       }
-      if (e.brokenHashes.length > 0) {
-        e.brokenHashes.forEach((t) => {
-          r += `| ${t} | ${e.doc.path} | Hash    |\n`
+      if (n.length > 0) {
+        n.forEach((e) => {
+          r += formatTableRow(e, t, 'Hash')
         })
       }
-      if (e.brokenSourceLinks.length > 0) {
-        e.brokenSourceLinks.forEach((t) => {
-          r += `| ${t} | ${e.doc.path} | Source  |\n`
+      if (i.length > 0) {
+        i.forEach((e) => {
+          r += formatTableRow(e, t, 'Source')
         })
       }
-      if (e.brokenRelatedLinks.length > 0) {
-        e.brokenRelatedLinks.forEach((t) => {
-          r += `| ${t} | ${e.doc.path} | Related |\n`
+      if (o.length > 0) {
+        o.forEach((e) => {
+          r += formatTableRow(e, t, 'Related')
         })
       }
     })
     r += '\nThank you :pray:'
-    if (r !== '') {
+    if (t.length > 0) {
       await createGithubComment(r)
+      throw new Error('Internal broken docs links found. See PR comment.')
     }
   }
   validateAllInternalLinks()
