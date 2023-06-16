@@ -93,6 +93,7 @@ __webpack_require__.miniCssF = addChunkSuffix(getMiniCssFilename)
 type RenderRouteInfo = PrivateRouteInfo & {
   App: AppComponent
   scroll?: { x: number; y: number } | null
+  isHydratePass?: boolean
 }
 type RenderErrorProps = Omit<RenderRouteInfo, 'Component' | 'styleSheets'>
 type RegisterFn = (input: [string, () => void]) => void
@@ -396,6 +397,12 @@ function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
       styleSheets: [],
     })
   }
+
+  // Make sure we log the error to the console, otherwise users can't track down issues.
+  console.error(err)
+  console.error(
+    `A client-side exception has occurred, see here for more info: https://nextjs.org/docs/messages/client-side-exception-occurred`
+  )
 
   return pageLoader
     .loadPage('/_error')
@@ -755,7 +762,11 @@ function doRender(input: RenderRouteInfo): Promise<any> {
 }
 
 async function render(renderingProps: RenderRouteInfo): Promise<void> {
-  if (renderingProps.err) {
+  // if an error occurs in a server-side page (e.g. in getInitialProps),
+  // skip re-rendering the error page client-side as data-fetching operations
+  // will already have been done on the server and NEXT_DATA contains the correct
+  // data for straight-forward hydration of the error page
+  if (renderingProps.err && !renderingProps.isHydratePass) {
     await renderError(renderingProps)
     return
   }
@@ -924,6 +935,7 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
     Component: CachedComponent,
     props: initialData.props,
     err: initialErr,
+    isHydratePass: true,
   }
 
   if (opts?.beforeRender) {
