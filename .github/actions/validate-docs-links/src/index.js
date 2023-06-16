@@ -186,11 +186,25 @@ async function createGithubComment(comment) {
   const { owner, repo } = context.repo
 
   try {
-    await octokit.rest.issues.createComment({
+    const { data } = await octokit.rest.issues.createComment({
       owner,
       repo,
       issue_number: number,
       body: comment,
+    })
+
+    const commentUrl = data.html_url
+
+    const sha = context.payload.pull_request.head.sha
+    await octokit.rest.repos.createCommitStatus({
+      owner,
+      repo,
+      sha,
+      state: 'failure',
+      description:
+        'Found broken links in the documentation. Click details to see the comment.',
+      context: 'Link Validation',
+      target_url: commentUrl,
     })
   } catch (error) {
     console.error(`Error creating comment: ${error}`)
