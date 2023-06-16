@@ -351,6 +351,23 @@ createNextDescribe(
           return browser.eval('window.location.toString()')
         }, 'https://example.com/')
       })
+
+      it('should allow cookie and header async storages', async () => {
+        const browser = await next.browser('/client/edge')
+
+        const currentTestCookie = await browser.eval(
+          `document.cookie.match(/test-cookie=(\\d+)/)?.[1]`
+        )
+
+        await browser.elementByCss('#get-headers').click()
+
+        await check(async () => {
+          const newTestCookie = await browser.eval(
+            `document.cookie.match(/test-cookie=(\\d+)/)?.[1]`
+          )
+          return newTestCookie !== currentTestCookie ? 'success' : 'failure'
+        }, 'success')
+      })
     })
 
     describe('fetch actions', () => {
