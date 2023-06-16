@@ -22,8 +22,8 @@ import * as github from '@actions/github'
  *      headings in the current document.
  *    - It checks the source and related links found in the metadata of each
  *      document.
- * 5. Any broken links discovered during these checks are categorized and logged
- *    to the console.
+ * 5. Any broken links discovered during these checks are categorized and a
+ * comment is added to the PR.
  */
 
 const DOCS_PATH = './docs/'
@@ -275,19 +275,11 @@ async function validateAllInternalLinks() {
       errors.brokenRelatedLinks.length > 0
   )
 
+  console.log({ errorsExist })
+
   if (errorsExist) {
     await createGithubComment(errorComment)
     throw new Error('Internal broken docs links found. See PR comment.')
-  } else {
-    const res = await octokit.rest.repos.createCommitStatus({
-      owner,
-      repo,
-      sha: commitSHA,
-      state: 'success',
-      description: 'No broken links were found in the docs.',
-      context: 'Link Validation',
-    })
-    console.log(res)
   }
 }
 
