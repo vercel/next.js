@@ -137,6 +137,6 @@ export async function initialize(opts: {
         return reject(err)
       }
     })
-    server.listen(await getFreePort(), opts.hostname)
+    server.listen(await getFreePort(), '0.0.0.0')
   })
 }
