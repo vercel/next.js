@@ -21,7 +21,7 @@ export const invokeRequest = async (
         // force to 127.0.0.1 as IPC always runs on this hostname
         // to avoid localhost issues
         const parsedTargetUrl = new URL(targetUrl)
-        parsedTargetUrl.hostname = '0.0.0.0'
+        parsedTargetUrl.hostname = '127.0.0.1'
 
         const invokeReq = http.request(
           parsedTargetUrl.toString(),
