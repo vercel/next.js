@@ -242,6 +242,14 @@ createNextDescribe(
         )
       })
 
+      it('should support layout files in parallel routes', async () => {
+        const browser = await next.browser('/parallel-layout')
+        await check(
+          () => browser.waitForElementByCss('#parallel-layout').text(),
+          'parallel layout'
+        )
+      })
+
       it('should only scroll to the parallel route that was navigated to', async () => {
         const browser = await next.browser('/parallel-scroll')
 
