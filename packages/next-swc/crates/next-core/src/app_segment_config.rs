@@ -91,10 +91,10 @@ impl NextSegmentConfig {
         *preferred_region = preferred_region.take().or(parent.preferred_region.clone());
     }
 
-    /// Applies the sibling config to this config, returning an error if there
-    /// are conflicting values.
-    pub fn apply_sibling_config(&mut self, sibling: &Self) -> Result<()> {
-        fn merge_sibling<T: PartialEq + Clone>(
+    /// Applies a config from a paralllel route to this config, returning an
+    /// error if there are conflicting values.
+    pub fn apply_parallel_config(&mut self, parallel_config: &Self) -> Result<()> {
+        fn merge_parallel<T: PartialEq + Clone>(
             a: &mut Option<T>,
             b: &Option<T>,
             name: &str,
@@ -115,18 +115,26 @@ impl NextSegmentConfig {
             }
             Ok(())
         }
-        merge_sibling(&mut self.dynamic, &sibling.dynamic, "dynamic")?;
-        merge_sibling(
+        merge_parallel(&mut self.dynamic, &parallel_config.dynamic, "dynamic")?;
+        merge_parallel(
             &mut self.dynamic_params,
-            &sibling.dynamic_params,
+            &parallel_config.dynamic_params,
             "dynamicParams",
         )?;
-        merge_sibling(&mut self.revalidate, &sibling.revalidate, "revalidate")?;
-        merge_sibling(&mut self.fetch_cache, &sibling.fetch_cache, "fetchCache")?;
-        merge_sibling(&mut self.runtime, &sibling.runtime, "runtime")?;
-        merge_sibling(
+        merge_parallel(
+            &mut self.revalidate,
+            &parallel_config.revalidate,
+            "revalidate",
+        )?;
+        merge_parallel(
+            &mut self.fetch_cache,
+            &parallel_config.fetch_cache,
+            "fetchCache",
+        )?;
+        merge_parallel(&mut self.runtime, &parallel_config.runtime, "runtime")?;
+        merge_parallel(
             &mut self.preferred_region,
-            &sibling.preferred_region,
+            &parallel_config.preferred_region,
             "referredRegion",
         )?;
         Ok(())
@@ -344,15 +352,15 @@ pub async fn parse_segment_config_from_loader_tree(
     let loader_tree = loader_tree.await?;
     let components = loader_tree.components.await?;
     let mut config = NextSegmentConfig::default();
-    let siblings = loader_tree
+    let parallel_configs = loader_tree
         .parallel_routes
         .values()
         .copied()
         .map(|tree| parse_segment_config_from_loader_tree(tree, context))
         .try_join()
         .await?;
-    for tree in siblings {
-        config.apply_sibling_config(&tree)?;
+    for tree in parallel_configs {
+        config.apply_parallel_config(&tree)?;
     }
     for component in [components.page, components.default, components.layout]
         .into_iter()
