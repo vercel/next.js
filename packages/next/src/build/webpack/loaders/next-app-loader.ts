@@ -618,7 +618,11 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       treeCodeResult.globalError || 'next/dist/client/components/error-boundary'
     )}
     export const originalPathname = ${JSON.stringify(page)}
-    export const __next_app_require__ = __webpack_require__
+    export const __next_app__ = {
+      require: __webpack_require__,
+      // all modules are in the entry chunk, so we never actually need to load chunks in webpack
+      loadChunk: () => Promise.resolve()
+    }
 
     export * from 'next/dist/server/app-render/entry-base'
   `

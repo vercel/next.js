@@ -42,7 +42,10 @@ async function render(request: NextRequest, event: NextFetchEvent) {
     },
     ComponentMod: {
       ...entry,
-      __next_app_require__: __next_require__,
+      __next_app_: {
+        require: __next_require__,
+        loadChunk: __next_chunk_load__,
+      },
       pages: ['page.js'],
     },
     clientReferenceManifest,
