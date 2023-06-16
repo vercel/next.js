@@ -51,7 +51,7 @@ use turbopack_binding::{
         },
         tasks_fs::{DiskFileSystemVc, FileSystem, FileSystemPathVc},
         tasks_memory::MemoryBackend,
-        tasks_testing::retry::retry_async,
+        tasks_testing::retry::{retry, retry_async},
     },
     turbopack::{
         core::issue::{
@@ -268,81 +268,95 @@ async fn run_test(resource: PathBuf) -> JsResult {
     let (issue_tx, mut issue_rx) = unbounded_channel();
     let issue_tx = TransientInstance::new(issue_tx);
 
-    let tt = TurboTasks::new(MemoryBackend::default());
-    let server = NextDevServerBuilder::new(
-        tt.clone(),
-        project_dir.to_string_lossy().to_string(),
-        workspace_root.to_string_lossy().to_string(),
-    )
-    .entry_request(EntryRequest::Module(
-        "@turbo/pack-test-harness".to_string(),
-        "/harness".to_string(),
-    ))
-    .entry_request(EntryRequest::Relative("index.js".to_owned()))
-    .eager_compile(false)
-    .hostname(requested_addr.ip())
-    .port(requested_addr.port())
-    .log_level(turbopack_binding::turbopack::core::issue::IssueSeverity::Warning)
-    .log_detail(true)
-    .issue_reporter(Box::new(move || {
-        TestIssueReporterVc::new(issue_tx.clone()).into()
-    }))
-    .show_all(true)
-    .build()
-    .await
-    .unwrap();
+    let result;
 
-    let local_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), server.addr.port());
+    {
+        let tt = TurboTasks::new(MemoryBackend::default());
+        let server = NextDevServerBuilder::new(
+            tt.clone(),
+            project_dir.to_string_lossy().to_string(),
+            workspace_root.to_string_lossy().to_string(),
+        )
+        .entry_request(EntryRequest::Module(
+            "@turbo/pack-test-harness".to_string(),
+            "/harness".to_string(),
+        ))
+        .entry_request(EntryRequest::Relative("index.js".to_owned()))
+        .eager_compile(false)
+        .hostname(requested_addr.ip())
+        .port(requested_addr.port())
+        .log_level(turbopack_binding::turbopack::core::issue::IssueSeverity::Warning)
+        .log_detail(true)
+        .issue_reporter(Box::new(move || {
+            TestIssueReporterVc::new(issue_tx.clone()).into()
+        }))
+        .show_all(true)
+        .build()
+        .await
+        .unwrap();
 
-    println!(
-        "{event_type} - server started at http://{address}",
-        event_type = "ready".green(),
-        address = server.addr
-    );
+        let local_addr =
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), server.addr.port());
 
-    if *DEBUG_START {
-        if *DEBUG_OPEN {
-            webbrowser::open(&format!("http://{}", local_addr)).unwrap();
+        println!(
+            "{event_type} - server started at http://{address}",
+            event_type = "ready".green(),
+            address = server.addr
+        );
+
+        if *DEBUG_START {
+            if *DEBUG_OPEN {
+                webbrowser::open(&format!("http://{}", local_addr)).unwrap();
+            }
+            tokio::select! {
+                _ = mock_server_future => {},
+                _ = pending() => {},
+                _ = server.future => {},
+            };
+            panic!("Never resolves")
         }
-        tokio::select! {
-            _ = mock_server_future => {},
-            _ = pending() => {},
-            _ = server.future => {},
+
+        result = tokio::select! {
+            // Poll the mock_server first to add the env var
+            _ = mock_server_future => panic!("Never resolves"),
+            r = run_browser(local_addr, &project_dir) => r.expect("error while running browser"),
+            _ = server.future => panic!("Never resolves"),
         };
-        panic!("Never resolves")
+
+        env::remove_var("TURBOPACK_TEST_ONLY_MOCK_SERVER");
+
+        let task = tt.spawn_once_task(async move {
+            let issues_fs = DiskFileSystemVc::new(
+                "issues".to_string(),
+                resource.join("issues").to_string_lossy().to_string(),
+            )
+            .as_file_system();
+
+            let mut issues = vec![];
+            while let Ok(issue) = issue_rx.try_recv() {
+                issues.push(issue);
+            }
+
+            snapshot_issues(
+                issues.iter().cloned(),
+                issues_fs.root(),
+                &cargo_workspace_root.to_string_lossy(),
+            )
+            .await?;
+
+            Ok(NothingVc::new().into())
+        });
+        tt.wait_task_completion(task, true).await.unwrap();
     }
 
-    let result = tokio::select! {
-        // Poll the mock_server first to add the env var
-        _ = mock_server_future => panic!("Never resolves"),
-        r = run_browser(local_addr, &project_dir) => r.expect("error while running browser"),
-        _ = server.future => panic!("Never resolves"),
-    };
-
-    env::remove_var("TURBOPACK_TEST_ONLY_MOCK_SERVER");
-
-    let task = tt.spawn_once_task(async move {
-        let issues_fs = DiskFileSystemVc::new(
-            "issues".to_string(),
-            resource.join("issues").to_string_lossy().to_string(),
-        )
-        .as_file_system();
-
-        let mut issues = vec![];
-        while let Ok(issue) = issue_rx.try_recv() {
-            issues.push(issue);
-        }
-
-        snapshot_issues(
-            issues.iter().cloned(),
-            issues_fs.root(),
-            &cargo_workspace_root.to_string_lossy(),
-        )
-        .await?;
-
-        Ok(NothingVc::new().into())
-    });
-    tt.wait_task_completion(task, true).await.unwrap();
+    if let Err(err) = retry(
+        (),
+        |()| std::fs::remove_dir_all(&resource_temp),
+        3,
+        Duration::from_millis(100),
+    ) {
+        eprintln!("Failed to remove temporary directory: {}", err);
+    }
 
     result
 }
