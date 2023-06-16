@@ -75,15 +75,20 @@ impl NextSegmentConfig {
     /// Applies the parent config to this config, setting any unset values to
     /// the parent's values.
     pub fn apply_parent_config(&mut self, parent: &Self) {
-        self.dynamic = self.dynamic.or(parent.dynamic);
-        self.dynamic_params = self.dynamic_params.or(parent.dynamic_params);
-        self.revalidate = self.revalidate.or(parent.revalidate);
-        self.fetch_cache = self.fetch_cache.or(parent.fetch_cache);
-        self.runtime = self.runtime.or(parent.runtime);
-        self.preferred_region = self
-            .preferred_region
-            .take()
-            .or(parent.preferred_region.clone());
+        let NextSegmentConfig {
+            dynamic,
+            dynamic_params,
+            revalidate,
+            fetch_cache,
+            runtime,
+            preferred_region,
+        } = self;
+        *dynamic = dynamic.or(parent.dynamic);
+        *dynamic_params = dynamic_params.or(parent.dynamic_params);
+        *revalidate = revalidate.or(parent.revalidate);
+        *fetch_cache = fetch_cache.or(parent.fetch_cache);
+        *runtime = runtime.or(parent.runtime);
+        *preferred_region = preferred_region.take().or(parent.preferred_region.clone());
     }
 
     /// Applies the sibling config to this config, returning an error if there
