@@ -4,15 +4,16 @@ import React, { useContext, createContext } from 'react'
 import { VerticalPadding, VerticalPaddingOptions } from '../VerticalPadding'
 import classes from './index.module.scss'
 
-export type BackgroundColor = 'white' | 'black'
+type BackgroundColorField = 'white' | 'black'
 
-export const BackgroundColorContext = createContext<BackgroundColor>('white')
+export const BackgroundColorContext =
+  createContext<BackgroundColorField>('white')
 
-export const useBackgroundColor = (): BackgroundColor =>
+export const useBackgroundColor = (): BackgroundColorField =>
   useContext(BackgroundColorContext)
 
 type Props = {
-  color?: BackgroundColor
+  color?: BackgroundColorField
   paddingTop?: VerticalPaddingOptions
   paddingBottom?: VerticalPaddingOptions
   className?: string

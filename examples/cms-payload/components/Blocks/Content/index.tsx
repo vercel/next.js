@@ -78,6 +78,8 @@ const Columns: React.FC<Props> = ({
         </React.Fragment>
       )
     }
+    default:
+      break
   }
 
   return null

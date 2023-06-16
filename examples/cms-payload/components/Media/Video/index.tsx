@@ -1,12 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef } from 'react'
 import classes from './index.module.scss'
-import { Media, Props } from '..'
+import { Props } from '..'
 
 export const Video: React.FC<Props> = (props) => {
   const { videoClassName, resource, onClick } = props
 
   const videoRef = useRef<HTMLVideoElement>(null)
-  const [showFallback] = useState<boolean>()
 
   useEffect(() => {
     const { current: video } = videoRef
