@@ -120,7 +120,8 @@ This table summarizes the different use cases for Server and Client Components:
 | Keep large dependencies on the server / Reduce client-side JavaScript              | <Check size={18} /> | <Cross size={18} /> |
 | Add interactivity and event listeners (`onClick()`, `onChange()`, etc)             | <Cross size={18} /> | <Check size={18} /> |
 | Use State and Lifecycle Effects (`useState()`, `useReducer()`, `useEffect()`, etc) | <Cross size={18} /> | <Check size={18} /> |
-| Use browser-only APIs                                                              | <Cross size={18} /> | <Check size={18} /> |
+| Use browser-only APIs (non edge)                                                   | <Cross size={18} /> | <Check size={18} /> |
+| Use browser-only APIs (edge function as v8 JS environment)                         | <Check size={18} /> | <Check size={18} /> |
 | Use custom hooks that depend on state, effects, or browser-only APIs               | <Cross size={18} /> | <Check size={18} /> |
 | Use [React Class components](https://react.dev/reference/react/Component)          | <Cross size={18} /> | <Check size={18} /> |
 
