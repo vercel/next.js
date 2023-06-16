@@ -275,11 +275,21 @@ async function validateAllInternalLinks() {
       errors.brokenRelatedLinks.length > 0
   )
 
+  console.log({ allErrors })
   console.log({ errorsExist })
 
   if (errorsExist) {
     await createGithubComment(errorComment)
     throw new Error('Internal broken docs links found. See PR comment.')
+  } else {
+    const res = await octokit.rest.repos.createCommitStatus({
+      owner,
+      repo,
+      sha: commitSHA,
+      state: 'success',
+      description: 'No broken links were found in the docs.',
+      context: 'Link Validation',
+    })
   }
 }
 
