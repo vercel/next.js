@@ -80,9 +80,10 @@ const markdownProcessor = unified()
 async function prepareDocumentMapEntry(filePath) {
   const relativePath = path.relative(DOCS_PATH, filePath)
   // Remove the prefixing numbers used for ordering from the path
-  let sanitizedPath = relativePath.replace(/(\d\d-)/g, '')
-  sanitizedPath = sanitizedPath.replace('.mdx', '')
-  sanitizedPath = sanitizedPath.replace('/index', '')
+  const sanitizedPath = relativePath
+    .replace(/(\d\d-)/g, '')
+    .replace('.mdx', '')
+    .replace('/index', '')
 
   const mdxContent = await fs.readFile(filePath, 'utf8')
   const { content, data } = matter(mdxContent)
