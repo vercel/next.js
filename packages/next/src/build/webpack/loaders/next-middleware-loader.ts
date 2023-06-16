@@ -12,6 +12,7 @@ export type MiddlewareLoaderOptions = {
   rootDir: string
   matchers?: string
   preferredRegion: string | string[] | undefined
+  maxDuration: number | undefined
   middlewareConfig: string
 }
 
@@ -34,6 +35,7 @@ export default function middlewareLoader(this: any) {
     rootDir,
     matchers: encodedMatchers,
     preferredRegion,
+    maxDuration,
     middlewareConfig: middlewareConfigBase64,
   }: MiddlewareLoaderOptions = this.getOptions()
   const matchers = encodedMatchers ? decodeMatchers(encodedMatchers) : undefined
@@ -52,6 +54,7 @@ export default function middlewareLoader(this: any) {
     page,
     absolutePagePath,
     preferredRegion,
+    maxDuration,
     middlewareConfig,
   }
 
