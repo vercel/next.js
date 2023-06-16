@@ -8,7 +8,7 @@ An inline script was used for Google analytics which might impact your webpage's
 
 ### Possible Ways to Fix It
 
-#### Using gtag.js
+#### Using gtag.js (recommended)
 
 If you are using the [gtag.js](https://developers.google.com/analytics/devguides/collection/gtagjs) script to add analytics, use the `next/script` component with the right loading strategy to defer loading of the script until necessary.
 
@@ -38,7 +38,7 @@ function Home() {
 export default Home
 ```
 
-#### Using analytics.js
+#### Using analytics.js (legacy)
 
 If you are using the [analytics.js](https://developers.google.com/analytics/devguides/collection/analyticsjs) script to add analytics:
 
