@@ -342,11 +342,6 @@ function processMessage(
       }
       return
     }
-    case 'serverError': {
-      const error = new Error(obj.message)
-      console.log('error', error)
-      dispatcher.onBuildError(obj.message)
-    }
     // TODO-APP: make server component change more granular
     case 'serverComponentChanges': {
       sendMessage(
@@ -395,7 +390,14 @@ function processMessage(
       return
     }
     case 'pong': {
-      const { invalid } = obj
+      const { invalid, errorJSON } = obj
+      console.log('pong', errorJSON)
+      if (errorJSON) {
+        const { message, stack } = JSON.parse(errorJSON)
+        const error = new Error(message)
+        error.stack = stack
+        throw error
+      }
       if (invalid) {
         // Payload can be invalid even if the page does exist.
         // So, we check if it can be created.

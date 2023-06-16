@@ -186,6 +186,7 @@ export default class HotReloader {
   public edgeServerStats: webpack.Stats | null
   private clientError: Error | null = null
   private serverError: Error | null = null
+  private hmrServerError: Error | null = null
   private serverPrevDocumentHash: string | null
   private serverChunkNames?: Set<string>
   private serverChunkHashes?: Set<string>
@@ -329,14 +330,14 @@ export default class HotReloader {
     return { finished }
   }
 
-  public reportError(errorMessage: string): void {
-    this.send({ event: 'serverError', error: errorMessage })
+  public setServerHmrError(error: Error | null): void {
+    this.hmrServerError = error
   }
 
   public onHMR(req: IncomingMessage, _socket: Duplex, head: Buffer) {
     wsServer.handleUpgrade(req, req.socket, head, (client) => {
       this.webpackHotMiddleware?.onHMR(client)
-      this.onDemandEntries?.onHMR(client)
+      this.onDemandEntries?.onHMR(client, () => this.hmrServerError)
 
       client.addEventListener('message', ({ data }) => {
         data = typeof data !== 'string' ? data.toString() : data

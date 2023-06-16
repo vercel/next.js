@@ -54,9 +54,20 @@ initialize({ webpackHMR })
 
       let buildIndicatorHandler: any = () => {}
 
-      function devPagesManifestListener(event: any) {
-        console.log('event.data', event.data)
-        if (event.data.includes('devPagesManifest')) {
+      function devPagesHMRListener(event: any) {
+        let payload
+        try {
+          payload = JSON.parse(event.data)
+        } catch {}
+        console.log('event.data', payload.errorJSON)
+        if (payload.errorJSON) {
+          const { stack, message } = JSON.parse(payload.errorJSON)
+          const error = new Error(message)
+          error.stack = stack
+          throw error
+        }
+        // TODO: update event.data to payload
+        else if (event.data.includes('devPagesManifest')) {
           fetch(
             `${assetPrefix}/_next/static/development/_devPagesManifest.json`
           )
@@ -107,7 +118,7 @@ initialize({ webpackHMR })
           }
         }
       }
-      addMessageListener(devPagesManifestListener)
+      addMessageListener(devPagesHMRListener)
 
       if (process.env.__NEXT_BUILD_INDICATOR) {
         initializeBuildWatcher((handler: any) => {

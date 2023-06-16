@@ -617,12 +617,9 @@ export default class DevServer extends Server {
             errorMessage += `  "${pagesPath}" - "${appPath}"\n`
           }
 
-          console.log(
-            'report error',
-            numConflicting,
-            this.hotReloader?.reportError
-          )
-          this.hotReloader?.reportError(errorMessage)
+          this.hotReloader?.setServerHmrError(new Error(errorMessage))
+        } else if (numConflicting === 0) {
+          this.hotReloader?.setServerHmrError(null)
         }
         let clientRouterFilters: any
 
@@ -1027,7 +1024,7 @@ export default class DevServer extends Server {
       //   `Conflicting app and page file found: "app${appFile}" and "pages${pagesFile}". Please remove one to continue.`
       // )
       // throw error
-      return false
+      return true // false
     }
 
     return Boolean(appFile || pagesFile)

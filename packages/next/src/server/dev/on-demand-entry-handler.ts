@@ -103,6 +103,10 @@ export function getEntryKey(
   return `${compilerType}@${pageBundleType}@${page.replace(/\/@children/g, '')}`
 }
 
+function stringifyError(error: Error) {
+  return JSON.stringify({ message: error.message, stack: error.stack })
+}
+
 function getPageBundleType(pageBundlePath: string) {
   // Handle special case for /_error
   if (pageBundlePath === '/_error') return 'pages'
@@ -879,7 +883,7 @@ export function onDemandEntryHandler({
       }
     },
 
-    onHMR(client: ws) {
+    onHMR(client: ws, getError: () => Error | null) {
       client.addEventListener('message', ({ data }) => {
         try {
           const parsedData = JSON.parse(
@@ -890,9 +894,13 @@ export function onDemandEntryHandler({
             const result = parsedData.appDirRoute
               ? handleAppDirPing(parsedData.tree)
               : handlePing(parsedData.page)
+
+            const error = getError()
+            console.log('pong:error', error)
             client.send(
               JSON.stringify({
                 ...result,
+                ...(error && { errorJSON: stringifyError(error) }),
                 [parsedData.appDirRoute ? 'action' : 'event']: 'pong',
               })
             )
