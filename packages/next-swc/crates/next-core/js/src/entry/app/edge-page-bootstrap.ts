@@ -13,6 +13,7 @@ import type { ParsedUrlQuery } from 'querystring'
 
 installRequireAndChunkLoad()
 
+// avoid limiting stack traces to 10 lines
 Error.stackTraceLimit = 100
 
 const { clientReferenceManifest } = createManifests()
