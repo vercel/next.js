@@ -67,7 +67,6 @@ use crate::{
         LoaderTreeVc, Metadata, MetadataItem, MetadataWithAltItem, OptionAppDirVc,
     },
     bootstrap::{route_bootstrap, BootstrapConfigVc},
-    debug::NODE_JS_SOURCE_MAPS,
     embed_js::{next_asset, next_js_file_path},
     env::env_for_js,
     fallback::get_fallback_page,
@@ -286,7 +285,7 @@ fn next_edge_route_transition(
         get_client_assets_path(server_root, Value::new(ClientContextType::App { app_dir })),
         edge_compile_time_info.environment(),
     )
-    .reference_chunk_source_maps(NODE_JS_SOURCE_MAPS)
+    .reference_chunk_source_maps(should_debug("app_source"))
     .build();
     let edge_resolve_options_context =
         get_edge_resolve_options_context(project_path, server_ty, next_config, execution_context);
@@ -331,7 +330,7 @@ fn next_edge_page_transition(
         edge_compile_time_info.environment(),
     )
     .layer("ssr")
-    .reference_chunk_source_maps(NODE_JS_SOURCE_MAPS)
+    .reference_chunk_source_maps(should_debug("app_source"))
     .build();
     let edge_resolve_options_context =
         get_edge_resolve_options_context(project_path, server_ty, next_config, execution_context);
@@ -1117,7 +1116,7 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
             context.compile_time_info().environment(),
         )
         .layer("ssr")
-        .reference_chunk_source_maps(NODE_JS_SOURCE_MAPS)
+        .reference_chunk_source_maps(should_debug("app_source"))
         .build();
 
         let renderer_module = match runtime {
@@ -1217,7 +1216,7 @@ impl AppRouteVc {
             this.context.compile_time_info().environment(),
         )
         .layer("ssr")
-        .reference_chunk_source_maps(NODE_JS_SOURCE_MAPS)
+        .reference_chunk_source_maps(should_debug("app_source"))
         .build();
 
         let entry_source_asset = SourceAssetVc::new(this.entry_path);
