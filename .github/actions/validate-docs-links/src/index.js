@@ -184,10 +184,6 @@ async function createGithubComment(comment) {
   const { number } = pull_request
   const { owner, repo } = context.repo
 
-  console.log(
-    JSON.stringify({ owner, repo, number, comment, pull_request }, null, 2)
-  )
-
   try {
     await octokit.rest.issues.createComment({
       owner,
@@ -213,33 +209,36 @@ async function validateAllInternalLinks() {
     })
   )
 
-  let errorComment = ''
+  let errorComment =
+    'Hi there :wave:\n\nIt looks like this PR introduces internal broken links to the docs, please take a moment to fix them:\n\n| Found in... | Broken link | Type         |\n| ----------- | ----------- | ------------ |\n'
 
   allErrors.forEach((errors) => {
     if (errors.brokenLinks.length > 0) {
-      errorComment += `\n## Found broken links in ${errors.doc.path}:\n`
-      errorComment += errors.brokenLinks.map((link) => `- ${link}`).join('\n')
+      errors.brokenLinks.forEach((link) => {
+        errorComment += `| ${errors.doc.path} | ${link} | Link         |\n`
+      })
     }
 
     if (errors.brokenHashes.length > 0) {
-      errorComment += `\n## Found broken hashes in ${errors.doc.path}:\n`
-      errorComment += errors.brokenHashes.map((hash) => `- ${hash}`).join('\n')
+      errors.brokenHashes.forEach((hash) => {
+        errorComment += `| ${errors.doc.path} | ${hash} | Hash Link    |\n`
+      })
     }
 
     if (errors.brokenSourceLinks.length > 0) {
-      errorComment += `\n## Found broken source links in ${errors.doc.path}:\n`
-      errorComment += errors.brokenSourceLinks
-        .map((link) => `- ${link}`)
-        .join('\n')
+      errors.brokenSourceLinks.forEach((link) => {
+        errorComment += `| ${errors.doc.path} | ${link} | Source Link  |\n`
+      })
     }
 
     if (errors.brokenRelatedLinks.length > 0) {
-      errorComment += `\n## Found broken related links in ${errors.doc.path}:\n`
-      errorComment += errors.brokenRelatedLinks
-        .map((link) => `- ${link}`)
-        .join('\n')
+      errors.brokenRelatedLinks.forEach((link) => {
+        errorComment += `| ${errors.doc.path} | ${link} | Related Link |\n`
+      })
     }
   })
+
+  errorComment += 'Thank you :pray:'
 
   // Create the comment if any errors have been found
   if (errorComment !== '') {

@@ -27834,13 +27834,6 @@ var __webpack_exports__ = {}
     const { pull_request: r } = t.payload
     const { number: a } = r
     const { owner: n, repo: i } = t.repo
-    console.log(
-      JSON.stringify(
-        { owner: n, repo: i, number: a, comment: e, pull_request: r },
-        null,
-        2
-      )
-    )
     try {
       await w.rest.issues.createComment({
         owner: n,
@@ -27861,25 +27854,31 @@ var __webpack_exports__ = {}
         return traverseTreeAndValidateLinks(t, e)
       })
     )
-    let r = ''
+    let r =
+      'Hi there :wave:\n\nIt looks like this PR introduces internal broken links to the docs, please take a moment to fix them:\n\n| Found in... | Broken link | Type         |\n| ----------- | ----------- | ------------ |\n'
     t.forEach((e) => {
       if (e.brokenLinks.length > 0) {
-        r += `\n## Found broken links in ${e.doc.path}:\n`
-        r += e.brokenLinks.map((e) => `- ${e}`).join('\n')
+        e.brokenLinks.forEach((t) => {
+          r += `| ${e.doc.path} | ${t} | Link         |\n`
+        })
       }
       if (e.brokenHashes.length > 0) {
-        r += `\n## Found broken hashes in ${e.doc.path}:\n`
-        r += e.brokenHashes.map((e) => `- ${e}`).join('\n')
+        e.brokenHashes.forEach((t) => {
+          r += `| ${e.doc.path} | ${t} | Hash Link    |\n`
+        })
       }
       if (e.brokenSourceLinks.length > 0) {
-        r += `\n## Found broken source links in ${e.doc.path}:\n`
-        r += e.brokenSourceLinks.map((e) => `- ${e}`).join('\n')
+        e.brokenSourceLinks.forEach((t) => {
+          r += `| ${e.doc.path} | ${t} | Source Link  |\n`
+        })
       }
       if (e.brokenRelatedLinks.length > 0) {
-        r += `\n## Found broken related links in ${e.doc.path}:\n`
-        r += e.brokenRelatedLinks.map((e) => `- ${e}`).join('\n')
+        e.brokenRelatedLinks.forEach((t) => {
+          r += `| ${e.doc.path} | ${t} | Related Link |\n`
+        })
       }
     })
+    r += 'Thank you :pray:'
     if (r !== '') {
       await createGithubComment(r)
     }
