@@ -184,6 +184,10 @@ async function createGithubComment(comment) {
   const { number } = pull_request
   const { owner, repo } = context.repo
 
+  console.log(
+    JSON.stringify({ owner, repo, number, comment, pull_request }, null, 2)
+  )
+
   try {
     await octokit.issues.createComment({
       owner,
