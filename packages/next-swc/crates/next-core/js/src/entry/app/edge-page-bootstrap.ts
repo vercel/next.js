@@ -62,7 +62,7 @@ async function render(request: NextRequest, event: NextFetchEvent) {
   const tranform = new TransformStream()
   const response = new Response(tranform.readable)
 
-  let [, pathname, query] = /^([^?]*)(.*)$/.exec(request.url)!
+  let { pathname, search: query } = new URL(request.url, 'next://')
 
   const result = await renderToHTMLOrFlight(
     // @ts-expect-error - TODO renderToHTMLOrFlight types should accept web platform types
