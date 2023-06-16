@@ -27901,7 +27901,14 @@ var __webpack_exports__ = {}
       }
     })
     r += '\nThank you :pray:'
-    if (t.length > 0) {
+    const a = t.some(
+      (e) =>
+        e.brokenLinks.length > 0 ||
+        e.brokenHashes.length > 0 ||
+        e.brokenSourceLinks.length > 0 ||
+        e.brokenRelatedLinks.length > 0
+    )
+    if (a) {
       await createGithubComment(r)
       throw new Error('Internal broken docs links found. See PR comment.')
     } else {
@@ -27915,7 +27922,6 @@ var __webpack_exports__ = {}
       })
       console.log(e)
     }
-    console.log({ allErrors: t })
   }
   validateAllInternalLinks()
 })()

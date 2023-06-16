@@ -267,8 +267,15 @@ async function validateAllInternalLinks() {
 
   errorComment += '\nThank you :pray:'
 
-  // Create the comment if any errors have been found
-  if (allErrors.length > 0) {
+  const errorsExist = allErrors.some(
+    (errors) =>
+      errors.brokenLinks.length > 0 ||
+      errors.brokenHashes.length > 0 ||
+      errors.brokenSourceLinks.length > 0 ||
+      errors.brokenRelatedLinks.length > 0
+  )
+
+  if (errorsExist) {
     await createGithubComment(errorComment)
     throw new Error('Internal broken docs links found. See PR comment.')
   } else {
@@ -282,8 +289,6 @@ async function validateAllInternalLinks() {
     })
     console.log(res)
   }
-
-  console.log({ allErrors })
 }
 
 validateAllInternalLinks()
