@@ -1,4 +1,5 @@
 import type {
+  MiddlewareConfig,
   MiddlewareMatcher,
   RSCModuleType,
 } from '../../analysis/get-page-static-info'
@@ -57,6 +58,7 @@ export interface RouteMeta {
   absolutePagePath: string
   preferredRegion: string | string[] | undefined
   maxDuration: number | undefined
+  middlewareConfig: MiddlewareConfig
 }
 
 export interface EdgeMiddlewareMeta {

@@ -302,6 +302,7 @@ export function getEdgeServerEntry(opts: {
   hasInstrumentationHook?: boolean
   preferredRegion: string | string[] | undefined
   maxDuration: number | undefined
+  middlewareConfig?: MiddlewareConfig
 }) {
   if (
     opts.pagesType === 'app' &&
@@ -315,6 +316,9 @@ export function getEdgeServerEntry(opts: {
       nextConfigOutput: opts.config.output,
       preferredRegion: opts.preferredRegion,
       maxDuration: opts.maxDuration,
+      middlewareConfig: Buffer.from(
+        JSON.stringify(opts.middlewareConfig || {})
+      ).toString('base64'),
     }
 
     return {
@@ -330,6 +334,11 @@ export function getEdgeServerEntry(opts: {
       matchers: opts.middleware?.matchers
         ? encodeMatchers(opts.middleware.matchers)
         : '',
+      preferredRegion: opts.preferredRegion,
+      maxDuration: opts.maxDuration,
+      middlewareConfig: Buffer.from(
+        JSON.stringify(opts.middlewareConfig || {})
+      ).toString('base64'),
     }
 
     return `next-middleware-loader?${stringify(loaderParams)}!`
@@ -342,6 +351,9 @@ export function getEdgeServerEntry(opts: {
       rootDir: opts.rootDir,
       preferredRegion: opts.preferredRegion,
       maxDuration: opts.maxDuration,
+      middlewareConfig: Buffer.from(
+        JSON.stringify(opts.middlewareConfig || {})
+      ).toString('base64'),
     }
 
     return `next-edge-function-loader?${stringify(loaderParams)}!`
@@ -374,6 +386,9 @@ export function getEdgeServerEntry(opts: {
       opts.config.experimental.incrementalCacheHandlerPath,
     preferredRegion: opts.preferredRegion,
     maxDuration: opts.maxDuration,
+    middlewareConfig: Buffer.from(
+      JSON.stringify(opts.middlewareConfig || {})
+    ).toString('base64'),
   }
 
   return {
@@ -581,6 +596,9 @@ export async function createEntrypoints(
               nextConfigOutput: config.output,
               preferredRegion: staticInfo.preferredRegion,
               maxDuration: staticInfo.maxDuration,
+              middlewareConfig: Buffer.from(
+                JSON.stringify(staticInfo.middleware || {})
+              ).toString('base64'),
             })
           } else if (isInstrumentationHookFile(page) && pagesType === 'root') {
             server[serverBundlePath.replace('src/', '')] = {
@@ -599,6 +617,9 @@ export async function createEntrypoints(
                 absolutePagePath,
                 preferredRegion: staticInfo.preferredRegion,
                 maxDuration: staticInfo.maxDuration,
+                middlewareConfig: Buffer.from(
+                  JSON.stringify(staticInfo.middleware || {})
+                ).toString('base64'),
               }),
             ]
           } else {
@@ -623,6 +644,9 @@ export async function createEntrypoints(
               // Still passing it here for consistency.
               preferredRegion: staticInfo.preferredRegion,
               maxDuration: staticInfo.maxDuration,
+              middlewareConfig: Buffer.from(
+                JSON.stringify(staticInfo.middleware || {})
+              ).toString('base64'),
             }).import
           }
           const normalizedServerBundlePath =
@@ -642,6 +666,7 @@ export async function createEntrypoints(
             appDirLoader,
             preferredRegion: staticInfo.preferredRegion,
             maxDuration: staticInfo.maxDuration,
+            middlewareConfig: staticInfo.middleware,
           })
         },
       })

@@ -480,7 +480,7 @@ export const action = withValidate((data) => {
 
 ```js filename="lib/form-validation.js"
 export function withValidate(action) {
-  return (formData: FormData) => {
+  return async (formData: FormData) => {
     'use server'
 
     const isValidData = verifyData(formData)

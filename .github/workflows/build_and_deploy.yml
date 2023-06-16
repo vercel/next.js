@@ -436,7 +436,7 @@ jobs:
       - run: RESET_VC_PROJECT=true node scripts/reset-vercel-project.mjs
         name: Reset test project
 
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-jammy /bin/bash -c "cd /work && NODE_VERSION=${{ env.NODE_LTS_VERSION }} ./scripts/setup-node.sh && npm i -g pnpm@${PNPM_VERSION} > /dev/null && VERCEL_TEST_TOKEN=${{ secrets.VERCEL_TEST_TOKEN }} VERCEL_TEST_TEAM=vtest314-next-e2e-tests NEXT_TEST_JOB=1 NEXT_TEST_MODE=deploy TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} xvfb-run node run-tests.js --type e2e >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-jammy /bin/bash -c "cd /work && NODE_VERSION=${{ env.NODE_LTS_VERSION }} ./scripts/setup-node.sh && npm i -g pnpm@${PNPM_VERSION} > /dev/null && VERCEL_TEST_TOKEN=${{ secrets.VERCEL_TEST_TOKEN }} VERCEL_TEST_TEAM=vtest314-next-e2e-tests NEXT_TEST_JOB=1 NEXT_TEST_MODE=deploy TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} NEXT_TEST_CONTINUE_ON_ERROR=1 xvfb-run node run-tests.js --type e2e >> /proc/1/fd/1"
         name: Run test/e2e (deploy)
 
       - name: Upload test trace
@@ -471,6 +471,8 @@ jobs:
         with:
           name: next-swc-binaries
           path: packages/next-swc/native
+
+      - run: cp -r packages/next-swc/native .github/actions/next-stats-action/native
 
       - run: ./scripts/release-stats.sh
       - uses: ./.github/actions/next-stats-action

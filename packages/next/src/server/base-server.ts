@@ -11,11 +11,7 @@ import type { NextConfig, NextConfigComplete } from './config-shared'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { ParsedUrlQuery } from 'querystring'
 import type { RenderOpts, RenderOptsPartial } from './render'
-import type {
-  ResponseCacheBase,
-  ResponseCacheEntry,
-  ResponseCacheValue,
-} from './response-cache'
+import type { ResponseCacheBase, ResponseCacheEntry } from './response-cache'
 import type { UrlWithParsedQuery } from 'url'
 import {
   NormalizeError,
@@ -250,7 +246,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     supportsDynamicHTML?: boolean
     isBot?: boolean
     clientReferenceManifest?: ClientReferenceManifest
-    serverCSSManifest?: any
     serverActionsManifest?: any
     nextFontManifest?: NextFontManifest
     renderServerComponentData?: boolean
@@ -265,7 +260,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected appPathRoutes?: Record<string, string[]>
   protected customRoutes: CustomRoutes
   protected clientReferenceManifest?: ClientReferenceManifest
-  protected serverCSSManifest?: any
   protected nextFontManifest?: NextFontManifest
   public readonly hostname?: string
   public readonly port?: number
@@ -290,7 +284,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getFontManifest(): FontManifest | undefined
   protected abstract getPrerenderManifest(): PrerenderManifest
   protected abstract getServerComponentManifest(): any
-  protected abstract getServerCSSManifest(): any
   protected abstract getNextFontManifest(): NextFontManifest | undefined
   protected abstract attachRequestMeta(
     req: BaseNextRequest,
@@ -417,9 +410,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const serverComponents = this.hasAppDir
     this.clientReferenceManifest = serverComponents
       ? this.getServerComponentManifest()
-      : undefined
-    this.serverCSSManifest = serverComponents
-      ? this.getServerCSSManifest()
       : undefined
     this.nextFontManifest = this.getNextFontManifest()
 
@@ -1787,9 +1777,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         result = await module.render(
           (req as NodeNextRequest).originalRequest,
           (res as NodeNextResponse).originalResponse,
-          pathname,
-          query,
-          renderOpts
+          { page: pathname, params: match.params, query, renderOpts }
         )
       } else {
         // If we didn't match a page, we should fallback to using the legacy
@@ -1841,23 +1829,40 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         throw err
       }
 
-      let value: ResponseCacheValue | null
+      // Based on the metadata, we can determine what kind of cache result we
+      // should return.
+
+      // Handle `isNotFound`.
       if (metadata.isNotFound) {
-        value = null
-      } else if (metadata.isRedirect) {
-        value = { kind: 'REDIRECT', props: metadata.pageData }
-      } else {
-        if (result.isNull()) {
-          return null
+        return { value: null, revalidate: metadata.revalidate }
+      }
+
+      // Handle `isRedirect`.
+      if (metadata.isRedirect) {
+        return {
+          value: {
+            kind: 'REDIRECT',
+            props: metadata.pageData,
+          },
+          revalidate: metadata.revalidate,
         }
-        value = {
+      }
+
+      // Handle `isNull`.
+      if (result.isNull()) {
+        return { value: null, revalidate: metadata.revalidate }
+      }
+
+      // We now have a valid HTML result that we can return to the user.
+      return {
+        value: {
           kind: 'PAGE',
           html: result,
           pageData: metadata.pageData,
           headers,
-        }
+        },
+        revalidate: metadata.revalidate,
       }
-      return { revalidate: metadata.revalidate, value }
     }
 
     const cacheEntry = await this.responseCache.get(
