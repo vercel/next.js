@@ -19,7 +19,6 @@ export async function runEdgeFunction({
   edgeInfo,
   outputDir,
   req,
-  res,
   query,
   params,
   path,
@@ -34,12 +33,11 @@ export async function runEdgeFunction({
   }
   outputDir: string
   req: BaseNextRequest | NodeNextRequest
-  res?: BaseNextResponse | NodeNextResponse
   query: string
   path: string
   params: Params | undefined
   onWarning?: (warning: Error) => void
-}): Promise<FetchEventResult | null> {
+}): Promise<FetchEventResult> {
   // For edge to "fetch" we must always provide an absolute URL
   const initialUrl = new URL(path, 'http://n')
   const parsedQuery = parse(query)
@@ -83,40 +81,43 @@ export async function runEdgeFunction({
     onWarning,
   })) as FetchEventResult
 
-  if (res) {
-    res.statusCode = result.response.status
-    res.statusMessage = result.response.statusText
-
-    result.response.headers.forEach((value: string, key) => {
-      // the append handling is special cased for `set-cookie`
-      if (key.toLowerCase() === 'set-cookie') {
-        res.setHeader(key, value)
-      } else {
-        res.appendHeader(key, value)
-      }
-    })
-
-    if (result.response.body) {
-      // TODO(gal): not sure that we always need to stream
-      const nodeResStream = (res as NodeNextResponse).originalResponse
-      const {
-        consumeUint8ArrayReadableStream,
-      } = require('next/dist/compiled/edge-runtime')
-      try {
-        for await (const chunk of consumeUint8ArrayReadableStream(
-          result.response.body
-        )) {
-          nodeResStream.write(chunk)
-        }
-      } finally {
-        nodeResStream.end()
-      }
-    } else {
-      ;(res as NodeNextResponse).originalResponse.end()
-    }
-  }
-
   return result
+}
+
+export async function updateResponse(
+  response: BaseNextResponse<any> | NodeNextResponse,
+  result: FetchEventResult
+) {
+  response.statusCode = result.response.status
+  response.statusMessage = result.response.statusText
+
+  result.response.headers.forEach((value: string, key) => {
+    // the append handling is special cased for `set-cookie`
+    if (key.toLowerCase() === 'set-cookie') {
+      response.setHeader(key, value)
+    } else {
+      response.appendHeader(key, value)
+    }
+  })
+
+  if (result.response.body) {
+    // TODO(gal): not sure that we always need to stream
+    const nodeResStream = (response as NodeNextResponse).originalResponse
+    const {
+      consumeUint8ArrayReadableStream,
+    } = require('next/dist/compiled/edge-runtime')
+    try {
+      for await (const chunk of consumeUint8ArrayReadableStream(
+        result.response.body
+      )) {
+        nodeResStream.write(chunk)
+      }
+    } finally {
+      nodeResStream.end()
+    }
+  } else {
+    ;(response as NodeNextResponse).originalResponse.end()
+  }
 }
 
 function stringifyUrlQueryParam(param: unknown): string {
