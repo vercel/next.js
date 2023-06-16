@@ -33,7 +33,7 @@ pr:
 
 variables:
   PNPM_CACHE_FOLDER: $(Pipeline.Workspace)/.pnpm-store
-  PNPM_VERSION: 7.24.3
+  PNPM_VERSION: 7.32.2
   NEXT_TELEMETRY_DISABLED: '1'
   node_16_version: ^16.8.0
 
