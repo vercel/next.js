@@ -118,22 +118,50 @@ export function pipeNodeToNode(src: Readable, dest: Writable) {
 export class FlushStream extends Writable {
   declare _dest: Writable & { flush: () => void }
 
+  // In order to signal that the dest is full, we need to return the last
+  // result of calling `dest.write()` to the caller of `flush.write()`.
+  _writeCb: null | ((e?: Error | null) => void) = null
+
   constructor(dest: Writable & { flush: () => void }) {
     super()
     this._dest = dest
-    this.on('close', () => dest.end())
-    this.on('error', (e) => dest.destroy(e))
-    dest.on('close', () => this.end())
-    dest.on('error', (e) => this.destroy(e))
+
+    this.once('close', () => dest.end())
+    this.once('error', (e) => dest.destroy(e))
+    dest.once('close', () => this.end())
+    dest.once('error', (e) => this.destroy(e))
+    dest.on('drain', () => {
+      const cb = this._writeCb
+      this._writeCb = null
+      cb?.()
+      this.emit('drain')
+    })
   }
 
-  _write(
-    chunk: any,
-    encoding: BufferEncoding,
-    callback: TransformCallback
+  write(chunk: any, encoding?: any, callback?: any): boolean {
+    super.write(chunk, encoding, callback)
+    // If there's no pending writeCb, then the caller is free to continue
+    // writing.
+    return this._writeCb === null
+  }
+
+  _writev(
+    chunks: { chunk: any; encoding: BufferEncoding }[],
+    callback: (error?: Error | null | undefined) => void
   ): void {
-    this._dest.write(chunk, encoding)
+    let writable = true
+    for (const { chunk, encoding } of chunks) {
+      writable = this._dest.write(chunk, encoding)
+    }
     this._dest.flush()
-    callback()
+
+    // If the last call to dest.write returned true, then our caller can
+    // continue writing. If not, then we need to wait until it the dest emits a
+    // drain event.
+    if (writable) {
+      callback()
+    } else {
+      this._writeCb = callback
+    }
   }
 }
