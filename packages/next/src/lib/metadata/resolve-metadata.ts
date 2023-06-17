@@ -375,15 +375,23 @@ function postProcessMetadata(metadata: ResolvedMetadata): ResolvedMetadata {
     if (!hasTwDescription) autoFillProps.description = openGraph.description
     if (!hasTwImages) autoFillProps.images = openGraph.images
 
-    let partialTwitter
     if (Object.keys(autoFillProps).length > 0) {
-      partialTwitter = resolveTwitter(autoFillProps, metadata.metadataBase)
+      const partialTwitter = resolveTwitter(
+        autoFillProps,
+        metadata.metadataBase
+      )
+      if (metadata.twitter) {
+        metadata.twitter = Object.assign({}, metadata.twitter, {
+          ...(!hasTwTitle && { title: partialTwitter?.title }),
+          ...(!hasTwDescription && {
+            description: partialTwitter?.description,
+          }),
+          ...(!hasTwImages && { images: partialTwitter?.images }),
+        })
+      } else {
+        metadata.twitter = partialTwitter
+      }
     }
-    metadata.twitter = Object.assign({}, metadata.twitter, {
-      ...(!hasTwTitle && { title: partialTwitter?.title }),
-      ...(!hasTwDescription && { description: partialTwitter?.description }),
-      ...(!hasTwImages && { images: partialTwitter?.images }),
-    })
   }
   return metadata
 }
