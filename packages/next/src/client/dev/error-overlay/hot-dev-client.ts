@@ -233,7 +233,6 @@ function handleAvailableHash(hash: string) {
 // Handle messages from the server.
 function processMessage(e: any) {
   const obj = JSON.parse(e.data)
-  console.log('hot-dev-client', obj.action)
   switch (obj.action) {
     case 'building': {
       startLatency = Date.now()

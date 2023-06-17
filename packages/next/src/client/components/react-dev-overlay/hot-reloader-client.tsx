@@ -391,7 +391,6 @@ function processMessage(
     }
     case 'pong': {
       const { invalid, errorJSON } = obj
-      console.log('pong', errorJSON)
       if (errorJSON) {
         const { message, stack } = JSON.parse(errorJSON)
         const error = new Error(message)

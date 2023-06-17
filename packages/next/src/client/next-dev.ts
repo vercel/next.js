@@ -59,8 +59,8 @@ initialize({ webpackHMR })
         try {
           payload = JSON.parse(event.data)
         } catch {}
-        console.log('event.data', payload.errorJSON)
-        if (payload.errorJSON) {
+        console.log('event.data', payload.errorJSON, payload)
+        if (payload.event === 'pong' && payload.errorJSON) {
           const { stack, message } = JSON.parse(payload.errorJSON)
           const error = new Error(message)
           error.stack = stack
