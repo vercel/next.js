@@ -82,10 +82,10 @@ export default async function Index() {
           We have also included examples for creating a Supabase client in:
         </p>
         <ul className="list-disc ml-8">
-          <li>Client Components - `app/client-component-example/page.tsx`</li>
-          <li>Server Components - `app/server-component-example/page.tsx`</li>
-          <li>Server Actions - `app/server-action-example/page.tsx`</li>
-          <li>Route Handlers - `app/route-handler-example/route.ts`</li>
+          <li>Client Components - `app/_examples/client-component/page.tsx`</li>
+          <li>Server Components - `app/_examples/server-component/page.tsx`</li>
+          <li>Server Actions - `app/_examples/server-action/page.tsx`</li>
+          <li>Route Handlers - `app/_examples/route-handler/route.ts`</li>
           <li>Middleware - `middleware.ts`</li>
         </ul>
       </div>
