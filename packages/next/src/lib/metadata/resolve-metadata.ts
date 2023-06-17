@@ -30,7 +30,8 @@ import { getTracer } from '../../server/lib/trace/tracer'
 import { ResolveMetadataSpan } from '../../server/lib/trace/constants'
 import { Twitter } from './types/twitter-types'
 import { OpenGraph } from './types/opengraph-types'
-import { PAGE_SEGMENT_KEY } from '../../shared/lib/constants'
+import { PAGE_SEGMENT_KEY, ValueOf } from '../../shared/lib/constants'
+import { number } from 'zod'
 
 type StaticMetadata = Awaited<ReturnType<typeof resolveStaticMetadata>>
 
@@ -358,15 +359,31 @@ export async function resolveMetadata({
   return metadataItems
 }
 
+const commonOgKeys = ['title', 'description', 'images'] as const
 function postProcessMetadata(metadata: ResolvedMetadata): ResolvedMetadata {
   const { openGraph, twitter } = metadata
-  if (openGraph && !twitter) {
-    const overlappedProps = {
-      title: openGraph.title,
-      description: openGraph.description,
-      images: openGraph.images,
+  if (openGraph) {
+    let autoFillProps: Partial<{
+      [Key in (typeof commonOgKeys)[number]]: NonNullable<
+        ResolvedMetadata['openGraph']
+      >[Key]
+    }> = {}
+    const hasTwTitle = twitter?.title.absolute
+    const hasTwDescription = twitter?.description
+    const hasTwImages = twitter?.images
+    if (!hasTwTitle) autoFillProps.title = openGraph.title
+    if (!hasTwDescription) autoFillProps.description = openGraph.description
+    if (!hasTwImages) autoFillProps.images = openGraph.images
+
+    let partialTwitter
+    if (Object.keys(autoFillProps).length > 0) {
+      partialTwitter = resolveTwitter(autoFillProps, metadata.metadataBase)
     }
-    metadata.twitter = resolveTwitter(overlappedProps, metadata.metadataBase)
+    metadata.twitter = Object.assign({}, metadata.twitter, {
+      ...(!hasTwTitle && { title: partialTwitter?.title }),
+      ...(!hasTwDescription && { description: partialTwitter?.description }),
+      ...(!hasTwImages && { images: partialTwitter?.images }),
+    })
   }
   return metadata
 }
