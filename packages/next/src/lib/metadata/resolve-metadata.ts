@@ -30,8 +30,7 @@ import { getTracer } from '../../server/lib/trace/tracer'
 import { ResolveMetadataSpan } from '../../server/lib/trace/constants'
 import { Twitter } from './types/twitter-types'
 import { OpenGraph } from './types/opengraph-types'
-import { PAGE_SEGMENT_KEY, ValueOf } from '../../shared/lib/constants'
-import { number } from 'zod'
+import { PAGE_SEGMENT_KEY } from '../../shared/lib/constants'
 
 type StaticMetadata = Awaited<ReturnType<typeof resolveStaticMetadata>>
 
