@@ -21,31 +21,20 @@ The Vercel deployment will guide you through creating a Supabase account and pro
 
 ### Create a Supabase client
 
-Check out the `/app/_examples` folder for an example of creating a Supabase client in:
+Check out the [`/app/_examples`](./app/_examples/) folder for an example of creating a Supabase client in:
 
-- Client Components
-- Server Components
-- Route Handlers
-- Server Actions
+- [Client Components](./app/_examples/client-component/page.tsx)
+- [Server Components](./app/_examples/server-component/page.tsx)
+- [Route Handlers](./app/_examples/route-handler/route.ts)
+- [Server Actions](./app/_examples/server-action/page.tsx)
 
-### Create Table and seed with data (optional)
+### Create `todo` table and seed with data (optional)
 
-Navigate to [your project's SQL Editor](https://app.supabase.com/project/_/sql), click `New query`, paste the following SQL 👇 and click `RUN`.
+Navigate to [your project's SQL Editor](https://app.supabase.com/project/_/sql), click `New query`, paste the contents of the [init.sql](./supabase/migrations/20230618024722_init.sql) file and click `RUN`.
 
-```sql
-create table if not exists todos (
-  id uuid default gen_random_uuid() primary key,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  title text,
-  is_complete boolean default false
-);
+This will create a basic `todos` table, enable Row Level Security (RLS), and write RLS policies enabling `select` and `insert` actions for `authenticated` users.
 
-insert into todos(title)
-values
-  ('Create Supabase project'),
-  ('Create Next.js app from Supabase Starter template'),
-  ('Keeping building cool stuff!');
-```
+To seed your `todos` table with some dummy data, run the contents of the [seed.sql](./supabase/seed.sql) file.
 
 ## Feedback and issues
 
