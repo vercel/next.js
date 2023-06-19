@@ -15,7 +15,7 @@
     "eslint": "8.40.0",
     "eslint-config-next": "13.4.2",
     "monaco-editor": "^0.38.0",
-    "next": "13.4.2",
+    "next": "latest",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "react-monaco-editor": "^0.52.0",
