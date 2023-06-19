@@ -84,7 +84,7 @@ async function runOperation(renderData: RenderData) {
     },
     ComponentMod: {
       ...entry,
-      __next_app_: {
+      __next_app__: {
         require: __next_require__,
         loadChunk: __next_chunk_load__,
       },
