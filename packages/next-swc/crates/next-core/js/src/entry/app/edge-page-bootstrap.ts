@@ -25,7 +25,7 @@ async function render(request: NextRequest, event: NextFetchEvent) {
     RenderOpts,
     'App' | 'Document' | 'Component' | 'pathname'
   > & { params: ParsedUrlQuery } = {
-    // TODO params
+    // TODO(WEB-1195) params
     params: {},
     supportsDynamicHTML: true,
     dev: true,
