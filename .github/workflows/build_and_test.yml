@@ -72,7 +72,7 @@ jobs:
       needsRust: 'yes'
       skipInstallBuild: 'yes'
       skipNativeBuild: 'yes'
-      afterBuild: turbo run test-cargo-unit
+      afterBuild: while true; do free -h; sleep 10; done & turbo run test-cargo-unit
     secrets: inherit
 
   test-cargo-integration:
