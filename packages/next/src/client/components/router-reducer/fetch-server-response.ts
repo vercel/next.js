@@ -65,13 +65,7 @@ export async function fetchServerResponse(
   }
 
   if (nextUrl) {
-    // if the intercepted route is not at the same level as the current route,
-    // the intercepted route rewrite rule will not match the nextUrl value
-    // In this case, we need to set nextUrl to be the requested path
-    headers[NEXT_URL] =
-      nextUrl.split('/').length > url.pathname.split('/').length
-        ? nextUrl
-        : url.pathname
+    headers[NEXT_URL] = nextUrl
   }
 
   const uniqueCacheQuery = hexHash(
