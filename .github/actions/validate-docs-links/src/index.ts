@@ -8,6 +8,7 @@ import visit from 'unist-util-visit'
 import GithubSlugger from 'github-slugger'
 import matter from 'gray-matter'
 import * as github from '@actions/github'
+import type { Node, Data } from 'unist'
 
 /**
  * This script validates internal links in /docs including internal, hash,
@@ -26,13 +27,42 @@ import * as github from '@actions/github'
  * comment is added to the PR.
  */
 
-const DOCS_PATH = './docs/'
-const INTERNAL_DOCS_PATH = '/docs/'
-const EXCLUDED_HASHES = ['top']
+interface Document {
+  body: string
+  path: string
+  headings: string[]
+  source?: string
+  related?: {
+    links: string[]
+  }
+}
+
+interface Errors {
+  doc: Document
+  brokenLinks: string[]
+  brokenHashes: string[]
+  brokenSourceLinks: string[]
+  brokenRelatedLinks: string[]
+}
+
+const DOCS_PATH = '/docs/'
 const EXCLUDED_PATHS = ['/docs/messages/']
+const EXCLUDED_HASHES = ['top']
+const commentTag = '<!-- LINK_CHECKER_COMMENT -->'
+
+const { context, getOctokit } = github
+const octokit = getOctokit(process.env.GITHUB_TOKEN!)
+const { owner, repo } = context.repo
+const pullRequest = context.payload.pull_request!
+const sha = pullRequest.head.sha
+
 const slugger = new GithubSlugger()
 
-async function getMdxFiles(dir, fileList = []) {
+// Recursively traverses DOCS_PATH and collects all .mdx files
+async function getMdxFiles(
+  dir: string,
+  fileList: string[] = []
+): Promise<string[]> {
   const files = await fs.readdir(dir)
 
   for (const file of files) {
@@ -49,13 +79,16 @@ async function getMdxFiles(dir, fileList = []) {
   return fileList
 }
 
-function getHeadingsFromMarkdownTree(tree) {
-  const headings = []
+// Returns the slugs of all headings in a tree
+function getHeadingsFromMarkdownTree(tree: Node<Data>): string[] {
+  const headings: string[] = []
   slugger.reset()
 
   visit(tree, 'heading', (node) => {
     let headingText = ''
-    visit(node, (node) => {
+    // Account for headings with inline code blocks by concatenating the
+    // text values of all children of a heading node.
+    visit(node, (node: any) => {
       if (node.value) {
         headingText += node.value
       }
@@ -66,21 +99,32 @@ function getHeadingsFromMarkdownTree(tree) {
   return headings
 }
 
-// Create a processor to parse mdx content
+// Create a processor to parse MDX content
 const markdownProcessor = unified()
   .use(markdown)
   .use(remarkToRehype, { allowDangerousHTML: true })
   .use(raw)
   .use(function compiler() {
+    // A compiler is required, and we only need the AST, so we can
+    // just return it.
+    // @ts-ignore
     this.Compiler = function treeCompiler(tree) {
       return tree
     }
   })
 
-async function prepareDocumentMapEntry(filePath) {
-  const relativePath = path.relative(DOCS_PATH, filePath)
-  // Remove the prefixing numbers used for ordering from the path
-  const sanitizedPath = relativePath
+// use Map for faster lookup
+let documentMap: Map<string, Document>
+
+// Create a map of documents with their relative paths as keys and
+// document content and metadata as values
+async function prepareDocumentMapEntry(
+  filePath: string
+): Promise<[string, Document]> {
+  const relativePath = path.relative('.' + DOCS_PATH, filePath)
+
+  // Remove prefixed numbers used for ordering from the path
+  const normalizedPath = relativePath
     .replace(/(\d\d-)/g, '')
     .replace('.mdx', '')
     .replace('/index', '')
@@ -90,37 +134,34 @@ async function prepareDocumentMapEntry(filePath) {
   const tree = markdownProcessor.parse(content)
   const headings = getHeadingsFromMarkdownTree(tree)
 
-  return [sanitizedPath, { body: content, path: filePath, headings, ...data }]
+  return [normalizedPath, { body: content, path: filePath, headings, ...data }]
 }
 
-// use Map for faster lookup
-let documentMap
-
-function validateInternalLink(errors, href) {
-  // split href into  link and hash link
-  const [link, hash] = href.replace(INTERNAL_DOCS_PATH, '').split('#')
+// Checks if the links point to existing documents
+function validateInternalLink(errors: Errors, href: string): void {
+  // split href into link and hash link
+  const [link, hash] = href.replace(DOCS_PATH, '').split('#')
   const docExists = documentMap.get(link)
 
   if (!docExists) {
-    errors.brokenLinks.push(
-      `${INTERNAL_DOCS_PATH}${link}${hash ? '#' + hash : ''}`
-    )
+    errors.brokenLinks.push(`${DOCS_PATH}${link}${hash ? '#' + hash : ''}`)
   } else if (hash && !EXCLUDED_HASHES.includes(hash)) {
+    // Account for documents that pull their content from another document
     const sourceDoc = docExists.source
       ? documentMap.get(docExists.source)
       : undefined
 
+    // Check if the hash link points to an existing section within the document
     const hashExists = (sourceDoc || docExists).headings.includes(hash)
 
     if (!hashExists) {
-      errors.brokenHashes.push(
-        `${INTERNAL_DOCS_PATH}${link}${hash ? '#' + hash : ''}`
-      )
+      errors.brokenHashes.push(`${DOCS_PATH}${link}${hash ? '#' + hash : ''}`)
     }
   }
 }
 
-function validateHashLink(errors, href, doc) {
+// Checks if the hash links point to existing sections within the same document
+function validateHashLink(errors: Errors, href: string, doc: Document): void {
   const hashLink = href.replace('#', '')
 
   if (!EXCLUDED_HASHES.includes(hashLink) && !doc.headings.includes(hashLink)) {
@@ -128,13 +169,15 @@ function validateHashLink(errors, href, doc) {
   }
 }
 
-function validateSourceLinks(doc, errors) {
+// Checks if the source link points to an existing document
+function validateSourceLinks(doc: Document, errors: Errors): void {
   if (doc.source && !documentMap.get(doc.source)) {
     errors.brokenSourceLinks.push(doc.source)
   }
 }
 
-function validateRelatedLinks(doc, errors) {
+// Checks if the related links point to existing documents
+function validateRelatedLinks(doc: Document, errors: Errors): void {
   if (doc.related && doc.related.links) {
     doc.related.links.forEach((link) => {
       if (!documentMap.get(link)) {
@@ -144,9 +187,9 @@ function validateRelatedLinks(doc, errors) {
   }
 }
 
-// Function to traverse the document tree and validate links
-function traverseTreeAndValidateLinks(tree, doc) {
-  const errors = {
+// Traverse the document tree and validate links
+function traverseTreeAndValidateLinks(tree: any, doc: Document): Errors {
+  const errors: Errors = {
     doc,
     brokenLinks: [],
     brokenHashes: [],
@@ -154,17 +197,17 @@ function traverseTreeAndValidateLinks(tree, doc) {
     brokenRelatedLinks: [],
   }
 
-  visit(tree, (node) => {
+  visit(tree, (node: any) => {
     if (node.type === 'element' && node.tagName === 'a') {
       const href = node.properties.href
 
       if (!href) return
 
       if (
-        href.startsWith(INTERNAL_DOCS_PATH) &&
+        href.startsWith(DOCS_PATH) &&
         !EXCLUDED_PATHS.some((excludedPath) => href.startsWith(excludedPath))
       ) {
-        validateInternalLink(errors, href, doc)
+        validateInternalLink(errors, href)
       } else if (href.startsWith('#')) {
         validateHashLink(errors, href, doc)
       }
@@ -177,29 +220,47 @@ function traverseTreeAndValidateLinks(tree, doc) {
   return errors
 }
 
-const octokit = github.getOctokit(process.env.GITHUB_TOKEN)
-const commitSHA = github.context.payload.pull_request.head.sha
-
-async function createGithubComment(comment) {
-  const { context = {} } = github
-  const { pull_request } = context.payload
-  const { number } = pull_request
-  const { owner, repo } = context.repo
-
+// Creates a comment on the GitHub PR if there are any broken links in the docs
+async function createOrUpdateGithubComment(comment: string): Promise<void> {
   try {
-    const { data } = await octokit.rest.issues.createComment({
+    // fetch comments on the issue
+    const { data: comments } = await octokit.rest.issues.listComments({
       owner,
       repo,
-      issue_number: number,
-      body: comment,
+      issue_number: context.payload.pull_request?.number!,
     })
 
-    const commentUrl = data.html_url
+    let commentUrl
+
+    // find the bot comment if it exists
+    const botComment = comments.find((c) => c.body?.includes(commentTag))
+
+    if (botComment) {
+      // if bot comment exists, update it
+      const { data } = await octokit.rest.issues.updateComment({
+        owner,
+        repo,
+        comment_id: botComment.id,
+        body: comment,
+      })
+
+      commentUrl = data.html_url
+    } else {
+      // if not, create a new comment
+      const { data } = await octokit.rest.issues.createComment({
+        owner,
+        repo,
+        issue_number: context.payload.pull_request?.number!,
+        body: comment,
+      })
+
+      commentUrl = data.html_url
+    }
 
     await octokit.rest.repos.createCommitStatus({
       owner,
       repo,
-      sha: commitSHA,
+      sha,
       state: 'failure',
       description:
         'Found broken links in the documentation. Click details to see the comment.',
@@ -207,28 +268,30 @@ async function createGithubComment(comment) {
       target_url: commentUrl,
     })
   } catch (error) {
-    console.error(`Error creating comment: ${error}`)
+    console.error(`Error creating or updating comment: ${error}`)
   }
 }
 
-async function validateAllInternalLinks() {
-  const mdxFilePaths = await getMdxFiles(DOCS_PATH)
+// Main function that triggers link validation across all .mdx files
+async function validateAllInternalLinks(): Promise<void> {
+  const mdxFilePaths = await getMdxFiles('.' + DOCS_PATH)
+
+  const allErrors: Errors[] = []
+
   documentMap = new Map(
     await Promise.all(mdxFilePaths.map(prepareDocumentMapEntry))
   )
 
-  const allErrors = await Promise.all(
-    Array.from(documentMap.values()).map(async (doc) => {
-      const tree = (await markdownProcessor.process(doc.body)).contents
-      return traverseTreeAndValidateLinks(tree, doc)
-    })
-  )
+  for (let doc of documentMap.values()) {
+    const tree = (await markdownProcessor.process(doc.body)).contents
+    allErrors.push(traverseTreeAndValidateLinks(tree, doc))
+  }
 
   let errorComment =
     'Hi there :wave:\n\nIt looks like this PR introduces broken links to the docs, please take a moment to fix them before merging:\n\n| :heavy_multiplication_x: Broken link | :page_facing_up: File | \n| ----------- | ----------- | \n'
 
-  const formatTableRow = (link, docPath) => {
-    return `| ${link} | [/${docPath}](https://github.com/vercel/next.js/blob/${commitSHA}/${docPath}) | \n`
+  const formatTableRow = (link: string, docPath: string) => {
+    return `| ${link} | [/${docPath}](https://github.com/vercel/next.js/blob/${sha}/${docPath}) | \n`
   }
 
   allErrors.forEach((errors) => {
@@ -276,7 +339,7 @@ async function validateAllInternalLinks() {
   )
 
   if (errorsExist) {
-    await createGithubComment(errorComment)
+    await createOrUpdateGithubComment(commentTag + '\n' + errorComment)
     throw new Error('Internal broken docs links found. See PR comment.')
   }
 }

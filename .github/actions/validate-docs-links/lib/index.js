@@ -27657,27 +27657,10 @@ function __nccwpck_require__(e) {
   return r.exports
 }
 ;(() => {
-  var e = Object.getPrototypeOf
-    ? (e) => Object.getPrototypeOf(e)
-    : (e) => e.__proto__
-  var t
-  __nccwpck_require__.t = function (r, a) {
-    if (a & 1) r = this(r)
-    if (a & 8) return r
-    if (typeof r === 'object' && r) {
-      if (a & 4 && r.__esModule) return r
-      if (a & 16 && typeof r.then === 'function') return r
-    }
-    var n = Object.create(null)
-    __nccwpck_require__.r(n)
-    var i = {}
-    t = t || [null, e({}), e([]), e(e)]
-    for (var o = a & 2 && r; typeof o == 'object' && !~t.indexOf(o); o = e(o)) {
-      Object.getOwnPropertyNames(o).forEach((e) => (i[e] = () => r[e]))
-    }
-    i['default'] = () => r
-    __nccwpck_require__.d(n, i)
-    return n
+  __nccwpck_require__.n = (e) => {
+    var t = e && e.__esModule ? () => e['default'] : () => e
+    __nccwpck_require__.d(t, { a: t })
+    return t
   }
 })()
 ;(() => {
@@ -27692,14 +27675,6 @@ function __nccwpck_require__(e) {
 ;(() => {
   __nccwpck_require__.o = (e, t) => Object.prototype.hasOwnProperty.call(e, t)
 })()
-;(() => {
-  __nccwpck_require__.r = (e) => {
-    if (typeof Symbol !== 'undefined' && Symbol.toStringTag) {
-      Object.defineProperty(e, Symbol.toStringTag, { value: 'Module' })
-    }
-    Object.defineProperty(e, '__esModule', { value: true })
-  }
-})()
 if (typeof __nccwpck_require__ !== 'undefined')
   __nccwpck_require__.ab =
     new URL('.', import.meta.url).pathname.slice(
@@ -27709,98 +27684,111 @@ if (typeof __nccwpck_require__ !== 'undefined')
 var __webpack_exports__ = {}
 ;(() => {
   const e = __WEBPACK_EXTERNAL_createRequire(import.meta.url)('fs/promises')
-  var t = __nccwpck_require__(1017)
-  var r = __nccwpck_require__(5075)
-  var a = __nccwpck_require__(4859)
-  var n = __nccwpck_require__(4892)
-  var i = __nccwpck_require__(9830)
-  var o = __nccwpck_require__(199)
-  var s = __nccwpck_require__(237)
-  var p = __nccwpck_require__(5382)
-  var d = __nccwpck_require__(5438)
-  var l = __nccwpck_require__.t(d, 2)
-  const m = './docs/'
-  const c = '/docs/'
-  const g = ['top']
-  const v = ['/docs/messages/']
-  const T = new s()
-  async function getMdxFiles(r, a = []) {
-    const n = await e.readdir(r)
+  var t = __nccwpck_require__.n(e)
+  var r = __nccwpck_require__(1017)
+  var a = __nccwpck_require__.n(r)
+  var n = __nccwpck_require__(5075)
+  var i = __nccwpck_require__.n(n)
+  var o = __nccwpck_require__(4859)
+  var s = __nccwpck_require__.n(o)
+  var p = __nccwpck_require__(4892)
+  var d = __nccwpck_require__.n(p)
+  var l = __nccwpck_require__(9830)
+  var m = __nccwpck_require__.n(l)
+  var c = __nccwpck_require__(199)
+  var g = __nccwpck_require__.n(c)
+  var v = __nccwpck_require__(237)
+  var T = __nccwpck_require__.n(v)
+  var E = __nccwpck_require__(5382)
+  var _ = __nccwpck_require__.n(E)
+  var w = __nccwpck_require__(5438)
+  const A = '/docs/'
+  const b = ['/docs/messages/']
+  const y = ['top']
+  const S = '\x3c!-- LINK_CHECKER_COMMENT --\x3e'
+  const { context: C, getOctokit: k } = w
+  const N = k(process.env.GITHUB_TOKEN)
+  const { owner: D, repo: O } = C.repo
+  const I = C.payload.pull_request
+  const R = I.head.sha
+  const P = new (T())()
+  async function getMdxFiles(e, r = []) {
+    const n = await t().readdir(e)
     for (const i of n) {
-      const n = t.join(r, i)
-      const o = await e.stat(n)
+      const n = a().join(e, i)
+      const o = await t().stat(n)
       if (o.isDirectory()) {
-        a = await getMdxFiles(n, a)
-      } else if (t.extname(i) === '.mdx') {
-        a.push(n)
+        r = await getMdxFiles(n, r)
+      } else if (a().extname(i) === '.mdx') {
+        r.push(n)
       }
     }
-    return a
+    return r
   }
   function getHeadingsFromMarkdownTree(e) {
     const t = []
-    T.reset()
-    o(e, 'heading', (e) => {
+    P.reset()
+    g()(e, 'heading', (e) => {
       let r = ''
-      o(e, (e) => {
+      g()(e, (e) => {
         if (e.value) {
           r += e.value
         }
       })
-      t.push(T.slug(r))
+      t.push(P.slug(r))
     })
     return t
   }
-  const E = r()
-    .use(a)
-    .use(n, { allowDangerousHTML: true })
-    .use(i)
+  const L = i()()
+    .use(s())
+    .use(d(), { allowDangerousHTML: true })
+    .use(m())
     .use(function compiler() {
       this.Compiler = function treeCompiler(e) {
         return e
       }
     })
-  async function prepareDocumentMapEntry(r) {
-    const a = t.relative(m, r)
-    const n = a
+  let x
+  async function prepareDocumentMapEntry(e) {
+    const r = a().relative('.' + A, e)
+    const n = r
       .replace(/(\d\d-)/g, '')
       .replace('.mdx', '')
       .replace('/index', '')
-    const i = await e.readFile(r, 'utf8')
-    const { content: o, data: s } = p(i)
-    const d = E.parse(o)
-    const l = getHeadingsFromMarkdownTree(d)
-    return [n, { body: o, path: r, headings: l, ...s }]
+    const i = await t().readFile(e, 'utf8')
+    const { content: o, data: s } = _()(i)
+    const p = L.parse(o)
+    const d = getHeadingsFromMarkdownTree(p)
+    return [n, { body: o, path: e, headings: d, ...s }]
   }
-  let _
   function validateInternalLink(e, t) {
-    const [r, a] = t.replace(c, '').split('#')
-    const n = _.get(r)
+    const [r, a] = t.replace(A, '').split('#')
+    const n = x.get(r)
     if (!n) {
-      e.brokenLinks.push(`${c}${r}${a ? '#' + a : ''}`)
-    } else if (a && !g.includes(a)) {
-      const t = n.source ? _.get(n.source) : undefined
+      e.brokenLinks.push(`${A}${r}${a ? '#' + a : ''}`)
+    } else if (a && !y.includes(a)) {
+      const t = n.source ? x.get(n.source) : undefined
       const i = (t || n).headings.includes(a)
       if (!i) {
-        e.brokenHashes.push(`${c}${r}${a ? '#' + a : ''}`)
+        e.brokenHashes.push(`${A}${r}${a ? '#' + a : ''}`)
       }
     }
   }
   function validateHashLink(e, t, r) {
     const a = t.replace('#', '')
-    if (!g.includes(a) && !r.headings.includes(a)) {
+    if (!y.includes(a) && !r.headings.includes(a)) {
       e.brokenHashes.push(t)
     }
   }
   function validateSourceLinks(e, t) {
-    if (e.source && !_.get(e.source)) {
+    if (e.source && !x.get(e.source)) {
       t.brokenSourceLinks.push(e.source)
     }
   }
   function validateRelatedLinks(e, t) {
     if (e.related && e.related.links) {
       e.related.links.forEach((e) => {
-        if (!_.get(e)) {
+        if (!x.get(e)) {
           t.brokenRelatedLinks.push(e)
         }
       })
@@ -27814,12 +27802,12 @@ var __webpack_exports__ = {}
       brokenSourceLinks: [],
       brokenRelatedLinks: [],
     }
-    o(e, (e) => {
+    g()(e, (e) => {
       if (e.type === 'element' && e.tagName === 'a') {
         const a = e.properties.href
         if (!a) return
-        if (a.startsWith(c) && !v.some((e) => a.startsWith(e))) {
-          validateInternalLink(r, a, t)
+        if (a.startsWith(A) && !b.some((e) => a.startsWith(e))) {
+          validateInternalLink(r, a)
         } else if (a.startsWith('#')) {
           validateHashLink(r, a, t)
         }
@@ -27829,25 +27817,36 @@ var __webpack_exports__ = {}
     validateRelatedLinks(t, r)
     return r
   }
-  const w = d.getOctokit(process.env.GITHUB_TOKEN)
-  const A = d.context.payload.pull_request.head.sha
-  async function createGithubComment(e) {
-    const { context: t = {} } = l
-    const { pull_request: r } = t.payload
-    const { number: a } = r
-    const { owner: n, repo: i } = t.repo
+  async function createOrUpdateGithubComment(e) {
     try {
-      const { data: t } = await w.rest.issues.createComment({
-        owner: n,
-        repo: i,
-        issue_number: a,
-        body: e,
+      const { data: t } = await N.rest.issues.listComments({
+        owner: D,
+        repo: O,
+        issue_number: C.payload.pull_request?.number,
       })
-      const r = t.html_url
-      await w.rest.repos.createCommitStatus({
-        owner: n,
-        repo: i,
-        sha: A,
+      let r
+      const a = t.find((e) => e.body?.includes(S))
+      if (a) {
+        const { data: t } = await N.rest.issues.updateComment({
+          owner: D,
+          repo: O,
+          comment_id: a.id,
+          body: e,
+        })
+        r = t.html_url
+      } else {
+        const { data: t } = await N.rest.issues.createComment({
+          owner: D,
+          repo: O,
+          issue_number: C.payload.pull_request?.number,
+          body: e,
+        })
+        r = t.html_url
+      }
+      await N.rest.repos.createCommitStatus({
+        owner: D,
+        repo: O,
+        sha: R,
         state: 'failure',
         description:
           'Found broken links in the documentation. Click details to see the comment.',
@@ -27855,22 +27854,21 @@ var __webpack_exports__ = {}
         target_url: r,
       })
     } catch (e) {
-      console.error(`Error creating comment: ${e}`)
+      console.error(`Error creating or updating comment: ${e}`)
     }
   }
   async function validateAllInternalLinks() {
-    const e = await getMdxFiles(m)
-    _ = new Map(await Promise.all(e.map(prepareDocumentMapEntry)))
-    const t = await Promise.all(
-      Array.from(_.values()).map(async (e) => {
-        const t = (await E.process(e.body)).contents
-        return traverseTreeAndValidateLinks(t, e)
-      })
-    )
+    const e = await getMdxFiles('.' + A)
+    const t = []
+    x = new Map(await Promise.all(e.map(prepareDocumentMapEntry)))
+    for (let e of x.values()) {
+      const r = (await L.process(e.body)).contents
+      t.push(traverseTreeAndValidateLinks(r, e))
+    }
     let r =
       'Hi there :wave:\n\nIt looks like this PR introduces broken links to the docs, please take a moment to fix them before merging:\n\n| :heavy_multiplication_x: Broken link | :page_facing_up: File | \n| ----------- | ----------- | \n'
     const formatTableRow = (e, t) =>
-      `| ${e} | [/${t}](https://github.com/vercel/next.js/blob/${A}/${t}) | \n`
+      `| ${e} | [/${t}](https://github.com/vercel/next.js/blob/${R}/${t}) | \n`
     t.forEach((e) => {
       const {
         doc: { path: t },
@@ -27909,7 +27907,7 @@ var __webpack_exports__ = {}
         e.brokenRelatedLinks.length > 0
     )
     if (a) {
-      await createGithubComment(r)
+      await createOrUpdateGithubComment(S + '\n' + r)
       throw new Error('Internal broken docs links found. See PR comment.')
     }
   }
