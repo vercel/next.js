@@ -45,10 +45,14 @@ interface Errors {
   brokenRelatedLinks: string[]
 }
 
+interface Comment {
+  id: number
+}
+
 const DOCS_PATH = '/docs/'
 const EXCLUDED_PATHS = ['/docs/messages/']
 const EXCLUDED_HASHES = ['top']
-const commentTag = '<!-- LINK_CHECKER_COMMENT -->'
+const COMMENT_TAG = '<!-- LINK_CHECKER_COMMENT -->'
 
 const { context, getOctokit } = github
 const octokit = getOctokit(process.env.GITHUB_TOKEN!)
@@ -220,79 +224,82 @@ function traverseTreeAndValidateLinks(tree: any, doc: Document): Errors {
   return errors
 }
 
-// Creates a comment on the GitHub PR if there are any broken links in the docs
-async function createOrUpdateGithubComment(comment: string): Promise<void> {
-  try {
-    // fetch comments on the issue
-    const { data: comments } = await octokit.rest.issues.listComments({
-      owner,
-      repo,
-      issue_number: context.payload.pull_request?.number!,
-    })
+async function findBotComment(): Promise<Comment | undefined> {
+  const { data: comments } = await octokit.rest.issues.listComments({
+    owner,
+    repo,
+    issue_number: context.payload.pull_request?.number!,
+  })
 
-    let commentUrl
+  return comments.find((c) => c.body?.includes(COMMENT_TAG))
+}
 
-    // find the bot comment if it exists
-    const botComment = comments.find((c) => c.body?.includes(commentTag))
+async function updateComment(
+  comment: string,
+  botComment: Comment
+): Promise<string> {
+  const { data } = await octokit.rest.issues.updateComment({
+    owner,
+    repo,
+    comment_id: botComment.id,
+    body: comment,
+  })
 
-    if (botComment) {
-      // if bot comment exists, update it
-      const { data } = await octokit.rest.issues.updateComment({
-        owner,
-        repo,
-        comment_id: botComment.id,
-        body: comment,
-      })
+  return data.html_url
+}
 
-      commentUrl = data.html_url
-    } else {
-      // if not, create a new comment
-      const { data } = await octokit.rest.issues.createComment({
-        owner,
-        repo,
-        issue_number: context.payload.pull_request?.number!,
-        body: comment,
-      })
+async function createComment(comment: string): Promise<string> {
+  const { data } = await octokit.rest.issues.createComment({
+    owner,
+    repo,
+    issue_number: context.payload.pull_request?.number!,
+    body: comment,
+  })
 
-      commentUrl = data.html_url
-    }
+  return data.html_url
+}
 
-    await octokit.rest.repos.createCommitStatus({
-      owner,
-      repo,
-      sha,
-      state: 'failure',
-      description:
-        'Found broken links in the documentation. Click details to see the comment.',
-      context: 'Link Validation',
-      target_url: commentUrl,
-    })
-  } catch (error) {
-    console.error(`Error creating or updating comment: ${error}`)
-  }
+const formatTableRow = (link: string, docPath: string) => {
+  return `| ${link} | [/${docPath}](https://github.com/vercel/next.js/blob/${sha}/${docPath}) | \n`
+}
+
+async function createCommitStatus(
+  errorsExist: boolean,
+  commentUrl: string
+): Promise<void> {
+  const state = errorsExist ? 'failure' : 'success'
+  const description = errorsExist
+    ? 'This PR introduces broken links to the docs. Click details for a list.'
+    : 'All broken links are now fixed, thank you!'
+
+  await octokit.rest.repos.createCommitStatus({
+    owner,
+    repo,
+    sha,
+    state,
+    description,
+    context: 'Link Validation',
+    target_url: commentUrl,
+  })
 }
 
 // Main function that triggers link validation across all .mdx files
 async function validateAllInternalLinks(): Promise<void> {
   const mdxFilePaths = await getMdxFiles('.' + DOCS_PATH)
 
-  const allErrors: Errors[] = []
-
   documentMap = new Map(
     await Promise.all(mdxFilePaths.map(prepareDocumentMapEntry))
   )
 
-  for (let doc of documentMap.values()) {
-    const tree = (await markdownProcessor.process(doc.body)).contents
-    allErrors.push(traverseTreeAndValidateLinks(tree, doc))
-  }
+  const allErrors = await Promise.all(
+    [...documentMap.values()].map(async (doc) => {
+      const tree = (await markdownProcessor.process(doc.body)).contents
+      return traverseTreeAndValidateLinks(tree, doc)
+    })
+  )
 
   let errorComment =
     'Hi there :wave:\n\nIt looks like this PR introduces broken links to the docs, please take a moment to fix them before merging:\n\n| :heavy_multiplication_x: Broken link | :page_facing_up: File | \n| ----------- | ----------- | \n'
-
-  const formatTableRow = (link: string, docPath: string) => {
-    return `| ${link} | [/${docPath}](https://github.com/vercel/next.js/blob/${sha}/${docPath}) | \n`
-  }
 
   allErrors.forEach((errors) => {
     const {
@@ -338,9 +345,24 @@ async function validateAllInternalLinks(): Promise<void> {
       errors.brokenRelatedLinks.length > 0
   )
 
+  const botComment = await findBotComment()
+  let commentUrl = ''
+
   if (errorsExist) {
-    await createOrUpdateGithubComment(commentTag + '\n' + errorComment)
-    throw new Error('Internal broken docs links found. See PR comment.')
+    const comment = `${COMMENT_TAG}\n${errorComment}`
+
+    if (botComment) {
+      commentUrl = await updateComment(comment, botComment)
+    } else {
+      commentUrl = await createComment(comment)
+    }
+  } else if (botComment) {
+    const comment = `${COMMENT_TAG}\nAll broken links are now fixed, thank you!`
+    commentUrl = await updateComment(comment, botComment)
+  }
+
+  if (commentUrl) {
+    await createCommitStatus(errorsExist, commentUrl)
   }
 }
 
