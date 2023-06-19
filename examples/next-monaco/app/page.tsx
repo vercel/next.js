@@ -3,7 +3,7 @@
 import React, { useEffect, useRef } from 'react';
 import loader from '@monaco-editor/loader';
 
-const Page = () => {
+export default function Page() {
   const editorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -17,5 +17,3 @@ const Page = () => {
 
   return <div ref={editorRef} style={{ height: '100vh' }}></div>;
 };
-
-export default Page;
