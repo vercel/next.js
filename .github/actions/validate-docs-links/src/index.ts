@@ -265,7 +265,7 @@ const formatTableRow = (link: string, docPath: string) => {
 
 async function createCommitStatus(
   errorsExist: boolean,
-  commentUrl: string
+  commentUrl?: string
 ): Promise<void> {
   const state = errorsExist ? 'failure' : 'success'
   const description = errorsExist
@@ -291,12 +291,14 @@ async function validateAllInternalLinks(): Promise<void> {
     await Promise.all(mdxFilePaths.map(prepareDocumentMapEntry))
   )
 
-  const allErrors = await Promise.all(
-    [...documentMap.values()].map(async (doc) => {
+  const docProcessingPromises = Array.from(documentMap.values()).map(
+    async (doc) => {
       const tree = (await markdownProcessor.process(doc.body)).contents
       return traverseTreeAndValidateLinks(tree, doc)
-    })
+    }
   )
+
+  const allErrors = await Promise.all(docProcessingPromises)
 
   let errorComment =
     'Hi there :wave:\n\nIt looks like this PR introduces broken links to the docs, please take a moment to fix them before merging:\n\n| :heavy_multiplication_x: Broken link | :page_facing_up: File | \n| ----------- | ----------- | \n'
@@ -356,13 +358,14 @@ async function validateAllInternalLinks(): Promise<void> {
     } else {
       commentUrl = await createComment(comment)
     }
+
+    await createCommitStatus(errorsExist, commentUrl)
   } else if (botComment) {
     const comment = `${COMMENT_TAG}\nAll broken links are now fixed, thank you!`
     commentUrl = await updateComment(comment, botComment)
-  }
-
-  if (commentUrl) {
     await createCommitStatus(errorsExist, commentUrl)
+  } else {
+    await createCommitStatus(errorsExist)
   }
 }
 
