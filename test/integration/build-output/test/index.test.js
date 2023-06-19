@@ -171,11 +171,6 @@ describe('Build Output', () => {
           expect.stringMatching(/\/2000\/10 \(\d+ ms\)$/),
           expect.stringMatching(/\/10\/1000 \(\d+ ms\)$/),
           expect.stringMatching(/\/300\/10 \(\d+ ms\)$/),
-          // kept in original order
-          expect.stringMatching(/\/5\/5$/),
-          expect.stringMatching(/\/25\/25$/),
-          expect.stringMatching(/\/20\/20$/),
-          expect.stringMatching(/\/10\/10$/),
           // max of 7 preview paths
           ' [+2 more paths]',
         ]) {

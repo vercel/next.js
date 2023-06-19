@@ -2,6 +2,7 @@ import type webpack from 'webpack'
 import { getModuleBuildInfo } from '../get-module-build-info'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../../lib/constants'
 import { stringifyRequest } from '../../stringify-request'
+import { MiddlewareConfig } from '../../../analysis/get-page-static-info'
 
 export type EdgeSSRLoaderQuery = {
   absolute500Path: string
@@ -19,6 +20,7 @@ export type EdgeSSRLoaderQuery = {
   sriEnabled: boolean
   incrementalCacheHandlerPath?: string
   preferredRegion: string | string[] | undefined
+  middlewareConfig: string
 }
 
 /*
@@ -51,7 +53,12 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       sriEnabled,
       incrementalCacheHandlerPath,
       preferredRegion,
+      middlewareConfig: middlewareConfigBase64,
     } = this.getOptions()
+
+    const middlewareConfig: MiddlewareConfig = JSON.parse(
+      Buffer.from(middlewareConfigBase64, 'base64').toString()
+    )
 
     const stringifiedConfig = Buffer.from(
       stringifiedConfigBase64 || '',
@@ -74,6 +81,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       page,
       absolutePagePath,
       preferredRegion,
+      middlewareConfig,
     }
 
     const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
@@ -143,7 +151,6 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
     const prerenderManifest = maybeJSONParse(self.__PRERENDER_MANIFEST)
     const reactLoadableManifest = maybeJSONParse(self.__REACT_LOADABLE_MANIFEST)
     const rscManifest = maybeJSONParse(self.__RSC_MANIFEST)
-    const rscCssManifest = maybeJSONParse(self.__RSC_CSS_MANIFEST)
     const rscServerManifest = maybeJSONParse(self.__RSC_SERVER_MANIFEST)
     const subresourceIntegrityManifest = ${
       sriEnabled
@@ -168,7 +175,6 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       pagesRenderToHTML,
       reactLoadableManifest,
       clientReferenceManifest: ${isServerComponent} ? rscManifest : null,
-      serverCSSManifest: ${isServerComponent} ? rscCssManifest : null,
       serverActionsManifest: ${isServerComponent} ? rscServerManifest : null,
       subresourceIntegrityManifest,
       config: ${stringifiedConfig},

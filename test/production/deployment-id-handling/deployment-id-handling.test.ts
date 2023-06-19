@@ -11,11 +11,6 @@ createNextDescribe(
     env: {
       NEXT_DEPLOYMENT_ID: deploymentId,
     },
-    nextConfig: {
-      experimental: {
-        useDeploymentId: true,
-      },
-    },
   },
   ({ next }) => {
     it.each([

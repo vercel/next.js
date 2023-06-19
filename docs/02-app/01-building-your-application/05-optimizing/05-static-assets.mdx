@@ -7,18 +7,27 @@ Next.js can serve static files, like images, under a folder called `public` in t
 
 For example, if you add `me.png` inside `public`, the following code will access the image:
 
-```jsx
+```jsx filename="Avatar.js"
 import Image from 'next/image'
 
-function Avatar() {
+export function Avatar() {
   return <Image src="/me.png" alt="me" width="64" height="64" />
 }
-
-export default Avatar
 ```
 
-This folder is also useful for `robots.txt`, `favicon.ico`, Google Site Verification, and any other static files (including `.html`)!
+<PagesOnly>
 
-- Be sure the directory is named `public`. The name cannot be changed and is the only directory used to serve static assets.
-- Be sure to not have a static file with the same name as a file in the `pages/` directory, as this will result in an error. [Read more](/docs/messages/conflicting-public-file-page)
-- Only assets that are in the `public` directory at [build time](/docs/app/api-reference/next-cli#build) will be served by Next.js. Files added at runtime won't be available. We recommend using a third party service like [AWS S3](https://aws.amazon.com/s3/) for persistent file storage.
+This folder is also useful for `robots.txt`, `favicon.ico`, Google Site Verification, and any other static files (including `.html`). But make sure to not have a static file with the same name as a file in the `pages/` directory, as this will result in an error. [Read more](/docs/messages/conflicting-public-file-page).
+
+</PagesOnly>
+
+<AppOnly>
+
+For static metadata files, such as `robots.txt`, `favicon.ico`, etc, you should use [special metadata files](/docs/app/api-reference/file-conventions/metadata) inside the `app` folder.
+
+</AppOnly>
+
+> Good to know:
+>
+> - The directory must be named `public`. The name cannot be changed and it's the only directory used to serve static assets.
+> - Only assets that are in the `public` directory at [build time](/docs/app/api-reference/next-cli#build) will be served by Next.js. Files added at runtime won't be available. We recommend using a third-party service like [AWS S3](https://aws.amazon.com/s3/) for persistent file storage.

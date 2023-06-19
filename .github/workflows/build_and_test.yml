@@ -9,7 +9,7 @@ on:
 env:
   NAPI_CLI_VERSION: 2.14.7
   TURBO_VERSION: 1.9.6
-  PNPM_VERSION: 7.24.3
+  PNPM_VERSION: 7.32.2
   NODE_MAINTENANCE_VERSION: 16
   NODE_LTS_VERSION: 18
   TEST_CONCURRENCY: 6
@@ -23,6 +23,7 @@ env:
   # canary next-swc binaries in the monorepo
   NEXT_SKIP_NATIVE_POSTINSTALL: 1
   DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
+  DATADOG_TRACE_NEXTJS_TEST: 'true'
   DD_ENV: 'ci'
   TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
   NEXT_TEST_JOB: 1
@@ -93,6 +94,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
+      skipForRelease: 'yes'
       needsRust: 'yes'
       skipNativeBuild: 'yes'
       afterBuild: xvfb-run turbo run test-cargo-bench
@@ -179,6 +181,14 @@ jobs:
     with:
       skipForDocsOnly: 'yes'
       afterBuild: pnpm playwright install && BROWSER_NAME=firefox node run-tests.js test/integration/production/test/index.test.js && BROWSER_NAME=safari NEXT_TEST_MODE=start node run-tests.js -c 1 test/integration/production/test/index.test.js test/e2e/basepath.test.ts && BROWSER_NAME=safari DEVICE_NAME='iPhone XR' node run-tests.js -c 1 test/production/prerender-prefetch/index.test.ts
+    secrets: inherit
+
+  report-test-results:
+    needs: ['test-dev', 'test-prod', 'test-integration', 'test-turbopack-dev']
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      skipForDocsOnly: 'yes'
+      uploadTestTrace: 'yes'
     secrets: inherit
 
   tests-pass:

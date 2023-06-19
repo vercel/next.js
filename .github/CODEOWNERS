@@ -1,19 +1,11 @@
 # Learn how to add code owners here:
 # https://help.github.com/en/articles/about-code-owners
 
-# Part of code owners now use Vercel Spaces
+# Codeowners now use Vercel Spaces
 # Search .vercel.approvers for all files
-          
-/.git*                                        @vercel/next-js
-/.alex*                                       @vercel/next-js @leerob
-/.eslint*                                     @vercel/next-js @leerob
-/.prettier*                                   @vercel/next-js @leerob
 
 # Image Component (@styfle)
 
-/**/*image*                                   @timneutkens @ijjk @shuding @styfle @huozhi
-/**/*image*/**                                @timneutkens @ijjk @shuding @styfle @huozhi
-/packages/next/client/use-intersection.tsx    @timneutkens @ijjk @shuding @styfle
-/packages/next/server/lib/squoosh/            @timneutkens @ijjk @shuding @styfle
-/packages/next/server/serve-static.ts         @timneutkens @ijjk @shuding @styfle @huozhi
-/packages/next/server/config.ts               @timneutkens @ijjk @shuding @styfle @huozhi
+/**/*image*                                   @timneutkens @ijjk @shuding @styfle @huozhi @vercel/devex
+/**/*image*/**                                @timneutkens @ijjk @shuding @styfle @huozhi @vercel/devex
+

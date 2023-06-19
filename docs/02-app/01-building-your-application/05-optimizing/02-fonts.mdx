@@ -233,7 +233,7 @@ const inter = Inter({ subsets: ['latin'] })
 
 </PagesOnly>
 
-View the [Font API Reference](#google-fonts) for more information.
+View the [Font API Reference](/docs/app/api-reference/components/font) for more information.
 
 ### Using Multiple Fonts
 
@@ -241,7 +241,7 @@ You can import and use multiple fonts in your application. There are two approac
 
 The first approach is to create a utility function that exports a font, imports it, and applies its `className` where needed. This ensures the font is preloaded only when it's rendered:
 
-```tsx filename="app/fonts.ts" switcher
+```ts filename="app/fonts.ts" switcher
 import { Inter, Roboto_Mono } from 'next/font/google'
 
 export const inter = Inter({
@@ -255,7 +255,7 @@ export const roboto_mono = Roboto_Mono({
 })
 ```
 
-```jsx filename="app/fonts.js" switcher
+```js filename="app/fonts.js" switcher
 import { Inter, Roboto_Mono } from 'next/font/google'
 
 export const inter = Inter({
@@ -568,7 +568,7 @@ export default function RootLayout({ children }) {
 
 <PagesOnly>
 
-```js filename="pages/_app.js"
+```jsx filename="pages/_app.js"
 import { Inter } from 'next/font/google'
 
 const inter = Inter({

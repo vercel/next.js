@@ -5,6 +5,7 @@ import { getModuleBuildInfo } from '../get-module-build-info'
 import { PagesRouteModuleOptions } from '../../../../server/future/route-modules/pages/module'
 import { RouteKind } from '../../../../server/future/route-kind'
 import { normalizePagePath } from '../../../../shared/lib/page-path/normalize-page-path'
+import { MiddlewareConfig } from '../../../analysis/get-page-static-info'
 
 /**
  * The options for the route loader.
@@ -24,6 +25,8 @@ type RouteLoaderOptions = {
    * The absolute path to the userland page file.
    */
   absolutePagePath: string
+
+  middlewareConfig: string
 }
 
 /**
@@ -42,12 +45,21 @@ export function getRouteLoaderEntry(query: RouteLoaderOptions): string {
  */
 const loader: webpack.LoaderDefinitionFunction<RouteLoaderOptions> =
   function () {
-    const { page, preferredRegion, absolutePagePath } = this.getOptions()
+    const {
+      page,
+      preferredRegion,
+      absolutePagePath,
+      middlewareConfig: middlewareConfigBase64,
+    } = this.getOptions()
 
     // Ensure we only run this loader for as a module.
     if (!this._module) {
       throw new Error('Invariant: expected this to reference a module')
     }
+
+    const middlewareConfig: MiddlewareConfig = JSON.parse(
+      Buffer.from(middlewareConfigBase64, 'base64').toString()
+    )
 
     // Attach build info to the module.
     const buildInfo = getModuleBuildInfo(this._module)
@@ -55,6 +67,7 @@ const loader: webpack.LoaderDefinitionFunction<RouteLoaderOptions> =
       page,
       absolutePagePath,
       preferredRegion,
+      middlewareConfig,
     }
 
     const options: Omit<PagesRouteModuleOptions, 'userland'> = {

@@ -5,9 +5,7 @@ description: Next.js has built-in support for internationalized routing and lang
 ---
 
 <details>
-  <summary>
-    Examples
-  </summary>
+  <summary>Examples</summary>
 
 - [i18n routing](https://github.com/vercel/next.js/tree/canary/examples/i18n-routing)
 
@@ -15,7 +13,7 @@ description: Next.js has built-in support for internationalized routing and lang
 
 Next.js has built-in support for internationalized ([i18n](https://en.wikipedia.org/wiki/Internationalization_and_localization#Naming)) routing since `v10.0.0`. You can provide a list of locales, the default locale, and domain-specific locales and Next.js will automatically handle the routing.
 
-The i18n routing support is currently meant to complement existing i18n library solutions like [`react-intl`](https://formatjs.io/docs/getting-started/installation), [`react-i18next`](https://react.i18next.com/), [`lingui`](https://lingui.dev/), [`rosetta`](https://github.com/lukeed/rosetta), [`next-intl`](https://github.com/amannn/next-intl), [`next-translate`](https://github.com/aralroca/next-translate), [`next-multilingual`](https://github.com/Avansai/next-multilingual), [`typesafe-i18n`](https://github.com/ivanhofer/typesafe-i18n), and others by streamlining the routes and locale parsing.
+The i18n routing support is currently meant to complement existing i18n library solutions like [`react-intl`](https://formatjs.io/docs/getting-started/installation), [`react-i18next`](https://react.i18next.com/), [`lingui`](https://lingui.dev/), [`rosetta`](https://github.com/lukeed/rosetta), [`next-intl`](https://github.com/amannn/next-intl), [`next-translate`](https://github.com/aralroca/next-translate), [`next-multilingual`](https://github.com/Avansai/next-multilingual), [`typesafe-i18n`](https://github.com/ivanhofer/typesafe-i18n), [`tolgee`](https://tolgee.io/integrations/next), and others by streamlining the routes and locale parsing.
 
 ## Getting started
 
@@ -299,7 +297,7 @@ Next.js doesn't know about variants of a page so it's up to you to add the `href
 
 For pages using `getStaticProps` with [Dynamic Routes](/docs/pages/building-your-application/routing/dynamic-routes), all locale variants of the page desired to be prerendered need to be returned from [`getStaticPaths`](/docs/pages/building-your-application/data-fetching/get-static-paths). Along with the `params` object returned for `paths`, you can also return a `locale` field specifying which locale you want to render. For example:
 
-```js filename="pages/blog/[slug].js"
+```jsx filename="pages/blog/[slug].js"
 export const getStaticPaths = ({ locales }) => {
   return {
     paths: [
@@ -354,4 +352,4 @@ export async function getStaticProps({ locale }) {
 - `locales`: 100 total locales
 - `domains`: 100 total locale domain items
 
-> **Note**: These limits have been added initially to prevent potential [performance issues at build time](#dynamic-routes-and-getstaticprops-pages). You can workaround these limits with custom routing using [Middleware](/docs/pages/building-your-application/routing/middleware) in Next.js 12.
+> **Good to know**: These limits have been added initially to prevent potential [performance issues at build time](#dynamic-routes-and-getstaticprops-pages). You can workaround these limits with custom routing using [Middleware](/docs/pages/building-your-application/routing/middleware) in Next.js 12.

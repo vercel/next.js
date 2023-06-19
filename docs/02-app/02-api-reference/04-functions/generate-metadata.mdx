@@ -42,7 +42,7 @@ export async function generateMetadata({ params }) {
 }
 ```
 
-> **Good to know:**
+> **Good to know**:
 >
 > - The `metadata` object and `generateMetadata` function exports are **only supported in Server Components**.
 > - You cannot export both the `metadata` object and `generateMetadata` function from the same route segment.
@@ -137,7 +137,7 @@ export default function Page({ params, searchParams }: Props) {}
 
 `generateMetadata` should return a [`Metadata` object](#metadata-fields) containing one or more metadata fields.
 
-> **Good to know:**
+> **Good to know**:
 >
 > - If metadata doesn't depend on runtime information, it should be defined using the static [`metadata` object](#the-metadata-object) rather than `generateMetadata`.
 > - When rendering a route, Next.js will [automatically deduplicate `fetch` requests](/docs/app/building-your-application/data-fetching#automatic-fetch-request-deduping) for the same data across `generateMetadata`, `generateStaticParams`, Layouts, Pages, and Server Components. React [`cache` can be used](/docs/app/building-your-application/data-fetching/caching#react-cache) if `fetch` is unavailable.
@@ -252,7 +252,7 @@ export const metadata: Metadata = {
 // Output: <title>About | Acme</title>
 ```
 
-> **Good to know:**
+> **Good to know**:
 >
 > - `title.template` applies to **child** route segments and **not** the segment it's defined in. This means:
 >
@@ -306,7 +306,7 @@ export const metadata = {
 // Output: <title>About</title>
 ```
 
-> **Good to know:**
+> **Good to know**:
 >
 > - `layout.js`
 >
@@ -392,12 +392,12 @@ export const metadata = {
 
 ```html filename="<head> output" hideLineNumbers
 <link rel="canonical" href="https://acme.com" />
-<link rel="alternate" hreflang="en-US" href="https://nextjs.org/en-US" />
-<link rel="alternate" hreflang="de-DE" href="https://nextjs.org/de-DE" />
+<link rel="alternate" hreflang="en-US" href="https://acme.com/en-US" />
+<link rel="alternate" hreflang="de-DE" href="https://acme.com/de-DE" />
 <meta property="og:image" content="https://acme.com/og-image.png" />
 ```
 
-> **Good to know:**
+> **Good to know**:
 >
 > - `metadataBase` is typically set in root `app/layout.js` to apply to URL-based `metadata` fields across all routes.
 > - All URL-based `metadata` fields that require absolute URLs can be configured with a `metadataBase` option.
@@ -422,31 +422,31 @@ URL composition favors developer intent over default directory traversal semanti
 
 For example, given the following `metadataBase`:
 
-```tsx filename="app/api/layout.tsx" switcher
+```tsx filename="app/layout.tsx" switcher
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://acme.com/api'),
+  metadataBase: new URL('https://acme.com'),
 }
 ```
 
-```jsx filename="app/api/layout.js" switcher
+```jsx filename="app/layout.js" switcher
 export const metadata = {
-  metadataBase: new URL('https://acme.com/api'),
+  metadataBase: new URL('https://acme.com'),
 }
 ```
 
 Any `metadata` fields that inherit the above `metadataBase` and set their own value will be resolved as follows:
 
-| `metadata` field                     | Resolved URL                         |
-| ------------------------------------ | ------------------------------------ |
-| `/`                                  | `https://acme.com/api`               |
-| `./`                                 | `https://acme.com/api`               |
-| `payments`                           | `https://acme.com/api/payments`      |
-| `/payments`                          | `https://acme.com/api/payments`      |
-| `./payments`                         | `https://acme.com/api/payments`      |
-| `../payments`                        | `https://acme.com/payments`          |
-| `https://beta.acme.com/api/payments` | `https://beta.acme.com/api/payments` |
+| `metadata` field                 | Resolved URL                     |
+| -------------------------------- | -------------------------------- |
+| `/`                              | `https://acme.com`               |
+| `./`                             | `https://acme.com`               |
+| `payments`                       | `https://acme.com/payments`      |
+| `/payments`                      | `https://acme.com/payments`      |
+| `./payments`                     | `https://acme.com/payments`      |
+| `../payments`                    | `https://acme.com/payments`      |
+| `https://beta.acme.com/payments` | `https://beta.acme.com/payments` |
 
 ### `openGraph`
 
@@ -513,7 +513,7 @@ export const metadata = {
 <meta property="article:author" content="Josh" />
 ```
 
-> **Good to know:**
+> **Good to know**:
 >
 > - It may be more convenient to use the [file-based Metadata API](/docs/app/api-reference/file-conventions/metadata/opengraph-image#image-files-jpg-png-gif) for Open Graph images. Rather than having to sync the config export with actual files, the file-based API will automatically generate the correct metadata for you.
 
@@ -547,7 +547,7 @@ export const metadata = {
 
 ### `icons`
 
-Note: We recommend using the [file-based Metadata API](/docs/app/api-reference/file-conventions/metadata/app-icons#image-files-ico-jpg-png) for icons where possible. Rather than having to sync the config export with actual files, the file-based API will automatically generate the correct metadata for you.
+> **Good to know**: We recommend using the [file-based Metadata API](/docs/app/api-reference/file-conventions/metadata/app-icons#image-files-ico-jpg-png) for icons where possible. Rather than having to sync the config export with actual files, the file-based API will automatically generate the correct metadata for you.
 
 ```jsx filename="layout.js / page.js"
 export const metadata = {
@@ -609,7 +609,7 @@ export const metadata = {
 />
 ```
 
-> **Note:** The `msapplication-*` meta tags are no longer supported in Chromium builds of Microsoft Edge, and thus no longer needed.
+> **Good to know**: The `msapplication-*` meta tags are no longer supported in Chromium builds of Microsoft Edge, and thus no longer needed.
 
 ### `themeColor`
 
@@ -735,7 +735,7 @@ export const metadata = {
 
 ### `viewport`
 
-> **Note**: The `viewport` meta tag is automatically set with the following default values. Usually, manual configuration is unnecessary as the default is sufficient. However, the information is provided for completeness.
+> **Good to know**: The `viewport` meta tag is automatically set with the following default values. Usually, manual configuration is unnecessary as the default is sufficient. However, the information is provided for completeness.
 
 ```jsx filename="layout.js / page.js"
 export const metadata = {
@@ -1039,10 +1039,9 @@ ReactDOM.prefetchDNS(href: string)
 <link rel="dns-prefetch" href="..." />
 ```
 
-> **Good to know:**
+> **Good to know**:
 >
-> - These methods are currently only supported in Client Components.
->   - Note: Client Components are still Server Side Rendered on initial page load.
+> - These methods are currently only supported in Client Components, which are still Server Side Rendered on initial page load.
 > - Next.js in-built features such as `next/font`, `next/image` and `next/script` automatically handle relevant resource hints.
 > - React 18.3 does not yet include type definitions for `ReactDOM.preload`, `ReactDOM.preconnect`, and `ReactDOM.preconnectDNS`. You can use `// @ts-ignore` as a temporary solution to avoid type errors.
 
@@ -1130,3 +1129,9 @@ export const metadata = {
   title: 'Next.js',
 }
 ```
+
+## Version History
+
+| Version   | Changes                                       |
+| --------- | --------------------------------------------- |
+| `v13.2.0` | `metadata` and `generateMetadata` introduced. |

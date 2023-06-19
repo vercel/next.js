@@ -22,6 +22,7 @@ import { RouteKind } from '../../../server/future/route-kind'
 import { AppRouteRouteModuleOptions } from '../../../server/future/route-modules/app-route/module'
 import { AppBundlePathNormalizer } from '../../../server/future/normalizers/built/app/app-bundle-path-normalizer'
 import { FileType, fileExists } from '../../../lib/file-exists'
+import { MiddlewareConfig } from '../../analysis/get-page-static-info'
 
 export type AppLoaderOptions = {
   name: string
@@ -37,6 +38,7 @@ export type AppLoaderOptions = {
   isDev?: boolean
   basePath: string
   nextConfigOutput?: NextConfig['output']
+  middlewareConfig: string
 }
 type AppLoader = webpack.LoaderDefinitionFunction<AppLoaderOptions>
 
@@ -435,14 +437,19 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     nextConfigOutput,
     preferredRegion,
     basePath,
+    middlewareConfig: middlewareConfigBase64,
   } = loaderOptions
 
   const buildInfo = getModuleBuildInfo((this as any)._module)
   const page = name.replace(/^app/, '')
+  const middlewareConfig: MiddlewareConfig = JSON.parse(
+    Buffer.from(middlewareConfigBase64, 'base64').toString()
+  )
   buildInfo.route = {
     page,
     absolutePagePath: createAbsolutePath(appDir, pagePath),
     preferredRegion,
+    middlewareConfig,
   }
 
   const extensions = pageExtensions.map((extension) => `.${extension}`)

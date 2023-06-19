@@ -35,7 +35,8 @@ export function refreshReducer(
       fetchServerResponse(
         new URL(href, origin),
         [state.tree[0], state.tree[1], state.tree[2], 'refetch'],
-        state.nextUrl
+        state.nextUrl,
+        state.buildId
       )
     )
   }

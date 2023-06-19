@@ -7,55 +7,54 @@ The Next.js Edge Runtime is based on standard Web APIs, it supports the followin
 
 ## Network APIs
 
-| API                                                                                                 | Description                      |
-| --------------------------------------------------------------------------------------------------- | -------------------------------- |
-| [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API)                               | Fetches a resource               |
-| [`Request`](https://developer.mozilla.org/en-US/docs/Web/API/Request)                               | Represents an HTTP request       |
-| [`Response`](https://developer.mozilla.org/en-US/docs/Web/API/Response)                             | Represents an HTTP response      |
-| [`Headers`](https://developer.mozilla.org/en-US/docs/Web/API/Headers)                               | Represents HTTP headers          |
-| [`FetchEvent`](https://developer.mozilla.org/en-US/docs/Web/API/FetchEvent)                         | Represents a fetch event         |
-| [`addEventListener`](https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener) | Adds an event listener           |
-| [`FormData`](https://developer.mozilla.org/en-US/docs/Web/API/FormData)                             | Represents form data             |
-| [`File`](https://developer.mozilla.org/en-US/docs/Web/API/File)                                     | Represents a file                |
-| [`Blob`](https://developer.mozilla.org/en-US/docs/Web/API/Blob)                                     | Represents a blob                |
-| [`URLSearchParams`](https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams)               | Represents URL search parameters |
+| API                                                                                   | Description                       |
+| ------------------------------------------------------------------------------------- | --------------------------------- |
+| [`Blob`](https://developer.mozilla.org/en-US/docs/Web/API/Blob)                       | Represents a blob                 |
+| [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API)                 | Fetches a resource                |
+| [`FetchEvent`](https://developer.mozilla.org/en-US/docs/Web/API/FetchEvent)           | Represents a fetch event          |
+| [`File`](https://developer.mozilla.org/en-US/docs/Web/API/File)                       | Represents a file                 |
+| [`FormData`](https://developer.mozilla.org/en-US/docs/Web/API/FormData)               | Represents form data              |
+| [`Headers`](https://developer.mozilla.org/en-US/docs/Web/API/Headers)                 | Represents HTTP headers           |
+| [`Request`](https://developer.mozilla.org/en-US/docs/Web/API/Request)                 | Represents an HTTP request        |
+| [`Response`](https://developer.mozilla.org/en-US/docs/Web/API/Response)               | Represents an HTTP response       |
+| [`URLSearchParams`](https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams) | Represents URL search parameters  |
+| [`WebSocket`](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket)             | Represents a websocket connection |
 
 ## Encoding APIs
 
 | API                                                                                       | Description                        |
 | ----------------------------------------------------------------------------------------- | ---------------------------------- |
-| [`TextEncoder`](https://developer.mozilla.org/en-US/docs/Web/API/TextEncoder)             | Encodes a string into a Uint8Array |
-| [`TextDecoder`](https://developer.mozilla.org/en-US/docs/Web/API/TextDecoder)             | Decodes a Uint8Array into a string |
 | [`atob`](https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/atob) | Decodes a base-64 encoded string   |
 | [`btoa`](https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/btoa) | Encodes a string in base-64        |
+| [`TextDecoder`](https://developer.mozilla.org/en-US/docs/Web/API/TextDecoder)             | Decodes a Uint8Array into a string |
+| [`TextDecoderStream`](https://developer.mozilla.org/en-US/docs/Web/API/TextDecoderStream) | Chainable decoder for streams      |
+| [`TextEncoder`](https://developer.mozilla.org/en-US/docs/Web/API/TextEncoder)             | Encodes a string into a Uint8Array |
+| [`TextEncoderStream`](https://developer.mozilla.org/en-US/docs/Web/API/TextEncoderStream) | Chainable encoder for streams      |
 
 ## Stream APIs
 
 | API                                                                                                           | Description                             |
 | ------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
 | [`ReadableStream`](https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream)                           | Represents a readable stream            |
+| [`ReadableStreamBYOBReader`](https://developer.mozilla.org/en-US/docs/Web/API/ReadableStreamBYOBReader)       | Represents a reader of a ReadableStream |
+| [`ReadableStreamDefaultReader`](https://developer.mozilla.org/en-US/docs/Web/API/ReadableStreamDefaultReader) | Represents a reader of a ReadableStream |
+| [`TransformStream`](https://developer.mozilla.org/en-US/docs/Web/API/TransformStream)                         | Represents a transform stream           |
 | [`WritableStream`](https://developer.mozilla.org/en-US/docs/Web/API/WritableStream)                           | Represents a writable stream            |
 | [`WritableStreamDefaultWriter`](https://developer.mozilla.org/en-US/docs/Web/API/WritableStreamDefaultWriter) | Represents a writer of a WritableStream |
-| [`TransformStream`](https://developer.mozilla.org/en-US/docs/Web/API/TransformStream)                         | Represents a transform stream           |
-| [`ReadableStreamDefaultReader`](https://developer.mozilla.org/en-US/docs/Web/API/ReadableStreamDefaultReader) | Represents a reader of a ReadableStream |
-| [`ReadableStreamBYOBReader`](https://developer.mozilla.org/en-US/docs/Web/API/ReadableStreamBYOBReader)       | Represents a reader of a ReadableStream |
 
 ## Crypto APIs
 
 | API                                                                             | Description                                                                                         |
 | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
 | [`crypto`](https://developer.mozilla.org/en-US/docs/Web/API/Window/crypto)      | Provides access to the cryptographic functionality of the platform                                  |
-| [`SubtleCrypto`](https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto) | Provides access to common cryptographic primitives, like hashing, signing, encryption or decryption |
 | [`CryptoKey`](https://developer.mozilla.org/en-US/docs/Web/API/CryptoKey)       | Represents a cryptographic key                                                                      |
+| [`SubtleCrypto`](https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto) | Provides access to common cryptographic primitives, like hashing, signing, encryption or decryption |
 
 ## Web Standard APIs
 
 | API                                                                                                                         | Description                                                                                                                                                                                          |
 | --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [`AbortController`](https://developer.mozilla.org/en-US/docs/Web/API/AbortController)                                       | Allows you to abort one or more DOM requests as and when desired                                                                                                                                     |
-| [`DOMException`](https://developer.mozilla.org/en-US/docs/Web/API/DOMException)                                             | Represents an error that occurs in the DOM                                                                                                                                                           |
-| [`structuredClone`](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm)            | Creates a deep copy of a value                                                                                                                                                                       |
-| [`URLPattern`](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern)                                                 | Represents a URL pattern                                                                                                                                                                             |
 | [`Array`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array)                           | Represents an array of values                                                                                                                                                                        |
 | [`ArrayBuffer`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer)               | Represents a generic, fixed-length raw binary data buffer                                                                                                                                            |
 | [`Atomics`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Atomics)                       | Provides atomic operations as static methods                                                                                                                                                         |
@@ -70,6 +69,7 @@ The Next.js Edge Runtime is based on standard Web APIs, it supports the followin
 | [`Date`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date)                             | Represents a single moment in time in a platform-independent format                                                                                                                                  |
 | [`decodeURI`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/decodeURI)                   | Decodes a Uniform Resource Identifier (URI) previously created by `encodeURI` or by a similar routine                                                                                                |
 | [`decodeURIComponent`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/decodeURIComponent) | Decodes a Uniform Resource Identifier (URI) component previously created by `encodeURIComponent` or by a similar routine                                                                             |
+| [`DOMException`](https://developer.mozilla.org/en-US/docs/Web/API/DOMException)                                             | Represents an error that occurs in the DOM                                                                                                                                                           |
 | [`encodeURI`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/encodeURI)                   | Encodes a Uniform Resource Identifier (URI) by replacing each instance of certain characters by one, two, three, or four escape sequences representing the UTF-8 encoding of the character           |
 | [`encodeURIComponent`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/encodeURIComponent) | Encodes a Uniform Resource Identifier (URI) component by replacing each instance of certain characters by one, two, three, or four escape sequences representing the UTF-8 encoding of the character |
 | [`Error`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error)                           | Represents an error when trying to execute a statement or accessing a property                                                                                                                       |
@@ -93,6 +93,7 @@ The Next.js Edge Runtime is based on standard Web APIs, it supports the followin
 | [`parseInt`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/parseInt)                     | Parses a string argument and returns an integer of the specified radix                                                                                                                               |
 | [`Promise`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)                       | Represents the eventual completion (or failure) of an asynchronous operation, and its resulting value                                                                                                |
 | [`Proxy`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy)                           | Represents an object that is used to define custom behavior for fundamental operations (e.g. property lookup, assignment, enumeration, function invocation, etc)                                     |
+| [`queueMicrotask`](https://developer.mozilla.org/en-US/docs/Web/API/queueMicrotask)                                         | Queues a microtask to be executed                                                                                                                                                                    |
 | [`RangeError`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RangeError)                 | Represents an error when a value is not in the set or range of allowed values                                                                                                                        |
 | [`ReferenceError`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ReferenceError)         | Represents an error when a non-existent variable is referenced                                                                                                                                       |
 | [`Reflect`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Reflect)                       | Provides methods for interceptable JavaScript operations                                                                                                                                             |
@@ -102,6 +103,7 @@ The Next.js Edge Runtime is based on standard Web APIs, it supports the followin
 | [`setTimeout`](https://developer.mozilla.org/en-US/docs/Web/API/setTimeout)                                                 | Calls a function or evaluates an expression after a specified number of milliseconds                                                                                                                 |
 | [`SharedArrayBuffer`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer)   | Represents a generic, fixed-length raw binary data buffer                                                                                                                                            |
 | [`String`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String)                         | Represents a sequence of characters                                                                                                                                                                  |
+| [`structuredClone`](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm)            | Creates a deep copy of a value                                                                                                                                                                       |
 | [`Symbol`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol)                         | Represents a unique and immutable data type that is used as the key of an object property                                                                                                            |
 | [`SyntaxError`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SyntaxError)               | Represents an error when trying to interpret syntactically invalid code                                                                                                                              |
 | [`TypeError`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypeError)                   | Represents an error when a value is not of the expected type                                                                                                                                         |
@@ -110,6 +112,7 @@ The Next.js Edge Runtime is based on standard Web APIs, it supports the followin
 | [`Uint32Array`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint32Array)               | Represents a typed array of 32-bit unsigned integers                                                                                                                                                 |
 | [`URIError`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/URIError)                     | Represents an error when a global URI handling function was used in a wrong way                                                                                                                      |
 | [`URL`](https://developer.mozilla.org/en-US/docs/Web/API/URL)                                                               | Represents an object providing static methods used for creating object URLs                                                                                                                          |
+| [`URLPattern`](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern)                                                 | Represents a URL pattern                                                                                                                                                                             |
 | [`URLSearchParams`](https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams)                                       | Represents a collection of key/value pairs                                                                                                                                                           |
 | [`WeakMap`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakMap)                       | Represents a collection of key/value pairs in which the keys are weakly referenced                                                                                                                   |
 | [`WeakSet`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakSet)                       | Represents a collection of objects in which each object may occur only once                                                                                                                          |

@@ -4,9 +4,7 @@ description: Learn to add and access environment variables in your Next.js appli
 ---
 
 <details>
-  <summary>
-    Examples
-  </summary>
+  <summary>Examples</summary>
 
 - [Environment Variables](https://github.com/vercel/next.js/tree/canary/examples/environment-variables)
 
@@ -15,7 +13,7 @@ description: Learn to add and access environment variables in your Next.js appli
 Next.js comes with built-in support for environment variables, which allows you to do the following:
 
 - [Use `.env.local` to load environment variables](#loading-environment-variables)
-- [Expose environment variables to the browser by prefixing with `NEXT_PUBLIC_`](#exposing-environment-variables-to-the-browser)
+- [Bundle environment variables for the browser by prefixing with `NEXT_PUBLIC_`](#bundling-environment-variables-for-the-browser)
 
 ## Loading Environment Variables
 
@@ -57,25 +55,27 @@ This loads `process.env.DB_HOST`, `process.env.DB_USER`, and `process.env.DB_PAS
 Next.js will automatically expand variables that use `$` to reference other variables e.g. `$VARIABLE` inside of your `.env*` files. This allows you to reference other secrets. For example:
 
 ```txt filename=".env"
-TWITTER_USER=vercel
+TWITTER_USER=nextjs
 TWITTER_URL=https://twitter.com/$TWITTER_USER
 ```
 
-In the above example, `process.env.TWITTER_URL` would be set to `http://twitter.com/vercel`.
+In the above example, `process.env.TWITTER_URL` would be set to `https://twitter.com/nextjs`.
 
-> **Note**: If you need to use variable with a `$` in the actual value, it needs to be escaped e.g. `\$`.
+> **Good to know**: If you need to use variable with a `$` in the actual value, it needs to be escaped e.g. `\$`.
 
-## Exposing Environment Variables to the Browser
+## Bundling Environment Variables for the Browser
 
-By default environment variables are only available in the Node.js environment, meaning they won't be exposed to the browser.
+Non-`NEXT_PUBLIC_` environment variables are only available in the Node.js environment, meaning they aren't accessible to the browser (the client runs in a different _environment_).
 
-In order to expose a variable to the browser you have to prefix the variable with `NEXT_PUBLIC_`. For example:
+In order to make the value of an environment variable accessible in the browser, Next.js can "inline" a value, at build time, into the js bundle that is delivered to the client, replacing all references to `process.env.[variable]` with a hard-coded value. To tell it to do this, you just have to prefix the variable with `NEXT_PUBLIC_`. For example:
 
 ```txt filename="Terminal"
 NEXT_PUBLIC_ANALYTICS_ID=abcdefghijk
 ```
 
-This loads `process.env.NEXT_PUBLIC_ANALYTICS_ID` into the Node.js environment automatically, allowing you to use it anywhere in your code. The value will be inlined into JavaScript sent to the browser because of the `NEXT_PUBLIC_` prefix. This inlining occurs at build time, so your various `NEXT_PUBLIC_` envs need to be set when the project is built.
+This will tell Next.js to replace all references to `process.env.NEXT_PUBLIC_ANALYTICS_ID` in the Node.js environment with the value from the environment in which you run `next build`, allowing you to use it anywhere in your code. It will be inlined into any JavaScript sent to the browser.
+
+> **Note**: After being built, your app will no longer respond to changes to these environment variables. For instance, if you use a Heroku pipeline to promote slugs built in one environment to another environment, or if you build and deploy a single Docker image to multiple environments, all `NEXT_PUBLIC_` variables will be frozen with the value evaluated at build time, so these values need to be set appropriately when the project is built. If you need access to runtime environment values, you'll have to setup your own API to provide them to the client (either on demand or during initialization).
 
 ```js filename="pages/index.js"
 import setupAnalyticsService from '../lib/my-analytics-service'
@@ -111,7 +111,7 @@ Next.js allows you to set defaults in `.env` (all environments), `.env.developme
 
 `.env.local` always overrides the defaults set.
 
-> **Note**: `.env`, `.env.development`, and `.env.production` files should be included in your repository as they define defaults. **`.env*.local` should be added to `.gitignore`**, as those files are intended to be ignored. `.env.local` is where secrets can be stored.
+> **Good to know**: `.env`, `.env.development`, and `.env.production` files should be included in your repository as they define defaults. **`.env*.local` should be added to `.gitignore`**, as those files are intended to be ignored. `.env.local` is where secrets can be stored.
 
 ## Environment Variables on Vercel
 
@@ -133,7 +133,7 @@ This one is useful when running tests with tools like `jest` or `cypress` where 
 
 There is a small difference between `test` environment, and both `development` and `production` that you need to bear in mind: `.env.local` won't be loaded, as you expect tests to produce the same results for everyone. This way every test execution will use the same env defaults across different executions by ignoring your `.env.local` (which is intended to override the default set).
 
-> **Note**: similar to Default Environment Variables, `.env.test` file should be included in your repository, but `.env.test.local` shouldn't, as `.env*.local` are intended to be ignored through `.gitignore`.
+> **Good to know**: similar to Default Environment Variables, `.env.test` file should be included in your repository, but `.env.test.local` shouldn't, as `.env*.local` are intended to be ignored through `.gitignore`.
 
 While running unit tests you can make sure to load your environment variables the same way Next.js does by leveraging the `loadEnvConfig` function from the `@next/env` package.
 
@@ -159,7 +159,7 @@ Environment variables are looked up in the following places, in order, stopping 
 
 For example, if `NODE_ENV` is `development` and you define a variable in both `.env.development.local` and `.env`, the value in `.env.development.local` will be used.
 
-> **Note**: The allowed values for `NODE_ENV` are `production`, `development` and `test`.
+> **Good to know**: The allowed values for `NODE_ENV` are `production`, `development` and `test`.
 
 ## Good to know
 

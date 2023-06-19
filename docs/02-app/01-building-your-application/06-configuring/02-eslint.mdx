@@ -6,8 +6,10 @@ description: Next.js provides an integrated ESLint experience by default. These 
 Next.js provides an integrated [ESLint](https://eslint.org/) experience out of the box. Add `next lint` as a script to `package.json`:
 
 ```json filename="package.json"
-"scripts": {
-  "lint": "next lint"
+{
+  "scripts": {
+    "lint": "next lint"
+  }
 }
 ```
 
@@ -27,15 +29,15 @@ yarn lint
 >
 > ? How would you like to configure ESLint?
 >
-> ❯ Strict (recommended)
-> Base
+> ❯ Strict (recommended)  
+> Base  
 > Cancel
 
 One of the following three options can be selected:
 
 - **Strict**: Includes Next.js' base ESLint configuration along with a stricter [Core Web Vitals rule-set](/docs/pages/building-your-application/configuring/eslint#core-web-vitals). This is the recommended configuration for developers setting up ESLint for the first time.
 
-  ```json
+  ```json filename=".eslintrc.json"
   {
     "extends": "next/core-web-vitals"
   }
@@ -43,7 +45,7 @@ One of the following three options can be selected:
 
 - **Base**: Includes Next.js' base ESLint configuration.
 
-  ```json
+  ```json filename=".eslintrc.json"
   {
     "extends": "next"
   }
@@ -110,7 +112,7 @@ If you already have ESLint configured in your application, we recommend extendin
 
 If you're using `eslint-plugin-next` in a project where Next.js isn't installed in your root directory (such as a monorepo), you can tell `eslint-plugin-next` where to find your Next.js application using the `settings` property in your `.eslintrc`:
 
-```json filename=".eslintrc"
+```json filename=".eslintrc.json"
 {
   "extends": "next",
   "settings": {
@@ -125,7 +127,7 @@ If you're using `eslint-plugin-next` in a project where Next.js isn't installed 
 
 ## Linting Custom Directories and Files
 
-By default, Next.js will run ESLint for all files in the `pages/`, `app` (only if the experimental `appDir` feature is enabled), `components/`, `lib/`, and `src/` directories. However, you can specify which directories using the `dirs` option in the `eslint` config in `next.config.js` for production builds:
+By default, Next.js will run ESLint for all files in the `pages/`, `app/`, `components/`, `lib/`, and `src/` directories. However, you can specify which directories using the `dirs` option in the `eslint` config in `next.config.js` for production builds:
 
 ```js filename="next.config.js"
 module.exports = {
@@ -153,7 +155,7 @@ next lint --no-cache
 
 If you would like to modify or disable any rules provided by the supported plugins (`react`, `react-hooks`, `next`), you can directly change them using the `rules` property in your `.eslintrc`:
 
-```json filename=".eslintrc"
+```json filename=".eslintrc.json"
 {
   "extends": "next",
   "rules": {
@@ -167,7 +169,7 @@ If you would like to modify or disable any rules provided by the supported plugi
 
 The `next/core-web-vitals` rule set is enabled when `next lint` is run for the first time and the **strict** option is selected.
 
-```json
+```json filename=".eslintrc.json"
 {
   "extends": "next/core-web-vitals"
 }
@@ -193,7 +195,7 @@ yarn add --dev eslint-config-prettier
 
 Then, add `prettier` to your existing ESLint config:
 
-```json
+```json filename=".eslintrc.json"
 {
   "extends": ["next", "prettier"]
 }
@@ -255,7 +257,7 @@ This eliminates the risk of collisions or errors that can occur due to importing
 
 If you already use a separate ESLint configuration and want to include `eslint-config-next`, ensure that it is extended last after other configurations. For example:
 
-```json
+```json filename=".eslintrc.json"
 {
   "extends": ["eslint:recommended", "next"]
 }
