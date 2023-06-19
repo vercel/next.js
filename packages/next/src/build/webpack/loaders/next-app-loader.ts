@@ -304,19 +304,26 @@ async function createTreeCodeFromPath(
         continue
       }
 
-      const { treeCode: subtreeCode } = await createSubtreePropsFromSegmentPath(
-        [
-          ...segments,
-          ...(parallelKey === 'children' ? [] : [parallelKey]),
-          Array.isArray(parallelSegment) ? parallelSegment[0] : parallelSegment,
-        ]
+      const subSegmentPath = [...segments]
+      if (parallelKey !== 'children') {
+        subSegmentPath.push(parallelKey)
+      }
+
+      const normalizedParallelSegments = Array.isArray(parallelSegment)
+        ? parallelSegment.slice(0, 1)
+        : [parallelSegment]
+
+      subSegmentPath.push(
+        ...normalizedParallelSegments.filter(
+          (segment) => segment !== PAGE_SEGMENT
+        )
       )
 
-      const parallelSegmentPath =
-        segmentPath +
-        '/' +
-        (parallelKey === 'children' ? '' : `${parallelKey}/`) +
-        (Array.isArray(parallelSegment) ? parallelSegment[0] : parallelSegment)
+      const { treeCode: subtreeCode } = await createSubtreePropsFromSegmentPath(
+        subSegmentPath
+      )
+
+      const parallelSegmentPath = subSegmentPath.join('/')
 
       // `page` is not included here as it's added above.
       const filePaths = await Promise.all(
@@ -394,7 +401,6 @@ async function createTreeCodeFromPath(
         ]`
       }
     }
-
     return {
       treeCode: `{
         ${Object.entries(props)
@@ -473,10 +479,9 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
         const isParallelRoute = rest[0].startsWith('@')
         if (isParallelRoute && rest.length === 2 && rest[1] === 'page') {
-          matched[rest[0]] = PAGE_SEGMENT
+          matched[rest[0]] = [PAGE_SEGMENT]
           continue
         }
-
         if (isParallelRoute) {
           matched[rest[0]] = rest.slice(1)
           continue
@@ -485,7 +490,6 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         matched.children = rest[0]
       }
     }
-
     return Object.entries(matched)
   }
 
@@ -609,33 +613,22 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     }
   }
 
+  // Prefer to modify next/src/server/app-render/entry-base.ts since this is shared with Turbopack.
+  // Any changes to this code should be reflected in Turbopack's app_source.rs and/or app-renderer.tsx as well.
   const result = `
     export ${treeCodeResult.treeCode}
     export ${treeCodeResult.pages}
-
-    export { default as AppRouter } from 'next/dist/client/components/app-router'
-    export { default as LayoutRouter } from 'next/dist/client/components/layout-router'
-    export { default as RenderFromTemplateContext } from 'next/dist/client/components/render-from-template-context'
     export { default as GlobalError } from ${JSON.stringify(
       treeCodeResult.globalError || 'next/dist/client/components/error-boundary'
     )}
+    export const originalPathname = ${JSON.stringify(page)}
+    export const __next_app__ = {
+      require: __webpack_require__,
+      // all modules are in the entry chunk, so we never actually need to load chunks in webpack
+      loadChunk: () => Promise.resolve()
+    }
 
-    export { staticGenerationAsyncStorage } from 'next/dist/client/components/static-generation-async-storage'
-
-    export { requestAsyncStorage } from 'next/dist/client/components/request-async-storage'
-    export { actionAsyncStorage } from 'next/dist/client/components/action-async-storage'
-
-    export { staticGenerationBailout } from 'next/dist/client/components/static-generation-bailout'
-    export { default as StaticGenerationSearchParamsBailoutProvider } from 'next/dist/client/components/static-generation-searchparams-bailout-provider'
-    export { createSearchParamsBailoutProxy } from 'next/dist/client/components/searchparams-bailout-proxy'
-
-    export * as serverHooks from 'next/dist/client/components/hooks-server-context'
-
-    export { renderToReadableStream, decodeReply, decodeAction } from 'react-server-dom-webpack/server.edge'
-    export const __next_app_webpack_require__ = __webpack_require__
-    export { preloadStyle, preloadFont, preconnect } from 'next/dist/server/app-render/rsc/preloads'
-
-    export const originalPathname = "${page}"
+    export * from 'next/dist/server/app-render/entry-base'
   `
 
   return result
