@@ -209,8 +209,14 @@ function processMessage(
   router: ReturnType<typeof useRouter>,
   dispatcher: Dispatcher
 ) {
-  const obj = JSON.parse(e.data)
-  console.log('hot-reloader-client', obj)
+  let obj
+  try {
+    obj = JSON.parse(e.data)
+  } catch {}
+
+  if (!obj || !('action' in obj)) {
+    return
+  }
 
   switch (obj.action) {
     case 'building': {
@@ -479,15 +485,11 @@ export default function HotReload({
   const router = useRouter()
   useEffect(() => {
     const handler = (event: MessageEvent<PongEvent>) => {
-      if (!event.data.includes('{')) return
       try {
-        try {
-          processMessage(event, sendMessage, router, dispatcher)
-        } catch (ex) {
-          console.warn('Invalid HMR message: ' + event.data + '\n', ex)
-        }
+        processMessage(event, sendMessage, router, dispatcher)
       } catch (err) {
-        console.error('on-demand-entries failed to parse response', err)
+        console.warn('[HMR] Invalid message: ' + event.data)
+        console.error(err)
       }
     }
 

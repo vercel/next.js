@@ -603,25 +603,19 @@ export default class DevServer extends Server {
         conflictingPageChange = numConflicting !== previousConflictingPage
         previousConflictingPage = numConflicting
 
-        let errorMessage
-        if (numConflicting > 0) {
-          errorMessage = `Conflicting app and page file${
-            numConflicting === 1 ? ' was' : 's were'
-          } found, please remove the conflicting files to continue:\n`
-
-          for (const p of conflictingAppPagePaths) {
-            const appPath = relative(this.dir, appPageFilePaths.get(p)!)
-            const pagesPath = relative(this.dir, pagesPageFilePaths.get(p)!)
-            errorMessage += `  "${pagesPath}" - "${appPath}"\n`
-          }
-        }
-
         if (conflictingPageChange) {
           if (numConflicting > 0) {
-            console.log('set error for hmr', errorMessage)
+            let errorMessage = `Conflicting app and page file${
+              numConflicting === 1 ? ' was' : 's were'
+            } found, please remove the conflicting files to continue:\n`
+
+            for (const p of conflictingAppPagePaths) {
+              const appPath = relative(this.dir, appPageFilePaths.get(p)!)
+              const pagesPath = relative(this.dir, pagesPageFilePaths.get(p)!)
+              errorMessage += `  "${pagesPath}" - "${appPath}"\n`
+            }
             this.hotReloader?.setServerHmrError(new Error(errorMessage))
           } else if (numConflicting === 0) {
-            console.log('clear error & reload page')
             this.hotReloader?.setServerHmrError(null)
             await this.matchers.reload()
             this.hotReloader?.send('reloadPage')
@@ -629,7 +623,6 @@ export default class DevServer extends Server {
         }
 
         let clientRouterFilters: any
-
         if (this.nextConfig.experimental.clientRouterFilter) {
           clientRouterFilters = createClientRouterFilter(
             Object.keys(appPaths),
@@ -661,7 +654,7 @@ export default class DevServer extends Server {
             .catch(() => {})
         }
 
-        if (envChange || tsconfigChange) {
+        if (envChange || tsconfigChange || conflictingPageChange) {
           if (envChange) {
             this.loadEnvConfig({
               dev: true,

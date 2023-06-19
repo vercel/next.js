@@ -63,7 +63,6 @@ let customHmrEventHandler: any
 export default function connect() {
   register()
 
-  // sendMessage
   addMessageListener((event) => {
     try {
       const payload = JSON.parse(event.data)
@@ -278,11 +277,6 @@ function processMessage(e: any) {
         })
       )
       return handleSuccess()
-    }
-    case 'serverError': {
-      const error = new Error(obj.message)
-      console.log('error', error)
-      return handleErrors([error])
     }
     case 'serverComponentChanges': {
       // Server component changes don't apply to `pages`.

@@ -374,7 +374,6 @@ export default class HotReloader {
               traceChild = {
                 name: payload.event,
               }
-
               break
             }
             case 'client-error': {
@@ -1144,7 +1143,6 @@ export default class HotReloader {
         // the rest of the files will be triggered by the client compilation
         const documentChunk = compilation.namedChunks.get('pages/_document')
         // If the document chunk can't be found we do nothing
-
         if (!documentChunk) {
           return
         }
@@ -1164,20 +1162,12 @@ export default class HotReloader {
         // since react bundle is different it will effect the chunk hash.
         // So we diff the chunk changes, if there's only new app page chunk joins,
         // then we don't trigger a reload by checking pages/_document chunk change.
-
         if (this.appDir) {
           const chunkNames = new Set(compilation.namedChunks.keys())
-          const chunkHashes = new Set(
-            [...compilation.namedChunks.values()]
-              .map((chunk) => chunk.hash)
-              .filter(nonNullable)
-          )
           const diffChunkNames = difference<string>(
             this.serverChunkNames || new Set(),
             chunkNames
           )
-
-          this.serverChunkNames = chunkNames
 
           if (
             diffChunkNames.length === 0 ||
@@ -1185,6 +1175,8 @@ export default class HotReloader {
           ) {
             return
           }
+
+          this.serverChunkNames = chunkNames
         }
 
         // Notify reload to reload the page, as _document.js was changed (different hash)

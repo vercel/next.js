@@ -80,7 +80,7 @@ initialize({ webpackHMR })
         } else if (payload.event === 'middlewareChanges') {
           return window.location.reload()
         } else if (payload.event === 'serverOnlyChanges') {
-          const { pages } = JSON.parse(payload.data)
+          const { pages } = data
 
           // Make sure to reload when the dev-overlay is showing for an
           // API route
