@@ -115,25 +115,25 @@ impl NextSegmentConfig {
             }
             Ok(())
         }
-        merge_parallel(&mut self.dynamic, &parallel_config.dynamic, "dynamic")?;
+        let Self {
+            dynamic,
+            dynamic_params,
+            revalidate,
+            fetch_cache,
+            runtime,
+            preferred_region,
+        } = self;
+        merge_parallel(dynamic, &parallel_config.dynamic, "dynamic")?;
         merge_parallel(
-            &mut self.dynamic_params,
+            dynamic_params,
             &parallel_config.dynamic_params,
             "dynamicParams",
         )?;
+        merge_parallel(revalidate, &parallel_config.revalidate, "revalidate")?;
+        merge_parallel(fetch_cache, &parallel_config.fetch_cache, "fetchCache")?;
+        merge_parallel(runtime, &parallel_config.runtime, "runtime")?;
         merge_parallel(
-            &mut self.revalidate,
-            &parallel_config.revalidate,
-            "revalidate",
-        )?;
-        merge_parallel(
-            &mut self.fetch_cache,
-            &parallel_config.fetch_cache,
-            "fetchCache",
-        )?;
-        merge_parallel(&mut self.runtime, &parallel_config.runtime, "runtime")?;
-        merge_parallel(
-            &mut self.preferred_region,
+            preferred_region,
             &parallel_config.preferred_region,
             "referredRegion",
         )?;
