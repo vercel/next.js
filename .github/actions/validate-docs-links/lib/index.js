@@ -27817,58 +27817,60 @@ var __webpack_exports__ = {}
     validateRelatedLinks(t, r)
     return r
   }
-  async function createOrUpdateGithubComment(e) {
-    try {
-      const { data: t } = await N.rest.issues.listComments({
-        owner: D,
-        repo: O,
-        issue_number: C.payload.pull_request?.number,
-      })
-      let r
-      const a = t.find((e) => e.body?.includes(S))
-      if (a) {
-        const { data: t } = await N.rest.issues.updateComment({
-          owner: D,
-          repo: O,
-          comment_id: a.id,
-          body: e,
-        })
-        r = t.html_url
-      } else {
-        const { data: t } = await N.rest.issues.createComment({
-          owner: D,
-          repo: O,
-          issue_number: C.payload.pull_request?.number,
-          body: e,
-        })
-        r = t.html_url
-      }
-      await N.rest.repos.createCommitStatus({
-        owner: D,
-        repo: O,
-        sha: R,
-        state: 'failure',
-        description:
-          'Found broken links in the documentation. Click details to see the comment.',
-        context: 'Link Validation',
-        target_url: r,
-      })
-    } catch (e) {
-      console.error(`Error creating or updating comment: ${e}`)
-    }
+  async function findBotComment() {
+    const { data: e } = await N.rest.issues.listComments({
+      owner: D,
+      repo: O,
+      issue_number: C.payload.pull_request?.number,
+    })
+    return e.find((e) => e.body?.includes(S))
+  }
+  async function updateComment(e, t) {
+    const { data: r } = await N.rest.issues.updateComment({
+      owner: D,
+      repo: O,
+      comment_id: t.id,
+      body: e,
+    })
+    return r.html_url
+  }
+  async function createComment(e) {
+    const { data: t } = await N.rest.issues.createComment({
+      owner: D,
+      repo: O,
+      issue_number: C.payload.pull_request?.number,
+      body: e,
+    })
+    return t.html_url
+  }
+  const formatTableRow = (e, t) =>
+    `| ${e} | [/${t}](https://github.com/vercel/next.js/blob/${R}/${t}) | \n`
+  async function createCommitStatus(e, t) {
+    const r = e ? 'failure' : 'success'
+    const a = e
+      ? 'This PR introduces broken links to the docs. Click details for a list.'
+      : 'All broken links are now fixed, thank you!'
+    await N.rest.repos.createCommitStatus({
+      owner: D,
+      repo: O,
+      sha: R,
+      state: r,
+      description: a,
+      context: 'Link Validation',
+      target_url: t,
+    })
   }
   async function validateAllInternalLinks() {
     const e = await getMdxFiles('.' + A)
-    const t = []
     x = new Map(await Promise.all(e.map(prepareDocumentMapEntry)))
-    for (let e of x.values()) {
-      const r = (await L.process(e.body)).contents
-      t.push(traverseTreeAndValidateLinks(r, e))
-    }
+    const t = await Promise.all(
+      [...x.values()].map(async (e) => {
+        const t = (await L.process(e.body)).contents
+        return traverseTreeAndValidateLinks(t, e)
+      })
+    )
     let r =
       'Hi there :wave:\n\nIt looks like this PR introduces broken links to the docs, please take a moment to fix them before merging:\n\n| :heavy_multiplication_x: Broken link | :page_facing_up: File | \n| ----------- | ----------- | \n'
-    const formatTableRow = (e, t) =>
-      `| ${e} | [/${t}](https://github.com/vercel/next.js/blob/${R}/${t}) | \n`
     t.forEach((e) => {
       const {
         doc: { path: t },
@@ -27906,9 +27908,21 @@ var __webpack_exports__ = {}
         e.brokenSourceLinks.length > 0 ||
         e.brokenRelatedLinks.length > 0
     )
+    const n = await findBotComment()
+    let i = ''
     if (a) {
-      await createOrUpdateGithubComment(S + '\n' + r)
-      throw new Error('Internal broken docs links found. See PR comment.')
+      const e = `${S}\n${r}`
+      if (n) {
+        i = await updateComment(e, n)
+      } else {
+        i = await createComment(e)
+      }
+    } else if (n) {
+      const e = `${S}\nAll broken links are now fixed, thank you!`
+      i = await updateComment(e, n)
+    }
+    if (i) {
+      await createCommitStatus(a, i)
     }
   }
   validateAllInternalLinks()
