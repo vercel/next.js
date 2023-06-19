@@ -1,6 +1,3 @@
-import type { ServerResponse } from 'http'
-import { Writable } from 'stream'
-
 type ContentTypeOption = string | undefined
 
 export type RenderResultMetadata = {
@@ -10,6 +7,13 @@ export type RenderResultMetadata = {
   assetQueryString?: string
   isNotFound?: boolean
   isRedirect?: boolean
+}
+
+export interface PipeTarget {
+  write: (chunk: Uint8Array) => unknown
+  end: () => unknown
+  flush?: () => unknown
+  destroy: (err?: Error) => unknown
 }
 
 export default class RenderResult {
@@ -52,7 +56,7 @@ export default class RenderResult {
     return this._response
   }
 
-  pipe(res: ServerResponse | Writable): Promise<void> {
+  pipe(res: PipeTarget): Promise<void> {
     if (this._response === null) {
       throw new Error('invariant: response is null. This is a bug in Next.js')
     }
