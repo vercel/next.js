@@ -367,7 +367,7 @@ async function validateAllInternalLinks(): Promise<void> {
     }
   }
 
-  console.log({ commentUrl, errorsExist, errorComment })
+  console.log({ commentUrl, errorsExist, errorComment, botComment })
 
   try {
     await createCommitStatus(errorsExist, commentUrl)
