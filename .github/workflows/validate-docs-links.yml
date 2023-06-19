@@ -1,6 +1,8 @@
 name: 'validate-docs-links'
 on:
-  pull_request:
+  push:
+    branches:
+      - canary
     paths:
       - 'docs/**.mdx'
 
