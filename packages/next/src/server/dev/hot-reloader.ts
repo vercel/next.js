@@ -189,7 +189,6 @@ export default class HotReloader {
   private hmrServerError: Error | null = null
   private serverPrevDocumentHash: string | null
   private serverChunkNames?: Set<string>
-  private serverChunkHashes?: Set<string>
   private prevChunkNames?: Set<any>
   private onDemandEntries?: ReturnType<typeof onDemandEntryHandler>
   private previewProps: __ApiPreviewProps
@@ -370,12 +369,7 @@ export default class HotReloader {
               }
               break
             }
-            case 'client-reload-page': {
-              traceChild = {
-                name: payload.event,
-              }
-              break
-            }
+            case 'client-reload-page':
             case 'client-success': {
               traceChild = {
                 name: payload.event,
@@ -1122,8 +1116,7 @@ export default class HotReloader {
       (err: Error) => {
         this.serverError = err
         this.serverStats = null
-        // this.serverChunkNames = undefined
-        // this.serverChunkHashes = undefined
+        this.serverChunkNames = undefined
       }
     )
 
@@ -1163,9 +1156,9 @@ export default class HotReloader {
         }
 
         // If _document.js didn't change we don't trigger a reload
-        // if (documentChunk.hash === this.serverPrevDocumentHash) {
-        //   return
-        // }
+        if (documentChunk.hash === this.serverPrevDocumentHash) {
+          return
+        }
 
         // As document chunk will change if new app pages are joined,
         // since react bundle is different it will effect the chunk hash.
@@ -1183,21 +1176,16 @@ export default class HotReloader {
             this.serverChunkNames || new Set(),
             chunkNames
           )
-          const diffChunkHashes = difference<string>(
-            this.serverChunkHashes || new Set(),
-            chunkHashes
-          )
 
           this.serverChunkNames = chunkNames
-          this.serverChunkHashes = chunkHashes
 
-          // console.log('hot:update', chunkNames, chunkHashes)
-          // if (diffChunkNames.length === 0 && diffChunkHashes.length === 0) {
-          //   console.log('no change', this.serverError)
-          //   return
-          // }
+          if (
+            diffChunkNames.length === 0 ||
+            diffChunkNames.every((chunkName) => chunkName.startsWith('app/'))
+          ) {
+            return
+          }
         }
-        // console.log('4')
 
         // Notify reload to reload the page, as _document.js was changed (different hash)
         this.send('reloadPage')
@@ -1364,7 +1352,6 @@ export default class HotReloader {
   public async getCompilationErrors(page: string) {
     const getErrors = ({ compilation }: webpack.Stats) => {
       const failedPages = erroredPages(compilation)
-      console.log('failedPages', failedPages)
       const normalizedPage = normalizePathSep(page)
       // If there is an error related to the requesting page we display it instead of the first error
       return failedPages[normalizedPage]?.length > 0

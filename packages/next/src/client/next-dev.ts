@@ -54,7 +54,7 @@ initialize({ webpackHMR })
 
       let buildIndicatorHandler: any = () => {}
 
-      function devPagesHMRListener(payload: any) {
+      function devPagesHmrListener(payload: any) {
         let data
         try {
           data = JSON.parse(payload.data)
@@ -117,7 +117,7 @@ initialize({ webpackHMR })
           }
         }
       }
-      addMessageListener(devPagesHMRListener)
+      addMessageListener(devPagesHmrListener)
 
       if (process.env.__NEXT_BUILD_INDICATOR) {
         initializeBuildWatcher((handler: any) => {
