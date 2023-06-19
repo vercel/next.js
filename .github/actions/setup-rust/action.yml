@@ -56,7 +56,7 @@ runs:
       run: |
         : install LLD linker
         sudo apt update
-        sudo apt install lld
+        sudo apt install -y lld
 
     - name: 'Setup Rust toolchain'
       uses: dtolnay/rust-toolchain@master
