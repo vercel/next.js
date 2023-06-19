@@ -38,7 +38,7 @@ use crate::{
             get_client_asset_context, get_client_chunking_context,
             get_client_resolve_options_context, ClientContextType,
         },
-        runtime_entry::{RuntimeEntriesVc, RuntimeEntry},
+        RuntimeEntriesVc, RuntimeEntry,
     },
     next_config::NextConfigVc,
 };

@@ -5,6 +5,10 @@ CARGO_WORKSPACE_DIR = { value = "", relative = true }
 
 rustdocflags = []
 
+[target.x86_64-unknown-linux-gnu]
+# Should be kept in sync with turbopack's linker
+rustflags = ["-C", "link-arg=-fuse-ld=mold"]
+
 [target.x86_64-pc-windows-msvc]
 linker = "rust-lld"
 

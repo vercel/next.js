@@ -304,19 +304,26 @@ async function createTreeCodeFromPath(
         continue
       }
 
-      const { treeCode: subtreeCode } = await createSubtreePropsFromSegmentPath(
-        [
-          ...segments,
-          ...(parallelKey === 'children' ? [] : [parallelKey]),
-          Array.isArray(parallelSegment) ? parallelSegment[0] : parallelSegment,
-        ]
+      const subSegmentPath = [...segments]
+      if (parallelKey !== 'children') {
+        subSegmentPath.push(parallelKey)
+      }
+
+      const normalizedParallelSegments = Array.isArray(parallelSegment)
+        ? parallelSegment.slice(0, 1)
+        : [parallelSegment]
+
+      subSegmentPath.push(
+        ...normalizedParallelSegments.filter(
+          (segment) => segment !== PAGE_SEGMENT
+        )
       )
 
-      const parallelSegmentPath =
-        segmentPath +
-        '/' +
-        (parallelKey === 'children' ? '' : `${parallelKey}/`) +
-        (Array.isArray(parallelSegment) ? parallelSegment[0] : parallelSegment)
+      const { treeCode: subtreeCode } = await createSubtreePropsFromSegmentPath(
+        subSegmentPath
+      )
+
+      const parallelSegmentPath = subSegmentPath.join('/')
 
       // `page` is not included here as it's added above.
       const filePaths = await Promise.all(
@@ -394,7 +401,6 @@ async function createTreeCodeFromPath(
         ]`
       }
     }
-
     return {
       treeCode: `{
         ${Object.entries(props)
@@ -473,10 +479,9 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
         const isParallelRoute = rest[0].startsWith('@')
         if (isParallelRoute && rest.length === 2 && rest[1] === 'page') {
-          matched[rest[0]] = PAGE_SEGMENT
+          matched[rest[0]] = [PAGE_SEGMENT]
           continue
         }
-
         if (isParallelRoute) {
           matched[rest[0]] = rest.slice(1)
           continue
@@ -485,7 +490,6 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         matched.children = rest[0]
       }
     }
-
     return Object.entries(matched)
   }
 
