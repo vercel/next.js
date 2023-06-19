@@ -55,8 +55,8 @@ runs:
     - shell: bash
       run: |
         : install mold linker
-        sudo apt update
-        sudo apt install -y mold
+        apt update
+        apt install -y mold
 
     - name: 'Setup Rust toolchain'
       uses: dtolnay/rust-toolchain@master
