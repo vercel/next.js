@@ -321,6 +321,46 @@ createNextDescribe(
       })
     })
 
+    describe('route intercepting with dynamic routes', () => {
+      it('should render intercepted route', async () => {
+        const browser = await next.browser(
+          '/intercepting-routes-dynamic/photos'
+        )
+
+        // Check if navigation to modal route works
+        await check(
+          () =>
+            browser
+              .elementByCss(
+                '[href="/intercepting-routes-dynamic/photos/next/123"]'
+              )
+              .click()
+              .waitForElementByCss('#user-intercept-page')
+              .text(),
+          'Intercepted Page'
+        )
+
+        // Check if url matches even though it was intercepted.
+        await check(
+          () => browser.url(),
+          next.url + '/intercepting-routes-dynamic/photos/next/123'
+        )
+
+        // Trigger a refresh, this should load the normal page, not the modal.
+        await check(
+          () =>
+            browser.refresh().waitForElementByCss('#user-regular-page').text(),
+          'Regular Page'
+        )
+
+        // Check if the url matches still.
+        await check(
+          () => browser.url(),
+          next.url + '/intercepting-routes-dynamic/photos/next/123'
+        )
+      })
+    })
+
     describe('route intercepting', () => {
       it('should render intercepted route', async () => {
         const browser = await next.browser('/intercepting-routes/feed')

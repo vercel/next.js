@@ -41,8 +41,17 @@ function getParametrizedRoute(route: string) {
   return {
     parameterizedRoute: segments
       .map((segment) => {
-        if (segment.startsWith('[') && segment.endsWith(']')) {
-          const { key, optional, repeat } = parseParameter(segment.slice(1, -1))
+        const markerMatches = segment.match(/\((\.{1,3})\)(\w*)/) // Check for intercept markers
+        const paramMatches = segment.match(/\[((?:\[.*\])|.+)\]/) // Check for parameters
+
+        if (markerMatches && paramMatches) {
+          const { key, optional, repeat } = parseParameter(paramMatches[1])
+          groups[key] = { pos: groupIndex++, repeat, optional }
+          return `/${escapeStringRegexp(markerMatches[0])}([^/]+?)`
+        } else if (markerMatches) {
+          return `/${escapeStringRegexp(markerMatches[0])}`
+        } else if (paramMatches) {
+          const { key, repeat, optional } = parseParameter(paramMatches[1])
           groups[key] = { pos: groupIndex++, repeat, optional }
           return repeat ? (optional ? '(?:/(.+?))?' : '/(.+?)') : '/([^/]+?)'
         } else {
