@@ -101,7 +101,7 @@ export function getRender({
             getServerSideProps: pageMod.getServerSideProps,
             getStaticPaths: pageMod.getStaticPaths,
             ComponentMod: pageMod,
-            isAppPath: !!pageMod.__next_app_webpack_require__,
+            isAppPath: !!pageMod.__next_app__,
             pathname,
           }
         }
