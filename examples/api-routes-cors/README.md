@@ -1,6 +1,6 @@
 # API Routes Example with CORS
 
-Next.js ships with [API routes](https://nextjs.org/docs/api-routes/introduction) which provides an easy solution to build your own `API`.
+Next.js ships with [API routes](https://nextjs.org/docs/pages/building-your-application/routing/api-routes) which provides an easy solution to build your own `API`.
 
 This example shows how to create an `API` endpoint with [CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS) headers, using the [cors](https://github.com/expressjs/cors) package.
 

@@ -1,6 +1,6 @@
 # Temporal + Next.js Example
 
-This is a starter project for creating resilient Next.js applications with [Temporal](https://temporal.io/). Whenever our [API routes](https://nextjs.org/docs/api-routes/introduction) need to do any of the following, we can greatly increase our code's fault tolerance by using Temporal:
+This is a starter project for creating resilient Next.js applications with [Temporal](https://temporal.io/). Whenever our [API routes](https://nextjs.org/docs/pages/building-your-application/routing/api-routes) need to do any of the following, we can greatly increase our code's fault tolerance by using Temporal:
 
 - Perform a series of network requests (to a database, another function, an internal service, or an external API), any of which may fail. Temporal will automatically set timeouts and retry, as well as remember the state of execution in the event of power loss.
 - Long-running tasks

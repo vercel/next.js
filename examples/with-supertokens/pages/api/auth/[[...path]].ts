@@ -1,4 +1,4 @@
-// Next.js API route support: https://nextjs.org/docs/api-routes/introduction
+// Next.js API route support: https://nextjs.org/docs/pages/building-your-application/routing/api-routes
 import { superTokensNextWrapper } from 'supertokens-node/nextjs'
 import supertokens from 'supertokens-node'
 import { middleware } from 'supertokens-node/framework/express'

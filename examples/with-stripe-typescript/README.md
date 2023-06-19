@@ -6,7 +6,7 @@ This is a full-stack TypeScript example using:
   - Next.js and [SWR](https://github.com/vercel/swr)
   - [react-stripe-js](https://github.com/stripe/react-stripe-js) for [Checkout](https://stripe.com/checkout) and [Elements](https://stripe.com/elements)
 - Backend
-  - Next.js [API routes](https://nextjs.org/docs/api-routes/introduction)
+  - Next.js [API routes](https://nextjs.org/docs/pages/building-your-application/routing/api-routes)
   - [stripe-node with TypeScript](https://github.com/stripe/stripe-node#usage-with-typescript)
 
 ## Demo
