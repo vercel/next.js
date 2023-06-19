@@ -237,6 +237,19 @@ createNextDescribe(
       await check(() => browser.elementByCss('h1').text(), '3')
     })
 
+    it('should support importing the same action module instance in both server and action layers', async () => {
+      const browser = await next.browser('/shared')
+
+      const v = await browser.elementByCss('#value').text()
+      expect(v).toBe('Value = 0')
+
+      await browser.elementByCss('#server-inc').click()
+      await check(() => browser.elementByCss('#value').text(), 'Value = 1')
+
+      await browser.elementByCss('#client-inc').click()
+      await check(() => browser.elementByCss('#value').text(), 'Value = 2')
+    })
+
     if (isNextStart) {
       it('should not expose action content in sourcemaps', async () => {
         const sourcemap = (
