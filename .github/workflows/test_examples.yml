@@ -14,7 +14,7 @@ on:
 name: Test examples
 
 env:
-  PNPM_VERSION: 7.24.3
+  PNPM_VERSION: 7.32.2
 
 jobs:
   testExamples:
