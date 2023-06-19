@@ -54,20 +54,19 @@ initialize({ webpackHMR })
 
       let buildIndicatorHandler: any = () => {}
 
-      function devPagesHMRListener(event: any) {
-        let payload
+      function devPagesHMRListener(payload: any) {
+        let data
         try {
-          payload = JSON.parse(event.data)
+          data = JSON.parse(payload.data)
         } catch {}
-        console.log('event.data', payload.errorJSON, payload)
-        if (payload.event === 'pong' && payload.errorJSON) {
-          const { stack, message } = JSON.parse(payload.errorJSON)
+        if (data.event === 'server-error' && data.errorJSON) {
+          const { stack, message } = JSON.parse(data.errorJSON)
           const error = new Error(message)
           error.stack = stack
           throw error
-        }
-        // TODO: update event.data to payload
-        else if (event.data.includes('devPagesManifest')) {
+        } else if (data.action === 'reloadPage') {
+          window.location.reload()
+        } else if (payload.data.includes('devPagesManifest')) {
           fetch(
             `${assetPrefix}/_next/static/development/_devPagesManifest.json`
           )
@@ -78,10 +77,10 @@ initialize({ webpackHMR })
             .catch((err) => {
               console.log(`Failed to fetch devPagesManifest`, err)
             })
-        } else if (event.data.includes('middlewareChanges')) {
+        } else if (payload.event === 'middlewareChanges') {
           return window.location.reload()
-        } else if (event.data.includes('serverOnlyChanges')) {
-          const { pages } = JSON.parse(event.data)
+        } else if (payload.event === 'serverOnlyChanges') {
+          const { pages } = JSON.parse(payload.data)
 
           // Make sure to reload when the dev-overlay is showing for an
           // API route

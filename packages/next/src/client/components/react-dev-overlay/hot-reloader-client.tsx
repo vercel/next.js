@@ -389,14 +389,18 @@ function processMessage(
       router.fastRefresh()
       return
     }
-    case 'pong': {
-      const { invalid, errorJSON } = obj
+    case 'serverError': {
+      const { errorJSON } = obj
       if (errorJSON) {
         const { message, stack } = JSON.parse(errorJSON)
         const error = new Error(message)
         error.stack = stack
         throw error
       }
+      return
+    }
+    case 'pong': {
+      const { invalid } = obj
       if (invalid) {
         // Payload can be invalid even if the page does exist.
         // So, we check if it can be created.

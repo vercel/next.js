@@ -63,6 +63,7 @@ let customHmrEventHandler: any
 export default function connect() {
   register()
 
+  // sendMessage
   addMessageListener((event) => {
     try {
       const payload = JSON.parse(event.data)

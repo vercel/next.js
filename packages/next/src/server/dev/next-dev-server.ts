@@ -599,15 +599,13 @@ export default class DevServer extends Server {
           routedPages.push(pageName)
         }
 
-        console.log('conflictingAppPagePaths', conflictingAppPagePaths)
         const numConflicting = conflictingAppPagePaths.size
-        if (numConflicting !== previousConflictingPage) {
-          conflictingPageChange = true
-        }
+        conflictingPageChange = numConflicting !== previousConflictingPage
         previousConflictingPage = numConflicting
 
+        let errorMessage
         if (numConflicting > 0) {
-          let errorMessage = `Conflicting app and page file${
+          errorMessage = `Conflicting app and page file${
             numConflicting === 1 ? ' was' : 's were'
           } found, please remove the conflicting files to continue:\n`
 
@@ -616,11 +614,20 @@ export default class DevServer extends Server {
             const pagesPath = relative(this.dir, pagesPageFilePaths.get(p)!)
             errorMessage += `  "${pagesPath}" - "${appPath}"\n`
           }
-
-          this.hotReloader?.setServerHmrError(new Error(errorMessage))
-        } else if (numConflicting === 0) {
-          this.hotReloader?.setServerHmrError(null)
         }
+
+        if (conflictingPageChange) {
+          if (numConflicting > 0) {
+            console.log('set error for hmr', errorMessage)
+            this.hotReloader?.setServerHmrError(new Error(errorMessage))
+          } else if (numConflicting === 0) {
+            console.log('clear error & reload page')
+            this.hotReloader?.setServerHmrError(null)
+            await this.matchers.reload()
+            this.hotReloader?.send('reloadPage')
+          }
+        }
+
         let clientRouterFilters: any
 
         if (this.nextConfig.experimental.clientRouterFilter) {
@@ -747,18 +754,6 @@ export default class DevServer extends Server {
             }
           })
           this.hotReloader?.invalidate()
-        }
-
-        if (conflictingPageChange) {
-          console.log(
-            'conflicting page changed',
-            'numConflicting',
-            numConflicting
-          )
-          if (numConflicting === 0) {
-            // this.hotReloader?.invalidate()
-            // this.hotReloader?.send(undefined, { devPagesManifest: true })
-          }
         }
 
         if (nestedMiddleware.length > 0) {
@@ -1020,11 +1015,7 @@ export default class DevServer extends Server {
       )
     }
     if (appFile && pagesFile) {
-      // const error = new Error(
-      //   `Conflicting app and page file found: "app${appFile}" and "pages${pagesFile}". Please remove one to continue.`
-      // )
-      // throw error
-      return true // false
+      return false
     }
 
     return Boolean(appFile || pagesFile)

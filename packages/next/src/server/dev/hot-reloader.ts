@@ -71,10 +71,6 @@ function diff(a: Set<any>, b: Set<any>) {
 
 const wsServer = new ws.Server({ noServer: true })
 
-function stringifyError(error: Error) {
-  return JSON.stringify({ message: error.message, stack: error.stack })
-}
-
 export async function renderScriptError(
   res: ServerResponse,
   error: Error,
@@ -341,7 +337,14 @@ export default class HotReloader {
   public onHMR(req: IncomingMessage, _socket: Duplex, head: Buffer) {
     wsServer.handleUpgrade(req, req.socket, head, (client) => {
       this.webpackHotMiddleware?.onHMR(client)
-      this.onDemandEntries?.onHMR(client)
+      this.onDemandEntries?.onHMR(client, () => {
+        return [
+          this.hmrServerError,
+          () => {
+            this.hmrServerError = null
+          },
+        ]
+      })
 
       client.addEventListener('message', ({ data }) => {
         data = typeof data !== 'string' ? data.toString() : data
@@ -374,22 +377,10 @@ export default class HotReloader {
               break
             }
             case 'client-success': {
-              console.log(
-                'Next.js client connected',
-                'has error:?',
-                !!this.hmrServerError
-              )
               traceChild = {
                 name: payload.event,
               }
-              if (this.hmrServerError) {
-                client.send(
-                  JSON.stringify({
-                    event: 'pong',
-                    errorJSON: stringifyError(this.hmrServerError),
-                  })
-                )
-              }
+
               break
             }
             case 'client-error': {
