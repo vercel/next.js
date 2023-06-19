@@ -12,7 +12,7 @@
     "build-wasm": "wasm-pack build crates/wasm --scope=next",
     "cache-build-native": "echo $(ls native)",
     "rust-check": "cd ../../; cargo fmt -- --check && cargo clippy --all -- -D warnings -A deprecated && cargo check -p next-dev --no-default-features --features cli,custom_allocator,rustls-tls,serializable && rm -rf target",
-    "test-cargo-unit": "cargo test --workspace --exclude next-dev-tests",
+    "test-cargo-unit": "cross-env CARGO_PROFILE_RELEASE_LTO=false cargo test --workspace --exclude next-dev-tests --release",
     "test-cargo-integration": "cross-env CARGO_PROFILE_RELEASE_LTO=false cargo nextest run -p next-dev-tests --release --no-fail-fast",
     "test-cargo-bench": "cross-env CARGO_PROFILE_RELEASE_LTO=false TURBOPACK_BENCH_COUNTS=10 TURBOPACK_BENCH_CACHED=1 TURBOPACK_BENCH_PROGRESS=1 cargo test --benches -p next-dev --release --no-fail-fast"
   },
