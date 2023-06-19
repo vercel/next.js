@@ -358,12 +358,22 @@ async function validateAllInternalLinks(): Promise<void> {
     } else {
       commentUrl = await createComment(comment)
     }
-  } else if (botComment) {
+  } else {
     const comment = `${COMMENT_TAG}\nAll broken links are now fixed, thank you!`
-    commentUrl = await updateComment(comment, botComment)
+    if (botComment) {
+      commentUrl = await updateComment(comment, botComment)
+    } else {
+      commentUrl = await createComment(comment)
+    }
   }
 
-  await createCommitStatus(errorsExist, commentUrl)
+  console.log({ commentUrl, errorsExist, errorComment })
+
+  try {
+    await createCommitStatus(errorsExist, commentUrl)
+  } catch (error) {
+    console.error('Failed to create commit status: ', error)
+  }
 }
 
 validateAllInternalLinks()
