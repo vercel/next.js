@@ -281,6 +281,7 @@ createNextDescribe(
         ReactServerComponentsError:
 
         ./app/server-with-errors/error-file/error.js must be a Client Component. Add the \\"use client\\" directive the top of the file to resolve this issue.
+        Learn more: https://nextjs.org/docs/getting-started/react-essentials#client-components
 
            ,-[TEST_DIR/app/server-with-errors/error-file/error.js:1:1]
          1 | export default function Error() {}
@@ -402,6 +403,7 @@ createNextDescribe(
         ReactServerComponentsError:
 
         You're importing a component that needs useState. It only works in a Client Component but none of its parents are marked with \\"use client\\", so they're Server Components by default.
+        Learn more: https://nextjs.org/docs/getting-started/react-essentials
 
            ,-[TEST_DIR/node_modules/client-package/module2.js:1:1]
          1 | import { useState } from 'react'
