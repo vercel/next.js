@@ -182,6 +182,10 @@ export default function DashboardLayout({ children }) {
 }
 ```
 
+> **Good to know**:
+>
+> - Layouts defined inside a folder should not contain `html` or `body` tags.
+
 If you were to combine the two layouts above, the root layout (`app/layout.js`) would wrap the dashboard layout (`app/dashboard/layout.js`), which would wrap route segments inside `app/dashboard/*`.
 
 The two layouts would be nested as such:
