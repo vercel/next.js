@@ -39,16 +39,36 @@
     },
     "typescript": {},
     "rust-check": {
-      "inputs": [".cargo/**", "**/*.rs", "**/Cargo.toml", "**/Cargo.lock"]
+      "inputs": [
+        ".cargo/**",
+        "packages/next-swc/crates/**",
+        "**/Cargo.toml",
+        "**/Cargo.lock"
+      ]
     },
     "test-cargo-unit": {
-      "inputs": [".cargo/**", "**/*.rs", "**/Cargo.toml", "**/Cargo.lock"]
+      "inputs": [
+        ".cargo/**",
+        "packages/next-swc/crates/**",
+        "**/Cargo.toml",
+        "**/Cargo.lock"
+      ]
     },
     "test-cargo-integration": {
-      "inputs": [".cargo/**", "**/*.rs", "**/Cargo.toml", "**/Cargo.lock"]
+      "inputs": [
+        ".cargo/**",
+        "packages/next-swc/crates/**",
+        "**/Cargo.toml",
+        "**/Cargo.lock"
+      ]
     },
     "test-cargo-bench": {
-      "inputs": [".cargo/**", "**/*.rs", "**/Cargo.toml", "**/Cargo.lock"]
+      "inputs": [
+        ".cargo/**",
+        "packages/next-swc/crates/**",
+        "**/Cargo.toml",
+        "**/Cargo.lock"
+      ]
     },
     "//#get-test-timings": {
       "inputs": ["run-tests.js"],
