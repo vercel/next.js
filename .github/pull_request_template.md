@@ -1,41 +1,26 @@
-<!-- Thanks for opening a PR! Your contribution is much appreciated.
-To make sure your PR is handled as smoothly as possible we request that you follow the checklist sections below.
-Choose the right checklist for the change(s) that you're making:
+[//]: # '<!-- PR을 개설해 주셔서 감사합니다! 여러분의 기여에 깊이 감사드립니다. PR이 최대한 원활하게 처리될 수 있도록 아래 체크리스트 섹션을 준수해 주시기 바랍니다. 변경하려는 내용에 적합한 체크리스트를 선택하세요:'
 
-## For Contributors
+## 기여자용
 
-### Improving Documentation
+### 문서 개선
 
-- Run `pnpm prettier-fix` to fix formatting issues before opening the PR.
-- Read the Docs Contribution Guide to ensure your contribution follows the docs guidelines: https://nextjs.org/docs/community/contribution-guide
+- PR을 열기 전에 `pnpm prettier-fix`를 실행하여 서식 문제를 해결합니다. - 문서 기여 가이드를 읽고 문서 지침을 따르는지 확인하세요: https://nextjs.org/docs/community/contribution-guide.
 
-### Adding or Updating Examples
+### 예제 추가 또는 업데이트하기
 
-- The "examples guidelines" are followed from our contributing doc https://github.com/vercel/next.js/blob/canary/contributing/examples/adding-examples.md
-- Make sure the linting passes by running `pnpm build && pnpm lint`. See https://github.com/vercel/next.js/blob/canary/contributing/repository/linting.md
+- "예제 가이드라인"은 기여 문서 https://github.com/vercel/next.js/blob/canary/contributing/examples/adding-examples.md - `pnpm build && pnpm lint`를 실행하여 린팅이 통과되었는지 확인합니다. https://github.com/vercel/next.js/blob/canary/contributing/repository/linting.md 참조
 
-### Fixing a bug
+### 버그 수정하기
 
-- Related issues linked using `fixes #number`
-- Tests added. See: https://github.com/vercel/next.js/blob/canary/contributing/core/testing.md#writing-tests-for-nextjs
-- Errors have a helpful link attached, see https://github.com/vercel/next.js/blob/canary/contributing.md
+- 수정 #번호`를 사용하여 연결된 관련 문제 - 테스트가 추가되었습니다. 참조: https://github.com/vercel/next.js/blob/canary/contributing/core/testing.md#writing-tests-for-nextjs - 오류에 유용한 링크가 첨부되어 있습니다(https://github.com/vercel/next.js/blob/canary/contributing.md 참조).
 
-### Adding a feature
+### 기능 추가
 
-- Implements an existing feature request or RFC. Make sure the feature request has been accepted for implementation before opening a PR. (A discussion must be opened, see https://github.com/vercel/next.js/discussions/new?category=ideas)
-- Related issues/discussions are linked using `fixes #number`
-- e2e tests added (https://github.com/vercel/next.js/blob/canary/contributing/core/testing.md#writing-tests-for-nextjs
-- Documentation added
-- Telemetry added. In case of a feature if it's used or not.
-- Errors have a helpful link attached, see https://github.com/vercel/next.js/blob/canary/contributing.md
+- 기존 기능 요청 또는 RFC를 구현합니다. PR을 열기 전에 기능 요청이 구현을 위해 수락되었는지 확인하세요. (토론이 열려 있어야 합니다. https://github.com/vercel/next.js/discussions/new?category=ideas 참조) - 관련 이슈/토론은 '수정 #번호'를 사용하여 연결 - e2e 테스트 추가(https://github.com/vercel/next.js/blob/canary/contributing/core/testing.md#writing-tests-for-nextjs - 문서 추가 - 텔레메트리 추가). 기능의 경우 사용 여부가 표시됩니다. - 오류에는 유용한 링크가 첨부되어 있습니다(https://github.com/vercel/next.js/blob/canary/contributing.md 참조).
 
+## 유지 관리자용
 
-## For Maintainers
-
-- Minimal description (aim for explaining to someone not on the team to understand the PR)
-- When linking to a Slack thread, you might want to share details of the conclusion
-- Link both the Linear (Fixes NEXT-xxx) and the GitHub issues
-- Add review comments if necessary to explain to the reviewer the logic behind a change
+- 최소한의 설명(팀에 속하지 않은 사람이 PR을 이해할 수 있도록 설명하는 것을 목표로 함) - Slack 스레드에 링크하는 경우 결론에 대한 세부 정보를 공유할 수 있음 - 리니어(다음-xxx 수정) 및 GitHub 이슈를 모두 링크 - 검토자에게 변경의 논리를 설명하기 위해 필요한 경우 검토 댓글 추가
 
 ### What?
 
@@ -43,7 +28,6 @@ Choose the right checklist for the change(s) that you're making:
 
 ### How?
 
-Closes NEXT-
-Fixes #
+다음- 수정 #을 닫습니다.
 
--->
+[//]: # '-->'
