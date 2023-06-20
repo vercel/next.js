@@ -1415,7 +1415,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     if (
       !is404Page &&
       !is500Page &&
-      // server actions can be initiated from a statically generated page
+      // server actions can be initiated from a page marked as SSG
       // we need to special-case this to properly handle the action
       !isFetchAction &&
       pathname !== '/_error' &&
