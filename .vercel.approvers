@@ -1,9 +1,9 @@
 # Global Owners
-@timneutkens
-@ijjk
-@shuding
-@huozhi
-@feedthejim
+@timneutkens:notify
+@ijjk:notify
+@shuding:notify
+@huozhi:notify
+@feedthejim:notify
 @leerob:optional
 @vercel/next-js:optional
 

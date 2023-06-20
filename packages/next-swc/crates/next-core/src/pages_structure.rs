@@ -107,12 +107,6 @@ pub struct PagesDirectoryStructure {
 
 #[turbo_tasks::value_impl]
 impl PagesDirectoryStructureVc {
-    /// Returns the router path of this directory.
-    #[turbo_tasks::function]
-    pub async fn next_router_path(self) -> Result<FileSystemPathVc> {
-        Ok(self.await?.next_router_path)
-    }
-
     /// Returns the path to the directory of this structure in the project file
     /// system.
     #[turbo_tasks::function]
