@@ -35,6 +35,7 @@ const ignoreProps = [
 ]
 
 const insertStylesheets = (stylesheets) => {
+  // TODO: Use React float APIs to load styles once ready
   if (typeof window !== 'undefined') {
     let head = document.head
     stylesheets.forEach((stylesheet: string) => {

@@ -75,6 +75,8 @@ function generateComponent(thirdParty) {
     .map((dirent) => dirent.name)
 
   for (let dir of dirs) {
+    // Fetch the list of third-parties from tpc-config.json
+    // Then retrieve its loading instructions from Third Party Capital
     const dirPath = path.join(SRC, dir)
     const configFile = (await fs.readdir(dirPath)).find(
       (file) => file === CONFIG_FILE_NAME
