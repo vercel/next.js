@@ -1,11 +1,8 @@
-import {
-  createServerActionClient,
-  createServerComponentClient,
-} from '@supabase/auth-helpers-nextjs'
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import Image from 'next/image'
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
+import LogoutButton from './logout-button'
 
 const resources = [
   {
@@ -43,13 +40,6 @@ const examples = [
 export default async function Index() {
   const supabase = createServerComponentClient({ cookies })
 
-  const signOut = async () => {
-    'use server'
-    const supabase = createServerActionClient({ cookies })
-    await supabase.auth.signOut()
-    redirect('/login')
-  }
-
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -65,9 +55,7 @@ export default async function Index() {
           {user ? (
             <span className="flex gap-4">
               Hey, {user.email}! <span className="border-r"></span>{' '}
-              <form action={signOut}>
-                <button className="text-neutral-100">Logout</button>
-              </form>
+              <LogoutButton />
             </span>
           ) : (
             <Link href="/login" className="text-neutral-100 hover:underline">
@@ -113,6 +101,7 @@ export default async function Index() {
       <div className="flex gap-12 h-60 mt-10 mb-16 -mx-12">
         {resources.map(({ title, subtitle, url, icon }) => (
           <a
+            key={title}
             className="grid gap-4 border-t-2 border-neutral-200 py-6 pr-2 group text-neutral-100"
             href={url}
           >
