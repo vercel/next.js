@@ -1,4 +1,3 @@
-import type { __ApiPreviewProps } from '../api-utils'
 import type { CustomRoutes } from '../../lib/load-custom-routes'
 import type { FindComponentsResult } from '../next-server'
 import type { LoadComponentsReturnType } from '../load-components'
@@ -9,18 +8,21 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { Server as HTTPServer } from 'http'
 import type { UrlWithParsedQuery } from 'url'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
-import type { MiddlewareRoutingItem, RoutingItem } from '../base-server'
+import type { MiddlewareRoutingItem } from '../base-server'
 import type { MiddlewareMatcher } from '../../build/analysis/get-page-static-info'
 import type { FunctionComponent } from 'react'
+import type { RouteMatch } from '../future/route-matches/route-match'
 
-import crypto from 'crypto'
 import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import findUp from 'next/dist/compiled/find-up'
 import { join as pathJoin, relative, resolve as pathResolve, sep } from 'path'
-import Watchpack from 'next/dist/compiled/watchpack'
+import Watchpack from 'watchpack'
 import { ampValidation } from '../../build/output'
-import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../../lib/constants'
+import {
+  INSTRUMENTATION_HOOK_FILENAME,
+  PUBLIC_DIR_MIDDLEWARE_CONFLICT,
+} from '../../lib/constants'
 import { fileExists } from '../../lib/file-exists'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import loadCustomRoutes from '../../lib/load-custom-routes'
@@ -32,6 +34,8 @@ import {
   DEV_CLIENT_PAGES_MANIFEST,
   DEV_MIDDLEWARE_MANIFEST,
   COMPILER_NAMES,
+  PAGES_MANIFEST,
+  APP_PATHS_MANIFEST,
 } from '../../shared/lib/constants'
 import Server, { WrappedBuildError } from '../next-server'
 import { getRouteMatcher } from '../../shared/lib/router/utils/route-matcher'
@@ -46,7 +50,7 @@ import { eventCliSession } from '../../telemetry/events'
 import { Telemetry } from '../../telemetry/storage'
 import { setGlobal } from '../../trace'
 import HotReloader from './hot-reloader'
-import { findPageFile, isLayoutsLeafPage } from '../lib/find-page-file'
+import { createValidFileMatcher, findPageFile } from '../lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from '../lib/utils'
 import {
   UnwrapPromise,
@@ -63,20 +67,43 @@ import {
 import * as Log from '../../build/output/log'
 import isError, { getProperError } from '../../lib/is-error'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
-import { getSortedRoutes, isDynamicRoute } from '../../shared/lib/router/utils'
-import { runDependingOnPageType } from '../../build/entries'
+import { getSortedRoutes } from '../../shared/lib/router/utils'
+import { getStaticInfoIncludingLayouts } from '../../build/entries'
 import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
-import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import {
+  getPossibleInstrumentationHookFilenames,
   getPossibleMiddlewareFilenames,
+  isInstrumentationHookFile,
   isMiddlewareFile,
   NestedMiddlewareError,
 } from '../../build/utils'
 import { getDefineEnv } from '../../build/webpack-config'
 import loadJsConfig from '../../build/load-jsconfig'
 import { formatServerError } from '../../lib/format-server-error'
+import { devPageFiles } from '../../build/webpack/plugins/next-types-plugin'
+import {
+  DevRouteMatcherManager,
+  RouteEnsurer,
+} from '../future/route-matcher-managers/dev-route-matcher-manager'
+import { DevPagesRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-pages-route-matcher-provider'
+import { DevPagesAPIRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-pages-api-route-matcher-provider'
+import { DevAppPageRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-app-page-route-matcher-provider'
+import { DevAppRouteRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-app-route-route-matcher-provider'
+import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
+import { NodeManifestLoader } from '../future/route-matcher-providers/helpers/manifest-loaders/node-manifest-loader'
+import { CachedFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/cached-file-reader'
+import { DefaultFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/default-file-reader'
+import { NextBuildContext } from '../../build/build-context'
+import { logAppDirError } from './log-app-dir-error'
+import { createClientRouterFilter } from '../../lib/create-client-router-filter'
+import { IncrementalCache } from '../lib/incremental-cache'
+import LRUCache from 'next/dist/compiled/lru-cache'
+import { NextUrlWithParsedQuery } from '../request-meta'
+import { deserializeErr, errorToJSON } from '../render'
+import { invokeRequest } from '../lib/server-ipc/invoke-request'
+import { generateInterceptionRoutesRewrites } from '../../lib/generate-interception-routes-rewrites'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -98,7 +125,7 @@ export interface Options extends ServerOptions {
 export default class DevServer extends Server {
   private devReady: Promise<void>
   private setDevReady?: Function
-  private webpackWatcher?: Watchpack | null
+  private webpackWatcher?: any | null
   private hotReloader?: HotReloader
   private isCustomServer: boolean
   protected sortedRoutes?: string[]
@@ -106,11 +133,15 @@ export default class DevServer extends Server {
   private pagesDir?: string
   private appDir?: string
   private actualMiddlewareFile?: string
+  private actualInstrumentationHookFile?: string
   private middleware?: MiddlewareRoutingItem
-  private edgeFunctions?: RoutingItem[]
   private verifyingTypeScript?: boolean
   private usingTypeScript?: boolean
-  private originalFetch?: typeof fetch
+  private originalFetch: typeof fetch
+  private staticPathsCache: LRUCache<
+    string,
+    UnwrapPromise<ReturnType<DevServer['getStaticPaths']>>
+  >
 
   protected staticPathsWorker?: { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -119,34 +150,30 @@ export default class DevServer extends Server {
   private getStaticPathsWorker(): { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
   } {
-    if (this.staticPathsWorker) {
-      return this.staticPathsWorker
-    }
-    this.staticPathsWorker = new Worker(
-      require.resolve('./static-paths-worker'),
-      {
-        maxRetries: 1,
-        numWorkers: this.nextConfig.experimental.cpus,
-        enableWorkerThreads: this.nextConfig.experimental.workerThreads,
-        forkOptions: {
-          env: {
-            ...process.env,
-            // discard --inspect/--inspect-brk flags from process.env.NODE_OPTIONS. Otherwise multiple Node.js debuggers
-            // would be started if user launch Next.js in debugging mode. The number of debuggers is linked to
-            // the number of workers Next.js tries to launch. The only worker users are interested in debugging
-            // is the main Next.js one
-            NODE_OPTIONS: getNodeOptionsWithoutInspect(),
-          },
+    const worker = new Worker(require.resolve('./static-paths-worker'), {
+      maxRetries: 1,
+      // For dev server, it's not necessary to spin up too many workers as long as you are not doing a load test.
+      // This helps reusing the memory a lot.
+      numWorkers: 1,
+      enableWorkerThreads: this.nextConfig.experimental.workerThreads,
+      forkOptions: {
+        env: {
+          ...process.env,
+          // discard --inspect/--inspect-brk flags from process.env.NODE_OPTIONS. Otherwise multiple Node.js debuggers
+          // would be started if user launch Next.js in debugging mode. The number of debuggers is linked to
+          // the number of workers Next.js tries to launch. The only worker users are interested in debugging
+          // is the main Next.js one
+          NODE_OPTIONS: getNodeOptionsWithoutInspect(),
         },
-      }
-    ) as Worker & {
+      },
+    }) as Worker & {
       loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
     }
 
-    this.staticPathsWorker.getStdout().pipe(process.stdout)
-    this.staticPathsWorker.getStderr().pipe(process.stderr)
+    worker.getStdout().pipe(process.stdout)
+    worker.getStderr().pipe(process.stderr)
 
-    return this.staticPathsWorker
+    return worker
   }
 
   constructor(options: Options) {
@@ -155,11 +182,20 @@ export default class DevServer extends Server {
       Error.stackTraceLimit = 50
     } catch {}
     super({ ...options, dev: true })
-    this.persistPatchedGlobals()
+    this.originalFetch = global.fetch
     this.renderOpts.dev = true
+    this.renderOpts.appDirDevErrorLogger = (err: any) =>
+      this.logErrorWithOriginalStack(err, 'app-dir')
     ;(this.renderOpts as any).ErrorDebug = ReactDevOverlay
     this.devReady = new Promise((resolve) => {
       this.setDevReady = resolve
+    })
+    this.staticPathsCache = new LRUCache({
+      // 5MB
+      max: 5 * 1024 * 1024,
+      length(value) {
+        return JSON.stringify(value.staticPaths).length
+      },
     })
     ;(this.renderOpts as any).ampSkipValidation =
       this.nextConfig.experimental?.amp?.skipValidation ?? false
@@ -206,6 +242,66 @@ export default class DevServer extends Server {
     this.appDir = appDir
   }
 
+  protected getRoutes() {
+    const { pagesDir, appDir } = findPagesDir(
+      this.dir,
+      !!this.nextConfig.experimental.appDir
+    )
+
+    const ensurer: RouteEnsurer = {
+      ensure: async (match) => {
+        await this.ensurePage({
+          match,
+          page: match.definition.page,
+          clientOnly: false,
+        })
+      },
+    }
+
+    const routes = super.getRoutes()
+    const matchers = new DevRouteMatcherManager(
+      routes.matchers,
+      ensurer,
+      this.dir
+    )
+    const handlers = routes.handlers
+
+    const extensions = this.nextConfig.pageExtensions
+
+    const fileReader = new CachedFileReader(new DefaultFileReader())
+
+    // If the pages directory is available, then configure those matchers.
+    if (pagesDir) {
+      matchers.push(
+        new DevPagesRouteMatcherProvider(
+          pagesDir,
+          extensions,
+          fileReader,
+          this.localeNormalizer
+        )
+      )
+      matchers.push(
+        new DevPagesAPIRouteMatcherProvider(
+          pagesDir,
+          extensions,
+          fileReader,
+          this.localeNormalizer
+        )
+      )
+    }
+
+    if (appDir) {
+      matchers.push(
+        new DevAppPageRouteMatcherProvider(appDir, extensions, fileReader)
+      )
+      matchers.push(
+        new DevAppRouteRouteMatcherProvider(appDir, extensions, fileReader)
+      )
+    }
+
+    return { matchers, handlers }
+  }
+
   protected getBuildId(): string {
     return 'development'
   }
@@ -224,7 +320,9 @@ export default class DevServer extends Server {
           distDir: this.distDir,
           buildId: this.buildId,
         }
-      ) // In development we can't give a default path mapping
+      )
+
+      // In development we can't give a default path mapping
       for (const path in exportPathMap) {
         const { page, query = {} } = exportPathMap[path]
 
@@ -260,8 +358,9 @@ export default class DevServer extends Server {
       return
     }
 
-    const regexPageExtension = new RegExp(
-      `\\.+(?:${this.nextConfig.pageExtensions.join('|')})$`
+    const validFileMatcher = createValidFileMatcher(
+      this.nextConfig.pageExtensions,
+      this.appDir
     )
 
     let resolved = false
@@ -285,10 +384,16 @@ export default class DevServer extends Server {
       const directories = [...pages, ...app]
 
       const rootDir = this.pagesDir || this.appDir
-      const files = getPossibleMiddlewareFilenames(
-        pathJoin(rootDir!, '..'),
-        this.nextConfig.pageExtensions
-      )
+      const files = [
+        ...getPossibleMiddlewareFilenames(
+          pathJoin(rootDir!, '..'),
+          this.nextConfig.pageExtensions
+        ),
+        ...getPossibleInstrumentationHookFilenames(
+          pathJoin(rootDir!, '..'),
+          this.nextConfig.pageExtensions
+        ),
+      ]
       let nestedMiddleware: string[] = []
 
       const envFiles = [
@@ -321,13 +426,13 @@ export default class DevServer extends Server {
       wp.watch({ directories: [this.dir], startTime: 0 })
       const fileWatchTimes = new Map()
       let enabledTypeScript = this.usingTypeScript
+      let previousClientRouterFilters: any
 
       wp.on('aggregated', async () => {
         let middlewareMatchers: MiddlewareMatcher[] | undefined
         const routedPages: string[] = []
         const knownFiles = wp.getTimeInfoEntries()
         const appPaths: Record<string, string[]> = {}
-        const edgeRoutesSet = new Set<string>()
         const pageNameSet = new Set<string>()
         const conflictingAppPagePaths = new Set<string>()
         const appPageFilePaths = new Map<string, string>()
@@ -335,6 +440,8 @@ export default class DevServer extends Server {
 
         let envChange = false
         let tsconfigChange = false
+
+        devPageFiles.clear()
 
         for (const [fileName, meta] of knownFiles) {
           if (
@@ -367,7 +474,7 @@ export default class DevServer extends Server {
 
           if (
             meta?.accuracy === undefined ||
-            !regexPageExtension.test(fileName)
+            !validFileMatcher.isPageFile(fileName)
           ) {
             continue
           }
@@ -379,24 +486,42 @@ export default class DevServer extends Server {
               )
           )
 
-          const rootFile = absolutePathToPage(fileName, {
-            pagesDir: this.dir,
-            extensions: this.nextConfig.pageExtensions,
-          })
+          devPageFiles.add(fileName)
 
-          const staticInfo = await getPageStaticInfo({
-            pageFilePath: fileName,
-            nextConfig: this.nextConfig,
-            page: rootFile,
-            isDev: true,
-            pageType: isAppPath ? 'app' : 'pages',
+          const rootFile = absolutePathToPage(fileName, {
+            dir: this.dir,
+            extensions: this.nextConfig.pageExtensions,
+            keepIndex: false,
+            pagesType: 'root',
           })
 
           if (isMiddlewareFile(rootFile)) {
+            const staticInfo = await getStaticInfoIncludingLayouts({
+              pageFilePath: fileName,
+              config: this.nextConfig,
+              appDir: this.appDir,
+              page: rootFile,
+              isDev: true,
+              isInsideAppDir: isAppPath,
+              pageExtensions: this.nextConfig.pageExtensions,
+            })
+            if (this.nextConfig.output === 'export') {
+              Log.error(
+                'Middleware cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+              )
+              continue
+            }
             this.actualMiddlewareFile = rootFile
             middlewareMatchers = staticInfo.middleware?.matchers || [
-              { regexp: '.*' },
+              { regexp: '.*', originalSource: '/:path*' },
             ]
+            continue
+          }
+          if (
+            isInstrumentationHookFile(rootFile) &&
+            this.nextConfig.experimental.instrumentationHook
+          ) {
+            this.actualInstrumentationHookFile = rootFile
             continue
           }
 
@@ -405,18 +530,37 @@ export default class DevServer extends Server {
           }
 
           let pageName = absolutePathToPage(fileName, {
-            pagesDir: isAppPath ? this.appDir! : this.pagesDir!,
+            dir: isAppPath ? this.appDir! : this.pagesDir!,
             extensions: this.nextConfig.pageExtensions,
             keepIndex: isAppPath,
+            pagesType: isAppPath ? 'app' : 'pages',
           })
 
+          if (
+            !isAppPath &&
+            pageName.startsWith('/api/') &&
+            this.nextConfig.output === 'export'
+          ) {
+            Log.error(
+              'API Routes cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+            )
+            continue
+          }
+
           if (isAppPath) {
-            if (!isLayoutsLeafPage(fileName, this.nextConfig.pageExtensions)) {
+            if (
+              !validFileMatcher.isAppRouterPage(fileName) &&
+              !validFileMatcher.isRootNotFound(fileName)
+            ) {
+              continue
+            }
+            // Ignore files/directories starting with `_` in the app directory
+            if (normalizePathSep(pageName).includes('/_')) {
               continue
             }
 
             const originalPageName = pageName
-            pageName = normalizeAppPath(pageName) || '/'
+            pageName = normalizeAppPath(pageName).replace(/%5F/g, '_')
             if (!appPaths[pageName]) {
               appPaths[pageName] = []
             }
@@ -450,18 +594,7 @@ export default class DevServer extends Server {
             continue
           }
 
-          await runDependingOnPageType({
-            page: pageName,
-            pageRuntime: staticInfo.runtime,
-            onClient: () => {},
-            onServer: () => {
-              routedPages.push(pageName)
-            },
-            onEdgeServer: () => {
-              routedPages.push(pageName)
-              edgeRoutesSet.add(pageName)
-            },
-          })
+          routedPages.push(pageName)
         }
 
         const numConflicting = conflictingAppPagePaths.size
@@ -477,6 +610,28 @@ export default class DevServer extends Server {
             Log.error(`  "${pagesPath}" - "${appPath}"`)
           }
         }
+        let clientRouterFilters: any
+
+        if (this.nextConfig.experimental.clientRouterFilter) {
+          clientRouterFilters = createClientRouterFilter(
+            Object.keys(appPaths),
+            this.nextConfig.experimental.clientRouterFilterRedirects
+              ? ((this.nextConfig as any)._originalRedirects || []).filter(
+                  (r: any) => !r.internal
+                )
+              : [],
+            this.nextConfig.experimental.clientRouterFilterAllowedRate
+          )
+
+          if (
+            !previousClientRouterFilters ||
+            JSON.stringify(previousClientRouterFilters) !==
+              JSON.stringify(clientRouterFilters)
+          ) {
+            envChange = true
+            previousClientRouterFilters = clientRouterFilters
+          }
+        }
 
         if (!this.usingTypeScript && enabledTypeScript) {
           // we tolerate the error here as this is best effort
@@ -490,7 +645,11 @@ export default class DevServer extends Server {
 
         if (envChange || tsconfigChange) {
           if (envChange) {
-            this.loadEnvConfig({ dev: true, forceReload: true })
+            this.loadEnvConfig({
+              dev: true,
+              forceReload: true,
+              silent: !!process.env.__NEXT_PRIVATE_RENDER_WORKER,
+            })
           }
           let tsconfigResult:
             | UnwrapPromise<ReturnType<typeof loadJsConfig>>
@@ -563,6 +722,7 @@ export default class DevServer extends Server {
                     hasRewrites,
                     isNodeServer,
                     isEdgeServer,
+                    clientRouterFilters,
                   })
 
                   Object.keys(plugin.definitions).forEach((key) => {
@@ -593,19 +753,6 @@ export default class DevServer extends Server {
         this.appPathRoutes = Object.fromEntries(
           Object.entries(appPaths).map(([k, v]) => [k, v.sort()])
         )
-        const edgeRoutes = Array.from(edgeRoutesSet)
-        this.edgeFunctions = getSortedRoutes(edgeRoutes).map((page) => {
-          const matchedAppPaths = this.getOriginalAppPaths(page)
-          if (Array.isArray(matchedAppPaths)) {
-            page = matchedAppPaths[0]
-          }
-          const edgeRegex = getRouteRegex(page)
-          return {
-            match: getRouteMatcher(edgeRegex),
-            page,
-            re: edgeRegex.re,
-          }
-        })
 
         this.middleware = middlewareMatchers
           ? {
@@ -615,28 +762,50 @@ export default class DevServer extends Server {
             }
           : undefined
 
+        this.customRoutes = await loadCustomRoutes(this.nextConfig)
+        const { rewrites } = this.customRoutes
+
+        this.customRoutes.rewrites.beforeFiles.push(
+          ...generateInterceptionRoutesRewrites(Object.keys(appPaths))
+        )
+
+        if (
+          rewrites.beforeFiles.length ||
+          rewrites.afterFiles.length ||
+          rewrites.fallback.length
+        ) {
+          this.router.setRewrites(
+            this.generateRewrites({
+              restrictedRedirectPaths: [],
+            })
+          )
+        }
+
         try {
           // we serve a separate manifest with all pages for the client in
           // dev mode so that we can match a page after a rewrite on the client
           // before it has been built and is populated in the _buildManifest
           const sortedRoutes = getSortedRoutes(routedPages)
 
+          this.dynamicRoutes = sortedRoutes
+            .map((page) => {
+              const regex = getRouteRegex(page)
+              return {
+                match: getRouteMatcher(regex),
+                page,
+                re: regex.re,
+              }
+            })
+            .filter(Boolean) as any
+
           if (
             !this.sortedRoutes?.every((val, idx) => val === sortedRoutes[idx])
           ) {
             // emit the change so clients fetch the update
-            this.hotReloader!.send(undefined, { devPagesManifest: true })
+            this.hotReloader?.send(undefined, { devPagesManifest: true })
           }
           this.sortedRoutes = sortedRoutes
 
-          this.dynamicRoutes = this.sortedRoutes
-            .filter(isDynamicRoute)
-            .map((page) => ({
-              page,
-              match: getRouteMatcher(getRouteRegex(page)),
-            }))
-
-          this.router.setDynamicRoutes(this.dynamicRoutes)
           this.router.setCatchallMiddleware(
             this.generateCatchAllMiddlewareRoute(true)
           )
@@ -652,6 +821,10 @@ export default class DevServer extends Server {
           } else {
             Log.warn('Failed to reload dynamic routes:', e)
           }
+        } finally {
+          // Reload the matchers. The filesystem would have been written to,
+          // and the matchers need to re-scan it to update the router.
+          await this.matchers.reload()
         }
       })
     })
@@ -679,7 +852,8 @@ export default class DevServer extends Server {
         typeCheckPreflight: false,
         tsconfigPath: this.nextConfig.typescript.tsconfigPath,
         disableStaticImages: this.nextConfig.images.disableStaticImages,
-        isAppDirEnabled: !!this.appDir,
+        hasAppDir: !!this.appDir,
+        hasPagesDir: !!this.pagesDir,
       })
 
       if (verifyResult.version) {
@@ -690,7 +864,7 @@ export default class DevServer extends Server {
     }
   }
 
-  async prepare(): Promise<void> {
+  protected async prepareImpl(): Promise<void> {
     setGlobal('distDir', this.distDir)
     setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
 
@@ -707,22 +881,29 @@ export default class DevServer extends Server {
       redirects.length ||
       headers.length
     ) {
-      this.router = new Router(this.generateRoutes())
+      this.router = new Router(this.generateRoutes(true))
     }
+    const telemetry = new Telemetry({ distDir: this.distDir })
 
-    this.hotReloader = new HotReloader(this.dir, {
-      pagesDir: this.pagesDir,
-      distDir: this.distDir,
-      config: this.nextConfig,
-      previewProps: this.getPreviewProps(),
-      buildId: this.buildId,
-      rewrites,
-      appDir: this.appDir,
-    })
-    await super.prepare()
+    // router worker does not start webpack compilers
+    if (!this.isRenderWorker) {
+      this.hotReloader = new HotReloader(this.dir, {
+        pagesDir: this.pagesDir,
+        distDir: this.distDir,
+        config: this.nextConfig,
+        previewProps: this.getPrerenderManifest().preview,
+        buildId: this.buildId,
+        rewrites,
+        appDir: this.appDir,
+        telemetry,
+      })
+    }
+    await super.prepareImpl()
     await this.addExportPathMapRoutes()
-    await this.hotReloader.start()
+    await this.hotReloader?.start()
     await this.startWatcher()
+    await this.runInstrumentationHookIfAvailable()
+    await this.matchers.reload()
     this.setDevReady!()
 
     if (this.nextConfig.experimental.nextScriptWorkers) {
@@ -731,8 +912,6 @@ export default class DevServer extends Server {
         pathJoin(this.distDir, CLIENT_STATIC_FILES_PATH)
       )
     }
-
-    const telemetry = new Telemetry({ distDir: this.distDir })
 
     // This is required by the tracing subsystem.
     setGlobal('appDir', this.appDir)
@@ -743,18 +922,21 @@ export default class DevServer extends Server {
       this.dir,
       this.pagesDir || this.appDir || ''
     ).startsWith('src')
-    telemetry.record(
-      eventCliSession(this.distDir, this.nextConfig, {
-        webpackVersion: 5,
-        cliCommand: 'dev',
-        isSrcDir,
-        hasNowJson: !!(await findUp('now.json', { cwd: this.dir })),
-        isCustomServer: this.isCustomServer,
-        turboFlag: false,
-        pagesDir: !!this.pagesDir,
-        appDir: !!this.appDir,
-      })
-    )
+
+    if (!this.isRenderWorker) {
+      telemetry.record(
+        eventCliSession(this.distDir, this.nextConfig, {
+          webpackVersion: 5,
+          cliCommand: 'dev',
+          isSrcDir,
+          hasNowJson: !!(await findUp('now.json', { cwd: this.dir })),
+          isCustomServer: this.isCustomServer,
+          turboFlag: false,
+          pagesDir: !!this.pagesDir,
+          appDir: !!this.appDir,
+        })
+      )
+    }
 
     process.on('unhandledRejection', (reason) => {
       this.logErrorWithOriginalStack(reason, 'unhandledRejection').catch(
@@ -768,7 +950,6 @@ export default class DevServer extends Server {
 
   protected async close(): Promise<void> {
     await this.stopWatcher()
-    await this.getStaticPathsWorker().end()
     if (this.hotReloader) {
       await this.hotReloader.stop()
     }
@@ -844,7 +1025,8 @@ export default class DevServer extends Server {
     }
 
     if (await this.hasPublicFile(decodedPath)) {
-      if (await this.hasPage(pathname!)) {
+      const match = await this.matchers.match(pathname!, { skipDynamic: true })
+      if (match) {
         const err = new Error(
           `A conflicting public file and page file was found for path ${pathname} https://nextjs.org/docs/messages/conflicting-public-file-page`
         )
@@ -873,7 +1055,7 @@ export default class DevServer extends Server {
       } else {
         const { basePath } = this.nextConfig
 
-        server.on('upgrade', (req, socket, head) => {
+        server.on('upgrade', async (req, socket, head) => {
           let assetPrefix = (this.nextConfig.assetPrefix || '').replace(
             /^\/+/,
             ''
@@ -893,9 +1075,11 @@ export default class DevServer extends Server {
               `${basePath || assetPrefix || ''}/_next/webpack-hmr`
             )
           ) {
-            this.hotReloader?.onHMR(req, socket, head)
+            if (!this.isRenderWorker) {
+              this.hotReloader?.onHMR(req, socket, head)
+            }
           } else {
-            this.handleUpgrade(req, socket, head)
+            this.handleUpgrade(req as any as NodeNextRequest, socket, head)
           }
         })
       }
@@ -990,6 +1174,15 @@ export default class DevServer extends Server {
     }
   }
 
+  public async handleRequest(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    parsedUrl?: NextUrlWithParsedQuery
+  ): Promise<void> {
+    await this.devReady
+    return await super.handleRequest(req, res, parsedUrl)
+  }
+
   async run(
     req: NodeNextRequest,
     res: NodeNextResponse,
@@ -1001,6 +1194,7 @@ export default class DevServer extends Server {
     const { basePath } = this.nextConfig
     let originalPathname: string | null = null
 
+    // TODO: see if we can remove this in the future
     if (basePath && pathHasPrefix(parsedUrl.pathname || '/', basePath)) {
       // strip basePath before handling dev bundles
       // If replace ends up replacing the full url it'll be `undefined`, meaning we have to default it to `/`
@@ -1016,14 +1210,14 @@ export default class DevServer extends Server {
       }
     }
 
-    const { finished = false } = await this.hotReloader!.run(
-      req.originalRequest,
-      res.originalResponse,
-      parsedUrl
-    )
+    if (this.hotReloader) {
+      const { finished = false } = await this.hotReloader.run(
+        req.originalRequest,
+        res.originalResponse,
+        parsedUrl
+      )
 
-    if (finished) {
-      return
+      if (finished) return
     }
 
     if (originalPathname) {
@@ -1051,24 +1245,72 @@ export default class DevServer extends Server {
     }
   }
 
-  private async logErrorWithOriginalStack(
+  private async invokeIpcMethod(method: string, args: any[]): Promise<any> {
+    const ipcPort = process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT
+    const ipcKey = process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY
+    if (ipcPort) {
+      const res = await invokeRequest(
+        `http://${this.hostname}:${ipcPort}?key=${ipcKey}&method=${
+          method as string
+        }&args=${encodeURIComponent(JSON.stringify(args))}`,
+        {
+          method: 'GET',
+          headers: {},
+        }
+      )
+      const chunks = []
+
+      for await (const chunk of res) {
+        if (chunk) {
+          chunks.push(chunk)
+        }
+      }
+      const body = Buffer.concat(chunks).toString()
+
+      if (body.startsWith('{') && body.endsWith('}')) {
+        const parsedBody = JSON.parse(body)
+
+        if (
+          parsedBody &&
+          typeof parsedBody === 'object' &&
+          'err' in parsedBody &&
+          'stack' in parsedBody.err
+        ) {
+          throw deserializeErr(parsedBody.err)
+        }
+        return parsedBody
+      }
+    }
+  }
+
+  protected async logErrorWithOriginalStack(
     err?: unknown,
-    type?: 'unhandledRejection' | 'uncaughtException' | 'warning'
+    type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
   ) {
+    if (this.isRenderWorker) {
+      await this.invokeIpcMethod('logErrorWithOriginalStack', [
+        errorToJSON(err as Error),
+        type,
+      ])
+      return
+    }
+
     let usedOriginalStack = false
 
     if (isError(err) && err.stack) {
       try {
         const frames = parseStack(err.stack!)
+        // Filter out internal edge related runtime stack
         const frame = frames.find(
           ({ file }) =>
             !file?.startsWith('eval') &&
             !file?.includes('web/adapter') &&
+            !file?.includes('web/globals') &&
             !file?.includes('sandbox/context') &&
             !file?.includes('<anonymous>')
-        )!
+        )
 
-        if (frame.lineNumber && frame?.file) {
+        if (frame?.lineNumber && frame?.file) {
           const moduleId = frame.file!.replace(
             /^(webpack-internal:\/\/\/|file:\/\/)/,
             ''
@@ -1093,7 +1335,7 @@ export default class DevServer extends Server {
           )
 
           const originalFrame = await createOriginalStackFrame({
-            line: frame.lineNumber!,
+            line: frame.lineNumber,
             column: frame.column,
             source,
             frame,
@@ -1107,7 +1349,7 @@ export default class DevServer extends Server {
             edgeCompilation: isEdgeCompiler
               ? this.hotReloader?.edgeServerStats?.compilation
               : undefined,
-          })
+          }).catch(() => {})
 
           if (originalFrame) {
             const { originalCodeFrame, originalStackFrame } = originalFrame
@@ -1121,6 +1363,8 @@ export default class DevServer extends Server {
             }
             if (type === 'warning') {
               Log.warn(err)
+            } else if (type === 'app-dir') {
+              logAppDirError(err)
             } else if (type) {
               Log.error(`${type}:`, err)
             } else {
@@ -1140,6 +1384,8 @@ export default class DevServer extends Server {
     if (!usedOriginalStack) {
       if (type === 'warning') {
         Log.warn(err)
+      } else if (type === 'app-dir') {
+        logAppDirError(err)
       } else if (type) {
         Log.error(`${type}:`, err)
       } else {
@@ -1158,43 +1404,33 @@ export default class DevServer extends Server {
     }
   }
 
-  private _devCachedPreviewProps: __ApiPreviewProps | undefined
-  protected getPreviewProps() {
-    if (this._devCachedPreviewProps) {
-      return this._devCachedPreviewProps
-    }
-    return (this._devCachedPreviewProps = {
-      previewModeId: crypto.randomBytes(16).toString('hex'),
-      previewModeSigningKey: crypto.randomBytes(32).toString('hex'),
-      previewModeEncryptionKey: crypto.randomBytes(32).toString('hex'),
-    })
+  protected getPagesManifest(): PagesManifest | undefined {
+    return (
+      NodeManifestLoader.require(
+        pathJoin(this.serverDistDir, PAGES_MANIFEST)
+      ) ?? undefined
+    )
   }
 
-  protected getPagesManifest(): undefined {
-    return undefined
-  }
+  protected getAppPathsManifest(): PagesManifest | undefined {
+    if (!this.hasAppDir) return undefined
 
-  protected getAppPathsManifest(): undefined {
-    return undefined
+    return (
+      NodeManifestLoader.require(
+        pathJoin(this.serverDistDir, APP_PATHS_MANIFEST)
+      ) ?? undefined
+    )
   }
 
   protected getMiddleware() {
     return this.middleware
   }
 
-  protected getEdgeFunctions() {
-    return this.edgeFunctions ?? []
-  }
-
   protected getServerComponentManifest() {
     return undefined
   }
 
-  protected getServerCSSManifest() {
-    return undefined
-  }
-
-  protected getFontLoaderManifest() {
+  protected getNextFontManifest() {
     return undefined
   }
 
@@ -1203,10 +1439,31 @@ export default class DevServer extends Server {
   }
 
   protected async ensureMiddleware() {
-    return this.hotReloader!.ensurePage({
+    return this.ensurePage({
       page: this.actualMiddlewareFile!,
       clientOnly: false,
     })
+  }
+
+  private async runInstrumentationHookIfAvailable() {
+    if (this.actualInstrumentationHookFile) {
+      NextBuildContext!.hasInstrumentationHook = true
+      await this.ensurePage({
+        page: this.actualInstrumentationHookFile!,
+        clientOnly: false,
+      })
+      try {
+        const instrumentationHook = await require(pathJoin(
+          this.distDir,
+          'server',
+          INSTRUMENTATION_HOOK_FILENAME
+        ))
+        await instrumentationHook.register()
+      } catch (err: any) {
+        err.message = `An error occurred while loading instrumentation hook: ${err.message}`
+        throw err
+      }
+    }
   }
 
   protected async ensureEdgeFunction({
@@ -1216,15 +1473,18 @@ export default class DevServer extends Server {
     page: string
     appPaths: string[] | null
   }) {
-    return this.hotReloader!.ensurePage({ page, appPaths, clientOnly: false })
+    return this.ensurePage({ page, appPaths, clientOnly: false })
   }
 
-  generateRoutes() {
-    const { fsRoutes, ...otherRoutes } = super.generateRoutes()
+  generateRoutes(dev?: boolean) {
+    const { fsRoutes, ...otherRoutes } = super.generateRoutes(dev)
+
+    // Create a shallow copy so we can mutate it.
+    const routes = [...fsRoutes]
 
     // In development we expose all compiled files for react-error-overlay's line show feature
     // We use unshift so that we're sure the routes is defined before Next's default routes
-    fsRoutes.unshift({
+    routes.unshift({
       match: getPathMatch('/_next/development/:path*'),
       type: 'route',
       name: '_next/development catchall',
@@ -1237,7 +1497,7 @@ export default class DevServer extends Server {
       },
     })
 
-    fsRoutes.unshift({
+    routes.unshift({
       match: getPathMatch(
         `/_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_CLIENT_PAGES_MANIFEST}`
       ),
@@ -1261,7 +1521,7 @@ export default class DevServer extends Server {
       },
     })
 
-    fsRoutes.unshift({
+    routes.unshift({
       match: getPathMatch(
         `/_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_MIDDLEWARE_MANIFEST}`
       ),
@@ -1277,7 +1537,7 @@ export default class DevServer extends Server {
       },
     })
 
-    fsRoutes.push({
+    routes.push({
       match: getPathMatch('/:path*'),
       type: 'route',
       name: 'catchall public directory route',
@@ -1300,16 +1560,11 @@ export default class DevServer extends Server {
       },
     })
 
-    return { fsRoutes, ...otherRoutes }
+    return { fsRoutes: routes, ...otherRoutes }
   }
 
   // In development public files are not added to the router but handled as a fallback instead
   protected generatePublicRoutes(): never[] {
-    return []
-  }
-
-  // In development dynamic routes cannot be known ahead of time
-  protected getDynamicRoutes(): never[] {
     return []
   }
 
@@ -1340,13 +1595,16 @@ export default class DevServer extends Server {
   protected async getStaticPaths({
     pathname,
     originalAppPath,
+    requestHeaders,
   }: {
     pathname: string
     originalAppPath?: string
+    requestHeaders: IncrementalCache['requestHeaders']
   }): Promise<{
     staticPaths?: string[]
     fallbackMode?: false | 'static' | 'blocking'
   }> {
+    const isAppPath = Boolean(originalAppPath)
     // we lazy load the staticPaths to prevent the user
     // from waiting on them for the page to load in dev mode
 
@@ -1356,52 +1614,99 @@ export default class DevServer extends Server {
         publicRuntimeConfig,
         serverRuntimeConfig,
         httpAgentOptions,
-        experimental: { enableUndici },
       } = this.nextConfig
       const { locales, defaultLocale } = this.nextConfig.i18n || {}
+      const staticPathsWorker = this.getStaticPathsWorker()
 
-      const pathsResult = await this.getStaticPathsWorker().loadStaticPaths({
-        distDir: this.distDir,
-        pathname,
-        config: {
-          configFileName,
-          publicRuntimeConfig,
-          serverRuntimeConfig,
-        },
-        httpAgentOptions,
-        enableUndici,
-        locales,
-        defaultLocale,
-        originalAppPath,
-        isAppPath: !!originalAppPath,
+      try {
+        const pathsResult = await staticPathsWorker.loadStaticPaths({
+          distDir: this.distDir,
+          pathname,
+          config: {
+            configFileName,
+            publicRuntimeConfig,
+            serverRuntimeConfig,
+          },
+          httpAgentOptions,
+          locales,
+          defaultLocale,
+          originalAppPath,
+          isAppPath,
+          requestHeaders,
+          incrementalCacheHandlerPath:
+            this.nextConfig.experimental.incrementalCacheHandlerPath,
+          fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
+          isrFlushToDisk: this.nextConfig.experimental.isrFlushToDisk,
+          maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
+        })
+        return pathsResult
+      } finally {
+        // we don't re-use workers so destroy the used one
+        staticPathsWorker.end()
+      }
+    }
+    const result = this.staticPathsCache.get(pathname)
+
+    const nextInvoke = withCoalescedInvoke(__getStaticPaths)(
+      `staticPaths-${pathname}`,
+      []
+    )
+      .then((res) => {
+        const { paths: staticPaths = [], fallback } = res.value
+        if (!isAppPath && this.nextConfig.output === 'export') {
+          if (fallback === 'blocking') {
+            throw new Error(
+              'getStaticPaths with "fallback: blocking" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+            )
+          } else if (fallback === true) {
+            throw new Error(
+              'getStaticPaths with "fallback: true" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+            )
+          }
+        }
+        const value: {
+          staticPaths: string[]
+          fallbackMode: 'blocking' | 'static' | false | undefined
+        } = {
+          staticPaths,
+          fallbackMode:
+            fallback === 'blocking'
+              ? 'blocking'
+              : fallback === true
+              ? 'static'
+              : fallback,
+        }
+        this.staticPathsCache.set(pathname, value)
+        return value
       })
-      return pathsResult
+      .catch((err) => {
+        this.staticPathsCache.del(pathname)
+        if (!result) throw err
+        Log.error(`Failed to generate static paths for ${pathname}:`)
+        console.error(err)
+      })
+
+    if (result) {
+      return result
     }
-    const { paths: staticPaths, fallback } = (
-      await withCoalescedInvoke(__getStaticPaths)(`staticPaths-${pathname}`, [])
-    ).value
-
-    return {
-      staticPaths,
-      fallbackMode:
-        fallback === 'blocking'
-          ? 'blocking'
-          : fallback === true
-          ? 'static'
-          : fallback,
-    }
-  }
-
-  protected async ensureApiPage(pathname: string): Promise<void> {
-    return this.hotReloader!.ensurePage({ page: pathname, clientOnly: false })
-  }
-
-  private persistPatchedGlobals(): void {
-    this.originalFetch = global.fetch
+    return nextInvoke as NonNullable<typeof result>
   }
 
   private restorePatchedGlobals(): void {
-    global.fetch = this.originalFetch!
+    global.fetch = this.originalFetch
+  }
+
+  protected async ensurePage(opts: {
+    page: string
+    clientOnly: boolean
+    appPaths?: string[] | null
+    match?: RouteMatch
+  }) {
+    if (this.isRenderWorker) {
+      await this.invokeIpcMethod('ensurePage', [opts])
+      return
+    }
+    return this.hotReloader?.ensurePage(opts)
   }
 
   protected async findPageComponents({
@@ -1409,13 +1714,15 @@ export default class DevServer extends Server {
     query,
     params,
     isAppPath,
-    appPaths,
+    appPaths = null,
+    shouldEnsure,
   }: {
     pathname: string
     query: ParsedUrlQuery
     params: Params
     isAppPath: boolean
     appPaths?: string[] | null
+    shouldEnsure: boolean
   }): Promise<FindComponentsResult | null> {
     await this.devReady
     const compilationErr = await this.getCompilationError(pathname)
@@ -1424,19 +1731,20 @@ export default class DevServer extends Server {
       throw new WrappedBuildError(compilationErr)
     }
     try {
-      await this.hotReloader!.ensurePage({
-        page: pathname,
-        appPaths,
-        clientOnly: false,
-      })
+      if (shouldEnsure || this.renderOpts.customServer) {
+        await this.ensurePage({
+          page: pathname,
+          appPaths,
+          clientOnly: false,
+        })
+      }
 
       // When the new page is compiled, we need to reload the server component
       // manifest.
       if (!!this.appDir) {
-        this.serverComponentManifest = super.getServerComponentManifest()
-        this.serverCSSManifest = super.getServerCSSManifest()
+        this.clientReferenceManifest = super.getServerComponentManifest()
       }
-      this.fontLoaderManifest = super.getFontLoaderManifest()
+      this.nextFontManifest = super.getNextFontManifest()
       // before we re-evaluate a route module, we want to restore globals that might
       // have been patched previously to their original state so that we don't
       // patch on top of the previous patch, which would keep the context of the previous
@@ -1458,10 +1766,18 @@ export default class DevServer extends Server {
   }
 
   protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
-    await this.hotReloader!.buildFallbackError()
+    if (this.isRenderWorker) {
+      await this.invokeIpcMethod('getFallbackErrorComponents', [])
+      return await loadDefaultErrorComponents(this.distDir)
+    }
+    await this.hotReloader?.buildFallbackError()
     // Build the error page to ensure the fallback is built too.
     // TODO: See if this can be moved into hotReloader or removed.
-    await this.hotReloader!.ensurePage({ page: '/_error', clientOnly: false })
+    await this.ensurePage({ page: '/_error', clientOnly: false })
+
+    if (this.isRouterWorker) {
+      return null
+    }
     return await loadDefaultErrorComponents(this.distDir)
   }
 
@@ -1488,14 +1804,18 @@ export default class DevServer extends Server {
   }
 
   async getCompilationError(page: string): Promise<any> {
-    const errors = await this.hotReloader!.getCompilationErrors(page)
-    if (errors.length === 0) return
+    if (this.isRenderWorker) {
+      const err = await this.invokeIpcMethod('getCompilationError', [page])
+      return deserializeErr(err)
+    }
+    const errors = await this.hotReloader?.getCompilationErrors(page)
+    if (!errors) return
 
     // Return the very first error we found.
     return errors[0]
   }
 
-  protected isServeableUrl(untrustedFileUrl: string): boolean {
+  protected isServableUrl(untrustedFileUrl: string): boolean {
     // This method mimics what the version of `send` we use does:
     // 1. decodeURIComponent:
     //    https://github.com/pillarjs/send/blob/0.17.1/index.js#L989

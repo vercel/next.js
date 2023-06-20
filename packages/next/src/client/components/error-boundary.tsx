@@ -1,11 +1,13 @@
 'use client'
 
 import React from 'react'
+import { usePathname } from './navigation'
 
 const styles = {
   error: {
+    // https://github.com/sindresorhus/modern-normalize/blob/main/modern-normalize.css#L38-L52
     fontFamily:
-      '-apple-system, BlinkMacSystemFont, Roboto, "Segoe UI", "Fira Sans", Avenir, "Helvetica Neue", "Lucida Grande", sans-serif',
+      'system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
     height: '100vh',
     textAlign: 'center',
     display: 'flex',
@@ -13,19 +15,11 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  desc: {
-    display: 'inline-block',
-    textAlign: 'left',
-    lineHeight: '49px',
-    height: '49px',
-    verticalAlign: 'middle',
-  },
   text: {
     fontSize: '14px',
-    fontWeight: 'normal',
-    lineHeight: '49px',
-    margin: 0,
-    padding: 0,
+    fontWeight: 400,
+    lineHeight: '28px',
+    margin: '0 8px',
   },
 } as const
 
@@ -35,21 +29,53 @@ export type ErrorComponent = React.ComponentType<{
 }>
 
 export interface ErrorBoundaryProps {
+  children?: React.ReactNode
   errorComponent: ErrorComponent
   errorStyles?: React.ReactNode | undefined
 }
 
+interface ErrorBoundaryHandlerProps extends ErrorBoundaryProps {
+  pathname: string
+}
+
+interface ErrorBoundaryHandlerState {
+  error: Error | null
+  previousPathname: string
+}
+
 export class ErrorBoundaryHandler extends React.Component<
-  ErrorBoundaryProps,
-  { error: Error | null }
+  ErrorBoundaryHandlerProps,
+  ErrorBoundaryHandlerState
 > {
-  constructor(props: ErrorBoundaryProps) {
+  constructor(props: ErrorBoundaryHandlerProps) {
     super(props)
-    this.state = { error: null }
+    this.state = { error: null, previousPathname: this.props.pathname }
   }
 
   static getDerivedStateFromError(error: Error) {
     return { error }
+  }
+
+  static getDerivedStateFromProps(
+    props: ErrorBoundaryHandlerProps,
+    state: ErrorBoundaryHandlerState
+  ): ErrorBoundaryHandlerState | null {
+    /**
+     * Handles reset of the error boundary when a navigation happens.
+     * Ensures the error boundary does not stay enabled when navigating to a new page.
+     * Approach of setState in render is safe as it checks the previous pathname and then overrides
+     * it as outlined in https://react.dev/reference/react/useState#storing-information-from-previous-renders
+     */
+    if (props.pathname !== state.previousPathname && state.error) {
+      return {
+        error: null,
+        previousPathname: props.pathname,
+      }
+    }
+    return {
+      error: state.error,
+      previousPathname: props.pathname,
+    }
   }
 
   reset = () => {
@@ -79,7 +105,7 @@ export default function GlobalError({ error }: { error: any }) {
       <head></head>
       <body>
         <div style={styles.error}>
-          <div style={styles.desc}>
+          <div>
             <h2 style={styles.text}>
               Application error: a client-side exception has occurred (see the
               browser console for more information).
@@ -108,9 +134,11 @@ export function ErrorBoundary({
   errorStyles,
   children,
 }: ErrorBoundaryProps & { children: React.ReactNode }): JSX.Element {
+  const pathname = usePathname()
   if (errorComponent) {
     return (
       <ErrorBoundaryHandler
+        pathname={pathname}
         errorComponent={errorComponent}
         errorStyles={errorStyles}
       >

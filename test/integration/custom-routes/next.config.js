@@ -1,4 +1,7 @@
 module.exports = {
+  experimental: {
+    caseSensitiveRoutes: true,
+  },
   async rewrites() {
     // no-rewrites comment
     return {
@@ -274,6 +277,41 @@ module.exports = {
   async redirects() {
     return [
       {
+        source: '/missing-redirect-1',
+        missing: [
+          {
+            type: 'header',
+            key: 'x-my-header',
+            value: '(?<myHeader>.*)',
+          },
+        ],
+        destination: '/with-params',
+        permanent: false,
+      },
+      {
+        source: '/missing-redirect-2',
+        missing: [
+          {
+            type: 'query',
+            key: 'my-query',
+          },
+        ],
+        destination: '/with-params',
+        permanent: false,
+      },
+      {
+        source: '/missing-redirect-3',
+        missing: [
+          {
+            type: 'cookie',
+            key: 'loggedIn',
+            value: '(?<loggedIn>true)',
+          },
+        ],
+        destination: '/with-params?authorized=1',
+        permanent: false,
+      },
+      {
         source: '/redirect/me/to-about/:lang',
         destination: '/:lang/about',
         permanent: false,
@@ -465,6 +503,53 @@ module.exports = {
 
   async headers() {
     return [
+      {
+        source: '/missing-headers-1',
+        missing: [
+          {
+            type: 'header',
+            key: 'x-my-header',
+            value: '(?<myHeader>.*)',
+          },
+        ],
+        headers: [
+          {
+            key: 'x-new-header',
+            value: 'new-value',
+          },
+        ],
+      },
+      {
+        source: '/missing-headers-2',
+        missing: [
+          {
+            type: 'query',
+            key: 'my-query',
+          },
+        ],
+        headers: [
+          {
+            key: 'x-new-header',
+            value: 'new-value',
+          },
+        ],
+      },
+      {
+        source: '/missing-headers-3',
+        missing: [
+          {
+            type: 'cookie',
+            key: 'loggedIn',
+            value: '(?<loggedIn>true)',
+          },
+        ],
+        headers: [
+          {
+            key: 'x-new-header',
+            value: 'new-value',
+          },
+        ],
+      },
       {
         source: '/add-header',
         headers: [

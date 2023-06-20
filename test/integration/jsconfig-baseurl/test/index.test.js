@@ -3,6 +3,7 @@
 import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
+import stripAnsi from 'next/dist/compiled/strip-ansi'
 import {
   renderViaHTTP,
   findPort,
@@ -54,7 +55,7 @@ describe('TypeScript Features', () => {
       await renderViaHTTP(appPort, '/hello')
 
       const found = await check(
-        () => output,
+        () => stripAnsi(output),
         /Module not found: Can't resolve 'components\/worldd'/,
         false
       )

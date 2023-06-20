@@ -42,6 +42,7 @@ export default class Page extends React.Component {
 
 ```jsx
 'use client'
+
 export default class Page extends React.Component {
   render() {
     return <p>Hello world</p>

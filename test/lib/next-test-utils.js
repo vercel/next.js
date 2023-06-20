@@ -154,7 +154,7 @@ export function renderViaHTTP(appPort, pathname, query, opts) {
  * @param {string} pathname
  * @param {Record<string, any> | string | null | undefined} [query]
  * @param {import('node-fetch').RequestInit} [opts]
- * @returns {Promise<Response & {buffer: any} & {headers: any}>}
+ * @returns {Promise<Response & {buffer: any} & {headers: Headers}>}
  */
 export function fetchViaHTTP(appPort, pathname, query, opts) {
   const url = query ? withQuery(pathname, query) : pathname
@@ -186,7 +186,6 @@ export function runNextCommand(argv, options = {}) {
     ...process.env,
     NODE_ENV: '',
     __NEXT_TEST_MODE: 'true',
-    NEXT_PRIVATE_OUTPUT_TRACE_ROOT: path.join(__dirname, '../../'),
     ...options.env,
   }
 
@@ -217,13 +216,16 @@ export function runNextCommand(argv, options = {}) {
     let mergedStdio = ''
 
     let stderrOutput = ''
-    if (options.stderr) {
+    if (options.stderr || options.onStderr) {
       instance.stderr.on('data', function (chunk) {
         mergedStdio += chunk
         stderrOutput += chunk
 
         if (options.stderr === 'log') {
           console.log(chunk.toString())
+        }
+        if (typeof options.onStderr === 'function') {
+          options.onStderr(chunk.toString())
         }
       })
     } else {
@@ -233,13 +235,16 @@ export function runNextCommand(argv, options = {}) {
     }
 
     let stdoutOutput = ''
-    if (options.stdout) {
+    if (options.stdout || options.onStdout) {
       instance.stdout.on('data', function (chunk) {
         mergedStdio += chunk
         stdoutOutput += chunk
 
         if (options.stdout === 'log') {
           console.log(chunk.toString())
+        }
+        if (typeof options.onStdout === 'function') {
+          options.onStdout(chunk.toString())
         }
       })
     } else {
@@ -283,7 +288,7 @@ export function runNextCommand(argv, options = {}) {
 
 export function runNextCommandDev(argv, stdOut, opts = {}) {
   const nextDir = path.dirname(require.resolve('next/package'))
-  const nextBin = path.join(nextDir, 'dist/bin/next')
+  const nextBin = opts.nextBin || path.join(nextDir, 'dist/bin/next')
   const cwd = opts.cwd || nextDir
   const env = {
     ...process.env,
@@ -315,7 +320,7 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
       const message = data.toString()
       const bootupMarkers = {
         dev: /compiled .*successfully/i,
-        turbo: /initial compilation/i,
+        turbo: /started server/i,
         start: /started server/i,
       }
       if (
@@ -534,14 +539,19 @@ export async function startCleanStaticServer(dir) {
 
 // check for content in 1 second intervals timing out after
 // 30 seconds
-export async function check(contentFn, regex, hardError = true) {
+export async function check(
+  contentFn,
+  regex,
+  hardError = true,
+  maxRetries = 30
+) {
   let content
   let lastErr
 
-  for (let tries = 0; tries < 30; tries++) {
+  for (let tries = 0; tries < maxRetries; tries++) {
     try {
       content = await contentFn()
-      if (typeof regex === 'string') {
+      if (typeof regex !== typeof /regex/) {
         if (regex === content) {
           return true
         }
@@ -558,7 +568,7 @@ export async function check(contentFn, regex, hardError = true) {
   console.error('TIMED OUT CHECK: ', { regex, content, lastErr })
 
   if (hardError) {
-    throw new Error('TIMED OUT: ' + regex + '\n\n' + content)
+    throw new Error('TIMED OUT: ' + regex + '\n\n' + content + '\n\n' + lastErr)
   }
   return false
 }
@@ -670,16 +680,29 @@ export async function hasRedbox(browser, expected = true) {
 
 export async function getRedboxHeader(browser) {
   return retry(
-    () =>
-      evaluate(browser, () => {
-        const portal = [].slice
-          .call(document.querySelectorAll('nextjs-portal'))
-          .find((p) =>
-            p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
-          )
-        const root = portal.shadowRoot
-        return root.querySelector('[data-nextjs-dialog-header]').innerText
-      }),
+    () => {
+      if (shouldRunTurboDevTest()) {
+        return evaluate(browser, () => {
+          const portal = [].slice
+            .call(document.querySelectorAll('nextjs-portal'))
+            .find((p) =>
+              p.shadowRoot.querySelector('[data-nextjs-turbo-dialog-body]')
+            )
+          const root = portal.shadowRoot
+          return root.querySelector('[data-nextjs-turbo-dialog-body]').innerText
+        })
+      } else {
+        return evaluate(browser, () => {
+          const portal = [].slice
+            .call(document.querySelectorAll('nextjs-portal'))
+            .find((p) =>
+              p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
+            )
+          const root = portal.shadowRoot
+          return root.querySelector('[data-nextjs-dialog-header]').innerText
+        })
+      }
+    },
     10000,
     500,
     'getRedboxHeader'
@@ -769,22 +792,13 @@ export function readNextBuildClientPageFile(appDir, page) {
 export function getPagesManifest(dir) {
   const serverFile = path.join(dir, '.next/server/pages-manifest.json')
 
-  if (existsSync(serverFile)) {
-    return readJson(serverFile)
-  }
-  return readJson(path.join(dir, '.next/serverless/pages-manifest.json'))
+  return readJson(serverFile)
 }
 
 export function updatePagesManifest(dir, content) {
   const serverFile = path.join(dir, '.next/server/pages-manifest.json')
 
-  if (existsSync(serverFile)) {
-    return writeFile(serverFile, content)
-  }
-  return writeFile(
-    path.join(dir, '.next/serverless/pages-manifest.json'),
-    content
-  )
+  return writeFile(serverFile, content)
 }
 
 export function getPageFileFromPagesManifest(dir, page) {

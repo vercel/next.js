@@ -97,12 +97,13 @@ export default function (render, fetch, ctx) {
       )
       expect(html).toContain('<meta content="my meta"/>')
       expect(html).toContain(
-        '<link rel="stylesheet" href="/dup-style.css"/><link rel="stylesheet" href="/dup-style.css"/>'
+        '<link rel="stylesheet" href="/dup-style.css"/><meta name="next-head" content="1"/><link rel="stylesheet" href="/dup-style.css"/>'
       )
-      expect(html).toContain('<link rel="stylesheet" href="dedupe-style.css"/>')
-      expect(html).not.toContain(
-        '<link rel="stylesheet" href="dedupe-style.css"/><link rel="stylesheet" href="dedupe-style.css"/>'
-      )
+      const dedupeLink = '<link rel="stylesheet" href="dedupe-style.css"/>'
+      expect(html).toContain(dedupeLink)
+      expect(
+        html.substring(html.indexOf(dedupeLink) + dedupeLink.length)
+      ).not.toContain('<link rel="stylesheet" href="dedupe-style.css"/>')
       expect(html).toContain(
         '<link rel="alternate" hrefLang="en" href="/last/en"/>'
       )
@@ -195,13 +196,10 @@ export default function (render, fetch, ctx) {
     it('should place charset element at the top of <head>', async () => {
       const html = await render('/head-priority')
       const nextHeadElement =
-        '<meta charSet="iso-8859-5"/><meta name="viewport" content="width=device-width,initial-scale=1"/><meta name="title" content="head title"/>'
-      const nextHeadCountElement = '<meta name="next-head-count" content="3"/>'
+        '<meta charSet="iso-8859-5"/><meta name="next-head" content="1"/><meta name="viewport" content="width=device-width,initial-scale=1"/><meta name="next-head" content="1"/><meta name="title" content="head title"/>'
       const documentHeadElement =
         '<meta name="keywords" content="document head test"/>'
-      expect(html).toContain(
-        `${nextHeadElement}${nextHeadCountElement}${documentHeadElement}`
-      )
+      expect(html).toContain(`${nextHeadElement}${documentHeadElement}`)
     })
 
     it('should render the page with custom extension', async () => {

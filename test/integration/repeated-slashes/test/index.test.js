@@ -67,7 +67,7 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
       expect(res.status).toBe(307)
       const parsedUrl = url.parse(res.headers.get('location'), true)
 
-      expect(parsedUrl.hostname).toBe('localhost')
+      expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
       expect(parsedUrl.pathname).toBe('/test/google.com')
       expect(parsedUrl.query).toEqual({})
       expect(await res.text()).toBe('/test/google.com')
@@ -84,7 +84,7 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
       expect(res2.status).toBe(307)
       const parsedUrl2 = url.parse(res2.headers.get('location'), true)
 
-      expect(parsedUrl2.hostname).toBe('localhost')
+      expect(parsedUrl2.hostname).toBeOneOf(['localhost', '127.0.0.1'])
       expect(parsedUrl2.pathname).toBe('/test/google.com')
       expect(parsedUrl2.query).toEqual({})
       expect(await res2.text()).toBe('/test/google.com')
@@ -100,7 +100,7 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
 
       const parsedUrl = url.parse(res.headers.get('location'), true)
       expect(parsedUrl.pathname).toBe('/google.com')
-      expect(parsedUrl.hostname).toBe('localhost')
+      expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
       expect(parsedUrl.query).toEqual({})
     }
 
@@ -129,7 +129,7 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
       expect(res.status).toBe(308)
       const parsedUrl = url.parse(res.headers.get('location'), true)
       expect(parsedUrl.pathname).toBe('/google.com')
-      expect(parsedUrl.hostname).toBe('localhost')
+      expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
       expect(parsedUrl.query).toEqual({ h: '1' })
     }
 
@@ -153,7 +153,7 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
       expect(res.status).toBe(308)
       const parsedUrl = url.parse(res.headers.get('location'), true)
       expect(parsedUrl.pathname).toBe('/google.com')
-      expect(parsedUrl.hostname).toBe('localhost')
+      expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
       expect(parsedUrl.query).toEqual({})
     }
 
@@ -241,7 +241,7 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
       expect(res.status).toBe(308)
       const parsedUrl = url.parse(res.headers.get('location'), true)
       expect(parsedUrl.pathname).toBe('/google.com')
-      expect(parsedUrl.hostname).toBe('localhost')
+      expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
       expect(parsedUrl.query).toEqual({})
       expect(await res.text()).toBe('/google.com')
     }
@@ -266,7 +266,7 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
       expect(res.status).toBe(308)
       const parsedUrl = url.parse(res.headers.get('location'), true)
       expect(parsedUrl.pathname).toBe(isExport ? '//google.com' : '/google.com')
-      expect(parsedUrl.hostname).toBe('localhost')
+      expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
       expect(parsedUrl.query).toEqual({})
       expect(await res.text()).toBe('/google.com')
     }
@@ -303,7 +303,7 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
           browser.eval(
             'window.caughtErrors.map(err => typeof err !== "string" ? err.message : err).join(", ")'
           ),
-        new RegExp(escapeRegex(`Invalid href passed to next/router: ${href}`))
+        new RegExp(escapeRegex(`Invalid href '${href}'`))
       )
     }
   })

@@ -1,9 +1,10 @@
-import type { NextConfig } from '../../../../server/config-shared'
+import type { NextConfigComplete } from '../../../../server/config-shared'
 
 import type { DocumentType, AppType } from '../../../../shared/lib/utils'
 import type { BuildManifest } from '../../../../server/get-page-files'
 import type { ReactLoadableManifest } from '../../../../server/load-components'
-import type { FontLoaderManifest } from '../../plugins/font-loader-manifest-plugin'
+import type { ClientReferenceManifest } from '../../plugins/flight-manifest-plugin'
+import type { NextFontManifestPlugin } from '../../plugins/next-font-manifest-plugin'
 
 import WebServer from '../../../../server/web-server'
 import {
@@ -11,6 +12,8 @@ import {
   WebNextResponse,
 } from '../../../../server/base-http/web'
 import { SERVER_RUNTIME } from '../../../../lib/constants'
+import { PrerenderManifest } from '../../..'
+import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
 
 export function getRender({
   dev,
@@ -22,15 +25,17 @@ export function getRender({
   pagesType,
   Document,
   buildManifest,
+  prerenderManifest,
   reactLoadableManifest,
   appRenderToHTML,
   pagesRenderToHTML,
-  serverComponentManifest,
+  clientReferenceManifest,
   subresourceIntegrityManifest,
-  serverCSSManifest,
+  serverActionsManifest,
   config,
   buildId,
-  fontLoaderManifest,
+  nextFontManifest,
+  incrementalCacheHandler,
 }: {
   pagesType: 'app' | 'pages' | 'root'
   dev: boolean
@@ -43,22 +48,25 @@ export function getRender({
   pagesRenderToHTML: any
   Document: DocumentType
   buildManifest: BuildManifest
+  prerenderManifest: PrerenderManifest
   reactLoadableManifest: ReactLoadableManifest
   subresourceIntegrityManifest?: Record<string, string>
-  serverComponentManifest: any
-  serverCSSManifest: any
+  clientReferenceManifest?: ClientReferenceManifest
+  serverActionsManifest: any
   appServerMod: any
-  config: NextConfig
+  config: NextConfigComplete
   buildId: string
-  fontLoaderManifest: FontLoaderManifest
+  nextFontManifest: NextFontManifestPlugin
+  incrementalCacheHandler?: any
 }) {
   const isAppPath = pagesType === 'app'
   const baseLoadComponentResult = {
     dev,
     buildManifest,
+    prerenderManifest,
     reactLoadableManifest,
     subresourceIntegrityManifest,
-    fontLoaderManifest,
+    nextFontManifest,
     Document,
     App: appMod?.default as AppType,
   }
@@ -69,19 +77,21 @@ export function getRender({
     minimalMode: true,
     webServerConfig: {
       page,
+      normalizedPage: isAppPath ? normalizeAppPath(page) : page,
       pagesType,
+      prerenderManifest,
       extendRenderOpts: {
         buildId,
         runtime: SERVER_RUNTIME.experimentalEdge,
         supportsDynamicHTML: true,
         disableOptimizedLoading: true,
-        serverComponentManifest,
-        serverCSSManifest,
+        clientReferenceManifest,
+        serverActionsManifest,
       },
       appRenderToHTML,
       pagesRenderToHTML,
+      incrementalCacheHandler,
       loadComponent: async (pathname) => {
-        if (isAppPath) return null
         if (pathname === page) {
           return {
             ...baseLoadComponentResult,
@@ -91,6 +101,7 @@ export function getRender({
             getServerSideProps: pageMod.getServerSideProps,
             getStaticPaths: pageMod.getStaticPaths,
             ComponentMod: pageMod,
+            isAppPath: !!pageMod.__next_app__,
             pathname,
           }
         }

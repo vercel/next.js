@@ -23,7 +23,7 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
 }
-          var ReactVersion = '18.3.0-next-3ba7add60-20221201';
+          var ReactVersion = '18.3.0-canary-1cea38448-20230530';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -64,7 +64,7 @@ function getIteratorFn(maybeIterable) {
 /**
  * Keeps track of the current dispatcher.
  */
-var ReactCurrentDispatcher = {
+var ReactCurrentDispatcher$1 = {
   current: null
 };
 
@@ -108,8 +108,7 @@ var ReactCurrentOwner = {
   current: null
 };
 
-var ReactDebugCurrentFrame = // $FlowFixMe[incompatible-exact]
-{};
+var ReactDebugCurrentFrame$1 = {};
 var currentExtraStackFrame = null;
 function setExtraStackFrame(stack) {
   {
@@ -118,16 +117,16 @@ function setExtraStackFrame(stack) {
 }
 
 {
-  ReactDebugCurrentFrame.setExtraStackFrame = function (stack) {
+  ReactDebugCurrentFrame$1.setExtraStackFrame = function (stack) {
     {
       currentExtraStackFrame = stack;
     }
   }; // Stack implementation injected by the current renderer.
 
 
-  ReactDebugCurrentFrame.getCurrentStack = null;
+  ReactDebugCurrentFrame$1.getCurrentStack = null;
 
-  ReactDebugCurrentFrame.getStackAddendum = function () {
+  ReactDebugCurrentFrame$1.getStackAddendum = function () {
     var stack = ''; // Add an extra top frame while an element is being validated
 
     if (currentExtraStackFrame) {
@@ -135,7 +134,7 @@ function setExtraStackFrame(stack) {
     } // Delegate to the injected renderer-specific implementation
 
 
-    var impl = ReactDebugCurrentFrame.getCurrentStack;
+    var impl = ReactDebugCurrentFrame$1.getCurrentStack;
 
     if (impl) {
       stack += impl() || '';
@@ -157,22 +156,22 @@ var enableLegacyHidden = false; // Enables unstable_avoidThisFallback feature in
 
 var enableDebugTracing = false; // Track which Fiber(s) schedule render work.
 
-var ContextRegistry = {};
+var ContextRegistry$1 = {};
 
 var ReactSharedInternals = {
-  ReactCurrentDispatcher: ReactCurrentDispatcher,
+  ReactCurrentDispatcher: ReactCurrentDispatcher$1,
   ReactCurrentCache: ReactCurrentCache,
   ReactCurrentBatchConfig: ReactCurrentBatchConfig,
   ReactCurrentOwner: ReactCurrentOwner
 };
 
 {
-  ReactSharedInternals.ReactDebugCurrentFrame = ReactDebugCurrentFrame;
+  ReactSharedInternals.ReactDebugCurrentFrame = ReactDebugCurrentFrame$1;
   ReactSharedInternals.ReactCurrentActQueue = ReactCurrentActQueue;
 }
 
 {
-  ReactSharedInternals.ContextRegistry = ContextRegistry;
+  ReactSharedInternals.ContextRegistry = ContextRegistry$1;
 }
 
 // by calls to these methods by a Babel plugin.
@@ -469,16 +468,16 @@ function isArray(a) {
  * problem. (Instead of a confusing exception thrown inside the implementation
  * of the `value` object).
  */
-// $FlowFixMe only called in DEV, so void return is not possible.
+// $FlowFixMe[incompatible-return] only called in DEV, so void return is not possible.
 function typeName(value) {
   {
     // toStringTag is needed for namespaced types like Temporal.Instant
     var hasToStringTag = typeof Symbol === 'function' && Symbol.toStringTag;
-    var type = hasToStringTag && value[Symbol.toStringTag] || value.constructor.name || 'Object'; // $FlowFixMe
+    var type = hasToStringTag && value[Symbol.toStringTag] || value.constructor.name || 'Object'; // $FlowFixMe[incompatible-return]
 
     return type;
   }
-} // $FlowFixMe only called in DEV, so void return is not possible.
+} // $FlowFixMe[incompatible-return] only called in DEV, so void return is not possible.
 
 
 function willCoercionThrow(value) {
@@ -632,7 +631,6 @@ function getComponentNameFromType(type) {
           return (context2.displayName || context2._globalName) + '.Provider';
         }
 
-      // eslint-disable-next-line no-fallthrough
     }
   }
 
@@ -753,7 +751,7 @@ function warnIfStringRefCannotBeAutoConverted(config) {
  */
 
 
-var ReactElement = function (type, key, ref, self, source, owner, props) {
+function ReactElement(type, key, ref, self, source, owner, props) {
   var element = {
     // This tag allows us to uniquely identify this as a React Element
     $$typeof: REACT_ELEMENT_TYPE,
@@ -805,13 +803,13 @@ var ReactElement = function (type, key, ref, self, source, owner, props) {
   }
 
   return element;
-};
+}
 /**
  * Create and return a new ReactElement of the given type.
  * See https://reactjs.org/docs/react-api.html#createelement
  */
 
-function createElement(type, config, children) {
+function createElement$1(type, config, children) {
   var propName; // Reserved names are extracted
 
   var props = {};
@@ -905,7 +903,7 @@ function cloneAndReplaceKey(oldElement, newKey) {
  * See https://reactjs.org/docs/react-api.html#cloneelement
  */
 
-function cloneElement(element, config, children) {
+function cloneElement$1(element, config, children) {
   if (element === null || element === undefined) {
     throw new Error("React.cloneElement(...): The argument must be a React element, but you passed " + element + ".");
   }
@@ -1097,7 +1095,7 @@ function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
         {
           // The `if` statement here prevents auto-disabling of the safe
           // coercion ESLint rule, so we must manually disable it below.
-          // $FlowFixMe Flow incorrectly thinks React.Portal doesn't have a key
+          // $FlowFixMe[incompatible-type] Flow incorrectly thinks React.Portal doesn't have a key
           if (mappedChild.key && (!_child || _child.key !== mappedChild.key)) {
             checkKeyStringCoercion(mappedChild.key);
           }
@@ -1105,10 +1103,10 @@ function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
 
         mappedChild = cloneAndReplaceKey(mappedChild, // Keep both the (mapped) and old keys if they differ, just as
         // traverseAllChildren used to do for objects as children
-        escapedPrefix + ( // $FlowFixMe Flow incorrectly thinks React.Portal doesn't have a key
-        mappedChild.key && (!_child || _child.key !== mappedChild.key) ? escapeUserProvidedKey( // eslint-disable-next-line react-internal/safe-string-coercion
-        '' + // $FlowFixMe Flow incorrectly thinks existing element's key can be a number
-        mappedChild.key) + '/' : '') + childKey);
+        escapedPrefix + ( // $FlowFixMe[incompatible-type] Flow incorrectly thinks React.Portal doesn't have a key
+        mappedChild.key && (!_child || _child.key !== mappedChild.key) ? escapeUserProvidedKey( // $FlowFixMe[unsafe-addition]
+        '' + mappedChild.key // eslint-disable-line react-internal/safe-string-coercion
+        ) + '/' : '') + childKey);
       }
 
       array.push(mappedChild);
@@ -1148,7 +1146,7 @@ function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
 
       var iterator = iteratorFn.call(iterableChildren);
       var step;
-      var ii = 0; // $FlowFixMe `iteratorFn` might return null according to typing.
+      var ii = 0; // $FlowFixMe[incompatible-use] `iteratorFn` might return null according to typing.
 
       while (!(step = iterator.next()).done) {
         child = step.value;
@@ -1164,7 +1162,6 @@ function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
 
   return subtreeCount;
 }
-
 /**
  * Maps children that are typically specified as `props.children`.
  *
@@ -1178,6 +1175,8 @@ function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
  * @param {*} context Context for mapFunction.
  * @return {object} Object containing the ordered map of results.
  */
+
+
 function mapChildren(children, func, context) {
   if (children == null) {
     return children;
@@ -1208,7 +1207,6 @@ function countChildren(children) {
   });
   return n;
 }
-
 /**
  * Iterates through children that are typically specified as `props.children`.
  *
@@ -1221,8 +1219,11 @@ function countChildren(children) {
  * @param {function(*, int)} forEachFunc
  * @param {*} forEachContext Context for forEachContext.
  */
+
+
 function forEachChildren(children, forEachFunc, forEachContext) {
-  mapChildren(children, function () {
+  mapChildren(children, // $FlowFixMe[missing-this-annot]
+  function () {
     forEachFunc.apply(this, arguments); // Don't return anything.
   }, forEachContext);
 }
@@ -1300,7 +1301,7 @@ function createContext(defaultValue) {
     var Consumer = {
       $$typeof: REACT_CONTEXT_TYPE,
       _context: context
-    }; // $FlowFixMe: Flow complains about not setting a value, which is intentional here
+    }; // $FlowFixMe[prop-missing]: Flow complains about not setting a value, which is intentional here
 
     Object.defineProperties(Consumer, {
       Provider: {
@@ -1364,7 +1365,7 @@ function createContext(defaultValue) {
           }
         }
       }
-    }); // $FlowFixMe: Flow complains about missing properties because it doesn't understand defineProperty
+    }); // $FlowFixMe[prop-missing]: Flow complains about missing properties because it doesn't understand defineProperty
 
     context.Consumer = Consumer;
   }
@@ -1454,7 +1455,7 @@ function lazy(ctor) {
   {
     // In production, this would just set it on the object.
     var defaultProps;
-    var propTypes; // $FlowFixMe
+    var propTypes; // $FlowFixMe[prop-missing]
 
     Object.defineProperties(lazyType, {
       defaultProps: {
@@ -1462,11 +1463,12 @@ function lazy(ctor) {
         get: function () {
           return defaultProps;
         },
+        // $FlowFixMe[missing-local-annot]
         set: function (newDefaultProps) {
           error('React.lazy(...): It is not supported to assign `defaultProps` to ' + 'a lazy component import. Either specify them where the component ' + 'is defined, or create a wrapping component around it.');
 
           defaultProps = newDefaultProps; // Match production behavior more closely:
-          // $FlowFixMe
+          // $FlowFixMe[prop-missing]
 
           Object.defineProperty(lazyType, 'defaultProps', {
             enumerable: true
@@ -1478,11 +1480,12 @@ function lazy(ctor) {
         get: function () {
           return propTypes;
         },
+        // $FlowFixMe[missing-local-annot]
         set: function (newPropTypes) {
           error('React.lazy(...): It is not supported to assign `propTypes` to ' + 'a lazy component import. Either specify them where the component ' + 'is defined, or create a wrapping component around it.');
 
           propTypes = newPropTypes; // Match production behavior more closely:
-          // $FlowFixMe
+          // $FlowFixMe[prop-missing]
 
           Object.defineProperty(lazyType, 'propTypes', {
             enumerable: true
@@ -1546,7 +1549,7 @@ function forwardRef(render) {
   return elementType;
 }
 
-var REACT_MODULE_REFERENCE = Symbol.for('react.module.reference');
+var REACT_CLIENT_REFERENCE$1 = Symbol.for('react.client.reference');
 function isValidElementType(type) {
   if (typeof type === 'string' || typeof type === 'function') {
     return true;
@@ -1562,7 +1565,7 @@ function isValidElementType(type) {
     // types supported by any Flight configuration anywhere since
     // we don't know which Flight build this will end up being used
     // with.
-    type.$$typeof === REACT_MODULE_REFERENCE || type.getModuleId !== undefined) {
+    type.$$typeof === REACT_CLIENT_REFERENCE$1 || type.getModuleId !== undefined) {
       return true;
     }
   }
@@ -1637,7 +1640,7 @@ function cache(fn) {
 
     if (!dispatcher) {
       // If there is no dispatcher, then we treat this as not being cached.
-      // $FlowFixMe: We don't want to use rest arguments since we transpile the code.
+      // $FlowFixMe[incompatible-call]: We don't want to use rest arguments since we transpile the code.
       return fn.apply(null, arguments);
     }
 
@@ -1699,7 +1702,7 @@ function cache(fn) {
     }
 
     try {
-      // $FlowFixMe: We don't want to use rest arguments since we transpile the code.
+      // $FlowFixMe[incompatible-call]: We don't want to use rest arguments since we transpile the code.
       var result = fn.apply(null, arguments);
       var terminatedNode = cacheNode;
       terminatedNode.s = TERMINATED;
@@ -1716,7 +1719,7 @@ function cache(fn) {
 }
 
 function resolveDispatcher() {
-  var dispatcher = ReactCurrentDispatcher.current;
+  var dispatcher = ReactCurrentDispatcher$1.current;
 
   {
     if (dispatcher === null) {
@@ -1807,13 +1810,12 @@ function useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot) {
   return dispatcher.useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }
 function useCacheRefresh() {
-  var dispatcher = resolveDispatcher(); // $FlowFixMe This is unstable, thus optional
+  var dispatcher = resolveDispatcher(); // $FlowFixMe[not-a-function] This is unstable, thus optional
 
   return dispatcher.useCacheRefresh();
 }
 function use(usable) {
-  var dispatcher = resolveDispatcher(); // $FlowFixMe This is unstable, thus optional
-
+  var dispatcher = resolveDispatcher();
   return dispatcher.use(usable);
 }
 
@@ -1850,7 +1852,7 @@ function disableLogs() {
         enumerable: true,
         value: disabledLog,
         writable: true
-      }; // $FlowFixMe Flow thinks console is immutable.
+      }; // $FlowFixMe[cannot-write] Flow thinks console is immutable.
 
       Object.defineProperties(console, {
         info: props,
@@ -1877,7 +1879,7 @@ function reenableLogs() {
         configurable: true,
         enumerable: true,
         writable: true
-      }; // $FlowFixMe Flow thinks console is immutable.
+      }; // $FlowFixMe[cannot-write] Flow thinks console is immutable.
 
       Object.defineProperties(console, {
         log: assign({}, props, {
@@ -1911,7 +1913,7 @@ function reenableLogs() {
   }
 }
 
-var ReactCurrentDispatcher$1 = ReactSharedInternals.ReactCurrentDispatcher;
+var ReactCurrentDispatcher = ReactSharedInternals.ReactCurrentDispatcher;
 var prefix;
 function describeBuiltInComponentFrame(name, source, ownerFn) {
   {
@@ -1939,7 +1941,7 @@ var componentFrameCache;
 
 function describeNativeComponentFrame(fn, construct) {
   // If something asked for a stack inside a fake render, it should get ignored.
-  if ( !fn || reentry) {
+  if (!fn || reentry) {
     return '';
   }
 
@@ -1953,16 +1955,16 @@ function describeNativeComponentFrame(fn, construct) {
 
   var control;
   reentry = true;
-  var previousPrepareStackTrace = Error.prepareStackTrace; // $FlowFixMe It does accept undefined.
+  var previousPrepareStackTrace = Error.prepareStackTrace; // $FlowFixMe[incompatible-type] It does accept undefined.
 
   Error.prepareStackTrace = undefined;
   var previousDispatcher;
 
   {
-    previousDispatcher = ReactCurrentDispatcher$1.current; // Set the dispatcher in DEV because this might be call in the render function
+    previousDispatcher = ReactCurrentDispatcher.current; // Set the dispatcher in DEV because this might be call in the render function
     // for warnings.
 
-    ReactCurrentDispatcher$1.current = null;
+    ReactCurrentDispatcher.current = null;
     disableLogs();
   }
 
@@ -1972,7 +1974,7 @@ function describeNativeComponentFrame(fn, construct) {
       // Something should be setting the props in the constructor.
       var Fake = function () {
         throw Error();
-      }; // $FlowFixMe
+      }; // $FlowFixMe[prop-missing]
 
 
       Object.defineProperty(Fake.prototype, 'props', {
@@ -2081,7 +2083,7 @@ function describeNativeComponentFrame(fn, construct) {
     reentry = false;
 
     {
-      ReactCurrentDispatcher$1.current = previousDispatcher;
+      ReactCurrentDispatcher.current = previousDispatcher;
       reenableLogs();
     }
 
@@ -2162,23 +2164,23 @@ function describeUnknownElementTypeFrameInDEV(type, source, ownerFn) {
 }
 
 var loggedTypeFailures = {};
-var ReactDebugCurrentFrame$1 = ReactSharedInternals.ReactDebugCurrentFrame;
+var ReactDebugCurrentFrame = ReactSharedInternals.ReactDebugCurrentFrame;
 
-function setCurrentlyValidatingElement(element) {
+function setCurrentlyValidatingElement$1(element) {
   {
     if (element) {
       var owner = element._owner;
       var stack = describeUnknownElementTypeFrameInDEV(element.type, element._source, owner ? owner.type : null);
-      ReactDebugCurrentFrame$1.setExtraStackFrame(stack);
+      ReactDebugCurrentFrame.setExtraStackFrame(stack);
     } else {
-      ReactDebugCurrentFrame$1.setExtraStackFrame(null);
+      ReactDebugCurrentFrame.setExtraStackFrame(null);
     }
   }
 }
 
 function checkPropTypes(typeSpecs, values, location, componentName, element) {
   {
-    // $FlowFixMe This is okay but Flow doesn't know it.
+    // $FlowFixMe[incompatible-use] This is okay but Flow doesn't know it.
     var has = Function.call.bind(hasOwnProperty);
 
     for (var typeSpecName in typeSpecs) {
@@ -2203,29 +2205,31 @@ function checkPropTypes(typeSpecs, values, location, componentName, element) {
         }
 
         if (error$1 && !(error$1 instanceof Error)) {
-          setCurrentlyValidatingElement(element);
+          setCurrentlyValidatingElement$1(element);
 
           error('%s: type specification of %s' + ' `%s` is invalid; the type checker ' + 'function must return `null` or an `Error` but returned a %s. ' + 'You may have forgotten to pass an argument to the type checker ' + 'creator (arrayOf, instanceOf, objectOf, oneOf, oneOfType, and ' + 'shape all require an argument).', componentName || 'React class', location, typeSpecName, typeof error$1);
 
-          setCurrentlyValidatingElement(null);
+          setCurrentlyValidatingElement$1(null);
         }
 
         if (error$1 instanceof Error && !(error$1.message in loggedTypeFailures)) {
           // Only monitor this failure once because there tends to be a lot of the
           // same error.
           loggedTypeFailures[error$1.message] = true;
-          setCurrentlyValidatingElement(element);
+          setCurrentlyValidatingElement$1(element);
 
           error('Failed %s type: %s', location, error$1.message);
 
-          setCurrentlyValidatingElement(null);
+          setCurrentlyValidatingElement$1(null);
         }
       }
     }
   }
 }
 
-function setCurrentlyValidatingElement$1(element) {
+var REACT_CLIENT_REFERENCE = Symbol.for('react.client.reference');
+
+function setCurrentlyValidatingElement(element) {
   {
     if (element) {
       var owner = element._owner;
@@ -2331,11 +2335,11 @@ function validateExplicitKey(element, parentType) {
   }
 
   {
-    setCurrentlyValidatingElement$1(element);
+    setCurrentlyValidatingElement(element);
 
     error('Each child in a list should have a unique "key" prop.' + '%s%s See https://reactjs.org/link/warning-keys for more information.', currentComponentErrorInfo, childOwner);
 
-    setCurrentlyValidatingElement$1(null);
+    setCurrentlyValidatingElement(null);
   }
 }
 /**
@@ -2350,11 +2354,11 @@ function validateExplicitKey(element, parentType) {
 
 
 function validateChildKeys(node, parentType) {
-  if (typeof node !== 'object') {
+  if (typeof node !== 'object' || !node) {
     return;
   }
 
-  if (isArray(node)) {
+  if (node.$$typeof === REACT_CLIENT_REFERENCE) ; else if (isArray(node)) {
     for (var i = 0; i < node.length; i++) {
       var child = node[i];
 
@@ -2367,7 +2371,7 @@ function validateChildKeys(node, parentType) {
     if (node._store) {
       node._store.validated = true;
     }
-  } else if (node) {
+  } else {
     var iteratorFn = getIteratorFn(node);
 
     if (typeof iteratorFn === 'function') {
@@ -2399,6 +2403,10 @@ function validatePropTypes(element) {
     var type = element.type;
 
     if (type === null || type === undefined || typeof type === 'string') {
+      return;
+    }
+
+    if (type.$$typeof === REACT_CLIENT_REFERENCE) {
       return;
     }
 
@@ -2445,21 +2453,21 @@ function validateFragmentProps(fragment) {
       var key = keys[i];
 
       if (key !== 'children' && key !== 'key') {
-        setCurrentlyValidatingElement$1(fragment);
+        setCurrentlyValidatingElement(fragment);
 
         error('Invalid prop `%s` supplied to `React.Fragment`. ' + 'React.Fragment can only have `key` and `children` props.', key);
 
-        setCurrentlyValidatingElement$1(null);
+        setCurrentlyValidatingElement(null);
         break;
       }
     }
 
     if (fragment.ref !== null) {
-      setCurrentlyValidatingElement$1(fragment);
+      setCurrentlyValidatingElement(fragment);
 
       error('Invalid attribute `ref` supplied to `React.Fragment`.');
 
-      setCurrentlyValidatingElement$1(null);
+      setCurrentlyValidatingElement(null);
     }
   }
 }
@@ -2500,7 +2508,7 @@ function createElementWithValidation(type, props, children) {
     }
   }
 
-  var element = createElement.apply(this, arguments); // The result can be nullish if a mock or a custom function is used.
+  var element = createElement$1.apply(this, arguments); // The result can be nullish if a mock or a custom function is used.
   // TODO: Drop this when these are no longer allowed as the type argument.
 
   if (element == null) {
@@ -2555,7 +2563,7 @@ function createFactoryWithValidation(type) {
   return validatedFactory;
 }
 function cloneElementWithValidation(element, props, children) {
-  var newElement = cloneElement.apply(this, arguments);
+  var newElement = cloneElement$1.apply(this, arguments);
 
   for (var i = 2; i < arguments.length; i++) {
     validateChildKeys(arguments[i], newElement.type);
@@ -2565,12 +2573,12 @@ function cloneElementWithValidation(element, props, children) {
   return newElement;
 }
 
-var ContextRegistry$1 = ReactSharedInternals.ContextRegistry;
+var ContextRegistry = ReactSharedInternals.ContextRegistry;
 function createServerContext(globalName, defaultValue) {
 
   var wasDefined = true;
 
-  if (!ContextRegistry$1[globalName]) {
+  if (!ContextRegistry[globalName]) {
     wasDefined = false;
     var _context = {
       $$typeof: REACT_SERVER_CONTEXT_TYPE,
@@ -2614,10 +2622,10 @@ function createServerContext(globalName, defaultValue) {
       });
     }
 
-    ContextRegistry$1[globalName] = _context;
+    ContextRegistry[globalName] = _context;
   }
 
-  var context = ContextRegistry$1[globalName];
+  var context = ContextRegistry[globalName];
 
   if (context._defaultValue === REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED) {
     context._defaultValue = defaultValue;
@@ -2654,11 +2662,11 @@ function startTransition(scope, options) {
       if (prevTransition === null && currentTransition._updatedFibers) {
         var updatedFibersCount = currentTransition._updatedFibers.size;
 
+        currentTransition._updatedFibers.clear();
+
         if (updatedFibersCount > 10) {
           warn('Detected a large number of updates inside startTransition. ' + 'If this is due to a subscription please re-write it to use React provided hooks. ' + 'Otherwise concurrent mode guarantees are off the table.');
         }
-
-        currentTransition._updatedFibers.clear();
       }
     }
   }
@@ -2978,9 +2986,9 @@ var queueSeveralMicrotasks = typeof queueMicrotask === 'function' ? function (ca
   });
 } : enqueueTask;
 
-var createElement$1 =  createElementWithValidation ;
-var cloneElement$1 =  cloneElementWithValidation ;
-var createFactory =  createFactoryWithValidation ;
+var createElement = createElementWithValidation ;
+var cloneElement = cloneElementWithValidation ;
+var createFactory = createFactoryWithValidation ;
 var Children = {
   map: mapChildren,
   forEach: forEachChildren,
@@ -2998,9 +3006,9 @@ exports.StrictMode = REACT_STRICT_MODE_TYPE;
 exports.Suspense = REACT_SUSPENSE_TYPE;
 exports.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = ReactSharedInternals;
 exports.cache = cache;
-exports.cloneElement = cloneElement$1;
+exports.cloneElement = cloneElement;
 exports.createContext = createContext;
-exports.createElement = createElement$1;
+exports.createElement = createElement;
 exports.createFactory = createFactory;
 exports.createRef = createRef;
 exports.createServerContext = createServerContext;

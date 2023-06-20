@@ -1,8 +1,8 @@
-# React Hydration Error
+# Text content does not match server-rendered HTML
 
 #### Why This Error Occurred
 
-While rendering your application, there was a difference between the React tree that was pre-rendered (SSR/SSG) and the React tree that rendered during the first render in the Browser. The first render is called Hydration which is a [feature of React](https://reactjs.org/docs/react-dom.html#hydrate).
+While rendering your application, there was a difference between the React tree that was pre-rendered (SSR/SSG) and the React tree that rendered during the first render in the Browser. The first render is called Hydration which is a [feature of React](https://react.dev/reference/react-dom/hydrate).
 
 This can cause the React tree to be out of sync with the DOM and result in unexpected content/attributes being present.
 
@@ -82,7 +82,19 @@ Common causes with css-in-js libraries:
 - When using other css-in-js libraries
   - Similar to Styled Components / Emotion css-in-js libraries generally need configuration specified in their examples in the [examples directory](https://github.com/vercel/next.js/tree/canary/examples)
 
+Local Overrides:
+
+It's possible you may have [Local Overrides enabled in Chrome devtools](https://developer.chrome.com/blog/new-in-devtools-65/#overrides). With this enabled, the HTML served will be different from what the SSR emitted. It also won't show up in view-source, so you may be left wondering what is going on.
+
+Common causes on iOS:
+
+- iOS attempts to detect phone numbers, email addressees and other data in text content and convert them into links, which can [lead to hydration mismatches](https://github.com/vercel/next.js/issues/38290). This can be disabled with the following `meta` tag:
+
+```
+<meta name="format-detection" content="telephone=no, date=no, email=no, address=no" />
+```
+
 ### Useful Links
 
-- [React Hydration Documentation](https://reactjs.org/docs/react-dom-client.html#hydrateroot)
+- [React Hydration Documentation](https://react.dev/reference/react-dom/client/hydrateRoot)
 - [Josh Comeau's article on React Hydration](https://www.joshwcomeau.com/react/the-perils-of-rehydration/)

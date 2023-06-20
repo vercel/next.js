@@ -49,17 +49,20 @@ const HotlinkedText: React.FC<{
 }> = function HotlinkedText(props) {
   const { text } = props
 
-  const linkRegex = /https?:\/\/[^\s/$.?#].[^\s"]*/i
+  const linkRegex = /https?:\/\/[^\s/$.?#].[^\s)'"]*/i
   return (
     <>
       {linkRegex.test(text)
         ? text.split(' ').map((word, index, array) => {
             if (linkRegex.test(word)) {
+              const link = linkRegex.exec(word)
               return (
                 <React.Fragment key={`link-${index}`}>
-                  <a href={word} target="_blank" rel="noreferrer noopener">
-                    {word}
-                  </a>
+                  {link && (
+                    <a href={link[0]} target="_blank" rel="noreferrer noopener">
+                      {word}
+                    </a>
+                  )}
                   {index === array.length - 1 ? '' : ' '}
                 </React.Fragment>
               )
@@ -326,11 +329,12 @@ export const styles = css`
     color: var(--color-ansi-red);
   }
 
-  .nextjs-container-errors-body > h5:not(:first-child) {
+  .nextjs-container-errors-body > h2:not(:first-child) {
     margin-top: calc(var(--size-gap-double) + var(--size-gap));
   }
-  .nextjs-container-errors-body > h5 {
+  .nextjs-container-errors-body > h2 {
     margin-bottom: var(--size-gap);
+    font-size: var(--size-font-big);
   }
 
   .nextjs-toast-errors-parent {

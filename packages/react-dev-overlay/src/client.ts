@@ -1,5 +1,14 @@
 import * as Bus from './internal/bus'
 import { parseStack } from './internal/helpers/parseStack'
+import { parseComponentStack } from 'next/dist/client/components/react-dev-overlay/internal/helpers/parse-component-stack'
+import {
+  hydrationErrorComponentStack,
+  hydrationErrorWarning,
+  patchConsoleError,
+} from 'next/dist/client/components/react-dev-overlay/internal/helpers/hydration-error-info'
+
+// Patch console.error to collect information about hydration errors
+patchConsoleError()
 
 let isRegistered = false
 let stackTraceLimit: number | undefined = undefined
@@ -14,14 +23,26 @@ function onUnhandledError(ev: ErrorEvent) {
   if (
     error.message.match(/(hydration|content does not match|did not match)/i)
   ) {
+    if (hydrationErrorWarning) {
+      // The patched console.error found hydration errors logged by React
+      // Append the logged warning to the error message
+      error.message += '\n\n' + hydrationErrorWarning
+    }
     error.message += `\n\nSee more info here: https://nextjs.org/docs/messages/react-hydration-error`
   }
 
   const e = error
+  const componentStack =
+    typeof hydrationErrorComponentStack === 'string'
+      ? parseComponentStack(hydrationErrorComponentStack).map(
+          (frame: any) => frame.component
+        )
+      : undefined
   Bus.emit({
     type: Bus.TYPE_UNHANDLED_ERROR,
     reason: error,
     frames: parseStack(e.stack!),
+    componentStack,
   })
 }
 

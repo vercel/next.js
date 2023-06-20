@@ -1,9 +1,10 @@
-import { applyMiddleware, createStore } from 'redux'
+import { applyMiddleware } from 'redux'
 import createSagaMiddleware from 'redux-saga'
 import { createWrapper } from 'next-redux-wrapper'
 
 import rootReducer from './reducer'
 import rootSaga from './saga'
+import { configureStore } from '@reduxjs/toolkit'
 
 const bindMiddleware = (middleware) => {
   if (process.env.NODE_ENV !== 'production') {
@@ -15,7 +16,12 @@ const bindMiddleware = (middleware) => {
 
 export const makeStore = (context) => {
   const sagaMiddleware = createSagaMiddleware()
-  const store = createStore(rootReducer, bindMiddleware([sagaMiddleware]))
+  const store = configureStore({
+    reducer: rootReducer,
+    middleware: (getDefaultMiddleware) =>
+      getDefaultMiddleware({ thunk: false }).concat(sagaMiddleware),
+    enhancers: [bindMiddleware([sagaMiddleware])],
+  })
 
   store.sagaTask = sagaMiddleware.run(rootSaga)
 

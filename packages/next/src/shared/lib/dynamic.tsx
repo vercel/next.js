@@ -1,6 +1,8 @@
 import React from 'react'
 import Loadable from './loadable'
 
+const isServerSide = typeof window === 'undefined'
+
 type ComponentModule<P = {}> = { default: React.ComponentType<P> }
 
 export declare type LoaderComponent<P = {}> = Promise<
@@ -52,11 +54,31 @@ export type LoadableFn<P = {}> = (
 
 export type LoadableComponent<P = {}> = React.ComponentType<P>
 
+export function noSSR<P = {}>(
+  LoadableInitializer: LoadableFn<P>,
+  loadableOptions: DynamicOptions<P>
+): React.ComponentType<P> {
+  // Removing webpack and modules means react-loadable won't try preloading
+  delete loadableOptions.webpack
+  delete loadableOptions.modules
+
+  // This check is necessary to prevent react-loadable from initializing on the server
+  if (!isServerSide) {
+    return LoadableInitializer(loadableOptions)
+  }
+
+  const Loading = loadableOptions.loading!
+  // This will only be rendered on the server side
+  return () => (
+    <Loading error={null} isLoading pastDelay={false} timedOut={false} />
+  )
+}
+
 export default function dynamic<P = {}>(
   dynamicOptions: DynamicOptions<P> | Loader<P>,
   options?: DynamicOptions<P>
 ): React.ComponentType<P> {
-  let loadableFn: LoadableFn<P> = Loadable
+  let loadableFn = Loadable as LoadableFn<P>
 
   let loadableOptions: LoadableOptions<P> = {
     // A loading component is not required, so we default it
@@ -116,6 +138,8 @@ export default function dynamic<P = {}>(
   if (typeof loadableOptions.ssr === 'boolean' && !loadableOptions.ssr) {
     delete loadableOptions.webpack
     delete loadableOptions.modules
+
+    return noSSR(loadableFn, loadableOptions)
   }
 
   return loadableFn({ ...loadableOptions, loader: loader as Loader<P> })

@@ -1,7 +1,7 @@
 // source: https://github.com/sindresorhus/resolve-from
-import fs from 'fs'
 import path from 'path'
 import isError from './is-error'
+import { realpathSync } from './realpath'
 
 const Module = require('module')
 
@@ -23,7 +23,7 @@ export const resolveFrom = (
   }
 
   try {
-    fromDirectory = fs.realpathSync(fromDirectory)
+    fromDirectory = realpathSync(fromDirectory)
   } catch (error: unknown) {
     if (isError(error) && error.code === 'ENOENT') {
       fromDirectory = path.resolve(fromDirectory)

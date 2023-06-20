@@ -34,8 +34,9 @@ export async function createApp({
   example,
   examplePath,
   typescript,
+  tailwind,
   eslint,
-  experimentalApp,
+  appRouter,
   srcDir,
   importAlias,
 }: {
@@ -44,14 +45,21 @@ export async function createApp({
   example?: string
   examplePath?: string
   typescript: boolean
+  tailwind: boolean
   eslint: boolean
-  experimentalApp: boolean
+  appRouter: boolean
   srcDir: boolean
   importAlias: string
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
   const mode: TemplateMode = typescript ? 'ts' : 'js'
-  const template: TemplateType = experimentalApp ? 'app' : 'default'
+  const template: TemplateType = appRouter
+    ? tailwind
+      ? 'app-tw'
+      : 'app'
+    : tailwind
+    ? 'default-tw'
+    : 'default'
 
   if (example) {
     let repoUrl: URL | undefined
@@ -222,6 +230,7 @@ export async function createApp({
       mode,
       packageManager,
       isOnline,
+      tailwind,
       eslint,
       srcDir,
       importAlias,

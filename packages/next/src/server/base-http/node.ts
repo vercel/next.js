@@ -7,6 +7,7 @@ import { parseBody } from '../api-utils/node'
 import { NEXT_REQUEST_META, RequestMeta } from '../request-meta'
 
 import { BaseNextRequest, BaseNextResponse } from './index'
+import { OutgoingHttpHeaders } from 'node:http'
 
 type Req = IncomingMessage & {
   [NEXT_REQUEST_META]?: RequestMeta
@@ -84,6 +85,11 @@ export class NodeNextResponse extends BaseNextResponse<Writable> {
     return this
   }
 
+  removeHeader(name: string): this {
+    this._res.removeHeader(name)
+    return this
+  }
+
   getHeaderValues(name: string): string[] | undefined {
     const values = this._res.getHeader(name)
 
@@ -101,6 +107,10 @@ export class NodeNextResponse extends BaseNextResponse<Writable> {
   getHeader(name: string): string | undefined {
     const values = this.getHeaderValues(name)
     return Array.isArray(values) ? values.join(',') : undefined
+  }
+
+  getHeaders(): OutgoingHttpHeaders {
+    return this._res.getHeaders()
   }
 
   appendHeader(name: string, value: string): this {

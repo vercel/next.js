@@ -155,6 +155,10 @@
           "path": "/errors/export-no-custom-routes.md"
         },
         {
+          "title": "export-no-i18n",
+          "path": "/errors/export-no-i18n.md"
+        },
+        {
           "title": "export-path-mismatch",
           "path": "/errors/export-path-mismatch.md"
         },
@@ -779,6 +783,10 @@
           "path": "/errors/context-in-server-component.md"
         },
         {
+          "title": "next-response-next-in-app-route-handler",
+          "path": "/errors/next-response-next-in-app-route-handler.md"
+        },
+        {
           "title": "react-client-hook-in-server-component",
           "path": "/errors/react-client-hook-in-server-component.md"
         },
@@ -789,6 +797,18 @@
         {
           "title": "app-static-to-dynamic-error",
           "path": "/errors/app-static-to-dynamic-error.md"
+        },
+        {
+          "title": "built-in-next-font",
+          "path": "/errors/built-in-next-font.md"
+        },
+        {
+          "title": "version-staleness",
+          "path": "/errors/version-staleness.md"
+        },
+        {
+          "title": "deopted-into-client-rendering",
+          "path": "/errors/deopted-into-client-rendering.md"
         }
       ]
     }

@@ -234,6 +234,18 @@ describe('Client Navigation', () => {
       expect(counterText).toBe('Counter: 1')
       await browser.close()
     })
+
+    it('should not reload when link in svg is clicked', async () => {
+      const browser = await webdriver(context.appPort, '/nav')
+      await browser.eval('window.hello = true')
+      await browser
+        .elementByCss('#in-svg-link')
+        .click()
+        .waitForElementByCss('.nav-about')
+
+      expect(await browser.eval('window.hello')).toBe(true)
+      await browser.close()
+    })
   })
 
   describe('with unexpected <a/> nested tag', () => {
@@ -1741,7 +1753,7 @@ describe('Client Navigation', () => {
 
     await browser.eval(`(function() {
       window.routeErrors = []
-      
+
       window.next.router.events.on('routeChangeError', function (err) {
         window.routeErrors.push(err)
       })

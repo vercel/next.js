@@ -4,10 +4,21 @@ import { Linter } from 'eslint'
 import assert from 'assert'
 import path from 'path'
 
-const linter = new Linter({ cwd: __dirname })
+const withCustomPagesDirectory = path.join(__dirname, 'with-custom-pages-dir')
+
+const withoutPagesLinter = new Linter({
+  cwd: path.join(__dirname, 'without-pages-dir'),
+})
+const withAppLinter = new Linter({
+  cwd: path.join(__dirname, 'with-app-dir'),
+})
+const withCustomPagesLinter = new Linter({
+  cwd: withCustomPagesDirectory,
+})
+
 const linterConfig: any = {
   rules: {
-    'no-html-link-for-pages': [2, path.join(__dirname, 'custom-pages')],
+    'no-html-link-for-pages': [2],
   },
   parserOptions: {
     ecmaVersion: 2018,
@@ -18,20 +29,35 @@ const linterConfig: any = {
     },
   },
 }
+const linterConfigWithCustomDirectory: any = {
+  ...linterConfig,
+  rules: {
+    'no-html-link-for-pages': [
+      2,
+      path.join(withCustomPagesDirectory, 'custom-pages'),
+    ],
+  },
+}
 const linterConfigWithMultipleDirectories = {
   ...linterConfig,
   rules: {
     'no-html-link-for-pages': [
       2,
       [
-        path.join(__dirname, 'custom-pages'),
-        path.join(__dirname, 'custom-pages/list'),
+        path.join(withCustomPagesDirectory, 'custom-pages'),
+        path.join(withCustomPagesDirectory, 'custom-pages/list'),
       ],
     ],
   },
 }
 
-linter.defineRules({
+withoutPagesLinter.defineRules({
+  'no-html-link-for-pages': rule,
+})
+withAppLinter.defineRules({
+  'no-html-link-for-pages': rule,
+})
+withCustomPagesLinter.defineRules({
   'no-html-link-for-pages': rule,
 })
 
@@ -186,15 +212,47 @@ export class Blah extends Head {
 `
 
 describe('no-html-link-for-pages', function () {
-  it('valid link element', function () {
-    const report = linter.verify(validCode, linterConfig, {
+  it('prints warning when there are no "pages" or "app" directories', function () {
+    const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
+    withoutPagesLinter.verify(validCode, linterConfig, {
       filename: 'foo.js',
     })
+    const rootDirectory = path.join(__dirname, 'without-pages-dir')
+    expect(consoleSpy).toHaveBeenCalledWith(
+      `Pages directory cannot be found at ${path.join(
+        rootDirectory,
+        'pages'
+      )} or ${path.join(
+        rootDirectory,
+        'src',
+        'pages'
+      )}. If using a custom path, please configure with the \`no-html-link-for-pages\` rule in your eslint config file.`
+    )
+
+    consoleSpy.mockRestore()
+  })
+  it('does not print warning when there is "app" directory and no "pages" directory', function () {
+    const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
+    withAppLinter.verify(validCode, linterConfig, {
+      filename: 'foo.js',
+    })
+    expect(consoleSpy).not.toHaveBeenCalled()
+
+    consoleSpy.mockRestore()
+  })
+  it('valid link element', function () {
+    const report = withCustomPagesLinter.verify(
+      validCode,
+      linterConfigWithCustomDirectory,
+      {
+        filename: 'foo.js',
+      }
+    )
     assert.deepEqual(report, [])
   })
 
   it('valid link element with multiple directories', function () {
-    const report = linter.verify(
+    const report = withCustomPagesLinter.verify(
       validCode,
       linterConfigWithMultipleDirectories,
       {
@@ -205,44 +263,68 @@ describe('no-html-link-for-pages', function () {
   })
 
   it('valid anchor element', function () {
-    const report = linter.verify(validAnchorCode, linterConfig, {
-      filename: 'foo.js',
-    })
+    const report = withCustomPagesLinter.verify(
+      validAnchorCode,
+      linterConfigWithCustomDirectory,
+      {
+        filename: 'foo.js',
+      }
+    )
     assert.deepEqual(report, [])
   })
 
   it('valid external link element', function () {
-    const report = linter.verify(validExternalLinkCode, linterConfig, {
-      filename: 'foo.js',
-    })
+    const report = withCustomPagesLinter.verify(
+      validExternalLinkCode,
+      linterConfigWithCustomDirectory,
+      {
+        filename: 'foo.js',
+      }
+    )
     assert.deepEqual(report, [])
   })
 
   it('valid download link element', function () {
-    const report = linter.verify(validDownloadLinkCode, linterConfig, {
-      filename: 'foo.js',
-    })
+    const report = withCustomPagesLinter.verify(
+      validDownloadLinkCode,
+      linterConfigWithCustomDirectory,
+      {
+        filename: 'foo.js',
+      }
+    )
     assert.deepEqual(report, [])
   })
 
   it('valid target="_blank" link element', function () {
-    const report = linter.verify(validTargetBlankLinkCode, linterConfig, {
-      filename: 'foo.js',
-    })
+    const report = withCustomPagesLinter.verify(
+      validTargetBlankLinkCode,
+      linterConfigWithCustomDirectory,
+      {
+        filename: 'foo.js',
+      }
+    )
     assert.deepEqual(report, [])
   })
 
   it('valid public file link element', function () {
-    const report = linter.verify(validPublicFile, linterConfig, {
-      filename: 'foo.js',
-    })
+    const report = withCustomPagesLinter.verify(
+      validPublicFile,
+      linterConfigWithCustomDirectory,
+      {
+        filename: 'foo.js',
+      }
+    )
     assert.deepEqual(report, [])
   })
 
   it('invalid static route', function () {
-    const [report] = linter.verify(invalidStaticCode, linterConfig, {
-      filename: 'foo.js',
-    })
+    const [report] = withCustomPagesLinter.verify(
+      invalidStaticCode,
+      linterConfigWithCustomDirectory,
+      {
+        filename: 'foo.js',
+      }
+    )
     assert.notEqual(report, undefined, 'No lint errors found.')
     assert.equal(
       report.message,
@@ -251,17 +333,21 @@ describe('no-html-link-for-pages', function () {
   })
 
   it('invalid dynamic route', function () {
-    const [report] = linter.verify(invalidDynamicCode, linterConfig, {
-      filename: 'foo.js',
-    })
+    const [report] = withCustomPagesLinter.verify(
+      invalidDynamicCode,
+      linterConfigWithCustomDirectory,
+      {
+        filename: 'foo.js',
+      }
+    )
     assert.notEqual(report, undefined, 'No lint errors found.')
     assert.equal(
       report.message,
       'Do not use an `<a>` element to navigate to `/list/foo/bar/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
-    const [secondReport] = linter.verify(
+    const [secondReport] = withCustomPagesLinter.verify(
       secondInvalidDynamicCode,
-      linterConfig,
+      linterConfigWithCustomDirectory,
       {
         filename: 'foo.js',
       }
@@ -271,9 +357,13 @@ describe('no-html-link-for-pages', function () {
       secondReport.message,
       'Do not use an `<a>` element to navigate to `/list/foo/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
-    const [thirdReport] = linter.verify(thirdInvalidDynamicCode, linterConfig, {
-      filename: 'foo.js',
-    })
+    const [thirdReport] = withCustomPagesLinter.verify(
+      thirdInvalidDynamicCode,
+      linterConfigWithCustomDirectory,
+      {
+        filename: 'foo.js',
+      }
+    )
     assert.notEqual(thirdReport, undefined, 'No lint errors found.')
     assert.equal(
       thirdReport.message,

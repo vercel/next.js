@@ -1,7 +1,7 @@
-use next_binding::swc::core::{
-    ecma::ast::{Ident, JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXElementName, JSXOpeningElement},
-    ecma::atoms::JsWord,
-    ecma::visit::Fold,
+use turbopack_binding::swc::core::ecma::{
+    ast::{Ident, JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXElementName, JSXOpeningElement},
+    atoms::JsWord,
+    visit::Fold,
 };
 
 pub fn amp_attributes() -> impl Fold {

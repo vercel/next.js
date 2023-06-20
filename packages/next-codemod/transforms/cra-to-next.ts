@@ -100,7 +100,7 @@ class CraTransform {
     if (indexContext.multipleRenderRoots) {
       fatalMessage(
         `Error: multiple ReactDOM.render roots in src/${this.indexPage}, migrate additional render roots to use portals instead to continue.\n` +
-          `See here for more info: https://reactjs.org/docs/portals.html`
+          `See here for more info: https://react.dev/reference/react-dom/createPortal`
       )
     }
 

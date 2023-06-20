@@ -5,12 +5,14 @@ import {
 import { SupportedErrorEvent } from '../container/Errors'
 import { getErrorSource } from './nodeStackFrames'
 import { getOriginalStackFrames, OriginalStackFrame } from './stack-frame'
+import { ComponentStackFrame } from './parse-component-stack'
 
 export type ReadyRuntimeError = {
   id: number
   runtime: true
   error: Error
   frames: OriginalStackFrame[]
+  componentStackFrames?: ComponentStackFrame[]
 }
 
 export async function getErrorByType(
@@ -20,7 +22,7 @@ export async function getErrorByType(
   switch (event.type) {
     case ACTION_UNHANDLED_ERROR:
     case ACTION_UNHANDLED_REJECTION: {
-      return {
+      const readyRuntimeError: ReadyRuntimeError = {
         id,
         runtime: true,
         error: event.reason,
@@ -30,6 +32,10 @@ export async function getErrorByType(
           event.reason.toString()
         ),
       }
+      if (event.type === ACTION_UNHANDLED_ERROR) {
+        readyRuntimeError.componentStackFrames = event.componentStackFrames
+      }
+      return readyRuntimeError
     }
     default: {
       break

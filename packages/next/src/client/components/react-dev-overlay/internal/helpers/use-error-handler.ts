@@ -1,19 +1,14 @@
 import { useEffect } from 'react'
-import { hydrationErrorInfo } from './hydration-error-info'
+import {
+  hydrationErrorWarning,
+  hydrationErrorComponentStack,
+} from './hydration-error-info'
+import { isNextRouterError } from '../../../is-next-router-error'
 
 export type ErrorHandler = (error: Error) => void
 
 export const RuntimeErrorHandler = {
   hadRuntimeError: false,
-}
-
-function isNextRouterError(error: any): boolean {
-  return (
-    error &&
-    error.digest &&
-    (error.digest.startsWith('NEXT_REDIRECT') ||
-      error.digest === 'NEXT_NOT_FOUND')
-  )
 }
 
 function isHydrationError(error: Error): boolean {
@@ -61,8 +56,14 @@ if (typeof window !== 'undefined') {
         'https://nextjs.org/docs/messages/react-hydration-error'
       )
     ) {
-      if (hydrationErrorInfo) {
-        error.message += '\n\n' + hydrationErrorInfo
+      if (hydrationErrorWarning) {
+        // The patched console.error found hydration errors logged by React
+        // Append the logged warning to the error message
+        error.message += '\n\n' + hydrationErrorWarning
+      }
+      if (hydrationErrorComponentStack) {
+        // Hydration error component stack is added to the error, it's picked up by the hot-reloader-client
+        ;(error as any)._componentStack = hydrationErrorComponentStack
       }
       error.message +=
         '\n\nSee more info here: https://nextjs.org/docs/messages/react-hydration-error'

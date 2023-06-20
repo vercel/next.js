@@ -4,7 +4,6 @@ import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 import path from 'path'
 import { promises as fs } from 'fs'
 import { readJson } from 'fs-extra'
-import type { MiddlewareManifest } from 'next/src/build/webpack/plugins/middleware-plugin'
 
 describe('Edge Compiler can import asset assets', () => {
   let next: NextInstance
@@ -76,7 +75,7 @@ describe('Edge Compiler can import asset assets', () => {
       next.testDir,
       '.next/server/middleware-manifest.json'
     )
-    const manifest: MiddlewareManifest = await readJson(manifestPath)
+    const manifest = await readJson(manifestPath)
     const orderedAssets = manifest.functions['/api/edge'].assets.sort(
       (a, z) => {
         return String(a.name).localeCompare(z.name)

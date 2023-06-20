@@ -3,11 +3,32 @@ import '../build/polyfills/polyfill-module'
 // @ts-ignore react-dom/client exists when using React 18
 import ReactDOMClient from 'react-dom/client'
 import React, { use } from 'react'
-import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack/client'
+// @ts-ignore
+// eslint-disable-next-line import/no-extraneous-dependencies
+import { createFromReadableStream } from 'react-server-dom-webpack/client'
 
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { GlobalLayoutRouterContext } from '../shared/lib/app-router-context'
 import onRecoverableError from './on-recoverable-error'
+import { callServer } from './app-call-server'
+import { isNextRouterError } from './components/is-next-router-error'
+import { linkGc } from './app-link-gc'
+
+// Since React doesn't call onerror for errors caught in error boundaries.
+const origConsoleError = window.console.error
+window.console.error = (...args) => {
+  if (isNextRouterError(args[0])) {
+    return
+  }
+  origConsoleError.apply(window.console, args)
+}
+
+window.addEventListener('error', (ev: WindowEventMap['error']): void => {
+  if (isNextRouterError(ev.error)) {
+    ev.preventDefault()
+    return
+  }
+})
 
 /// <reference types="react-dom/experimental" />
 
@@ -18,14 +39,36 @@ declare global {
   const __webpack_require__: any
 }
 
+const addChunkSuffix =
+  (getOriginalChunk: (chunkId: any) => string) => (chunkId: any) => {
+    return (
+      getOriginalChunk(chunkId) +
+      `${
+        process.env.__NEXT_DEPLOYMENT_ID
+          ? `?dpl=${process.env.__NEXT_DEPLOYMENT_ID}`
+          : ''
+      }`
+    )
+  }
+
 // eslint-disable-next-line no-undef
 const getChunkScriptFilename = __webpack_require__.u
 const chunkFilenameMap: any = {}
 
 // eslint-disable-next-line no-undef
-__webpack_require__.u = (chunkId: any) => {
-  return chunkFilenameMap[chunkId] || getChunkScriptFilename(chunkId)
-}
+__webpack_require__.u = addChunkSuffix((chunkId) =>
+  encodeURI(chunkFilenameMap[chunkId] || getChunkScriptFilename(chunkId))
+)
+
+// eslint-disable-next-line no-undef
+const getChunkCssFilename = __webpack_require__.k
+// eslint-disable-next-line no-undef
+__webpack_require__.k = addChunkSuffix(getChunkCssFilename)
+
+// eslint-disable-next-line no-undef
+const getMiniCssFilename = __webpack_require__.miniCssF
+// eslint-disable-next-line no-undef
+__webpack_require__.miniCssF = addChunkSuffix(getMiniCssFilename)
 
 // Ignore the module ID transform in client.
 // eslint-disable-next-line no-undef
@@ -51,8 +94,8 @@ self.__next_require__ =
 // eslint-disable-next-line no-undef
 ;(self as any).__next_chunk_load__ = (chunk: string) => {
   if (!chunk) return Promise.resolve()
-  const [chunkId, chunkFileName] = chunk.split(':')
-  chunkFilenameMap[chunkId] = `static/chunks/${chunkFileName}.js`
+  const [chunkId, chunkFilePath] = chunk.split(':')
+  chunkFilenameMap[chunkId] = chunkFilePath
 
   // @ts-ignore
   // eslint-disable-next-line no-undef
@@ -150,7 +193,9 @@ function useInitialServerResponse(cacheKey: string): Promise<JSX.Element> {
     },
   })
 
-  const newResponse = createFromReadableStream(readable)
+  const newResponse = createFromReadableStream(readable, {
+    callServer,
+  })
 
   rscCache.set(cacheKey, newResponse)
   return newResponse
@@ -214,11 +259,15 @@ export function hydrate() {
       reactRoot.render(
         <GlobalLayoutRouterContext.Provider
           value={{
+            buildId: 'development',
             tree: rootLayoutMissingTagsError.tree,
             changeByServerResponse: () => {},
             focusAndScrollRef: {
               apply: false,
+              hashFragment: null,
+              segmentPaths: [],
             },
+            nextUrl: null,
           }}
         >
           <HotReload
@@ -273,4 +322,6 @@ export function hydrate() {
   if (isError) {
     reactRoot.render(reactEl)
   }
+
+  linkGc()
 }

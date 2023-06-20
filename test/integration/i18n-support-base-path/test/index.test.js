@@ -33,6 +33,13 @@ describe('i18n Support basePath', () => {
       )
     })
   })
+  afterAll(async () => {
+    await new Promise((resolve, reject) =>
+      ctx.externalApp.close((err) => {
+        err ? reject(err) : resolve()
+      })
+    )
+  })
 
   describe('dev mode', () => {
     const curCtx = {

@@ -15,7 +15,7 @@ const ViewSource = ({ pathname }: ViewSourceProps) => (
   >
     <a
       title="View Source"
-      href={`https://github.com/vercel/next.js/tree/canary/examples/image-component/${pathname}`}
+      href={`https://github.com/vercel/next.js/blob/canary/examples/image-component/${pathname}`}
     >
       <path d="M0 0l115 115h15l12 27 108 108V0z" fill="#fff" />
       <path

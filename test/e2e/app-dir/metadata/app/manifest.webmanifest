@@ -1,0 +1,9 @@
+{
+  "name": "Next.js Static Manifest",
+  "short_name": "Next.js App",
+  "description": "Next.js App",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fff",
+  "theme_color": "#fff"
+}

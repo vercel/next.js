@@ -48,12 +48,16 @@ createNextDescribe(
         () => session.getRedboxSource(),
         /That only works in a Server Component/
       )
-      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+      expect(
+        next.normalizeTestDirContent(await session.getRedboxSource())
+      ).toMatchInlineSnapshot(
+        next.normalizeSnapshot(`
         "./components/Comp.js
+        ReactServerComponentsError:
 
-        You're importing a component that needs next/headers. That only works in a Server Component which is not supported in the pages/ directory. Read more: https://beta.nextjs.org/docs/rendering/server-and-client-components
+        You're importing a component that needs next/headers. That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/react-essentials#server-components
 
-           ,-[1:1]
+           ,-[TEST_DIR/components/Comp.js:1:1]
          1 | 
          2 |         import { cookies } from 'next/headers'
            :         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -63,9 +67,10 @@ createNextDescribe(
            \`----
 
         Import trace for requested module:
-          components/Comp.js
-          pages/index.js"
+          ./components/Comp.js
+          ./pages/index.js"
       `)
+      )
 
       await cleanup()
     })
@@ -89,12 +94,16 @@ createNextDescribe(
         () => session.getRedboxSource(),
         /That only works in a Server Component/
       )
-      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+      expect(
+        next.normalizeTestDirContent(await session.getRedboxSource())
+      ).toMatchInlineSnapshot(
+        next.normalizeSnapshot(`
         "./components/Comp.js
+        ReactServerComponentsError:
 
-        You're importing a component that needs server-only. That only works in a Server Component which is not supported in the pages/ directory. Read more: https://beta.nextjs.org/docs/rendering/server-and-client-components
+        You're importing a component that needs server-only. That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/react-essentials#server-components
 
-           ,-[1:1]
+           ,-[TEST_DIR/components/Comp.js:1:1]
          1 | 
          2 |           import 'server-only' 
            :           ^^^^^^^^^^^^^^^^^^^^
@@ -104,89 +113,10 @@ createNextDescribe(
            \`----
 
         Import trace for requested module:
-          components/Comp.js
-          pages/index.js"
+          ./components/Comp.js
+          ./pages/index.js"
       `)
-
-      await cleanup()
-    })
-
-    test('"use client" at the bottom of the page', async () => {
-      const { session, cleanup } = await sandbox(next, initialFiles, false)
-
-      await next.patchFile(
-        'components/Comp.js',
-        `
-        export default function Component() {
-            return null
-        }
-        'use client';
-          `
       )
-
-      expect(await session.hasRedbox(true)).toBe(true)
-      await check(
-        () => session.getRedboxSource(),
-        /which is not supported in the pages/
-      )
-      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-        "./components/Comp.js
-
-        You have tried to use the \\"use client\\" directive which is not supported in the pages/ directory. Read more: https://beta.nextjs.org/docs/rendering/server-and-client-components
-
-           ,-[2:1]
-         2 |         export default function Component() {
-         3 |             return null
-         4 |         }
-         5 |         'use client';
-           :         ^^^^^^^^^^^^^
-         6 |           
-           \`----
-
-        Import trace for requested module:
-          components/Comp.js
-          pages/index.js"
-      `)
-
-      await cleanup()
-    })
-
-    test('"use client" with parentheses', async () => {
-      const { session, cleanup } = await sandbox(next, initialFiles, false)
-
-      await next.patchFile(
-        'components/Comp.js',
-        `
-          ;('use client')
-          export default function Component() {
-              return null
-          }
-            `
-      )
-
-      expect(await session.hasRedbox(true)).toBe(true)
-      await check(
-        () => session.getRedboxSource(),
-        /which is not supported in the pages/
-      )
-      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-        "./components/Comp.js
-
-        You have tried to use the \\"use client\\" directive which is not supported in the pages/ directory. Read more: https://beta.nextjs.org/docs/rendering/server-and-client-components
-
-           ,-[1:1]
-         1 | 
-         2 |           ;('use client')
-           :            ^^^^^^^^^^^^^^
-         3 |           export default function Component() {
-         4 |               return null
-         5 |           }
-           \`----
-
-        Import trace for requested module:
-          components/Comp.js
-          pages/index.js"
-      `)
 
       await cleanup()
     })

@@ -1,6 +1,6 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { clearModuleContext } from '../../../server/web/sandbox'
-import { realpathSync } from 'fs'
+import { realpathSync } from '../../../lib/realpath'
 import path from 'path'
 import isError from '../../../lib/is-error'
 
@@ -11,12 +11,38 @@ const originModules = [
   require.resolve('../../../server/require'),
   require.resolve('../../../server/load-components'),
   require.resolve('../../../server/next-server'),
-  require.resolve('../../../compiled/react-server-dom-webpack/client'),
+  require.resolve('../../../compiled/react-server-dom-webpack/client.edge'),
+  require.resolve(
+    '../../../compiled/react-server-dom-webpack-experimental/client.edge'
+  ),
 ]
 
 const RUNTIME_NAMES = ['webpack-runtime', 'webpack-api-runtime']
 
-function deleteCache(filePath: string) {
+export function deleteAppClientCache() {
+  if ((global as any)._nextDeleteAppClientCache) {
+    ;(global as any)._nextDeleteAppClientCache()
+  }
+  // ensure we reset the cache for sc_server components
+  // loaded via react-server-dom-webpack
+  const reactServerDomModId = require.resolve(
+    'react-server-dom-webpack/client.edge'
+  )
+  const reactServerDomMod = require.cache[reactServerDomModId]
+
+  if (reactServerDomMod) {
+    for (const child of reactServerDomMod.children) {
+      child.parent = null
+      delete require.cache[child.id]
+    }
+  }
+  delete require.cache[reactServerDomModId]
+}
+
+export function deleteCache(filePath: string) {
+  if ((global as any)._nextDeleteCache) {
+    ;(global as any)._nextDeleteCache(filePath)
+  }
   try {
     filePath = realpathSync(filePath)
   } catch (e) {
@@ -58,7 +84,12 @@ export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
       PLUGIN_NAME,
       (_file, { targetPath, content }) => {
         deleteCache(targetPath)
-        clearModuleContext(targetPath, content.toString('utf-8'))
+        const contentStr = content.toString('utf-8')
+
+        if ((global as any)._nextClearModuleContext) {
+          ;(global as any)._nextClearModuleContext(targetPath, contentStr)
+        }
+        clearModuleContext(targetPath, contentStr)
       }
     )
 
@@ -82,20 +113,6 @@ export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
       })
 
       if (hasAppPath) {
-        // ensure we reset the cache for sc_server components
-        // loaded via react-server-dom-webpack
-        const reactServerDomModId = require.resolve(
-          'next/dist/compiled/react-server-dom-webpack/client'
-        )
-        const reactServerDomMod = require.cache[reactServerDomModId]
-
-        if (reactServerDomMod) {
-          for (const child of reactServerDomMod.children) {
-            child.parent = null
-            delete require.cache[child.id]
-          }
-        }
-        delete require.cache[reactServerDomModId]
       }
 
       entries.forEach((page) => {

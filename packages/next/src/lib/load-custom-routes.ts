@@ -525,7 +525,9 @@ function processRoutes<T>(
           newRoutes.push({
             ...r,
             destination,
-            source: `${srcBasePath}/${item.locale}${r.source}`,
+            source: `${srcBasePath}/${item.locale}${
+              r.source === '/' && !config.trailingSlash ? '' : r.source
+            }`,
           })
         })
       }
@@ -565,6 +567,10 @@ async function loadRedirects(config: NextConfig) {
   // they are still valid
   checkCustomRoutes(redirects, 'redirect')
 
+  // save original redirects before transforms
+  if (Array.isArray(redirects)) {
+    ;(config as any)._originalRedirects = redirects.map((r) => ({ ...r }))
+  }
   redirects = processRoutes(redirects, config, 'redirect')
   checkCustomRoutes(redirects, 'redirect')
   return redirects
@@ -602,6 +608,13 @@ async function loadRewrites(config: NextConfig) {
   checkCustomRoutes(beforeFiles, 'rewrite')
   checkCustomRoutes(afterFiles, 'rewrite')
   checkCustomRoutes(fallback, 'rewrite')
+
+  // save original rewrites before transforms
+  ;(config as any)._originalRewrites = {
+    beforeFiles: beforeFiles.map((r) => ({ ...r })),
+    afterFiles: afterFiles.map((r) => ({ ...r })),
+    fallback: fallback.map((r) => ({ ...r })),
+  }
 
   beforeFiles = processRoutes(beforeFiles, config, 'rewrite')
   afterFiles = processRoutes(afterFiles, config, 'rewrite')
@@ -668,6 +681,13 @@ export default async function loadCustomRoutes(
           permanent: true,
           locale: config.i18n ? false : undefined,
           internal: true,
+          // don't run this redirect for _next/data requests
+          missing: [
+            {
+              type: 'header',
+              key: 'x-nextjs-data',
+            },
+          ],
         } as Redirect,
         {
           source: '/:notfile((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/\\.]+)',

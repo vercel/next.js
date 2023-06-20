@@ -16,6 +16,9 @@ const nextBuild: CliCommand = (argv) => {
     '--debug': Boolean,
     '--no-lint': Boolean,
     '--no-mangling': Boolean,
+    '--experimental-app-only': Boolean,
+    '--experimental-turbo': Boolean,
+    '--build-mode': String,
     // Aliases
     '-h': '--help',
     '-d': '--debug',
@@ -43,9 +46,12 @@ const nextBuild: CliCommand = (argv) => {
       If no directory is provided, the current directory will be used.
 
       Options
-      --profile     Can be used to enable React Production Profiling
-      --no-lint     Disable linting
-      --no-mangling Disable mangling
+      --profile                Can be used to enable React Production Profiling
+      --no-lint                Disable linting
+      --no-mangling            Disable mangling
+      --experimental-app-only  Only build 'app' routes
+      --experimental-turbo     Enable experimental turbo mode
+      --help, -h               Displays this message
     `,
       0
     )
@@ -70,11 +76,13 @@ const nextBuild: CliCommand = (argv) => {
 
   return build(
     dir,
-    null,
     args['--profile'],
-    args['--debug'],
+    args['--debug'] || process.env.NEXT_DEBUG_BUILD,
     !args['--no-lint'],
-    args['--no-mangling']
+    args['--no-mangling'],
+    args['--experimental-app-only'],
+    args['--experimental-turbo'],
+    args['--build-mode'] || 'default'
   ).catch((err) => {
     console.error('')
     if (
@@ -82,6 +90,8 @@ const nextBuild: CliCommand = (argv) => {
       (err.code === 'INVALID_RESOLVE_ALIAS' ||
         err.code === 'WEBPACK_ERRORS' ||
         err.code === 'BUILD_OPTIMIZATION_FAILED' ||
+        err.code === 'NEXT_EXPORT_ERROR' ||
+        err.code === 'NEXT_STATIC_GEN_BAILOUT' ||
         err.code === 'EDGE_RUNTIME_UNSUPPORTED_API')
     ) {
       printAndExit(`> ${err.message}`)

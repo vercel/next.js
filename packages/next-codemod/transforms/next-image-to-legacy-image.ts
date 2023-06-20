@@ -5,7 +5,7 @@ export default function transformer(
   api: API,
   options: Options
 ) {
-  const j = api.jscodeshift
+  const j = api.jscodeshift.withParser('tsx')
   const root = j(file.source)
 
   // Before: import Image from "next/image"
@@ -15,24 +15,21 @@ export default function transformer(
       source: { value: 'next/image' },
     })
     .forEach((imageImport) => {
-      j(imageImport).replaceWith(
-        j.importDeclaration(
-          imageImport.node.specifiers,
-          j.stringLiteral('next/legacy/image')
-        )
-      )
+      imageImport.node.source = j.stringLiteral('next/legacy/image')
     })
   // Before: const Image = await import("next/image")
   //  After: const Image = await import("next/legacy/image")
-  root
-    .find(j.ImportExpression, {
-      source: { value: 'next/image' },
-    })
-    .forEach((imageImport) => {
-      j(imageImport).replaceWith(
-        j.importExpression(j.stringLiteral('next/legacy/image'))
-      )
-    })
+  root.find(j.AwaitExpression).forEach((awaitExp) => {
+    const arg = awaitExp.value.argument
+    if (arg?.type === 'CallExpression' && arg.callee.type === 'Import') {
+      if (
+        arg.arguments[0].type === 'StringLiteral' &&
+        arg.arguments[0].value === 'next/image'
+      ) {
+        arg.arguments[0] = j.stringLiteral('next/legacy/image')
+      }
+    }
+  })
 
   // Before: import Image from "next/future/image"
   //  After: import Image from "next/image"
@@ -41,25 +38,22 @@ export default function transformer(
       source: { value: 'next/future/image' },
     })
     .forEach((imageFutureImport) => {
-      j(imageFutureImport).replaceWith(
-        j.importDeclaration(
-          imageFutureImport.node.specifiers,
-          j.stringLiteral('next/image')
-        )
-      )
+      imageFutureImport.node.source = j.stringLiteral('next/image')
     })
 
   // Before: const Image = await import("next/future/image")
   //  After: const Image = await import("next/image")
-  root
-    .find(j.ImportExpression, {
-      source: { value: 'next/future/image' },
-    })
-    .forEach((imageFutureImport) => {
-      j(imageFutureImport).replaceWith(
-        j.importExpression(j.stringLiteral('next/image'))
-      )
-    })
+  root.find(j.AwaitExpression).forEach((awaitExp) => {
+    const arg = awaitExp.value.argument
+    if (arg?.type === 'CallExpression' && arg.callee.type === 'Import') {
+      if (
+        arg.arguments[0].type === 'StringLiteral' &&
+        arg.arguments[0].value === 'next/future/image'
+      ) {
+        arg.arguments[0] = j.stringLiteral('next/image')
+      }
+    }
+  })
 
   // Before: const Image = require("next/image")
   //  After: const Image = require("next/legacy/image")
@@ -71,10 +65,10 @@ export default function transformer(
       let firstArg = requireExp.value.arguments[0]
       if (
         firstArg &&
-        firstArg.type === 'Literal' &&
+        firstArg.type === 'StringLiteral' &&
         firstArg.value === 'next/image'
       ) {
-        requireExp.value.arguments[0] = j.literal('next/legacy/image')
+        requireExp.value.arguments[0] = j.stringLiteral('next/legacy/image')
       }
     }
   })
@@ -89,10 +83,10 @@ export default function transformer(
       let firstArg = requireExp.value.arguments[0]
       if (
         firstArg &&
-        firstArg.type === 'Literal' &&
+        firstArg.type === 'StringLiteral' &&
         firstArg.value === 'next/future/image'
       ) {
-        requireExp.value.arguments[0] = j.literal('next/image')
+        requireExp.value.arguments[0] = j.stringLiteral('next/image')
       }
     }
   })

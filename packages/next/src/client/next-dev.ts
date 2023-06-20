@@ -55,7 +55,7 @@ initialize({ webpackHMR })
       let buildIndicatorHandler: any = () => {}
 
       function devPagesManifestListener(event: any) {
-        if (event.data.indexOf('devPagesManifest') !== -1) {
+        if (event.data.includes('devPagesManifest')) {
           fetch(
             `${assetPrefix}/_next/static/development/_devPagesManifest.json`
           )
@@ -66,9 +66,9 @@ initialize({ webpackHMR })
             .catch((err) => {
               console.log(`Failed to fetch devPagesManifest`, err)
             })
-        } else if (event.data.indexOf('middlewareChanges') !== -1) {
+        } else if (event.data.includes('middlewareChanges')) {
           return window.location.reload()
-        } else if (event.data.indexOf('serverOnlyChanges') !== -1) {
+        } else if (event.data.includes('serverOnlyChanges')) {
           const { pages } = JSON.parse(event.data)
 
           // Make sure to reload when the dev-overlay is showing for an

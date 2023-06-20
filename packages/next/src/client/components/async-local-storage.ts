@@ -1,4 +1,4 @@
-import { AsyncLocalStorage } from 'async_hooks'
+import type { AsyncLocalStorage } from 'async_hooks'
 
 class FakeAsyncLocalStorage<Store extends {}>
   implements AsyncLocalStorage<Store>

@@ -5,6 +5,7 @@ import { generateETag } from '../lib/etag'
 import fresh from 'next/dist/compiled/fresh'
 import RenderResult from '../render-result'
 import { setRevalidateHeaders } from './revalidate-headers'
+import { RSC_CONTENT_TYPE_HEADER } from '../../client/components/app-router-headers'
 
 export type PayloadOptions =
   | { private: true }
@@ -62,9 +63,13 @@ export async function sendRenderResult({
     res.setHeader('X-Powered-By', 'Next.js')
   }
 
+  if (options != null) {
+    setRevalidateHeaders(res, options)
+  }
+
   const payload = result.isDynamic() ? null : await result.toUnchunkedString()
 
-  if (payload) {
+  if (payload !== null) {
     const etag = generateEtags ? generateETag(payload) : undefined
     if (sendEtagResponse(req, res, etag)) {
       return
@@ -79,7 +84,7 @@ export async function sendRenderResult({
       resultContentType
         ? resultContentType
         : type === 'rsc'
-        ? 'application/octet-stream'
+        ? RSC_CONTENT_TYPE_HEADER
         : type === 'json'
         ? 'application/json'
         : 'text/html; charset=utf-8'
@@ -90,13 +95,9 @@ export async function sendRenderResult({
     res.setHeader('Content-Length', Buffer.byteLength(payload))
   }
 
-  if (options != null) {
-    setRevalidateHeaders(res, options)
-  }
-
   if (req.method === 'HEAD') {
     res.end(null)
-  } else if (payload) {
+  } else if (payload !== null) {
     res.end(payload)
   } else {
     await result.pipe(res)

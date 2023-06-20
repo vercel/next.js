@@ -178,13 +178,17 @@ describe('ReactRefreshRegression app', () => {
       `
     )
 
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('0')
+    await check(
+      () => session.evaluate(() => document.querySelector('p').textContent),
+      '0'
+    )
+
     await session.evaluate(() => document.querySelector('button').click())
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('1')
+
+    await check(
+      () => session.evaluate(() => document.querySelector('p').textContent),
+      '1'
+    )
 
     await session.patch(
       'index.js',
@@ -204,13 +208,17 @@ describe('ReactRefreshRegression app', () => {
       `
     )
 
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('Count: 1')
+    await check(
+      () => session.evaluate(() => document.querySelector('p').textContent),
+      'Count: 1'
+    )
+
     await session.evaluate(() => document.querySelector('button').click())
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('Count: 2')
+
+    await check(
+      () => session.evaluate(() => document.querySelector('p').textContent),
+      'Count: 2'
+    )
 
     await cleanup()
   })

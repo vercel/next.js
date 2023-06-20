@@ -96,18 +96,4 @@ describe('config', () => {
     )
     expect(config.__test__ext).toBe('js')
   })
-
-  it('Should ignore configs set to `undefined`', async () => {
-    const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, null, {
-      target: undefined,
-    })
-    expect(config.target).toBe('server')
-  })
-
-  it('Should ignore configs set to `null`', async () => {
-    const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, null, {
-      target: null,
-    })
-    expect(config.target).toBe('server')
-  })
 })

@@ -120,6 +120,17 @@ export async function sandbox(
         }
         return source
       },
+      async getRedboxComponentStack() {
+        await browser.waitForElementByCss('[data-nextjs-component-stack-frame]')
+        const componentStackFrameElements = await browser.elementsByCss(
+          '[data-nextjs-component-stack-frame]'
+        )
+        const componentStackFrameTexts = await Promise.all(
+          componentStackFrameElements.map((f) => f.innerText())
+        )
+
+        return componentStackFrameTexts.join('\n')
+      },
     },
     async cleanup() {
       await browser.close()

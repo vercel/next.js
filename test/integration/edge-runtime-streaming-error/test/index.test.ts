@@ -1,5 +1,6 @@
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import {
+  check,
   fetchViaHTTP,
   findPort,
   killApp,
@@ -19,11 +20,11 @@ function test(context: ReturnType<typeof createContext>) {
     expect(await res.text()).toEqual('hello')
     expect(res.status).toBe(200)
     await waitFor(200)
-    const santizedOutput = stripAnsi(context.output)
-    expect(santizedOutput).toMatch(
-      new RegExp(`TypeError: This ReadableStream did not return bytes.`, 'm')
+    await check(
+      () => stripAnsi(context.output),
+      new RegExp(`This ReadableStream did not return bytes.`, 'm')
     )
-    expect(santizedOutput).not.toContain('webpack-internal:')
+    expect(stripAnsi(context.output)).not.toContain('webpack-internal:')
   }
 }
 

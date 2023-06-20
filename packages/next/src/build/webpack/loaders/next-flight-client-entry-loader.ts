@@ -22,12 +22,11 @@ export default async function transformSource(this: any): Promise<string> {
 
   const requests = modules as string[]
   const code = requests
-    // Filter out css files on the server
+    // Filter out CSS files in the SSR compilation
     .filter((request) => (isServer ? !regexCSS.test(request) : true))
-    .map((request) =>
-      regexCSS.test(request)
-        ? `(() => import(/* webpackMode: "lazy" */ ${JSON.stringify(request)}))`
-        : `import(/* webpackMode: "eager" */ ${JSON.stringify(request)})`
+    .map(
+      (request) =>
+        `import(/* webpackMode: "eager" */ ${JSON.stringify(request)})`
     )
     .join(';\n')
 

@@ -49,6 +49,12 @@ export async function middleware(request) {
     return NextResponse.next()
   }
 
+  if (
+    url.pathname.includes('/_next/static/chunks/pages/_app-non-existent.js')
+  ) {
+    return NextResponse.rewrite('https://example.vercel.sh')
+  }
+
   if (url.pathname === '/api/edge-search-params') {
     const newUrl = url.clone()
     newUrl.searchParams.set('foo', 'bar')
@@ -110,22 +116,6 @@ export async function middleware(request) {
   }
 
   if (url.pathname === '/global') {
-    // The next line is required to allow to find the env variable
-    // eslint-disable-next-line no-unused-expressions
-    process.env.MIDDLEWARE_TEST
-
-    // The next line is required to allow to find the env variable
-    // eslint-disable-next-line no-unused-expressions
-    const { ANOTHER_MIDDLEWARE_TEST } = process.env
-    if (!ANOTHER_MIDDLEWARE_TEST) {
-      console.log('missing ANOTHER_MIDDLEWARE_TEST')
-    }
-
-    const { STRING_ENV_VAR: stringEnvVar } = process['env']
-    if (!stringEnvVar) {
-      console.log('missing STRING_ENV_VAR')
-    }
-
     return serializeData(JSON.stringify({ process: { env: process.env } }))
   }
 

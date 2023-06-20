@@ -43,33 +43,37 @@ async function loaderTransform(
 
   const {
     isServer,
-    isServerLayer,
     rootDir,
     pagesDir,
+    appDir,
     hasReactRefresh,
     nextConfig,
     jsConfig,
     supportedBrowsers,
     swcCacheDir,
     hasServerComponents,
+    isServerLayer,
   } = loaderOptions
   const isPageFile = filename.startsWith(pagesDir)
   const relativeFilePathFromRoot = path.relative(rootDir, filename)
 
   const swcOptions = getLoaderSWCOptions({
     pagesDir,
+    appDir,
     filename,
     isServer,
-    isServerLayer,
     isPageFile,
     development: this.mode === 'development',
     hasReactRefresh,
-    nextConfig,
+    modularizeImports: nextConfig?.modularizeImports,
+    swcPlugins: nextConfig?.experimental?.swcPlugins,
+    compilerOptions: nextConfig?.compiler,
     jsConfig,
     supportedBrowsers,
     swcCacheDir,
     relativeFilePathFromRoot,
     hasServerComponents,
+    isServerLayer,
   })
 
   const programmaticOptions = {

@@ -7,7 +7,7 @@ export function setRevalidateHeaders(
   options: PayloadOptions
 ) {
   if (options.private || options.stateful) {
-    if (options.private || !res.hasHeader('Cache-Control')) {
+    if (options.private || !res.getHeader('Cache-Control')) {
       res.setHeader(
         'Cache-Control',
         `private, no-cache, no-store, max-age=0, must-revalidate`

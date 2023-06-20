@@ -1,4 +1,3 @@
-import path from 'path'
 import curry from 'next/dist/compiled/lodash.curry'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { loader, plugin } from '../../helpers'
@@ -25,6 +24,14 @@ const regexCssModules = /\.module\.css$/
 // RegExps for Syntactically Awesome Style Sheets
 const regexSassGlobal = /(?<!\.module)\.(scss|sass)$/
 const regexSassModules = /\.module\.(scss|sass)$/
+
+const APP_LAYER_RULE = {
+  or: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.client, WEBPACK_LAYERS.appClient],
+}
+
+const PAGES_LAYER_RULE = {
+  not: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.client, WEBPACK_LAYERS.appClient],
+}
 
 /**
  * Mark a rule as removable if built-in CSS support is disabled
@@ -151,7 +158,17 @@ export const css = curry(async function css(
         // Source maps are required so that `resolve-url-loader` can locate
         // files original to their source directory.
         sourceMap: true,
-        sassOptions,
+        sassOptions: {
+          // The "fibers" option is not needed for Node.js 16+, but it's causing
+          // problems for Node.js <= 14 users as you'll have to manually install
+          // the `fibers` package:
+          // https://github.com/webpack-contrib/sass-loader#:~:text=We%20automatically%20inject%20the%20fibers%20package
+          // https://github.com/vercel/next.js/issues/45052
+          // Since it's optional and not required, we'll disable it by default
+          // to avoid the confusion.
+          fibers: false,
+          ...sassOptions,
+        },
         additionalData: sassPrependData || sassAdditionalData,
       },
     },
@@ -173,27 +190,29 @@ export const css = curry(async function css(
 
   const fns: ConfigurationFn[] = []
 
-  // Resolve the configured font loaders, the resolved files are noop files that next-font-loader will match
-  let fontLoaders: [string, string][] | undefined = ctx.experimental.fontLoaders
-    ? ctx.experimental.fontLoaders.map(({ loader: fontLoader, options }) => [
-        path.join(require.resolve(fontLoader), '../target.css'),
-        options,
-      ])
-    : undefined
+  const googleLoader = require.resolve(
+    'next/dist/compiled/@next/font/google/loader'
+  )
+  const localLoader = require.resolve(
+    'next/dist/compiled/@next/font/local/loader'
+  )
+  const nextFontLoaders: Array<[string | RegExp, string, any?]> = [
+    [require.resolve('next/font/google/target.css'), googleLoader],
+    [require.resolve('next/font/local/target.css'), localLoader],
+    // TODO: remove this in the next major version
+    [/node_modules[\\/]@next[\\/]font[\\/]google[\\/]target.css/, googleLoader],
+    [/node_modules[\\/]@next[\\/]font[\\/]local[\\/]target.css/, localLoader],
+  ]
 
-  fontLoaders?.forEach(([fontLoaderPath, fontLoaderOptions]) => {
+  nextFontLoaders.forEach(([fontLoaderTarget, fontLoaderPath]) => {
     // Matches the resolved font loaders noop files to run next-font-loader
     fns.push(
       loader({
         oneOf: [
           markRemovable({
             sideEffects: false,
-            test: fontLoaderPath,
-            use: getNextFontLoader(
-              ctx,
-              lazyPostCSSInitializer,
-              fontLoaderOptions
-            ),
+            test: fontLoaderTarget,
+            use: getNextFontLoader(ctx, lazyPostCSSInitializer, fontLoaderPath),
           }),
         ],
       })
@@ -232,35 +251,29 @@ export const css = curry(async function css(
     // via the `pure` mode in `css-loader`.
     loader({
       oneOf: [
-        // For app dir, it has to match one of the 2 layers and then apply a
-        // specific loader.
-        ctx.hasAppDir && !ctx.isProduction
+        // For app dir, we need to match the specific app layer.
+        ctx.hasAppDir
           ? markRemovable({
               sideEffects: false,
               test: regexCssModules,
-              issuerLayer: {
-                or: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.client],
-              },
+              issuerLayer: APP_LAYER_RULE,
               use: [
-                require.resolve('../../../loaders/next-flight-css-dev-loader'),
-                ...getCssModuleLoader(ctx, lazyPostCSSInitializer),
-              ],
-            })
-          : null,
-        ctx.hasAppDir && !ctx.isServer
-          ? markRemovable({
-              sideEffects: false,
-              test: regexCssModules,
-              use: [
-                require.resolve('../../../loaders/next-flight-css-dev-loader'),
-                ...getCssModuleLoader(ctx, lazyPostCSSInitializer),
+                require.resolve('../../../loaders/next-flight-css-loader'),
+                ...getCssModuleLoader(
+                  { ...ctx, isAppDir: true },
+                  lazyPostCSSInitializer
+                ),
               ],
             })
           : null,
         markRemovable({
           sideEffects: false,
           test: regexCssModules,
-          use: getCssModuleLoader(ctx, lazyPostCSSInitializer),
+          issuerLayer: PAGES_LAYER_RULE,
+          use: getCssModuleLoader(
+            { ...ctx, isAppDir: false },
+            lazyPostCSSInitializer
+          ),
         }),
       ].filter(nonNullable),
     }),
@@ -271,32 +284,16 @@ export const css = curry(async function css(
     // via the `pure` mode in `css-loader`.
     loader({
       oneOf: [
-        // For app dir, we match both server and client layers.
-        ctx.hasAppDir && !ctx.isProduction
+        // For app dir, we need to match the specific app layer.
+        ctx.hasAppDir
           ? markRemovable({
               sideEffects: false,
               test: regexSassModules,
-              issuerLayer: {
-                or: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.client],
-              },
+              issuerLayer: APP_LAYER_RULE,
               use: [
-                require.resolve('../../../loaders/next-flight-css-dev-loader'),
+                require.resolve('../../../loaders/next-flight-css-loader'),
                 ...getCssModuleLoader(
-                  ctx,
-                  lazyPostCSSInitializer,
-                  sassPreprocessors
-                ),
-              ],
-            })
-          : null,
-        ctx.hasAppDir && !ctx.isServer
-          ? markRemovable({
-              sideEffects: false,
-              test: regexSassModules,
-              use: [
-                require.resolve('../../../loaders/next-flight-css-dev-loader'),
-                ...getCssModuleLoader(
-                  ctx,
+                  { ...ctx, isAppDir: true },
                   lazyPostCSSInitializer,
                   sassPreprocessors
                 ),
@@ -306,8 +303,9 @@ export const css = curry(async function css(
         markRemovable({
           sideEffects: false,
           test: regexSassModules,
+          issuerLayer: PAGES_LAYER_RULE,
           use: getCssModuleLoader(
-            ctx,
+            { ...ctx, isAppDir: false },
             lazyPostCSSInitializer,
             sassPreprocessors
           ),
@@ -339,12 +337,8 @@ export const css = curry(async function css(
             ? markRemovable({
                 sideEffects: true,
                 test: [regexCssGlobal, regexSassGlobal],
-                issuerLayer: {
-                  or: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.client],
-                },
-                use: require.resolve(
-                  '../../../loaders/next-flight-css-dev-loader'
-                ),
+                issuerLayer: APP_LAYER_RULE,
+                use: require.resolve('../../../loaders/next-flight-css-loader'),
               })
             : null,
           markRemovable({
@@ -357,87 +351,89 @@ export const css = curry(async function css(
       })
     )
   } else {
-    // They  are allowed to be loaded when any of the following is true:
-    // - hasAppDir: If the issuerLayer is RSC
+    // External CSS files are allowed to be loaded when any of the following is true:
+    // - hasAppDir: all CSS files are allowed
     // - If the CSS file is located in `node_modules`
     // - If the CSS file is located in another package in a monorepo (outside of the current rootDir)
     // - If the issuer is pages/_app (matched later)
-    const allowedExternalCSSImports = {
-      and: [
-        {
-          or: [
-            /node_modules/,
+    const allowedPagesGlobalCSSPath = ctx.hasAppDir
+      ? undefined
+      : {
+          and: [
             {
-              not: [ctx.rootDirectory],
+              or: [
+                /node_modules/,
+                {
+                  not: [ctx.rootDirectory],
+                },
+              ],
             },
           ],
-        },
-      ],
-    }
+        }
+    const allowedPagesGlobalCSSIssuer = ctx.hasAppDir
+      ? undefined
+      : shouldIncludeExternalCSSImports
+      ? undefined
+      : {
+          and: [ctx.rootDirectory],
+          not: [/node_modules/],
+        }
 
     fns.push(
       loader({
         oneOf: [
-          ctx.hasAppDir
-            ? markRemovable({
-                sideEffects: true,
-                test: regexCssGlobal,
-                use: [
-                  require.resolve(
-                    '../../../loaders/next-flight-css-dev-loader'
-                  ),
-                  ...getGlobalCssLoader(ctx, lazyPostCSSInitializer),
-                ],
-              })
-            : null,
-          ctx.hasAppDir
-            ? markRemovable({
-                sideEffects: true,
-                test: regexSassGlobal,
-                use: [
-                  require.resolve(
-                    '../../../loaders/next-flight-css-dev-loader'
-                  ),
-                  ...getGlobalCssLoader(
-                    ctx,
-                    lazyPostCSSInitializer,
-                    sassPreprocessors
-                  ),
-                ],
-              })
-            : null,
-          !ctx.hasAppDir
-            ? markRemovable({
-                sideEffects: true,
-                test: regexCssGlobal,
-                include: allowedExternalCSSImports,
-                issuer: shouldIncludeExternalCSSImports
-                  ? undefined
-                  : {
-                      and: [ctx.rootDirectory],
-                      not: [/node_modules/],
-                    },
-                use: getGlobalCssLoader(ctx, lazyPostCSSInitializer),
-              })
-            : null,
-          !ctx.hasAppDir
-            ? markRemovable({
-                sideEffects: true,
-                test: regexSassGlobal,
-                include: allowedExternalCSSImports,
-                issuer: shouldIncludeExternalCSSImports
-                  ? undefined
-                  : {
-                      and: [ctx.rootDirectory],
-                      not: [/node_modules/],
-                    },
-                use: getGlobalCssLoader(
-                  ctx,
-                  lazyPostCSSInitializer,
-                  sassPreprocessors
-                ),
-              })
-            : null,
+          ...(ctx.hasAppDir
+            ? [
+                markRemovable({
+                  sideEffects: true,
+                  test: regexCssGlobal,
+                  issuerLayer: APP_LAYER_RULE,
+                  use: [
+                    require.resolve('../../../loaders/next-flight-css-loader'),
+                    ...getGlobalCssLoader(
+                      { ...ctx, isAppDir: true },
+                      lazyPostCSSInitializer
+                    ),
+                  ],
+                }),
+                markRemovable({
+                  sideEffects: true,
+                  test: regexSassGlobal,
+                  issuerLayer: APP_LAYER_RULE,
+                  use: [
+                    require.resolve('../../../loaders/next-flight-css-loader'),
+                    ...getGlobalCssLoader(
+                      { ...ctx, isAppDir: true },
+                      lazyPostCSSInitializer,
+                      sassPreprocessors
+                    ),
+                  ],
+                }),
+              ]
+            : []),
+          markRemovable({
+            sideEffects: true,
+            test: regexCssGlobal,
+            include: allowedPagesGlobalCSSPath,
+            issuer: allowedPagesGlobalCSSIssuer,
+            issuerLayer: PAGES_LAYER_RULE,
+            use: getGlobalCssLoader(
+              { ...ctx, isAppDir: false },
+              lazyPostCSSInitializer
+            ),
+          }),
+          markRemovable({
+            sideEffects: true,
+            test: regexSassGlobal,
+            include: allowedPagesGlobalCSSPath,
+            issuer: allowedPagesGlobalCSSIssuer,
+            issuerLayer: PAGES_LAYER_RULE,
+            use: getGlobalCssLoader(
+              { ...ctx, isAppDir: false },
+              lazyPostCSSInitializer,
+              sassPreprocessors
+            ),
+          }),
         ].filter(nonNullable),
       })
     )
@@ -450,7 +446,10 @@ export const css = curry(async function css(
               sideEffects: true,
               test: regexCssGlobal,
               issuer: { and: [ctx.customAppFile] },
-              use: getGlobalCssLoader(ctx, lazyPostCSSInitializer),
+              use: getGlobalCssLoader(
+                { ...ctx, isAppDir: false },
+                lazyPostCSSInitializer
+              ),
             }),
           ],
         }),
@@ -461,7 +460,7 @@ export const css = curry(async function css(
               test: regexSassGlobal,
               issuer: { and: [ctx.customAppFile] },
               use: getGlobalCssLoader(
-                ctx,
+                { ...ctx, isAppDir: false },
                 lazyPostCSSInitializer,
                 sassPreprocessors
               ),

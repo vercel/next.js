@@ -1,6 +1,22 @@
 import type { AdjustFontFallback } from '../../../../../font'
 import postcss, { Declaration } from 'postcss'
 
+/**
+ * The next/font postcss plugin recieves the @font-face declarations returned from the next/font loaders.
+ *
+ * It hashes the font-family name to make it unguessable, it shouldn't be globally accessible.
+ * If it were global, we wouldn't be able to tell which pages are using which fonts when generating preload tags.
+ *
+ * If the font loader returned fallback metrics, generate a fallback @font-face.
+ *
+ * If the font loader returned a variable name, add a CSS class that declares a variable containing the font and fallback fonts.
+ *
+ * Lastly, it adds the font-family to the exports object.
+ * This enables you to access the actual font-family name, not just through the CSS class.
+ * e.g:
+ * const inter = Inter({ subsets: ['latin'] })
+ * inter.style.fontFamily // => '__Inter_123456'
+ */
 const postcssNextFontPlugin = ({
   exports,
   fontFamilyHash,
@@ -28,7 +44,7 @@ const postcssNextFontPlugin = ({
       }
 
       const formatFamily = (family: string) => {
-        // Turn the font family unguessable to make it localy scoped
+        // Turn the font family unguessable to make it locally scoped
         return `'__${family.replace(/ /g, '_')}_${fontFamilyHash}'`
       }
 
@@ -54,7 +70,7 @@ const postcssNextFontPlugin = ({
         throw new Error("Font loaders must return one or more @font-face's")
       }
 
-      // Add fallback font with override values
+      // Add fallback @font-face with the provided override values
       let adjustFontFallbackFamily: string | undefined
       if (adjustFontFallback) {
         adjustFontFallbackFamily = formatFamily(`${fontFamily} Fallback`)
@@ -113,6 +129,8 @@ const postcssNextFontPlugin = ({
 
       // Variable fonts can define ranges of values
       const isRange = (value: string) => value.trim().includes(' ')
+
+      // Format the font families to be used in the CSS
       const formattedFontFamilies = [
         formatFamily(fontFamily),
         ...(adjustFontFallbackFamily ? [adjustFontFallbackFamily] : []),
@@ -126,6 +144,7 @@ const postcssNextFontPlugin = ({
           prop: 'font-family',
           value: formattedFontFamilies,
         }),
+        // If the font only has one weight or style, we can set it on the class
         ...(weight && !isRange(weight)
           ? [
               new postcss.Declaration({
@@ -145,7 +164,7 @@ const postcssNextFontPlugin = ({
       ]
       root.nodes.push(classRule)
 
-      // Add class that defines a variable with the font family
+      // Add CSS class that defines a variable with the font families
       if (variable) {
         const varialbeRule = new postcss.Rule({ selector: '.variable' })
         varialbeRule.nodes = [

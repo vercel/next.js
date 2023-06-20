@@ -17,7 +17,7 @@ describe('next/jest', () => {
         import { RelayEnvironmentProvider } from 'react-relay'
         import { createMockEnvironment, MockPayloadGenerator } from 'relay-test-utils'
         
-        import Page from '../pages'
+        import Page from '@/pages'
         
         describe('test graphql tag transformation', () => {
           it('should work', async () => {

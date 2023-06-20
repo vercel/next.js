@@ -14,11 +14,11 @@ if (process.env.NODE_ENV !== "production") {
   (function() {
 'use strict';
 
-var React = require('react');
+var React = require("next/dist/compiled/react");
 var ReactDOM = require('react-dom');
 var stream = require('stream');
 
-var ReactVersion = '18.3.0-next-3ba7add60-20221201';
+var ReactVersion = '18.3.0-canary-1cea38448-20230530';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -99,9 +99,32 @@ function clonePrecomputedChunk(chunk) {
   return chunk;
 }
 function closeWithError(destination, error) {
-  // $FlowFixMe: This is an Error object or the destination accepts other types.
+  // $FlowFixMe[incompatible-call]: This is an Error object or the destination accepts other types.
   destination.destroy(error);
 }
+
+function _defineProperty(obj, key, value) {
+  if (key in obj) {
+    Object.defineProperty(obj, key, {
+      value: value,
+      enumerable: true,
+      configurable: true,
+      writable: true
+    });
+  } else {
+    obj[key] = value;
+  }
+
+  return obj;
+}
+
+function _inheritsLoose(subClass, superClass) {
+  subClass.prototype = Object.create(superClass.prototype);
+  subClass.prototype.constructor = subClass;
+  subClass.__proto__ = superClass;
+}
+
+var assign = Object.assign;
 
 /*
  * The `'' + value` pattern (used in perf-sensitive code) throws for Symbol
@@ -112,16 +135,16 @@ function closeWithError(destination, error) {
  * problem. (Instead of a confusing exception thrown inside the implementation
  * of the `value` object).
  */
-// $FlowFixMe only called in DEV, so void return is not possible.
+// $FlowFixMe[incompatible-return] only called in DEV, so void return is not possible.
 function typeName(value) {
   {
     // toStringTag is needed for namespaced types like Temporal.Instant
     var hasToStringTag = typeof Symbol === 'function' && Symbol.toStringTag;
-    var type = hasToStringTag && value[Symbol.toStringTag] || value.constructor.name || 'Object'; // $FlowFixMe
+    var type = hasToStringTag && value[Symbol.toStringTag] || value.constructor.name || 'Object'; // $FlowFixMe[incompatible-return]
 
     return type;
   }
-} // $FlowFixMe only called in DEV, so void return is not possible.
+} // $FlowFixMe[incompatible-return] only called in DEV, so void return is not possible.
 
 
 function willCoercionThrow(value) {
@@ -191,39 +214,13 @@ function checkHtmlStringCoercion(value) {
 }
 
 // -----------------------------------------------------------------------------
-var enableFloat = true; // When a node is unmounted, recurse into the Fiber subtree and clean out
+var enableFloat = true; // Enables unstable_useMemoCache hook, intended as a compilation target for
 
 // $FlowFixMe[method-unbinding]
 var hasOwnProperty = Object.prototype.hasOwnProperty;
 
-// A reserved attribute.
-// It is handled by React separately and shouldn't be written to the DOM.
-var RESERVED = 0; // A simple string attribute.
-// Attributes that aren't in the filter are presumed to have this type.
-
-var STRING = 1; // A string attribute that accepts booleans in React. In HTML, these are called
-// "enumerated" attributes with "true" and "false" as possible values.
-// When true, it should be set to a "true" string.
-// When false, it should be set to a "false" string.
-
-var BOOLEANISH_STRING = 2; // A real boolean attribute.
-// When true, it should be present (set either to an empty string or its name).
-// When false, it should be omitted.
-
-var BOOLEAN = 3; // An attribute that can be used as a flag as well as with a value.
-// When true, it should be present (set either to an empty string or its name).
-// When false, it should be omitted.
-// For any other value, should be present with that value.
-
-var OVERLOADED_BOOLEAN = 4; // An attribute that must be numeric or parse as a numeric.
-// When falsy, it should be removed.
-
-var NUMERIC = 5; // An attribute that must be positive numeric or parse as a positive numeric.
-// When falsy, it should be removed.
-
-var POSITIVE_NUMERIC = 6;
-
 /* eslint-disable max-len */
+
 var ATTRIBUTE_NAME_START_CHAR = ":A-Z_a-z\\u00C0-\\u00D6\\u00D8-\\u00F6\\u00F8-\\u02FF\\u0370-\\u037D\\u037F-\\u1FFF\\u200C-\\u200D\\u2070-\\u218F\\u2C00-\\u2FEF\\u3001-\\uD7FF\\uF900-\\uFDCF\\uFDF0-\\uFFFD";
 /* eslint-enable max-len */
 
@@ -253,308 +250,25 @@ function isAttributeNameSafe(attributeName) {
 
   return false;
 }
-function shouldRemoveAttributeWithWarning(name, value, propertyInfo, isCustomComponentTag) {
-  if (propertyInfo !== null && propertyInfo.type === RESERVED) {
-    return false;
-  }
-
-  switch (typeof value) {
-    case 'function':
-    case 'symbol':
-      // eslint-disable-line
-      return true;
-
-    case 'boolean':
-      {
-        if (isCustomComponentTag) {
-          return false;
-        }
-
-        if (propertyInfo !== null) {
-          return !propertyInfo.acceptsBooleans;
-        } else {
-          var prefix = name.toLowerCase().slice(0, 5);
-          return prefix !== 'data-' && prefix !== 'aria-';
-        }
-      }
-
-    default:
-      return false;
-  }
-}
-function getPropertyInfo(name) {
-  return properties.hasOwnProperty(name) ? properties[name] : null;
-}
-
-function PropertyInfoRecord(name, type, mustUseProperty, attributeName, attributeNamespace, sanitizeURL, removeEmptyString) {
-  this.acceptsBooleans = type === BOOLEANISH_STRING || type === BOOLEAN || type === OVERLOADED_BOOLEAN;
-  this.attributeName = attributeName;
-  this.attributeNamespace = attributeNamespace;
-  this.mustUseProperty = mustUseProperty;
-  this.propertyName = name;
-  this.type = type;
-  this.sanitizeURL = sanitizeURL;
-  this.removeEmptyString = removeEmptyString;
-} // When adding attributes to this list, be sure to also add them to
-// the `possibleStandardNames` module to ensure casing and incorrect
-// name warnings.
-
-
-var properties = {}; // These props are reserved by React. They shouldn't be written to the DOM.
-
-var reservedProps = ['children', 'dangerouslySetInnerHTML', // TODO: This prevents the assignment of defaultValue to regular
-// elements (not just inputs). Now that ReactDOMInput assigns to the
-// defaultValue property -- do we need this?
-'defaultValue', 'defaultChecked', 'innerHTML', 'suppressContentEditableWarning', 'suppressHydrationWarning', 'style'];
-
-reservedProps.forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(name, RESERVED, false, // mustUseProperty
-  name, // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // A few React string attributes have a different name.
-// This is a mapping from React prop names to the attribute names.
-
-[['acceptCharset', 'accept-charset'], ['className', 'class'], ['htmlFor', 'for'], ['httpEquiv', 'http-equiv']].forEach(function (_ref) {
-  var name = _ref[0],
-      attributeName = _ref[1];
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(name, STRING, false, // mustUseProperty
-  attributeName, // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are "enumerated" HTML attributes that accept "true" and "false".
-// In React, we let users pass `true` and `false` even though technically
-// these aren't boolean attributes (they are coerced to strings).
-
-['contentEditable', 'draggable', 'spellCheck', 'value'].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(name, BOOLEANISH_STRING, false, // mustUseProperty
-  name.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are "enumerated" SVG attributes that accept "true" and "false".
-// In React, we let users pass `true` and `false` even though technically
-// these aren't boolean attributes (they are coerced to strings).
-// Since these are SVG attributes, their attribute names are case-sensitive.
-
-['autoReverse', 'externalResourcesRequired', 'focusable', 'preserveAlpha'].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(name, BOOLEANISH_STRING, false, // mustUseProperty
-  name, // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are HTML boolean attributes.
-
-['allowFullScreen', 'async', // Note: there is a special case that prevents it from being written to the DOM
-// on the client side because the browsers are inconsistent. Instead we call focus().
-'autoFocus', 'autoPlay', 'controls', 'default', 'defer', 'disabled', 'disablePictureInPicture', 'disableRemotePlayback', 'formNoValidate', 'hidden', 'loop', 'noModule', 'noValidate', 'open', 'playsInline', 'readOnly', 'required', 'reversed', 'scoped', 'seamless', // Microdata
-'itemScope'].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(name, BOOLEAN, false, // mustUseProperty
-  name.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are the few React props that we set as DOM properties
-// rather than attributes. These are all booleans.
-
-['checked', // Note: `option.selected` is not updated if `select.multiple` is
-// disabled with `removeAttribute`. We have special logic for handling this.
-'multiple', 'muted', 'selected' // NOTE: if you add a camelCased prop to this list,
-// you'll need to set attributeName to name.toLowerCase()
-// instead in the assignment below.
-].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(name, BOOLEAN, true, // mustUseProperty
-  name, // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are HTML attributes that are "overloaded booleans": they behave like
-// booleans, but can also accept a string value.
-
-['capture', 'download' // NOTE: if you add a camelCased prop to this list,
-// you'll need to set attributeName to name.toLowerCase()
-// instead in the assignment below.
-].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(name, OVERLOADED_BOOLEAN, false, // mustUseProperty
-  name, // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are HTML attributes that must be positive numbers.
-
-['cols', 'rows', 'size', 'span' // NOTE: if you add a camelCased prop to this list,
-// you'll need to set attributeName to name.toLowerCase()
-// instead in the assignment below.
-].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(name, POSITIVE_NUMERIC, false, // mustUseProperty
-  name, // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are HTML attributes that must be numbers.
-
-['rowSpan', 'start'].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(name, NUMERIC, false, // mustUseProperty
-  name.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-});
-var CAMELIZE = /[\-\:]([a-z])/g;
-
-var capitalize = function (token) {
-  return token[1].toUpperCase();
-}; // This is a list of all SVG attributes that need special casing, namespacing,
-// or boolean value assignment. Regular attributes that just accept strings
-// and have the same names are omitted, just like in the HTML attribute filter.
-// Some of these attributes can be hard to find. This list was created by
-// scraping the MDN documentation.
-
-
-['accent-height', 'alignment-baseline', 'arabic-form', 'baseline-shift', 'cap-height', 'clip-path', 'clip-rule', 'color-interpolation', 'color-interpolation-filters', 'color-profile', 'color-rendering', 'dominant-baseline', 'enable-background', 'fill-opacity', 'fill-rule', 'flood-color', 'flood-opacity', 'font-family', 'font-size', 'font-size-adjust', 'font-stretch', 'font-style', 'font-variant', 'font-weight', 'glyph-name', 'glyph-orientation-horizontal', 'glyph-orientation-vertical', 'horiz-adv-x', 'horiz-origin-x', 'image-rendering', 'letter-spacing', 'lighting-color', 'marker-end', 'marker-mid', 'marker-start', 'overline-position', 'overline-thickness', 'paint-order', 'panose-1', 'pointer-events', 'rendering-intent', 'shape-rendering', 'stop-color', 'stop-opacity', 'strikethrough-position', 'strikethrough-thickness', 'stroke-dasharray', 'stroke-dashoffset', 'stroke-linecap', 'stroke-linejoin', 'stroke-miterlimit', 'stroke-opacity', 'stroke-width', 'text-anchor', 'text-decoration', 'text-rendering', 'underline-position', 'underline-thickness', 'unicode-bidi', 'unicode-range', 'units-per-em', 'v-alphabetic', 'v-hanging', 'v-ideographic', 'v-mathematical', 'vector-effect', 'vert-adv-y', 'vert-origin-x', 'vert-origin-y', 'word-spacing', 'writing-mode', 'xmlns:xlink', 'x-height' // NOTE: if you add a camelCased prop to this list,
-// you'll need to set attributeName to name.toLowerCase()
-// instead in the assignment below.
-].forEach(function (attributeName) {
-  var name = attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-
-  properties[name] = new PropertyInfoRecord(name, STRING, false, // mustUseProperty
-  attributeName, null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // String SVG attributes with the xlink namespace.
-
-['xlink:actuate', 'xlink:arcrole', 'xlink:role', 'xlink:show', 'xlink:title', 'xlink:type' // NOTE: if you add a camelCased prop to this list,
-// you'll need to set attributeName to name.toLowerCase()
-// instead in the assignment below.
-].forEach(function (attributeName) {
-  var name = attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-
-  properties[name] = new PropertyInfoRecord(name, STRING, false, // mustUseProperty
-  attributeName, 'http://www.w3.org/1999/xlink', false, // sanitizeURL
-  false);
-}); // String SVG attributes with the xml namespace.
-
-['xml:base', 'xml:lang', 'xml:space' // NOTE: if you add a camelCased prop to this list,
-// you'll need to set attributeName to name.toLowerCase()
-// instead in the assignment below.
-].forEach(function (attributeName) {
-  var name = attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-
-  properties[name] = new PropertyInfoRecord(name, STRING, false, // mustUseProperty
-  attributeName, 'http://www.w3.org/XML/1998/namespace', false, // sanitizeURL
-  false);
-}); // These attribute exists both in HTML and SVG.
-// The attribute name is case-sensitive in SVG so we can't just use
-// the React name like we do for attributes that exist only in HTML.
-
-['tabIndex', 'crossOrigin'].forEach(function (attributeName) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[attributeName] = new PropertyInfoRecord(attributeName, STRING, false, // mustUseProperty
-  attributeName.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These attributes accept URLs. These must not allow javascript: URLS.
-// These will also need to accept Trusted Types object in the future.
-
-var xlinkHref = 'xlinkHref'; // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-
-properties[xlinkHref] = new PropertyInfoRecord('xlinkHref', STRING, false, // mustUseProperty
-'xlink:href', 'http://www.w3.org/1999/xlink', true, // sanitizeURL
-false);
-['src', 'href', 'action', 'formAction'].forEach(function (attributeName) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[attributeName] = new PropertyInfoRecord(attributeName, STRING, false, // mustUseProperty
-  attributeName.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  true, // sanitizeURL
-  true);
-});
 
 /**
  * CSS properties which accept numbers but are not in units of "px".
  */
-var isUnitlessNumber = {
-  animationIterationCount: true,
-  aspectRatio: true,
-  borderImageOutset: true,
-  borderImageSlice: true,
-  borderImageWidth: true,
-  boxFlex: true,
-  boxFlexGroup: true,
-  boxOrdinalGroup: true,
-  columnCount: true,
-  columns: true,
-  flex: true,
-  flexGrow: true,
-  flexPositive: true,
-  flexShrink: true,
-  flexNegative: true,
-  flexOrder: true,
-  gridArea: true,
-  gridRow: true,
-  gridRowEnd: true,
-  gridRowSpan: true,
-  gridRowStart: true,
-  gridColumn: true,
-  gridColumnEnd: true,
-  gridColumnSpan: true,
-  gridColumnStart: true,
-  fontWeight: true,
-  lineClamp: true,
-  lineHeight: true,
-  opacity: true,
-  order: true,
-  orphans: true,
-  tabSize: true,
-  widows: true,
-  zIndex: true,
-  zoom: true,
-  // SVG-related properties
-  fillOpacity: true,
-  floodOpacity: true,
-  stopOpacity: true,
-  strokeDasharray: true,
-  strokeDashoffset: true,
-  strokeMiterlimit: true,
-  strokeOpacity: true,
-  strokeWidth: true
-};
-/**
- * @param {string} prefix vendor-specific prefix, eg: Webkit
- * @param {string} key style name, eg: transitionDuration
- * @return {string} style name prefixed with `prefix`, properly camelCased, eg:
- * WebkitTransitionDuration
- */
-
-function prefixKey(prefix, key) {
-  return prefix + key.charAt(0).toUpperCase() + key.substring(1);
+var unitlessNumbers = new Set(['animationIterationCount', 'aspectRatio', 'borderImageOutset', 'borderImageSlice', 'borderImageWidth', 'boxFlex', 'boxFlexGroup', 'boxOrdinalGroup', 'columnCount', 'columns', 'flex', 'flexGrow', 'flexPositive', 'flexShrink', 'flexNegative', 'flexOrder', 'gridArea', 'gridRow', 'gridRowEnd', 'gridRowSpan', 'gridRowStart', 'gridColumn', 'gridColumnEnd', 'gridColumnSpan', 'gridColumnStart', 'fontWeight', 'lineClamp', 'lineHeight', 'opacity', 'order', 'orphans', 'scale', 'tabSize', 'widows', 'zIndex', 'zoom', 'fillOpacity', // SVG-related properties
+'floodOpacity', 'stopOpacity', 'strokeDasharray', 'strokeDashoffset', 'strokeMiterlimit', 'strokeOpacity', 'strokeWidth', 'MozAnimationIterationCount', // Known Prefixed Properties
+'MozBoxFlex', // TODO: Remove these since they shouldn't be used in modern code
+'MozBoxFlexGroup', 'MozLineClamp', 'msAnimationIterationCount', 'msFlex', 'msZoom', 'msFlexGrow', 'msFlexNegative', 'msFlexOrder', 'msFlexPositive', 'msFlexShrink', 'msGridColumn', 'msGridColumnSpan', 'msGridRow', 'msGridRowSpan', 'WebkitAnimationIterationCount', 'WebkitBoxFlex', 'WebKitBoxFlexGroup', 'WebkitBoxOrdinalGroup', 'WebkitColumnCount', 'WebkitColumns', 'WebkitFlex', 'WebkitFlexGrow', 'WebkitFlexPositive', 'WebkitFlexShrink', 'WebkitLineClamp']);
+function isUnitlessNumber (name) {
+  return unitlessNumbers.has(name);
 }
-/**
- * Support style names that may come passed in prefixed by adding permutations
- * of vendor prefixes.
- */
 
-
-var prefixes = ['Webkit', 'ms', 'Moz', 'O']; // Using Object.keys here, or else the vanilla for-in loop makes IE8 go into an
-// infinite loop, because it iterates over the newly added props too.
-
-Object.keys(isUnitlessNumber).forEach(function (prop) {
-  prefixes.forEach(function (prefix) {
-    isUnitlessNumber[prefixKey(prefix, prop)] = isUnitlessNumber[prop];
-  });
-});
+var aliases = new Map([['acceptCharset', 'accept-charset'], ['htmlFor', 'for'], ['httpEquiv', 'http-equiv'], // HTML and SVG attributes, but the SVG attribute is case sensitive.],
+['crossOrigin', 'crossorigin'], // This is a list of all SVG attributes that need special casing.
+// Regular attributes that just accept strings.],
+['accentHeight', 'accent-height'], ['alignmentBaseline', 'alignment-baseline'], ['arabicForm', 'arabic-form'], ['baselineShift', 'baseline-shift'], ['capHeight', 'cap-height'], ['clipPath', 'clip-path'], ['clipRule', 'clip-rule'], ['colorInterpolation', 'color-interpolation'], ['colorInterpolationFilters', 'color-interpolation-filters'], ['colorProfile', 'color-profile'], ['colorRendering', 'color-rendering'], ['dominantBaseline', 'dominant-baseline'], ['enableBackground', 'enable-background'], ['fillOpacity', 'fill-opacity'], ['fillRule', 'fill-rule'], ['floodColor', 'flood-color'], ['floodOpacity', 'flood-opacity'], ['fontFamily', 'font-family'], ['fontSize', 'font-size'], ['fontSizeAdjust', 'font-size-adjust'], ['fontStretch', 'font-stretch'], ['fontStyle', 'font-style'], ['fontVariant', 'font-variant'], ['fontWeight', 'font-weight'], ['glyphName', 'glyph-name'], ['glyphOrientationHorizontal', 'glyph-orientation-horizontal'], ['glyphOrientationVertical', 'glyph-orientation-vertical'], ['horizAdvX', 'horiz-adv-x'], ['horizOriginX', 'horiz-origin-x'], ['imageRendering', 'image-rendering'], ['letterSpacing', 'letter-spacing'], ['lightingColor', 'lighting-color'], ['markerEnd', 'marker-end'], ['markerMid', 'marker-mid'], ['markerStart', 'marker-start'], ['overlinePosition', 'overline-position'], ['overlineThickness', 'overline-thickness'], ['paintOrder', 'paint-order'], ['panose-1', 'panose-1'], ['pointerEvents', 'pointer-events'], ['renderingIntent', 'rendering-intent'], ['shapeRendering', 'shape-rendering'], ['stopColor', 'stop-color'], ['stopOpacity', 'stop-opacity'], ['strikethroughPosition', 'strikethrough-position'], ['strikethroughThickness', 'strikethrough-thickness'], ['strokeDasharray', 'stroke-dasharray'], ['strokeDashoffset', 'stroke-dashoffset'], ['strokeLinecap', 'stroke-linecap'], ['strokeLinejoin', 'stroke-linejoin'], ['strokeMiterlimit', 'stroke-miterlimit'], ['strokeOpacity', 'stroke-opacity'], ['strokeWidth', 'stroke-width'], ['textAnchor', 'text-anchor'], ['textDecoration', 'text-decoration'], ['textRendering', 'text-rendering'], ['transformOrigin', 'transform-origin'], ['underlinePosition', 'underline-position'], ['underlineThickness', 'underline-thickness'], ['unicodeBidi', 'unicode-bidi'], ['unicodeRange', 'unicode-range'], ['unitsPerEm', 'units-per-em'], ['vAlphabetic', 'v-alphabetic'], ['vHanging', 'v-hanging'], ['vIdeographic', 'v-ideographic'], ['vMathematical', 'v-mathematical'], ['vectorEffect', 'vector-effect'], ['vertAdvY', 'vert-adv-y'], ['vertOriginX', 'vert-origin-x'], ['vertOriginY', 'vert-origin-y'], ['wordSpacing', 'word-spacing'], ['writingMode', 'writing-mode'], ['xmlnsXlink', 'xmlns:xlink'], ['xHeight', 'x-height']]);
+function getAttributeAlias (name) {
+  return aliases.get(name) || name;
+}
 
 var hasReadOnlyValue = {
   button: true,
@@ -574,31 +288,6 @@ function checkControlledValueProps(tagName, props) {
     if (!(props.onChange || props.readOnly || props.disabled || props.checked == null)) {
       error('You provided a `checked` prop to a form field without an ' + '`onChange` handler. This will render a read-only field. If ' + 'the field should be mutable use `defaultChecked`. Otherwise, ' + 'set either `onChange` or `readOnly`.');
     }
-  }
-}
-
-function isCustomComponent(tagName, props) {
-  if (tagName.indexOf('-') === -1) {
-    return typeof props.is === 'string';
-  }
-
-  switch (tagName) {
-    // These are reserved SVG and MathML elements.
-    // We don't mind this list too much because we expect it to never grow.
-    // The alternative is to track the namespace in a few places which is convoluted.
-    // https://w3c.github.io/webcomponents/spec/custom/#custom-elements-core-concepts
-    case 'annotation-xml':
-    case 'color-profile':
-    case 'font-face':
-    case 'font-face-src':
-    case 'font-face-uri':
-    case 'font-face-format':
-    case 'font-face-name':
-    case 'missing-glyph':
-      return false;
-
-    default:
-      return true;
   }
 }
 
@@ -662,17 +351,17 @@ var ariaProperties = {
   'aria-setsize': 0
 };
 
-var warnedProperties = {};
-var rARIA = new RegExp('^(aria)-[' + ATTRIBUTE_NAME_CHAR + ']*$');
-var rARIACamel = new RegExp('^(aria)[A-Z][' + ATTRIBUTE_NAME_CHAR + ']*$');
+var warnedProperties$1 = {};
+var rARIA$1 = new RegExp('^(aria)-[' + ATTRIBUTE_NAME_CHAR + ']*$');
+var rARIACamel$1 = new RegExp('^(aria)[A-Z][' + ATTRIBUTE_NAME_CHAR + ']*$');
 
-function validateProperty(tagName, name) {
+function validateProperty$1(tagName, name) {
   {
-    if (hasOwnProperty.call(warnedProperties, name) && warnedProperties[name]) {
+    if (hasOwnProperty.call(warnedProperties$1, name) && warnedProperties$1[name]) {
       return true;
     }
 
-    if (rARIACamel.test(name)) {
+    if (rARIACamel$1.test(name)) {
       var ariaName = 'aria-' + name.slice(4).toLowerCase();
       var correctName = ariaProperties.hasOwnProperty(ariaName) ? ariaName : null; // If this is an aria-* attribute, but is not listed in the known DOM
       // DOM properties, then it is an invalid aria-* attribute.
@@ -680,7 +369,7 @@ function validateProperty(tagName, name) {
       if (correctName == null) {
         error('Invalid ARIA attribute `%s`. ARIA attributes follow the pattern aria-* and must be lowercase.', name);
 
-        warnedProperties[name] = true;
+        warnedProperties$1[name] = true;
         return true;
       } // aria-* attributes should be lowercase; suggest the lowercase version.
 
@@ -688,18 +377,18 @@ function validateProperty(tagName, name) {
       if (name !== correctName) {
         error('Invalid ARIA attribute `%s`. Did you mean `%s`?', name, correctName);
 
-        warnedProperties[name] = true;
+        warnedProperties$1[name] = true;
         return true;
       }
     }
 
-    if (rARIA.test(name)) {
+    if (rARIA$1.test(name)) {
       var lowerCasedName = name.toLowerCase();
       var standardName = ariaProperties.hasOwnProperty(lowerCasedName) ? lowerCasedName : null; // If this is an aria-* attribute, but is not listed in the known DOM
       // DOM properties, then it is an invalid aria-* attribute.
 
       if (standardName == null) {
-        warnedProperties[name] = true;
+        warnedProperties$1[name] = true;
         return false;
       } // aria-* attributes should be lowercase; suggest the lowercase version.
 
@@ -707,7 +396,7 @@ function validateProperty(tagName, name) {
       if (name !== standardName) {
         error('Unknown ARIA attribute `%s`. Did you mean `%s`?', name, standardName);
 
-        warnedProperties[name] = true;
+        warnedProperties$1[name] = true;
         return true;
       }
     }
@@ -716,12 +405,12 @@ function validateProperty(tagName, name) {
   return true;
 }
 
-function warnInvalidARIAProps(type, props) {
+function validateProperties$2(type, props) {
   {
     var invalidProps = [];
 
     for (var key in props) {
-      var isValid = validateProperty(type, key);
+      var isValid = validateProperty$1(type, key);
 
       if (!isValid) {
         invalidProps.push(key);
@@ -740,14 +429,6 @@ function warnInvalidARIAProps(type, props) {
   }
 }
 
-function validateProperties(type, props) {
-  if (isCustomComponent(type, props)) {
-    return;
-  }
-
-  warnInvalidARIAProps(type, props);
-}
-
 var didWarnValueNull = false;
 function validateProperties$1(type, props) {
   {
@@ -764,6 +445,31 @@ function validateProperties$1(type, props) {
         error('`value` prop on `%s` should not be null. ' + 'Consider using an empty string to clear the component or `undefined` ' + 'for uncontrolled components.', type);
       }
     }
+  }
+}
+
+function isCustomElement(tagName, props) {
+  if (tagName.indexOf('-') === -1) {
+    return false;
+  }
+
+  switch (tagName) {
+    // These are reserved SVG and MathML elements.
+    // We don't mind this list too much because we expect it to never grow.
+    // The alternative is to track the namespace in a few places which is convoluted.
+    // https://w3c.github.io/webcomponents/spec/custom/#custom-elements-core-concepts
+    case 'annotation-xml':
+    case 'color-profile':
+    case 'font-face':
+    case 'font-face-src':
+    case 'font-face-uri':
+    case 'font-face-format':
+    case 'font-face-name':
+    case 'missing-glyph':
+      return false;
+
+    default:
+      return true;
   }
 }
 
@@ -822,6 +528,7 @@ var possibleStandardNames = {
   draggable: 'draggable',
   enctype: 'encType',
   enterkeyhint: 'enterKeyHint',
+  fetchpriority: 'fetchPriority',
   for: 'htmlFor',
   form: 'form',
   formmethod: 'formMethod',
@@ -1181,6 +888,8 @@ var possibleStandardNames = {
   'text-rendering': 'textRendering',
   to: 'to',
   transform: 'transform',
+  transformorigin: 'transformOrigin',
+  'transform-origin': 'transformOrigin',
   typeof: 'typeof',
   u1: 'u1',
   u2: 'u2',
@@ -1260,17 +969,15 @@ var possibleStandardNames = {
   zoomandpan: 'zoomAndPan'
 };
 
-var validateProperty$1 = function () {};
+var warnedProperties = {};
+var EVENT_NAME_REGEX = /^on./;
+var INVALID_EVENT_NAME_REGEX = /^on[^A-Z]/;
+var rARIA = new RegExp('^(aria)-[' + ATTRIBUTE_NAME_CHAR + ']*$') ;
+var rARIACamel = new RegExp('^(aria)[A-Z][' + ATTRIBUTE_NAME_CHAR + ']*$') ;
 
-{
-  var warnedProperties$1 = {};
-  var EVENT_NAME_REGEX = /^on./;
-  var INVALID_EVENT_NAME_REGEX = /^on[^A-Z]/;
-  var rARIA$1 = new RegExp('^(aria)-[' + ATTRIBUTE_NAME_CHAR + ']*$');
-  var rARIACamel$1 = new RegExp('^(aria)[A-Z][' + ATTRIBUTE_NAME_CHAR + ']*$');
-
-  validateProperty$1 = function (tagName, name, value, eventRegistry) {
-    if (hasOwnProperty.call(warnedProperties$1, name) && warnedProperties$1[name]) {
+function validateProperty(tagName, name, value, eventRegistry) {
+  {
+    if (hasOwnProperty.call(warnedProperties, name) && warnedProperties[name]) {
       return true;
     }
 
@@ -1279,9 +986,9 @@ var validateProperty$1 = function () {};
     if (lowerCasedName === 'onfocusin' || lowerCasedName === 'onfocusout') {
       error('React uses onFocus and onBlur instead of onFocusIn and onFocusOut. ' + 'All React events are normalized to bubble, so onFocusIn and onFocusOut ' + 'are not needed/supported by React.');
 
-      warnedProperties$1[name] = true;
+      warnedProperties[name] = true;
       return true;
-    } // We can't rely on the event system being injected on the server.
+    }
 
 
     if (eventRegistry != null) {
@@ -1297,14 +1004,14 @@ var validateProperty$1 = function () {};
       if (registrationName != null) {
         error('Invalid event handler property `%s`. Did you mean `%s`?', name, registrationName);
 
-        warnedProperties$1[name] = true;
+        warnedProperties[name] = true;
         return true;
       }
 
       if (EVENT_NAME_REGEX.test(name)) {
         error('Unknown event handler property `%s`. It will be ignored.', name);
 
-        warnedProperties$1[name] = true;
+        warnedProperties[name] = true;
         return true;
       }
     } else if (EVENT_NAME_REGEX.test(name)) {
@@ -1315,45 +1022,43 @@ var validateProperty$1 = function () {};
         error('Invalid event handler property `%s`. ' + 'React events use the camelCase naming convention, for example `onClick`.', name);
       }
 
-      warnedProperties$1[name] = true;
+      warnedProperties[name] = true;
       return true;
     } // Let the ARIA attribute hook validate ARIA attributes
 
 
-    if (rARIA$1.test(name) || rARIACamel$1.test(name)) {
+    if (rARIA.test(name) || rARIACamel.test(name)) {
       return true;
     }
 
     if (lowerCasedName === 'innerhtml') {
       error('Directly setting property `innerHTML` is not permitted. ' + 'For more information, lookup documentation on `dangerouslySetInnerHTML`.');
 
-      warnedProperties$1[name] = true;
+      warnedProperties[name] = true;
       return true;
     }
 
     if (lowerCasedName === 'aria') {
       error('The `aria` attribute is reserved for future use in React. ' + 'Pass individual `aria-` attributes instead.');
 
-      warnedProperties$1[name] = true;
+      warnedProperties[name] = true;
       return true;
     }
 
     if (lowerCasedName === 'is' && value !== null && value !== undefined && typeof value !== 'string') {
       error('Received a `%s` for a string attribute `is`. If this is expected, cast ' + 'the value to a string.', typeof value);
 
-      warnedProperties$1[name] = true;
+      warnedProperties[name] = true;
       return true;
     }
 
     if (typeof value === 'number' && isNaN(value)) {
       error('Received NaN for the `%s` attribute. If this is expected, cast ' + 'the value to a string.', name);
 
-      warnedProperties$1[name] = true;
+      warnedProperties[name] = true;
       return true;
-    }
+    } // Known attributes should match the casing specified in the property config.
 
-    var propertyInfo = getPropertyInfo(name);
-    var isReserved = propertyInfo !== null && propertyInfo.type === RESERVED; // Known attributes should match the casing specified in the property config.
 
     if (possibleStandardNames.hasOwnProperty(lowerCasedName)) {
       var standardName = possibleStandardNames[lowerCasedName];
@@ -1361,59 +1066,168 @@ var validateProperty$1 = function () {};
       if (standardName !== name) {
         error('Invalid DOM property `%s`. Did you mean `%s`?', name, standardName);
 
-        warnedProperties$1[name] = true;
+        warnedProperties[name] = true;
         return true;
       }
-    } else if (!isReserved && name !== lowerCasedName) {
+    } else if (name !== lowerCasedName) {
       // Unknown attributes should have lowercase casing since that's how they
       // will be cased anyway with server rendering.
       error('React does not recognize the `%s` prop on a DOM element. If you ' + 'intentionally want it to appear in the DOM as a custom ' + 'attribute, spell it as lowercase `%s` instead. ' + 'If you accidentally passed it from a parent component, remove ' + 'it from the DOM element.', name, lowerCasedName);
 
-      warnedProperties$1[name] = true;
-      return true;
-    }
-
-    if (typeof value === 'boolean' && shouldRemoveAttributeWithWarning(name, value, propertyInfo, false)) {
-      if (value) {
-        error('Received `%s` for a non-boolean attribute `%s`.\n\n' + 'If you want to write it to the DOM, pass a string instead: ' + '%s="%s" or %s={value.toString()}.', value, name, name, value, name);
-      } else {
-        error('Received `%s` for a non-boolean attribute `%s`.\n\n' + 'If you want to write it to the DOM, pass a string instead: ' + '%s="%s" or %s={value.toString()}.\n\n' + 'If you used to conditionally omit it with %s={condition && value}, ' + 'pass %s={condition ? value : undefined} instead.', value, name, name, value, name, name, name);
-      }
-
-      warnedProperties$1[name] = true;
+      warnedProperties[name] = true;
       return true;
     } // Now that we've validated casing, do not validate
     // data types for reserved props
 
 
-    if (isReserved) {
-      return true;
-    } // Warn when a known attribute is a bad type
+    switch (name) {
+      case 'dangerouslySetInnerHTML':
+      case 'children':
+      case 'style':
+      case 'suppressContentEditableWarning':
+      case 'suppressHydrationWarning':
+      case 'defaultValue': // Reserved
 
+      case 'defaultChecked':
+      case 'innerHTML':
+        {
+          return true;
+        }
 
-    if (shouldRemoveAttributeWithWarning(name, value, propertyInfo, false)) {
-      warnedProperties$1[name] = true;
-      return false;
-    } // Warn when passing the strings 'false' or 'true' into a boolean prop
+    }
 
+    switch (typeof value) {
+      case 'boolean':
+        {
+          switch (name) {
+            case 'autoFocus':
+            case 'checked':
+            case 'multiple':
+            case 'muted':
+            case 'selected':
+            case 'contentEditable':
+            case 'spellCheck':
+            case 'draggable':
+            case 'value':
+            case 'autoReverse':
+            case 'externalResourcesRequired':
+            case 'focusable':
+            case 'preserveAlpha':
+            case 'allowFullScreen':
+            case 'async':
+            case 'autoPlay':
+            case 'controls':
+            case 'default':
+            case 'defer':
+            case 'disabled':
+            case 'disablePictureInPicture':
+            case 'disableRemotePlayback':
+            case 'formNoValidate':
+            case 'hidden':
+            case 'loop':
+            case 'noModule':
+            case 'noValidate':
+            case 'open':
+            case 'playsInline':
+            case 'readOnly':
+            case 'required':
+            case 'reversed':
+            case 'scoped':
+            case 'seamless':
+            case 'itemScope':
+            case 'capture':
+            case 'download':
+              {
+                // Boolean properties can accept boolean values
+                return true;
+              }
 
-    if ((value === 'false' || value === 'true') && propertyInfo !== null && propertyInfo.type === BOOLEAN) {
-      error('Received the string `%s` for the boolean attribute `%s`. ' + '%s ' + 'Did you mean %s={%s}?', value, name, value === 'false' ? 'The browser will interpret it as a truthy value.' : 'Although this works, it will not work as expected if you pass the string "false".', name, value);
+            default:
+              {
+                var prefix = name.toLowerCase().slice(0, 5);
 
-      warnedProperties$1[name] = true;
-      return true;
+                if (prefix === 'data-' || prefix === 'aria-') {
+                  return true;
+                }
+
+                if (value) {
+                  error('Received `%s` for a non-boolean attribute `%s`.\n\n' + 'If you want to write it to the DOM, pass a string instead: ' + '%s="%s" or %s={value.toString()}.', value, name, name, value, name);
+                } else {
+                  error('Received `%s` for a non-boolean attribute `%s`.\n\n' + 'If you want to write it to the DOM, pass a string instead: ' + '%s="%s" or %s={value.toString()}.\n\n' + 'If you used to conditionally omit it with %s={condition && value}, ' + 'pass %s={condition ? value : undefined} instead.', value, name, name, value, name, name, name);
+                }
+
+                warnedProperties[name] = true;
+                return true;
+              }
+          }
+        }
+
+      case 'function':
+      case 'symbol':
+        // eslint-disable-line
+        // Warn when a known attribute is a bad type
+        warnedProperties[name] = true;
+        return false;
+
+      case 'string':
+        {
+          // Warn when passing the strings 'false' or 'true' into a boolean prop
+          if (value === 'false' || value === 'true') {
+            switch (name) {
+              case 'checked':
+              case 'selected':
+              case 'multiple':
+              case 'muted':
+              case 'allowFullScreen':
+              case 'async':
+              case 'autoPlay':
+              case 'controls':
+              case 'default':
+              case 'defer':
+              case 'disabled':
+              case 'disablePictureInPicture':
+              case 'disableRemotePlayback':
+              case 'formNoValidate':
+              case 'hidden':
+              case 'loop':
+              case 'noModule':
+              case 'noValidate':
+              case 'open':
+              case 'playsInline':
+              case 'readOnly':
+              case 'required':
+              case 'reversed':
+              case 'scoped':
+              case 'seamless':
+              case 'itemScope':
+                {
+                  break;
+                }
+
+              default:
+                {
+                  return true;
+                }
+            }
+
+            error('Received the string `%s` for the boolean attribute `%s`. ' + '%s ' + 'Did you mean %s={%s}?', value, name, value === 'false' ? 'The browser will interpret it as a truthy value.' : 'Although this works, it will not work as expected if you pass the string "false".', name, value);
+
+            warnedProperties[name] = true;
+            return true;
+          }
+        }
     }
 
     return true;
-  };
+  }
 }
 
-var warnUnknownProperties = function (type, props, eventRegistry) {
+function warnUnknownProperties(type, props, eventRegistry) {
   {
     var unknownProps = [];
 
     for (var key in props) {
-      var isValid = validateProperty$1(type, key, props[key], eventRegistry);
+      var isValid = validateProperty(type, key, props[key], eventRegistry);
 
       if (!isValid) {
         unknownProps.push(key);
@@ -1430,37 +1244,35 @@ var warnUnknownProperties = function (type, props, eventRegistry) {
       error('Invalid values for props %s on <%s> tag. Either remove them from the element, ' + 'or pass a string or number value to keep them in the DOM. ' + 'For details, see https://reactjs.org/link/attribute-behavior ', unknownPropString, type);
     }
   }
-};
+}
 
-function validateProperties$2(type, props, eventRegistry) {
-  if (isCustomComponent(type, props)) {
+function validateProperties(type, props, eventRegistry) {
+  if (isCustomElement(type) || typeof props.is === 'string') {
     return;
   }
 
   warnUnknownProperties(type, props, eventRegistry);
 }
 
-var warnValidStyle = function () {};
+// 'msTransform' is correct, but the other prefixes should be capitalized
+var badVendoredStyleNamePattern = /^(?:webkit|moz|o)[A-Z]/;
+var msPattern$1 = /^-ms-/;
+var hyphenPattern = /-(.)/g; // style values shouldn't contain a semicolon
 
-{
-  // 'msTransform' is correct, but the other prefixes should be capitalized
-  var badVendoredStyleNamePattern = /^(?:webkit|moz|o)[A-Z]/;
-  var msPattern = /^-ms-/;
-  var hyphenPattern = /-(.)/g; // style values shouldn't contain a semicolon
+var badStyleValueWithSemicolonPattern = /;\s*$/;
+var warnedStyleNames = {};
+var warnedStyleValues = {};
+var warnedForNaNValue = false;
+var warnedForInfinityValue = false;
 
-  var badStyleValueWithSemicolonPattern = /;\s*$/;
-  var warnedStyleNames = {};
-  var warnedStyleValues = {};
-  var warnedForNaNValue = false;
-  var warnedForInfinityValue = false;
+function camelize(string) {
+  return string.replace(hyphenPattern, function (_, character) {
+    return character.toUpperCase();
+  });
+}
 
-  var camelize = function (string) {
-    return string.replace(hyphenPattern, function (_, character) {
-      return character.toUpperCase();
-    });
-  };
-
-  var warnHyphenatedStyleName = function (name) {
+function warnHyphenatedStyleName(name) {
+  {
     if (warnedStyleNames.hasOwnProperty(name) && warnedStyleNames[name]) {
       return;
     }
@@ -1470,10 +1282,12 @@ var warnValidStyle = function () {};
     error('Unsupported style property %s. Did you mean %s?', name, // As Andi Smith suggests
     // (http://www.andismith.com/blog/2012/02/modernizr-prefixed/), an `-ms` prefix
     // is converted to lowercase `ms`.
-    camelize(name.replace(msPattern, 'ms-')));
-  };
+    camelize(name.replace(msPattern$1, 'ms-')));
+  }
+}
 
-  var warnBadVendoredStyleName = function (name) {
+function warnBadVendoredStyleName(name) {
+  {
     if (warnedStyleNames.hasOwnProperty(name) && warnedStyleNames[name]) {
       return;
     }
@@ -1481,9 +1295,11 @@ var warnValidStyle = function () {};
     warnedStyleNames[name] = true;
 
     error('Unsupported vendor-prefixed style property %s. Did you mean %s?', name, name.charAt(0).toUpperCase() + name.slice(1));
-  };
+  }
+}
 
-  var warnStyleValueWithSemicolon = function (name, value) {
+function warnStyleValueWithSemicolon(name, value) {
+  {
     if (warnedStyleValues.hasOwnProperty(value) && warnedStyleValues[value]) {
       return;
     }
@@ -1491,9 +1307,11 @@ var warnValidStyle = function () {};
     warnedStyleValues[value] = true;
 
     error("Style property values shouldn't contain a semicolon. " + 'Try "%s: %s" instead.', name, value.replace(badStyleValueWithSemicolonPattern, ''));
-  };
+  }
+}
 
-  var warnStyleValueIsNaN = function (name, value) {
+function warnStyleValueIsNaN(name, value) {
+  {
     if (warnedForNaNValue) {
       return;
     }
@@ -1501,9 +1319,11 @@ var warnValidStyle = function () {};
     warnedForNaNValue = true;
 
     error('`NaN` is an invalid value for the `%s` css style property.', name);
-  };
+  }
+}
 
-  var warnStyleValueIsInfinity = function (name, value) {
+function warnStyleValueIsInfinity(name, value) {
+  {
     if (warnedForInfinityValue) {
       return;
     }
@@ -1511,9 +1331,11 @@ var warnValidStyle = function () {};
     warnedForInfinityValue = true;
 
     error('`Infinity` is an invalid value for the `%s` css style property.', name);
-  };
+  }
+}
 
-  warnValidStyle = function (name, value) {
+function warnValidStyle(name, value) {
+  {
     if (name.indexOf('-') > -1) {
       warnHyphenatedStyleName(name);
     } else if (badVendoredStyleNamePattern.test(name)) {
@@ -1524,15 +1346,13 @@ var warnValidStyle = function () {};
 
     if (typeof value === 'number') {
       if (isNaN(value)) {
-        warnStyleValueIsNaN(name, value);
+        warnStyleValueIsNaN(name);
       } else if (!isFinite(value)) {
-        warnStyleValueIsInfinity(name, value);
+        warnStyleValueIsInfinity(name);
       }
     }
-  };
+  }
 }
-
-var warnValidStyle$1 = warnValidStyle;
 
 // code copied and modified from escape-html
 var matchHtmlRegExp = /["'&<>]/;
@@ -1594,14 +1414,14 @@ function escapeHtml(string) {
     }
 
     if (lastIndex !== index) {
-      html += str.substring(lastIndex, index);
+      html += str.slice(lastIndex, index);
     }
 
     lastIndex = index + 1;
     html += escape;
   }
 
-  return lastIndex !== index ? html + str.substring(lastIndex, index) : html;
+  return lastIndex !== index ? html + str.slice(lastIndex, index) : html;
 } // end code copied and modified from escape-html
 
 /**
@@ -1624,7 +1444,7 @@ function escapeTextForBrowser(text) {
 }
 
 var uppercasePattern = /([A-Z])/g;
-var msPattern$1 = /^ms-/;
+var msPattern = /^ms-/;
 /**
  * Hyphenates a camelcased CSS property name, for example:
  *
@@ -1640,7 +1460,7 @@ var msPattern$1 = /^ms-/;
  */
 
 function hyphenateStyleName(name) {
-  return name.replace(uppercasePattern, '-$1').toLowerCase().replace(msPattern$1, '-ms-');
+  return name.replace(uppercasePattern, '-$1').toLowerCase().replace(msPattern, '-ms-');
 }
 
 // and any newline or tab are filtered out as if they're not part of the URL.
@@ -1657,13 +1477,19 @@ var isJavaScriptProtocol = /^[\u0000-\u001F ]*j[\r\n\t]*a[\r\n\t]*v[\r\n\t]*a[\r
 var didWarn = false;
 
 function sanitizeURL(url) {
+  // We should never have symbols here because they get filtered out elsewhere.
+  // eslint-disable-next-line react-internal/safe-string-coercion
+  var stringifiedURL = '' + url;
+
   {
-    if (!didWarn && isJavaScriptProtocol.test(url)) {
+    if (!didWarn && isJavaScriptProtocol.test(stringifiedURL)) {
       didWarn = true;
 
-      error('A future version of React will block javascript: URLs as a security precaution. ' + 'Use event handlers instead if you can. If you need to generate unsafe HTML try ' + 'using dangerouslySetInnerHTML instead. React was passed %s.', JSON.stringify(url));
+      error('A future version of React will block javascript: URLs as a security precaution. ' + 'Use event handlers instead if you can. If you need to generate unsafe HTML try ' + 'using dangerouslySetInnerHTML instead. React was passed %s.', JSON.stringify(stringifiedURL));
     }
   }
+
+  return url;
 }
 
 var isArrayImpl = Array.isArray; // eslint-disable-next-line no-redeclare
@@ -1672,1184 +1498,353 @@ function isArray(a) {
   return isArrayImpl(a);
 }
 
-var assign = Object.assign;
-
-function validatePreloadResourceDifference(originalProps, originalImplicit, latestProps, latestImplicit) {
-  {
-    var href = originalProps.href;
-    var originalWarningName = getResourceNameForWarning('preload', originalProps, originalImplicit);
-    var latestWarningName = getResourceNameForWarning('preload', latestProps, latestImplicit);
-
-    if (latestProps.as !== originalProps.as) {
-      error('A %s is using the same href "%s" as a %s. This is always an error and React will only keep the first preload' + ' for any given href, discarding subsequent instances. To fix, find where you are using this href in link' + ' tags or in calls to ReactDOM.preload() or ReactDOM.preinit() and either make the Resource types agree or' + ' update the hrefs to be distinct for different Resource types.', latestWarningName, href, originalWarningName);
-    } else {
-      var missingProps = null;
-      var extraProps = null;
-      var differentProps = null;
-
-      if (originalProps.media != null && latestProps.media == null) {
-        missingProps = missingProps || {};
-        missingProps.media = originalProps.media;
-      }
-
-      for (var propName in latestProps) {
-        var propValue = latestProps[propName];
-        var originalValue = originalProps[propName];
-
-        if (propValue != null && propValue !== originalValue) {
-          if (originalValue == null) {
-            extraProps = extraProps || {};
-            extraProps[propName] = propValue;
-          } else {
-            differentProps = differentProps || {};
-            differentProps[propName] = {
-              original: originalValue,
-              latest: propValue
-            };
-          }
-        }
-      }
-
-      if (missingProps || extraProps || differentProps) {
-        warnDifferentProps(href, 'href', originalWarningName, latestWarningName, extraProps, missingProps, differentProps);
-      }
-    }
-  }
-}
-function validateStyleResourceDifference(originalProps, latestProps) {
-  {
-    var href = originalProps.href; // eslint-disable-next-line no-labels
-
-    var originalWarningName = getResourceNameForWarning('style', originalProps, false);
-    var latestWarningName = getResourceNameForWarning('style', latestProps, false);
-    var missingProps = null;
-    var extraProps = null;
-    var differentProps = null;
-
-    if (originalProps.media != null && latestProps.media == null) {
-      missingProps = missingProps || {};
-      missingProps.media = originalProps.media;
-    }
-
-    for (var propName in latestProps) {
-      var propValue = latestProps[propName];
-      var originalValue = originalProps[propName];
-
-      if (propValue != null && propValue !== originalValue) {
-        propName = propName === 'data-precedence' ? 'precedence' : propName;
-
-        if (originalValue == null) {
-          extraProps = extraProps || {};
-          extraProps[propName] = propValue;
-        } else {
-          differentProps = differentProps || {};
-          differentProps[propName] = {
-            original: originalValue,
-            latest: propValue
-          };
-        }
-      }
-    }
-
-    if (missingProps || extraProps || differentProps) {
-      warnDifferentProps(href, 'href', originalWarningName, latestWarningName, extraProps, missingProps, differentProps);
-    }
-  }
-}
-function validateScriptResourceDifference(originalProps, latestProps) {
-  {
-    var src = originalProps.src; // eslint-disable-next-line no-labels
-
-    var originalWarningName = getResourceNameForWarning('script', originalProps, false);
-    var latestWarningName = getResourceNameForWarning('script', latestProps, false);
-    var extraProps = null;
-    var differentProps = null;
-
-    for (var propName in latestProps) {
-      var propValue = latestProps[propName];
-      var originalValue = originalProps[propName];
-
-      if (propValue != null && propValue !== originalValue) {
-        if (originalValue == null) {
-          extraProps = extraProps || {};
-          extraProps[propName] = propValue;
-        } else {
-          differentProps = differentProps || {};
-          differentProps[propName] = {
-            original: originalValue,
-            latest: propValue
-          };
-        }
-      }
-    }
-
-    if (extraProps || differentProps) {
-      warnDifferentProps(src, 'src', originalWarningName, latestWarningName, extraProps, null, differentProps);
-    }
-  }
-}
-function validateStyleAndHintProps(preloadProps, styleProps, implicitPreload) {
-  {
-    var href = preloadProps.href;
-    var originalWarningName = getResourceNameForWarning('preload', preloadProps, implicitPreload);
-    var latestWarningName = getResourceNameForWarning('style', styleProps, false);
-
-    if (preloadProps.as !== 'style') {
-      error('While creating a %s for href "%s" a %s for this same href was found. When preloading a stylesheet the' + ' "as" prop must be of type "style". This most likely ocurred by rendering a preload link with an incorrect' + ' "as" prop or by calling ReactDOM.preload with an incorrect "as" option.', latestWarningName, href, originalWarningName);
-    }
-
-    var missingProps = null;
-    var extraProps = null;
-    var differentProps = null;
-
-    for (var propName in styleProps) {
-      var styleValue = styleProps[propName];
-      var preloadValue = preloadProps[propName];
-
-      switch (propName) {
-        // Check for difference on specific props that cross over or influence
-        // the relationship between the preload and stylesheet
-        case 'crossOrigin':
-        case 'referrerPolicy':
-        case 'media':
-        case 'title':
-          {
-            if (preloadValue !== styleValue && !(preloadValue == null && styleValue == null)) {
-              if (styleValue == null) {
-                missingProps = missingProps || {};
-                missingProps[propName] = preloadValue;
-              } else if (preloadValue == null) {
-                extraProps = extraProps || {};
-                extraProps[propName] = styleValue;
-              } else {
-                differentProps = differentProps || {};
-                differentProps[propName] = {
-                  original: preloadValue,
-                  latest: styleValue
-                };
-              }
-            }
-          }
-      }
-    }
-
-    if (missingProps || extraProps || differentProps) {
-      warnDifferentProps(href, 'href', originalWarningName, latestWarningName, extraProps, missingProps, differentProps);
-    }
-  }
-}
-function validateScriptAndHintProps(preloadProps, scriptProps, implicitPreload) {
-  {
-    var href = preloadProps.href;
-    var originalWarningName = getResourceNameForWarning('preload', preloadProps, implicitPreload);
-    var latestWarningName = getResourceNameForWarning('script', scriptProps, false);
-
-    if (preloadProps.as !== 'script') {
-      error('While creating a %s for href "%s" a %s for this same url was found. When preloading a script the' + ' "as" prop must be of type "script". This most likely ocurred by rendering a preload link with an incorrect' + ' "as" prop or by calling ReactDOM.preload with an incorrect "as" option.', latestWarningName, href, originalWarningName);
-    }
-
-    var missingProps = null;
-    var extraProps = null;
-    var differentProps = null;
-
-    for (var propName in scriptProps) {
-      var scriptValue = scriptProps[propName];
-      var preloadValue = preloadProps[propName];
-
-      switch (propName) {
-        // Check for difference on specific props that cross over or influence
-        // the relationship between the preload and stylesheet
-        case 'crossOrigin':
-        case 'referrerPolicy':
-        case 'integrity':
-          {
-            if (preloadValue !== scriptValue && !(preloadValue == null && scriptValue == null)) {
-              if (scriptValue == null) {
-                missingProps = missingProps || {};
-                missingProps[propName] = preloadValue;
-              } else if (preloadValue == null) {
-                extraProps = extraProps || {};
-                extraProps[propName] = scriptValue;
-              } else {
-                differentProps = differentProps || {};
-                differentProps[propName] = {
-                  original: preloadValue,
-                  latest: scriptValue
-                };
-              }
-            }
-          }
-      }
-    }
-
-    if (missingProps || extraProps || differentProps) {
-      warnDifferentProps(href, 'href', originalWarningName, latestWarningName, extraProps, missingProps, differentProps);
-    }
-  }
-}
-
-function warnDifferentProps(url, urlPropKey, originalName, latestName, extraProps, missingProps, differentProps) {
-  {
-    var juxtaposedNameStatement = latestName === originalName ? 'an earlier instance of this Resource' : "a " + originalName + " with the same " + urlPropKey;
-    var comparisonStatement = '';
-
-    if (missingProps !== null && typeof missingProps === 'object') {
-      for (var propName in missingProps) {
-        comparisonStatement += "\n  " + propName + ": missing or null in latest props, \"" + missingProps[propName] + "\" in original props";
-      }
-    }
-
-    if (extraProps !== null && typeof extraProps === 'object') {
-      for (var _propName in extraProps) {
-        comparisonStatement += "\n  " + _propName + ": \"" + extraProps[_propName] + "\" in latest props, missing or null in original props";
-      }
-    }
-
-    if (differentProps !== null && typeof differentProps === 'object') {
-      for (var _propName2 in differentProps) {
-        comparisonStatement += "\n  " + _propName2 + ": \"" + differentProps[_propName2].latest + "\" in latest props, \"" + differentProps[_propName2].original + "\" in original props";
-      }
-    }
-
-    error('A %s with %s "%s" has props that disagree with those found on %s. Resources always use the props' + ' that were provided the first time they are encountered so any differences will be ignored. Please' + ' update Resources that share an %s to have props that agree. The differences are described below.%s', latestName, urlPropKey, url, juxtaposedNameStatement, urlPropKey, comparisonStatement);
-  }
-}
-
-function getResourceNameForWarning(type, props, implicit) {
-  {
-    switch (type) {
-      case 'style':
-        {
-          return 'style Resource';
-        }
-
-      case 'script':
-        {
-          return 'script Resource';
-        }
-
-      case 'preload':
-        {
-          if (implicit) {
-            return "preload for a " + props.as + " Resource";
-          }
-
-          return "preload Resource (as \"" + props.as + "\")";
-        }
-    }
-  }
-
-  return 'Resource';
-}
-function validateLinkPropsForStyleResource(props) {
-  {
-    // This should only be called when we know we are opting into Resource semantics (i.e. precedence is not null)
-    var href = props.href,
-        onLoad = props.onLoad,
-        onError = props.onError,
-        disabled = props.disabled;
-    var allProps = ['onLoad', 'onError', 'disabled'];
-    var includedProps = [];
-    if (onLoad) includedProps.push('onLoad');
-    if (onError) includedProps.push('onError');
-    if (disabled != null) includedProps.push('disabled');
-    var allPropsUnionPhrase = propNamesListJoin(allProps, 'or');
-    var includedPropsPhrase = propNamesListJoin(includedProps, 'and');
-    includedPropsPhrase += includedProps.length === 1 ? ' prop' : ' props';
-
-    if (includedProps.length) {
-      error('A link (rel="stylesheet") element with href "%s" has the precedence prop but also included the %s.' + ' When using %s React will opt out of Resource behavior. If you meant for this' + ' element to be treated as a Resource remove the %s. Otherwise remove the precedence prop.', href, includedPropsPhrase, allPropsUnionPhrase, includedPropsPhrase);
-
-      return true;
-    }
-  }
-
-  return false;
-}
-
-function propNamesListJoin(list, combinator) {
-  switch (list.length) {
-    case 0:
-      return '';
-
-    case 1:
-      return list[0];
-
-    case 2:
-      return list[0] + ' ' + combinator + ' ' + list[1];
-
-    default:
-      return list.slice(0, -1).join(', ') + ', ' + combinator + ' ' + list[list.length - 1];
-  }
-}
-
-function validateLinkPropsForPreloadResource(linkProps) {
-  {
-    var href = linkProps.href,
-        as = linkProps.as;
-
-    if (as === 'font') {
-      var name = getResourceNameForWarning('preload', linkProps, false);
-
-      if (!hasOwnProperty.call(linkProps, 'crossOrigin')) {
-        error('A %s with href "%s" did not specify the crossOrigin prop. Font preloads must always use' + ' anonymouse CORS mode. To fix add an empty string, "anonymous", or any other string' + ' value except "use-credentials" for the crossOrigin prop of all font preloads.', name, href);
-      } else if (linkProps.crossOrigin === 'use-credentials') {
-        error('A %s with href "%s" specified a crossOrigin value of "use-credentials". Font preloads must always use' + ' anonymouse CORS mode. To fix use an empty string, "anonymous", or any other string' + ' value except "use-credentials" for the crossOrigin prop of all font preloads.', name, href);
-      }
-    }
-  }
-}
-function validatePreloadArguments(href, options) {
-  {
-    if (!href || typeof href !== 'string') {
-      var typeOfArg = getValueDescriptorExpectingObjectForWarning(href);
-
-      error('ReactDOM.preload() expected the first argument to be a string representing an href but found %s instead.', typeOfArg);
-    } else if (typeof options !== 'object' || options === null) {
-      var _typeOfArg = getValueDescriptorExpectingObjectForWarning(options);
-
-      error('ReactDOM.preload() expected the second argument to be an options argument containing at least an "as" property' + ' specifying the Resource type. It found %s instead. The href for the preload call where this warning originated is "%s".', _typeOfArg, href);
-    } else {
-      var as = options.as;
-
-      switch (as) {
-        // Font specific validation of options
-        case 'font':
-          {
-            if (options.crossOrigin === 'use-credentials') {
-              error('ReactDOM.preload() was called with an "as" type of "font" and with a "crossOrigin" option of "use-credentials".' + ' Fonts preloading must use crossOrigin "anonymous" to be functional. Please update your font preload to omit' + ' the crossOrigin option or change it to any other value than "use-credentials" (Browsers default all other values' + ' to anonymous mode). The href for the preload call where this warning originated is "%s"', href);
-            }
-
-            break;
-          }
-
-        case 'script':
-        case 'style':
-          {
-            break;
-          }
-        // We have an invalid as type and need to warn
-
-        default:
-          {
-            var typeOfAs = getValueDescriptorExpectingEnumForWarning(as);
-
-            error('ReactDOM.preload() expected a valid "as" type in the options (second) argument but found %s instead.' + ' Please use one of the following valid values instead: %s. The href for the preload call where this' + ' warning originated is "%s".', typeOfAs, '"style", "font", or "script"', href);
-          }
-      }
-    }
-  }
-}
-function validatePreinitArguments(href, options) {
-  {
-    if (!href || typeof href !== 'string') {
-      var typeOfArg = getValueDescriptorExpectingObjectForWarning(href);
-
-      error('ReactDOM.preinit() expected the first argument to be a string representing an href but found %s instead.', typeOfArg);
-    } else if (typeof options !== 'object' || options === null) {
-      var _typeOfArg2 = getValueDescriptorExpectingObjectForWarning(options);
-
-      error('ReactDOM.preinit() expected the second argument to be an options argument containing at least an "as" property' + ' specifying the Resource type. It found %s instead. The href for the preload call where this warning originated is "%s".', _typeOfArg2, href);
-    } else {
-      var as = options.as;
-
-      switch (as) {
-        case 'style':
-        case 'script':
-          {
-            break;
-          }
-        // We have an invalid as type and need to warn
-
-        default:
-          {
-            var typeOfAs = getValueDescriptorExpectingEnumForWarning(as);
-
-            error('ReactDOM.preinit() expected the second argument to be an options argument containing at least an "as" property' + ' specifying the Resource type. It found %s instead. Currently, valid resource types for for preinit are "style"' + ' and "script". The href for the preinit call where this warning originated is "%s".', typeOfAs, href);
-          }
-      }
-    }
-  }
-}
-
-function getValueDescriptorExpectingObjectForWarning(thing) {
-  return thing === null ? 'null' : thing === undefined ? 'undefined' : thing === '' ? 'an empty string' : "something with type \"" + typeof thing + "\"";
-}
-
-function getValueDescriptorExpectingEnumForWarning(thing) {
-  return thing === null ? 'null' : thing === undefined ? 'undefined' : thing === '' ? 'an empty string' : typeof thing === 'string' ? JSON.stringify(thing) : "something with type \"" + typeof thing + "\"";
-}
-
-// @TODO add bootstrap script to implicit preloads
-function createResources() {
-  return {
-    // persistent
-    preloadsMap: new Map(),
-    stylesMap: new Map(),
-    scriptsMap: new Map(),
-    headsMap: new Map(),
-    // cleared on flush
-    charset: null,
-    bases: new Set(),
-    preconnects: new Set(),
-    fontPreloads: new Set(),
-    // usedImagePreloads: new Set(),
-    precedences: new Map(),
-    usedStylePreloads: new Set(),
-    scripts: new Set(),
-    usedScriptPreloads: new Set(),
-    explicitStylePreloads: new Set(),
-    // explicitImagePreloads: new Set(),
-    explicitScriptPreloads: new Set(),
-    headResources: new Set(),
-    // cache for tracking structured meta tags
-    structuredMetaKeys: new Map(),
-    // like a module global for currently rendering boundary
-    boundaryResources: null
-  };
-}
-function createBoundaryResources() {
-  return new Set();
-}
-var currentResources = null;
-var currentResourcesStack = [];
-function prepareToRenderResources(resources) {
-  currentResourcesStack.push(currentResources);
-  currentResources = resources;
-}
-function finishRenderingResources() {
-  currentResources = currentResourcesStack.pop();
-}
-function setCurrentlyRenderingBoundaryResourcesTarget(resources, boundaryResources) {
-  resources.boundaryResources = boundaryResources;
-}
-var ReactDOMServerDispatcher = {
-  preload: preload,
-  preinit: preinit
-};
-
-function preload(href, options) {
-  if (!currentResources) {
-    // While we expect that preload calls are primarily going to be observed
-    // during render because effects and events don't run on the server it is
-    // still possible that these get called in module scope. This is valid on
-    // the client since there is still a document to interact with but on the
-    // server we need a request to associate the call to. Because of this we
-    // simply return and do not warn.
-    return;
-  }
-
-  var resources = currentResources;
-
-  {
-    validatePreloadArguments(href, options);
-  }
-
-  if (typeof href === 'string' && href && typeof options === 'object' && options !== null) {
-    var as = options.as;
-    var resource = resources.preloadsMap.get(href);
-
-    if (resource) {
-      {
-        var originallyImplicit = resource._dev_implicit_construction === true;
-        var latestProps = preloadPropsFromPreloadOptions(href, as, options);
-        validatePreloadResourceDifference(resource.props, originallyImplicit, latestProps, false);
-      }
-    } else {
-      resource = createPreloadResource(resources, href, as, preloadPropsFromPreloadOptions(href, as, options));
-    }
-
-    switch (as) {
-      case 'font':
-        {
-          resources.fontPreloads.add(resource);
-          break;
-        }
-
-      case 'style':
-        {
-          resources.explicitStylePreloads.add(resource);
-          break;
-        }
-
-      case 'script':
-        {
-          resources.explicitScriptPreloads.add(resource);
-          break;
-        }
-    }
-  }
-}
-
-function preinit(href, options) {
-  if (!currentResources) {
-    // While we expect that preinit calls are primarily going to be observed
-    // during render because effects and events don't run on the server it is
-    // still possible that these get called in module scope. This is valid on
-    // the client since there is still a document to interact with but on the
-    // server we need a request to associate the call to. Because of this we
-    // simply return and do not warn.
-    return;
-  }
-
-  preinitImpl(currentResources, href, options);
-} // On the server, preinit may be called outside of render when sending an
-// external SSR runtime as part of the initial resources payload. Since this
-// is an internal React call, we do not need to use the resources stack.
-
-
-function preinitImpl(resources, href, options) {
-  {
-    validatePreinitArguments(href, options);
-  }
-
-  if (typeof href === 'string' && href && typeof options === 'object' && options !== null) {
-    var as = options.as;
-
-    switch (as) {
-      case 'style':
-        {
-          var resource = resources.stylesMap.get(href);
-
-          if (resource) {
-            {
-              var latestProps = stylePropsFromPreinitOptions(href, resource.precedence, options);
-              validateStyleResourceDifference(resource.props, latestProps);
-            }
-          } else {
-            var precedence = options.precedence || 'default';
-            var resourceProps = stylePropsFromPreinitOptions(href, precedence, options);
-            resource = createStyleResource(resources, href, precedence, resourceProps);
-          }
-
-          resource.set.add(resource);
-          resources.explicitStylePreloads.add(resource.hint);
-          return;
-        }
-
-      case 'script':
-        {
-          var src = href;
-
-          var _resource = resources.scriptsMap.get(src);
-
-          if (_resource) {
-            {
-              var _latestProps = scriptPropsFromPreinitOptions(src, options);
-
-              validateScriptResourceDifference(_resource.props, _latestProps);
-            }
-          } else {
-            var scriptProps = scriptPropsFromPreinitOptions(src, options);
-            _resource = createScriptResource(resources, src, scriptProps);
-            resources.scripts.add(_resource);
-          }
-
-          return;
-        }
-    }
-  }
-}
-
-function preloadPropsFromPreloadOptions(href, as, options) {
-  return {
-    href: href,
-    rel: 'preload',
-    as: as,
-    crossOrigin: as === 'font' ? '' : options.crossOrigin,
-    integrity: options.integrity
-  };
-}
-
-function preloadPropsFromRawProps(href, as, rawProps) {
-  var props = assign({}, rawProps);
-
-  props.href = href;
-  props.rel = 'preload';
-  props.as = as;
-
-  if (as === 'font') {
-    // Font preloads always need CORS anonymous mode so we set it here
-    // regardless of the props provided. This should warn elsewhere in
-    // dev
-    props.crossOrigin = '';
-  }
-
-  return props;
-}
-
-function preloadAsStylePropsFromProps(href, props) {
-  return {
-    rel: 'preload',
-    as: 'style',
-    href: href,
-    crossOrigin: props.crossOrigin,
-    integrity: props.integrity,
-    media: props.media,
-    hrefLang: props.hrefLang,
-    referrerPolicy: props.referrerPolicy
-  };
-}
-
-function preloadAsScriptPropsFromProps(href, props) {
-  return {
-    rel: 'preload',
-    as: 'script',
-    href: href,
-    crossOrigin: props.crossOrigin,
-    integrity: props.integrity,
-    referrerPolicy: props.referrerPolicy
-  };
-}
-
-function createPreloadResource(resources, href, as, props) {
-  var preloadsMap = resources.preloadsMap;
-
-  {
-    if (preloadsMap.has(href)) {
-      error('createPreloadResource was called when a preload Resource matching the same href already exists. This is a bug in React.');
-    }
-  }
-
-  var resource = {
-    type: 'preload',
-    as: as,
-    href: href,
-    flushed: false,
-    props: props
-  };
-  preloadsMap.set(href, resource);
-  return resource;
-}
-
-function stylePropsFromRawProps(href, precedence, rawProps) {
-  var props = assign({}, rawProps);
-
-  props.href = href;
-  props.rel = 'stylesheet';
-  props['data-precedence'] = precedence;
-  delete props.precedence;
-  return props;
-}
-
-function stylePropsFromPreinitOptions(href, precedence, options) {
-  return {
-    rel: 'stylesheet',
-    href: href,
-    'data-precedence': precedence,
-    crossOrigin: options.crossOrigin
-  };
-}
-
-function createStyleResource(resources, href, precedence, props) {
-  {
-    if (resources.stylesMap.has(href)) {
-      error('createStyleResource was called when a style Resource matching the same href already exists. This is a bug in React.');
-    }
-  }
-
-  var stylesMap = resources.stylesMap,
-      preloadsMap = resources.preloadsMap,
-      precedences = resources.precedences; // If this is the first time we've seen this precedence we encode it's position in our set even though
-  // we don't add the resource to this set yet
-
-  var precedenceSet = precedences.get(precedence);
-
-  if (!precedenceSet) {
-    precedenceSet = new Set();
-    precedences.set(precedence, precedenceSet);
-  }
-
-  var hint = preloadsMap.get(href);
-
-  if (hint) {
-    // If a preload for this style Resource already exists there are certain props we want to adopt
-    // on the style Resource, primarily focussed on making sure the style network pathways utilize
-    // the preload pathways. For instance if you have diffreent crossOrigin attributes for a preload
-    // and a stylesheet the stylesheet will make a new request even if the preload had already loaded
-    adoptPreloadPropsForStyleProps(props, hint.props);
-
-    {
-      validateStyleAndHintProps(hint.props, props, hint._dev_implicit_construction);
-    }
-  } else {
-    var preloadResourceProps = preloadAsStylePropsFromProps(href, props);
-    hint = createPreloadResource(resources, href, 'style', preloadResourceProps);
-
-    {
-      hint._dev_implicit_construction = true;
-    }
-
-    resources.explicitStylePreloads.add(hint);
-  }
-
-  var resource = {
-    type: 'style',
-    href: href,
-    precedence: precedence,
-    flushed: false,
-    inShell: false,
-    props: props,
-    hint: hint,
-    set: precedenceSet
-  };
-  stylesMap.set(href, resource);
-  return resource;
-}
-
-function adoptPreloadPropsForStyleProps(resourceProps, preloadProps) {
-  if (resourceProps.crossOrigin == null) resourceProps.crossOrigin = preloadProps.crossOrigin;
-  if (resourceProps.referrerPolicy == null) resourceProps.referrerPolicy = preloadProps.referrerPolicy;
-  if (resourceProps.title == null) resourceProps.title = preloadProps.title;
-}
-
-function scriptPropsFromPreinitOptions(src, options) {
-  return {
-    src: src,
-    async: true,
-    crossOrigin: options.crossOrigin,
-    integrity: options.integrity
-  };
-}
-
-function scriptPropsFromRawProps(src, rawProps) {
-  var props = assign({}, rawProps);
-
-  props.src = src;
-  return props;
-}
-
-function createScriptResource(resources, src, props) {
-  {
-    if (resources.scriptsMap.has(src)) {
-      error('createScriptResource was called when a script Resource matching the same src already exists. This is a bug in React.');
-    }
-  }
-
-  var scriptsMap = resources.scriptsMap,
-      preloadsMap = resources.preloadsMap;
-  var hint = preloadsMap.get(src);
-
-  if (hint) {
-    // If a preload for this style Resource already exists there are certain props we want to adopt
-    // on the style Resource, primarily focussed on making sure the style network pathways utilize
-    // the preload pathways. For instance if you have diffreent crossOrigin attributes for a preload
-    // and a stylesheet the stylesheet will make a new request even if the preload had already loaded
-    adoptPreloadPropsForScriptProps(props, hint.props);
-
-    {
-      validateScriptAndHintProps(hint.props, props, hint._dev_implicit_construction);
-    }
-  } else {
-    var preloadResourceProps = preloadAsScriptPropsFromProps(src, props);
-    hint = createPreloadResource(resources, src, 'script', preloadResourceProps);
-
-    {
-      hint._dev_implicit_construction = true;
-    }
-
-    resources.explicitScriptPreloads.add(hint);
-  }
-
-  var resource = {
-    type: 'script',
-    src: src,
-    flushed: false,
-    props: props,
-    hint: hint
-  };
-  scriptsMap.set(src, resource);
-  return resource;
-}
-
-function adoptPreloadPropsForScriptProps(resourceProps, preloadProps) {
-  if (resourceProps.crossOrigin == null) resourceProps.crossOrigin = preloadProps.crossOrigin;
-  if (resourceProps.referrerPolicy == null) resourceProps.referrerPolicy = preloadProps.referrerPolicy;
-  if (resourceProps.integrity == null) resourceProps.integrity = preloadProps.integrity;
-}
-
-function titlePropsFromRawProps(child, rawProps) {
-  var props = assign({}, rawProps);
-
-  props.children = child;
-  return props;
-}
-
-function resourcesFromElement(type, props) {
-  if (!currentResources) {
-    throw new Error('"currentResources" was expected to exist. This is a bug in React.');
-  }
-
-  var resources = currentResources;
-
-  switch (type) {
-    case 'title':
-      {
-        var child = props.children;
-
-        if (Array.isArray(child) && child.length === 1) {
-          child = child[0];
-        }
-
-        if (typeof child === 'string' || typeof child === 'number') {
-          var key = 'title::' + child;
-          var resource = resources.headsMap.get(key);
-
-          if (!resource) {
-            resource = {
-              type: 'title',
-              props: titlePropsFromRawProps(child, props),
-              flushed: false
-            };
-            resources.headsMap.set(key, resource);
-            resources.headResources.add(resource);
-          }
-        }
-
-        return true;
-      }
-
-    case 'meta':
-      {
-        var _key, propertyPath;
-
-        if (typeof props.charSet === 'string') {
-          _key = 'charSet';
-        } else if (typeof props.content === 'string') {
-          var contentKey = '::' + props.content;
-
-          if (typeof props.httpEquiv === 'string') {
-            _key = 'httpEquiv::' + props.httpEquiv + contentKey;
-          } else if (typeof props.name === 'string') {
-            _key = 'name::' + props.name + contentKey;
-          } else if (typeof props.itemProp === 'string') {
-            _key = 'itemProp::' + props.itemProp + contentKey;
-          } else if (typeof props.property === 'string') {
-            var property = props.property;
-            _key = 'property::' + property + contentKey;
-            propertyPath = property;
-            var parentPath = property.split(':').slice(0, -1).join(':');
-            var parentResource = resources.structuredMetaKeys.get(parentPath);
-
-            if (parentResource) {
-              _key = parentResource.key + '::child::' + _key;
-            }
-          }
-        }
-
-        if (_key) {
-          if (!resources.headsMap.has(_key)) {
-            var _resource2 = {
-              type: 'meta',
-              key: _key,
-              props: assign({}, props),
-              flushed: false
-            };
-            resources.headsMap.set(_key, _resource2);
-
-            if (_key === 'charSet') {
-              resources.charset = _resource2;
-            } else {
-              if (propertyPath) {
-                resources.structuredMetaKeys.set(propertyPath, _resource2);
-              }
-
-              resources.headResources.add(_resource2);
-            }
-          }
-        }
-
-        return true;
-      }
-
-    case 'base':
-      {
-        var target = props.target,
-            href = props.href; // We mirror the key construction on the client since we will likely unify
-        // this code in the future to better guarantee key semantics are identical
-        // in both environments
-
-        var _key2 = 'base';
-        _key2 += typeof href === 'string' ? "[href=\"" + href + "\"]" : ':not([href])';
-        _key2 += typeof target === 'string' ? "[target=\"" + target + "\"]" : ':not([target])';
-
-        if (!resources.headsMap.has(_key2)) {
-          var _resource3 = {
-            type: 'base',
-            props: assign({}, props),
-            flushed: false
-          };
-          resources.headsMap.set(_key2, _resource3);
-          resources.bases.add(_resource3);
-        }
-
-        return true;
-      }
-  }
-
-  return false;
-} // Construct a resource from link props.
-
-function resourcesFromLink(props) {
-  if (!currentResources) {
-    throw new Error('"currentResources" was expected to exist. This is a bug in React.');
-  }
-
-  var resources = currentResources;
-  var rel = props.rel,
-      href = props.href;
-
-  if (!href || typeof href !== 'string' || !rel || typeof rel !== 'string') {
-    return false;
-  }
-
-  var key = '';
-
-  switch (rel) {
-    case 'stylesheet':
-      {
-        var onLoad = props.onLoad,
-            onError = props.onError,
-            precedence = props.precedence,
-            disabled = props.disabled;
-
-        if (typeof precedence !== 'string' || onLoad || onError || disabled != null) {
-          // This stylesheet is either not opted into Resource semantics or has conflicting properties which
-          // disqualify it for such. We can still create a preload resource to help it load faster on the
-          // client
-          {
-            validateLinkPropsForStyleResource(props);
-          } // $FlowFixMe[incompatible-use] found when upgrading Flow
-
-
-          var preloadResource = resources.preloadsMap.get(href);
-
-          if (!preloadResource) {
-            preloadResource = createPreloadResource( // $FlowFixMe[incompatible-call] found when upgrading Flow
-            resources, href, 'style', preloadAsStylePropsFromProps(href, props));
-
-            {
-              preloadResource._dev_implicit_construction = true;
-            }
-
-            resources.usedStylePreloads.add(preloadResource);
-          }
-
-          return false;
-        } else {
-          // We are able to convert this link element to a resource exclusively. We construct the relevant Resource
-          // and return true indicating that this link was fully consumed.
-          var _resource4 = resources.stylesMap.get(href);
-
-          if (_resource4) {
-            {
-              var resourceProps = stylePropsFromRawProps(href, precedence, props);
-              adoptPreloadPropsForStyleProps(resourceProps, _resource4.hint.props);
-              validateStyleResourceDifference(_resource4.props, resourceProps);
-            }
-          } else {
-            var _resourceProps = stylePropsFromRawProps(href, precedence, props);
-
-            _resource4 = createStyleResource( // $FlowFixMe[incompatible-call] found when upgrading Flow
-            currentResources, href, precedence, _resourceProps);
-            resources.usedStylePreloads.add(_resource4.hint);
-          }
-
-          if (resources.boundaryResources) {
-            resources.boundaryResources.add(_resource4);
-          } else {
-            _resource4.set.add(_resource4);
-          }
-
-          return true;
-        }
-      }
-
-    case 'preload':
-      {
-        var as = props.as;
-
-        switch (as) {
-          case 'script':
-          case 'style':
-          case 'font':
-            {
-              {
-                validateLinkPropsForPreloadResource(props);
-              }
-
-              var _resource5 = resources.preloadsMap.get(href);
-
-              if (_resource5) {
-                {
-                  var originallyImplicit = _resource5._dev_implicit_construction === true;
-                  var latestProps = preloadPropsFromRawProps(href, as, props);
-                  validatePreloadResourceDifference(_resource5.props, originallyImplicit, latestProps, false);
-                }
-              } else {
-                _resource5 = createPreloadResource(resources, href, as, preloadPropsFromRawProps(href, as, props));
-
-                switch (as) {
-                  case 'script':
-                    {
-                      resources.explicitScriptPreloads.add(_resource5);
-                      break;
-                    }
-
-                  case 'style':
-                    {
-                      resources.explicitStylePreloads.add(_resource5);
-                      break;
-                    }
-
-                  case 'font':
-                    {
-                      resources.fontPreloads.add(_resource5);
-                      break;
-                    }
-                }
-              }
-
-              return true;
-            }
-        }
-
-        break;
-      }
-  }
-
-  if (props.onLoad || props.onError) {
-    // When a link has these props we can't treat it is a Resource but if we rendered it on the
-    // server it would look like a Resource in the rendered html (the onLoad/onError aren't emitted)
-    // Instead we expect the client to insert them rather than hydrate them which also guarantees
-    // that the onLoad and onError won't fire before the event handlers are attached
-    return true;
-  }
-
-  var sizes = typeof props.sizes === 'string' ? props.sizes : '';
-  var media = typeof props.media === 'string' ? props.media : '';
-  key = 'rel:' + rel + '::href:' + href + '::sizes:' + sizes + '::media:' + media;
-  var resource = resources.headsMap.get(key);
-
-  if (!resource) {
-    resource = {
-      type: 'link',
-      props: assign({}, props),
-      flushed: false
-    };
-    resources.headsMap.set(key, resource);
-
-    switch (rel) {
-      case 'preconnect':
-      case 'dns-prefetch':
-        {
-          resources.preconnects.add(resource);
-          break;
-        }
-
-      default:
-        {
-          resources.headResources.add(resource);
-        }
-    }
-  }
-
-  return true;
-} // Construct a resource from link props.
-
-function resourcesFromScript(props) {
-  if (!currentResources) {
-    throw new Error('"currentResources" was expected to exist. This is a bug in React.');
-  }
-
-  var resources = currentResources;
-  var src = props.src,
-      async = props.async,
-      onLoad = props.onLoad,
-      onError = props.onError;
-
-  if (!src || typeof src !== 'string') {
-    return false;
-  }
-
-  if (async) {
-    if (onLoad || onError) {
-
-      var preloadResource = resources.preloadsMap.get(src);
-
-      if (!preloadResource) {
-        preloadResource = createPreloadResource( // $FlowFixMe[incompatible-call] found when upgrading Flow
-        resources, src, 'script', preloadAsScriptPropsFromProps(src, props));
-
-        {
-          preloadResource._dev_implicit_construction = true;
-        }
-
-        resources.usedScriptPreloads.add(preloadResource);
-      }
-    } else {
-      var resource = resources.scriptsMap.get(src);
-
-      if (resource) {
-        {
-          var latestProps = scriptPropsFromRawProps(src, props);
-          adoptPreloadPropsForScriptProps(latestProps, resource.hint.props);
-          validateScriptResourceDifference(resource.props, latestProps);
-        }
-      } else {
-        var resourceProps = scriptPropsFromRawProps(src, props);
-        resource = createScriptResource(resources, src, resourceProps);
-        resources.scripts.add(resource);
-      }
-    }
-
-    return true;
-  }
-
-  return false;
-}
-function hoistResources(resources, source) {
-  var currentBoundaryResources = resources.boundaryResources;
-
-  if (currentBoundaryResources) {
-    source.forEach(function (resource) {
-      return currentBoundaryResources.add(resource);
-    });
-    source.clear();
-  }
-}
-function hoistResourcesToRoot(resources, boundaryResources) {
-  boundaryResources.forEach(function (resource) {
-    return resource.set.add(resource);
-  });
-  boundaryResources.clear();
-}
-
 // The build script is at scripts/rollup/generate-inline-fizz-runtime.js.
 // Run `yarn generate-inline-fizz-runtime` to generate.
 var clientRenderBoundary = '$RX=function(b,c,d,e){var a=document.getElementById(b);a&&(b=a.previousSibling,b.data="$!",a=a.dataset,c&&(a.dgst=c),d&&(a.msg=d),e&&(a.stck=e),b._reactRetry&&b._reactRetry())};';
 var completeBoundary = '$RC=function(b,c,e){c=document.getElementById(c);c.parentNode.removeChild(c);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var d=a.data;if("/$"===d)if(0===f)break;else f--;else"$"!==d&&"$?"!==d&&"$!"!==d||f++}d=a.nextSibling;e.removeChild(a);a=d}while(a);for(;c.firstChild;)e.insertBefore(c.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};';
-var completeBoundaryWithStyles = '$RM=new Map;\n$RR=function(p,q,v){function r(l){this.s=l}for(var t=$RC,u=$RM,m=new Map,n=document,g,e,f=n.querySelectorAll("link[data-precedence],style[data-precedence]"),d=0;e=f[d++];)m.set(e.dataset.precedence,g=e);e=0;f=[];for(var c,h,b,a;c=v[e++];){var k=0;h=c[k++];if(b=u.get(h))"l"!==b.s&&f.push(b);else{a=n.createElement("link");a.href=h;a.rel="stylesheet";for(a.dataset.precedence=d=c[k++];b=c[k++];)a.setAttribute(b,c[k++]);b=a._p=new Promise(function(l,w){a.onload=l;a.onerror=w});b.then(r.bind(b,\n"l"),r.bind(b,"e"));u.set(h,b);f.push(b);c=m.get(d)||g;c===g&&(g=a);m.set(d,a);c?c.parentNode.insertBefore(a,c.nextSibling):(d=n.head,d.insertBefore(a,d.firstChild))}}Promise.all(f).then(t.bind(null,p,q,""),t.bind(null,p,q,"Resource failed to load"))};';
+var completeBoundaryWithStyles = '$RM=new Map;\n$RR=function(r,t,w){for(var u=$RC,n=$RM,p=new Map,q=document,g,b,h=q.querySelectorAll("link[data-precedence],style[data-precedence]"),v=[],k=0;b=h[k++];)"not all"===b.getAttribute("media")?v.push(b):("LINK"===b.tagName&&n.set(b.getAttribute("href"),b),p.set(b.dataset.precedence,g=b));b=0;h=[];var l,a;for(k=!0;;){if(k){var f=w[b++];if(!f){k=!1;b=0;continue}var c=!1,m=0;var d=f[m++];if(a=n.get(d)){var e=a._p;c=!0}else{a=q.createElement("link");a.href=d;a.rel="stylesheet";for(a.dataset.precedence=\nl=f[m++];e=f[m++];)a.setAttribute(e,f[m++]);e=a._p=new Promise(function(x,y){a.onload=x;a.onerror=y});n.set(d,a)}d=a.getAttribute("media");!e||"l"===e.s||d&&!matchMedia(d).matches||h.push(e);if(c)continue}else{a=v[b++];if(!a)break;l=a.getAttribute("data-precedence");a.removeAttribute("media")}c=p.get(l)||g;c===g&&(g=a);p.set(l,a);c?c.parentNode.insertBefore(a,c.nextSibling):(c=q.head,c.insertBefore(a,c.firstChild))}Promise.all(h).then(u.bind(null,r,t,""),u.bind(null,r,t,"Resource failed to load"))};';
 var completeSegment = '$RS=function(a,b){a=document.getElementById(a);b=document.getElementById(b);for(a.parentNode.removeChild(a);a.firstChild;)b.parentNode.insertBefore(a.firstChild,b);b.parentNode.removeChild(b)};';
+
+function getValueDescriptorExpectingObjectForWarning(thing) {
+  return thing === null ? '`null`' : thing === undefined ? '`undefined`' : thing === '' ? 'an empty string' : "something with type \"" + typeof thing + "\"";
+}
+function getValueDescriptorExpectingEnumForWarning(thing) {
+  return thing === null ? '`null`' : thing === undefined ? '`undefined`' : thing === '' ? 'an empty string' : typeof thing === 'string' ? JSON.stringify(thing) : "something with type \"" + typeof thing + "\"";
+}
+
+function compareResourcePropsForWarning(newProps, currentProps) {
+  {
+    var propDiffs = null;
+    var allProps = Array.from(new Set(Object.keys(currentProps).concat(Object.keys(newProps))));
+
+    for (var i = 0; i < allProps.length; i++) {
+      var propName = allProps[i];
+      var newValue = newProps[propName];
+      var currentValue = currentProps[propName];
+
+      if (newValue !== currentValue && !(newValue == null && currentValue == null)) {
+        if (newValue == null) {
+          if (propDiffs === null) {
+            propDiffs = {
+              missing: {},
+              extra: {},
+              different: {}
+            };
+          }
+
+          propDiffs.missing[propName] = currentValue;
+        } else if (currentValue == null) {
+          if (propDiffs === null) {
+            propDiffs = {
+              missing: {},
+              extra: {},
+              different: {}
+            };
+          }
+
+          propDiffs.extra[propName] = newValue;
+        } else {
+          if (propDiffs === null) {
+            propDiffs = {
+              missing: {},
+              extra: {},
+              different: {}
+            };
+          }
+
+          propDiffs.different[propName] = {
+            original: currentValue,
+            latest: newValue
+          };
+        }
+      }
+    }
+
+    return propDiffs;
+  }
+}
+
+function describeDifferencesForStylesheets(newProps, currentProps) {
+  var diff = compareResourcePropsForWarning(newProps, currentProps);
+  if (!diff) return '';
+  var description = '';
+
+  for (var propName in diff.missing) {
+    var propValue = diff.missing[propName];
+
+    if (propName === 'media') {
+      description += "\n  \"" + propName + "\" missing for props, original value: " + getValueDescriptorExpectingEnumForWarning(propValue);
+    }
+  }
+
+  for (var _propName in diff.extra) {
+    var _propValue = diff.extra[_propName];
+    description += "\n  \"" + _propName + "\" prop value: " + getValueDescriptorExpectingEnumForWarning(_propValue) + ", missing from original props";
+  }
+
+  for (var _propName2 in diff.different) {
+    var latestValue = diff.different[_propName2].latest;
+    var originalValue = diff.different[_propName2].original;
+    description += "\n  \"" + _propName2 + "\" prop value: " + getValueDescriptorExpectingEnumForWarning(latestValue) + ", original value: " + getValueDescriptorExpectingEnumForWarning(originalValue);
+  }
+
+  return description;
+}
+function describeDifferencesForStylesheetOverPreinit(newProps, currentProps) {
+  var diff = compareResourcePropsForWarning(newProps, currentProps);
+  if (!diff) return '';
+  var description = '';
+
+  for (var propName in diff.extra) {
+    var propValue = diff.extra[propName];
+
+    if (propName === 'precedence' || propName === 'crossOrigin' || propName === 'integrity') {
+      description += "\n  \"" + propName + "\" prop value: " + getValueDescriptorExpectingEnumForWarning(propValue) + ", option missing";
+    } else {
+      description += "\n  \"" + propName + "\" prop value: " + getValueDescriptorExpectingEnumForWarning(propValue) + ", option not available with ReactDOM.preinit()";
+    }
+  }
+
+  for (var _propName3 in diff.different) {
+    var latestValue = diff.different[_propName3].latest;
+    var originalValue = diff.different[_propName3].original;
+
+    if (_propName3 === 'precedence' && originalValue === 'default') {
+      description += "\n  \"" + _propName3 + "\" prop value: " + getValueDescriptorExpectingEnumForWarning(latestValue) + ", missing from options";
+    } else {
+      description += "\n  \"" + _propName3 + "\" prop value: " + getValueDescriptorExpectingEnumForWarning(latestValue) + ", option value: " + getValueDescriptorExpectingEnumForWarning(originalValue);
+    }
+  }
+
+  return description;
+}
+function describeDifferencesForPreinitOverStylesheet(newProps, currentProps) {
+  var diff = compareResourcePropsForWarning(newProps, currentProps);
+  if (!diff) return '';
+  var description = '';
+
+  for (var propName in diff.missing) {
+    var propValue = diff.missing[propName];
+
+    if (propName === 'precedence' && propValue !== 'default') {
+      description += "\n  \"" + propName + "\" missing from options, prop value: " + getValueDescriptorExpectingEnumForWarning(propValue);
+    }
+  }
+
+  for (var _propName4 in diff.extra) {
+    var _propValue2 = diff.extra[_propName4];
+
+    if (_propName4 === 'precedence' || _propName4 === 'crossOrigin' || _propName4 === 'integrity') {
+      description += "\n  \"" + _propName4 + "\" option value: " + getValueDescriptorExpectingEnumForWarning(_propValue2) + ", missing from props";
+    }
+  }
+
+  for (var _propName5 in diff.different) {
+    var latestValue = diff.different[_propName5].latest;
+    var originalValue = diff.different[_propName5].original;
+    description += "\n  \"" + _propName5 + "\" option value: " + getValueDescriptorExpectingEnumForWarning(latestValue) + ", prop value: " + getValueDescriptorExpectingEnumForWarning(originalValue);
+  }
+
+  return description;
+}
+function describeDifferencesForPreinits(newProps, currentProps) {
+  var diff = compareResourcePropsForWarning(newProps, currentProps);
+  if (!diff) return '';
+  var description = '';
+
+  for (var propName in diff.missing) {
+    var propValue = diff.missing[propName];
+
+    if (propName === 'precedence' && propValue !== 'default') {
+      description += "\n  \"" + propName + "\" missing from options, original option value: " + getValueDescriptorExpectingEnumForWarning(propValue);
+    }
+  }
+
+  for (var _propName6 in diff.extra) {
+    var _propValue3 = diff.extra[_propName6];
+
+    if (_propName6 === 'precedence' && _propValue3 !== 'default' || _propName6 === 'crossOrigin' || _propName6 === 'integrity') {
+      description += "\n  \"" + _propName6 + "\" option value: " + getValueDescriptorExpectingEnumForWarning(_propValue3) + ", missing from original options";
+    }
+  }
+
+  for (var _propName7 in diff.different) {
+    var latestValue = diff.different[_propName7].latest;
+    var originalValue = diff.different[_propName7].original;
+    description += "\n  \"" + _propName7 + "\" option value: " + getValueDescriptorExpectingEnumForWarning(latestValue) + ", original option value: " + getValueDescriptorExpectingEnumForWarning(originalValue);
+  }
+
+  return description;
+}
+var preloadOptionsForComparison = ['as', 'crossOrigin', 'integrity', 'media'];
+function describeDifferencesForPreloads(newProps, currentProps) {
+  var diff = compareResourcePropsForWarning(newProps, currentProps);
+  if (!diff) return '';
+  var description = '';
+
+  for (var propName in diff.missing) {
+    var propValue = diff.missing[propName];
+
+    if (preloadOptionsForComparison.includes(propName)) {
+      description += "\n  \"" + propName + "\" missing from options, original option value: " + getValueDescriptorExpectingEnumForWarning(propValue);
+    }
+  }
+
+  for (var _propName8 in diff.extra) {
+    var _propValue4 = diff.extra[_propName8];
+
+    if (preloadOptionsForComparison.includes(_propName8)) {
+      description += "\n  \"" + _propName8 + "\" option value: " + getValueDescriptorExpectingEnumForWarning(_propValue4) + ", missing from original options";
+    }
+  }
+
+  for (var _propName9 in diff.different) {
+    var latestValue = diff.different[_propName9].latest;
+    var originalValue = diff.different[_propName9].original;
+
+    if (preloadOptionsForComparison.includes(_propName9)) {
+      description += "\n  \"" + _propName9 + "\" option value: " + getValueDescriptorExpectingEnumForWarning(latestValue) + ", original option value: " + getValueDescriptorExpectingEnumForWarning(originalValue);
+    }
+  }
+
+  return description;
+}
+function describeDifferencesForPreloadOverImplicitPreload(newProps, currentProps) {
+  var diff = compareResourcePropsForWarning(newProps, currentProps);
+  if (!diff) return '';
+  var description = '';
+
+  for (var propName in diff.missing) {
+    var propValue = diff.missing[propName];
+
+    if (preloadOptionsForComparison.includes(propName)) {
+      description += "\n  \"" + propName + "\" missing from options, underlying prop value: " + getValueDescriptorExpectingEnumForWarning(propValue);
+    }
+  }
+
+  for (var _propName10 in diff.extra) {
+    var _propValue5 = diff.extra[_propName10];
+
+    if (preloadOptionsForComparison.includes(_propName10)) {
+      description += "\n  \"" + _propName10 + "\" option value: " + getValueDescriptorExpectingEnumForWarning(_propValue5) + ", missing from underlying props";
+    }
+  }
+
+  for (var _propName11 in diff.different) {
+    var latestValue = diff.different[_propName11].latest;
+    var originalValue = diff.different[_propName11].original;
+
+    if (preloadOptionsForComparison.includes(_propName11)) {
+      description += "\n  \"" + _propName11 + "\" option value: " + getValueDescriptorExpectingEnumForWarning(latestValue) + ", underlying prop value: " + getValueDescriptorExpectingEnumForWarning(originalValue);
+    }
+  }
+
+  return description;
+}
+function describeDifferencesForScripts(newProps, currentProps) {
+  var diff = compareResourcePropsForWarning(newProps, currentProps);
+  if (!diff) return '';
+  var description = '';
+
+  for (var propName in diff.missing) {
+    var propValue = diff.missing[propName];
+    description += "\n  \"" + propName + "\" missing for props, original value: " + getValueDescriptorExpectingEnumForWarning(propValue);
+  }
+
+  for (var _propName12 in diff.extra) {
+    var _propValue6 = diff.extra[_propName12];
+    description += "\n  \"" + _propName12 + "\" prop value: " + getValueDescriptorExpectingEnumForWarning(_propValue6) + ", missing from original props";
+  }
+
+  for (var _propName13 in diff.different) {
+    var latestValue = diff.different[_propName13].latest;
+    var originalValue = diff.different[_propName13].original;
+    description += "\n  \"" + _propName13 + "\" prop value: " + getValueDescriptorExpectingEnumForWarning(latestValue) + ", original value: " + getValueDescriptorExpectingEnumForWarning(originalValue);
+  }
+
+  return description;
+}
+function describeDifferencesForScriptOverPreinit(newProps, currentProps) {
+  var diff = compareResourcePropsForWarning(newProps, currentProps);
+  if (!diff) return '';
+  var description = '';
+
+  for (var propName in diff.extra) {
+    var propValue = diff.extra[propName];
+
+    if (propName === 'crossOrigin' || propName === 'integrity') {
+      description += "\n  \"" + propName + "\" prop value: " + getValueDescriptorExpectingEnumForWarning(propValue) + ", option missing";
+    } else {
+      description += "\n  \"" + propName + "\" prop value: " + getValueDescriptorExpectingEnumForWarning(propValue) + ", option not available with ReactDOM.preinit()";
+    }
+  }
+
+  for (var _propName14 in diff.different) {
+    var latestValue = diff.different[_propName14].latest;
+    var originalValue = diff.different[_propName14].original;
+    description += "\n  \"" + _propName14 + "\" prop value: " + getValueDescriptorExpectingEnumForWarning(latestValue) + ", option value: " + getValueDescriptorExpectingEnumForWarning(originalValue);
+  }
+
+  return description;
+}
+function describeDifferencesForPreinitOverScript(newProps, currentProps) {
+  var diff = compareResourcePropsForWarning(newProps, currentProps);
+  if (!diff) return '';
+  var description = '';
+
+  for (var propName in diff.extra) {
+    var propValue = diff.extra[propName];
+
+    if (propName === 'crossOrigin' || propName === 'integrity') {
+      description += "\n  \"" + propName + "\" option value: " + getValueDescriptorExpectingEnumForWarning(propValue) + ", missing from props";
+    }
+  }
+
+  for (var _propName15 in diff.different) {
+    var latestValue = diff.different[_propName15].latest;
+    var originalValue = diff.different[_propName15].original;
+    description += "\n  \"" + _propName15 + "\" option value: " + getValueDescriptorExpectingEnumForWarning(latestValue) + ", prop value: " + getValueDescriptorExpectingEnumForWarning(originalValue);
+  }
+
+  return description;
+}
 
 var ReactDOMSharedInternals = ReactDOM.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
 var ReactDOMCurrentDispatcher = ReactDOMSharedInternals.Dispatcher;
-function prepareToRender(resources) {
-  prepareToRenderResources(resources);
-  var previousHostDispatcher = ReactDOMCurrentDispatcher.current;
+var ReactDOMServerDispatcher = {
+  prefetchDNS: prefetchDNS,
+  preconnect: preconnect,
+  preload: preload,
+  preinit: preinit
+};
+function prepareHostDispatcher() {
   ReactDOMCurrentDispatcher.current = ReactDOMServerDispatcher;
-  return previousHostDispatcher;
-}
-function cleanupAfterRender(previousDispatcher) {
-  finishRenderingResources();
-  ReactDOMCurrentDispatcher.current = previousDispatcher;
 } // Used to distinguish these contexts from ones used in other renderers.
 var ScriptStreamingFormat = 0;
+var DataStreamingFormat = 1;
+var NothingSent
+/*                      */
+= 0;
+var SentCompleteSegmentFunction
+/*      */
+= 1;
+var SentCompleteBoundaryFunction
+/*     */
+= 2;
+var SentClientRenderFunction
+/*         */
+= 4;
+var SentStyleInsertionFunction
+/*       */
+= 8;
+
+var dataElementQuotedEnd = stringToPrecomputedChunk('"></template>');
 var startInlineScript = stringToPrecomputedChunk('<script>');
 var endInlineScript = stringToPrecomputedChunk('</script>');
 var startScriptSrc = stringToPrecomputedChunk('<script src="');
 var startModuleSrc = stringToPrecomputedChunk('<script type="module" src="');
+var scriptNonce = stringToPrecomputedChunk('" nonce="');
 var scriptIntegirty = stringToPrecomputedChunk('" integrity="');
 var endAsyncScript = stringToPrecomputedChunk('" async=""></script>');
 /**
@@ -2875,20 +1870,51 @@ var scriptRegex = /(<\/|<)(s)(cript)/gi;
 
 var scriptReplacer = function (match, prefix, s, suffix) {
   return "" + prefix + (s === 's' ? "\\u0073" : "\\u0053") + suffix;
-};
-
-// Allows us to keep track of what we've already written so we can refer back to it.
+}; // Allows us to keep track of what we've already written so we can refer back to it.
 // if passed externalRuntimeConfig and the enableFizzExternalRuntime feature flag
 // is set, the server will send instructions via data attributes (instead of inline scripts)
-function createResponseState(identifierPrefix, nonce, bootstrapScriptContent, bootstrapScripts, bootstrapModules, externalRuntimeConfig) {
+
+
+function createResponseState$1(identifierPrefix, nonce, bootstrapScriptContent, bootstrapScripts, bootstrapModules, externalRuntimeConfig) {
   var idPrefix = identifierPrefix === undefined ? '' : identifierPrefix;
   var inlineScriptWithNonce = nonce === undefined ? startInlineScript : stringToPrecomputedChunk('<script nonce="' + escapeTextForBrowser(nonce) + '">');
   var bootstrapChunks = [];
-  var externalRuntimeDesc = null;
+  var externalRuntimeScript = null;
   var streamingFormat = ScriptStreamingFormat;
 
   if (bootstrapScriptContent !== undefined) {
     bootstrapChunks.push(inlineScriptWithNonce, stringToChunk(escapeBootstrapScriptContent(bootstrapScriptContent)), endInlineScript);
+  }
+
+  {
+
+    if (externalRuntimeConfig !== undefined) {
+      streamingFormat = DataStreamingFormat;
+
+      if (typeof externalRuntimeConfig === 'string') {
+        externalRuntimeScript = {
+          src: externalRuntimeConfig,
+          chunks: []
+        };
+        pushScriptImpl(externalRuntimeScript.chunks, {
+          src: externalRuntimeConfig,
+          async: true,
+          integrity: undefined,
+          nonce: nonce
+        });
+      } else {
+        externalRuntimeScript = {
+          src: externalRuntimeConfig.src,
+          chunks: []
+        };
+        pushScriptImpl(externalRuntimeScript.chunks, {
+          src: externalRuntimeConfig.src,
+          async: true,
+          integrity: externalRuntimeConfig.integrity,
+          nonce: nonce
+        });
+      }
+    }
   }
 
   if (bootstrapScripts !== undefined) {
@@ -2897,6 +1923,10 @@ function createResponseState(identifierPrefix, nonce, bootstrapScriptContent, bo
       var src = typeof scriptConfig === 'string' ? scriptConfig : scriptConfig.src;
       var integrity = typeof scriptConfig === 'string' ? undefined : scriptConfig.integrity;
       bootstrapChunks.push(startScriptSrc, stringToChunk(escapeTextForBrowser(src)));
+
+      if (nonce) {
+        bootstrapChunks.push(scriptNonce, stringToChunk(escapeTextForBrowser(nonce)));
+      }
 
       if (integrity) {
         bootstrapChunks.push(scriptIntegirty, stringToChunk(escapeTextForBrowser(integrity)));
@@ -2916,6 +1946,10 @@ function createResponseState(identifierPrefix, nonce, bootstrapScriptContent, bo
 
       bootstrapChunks.push(startModuleSrc, stringToChunk(escapeTextForBrowser(_src)));
 
+      if (nonce) {
+        bootstrapChunks.push(scriptNonce, stringToChunk(escapeTextForBrowser(nonce)));
+      }
+
       if (_integrity) {
         bootstrapChunks.push(scriptIntegirty, stringToChunk(escapeTextForBrowser(_integrity)));
       }
@@ -2933,26 +1967,37 @@ function createResponseState(identifierPrefix, nonce, bootstrapScriptContent, bo
     nextSuspenseID: 0,
     streamingFormat: streamingFormat,
     startInlineScript: inlineScriptWithNonce,
-    sentCompleteSegmentFunction: false,
-    sentCompleteBoundaryFunction: false,
-    sentClientRenderFunction: false,
-    sentStyleInsertionFunction: false,
-    externalRuntimeConfig: externalRuntimeDesc
+    instructions: NothingSent,
+    externalRuntimeScript: externalRuntimeScript,
+    htmlChunks: null,
+    headChunks: null,
+    hasBody: false,
+    charsetChunks: [],
+    preconnectChunks: [],
+    preloadChunks: [],
+    hoistableChunks: [],
+    stylesToHoist: false,
+    nonce: nonce
   };
 } // Constants for the insertion mode we're currently writing in. We don't encode all HTML5 insertion
 // modes. We only include the variants as they matter for the sake of our purposes.
 // We don't actually provide the namespace therefore we use constants instead of the string.
 
 var ROOT_HTML_MODE = 0; // Used for the root most element tag.
-
-var HTML_MODE = 1;
-var SVG_MODE = 2;
-var MATHML_MODE = 3;
-var HTML_TABLE_MODE = 4;
-var HTML_TABLE_BODY_MODE = 5;
-var HTML_TABLE_ROW_MODE = 6;
-var HTML_COLGROUP_MODE = 7; // We have a greater than HTML_TABLE_MODE check elsewhere. If you add more cases here, make sure it
+// We have a less than HTML_HTML_MODE check elsewhere. If you add more cases here, make sure it
 // still makes sense
+
+var HTML_HTML_MODE = 1; // Used for the <html> if it is at the top level.
+
+var HTML_MODE = 2;
+var SVG_MODE = 3;
+var MATHML_MODE = 4;
+var HTML_TABLE_MODE = 5;
+var HTML_TABLE_BODY_MODE = 6;
+var HTML_TABLE_ROW_MODE = 7;
+var HTML_COLGROUP_MODE = 8; // We have a greater than HTML_TABLE_MODE check elsewhere. If you add more cases here, make sure it
+// still makes sense
+// Lets us keep track of contextual state and pick it back up after suspending.
 
 function createFormatContext(insertionMode, selectedValue, noscriptTagInScope) {
   return {
@@ -3002,8 +2047,16 @@ function getChildFormatContext(parentContext, type, props) {
   }
 
   if (parentContext.insertionMode === ROOT_HTML_MODE) {
-    // We've emitted the root and is now in plain HTML mode.
-    return createFormatContext(HTML_MODE, null, parentContext.noscriptTagInScope);
+    if (type === 'html') {
+      // We've emitted the root and is now in <html> mode.
+      return createFormatContext(HTML_HTML_MODE, null, false);
+    } else {
+      // We've emitted the root and is now in plain HTML mode.
+      return createFormatContext(HTML_MODE, null, false);
+    }
+  } else if (parentContext.insertionMode === HTML_HTML_MODE) {
+    // We've emitted the document element and is now in plain HTML mode.
+    return createFormatContext(HTML_MODE, null, false);
   }
 
   return parentContext;
@@ -3031,7 +2084,7 @@ function encodeHTMLTextNode(text) {
 }
 
 var textSeparator = stringToPrecomputedChunk('<!-- -->');
-function pushTextInstance(target, text, responseState, textEmbedded) {
+function pushTextInstance$1(target, text, responseState, textEmbedded) {
   if (text === '') {
     // Empty text doesn't have a DOM node representation and the hydration is aware of this.
     return textEmbedded;
@@ -3046,7 +2099,7 @@ function pushTextInstance(target, text, responseState, textEmbedded) {
 } // Called when Fizz is done with a Segment. Currently the only purpose is to conditionally
 // emit a text separator when we don't know for sure it is safe to omit
 
-function pushSegmentFinale(target, responseState, lastPushedText, textEmbedded) {
+function pushSegmentFinale$1(target, responseState, lastPushedText, textEmbedded) {
   if (lastPushedText && textEmbedded) {
     target.push(textSeparator);
   }
@@ -3069,7 +2122,7 @@ var styleAttributeStart = stringToPrecomputedChunk(' style="');
 var styleAssign = stringToPrecomputedChunk(':');
 var styleSeparator = stringToPrecomputedChunk(';');
 
-function pushStyle(target, responseState, style) {
+function pushStyleAttribute(target, style) {
   if (typeof style !== 'object') {
     throw new Error('The `style` prop expects a mapping from style properties to values, ' + "not a string. For example, style={{marginRight: spacing + 'em'}} when " + 'using JSX.');
   }
@@ -3109,13 +2162,13 @@ function pushStyle(target, responseState, style) {
       valueChunk = stringToChunk(escapeTextForBrowser(('' + styleValue).trim()));
     } else {
       {
-        warnValidStyle$1(styleName, styleValue);
+        warnValidStyle(styleName, styleValue);
       }
 
       nameChunk = processStyleName(styleName);
 
       if (typeof styleValue === 'number') {
-        if (styleValue !== 0 && !hasOwnProperty.call(isUnitlessNumber, styleName)) {
+        if (styleValue !== 0 && !isUnitlessNumber(styleName)) {
           valueChunk = stringToChunk(styleValue + 'px'); // Presumes implicit 'px' suffix for unitless numbers
         } else {
           valueChunk = stringToChunk('' + styleValue);
@@ -3148,11 +2201,124 @@ var attributeAssign = stringToPrecomputedChunk('="');
 var attributeEnd = stringToPrecomputedChunk('"');
 var attributeEmptyString = stringToPrecomputedChunk('=""');
 
-function pushAttribute(target, responseState, name, value) {
+function pushBooleanAttribute(target, name, value) // not null or undefined
+{
+  if (value && typeof value !== 'function' && typeof value !== 'symbol') {
+    target.push(attributeSeparator, stringToChunk(name), attributeEmptyString);
+  }
+}
+
+function pushStringAttribute(target, name, value) // not null or undefined
+{
+  if (typeof value !== 'function' && typeof value !== 'symbol' && typeof value !== 'boolean') {
+    target.push(attributeSeparator, stringToChunk(name), attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
+  }
+}
+// than on the client and hopefully it's googleable.
+
+
+stringToPrecomputedChunk(escapeTextForBrowser( // eslint-disable-next-line no-script-url
+"javascript:throw new Error('A React form was unexpectedly submitted.')"));
+var startHiddenInputChunk = stringToPrecomputedChunk('<input type="hidden"');
+
+function pushAdditionalFormField(value, key) {
+  var target = this;
+  target.push(startHiddenInputChunk);
+
+  if (typeof value !== 'string') {
+    throw new Error('File/Blob fields are not yet supported in progressive forms. ' + 'It probably means you are closing over binary data or FormData in a Server Action.');
+  }
+
+  pushStringAttribute(target, 'name', key);
+  pushStringAttribute(target, 'value', value);
+  target.push(endOfStartTagSelfClosing);
+}
+
+function pushAdditionalFormFields(target, formData) {
+  if (formData !== null) {
+    // $FlowFixMe[prop-missing]: FormData has forEach.
+    formData.forEach(pushAdditionalFormField, target);
+  }
+}
+
+function pushFormActionAttribute(target, responseState, formAction, formEncType, formMethod, formTarget, name) {
+  var formData = null;
+
+  if (name != null) {
+    pushAttribute(target, 'name', name);
+  }
+
+  if (formAction != null) {
+    pushAttribute(target, 'formAction', formAction);
+  }
+
+  if (formEncType != null) {
+    pushAttribute(target, 'formEncType', formEncType);
+  }
+
+  if (formMethod != null) {
+    pushAttribute(target, 'formMethod', formMethod);
+  }
+
+  if (formTarget != null) {
+    pushAttribute(target, 'formTarget', formTarget);
+  }
+
+  return formData;
+}
+
+function pushAttribute(target, name, value) // not null or undefined
+{
   switch (name) {
+    // These are very common props and therefore are in the beginning of the switch.
+    // TODO: aria-label is a very common prop but allows booleans so is not like the others
+    // but should ideally go in this list too.
+    case 'className':
+      {
+        pushStringAttribute(target, 'class', value);
+        break;
+      }
+
+    case 'tabIndex':
+      {
+        pushStringAttribute(target, 'tabindex', value);
+        break;
+      }
+
+    case 'dir':
+    case 'role':
+    case 'viewBox':
+    case 'width':
+    case 'height':
+      {
+        pushStringAttribute(target, name, value);
+        break;
+      }
+
     case 'style':
       {
-        pushStyle(target, responseState, value);
+        pushStyleAttribute(target, value);
+        return;
+      }
+
+    case 'src':
+    case 'href':
+    // Fall through to the last case which shouldn't remove empty strings.
+
+    case 'action':
+    case 'formAction':
+      {
+        // TODO: Consider only special casing these for each tag.
+        if (value == null || typeof value === 'function' || typeof value === 'symbol' || typeof value === 'boolean') {
+          return;
+        }
+
+        {
+          checkAttributeStringCoercion(value, name);
+        }
+
+        var sanitizedValue = sanitizeURL('' + value);
+        target.push(attributeSeparator, stringToChunk(name), attributeAssign, stringToChunk(escapeTextForBrowser(sanitizedValue)), attributeEnd);
         return;
       }
 
@@ -3165,97 +2331,185 @@ function pushAttribute(target, responseState, name, value) {
     case 'suppressHydrationWarning':
       // Ignored. These are built-in to React on the client.
       return;
-  }
 
-  if ( // shouldIgnoreAttribute
-  // We have already filtered out null/undefined and reserved words.
-  name.length > 2 && (name[0] === 'o' || name[0] === 'O') && (name[1] === 'n' || name[1] === 'N')) {
-    return;
-  }
-
-  var propertyInfo = getPropertyInfo(name);
-
-  if (propertyInfo !== null) {
-    // shouldRemoveAttribute
-    switch (typeof value) {
-      case 'function':
-      case 'symbol':
-        // eslint-disable-line
+    case 'autoFocus':
+    case 'multiple':
+    case 'muted':
+      {
+        pushBooleanAttribute(target, name.toLowerCase(), value);
         return;
+      }
 
-      case 'boolean':
+    case 'xlinkHref':
+      {
+        if (typeof value === 'function' || typeof value === 'symbol' || typeof value === 'boolean') {
+          return;
+        }
+
         {
-          if (!propertyInfo.acceptsBooleans) {
-            return;
-          }
+          checkAttributeStringCoercion(value, name);
         }
-    }
 
-    var attributeName = propertyInfo.attributeName;
-    var attributeNameChunk = stringToChunk(attributeName); // TODO: If it's known we can cache the chunk.
+        var _sanitizedValue = sanitizeURL('' + value);
 
-    switch (propertyInfo.type) {
-      case BOOLEAN:
-        if (value) {
-          target.push(attributeSeparator, attributeNameChunk, attributeEmptyString);
+        target.push(attributeSeparator, stringToChunk('xlink:href'), attributeAssign, stringToChunk(escapeTextForBrowser(_sanitizedValue)), attributeEnd);
+        return;
+      }
+
+    case 'contentEditable':
+    case 'spellCheck':
+    case 'draggable':
+    case 'value':
+    case 'autoReverse':
+    case 'externalResourcesRequired':
+    case 'focusable':
+    case 'preserveAlpha':
+      {
+        // Booleanish String
+        // These are "enumerated" attributes that accept "true" and "false".
+        // In React, we let users pass `true` and `false` even though technically
+        // these aren't boolean attributes (they are coerced to strings).
+        if (typeof value !== 'function' && typeof value !== 'symbol') {
+          target.push(attributeSeparator, stringToChunk(name), attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
         }
 
         return;
+      }
 
-      case OVERLOADED_BOOLEAN:
+    case 'allowFullScreen':
+    case 'async':
+    case 'autoPlay':
+    case 'controls':
+    case 'default':
+    case 'defer':
+    case 'disabled':
+    case 'disablePictureInPicture':
+    case 'disableRemotePlayback':
+    case 'formNoValidate':
+    case 'hidden':
+    case 'loop':
+    case 'noModule':
+    case 'noValidate':
+    case 'open':
+    case 'playsInline':
+    case 'readOnly':
+    case 'required':
+    case 'reversed':
+    case 'scoped':
+    case 'seamless':
+    case 'itemScope':
+      {
+        // Boolean
+        if (value && typeof value !== 'function' && typeof value !== 'symbol') {
+          target.push(attributeSeparator, stringToChunk(name), attributeEmptyString);
+        }
+
+        return;
+      }
+
+    case 'capture':
+    case 'download':
+      {
+        // Overloaded Boolean
         if (value === true) {
-          target.push(attributeSeparator, attributeNameChunk, attributeEmptyString);
-        } else if (value === false) ; else {
-          target.push(attributeSeparator, attributeNameChunk, attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
+          target.push(attributeSeparator, stringToChunk(name), attributeEmptyString);
+        } else if (value === false) ; else if (typeof value !== 'function' && typeof value !== 'symbol') {
+          target.push(attributeSeparator, stringToChunk(name), attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
         }
 
         return;
+      }
 
-      case NUMERIC:
-        if (!isNaN(value)) {
-          target.push(attributeSeparator, attributeNameChunk, attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
+    case 'cols':
+    case 'rows':
+    case 'size':
+    case 'span':
+      {
+        // These are HTML attributes that must be positive numbers.
+        if (typeof value !== 'function' && typeof value !== 'symbol' && !isNaN(value) && value >= 1) {
+          target.push(attributeSeparator, stringToChunk(name), attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
         }
 
-        break;
-
-      case POSITIVE_NUMERIC:
-        if (!isNaN(value) && value >= 1) {
-          target.push(attributeSeparator, attributeNameChunk, attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
-        }
-
-        break;
-
-      default:
-        if (propertyInfo.sanitizeURL) {
-          {
-            checkAttributeStringCoercion(value, attributeName);
-          }
-
-          value = '' + value;
-          sanitizeURL(value);
-        }
-
-        target.push(attributeSeparator, attributeNameChunk, attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
-    }
-  } else if (isAttributeNameSafe(name)) {
-    // shouldRemoveAttribute
-    switch (typeof value) {
-      case 'function':
-      case 'symbol':
-        // eslint-disable-line
         return;
+      }
 
-      case 'boolean':
-        {
-          var prefix = name.toLowerCase().slice(0, 5);
+    case 'rowSpan':
+    case 'start':
+      {
+        // These are HTML attributes that must be numbers.
+        if (typeof value !== 'function' && typeof value !== 'symbol' && !isNaN(value)) {
+          target.push(attributeSeparator, stringToChunk(name), attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
+        }
 
-          if (prefix !== 'data-' && prefix !== 'aria-') {
+        return;
+      }
+
+    case 'xlinkActuate':
+      pushStringAttribute(target, 'xlink:actuate', value);
+      return;
+
+    case 'xlinkArcrole':
+      pushStringAttribute(target, 'xlink:arcrole', value);
+      return;
+
+    case 'xlinkRole':
+      pushStringAttribute(target, 'xlink:role', value);
+      return;
+
+    case 'xlinkShow':
+      pushStringAttribute(target, 'xlink:show', value);
+      return;
+
+    case 'xlinkTitle':
+      pushStringAttribute(target, 'xlink:title', value);
+      return;
+
+    case 'xlinkType':
+      pushStringAttribute(target, 'xlink:type', value);
+      return;
+
+    case 'xmlBase':
+      pushStringAttribute(target, 'xml:base', value);
+      return;
+
+    case 'xmlLang':
+      pushStringAttribute(target, 'xml:lang', value);
+      return;
+
+    case 'xmlSpace':
+      pushStringAttribute(target, 'xml:space', value);
+      return;
+
+    default:
+      if ( // shouldIgnoreAttribute
+      // We have already filtered out null/undefined and reserved words.
+      name.length > 2 && (name[0] === 'o' || name[0] === 'O') && (name[1] === 'n' || name[1] === 'N')) {
+        return;
+      }
+
+      var attributeName = getAttributeAlias(name);
+
+      if (isAttributeNameSafe(attributeName)) {
+        // shouldRemoveAttribute
+        switch (typeof value) {
+          case 'function':
+          case 'symbol':
+            // eslint-disable-line
             return;
-          }
-        }
-    }
 
-    target.push(attributeSeparator, stringToChunk(name), attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
+          case 'boolean':
+            {
+              var prefix = attributeName.toLowerCase().slice(0, 5);
+
+              if (prefix !== 'data-' && prefix !== 'aria-') {
+                return;
+              }
+            }
+        }
+
+        target.push(attributeSeparator, stringToChunk(attributeName), attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
+      }
+
   }
 }
 
@@ -3293,6 +2547,7 @@ var didWarnDefaultTextareaValue = false;
 var didWarnInvalidOptionChildren = false;
 var didWarnInvalidOptionInnerHTML = false;
 var didWarnSelectedSetOnOption = false;
+var didWarnFormActionType = false;
 
 function checkSelectProp(props, propName) {
   {
@@ -3310,7 +2565,7 @@ function checkSelectProp(props, propName) {
   }
 }
 
-function pushStartSelect(target, props, responseState) {
+function pushStartSelect(target, props) {
   {
     checkControlledValueProps('select', props);
     checkSelectProp(props, 'value');
@@ -3352,7 +2607,7 @@ function pushStartSelect(target, props, responseState) {
           break;
 
         default:
-          pushAttribute(target, responseState, propKey, propValue);
+          pushAttribute(target, propKey, propValue);
           break;
       }
     }
@@ -3387,7 +2642,7 @@ function flattenOptionChildren(children) {
 
 var selectedMarkerAttribute = stringToPrecomputedChunk(' selected=""');
 
-function pushStartOption(target, props, responseState, formatContext) {
+function pushStartOption(target, props, formatContext) {
   var selectedValue = formatContext.selectedValue;
   target.push(startChunkForTag('option'));
   var children = null;
@@ -3426,15 +2681,13 @@ function pushStartOption(target, props, responseState, formatContext) {
         case 'dangerouslySetInnerHTML':
           innerHTML = propValue;
           break;
-        // eslint-disable-next-line-no-fallthrough
 
         case 'value':
           value = propValue;
         // We intentionally fallthrough to also set the attribute on the node.
-        // eslint-disable-next-line-no-fallthrough
 
         default:
-          pushAttribute(target, responseState, propKey, propValue);
+          pushAttribute(target, propKey, propValue);
           break;
       }
     }
@@ -3495,24 +2748,96 @@ function pushStartOption(target, props, responseState, formatContext) {
   return children;
 }
 
-function pushInput(target, props, responseState) {
-  {
-    checkControlledValueProps('input', props);
+function pushStartForm(target, props, responseState) {
+  target.push(startChunkForTag('form'));
+  var children = null;
+  var innerHTML = null;
+  var formAction = null;
+  var formEncType = null;
+  var formMethod = null;
+  var formTarget = null;
 
-    if (props.checked !== undefined && props.defaultChecked !== undefined && !didWarnDefaultChecked) {
-      error('%s contains an input of type %s with both checked and defaultChecked props. ' + 'Input elements must be either controlled or uncontrolled ' + '(specify either the checked prop, or the defaultChecked prop, but not ' + 'both). Decide between using a controlled or uncontrolled input ' + 'element and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components', 'A component', props.type);
+  for (var propKey in props) {
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
 
-      didWarnDefaultChecked = true;
-    }
+      if (propValue == null) {
+        continue;
+      }
 
-    if (props.value !== undefined && props.defaultValue !== undefined && !didWarnDefaultInputValue) {
-      error('%s contains an input of type %s with both value and defaultValue props. ' + 'Input elements must be either controlled or uncontrolled ' + '(specify either the value prop, or the defaultValue prop, but not ' + 'both). Decide between using a controlled or uncontrolled input ' + 'element and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components', 'A component', props.type);
+      switch (propKey) {
+        case 'children':
+          children = propValue;
+          break;
 
-      didWarnDefaultInputValue = true;
+        case 'dangerouslySetInnerHTML':
+          innerHTML = propValue;
+          break;
+
+        case 'action':
+          formAction = propValue;
+          break;
+
+        case 'encType':
+          formEncType = propValue;
+          break;
+
+        case 'method':
+          formMethod = propValue;
+          break;
+
+        case 'target':
+          formTarget = propValue;
+          break;
+
+        default:
+          pushAttribute(target, propKey, propValue);
+          break;
+      }
     }
   }
 
+  if (formAction != null) {
+    pushAttribute(target, 'action', formAction);
+  }
+
+  if (formEncType != null) {
+    pushAttribute(target, 'encType', formEncType);
+  }
+
+  if (formMethod != null) {
+    pushAttribute(target, 'method', formMethod);
+  }
+
+  if (formTarget != null) {
+    pushAttribute(target, 'target', formTarget);
+  }
+
+  target.push(endOfStartTag);
+
+  pushInnerHTML(target, innerHTML, children);
+
+  if (typeof children === 'string') {
+    // Special case children as a string to avoid the unnecessary comment.
+    // TODO: Remove this special case after the general optimization is in place.
+    target.push(stringToChunk(encodeHTMLTextNode(children)));
+    return null;
+  }
+
+  return children;
+}
+
+function pushInput(target, props, responseState) {
+  {
+    checkControlledValueProps('input', props);
+  }
+
   target.push(startChunkForTag('input'));
+  var name = null;
+  var formAction = null;
+  var formEncType = null;
+  var formMethod = null;
+  var formTarget = null;
   var value = null;
   var defaultValue = null;
   var checked = null;
@@ -3530,7 +2855,26 @@ function pushInput(target, props, responseState) {
         case 'children':
         case 'dangerouslySetInnerHTML':
           throw new Error('input' + " is a self-closing tag and must neither have `children` nor " + 'use `dangerouslySetInnerHTML`.');
-        // eslint-disable-next-line-no-fallthrough
+
+        case 'name':
+          name = propValue;
+          break;
+
+        case 'formAction':
+          formAction = propValue;
+          break;
+
+        case 'formEncType':
+          formEncType = propValue;
+          break;
+
+        case 'formMethod':
+          formMethod = propValue;
+          break;
+
+        case 'formTarget':
+          formTarget = propValue;
+          break;
 
         case 'defaultChecked':
           defaultChecked = propValue;
@@ -3549,29 +2893,133 @@ function pushInput(target, props, responseState) {
           break;
 
         default:
-          pushAttribute(target, responseState, propKey, propValue);
+          pushAttribute(target, propKey, propValue);
           break;
       }
     }
   }
 
+  {
+    if (formAction !== null && props.type !== 'image' && props.type !== 'submit' && !didWarnFormActionType) {
+      didWarnFormActionType = true;
+
+      error('An input can only specify a formAction along with type="submit" or type="image".');
+    }
+  }
+
+  var formData = pushFormActionAttribute(target, responseState, formAction, formEncType, formMethod, formTarget, name);
+
+  {
+    if (checked !== null && defaultChecked !== null && !didWarnDefaultChecked) {
+      error('%s contains an input of type %s with both checked and defaultChecked props. ' + 'Input elements must be either controlled or uncontrolled ' + '(specify either the checked prop, or the defaultChecked prop, but not ' + 'both). Decide between using a controlled or uncontrolled input ' + 'element and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components', 'A component', props.type);
+
+      didWarnDefaultChecked = true;
+    }
+
+    if (value !== null && defaultValue !== null && !didWarnDefaultInputValue) {
+      error('%s contains an input of type %s with both value and defaultValue props. ' + 'Input elements must be either controlled or uncontrolled ' + '(specify either the value prop, or the defaultValue prop, but not ' + 'both). Decide between using a controlled or uncontrolled input ' + 'element and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components', 'A component', props.type);
+
+      didWarnDefaultInputValue = true;
+    }
+  }
+
   if (checked !== null) {
-    pushAttribute(target, responseState, 'checked', checked);
+    pushBooleanAttribute(target, 'checked', checked);
   } else if (defaultChecked !== null) {
-    pushAttribute(target, responseState, 'checked', defaultChecked);
+    pushBooleanAttribute(target, 'checked', defaultChecked);
   }
 
   if (value !== null) {
-    pushAttribute(target, responseState, 'value', value);
+    pushAttribute(target, 'value', value);
   } else if (defaultValue !== null) {
-    pushAttribute(target, responseState, 'value', defaultValue);
+    pushAttribute(target, 'value', defaultValue);
   }
 
-  target.push(endOfStartTagSelfClosing);
+  target.push(endOfStartTagSelfClosing); // We place any additional hidden form fields after the input.
+
+  pushAdditionalFormFields(target, formData);
   return null;
 }
 
-function pushStartTextArea(target, props, responseState) {
+function pushStartButton(target, props, responseState) {
+  target.push(startChunkForTag('button'));
+  var children = null;
+  var innerHTML = null;
+  var name = null;
+  var formAction = null;
+  var formEncType = null;
+  var formMethod = null;
+  var formTarget = null;
+
+  for (var propKey in props) {
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
+
+      if (propValue == null) {
+        continue;
+      }
+
+      switch (propKey) {
+        case 'children':
+          children = propValue;
+          break;
+
+        case 'dangerouslySetInnerHTML':
+          innerHTML = propValue;
+          break;
+
+        case 'name':
+          name = propValue;
+          break;
+
+        case 'formAction':
+          formAction = propValue;
+          break;
+
+        case 'formEncType':
+          formEncType = propValue;
+          break;
+
+        case 'formMethod':
+          formMethod = propValue;
+          break;
+
+        case 'formTarget':
+          formTarget = propValue;
+          break;
+
+        default:
+          pushAttribute(target, propKey, propValue);
+          break;
+      }
+    }
+  }
+
+  {
+    if (formAction !== null && props.type != null && props.type !== 'submit' && !didWarnFormActionType) {
+      didWarnFormActionType = true;
+
+      error('A button can only specify a formAction along with type="submit" or no type.');
+    }
+  }
+
+  var formData = pushFormActionAttribute(target, responseState, formAction, formEncType, formMethod, formTarget, name);
+  target.push(endOfStartTag); // We place any additional hidden form fields we need to include inside the button itself.
+
+  pushAdditionalFormFields(target, formData);
+  pushInnerHTML(target, innerHTML, children);
+
+  if (typeof children === 'string') {
+    // Special case children as a string to avoid the unnecessary comment.
+    // TODO: Remove this special case after the general optimization is in place.
+    target.push(stringToChunk(encodeHTMLTextNode(children)));
+    return null;
+  }
+
+  return children;
+}
+
+function pushStartTextArea(target, props) {
   {
     checkControlledValueProps('textarea', props);
 
@@ -3610,10 +3058,9 @@ function pushStartTextArea(target, props, responseState) {
 
         case 'dangerouslySetInnerHTML':
           throw new Error('`dangerouslySetInnerHTML` does not make sense on <textarea>.');
-        // eslint-disable-next-line-no-fallthrough
 
         default:
-          pushAttribute(target, responseState, propKey, propValue);
+          pushAttribute(target, propKey, propValue);
           break;
       }
     }
@@ -3683,56 +3130,217 @@ function pushStartTextArea(target, props, responseState) {
   return null;
 }
 
-function pushBase(target, props, responseState, textEmbedded, noscriptTagInScope) {
-  if ( !noscriptTagInScope && resourcesFromElement('base', props)) {
-    if (textEmbedded) {
-      // This link follows text but we aren't writing a tag. while not as efficient as possible we need
-      // to be safe and assume text will follow by inserting a textSeparator
-      target.push(textSeparator);
-    } // We have converted this link exclusively to a resource and no longer
-    // need to emit it
+function pushMeta(target, props, responseState, textEmbedded, insertionMode, noscriptTagInScope) {
+  {
+    if (insertionMode === SVG_MODE || noscriptTagInScope || props.itemProp != null) {
+      return pushSelfClosing(target, props, 'meta');
+    } else {
+      if (textEmbedded) {
+        // This link follows text but we aren't writing a tag. while not as efficient as possible we need
+        // to be safe and assume text will follow by inserting a textSeparator
+        target.push(textSeparator);
+      }
 
-
-    return null;
+      if (typeof props.charSet === 'string') {
+        return pushSelfClosing(responseState.charsetChunks, props, 'meta');
+      } else {
+        return pushSelfClosing(responseState.hoistableChunks, props, 'meta');
+      }
+    }
   }
-
-  return pushSelfClosing(target, props, 'base', responseState);
 }
 
-function pushMeta(target, props, responseState, textEmbedded, noscriptTagInScope) {
-  if ( !noscriptTagInScope && resourcesFromElement('meta', props)) {
-    if (textEmbedded) {
-      // This link follows text but we aren't writing a tag. while not as efficient as possible we need
-      // to be safe and assume text will follow by inserting a textSeparator
-      target.push(textSeparator);
-    } // We have converted this link exclusively to a resource and no longer
-    // need to emit it
+function pushLink(target, props, responseState, resources, textEmbedded, insertionMode, noscriptTagInScope) {
+  {
+    var rel = props.rel;
+    var href = props.href;
+    var precedence = props.precedence;
 
+    if (insertionMode === SVG_MODE || noscriptTagInScope || props.itemProp != null || typeof rel !== 'string' || typeof href !== 'string' || href === '') {
+      {
+        if (rel === 'stylesheet' && typeof props.precedence === 'string') {
+          if (typeof href !== 'string' || !href) {
+            error('React encountered a `<link rel="stylesheet" .../>` with a `precedence` prop and expected the `href` prop to be a non-empty string but ecountered %s instead. If your intent was to have React hoist and deduplciate this stylesheet using the `precedence` prop ensure there is a non-empty string `href` prop as well, otherwise remove the `precedence` prop.', getValueDescriptorExpectingObjectForWarning(href));
+          }
+        }
+      }
 
-    return null;
+      pushLinkImpl(target, props);
+      return null;
+    }
+
+    if (props.rel === 'stylesheet') {
+      // This <link> may hoistable as a Stylesheet Resource, otherwise it will emit in place
+      var key = getResourceKey('style', href);
+
+      if (typeof precedence !== 'string' || props.disabled != null || props.onLoad || props.onError) {
+        // This stylesheet is either not opted into Resource semantics or has conflicting properties which
+        // disqualify it for such. We can still create a preload resource to help it load faster on the
+        // client
+        {
+          if (typeof precedence === 'string') {
+            if (props.disabled != null) {
+              error('React encountered a `<link rel="stylesheet" .../>` with a `precedence` prop and a `disabled` prop. The presence of the `disabled` prop indicates an intent to manage the stylesheet active state from your from your Component code and React will not hoist or deduplicate this stylesheet. If your intent was to have React hoist and deduplciate this stylesheet using the `precedence` prop remove the `disabled` prop, otherwise remove the `precedence` prop.');
+            } else if (props.onLoad || props.onError) {
+              var propDescription = props.onLoad && props.onError ? '`onLoad` and `onError` props' : props.onLoad ? '`onLoad` prop' : '`onError` prop';
+
+              error('React encountered a `<link rel="stylesheet" .../>` with a `precedence` prop and %s. The presence of loading and error handlers indicates an intent to manage the stylesheet loading state from your from your Component code and React will not hoist or deduplicate this stylesheet. If your intent was to have React hoist and deduplciate this stylesheet using the `precedence` prop remove the %s, otherwise remove the `precedence` prop.', propDescription, propDescription);
+            }
+          }
+        }
+
+        var resource = resources.preloadsMap.get(key);
+
+        if (!resource) {
+          resource = {
+            type: 'preload',
+            chunks: [],
+            state: NoState,
+            props: preloadAsStylePropsFromProps(href, props)
+          };
+          resources.preloadsMap.set(key, resource);
+
+          {
+            markAsImplicitResourceDEV(resource, props, resource.props);
+          }
+        }
+
+        pushLinkImpl(resource.chunks, resource.props);
+        resources.usedStylesheets.add(resource);
+        return pushLinkImpl(target, props);
+      } else {
+        // This stylesheet refers to a Resource and we create a new one if necessary
+        var _resource = resources.stylesMap.get(key);
+
+        {
+          var devResource = getAsResourceDEV(_resource);
+
+          if (devResource) {
+            switch (devResource.__provenance) {
+              case 'rendered':
+                {
+                  var differenceDescription = describeDifferencesForStylesheets( // Diff the props from the JSX element, not the derived resource props
+                  props, devResource.__originalProps);
+
+                  if (differenceDescription) {
+                    error('React encountered a <link rel="stylesheet" href="%s" .../> with a `precedence` prop that has props that conflict' + ' with another hoistable stylesheet with the same `href`. When using `precedence` with <link rel="stylsheet" .../>' + ' the props from the first encountered instance will be used and props from later instances will be ignored.' + ' Update the props on either <link rel="stylesheet" .../> instance so they agree.%s', href, differenceDescription);
+                  }
+
+                  break;
+                }
+
+              case 'preinit':
+                {
+                  var _differenceDescription = describeDifferencesForStylesheetOverPreinit( // Diff the props from the JSX element, not the derived resource props
+                  props, devResource.__propsEquivalent);
+
+                  if (_differenceDescription) {
+                    error('React encountered a <link rel="stylesheet" precedence="%s" href="%s" .../> with props that conflict' + ' with the options provided to `ReactDOM.preinit("%s", { as: "style", ... })`. React will use the first props or preinitialization' + ' options encountered when rendering a hoistable stylesheet with a particular `href` and will ignore any newer props or' + ' options. The first instance of this stylesheet resource was created using the `ReactDOM.preinit()` function.' + ' Please note, `ReactDOM.preinit()` is modeled off of module import assertions capabilities and does not support' + ' arbitrary props. If you need to have props not included with the preinit options you will need to rely on rendering' + ' <link> tags only.%s', precedence, href, href, _differenceDescription);
+                  }
+
+                  break;
+                }
+            }
+          }
+        }
+
+        if (!_resource) {
+          var resourceProps = stylesheetPropsFromRawProps(props);
+          var preloadResource = resources.preloadsMap.get(key);
+          var state = NoState;
+
+          if (preloadResource) {
+            // If we already had a preload we don't want that resource to flush directly.
+            // We let the newly created resource govern flushing.
+            preloadResource.state |= Blocked;
+            adoptPreloadPropsForStylesheetProps(resourceProps, preloadResource.props);
+
+            if (preloadResource.state & Flushed) {
+              state = PreloadFlushed;
+            }
+          }
+
+          _resource = {
+            type: 'stylesheet',
+            chunks: [],
+            state: state,
+            props: resourceProps
+          };
+          resources.stylesMap.set(key, _resource);
+
+          {
+            markAsRenderedResourceDEV(_resource, props);
+          }
+
+          var precedenceSet = resources.precedences.get(precedence);
+
+          if (!precedenceSet) {
+            precedenceSet = new Set();
+            resources.precedences.set(precedence, precedenceSet);
+            var emptyStyleResource = {
+              type: 'style',
+              chunks: [],
+              state: NoState,
+              props: {
+                precedence: precedence,
+                hrefs: []
+              }
+            };
+            precedenceSet.add(emptyStyleResource);
+
+            {
+              if (resources.stylePrecedences.has(precedence)) {
+                error('React constructed an empty style resource when a style resource already exists for this precedence: "%s". This is a bug in React.', precedence);
+              }
+            }
+
+            resources.stylePrecedences.set(precedence, emptyStyleResource);
+          }
+
+          precedenceSet.add(_resource);
+        }
+
+        if (resources.boundaryResources) {
+          resources.boundaryResources.add(_resource);
+        }
+
+        if (textEmbedded) {
+          // This link follows text but we aren't writing a tag. while not as efficient as possible we need
+          // to be safe and assume text will follow by inserting a textSeparator
+          target.push(textSeparator);
+        }
+
+        return null;
+      }
+    } else if (props.onLoad || props.onError) {
+      // When using load handlers we cannot hoist and need to emit links in place
+      return pushLinkImpl(target, props);
+    } else {
+      // We can hoist this link so we may need to emit a text separator.
+      // @TODO refactor text separators so we don't have to defensively add
+      // them when we don't end up emitting a tag as a result of pushStartInstance
+      if (textEmbedded) {
+        // This link follows text but we aren't writing a tag. while not as efficient as possible we need
+        // to be safe and assume text will follow by inserting a textSeparator
+        target.push(textSeparator);
+      }
+
+      switch (props.rel) {
+        case 'preconnect':
+        case 'dns-prefetch':
+          return pushLinkImpl(responseState.preconnectChunks, props);
+
+        case 'preload':
+          return pushLinkImpl(responseState.preloadChunks, props);
+
+        default:
+          return pushLinkImpl(responseState.hoistableChunks, props);
+      }
+    }
   }
-
-  return pushSelfClosing(target, props, 'meta', responseState);
 }
 
-function pushLink(target, props, responseState, textEmbedded, noscriptTagInScope) {
-  if ( !noscriptTagInScope && resourcesFromLink(props)) {
-    if (textEmbedded) {
-      // This link follows text but we aren't writing a tag. while not as efficient as possible we need
-      // to be safe and assume text will follow by inserting a textSeparator
-      target.push(textSeparator);
-    } // We have converted this link exclusively to a resource and no longer
-    // need to emit it
-
-
-    return null;
-  }
-
-  return pushLinkImpl(target, props, responseState);
-}
-
-function pushLinkImpl(target, props, responseState) {
-  var isStylesheet = props.rel === 'stylesheet';
+function pushLinkImpl(target, props) {
   target.push(startChunkForTag('link'));
 
   for (var propKey in props) {
@@ -3748,18 +3356,8 @@ function pushLinkImpl(target, props, responseState) {
         case 'dangerouslySetInnerHTML':
           throw new Error('link' + " is a self-closing tag and must neither have `children` nor " + 'use `dangerouslySetInnerHTML`.');
 
-        case 'precedence':
-          {
-            if ( isStylesheet) {
-              // precedence is a reversed property for stylesheets to opt-into resource semantcs
-              continue;
-            } // intentionally fall through
-
-          }
-        // eslint-disable-next-line-no-fallthrough
-
         default:
-          pushAttribute(target, responseState, propKey, propValue);
+          pushAttribute(target, propKey, propValue);
           break;
       }
     }
@@ -3769,89 +3367,87 @@ function pushLinkImpl(target, props, responseState) {
   return null;
 }
 
-function pushSelfClosing(target, props, tag, responseState) {
-  target.push(startChunkForTag(tag));
-
-  for (var propKey in props) {
-    if (hasOwnProperty.call(props, propKey)) {
-      var propValue = props[propKey];
-
-      if (propValue == null) {
-        continue;
-      }
-
-      switch (propKey) {
-        case 'children':
-        case 'dangerouslySetInnerHTML':
-          throw new Error(tag + " is a self-closing tag and must neither have `children` nor " + 'use `dangerouslySetInnerHTML`.');
-        // eslint-disable-next-line-no-fallthrough
-
-        default:
-          pushAttribute(target, responseState, propKey, propValue);
-          break;
-      }
-    }
-  }
-
-  target.push(endOfStartTagSelfClosing);
-  return null;
-}
-
-function pushStartMenuItem(target, props, responseState) {
-  target.push(startChunkForTag('menuitem'));
-
-  for (var propKey in props) {
-    if (hasOwnProperty.call(props, propKey)) {
-      var propValue = props[propKey];
-
-      if (propValue == null) {
-        continue;
-      }
-
-      switch (propKey) {
-        case 'children':
-        case 'dangerouslySetInnerHTML':
-          throw new Error('menuitems cannot have `children` nor `dangerouslySetInnerHTML`.');
-        // eslint-disable-next-line-no-fallthrough
-
-        default:
-          pushAttribute(target, responseState, propKey, propValue);
-          break;
-      }
-    }
-  }
-
-  target.push(endOfStartTag);
-  return null;
-}
-
-function pushTitle(target, props, responseState, insertionMode, noscriptTagInScope) {
+function pushStyle(target, props, resources, textEmbedded, insertionMode, noscriptTagInScope) {
   {
-    var children = props.children;
-    var childForValidation = Array.isArray(children) && children.length < 2 ? children[0] || null : children;
+    if (hasOwnProperty.call(props, 'children')) {
+      var children = props.children;
+      var child = Array.isArray(children) ? children.length < 2 ? children[0] : null : children;
 
-    if (Array.isArray(children) && children.length > 1) {
-      error('A title element received an array with more than 1 element as children. ' + 'In browsers title Elements can only have Text Nodes as children. If ' + 'the children being rendered output more than a single text node in aggregate the browser ' + 'will display markup and comments as text in the title and hydration will likely fail and ' + 'fall back to client rendering');
-    } else if (childForValidation != null && childForValidation.$$typeof != null) {
-      error('A title element received a React element for children. ' + 'In the browser title Elements can only have Text Nodes as children. If ' + 'the children being rendered output more than a single text node in aggregate the browser ' + 'will display markup and comments as text in the title and hydration will likely fail and ' + 'fall back to client rendering');
-    } else if (childForValidation != null && typeof childForValidation !== 'string' && typeof childForValidation !== 'number') {
-      error('A title element received a value that was not a string or number for children. ' + 'In the browser title Elements can only have Text Nodes as children. If ' + 'the children being rendered output more than a single text node in aggregate the browser ' + 'will display markup and comments as text in the title and hydration will likely fail and ' + 'fall back to client rendering');
+      if (typeof child === 'function' || typeof child === 'symbol' || Array.isArray(child)) {
+        var childType = typeof child === 'function' ? 'a Function' : typeof child === 'symbol' ? 'a Sybmol' : 'an Array';
+
+        error('React expect children of <style> tags to be a string, number, or object with a `toString` method but found %s instead. ' + 'In browsers style Elements can only have `Text` Nodes as children.', childType);
+      }
     }
   }
 
-  if ( // title is valid in SVG so we avoid resour
-  insertionMode !== SVG_MODE && !noscriptTagInScope && resourcesFromElement('title', props)) {
-    // We have converted this link exclusively to a resource and no longer
-    // need to emit it
-    return null;
-  }
+  {
+    var precedence = props.precedence;
+    var href = props.href;
 
-  return pushTitleImpl(target, props, responseState);
+    if (insertionMode === SVG_MODE || noscriptTagInScope || props.itemProp != null || typeof precedence !== 'string' || typeof href !== 'string' || href === '') {
+      // This style tag is not able to be turned into a Style Resource
+      return pushStyleImpl(target, props);
+    }
+
+    {
+      if (href.includes(' ')) {
+        error('React expected the `href` prop for a <style> tag opting into hoisting semantics using the `precedence` prop to not have any spaces but ecountered spaces instead. using spaces in this prop will cause hydration of this style to fail on the client. The href for the <style> where this ocurred is "%s".', href);
+      }
+    }
+
+    var key = getResourceKey('style', href);
+    var resource = resources.stylesMap.get(key);
+
+    if (!resource) {
+      resource = resources.stylePrecedences.get(precedence);
+
+      if (!resource) {
+        resource = {
+          type: 'style',
+          chunks: [],
+          state: NoState,
+          props: {
+            precedence: precedence,
+            hrefs: [href]
+          }
+        };
+        resources.stylePrecedences.set(precedence, resource);
+        var precedenceSet = new Set();
+        precedenceSet.add(resource);
+
+        {
+          if (resources.precedences.has(precedence)) {
+            error('React constructed a new style precedence set when one already exists for this precedence: "%s". This is a bug in React.', precedence);
+          }
+        }
+
+        resources.precedences.set(precedence, precedenceSet);
+      } else {
+        resource.props.hrefs.push(href);
+      }
+
+      resources.stylesMap.set(key, resource);
+
+      if (resources.boundaryResources) {
+        resources.boundaryResources.add(resource);
+      }
+
+      pushStyleContents(resource.chunks, props);
+    }
+
+    if (textEmbedded) {
+      // This link follows text but we aren't writing a tag. while not as efficient as possible we need
+      // to be safe and assume text will follow by inserting a textSeparator
+      target.push(textSeparator);
+    }
+  }
 }
 
-function pushTitleImpl(target, props, responseState) {
-  target.push(startChunkForTag('title'));
+function pushStyleImpl(target, props) {
+  target.push(startChunkForTag('style'));
   var children = null;
+  var innerHTML = null;
 
   for (var propKey in props) {
     if (hasOwnProperty.call(props, propKey)) {
@@ -3867,61 +3463,343 @@ function pushTitleImpl(target, props, responseState) {
           break;
 
         case 'dangerouslySetInnerHTML':
-          throw new Error('`dangerouslySetInnerHTML` does not make sense on <title>.');
-        // eslint-disable-next-line-no-fallthrough
+          innerHTML = propValue;
+          break;
 
         default:
-          pushAttribute(target, responseState, propKey, propValue);
+          pushAttribute(target, propKey, propValue);
           break;
       }
     }
   }
 
   target.push(endOfStartTag);
-  var child = Array.isArray(children) && children.length < 2 ? children[0] || null : children;
+  var child = Array.isArray(children) ? children.length < 2 ? children[0] : null : children;
 
-  if (typeof child === 'string' || typeof child === 'number') {
-    target.push(stringToChunk(escapeTextForBrowser(child)));
+  if (typeof child !== 'function' && typeof child !== 'symbol' && child !== null && child !== undefined) {
+    // eslint-disable-next-line react-internal/safe-string-coercion
+    target.push(stringToChunk(escapeTextForBrowser('' + child)));
   }
 
+  pushInnerHTML(target, innerHTML, children);
+  target.push(endTag1, stringToChunk('style'), endTag2);
+  return null;
+}
+
+function pushStyleContents(target, props) {
+  var children = null;
+  var innerHTML = null;
+
+  for (var propKey in props) {
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
+
+      if (propValue == null) {
+        continue;
+      }
+
+      switch (propKey) {
+        case 'children':
+          children = propValue;
+          break;
+
+        case 'dangerouslySetInnerHTML':
+          innerHTML = propValue;
+          break;
+      }
+    }
+  }
+
+  var child = Array.isArray(children) ? children.length < 2 ? children[0] : null : children;
+
+  if (typeof child !== 'function' && typeof child !== 'symbol' && child !== null && child !== undefined) {
+    // eslint-disable-next-line react-internal/safe-string-coercion
+    target.push(stringToChunk(escapeTextForBrowser('' + child)));
+  }
+
+  pushInnerHTML(target, innerHTML, children);
+  return;
+}
+
+function pushSelfClosing(target, props, tag) {
+  target.push(startChunkForTag(tag));
+
+  for (var propKey in props) {
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
+
+      if (propValue == null) {
+        continue;
+      }
+
+      switch (propKey) {
+        case 'children':
+        case 'dangerouslySetInnerHTML':
+          throw new Error(tag + " is a self-closing tag and must neither have `children` nor " + 'use `dangerouslySetInnerHTML`.');
+
+        default:
+          pushAttribute(target, propKey, propValue);
+          break;
+      }
+    }
+  }
+
+  target.push(endOfStartTagSelfClosing);
+  return null;
+}
+
+function pushStartMenuItem(target, props) {
+  target.push(startChunkForTag('menuitem'));
+
+  for (var propKey in props) {
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
+
+      if (propValue == null) {
+        continue;
+      }
+
+      switch (propKey) {
+        case 'children':
+        case 'dangerouslySetInnerHTML':
+          throw new Error('menuitems cannot have `children` nor `dangerouslySetInnerHTML`.');
+
+        default:
+          pushAttribute(target, propKey, propValue);
+          break;
+      }
+    }
+  }
+
+  target.push(endOfStartTag);
+  return null;
+}
+
+function pushTitle(target, props, responseState, insertionMode, noscriptTagInScope) {
+  {
+    if (hasOwnProperty.call(props, 'children')) {
+      var children = props.children;
+      var child = Array.isArray(children) ? children.length < 2 ? children[0] : null : children;
+
+      if (Array.isArray(children) && children.length > 1) {
+        error('React expects the `children` prop of <title> tags to be a string, number, or object with a novel `toString` method but found an Array with length %s instead.' + ' Browsers treat all child Nodes of <title> tags as Text content and React expects to be able to convert `children` of <title> tags to a single string value' + ' which is why Arrays of length greater than 1 are not supported. When using JSX it can be commong to combine text nodes and value nodes.' + ' For example: <title>hello {nameOfUser}</title>. While not immediately apparent, `children` in this case is an Array with length 2. If your `children` prop' + ' is using this form try rewriting it using a template string: <title>{`hello ${nameOfUser}`}</title>.', children.length);
+      } else if (typeof child === 'function' || typeof child === 'symbol') {
+        var childType = typeof child === 'function' ? 'a Function' : 'a Sybmol';
+
+        error('React expect children of <title> tags to be a string, number, or object with a novel `toString` method but found %s instead.' + ' Browsers treat all child Nodes of <title> tags as Text content and React expects to be able to convert children of <title>' + ' tags to a single string value.', childType);
+      } else if (child && child.toString === {}.toString) {
+        if (child.$$typeof != null) {
+          error('React expects the `children` prop of <title> tags to be a string, number, or object with a novel `toString` method but found an object that appears to be' + ' a React element which never implements a suitable `toString` method. Browsers treat all child Nodes of <title> tags as Text content and React expects to' + ' be able to convert children of <title> tags to a single string value which is why rendering React elements is not supported. If the `children` of <title> is' + ' a React Component try moving the <title> tag into that component. If the `children` of <title> is some HTML markup change it to be Text only to be valid HTML.');
+        } else {
+          error('React expects the `children` prop of <title> tags to be a string, number, or object with a novel `toString` method but found an object that does not implement' + ' a suitable `toString` method. Browsers treat all child Nodes of <title> tags as Text content and React expects to be able to convert children of <title> tags' + ' to a single string value. Using the default `toString` method available on every object is almost certainly an error. Consider whether the `children` of this <title>' + ' is an object in error and change it to a string or number value if so. Otherwise implement a `toString` method that React can use to produce a valid <title>.');
+        }
+      }
+    }
+  }
+
+  {
+    if (insertionMode !== SVG_MODE && !noscriptTagInScope && props.itemProp == null) {
+      pushTitleImpl(responseState.hoistableChunks, props);
+      return null;
+    } else {
+      return pushTitleImpl(target, props);
+    }
+  }
+}
+
+function pushTitleImpl(target, props) {
+  target.push(startChunkForTag('title'));
+  var children = null;
+  var innerHTML = null;
+
+  for (var propKey in props) {
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
+
+      if (propValue == null) {
+        continue;
+      }
+
+      switch (propKey) {
+        case 'children':
+          children = propValue;
+          break;
+
+        case 'dangerouslySetInnerHTML':
+          innerHTML = propValue;
+          break;
+
+        default:
+          pushAttribute(target, propKey, propValue);
+          break;
+      }
+    }
+  }
+
+  target.push(endOfStartTag);
+  var child = Array.isArray(children) ? children.length < 2 ? children[0] : null : children;
+
+  if (typeof child !== 'function' && typeof child !== 'symbol' && child !== null && child !== undefined) {
+    // eslint-disable-next-line react-internal/safe-string-coercion
+    target.push(stringToChunk(escapeTextForBrowser('' + child)));
+  }
+
+  pushInnerHTML(target, innerHTML, children);
   target.push(endTag1, stringToChunk('title'), endTag2);
   return null;
 }
 
-function pushStartHead(target, preamble, props, tag, responseState) {
-  return pushStartGenericElement( preamble , props, tag, responseState);
-}
-
-function pushStartHtml(target, preamble, props, tag, responseState, formatContext) {
-  target =  preamble ;
-
-  if (formatContext.insertionMode === ROOT_HTML_MODE) {
-    // If we're rendering the html tag and we're at the root (i.e. not in foreignObject)
-    // then we also emit the DOCTYPE as part of the root content as a convenience for
-    // rendering the whole document.
-    target.push(DOCTYPE);
+function pushStartHead(target, props, responseState, insertionMode) {
+  {
+    if (insertionMode < HTML_MODE && responseState.headChunks === null) {
+      // This <head> is the Document.head and should be part of the preamble
+      responseState.headChunks = [];
+      return pushStartGenericElement(responseState.headChunks, props, 'head');
+    } else {
+      // This <head> is deep and is likely just an error. we emit it inline though.
+      // Validation should warn that this tag is the the wrong spot.
+      return pushStartGenericElement(target, props, 'head');
+    }
   }
-
-  return pushStartGenericElement(target, props, tag, responseState);
 }
 
-function pushScript(target, props, responseState, textEmbedded, noscriptTagInScope) {
-  if ( !noscriptTagInScope && resourcesFromScript(props)) {
+function pushStartHtml(target, props, responseState, insertionMode) {
+  {
+    if (insertionMode === ROOT_HTML_MODE && responseState.htmlChunks === null) {
+      // This <html> is the Document.documentElement and should be part of the preamble
+      responseState.htmlChunks = [DOCTYPE];
+      return pushStartGenericElement(responseState.htmlChunks, props, 'html');
+    } else {
+      // This <html> is deep and is likely just an error. we emit it inline though.
+      // Validation should warn that this tag is the the wrong spot.
+      return pushStartGenericElement(target, props, 'html');
+    }
+  }
+}
+
+function pushScript(target, props, resources, textEmbedded, insertionMode, noscriptTagInScope) {
+  {
+    if (insertionMode === SVG_MODE || noscriptTagInScope || props.itemProp != null || typeof props.src !== 'string' || !props.src) {
+      // This script will not be a resource nor can it be preloaded, we bailout early
+      // and emit it in place.
+      return pushScriptImpl(target, props);
+    }
+
+    var src = props.src;
+    var key = getResourceKey('script', src);
+
+    if (props.async !== true || props.onLoad || props.onError) {
+      // we don't want to preload nomodule scripts
+      if (props.noModule !== true) {
+        // We can't resourcify scripts with load listeners. To avoid ambiguity with
+        // other Resourcified async scripts on the server we omit them from the server
+        // stream and expect them to be inserted during hydration on the client.
+        // We can still preload them however so the client can start fetching the script
+        // as soon as possible
+        var resource = resources.preloadsMap.get(key);
+
+        if (!resource) {
+          resource = {
+            type: 'preload',
+            chunks: [],
+            state: NoState,
+            props: preloadAsScriptPropsFromProps(props.src, props)
+          };
+          resources.preloadsMap.set(key, resource);
+
+          {
+            markAsImplicitResourceDEV(resource, props, resource.props);
+          }
+
+          resources.usedScripts.add(resource);
+          pushLinkImpl(resource.chunks, resource.props);
+        }
+      }
+
+      if (props.async !== true) {
+        // This is not an async script, we can preloaded it but it still needs to
+        // be emitted in place since it needs to hydrate on the client
+        pushScriptImpl(target, props);
+        return null;
+      }
+    } else {
+      // We can make this <script> into a ScriptResource
+      var _resource2 = resources.scriptsMap.get(key);
+
+      {
+        var devResource = getAsResourceDEV(_resource2);
+
+        if (devResource) {
+          switch (devResource.__provenance) {
+            case 'rendered':
+              {
+                var differenceDescription = describeDifferencesForScripts( // Diff the props from the JSX element, not the derived resource props
+                props, devResource.__originalProps);
+
+                if (differenceDescription) {
+                  error('React encountered a <script async={true} src="%s" .../> that has props that conflict' + ' with another hoistable script with the same `src`. When rendering hoistable scripts (async scripts without any loading handlers)' + ' the props from the first encountered instance will be used and props from later instances will be ignored.' + ' Update the props on both <script async={true} .../> instance so they agree.%s', src, differenceDescription);
+                }
+
+                break;
+              }
+
+            case 'preinit':
+              {
+                var _differenceDescription2 = describeDifferencesForScriptOverPreinit( // Diff the props from the JSX element, not the derived resource props
+                props, devResource.__propsEquivalent);
+
+                if (_differenceDescription2) {
+                  error('React encountered a <script async={true} src="%s" .../> with props that conflict' + ' with the options provided to `ReactDOM.preinit("%s", { as: "script", ... })`. React will use the first props or preinitialization' + ' options encountered when rendering a hoistable script with a particular `src` and will ignore any newer props or' + ' options. The first instance of this script resource was created using the `ReactDOM.preinit()` function.' + ' Please note, `ReactDOM.preinit()` is modeled off of module import assertions capabilities and does not support' + ' arbitrary props. If you need to have props not included with the preinit options you will need to rely on rendering' + ' <script> tags only.%s', src, src, _differenceDescription2);
+                }
+
+                break;
+              }
+          }
+        }
+      }
+
+      if (!_resource2) {
+        _resource2 = {
+          type: 'script',
+          chunks: [],
+          state: NoState,
+          props: null
+        };
+        resources.scriptsMap.set(key, _resource2);
+
+        {
+          markAsRenderedResourceDEV(_resource2, props);
+        } // Add to the script flushing queue
+
+
+        resources.scripts.add(_resource2);
+        var scriptProps = props;
+        var preloadResource = resources.preloadsMap.get(key);
+
+        if (preloadResource) {
+          // If we already had a preload we don't want that resource to flush directly.
+          // We let the newly created resource govern flushing.
+          preloadResource.state |= Blocked;
+          scriptProps = assign({}, props);
+          adoptPreloadPropsForScriptProps(scriptProps, preloadResource.props);
+        } // encode the tag as Chunks
+
+
+        pushScriptImpl(_resource2.chunks, scriptProps);
+      }
+    }
+
     if (textEmbedded) {
-      // This link follows text but we aren't writing a tag. while not as efficient as possible we need
+      // This script follows text but we aren't writing a tag. while not as efficient as possible we need
       // to be safe and assume text will follow by inserting a textSeparator
       target.push(textSeparator);
-    } // We have converted this link exclusively to a resource and no longer
-    // need to emit it
-
+    }
 
     return null;
   }
-
-  return pushScriptImpl(target, props, responseState);
 }
 
-function pushScriptImpl(target, props, responseState) {
+function pushScriptImpl(target, props) {
   target.push(startChunkForTag('script'));
   var children = null;
   var innerHTML = null;
@@ -3944,7 +3822,7 @@ function pushScriptImpl(target, props, responseState) {
           break;
 
         default:
-          pushAttribute(target, responseState, propKey, propValue);
+          pushAttribute(target, propKey, propValue);
           break;
       }
     }
@@ -3970,7 +3848,7 @@ function pushScriptImpl(target, props, responseState) {
   return null;
 }
 
-function pushStartGenericElement(target, props, tag, responseState) {
+function pushStartGenericElement(target, props, tag) {
   target.push(startChunkForTag(tag));
   var children = null;
   var innerHTML = null;
@@ -3993,7 +3871,7 @@ function pushStartGenericElement(target, props, tag, responseState) {
           break;
 
         default:
-          pushAttribute(target, responseState, propKey, propValue);
+          pushAttribute(target, propKey, propValue);
           break;
       }
     }
@@ -4012,7 +3890,7 @@ function pushStartGenericElement(target, props, tag, responseState) {
   return children;
 }
 
-function pushStartCustomElement(target, props, tag, responseState) {
+function pushStartCustomElement(target, props, tag) {
   target.push(startChunkForTag(tag));
   var children = null;
   var innerHTML = null;
@@ -4035,7 +3913,7 @@ function pushStartCustomElement(target, props, tag, responseState) {
           break;
 
         case 'style':
-          pushStyle(target, responseState, propValue);
+          pushStyleAttribute(target, propValue);
           break;
 
         case 'suppressContentEditableWarning':
@@ -4060,7 +3938,7 @@ function pushStartCustomElement(target, props, tag, responseState) {
 
 var leadingNewline = stringToPrecomputedChunk('\n');
 
-function pushStartPreformattedElement(target, props, tag, responseState) {
+function pushStartPreformattedElement(target, props, tag) {
   target.push(startChunkForTag(tag));
   var children = null;
   var innerHTML = null;
@@ -4083,7 +3961,7 @@ function pushStartPreformattedElement(target, props, tag, responseState) {
           break;
 
         default:
-          pushAttribute(target, responseState, propKey, propValue);
+          pushAttribute(target, propKey, propValue);
           break;
       }
     }
@@ -4156,63 +4034,81 @@ function startChunkForTag(tag) {
 }
 
 var DOCTYPE = stringToPrecomputedChunk('<!DOCTYPE html>');
-function pushStartInstance(target, preamble, type, props, responseState, formatContext, textEmbedded) {
+function pushStartInstance(target, type, props, resources, responseState, formatContext, textEmbedded) {
   {
-    validateProperties(type, props);
+    validateProperties$2(type, props);
     validateProperties$1(type, props);
-    validateProperties$2(type, props, null);
+    validateProperties(type, props, null);
 
     if (!props.suppressContentEditableWarning && props.contentEditable && props.children != null) {
       error('A component is `contentEditable` and contains `children` managed by ' + 'React. It is now your responsibility to guarantee that none of ' + 'those nodes are unexpectedly modified or duplicated. This is ' + 'probably not intentional.');
     }
 
     if (formatContext.insertionMode !== SVG_MODE && formatContext.insertionMode !== MATHML_MODE) {
-      if (type.indexOf('-') === -1 && typeof props.is !== 'string' && type.toLowerCase() !== type) {
+      if (type.indexOf('-') === -1 && type.toLowerCase() !== type) {
         error('<%s /> is using incorrect casing. ' + 'Use PascalCase for React components, ' + 'or lowercase for HTML elements.', type);
       }
     }
   }
 
   switch (type) {
+    case 'div':
+    case 'span':
+    case 'svg':
+    case 'path':
+    case 'a':
+    case 'g':
+    case 'p':
+    case 'li':
+      // Fast track very common tags
+      break;
     // Special tags
+
     case 'select':
-      return pushStartSelect(target, props, responseState);
+      return pushStartSelect(target, props);
 
     case 'option':
-      return pushStartOption(target, props, responseState, formatContext);
+      return pushStartOption(target, props, formatContext);
 
     case 'textarea':
-      return pushStartTextArea(target, props, responseState);
+      return pushStartTextArea(target, props);
 
     case 'input':
       return pushInput(target, props, responseState);
 
+    case 'button':
+      return pushStartButton(target, props, responseState);
+
+    case 'form':
+      return pushStartForm(target, props);
+
     case 'menuitem':
-      return pushStartMenuItem(target, props, responseState);
+      return pushStartMenuItem(target, props);
 
     case 'title':
-      return  pushTitle(target, props, responseState, formatContext.insertionMode, formatContext.noscriptTagInScope) ;
+      return pushTitle(target, props, responseState, formatContext.insertionMode, formatContext.noscriptTagInScope) ;
 
     case 'link':
-      return pushLink(target, props, responseState, textEmbedded, formatContext.noscriptTagInScope);
+      return pushLink(target, props, responseState, resources, textEmbedded, formatContext.insertionMode, formatContext.noscriptTagInScope);
 
     case 'script':
-      return  pushScript(target, props, responseState, textEmbedded, formatContext.noscriptTagInScope) ;
+      return pushScript(target, props, resources, textEmbedded, formatContext.insertionMode, formatContext.noscriptTagInScope) ;
+
+    case 'style':
+      return pushStyle(target, props, resources, textEmbedded, formatContext.insertionMode, formatContext.noscriptTagInScope);
 
     case 'meta':
-      return pushMeta(target, props, responseState, textEmbedded, formatContext.noscriptTagInScope);
-
-    case 'base':
-      return pushBase(target, props, responseState, textEmbedded, formatContext.noscriptTagInScope);
+      return pushMeta(target, props, responseState, textEmbedded, formatContext.insertionMode, formatContext.noscriptTagInScope);
     // Newline eating tags
 
     case 'listing':
     case 'pre':
       {
-        return pushStartPreformattedElement(target, props, type, responseState);
+        return pushStartPreformattedElement(target, props, type);
       }
     // Omitted close tags
 
+    case 'base':
     case 'area':
     case 'br':
     case 'col':
@@ -4225,7 +4121,7 @@ function pushStartInstance(target, preamble, type, props, responseState, formatC
     case 'track':
     case 'wbr':
       {
-        return pushSelfClosing(target, props, type, responseState);
+        return pushSelfClosing(target, props, type);
       }
     // These are reserved SVG and MathML elements, that are never custom elements.
     // https://w3c.github.io/webcomponents/spec/custom/#custom-elements-core-concepts
@@ -4239,43 +4135,43 @@ function pushStartInstance(target, preamble, type, props, responseState, formatC
     case 'font-face-name':
     case 'missing-glyph':
       {
-        return pushStartGenericElement(target, props, type, responseState);
+        break;
       }
     // Preamble start tags
 
     case 'head':
-      return pushStartHead(target, preamble, props, type, responseState);
+      return pushStartHead(target, props, responseState, formatContext.insertionMode);
 
     case 'html':
       {
-        return pushStartHtml(target, preamble, props, type, responseState, formatContext);
+        return pushStartHtml(target, props, responseState, formatContext.insertionMode);
       }
 
     default:
       {
-        if (type.indexOf('-') === -1 && typeof props.is !== 'string') {
-          // Generic element
-          return pushStartGenericElement(target, props, type, responseState);
-        } else {
+        if (type.indexOf('-') !== -1) {
           // Custom element
-          return pushStartCustomElement(target, props, type, responseState);
+          return pushStartCustomElement(target, props, type);
         }
       }
-  }
+  } // Generic element
+
+
+  return pushStartGenericElement(target, props, type);
 }
 var endTag1 = stringToPrecomputedChunk('</');
 var endTag2 = stringToPrecomputedChunk('>');
-function pushEndInstance(target, postamble, type, props) {
+function pushEndInstance(target, type, props, responseState, formatContext) {
   switch (type) {
     // When float is on we expect title and script tags to always be pushed in
     // a unit and never return children. when we end up pushing the end tag we
     // want to ensure there is no extra closing tag pushed
     case 'title':
+    case 'style':
     case 'script':
     // Omitted close tags
     // TODO: Instead of repeating this switch we could try to pass a flag from above.
     // That would require returning a tuple. Which might be ok if it gets inlined.
-    // eslint-disable-next-line-no-fallthrough
 
     case 'area':
     case 'base':
@@ -4297,25 +4193,33 @@ function pushEndInstance(target, postamble, type, props) {
         return;
       }
     // Postamble end tags
+    // When float is enabled we omit the end tags for body and html when
+    // they represent the Document.body and Document.documentElement Nodes.
+    // This is so we can withhold them until the postamble when we know
+    // we won't emit any more tags
 
     case 'body':
       {
-        {
-          postamble.unshift(endTag1, stringToChunk(type), endTag2);
+        if (formatContext.insertionMode <= HTML_HTML_MODE) {
+          responseState.hasBody = true;
           return;
         }
+
+        break;
       }
 
     case 'html':
-      {
-        postamble.push(endTag1, stringToChunk(type), endTag2);
+      if (formatContext.insertionMode === ROOT_HTML_MODE) {
         return;
       }
+
+      break;
   }
 
   target.push(endTag1, stringToChunk(type), endTag2);
 }
-function writeCompletedRoot(destination, responseState) {
+
+function writeBootstrap(destination, responseState) {
   var bootstrapChunks = responseState.bootstrapChunks;
   var i = 0;
 
@@ -4324,10 +4228,16 @@ function writeCompletedRoot(destination, responseState) {
   }
 
   if (i < bootstrapChunks.length) {
-    return writeChunkAndReturn(destination, bootstrapChunks[i]);
+    var lastChunk = bootstrapChunks[i];
+    bootstrapChunks.length = 0;
+    return writeChunkAndReturn(destination, lastChunk);
   }
 
   return true;
+}
+
+function writeCompletedRoot(destination, responseState) {
+  return writeBootstrap(destination, responseState);
 } // Structural Nodes
 // A placeholder is a node inside a hidden partial tree that can be filled in later, but before
 // display. It's never visible to users. We use the template tag because it can be used in every
@@ -4354,7 +4264,7 @@ var clientRenderedSuspenseBoundaryError1A = stringToPrecomputedChunk(' data-dgst
 var clientRenderedSuspenseBoundaryError1B = stringToPrecomputedChunk(' data-msg="');
 var clientRenderedSuspenseBoundaryError1C = stringToPrecomputedChunk(' data-stck="');
 var clientRenderedSuspenseBoundaryError2 = stringToPrecomputedChunk('></template>');
-function writeStartCompletedSuspenseBoundary(destination, responseState) {
+function writeStartCompletedSuspenseBoundary$1(destination, responseState) {
   return writeChunkAndReturn(destination, startCompletedSuspenseBoundary);
 }
 function writeStartPendingSuspenseBoundary(destination, responseState, id) {
@@ -4367,7 +4277,7 @@ function writeStartPendingSuspenseBoundary(destination, responseState, id) {
   writeChunk(destination, id);
   return writeChunkAndReturn(destination, startPendingSuspenseBoundary2);
 }
-function writeStartClientRenderedSuspenseBoundary(destination, responseState, errorDigest, errorMesssage, errorComponentStack) {
+function writeStartClientRenderedSuspenseBoundary$1(destination, responseState, errorDigest, errorMesssage, errorComponentStack) {
   var result;
   result = writeChunkAndReturn(destination, startClientRenderedSuspenseBoundary);
   writeChunk(destination, clientRenderedSuspenseBoundaryError1);
@@ -4395,13 +4305,13 @@ function writeStartClientRenderedSuspenseBoundary(destination, responseState, er
   result = writeChunkAndReturn(destination, clientRenderedSuspenseBoundaryError2);
   return result;
 }
-function writeEndCompletedSuspenseBoundary(destination, responseState) {
+function writeEndCompletedSuspenseBoundary$1(destination, responseState) {
   return writeChunkAndReturn(destination, endSuspenseBoundary);
 }
 function writeEndPendingSuspenseBoundary(destination, responseState) {
   return writeChunkAndReturn(destination, endSuspenseBoundary);
 }
-function writeEndClientRenderedSuspenseBoundary(destination, responseState) {
+function writeEndClientRenderedSuspenseBoundary$1(destination, responseState) {
   return writeChunkAndReturn(destination, endSuspenseBoundary);
 }
 var startSegmentHTML = stringToPrecomputedChunk('<div hidden id="');
@@ -4428,6 +4338,7 @@ var endSegmentColGroup = stringToPrecomputedChunk('</colgroup></table>');
 function writeStartSegment(destination, responseState, formatContext, id) {
   switch (formatContext.insertionMode) {
     case ROOT_HTML_MODE:
+    case HTML_HTML_MODE:
     case HTML_MODE:
       {
         writeChunk(destination, startSegmentHTML);
@@ -4497,6 +4408,7 @@ function writeStartSegment(destination, responseState, formatContext, id) {
 function writeEndSegment(destination, formatContext) {
   switch (formatContext.insertionMode) {
     case ROOT_HTML_MODE:
+    case HTML_HTML_MODE:
     case HTML_MODE:
       {
         return writeChunkAndReturn(destination, endSegmentHTML);
@@ -4542,19 +4454,25 @@ var completeSegmentScript1Full = stringToPrecomputedChunk(completeSegment + ';$R
 var completeSegmentScript1Partial = stringToPrecomputedChunk('$RS("');
 var completeSegmentScript2 = stringToPrecomputedChunk('","');
 var completeSegmentScriptEnd = stringToPrecomputedChunk('")</script>');
+var completeSegmentData1 = stringToPrecomputedChunk('<template data-rsi="" data-sid="');
+var completeSegmentData2 = stringToPrecomputedChunk('" data-pid="');
+var completeSegmentDataEnd = dataElementQuotedEnd;
 function writeCompletedSegmentInstruction(destination, responseState, contentSegmentID) {
+  var scriptFormat = responseState.streamingFormat === ScriptStreamingFormat;
 
-  {
+  if (scriptFormat) {
     writeChunk(destination, responseState.startInlineScript);
 
-    if (!responseState.sentCompleteSegmentFunction) {
+    if ((responseState.instructions & SentCompleteSegmentFunction) === NothingSent) {
       // The first time we write this, we'll need to include the full implementation.
-      responseState.sentCompleteSegmentFunction = true;
+      responseState.instructions |= SentCompleteSegmentFunction;
       writeChunk(destination, completeSegmentScript1Full);
     } else {
       // Future calls can just reuse the same function.
       writeChunk(destination, completeSegmentScript1Partial);
     }
+  } else {
+    writeChunk(destination, completeSegmentData1);
   } // Write function arguments, which are string literals
 
 
@@ -4562,54 +4480,75 @@ function writeCompletedSegmentInstruction(destination, responseState, contentSeg
   var formattedID = stringToChunk(contentSegmentID.toString(16));
   writeChunk(destination, formattedID);
 
-  {
+  if (scriptFormat) {
     writeChunk(destination, completeSegmentScript2);
+  } else {
+    writeChunk(destination, completeSegmentData2);
   }
 
   writeChunk(destination, responseState.placeholderPrefix);
   writeChunk(destination, formattedID);
 
-  {
+  if (scriptFormat) {
     return writeChunkAndReturn(destination, completeSegmentScriptEnd);
+  } else {
+    return writeChunkAndReturn(destination, completeSegmentDataEnd);
   }
 }
-var completeBoundaryScript1Full = stringToPrecomputedChunk(completeBoundary + ';$RC("');
+var completeBoundaryScript1Full = stringToPrecomputedChunk(completeBoundary + '$RC("');
 var completeBoundaryScript1Partial = stringToPrecomputedChunk('$RC("');
-var completeBoundaryWithStylesScript1FullBoth = stringToPrecomputedChunk(completeBoundary + ';' + completeBoundaryWithStyles + ';$RR("');
-var completeBoundaryWithStylesScript1FullPartial = stringToPrecomputedChunk(completeBoundaryWithStyles + ';$RR("');
+var completeBoundaryWithStylesScript1FullBoth = stringToPrecomputedChunk(completeBoundary + completeBoundaryWithStyles + '$RR("');
+var completeBoundaryWithStylesScript1FullPartial = stringToPrecomputedChunk(completeBoundaryWithStyles + '$RR("');
 var completeBoundaryWithStylesScript1Partial = stringToPrecomputedChunk('$RR("');
 var completeBoundaryScript2 = stringToPrecomputedChunk('","');
 var completeBoundaryScript3a = stringToPrecomputedChunk('",');
 var completeBoundaryScript3b = stringToPrecomputedChunk('"');
 var completeBoundaryScriptEnd = stringToPrecomputedChunk(')</script>');
+var completeBoundaryData1 = stringToPrecomputedChunk('<template data-rci="" data-bid="');
+var completeBoundaryWithStylesData1 = stringToPrecomputedChunk('<template data-rri="" data-bid="');
+var completeBoundaryData2 = stringToPrecomputedChunk('" data-sid="');
+var completeBoundaryData3a = stringToPrecomputedChunk('" data-sty="');
+var completeBoundaryDataEnd = dataElementQuotedEnd;
 function writeCompletedBoundaryInstruction(destination, responseState, boundaryID, contentSegmentID, boundaryResources) {
-  var hasStyleDependencies;
+  var requiresStyleInsertion;
 
   {
-    hasStyleDependencies = hasStyleResourceDependencies(boundaryResources);
+    requiresStyleInsertion = responseState.stylesToHoist; // If necessary stylesheets will be flushed with this instruction.
+    // Any style tags not yet hoisted in the Document will also be hoisted.
+    // We reset this state since after this instruction executes all styles
+    // up to this point will have been hoisted
+
+    responseState.stylesToHoist = false;
   }
 
-  {
+  var scriptFormat = responseState.streamingFormat === ScriptStreamingFormat;
+
+  if (scriptFormat) {
     writeChunk(destination, responseState.startInlineScript);
 
-    if ( hasStyleDependencies) {
-      if (!responseState.sentCompleteBoundaryFunction) {
-        responseState.sentCompleteBoundaryFunction = true;
-        responseState.sentStyleInsertionFunction = true;
+    if (requiresStyleInsertion) {
+      if ((responseState.instructions & SentCompleteBoundaryFunction) === NothingSent) {
+        responseState.instructions |= SentStyleInsertionFunction | SentCompleteBoundaryFunction;
         writeChunk(destination, clonePrecomputedChunk(completeBoundaryWithStylesScript1FullBoth));
-      } else if (!responseState.sentStyleInsertionFunction) {
-        responseState.sentStyleInsertionFunction = true;
+      } else if ((responseState.instructions & SentStyleInsertionFunction) === NothingSent) {
+        responseState.instructions |= SentStyleInsertionFunction;
         writeChunk(destination, completeBoundaryWithStylesScript1FullPartial);
       } else {
         writeChunk(destination, completeBoundaryWithStylesScript1Partial);
       }
     } else {
-      if (!responseState.sentCompleteBoundaryFunction) {
-        responseState.sentCompleteBoundaryFunction = true;
+      if ((responseState.instructions & SentCompleteBoundaryFunction) === NothingSent) {
+        responseState.instructions |= SentCompleteBoundaryFunction;
         writeChunk(destination, completeBoundaryScript1Full);
       } else {
         writeChunk(destination, completeBoundaryScript1Partial);
       }
+    }
+  } else {
+    if (requiresStyleInsertion) {
+      writeChunk(destination, completeBoundaryWithStylesData1);
+    } else {
+      writeChunk(destination, completeBoundaryData1);
     }
   }
 
@@ -4621,52 +4560,72 @@ function writeCompletedBoundaryInstruction(destination, responseState, boundaryI
   var formattedContentID = stringToChunk(contentSegmentID.toString(16));
   writeChunk(destination, boundaryID);
 
-  {
+  if (scriptFormat) {
     writeChunk(destination, completeBoundaryScript2);
+  } else {
+    writeChunk(destination, completeBoundaryData2);
   }
 
   writeChunk(destination, responseState.segmentPrefix);
   writeChunk(destination, formattedContentID);
 
-  if ( hasStyleDependencies) {
+  if (requiresStyleInsertion) {
     // Script and data writers must format this differently:
     //  - script writer emits an array literal, whose string elements are
     //    escaped for javascript  e.g. ["A", "B"]
     //  - data writer emits a string literal, which is escaped as html
     //    e.g. [&#34;A&#34;, &#34;B&#34;]
-    {
+    if (scriptFormat) {
       writeChunk(destination, completeBoundaryScript3a); // boundaryResources encodes an array literal
 
       writeStyleResourceDependenciesInJS(destination, boundaryResources);
+    } else {
+      writeChunk(destination, completeBoundaryData3a);
+      writeStyleResourceDependenciesInAttr(destination, boundaryResources);
     }
   } else {
-    {
+    if (scriptFormat) {
       writeChunk(destination, completeBoundaryScript3b);
     }
   }
 
-  {
-    return writeChunkAndReturn(destination, completeBoundaryScriptEnd);
+  var writeMore;
+
+  if (scriptFormat) {
+    writeMore = writeChunkAndReturn(destination, completeBoundaryScriptEnd);
+  } else {
+    writeMore = writeChunkAndReturn(destination, completeBoundaryDataEnd);
   }
+
+  return writeBootstrap(destination, responseState) && writeMore;
 }
 var clientRenderScript1Full = stringToPrecomputedChunk(clientRenderBoundary + ';$RX("');
 var clientRenderScript1Partial = stringToPrecomputedChunk('$RX("');
 var clientRenderScript1A = stringToPrecomputedChunk('"');
 var clientRenderErrorScriptArgInterstitial = stringToPrecomputedChunk(',');
 var clientRenderScriptEnd = stringToPrecomputedChunk(')</script>');
+var clientRenderData1 = stringToPrecomputedChunk('<template data-rxi="" data-bid="');
+var clientRenderData2 = stringToPrecomputedChunk('" data-dgst="');
+var clientRenderData3 = stringToPrecomputedChunk('" data-msg="');
+var clientRenderData4 = stringToPrecomputedChunk('" data-stck="');
+var clientRenderDataEnd = dataElementQuotedEnd;
 function writeClientRenderBoundaryInstruction(destination, responseState, boundaryID, errorDigest, errorMessage, errorComponentStack) {
+  var scriptFormat = responseState.streamingFormat === ScriptStreamingFormat;
 
-  {
+  if (scriptFormat) {
     writeChunk(destination, responseState.startInlineScript);
 
-    if (!responseState.sentClientRenderFunction) {
+    if ((responseState.instructions & SentClientRenderFunction) === NothingSent) {
       // The first time we write this, we'll need to include the full implementation.
-      responseState.sentClientRenderFunction = true;
+      responseState.instructions |= SentClientRenderFunction;
       writeChunk(destination, clientRenderScript1Full);
     } else {
       // Future calls can just reuse the same function.
       writeChunk(destination, clientRenderScript1Partial);
     }
+  } else {
+    // <template data-rxi="" data-bid="
+    writeChunk(destination, clientRenderData1);
   }
 
   if (boundaryID === null) {
@@ -4675,39 +4634,54 @@ function writeClientRenderBoundaryInstruction(destination, responseState, bounda
 
   writeChunk(destination, boundaryID);
 
-  {
+  if (scriptFormat) {
     // " needs to be inserted for scripts, since ArgInterstitual does not contain
     // leading or trailing quotes
     writeChunk(destination, clientRenderScript1A);
   }
 
   if (errorDigest || errorMessage || errorComponentStack) {
-    {
+    if (scriptFormat) {
       // ,"JSONString"
       writeChunk(destination, clientRenderErrorScriptArgInterstitial);
       writeChunk(destination, stringToChunk(escapeJSStringsForInstructionScripts(errorDigest || '')));
+    } else {
+      // " data-dgst="HTMLString
+      writeChunk(destination, clientRenderData2);
+      writeChunk(destination, stringToChunk(escapeTextForBrowser(errorDigest || '')));
     }
   }
 
   if (errorMessage || errorComponentStack) {
-    {
+    if (scriptFormat) {
       // ,"JSONString"
       writeChunk(destination, clientRenderErrorScriptArgInterstitial);
       writeChunk(destination, stringToChunk(escapeJSStringsForInstructionScripts(errorMessage || '')));
+    } else {
+      // " data-msg="HTMLString
+      writeChunk(destination, clientRenderData3);
+      writeChunk(destination, stringToChunk(escapeTextForBrowser(errorMessage || '')));
     }
   }
 
   if (errorComponentStack) {
     // ,"JSONString"
-    {
+    if (scriptFormat) {
       writeChunk(destination, clientRenderErrorScriptArgInterstitial);
       writeChunk(destination, stringToChunk(escapeJSStringsForInstructionScripts(errorComponentStack)));
+    } else {
+      // " data-stck="HTMLString
+      writeChunk(destination, clientRenderData4);
+      writeChunk(destination, stringToChunk(escapeTextForBrowser(errorComponentStack)));
     }
   }
 
-  {
+  if (scriptFormat) {
     // ></script>
     return writeChunkAndReturn(destination, clientRenderScriptEnd);
+  } else {
+    // "></template>
+    return writeChunkAndReturn(destination, clientRenderDataEnd);
   }
 }
 var regexForJSStringsInInstructionScripts = /[<\u2028\u2029]/g;
@@ -4766,230 +4740,397 @@ function escapeJSObjectForInstructionScripts(input) {
   });
 }
 
-var precedencePlaceholderStart = stringToPrecomputedChunk('<style data-precedence="');
-var precedencePlaceholderEnd = stringToPrecomputedChunk('"></style>');
-function writeInitialResources(destination, resources, responseState, willFlushAllSegments) {
+var lateStyleTagResourceOpen1 = stringToPrecomputedChunk('<style media="not all" data-precedence="');
+var lateStyleTagResourceOpen2 = stringToPrecomputedChunk('" data-href="');
+var lateStyleTagResourceOpen3 = stringToPrecomputedChunk('">');
+var lateStyleTagTemplateClose = stringToPrecomputedChunk('</style>'); // Tracks whether the boundary currently flushing is flushign style tags or has any
+// stylesheet dependencies not flushed in the Preamble.
 
-  function flushLinkResource(resource) {
-    if (!resource.flushed) {
-      pushLinkImpl(target, resource.props, responseState);
-      resource.flushed = true;
+var currentlyRenderingBoundaryHasStylesToHoist = false; // Acts as a return value for the forEach execution of style tag flushing.
+
+var destinationHasCapacity = true;
+
+function flushStyleTagsLateForBoundary(resource) {
+  if (resource.type === 'stylesheet' && (resource.state & FlushedInPreamble) === NoState) {
+    currentlyRenderingBoundaryHasStylesToHoist = true;
+  } else if (resource.type === 'style') {
+    var chunks = resource.chunks;
+    var hrefs = resource.props.hrefs;
+    var i = 0;
+
+    if (chunks.length) {
+      writeChunk(this, lateStyleTagResourceOpen1);
+      writeChunk(this, stringToChunk(escapeTextForBrowser(resource.props.precedence)));
+
+      if (hrefs.length) {
+        writeChunk(this, lateStyleTagResourceOpen2);
+
+        for (; i < hrefs.length - 1; i++) {
+          writeChunk(this, stringToChunk(escapeTextForBrowser(hrefs[i])));
+          writeChunk(this, spaceSeparator);
+        }
+
+        writeChunk(this, stringToChunk(escapeTextForBrowser(hrefs[i])));
+      }
+
+      writeChunk(this, lateStyleTagResourceOpen3);
+
+      for (i = 0; i < chunks.length; i++) {
+        writeChunk(this, chunks[i]);
+      }
+
+      destinationHasCapacity = writeChunkAndReturn(this, lateStyleTagTemplateClose); // We wrote style tags for this boundary and we may need to emit a script
+      // to hoist them.
+
+      currentlyRenderingBoundaryHasStylesToHoist = true; // style resources can flush continuously since more rules may be written into
+      // them with new hrefs. Instead of marking it flushed, we simply reset the chunks
+      // and hrefs
+
+      chunks.length = 0;
+      hrefs.length = 0;
     }
   }
+}
 
-  var target = [];
-  var charset = resources.charset,
-      bases = resources.bases,
-      preconnects = resources.preconnects,
-      fontPreloads = resources.fontPreloads,
-      precedences = resources.precedences,
-      usedStylePreloads = resources.usedStylePreloads,
-      scripts = resources.scripts,
-      usedScriptPreloads = resources.usedScriptPreloads,
-      explicitStylePreloads = resources.explicitStylePreloads,
-      explicitScriptPreloads = resources.explicitScriptPreloads,
-      headResources = resources.headResources;
+function writeResourcesForBoundary(destination, boundaryResources, responseState) {
+  // Reset these on each invocation, they are only safe to read in this function
+  currentlyRenderingBoundaryHasStylesToHoist = false;
+  destinationHasCapacity = true; // Flush each Boundary resource
 
-  if (charset) {
-    pushSelfClosing(target, charset.props, 'meta', responseState);
-    charset.flushed = true;
-    resources.charset = null;
+  boundaryResources.forEach(flushStyleTagsLateForBoundary, destination);
+
+  if (currentlyRenderingBoundaryHasStylesToHoist) {
+    responseState.stylesToHoist = true;
   }
 
-  bases.forEach(function (r) {
-    pushSelfClosing(target, r.props, 'base', responseState);
-    r.flushed = true;
-  });
-  bases.clear();
-  preconnects.forEach(function (r) {
-    // font preload Resources should not already be flushed so we elide this check
-    pushLinkImpl(target, r.props, responseState);
-    r.flushed = true;
-  });
-  preconnects.clear();
-  fontPreloads.forEach(function (r) {
-    // font preload Resources should not already be flushed so we elide this check
-    pushLinkImpl(target, r.props, responseState);
-    r.flushed = true;
-  });
-  fontPreloads.clear(); // Flush stylesheets first by earliest precedence
+  return destinationHasCapacity;
+}
 
-  precedences.forEach(function (p, precedence) {
-    if (p.size) {
-      p.forEach(function (r) {
-        // resources should not already be flushed so we elide this check
-        pushLinkImpl(target, r.props, responseState);
-        r.flushed = true;
-        r.inShell = true;
-        r.hint.flushed = true;
-      });
-      p.clear();
+function flushResourceInPreamble(resource) {
+  if ((resource.state & (Flushed | Blocked)) === NoState) {
+    var chunks = resource.chunks;
+
+    for (var i = 0; i < chunks.length; i++) {
+      writeChunk(this, chunks[i]);
+    }
+
+    resource.state |= FlushedInPreamble;
+  }
+}
+
+function flushResourceLate(resource) {
+  if ((resource.state & (Flushed | Blocked)) === NoState) {
+    var chunks = resource.chunks;
+
+    for (var i = 0; i < chunks.length; i++) {
+      writeChunk(this, chunks[i]);
+    }
+
+    resource.state |= FlushedLate;
+  }
+} // This must always be read after flushing stylesheet styles. we know we will encounter a style resource
+// per precedence and it will be set before ready so we cast this to avoid an extra check at runtime
+
+
+var precedenceStyleTagResource = null; // This flags let's us opt out of flushing a placeholder style tag to emit the precedence in the right order.
+// If a stylesheet was flushed then we have the precedence order preserved and only need to emit <style> tags
+// if there are actual chunks to flush
+
+var didFlushPrecedence = false;
+
+function flushStyleInPreamble(resource, key, set) {
+  var chunks = resource.chunks;
+
+  if (resource.state & Flushed) {
+    // In theory this should never happen because we clear from the
+    // Set on flush but to ensure correct semantics we don't emit
+    // anything if we are in this state.
+    set.delete(resource);
+  } else {
+    // We can emit this style or stylesheet as is.
+    if (resource.type === 'style') {
+      precedenceStyleTagResource = resource;
+      return;
+    } // We still need to encode stylesheet chunks
+    // because unlike most Hoistables and Resources we do not eagerly encode
+    // them during render. This is because if we flush late we have to send a
+    // different encoding and we don't want to encode multiple times
+
+
+    pushLinkImpl(chunks, resource.props);
+
+    for (var i = 0; i < chunks.length; i++) {
+      writeChunk(this, chunks[i]);
+    }
+
+    resource.state |= FlushedInPreamble;
+    didFlushPrecedence = true;
+  }
+}
+
+var styleTagResourceOpen1 = stringToPrecomputedChunk('<style data-precedence="');
+var styleTagResourceOpen2 = stringToPrecomputedChunk('" data-href="');
+var spaceSeparator = stringToPrecomputedChunk(' ');
+var styleTagResourceOpen3 = stringToPrecomputedChunk('">');
+var styleTagResourceClose = stringToPrecomputedChunk('</style>');
+
+function flushAllStylesInPreamble(set, precedence) {
+  didFlushPrecedence = false;
+  set.forEach(flushStyleInPreamble, this);
+  set.clear();
+  var chunks = precedenceStyleTagResource.chunks;
+  var hrefs = precedenceStyleTagResource.props.hrefs;
+
+  if (didFlushPrecedence === false || chunks.length) {
+    writeChunk(this, styleTagResourceOpen1);
+    writeChunk(this, stringToChunk(escapeTextForBrowser(precedence)));
+    var i = 0;
+
+    if (hrefs.length) {
+      writeChunk(this, styleTagResourceOpen2);
+
+      for (; i < hrefs.length - 1; i++) {
+        writeChunk(this, stringToChunk(escapeTextForBrowser(hrefs[i])));
+        writeChunk(this, spaceSeparator);
+      }
+
+      writeChunk(this, stringToChunk(escapeTextForBrowser(hrefs[i])));
+    }
+
+    writeChunk(this, styleTagResourceOpen3);
+
+    for (i = 0; i < chunks.length; i++) {
+      writeChunk(this, chunks[i]);
+    }
+
+    writeChunk(this, styleTagResourceClose); // style resources can flush continuously since more rules may be written into
+    // them with new hrefs. Instead of marking it flushed, we simply reset the chunks
+    // and hrefs
+
+    chunks.length = 0;
+    hrefs.length = 0;
+  }
+}
+
+function preloadLateStyle(resource) {
+  if (resource.state & PreloadFlushed) {
+    // This resource has already had a preload flushed
+    return;
+  }
+
+  if (resource.type === 'style') {
+    // <style> tags do not need to be preloaded
+    return;
+  }
+
+  var chunks = resource.chunks;
+  var preloadProps = preloadAsStylePropsFromProps(resource.props.href, resource.props);
+  pushLinkImpl(chunks, preloadProps);
+
+  for (var i = 0; i < chunks.length; i++) {
+    writeChunk(this, chunks[i]);
+  }
+
+  resource.state |= PreloadFlushed;
+  chunks.length = 0;
+}
+
+function preloadLateStyles(set, precedence) {
+  set.forEach(preloadLateStyle, this);
+  set.clear();
+} // We don't bother reporting backpressure at the moment because we expect to
+// flush the entire preamble in a single pass. This probably should be modified
+// in the future to be backpressure sensitive but that requires a larger refactor
+// of the flushing code in Fizz.
+
+
+function writePreamble(destination, resources, responseState, willFlushAllSegments) {
+  // This function must be called exactly once on every request
+  if (!willFlushAllSegments && responseState.externalRuntimeScript) {
+    // If the root segment is incomplete due to suspended tasks
+    // (e.g. willFlushAllSegments = false) and we are using data
+    // streaming format, ensure the external runtime is sent.
+    // (User code could choose to send this even earlier by calling
+    //  preinit(...), if they know they will suspend).
+    var _responseState$extern = responseState.externalRuntimeScript,
+        src = _responseState$extern.src,
+        chunks = _responseState$extern.chunks;
+    internalPreinitScript(resources, src, chunks);
+  }
+
+  var htmlChunks = responseState.htmlChunks;
+  var headChunks = responseState.headChunks;
+  var i = 0; // Emit open tags before Hoistables and Resources
+
+  if (htmlChunks) {
+    // We have an <html> to emit as part of the preamble
+    for (i = 0; i < htmlChunks.length; i++) {
+      writeChunk(destination, htmlChunks[i]);
+    }
+
+    if (headChunks) {
+      for (i = 0; i < headChunks.length; i++) {
+        writeChunk(destination, headChunks[i]);
+      }
     } else {
-      target.push(precedencePlaceholderStart, stringToChunk(escapeTextForBrowser(precedence)), precedencePlaceholderEnd);
+      // We did not render a head but we emitted an <html> so we emit one now
+      writeChunk(destination, startChunkForTag('head'));
+      writeChunk(destination, endOfStartTag);
     }
-  });
-  usedStylePreloads.forEach(flushLinkResource);
-  usedStylePreloads.clear();
-  scripts.forEach(function (r) {
-    // should never be flushed already
-    pushScriptImpl(target, r.props, responseState);
-    r.flushed = true;
-    r.hint.flushed = true;
-  });
-  scripts.clear();
-  usedScriptPreloads.forEach(flushLinkResource);
-  usedScriptPreloads.clear();
-  explicitStylePreloads.forEach(flushLinkResource);
-  explicitStylePreloads.clear();
-  explicitScriptPreloads.forEach(flushLinkResource);
-  explicitScriptPreloads.clear();
-  headResources.forEach(function (r) {
-    switch (r.type) {
-      case 'title':
-        {
-          pushTitleImpl(target, r.props, responseState);
-          break;
-        }
-
-      case 'meta':
-        {
-          pushSelfClosing(target, r.props, 'meta', responseState);
-          break;
-        }
-
-      case 'link':
-        {
-          pushLinkImpl(target, r.props, responseState);
-          break;
-        }
+  } else if (headChunks) {
+    // We do not have an <html> but we do have a <head>
+    for (i = 0; i < headChunks.length; i++) {
+      writeChunk(destination, headChunks[i]);
     }
+  } // Emit high priority Hoistables
 
-    r.flushed = true;
-  });
-  headResources.clear();
-  var i;
-  var r = true;
 
-  for (i = 0; i < target.length - 1; i++) {
-    writeChunk(destination, target[i]);
+  var charsetChunks = responseState.charsetChunks;
+
+  for (i = 0; i < charsetChunks.length; i++) {
+    writeChunk(destination, charsetChunks[i]);
   }
 
-  if (i < target.length) {
-    r = writeChunkAndReturn(destination, target[i]);
+  charsetChunks.length = 0; // emit preconnect resources
+
+  resources.preconnects.forEach(flushResourceInPreamble, destination);
+  resources.preconnects.clear();
+  var preconnectChunks = responseState.preconnectChunks;
+
+  for (i = 0; i < preconnectChunks.length; i++) {
+    writeChunk(destination, preconnectChunks[i]);
   }
 
-  return r;
+  preconnectChunks.length = 0;
+  resources.fontPreloads.forEach(flushResourceInPreamble, destination);
+  resources.fontPreloads.clear(); // Flush unblocked stylesheets by precedence
+
+  resources.precedences.forEach(flushAllStylesInPreamble, destination);
+  resources.usedStylesheets.forEach(function (resource) {
+    var key = getResourceKey(resource.props.as, resource.props.href);
+
+    if (resources.stylesMap.has(key)) ; else {
+      var _chunks = resource.chunks;
+
+      for (i = 0; i < _chunks.length; i++) {
+        writeChunk(destination, _chunks[i]);
+      }
+    }
+  });
+  resources.usedStylesheets.clear();
+  resources.scripts.forEach(flushResourceInPreamble, destination);
+  resources.scripts.clear();
+  resources.usedScripts.forEach(flushResourceInPreamble, destination);
+  resources.usedScripts.clear();
+  resources.explicitStylesheetPreloads.forEach(flushResourceInPreamble, destination);
+  resources.explicitStylesheetPreloads.clear();
+  resources.explicitScriptPreloads.forEach(flushResourceInPreamble, destination);
+  resources.explicitScriptPreloads.clear();
+  resources.explicitOtherPreloads.forEach(flushResourceInPreamble, destination);
+  resources.explicitOtherPreloads.clear(); // Write embedding preloadChunks
+
+  var preloadChunks = responseState.preloadChunks;
+
+  for (i = 0; i < preloadChunks.length; i++) {
+    writeChunk(destination, preloadChunks[i]);
+  }
+
+  preloadChunks.length = 0; // Write embedding hoistableChunks
+
+  var hoistableChunks = responseState.hoistableChunks;
+
+  for (i = 0; i < hoistableChunks.length; i++) {
+    writeChunk(destination, hoistableChunks[i]);
+  }
+
+  hoistableChunks.length = 0; // Flush closing head if necessary
+
+  if (htmlChunks && headChunks === null) {
+    // We have an <html> rendered but no <head> rendered. We however inserted
+    // a <head> up above so we need to emit the </head> now. This is safe because
+    // if the main content contained the </head> it would also have provided a
+    // <head>. This means that all the content inside <html> is either <body> or
+    // invalid HTML
+    writeChunk(destination, endTag1);
+    writeChunk(destination, stringToChunk('head'));
+    writeChunk(destination, endTag2);
+  }
+} // We don't bother reporting backpressure at the moment because we expect to
+// flush the entire preamble in a single pass. This probably should be modified
+// in the future to be backpressure sensitive but that requires a larger refactor
+// of the flushing code in Fizz.
+
+function writeHoistables(destination, resources, responseState) {
+  var i = 0; // Emit high priority Hoistables
+  // We omit charsetChunks because we have already sent the shell and if it wasn't
+  // already sent it is too late now.
+
+  resources.preconnects.forEach(flushResourceLate, destination);
+  resources.preconnects.clear();
+  var preconnectChunks = responseState.preconnectChunks;
+
+  for (i = 0; i < preconnectChunks.length; i++) {
+    writeChunk(destination, preconnectChunks[i]);
+  }
+
+  preconnectChunks.length = 0;
+  resources.fontPreloads.forEach(flushResourceLate, destination);
+  resources.fontPreloads.clear(); // Preload any stylesheets. these will emit in a render instruction that follows this
+  // but we want to kick off preloading as soon as possible
+
+  resources.precedences.forEach(preloadLateStyles, destination);
+  resources.usedStylesheets.forEach(function (resource) {
+    var key = getResourceKey(resource.props.as, resource.props.href);
+
+    if (resources.stylesMap.has(key)) ; else {
+      var chunks = resource.chunks;
+
+      for (i = 0; i < chunks.length; i++) {
+        writeChunk(destination, chunks[i]);
+      }
+    }
+  });
+  resources.usedStylesheets.clear();
+  resources.scripts.forEach(flushResourceLate, destination);
+  resources.scripts.clear();
+  resources.usedScripts.forEach(flushResourceLate, destination);
+  resources.usedScripts.clear();
+  resources.explicitStylesheetPreloads.forEach(flushResourceLate, destination);
+  resources.explicitStylesheetPreloads.clear();
+  resources.explicitScriptPreloads.forEach(flushResourceLate, destination);
+  resources.explicitScriptPreloads.clear();
+  resources.explicitOtherPreloads.forEach(flushResourceLate, destination);
+  resources.explicitOtherPreloads.clear(); // Write embedding preloadChunks
+
+  var preloadChunks = responseState.preloadChunks;
+
+  for (i = 0; i < preloadChunks.length; i++) {
+    writeChunk(destination, preloadChunks[i]);
+  }
+
+  preloadChunks.length = 0; // Write embedding hoistableChunks
+
+  var hoistableChunks = responseState.hoistableChunks;
+
+  for (i = 0; i < hoistableChunks.length; i++) {
+    writeChunk(destination, hoistableChunks[i]);
+  }
+
+  hoistableChunks.length = 0;
 }
-function writeImmediateResources(destination, resources, responseState) {
-  function flushLinkResource(resource) {
-    if (!resource.flushed) {
-      pushLinkImpl(target, resource.props, responseState);
-      resource.flushed = true;
-    }
+function writePostamble(destination, responseState) {
+  if (responseState.hasBody) {
+    writeChunk(destination, endTag1);
+    writeChunk(destination, stringToChunk('body'));
+    writeChunk(destination, endTag2);
   }
 
-  var target = [];
-  var charset = resources.charset,
-      preconnects = resources.preconnects,
-      fontPreloads = resources.fontPreloads,
-      usedStylePreloads = resources.usedStylePreloads,
-      scripts = resources.scripts,
-      usedScriptPreloads = resources.usedScriptPreloads,
-      explicitStylePreloads = resources.explicitStylePreloads,
-      explicitScriptPreloads = resources.explicitScriptPreloads,
-      headResources = resources.headResources;
-
-  if (charset) {
-    pushSelfClosing(target, charset.props, 'meta', responseState);
-    charset.flushed = true;
-    resources.charset = null;
+  if (responseState.htmlChunks) {
+    writeChunk(destination, endTag1);
+    writeChunk(destination, stringToChunk('html'));
+    writeChunk(destination, endTag2);
   }
-
-  preconnects.forEach(function (r) {
-    // font preload Resources should not already be flushed so we elide this check
-    pushLinkImpl(target, r.props, responseState);
-    r.flushed = true;
-  });
-  preconnects.clear();
-  fontPreloads.forEach(function (r) {
-    // font preload Resources should not already be flushed so we elide this check
-    pushLinkImpl(target, r.props, responseState);
-    r.flushed = true;
-  });
-  fontPreloads.clear();
-  usedStylePreloads.forEach(flushLinkResource);
-  usedStylePreloads.clear();
-  scripts.forEach(function (r) {
-    // should never be flushed already
-    pushStartGenericElement(target, r.props, 'script', responseState);
-    pushEndInstance(target, target, 'script', r.props);
-    r.flushed = true;
-    r.hint.flushed = true;
-  });
-  scripts.clear();
-  usedScriptPreloads.forEach(flushLinkResource);
-  usedScriptPreloads.clear();
-  explicitStylePreloads.forEach(flushLinkResource);
-  explicitStylePreloads.clear();
-  explicitScriptPreloads.forEach(flushLinkResource);
-  explicitScriptPreloads.clear();
-  headResources.forEach(function (r) {
-    switch (r.type) {
-      case 'title':
-        {
-          pushTitleImpl(target, r.props, responseState);
-          break;
-        }
-
-      case 'meta':
-        {
-          pushSelfClosing(target, r.props, 'meta', responseState);
-          break;
-        }
-
-      case 'link':
-        {
-          pushLinkImpl(target, r.props, responseState);
-          break;
-        }
-    }
-
-    r.flushed = true;
-  });
-  headResources.clear();
-  var i;
-  var r = true;
-
-  for (i = 0; i < target.length - 1; i++) {
-    writeChunk(destination, target[i]);
-  }
-
-  if (i < target.length) {
-    r = writeChunkAndReturn(destination, target[i]);
-  }
-
-  return r;
 }
-
-function hasStyleResourceDependencies(boundaryResources) {
-  var iter = boundaryResources.values(); // At the moment boundaries only accumulate style resources
-  // so we assume the type is correct and don't check it
-
-  while (true) {
-    var _iter$next = iter.next(),
-        resource = _iter$next.value;
-
-    if (!resource) break; // If every style Resource flushed in the shell we do not need to send
-    // any dependencies
-
-    if (!resource.inShell) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
 var arrayFirstOpenBracket = stringToPrecomputedChunk('[');
 var arraySubsequentOpenBracket = stringToPrecomputedChunk(',[');
 var arrayInterstitial = stringToPrecomputedChunk(',');
@@ -5001,18 +5142,21 @@ function writeStyleResourceDependenciesInJS(destination, boundaryResources) {
   writeChunk(destination, arrayFirstOpenBracket);
   var nextArrayOpenBrackChunk = arrayFirstOpenBracket;
   boundaryResources.forEach(function (resource) {
-    if (resource.inShell) ; else if (resource.flushed) {
+    if (resource.type === 'style') ; else if (resource.state & FlushedInPreamble) ; else if (resource.state & Flushed) {
+      // We only need to emit the href because this resource flushed in an earlier
+      // boundary already which encoded the attributes necessary to construct
+      // the resource instance on the client.
       writeChunk(destination, nextArrayOpenBrackChunk);
-      writeStyleResourceDependencyHrefOnlyInJS(destination, resource.href);
+      writeStyleResourceDependencyHrefOnlyInJS(destination, resource.props.href);
       writeChunk(destination, arrayCloseBracket);
       nextArrayOpenBrackChunk = arraySubsequentOpenBracket;
-    } else {
+    } else if (resource.type === 'stylesheet') {
+      // We need to emit the whole resource for insertion on the client
       writeChunk(destination, nextArrayOpenBrackChunk);
-      writeStyleResourceDependencyInJS(destination, resource.href, resource.precedence, resource.props);
+      writeStyleResourceDependencyInJS(destination, resource.props.href, resource.props['data-precedence'], resource.props);
       writeChunk(destination, arrayCloseBracket);
       nextArrayOpenBrackChunk = arraySubsequentOpenBracket;
-      resource.flushed = true;
-      resource.hint.flushed = true;
+      resource.state |= FlushedLate;
     }
   });
   writeChunk(destination, arrayCloseBracket);
@@ -5032,12 +5176,8 @@ function writeStyleResourceDependencyHrefOnlyInJS(destination, href) {
 }
 
 function writeStyleResourceDependencyInJS(destination, href, precedence, props) {
-  {
-    checkAttributeStringCoercion(href, 'href');
-  }
-
-  var coercedHref = '' + href;
-  sanitizeURL(coercedHref);
+  // eslint-disable-next-line react-internal/safe-string-coercion
+  var coercedHref = sanitizeURL('' + href);
   writeChunk(destination, stringToChunk(escapeJSObjectForInstructionScripts(coercedHref)));
 
   {
@@ -5068,7 +5208,6 @@ function writeStyleResourceDependencyInJS(destination, href, precedence, props) 
         case 'children':
         case 'dangerouslySetInnerHTML':
           throw new Error('link' + " is a self-closing tag and must neither have `children` nor " + 'use `dangerouslySetInnerHTML`.');
-        // eslint-disable-next-line-no-fallthrough
 
         default:
           writeStyleResourceAttributeInJS(destination, propKey, propValue);
@@ -5080,7 +5219,8 @@ function writeStyleResourceDependencyInJS(destination, href, precedence, props) 
   return null;
 }
 
-function writeStyleResourceAttributeInJS(destination, name, value) {
+function writeStyleResourceAttributeInJS(destination, name, value) // not null or undefined
+{
   var attributeName = name.toLowerCase();
   var attributeValue;
 
@@ -5102,60 +5242,873 @@ function writeStyleResourceAttributeInJS(destination, name, value) {
     // Attribute renames
 
     case 'className':
-      attributeName = 'class';
-      break;
-    // Booleans
-
-    case 'hidden':
-      if (value === false) {
-        return;
-      }
-
-      attributeValue = '';
-      break;
-    // Santized URLs
-
-    case 'src':
-    case 'href':
       {
+        attributeName = 'class';
+
         {
           checkAttributeStringCoercion(value, attributeName);
         }
 
         attributeValue = '' + value;
-        sanitizeURL(attributeValue);
+        break;
+      }
+    // Booleans
+
+    case 'hidden':
+      {
+        if (value === false) {
+          return;
+        }
+
+        attributeValue = '';
+        break;
+      }
+    // Santized URLs
+
+    case 'src':
+    case 'href':
+      {
+        value = sanitizeURL(value);
+
+        {
+          checkAttributeStringCoercion(value, attributeName);
+        }
+
+        attributeValue = '' + value;
         break;
       }
 
     default:
       {
+        if ( // unrecognized event handlers are not SSR'd and we (apparently)
+        // use on* as hueristic for these handler props
+        name.length > 2 && (name[0] === 'o' || name[0] === 'O') && (name[1] === 'n' || name[1] === 'N')) {
+          return;
+        }
+
         if (!isAttributeNameSafe(name)) {
           return;
         }
+
+        {
+          checkAttributeStringCoercion(value, attributeName);
+        }
+
+        attributeValue = '' + value;
       }
   }
 
-  if ( // shouldIgnoreAttribute
-  // We have already filtered out null/undefined and reserved words.
-  name.length > 2 && (name[0] === 'o' || name[0] === 'O') && (name[1] === 'n' || name[1] === 'N')) {
-    return;
-  }
-
-  {
-    checkAttributeStringCoercion(value, attributeName);
-  }
-
-  attributeValue = '' + value;
   writeChunk(destination, arrayInterstitial);
   writeChunk(destination, stringToChunk(escapeJSObjectForInstructionScripts(attributeName)));
   writeChunk(destination, arrayInterstitial);
   writeChunk(destination, stringToChunk(escapeJSObjectForInstructionScripts(attributeValue)));
 } // This function writes a 2D array of strings to be embedded in an attribute
+// value and read with JSON.parse in ReactDOMServerExternalRuntime.js
+// E.g.
+//  [[&quot;JSON_escaped_string1&quot;, &quot;JSON_escaped_string2&quot;]]
 
-function createResponseState$1(generateStaticMarkup, identifierPrefix, externalRuntimeConfig) {
-  var responseState = createResponseState(identifierPrefix, undefined, undefined, undefined, undefined);
+
+function writeStyleResourceDependenciesInAttr(destination, boundaryResources) {
+  writeChunk(destination, arrayFirstOpenBracket);
+  var nextArrayOpenBrackChunk = arrayFirstOpenBracket;
+  boundaryResources.forEach(function (resource) {
+    if (resource.type === 'style') ; else if (resource.state & FlushedInPreamble) ; else if (resource.state & Flushed) {
+      // We only need to emit the href because this resource flushed in an earlier
+      // boundary already which encoded the attributes necessary to construct
+      // the resource instance on the client.
+      writeChunk(destination, nextArrayOpenBrackChunk);
+      writeStyleResourceDependencyHrefOnlyInAttr(destination, resource.props.href);
+      writeChunk(destination, arrayCloseBracket);
+      nextArrayOpenBrackChunk = arraySubsequentOpenBracket;
+    } else if (resource.type === 'stylesheet') {
+      // We need to emit the whole resource for insertion on the client
+      writeChunk(destination, nextArrayOpenBrackChunk);
+      writeStyleResourceDependencyInAttr(destination, resource.props.href, resource.props['data-precedence'], resource.props);
+      writeChunk(destination, arrayCloseBracket);
+      nextArrayOpenBrackChunk = arraySubsequentOpenBracket;
+      resource.state |= FlushedLate;
+    }
+  });
+  writeChunk(destination, arrayCloseBracket);
+}
+/* Helper functions */
+
+
+function writeStyleResourceDependencyHrefOnlyInAttr(destination, href) {
+  // We should actually enforce this earlier when the resource is created but for
+  // now we make sure we are actually dealing with a string here.
+  {
+    checkAttributeStringCoercion(href, 'href');
+  }
+
+  var coercedHref = '' + href;
+  writeChunk(destination, stringToChunk(escapeTextForBrowser(JSON.stringify(coercedHref))));
+}
+
+function writeStyleResourceDependencyInAttr(destination, href, precedence, props) {
+  // eslint-disable-next-line react-internal/safe-string-coercion
+  var coercedHref = sanitizeURL('' + href);
+  writeChunk(destination, stringToChunk(escapeTextForBrowser(JSON.stringify(coercedHref))));
+
+  {
+    checkAttributeStringCoercion(precedence, 'precedence');
+  }
+
+  var coercedPrecedence = '' + precedence;
+  writeChunk(destination, arrayInterstitial);
+  writeChunk(destination, stringToChunk(escapeTextForBrowser(JSON.stringify(coercedPrecedence))));
+
+  for (var propKey in props) {
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
+
+      if (propValue == null) {
+        continue;
+      }
+
+      switch (propKey) {
+        case 'href':
+        case 'rel':
+        case 'precedence':
+        case 'data-precedence':
+          {
+            break;
+          }
+
+        case 'children':
+        case 'dangerouslySetInnerHTML':
+          throw new Error('link' + " is a self-closing tag and must neither have `children` nor " + 'use `dangerouslySetInnerHTML`.');
+
+        default:
+          writeStyleResourceAttributeInAttr(destination, propKey, propValue);
+          break;
+      }
+    }
+  }
+
+  return null;
+}
+
+function writeStyleResourceAttributeInAttr(destination, name, value) // not null or undefined
+{
+  var attributeName = name.toLowerCase();
+  var attributeValue;
+
+  switch (typeof value) {
+    case 'function':
+    case 'symbol':
+      return;
+  }
+
+  switch (name) {
+    // Reserved names
+    case 'innerHTML':
+    case 'dangerouslySetInnerHTML':
+    case 'suppressContentEditableWarning':
+    case 'suppressHydrationWarning':
+    case 'style':
+      // Ignored
+      return;
+    // Attribute renames
+
+    case 'className':
+      {
+        attributeName = 'class';
+
+        {
+          checkAttributeStringCoercion(value, attributeName);
+        }
+
+        attributeValue = '' + value;
+        break;
+      }
+    // Booleans
+
+    case 'hidden':
+      {
+        if (value === false) {
+          return;
+        }
+
+        attributeValue = '';
+        break;
+      }
+    // Santized URLs
+
+    case 'src':
+    case 'href':
+      {
+        value = sanitizeURL(value);
+
+        {
+          checkAttributeStringCoercion(value, attributeName);
+        }
+
+        attributeValue = '' + value;
+        break;
+      }
+
+    default:
+      {
+        if ( // unrecognized event handlers are not SSR'd and we (apparently)
+        // use on* as hueristic for these handler props
+        name.length > 2 && (name[0] === 'o' || name[0] === 'O') && (name[1] === 'n' || name[1] === 'N')) {
+          return;
+        }
+
+        if (!isAttributeNameSafe(name)) {
+          return;
+        }
+
+        {
+          checkAttributeStringCoercion(value, attributeName);
+        }
+
+        attributeValue = '' + value;
+      }
+  }
+
+  writeChunk(destination, arrayInterstitial);
+  writeChunk(destination, stringToChunk(escapeTextForBrowser(JSON.stringify(attributeName))));
+  writeChunk(destination, arrayInterstitial);
+  writeChunk(destination, stringToChunk(escapeTextForBrowser(JSON.stringify(attributeValue))));
+}
+/**
+ * Resources
+ */
+
+
+var NoState
+/*            */
+= 0; // These tags indicate whether the Resource was flushed and in which phase
+
+var FlushedInPreamble
+/*  */
+= 1;
+var FlushedLate
+/*        */
+= 2;
+var Flushed
+/*            */
+= 3; // This tag indicates whether this Resource is blocked from flushing.
+// This currently is only used with stylesheets that are blocked by a Boundary
+
+var Blocked
+/*            */
+= 4; // This tag indicates whether this Resource has been preloaded.
+// This generally only makes sense for Resources other than PreloadResource
+
+var PreloadFlushed
+/*     */
+= 8; // Dev extensions.
+// Stylesheets and Scripts rendered with jsx
+// Preloads, Stylesheets, and Scripts from ReactDOM.preload or ReactDOM.preinit
+// Preloads created for normal components we rendered but know we can preload early such as
+// sync Scripts and stylesheets without precedence or with onLoad/onError handlers
+// @TODO add bootstrap script to implicit preloads
+
+function createResources() {
   return {
-    // Keep this in sync with ReactDOMServerFormatConfig
+    // persistent
+    preloadsMap: new Map(),
+    preconnectsMap: new Map(),
+    stylesMap: new Map(),
+    scriptsMap: new Map(),
+    // cleared on flush
+    preconnects: new Set(),
+    fontPreloads: new Set(),
+    // usedImagePreloads: new Set(),
+    precedences: new Map(),
+    stylePrecedences: new Map(),
+    usedStylesheets: new Set(),
+    scripts: new Set(),
+    usedScripts: new Set(),
+    explicitStylesheetPreloads: new Set(),
+    // explicitImagePreloads: new Set(),
+    explicitScriptPreloads: new Set(),
+    explicitOtherPreloads: new Set(),
+    // like a module global for currently rendering boundary
+    boundaryResources: null
+  };
+}
+function createBoundaryResources() {
+  return new Set();
+}
+function setCurrentlyRenderingBoundaryResourcesTarget(resources, boundaryResources) {
+  resources.boundaryResources = boundaryResources;
+}
+
+function getResourceKey(as, href) {
+  return "[" + as + "]" + href;
+}
+
+function prefetchDNS(href, options) {
+
+  var request = resolveRequest();
+
+  if (!request) {
+    // In async contexts we can sometimes resolve resources from AsyncLocalStorage. If we can't we can also
+    // possibly get them from the stack if we are not in an async context. Since we were not able to resolve
+    // the resources for this call in either case we opt to do nothing. We can consider making this a warning
+    // but there may be times where calling a function outside of render is intentional (i.e. to warm up data
+    // fetching) and we don't want to warn in those cases.
+    return;
+  }
+
+  var resources = getResources(request);
+
+  {
+    if (typeof href !== 'string' || !href) {
+      error('ReactDOM.prefetchDNS(): Expected the `href` argument (first) to be a non-empty string but encountered %s instead.', getValueDescriptorExpectingObjectForWarning(href));
+    } else if (options != null) {
+      if (typeof options === 'object' && options.hasOwnProperty('crossOrigin')) {
+        error('ReactDOM.prefetchDNS(): Expected only one argument, `href`, but encountered %s as a second argument instead. This argument is reserved for future options and is currently disallowed. It looks like the you are attempting to set a crossOrigin property for this DNS lookup hint. Browsers do not perform DNS queries using CORS and setting this attribute on the resource hint has no effect. Try calling ReactDOM.prefetchDNS() with just a single string argument, `href`.', getValueDescriptorExpectingEnumForWarning(options));
+      } else {
+        error('ReactDOM.prefetchDNS(): Expected only one argument, `href`, but encountered %s as a second argument instead. This argument is reserved for future options and is currently disallowed. Try calling ReactDOM.prefetchDNS() with just a single string argument, `href`.', getValueDescriptorExpectingEnumForWarning(options));
+      }
+    }
+  }
+
+  if (typeof href === 'string' && href) {
+    var key = getResourceKey('prefetchDNS', href);
+    var resource = resources.preconnectsMap.get(key);
+
+    if (!resource) {
+      resource = {
+        type: 'preconnect',
+        chunks: [],
+        state: NoState,
+        props: null
+      };
+      resources.preconnectsMap.set(key, resource);
+      pushLinkImpl(resource.chunks, {
+        href: href,
+        rel: 'dns-prefetch'
+      });
+    }
+
+    resources.preconnects.add(resource);
+    flushResources(request);
+  }
+}
+function preconnect(href, options) {
+
+  var request = resolveRequest();
+
+  if (!request) {
+    // In async contexts we can sometimes resolve resources from AsyncLocalStorage. If we can't we can also
+    // possibly get them from the stack if we are not in an async context. Since we were not able to resolve
+    // the resources for this call in either case we opt to do nothing. We can consider making this a warning
+    // but there may be times where calling a function outside of render is intentional (i.e. to warm up data
+    // fetching) and we don't want to warn in those cases.
+    return;
+  }
+
+  var resources = getResources(request);
+
+  {
+    if (typeof href !== 'string' || !href) {
+      error('ReactDOM.preconnect(): Expected the `href` argument (first) to be a non-empty string but encountered %s instead.', getValueDescriptorExpectingObjectForWarning(href));
+    } else if (options != null && typeof options !== 'object') {
+      error('ReactDOM.preconnect(): Expected the `options` argument (second) to be an object but encountered %s instead. The only supported option at this time is `crossOrigin` which accepts a string.', getValueDescriptorExpectingEnumForWarning(options));
+    } else if (options != null && typeof options.crossOrigin !== 'string') {
+      error('ReactDOM.preconnect(): Expected the `crossOrigin` option (second argument) to be a string but encountered %s instead. Try removing this option or passing a string value instead.', getValueDescriptorExpectingObjectForWarning(options.crossOrigin));
+    }
+  }
+
+  if (typeof href === 'string' && href) {
+    var crossOrigin = options == null || typeof options.crossOrigin !== 'string' ? null : options.crossOrigin === 'use-credentials' ? 'use-credentials' : '';
+    var key = "[preconnect][" + (crossOrigin === null ? 'null' : crossOrigin) + "]" + href;
+    var resource = resources.preconnectsMap.get(key);
+
+    if (!resource) {
+      resource = {
+        type: 'preconnect',
+        chunks: [],
+        state: NoState,
+        props: null
+      };
+      resources.preconnectsMap.set(key, resource);
+      pushLinkImpl(resource.chunks, {
+        rel: 'preconnect',
+        href: href,
+        crossOrigin: crossOrigin
+      });
+    }
+
+    resources.preconnects.add(resource);
+    flushResources(request);
+  }
+}
+function preload(href, options) {
+
+  var request = resolveRequest();
+
+  if (!request) {
+    // In async contexts we can sometimes resolve resources from AsyncLocalStorage. If we can't we can also
+    // possibly get them from the stack if we are not in an async context. Since we were not able to resolve
+    // the resources for this call in either case we opt to do nothing. We can consider making this a warning
+    // but there may be times where calling a function outside of render is intentional (i.e. to warm up data
+    // fetching) and we don't want to warn in those cases.
+    return;
+  }
+
+  var resources = getResources(request);
+
+  {
+    if (typeof href !== 'string' || !href) {
+      error('ReactDOM.preload(): Expected the `href` argument (first) to be a non-empty string but encountered %s instead.', getValueDescriptorExpectingObjectForWarning(href));
+    } else if (options == null || typeof options !== 'object') {
+      error('ReactDOM.preload(): Expected the `options` argument (second) to be an object with an `as` property describing the type of resource to be preloaded but encountered %s instead.', getValueDescriptorExpectingEnumForWarning(options));
+    } else if (typeof options.as !== 'string') {
+      error('ReactDOM.preload(): Expected the `as` property in the `options` argument (second) to contain a string value describing the type of resource to be preloaded but encountered %s instead. Values that are valid in for the `as` attribute of a `<link rel="preload" as="..." />` tag are valid here.', getValueDescriptorExpectingEnumForWarning(options.as));
+    }
+  }
+
+  if (typeof href === 'string' && href && typeof options === 'object' && options !== null && typeof options.as === 'string') {
+    var as = options.as;
+    var key = getResourceKey(as, href);
+    var resource = resources.preloadsMap.get(key);
+
+    {
+      var devResource = getAsResourceDEV(resource);
+
+      if (devResource) {
+        switch (devResource.__provenance) {
+          case 'preload':
+            {
+              var differenceDescription = describeDifferencesForPreloads(options, devResource.__originalOptions);
+
+              if (differenceDescription) {
+                error('ReactDOM.preload(): The options provided conflict with another call to `ReactDOM.preload("%s", { as: "%s", ...})`.' + ' React will always use the options it first encounters when preloading a resource for a given `href` and `as` type, and any later options will be ignored if different.' + ' Try updating all calls to `ReactDOM.preload()` with the same `href` and `as` type to use the same options, or eliminate one of the calls.%s', href, as, differenceDescription);
+              }
+
+              break;
+            }
+
+          case 'implicit':
+            {
+              var _differenceDescription3 = describeDifferencesForPreloadOverImplicitPreload(options, devResource.__impliedProps);
+
+              if (_differenceDescription3) {
+                var elementDescription = as === 'style' ? '<link rel="stylesheet" ... />' : as === 'script' ? '<script ... />' : null;
+
+                if (elementDescription) {
+                  error('ReactDOM.preload(): For `href` "%s", The options provided conflict with props on a matching %s element. When the preload' + ' options disagree with the underlying resource it usually means the browser will not be able to use the preload when the resource' + ' is fetched, negating any benefit the preload would provide. React will preload the resource using props derived from the resource instead' + ' and ignore the options provided to the `ReactDOM.preload()` call. In general, preloading is useful when you expect to' + ' render a resource soon but have not yet done so. In this case since the underlying resource was already rendered the preload call' + ' may be extraneous. Try removing the call, otherwise try adjusting both the props on the %s and the options' + ' passed to `ReactDOM.preload()` to agree.%s', href, elementDescription, elementDescription, _differenceDescription3);
+                }
+              }
+
+              break;
+            }
+        }
+      }
+    }
+
+    if (!resource) {
+      resource = {
+        type: 'preload',
+        chunks: [],
+        state: NoState,
+        props: preloadPropsFromPreloadOptions(href, as, options)
+      };
+      resources.preloadsMap.set(key, resource);
+
+      {
+        markAsImperativeResourceDEV(resource, 'preload', href, options, resource.props);
+      }
+
+      pushLinkImpl(resource.chunks, resource.props);
+    }
+
+    switch (as) {
+      case 'font':
+        {
+          resources.fontPreloads.add(resource);
+          break;
+        }
+
+      case 'style':
+        {
+          resources.explicitStylesheetPreloads.add(resource);
+          break;
+        }
+
+      case 'script':
+        {
+          resources.explicitScriptPreloads.add(resource);
+          break;
+        }
+
+      default:
+        {
+          resources.explicitOtherPreloads.add(resource);
+        }
+    }
+
+    flushResources(request);
+  }
+}
+
+function preinit(href, options) {
+
+  var request = resolveRequest();
+
+  if (!request) {
+    // In async contexts we can sometimes resolve resources from AsyncLocalStorage. If we can't we can also
+    // possibly get them from the stack if we are not in an async context. Since we were not able to resolve
+    // the resources for this call in either case we opt to do nothing. We can consider making this a warning
+    // but there may be times where calling a function outside of render is intentional (i.e. to warm up data
+    // fetching) and we don't want to warn in those cases.
+    return;
+  }
+
+  var resources = getResources(request);
+
+  {
+    if (typeof href !== 'string' || !href) {
+      error('ReactDOM.preinit(): Expected the `href` argument (first) to be a non-empty string but encountered %s instead.', getValueDescriptorExpectingObjectForWarning(href));
+    } else if (options == null || typeof options !== 'object') {
+      error('ReactDOM.preinit(): Expected the `options` argument (second) to be an object with an `as` property describing the type of resource to be preinitialized but encountered %s instead.', getValueDescriptorExpectingEnumForWarning(options));
+    } else if (options.as !== 'style' && options.as !== 'script') {
+      error('ReactDOM.preinit(): Expected the `as` property in the `options` argument (second) to contain a valid value describing the type of resource to be preinitialized but encountered %s instead. Valid values for `as` are "style" and "script".', getValueDescriptorExpectingEnumForWarning(options.as));
+    }
+  }
+
+  if (typeof href === 'string' && href && typeof options === 'object' && options !== null) {
+    var as = options.as;
+
+    switch (as) {
+      case 'style':
+        {
+          var key = getResourceKey(as, href);
+          var resource = resources.stylesMap.get(key);
+          var precedence = options.precedence || 'default';
+
+          {
+            var devResource = getAsResourceDEV(resource);
+
+            if (devResource) {
+              var resourceProps = stylesheetPropsFromPreinitOptions(href, precedence, options);
+
+              var propsEquivalent = assign({}, resourceProps, _defineProperty({
+                precedence: options.precedence
+              }, 'data-precedence', null));
+
+              switch (devResource.__provenance) {
+                case 'rendered':
+                  {
+                    var differenceDescription = describeDifferencesForPreinitOverStylesheet( // Diff the props from the JSX element, not the derived resource props
+                    propsEquivalent, devResource.__originalProps);
+
+                    if (differenceDescription) {
+                      error('ReactDOM.preinit(): For `href` "%s", the options provided conflict with props found on a <link rel="stylesheet" precedence="%s" href="%s" .../> that was already rendered.' + ' React will always use the props or options it first encounters for a hoistable stylesheet for a given `href` and any later props or options will be ignored if different.' + ' Generally, ReactDOM.preinit() is useful when you are not yet rendering a stylesheet but you anticipate it will be used soon.' + ' In this case the stylesheet was already rendered so preinitializing it does not provide any additional benefit.' + ' To resolve, try making the props and options agree between the <link rel="stylesheet" .../> and the `ReactDOM.preinit()` call or' + ' remove the `ReactDOM.preinit()` call.%s', href, devResource.__originalProps.precedence, href, differenceDescription);
+                    }
+
+                    break;
+                  }
+
+                case 'preinit':
+                  {
+                    var _differenceDescription4 = describeDifferencesForPreinits( // Diff the props from the JSX element, not the derived resource props
+                    propsEquivalent, devResource.__propsEquivalent);
+
+                    if (_differenceDescription4) {
+                      error('ReactDOM.preinit(): For `href` "%s", the options provided conflict with another call to `ReactDOM.preinit("%s", { as: "style", ... })`.' + ' React will always use the options it first encounters when preinitializing a hoistable stylesheet for a given `href` and any later options will be ignored if different.' + ' Try updating all calls to `ReactDOM.preinit()` for a given `href` to use the same options, or only call `ReactDOM.preinit()` once per `href`.%s', href, href, _differenceDescription4);
+                    }
+
+                    break;
+                  }
+              }
+            }
+          }
+
+          if (!resource) {
+            var state = NoState;
+            var preloadResource = resources.preloadsMap.get(key);
+
+            if (preloadResource && preloadResource.state & Flushed) {
+              state = PreloadFlushed;
+            }
+
+            resource = {
+              type: 'stylesheet',
+              chunks: [],
+              state: state,
+              props: stylesheetPropsFromPreinitOptions(href, precedence, options)
+            };
+            resources.stylesMap.set(key, resource);
+
+            {
+              markAsImperativeResourceDEV(resource, 'preinit', href, options, assign({}, resource.props, _defineProperty({
+                precedence: precedence
+              }, 'data-precedence', undefined)));
+            }
+
+            var precedenceSet = resources.precedences.get(precedence);
+
+            if (!precedenceSet) {
+              precedenceSet = new Set();
+              resources.precedences.set(precedence, precedenceSet);
+              var emptyStyleResource = {
+                type: 'style',
+                chunks: [],
+                state: NoState,
+                props: {
+                  precedence: precedence,
+                  hrefs: []
+                }
+              };
+              precedenceSet.add(emptyStyleResource);
+
+              {
+                if (resources.stylePrecedences.has(precedence)) {
+                  error('React constructed an empty style resource when a style resource already exists for this precedence: "%s". This is a bug in React.', precedence);
+                }
+              }
+
+              resources.stylePrecedences.set(precedence, emptyStyleResource);
+            }
+
+            precedenceSet.add(resource);
+            flushResources(request);
+          }
+
+          return;
+        }
+
+      case 'script':
+        {
+          var src = href;
+
+          var _key = getResourceKey(as, src);
+
+          var _resource3 = resources.scriptsMap.get(_key);
+
+          {
+            var _devResource = getAsResourceDEV(_resource3);
+
+            if (_devResource) {
+              var _propsEquivalent = scriptPropsFromPreinitOptions(src, options);
+
+              switch (_devResource.__provenance) {
+                case 'rendered':
+                  {
+                    var _differenceDescription5 = describeDifferencesForPreinitOverScript( // Diff the props from the JSX element, not the derived resource props
+                    _propsEquivalent, _devResource.__originalProps);
+
+                    if (_differenceDescription5) {
+                      error('ReactDOM.preinit(): For `href` "%s", the options provided conflict with props found on a <script async={true} src="%s" .../> that was already rendered.' + ' React will always use the props or options it first encounters for a hoistable script for a given `href` and any later props or options will be ignored if different.' + ' Generally, ReactDOM.preinit() is useful when you are not yet rendering a script but you anticipate it will be used soon and want to go beyond preloading it and have it' + ' execute early. In this case the script was already rendered so preinitializing it does not provide any additional benefit.' + ' To resolve, try making the props and options agree between the <script .../> and the `ReactDOM.preinit()` call or remove the `ReactDOM.preinit()` call.%s', href, href, _differenceDescription5);
+                    }
+
+                    break;
+                  }
+
+                case 'preinit':
+                  {
+                    var _differenceDescription6 = describeDifferencesForPreinits( // Diff the props from the JSX element, not the derived resource props
+                    _propsEquivalent, _devResource.__propsEquivalent);
+
+                    if (_differenceDescription6) {
+                      error('ReactDOM.preinit(): For `href` "%s", the options provided conflict with another call to `ReactDOM.preinit("%s", { as: "script", ... })`.' + ' React will always use the options it first encounters when preinitializing a hoistable script for a given `href` and any later options will be ignored if different.' + ' Try updating all calls to `ReactDOM.preinit()` for a given `href` to use the same options, or only call `ReactDOM.preinit()` once per `href`.%s', href, href, _differenceDescription6);
+                    }
+
+                    break;
+                  }
+              }
+            }
+          }
+
+          if (!_resource3) {
+            _resource3 = {
+              type: 'script',
+              chunks: [],
+              state: NoState,
+              props: null
+            };
+            resources.scriptsMap.set(_key, _resource3);
+
+            var _resourceProps = scriptPropsFromPreinitOptions(src, options);
+
+            {
+              markAsImperativeResourceDEV(_resource3, 'preinit', href, options, _resourceProps);
+            }
+
+            resources.scripts.add(_resource3);
+            pushScriptImpl(_resource3.chunks, _resourceProps);
+            flushResources(request);
+          }
+
+          return;
+        }
+    }
+  }
+}
+
+function internalPreinitScript(resources, src, chunks) {
+  var key = getResourceKey('script', src);
+  var resource = resources.scriptsMap.get(key);
+
+  if (!resource) {
+    resource = {
+      type: 'script',
+      chunks: chunks,
+      state: NoState,
+      props: null
+    };
+    resources.scriptsMap.set(key, resource);
+    resources.scripts.add(resource);
+  }
+
+  return;
+}
+
+function preloadPropsFromPreloadOptions(href, as, options) {
+  return {
+    rel: 'preload',
+    as: as,
+    href: href,
+    crossOrigin: as === 'font' ? '' : options.crossOrigin,
+    integrity: options.integrity,
+    type: options.type
+  };
+}
+
+function preloadAsStylePropsFromProps(href, props) {
+  return {
+    rel: 'preload',
+    as: 'style',
+    href: href,
+    crossOrigin: props.crossOrigin,
+    fetchPriority: props.fetchPriority,
+    integrity: props.integrity,
+    media: props.media,
+    hrefLang: props.hrefLang,
+    referrerPolicy: props.referrerPolicy
+  };
+}
+
+function preloadAsScriptPropsFromProps(href, props) {
+  return {
+    rel: 'preload',
+    as: 'script',
+    href: href,
+    crossOrigin: props.crossOrigin,
+    fetchPriority: props.fetchPriority,
+    integrity: props.integrity,
+    nonce: props.nonce,
+    referrerPolicy: props.referrerPolicy
+  };
+}
+
+function stylesheetPropsFromPreinitOptions(href, precedence, options) {
+  return {
+    rel: 'stylesheet',
+    href: href,
+    'data-precedence': precedence,
+    crossOrigin: options.crossOrigin,
+    integrity: options.integrity
+  };
+}
+
+function stylesheetPropsFromRawProps(rawProps) {
+  return assign({}, rawProps, {
+    'data-precedence': rawProps.precedence,
+    precedence: null
+  });
+}
+
+function adoptPreloadPropsForStylesheetProps(resourceProps, preloadProps) {
+  if (resourceProps.crossOrigin == null) resourceProps.crossOrigin = preloadProps.crossOrigin;
+  if (resourceProps.integrity == null) resourceProps.integrity = preloadProps.integrity;
+}
+
+function scriptPropsFromPreinitOptions(src, options) {
+  return {
+    src: src,
+    async: true,
+    crossOrigin: options.crossOrigin,
+    integrity: options.integrity,
+    nonce: options.nonce
+  };
+}
+
+function adoptPreloadPropsForScriptProps(resourceProps, preloadProps) {
+  if (resourceProps.crossOrigin == null) resourceProps.crossOrigin = preloadProps.crossOrigin;
+  if (resourceProps.integrity == null) resourceProps.integrity = preloadProps.integrity;
+}
+
+function hoistStyleResource(resource) {
+  this.add(resource);
+}
+
+function hoistResources(resources, source) {
+  var currentBoundaryResources = resources.boundaryResources;
+
+  if (currentBoundaryResources) {
+    source.forEach(hoistStyleResource, currentBoundaryResources);
+  }
+}
+
+function markAsRenderedResourceDEV(resource, originalProps) {
+  {
+    var devResource = resource;
+
+    if (typeof devResource.__provenance === 'string') {
+      error('Resource already marked for DEV type. This is a bug in React.');
+    }
+
+    devResource.__provenance = 'rendered';
+    devResource.__originalProps = originalProps;
+  }
+}
+
+function markAsImperativeResourceDEV(resource, provenance, originalHref, originalOptions, propsEquivalent) {
+  {
+    var devResource = resource;
+
+    if (typeof devResource.__provenance === 'string') {
+      error('Resource already marked for DEV type. This is a bug in React.');
+    }
+
+    devResource.__provenance = provenance;
+    devResource.__originalHref = originalHref;
+    devResource.__originalOptions = originalOptions;
+    devResource.__propsEquivalent = propsEquivalent;
+  }
+}
+
+function markAsImplicitResourceDEV(resource, underlyingProps, impliedProps) {
+  {
+    var devResource = resource;
+
+    if (typeof devResource.__provenance === 'string') {
+      error('Resource already marked for DEV type. This is a bug in React.');
+    }
+
+    devResource.__provenance = 'implicit';
+    devResource.__underlyingProps = underlyingProps;
+    devResource.__impliedProps = impliedProps;
+  }
+}
+
+function getAsResourceDEV(resource) {
+  {
+    if (resource) {
+      if (typeof resource.__provenance === 'string') {
+        return resource;
+      }
+
+      error('Resource was not marked for DEV type. This is a bug in React.');
+    }
+
+    return null;
+  }
+}
+
+function createResponseState(generateStaticMarkup, identifierPrefix, externalRuntimeConfig) {
+  var responseState = createResponseState$1(identifierPrefix, undefined, undefined, undefined, undefined, externalRuntimeConfig);
+  return {
+    // Keep this in sync with ReactFizzConfigDOM
     bootstrapChunks: responseState.bootstrapChunks,
     placeholderPrefix: responseState.placeholderPrefix,
     segmentPrefix: responseState.segmentPrefix,
@@ -5164,11 +6117,16 @@ function createResponseState$1(generateStaticMarkup, identifierPrefix, externalR
     nextSuspenseID: responseState.nextSuspenseID,
     streamingFormat: responseState.streamingFormat,
     startInlineScript: responseState.startInlineScript,
-    sentCompleteSegmentFunction: responseState.sentCompleteSegmentFunction,
-    sentCompleteBoundaryFunction: responseState.sentCompleteBoundaryFunction,
-    sentClientRenderFunction: responseState.sentClientRenderFunction,
-    sentStyleInsertionFunction: responseState.sentStyleInsertionFunction,
-    externalRuntimeConfig: responseState.externalRuntimeConfig,
+    instructions: responseState.instructions,
+    externalRuntimeScript: responseState.externalRuntimeScript,
+    htmlChunks: responseState.htmlChunks,
+    headChunks: responseState.headChunks,
+    hasBody: responseState.hasBody,
+    charsetChunks: responseState.charsetChunks,
+    preconnectChunks: responseState.preconnectChunks,
+    preloadChunks: responseState.preloadChunks,
+    hoistableChunks: responseState.hoistableChunks,
+    stylesToHoist: responseState.stylesToHoist,
     // This is an extra field for the legacy renderer
     generateStaticMarkup: generateStaticMarkup
   };
@@ -5181,31 +6139,31 @@ function createRootFormatContext() {
     noscriptTagInScope: false
   };
 }
-function pushTextInstance$1(target, text, responseState, textEmbedded) {
+function pushTextInstance(target, text, responseState, textEmbedded) {
   if (responseState.generateStaticMarkup) {
     target.push(stringToChunk(escapeTextForBrowser(text)));
     return false;
   } else {
-    return pushTextInstance(target, text, responseState, textEmbedded);
+    return pushTextInstance$1(target, text, responseState, textEmbedded);
   }
 }
-function pushSegmentFinale$1(target, responseState, lastPushedText, textEmbedded) {
+function pushSegmentFinale(target, responseState, lastPushedText, textEmbedded) {
   if (responseState.generateStaticMarkup) {
     return;
   } else {
-    return pushSegmentFinale(target, responseState, lastPushedText, textEmbedded);
+    return pushSegmentFinale$1(target, responseState, lastPushedText, textEmbedded);
   }
 }
-function writeStartCompletedSuspenseBoundary$1(destination, responseState) {
+function writeStartCompletedSuspenseBoundary(destination, responseState) {
   if (responseState.generateStaticMarkup) {
     // A completed boundary is done and doesn't need a representation in the HTML
     // if we're not going to be hydrating it.
     return true;
   }
 
-  return writeStartCompletedSuspenseBoundary(destination);
+  return writeStartCompletedSuspenseBoundary$1(destination);
 }
-function writeStartClientRenderedSuspenseBoundary$1(destination, responseState, // flushing these error arguments are not currently supported in this legacy streaming format.
+function writeStartClientRenderedSuspenseBoundary(destination, responseState, // flushing these error arguments are not currently supported in this legacy streaming format.
 errorDigest, errorMessage, errorComponentStack) {
   if (responseState.generateStaticMarkup) {
     // A client rendered boundary is done and doesn't need a representation in the HTML
@@ -5213,21 +6171,21 @@ errorDigest, errorMessage, errorComponentStack) {
     return true;
   }
 
-  return writeStartClientRenderedSuspenseBoundary(destination, responseState, errorDigest, errorMessage, errorComponentStack);
+  return writeStartClientRenderedSuspenseBoundary$1(destination, responseState, errorDigest, errorMessage, errorComponentStack);
 }
-function writeEndCompletedSuspenseBoundary$1(destination, responseState) {
+function writeEndCompletedSuspenseBoundary(destination, responseState) {
   if (responseState.generateStaticMarkup) {
     return true;
   }
 
-  return writeEndCompletedSuspenseBoundary(destination);
+  return writeEndCompletedSuspenseBoundary$1(destination);
 }
-function writeEndClientRenderedSuspenseBoundary$1(destination, responseState) {
+function writeEndClientRenderedSuspenseBoundary(destination, responseState) {
   if (responseState.generateStaticMarkup) {
     return true;
   }
 
-  return writeEndClientRenderedSuspenseBoundary(destination);
+  return writeEndClientRenderedSuspenseBoundary$1(destination);
 }
 
 // ATTENTION
@@ -5373,7 +6331,6 @@ function getComponentNameFromType(type) {
           return (context2.displayName || context2._globalName) + '.Provider';
         }
 
-      // eslint-disable-next-line no-fallthrough
     }
   }
 
@@ -5413,7 +6370,7 @@ function disableLogs() {
         enumerable: true,
         value: disabledLog,
         writable: true
-      }; // $FlowFixMe Flow thinks console is immutable.
+      }; // $FlowFixMe[cannot-write] Flow thinks console is immutable.
 
       Object.defineProperties(console, {
         info: props,
@@ -5440,7 +6397,7 @@ function reenableLogs() {
         configurable: true,
         enumerable: true,
         writable: true
-      }; // $FlowFixMe Flow thinks console is immutable.
+      }; // $FlowFixMe[cannot-write] Flow thinks console is immutable.
 
       Object.defineProperties(console, {
         log: assign({}, props, {
@@ -5474,7 +6431,7 @@ function reenableLogs() {
   }
 }
 
-var ReactCurrentDispatcher = ReactSharedInternals.ReactCurrentDispatcher;
+var ReactCurrentDispatcher$1 = ReactSharedInternals.ReactCurrentDispatcher;
 var prefix;
 function describeBuiltInComponentFrame(name, source, ownerFn) {
   {
@@ -5502,7 +6459,7 @@ var componentFrameCache;
 
 function describeNativeComponentFrame(fn, construct) {
   // If something asked for a stack inside a fake render, it should get ignored.
-  if ( !fn || reentry) {
+  if (!fn || reentry) {
     return '';
   }
 
@@ -5516,16 +6473,16 @@ function describeNativeComponentFrame(fn, construct) {
 
   var control;
   reentry = true;
-  var previousPrepareStackTrace = Error.prepareStackTrace; // $FlowFixMe It does accept undefined.
+  var previousPrepareStackTrace = Error.prepareStackTrace; // $FlowFixMe[incompatible-type] It does accept undefined.
 
   Error.prepareStackTrace = undefined;
   var previousDispatcher;
 
   {
-    previousDispatcher = ReactCurrentDispatcher.current; // Set the dispatcher in DEV because this might be call in the render function
+    previousDispatcher = ReactCurrentDispatcher$1.current; // Set the dispatcher in DEV because this might be call in the render function
     // for warnings.
 
-    ReactCurrentDispatcher.current = null;
+    ReactCurrentDispatcher$1.current = null;
     disableLogs();
   }
 
@@ -5535,7 +6492,7 @@ function describeNativeComponentFrame(fn, construct) {
       // Something should be setting the props in the constructor.
       var Fake = function () {
         throw Error();
-      }; // $FlowFixMe
+      }; // $FlowFixMe[prop-missing]
 
 
       Object.defineProperty(Fake.prototype, 'props', {
@@ -5644,7 +6601,7 @@ function describeNativeComponentFrame(fn, construct) {
     reentry = false;
 
     {
-      ReactCurrentDispatcher.current = previousDispatcher;
+      ReactCurrentDispatcher$1.current = previousDispatcher;
       reenableLogs();
     }
 
@@ -5675,7 +6632,7 @@ function describeFunctionComponentFrame(fn, source, ownerFn) {
   }
 }
 
-function shouldConstruct(Component) {
+function shouldConstruct$1(Component) {
   var prototype = Component.prototype;
   return !!(prototype && prototype.isReactComponent);
 }
@@ -5688,7 +6645,7 @@ function describeUnknownElementTypeFrameInDEV(type, source, ownerFn) {
 
   if (typeof type === 'function') {
     {
-      return describeNativeComponentFrame(type, shouldConstruct(type));
+      return describeNativeComponentFrame(type, shouldConstruct$1(type));
     }
   }
 
@@ -5731,23 +6688,23 @@ function describeUnknownElementTypeFrameInDEV(type, source, ownerFn) {
 }
 
 var loggedTypeFailures = {};
-var ReactDebugCurrentFrame = ReactSharedInternals.ReactDebugCurrentFrame;
+var ReactDebugCurrentFrame$1 = ReactSharedInternals.ReactDebugCurrentFrame;
 
 function setCurrentlyValidatingElement(element) {
   {
     if (element) {
       var owner = element._owner;
       var stack = describeUnknownElementTypeFrameInDEV(element.type, element._source, owner ? owner.type : null);
-      ReactDebugCurrentFrame.setExtraStackFrame(stack);
+      ReactDebugCurrentFrame$1.setExtraStackFrame(stack);
     } else {
-      ReactDebugCurrentFrame.setExtraStackFrame(null);
+      ReactDebugCurrentFrame$1.setExtraStackFrame(null);
     }
   }
 }
 
 function checkPropTypes(typeSpecs, values, location, componentName, element) {
   {
-    // $FlowFixMe This is okay but Flow doesn't know it.
+    // $FlowFixMe[incompatible-use] This is okay but Flow doesn't know it.
     var has = Function.call.bind(hasOwnProperty);
 
     for (var typeSpecName in typeSpecs) {
@@ -5798,8 +6755,7 @@ var warnedAboutMissingGetChildContext;
 
 {
   warnedAboutMissingGetChildContext = {};
-} // $FlowFixMe[incompatible-exact]
-
+}
 
 var emptyContextObject = {};
 
@@ -5871,6 +6827,8 @@ var rendererSigil;
   rendererSigil = {};
 } // Used to store the parent path of all context overrides in a shared linked list.
 // Forming a reverse tree.
+// The structure of a context snapshot is an implementation of this file.
+// Currently, it's implemented as tracking the current active node.
 
 
 var rootContextSnapshot = null; // We assume that this runtime owns the "current" field on all ReactContext instances.
@@ -5986,7 +6944,7 @@ function switchContext(newSnapshot) {
 
   if (prev !== next) {
     if (prev === null) {
-      // $FlowFixMe: This has to be non-null since it's not equal to prev.
+      // $FlowFixMe[incompatible-call]: This has to be non-null since it's not equal to prev.
       pushAllNext(next);
     } else if (next === null) {
       popAllPrevious(prev);
@@ -6064,8 +7022,8 @@ function popProvider(context) {
 function getActiveContext() {
   return currentActiveSnapshot;
 }
-function readContext(context) {
-  var value =  context._currentValue2;
+function readContext$1(context) {
+  var value = context._currentValue2;
   return value;
 }
 
@@ -6091,11 +7049,10 @@ var didWarnAboutUninitializedState;
 var didWarnAboutGetSnapshotBeforeUpdateWithoutDidUpdate;
 var didWarnAboutLegacyLifecyclesAndDerivedState;
 var didWarnAboutUndefinedDerivedState;
-var warnOnUndefinedDerivedState;
-var warnOnInvalidCallback;
 var didWarnAboutDirectlyAssigningPropsToState;
 var didWarnAboutContextTypeAndContextTypes;
 var didWarnAboutInvalidateContextType;
+var didWarnOnInvalidCallback;
 
 {
   didWarnAboutUninitializedState = new Set();
@@ -6105,9 +7062,11 @@ var didWarnAboutInvalidateContextType;
   didWarnAboutUndefinedDerivedState = new Set();
   didWarnAboutContextTypeAndContextTypes = new Set();
   didWarnAboutInvalidateContextType = new Set();
-  var didWarnOnInvalidCallback = new Set();
+  didWarnOnInvalidCallback = new Set();
+}
 
-  warnOnInvalidCallback = function (callback, callerName) {
+function warnOnInvalidCallback(callback, callerName) {
+  {
     if (callback === null || typeof callback === 'function') {
       return;
     }
@@ -6119,9 +7078,11 @@ var didWarnAboutInvalidateContextType;
 
       error('%s(...): Expected the last optional `callback` argument to be a ' + 'function. Instead received: %s.', callerName, callback);
     }
-  };
+  }
+}
 
-  warnOnUndefinedDerivedState = function (type, partialState) {
+function warnOnUndefinedDerivedState(type, partialState) {
+  {
     if (partialState === undefined) {
       var componentName = getComponentNameFromType(type) || 'Component';
 
@@ -6131,7 +7092,7 @@ var didWarnAboutInvalidateContextType;
         error('%s.getDerivedStateFromProps(): A valid state object (or null) must be returned. ' + 'You have returned undefined.', componentName);
       }
     }
-  };
+  }
 }
 
 function warnNoop(publicInstance, callerName) {
@@ -6154,6 +7115,7 @@ var classComponentUpdater = {
   isMounted: function (inst) {
     return false;
   },
+  // $FlowFixMe[missing-local-annot]
   enqueueSetState: function (inst, payload, callback) {
     var internals = get(inst);
 
@@ -6180,6 +7142,7 @@ var classComponentUpdater = {
       }
     }
   },
+  // $FlowFixMe[missing-local-annot]
   enqueueForceUpdate: function (inst, callback) {
     var internals = get(inst);
 
@@ -6239,7 +7202,7 @@ function constructClassInstance(ctor, props, maskedLegacyContext) {
   }
 
   if (typeof contextType === 'object' && contextType !== null) {
-    context = readContext(contextType);
+    context = readContext$1(contextType);
   } else {
     context = maskedLegacyContext;
   }
@@ -6393,9 +7356,9 @@ function checkClassInstance(instance, ctor, newProps) {
       error('%s: getSnapshotBeforeUpdate() is defined as a static method ' + 'and will be ignored. Instead, declare it as an instance method.', name);
     }
 
-    var _state = instance.state;
+    var state = instance.state;
 
-    if (_state && (typeof _state !== 'object' || isArray(_state))) {
+    if (state && (typeof state !== 'object' || isArray(state))) {
       error('%s.state: must be set to an object or null', name);
     }
 
@@ -6410,7 +7373,7 @@ function callComponentWillMount(type, instance) {
 
   if (typeof instance.componentWillMount === 'function') {
     {
-      if ( instance.componentWillMount.__suppressDeprecationWarning !== true) {
+      if (instance.componentWillMount.__suppressDeprecationWarning !== true) {
         var componentName = getComponentNameFromType(type) || 'Unknown';
 
         if (!didWarnAboutDeprecatedWillMount[componentName]) {
@@ -6492,7 +7455,7 @@ function mountClassInstance(instance, ctor, newProps, maskedLegacyContext) {
   var contextType = ctor.contextType;
 
   if (typeof contextType === 'object' && contextType !== null) {
-    instance.context = readContext(contextType);
+    instance.context = readContext$1(contextType);
   } else {
     instance.context = maskedLegacyContext;
   }
@@ -6682,7 +7645,7 @@ function createThenableState() {
   return [];
 }
 
-function noop() {}
+function noop$2() {}
 
 function trackUsedThenable(thenableState, thenable, index) {
   var previous = thenableState[index];
@@ -6695,7 +7658,7 @@ function trackUsedThenable(thenableState, thenable, index) {
       // they represent the same value, because components are idempotent.
       // Avoid an unhandled rejection errors for the Promises that we'll
       // intentionally ignore.
-      thenable.then(noop, noop);
+      thenable.then(noop$2, noop$2);
       thenable = previous;
     }
   } // We use an expando to track the status and result of a thenable so that we
@@ -6964,14 +7927,14 @@ function resetHooksState() {
   workInProgressHook = null;
 }
 
-function readContext$1(context) {
+function readContext(context) {
   {
     if (isInHookUserCodeInDev) {
       error('Context can only be read while React is rendering. ' + 'In classes, you can read it in the render method or getDerivedStateFromProps. ' + 'In function components, you can read it directly in the function body, but not ' + 'inside Hooks like useReducer() or useMemo().');
     }
   }
 
-  return readContext(context);
+  return readContext$1(context);
 }
 
 function useContext(context) {
@@ -6980,11 +7943,11 @@ function useContext(context) {
   }
 
   resolveCurrentlyRenderingComponent();
-  return readContext(context);
+  return readContext$1(context);
 }
 
 function basicStateReducer(state, action) {
-  // $FlowFixMe: Flow doesn't like mixed types
+  // $FlowFixMe[incompatible-use]: Flow doesn't like mixed types
   return typeof action === 'function' ? action(state) : action;
 }
 
@@ -7140,14 +8103,6 @@ function useRef(initialValue) {
   }
 }
 
-function useLayoutEffect(create, inputs) {
-  {
-    currentHookNameInDev = 'useLayoutEffect';
-
-    error('useLayoutEffect does nothing on the server, because its effect cannot ' + "be encoded into the server renderer's output format. This will lead " + 'to a mismatch between the initial, non-hydrated UI and the intended ' + 'UI. To avoid this, useLayoutEffect should only be used in ' + 'components that render exclusively on the client. ' + 'See https://reactjs.org/link/uselayouteffect-ssr for common fixes.');
-  }
-}
-
 function dispatchAction(componentIdentity, queue, action) {
   if (numberOfReRenders >= RE_RENDER_LIMIT) {
     throw new Error('Too many re-renders. React limits the number of renders to prevent ' + 'an infinite loop.');
@@ -7238,24 +8193,27 @@ function use(usable) {
     // $FlowFixMe[method-unbinding]
     if (typeof usable.then === 'function') {
       // This is a thenable.
-      var thenable = usable; // Track the position of the thenable within this fiber.
-
-      var index = thenableIndexCounter;
-      thenableIndexCounter += 1;
-
-      if (thenableState === null) {
-        thenableState = createThenableState();
-      }
-
-      return trackUsedThenable(thenableState, thenable, index);
+      var thenable = usable;
+      return unwrapThenable(thenable);
     } else if (usable.$$typeof === REACT_CONTEXT_TYPE || usable.$$typeof === REACT_SERVER_CONTEXT_TYPE) {
       var context = usable;
-      return readContext$1(context);
+      return readContext(context);
     }
   } // eslint-disable-next-line react-internal/safe-string-coercion
 
 
   throw new Error('An unsupported type was passed to use(): ' + String(usable));
+}
+
+function unwrapThenable(thenable) {
+  var index = thenableIndexCounter;
+  thenableIndexCounter += 1;
+
+  if (thenableState === null) {
+    thenableState = createThenableState();
+  }
+
+  return trackUsedThenable(thenableState, thenable, index);
 }
 
 function unsupportedRefresh() {
@@ -7269,14 +8227,15 @@ function useCacheRefresh() {
 function noop$1() {}
 
 var HooksDispatcher = {
-  readContext: readContext$1,
+  readContext: readContext,
+  use: use,
   useContext: useContext,
   useMemo: useMemo,
   useReducer: useReducer,
   useRef: useRef,
   useState: useState,
   useInsertionEffect: noop$1,
-  useLayoutEffect: useLayoutEffect,
+  useLayoutEffect: noop$1,
   useCallback: useCallback,
   // useImperativeHandle is not run in the server environment
   useImperativeHandle: noop$1,
@@ -7294,10 +8253,6 @@ var HooksDispatcher = {
 
 {
   HooksDispatcher.useCacheRefresh = useCacheRefresh;
-}
-
-{
-  HooksDispatcher.use = use;
 }
 
 var currentResponseState = null;
@@ -7348,9 +8303,9 @@ function getStackByComponentStackNode(componentStack) {
   }
 }
 
-var ReactCurrentDispatcher$1 = ReactSharedInternals.ReactCurrentDispatcher;
+var ReactCurrentDispatcher = ReactSharedInternals.ReactCurrentDispatcher;
 var ReactCurrentCache = ReactSharedInternals.ReactCurrentCache;
-var ReactDebugCurrentFrame$1 = ReactSharedInternals.ReactDebugCurrentFrame;
+var ReactDebugCurrentFrame = ReactSharedInternals.ReactDebugCurrentFrame;
 var PENDING = 0;
 var COMPLETED = 1;
 var FLUSHED = 2;
@@ -7358,8 +8313,7 @@ var ABORTED = 3;
 var ERRORED = 4;
 var OPEN = 0;
 var CLOSING = 1;
-var CLOSED = 2;
-// This is a default heuristic for how to split up the HTML content into progressive
+var CLOSED = 2; // This is a default heuristic for how to split up the HTML content into progressive
 // loading. Our goal is to be able to display additional new content about every 500ms.
 // Faster than that is unnecessary and should be throttled on the client. It also
 // adds unnecessary overhead to do more splits. We don't know if it's a higher or lower
@@ -7374,6 +8328,7 @@ var CLOSED = 2;
 // about 12.5kb of content per 500ms. Not counting starting latency for the first
 // paint.
 // 500 * 1024 / 8 * .8 * 0.5 / 2
+
 var DEFAULT_PROGRESSIVE_CHUNK_SIZE = 12800;
 
 function defaultErrorHandler(error) {
@@ -7382,14 +8337,16 @@ function defaultErrorHandler(error) {
   return null;
 }
 
-function noop$2() {}
+function noop() {}
 
 function createRequest(children, responseState, rootFormatContext, progressiveChunkSize, onError, onAllReady, onShellReady, onShellError, onFatalError) {
+  prepareHostDispatcher();
   var pingedTasks = [];
   var abortSet = new Set();
   var resources = createResources();
   var request = {
     destination: null,
+    flushScheduled: false,
     responseState: responseState,
     progressiveChunkSize: progressiveChunkSize === undefined ? DEFAULT_PROGRESSIVE_CHUNK_SIZE : progressiveChunkSize,
     status: OPEN,
@@ -7404,13 +8361,11 @@ function createRequest(children, responseState, rootFormatContext, progressiveCh
     clientRenderedBoundaries: [],
     completedBoundaries: [],
     partialBoundaries: [],
-    preamble: [],
-    postamble: [],
     onError: onError === undefined ? defaultErrorHandler : onError,
-    onAllReady: onAllReady === undefined ? noop$2 : onAllReady,
-    onShellReady: onShellReady === undefined ? noop$2 : onShellReady,
-    onShellError: onShellError === undefined ? noop$2 : onShellError,
-    onFatalError: onFatalError === undefined ? noop$2 : onFatalError
+    onAllReady: onAllReady === undefined ? noop : onAllReady,
+    onShellReady: onShellReady === undefined ? noop : onShellReady,
+    onShellError: onShellError === undefined ? noop : onShellError,
+    onFatalError: onFatalError === undefined ? noop : onFatalError
   }; // This segment represents the root fallback.
 
   var rootSegment = createPendingSegment(request, 0, null, rootFormatContext, // Root segments are never embedded in Text on either edge
@@ -7421,12 +8376,19 @@ function createRequest(children, responseState, rootFormatContext, progressiveCh
   pingedTasks.push(rootTask);
   return request;
 }
+var currentRequest = null;
+function resolveRequest() {
+  if (currentRequest) return currentRequest;
+
+  return null;
+}
 
 function pingTask(request, task) {
   var pingedTasks = request.pingedTasks;
   pingedTasks.push(task);
 
-  if (pingedTasks.length === 1) {
+  if (request.pingedTasks.length === 1) {
+    request.flushScheduled = request.destination !== null;
     scheduleWork(function () {
       return performWork(request);
     });
@@ -7644,15 +8606,8 @@ function renderSuspenseBoundary(request, task, props) {
   try {
     // We use the safe form because we don't handle suspending here. Only error handling.
     renderNode(request, task, content);
-    pushSegmentFinale$1(contentRootSegment.chunks, request.responseState, contentRootSegment.lastPushedText, contentRootSegment.textEmbedded);
+    pushSegmentFinale(contentRootSegment.chunks, request.responseState, contentRootSegment.lastPushedText, contentRootSegment.textEmbedded);
     contentRootSegment.status = COMPLETED;
-
-    if (enableFloat) {
-      if (newBoundary.pendingTasks === 0) {
-        hoistCompletedBoundaryResources(request, newBoundary);
-      }
-    }
-
     queueCompletedSegment(newBoundary, contentRootSegment);
 
     if (newBoundary.pendingTasks === 0) {
@@ -7696,20 +8651,10 @@ function renderSuspenseBoundary(request, task, props) {
   popComponentStackInDEV(task);
 }
 
-function hoistCompletedBoundaryResources(request, completedBoundary) {
-  if (request.completedRootSegment !== null || request.pendingRootTasks > 0) {
-    // The Shell has not flushed yet. we can hoist Resources for this boundary
-    // all the way to the Root.
-    hoistResourcesToRoot(request.resources, completedBoundary.resources);
-  } // We don't hoist if the root already flushed because late resources will be hoisted
-  // as boundaries flush
-
-}
-
 function renderHostElement(request, task, type, props) {
   pushBuiltInComponentStackInDEV(task, type);
   var segment = task.blockedSegment;
-  var children = pushStartInstance(segment.chunks, request.preamble, type, props, request.responseState, segment.formatContext, segment.lastPushedText);
+  var children = pushStartInstance(segment.chunks, type, props, request.resources, request.responseState, segment.formatContext, segment.lastPushedText);
   segment.lastPushedText = false;
   var prevContext = segment.formatContext;
   segment.formatContext = getChildFormatContext(prevContext, type, props); // We use the non-destructive form because if something suspends, we still
@@ -7719,12 +8664,12 @@ function renderHostElement(request, task, type, props) {
   // the correct context. Therefore this is not in a finally.
 
   segment.formatContext = prevContext;
-  pushEndInstance(segment.chunks, request.postamble, type);
+  pushEndInstance(segment.chunks, type, props, request.responseState, prevContext);
   segment.lastPushedText = false;
   popComponentStackInDEV(task);
 }
 
-function shouldConstruct$1(Component) {
+function shouldConstruct(Component) {
   return Component.prototype && Component.prototype.isReactComponent;
 }
 
@@ -7766,7 +8711,7 @@ function finishClassComponent(request, task, instance, Component, props) {
 
 function renderClassComponent(request, task, Component, props) {
   pushClassComponentStackInDEV(task, Component);
-  var maskedContext =  getMaskedContext(Component, task.legacyContext) ;
+  var maskedContext = getMaskedContext(Component, task.legacyContext) ;
   var instance = constructClassInstance(Component, props, maskedContext);
   mountClassInstance(instance, Component, props, maskedContext);
   finishClassComponent(request, task, instance, Component, props);
@@ -7824,7 +8769,7 @@ function renderIndeterminateComponent(request, task, prevThenableState, Componen
 
   if ( // Run these checks in production only if the flag is off.
   // Eventually we'll delete this branch altogether.
-   typeof value === 'object' && value !== null && typeof value.render === 'function' && value.$$typeof === undefined) {
+  typeof value === 'object' && value !== null && typeof value.render === 'function' && value.$$typeof === undefined) {
     {
       var _componentName2 = getComponentNameFromType(Component) || 'Unknown';
 
@@ -7874,7 +8819,7 @@ function validateFunctionComponentInDev(Component) {
       }
     }
 
-    if ( Component.defaultProps !== undefined) {
+    if (Component.defaultProps !== undefined) {
       var componentName = getComponentNameFromType(Component) || 'Unknown';
 
       if (!didWarnAboutDefaultPropsOnFunctionComponent[componentName]) {
@@ -7988,7 +8933,7 @@ function renderContextConsumer(request, task, context, props) {
     }
   }
 
-  var newValue = readContext(context);
+  var newValue = readContext$1(context);
   var newChildren = render(newValue);
   renderNodeDestructive(request, task, null, newChildren);
 }
@@ -8036,7 +8981,7 @@ function renderOffscreen(request, task, props) {
 
 function renderElement(request, task, prevThenableState, type, props, ref) {
   if (typeof type === 'function') {
-    if (shouldConstruct$1(type)) {
+    if (shouldConstruct(type)) {
       renderClassComponent(request, task, type, props);
       return;
     } else {
@@ -8090,7 +9035,6 @@ function renderElement(request, task, prevThenableState, type, props, ref) {
 
         throw new Error('ReactDOMServer does not yet support scope components.');
       }
-    // eslint-disable-next-line-no-fallthrough
 
     case REACT_SUSPENSE_TYPE:
       {
@@ -8145,14 +9089,14 @@ function renderElement(request, task, prevThenableState, type, props, ref) {
   }
 
   throw new Error('Element type is invalid: expected a string (for built-in ' + 'components) or a class/function (for composite components) ' + ("but got: " + (type == null ? type : typeof type) + "." + info));
-}
+} // $FlowFixMe[missing-local-annot]
+
 
 function validateIterable(iterable, iteratorFn) {
   {
     // We don't support rendering Generators because it's a mutation.
     // See https://github.com/facebook/react/issues/12995
-    if (typeof Symbol === 'function' && // $FlowFixMe Flow doesn't know about toStringTag
-    iterable[Symbol.toStringTag] === 'Generator') {
+    if (typeof Symbol === 'function' && iterable[Symbol.toStringTag] === 'Generator') {
       if (!didWarnAboutGenerators) {
         error('Using Generators as children is unsupported and will likely yield ' + 'unexpected results because enumerating a generator mutates it. ' + 'You may convert it to an array with `Array.from()` or the ' + '`[...spread]` operator before rendering. Keep in mind ' + 'you might need to polyfill these features for older browsers.');
       }
@@ -8213,7 +9157,6 @@ function renderNodeDestructiveImpl(request, task, prevThenableState, node) {
 
       case REACT_PORTAL_TYPE:
         throw new Error('Portals are not currently supported by the server renderer. ' + 'Render them conditionally so that they only appear on the client render.');
-      // eslint-disable-next-line-no-fallthrough
 
       case REACT_LAZY_TYPE:
         {
@@ -8279,6 +9222,27 @@ function renderNodeDestructiveImpl(request, task, prevThenableState, node) {
 
         return;
       }
+    } // Usables are a valid React node type. When React encounters a Usable in
+    // a child position, it unwraps it using the same algorithm as `use`. For
+    // example, for promises, React will throw an exception to unwind the
+    // stack, then replay the component once the promise resolves.
+    //
+    // A difference from `use` is that React will keep unwrapping the value
+    // until it reaches a non-Usable type.
+    //
+    // e.g. Usable<Usable<Usable<T>>> should resolve to T
+
+
+    var maybeUsable = node;
+
+    if (typeof maybeUsable.then === 'function') {
+      var thenable = maybeUsable;
+      return renderNodeDestructiveImpl(request, task, null, unwrapThenable(thenable));
+    }
+
+    if (maybeUsable.$$typeof === REACT_CONTEXT_TYPE || maybeUsable.$$typeof === REACT_SERVER_CONTEXT_TYPE) {
+      var context = maybeUsable;
+      return renderNodeDestructiveImpl(request, task, null, readContext$1(context));
     } // $FlowFixMe[method-unbinding]
 
 
@@ -8288,13 +9252,13 @@ function renderNodeDestructiveImpl(request, task, prevThenableState, node) {
 
   if (typeof node === 'string') {
     var segment = task.blockedSegment;
-    segment.lastPushedText = pushTextInstance$1(task.blockedSegment.chunks, node, request.responseState, segment.lastPushedText);
+    segment.lastPushedText = pushTextInstance(task.blockedSegment.chunks, node, request.responseState, segment.lastPushedText);
     return;
   }
 
   if (typeof node === 'number') {
     var _segment = task.blockedSegment;
-    _segment.lastPushedText = pushTextInstance$1(task.blockedSegment.chunks, '' + node, request.responseState, _segment.lastPushedText);
+    _segment.lastPushedText = pushTextInstance(task.blockedSegment.chunks, '' + node, request.responseState, _segment.lastPushedText);
     return;
   }
 
@@ -8349,10 +9313,13 @@ function spawnNewSuspendedTask(request, task, thenableState, x) {
 
 
 function renderNode(request, task, node) {
-  // TODO: Store segment.children.length here and reset it in case something
+  // Store how much we've pushed at this point so we can reset it in case something
   // suspended partially through writing something.
-  // Snapshot the current context in case something throws to interrupt the
+  var segment = task.blockedSegment;
+  var childrenLength = segment.children.length;
+  var chunkLength = segment.chunks.length; // Snapshot the current context in case something throws to interrupt the
   // process.
+
   var previousFormatContext = task.blockedSegment.formatContext;
   var previousLegacyContext = task.legacyContext;
   var previousContext = task.context;
@@ -8365,7 +9332,10 @@ function renderNode(request, task, node) {
   try {
     return renderNodeDestructive(request, task, null, node);
   } catch (thrownValue) {
-    resetHooksState();
+    resetHooksState(); // Reset the write pointers to where we started.
+
+    segment.children.length = childrenLength;
+    segment.chunks.length = chunkLength;
     var x = thrownValue === SuspenseException ? // This is a special type of exception used for Suspense. For historical
     // reasons, the rest of the Suspense implementation expects the thrown
     // value to be a thenable, because before `use` existed that was the
@@ -8552,7 +9522,7 @@ function finishedTask(request, boundary, segment) {
 
     if (request.pendingRootTasks === 0) {
       // We have completed the shell so the shell can't error anymore.
-      request.onShellError = noop$2;
+      request.onShellError = noop;
       var onShellReady = request.onShellReady;
       onShellReady();
     }
@@ -8568,10 +9538,6 @@ function finishedTask(request, boundary, segment) {
         if (segment.status === COMPLETED) {
           queueCompletedSegment(boundary, segment);
         }
-      }
-
-      {
-        hoistCompletedBoundaryResources(request, boundary);
       }
 
       if (boundary.parentFlushed) {
@@ -8641,6 +9607,9 @@ function retryTask(request, task) {
     currentTaskInDEV = task;
   }
 
+  var childrenLength = segment.children.length;
+  var chunkLength = segment.chunks.length;
+
   try {
     // We call the destructive form that mutates this task. That way if something
     // suspends again, we can reuse the same task instead of spawning a new one.
@@ -8650,12 +9619,15 @@ function retryTask(request, task) {
     var prevThenableState = task.thenableState;
     task.thenableState = null;
     renderNodeDestructive(request, task, prevThenableState, task.node);
-    pushSegmentFinale$1(segment.chunks, request.responseState, segment.lastPushedText, segment.textEmbedded);
+    pushSegmentFinale(segment.chunks, request.responseState, segment.lastPushedText, segment.textEmbedded);
     task.abortSet.delete(task);
     segment.status = COMPLETED;
     finishedTask(request, task.blockedBoundary, segment);
   } catch (thrownValue) {
-    resetHooksState();
+    resetHooksState(); // Reset the write pointers to where we started.
+
+    segment.children.length = childrenLength;
+    segment.chunks.length = chunkLength;
     var x = thrownValue === SuspenseException ? // This is a special type of exception used for Suspense. For historical
     // reasons, the rest of the Suspense implementation expects the thrown
     // value to be a thenable, because before `use` existed that was the
@@ -8690,8 +9662,8 @@ function performWork(request) {
   }
 
   var prevContext = getActiveContext();
-  var prevDispatcher = ReactCurrentDispatcher$1.current;
-  ReactCurrentDispatcher$1.current = HooksDispatcher;
+  var prevDispatcher = ReactCurrentDispatcher.current;
+  ReactCurrentDispatcher.current = HooksDispatcher;
   var prevCacheDispatcher;
 
   {
@@ -8699,12 +9671,13 @@ function performWork(request) {
     ReactCurrentCache.current = DefaultCacheDispatcher;
   }
 
-  var previousHostDispatcher = prepareToRender(request.resources);
+  var prevRequest = currentRequest;
+  currentRequest = request;
   var prevGetCurrentStackImpl;
 
   {
-    prevGetCurrentStackImpl = ReactDebugCurrentFrame$1.getCurrentStack;
-    ReactDebugCurrentFrame$1.getCurrentStack = getCurrentStackInDEV;
+    prevGetCurrentStackImpl = ReactDebugCurrentFrame.getCurrentStack;
+    ReactDebugCurrentFrame.getCurrentStack = getCurrentStackInDEV;
   }
 
   var prevResponseState = currentResponseState;
@@ -8729,16 +9702,14 @@ function performWork(request) {
     fatalError(request, error);
   } finally {
     setCurrentResponseState(prevResponseState);
-    ReactCurrentDispatcher$1.current = prevDispatcher;
+    ReactCurrentDispatcher.current = prevDispatcher;
 
     {
       ReactCurrentCache.current = prevCacheDispatcher;
     }
 
-    cleanupAfterRender(previousHostDispatcher);
-
     {
-      ReactDebugCurrentFrame$1.getCurrentStack = prevGetCurrentStackImpl;
+      ReactDebugCurrentFrame.getCurrentStack = prevGetCurrentStackImpl;
     }
 
     if (prevDispatcher === HooksDispatcher) {
@@ -8751,6 +9722,8 @@ function performWork(request) {
       // we'll to restore the context to what it was before returning.
       switchContext(prevContext);
     }
+
+    currentRequest = prevRequest;
   }
 }
 
@@ -8820,10 +9793,10 @@ function flushSegment(request, destination, segment) {
   if (boundary.forceClientRender) {
     // Emit a client rendered suspense boundary wrapper.
     // We never queue the inner boundary so we'll never emit its content or partial segments.
-    writeStartClientRenderedSuspenseBoundary$1(destination, request.responseState, boundary.errorDigest, boundary.errorMessage, boundary.errorComponentStack); // Flush the fallback.
+    writeStartClientRenderedSuspenseBoundary(destination, request.responseState, boundary.errorDigest, boundary.errorMessage, boundary.errorComponentStack); // Flush the fallback.
 
     flushSubtree(request, destination, segment);
-    return writeEndClientRenderedSuspenseBoundary$1(destination, request.responseState);
+    return writeEndClientRenderedSuspenseBoundary(destination, request.responseState);
   } else if (boundary.pendingTasks > 0) {
     // This boundary is still loading. Emit a pending suspense boundary wrapper.
     // Assign an ID to refer to the future content by.
@@ -8839,7 +9812,7 @@ function flushSegment(request, destination, segment) {
     writeStartPendingSuspenseBoundary(destination, request.responseState, id); // Flush the fallback.
 
     flushSubtree(request, destination, segment);
-    return writeEndPendingSuspenseBoundary(destination, request.responseState);
+    return writeEndPendingSuspenseBoundary(destination);
   } else if (boundary.byteSize > request.progressiveChunkSize) {
     // This boundary is large and will be emitted separately so that we can progressively show
     // other content. We add it to the queue during the flush because we have to ensure that
@@ -8853,14 +9826,14 @@ function flushSegment(request, destination, segment) {
     writeStartPendingSuspenseBoundary(destination, request.responseState, boundary.id); // Flush the fallback.
 
     flushSubtree(request, destination, segment);
-    return writeEndPendingSuspenseBoundary(destination, request.responseState);
+    return writeEndPendingSuspenseBoundary(destination);
   } else {
     {
       hoistResources(request.resources, boundary.resources);
     } // We can inline this boundary's content as a complete boundary.
 
 
-    writeStartCompletedSuspenseBoundary$1(destination, request.responseState);
+    writeStartCompletedSuspenseBoundary(destination, request.responseState);
     var completedSegments = boundary.completedSegments;
 
     if (completedSegments.length !== 1) {
@@ -8869,16 +9842,8 @@ function flushSegment(request, destination, segment) {
 
     var contentSegment = completedSegments[0];
     flushSegment(request, destination, contentSegment);
-    return writeEndCompletedSuspenseBoundary$1(destination, request.responseState);
+    return writeEndCompletedSuspenseBoundary(destination, request.responseState);
   }
-}
-
-function flushInitialResources(destination, resources, responseState, willFlushAllSegments) {
-  writeInitialResources(destination, resources, responseState);
-}
-
-function flushImmediateResources(destination, request) {
-  writeImmediateResources(destination, request.resources, request.responseState);
 }
 
 function flushClientRenderedBoundary(request, destination, boundary) {
@@ -8905,6 +9870,11 @@ function flushCompletedBoundary(request, destination, boundary) {
   }
 
   completedSegments.length = 0;
+
+  {
+    writeResourcesForBoundary(destination, boundary.resources, request.responseState);
+  }
+
   return writeCompletedBoundaryInstruction(destination, request.responseState, boundary.id, boundary.rootSegmentID, boundary.resources);
 }
 
@@ -8929,7 +9899,14 @@ function flushPartialBoundary(request, destination, boundary) {
   }
 
   completedSegments.splice(0, i);
-  return true;
+
+  {
+    // The way this is structured we only write resources for partial boundaries
+    // if there is no backpressure. Later before we complete the boundary we
+    // will write resources regardless of backpressure before we emit the
+    // completion instruction
+    return writeResourcesForBoundary(destination, boundary.resources, request.responseState);
+  }
 }
 
 function flushPartiallyCompletedSegment(request, destination, boundary, segment) {
@@ -8969,14 +9946,7 @@ function flushCompletedQueues(request, destination) {
     if (completedRootSegment !== null) {
       if (request.pendingRootTasks === 0) {
         if (enableFloat) {
-          var preamble = request.preamble;
-
-          for (i = 0; i < preamble.length; i++) {
-            // we expect the preamble to be tiny and will ignore backpressure
-            writeChunk(destination, preamble[i]);
-          }
-
-          flushInitialResources(destination, request.resources, request.responseState, request.allPendingTasks === 0);
+          writePreamble(destination, request.resources, request.responseState, request.allPendingTasks === 0);
         }
 
         flushSegment(request, destination, completedRootSegment);
@@ -8987,7 +9957,7 @@ function flushCompletedQueues(request, destination) {
         return;
       }
     } else if (enableFloat) {
-      flushImmediateResources(destination, request);
+      writeHoistables(destination, request.resources, request.responseState);
     } // We emit client rendering instructions for already emitted boundaries first.
     // This is so that we can signal to the client to start client rendering them as
     // soon as possible.
@@ -9066,12 +10036,10 @@ function flushCompletedQueues(request, destination) {
     if (request.allPendingTasks === 0 && request.pingedTasks.length === 0 && request.clientRenderedBoundaries.length === 0 && request.completedBoundaries.length === 0 // We don't need to check any partially completed segments because
     // either they have pending task or they're complete.
     ) {
-        {
-          var postamble = request.postamble;
+        request.flushScheduled = false;
 
-          for (var _i = 0; _i < postamble.length; _i++) {
-            writeChunk(destination, postamble[_i]);
-          }
+        {
+          writePostamble(destination, request.responseState);
         }
 
         {
@@ -9087,10 +10055,28 @@ function flushCompletedQueues(request, destination) {
 }
 
 function startWork(request) {
-  scheduleWork(function () {
-    return performWork(request);
-  });
+  request.flushScheduled = request.destination !== null;
+
+  {
+    scheduleWork(function () {
+      return performWork(request);
+    });
+  }
 }
+
+function enqueueFlush(request) {
+  if (request.flushScheduled === false && // If there are pinged tasks we are going to flush anyway after work completes
+  request.pingedTasks.length === 0 && // If there is no destination there is nothing we can flush to. A flush will
+  // happen when we start flowing again
+  request.destination !== null) {
+    var destination = request.destination;
+    request.flushScheduled = true;
+    scheduleWork(function () {
+      return flushCompletedQueues(request, destination);
+    });
+  }
+}
+
 function startFlowing(request, destination) {
   if (request.status === CLOSING) {
     request.status = CLOSED;
@@ -9122,10 +10108,9 @@ function abort(request, reason) {
     var abortableTasks = request.abortableTasks;
 
     if (abortableTasks.size > 0) {
-      var _error = reason === undefined ? new Error('The render was aborted by the server without a reason.') : reason;
-
+      var error = reason === undefined ? new Error('The render was aborted by the server without a reason.') : reason;
       abortableTasks.forEach(function (task) {
-        return abortTask(task, request, _error);
+        return abortTask(task, request, error);
       });
       abortableTasks.clear();
     }
@@ -9138,8 +10123,14 @@ function abort(request, reason) {
     fatalError(request, error);
   }
 }
+function flushResources(request) {
+  enqueueFlush(request);
+}
+function getResources(request) {
+  return request.resources;
+}
 
-function onError() {// Non-fatal errors are ignored.
+function onError$1() {// Non-fatal errors are ignored.
 }
 
 function renderToStringImpl(children, options, generateStaticMarkup, abortReason, unstable_externalRuntimeSrc) {
@@ -9147,6 +10138,7 @@ function renderToStringImpl(children, options, generateStaticMarkup, abortReason
   var fatalError = null;
   var result = '';
   var destination = {
+    // $FlowFixMe[missing-local-annot]
     push: function (chunk) {
       if (chunk !== null) {
         result += chunk;
@@ -9154,6 +10146,7 @@ function renderToStringImpl(children, options, generateStaticMarkup, abortReason
 
       return true;
     },
+    // $FlowFixMe[missing-local-annot]
     destroy: function (error) {
       didFatal = true;
       fatalError = error;
@@ -9165,7 +10158,7 @@ function renderToStringImpl(children, options, generateStaticMarkup, abortReason
     readyToStream = true;
   }
 
-  var request = createRequest(children, createResponseState$1(generateStaticMarkup, options ? options.identifierPrefix : undefined), createRootFormatContext(), Infinity, onError, undefined, onShellReady, undefined, undefined);
+  var request = createRequest(children, createResponseState(generateStaticMarkup, options ? options.identifierPrefix : undefined, unstable_externalRuntimeSrc), createRootFormatContext(), Infinity, onError$1, undefined, onShellReady, undefined, undefined);
   startWork(request); // If anything suspended and is still pending, we'll abort it before writing.
   // That way we write only client-rendered boundaries from the start.
 
@@ -9186,12 +10179,6 @@ function renderToStringImpl(children, options, generateStaticMarkup, abortReason
   return result;
 }
 
-function _inheritsLoose(subClass, superClass) {
-  subClass.prototype = Object.create(superClass.prototype);
-  subClass.prototype.constructor = subClass;
-  subClass.__proto__ = superClass;
-}
-
 var ReactMarkupReadableStream = /*#__PURE__*/function (_Readable) {
   _inheritsLoose(ReactMarkupReadableStream, _Readable);
 
@@ -9201,18 +10188,21 @@ var ReactMarkupReadableStream = /*#__PURE__*/function (_Readable) {
     // Calls the stream.Readable(options) constructor. Consider exposing built-in
     // features like highWaterMark in the future.
     _this = _Readable.call(this, {}) || this;
+    _this.request = void 0;
+    _this.startedFlowing = void 0;
     _this.request = null;
     _this.startedFlowing = false;
     return _this;
-  }
+  } // $FlowFixMe[missing-local-annot]
+
 
   var _proto = ReactMarkupReadableStream.prototype;
 
   _proto._destroy = function _destroy(err, callback) {
-    abort(this.request); // $FlowFixMe: The type definition for the callback should allow undefined and null.
-
+    abort(this.request);
     callback(err);
-  };
+  } // $FlowFixMe[missing-local-annot]
+  ;
 
   _proto._read = function _read(size) {
     if (this.startedFlowing) {
@@ -9223,7 +10213,7 @@ var ReactMarkupReadableStream = /*#__PURE__*/function (_Readable) {
   return ReactMarkupReadableStream;
 }(stream.Readable);
 
-function onError$1() {// Non-fatal errors are ignored.
+function onError() {// Non-fatal errors are ignored.
 }
 
 function renderToNodeStreamImpl(children, options, generateStaticMarkup) {
@@ -9235,7 +10225,7 @@ function renderToNodeStreamImpl(children, options, generateStaticMarkup) {
   }
 
   var destination = new ReactMarkupReadableStream();
-  var request = createRequest(children, createResponseState$1(false, options ? options.identifierPrefix : undefined), createRootFormatContext(), Infinity, onError$1, onAllReady, undefined, undefined);
+  var request = createRequest(children, createResponseState(false, options ? options.identifierPrefix : undefined), createRootFormatContext(), Infinity, onError, onAllReady, undefined, undefined);
   destination.request = request;
   startWork(request);
   return destination;

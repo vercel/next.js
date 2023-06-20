@@ -1,4 +1,5 @@
 import type arg from 'next/dist/compiled/arg/index.js'
+import { getFreePort } from './worker-utils'
 
 export function printAndExit(message: string, code = 1) {
   if (code === 0) {
@@ -10,8 +11,27 @@ export function printAndExit(message: string, code = 1) {
   process.exit(code)
 }
 
+export const genRouterWorkerExecArgv = async (
+  isNodeDebugging: boolean | 'brk'
+) => {
+  const execArgv = process.execArgv.filter((localArg) => {
+    return (
+      !localArg.startsWith('--inspect') && !localArg.startsWith('--inspect-brk')
+    )
+  })
+
+  if (isNodeDebugging) {
+    const debugPort = await getFreePort()
+    execArgv.push(
+      `--inspect${isNodeDebugging === 'brk' ? '-brk' : ''}=${debugPort + 1}`
+    )
+  }
+
+  return execArgv
+}
+
+const NODE_INSPECT_RE = /--inspect(-brk)?(=\S+)?( |$)/
 export function getNodeOptionsWithoutInspect() {
-  const NODE_INSPECT_RE = /--inspect(-brk)?(=\S+)?( |$)/
   return (process.env.NODE_OPTIONS || '').replace(NODE_INSPECT_RE, '')
 }
 

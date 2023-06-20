@@ -1,7 +1,6 @@
 module.exports = function (plop) {
-  function getFileName(str) {
-    return str.toLowerCase().replace(/ /g, '-')
-  }
+  const toFileName = (str) => str.toLowerCase().replace(/ /g, '-')
+  plop.setHelper('toFileName', toFileName)
 
   plop.setGenerator('test', {
     description: 'Create a new test',
@@ -10,7 +9,7 @@ module.exports = function (plop) {
         type: 'confirm',
         name: 'appDir',
         message: 'Is this test for the app directory?',
-        default: false,
+        default: true,
       },
       {
         type: 'input',
@@ -57,7 +56,7 @@ module.exports = function (plop) {
     description: 'Create a new error document',
     prompts: [
       {
-        name: 'urlPath',
+        name: 'name',
         type: 'input',
         message: 'Url path with dashes. E.g. circular-structure',
       },
@@ -77,27 +76,28 @@ module.exports = function (plop) {
         message: 'What are the possible ways to fix it?',
       },
     ],
-    actions: function (data) {
-      const fileName = getFileName(data.urlPath)
+    actions: function ({ name }) {
       return [
         {
           type: 'add',
-          path: `errors/${fileName}.md`,
+          path: `errors/{{ toFileName name }}.md`,
           templateFile: `errors/template.txt`,
         },
         {
           type: 'modify',
           path: 'errors/manifest.json',
-          transform(fileContents, data) {
+          transform(fileContents) {
             const manifestData = JSON.parse(fileContents)
             manifestData.routes[0].routes.push({
-              title: fileName,
-              path: `/errors/${fileName}.md`,
+              title: toFileName(name),
+              path: `/errors/${toFileName(name)}.md`,
             })
             return JSON.stringify(manifestData, null, 2)
           },
         },
-        `Url for the error: https://nextjs.org/docs/messages/${fileName}`,
+        `Url for the error: https://nextjs.org/docs/messages/${toFileName(
+          name
+        )}`,
       ]
     },
   })

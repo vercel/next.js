@@ -9,11 +9,16 @@ createNextDescribe(
   },
   ({ next }) => {
     it('should handle edge only routes', async () => {
-      const appHtml = await next.render('/app-edge')
+      const appHtml = await next.render('/edge/basic')
       expect(appHtml).toContain('<p>Edge!</p>')
 
       const pageHtml = await next.render('/pages-edge')
       expect(pageHtml).toContain('<p>pages-edge-ssr</p>')
+    })
+
+    it('should retrieve cookies in a server component in the edge runtime', async () => {
+      const res = await next.fetch('/edge-apis/cookies')
+      expect(await res.text()).toInclude('Hello')
     })
 
     if ((globalThis as any).isNextDev) {
@@ -29,21 +34,21 @@ createNextDescribe(
       })
 
       it('should handle edge rsc hmr', async () => {
-        const pageFile = 'app/app-edge/page.tsx'
+        const pageFile = 'app/edge/basic/page.tsx'
         const content = await next.readFile(pageFile)
 
         // Update rendered content
         const updatedContent = content.replace('Edge!', 'edge-hmr')
         await next.patchFile(pageFile, updatedContent)
         await check(async () => {
-          const html = await next.render('/app-edge')
+          const html = await next.render('/edge/basic')
           return html
         }, /edge-hmr/)
 
         // Revert
         await next.patchFile(pageFile, content)
         await check(async () => {
-          const html = await next.render('/app-edge')
+          const html = await next.render('/edge/basic')
           return html
         }, /Edge!/)
       })
@@ -56,6 +61,7 @@ createNextDescribe(
         expect(manifest.functions['/(group)/group/page'].matchers).toEqual([
           {
             regexp: '^/group$',
+            originalSource: '/group',
           },
         ])
       })

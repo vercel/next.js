@@ -2,10 +2,15 @@ import os from 'os'
 import fs from 'fs'
 import path from 'path'
 import * as Log from '../build/output/log'
-import { execSync } from 'child_process'
 import tar from 'next/dist/compiled/tar'
-import fetch from 'next/dist/compiled/node-fetch'
+const { fetch } = require('next/dist/compiled/undici') as {
+  fetch: typeof global.fetch
+}
+const { WritableStream } = require('node:stream/web') as {
+  WritableStream: typeof global.WritableStream
+}
 import { fileExists } from './file-exists'
+import { getRegistry } from './helpers/get-registry'
 
 const MAX_VERSIONS_TO_CACHE = 5
 
@@ -44,8 +49,8 @@ export async function downloadWasmSwc(
           process.env.LOCALAPPDATA ||
           path.join(os.homedir(), 'AppData', 'Local')
       } else {
-        /// Attempt to use generic tmp location for these platforms
-        if (process.platform === 'freebsd' || process.platform === 'android') {
+        /// Attempt to use generic tmp location for un-handled platform
+        if (!systemCacheDirectory) {
           for (const dir of [
             path.join(os.homedir(), '.cache'),
             path.join(os.tmpdir()),
@@ -93,27 +98,28 @@ export async function downloadWasmSwc(
       cacheDirectory,
       `${tarFileName}.temp-${Date.now()}`
     )
-    let registry = `https://registry.npmjs.org/`
 
-    try {
-      const output = execSync('npm config get registry').toString().trim()
-      if (output.startsWith('http')) {
-        registry = output.endsWith('/') ? output : `${output}/`
-      }
-    } catch (_) {}
+    const registry = getRegistry()
 
     await fetch(`${registry}${pkgName}/-/${tarFileName}`).then((res) => {
-      if (!res.ok) {
+      const { ok, body } = res
+      if (!ok) {
         throw new Error(`request failed with status ${res.status}`)
       }
+      if (!body) {
+        throw new Error('request failed with empty body')
+      }
       const cacheWriteStream = fs.createWriteStream(tempFile)
-
-      return new Promise<void>((resolve, reject) => {
-        res.body
-          .pipe(cacheWriteStream)
-          .on('error', (err) => reject(err))
-          .on('finish', () => resolve())
-      }).finally(() => cacheWriteStream.close())
+      return body.pipeTo(
+        new WritableStream({
+          write(chunk) {
+            cacheWriteStream.write(chunk)
+          },
+          close() {
+            cacheWriteStream.close()
+          },
+        })
+      )
     })
     await fs.promises.rename(tempFile, path.join(cacheDirectory, tarFileName))
   }

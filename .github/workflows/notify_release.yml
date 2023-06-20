@@ -1,0 +1,31 @@
+# A workflow runs when a release is published, dispatches a new event to the vercel/turbo
+# to notify its release. Turbopack, and other integration workflow will subscribe to this event.
+name: Notify new Next.js release
+on:
+  release:
+    types: [published]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v6
+        id: notify-new-release
+        with:
+          result-encoding: string
+          retries: 3
+          retry-exempt-status-codes: 400,401
+          # Default github token cannot dispath events to the remote repo, it should be
+          # a PAT with access to contenst:read&write + metadata:read.
+          github-token: ${{ secrets.TURBOPACK_TEST_TOKEN }}
+          # Note `event_type` and `client_payload` are contract between vercel/turbo,
+          # if these need to be changed both side should be updated accordingly.
+          script: |
+            github.request('POST /repos/{owner}/{repo}/dispatches', {
+              owner: 'vercel',
+              repo: 'turbo',
+              event_type: 'nextjs-release-published',
+              client_payload: {
+                version: context.ref
+              }
+            })

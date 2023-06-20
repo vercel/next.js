@@ -1,4 +1,4 @@
-import { suspense } from '../../shared/lib/dynamic-no-ssr'
+import { suspense } from '../../shared/lib/lazy-dynamic/dynamic-no-ssr'
 import { staticGenerationAsyncStorage } from './static-generation-async-storage'
 
 export function bailoutToClientRendering(): boolean | never {

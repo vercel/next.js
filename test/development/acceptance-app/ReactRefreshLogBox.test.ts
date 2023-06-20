@@ -53,372 +53,6 @@ for (const variant of ['default', 'turbo']) {
       await cleanup()
     })
 
-    test('logbox: can recover from a syntax error without losing state', async () => {
-      const { session, cleanup } = await sandbox(next)
-
-      await session.patch(
-        'index.js',
-        `
-        import { useCallback, useState } from 'react'
-
-        export default function Index() {
-          const [count, setCount] = useState(0)
-          const increment = useCallback(() => setCount(c => c + 1), [setCount])
-          return (
-            <main>
-              <p>{count}</p>
-              <button onClick={increment}>Increment</button>
-            </main>
-          )
-        }
-      `
-      )
-
-      await session.evaluate(() => document.querySelector('button').click())
-      expect(
-        await session.evaluate(() => document.querySelector('p').textContent)
-      ).toBe('1')
-
-      await session.patch('index.js', `export default () => <div/`)
-
-      expect(await session.hasRedbox(true)).toBe(true)
-      expect(await session.getRedboxSource()).toMatchSnapshot()
-
-      await session.patch(
-        'index.js',
-        `
-        import { useCallback, useState } from 'react'
-
-        export default function Index() {
-          const [count, setCount] = useState(0)
-          const increment = useCallback(() => setCount(c => c + 1), [setCount])
-          return (
-            <main>
-              <p>Count: {count}</p>
-              <button onClick={increment}>Increment</button>
-            </main>
-          )
-        }
-      `
-      )
-
-      await check(
-        () => session.evaluate(() => document.querySelector('p').textContent),
-        /Count: 1/
-      )
-
-      expect(await session.hasRedbox(false)).toBe(false)
-
-      await cleanup()
-    })
-
-    test('logbox: can recover from a event handler error', async () => {
-      const { session, cleanup } = await sandbox(next)
-
-      await session.patch(
-        'index.js',
-        `
-        import { useCallback, useState } from 'react'
-
-        export default function Index() {
-          const [count, setCount] = useState(0)
-          const increment = useCallback(() => {
-            setCount(c => c + 1)
-            throw new Error('oops')
-          }, [setCount])
-          return (
-            <main>
-              <p>{count}</p>
-              <button onClick={increment}>Increment</button>
-            </main>
-          )
-        }
-      `
-      )
-
-      expect(
-        await session.evaluate(() => document.querySelector('p').textContent)
-      ).toBe('0')
-      await session.evaluate(() => document.querySelector('button').click())
-      expect(
-        await session.evaluate(() => document.querySelector('p').textContent)
-      ).toBe('1')
-
-      await session.waitForAndOpenRuntimeError()
-      if (process.platform === 'win32') {
-        expect(await session.getRedboxSource()).toMatchSnapshot()
-      } else {
-        expect(await session.getRedboxSource()).toMatchSnapshot()
-      }
-
-      await session.patch(
-        'index.js',
-        `
-        import { useCallback, useState } from 'react'
-
-        export default function Index() {
-          const [count, setCount] = useState(0)
-          const increment = useCallback(() => setCount(c => c + 1), [setCount])
-          return (
-            <main>
-              <p>Count: {count}</p>
-              <button onClick={increment}>Increment</button>
-            </main>
-          )
-        }
-      `
-      )
-
-      expect(await session.hasRedbox(false)).toBe(false)
-      expect(await session.hasErrorToast()).toBe(false)
-
-      expect(
-        await session.evaluate(() => document.querySelector('p').textContent)
-      ).toBe('Count: 1')
-      await session.evaluate(() => document.querySelector('button').click())
-      expect(
-        await session.evaluate(() => document.querySelector('p').textContent)
-      ).toBe('Count: 2')
-
-      expect(await session.hasRedbox(false)).toBe(false)
-      expect(await session.hasErrorToast()).toBe(false)
-
-      await cleanup()
-    })
-
-    test('logbox: can recover from a component error', async () => {
-      const { session, cleanup } = await sandbox(next)
-
-      await session.write(
-        'child.js',
-        `
-        export default function Child() {
-          return <p>Hello</p>;
-        }
-      `
-      )
-
-      await session.patch(
-        'index.js',
-        `
-        import Child from './child'
-
-        export default function Index() {
-          return (
-            <main>
-              <Child />
-            </main>
-          )
-        }
-      `
-      )
-
-      expect(
-        await session.evaluate(() => document.querySelector('p').textContent)
-      ).toBe('Hello')
-
-      await session.patch(
-        'child.js',
-        `
-        // hello
-        export default function Child() {
-          throw new Error('oops')
-        }
-      `
-      )
-
-      expect(await session.hasRedbox(true)).toBe(true)
-      expect(await session.getRedboxSource()).toMatchSnapshot()
-
-      // TODO-APP: re-enable when error recovery doesn't reload the page.
-      /* const didNotReload = */ await session.patch(
-        'child.js',
-        `
-        export default function Child() {
-          return <p>Hello</p>;
-        }
-      `
-      )
-
-      // TODO-APP: re-enable when error recovery doesn't reload the page.
-      // expect(didNotReload).toBe(true)
-      expect(await session.hasRedbox(false)).toBe(false)
-      expect(
-        await session.evaluate(() => document.querySelector('p').textContent)
-      ).toBe('Hello')
-
-      await cleanup()
-    })
-
-    test('server component can recover from syntax error', async () => {
-      const { session, browser, cleanup } = await sandbox(
-        next,
-        new Map([
-          [
-            'app/page.js',
-            `
-          export default function Page() {
-            return <p>Hello world</p>
-          }
-`,
-          ],
-        ])
-      )
-
-      // Add syntax error
-      await session.patch(
-        'app/page.js',
-        `
-      export default function Page() {
-        return <p>Hello world</p>
-`
-      )
-      expect(await session.hasRedbox(true)).toBe(true)
-
-      // Fix syntax error
-      await session.patch(
-        'app/page.js',
-        `
-      export default function Page() {
-        return <p>Hello world 2</p>
-      }
-`
-      )
-
-      await check(() => browser.elementByCss('p').text(), 'Hello world 2')
-      await cleanup()
-    })
-
-    test('server component can recover from component error', async () => {
-      const { session, browser, cleanup } = await sandbox(
-        next,
-        new Map([
-          [
-            'app/page.js',
-            `
-          export default function Page() {
-            return <p>Hello world</p>
-          }
-`,
-          ],
-        ])
-      )
-
-      // Add component error
-      await session.patch(
-        'app/page.js',
-        `
-      export default function Page() {
-        throw new Error("boom")
-        return <p>Hello world</p>
-      }
-`
-      )
-      expect(await session.hasRedbox(true)).toBe(true)
-
-      // Fix component error
-      await session.patch(
-        'app/page.js',
-        `
-      export default function Page() {
-        return <p>Hello world 2</p>
-      }
-`
-      )
-
-      expect(await browser.waitForElementByCss('p').text()).toBe(
-        'Hello world 2'
-      )
-
-      await cleanup()
-    })
-
-    // https://github.com/pmmmwh/react-refresh-webpack-plugin/pull/3#issuecomment-554137262
-    test('render error not shown right after syntax error', async () => {
-      const { session, cleanup } = await sandbox(next)
-
-      // Starting here:
-      await session.patch(
-        'index.js',
-        `
-        import * as React from 'react';
-        class ClassDefault extends React.Component {
-          render() {
-            return <h1>Default Export</h1>;
-          }
-        }
-
-        export default ClassDefault;
-      `
-      )
-
-      expect(
-        await session.evaluate(() => document.querySelector('h1').textContent)
-      ).toBe('Default Export')
-
-      // Break it with a syntax error:
-      await session.patch(
-        'index.js',
-        `
-        import * as React from 'react';
-
-        class ClassDefault extends React.Component {
-          render()
-            return <h1>Default Export</h1>;
-          }
-        }
-
-        export default ClassDefault;
-      `
-      )
-      expect(await session.hasRedbox(true)).toBe(true)
-
-      // Now change the code to introduce a runtime error without fixing the syntax error:
-      await session.patch(
-        'index.js',
-        `
-        import * as React from 'react';
-
-        class ClassDefault extends React.Component {
-          render()
-            throw new Error('nooo');
-            return <h1>Default Export</h1>;
-          }
-        }
-
-        export default ClassDefault;
-      `
-      )
-      expect(await session.hasRedbox(true)).toBe(true)
-
-      // Now fix the syntax error:
-      await session.patch(
-        'index.js',
-        `
-        import * as React from 'react';
-
-        class ClassDefault extends React.Component {
-          render() {
-            throw new Error('nooo');
-            return <h1>Default Export</h1>;
-          }
-        }
-
-        export default ClassDefault;
-      `
-      )
-      expect(await session.hasRedbox(true)).toBe(true)
-
-      await check(async () => {
-        const source = await session.getRedboxSource()
-        return source?.length > 1 ? 'success' : source
-      }, 'success')
-
-      expect(await session.getRedboxSource()).toMatchSnapshot()
-
-      await cleanup()
-    })
-
     // https://github.com/pmmmwh/react-refresh-webpack-plugin/pull/3#issuecomment-554137807
     test('module init error not shown', async () => {
       // Start here:
@@ -464,133 +98,6 @@ for (const variant of ['default', 'turbo']) {
       } else {
         expect(await session.getRedboxSource()).toMatchSnapshot()
       }
-
-      await cleanup()
-    })
-
-    // https://github.com/pmmmwh/react-refresh-webpack-plugin/pull/3#issuecomment-554144016
-    test('stuck error', async () => {
-      const { session, cleanup } = await sandbox(next)
-
-      // We start here.
-      await session.patch(
-        'index.js',
-        `
-        import * as React from 'react';
-
-        function FunctionDefault() {
-          return <h1>Default Export Function</h1>;
-        }
-
-        export default FunctionDefault;
-      `
-      )
-
-      // We add a new file. Let's call it Foo.js.
-      await session.write(
-        'Foo.js',
-        `
-        // intentionally skips export
-        export default function Foo() {
-          return React.createElement('h1', null, 'Foo');
-        }
-      `
-      )
-
-      // We edit our first file to use it.
-      await session.patch(
-        'index.js',
-        `
-        import * as React from 'react';
-        import Foo from './Foo';
-        function FunctionDefault() {
-          return <Foo />;
-        }
-        export default FunctionDefault;
-      `
-      )
-
-      // We get an error because Foo didn't import React. Fair.
-      expect(await session.hasRedbox(true)).toBe(true)
-      expect(await session.getRedboxSource()).toMatchSnapshot()
-
-      // Let's add that to Foo.
-      await session.patch(
-        'Foo.js',
-        `
-        import * as React from 'react';
-        export default function Foo() {
-          return React.createElement('h1', null, 'Foo');
-        }
-      `
-      )
-
-      // Expected: this fixes the problem
-      expect(await session.hasRedbox(false)).toBe(false)
-
-      await cleanup()
-    })
-
-    // https://github.com/pmmmwh/react-refresh-webpack-plugin/pull/3#issuecomment-554150098
-    test('syntax > runtime error', async () => {
-      const { session, cleanup } = await sandbox(next)
-
-      // Start here.
-      await session.patch(
-        'index.js',
-        `
-        import * as React from 'react';
-
-        export default function FunctionNamed() {
-          return <div />
-        }
-      `
-      )
-      // TODO: this acts weird without above step
-      await session.patch(
-        'index.js',
-        `
-        import * as React from 'react';
-        let i = 0
-        setInterval(() => {
-          i++
-          throw Error('no ' + i)
-        }, 1000)
-        export default function FunctionNamed() {
-          return <div />
-        }
-      `
-      )
-
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      await session.waitForAndOpenRuntimeError()
-      if (process.platform === 'win32') {
-        expect(await session.getRedboxSource()).toMatchSnapshot()
-      } else {
-        expect(await session.getRedboxSource()).toMatchSnapshot()
-      }
-
-      // Make a syntax error.
-      await session.patch(
-        'index.js',
-        `
-        import * as React from 'react';
-        let i = 0
-        setInterval(() => {
-          i++
-          throw Error('no ' + i)
-        }, 1000)
-        export default function FunctionNamed() {`
-      )
-
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      expect(await session.hasRedbox(true)).toBe(true)
-      expect(await session.getRedboxSource()).toMatchSnapshot()
-
-      // Test that runtime error does not take over:
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-      expect(await session.hasRedbox(true)).toBe(true)
-      expect(await session.getRedboxSource()).toMatchSnapshot()
 
       await cleanup()
     })
@@ -719,7 +226,36 @@ for (const variant of ['default', 'turbo']) {
       expect(await session.hasRedbox(true)).toBe(true)
 
       const source = await session.getRedboxSource()
-      expect(source).toMatchSnapshot()
+      expect(next.normalizeTestDirContent(source)).toMatchInlineSnapshot(
+        next.normalizeSnapshot(`
+        "./index.js
+        Error: 
+          x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
+           ,-[TEST_DIR/index.js:5:1]
+         5 |               <p>lol</p>
+         6 |             div
+         7 |           )
+         8 |         }
+           :         ^
+         9 |       
+           \`----
+
+          x Unexpected eof
+           ,-[TEST_DIR/index.js:6:1]
+         6 |             div
+         7 |           )
+         8 |         }
+         9 |       
+           \`----
+
+        Caused by:
+            Syntax Error
+
+        Import trace for requested module:
+        ./index.js
+        ./app/page.js"
+      `)
+      )
 
       await cleanup()
     })
@@ -816,7 +352,7 @@ for (const variant of ['default', 'turbo']) {
       await session.patch('index.module.css', `.button {`)
       expect(await session.hasRedbox(true)).toBe(true)
       const source = await session.getRedboxSource()
-      expect(source).toMatch('./index.module.css:1:1')
+      expect(source).toMatch('./index.module.css (1:1)')
       expect(source).toMatch('Syntax error: ')
       expect(source).toMatch('Unclosed block')
       expect(source).toMatch('> 1 | .button {')
@@ -1278,18 +814,6 @@ for (const variant of ['default', 'turbo']) {
           .elementByCss('[data-nextjs-data-runtime-error-collapsed-action]')
           .click()
 
-        const collapsedFrameworkGroups = await browser.elementsByCss(
-          "[data-nextjs-call-stack-framework-button][data-state='closed']"
-        )
-        for (const collapsedFrameworkButton of collapsedFrameworkGroups) {
-          // Open the collapsed framework groups, the callstack count should increase with each opened group
-          const callStackCountBeforeGroupOpened = await getCallStackCount()
-          await collapsedFrameworkButton.click()
-          expect(await getCallStackCount()).toBeGreaterThan(
-            callStackCountBeforeGroupOpened
-          )
-        }
-
         // Expect more than the default amount of frames
         // The default stackTraceLimit results in max 9 [data-nextjs-call-stack-frame] elements
         expect(await getCallStackCount()).toBeGreaterThan(9)
@@ -1375,5 +899,54 @@ for (const variant of ['default', 'turbo']) {
 
       await cleanup()
     })
+
+    test("Can't resolve @import in CSS file", async () => {
+      const { session, cleanup } = await sandbox(
+        next,
+        new Map([
+          ['app/styles1.css', '@import "./styles2.css"'],
+          ['app/styles2.css', '@import "./boom.css"'],
+        ])
+      )
+
+      await session.patch(
+        'app/layout.js',
+        `
+        import "./styles1.css"
+
+        export default function RootLayout({ children }) {
+          return (
+            <html>
+              <head></head>
+              <body>{children}</body>
+            </html>
+          )
+        }
+        
+    `
+      )
+
+      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.getRedboxSource()).toMatchSnapshot()
+
+      await cleanup()
+    })
+
+    test.each([['server'], ['client']])(
+      '%s component can recover from error thrown in the module',
+      async (type: string) => {
+        const { session, cleanup } = await sandbox(next, undefined, '/' + type)
+
+        await next.patchFile('index.js', "throw new Error('module error')")
+        expect(await session.hasRedbox(true)).toBe(true)
+        await next.patchFile(
+          'index.js',
+          'export default function Page() {return <p>hello world</p>}'
+        )
+        expect(await session.hasRedbox(false)).toBe(false)
+
+        await cleanup()
+      }
+    )
   })
 }
