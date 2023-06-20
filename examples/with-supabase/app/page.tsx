@@ -47,7 +47,7 @@ export default async function Index() {
   return (
     <div className="flex-1 flex flex-col max-w-3xl mt-24">
       <h1 className="text-2xl mb-2 flex justify-between">
-        <span className="sr-only">Supabase and Next.JS starter template</span>
+        <span className="sr-only">Supabase and Next.js Starter Template</span>
       </h1>
 
       <div className="flex border-b py-3 text-sm text-neutral-100">
