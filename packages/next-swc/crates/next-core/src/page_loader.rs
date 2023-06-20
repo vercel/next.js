@@ -54,51 +54,48 @@ pub struct PageLoaderAsset {
     pub pathname: StringVc,
 }
 
-#[turbo_tasks::function]
-pub async fn create_page_loader_entry_asset(
-    client_context: AssetContextVc,
-    entry_asset: AssetVc,
-    pathname: StringVc,
-) -> Result<AssetVc> {
-    let mut result = RopeBuilder::default();
-    writeln!(
-        result,
-        "const PAGE_PATH = {};\n",
-        StringifyJs(&*pathname.await?)
-    )?;
-
-    let page_loader_path = next_js_file_path("entry/page-loader.ts");
-    let base_code = page_loader_path.read();
-    if let FileContent::Content(base_file) = &*base_code.await? {
-        result += base_file.content()
-    } else {
-        bail!("required file `entry/page-loader.ts` not found");
-    }
-
-    let file = File::from(result.build());
-
-    let virtual_asset = VirtualAssetVc::new(page_loader_path, file.into()).into();
-
-    Ok(client_context.process(
-        virtual_asset,
-        Value::new(ReferenceType::Internal(
-            InnerAssetsVc::cell(indexmap! {
-                "PAGE".to_string() => client_context.process(entry_asset, Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)))
-            })
-        )))
-    )
-}
-
 #[turbo_tasks::value_impl]
 impl PageLoaderAssetVc {
+    #[turbo_tasks::function]
+    async fn get_loader_entry_asset(self) -> Result<AssetVc> {
+        let this = &*self.await?;
+
+        let mut result = RopeBuilder::default();
+        writeln!(
+            result,
+            "const PAGE_PATH = {};\n",
+            StringifyJs(&*this.pathname.await?)
+        )?;
+
+        let page_loader_path = next_js_file_path("entry/page-loader.ts");
+        let base_code = page_loader_path.read();
+        if let FileContent::Content(base_file) = &*base_code.await? {
+            result += base_file.content()
+        } else {
+            bail!("required file `entry/page-loader.ts` not found");
+        }
+
+        let file = File::from(result.build());
+
+        Ok(VirtualAssetVc::new(page_loader_path, file.into()).into())
+    }
+
     #[turbo_tasks::function]
     async fn get_page_chunks(self) -> Result<AssetsVc> {
         let this = &*self.await?;
 
-        let page_loader_entry_asset =
-            create_page_loader_entry_asset(this.client_context, this.entry_asset, this.pathname);
+        let loader_entry_asset = self.get_loader_entry_asset();
 
-        let Some(module) = EvaluatableAssetVc::resolve_from(page_loader_entry_asset).await? else {
+        let module = this.client_context.process(
+            loader_entry_asset,
+            Value::new(ReferenceType::Internal(
+                InnerAssetsVc::cell(indexmap! {
+                    "PAGE".to_string() => this.client_context.process(this.entry_asset, Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)))
+                })
+            )),
+        );
+
+        let Some(module) = EvaluatableAssetVc::resolve_from(module).await? else {
             bail!("internal module must be evaluatable");
         };
 
