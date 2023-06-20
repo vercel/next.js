@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import { sandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { check, shouldRunTurboDevTest } from 'next-test-utils'
 import { outdent } from 'outdent'
 import path from 'path'
 
@@ -12,7 +12,8 @@ describe('ReactRefreshRegression', () => {
     dependencies: {
       'styled-components': '5.1.0',
       '@next/mdx': 'canary',
-      '@mdx-js/loader': '0.18.0',
+      '@mdx-js/loader': '1.6.22',
+      '@mdx-js/react': '1.6.22',
     },
   })
 
@@ -286,10 +287,16 @@ describe('ReactRefreshRegression', () => {
     expect(await session.hasRedbox(true)).toBe(true)
 
     const source = await session.getRedboxSource()
-    expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
-      "> 1 | export default function () { throw new Error('boom'); }
-          |                                   ^"
-    `)
+    if (shouldRunTurboDevTest()) {
+      expect(source).toContain(
+        `export default function () { throw new Error('boom'); }`
+      )
+    } else {
+      expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
+        "> 1 | export default function () { throw new Error('boom'); }
+            |                                   ^"
+      `)
+    }
 
     await cleanup()
   })
@@ -307,6 +314,9 @@ describe('ReactRefreshRegression', () => {
             });
             module.exports = withMDX({
               pageExtensions: ["js", "mdx"],
+              experimental: {
+                mdxRs: true,
+              },
             });
           `,
         ],
