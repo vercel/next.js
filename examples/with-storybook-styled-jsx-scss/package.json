@@ -18,7 +18,7 @@
     "@storybook/addon-actions": "^6.1.11",
     "@storybook/addon-essentials": "^6.1.11",
     "@storybook/addon-links": "^6.1.11",
-    "@storybook/react": "^6.1.11",
+    "@storybook/react": "^7.0.0",
     "@types/node": "^14.14.2",
     "@types/react": "^16.9.53",
     "@types/react-dom": "^16.9.8",
