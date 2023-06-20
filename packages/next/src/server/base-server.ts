@@ -82,6 +82,7 @@ import {
   RSC_VARY_HEADER,
   FLIGHT_PARAMETERS,
   NEXT_RSC_UNION_QUERY,
+  ACTION,
 } from '../client/components/app-router-headers'
 import {
   MatchOptions,
@@ -1290,6 +1291,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const isAppPath = components.isAppPath
     const hasServerProps = !!components.getServerSideProps
     let hasStaticPaths = !!components.getStaticPaths
+    const actionId = req.headers[ACTION.toLowerCase()] as string
+    const isFetchAction =
+      actionId !== undefined &&
+      typeof actionId === 'string' &&
+      req.method === 'POST'
 
     const hasGetInitialProps = !!components.Component?.getInitialProps
     let isSSG = !!components.getStaticProps
@@ -1409,6 +1415,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     if (
       !is404Page &&
       !is500Page &&
+      // server actions can be initiated from a statically generated page
+      // we need to special-case this to properly handle the action
+      !isFetchAction &&
       pathname !== '/_error' &&
       req.method !== 'HEAD' &&
       req.method !== 'GET' &&
@@ -1553,8 +1562,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     let ssgCacheKey =
-      isPreviewMode || !isSSG || opts.supportsDynamicHTML
-        ? null // Preview mode, on-demand revalidate, flight request can bypass the cache
+      isPreviewMode || !isSSG || opts.supportsDynamicHTML || isFetchAction
+        ? null // Preview mode, on-demand revalidate, flight request, server action can bypass the cache
         : `${locale ? `/${locale}` : ''}${
             (pathname === '/' || resolvedUrlPathname === '/') && locale
               ? ''
