@@ -52,12 +52,6 @@ runs:
           echo CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse >> $GITHUB_ENV
         fi
 
-    - shell: bash
-      run: |
-        : install mold linker
-        sudo apt update
-        sudo apt install -y mold
-
     - name: 'Setup Rust toolchain'
       uses: dtolnay/rust-toolchain@master
       if: ${{ !inputs.skip-install }}
