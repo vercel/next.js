@@ -25,11 +25,10 @@ export default function Login() {
 
   const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    const { data, error } = await supabase.auth.signInWithPassword({
+    await supabase.auth.signInWithPassword({
       email,
       password,
     })
-    console.log({ data, error })
     router.push('/')
   }
 

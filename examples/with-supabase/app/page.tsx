@@ -101,7 +101,7 @@ export default async function Index() {
       </p>
 
       <div className="flex justify-center mt-16">
-        <span className="bg-neutral-100 py-3 px-6 rounded-lg font-mono text-sm text-gray-800">
+        <span className="bg-neutral-100 py-3 px-6 rounded-lg font-mono text-sm text-neutral-900">
           Get started by editing <strong>app/page.tsx</strong>
         </span>
       </div>
