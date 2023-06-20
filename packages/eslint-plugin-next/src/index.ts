@@ -5,6 +5,7 @@ module.exports = {
     'inline-script-id': require('./rules/inline-script-id'),
     'next-script-for-ga': require('./rules/next-script-for-ga'),
     'no-assign-module-variable': require('./rules/no-assign-module-variable'),
+    'no-async-client-component': require('./rules/no-async-client-component'),
     'no-before-interactive-script-outside-document': require('./rules/no-before-interactive-script-outside-document'),
     'no-css-tags': require('./rules/no-css-tags'),
     'no-document-import-in-page': require('./rules/no-document-import-in-page'),
@@ -43,6 +44,7 @@ module.exports = {
         // errors
         '@next/next/inline-script-id': 'error',
         '@next/next/no-assign-module-variable': 'error',
+        '@next/next/no-async-client-component': 'error',
         '@next/next/no-document-import-in-page': 'error',
         '@next/next/no-duplicate-head': 'error',
         '@next/next/no-head-import-in-document': 'error',
