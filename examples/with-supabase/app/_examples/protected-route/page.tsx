@@ -68,7 +68,7 @@ export default async function ProtectedRoute() {
 
       <p className="text-3xl mx-auto max-w-2xl text-center mt-8 text-white">
         The fastest way to get started building apps with{' '}
-        <strong>Supabase</strong> and <strong>Next.JS</strong>
+        <strong>Supabase</strong> and <strong>Next.js</strong>
       </p>
 
       <div className="flex justify-center mt-12">
