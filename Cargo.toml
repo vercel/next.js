@@ -38,8 +38,8 @@ next-transform-strip-page-exports = { path = "packages/next-swc/crates/next-tran
 
 # SWC crates
 # Keep consistent with preset_env_base through swc_core
-swc_core = { version = "0.78.7" }
-testing = { version = "0.33.13" }
+swc_core = { version = "0.78.15" }
+testing = { version = "0.33.14" }
 
 # Turbo crates
 turbopack-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230622.2" }
