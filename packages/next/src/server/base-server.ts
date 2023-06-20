@@ -2218,6 +2218,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     const options: MatchOptions = {
       i18n: this.i18nProvider?.fromQuery(pathname, query),
+      skipDynamic: pathname === '/favicon.ico',
     }
 
     try {
