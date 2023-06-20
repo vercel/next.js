@@ -1,12 +1,13 @@
 import { defineRule } from '../utils/define-rule'
 
 const url = 'https://nextjs.org/docs/messages/no-async-client-component'
-const message = `Client components cannot be async functions. See: ${url}`
+const description = 'Prevent client components from being async functions.'
+const message = `${description} See: ${url}`
 
 export = defineRule({
   meta: {
     docs: {
-      description: 'Prevent client components from being async functions.',
+      description,
       recommended: true,
       url,
     },

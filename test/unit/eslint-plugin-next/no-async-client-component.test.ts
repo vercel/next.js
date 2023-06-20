@@ -12,6 +12,9 @@ import { RuleTester } from 'eslint'
 })
 const ruleTester = new RuleTester()
 
+const message =
+  'Prevent client components from being async functions. See: https://nextjs.org/docs/messages/no-async-client-component'
+
 ruleTester.run('no-async-client-component single line', rule, {
   valid: [
     `
@@ -31,8 +34,7 @@ ruleTester.run('no-async-client-component single line', rule, {
       `,
       errors: [
         {
-          message:
-            'Client components cannot be async functions. See: https://nextjs.org/docs/messages/no-async-client-component',
+          message,
         },
       ],
     },
@@ -62,8 +64,7 @@ ruleTester.run('no-async-client-component multiple line', rule, {
       `,
       errors: [
         {
-          message:
-            'Client components cannot be async functions. See: https://nextjs.org/docs/messages/no-async-client-component',
+          message,
         },
       ],
     },
