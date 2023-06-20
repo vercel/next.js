@@ -2,6 +2,7 @@ import { escapeStringRegexp } from '../../escape-regexp'
 import { removeTrailingSlash } from './remove-trailing-slash'
 
 const NEXT_QUERY_PARAM_PREFIX = 'nxtP'
+const NEXT_INTERCEPTION_MARKER_PREFIX = 'nxtI'
 
 export interface Group {
   pos: number
@@ -99,48 +100,77 @@ function buildGetSafeRouteKey() {
   }
 }
 
+function getSafeKeyFromSegment({
+  segment,
+  routeKeys,
+  keyPrefix,
+}: {
+  segment: string
+  routeKeys: Record<string, string>
+  keyPrefix?: string
+}) {
+  const getSafeRouteKey = buildGetSafeRouteKey()
+
+  const { key, optional, repeat } = parseParameter(segment)
+
+  // replace any non-word characters since they can break
+  // the named regex
+  let cleanedKey = key.replace(/\W/g, '')
+
+  if (keyPrefix) {
+    cleanedKey = `${keyPrefix}${cleanedKey}`
+  }
+  let invalidKey = false
+
+  // check if the key is still invalid and fallback to using a known
+  // safe key
+  if (cleanedKey.length === 0 || cleanedKey.length > 30) {
+    invalidKey = true
+  }
+  if (!isNaN(parseInt(cleanedKey.slice(0, 1)))) {
+    invalidKey = true
+  }
+
+  if (invalidKey) {
+    cleanedKey = getSafeRouteKey()
+  }
+
+  if (keyPrefix) {
+    routeKeys[cleanedKey] = `${keyPrefix}${key}`
+  } else {
+    routeKeys[cleanedKey] = `${key}`
+  }
+
+  return repeat
+    ? optional
+      ? `(?:/(?<${cleanedKey}>.+?))?`
+      : `/(?<${cleanedKey}>.+?)`
+    : `/(?<${cleanedKey}>[^/]+?)`
+}
+
 function getNamedParametrizedRoute(route: string, prefixRouteKeys: boolean) {
   const segments = removeTrailingSlash(route).slice(1).split('/')
-  const getSafeRouteKey = buildGetSafeRouteKey()
   const routeKeys: { [named: string]: string } = {}
   return {
     namedParameterizedRoute: segments
       .map((segment) => {
-        if (segment.startsWith('[') && segment.endsWith(']')) {
-          const { key, optional, repeat } = parseParameter(segment.slice(1, -1))
-          // replace any non-word characters since they can break
-          // the named regex
-          let cleanedKey = key.replace(/\W/g, '')
+        const markerMatches = segment.match(/\((\.{1,3})\)(\w*)/) // Check for intercept markers
+        const paramMatches = segment.match(/\[((?:\[.*\])|.+)\]/) // Check for parameters
 
-          if (prefixRouteKeys) {
-            cleanedKey = `${NEXT_QUERY_PARAM_PREFIX}${cleanedKey}`
-          }
-          let invalidKey = false
-
-          // check if the key is still invalid and fallback to using a known
-          // safe key
-          if (cleanedKey.length === 0 || cleanedKey.length > 30) {
-            invalidKey = true
-          }
-          if (!isNaN(parseInt(cleanedKey.slice(0, 1)))) {
-            invalidKey = true
-          }
-
-          if (invalidKey) {
-            cleanedKey = getSafeRouteKey()
-          }
-
-          if (prefixRouteKeys) {
-            routeKeys[cleanedKey] = `${NEXT_QUERY_PARAM_PREFIX}${key}`
-          } else {
-            routeKeys[cleanedKey] = `${key}`
-          }
-
-          return repeat
-            ? optional
-              ? `(?:/(?<${cleanedKey}>.+?))?`
-              : `/(?<${cleanedKey}>.+?)`
-            : `/(?<${cleanedKey}>[^/]+?)`
+        if (markerMatches && paramMatches) {
+          return getSafeKeyFromSegment({
+            segment: paramMatches[1],
+            routeKeys,
+            keyPrefix: prefixRouteKeys
+              ? NEXT_INTERCEPTION_MARKER_PREFIX
+              : undefined,
+          })
+        } else if (paramMatches) {
+          return getSafeKeyFromSegment({
+            segment: paramMatches[1],
+            routeKeys,
+            keyPrefix: prefixRouteKeys ? NEXT_QUERY_PARAM_PREFIX : undefined,
+          })
         } else {
           return `/${escapeStringRegexp(segment)}`
         }

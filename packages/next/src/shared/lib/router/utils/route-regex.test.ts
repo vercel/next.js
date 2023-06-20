@@ -1,8 +1,14 @@
-import { getRouteRegex } from './route-regex'
+import { getNamedRouteRegex } from './route-regex'
 
-describe('getRouteRegex', () => {
+describe('getNamedRouteRegex', () => {
   it('should handle interception markers adjacent to dynamic path segments', () => {
-    const regex = getRouteRegex('/photos/(.)[author]/[id]')
+    const regex = getNamedRouteRegex('/photos/(.)[author]/[id]', true)
+
+    expect(regex.routeKeys).toEqual({
+      nxtIauthor: 'nxtIauthor',
+      nxtPid: 'nxtPid',
+    })
+
     expect(regex.groups['author']).toEqual({
       pos: 1,
       repeat: false,
@@ -19,7 +25,13 @@ describe('getRouteRegex', () => {
   })
 
   it('should handle multi-level interception markers', () => {
-    const regex = getRouteRegex('/photos/(..)(..)[author]/[id]')
+    const regex = getNamedRouteRegex('/photos/(..)(..)[author]/[id]', true)
+
+    expect(regex.routeKeys).toEqual({
+      nxtIauthor: 'nxtIauthor',
+      nxtPid: 'nxtPid',
+    })
+
     expect(regex.groups['author']).toEqual({
       pos: 1,
       repeat: false,
@@ -36,9 +48,14 @@ describe('getRouteRegex', () => {
   })
 
   it('should handle interception markers not adjacent to dynamic path segments', () => {
-    const regex = getRouteRegex('/photos/(.)author/[id]')
+    const regex = getNamedRouteRegex('/photos/(.)author/[id]', true)
+
+    expect(regex.routeKeys).toEqual({
+      nxtPid: 'nxtPid',
+    })
 
     expect(regex.groups['author']).toBeUndefined()
+
     expect(regex.groups['id']).toEqual({
       pos: 1,
       repeat: false,
@@ -49,7 +66,11 @@ describe('getRouteRegex', () => {
   })
 
   it('should handle optional dynamic path segments', () => {
-    const regex = getRouteRegex('/photos/[[id]]')
+    const regex = getNamedRouteRegex('/photos/[[id]]', true)
+
+    expect(regex.routeKeys).toEqual({
+      nxtPid: 'nxtPid',
+    })
 
     expect(regex.groups['id']).toEqual({
       pos: 1,
@@ -59,7 +80,11 @@ describe('getRouteRegex', () => {
   })
 
   it('should handle optional catch-all dynamic path segments', () => {
-    const regex = getRouteRegex('/photos/[[...id]]')
+    const regex = getNamedRouteRegex('/photos/[[...id]]', true)
+
+    expect(regex.routeKeys).toEqual({
+      nxtPid: 'nxtPid',
+    })
 
     expect(regex.groups['id']).toEqual({
       pos: 1,
