@@ -312,7 +312,7 @@ export default function startHandler({
     const body = renderResult.toUnchunkedString()
 
     // TODO: handle revalidate
-    // const sprRevalidate = renderResult.metadata().revalidate;
+    // const sprRevalidate = renderResult.metadata.revalidate;
 
     return {
       type: 'response',
