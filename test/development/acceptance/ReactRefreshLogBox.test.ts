@@ -36,7 +36,10 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', (variant) => {
     await session.evaluate(() => document.querySelector('a').click())
 
     expect(await session.hasRedbox(true)).toBe(true)
-    expect(await session.getRedboxSource()).toMatchSnapshot()
+    if (variant === 'default') {
+      // TODO(WEB-1095): turbopack doesn't display a code frame along with the stack trace
+      expect(await session.getRedboxSource()).toMatchSnapshot()
+    }
 
     await cleanup()
   })
@@ -149,7 +152,10 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', (variant) => {
     )
 
     expect(await session.hasRedbox(true)).toBe(true)
-    expect(await session.getRedboxSource()).toMatchSnapshot()
+    if (variant === 'default') {
+      // TODO(WEB-1095): turbopack doesn't display a code frame along with the stack trace
+      expect(await session.getRedboxSource()).toMatchSnapshot()
+    }
     expect(
       await session.evaluate(() => document.querySelector('h2').textContent)
     ).toBe('error')
@@ -314,7 +320,10 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', (variant) => {
     )
 
     expect(await session.hasRedbox(true)).toBe(true)
-    expect(await session.getRedboxSource()).toMatchSnapshot()
+    if (variant === 'default') {
+      // TODO(WEB-1095): turbopack doesn't display a code frame along with the stack trace
+      expect(await session.getRedboxSource()).toMatchSnapshot()
+    }
 
     await session.patch(
       'Child.js',
