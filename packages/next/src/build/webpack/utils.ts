@@ -1,12 +1,13 @@
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { isAppRouteRoute } from '../../lib/is-app-route-route'
+import { WEBPACK_LAYERS } from '../../lib/constants'
 
 export function traverseModules(
   compilation: webpack.Compilation,
   callback: (
     mod: any,
     chunk: webpack.Chunk,
-    chunkGroup: (typeof compilation.chunkGroups)[0],
+    chunkGroup: typeof compilation.chunkGroups[0],
     modId: string | number
   ) => any
 ) {

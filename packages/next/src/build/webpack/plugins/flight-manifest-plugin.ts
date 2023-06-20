@@ -12,7 +12,7 @@ import {
   SYSTEM_ENTRYPOINTS,
 } from '../../../shared/lib/constants'
 import { relative } from 'path'
-import { isClientComponentEntryModule, isCSSMod } from '../loaders/utils'
+import { isCSSMod, isClientComponentEntryModule } from '../loaders/utils'
 import { getProxiedPluginState } from '../../build-context'
 
 import { traverseModules } from '../utils'
@@ -131,20 +131,6 @@ export class ClientReferenceManifestPlugin {
       entryCSSFiles: {},
     }
 
-    const clientRequestsSet = new Set()
-
-    // Collect client requests
-    function collectClientRequest(mod: webpack.NormalModule) {
-      if (mod.resource === '' && mod.buildInfo?.rsc) {
-        const { requests = [] } = mod.buildInfo.rsc
-        requests.forEach((r: string) => {
-          clientRequestsSet.add(r)
-        })
-      }
-    }
-
-    traverseModules(compilation, (mod) => collectClientRequest(mod))
-
     compilation.chunkGroups.forEach((chunkGroup) => {
       function getAppPathRequiredChunks() {
         return chunkGroup.chunks
@@ -230,15 +216,6 @@ export class ClientReferenceManifestPlugin {
         if (!ssrNamedModuleId.startsWith('.'))
           ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
 
-        // Only apply following logic to client module requests from client entry,
-        // or if the module is marked as client module.
-        if (
-          !clientRequestsSet.has(resource) &&
-          !isClientComponentEntryModule(mod)
-        ) {
-          return
-        }
-
         const isAsyncModule = this.ASYNC_CLIENT_MODULES.has(mod.resource)
 
         // The client compiler will always use the CJS Next.js build, so here we
@@ -305,24 +282,39 @@ export class ClientReferenceManifestPlugin {
         manifest.edgeSSRModuleMapping = edgeModuleIdMapping
       }
 
+      // Only apply following logic to client module requests from client entry,
+      // or if the module is marked as client module. That's because other
+      // client modules don't need to be in the manifest at all as they're
+      // never be referenced by the server/client boundary.
+      // This saves a lot of bytes in the manifest.
       chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
-        const chunkModules = compilation.chunkGraph.getChunkModulesIterable(
-          chunk
-          // TODO: Update type so that it doesn't have to be cast.
-        ) as Iterable<webpack.NormalModule>
+        const entryMods =
+          compilation.chunkGraph.getChunkEntryModulesIterable(chunk)
+        for (const mod of entryMods) {
+          if (mod.layer !== WEBPACK_LAYERS.appClient) continue
 
-        for (const mod of chunkModules) {
-          const modId: string = compilation.chunkGraph.getModuleId(mod) + ''
+          const request = (mod as webpack.NormalModule).request
 
-          recordModule(modId, mod)
+          if (
+            !request ||
+            !request.includes('/next-flight-client-entry-loader.js?')
+          ) {
+            continue
+          }
 
-          // If this is a concatenation, register each child to the parent ID.
-          // TODO: remove any
-          const anyModule = mod as any
-          if (anyModule.modules) {
-            anyModule.modules.forEach((concatenatedMod: any) => {
-              recordModule(modId, concatenatedMod)
-            })
+          const connections =
+            compilation.moduleGraph.getOutgoingConnections(mod)
+
+          for (const connection of connections) {
+            if (connection.dependency) {
+              const clientEntryMod = compilation.moduleGraph.getResolvedModule(
+                connection.dependency
+              )
+              const modId = compilation.chunkGraph.getModuleId(
+                clientEntryMod
+              ) as string | number
+              recordModule(modId, clientEntryMod as webpack.NormalModule)
+            }
           }
         }
       })

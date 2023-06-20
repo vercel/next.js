@@ -50,7 +50,6 @@ export interface RSCMeta {
   clientRefs?: string[]
   clientEntryType?: 'cjs' | 'auto'
   isClientRef?: boolean
-  requests?: string[] // client requests in flight client entry
 }
 
 export interface RouteMeta {
