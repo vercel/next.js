@@ -66,15 +66,13 @@ export default function connect() {
   addMessageListener((event) => {
     try {
       const payload = JSON.parse(event.data)
-      if (!payload.action) return
+      if (!('action' in payload)) return
 
-      try {
-        processMessage(event)
-      } catch (ex) {
-        console.warn('Invalid HMR message: ' + event.data + '\n', ex)
-      }
-    } catch (err) {
-      console.error('Invalid HMR message: ' + event.data + '\n', err)
+      processMessage(payload)
+    } catch (err: any) {
+      console.warn(
+        '[HMR] Invalid message: ' + event.data + '\n' + (err?.stack ?? '')
+      )
     }
   })
 
@@ -231,8 +229,7 @@ function handleAvailableHash(hash: string) {
 }
 
 // Handle messages from the server.
-function processMessage(e: any) {
-  const obj = JSON.parse(e.data)
+function processMessage(obj: any) {
   switch (obj.action) {
     case 'building': {
       startLatency = Date.now()
@@ -283,6 +280,21 @@ function processMessage(e: any) {
       // TODO-APP: Remove reload once the correct overlay is rendered on initial page load in app dir
       window.location.reload()
       return
+    }
+    case 'serverError': {
+      const { errorJSON } = obj
+      if (errorJSON) {
+        const { message, stack } = JSON.parse(errorJSON)
+        const error = new Error(message)
+        error.stack = stack
+        // throw error
+        handleErrors([error])
+      }
+      return
+    }
+    case 'serverRecovered': {
+      // @ts-ignore it exists, it's just hidden
+      return handleSuccess()
     }
     default: {
       if (customHmrEventHandler) {

@@ -879,14 +879,15 @@ export function onDemandEntryHandler({
       }
     },
 
-    onHMR(
-      client: ws,
-      hmrServerErrorCallback: () => [Error | null, () => void]
-    ) {
+    onHMR(client: ws, getHmrServerError: () => Error | null) {
       let bufferedHmrServerError: Error | null = null
+
+      client.addEventListener('close', () => {
+        bufferedHmrServerError = null
+      })
       client.addEventListener('message', ({ data }) => {
         try {
-          const [error, releaseError] = hmrServerErrorCallback()
+          const error = getHmrServerError()
 
           // New error occurred: buffered error is flushed and new error occurred
           if (!bufferedHmrServerError && error) {
@@ -898,7 +899,6 @@ export function onDemandEntryHandler({
               })
             )
             bufferedHmrServerError = null
-            releaseError()
           }
 
           const parsedData = JSON.parse(
@@ -909,11 +909,9 @@ export function onDemandEntryHandler({
             const result = parsedData.appDirRoute
               ? handleAppDirPing(parsedData.tree)
               : handlePing(parsedData.page)
-
             client.send(
               JSON.stringify({
                 ...result,
-
                 [parsedData.appDirRoute ? 'action' : 'event']: 'pong',
               })
             )

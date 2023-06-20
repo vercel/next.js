@@ -85,6 +85,12 @@ addMessageListener((event) => {
   try {
     const message = JSON.parse(event.data)
 
+    // action `serverError` is not for amp-dev
+    if (
+      message.action === 'serverError' ||
+      message.action === 'serverRecovered'
+    )
+      return
     if (message.action === 'sync' || message.action === 'built') {
       if (!message.hash) {
         return
@@ -94,8 +100,10 @@ addMessageListener((event) => {
     } else if (message.action === 'reloadPage') {
       window.location.reload()
     }
-  } catch (ex) {
-    console.warn('Invalid HMR message: ' + event.data + '\n' + ex)
+  } catch (err: any) {
+    console.warn(
+      '[HMR] Invalid message: ' + event.data + '\n' + (err?.stack ?? '')
+    )
   }
 })
 

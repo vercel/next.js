@@ -1,4 +1,9 @@
-import { getRedboxHeader, hasRedbox, check } from 'next-test-utils'
+import {
+  getRedboxHeader,
+  hasRedbox,
+  check,
+  getRedboxSource,
+} from 'next-test-utils'
 import { createNextDescribe } from 'e2e-utils'
 
 createNextDescribe(
@@ -26,60 +31,77 @@ createNextDescribe(
       })
     }
 
+    async function containConflictsError(browser, conflicts) {
+      await check(async () => {
+        expect(await hasRedbox(browser, true)).toBe(true)
+        const redboxSource = await getRedboxSource(browser)
+        expect(redboxSource).toContain(
+          'Conflicting app and page files were found, please remove the conflicting files to continue:'
+        )
+
+        for (const pair of conflicts) {
+          expect(redboxSource).toContain(`"${pair[0]}" - "${pair[1]}"`)
+        }
+
+        return 'success'
+      }, /success/)
+    }
+
     if (isNextDev) {
       it('should show error overlay for /', async () => {
         const browser = await next.browser('/')
         expect(await hasRedbox(browser, true)).toBe(true)
-        expect(await getRedboxHeader(browser)).toContain(
-          'Conflicting app and page file found: "app/page.js" and "pages/index.js". Please remove one to continue.'
-        )
+        await containConflictsError(browser, [
+          ['pages/index.js', 'app/page.js'],
+          ['pages/another.js', 'app/another/page.js'],
+        ])
       })
 
       it('should show error overlay for /another', async () => {
         const browser = await next.browser('/another')
         expect(await hasRedbox(browser, true)).toBe(true)
-        expect(await getRedboxHeader(browser)).toContain(
-          'Conflicting app and page file found: "app/another/page.js" and "pages/another.js". Please remove one to continue.'
-        )
+        await containConflictsError(browser, [
+          ['pages/index.js', 'app/page.js'],
+          ['pages/another.js', 'app/another/page.js'],
+        ])
       })
 
       it('should support hmr with conflicts', async () => {
-        await next.renameFile('pages/index.js', 'pages/index2.js')
-        await next.renameFile('app/page.js', 'app/page2.js')
-
         const browser = await next.browser('/')
-        expect(await hasRedbox(browser, false)).toBe(false)
+        expect(await hasRedbox(browser, true)).toBe(true)
 
-        expect(await browser.elementByCss('p').text()).toBe('index page - app')
-
-        await browser.loadPage(next.url + '/another')
-        expect(await browser.elementByCss('p').text()).toBe('another app')
-
-        await next.renameFile('app/page2.js', 'app/page.js')
+        await next.renameFile('pages/index.js', 'pages/index2.js')
+        await next.renameFile('pages/another.js', 'pages/another2.js')
 
         await check(async () => {
-          expect(await hasRedbox(browser, true)).toBe(true)
-          expect(await getRedboxHeader(browser)).toContain(
-            'Conflicting app and page file found: "app/another/page.js" and "pages/another.js". Please remove one to continue.'
+          expect(await hasRedbox(browser, false)).toBe(false)
+
+          expect(await browser.elementByCss('p').text()).toBe(
+            'index page - app'
           )
-          return 'success'
-        }, /success/)
+
+          await browser.loadPage(next.url + '/another')
+          expect(await browser.elementByCss('p').text()).toBe('another app')
+
+          await next.renameFile('pages/page2.js', 'pages/index.js')
+          await containConflictsError(browser, [
+            ['pages/index.js', 'app/page.js'],
+          ])
+        })
       })
 
-      it('should not show error overlay for /non-conflict-pages', async () => {
-        const browser = await next.browser('/non-conflict-pages')
-        expect(await hasRedbox(browser, false)).toBe(false)
-        expect(await getRedboxHeader(browser)).toBe(null)
-        expect(await browser.elementByCss('h1').text()).toBe(
-          'non-conflict-pages!'
-        )
-      })
-
-      it('should not show error overlay for /non-conflict', async () => {
+      it('should not show error overlay for non conflict pages under app or pages dir', async () => {
         const browser = await next.browser('/non-conflict')
         expect(await hasRedbox(browser, false)).toBe(false)
         expect(await getRedboxHeader(browser)).toBe(null)
         expect(await browser.elementByCss('p').text()).toBe('non-conflict app')
+
+        await browser.loadPage(next.url + '/non-conflict-pages')
+        expect(await hasRedbox(browser, false)).toBe(false)
+        expect(await getRedboxHeader(browser)).toBe(null)
+        expect(await browser.elementByCss('h1').text()).toBe(
+          'non-conflict pages'
+        )
       })
     }
   }

@@ -45,6 +45,9 @@ export default () => {
       }
       return
     }
+    if (obj.action === 'serverError' || obj.event === 'server-error') {
+      return window.location.reload()
+    }
     throw new Error('Unexpected action ' + obj.action)
   })
 

@@ -218,6 +218,31 @@ function processMessage(
     return
   }
 
+  function handleErrors(errors: any[]) {
+    // "Massage" webpack messages.
+    const formatted = formatWebpackMessages({
+      errors: errors,
+      warnings: [],
+    })
+
+    // Only show the first error.
+    dispatcher.onBuildError(formatted.errors[0])
+
+    // Also log them to the console.
+    for (let i = 0; i < formatted.errors.length; i++) {
+      console.error(stripAnsi(formatted.errors[i]))
+    }
+
+    // Do not attempt to reload now.
+    // We will reload on next success instead.
+    if (process.env.__NEXT_TEST_MODE) {
+      if (self.__NEXT_HMR_CB) {
+        self.__NEXT_HMR_CB(formatted.errors[0])
+        self.__NEXT_HMR_CB = null
+      }
+    }
+  }
+
   switch (obj.action) {
     case 'building': {
       console.log('[Fast Refresh] rebuilding')
@@ -246,28 +271,7 @@ function processMessage(
           })
         )
 
-        // "Massage" webpack messages.
-        let formatted = formatWebpackMessages({
-          errors: errors,
-          warnings: [],
-        })
-
-        // Only show the first error.
-        dispatcher.onBuildError(formatted.errors[0])
-
-        // Also log them to the console.
-        for (let i = 0; i < formatted.errors.length; i++) {
-          console.error(stripAnsi(formatted.errors[i]))
-        }
-
-        // Do not attempt to reload now.
-        // We will reload on next success instead.
-        if (process.env.__NEXT_TEST_MODE) {
-          if (self.__NEXT_HMR_CB) {
-            self.__NEXT_HMR_CB(formatted.errors[0])
-            self.__NEXT_HMR_CB = null
-          }
-        }
+        handleErrors(errors)
         return
       }
 
@@ -401,8 +405,16 @@ function processMessage(
         const { message, stack } = JSON.parse(errorJSON)
         const error = new Error(message)
         error.stack = stack
-        throw error
+        // throw error
+        handleErrors([error])
       }
+      return
+    }
+    case 'serverRecovered': {
+      // TODO-APP: potentially only refresh if the currently viewed page was added.
+      // @ts-ignore it exists, it's just hidden
+      router.fastRefresh()
+
       return
     }
     case 'pong': {
@@ -487,9 +499,10 @@ export default function HotReload({
     const handler = (event: MessageEvent<PongEvent>) => {
       try {
         processMessage(event, sendMessage, router, dispatcher)
-      } catch (err) {
-        console.warn('[HMR] Invalid message: ' + event.data)
-        console.error(err)
+      } catch (err: any) {
+        console.warn(
+          '[HMR] Invalid message: ' + event.data + '\n' + (err?.stack ?? '')
+        )
       }
     }
 

@@ -63,7 +63,6 @@ import { parseVersionInfo, VersionInfo } from './parse-version-info'
 import { isAPIRoute } from '../../lib/is-api-route'
 import { getRouteLoaderEntry } from '../../build/webpack/loaders/next-route-loader'
 import { isInternalPathname } from '../../lib/is-internal-pathname'
-import { nonNullable } from '../../lib/non-nullable'
 
 function diff(a: Set<any>, b: Set<any>) {
   return new Set([...a].filter((v) => !b.has(v)))
@@ -333,17 +332,17 @@ export default class HotReloader {
     this.hmrServerError = error
   }
 
+  public clearServerHmrError(): void {
+    this.setServerHmrError(null)
+    this.send('serverRecovered')
+    // await this.matchers.reload()
+    // this.hotReloader?.send('reloadPage')
+  }
+
   public onHMR(req: IncomingMessage, _socket: Duplex, head: Buffer) {
     wsServer.handleUpgrade(req, req.socket, head, (client) => {
       this.webpackHotMiddleware?.onHMR(client)
-      this.onDemandEntries?.onHMR(client, () => {
-        return [
-          this.hmrServerError,
-          () => {
-            this.hmrServerError = null
-          },
-        ]
-      })
+      this.onDemandEntries?.onHMR(client, () => this.hmrServerError)
 
       client.addEventListener('message', ({ data }) => {
         data = typeof data !== 'string' ? data.toString() : data

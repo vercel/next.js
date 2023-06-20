@@ -441,7 +441,7 @@ export default class DevServer extends Server {
 
         let envChange = false
         let tsconfigChange = false
-        let conflictingPageChange = false
+        let conflictingPageChange = 0
 
         devPageFiles.clear()
 
@@ -600,10 +600,10 @@ export default class DevServer extends Server {
         }
 
         const numConflicting = conflictingAppPagePaths.size
-        conflictingPageChange = numConflicting !== previousConflictingPage
+        conflictingPageChange = numConflicting - previousConflictingPage
         previousConflictingPage = numConflicting
 
-        if (conflictingPageChange) {
+        if (conflictingPageChange !== 0) {
           if (numConflicting > 0) {
             let errorMessage = `Conflicting app and page file${
               numConflicting === 1 ? ' was' : 's were'
@@ -616,9 +616,9 @@ export default class DevServer extends Server {
             }
             this.hotReloader?.setServerHmrError(new Error(errorMessage))
           } else if (numConflicting === 0) {
-            this.hotReloader?.setServerHmrError(null)
-            await this.matchers.reload()
-            this.hotReloader?.send('reloadPage')
+            this.hotReloader?.clearServerHmrError()
+            this.hotReloader?.invalidate()
+            this.matchers.reload()
           }
         }
 
@@ -654,7 +654,7 @@ export default class DevServer extends Server {
             .catch(() => {})
         }
 
-        if (envChange || tsconfigChange || conflictingPageChange) {
+        if (envChange || tsconfigChange) {
           if (envChange) {
             this.loadEnvConfig({
               dev: true,
