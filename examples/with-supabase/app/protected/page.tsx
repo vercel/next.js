@@ -48,6 +48,10 @@ export default async function Index() {
     data: { user },
   } = await supabase.auth.getUser()
 
+  if(!user) {
+    redirect('/login')
+  }
+
   return (
     <div className="flex-1 flex flex-col max-w-3xl mt-24">
       <h1 className="text-2xl mb-2 flex justify-between">
@@ -55,20 +59,10 @@ export default async function Index() {
       </h1>
 
       <div className="flex border-b py-3 text-sm text-neutral-100">
-        <span className="ml-auto">
-          {user ? (
-            <span className="flex gap-4">
-              Hey, {user.email}! <span className="border-r"></span>{' '}
-              <form action={signOut}>
-                <button className="text-neutral-100">Logout</button>
-              </form>
-            </span>
-          ) : (
-            <Link href="/login" className="text-neutral-100 hover:underline">
-              Login
-            </Link>
-          )}
-        </span>
+        <div className="flex items-center justify-between w-full">
+          <code className='bg-neutral-700 px-3 py-1 rounded-lg text-sm'>Protected page</code>
+          <span>You must be logged in to view</span>
+        </div>
       </div>
 
       <div className="flex gap-8 justify-center mt-12">
@@ -81,7 +75,7 @@ export default async function Index() {
         The fastest way to get started building apps with <strong>Supabase</strong> and <strong>Next.JS</strong>
       </p>
 
-      <div className="flex justify-center mt-16">
+      <div className="flex justify-center mt-12">
         <span className="bg-neutral-100 py-3 px-6 rounded-lg font-mono text-sm">
           Get started by editing <strong>app/page.tsx</strong>
         </span>
