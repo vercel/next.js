@@ -50,7 +50,10 @@ function commonJsRequireContext(
         // modules.
         registerChunkRunner(
           chunkPath,
-          params.otherChunks,
+          params.otherChunks.filter((chunk) =>
+            // The none runtime can only handle JS chunks, so we only wait for these
+            getChunkPath(chunk).endsWith(".js")
+          ),
           params.runtimeModuleIds
         );
       }
