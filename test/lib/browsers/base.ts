@@ -11,18 +11,28 @@ export type Event = 'request'
  * You can manually await this interface to wait for completion of the last scheduled command.
  */
 export abstract class BrowserInterface implements PromiseLike<any> {
-  private promise: any
-  then: PromiseLike<any>['then']
-  private catch: any
+  private promise?: Promise<any> = Promise.resolve()
+  then: Promise<any>['then'] = this.promise.then.bind(this.promise)
+  catch: Promise<any>['catch'] = this.promise.catch.bind(this.promise)
+  finally: Promise<any>['finally'] = this.promise.finally.bind(this.promise)
 
-  protected chain(nextCall: any): BrowserInterface {
-    if (!this.promise) {
-      this.promise = Promise.resolve(this)
+  protected chain<T>(
+    nextCall: (current: any) => T | PromiseLike<T>
+  ): BrowserInterface & Promise<T> {
+    const promise = Promise.resolve(this.promise).then(nextCall)
+
+    function get(target: BrowserInterface, p: string | symbol): any {
+      switch (p) {
+        case 'promise':
+          return promise
+        default:
+          return target[p] ?? promise[p]
+      }
     }
-    this.promise = this.promise.then(nextCall)
-    this.then = (...args) => this.promise.then(...args)
-    this.catch = (...args) => this.promise.catch(...args)
-    return this
+
+    return new Proxy<any>(this, {
+      get,
+    })
   }
 
   /**
@@ -30,17 +40,9 @@ export abstract class BrowserInterface implements PromiseLike<any> {
    * But it won't have an effect on chain value and chain will still be green if this throws.
    */
   protected chainWithReturnValue<T>(
-    callback: (...args: any[]) => Promise<T>
+    callback: (value: any) => T | PromiseLike<T>
   ): Promise<T> {
-    return new Promise<T>((resolve, reject) => {
-      this.chain(async (...args: any[]) => {
-        try {
-          resolve(await callback(...args))
-        } catch (error) {
-          reject(error)
-        }
-      })
-    })
+    return Promise.resolve(this.promise).then(callback)
   }
 
   async setup(
