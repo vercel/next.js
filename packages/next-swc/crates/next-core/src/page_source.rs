@@ -26,7 +26,7 @@ use turbopack_binding::{
             source::{
                 asset_graph::AssetGraphContentSourceVc,
                 combined::{CombinedContentSource, CombinedContentSourceVc},
-                specificity::SpecificityVc,
+                route_tree::{BaseSegment, FinalSegment},
                 ContentSourceData, ContentSourceVc,
             },
         },
@@ -291,7 +291,6 @@ pub async fn create_page_source(
             fallback_page,
             client_root,
             node_root.join("force_not_found"),
-            SpecificityVc::exact(),
             NextExactMatcherVc::new(StringVc::cell("_next/404".to_string())).into(),
             render_data,
         )
@@ -333,7 +332,6 @@ pub async fn create_page_source(
             fallback_page,
             client_root,
             node_root.join("fallback_not_found"),
-            SpecificityVc::not_found(),
             NextFallbackMatcherVc::new().into(),
             render_data,
         )
@@ -353,7 +351,6 @@ async fn create_page_source_for_file(
     server_data_context: AssetContextVc,
     client_context: AssetContextVc,
     pages_dir: FileSystemPathVc,
-    specificity: SpecificityVc,
     page_asset: AssetVc,
     runtime_entries: AssetsVc,
     fallback_page: DevHtmlAssetVc,
@@ -402,11 +399,14 @@ async fn create_page_source_for_file(
     let pathname = pathname_for_path(client_root, client_path, PathType::Page);
     let route_matcher = NextParamsMatcherVc::new(pathname);
 
+    let (base_segments, final_segment) = pathname_to_segments(&*pathname.await?);
+
     Ok(if is_api_path {
         create_node_api_source(
             project_path,
             env,
-            specificity,
+            base_segments,
+            final_segment,
             client_root,
             route_matcher.into(),
             pathname,
@@ -460,7 +460,8 @@ async fn create_page_source_for_file(
             create_node_rendered_source(
                 project_path,
                 env,
-                specificity,
+                base_segments.clone(),
+                final_segment.clone(),
                 client_root,
                 route_matcher.into(),
                 pathname,
@@ -472,7 +473,8 @@ async fn create_page_source_for_file(
             create_node_rendered_source(
                 project_path,
                 env,
-                specificity,
+                base_segments,
+                final_segment,
                 client_root,
                 data_route_matcher.into(),
                 pathname,
@@ -520,7 +522,6 @@ async fn create_not_found_page_source(
     fallback_page: DevHtmlAssetVc,
     client_root: FileSystemPathVc,
     node_path: FileSystemPathVc,
-    specificity: SpecificityVc,
     route_matcher: RouteMatcherVc,
     render_data: JsonValueVc,
 ) -> Result<ContentSourceVc> {
@@ -588,7 +589,8 @@ async fn create_not_found_page_source(
         create_node_rendered_source(
             project_path,
             env,
-            specificity,
+            Vec::new(),
+            Some(FinalSegment::NotFound),
             client_root,
             route_matcher,
             pathname,
@@ -695,7 +697,6 @@ async fn create_page_source_for_directory(
     for item in items.iter() {
         let PagesStructureItem {
             project_path,
-            specificity,
             next_router_path,
         } = *item.await?;
         let source = create_page_source_for_file(
@@ -705,7 +706,6 @@ async fn create_page_source_for_directory(
             server_data_context,
             client_context,
             pages_dir,
-            specificity,
             SourceAssetVc::new(project_path).into(),
             runtime_entries,
             fallback_page,
@@ -746,6 +746,25 @@ async fn create_page_source_for_directory(
     }
 
     Ok(CombinedContentSource { sources }.cell().into())
+}
+
+fn pathname_to_segments(pathname: &str) -> (Vec<BaseSegment>, Option<FinalSegment>) {
+    let mut segments = Vec::new();
+    for segment in pathname.split('/') {
+        if segment.starts_with("[[...") && segment.ends_with("]]")
+            || segment.starts_with("[...") && segment.ends_with(']')
+        {
+            // (optional) catch all segment
+            return (segments, Some(FinalSegment::CatchAll));
+        } else if segment.starts_with('[') || segment.ends_with(']') {
+            // dynamic segment
+            segments.push(BaseSegment::Dynamic);
+        } else {
+            // normal segment
+            segments.push(BaseSegment::Static(segment.to_string()));
+        }
+    }
+    return (segments, None);
 }
 
 /// The node.js renderer for SSR of pages.

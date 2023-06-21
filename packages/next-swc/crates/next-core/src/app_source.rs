@@ -32,7 +32,7 @@ use turbopack_binding::{
             source::{
                 asset_graph::AssetGraphContentSourceVc,
                 combined::CombinedContentSource,
-                specificity::{Specificity, SpecificityElementType, SpecificityVc},
+                route_tree::{BaseSegment, FinalSegment},
                 ContentSourceData, ContentSourceVc, NoContentSourceVc,
             },
         },
@@ -99,31 +99,25 @@ use crate::{
     util::{render_data, NextRuntime},
 };
 
-#[turbo_tasks::function]
-fn pathname_to_specificity(pathname: &str) -> SpecificityVc {
-    let mut current = Specificity::new();
-    let mut position = 0;
+fn pathname_to_segments(pathname: &str) -> (Vec<BaseSegment>, Option<FinalSegment>) {
+    let mut segments = Vec::new();
     for segment in pathname.split('/') {
         if segment.starts_with('(') && segment.ends_with(')') || segment.starts_with('@') {
             // ignore
         } else if segment.starts_with("[[...") && segment.ends_with("]]")
             || segment.starts_with("[...") && segment.ends_with(']')
         {
-            // optional catch all segment
-            current.add(position - 1, SpecificityElementType::CatchAll);
-            position += 1;
-        } else if segment.starts_with("[[") || segment.ends_with("]]") {
-            // optional segment
-            position += 1;
+            // (optional) catch all segment
+            return (segments, Some(FinalSegment::CatchAll));
         } else if segment.starts_with('[') || segment.ends_with(']') {
-            current.add(position - 1, SpecificityElementType::DynamicSegment);
-            position += 1;
+            // dynamic segment
+            segments.push(BaseSegment::Dynamic);
         } else {
             // normal segment
-            position += 1;
+            segments.push(BaseSegment::Static(segment.to_string()));
         }
     }
-    SpecificityVc::cell(current)
+    return (segments, None);
 }
 
 #[turbo_tasks::function]
@@ -666,10 +660,13 @@ async fn create_app_page_source_for_route(
 
     let params_matcher = NextParamsMatcherVc::new(pathname_vc);
 
+    let (base_segments, final_segment) = pathname_to_segments(pathname);
+
     let source = create_node_rendered_source(
         project_path,
         env,
-        pathname_to_specificity(pathname),
+        base_segments,
+        final_segment,
         server_root,
         params_matcher.into(),
         pathname_vc,
@@ -713,7 +710,8 @@ async fn create_app_not_found_page_source(
     let source = create_node_rendered_source(
         project_path,
         env,
-        SpecificityVc::not_found(),
+        Vec::new(),
+        Some(FinalSegment::NotFound),
         server_root,
         NextFallbackMatcherVc::new().into(),
         pathname_vc,
@@ -755,10 +753,13 @@ async fn create_app_route_source_for_route(
 
     let params_matcher = NextParamsMatcherVc::new(pathname_vc);
 
+    let (base_segments, final_segment) = pathname_to_segments(pathname);
+
     let source = create_node_api_source(
         project_path,
         env,
-        pathname_to_specificity(pathname),
+        base_segments,
+        final_segment,
         server_root,
         params_matcher.into(),
         pathname_vc,

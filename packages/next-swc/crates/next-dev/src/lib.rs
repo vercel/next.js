@@ -29,6 +29,7 @@ use once_cell::sync::Lazy;
 use owo_colors::OwoColorize;
 use tracing_subscriber::{prelude::*, EnvFilter, Registry};
 use turbo_tasks::{
+    primitives::StringVc,
     util::{FormatBytes, FormatDuration},
     StatsType, TransientInstance, TurboTasks, TurboTasksBackendApi, UpdateInfo, Value,
 };
@@ -60,7 +61,7 @@ use turbopack_binding::{
         dev_server::{
             introspect::IntrospectionSource,
             source::{
-                combined::CombinedContentSourceVc, router::RouterContentSource,
+                combined::CombinedContentSourceVc, router::PrefixedRouterContentSource,
                 source_maps::SourceMapContentSourceVc, static_assets::StaticAssetsContentSourceVc,
                 ContentSourceVc,
             },
@@ -413,17 +414,18 @@ async fn source(
         pages_structure,
     )
     .into();
-    let source = RouterContentSource {
+    let source = PrefixedRouterContentSource {
+        prefix: StringVc::empty(),
         routes: vec![
-            ("__turbopack__/".to_string(), introspect),
-            ("__turbo_tasks__/".to_string(), viz),
+            ("__turbopack__".to_string(), introspect),
+            ("__turbo_tasks__".to_string(), viz),
             (
                 "__nextjs_original-stack-frame".to_string(),
                 source_map_trace,
             ),
             // TODO: Load path from next.config.js
             ("_next/image".to_string(), img_source),
-            ("__turbopack_sourcemap__/".to_string(), source_maps),
+            ("__turbopack_sourcemap__".to_string(), source_maps),
         ],
         fallback: router_source,
     }

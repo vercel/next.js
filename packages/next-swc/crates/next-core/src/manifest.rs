@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use mime::{APPLICATION_JAVASCRIPT_UTF_8, APPLICATION_JSON};
 use serde::Serialize;
@@ -14,8 +14,9 @@ use turbopack_binding::{
             introspect::{Introspectable, IntrospectableVc},
         },
         dev_server::source::{
-            ContentSource, ContentSourceContentVc, ContentSourceData, ContentSourceResultVc,
-            ContentSourceVc,
+            route_tree::{BaseSegment, RouteTreeVc},
+            ContentSource, ContentSourceContentVc, ContentSourceData, ContentSourceVc,
+            GetContentSourceContent, GetContentSourceContentVc,
         },
         node::render::{
             node_api_source::NodeApiContentSourceVc, rendered_source::NodeRenderContentSourceVc,
@@ -154,11 +155,42 @@ struct BuildManifest<'a> {
 #[turbo_tasks::value_impl]
 impl ContentSource for DevManifestContentSource {
     #[turbo_tasks::function]
+    fn get_routes(self_vc: DevManifestContentSourceVc) -> RouteTreeVc {
+        RouteTreeVc::merge(vec![
+            RouteTreeVc::new_route(
+                BaseSegment::from_static_pathname(
+                    "/_next/static/development/_devPagesManifest.json",
+                )
+                .collect(),
+                None,
+                self_vc.into(),
+            ),
+            RouteTreeVc::new_route(
+                BaseSegment::from_static_pathname("/_next/static/development/_buildManifest.js")
+                    .collect(),
+                None,
+                self_vc.into(),
+            ),
+            RouteTreeVc::new_route(
+                BaseSegment::from_static_pathname(
+                    "/_next/static/development/_middlewareManifest.js",
+                )
+                .collect(),
+                None,
+                self_vc.into(),
+            ),
+        ])
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl GetContentSourceContent for DevManifestContentSource {
+    #[turbo_tasks::function]
     async fn get(
         self_vc: DevManifestContentSourceVc,
         path: &str,
         _data: turbo_tasks::Value<ContentSourceData>,
-    ) -> Result<ContentSourceResultVc> {
+    ) -> Result<ContentSourceContentVc> {
         let manifest_file = match path {
             "_next/static/development/_devPagesManifest.json" => {
                 let pages = &*self_vc.find_routes().await?;
@@ -181,13 +213,13 @@ impl ContentSource for DevManifestContentSource {
                 // respond with an empty `MiddlewareMatcher[]`.
                 File::from("[]").with_content_type(APPLICATION_JSON)
             }
-            _ => return Ok(ContentSourceResultVc::not_found()),
+            _ => bail!("unknown path: {}", path),
         };
 
-        Ok(ContentSourceResultVc::exact(
+        Ok(
             ContentSourceContentVc::static_content(AssetContentVc::from(manifest_file).into())
                 .into(),
-        ))
+        )
     }
 }
 

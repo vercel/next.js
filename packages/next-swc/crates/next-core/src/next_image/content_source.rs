@@ -1,6 +1,4 @@
-use std::collections::BTreeSet;
-
-use anyhow::Result;
+use anyhow::{bail, Result};
 use turbo_tasks::{primitives::StringVc, Value};
 use turbo_tasks_fs::FileSystem;
 use turbopack_binding::turbopack::{
@@ -13,13 +11,14 @@ use turbopack_binding::turbopack::{
     },
     dev_server::source::{
         query::QueryValue,
+        route_tree::RouteTreeVc,
         wrapping_source::{
-            encode_pathname_to_url, ContentSourceProcessor, ContentSourceProcessorVc,
-            WrappedContentSourceVc,
+            ContentSourceProcessor, ContentSourceProcessorVc, WrappedGetContentSourceContentVc,
         },
         ContentSource, ContentSourceContent, ContentSourceContentVc, ContentSourceData,
-        ContentSourceDataFilter, ContentSourceDataVary, ContentSourceResultVc, ContentSourceVc,
-        NeededData, ProxyResult, RewriteBuilder,
+        ContentSourceDataFilter, ContentSourceDataVary, ContentSourceDataVaryVc, ContentSourceVc,
+        GetContentSourceContent, GetContentSourceContentVc, GetContentSourceContentsVc,
+        ProxyResult, RewriteBuilder,
     },
     image::process::optimize,
 };
@@ -42,84 +41,94 @@ impl NextImageContentSourceVc {
 #[turbo_tasks::value_impl]
 impl ContentSource for NextImageContentSource {
     #[turbo_tasks::function]
+    fn get_routes(self_vc: NextImageContentSourceVc) -> RouteTreeVc {
+        RouteTreeVc::new_route(Vec::new(), None, self_vc.into())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl GetContentSourceContent for NextImageContentSource {
+    #[turbo_tasks::function]
+    async fn vary(&self) -> ContentSourceDataVaryVc {
+        ContentSourceDataVary {
+            query: Some(ContentSourceDataFilter::Subset(
+                ["url".to_string(), "w".to_string(), "q".to_string()].into(),
+            )),
+            ..Default::default()
+        }
+        .cell()
+    }
+
+    #[turbo_tasks::function]
     async fn get(
         self_vc: NextImageContentSourceVc,
-        path: &str,
+        _path: &str,
         data: Value<ContentSourceData>,
-    ) -> Result<ContentSourceResultVc> {
+    ) -> Result<ContentSourceContentVc> {
         let this = self_vc.await?;
 
         let Some(query) = &data.query else {
-            let queries = ["url".to_string(), "w".to_string(), "q".to_string()]
-                .into_iter()
-                .collect::<BTreeSet<_>>();
-
-            return Ok(ContentSourceResultVc::need_data(Value::new(NeededData {
-                source: self_vc.into(),
-                path: path.to_string(),
-                vary: ContentSourceDataVary {
-                    url: true,
-                    query: Some(ContentSourceDataFilter::Subset(queries)),
-                    ..Default::default()
-                },
-            })));
+            bail!("missing query");
         };
 
         let Some(QueryValue::String(url)) = query.get("url") else {
-            return Ok(ContentSourceResultVc::not_found());
+            bail!("missing url");
         };
 
         let q = match query.get("q") {
             None => 75,
             Some(QueryValue::String(s)) => {
                 let Ok(q) = s.parse::<u8>() else {
-                    return Ok(ContentSourceResultVc::not_found());
+                    bail!("invalid q query argument")
                 };
                 q
             }
-            _ => return Ok(ContentSourceResultVc::not_found()),
+            _ => bail!("missing q query argument"),
         };
 
         let w = match query.get("w") {
             Some(QueryValue::String(s)) => {
                 let Ok(w) = s.parse::<u32>() else {
-                    return Ok(ContentSourceResultVc::not_found());
+                    bail!("invalid w query argument")
                 };
                 w
             }
-            _ => return Ok(ContentSourceResultVc::not_found()),
+            _ => bail!("missing w query argument"),
         };
 
         // TODO: re-encode into next-gen formats.
+
         if let Some(path) = url.strip_prefix('/') {
-            let wrapped = WrappedContentSourceVc::new(
-                this.asset_source,
-                NextImageContentSourceProcessorVc::new(path.to_string(), w, q).into(),
+            let sources = this.asset_source.get_routes().get(path).await?;
+            let sources = sources
+                .iter()
+                .map(|s| {
+                    WrappedGetContentSourceContentVc::new(
+                        *s,
+                        NextImageContentSourceProcessorVc::new(path.to_string(), w, q).into(),
+                    )
+                    .into()
+                })
+                .collect();
+            let sources = GetContentSourceContentsVc::cell(sources);
+            return Ok(
+                ContentSourceContent::Rewrite(RewriteBuilder::new_sources(sources).build())
+                    .cell()
+                    .into(),
             );
-            return Ok(ContentSourceResultVc::exact(
-                ContentSourceContent::Rewrite(
-                    RewriteBuilder::new(encode_pathname_to_url(path))
-                        .content_source(wrapped.as_content_source())
-                        .build(),
-                )
-                .cell()
-                .into(),
-            ));
         }
 
         // TODO: This should be downloaded by the server, and resized, etc.
-        Ok(ContentSourceResultVc::exact(
-            ContentSourceContent::HttpProxy(
-                ProxyResult {
-                    status: 302,
-                    headers: vec![("Location".to_string(), url.clone())],
-                    body: "".into(),
-                }
-                .cell(),
-            )
-            .cell()
-            .into(),
-        ))
+        Ok(ContentSourceContent::HttpProxy(
+            ProxyResult {
+                status: 302,
+                headers: vec![("Location".to_string(), url.clone())],
+                body: "".into(),
+            }
+            .cell(),
+        )
+        .cell()
+        .into())
     }
 }
 
