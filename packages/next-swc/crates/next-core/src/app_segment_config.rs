@@ -49,13 +49,23 @@ pub enum NextSegmentFetchCache {
     ForceNoStore,
 }
 
+#[derive(Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, Serialize, Deserialize)]
+pub enum NextRevalidate {
+    #[default]
+    Never,
+    ForceCache,
+    Frequency {
+        seconds: u32,
+    },
+}
+
 #[turbo_tasks::value]
 #[derive(Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct NextSegmentConfig {
     pub dynamic: NextSegmentDynamic,
     pub dynamic_params: bool,
-    pub revalidate: u32,
+    pub revalidate: NextRevalidate,
     pub fetch_cache: NextSegmentFetchCache,
     pub runtime: NextRuntime,
     pub referred_region: String,
@@ -74,7 +84,7 @@ impl Default for NextSegmentConfig {
         NextSegmentConfig {
             dynamic: Default::default(),
             dynamic_params: true,
-            revalidate: false,
+            revalidate: Default::default(),
             fetch_cache: Default::default(),
             runtime: Default::default(),
             referred_region: "auto".to_string(),
@@ -235,11 +245,26 @@ fn parse_config_value(
         }
         "revalidate" => {
             let value = eval_context.eval(init);
-            let JsValue::Constant(ConstantValue::Num(ConstantNumber(val))) = value else {
-                return invalid_config("`revalidate` needs to be a static positive integer", &value);
-            };
-
-            config.revalidate = val as u32;
+            match value {
+                JsValue::Constant(ConstantValue::Num(ConstantNumber(val))) if val > 0.0 => {
+                    config.revalidate = NextRevalidate::Frequency {
+                        seconds: val as u32,
+                    };
+                }
+                JsValue::Constant(ConstantValue::False) => {
+                    config.revalidate = NextRevalidate::Never;
+                }
+                JsValue::Constant(ConstantValue::Str(str)) if str.as_str() == "force-cache" => {
+                    config.revalidate = NextRevalidate::ForceCache;
+                }
+                _ => {
+                    return invalid_config(
+                        "`revalidate` needs to be static false, static 'force-cache' or a static \
+                         positive integer",
+                        &value,
+                    )
+                }
+            }
         }
         "fetchCache" => {
             let value = eval_context.eval(init);
