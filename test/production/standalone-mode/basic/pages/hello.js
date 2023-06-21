@@ -1,7 +1,16 @@
 import useSWR, { useSWRConfig } from 'swr'
 
-export default function Page() {
+export default function Page({ foo }) {
   const { data } = useSWR('hello', (v) => v, { fallbackData: 'hello' })
-  const config = useSWRConfig()
-  return `${data}-page`
+  useSWRConfig() // call SWR context
+
+  return <div id="content">{`${data}-${foo}`}</div>
+}
+
+export function getServerSideProps() {
+  return {
+    props: {
+      foo: 'bar',
+    },
+  }
 }

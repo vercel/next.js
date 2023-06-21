@@ -4,6 +4,9 @@ createNextDescribe(
   'standalone mode - metadata routes',
   {
     files: __dirname,
+    dependencies: {
+      swr: 'latest',
+    },
   },
   ({ next }) => {
     beforeAll(async () => {
@@ -25,6 +28,19 @@ createNextDescribe(
       const html = await res.text()
       expect(html).toContain('not-found-page-404')
       expect(html).not.toContain('not-found-page-200')
+    })
+
+    it('should handle private _next unmatched route correctly', async () => {
+      const res = await next.fetch('/_next/does-not-exist')
+      expect(res.status).toBe(404)
+      const html = await res.text()
+      expect(html).toContain('not-found-page-404')
+      expect(html).not.toContain('not-found-page-200')
+    })
+
+    it('should handle pages rendering correctly', async () => {
+      const browser = await next.browser('/hello')
+      expect(await browser.elementByCss('#content').text()).toBe('hello-bar')
     })
   }
 )
