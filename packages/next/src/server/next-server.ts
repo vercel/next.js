@@ -986,13 +986,12 @@ export default class NextNodeServer extends BaseServer {
     )
   }
 
-  protected streamResponseChunk(res: NodeNextResponse, chunk: any) {
-    res.originalResponse.write(chunk)
-
+  private streamResponseChunk(res: ServerResponse, chunk: any) {
+    res.write(chunk)
     // When both compression and streaming are enabled, we need to explicitly
     // flush the response to avoid it being buffered by gzip.
-    if (this.compression && 'flush' in res.originalResponse) {
-      ;(res.originalResponse as any).flush()
+    if (this.compression && 'flush' in res) {
+      ;(res as any).flush()
     }
   }
 
@@ -1525,10 +1524,12 @@ export default class NextNodeServer extends BaseServer {
             res.statusCode = invokeRes.statusCode
             res.statusMessage = invokeRes.statusMessage
 
+            const { originalResponse } = res as NodeNextResponse
             for await (const chunk of invokeRes) {
-              this.streamResponseChunk(res as NodeNextResponse, chunk)
+              if (originalResponse.closed) break
+              this.streamResponseChunk(originalResponse, chunk)
             }
-            ;(res as NodeNextResponse).originalResponse.end()
+            res.send()
             return {
               finished: true,
             }
@@ -2505,9 +2506,12 @@ export default class NextNodeServer extends BaseServer {
                     }
                   }
                   res.statusCode = result.response.status
+
+                  const { originalResponse } = res as NodeNextResponse
                   for await (const chunk of result.response.body ||
                     ([] as any)) {
-                    this.streamResponseChunk(res as NodeNextResponse, chunk)
+                    if (originalResponse.closed) break
+                    this.streamResponseChunk(originalResponse, chunk)
                   }
                   res.send()
                   return {
@@ -2678,17 +2682,14 @@ export default class NextNodeServer extends BaseServer {
             if (result.response.headers.has('x-middleware-refresh')) {
               res.statusCode = result.response.status
 
-              if ((result.response as any).invokeRes) {
-                for await (const chunk of (result.response as any).invokeRes) {
-                  this.streamResponseChunk(res as NodeNextResponse, chunk)
-                }
-                ;(res as NodeNextResponse).originalResponse.end()
-              } else {
-                for await (const chunk of result.response.body || ([] as any)) {
-                  this.streamResponseChunk(res as NodeNextResponse, chunk)
-                }
-                res.send()
+              const { originalResponse } = res as NodeNextResponse
+              const body =
+                (result.response as any).invokeRes || result.response.body || []
+              for await (const chunk of body) {
+                if (originalResponse.closed) break
+                this.streamResponseChunk(originalResponse, chunk)
               }
+              res.send()
               return {
                 finished: true,
               }
@@ -2864,22 +2865,23 @@ export default class NextNodeServer extends BaseServer {
       }
     })
 
+    const nodeResStream = (params.res as NodeNextResponse).originalResponse
     if (result.response.body) {
       // TODO(gal): not sure that we always need to stream
-      const nodeResStream = (params.res as NodeNextResponse).originalResponse
       const { consumeUint8ArrayReadableStream } =
         require('next/dist/compiled/edge-runtime') as typeof import('next/dist/compiled/edge-runtime')
       try {
         for await (const chunk of consumeUint8ArrayReadableStream(
           result.response.body
         )) {
+          if (nodeResStream.closed) break
           nodeResStream.write(chunk)
         }
       } finally {
         nodeResStream.end()
       }
     } else {
-      ;(params.res as NodeNextResponse).originalResponse.end()
+      nodeResStream.end()
     }
 
     return result
