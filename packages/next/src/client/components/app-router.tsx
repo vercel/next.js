@@ -295,12 +295,14 @@ function Router({
       replace: (href, options = {}) => {
         // @ts-ignore startTransition exists
         React.startTransition(() => {
+          // @ts-ignore options is internal, hidden from TS users
           navigate(href, 'replace', Boolean(options.forceOptimisticNavigation))
         })
       },
       push: (href, options = {}) => {
         // @ts-ignore startTransition exists
         React.startTransition(() => {
+          // @ts-ignore options is internal, hidden from TS users
           navigate(href, 'push', Boolean(options.forceOptimisticNavigation))
         })
       },
