@@ -128,6 +128,7 @@ importers:
       npm-run-all: 4.1.5
       nprogress: 0.2.0
       open: 9.0.0
+      outdent: 0.8.0
       pixrem: 5.0.0
       playwright-chromium: 1.28.1
       plop: 3.0.5
@@ -295,6 +296,7 @@ importers:
       npm-run-all: 4.1.5
       nprogress: 0.2.0
       open: 9.0.0
+      outdent: 0.8.0
       pixrem: 5.0.0
       playwright-chromium: 1.28.1
       plop: 3.0.5
@@ -426,7 +428,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 13.4.7-canary.2
+      '@next/eslint-plugin-next': 13.4.7-canary.4
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.42.0
       eslint: ^7.23.0 || ^8.0.0
@@ -503,12 +505,12 @@ importers:
       '@jest/types': 29.5.0
       '@napi-rs/cli': 2.14.7
       '@napi-rs/triples': 1.1.0
-      '@next/env': 13.4.7-canary.2
-      '@next/polyfill-module': 13.4.7-canary.2
-      '@next/polyfill-nomodule': 13.4.7-canary.2
-      '@next/react-dev-overlay': 13.4.7-canary.2
-      '@next/react-refresh-utils': 13.4.7-canary.2
-      '@next/swc': 13.4.7-canary.2
+      '@next/env': 13.4.7-canary.4
+      '@next/polyfill-module': 13.4.7-canary.4
+      '@next/polyfill-nomodule': 13.4.7-canary.4
+      '@next/react-dev-overlay': 13.4.7-canary.4
+      '@next/react-refresh-utils': 13.4.7-canary.4
+      '@next/swc': 13.4.7-canary.4
       '@opentelemetry/api': 1.4.1
       '@segment/ajv-human-errors': 2.1.2
       '@swc/helpers': 0.5.1
@@ -18876,6 +18878,10 @@ packages:
     dependencies:
       os-homedir: 1.0.2
       os-tmpdir: 1.0.2
+    dev: true
+
+  /outdent/0.8.0:
+    resolution: {integrity: sha512-KiOAIsdpUTcAXuykya5fnVVT+/5uS0Q1mrkRHcF89tpieSmY33O/tmc54CqwA+bfhbtEfZUNLHaPUiB9X3jt1A==}
     dev: true
 
   /p-cancelable/0.3.0:
