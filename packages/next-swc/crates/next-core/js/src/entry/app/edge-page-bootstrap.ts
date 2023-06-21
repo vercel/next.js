@@ -1,4 +1,3 @@
-import 'next/dist/esm/server/web/globals'
 import { adapter } from 'next/dist/server/web/adapter'
 import { RSC_VARY_HEADER } from 'next/dist/client/components/app-router-headers'
 import { IncrementalCache } from 'next/dist/server/lib/incremental-cache'
