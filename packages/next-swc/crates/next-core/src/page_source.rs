@@ -62,7 +62,7 @@ use crate::{
     next_config::NextConfigVc,
     next_edge::{
         context::{get_edge_compile_time_info, get_edge_resolve_options_context},
-        transition::NextEdgeTransition,
+        route_transition::NextEdgeRouteTransition,
     },
     next_route_matcher::{
         NextExactMatcherVc, NextFallbackMatcherVc, NextParamsMatcherVc,
@@ -168,12 +168,12 @@ pub async fn create_page_source(
         ),
         edge_compile_time_info.environment(),
     )
-    .reference_chunk_source_maps(false)
+    .reference_chunk_source_maps(should_debug("page_source"))
     .build();
     let edge_resolve_options_context =
         get_edge_resolve_options_context(project_root, server_ty, next_config, execution_context);
 
-    let next_edge_transition = NextEdgeTransition {
+    let next_edge_transition = NextEdgeRouteTransition {
         edge_compile_time_info,
         edge_chunking_context,
         edge_module_options_context: None,
@@ -374,7 +374,7 @@ async fn create_page_source_for_file(
         ),
         server_context.compile_time_info().environment(),
     )
-    .reference_chunk_source_maps(false)
+    .reference_chunk_source_maps(should_debug("page_source"))
     .build();
 
     let data_node_path = node_path.join("data");
@@ -389,7 +389,7 @@ async fn create_page_source_for_file(
         ),
         server_context.compile_time_info().environment(),
     )
-    .reference_chunk_source_maps(false)
+    .reference_chunk_source_maps(should_debug("page_source"))
     .build();
 
     let client_chunking_context = get_client_chunking_context(
@@ -534,7 +534,7 @@ async fn create_not_found_page_source(
         ),
         server_context.compile_time_info().environment(),
     )
-    .reference_chunk_source_maps(false)
+    .reference_chunk_source_maps(should_debug("page_source"))
     .build();
 
     let client_chunking_context = get_client_chunking_context(
