@@ -80,17 +80,6 @@ declare module 'BOOTSTRAP_CONFIG' {
   export const KIND: RouteKind
 }
 
-declare module 'APP_BOOTSTRAP' {
-  const chunks: Array<string>
-  export default chunks
-}
-
-declare module 'APP_ENTRY' {
-  export const tree: any
-  export const pathname: string
-  // and more...
-}
-
 declare module 'CLIENT_MODULE' {
   export const __turbopack_module_id__: string
 }
