@@ -17,12 +17,12 @@ import type { Node, Data } from 'unist'
  * 1. Recursively traverses the docs and collects all .mdx files.
  * 2. For each file, it extracts the content, metadata, and heading slugs.
  * 3. It creates a document map to efficiently lookup documents by path.
- * 4. It then traverses each document:
- *    - It checks if each internal link (links starting with "/docs/") points
+ * 4. It then traverses each document modified in the PR and...
+ *    - Checks if each internal link (links starting with "/docs/") points
  *      to an existing document
- *    - It validates hash links (links starting with "#") against the list of
+ *    - Validates hash links (links starting with "#") against the list of
  *      headings in the current document.
- *    - It checks the source and related links found in the metadata of each
+ *    - Checks the source and related links found in the metadata of each
  *      document.
  * 5. Any broken links discovered during these checks are categorized and a
  * comment is added to the PR.
@@ -63,6 +63,27 @@ const sha = pullRequest.head.sha
 
 const slugger = new GithubSlugger()
 
+// Recursively traverses DOCS_PATH and collects all .mdx files
+async function getAllMdxFiles(
+  dir: string,
+  fileList: string[] = []
+): Promise<string[]> {
+  const files = await fs.readdir(dir)
+
+  for (const file of files) {
+    const filePath = path.join(dir, file)
+    const stats = await fs.stat(filePath)
+
+    if (stats.isDirectory()) {
+      fileList = await getAllMdxFiles(filePath, fileList)
+    } else if (path.extname(file) === '.mdx') {
+      fileList.push(filePath)
+    }
+  }
+
+  return fileList
+}
+
 async function getFilesChangedInPR(): Promise<string[]> {
   try {
     const filesChanged = await octokit.rest.pulls.listFiles({
@@ -70,19 +91,21 @@ async function getFilesChangedInPR(): Promise<string[]> {
       repo,
       pull_number: pullRequest.number,
     })
+
     const mdxFilesChanged = filesChanged.data
       .filter(
         (file) =>
-          file.filename.startsWith(DOCS_PATH) &&
+          path.join('/', file.filename).startsWith(DOCS_PATH) &&
           file.filename.endsWith('.mdx') &&
           (file.status === 'added' || file.status === 'modified')
       )
       .map((file) => file.filename)
 
-    console.log({
-      filesChanged: filesChanged.data.map((f) => f.filename),
-      mdxFilesChanged,
-    })
+    if (mdxFilesChanged.length === 0) {
+      console.log(
+        "PR doesn't include any changes to .mdx files within DOCS_PATH."
+      )
+    }
 
     return mdxFilesChanged
   } catch (error) {
@@ -125,6 +148,17 @@ const markdownProcessor = unified()
     }
   })
 
+function normalizePath(filePath: string): string {
+  return (
+    path
+      .relative('.' + DOCS_PATH, filePath)
+      // Remove prefixed numbers used for ordering from the path
+      .replace(/(\d\d-)/g, '')
+      .replace('.mdx', '')
+      .replace('/index', '')
+  )
+}
+
 // use Map for faster lookup
 let documentMap: Map<string, Document>
 
@@ -134,18 +168,11 @@ async function prepareDocumentMapEntry(
   filePath: string
 ): Promise<[string, Document]> {
   try {
-    const relativePath = path.relative('.' + DOCS_PATH, filePath)
-
-    // Remove prefixed numbers used for ordering from the path
-    const normalizedPath = relativePath
-      .replace(/(\d\d-)/g, '')
-      .replace('.mdx', '')
-      .replace('/index', '')
-
     const mdxContent = await fs.readFile(filePath, 'utf8')
     const { content, data } = matter(mdxContent)
     const tree = markdownProcessor.parse(content)
     const headings = getHeadingsFromMarkdownTree(tree)
+    const normalizedPath = normalizePath(filePath)
 
     return [
       normalizedPath,
@@ -321,18 +348,28 @@ async function createCommitStatus(
 // Main function that triggers link validation across .mdx files
 async function validateAllInternalLinks(): Promise<void> {
   try {
-    const mdxFilePaths = await getFilesChangedInPR()
+    const allMdxFilePaths = await getAllMdxFiles('.' + DOCS_PATH)
+    const prMdxFilePaths = await getFilesChangedInPR()
 
     documentMap = new Map(
-      await Promise.all(mdxFilePaths.map(prepareDocumentMapEntry))
+      await Promise.all(allMdxFilePaths.map(prepareDocumentMapEntry))
     )
 
-    const docProcessingPromises = Array.from(documentMap.values()).map(
-      async (doc) => {
+    const docProcessingPromises = prMdxFilePaths.map(async (filePath) => {
+      const doc = documentMap.get(normalizePath(filePath))
+      if (doc) {
         const tree = (await markdownProcessor.process(doc.body)).contents
         return traverseTreeAndValidateLinks(tree, doc)
+      } else {
+        return {
+          doc: {} as Document,
+          brokenLinks: [],
+          brokenHashes: [],
+          brokenSourceLinks: [],
+          brokenRelatedLinks: [],
+        } as Errors
       }
-    )
+    })
 
     const allErrors = await Promise.all(docProcessingPromises)
 
