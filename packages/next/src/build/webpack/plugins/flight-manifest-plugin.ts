@@ -306,14 +306,30 @@ export class ClientReferenceManifestPlugin {
             compilation.moduleGraph.getOutgoingConnections(mod)
 
           for (const connection of connections) {
-            if (connection.dependency) {
-              const clientEntryMod = compilation.moduleGraph.getResolvedModule(
-                connection.dependency
-              )
-              const modId = compilation.chunkGraph.getModuleId(
-                clientEntryMod
-              ) as string | number
+            const dependency = connection.dependency
+            if (!dependency) continue
+
+            const clientEntryMod =
+              compilation.moduleGraph.getResolvedModule(dependency)
+            const modId = compilation.chunkGraph.getModuleId(clientEntryMod) as
+              | string
+              | number
+
+            if (modId) {
               recordModule(modId, clientEntryMod as webpack.NormalModule)
+            } else {
+              // If this is a concatenation, register each child to the parent ID.
+              if (
+                connection.module?.constructor.name === 'ConcatenatedModule'
+              ) {
+                const concatenatedMod = connection.module
+                const concatenatedModId =
+                  compilation.chunkGraph.getModuleId(concatenatedMod)
+                recordModule(
+                  concatenatedModId,
+                  clientEntryMod as webpack.NormalModule
+                )
+              }
             }
           }
         }
