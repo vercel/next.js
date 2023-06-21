@@ -145,7 +145,10 @@ export async function sandbox(
         return componentStackFrameTexts.join('\n')
       },
       async waitForAndOpenRuntimeError() {
-        return browser.waitForElementByCss('[data-nextjs-toast]').click()
+        return Promise.any([
+          browser.waitForElementByCss('[data-nextjs-toast]').click(),
+          hasRedbox(browser, true),
+        ])
       },
     },
     async cleanup() {
