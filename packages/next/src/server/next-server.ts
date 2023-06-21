@@ -236,6 +236,10 @@ export default class NextNodeServer extends BaseServer {
       this.compression = require('next/dist/compiled/compression')()
     }
 
+    if (this.nextConfig.experimental.deploymentId) {
+      process.env.NEXT_DEPLOYMENT_ID = this.nextConfig.experimental.deploymentId
+    }
+
     if (!this.minimalMode) {
       this.imageResponseCache = new ResponseCache(this.minimalMode)
     }
