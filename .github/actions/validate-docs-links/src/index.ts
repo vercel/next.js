@@ -79,6 +79,11 @@ async function getFilesChangedInPR(): Promise<string[]> {
       )
       .map((file) => file.filename)
 
+    console.log({
+      filesChanged: filesChanged.data.map((f) => f.filename),
+      mdxFilesChanged,
+    })
+
     return mdxFilesChanged
   } catch (error) {
     setFailed(`Error fetching files changed in PR: ${error}`)
