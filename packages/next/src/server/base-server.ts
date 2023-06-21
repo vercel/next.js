@@ -50,6 +50,7 @@ import {
   setLazyProp,
   getCookieParser,
   checkIsOnDemandRevalidate,
+  appendPrerenderCookies,
 } from './api-utils'
 import { setConfig } from '../shared/lib/runtime-config'
 import Router from './router'
@@ -1299,6 +1300,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     const hasGetInitialProps = !!components.Component?.getInitialProps
     let isSSG = !!components.getStaticProps
+    let isPreviewMode = false
 
     // Compute the iSSG cache key. We use the rewroteUrl since
     // pages with fallback: false are allowed to be rewritten to
@@ -1339,6 +1341,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         const manifest = this.getPrerenderManifest()
         isSSG =
           isSSG || !!manifest.routes[pathname === '/index' ? '/' : pathname]
+      }
+
+      if (isSSG && isFetchAction) {
+        appendPrerenderCookies(res, {
+          previewModeId: opts.previewProps.previewModeId,
+        })
+
+        isPreviewMode = true
       }
     }
 
@@ -1413,11 +1423,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // requests so ensure we respond with 405 for
     // invalid requests
     if (
+      !isPreviewMode &&
       !is404Page &&
       !is500Page &&
-      // server actions can be initiated from a page marked as SSG
-      // we need to special-case this to properly handle the action
-      !isFetchAction &&
       pathname !== '/_error' &&
       req.method !== 'HEAD' &&
       req.method !== 'GET' &&
@@ -1477,7 +1485,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const locales = this.nextConfig.i18n?.locales
 
     let previewData: PreviewData
-    let isPreviewMode = false
 
     if (hasServerProps || isSSG) {
       // For the edge runtime, we don't support preview mode in SSG.
@@ -1485,7 +1492,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         const { tryGetPreviewData } =
           require('./api-utils/node') as typeof import('./api-utils/node')
         previewData = tryGetPreviewData(req, res, this.renderOpts.previewProps)
-        isPreviewMode = previewData !== false
+        isPreviewMode = isPreviewMode || previewData !== false
       }
     }
 
@@ -1562,8 +1569,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     let ssgCacheKey =
-      isPreviewMode || !isSSG || opts.supportsDynamicHTML || isFetchAction
-        ? null // Preview mode, on-demand revalidate, flight request, server action can bypass the cache
+      isPreviewMode || !isSSG || opts.supportsDynamicHTML
+        ? null // Preview mode, on-demand revalidate, flight request can bypass the cache
         : `${locale ? `/${locale}` : ''}${
             (pathname === '/' || resolvedUrlPathname === '/') && locale
               ? ''

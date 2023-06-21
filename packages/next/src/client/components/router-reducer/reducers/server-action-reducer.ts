@@ -5,6 +5,7 @@ import {
 } from '../../../../server/app-render/types'
 import { callServer } from '../../../app-call-server'
 import {
+  ACTION,
   NEXT_ROUTER_STATE_TREE,
   NEXT_URL,
   RSC_CONTENT_TYPE_HEADER,
@@ -47,7 +48,7 @@ async function fetchServerAction(
     method: 'POST',
     headers: {
       Accept: RSC_CONTENT_TYPE_HEADER,
-      'Next-Action': actionId,
+      [ACTION]: actionId,
       [NEXT_ROUTER_STATE_TREE]: JSON.stringify(state.tree),
       ...(process.env.__NEXT_ACTIONS_DEPLOYMENT_ID &&
       process.env.__NEXT_DEPLOYMENT_ID

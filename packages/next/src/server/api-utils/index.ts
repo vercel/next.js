@@ -1,5 +1,5 @@
-import type { IncomingMessage } from 'http'
-import type { BaseNextRequest } from '../base-http'
+import type { IncomingMessage, ServerResponse } from 'http'
+import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
 import type { NextApiRequest, NextApiResponse } from '../../shared/lib/utils'
 
@@ -103,6 +103,55 @@ export const RESPONSE_LIMIT_DEFAULT = 4 * 1024 * 1024
 export const SYMBOL_PREVIEW_DATA = Symbol(COOKIE_NAME_PRERENDER_DATA)
 export const SYMBOL_CLEARED_COOKIES = Symbol(COOKIE_NAME_PRERENDER_BYPASS)
 
+export function appendPrerenderCookies(
+  res: ServerResponse | BaseNextResponse,
+  options: {
+    previewModeId: string
+    cookieOptions?: CookieSerializeOptions
+    data?: string
+  }
+) {
+  const { serialize } =
+    require('next/dist/compiled/cookie') as typeof import('cookie')
+  const previous = res.getHeader('Set-Cookie')
+  const { previewModeId, data, cookieOptions } = options
+
+  const bypassCookie = serialize(COOKIE_NAME_PRERENDER_BYPASS, previewModeId, {
+    httpOnly: true,
+    sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
+    secure: process.env.NODE_ENV !== 'development',
+    path: '/',
+    ...(cookieOptions || {}),
+  })
+
+  const dataCookie =
+    typeof data !== 'undefined'
+      ? serialize(COOKIE_NAME_PRERENDER_DATA, data, {
+          // To delete a cookie, set `expires` to a date in the past:
+          // https://tools.ietf.org/html/rfc6265#section-4.1.1
+          // `Max-Age: 0` is not valid, thus ignored, and the cookie is persisted.
+          expires: data ? undefined : new Date(0),
+          httpOnly: true,
+          sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
+          secure: process.env.NODE_ENV !== 'development',
+          path: '/',
+          ...(cookieOptions || {}),
+        })
+      : undefined
+
+  const cookies = [
+    ...(typeof previous === 'string'
+      ? [previous]
+      : Array.isArray(previous)
+      ? previous
+      : []),
+    bypassCookie,
+    ...(dataCookie ? [dataCookie] : []),
+  ]
+
+  res.setHeader('Set-Cookie', cookies)
+}
+
 export function clearPreviewData<T>(
   res: NextApiResponse<T>,
   options: {
@@ -113,42 +162,14 @@ export function clearPreviewData<T>(
     return res
   }
 
-  const { serialize } =
-    require('next/dist/compiled/cookie') as typeof import('cookie')
-  const previous = res.getHeader('Set-Cookie')
-  res.setHeader(`Set-Cookie`, [
-    ...(typeof previous === 'string'
-      ? [previous]
-      : Array.isArray(previous)
-      ? previous
-      : []),
-    serialize(COOKIE_NAME_PRERENDER_BYPASS, '', {
-      // To delete a cookie, set `expires` to a date in the past:
-      // https://tools.ietf.org/html/rfc6265#section-4.1.1
-      // `Max-Age: 0` is not valid, thus ignored, and the cookie is persisted.
+  appendPrerenderCookies(res, {
+    previewModeId: '',
+    data: '',
+    cookieOptions: {
       expires: new Date(0),
-      httpOnly: true,
-      sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
-      secure: process.env.NODE_ENV !== 'development',
-      path: '/',
-      ...(options.path !== undefined
-        ? ({ path: options.path } as CookieSerializeOptions)
-        : undefined),
-    }),
-    serialize(COOKIE_NAME_PRERENDER_DATA, '', {
-      // To delete a cookie, set `expires` to a date in the past:
-      // https://tools.ietf.org/html/rfc6265#section-4.1.1
-      // `Max-Age: 0` is not valid, thus ignored, and the cookie is persisted.
-      expires: new Date(0),
-      httpOnly: true,
-      sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
-      secure: process.env.NODE_ENV !== 'development',
-      path: '/',
-      ...(options.path !== undefined
-        ? ({ path: options.path } as CookieSerializeOptions)
-        : undefined),
-    }),
-  ])
+      path: options.path !== undefined ? options.path : '/',
+    },
+  })
 
   Object.defineProperty(res, SYMBOL_CLEARED_COOKIES, {
     value: true,
