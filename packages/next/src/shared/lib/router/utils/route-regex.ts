@@ -1,3 +1,4 @@
+import { INTERCEPTION_ROUTE_MARKERS } from '../../../../server/future/helpers/interception-routes'
 import { escapeStringRegexp } from '../../escape-regexp'
 import { removeTrailingSlash } from './remove-trailing-slash'
 
@@ -42,15 +43,15 @@ function getParametrizedRoute(route: string) {
   return {
     parameterizedRoute: segments
       .map((segment) => {
-        const markerMatches = segment.match(/\((\.{1,3})\)(\w*)/) // Check for intercept markers
+        const markerMatch = INTERCEPTION_ROUTE_MARKERS.find((m) =>
+          segment.startsWith(m)
+        )
         const paramMatches = segment.match(/\[((?:\[.*\])|.+)\]/) // Check for parameters
 
-        if (markerMatches && paramMatches) {
+        if (markerMatch && paramMatches) {
           const { key, optional, repeat } = parseParameter(paramMatches[1])
           groups[key] = { pos: groupIndex++, repeat, optional }
-          return `/${escapeStringRegexp(markerMatches[0])}([^/]+?)`
-        } else if (markerMatches) {
-          return `/${escapeStringRegexp(markerMatches[0])}`
+          return `/${escapeStringRegexp(markerMatch)}([^/]+?)`
         } else if (paramMatches) {
           const { key, repeat, optional } = parseParameter(paramMatches[1])
           groups[key] = { pos: groupIndex++, repeat, optional }
@@ -154,10 +155,12 @@ function getNamedParametrizedRoute(route: string, prefixRouteKeys: boolean) {
   return {
     namedParameterizedRoute: segments
       .map((segment) => {
-        const markerMatches = segment.match(/\((\.{1,3})\)(\w*)/) // Check for intercept markers
+        const hasInterceptionMarker = INTERCEPTION_ROUTE_MARKERS.some((m) =>
+          segment.startsWith(m)
+        )
         const paramMatches = segment.match(/\[((?:\[.*\])|.+)\]/) // Check for parameters
 
-        if (markerMatches && paramMatches) {
+        if (hasInterceptionMarker && paramMatches) {
           return getSafeKeyFromSegment({
             segment: paramMatches[1],
             routeKeys,
