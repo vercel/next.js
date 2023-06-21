@@ -95,7 +95,7 @@ export class Playwright extends BrowserInterface {
   }
 
   async get(url: string): Promise<void> {
-    return page.goto(url) as any
+    await page.goto(url)
   }
 
   async loadPage(
@@ -197,13 +197,13 @@ export class Playwright extends BrowserInterface {
     })
   }
   forward(): BrowserInterface {
-    return this.chain(() => {
-      return page.goForward()
+    return this.chain(async () => {
+      await page.goForward()
     })
   }
   refresh(): BrowserInterface {
-    return this.chain(() => {
-      return page.reload()
+    return this.chain(async () => {
+      await page.reload()
     })
   }
   setDimensions({
