@@ -8,6 +8,7 @@ import visit from 'unist-util-visit'
 import GithubSlugger from 'github-slugger'
 import matter from 'gray-matter'
 import * as github from '@actions/github'
+import { setFailed } from '@actions/core'
 import type { Node, Data } from 'unist'
 
 /**
@@ -16,12 +17,12 @@ import type { Node, Data } from 'unist'
  * 1. Recursively traverses the docs and collects all .mdx files.
  * 2. For each file, it extracts the content, metadata, and heading slugs.
  * 3. It creates a document map to efficiently lookup documents by path.
- * 4. It then traverses each document:
- *    - It checks if each internal link (links starting with "/docs/") points
+ * 4. It then traverses each document modified in the PR and...
+ *    - Checks if each internal link (links starting with "/docs/") points
  *      to an existing document
- *    - It validates hash links (links starting with "#") against the list of
+ *    - Validates hash links (links starting with "#") against the list of
  *      headings in the current document.
- *    - It checks the source and related links found in the metadata of each
+ *    - Checks the source and related links found in the metadata of each
  *      document.
  * 5. Any broken links discovered during these checks are categorized and a
  * comment is added to the PR.
@@ -63,7 +64,7 @@ const sha = pullRequest.head.sha
 const slugger = new GithubSlugger()
 
 // Recursively traverses DOCS_PATH and collects all .mdx files
-async function getMdxFiles(
+async function getAllMdxFiles(
   dir: string,
   fileList: string[] = []
 ): Promise<string[]> {
@@ -74,13 +75,43 @@ async function getMdxFiles(
     const stats = await fs.stat(filePath)
 
     if (stats.isDirectory()) {
-      fileList = await getMdxFiles(filePath, fileList)
+      fileList = await getAllMdxFiles(filePath, fileList)
     } else if (path.extname(file) === '.mdx') {
       fileList.push(filePath)
     }
   }
 
   return fileList
+}
+
+async function getFilesChangedInPR(): Promise<string[]> {
+  try {
+    const filesChanged = await octokit.rest.pulls.listFiles({
+      owner,
+      repo,
+      pull_number: pullRequest.number,
+    })
+
+    const mdxFilesChanged = filesChanged.data
+      .filter(
+        (file) =>
+          path.join('/', file.filename).startsWith(DOCS_PATH) &&
+          file.filename.endsWith('.mdx') &&
+          (file.status === 'added' || file.status === 'modified')
+      )
+      .map((file) => file.filename)
+
+    if (mdxFilesChanged.length === 0) {
+      console.log(
+        "PR doesn't include any changes to .mdx files within DOCS_PATH."
+      )
+    }
+
+    return mdxFilesChanged
+  } catch (error) {
+    setFailed(`Error fetching files changed in PR: ${error}`)
+    return []
+  }
 }
 
 // Returns the slugs of all headings in a tree
@@ -117,6 +148,17 @@ const markdownProcessor = unified()
     }
   })
 
+function normalizePath(filePath: string): string {
+  return (
+    path
+      .relative('.' + DOCS_PATH, filePath)
+      // Remove prefixed numbers used for ordering from the path
+      .replace(/(\d\d-)/g, '')
+      .replace('.mdx', '')
+      .replace('/index', '')
+  )
+}
+
 // use Map for faster lookup
 let documentMap: Map<string, Document>
 
@@ -125,20 +167,21 @@ let documentMap: Map<string, Document>
 async function prepareDocumentMapEntry(
   filePath: string
 ): Promise<[string, Document]> {
-  const relativePath = path.relative('.' + DOCS_PATH, filePath)
+  try {
+    const mdxContent = await fs.readFile(filePath, 'utf8')
+    const { content, data } = matter(mdxContent)
+    const tree = markdownProcessor.parse(content)
+    const headings = getHeadingsFromMarkdownTree(tree)
+    const normalizedPath = normalizePath(filePath)
 
-  // Remove prefixed numbers used for ordering from the path
-  const normalizedPath = relativePath
-    .replace(/(\d\d-)/g, '')
-    .replace('.mdx', '')
-    .replace('/index', '')
-
-  const mdxContent = await fs.readFile(filePath, 'utf8')
-  const { content, data } = matter(mdxContent)
-  const tree = markdownProcessor.parse(content)
-  const headings = getHeadingsFromMarkdownTree(tree)
-
-  return [normalizedPath, { body: content, path: filePath, headings, ...data }]
+    return [
+      normalizedPath,
+      { body: content, path: filePath, headings, ...data },
+    ]
+  } catch (error) {
+    setFailed(`Error preparing document map for file ${filePath}: ${error}`)
+    return ['', {} as Document] // Return a default document
+  }
 }
 
 // Checks if the links point to existing documents
@@ -201,62 +244,81 @@ function traverseTreeAndValidateLinks(tree: any, doc: Document): Errors {
     brokenRelatedLinks: [],
   }
 
-  visit(tree, (node: any) => {
-    if (node.type === 'element' && node.tagName === 'a') {
-      const href = node.properties.href
+  try {
+    visit(tree, (node: any) => {
+      if (node.type === 'element' && node.tagName === 'a') {
+        const href = node.properties.href
 
-      if (!href) return
+        if (!href) return
 
-      if (
-        href.startsWith(DOCS_PATH) &&
-        !EXCLUDED_PATHS.some((excludedPath) => href.startsWith(excludedPath))
-      ) {
-        validateInternalLink(errors, href)
-      } else if (href.startsWith('#')) {
-        validateHashLink(errors, href, doc)
+        if (
+          href.startsWith(DOCS_PATH) &&
+          !EXCLUDED_PATHS.some((excludedPath) => href.startsWith(excludedPath))
+        ) {
+          validateInternalLink(errors, href)
+        } else if (href.startsWith('#')) {
+          validateHashLink(errors, href, doc)
+        }
       }
-    }
-  })
+    })
 
-  validateSourceLinks(doc, errors)
-  validateRelatedLinks(doc, errors)
+    validateSourceLinks(doc, errors)
+    validateRelatedLinks(doc, errors)
+  } catch (error) {
+    setFailed('Error traversing tree: ' + error)
+  }
 
   return errors
 }
 
 async function findBotComment(): Promise<Comment | undefined> {
-  const { data: comments } = await octokit.rest.issues.listComments({
-    owner,
-    repo,
-    issue_number: context.payload.pull_request?.number!,
-  })
+  try {
+    const { data: comments } = await octokit.rest.issues.listComments({
+      owner,
+      repo,
+      issue_number: pullRequest.number,
+    })
 
-  return comments.find((c) => c.body?.includes(COMMENT_TAG))
+    return comments.find((c) => c.body?.includes(COMMENT_TAG))
+  } catch (error) {
+    setFailed('Error finding bot comment: ' + error)
+    return undefined
+  }
 }
 
 async function updateComment(
   comment: string,
   botComment: Comment
 ): Promise<string> {
-  const { data } = await octokit.rest.issues.updateComment({
-    owner,
-    repo,
-    comment_id: botComment.id,
-    body: comment,
-  })
+  try {
+    const { data } = await octokit.rest.issues.updateComment({
+      owner,
+      repo,
+      comment_id: botComment.id,
+      body: comment,
+    })
 
-  return data.html_url
+    return data.html_url
+  } catch (error) {
+    setFailed('Error updating comment: ' + error)
+    return ''
+  }
 }
 
 async function createComment(comment: string): Promise<string> {
-  const { data } = await octokit.rest.issues.createComment({
-    owner,
-    repo,
-    issue_number: context.payload.pull_request?.number!,
-    body: comment,
-  })
+  try {
+    const { data } = await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: pullRequest.number,
+      body: comment,
+    })
 
-  return data.html_url
+    return data.html_url
+  } catch (error) {
+    setFailed('Error creating comment: ' + error)
+    return ''
+  }
 }
 
 const formatTableRow = (link: string, docPath: string) => {
@@ -283,96 +345,106 @@ async function createCommitStatus(
   })
 }
 
-// Main function that triggers link validation across all .mdx files
+// Main function that triggers link validation across .mdx files
 async function validateAllInternalLinks(): Promise<void> {
-  const mdxFilePaths = await getMdxFiles('.' + DOCS_PATH)
-
-  documentMap = new Map(
-    await Promise.all(mdxFilePaths.map(prepareDocumentMapEntry))
-  )
-
-  const docProcessingPromises = Array.from(documentMap.values()).map(
-    async (doc) => {
-      const tree = (await markdownProcessor.process(doc.body)).contents
-      return traverseTreeAndValidateLinks(tree, doc)
-    }
-  )
-
-  const allErrors = await Promise.all(docProcessingPromises)
-
-  let errorComment =
-    'Hi there :wave:\n\nIt looks like this PR introduces broken links to the docs, please take a moment to fix them before merging:\n\n| :heavy_multiplication_x: Broken link | :page_facing_up: File | \n| ----------- | ----------- | \n'
-
-  allErrors.forEach((errors) => {
-    const {
-      doc: { path: docPath },
-      brokenLinks,
-      brokenHashes,
-      brokenSourceLinks,
-      brokenRelatedLinks,
-    } = errors
-
-    if (brokenLinks.length > 0) {
-      brokenLinks.forEach((link) => {
-        errorComment += formatTableRow(link, docPath)
-      })
-    }
-
-    if (brokenHashes.length > 0) {
-      brokenHashes.forEach((hash) => {
-        errorComment += formatTableRow(hash, docPath)
-      })
-    }
-
-    if (brokenSourceLinks.length > 0) {
-      brokenSourceLinks.forEach((link) => {
-        errorComment += formatTableRow(link, docPath)
-      })
-    }
-
-    if (brokenRelatedLinks.length > 0) {
-      brokenRelatedLinks.forEach((link) => {
-        errorComment += formatTableRow(link, docPath)
-      })
-    }
-  })
-
-  errorComment += '\nThank you :pray:'
-
-  const errorsExist = allErrors.some(
-    (errors) =>
-      errors.brokenLinks.length > 0 ||
-      errors.brokenHashes.length > 0 ||
-      errors.brokenSourceLinks.length > 0 ||
-      errors.brokenRelatedLinks.length > 0
-  )
-
-  const botComment = await findBotComment()
-
-  let commentUrl
-
-  if (errorsExist) {
-    const comment = `${COMMENT_TAG}\n${errorComment}`
-    if (botComment) {
-      commentUrl = await updateComment(comment, botComment)
-    } else {
-      commentUrl = await createComment(comment)
-    }
-  } else {
-    const comment = `${COMMENT_TAG}\nAll broken links are now fixed, thank you!`
-    if (botComment) {
-      commentUrl = await updateComment(comment, botComment)
-    } else {
-      commentUrl = await createComment(comment)
-    }
-  }
-
-  console.log({ commentUrl, errorsExist, errorComment, botComment })
-
   try {
-    await createCommitStatus(errorsExist, commentUrl)
+    const allMdxFilePaths = await getAllMdxFiles('.' + DOCS_PATH)
+    const prMdxFilePaths = await getFilesChangedInPR()
+
+    documentMap = new Map(
+      await Promise.all(allMdxFilePaths.map(prepareDocumentMapEntry))
+    )
+
+    const docProcessingPromises = prMdxFilePaths.map(async (filePath) => {
+      const doc = documentMap.get(normalizePath(filePath))
+      if (doc) {
+        const tree = (await markdownProcessor.process(doc.body)).contents
+        return traverseTreeAndValidateLinks(tree, doc)
+      } else {
+        return {
+          doc: {} as Document,
+          brokenLinks: [],
+          brokenHashes: [],
+          brokenSourceLinks: [],
+          brokenRelatedLinks: [],
+        } as Errors
+      }
+    })
+
+    const allErrors = await Promise.all(docProcessingPromises)
+
+    let errorComment =
+      'Hi there :wave:\n\nIt looks like this PR introduces broken links to the docs, please take a moment to fix them before merging:\n\n| :heavy_multiplication_x: Broken link | :page_facing_up: File | \n| ----------- | ----------- | \n'
+
+    allErrors.forEach((errors) => {
+      const {
+        doc: { path: docPath },
+        brokenLinks,
+        brokenHashes,
+        brokenSourceLinks,
+        brokenRelatedLinks,
+      } = errors
+
+      if (brokenLinks.length > 0) {
+        brokenLinks.forEach((link) => {
+          errorComment += formatTableRow(link, docPath)
+        })
+      }
+
+      if (brokenHashes.length > 0) {
+        brokenHashes.forEach((hash) => {
+          errorComment += formatTableRow(hash, docPath)
+        })
+      }
+
+      if (brokenSourceLinks.length > 0) {
+        brokenSourceLinks.forEach((link) => {
+          errorComment += formatTableRow(link, docPath)
+        })
+      }
+
+      if (brokenRelatedLinks.length > 0) {
+        brokenRelatedLinks.forEach((link) => {
+          errorComment += formatTableRow(link, docPath)
+        })
+      }
+    })
+
+    errorComment += '\nThank you :pray:'
+
+    const errorsExist = allErrors.some(
+      (errors) =>
+        errors.brokenLinks.length > 0 ||
+        errors.brokenHashes.length > 0 ||
+        errors.brokenSourceLinks.length > 0 ||
+        errors.brokenRelatedLinks.length > 0
+    )
+
+    const botComment = await findBotComment()
+
+    let commentUrl
+
+    if (errorsExist) {
+      const comment = `${COMMENT_TAG}\n${errorComment}`
+      if (botComment) {
+        commentUrl = await updateComment(comment, botComment)
+      } else {
+        commentUrl = await createComment(comment)
+      }
+    } else {
+      const comment = `${COMMENT_TAG}\nAll broken links are now fixed, thank you!`
+      if (botComment) {
+        commentUrl = await updateComment(comment, botComment)
+      }
+    }
+
+    try {
+      await createCommitStatus(errorsExist, commentUrl)
+    } catch (error) {
+      setFailed('Failed to create commit status: ' + error)
+    }
   } catch (error) {
-    console.error('Failed to create commit status: ', error)
+    setFailed('Error validating internal links: ' + error)
   }
 }
 

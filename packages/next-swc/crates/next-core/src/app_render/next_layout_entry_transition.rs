@@ -13,10 +13,7 @@ use turbopack_binding::{
     },
 };
 
-use crate::next_client_component::{
-    with_chunking_context_scope_asset::WithChunkingContextScopeAsset,
-    with_client_chunks::WithClientChunksAsset,
-};
+use crate::next_client_component::with_client_chunks::WithClientChunksAsset;
 
 #[turbo_tasks::value(shared)]
 pub struct NextServerComponentTransition {
@@ -62,15 +59,10 @@ impl Transition for NextServerComponentTransition {
             bail!("Not an ecmascript module");
         };
 
-        Ok(WithChunkingContextScopeAsset {
-            asset: WithClientChunksAsset {
-                asset,
-                // next.js code already adds _next prefix
-                server_root: self.server_root.join("_next"),
-            }
-            .cell()
-            .into(),
-            layer: "rsc".to_string(),
+        Ok(WithClientChunksAsset {
+            asset,
+            // next.js code already adds _next prefix
+            server_root: self.server_root.join("_next"),
         }
         .cell()
         .into())
