@@ -128,6 +128,7 @@ importers:
       npm-run-all: 4.1.5
       nprogress: 0.2.0
       open: 9.0.0
+      outdent: 0.8.0
       pixrem: 5.0.0
       playwright-chromium: 1.28.1
       plop: 3.0.5
@@ -295,6 +296,7 @@ importers:
       npm-run-all: 4.1.5
       nprogress: 0.2.0
       open: 9.0.0
+      outdent: 0.8.0
       pixrem: 5.0.0
       playwright-chromium: 1.28.1
       plop: 3.0.5
@@ -18876,6 +18878,10 @@ packages:
     dependencies:
       os-homedir: 1.0.2
       os-tmpdir: 1.0.2
+    dev: true
+
+  /outdent/0.8.0:
+    resolution: {integrity: sha512-KiOAIsdpUTcAXuykya5fnVVT+/5uS0Q1mrkRHcF89tpieSmY33O/tmc54CqwA+bfhbtEfZUNLHaPUiB9X3jt1A==}
     dev: true
 
   /p-cancelable/0.3.0:
