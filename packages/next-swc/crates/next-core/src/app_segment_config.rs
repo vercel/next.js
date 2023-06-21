@@ -18,7 +18,7 @@ use turbopack_binding::turbopack::{
         },
     },
     ecmascript::{
-        analyzer::{graph::EvalContext, JsValue},
+        analyzer::{graph::EvalContext, ConstantNumber, ConstantValue, JsValue},
         parse::ParseResult,
         EcmascriptModuleAssetVc,
     },
@@ -55,7 +55,7 @@ pub enum NextSegmentFetchCache {
 pub struct NextSegmentConfig {
     pub dynamic: NextSegmentDynamic,
     pub dynamic_params: bool,
-    pub revalidate: bool,
+    pub revalidate: u32,
     pub fetch_cache: NextSegmentFetchCache,
     pub runtime: NextRuntime,
     pub referred_region: String,
@@ -235,11 +235,11 @@ fn parse_config_value(
         }
         "revalidate" => {
             let value = eval_context.eval(init);
-            let Some(val) = value.as_bool() else {
-                return invalid_config("`revalidate` needs to be a static boolean", &value);
+            let JsValue::Constant(ConstantValue::Num(ConstantNumber(val))) = value else {
+                return invalid_config("`revalidate` needs to be a static positive integer", &value);
             };
 
-            config.revalidate = val;
+            config.revalidate = val as u32;
         }
         "fetchCache" => {
             let value = eval_context.eval(init);
