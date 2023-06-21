@@ -43,7 +43,7 @@ Note how dynamic functions always opt the route into dynamic rendering, regardle
 Dynamic functions rely on information that can only be known at request time such as a user's cookies, current requests headers, or the URL's search params. In Next.js, these dynamic functions are:
 
 - Using [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers) in a Server Component will opt the whole route into dynamic rendering at request time.
-- Using [`useSearchParams()`](/docs/app/api-reference/functions/use-params) in Client Components will skip static rendering and instead render all Client Components up to the nearest parent Suspense boundary on the client.
+- Using [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) in Client Components will skip static rendering and instead render all Client Components up to the nearest parent Suspense boundary on the client.
   - We recommend wrapping the Client Component that uses `useSearchParams()` in a `<Suspense/>` boundary. This will allow any Client Components above it to be statically rendered. [Example](/docs/app/api-reference/functions/use-search-params#static-rendering).
 - Using the [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) [Pages](/docs/app/api-reference/file-conventions/page) prop will opt the page into dynamic rendering at request time.
 
