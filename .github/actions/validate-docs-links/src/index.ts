@@ -8,6 +8,7 @@ import visit from 'unist-util-visit'
 import GithubSlugger from 'github-slugger'
 import matter from 'gray-matter'
 import * as github from '@actions/github'
+import { setFailed } from '@actions/core'
 import type { Node, Data } from 'unist'
 
 /**
@@ -144,7 +145,7 @@ async function prepareDocumentMapEntry(
       { body: content, path: filePath, headings, ...data },
     ]
   } catch (error) {
-    console.error(`Error preparing document map for file ${filePath}:`, error)
+    setFailed(`Error preparing document map for file ${filePath}: ${error}`)
     return ['', {} as Document] // Return a default document
   }
 }
@@ -230,7 +231,7 @@ function traverseTreeAndValidateLinks(tree: any, doc: Document): Errors {
     validateSourceLinks(doc, errors)
     validateRelatedLinks(doc, errors)
   } catch (error) {
-    console.error('Error traversing tree:', error)
+    setFailed('Error traversing tree: ' + error)
   }
 
   return errors
@@ -241,12 +242,12 @@ async function findBotComment(): Promise<Comment | undefined> {
     const { data: comments } = await octokit.rest.issues.listComments({
       owner,
       repo,
-      issue_number: context.payload.pull_request?.number!,
+      issue_number: pullRequest.number,
     })
 
     return comments.find((c) => c.body?.includes(COMMENT_TAG))
   } catch (error) {
-    console.error('Error finding bot comment:', error)
+    setFailed('Error finding bot comment: ' + error)
     return undefined
   }
 }
@@ -265,7 +266,7 @@ async function updateComment(
 
     return data.html_url
   } catch (error) {
-    console.error('Error updating comment:', error)
+    setFailed('Error updating comment: ' + error)
     return ''
   }
 }
@@ -275,13 +276,13 @@ async function createComment(comment: string): Promise<string> {
     const { data } = await octokit.rest.issues.createComment({
       owner,
       repo,
-      issue_number: context.payload.pull_request?.number!,
+      issue_number: pullRequest.number,
       body: comment,
     })
 
     return data.html_url
   } catch (error) {
-    console.error('Error creating comment:', error)
+    setFailed('Error creating comment: ' + error)
     return ''
   }
 }
@@ -396,10 +397,10 @@ async function validateAllInternalLinks(): Promise<void> {
     try {
       await createCommitStatus(errorsExist, commentUrl)
     } catch (error) {
-      console.error('Failed to create commit status: ', error)
+      setFailed('Failed to create commit status: ' + error)
     }
   } catch (error) {
-    console.error('Error validating internal links:', error)
+    setFailed('Error validating internal links: ' + error)
   }
 }
 
