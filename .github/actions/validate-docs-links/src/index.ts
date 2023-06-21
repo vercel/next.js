@@ -8,6 +8,7 @@ import visit from 'unist-util-visit'
 import GithubSlugger from 'github-slugger'
 import matter from 'gray-matter'
 import * as github from '@actions/github'
+import { setFailed } from '@actions/core'
 import type { Node, Data } from 'unist'
 
 /**
@@ -376,4 +377,4 @@ async function validateAllInternalLinks(): Promise<void> {
   }
 }
 
-validateAllInternalLinks()
+validateAllInternalLinks().catch(setFailed)
