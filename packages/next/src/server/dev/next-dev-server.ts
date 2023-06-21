@@ -427,7 +427,7 @@ export default class DevServer extends Server {
       const fileWatchTimes = new Map()
       let enabledTypeScript = this.usingTypeScript
       let previousClientRouterFilters: any
-      let previousConflictingPage: any
+      let previousConflictingPagePaths: Set<string> = new Set()
 
       wp.on('aggregated', async () => {
         let middlewareMatchers: MiddlewareMatcher[] | undefined
@@ -600,8 +600,8 @@ export default class DevServer extends Server {
         }
 
         const numConflicting = conflictingAppPagePaths.size
-        conflictingPageChange = numConflicting - previousConflictingPage
-        previousConflictingPage = numConflicting
+        conflictingPageChange =
+          numConflicting - previousConflictingPagePaths.size
 
         if (conflictingPageChange !== 0) {
           if (numConflicting > 0) {
@@ -616,11 +616,12 @@ export default class DevServer extends Server {
             }
             this.hotReloader?.setServerHmrError(new Error(errorMessage))
           } else if (numConflicting === 0) {
+            await this.matchers.reload()
             this.hotReloader?.clearServerHmrError()
-            this.hotReloader?.invalidate()
-            this.matchers.reload()
           }
         }
+
+        previousConflictingPagePaths = conflictingAppPagePaths
 
         let clientRouterFilters: any
         if (this.nextConfig.experimental.clientRouterFilter) {

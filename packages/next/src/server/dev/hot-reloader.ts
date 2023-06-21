@@ -334,9 +334,7 @@ export default class HotReloader {
 
   public clearServerHmrError(): void {
     this.setServerHmrError(null)
-    this.send('serverRecovered')
-    // await this.matchers.reload()
-    // this.hotReloader?.send('reloadPage')
+    this.send('reloadPage')
   }
 
   public onHMR(req: IncomingMessage, _socket: Duplex, head: Buffer) {

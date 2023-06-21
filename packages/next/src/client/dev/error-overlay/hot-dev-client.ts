@@ -287,14 +287,9 @@ function processMessage(obj: any) {
         const { message, stack } = JSON.parse(errorJSON)
         const error = new Error(message)
         error.stack = stack
-        // throw error
         handleErrors([error])
       }
       return
-    }
-    case 'serverRecovered': {
-      // @ts-ignore it exists, it's just hidden
-      return handleSuccess()
     }
     default: {
       if (customHmrEventHandler) {

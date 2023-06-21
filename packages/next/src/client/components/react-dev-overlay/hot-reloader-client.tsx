@@ -405,16 +405,8 @@ function processMessage(
         const { message, stack } = JSON.parse(errorJSON)
         const error = new Error(message)
         error.stack = stack
-        // throw error
         handleErrors([error])
       }
-      return
-    }
-    case 'serverRecovered': {
-      // TODO-APP: potentially only refresh if the currently viewed page was added.
-      // @ts-ignore it exists, it's just hidden
-      router.fastRefresh()
-
       return
     }
     case 'pong': {
