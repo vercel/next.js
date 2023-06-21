@@ -1172,7 +1172,6 @@ export default class HotReloader {
           ) {
             return
           }
-
           this.serverChunkNames = chunkNames
         }
 

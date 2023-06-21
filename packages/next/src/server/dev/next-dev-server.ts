@@ -814,7 +814,9 @@ export default class DevServer extends Server {
             !this.sortedRoutes?.every((val, idx) => val === sortedRoutes[idx])
           ) {
             // emit the change so clients fetch the update
-            this.hotReloader?.send(undefined, { devPagesManifest: true })
+            this.hotReloader?.send('devPagesManifestUpdate', {
+              devPagesManifest: true,
+            })
           }
           this.sortedRoutes = sortedRoutes
 
