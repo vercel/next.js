@@ -63,25 +63,27 @@ const sha = pullRequest.head.sha
 
 const slugger = new GithubSlugger()
 
-// Recursively traverses DOCS_PATH and collects all .mdx files
-async function getMdxFiles(
-  dir: string,
-  fileList: string[] = []
-): Promise<string[]> {
-  const files = await fs.readdir(dir)
+async function getFilesChangedInPR(): Promise<string[]> {
+  try {
+    const filesChanged = await octokit.rest.pulls.listFiles({
+      owner,
+      repo,
+      pull_number: pullRequest.number,
+    })
+    const mdxFilesChanged = filesChanged.data
+      .filter(
+        (file) =>
+          file.filename.startsWith(DOCS_PATH) &&
+          file.filename.endsWith('.mdx') &&
+          (file.status === 'added' || file.status === 'modified')
+      )
+      .map((file) => file.filename)
 
-  for (const file of files) {
-    const filePath = path.join(dir, file)
-    const stats = await fs.stat(filePath)
-
-    if (stats.isDirectory()) {
-      fileList = await getMdxFiles(filePath, fileList)
-    } else if (path.extname(file) === '.mdx') {
-      fileList.push(filePath)
-    }
+    return mdxFilesChanged
+  } catch (error) {
+    setFailed(`Error fetching files changed in PR: ${error}`)
+    return []
   }
-
-  return fileList
 }
 
 // Returns the slugs of all headings in a tree
@@ -311,10 +313,10 @@ async function createCommitStatus(
   })
 }
 
-// Main function that triggers link validation across all .mdx files
+// Main function that triggers link validation across .mdx files
 async function validateAllInternalLinks(): Promise<void> {
   try {
-    const mdxFilePaths = await getMdxFiles('.' + DOCS_PATH)
+    const mdxFilePaths = await getFilesChangedInPR()
 
     documentMap = new Map(
       await Promise.all(mdxFilePaths.map(prepareDocumentMapEntry))
