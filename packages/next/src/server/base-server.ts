@@ -415,7 +415,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     if (process.env.NEXT_RUNTIME !== 'edge') {
       if (this.nextConfig.experimental.deploymentId) {
-        process.env.__NEXT_DEPLOYMENT_ID =
+        process.env.NEXT_DEPLOYMENT_ID =
           this.nextConfig.experimental.deploymentId
       }
     }

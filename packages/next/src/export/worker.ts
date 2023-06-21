@@ -157,7 +157,7 @@ export default async function exportPage({
 
     try {
       if (renderOpts.deploymentId) {
-        process.env.__NEXT_DEPLOYMENT_ID = renderOpts.deploymentId
+        process.env.NEXT_DEPLOYMENT_ID = renderOpts.deploymentId
       }
       const { query: originalQuery = {} } = pathMap
       const { page } = pathMap
