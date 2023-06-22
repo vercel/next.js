@@ -246,7 +246,7 @@ fn parse_config_value(
         "revalidate" => {
             let value = eval_context.eval(init);
             match value {
-                JsValue::Constant(ConstantValue::Num(ConstantNumber(val))) if val > 0.0 => {
+                JsValue::Constant(ConstantValue::Num(ConstantNumber(val))) if val >= 0.0 => {
                     config.revalidate = NextRevalidate::Frequency {
                         seconds: val as u32,
                     };
