@@ -26,7 +26,7 @@ lto = true
 
 [workspace.dependencies]
 # Workspace crates
-next-build = { path = "packages/next-swc/crates/next-build" }
+next-build = { path = "packages/next-swc/crates/next-build", default-features = false }
 next-core = { path = "packages/next-swc/crates/next-core", default-features = false }
 next-dev = { path = "packages/next-swc/crates/next-dev", default-features = false, features = [
   "serializable",
