@@ -1125,6 +1125,27 @@ createNextDescribe(
         }
       })
 
+      it('should produce response with url from fetch', async () => {
+        const res = await next.fetch('/response-url')
+        expect(res.status).toBe(200)
+
+        const html = await res.text()
+        const $ = cheerio.load(html)
+
+        expect($('#data-url-default-cache').text()).toBe(
+          'https://next-data-api-endpoint.vercel.app/api/random?a1'
+        )
+        expect($('#data-url-no-cache').text()).toBe(
+          'https://next-data-api-endpoint.vercel.app/api/random?b2'
+        )
+        expect($('#data-url-cached').text()).toBe(
+          'https://next-data-api-endpoint.vercel.app/api/random?a1'
+        )
+        expect($('#data-value-default-cache').text()).toBe(
+          $('#data-value-cached').text()
+        )
+      })
+
       it('should properly error when dynamic = "error" page uses dynamic', async () => {
         const res = await next.fetch('/dynamic-error/static-bailout-1')
         const outputIndex = next.cliOutput.length
