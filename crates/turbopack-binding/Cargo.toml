@@ -209,7 +209,7 @@ turbopack-css = { optional = true, workspace = true }
 turbopack-dev = { optional = true, workspace = true }
 turbopack-dev-server = { optional = true, workspace = true }
 turbopack-ecmascript = { optional = true, workspace = true }
-turbopack-ecmascript-plugins = { optional = true, workspace = true }
+turbopack-ecmascript-plugins = { optional = true, workspace = true, default-features = false }
 turbopack-ecmascript-runtime = { optional = true, workspace = true }
 turbopack-env = { optional = true, workspace = true }
 turbopack-image = { optional = true, workspace = true }
