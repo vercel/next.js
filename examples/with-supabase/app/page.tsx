@@ -1,9 +1,8 @@
-import {
-  createServerActionClient,
-  createServerComponentClient,
-} from '@supabase/auth-helpers-nextjs'
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
-import { redirect } from 'next/navigation'
+import Image from 'next/image'
+import Link from 'next/link'
+import LogoutButton from './logout-button'
 
 const resources = [
   {
@@ -11,19 +10,31 @@ const resources = [
     subtitle:
       'This free course by Jon Meyers, shows you how to configure Supabase Auth to use cookies, and steps through some common patterns.',
     url: 'https://youtube.com/playlist?list=PL5S4mPUpp4OtMhpnp93EFSo42iQ40XjbF',
-  },
-  {
-    title: 'Supabase Auth Helpers Docs',
-    subtitle:
-      'This template has configured Supabase Auth to use cookies for you, but the docs are a great place to learn more.',
-    url: 'https://supabase.com/docs/guides/auth/auth-helpers/nextjs',
+    icon: 'youtube',
   },
   {
     title: 'Supabase Next.js App Router Example',
     subtitle:
       'Want to see a code example containing some common patterns with Next.js and Supabase? Check out this repo!',
     url: 'https://github.com/supabase/supabase/tree/master/examples/auth/nextjs',
+    icon: 'code',
   },
+  {
+    title: 'Supabase Auth Helpers Docs',
+    subtitle:
+      'This template has configured Supabase Auth to use cookies for you, but the docs are a great place to learn more.',
+    url: 'https://supabase.com/docs/guides/auth/auth-helpers/nextjs',
+    icon: 'book',
+  },
+]
+
+const examples = [
+  { type: 'Client Components', src: 'app/_examples/client-component/page.tsx' },
+  { type: 'Server Components', src: 'app/_examples/server-component/page.tsx' },
+  { type: 'Server Actions', src: 'app/_examples/server-action/page.tsx' },
+  { type: 'Route Handlers', src: 'app/_examples/route-handler.ts' },
+  { type: 'Middleware', src: 'app/middleware.ts' },
+  { type: 'Protected Routes', src: 'app/_examples/protected/page.tsx' },
 ]
 
 export default async function Index() {
@@ -33,61 +44,107 @@ export default async function Index() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // This is a Protected Route that can only be accessed by authenticated users
-  // users who are not signed in will be redirected to the `/login` route
-  if (!user) {
-    redirect('/login')
-  }
-
-  const signOut = async () => {
-    'use server'
-    const supabase = createServerActionClient({ cookies })
-    await supabase.auth.signOut()
-    redirect('/login')
-  }
-
   return (
-    <div className="flex-1 flex flex-col max-w-3xl mt-72">
+    <div className="flex-1 flex flex-col max-w-3xl mt-24">
       <h1 className="text-2xl mb-2 flex justify-between">
-        Hey, {user.email}
-        <form action={signOut} className="inline ml-2">
-          <button className="text-sm text-gray-400">Logout</button>
-        </form>
+        <span className="sr-only">Supabase and Next.js Starter Template</span>
       </h1>
 
-      <hr />
+      <div className="flex border-b py-3 text-sm text-neutral-100">
+        <span className="ml-auto">
+          {user ? (
+            <span className="flex gap-4">
+              Hey, {user.email}! <span className="border-r"></span>{' '}
+              <LogoutButton />
+            </span>
+          ) : (
+            <Link href="/login" className="text-neutral-100 hover:underline">
+              Login
+            </Link>
+          )}
+        </span>
+      </div>
 
-      <p className="text-gray-300 mt-16 mb-16">
-        Here are some helpful resources to get you started! 👇
+      <div className="flex gap-8 justify-center mt-12">
+        <Image
+          src="/supabase.svg"
+          alt="Supabase Logo"
+          width={225}
+          height={45}
+          priority
+        />
+        <div className="border-l rotate-45 h-10"></div>
+        <Image
+          src="/next.svg"
+          alt="Vercel Logo"
+          width={150}
+          height={36}
+          priority
+        />
+      </div>
+
+      <p className="text-3xl mx-auto max-w-2xl text-center mt-8 text-white">
+        The fastest way to get started building apps with{' '}
+        <strong>Supabase</strong> and <strong>Next.js</strong>
       </p>
 
-      <div className="flex gap-4 h-60 mb-16">
-        {resources.map(({ title, subtitle, url }) => (
+      <div className="flex justify-center mt-16">
+        <span className="bg-neutral-100 py-3 px-6 rounded-lg font-mono text-sm text-neutral-900">
+          Get started by editing <strong>app/page.tsx</strong>
+        </span>
+      </div>
+
+      <p className="text-neutral-100 mt-28 text-lg font-bold text-center">
+        Everything you need to started
+      </p>
+
+      <div className="flex gap-12 h-60 mt-10 mb-16 -mx-12">
+        {resources.map(({ title, subtitle, url, icon }) => (
           <a
-            className="flex-1 border border-gray-400 rounded-md p-6 hover:bg-gray-800"
+            key={title}
+            className="grid gap-4 border-t-2 border-neutral-200 py-6 pr-2 group text-neutral-100"
             href={url}
           >
-            <h2 className="font-bold mb-2">{title}</h2>
-            <p className="text-sm text-gray-400">{subtitle}</p>
+            <h2 className="font-bold mb-2 group-hover:underline min-h-[42px]">
+              {title}
+            </h2>
+            <p className="text-sm text-neutral-100">{subtitle}</p>
+            <div className="mt-2">
+              <Image
+                src={`/${icon}.svg`}
+                alt="Vercel Logo"
+                width={20}
+                height={25}
+                priority
+              />
+            </div>
           </a>
         ))}
       </div>
 
-      <p className="text-gray-300 mb-16">
-        Ready to build your app? Head over to `app/page.tsx` 👉
-      </p>
-
-      <div className="bg-gray-800 rounded-md p-8 text-gray-300">
-        <p className="font-semibold mb-2 text-gray-200">
-          We have also included examples for creating a Supabase client in:
+      <div className="grid gap-3 justify-center mx-auto max-w-lg text-center mt-16">
+        <p className="text-neutral-100 text-lg font-bold text-center">
+          Examples
         </p>
-        <ul className="list-disc ml-8">
-          <li>Client Components - `app/client-component-example/page.tsx`</li>
-          <li>Server Components - `app/server-component-example/page.tsx`</li>
-          <li>Server Actions - `app/server-action-example/page.tsx`</li>
-          <li>Route Handlers - `app/route-handler-example/route.ts`</li>
-          <li>Middleware - `middleware.ts`</li>
-        </ul>
+        <p className="mb-2 text-white">
+          Look in the <code>_examples</code> folder to see how to create a
+          Supabase client in all the different contexts
+        </p>
+      </div>
+
+      <div className=" text-white mb-24 grid justify-center border-t mt-8">
+        {examples.map(({ type, src }) => (
+          <div className="" key={type}>
+            <div className="grid grid-cols-2 gap-4 border-b">
+              <span className="font-bold text-right border-r pr-4 py-4">
+                {type}{' '}
+              </span>
+              <span className="py-4">
+                <code className="text-sm">{src}</code>
+              </span>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   )
