@@ -1,6 +1,6 @@
 name: 'validate-docs-links'
 on:
-  pull_request:
+  pull_request_target:
     paths:
       - 'docs/**.mdx'
 
