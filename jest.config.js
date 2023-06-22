@@ -39,7 +39,7 @@ if (shouldEnableTestTrace) {
     customJestConfig.reporters = ['default']
   }
 
-  const outputDirectory = process.env.__INTERNAL_NEXT_DEV_TEST_TURBO_DEV
+  const outputDirectory = process.env.TURBOPACK
     ? '<rootDir>/turbopack-test-junit-report'
     : '<rootDir>/test-junit-report'
   customJestConfig.reporters.push([
