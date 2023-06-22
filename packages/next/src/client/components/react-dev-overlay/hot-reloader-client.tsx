@@ -8,8 +8,9 @@ import React, {
 } from 'react'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../../dev/error-overlay/format-webpack-messages'
-import { useRouter } from '../navigation'
+import { notFound, useRouter } from '../navigation'
 import {
+  ACTION_NOT_FOUND,
   ACTION_VERSION_INFO,
   errorOverlayReducer,
 } from './internal/error-overlay-reducer'
@@ -41,6 +42,7 @@ interface Dispatcher {
   onVersionInfo(versionInfo: VersionInfo): void
   onBeforeRefresh(): void
   onRefresh(): void
+  onNotFound(): void
 }
 
 // TODO-APP: add actual type
@@ -393,8 +395,18 @@ function processMessage(
       if (invalid) {
         // Payload can be invalid even if the page does exist.
         // So, we check if it can be created.
-        // @ts-ignore it exists, it's just hidden
-        router.fastRefresh()
+        fetch(window.location.href, {
+          credentials: 'same-origin',
+        }).then((pageRes) => {
+          if (pageRes.status === 200) {
+            // Page exists now, reload
+            window.location.reload()
+          } else {
+            // We are still on the page,
+            // dispatch an error so it's caught by the NotFound handler
+            dispatcher.onNotFound()
+          }
+        })
       }
       return
     }
@@ -415,6 +427,7 @@ export default function HotReload({
     nextId: 1,
     buildError: null,
     errors: [],
+    notFound: false,
     refreshState: { type: 'idle' },
     versionInfo: { installed: '0.0.0', staleness: 'unknown' },
   })
@@ -434,6 +447,9 @@ export default function HotReload({
       },
       onVersionInfo(versionInfo) {
         dispatch({ type: ACTION_VERSION_INFO, versionInfo })
+      },
+      onNotFound() {
+        dispatch({ type: ACTION_NOT_FOUND })
       },
     }
   }, [dispatch])
@@ -466,6 +482,12 @@ export default function HotReload({
   const sendMessage = useSendMessage(webSocketRef)
 
   const router = useRouter()
+
+  if (state.notFound) {
+    // if a not found message is received, we throw so that it'll be caught in NotFoundBoundary
+    notFound()
+  }
+
   useEffect(() => {
     const handler = (event: MessageEvent<PongEvent>) => {
       if (

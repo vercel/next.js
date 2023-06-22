@@ -435,17 +435,11 @@ function Router({
   }, [cache, tree])
 
   const content = (
-    <NotFoundBoundary
-      notFound={notFound}
-      notFoundStyles={notFoundStyles}
-      asNotFound={asNotFound}
-    >
-      <RedirectBoundary>
-        {head}
-        {cache.subTreeData}
-        <AppRouterAnnouncer tree={tree} />
-      </RedirectBoundary>
-    </NotFoundBoundary>
+    <RedirectBoundary>
+      {head}
+      {cache.subTreeData}
+      <AppRouterAnnouncer tree={tree} />
+    </RedirectBoundary>
   )
 
   return (
@@ -477,11 +471,19 @@ function Router({
                   url: canonicalUrl,
                 }}
               >
-                {HotReloader ? (
-                  <HotReloader assetPrefix={assetPrefix}>{content}</HotReloader>
-                ) : (
-                  content
-                )}
+                <NotFoundBoundary
+                  notFound={notFound}
+                  notFoundStyles={notFoundStyles}
+                  asNotFound={asNotFound}
+                >
+                  {HotReloader ? (
+                    <HotReloader assetPrefix={assetPrefix}>
+                      {content}
+                    </HotReloader>
+                  ) : (
+                    content
+                  )}
+                </NotFoundBoundary>
               </LayoutRouterContext.Provider>
             </AppRouterContext.Provider>
           </GlobalLayoutRouterContext.Provider>

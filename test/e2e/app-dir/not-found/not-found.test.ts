@@ -1,4 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
+import { check } from 'next-test-utils'
 
 createNextDescribe(
   'app dir - not-found',
@@ -17,6 +18,22 @@ createNextDescribe(
         const html = await next.render('/not-found')
         expect(html).toContain("I'm still a valid page")
       })
+
+      if (isNextDev) {
+        it('should not reload the page', async () => {
+          const browser = await next.browser('/random-content')
+          const timestamp = await browser.elementByCss('#timestamp').text()
+
+          await new Promise((resolve) => {
+            setTimeout(resolve, 3000)
+          })
+
+          await check(async () => {
+            const newTimestamp = await browser.elementByCss('#timestamp').text()
+            return newTimestamp !== timestamp ? 'failure' : 'success'
+          }, 'success')
+        })
+      }
 
       if (!isNextDev) {
         it('should create the 404 mapping and copy the file to pages', async () => {
