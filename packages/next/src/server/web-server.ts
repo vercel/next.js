@@ -402,20 +402,19 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     if (options.poweredByHeader && options.type === 'html') {
       res.setHeader('X-Powered-By', 'Next.js')
     }
-    const resultContentType = options.result.contentType()
 
     if (!res.getHeader('Content-Type')) {
       res.setHeader(
         'Content-Type',
-        resultContentType
-          ? resultContentType
+        options.result.contentType
+          ? options.result.contentType
           : options.type === 'json'
           ? 'application/json'
           : 'text/html; charset=utf-8'
       )
     }
 
-    if (options.result.isDynamic()) {
+    if (options.result.isDynamic) {
       const writer = res.transformStream.writable.getWriter()
       options.result.pipe({
         write: (chunk: Uint8Array) => writer.write(chunk),
