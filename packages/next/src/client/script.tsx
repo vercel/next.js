@@ -34,7 +34,7 @@ const ignoreProps = [
   'strategy',
 ]
 
-const insertStylesheets = (stylesheets) => {
+const insertStylesheets = (stylesheets: string[]) => {
   // TODO: Use React float APIs to load styles once ready
   if (typeof window !== 'undefined') {
     let head = document.head
