@@ -12,7 +12,7 @@ import {
   SYSTEM_ENTRYPOINTS,
 } from '../../../shared/lib/constants'
 import { relative } from 'path'
-import { isCSSMod } from '../loaders/utils'
+import { isCSSMod, isClientComponentEntryModule } from '../loaders/utils'
 import { getProxiedPluginState } from '../../build-context'
 
 import { nonNullable } from '../../../lib/non-nullable'
@@ -338,6 +338,11 @@ export class ClientReferenceManifestPlugin {
                   : mod.resource
               manifest.entryCSSFiles[chunkEntryName].modules.push(resource)
             }
+          } else if (isClientComponentEntryModule(mod)) {
+            recordModule(
+              compilation.chunkGraph.getModuleId(mod) as string | number,
+              mod
+            )
           }
         }
       })
