@@ -1144,7 +1144,7 @@ createNextDescribe(
       const setCookie = draftRes.headers.get('set-cookie')
       const cookieHeader = { Cookie: setCookie?.split(';')[0] }
 
-      console.error(cookieHeader)
+      expect(cookieHeader).toBeTruthy()
 
       const res = await next.fetch('/ssg-draft-mode/test-1', {
         headers: {
