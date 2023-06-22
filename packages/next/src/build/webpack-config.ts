@@ -1077,6 +1077,8 @@ export default async function getBaseWebpackConfig(
       ...nodePathList, // Support for NODE_PATH environment variable
     ],
     alias: {
+      // Alias 3rd party @vercel/og package to vendored og image package to reduce bundle size
+      '@vercel/og': 'next/dist/server/web/exports/image-response',
       // Alias next/dist imports to next/dist/esm assets,
       // let this alias hit before `next` alias.
       ...(isEdgeServer
@@ -1131,11 +1133,6 @@ export default async function getBaseWebpackConfig(
 
       'styled-jsx/style$': require.resolve(`styled-jsx/style`),
       'styled-jsx$': require.resolve(`styled-jsx`),
-
-      // Alias 3rd party @vercel/og package to vendored og image package to reduce bundle size
-      '@vercel/og': `next/dist/compiled/@vercel/og/${
-        isEdgeServer ? 'index.edge.js' : 'index.node.js'
-      }`,
 
       ...customAppAliases,
       ...customErrorAlias,

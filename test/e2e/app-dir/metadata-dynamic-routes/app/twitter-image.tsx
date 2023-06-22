@@ -1,4 +1,13 @@
 import { ImageResponse } from 'next/server'
+import { ImageResponse as ImageResponse2 } from 'next/server'
+
+// Node.js: Using @vercel/og external package, and should be aliased to "next/server" ImageResponse
+// @ts-ignore
+if (ImageResponse.displayName !== 'NextImageResponse')
+  throw new Error('ImageResponse mismatch: ' + ImageResponse.displayName)
+// @ts-ignore
+if (ImageResponse2.displayName !== 'NextImageResponse')
+  throw new Error('ImageResponse mismatch: ' + ImageResponse2.displayName)
 
 export const alt = 'Twitter'
 export const size = { width: 1600, height: 900 }

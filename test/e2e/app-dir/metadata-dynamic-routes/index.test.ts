@@ -101,8 +101,16 @@ createNextDescribe(
       })
 
       it('should render og image with twitter-image dynamic routes', async () => {
-        const res = await next.fetch('/twitter-image')
+        // nodejs runtime
+        let res = await next.fetch('/twitter-image')
 
+        expect(res.headers.get('content-type')).toBe('image/png')
+        expect(res.headers.get('cache-control')).toBe(
+          isNextDev ? CACHE_HEADERS.NONE : CACHE_HEADERS.LONG
+        )
+
+        // edge runtime
+        res = await next.fetch('/twitter-image2')
         expect(res.headers.get('content-type')).toBe('image/png')
         expect(res.headers.get('cache-control')).toBe(
           isNextDev ? CACHE_HEADERS.NONE : CACHE_HEADERS.LONG
