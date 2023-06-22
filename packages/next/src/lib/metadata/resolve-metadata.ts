@@ -358,15 +358,39 @@ export async function resolveMetadata({
   return metadataItems
 }
 
+const commonOgKeys = ['title', 'description', 'images'] as const
 function postProcessMetadata(metadata: ResolvedMetadata): ResolvedMetadata {
   const { openGraph, twitter } = metadata
-  if (openGraph && !twitter) {
-    const overlappedProps = {
-      title: openGraph.title,
-      description: openGraph.description,
-      images: openGraph.images,
+  if (openGraph) {
+    let autoFillProps: Partial<{
+      [Key in (typeof commonOgKeys)[number]]: NonNullable<
+        ResolvedMetadata['openGraph']
+      >[Key]
+    }> = {}
+    const hasTwTitle = twitter?.title.absolute
+    const hasTwDescription = twitter?.description
+    const hasTwImages = twitter?.images
+    if (!hasTwTitle) autoFillProps.title = openGraph.title
+    if (!hasTwDescription) autoFillProps.description = openGraph.description
+    if (!hasTwImages) autoFillProps.images = openGraph.images
+
+    if (Object.keys(autoFillProps).length > 0) {
+      const partialTwitter = resolveTwitter(
+        autoFillProps,
+        metadata.metadataBase
+      )
+      if (metadata.twitter) {
+        metadata.twitter = Object.assign({}, metadata.twitter, {
+          ...(!hasTwTitle && { title: partialTwitter?.title }),
+          ...(!hasTwDescription && {
+            description: partialTwitter?.description,
+          }),
+          ...(!hasTwImages && { images: partialTwitter?.images }),
+        })
+      } else {
+        metadata.twitter = partialTwitter
+      }
     }
-    metadata.twitter = resolveTwitter(overlappedProps, metadata.metadataBase)
   }
   return metadata
 }

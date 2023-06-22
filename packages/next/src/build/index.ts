@@ -245,7 +245,7 @@ export default async function build(
         // ".next" (or whatever the distDir) followed by "next export"
         // to generate "out" (or whatever the outDir). However, when
         // "output: export" is configured, "next build" does both steps.
-        // So the user-configured dirDir is actually the outDir.
+        // So the user-configured distDir is actually the outDir.
         configOutDir = config.distDir
         config.distDir = '.next'
       }

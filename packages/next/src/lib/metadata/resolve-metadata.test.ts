@@ -64,11 +64,11 @@ describe('accumulateMetadata', () => {
       const items: [Metadata[], Metadata][] = [
         [
           [{ openGraph: { type: 'article', images: 'https://test1.com' } }],
-          { openGraph: { images: [{ url: 'https://test1.com' }] } },
+          { openGraph: { images: [{ url: new URL('https://test1.com') }] } },
         ],
         [
           [{ openGraph: { type: 'book', images: 'https://test2.com' } }],
-          { openGraph: { images: [{ url: 'https://test2.com' }] } },
+          { openGraph: { images: [{ url: new URL('https://test2.com/') }] } },
         ],
         [
           [
@@ -90,7 +90,7 @@ describe('accumulateMetadata', () => {
               },
             },
           ],
-          { openGraph: { images: [{ url: 'https://test4.com' }] } },
+          { openGraph: { images: [{ url: new URL('https://test4.com') }] } },
         ],
         [
           [
@@ -101,11 +101,11 @@ describe('accumulateMetadata', () => {
               },
             },
           ],
-          { openGraph: { images: [{ url: 'https://test5.com' }] } },
+          { openGraph: { images: [{ url: new URL('https://test5.com') }] } },
         ],
         [
           [{ openGraph: { type: 'video.movie', images: 'https://test6.com' } }],
-          { openGraph: { images: [{ url: 'https://test6.com' }] } },
+          { openGraph: { images: [{ url: new URL('https://test6.com') }] } },
         ],
       ]
 
@@ -115,6 +115,44 @@ describe('accumulateMetadata', () => {
           configuredMetadata.map((m) => [m, null])
         )
         expect(metadata).toMatchObject(result)
+      })
+    })
+
+    it('should fill twitter with partial existing openGraph metadata', async () => {
+      const metadataItems: MetadataItems = [
+        [
+          {
+            openGraph: {
+              title: 'title',
+              description: 'description',
+              images: 'https://test.com',
+            },
+            twitter: {
+              card: 'summary_large_image',
+            },
+          },
+          null,
+        ],
+      ]
+      const metadata = await accumulateMetadata(metadataItems)
+      expect(metadata).toMatchObject({
+        openGraph: {
+          title: {
+            absolute: 'title',
+            template: null,
+          },
+          description: 'description',
+          images: [{ url: new URL('https://test.com') }],
+        },
+        twitter: {
+          card: 'summary_large_image',
+          title: {
+            absolute: 'title',
+            template: null,
+          },
+          description: 'description',
+          images: [{ url: new URL('https://test.com') }],
+        },
       })
     })
   })
