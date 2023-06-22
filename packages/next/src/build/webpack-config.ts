@@ -1459,12 +1459,11 @@ export default async function getBaseWebpackConfig(
     // Don't bundle @vercel/og nodejs bundle for nodejs runtime.
     // Alias 3rd party @vercel/og package to vendored og image package to reduce bundle size.
     // TODO-APP: bundle route.js with different layer that externals common node_module deps.
-    if (layer === WEBPACK_LAYERS.server) {
-      if (request === 'next/dist/compiled/@vercel/og/index.node.js')
-        return `module ${request}`
-      // if (request === '@vercel/og') {
-      //   return
-      // }
+    if (
+      layer === WEBPACK_LAYERS.server &&
+      request === 'next/dist/compiled/@vercel/og/index.node.js'
+    ) {
+      return `module ${request}`
     }
 
     if (
