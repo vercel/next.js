@@ -3,19 +3,12 @@ import { ImageResponse } from 'next/server'
 import { ImageResponse as ImageResponse2 } from '@vercel/og'
 
 // Edge: Using @vercel/og external package, and should be aliased to "next/server" ImageResponse
-// if (ImageResponse.displayName !== 'NextImageResponse')
-//   throw new Error('ImageResponse mismatch: ' + ImageResponse.displayName)
-// // @ts-ignore
-// if (ImageResponse2.displayName !== 'NextImageResponse')
-//   // @ts-ignore
-//   throw new Error('ImageResponse2 mismatch: ' + ImageResponse2.displayName)
-
 if (ImageResponse.displayName !== 'NextImageResponse')
-  console.log('ImageResponse mismatch: ' + ImageResponse.displayName)
+  throw new Error('ImageResponse mismatch: ' + ImageResponse.displayName)
 // @ts-ignore
 if (ImageResponse2.displayName !== 'NextImageResponse')
   // @ts-ignore
-  console.log('ImageResponse2 mismatch: ' + ImageResponse2.displayName)
+  throw new Error('ImageResponse2 mismatch: ' + ImageResponse2.displayName)
 
 export const alt = 'Twitter'
 export const size = { width: 1600, height: 900 }

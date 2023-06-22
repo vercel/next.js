@@ -1438,6 +1438,15 @@ export default async function getBaseWebpackConfig(
       resolveResult.res = require.resolve(request)
     }
 
+    // Don't bundle @vercel/og nodejs bundle for nodejs runtime.
+    // TODO-APP: bundle route.js with different layer that externals common node_module deps.
+    if (
+      layer === WEBPACK_LAYERS.server &&
+      request === 'next/dist/compiled/@vercel/og/index.node.js'
+    ) {
+      return `module ${request}`
+    }
+
     const { res, isEsm } = resolveResult
 
     // If the request cannot be resolved we need to have
@@ -1455,16 +1464,6 @@ export default async function getBaseWebpackConfig(
     }
 
     const externalType = isEsm ? 'module' : 'commonjs'
-
-    // Don't bundle @vercel/og nodejs bundle for nodejs runtime.
-    // Alias 3rd party @vercel/og package to vendored og image package to reduce bundle size.
-    // TODO-APP: bundle route.js with different layer that externals common node_module deps.
-    if (
-      layer === WEBPACK_LAYERS.server &&
-      request === 'next/dist/compiled/@vercel/og/index.node.js'
-    ) {
-      return `module ${request}`
-    }
 
     if (
       /next[/\\]dist[/\\](esm[\\/])?shared[/\\](?!lib[/\\]router[/\\]router)/.test(
