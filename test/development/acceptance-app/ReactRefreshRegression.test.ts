@@ -1,27 +1,22 @@
 /* eslint-env jest */
-import { sandbox } from './helpers'
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { sandbox } from 'development-sandbox'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import { check } from 'next-test-utils'
+import { outdent } from 'outdent'
 
 describe('ReactRefreshRegression app', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
-      skipStart: true,
-      dependencies: {
-        'styled-components': '5.1.0',
-        '@next/mdx': 'canary',
-        '@mdx-js/loader': '0.18.0',
-        react: 'latest',
-        'react-dom': 'latest',
-      },
-    })
+  const { next } = nextTestSetup({
+    files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
+    dependencies: {
+      'styled-components': '5.1.0',
+      '@next/mdx': 'canary',
+      '@mdx-js/loader': '0.18.0',
+      react: 'latest',
+      'react-dom': 'latest',
+    },
+    skipStart: true,
   })
-  afterAll(() => next.destroy())
 
   // https://github.com/vercel/next.js/issues/12422
   // TODO-APP: port to app directory
@@ -29,7 +24,7 @@ describe('ReactRefreshRegression app', () => {
     const files = new Map()
     files.set(
       'pages/_document.js',
-      `
+      outdent`
         import Document from 'next/document'
         import { ServerStyleSheet } from 'styled-components'
 
@@ -67,7 +62,7 @@ describe('ReactRefreshRegression app', () => {
     // We start here.
     await session.patch(
       'index.js',
-      `
+      outdent`
         import React from 'react'
         import styled from 'styled-components'
 
@@ -92,7 +87,8 @@ describe('ReactRefreshRegression app', () => {
 
     await session.patch(
       'app/page.js',
-      `'use client'
+      outdent`
+        'use client'
         import { useCallback, useState } from 'react'
 
         export default function Index() {
@@ -118,7 +114,8 @@ describe('ReactRefreshRegression app', () => {
 
     await session.patch(
       'app/page.js',
-      `'use client'
+      outdent`
+        'use client'
         import { useCallback, useState } from 'react'
 
         export default function Index() {
@@ -151,7 +148,7 @@ describe('ReactRefreshRegression app', () => {
 
     await session.patch(
       'app/page.js',
-      `
+      outdent`
         export const revalidate = 0
 
         import Component from '../index'
@@ -162,7 +159,8 @@ describe('ReactRefreshRegression app', () => {
     )
     await session.patch(
       'index.js',
-      `'use client'
+      outdent`
+        'use client'
         import { useCallback, useState } from 'react'
 
         export default function Index() {
@@ -192,7 +190,8 @@ describe('ReactRefreshRegression app', () => {
 
     await session.patch(
       'index.js',
-      `'use client'
+      outdent`
+        'use client'
         import { useCallback, useState } from 'react'
 
         export default function Index() {
@@ -229,7 +228,7 @@ describe('ReactRefreshRegression app', () => {
 
     await session.patch(
       'app/page.js',
-      `
+      outdent`
         export const config = {}
 
         import Component from '../index'
@@ -241,7 +240,8 @@ describe('ReactRefreshRegression app', () => {
 
     await session.patch(
       'index.js',
-      `'use client'
+      outdent`
+        'use client'
         import { useCallback, useState } from 'react'
 
         export const config = {}
@@ -316,8 +316,10 @@ describe('ReactRefreshRegression app', () => {
 
     await session.patch(
       'app/page.js',
-      `'use client'
-      export default function Page() { throw new Error('boom'); }`
+      outdent`
+        'use client'
+        export default function Page() { throw new Error('boom'); }
+      `
     )
 
     expect(await session.hasRedbox(true)).toBe(true)
@@ -337,7 +339,7 @@ describe('ReactRefreshRegression app', () => {
     const files = new Map()
     files.set(
       'next.config.js',
-      `
+      outdent`
         const withMDX = require("@next/mdx")({
           extension: /\\.mdx?$/,
         });
@@ -350,12 +352,13 @@ describe('ReactRefreshRegression app', () => {
     files.set('app/content.mdx', `Hello World!`)
     files.set(
       'app/page.js',
-      `'use client'
-    import MDX from './content.mdx'
-    export default function Page() {
-      return <div id="content"><MDX /></div>
-    }
-    `
+      outdent`
+        'use client'
+        import MDX from './content.mdx'
+        export default function Page() {
+          return <div id="content"><MDX /></div>
+        }
+      `
     )
 
     const { session, cleanup } = await sandbox(next, files)

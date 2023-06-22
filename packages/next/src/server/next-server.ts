@@ -808,7 +808,14 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected async handleUpgrade(req: NodeNextRequest, socket: any, head: any) {
-    await this.router.execute(req, socket, nodeParseUrl(req.url, true), head)
+    try {
+      const parsedUrl = nodeParseUrl(req.url, true)
+      this.attachRequestMeta(req, parsedUrl, true)
+      await this.router.execute(req, socket, parsedUrl, head)
+    } catch (err) {
+      console.error(err)
+      socket.end('Internal Server Error')
+    }
   }
 
   protected async proxyRequest(
@@ -1485,6 +1492,15 @@ export default class NextNodeServer extends BaseServer {
               },
               getRequestMeta(req, '__NEXT_CLONABLE_BODY')?.cloneBodyStream()
             )
+
+            // if this is an upgrade request just pipe body back
+            if (!res.setHeader) {
+              invokeRes.pipe(res as any as ServerResponse)
+              return {
+                finished: true,
+              }
+            }
+
             const noFallback = invokeRes.headers['x-no-fallback']
 
             if (noFallback) {
@@ -2749,7 +2765,8 @@ export default class NextNodeServer extends BaseServer {
 
   protected attachRequestMeta(
     req: BaseNextRequest,
-    parsedUrl: NextUrlWithParsedQuery
+    parsedUrl: NextUrlWithParsedQuery,
+    isUpgradeReq?: boolean
   ) {
     const protocol = (
       (req as NodeNextRequest).originalRequest?.socket as TLSSocket
@@ -2768,7 +2785,10 @@ export default class NextNodeServer extends BaseServer {
     addRequestMeta(req, '__NEXT_INIT_URL', initUrl)
     addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
     addRequestMeta(req, '_protocol', protocol)
-    addRequestMeta(req, '__NEXT_CLONABLE_BODY', getCloneableBody(req.body))
+
+    if (!isUpgradeReq) {
+      addRequestMeta(req, '__NEXT_CLONABLE_BODY', getCloneableBody(req.body))
+    }
   }
 
   protected async runEdgeFunction(params: {
