@@ -103,6 +103,33 @@ const runTests = (isDev = false, isTurbo = false) => {
     expect([...externalServerHits]).toEqual(['/_next/webpack-hmr?page=/about'])
   })
 
+  it('should successfully rewrite a WebSocket request to a page', async () => {
+    // TODO: remove once test failure has been fixed
+    if (isTurbo) return
+
+    const messages = []
+    try {
+      const ws = await new Promise((resolve, reject) => {
+        let socket = new WebSocket(
+          `ws://localhost:${appPort}/websocket-to-page`
+        )
+        socket.on('message', (data) => {
+          messages.push(data.toString())
+        })
+        socket.on('open', () => resolve(socket))
+        socket.on('error', (err) => {
+          console.error(err)
+          socket.close()
+          reject()
+        })
+      })
+      ws.close()
+    } catch (err) {
+      messages.push(err)
+    }
+    expect(stderr).not.toContain('unhandledRejection')
+  })
+
   it('should not rewrite for _next/data route when a match is found', async () => {
     const initial = await fetchViaHTTP(appPort, '/overridden/first')
     expect(initial.status).toBe(200)
@@ -2209,6 +2236,11 @@ const runTests = (isDev = false, isTurbo = false) => {
               destination: `http://localhost:${externalServerPort}/_next/webpack-hmr?page=/about`,
               regex: normalizeRegEx('^\\/to-websocket(?:\\/)?$'),
               source: '/to-websocket',
+            },
+            {
+              destination: '/hello',
+              regex: normalizeRegEx('^\\/websocket-to-page(?:\\/)?$'),
+              source: '/websocket-to-page',
             },
             {
               destination: 'http://localhost:12233',

@@ -14,6 +14,7 @@
     "@vercel/ncc": "0.34.0"
   },
   "dependencies": {
+    "@actions/core": "^1.10.0",
     "@actions/github": "^5.1.1",
     "github-slugger": "1.2.0",
     "gray-matter": "4.0.2",
