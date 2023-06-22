@@ -137,7 +137,7 @@ function getHeadingsFromMarkdownTree(tree: Node<Data>): string[] {
 // Create a processor to parse MDX content
 const markdownProcessor = unified()
   .use(markdown)
-  .use(remarkToRehype)
+  .use(remarkToRehype, { allowDangerousHTML: true })
   .use(raw)
   .use(function compiler() {
     // A compiler is required, and we only need the AST, so we can

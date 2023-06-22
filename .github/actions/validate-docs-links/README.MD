@@ -4,8 +4,6 @@ This action ensures that internal links in `.mdx` files in the `/docs/` director
 
 The action is triggered by the workflow defined in `.github/workflows/validate-docs-links.yml`.
 
-> **Note**: This action runs on `pull_request_target` and not `pull_request` because the latter does not have write access to create commit statuses for pull requests originating from forks.
-
 ## Usage
 
 This action is written in TypeScript and compiled locally before being pushed to GitHub.
