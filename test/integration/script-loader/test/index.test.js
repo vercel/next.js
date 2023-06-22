@@ -82,7 +82,7 @@ const runTests = (isDev = false) => {
         expect(dataAttr).toBeDefined()
 
         if (css) {
-          const cssTag = await browser.elementByCss(`link[href=${css}]`)
+          const cssTag = await browser.elementByCss(`link[href="${css}"]`)
           expect(cssTag).toBeDefined()
         }
 
