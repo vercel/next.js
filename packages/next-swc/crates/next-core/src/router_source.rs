@@ -158,18 +158,11 @@ impl GetContentSourceContent for NextRouterContentSource {
                 )))
             }
             RouterResult::None => {
-                let rewrite = RewriteBuilder::new_sources(this.inner.get_routes().get(path));
+                let rewrite = RewriteBuilder::new_source(this.inner, format!("/{path}"));
                 ContentSourceContent::Rewrite(rewrite.build()).cell()
             }
             RouterResult::Rewrite(data) => {
-                let mut rewrite = RewriteBuilder::new_sources(
-                    this.inner.get_routes().get(
-                        data.url
-                            .as_str()
-                            .strip_prefix('/')
-                            .expect("url must start with /"),
-                    ),
-                );
+                let mut rewrite = RewriteBuilder::new_source(this.inner, data.url.clone());
                 if !data.headers.is_empty() {
                     rewrite = rewrite.response_headers(HeaderListVc::new(data.headers.clone()));
                 }
