@@ -95,10 +95,13 @@ export async function loadBindings(): Promise<any> {
     }
 
     let attempts: any[] = []
-    const shouldLoadWasmFallbackFirst = triples.some(
-      (triple: any) =>
-        !!triple?.raw && knownDefaultWasmFallbackTriples.includes(triple.raw)
-    )
+    const disableWasmFallback = process.env.NEXT_DISABLE_SWC_WASM
+    const shouldLoadWasmFallbackFirst =
+      !disableWasmFallback &&
+      triples.some(
+        (triple: any) =>
+          !!triple?.raw && knownDefaultWasmFallbackTriples.includes(triple.raw)
+      )
 
     if (shouldLoadWasmFallbackFirst) {
       const fallbackBindings = await tryLoadWasmWithFallback(
@@ -117,7 +120,7 @@ export async function loadBindings(): Promise<any> {
     }
 
     // For these platforms we already tried to load wasm and failed, skip reattempt
-    if (!shouldLoadWasmFallbackFirst) {
+    if (!shouldLoadWasmFallbackFirst && !disableWasmFallback) {
       const fallbackBindings = await tryLoadWasmWithFallback(
         attempts,
         isCustomTurbopack

@@ -8,7 +8,7 @@ export default function Test() {
 function runTests() {
   it('should link to imported image', async () => {
     const img = document.querySelector('#imported')
-    expect(img.src).toContain(encodeURIComponent('_next/static/assets'))
+    expect(img.src).toContain(encodeURIComponent('_next/static/media'))
 
     const res = await fetch(img.src)
     expect(res.status).toBe(200)

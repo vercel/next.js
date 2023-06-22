@@ -6,6 +6,11 @@ createNextDescribe(
     files: __dirname,
     skipStart: true,
     skipDeployment: true,
+    dependencies: {
+      react: 'latest',
+      'react-dom': 'latest',
+      'server-only': 'latest',
+    },
   },
   ({ next, isNextStart }) => {
     if (!isNextStart) {

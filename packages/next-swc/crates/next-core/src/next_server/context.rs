@@ -102,7 +102,7 @@ pub async fn get_server_resolve_options_context(
                 enable_node_externals: true,
                 enable_node_native_modules: true,
                 module: true,
-                custom_conditions: vec![mode.node_env().to_string()],
+                custom_conditions: vec![mode.node_env().to_string(), "node".to_string()],
                 import_map: Some(next_server_import_map),
                 plugins: vec![
                     external_cjs_modules_plugin.into(),
@@ -126,7 +126,11 @@ pub async fn get_server_resolve_options_context(
                 enable_node_externals: true,
                 enable_node_native_modules: true,
                 module: true,
-                custom_conditions: vec![mode.node_env().to_string()],
+                custom_conditions: vec![
+                    mode.node_env().to_string(),
+                    // TODO!
+                    "node".to_string(),
+                ],
                 import_map: Some(next_server_import_map),
                 plugins: vec![
                     server_component_externals_plugin.into(),
@@ -150,7 +154,12 @@ pub async fn get_server_resolve_options_context(
                 enable_node_externals: true,
                 enable_node_native_modules: true,
                 module: true,
-                custom_conditions: vec![mode.node_env().to_string(), "react-server".to_string()],
+                custom_conditions: vec![
+                    mode.node_env().to_string(),
+                    "react-server".to_string(),
+                    // TODO
+                    "node".to_string(),
+                ],
                 import_map: Some(next_server_import_map),
                 plugins: vec![
                     server_component_externals_plugin.into(),
@@ -172,7 +181,7 @@ pub async fn get_server_resolve_options_context(
             let resolve_options_context = ResolveOptionsContext {
                 enable_node_modules: Some(root_dir),
                 module: true,
-                custom_conditions: vec![mode.node_env().to_string()],
+                custom_conditions: vec![mode.node_env().to_string(), "node".to_string()],
                 import_map: Some(next_server_import_map),
                 plugins: vec![
                     server_component_externals_plugin.into(),
@@ -275,22 +284,18 @@ pub async fn get_server_module_options_context(
         ..Default::default()
     });
 
-    let enable_webpack_loaders = {
-        let options = &*next_config.webpack_loaders_options().await?;
-        let loaders_options = WebpackLoadersOptions {
-            extension_to_loaders: options.clone(),
+    let webpack_rules =
+        *maybe_add_babel_loader(project_path, *next_config.webpack_rules().await?).await?;
+    let webpack_rules = maybe_add_sass_loader(next_config.sass_config(), webpack_rules).await?;
+    let enable_webpack_loaders = webpack_rules.map(|rules| {
+        WebpackLoadersOptions {
+            rules,
             loader_runner_package: Some(get_external_next_compiled_package_mapping(
                 StringVc::cell("loader-runner".to_owned()),
             )),
-            ..Default::default()
         }
-        .cell();
-
-        let loaders_options = maybe_add_babel_loader(project_path, loaders_options);
-        maybe_add_sass_loader(next_config.sass_config(), loaders_options)
-            .await?
-            .clone_if()
-    };
+        .cell()
+    });
 
     // EcmascriptTransformPlugins for custom transforms
     let styled_components_transform_plugin =

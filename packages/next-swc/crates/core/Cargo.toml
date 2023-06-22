@@ -9,6 +9,7 @@ plugin = ["turbopack-binding/__swc_core_binding_napi_plugin"]
 
 [dependencies]
 chrono = "0.4"
+convert_case = "0.5.0"
 easy-error = "1.0.0"
 either = "1"
 fxhash = "0.2.1"
@@ -17,6 +18,7 @@ once_cell = { workspace = true }
 next-transform-font = {workspace = true}
 pathdiff = "0.2.0"
 regex = "1.5"
+rustc-hash = "1"
 serde = "1"
 serde_json = "1"
 sha1 = "0.10.1"

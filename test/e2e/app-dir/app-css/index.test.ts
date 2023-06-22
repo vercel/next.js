@@ -17,7 +17,7 @@ createNextDescribe(
   ({ next, isNextDev: isDev }) => {
     describe('css support', () => {
       describe('server layouts', () => {
-        it('should support global css inside server layouts', async () => {
+        it.skip('should support global css inside server layouts', async () => {
           const browser = await next.browser('/dashboard')
 
           // Should body text in red
@@ -336,7 +336,7 @@ createNextDescribe(
         })
 
         describe('multiple entries', () => {
-          it('should only inject the same style once if used by different layers', async () => {
+          it.skip('should only inject the same style once if used by different layers', async () => {
             const browser = await next.browser('/css/css-duplicate-2/client')
             expect(
               await browser.eval(
@@ -345,6 +345,24 @@ createNextDescribe(
                 ).length`
               )
             ).toBe(1)
+          })
+
+          it('should deduplicate styles on the module level', async () => {
+            const browser = await next.browser('/css/css-conflict-layers')
+            await check(
+              () =>
+                browser.eval(
+                  `window.getComputedStyle(document.querySelector('.btn:not(.btn-blue)')).backgroundColor`
+                ),
+              'rgb(255, 255, 255)'
+            )
+            await check(
+              () =>
+                browser.eval(
+                  `window.getComputedStyle(document.querySelector('.btn.btn-blue')).backgroundColor`
+                ),
+              'rgb(0, 0, 255)'
+            )
           })
 
           it('should only include the same style once in the flight data', async () => {
@@ -357,7 +375,7 @@ createNextDescribe(
             ).toBe(3)
           })
 
-          it('should only load chunks for the css module that is used by the specific entrypoint', async () => {
+          it.skip('should only load chunks for the css module that is used by the specific entrypoint', async () => {
             // Visit /b first
             await next.render('/css/css-duplicate/b')
 

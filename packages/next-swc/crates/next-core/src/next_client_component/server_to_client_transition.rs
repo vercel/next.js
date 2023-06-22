@@ -1,15 +1,11 @@
 use anyhow::Result;
 use indexmap::indexmap;
-use turbo_tasks::{primitives::OptionStringVc, Value};
+use turbo_tasks::Value;
 use turbopack_binding::turbopack::{
     core::{
         asset::AssetVc,
         context::AssetContext,
-        reference_type::{EntryReferenceSubType, ReferenceType},
-    },
-    ecmascript::{
-        EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
-        EcmascriptModuleAssetVc, InnerAssetsVc,
+        reference_type::{EntryReferenceSubType, InnerAssetsVc, ReferenceType},
     },
     turbopack::{
         transition::{Transition, TransitionVc},
@@ -51,30 +47,12 @@ impl Transition for NextServerToClientTransition {
                 EntryReferenceSubType::AppClientComponent,
             )),
         );
-        Ok(EcmascriptModuleAssetVc::new_with_inner_assets(
+        Ok(context.process(
             internal_asset,
-            context.into(),
-            Value::new(EcmascriptModuleAssetType::Typescript),
-            EcmascriptInputTransformsVc::cell(vec![
-                EcmascriptInputTransform::TypeScript {
-                    use_define_for_class_fields: false,
-                },
-                EcmascriptInputTransform::React {
-                    // The server-to-client transition is currently only used from the App source,
-                    // which are only used in the development mode.
-                    development: true,
-                    refresh: false,
-                    import_source: OptionStringVc::cell(None),
-                    runtime: OptionStringVc::cell(None),
-                },
-            ]),
-            Default::default(),
-            context.compile_time_info(),
-            InnerAssetsVc::cell(indexmap! {
+            Value::new(ReferenceType::Internal(InnerAssetsVc::cell(indexmap! {
                 "CLIENT_MODULE".to_string() => client_module,
                 "CLIENT_CHUNKS".to_string() => client_chunks,
-            }),
-        )
-        .into())
+            }))),
+        ))
     }
 }

@@ -241,18 +241,25 @@ export default function startHandler({
       renderOpts
     )
 
-    // Set when `getStaticProps` returns `notFound: true`.
-    const isNotFound = renderResult.metadata().isNotFound
+    const {
+      metadata: {
+        // Set when `getStaticProps` returns `notFound: true`.
+        isNotFound,
+        // Set when `getStaticProps` returns `redirect: { destination, permanent, statusCode }`.
+        isRedirect,
+      },
+    } = renderResult
 
     if (isNotFound) {
       return createNotFoundResponse(isDataReq)
     }
 
-    // Set when `getStaticProps` returns `redirect: { destination, permanent, statusCode }`.
-    const isRedirect = renderResult.metadata().isRedirect
-
     if (isRedirect && !isDataReq) {
-      const pageProps = renderResult.metadata().pageData.pageProps
+      const {
+        metadata: {
+          pageData: { pageProps },
+        },
+      } = renderResult
       const redirect = {
         destination: pageProps.__N_REDIRECT,
         statusCode: pageProps.__N_REDIRECT_STATUS,
@@ -286,7 +293,9 @@ export default function startHandler({
 
     if (isDataReq) {
       // TODO(from next.js): change this to a different passing mechanism
-      const pageData = renderResult.metadata().pageData
+      const {
+        metadata: { pageData },
+      } = renderResult
       return {
         type: 'response',
         statusCode: res.statusCode,
@@ -296,20 +305,20 @@ export default function startHandler({
       }
     }
 
-    if (!renderResult || renderResult.isNull()) {
+    if (!renderResult || renderResult.isNull) {
       throw new Error('no render result returned')
     }
 
     const body = renderResult.toUnchunkedString()
 
     // TODO: handle revalidate
-    // const sprRevalidate = renderResult.metadata().revalidate;
+    // const sprRevalidate = renderResult.metadata.revalidate;
 
     return {
       type: 'response',
       statusCode: res.statusCode,
       headers: [
-        ['Content-Type', renderResult.contentType() ?? MIME_TEXT_HTML_UTF8],
+        ['Content-Type', renderResult.contentType ?? MIME_TEXT_HTML_UTF8],
       ],
       body,
     }

@@ -1,0 +1,134 @@
+---
+title: Installation
+description: Create a new Next.js application with `create-next-app`. Set up TypeScript, styles, and configure your `next.config.js` file.
+related:
+  title: Next Steps
+  description: For more information on what to do next, we recommend the following sections
+  links:
+    - getting-started/react-essentials
+    - app/building-your-application
+    - app/building-your-application/configuring/typescript
+---
+
+System Requirements:
+
+- [Node.js 16.8](https://nodejs.org/) or later.
+- macOS, Windows (including WSL), and Linux are supported.
+
+## Automatic Installation
+
+We recommend creating a new Next.js app using `create-next-app`, which sets up everything automatically for you. To create a project, run:
+
+```bash filename="Terminal"
+npx create-next-app@latest
+```
+
+On installation, you'll see the following prompts:
+
+```txt filename="Terminal"
+What is your project named? my-app
+Would you like to use TypeScript with this project? No / Yes
+Would you like to use ESLint with this project? No / Yes
+Would you like to use Tailwind CSS with this project? No / Yes
+Would you like to use `src/` directory with this project? No / Yes
+Use App Router (recommended)? No / Yes
+Would you like to customize the default import alias? No / Yes
+```
+
+Next.js now ships with TypeScript, ESLint, and Tailwind CSS configuration by default. You can also choose to use the `src` directory for your application code.
+
+After the prompts, `create-next-app` will create a folder with your project name and install the required dependencies.
+
+> **Good to know**: While you can use the [Pages Router](/docs/pages) in your new project. We recommend starting new applications with the App Router to leverage React's latest features.
+
+## Manual Installation
+
+To manually create a new Next.js app, install the required packages:
+
+```bash filename="Terminal"
+npm install next@latest react@latest react-dom@latest
+```
+
+Open `package.json` and add the following `scripts`:
+
+```json filename="package.json"
+{
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  }
+}
+```
+
+These scripts refer to the different stages of developing an application:
+
+- `dev`: runs [`next dev`](/docs/app/api-reference/next-cli#development) to start Next.js in development mode.
+- `build`: runs [`next build`](/docs/app/api-reference/next-cli#build) to build the application for production usage.
+- `start`: runs [`next start`](/docs/app/api-reference/next-cli#production) to start a Next.js production server.
+- `lint`: runs [`next lint`](/docs/app/api-reference/next-cli#lint) to set up Next.js' built-in ESLint configuration.
+
+### Create the `app` folder
+
+Next, create an `app` folder and add a `layout.tsx` and `page.tsx` file. These will be rendered when the user visits the root of your application.
+
+<Image
+  alt="App Folder Structure"
+  srcLight="/docs/light/app-getting-started.png"
+  srcDark="/docs/dark/app-getting-started.png"
+  width="1600"
+  height="363"
+/>
+
+Create a [root layout](/docs/app/building-your-application/routing/pages-and-layouts#root-layout-required) inside `app/layout.tsx` with the required `<html>` and `<body>` tags:
+
+```tsx filename="app/layout.tsx" switcher
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en">
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+```jsx filename="app/layout.js" switcher
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+Finally, create a home page `app/page.tsx` with some initial content:
+
+```tsx filename="app/page.tsx" switcher
+export default function Page() {
+  return <h1>Hello, Next.js!</h1>
+}
+```
+
+```jsx filename="app/page.js" switcher
+export default function Page() {
+  return <h1>Hello, Next.js!</h1>
+}
+```
+
+> **Good to know**: If you forget to create `layout.tsx`, Next.js will automatically create this file for you when running the development server with `next dev`.
+
+### Create the `public` folder
+
+You can optionally create a `public` folder to store static assets such as images, fonts, etc. Files inside `public` directory can then be referenced by your code starting from the base URL (`/`).
+
+## Run the Development Server
+
+1. Run `npm run dev` to start the development server.
+2. Visit `http://localhost:3000` to view your application.
+3. Edit `app/layout.tsx` or `app/page.tsx` and save to see the updated result in your browser.

@@ -3,7 +3,7 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use turbo_tasks::{
-    primitives::{BoolVc, JsonValueVc, StringsVc},
+    primitives::{BoolVc, JsonValueVc, StringVc, StringsVc},
     trace::TraceRawVcs,
     CompletionVc, Value,
 };
@@ -17,8 +17,8 @@ use turbopack_binding::{
             chunk::ChunkingContext,
             context::AssetContext,
             ident::AssetIdentVc,
-            issue::IssueContextExt,
-            reference_type::{EntryReferenceSubType, ReferenceType},
+            issue::{Issue, IssueContextExt, IssueSeverity, IssueSeverityVc, IssueVc},
+            reference_type::{EntryReferenceSubType, InnerAssetsVc, ReferenceType},
             resolve::{
                 find_context_file,
                 options::{ImportMap, ImportMapping},
@@ -26,19 +26,20 @@ use turbopack_binding::{
             },
             source_asset::SourceAssetVc,
         },
-        ecmascript::{
-            EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc,
-        },
         ecmascript_plugin::transform::{
             emotion::EmotionTransformConfig, relay::RelayConfig,
             styled_components::StyledComponentsTransformConfig,
         },
         node::{
+            debug::should_debug,
             evaluate::evaluate,
             execution_context::{ExecutionContext, ExecutionContextVc},
-            transforms::webpack::{WebpackLoaderConfigItems, WebpackLoaderConfigItemsVc},
+            transforms::webpack::{WebpackLoaderItem, WebpackLoaderItemsVc},
         },
-        turbopack::evaluate_context::node_evaluate_asset_context,
+        turbopack::{
+            evaluate_context::node_evaluate_asset_context,
+            module_options::{LoaderRuleItem, OptionWebpackRulesVc, WebpackRulesVc},
+        },
     },
 };
 
@@ -352,8 +353,28 @@ pub enum RemotePatternProtocal {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct ExperimentalTurboConfig {
-    pub loaders: Option<IndexMap<String, WebpackLoaderConfigItems>>,
+    /// This option has been replace by `rules`.
+    pub loaders: Option<JsonValue>,
+    pub rules: Option<IndexMap<String, RuleConfigItem>>,
     pub resolve_alias: Option<IndexMap<String, JsonValue>>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(rename_all = "camelCase", untagged)]
+pub enum RuleConfigItem {
+    Loaders(Vec<LoaderItem>),
+    Options {
+        loaders: Vec<LoaderItem>,
+        #[serde(default, alias = "as")]
+        rename_as: Option<String>,
+    },
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(untagged)]
+pub enum LoaderItem {
+    LoaderName(String),
+    LoaderOptions(WebpackLoaderItem),
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -461,10 +482,6 @@ pub enum RemoveConsoleConfig {
     Config { exclude: Option<Vec<String>> },
 }
 
-#[derive(Default)]
-#[turbo_tasks::value(transparent)]
-pub struct WebpackExtensionToLoaders(IndexMap<String, WebpackLoaderConfigItemsVc>);
-
 #[turbo_tasks::value_impl]
 impl NextConfigVc {
     #[turbo_tasks::function]
@@ -539,19 +556,46 @@ impl NextConfigVc {
     }
 
     #[turbo_tasks::function]
-    pub async fn webpack_loaders_options(self) -> Result<WebpackExtensionToLoadersVc> {
+    pub async fn webpack_rules(self) -> Result<OptionWebpackRulesVc> {
         let this = self.await?;
-        let Some(turbo_loaders) = this.experimental.turbo.as_ref().and_then(|t| t.loaders.as_ref()) else {
-            return Ok(WebpackExtensionToLoadersVc::cell(IndexMap::new()));
+        let Some(turbo_rules) = this.experimental.turbo.as_ref().and_then(|t| t.rules.as_ref()) else {
+            return Ok(OptionWebpackRulesVc::cell(None));
         };
-        let mut extension_to_loaders = IndexMap::new();
-        for (ext, loaders) in turbo_loaders {
-            extension_to_loaders.insert(
-                ext.clone(),
-                WebpackLoaderConfigItemsVc::cell(loaders.0.clone()),
-            );
+        if turbo_rules.is_empty() {
+            return Ok(OptionWebpackRulesVc::cell(None));
         }
-        Ok(WebpackExtensionToLoaders(extension_to_loaders).cell())
+        let mut rules = IndexMap::new();
+        for (ext, rule) in turbo_rules {
+            fn transform_loaders(loaders: &[LoaderItem]) -> WebpackLoaderItemsVc {
+                WebpackLoaderItemsVc::cell(
+                    loaders
+                        .iter()
+                        .map(|item| match item {
+                            LoaderItem::LoaderName(name) => WebpackLoaderItem {
+                                loader: name.clone(),
+                                options: Default::default(),
+                            },
+                            LoaderItem::LoaderOptions(options) => options.clone(),
+                        })
+                        .collect(),
+                )
+            }
+            let rule = match rule {
+                RuleConfigItem::Loaders(loaders) => LoaderRuleItem {
+                    loaders: transform_loaders(loaders),
+                    rename_as: None,
+                },
+                RuleConfigItem::Options { loaders, rename_as } => LoaderRuleItem {
+                    loaders: transform_loaders(loaders),
+                    rename_as: rename_as.clone(),
+                },
+            };
+
+            rules.insert(ext.clone(), rule);
+        }
+        Ok(OptionWebpackRulesVc::cell(Some(WebpackRulesVc::cell(
+            rules,
+        ))))
     }
 
     #[turbo_tasks::function]
@@ -624,21 +668,16 @@ pub async fn load_next_config_internal(
     let config_changed = config_asset.map_or_else(CompletionVc::immutable, |config_asset| {
         // This invalidates the execution when anything referenced by the config file
         // changes
-        let config_asset = EcmascriptModuleAssetVc::new(
+        let config_asset = context.process(
             config_asset.into(),
-            context,
-            Value::new(EcmascriptModuleAssetType::Ecmascript),
-            EcmascriptInputTransformsVc::cell(vec![]),
-            Default::default(),
-            context.compile_time_info(),
+            Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
         );
-        any_content_changed(config_asset.into())
+        any_content_changed(config_asset)
     });
     let load_next_config_asset = context.process(
         next_asset("entry/config/next.js"),
         Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
     );
-
     let config_value = evaluate(
         load_next_config_asset,
         project_path,
@@ -649,7 +688,7 @@ pub async fn load_next_config_internal(
         None,
         vec![],
         config_changed,
-        /* debug */ false,
+        should_debug("next_config"),
     )
     .await?;
 
@@ -657,6 +696,23 @@ pub async fn load_next_config_internal(
         return Ok(NextConfig::default().cell());
     };
     let next_config: NextConfig = parse_json_with_source_context(val.to_str()?)?;
+
+    if let Some(turbo) = next_config.experimental.turbo.as_ref() {
+        if turbo.loaders.is_some() {
+            OutdatedConfigIssue {
+                path: config_file.unwrap_or(project_path),
+                old_name: "experimental.turbo.loaders".to_string(),
+                new_name: "experimental.turbo.rules".to_string(),
+                description: "The new option is similar, but the key should be a glob instead of \
+                              an extension.
+Example: loaders: { \".mdx\": [\"mdx-loader\"] } -> rules: { \"*.mdx\": [\"mdx-loader\"] }"
+                    .to_string(),
+            }
+            .cell()
+            .as_issue()
+            .emit()
+        }
+    }
 
     Ok(next_config.cell())
 }
@@ -667,4 +723,43 @@ pub async fn has_next_config(context: FileSystemPathVc) -> Result<BoolVc> {
         *find_context_file(context, next_configs()).await?,
         FindContextFileResult::NotFound(_)
     )))
+}
+
+#[turbo_tasks::value]
+struct OutdatedConfigIssue {
+    path: FileSystemPathVc,
+    old_name: String,
+    new_name: String,
+    description: String,
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for OutdatedConfigIssue {
+    #[turbo_tasks::function]
+    fn severity(&self) -> IssueSeverityVc {
+        IssueSeverity::Error.into()
+    }
+
+    #[turbo_tasks::function]
+    fn category(&self) -> StringVc {
+        StringVc::cell("config".to_string())
+    }
+
+    #[turbo_tasks::function]
+    fn context(&self) -> FileSystemPathVc {
+        self.path
+    }
+
+    #[turbo_tasks::function]
+    fn title(&self) -> StringVc {
+        StringVc::cell(format!(
+            "\"{}\" has been replaced by \"{}\"",
+            self.old_name, self.new_name
+        ))
+    }
+
+    #[turbo_tasks::function]
+    fn description(&self) -> StringVc {
+        StringVc::cell(self.description.to_string())
+    }
 }

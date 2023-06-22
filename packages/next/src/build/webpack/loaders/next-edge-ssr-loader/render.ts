@@ -13,6 +13,7 @@ import {
 } from '../../../../server/base-http/web'
 import { SERVER_RUNTIME } from '../../../../lib/constants'
 import { PrerenderManifest } from '../../..'
+import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
 
 export function getRender({
   dev,
@@ -30,7 +31,6 @@ export function getRender({
   pagesRenderToHTML,
   clientReferenceManifest,
   subresourceIntegrityManifest,
-  serverCSSManifest,
   serverActionsManifest,
   config,
   buildId,
@@ -52,7 +52,6 @@ export function getRender({
   reactLoadableManifest: ReactLoadableManifest
   subresourceIntegrityManifest?: Record<string, string>
   clientReferenceManifest?: ClientReferenceManifest
-  serverCSSManifest: any
   serverActionsManifest: any
   appServerMod: any
   config: NextConfigComplete
@@ -78,6 +77,7 @@ export function getRender({
     minimalMode: true,
     webServerConfig: {
       page,
+      normalizedPage: isAppPath ? normalizeAppPath(page) : page,
       pagesType,
       prerenderManifest,
       extendRenderOpts: {
@@ -86,15 +86,12 @@ export function getRender({
         supportsDynamicHTML: true,
         disableOptimizedLoading: true,
         clientReferenceManifest,
-        serverCSSManifest,
         serverActionsManifest,
       },
       appRenderToHTML,
       pagesRenderToHTML,
       incrementalCacheHandler,
       loadComponent: async (pathname) => {
-        if (isAppPath) return null
-
         if (pathname === page) {
           return {
             ...baseLoadComponentResult,
@@ -104,7 +101,7 @@ export function getRender({
             getServerSideProps: pageMod.getServerSideProps,
             getStaticPaths: pageMod.getStaticPaths,
             ComponentMod: pageMod,
-            isAppPath: !!pageMod.__next_app_webpack_require__,
+            isAppPath: !!pageMod.__next_app__,
             pathname,
           }
         }

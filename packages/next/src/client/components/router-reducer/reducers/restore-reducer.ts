@@ -13,6 +13,7 @@ export function restoreReducer(
   const href = createHrefFromUrl(url)
 
   return {
+    buildId: state.buildId,
     // Set canonical url
     canonicalUrl: href,
     pushRef: state.pushRef,

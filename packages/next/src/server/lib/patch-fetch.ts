@@ -73,10 +73,14 @@ export function patchFetch({
   serverHooks: typeof ServerHooks
   staticGenerationAsyncStorage: StaticGenerationAsyncStorage
 }) {
+  if (!(globalThis as any)._nextOriginalFetch) {
+    ;(globalThis as any)._nextOriginalFetch = globalThis.fetch
+  }
+
   if ((globalThis.fetch as any).__nextPatched) return
 
   const { DynamicServerError } = serverHooks
-  const originFetch = globalThis.fetch
+  const originFetch: typeof fetch = (globalThis as any)._nextOriginalFetch
 
   globalThis.fetch = async (
     input: RequestInfo | URL,
@@ -476,18 +480,15 @@ export function patchFetch({
             }
             if (cache === 'no-store') {
               staticGenerationStore.revalidate = 0
-              // TODO: ensure this error isn't logged to the user
-              // seems it's slipping through currently
               const dynamicUsageReason = `no-store fetch ${input}${
                 staticGenerationStore.pathname
                   ? ` ${staticGenerationStore.pathname}`
                   : ''
               }`
               const err = new DynamicServerError(dynamicUsageReason)
+              staticGenerationStore.dynamicUsageErr = err
               staticGenerationStore.dynamicUsageStack = err.stack
               staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
-
-              throw err
             }
 
             const hasNextConfig = 'next' in init
@@ -495,7 +496,8 @@ export function patchFetch({
             if (
               typeof next.revalidate === 'number' &&
               (typeof staticGenerationStore.revalidate === 'undefined' ||
-                next.revalidate < staticGenerationStore.revalidate)
+                (typeof staticGenerationStore.revalidate === 'number' &&
+                  next.revalidate < staticGenerationStore.revalidate))
             ) {
               const forceDynamic = staticGenerationStore.forceDynamic
 
@@ -512,11 +514,10 @@ export function patchFetch({
                     : ''
                 }`
                 const err = new DynamicServerError(dynamicUsageReason)
+                staticGenerationStore.dynamicUsageErr = err
                 staticGenerationStore.dynamicUsageStack = err.stack
                 staticGenerationStore.dynamicUsageDescription =
                   dynamicUsageReason
-
-                throw err
               }
             }
             if (hasNextConfig) delete init.next
@@ -527,8 +528,8 @@ export function patchFetch({
       }
     )
   }
-  ;(fetch as any).__nextGetStaticStore = () => {
+  ;(globalThis.fetch as any).__nextGetStaticStore = () => {
     return staticGenerationAsyncStorage
   }
-  ;(fetch as any).__nextPatched = true
+  ;(globalThis.fetch as any).__nextPatched = true
 }

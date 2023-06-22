@@ -28,6 +28,7 @@ import { PrerenderManifest } from '../build'
 interface WebServerOptions extends Options {
   webServerConfig: {
     page: string
+    normalizedPage: string
     pagesType: 'app' | 'pages' | 'root'
     loadComponent: (
       pathname: string
@@ -128,12 +129,15 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   }
   protected getPagesManifest() {
     return {
-      [this.serverOptions.webServerConfig.page]: '',
+      // keep same theme but server path doesn't need to be accurate
+      [this.serverOptions.webServerConfig
+        .normalizedPage]: `server${this.serverOptions.webServerConfig.page}.js`,
     }
   }
   protected getAppPathsManifest() {
+    const page = this.serverOptions.webServerConfig.page
     return {
-      [this.serverOptions.webServerConfig.page]: '',
+      [this.serverOptions.webServerConfig.page]: `app${page}.js`,
     }
   }
   protected getFilesystemPaths() {
@@ -163,9 +167,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   protected getServerComponentManifest() {
     return this.serverOptions.webServerConfig.extendRenderOpts
       .clientReferenceManifest
-  }
-  protected getServerCSSManifest() {
-    return this.serverOptions.webServerConfig.extendRenderOpts.serverCSSManifest
   }
 
   protected getNextFontManifest() {
@@ -282,8 +283,10 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
 
         // interpolate query information into page for dynamic route
         // so that rewritten paths are handled properly
-        if (pathname !== this.serverOptions.webServerConfig.page) {
-          pathname = this.serverOptions.webServerConfig.page
+        const normalizedPage = this.serverOptions.webServerConfig.normalizedPage
+
+        if (pathname !== normalizedPage) {
+          pathname = normalizedPage
 
           if (isDynamicRoute(pathname)) {
             const routeRegex = getNamedRouteRegex(pathname, false)
@@ -403,20 +406,19 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     if (options.poweredByHeader && options.type === 'html') {
       res.setHeader('X-Powered-By', 'Next.js')
     }
-    const resultContentType = options.result.contentType()
 
     if (!res.getHeader('Content-Type')) {
       res.setHeader(
         'Content-Type',
-        resultContentType
-          ? resultContentType
+        options.result.contentType
+          ? options.result.contentType
           : options.type === 'json'
           ? 'application/json'
           : 'text/html; charset=utf-8'
       )
     }
 
-    if (options.result.isDynamic()) {
+    if (options.result.isDynamic) {
       const writer = res.transformStream.writable.getWriter()
       options.result.pipe({
         write: (chunk: Uint8Array) => writer.write(chunk),

@@ -7,10 +7,10 @@ use turbopack_binding::{
         core::{
             asset::{Asset, AssetContentVc, AssetVc, AssetsVc},
             chunk::{
-                availability_info::AvailabilityInfo, ChunkItem, ChunkItemVc, ChunkVc,
+                availability_info::AvailabilityInfo, ChunkDataVc, ChunkItem, ChunkItemVc, ChunkVc,
                 ChunkableAsset, ChunkableAssetReference, ChunkableAssetReferenceVc,
                 ChunkableAssetVc, ChunkingContext, ChunkingContextVc, ChunkingType,
-                ChunkingTypeOptionVc,
+                ChunkingTypeOptionVc, ChunksDataVc,
             },
             ident::AssetIdentVc,
             proxied_asset::ProxiedAssetVc,
@@ -19,7 +19,7 @@ use turbopack_binding::{
             },
             resolve::{ResolveResult, ResolveResultVc},
         },
-        dev::{ChunkDataVc, ChunksDataVc},
+        ecmascript::chunk::EcmascriptChunkData,
         turbopack::ecmascript::{
             chunk::{
                 EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
@@ -175,7 +175,7 @@ impl EcmascriptChunkItem for WithClientChunksChunkItem {
         let chunks_data = chunks_data.iter().try_join().await?;
         let chunks_data: Vec<_> = chunks_data
             .iter()
-            .map(|chunk_data| chunk_data.runtime_chunk_data())
+            .map(|chunk_data| EcmascriptChunkData::new(chunk_data))
             .collect();
 
         let module_id = inner.asset.as_chunk_item(this.context).id().await?;

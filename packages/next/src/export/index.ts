@@ -25,7 +25,6 @@ import {
   EXPORT_DETAIL,
   EXPORT_MARKER,
   CLIENT_REFERENCE_MANIFEST,
-  FLIGHT_SERVER_CSS_MANIFEST,
   NEXT_FONT_MANIFEST,
   MIDDLEWARE_MANIFEST,
   PAGES_MANIFEST,
@@ -154,6 +153,7 @@ export interface ExportOptions {
   exportAppPageWorker?: typeof import('./worker').default
   endWorker?: () => Promise<void>
   nextConfig?: NextConfigComplete
+  hasOutdirFromCli?: boolean
 }
 
 export default async function exportApp(
@@ -184,6 +184,11 @@ export default async function exportApp(
     // Running 'next export'
     if (options.isInvokedFromCli) {
       if (isExportOutput) {
+        if (options.hasOutdirFromCli) {
+          throw new ExportError(
+            '"next export -o <dir>" cannot be used when "output: export" is configured in next.config.js. Instead add "distDir" in next.config.js https://nextjs.org/docs/advanced-features/static-html-export'
+          )
+        }
         Log.warn(
           '"next export" is no longer needed when "output: export" is configured in next.config.js https://nextjs.org/docs/advanced-features/static-html-export'
         )
@@ -480,11 +485,6 @@ export default async function exportApp(
               SERVER_DIRECTORY,
               CLIENT_REFERENCE_MANIFEST + '.json'
             )),
-            serverCSSManifest: require(join(
-              distDir,
-              SERVER_DIRECTORY,
-              FLIGHT_SERVER_CSS_MANIFEST + '.json'
-            )),
             serverActionsManifest: require(join(
               distDir,
               SERVER_DIRECTORY,
@@ -493,6 +493,7 @@ export default async function exportApp(
           }
         : {}),
       strictNextHead: !!nextConfig.experimental.strictNextHead,
+      deploymentId: nextConfig.experimental.deploymentId,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig

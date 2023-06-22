@@ -4,6 +4,7 @@
 
 // This module will only be loaded once per process.
 
+const { dirname } = require('path')
 const mod = require('module')
 const resolveFilename = mod._resolveFilename
 const hookPropertyMap = new Map()
@@ -20,11 +21,9 @@ export function addHookAliases(aliases: [string, string][] = []) {
 addHookAliases([
   // Use `require.resolve` explicitly to make them statically analyzable
   // styled-jsx needs to be resolved as the external dependency.
-  ['styled-jsx', require.resolve('styled-jsx')],
+  ['styled-jsx', dirname(require.resolve('styled-jsx/package.json'))],
   ['styled-jsx/style', require.resolve('styled-jsx/style')],
-  ['styled-jsx/style', require.resolve('styled-jsx/style')],
-  ['server-only', require.resolve('next/dist/compiled/server-only')],
-  ['client-only', require.resolve('next/dist/compiled/client-only')],
+  ['zod', dirname(require.resolve('zod/package.json'))],
 ])
 
 // Override built-in React packages if necessary
@@ -52,6 +51,16 @@ function overrideReact() {
           'react-dom',
           require.resolve(
             `next/dist/compiled/react-dom-experimental/server-rendering-stub`
+          ),
+        ],
+        [
+          'react/package.json',
+          require.resolve(`next/dist/compiled/react-experimental/package.json`),
+        ],
+        [
+          'react-dom/package.json',
+          require.resolve(
+            `next/dist/compiled/react-dom-experimental/package.json`
           ),
         ],
         [
@@ -103,6 +112,10 @@ function overrideReact() {
       addHookAliases([
         ['react', require.resolve(`next/dist/compiled/react`)],
         [
+          'react/package.json',
+          require.resolve(`next/dist/compiled/react/package.json`),
+        ],
+        [
           'react/jsx-runtime',
           require.resolve(`next/dist/compiled/react/jsx-runtime`),
         ],
@@ -113,6 +126,10 @@ function overrideReact() {
         [
           'react-dom',
           require.resolve(`next/dist/compiled/react-dom/server-rendering-stub`),
+        ],
+        [
+          'react-dom/package.json',
+          require.resolve(`next/dist/compiled/react-dom/package.json`),
         ],
         [
           'react-dom/client',

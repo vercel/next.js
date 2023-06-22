@@ -27,7 +27,7 @@ export type HtmlProps = {
   headTags: any[]
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
-  devOnlyCacheBusterQueryString: string
+  assetQueryString: string
   scriptLoader: {
     afterInteractive?: string[]
     beforeInteractive?: any[]

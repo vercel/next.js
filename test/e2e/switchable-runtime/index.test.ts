@@ -187,7 +187,6 @@ describe('Switchable runtime', () => {
           expect(manifest).toMatchObject({
             functions: {
               '/api/hello': {
-                env: expect.arrayContaining([]),
                 files: [
                   'server/edge-runtime-webpack.js',
                   'server/pages/api/hello.js',
@@ -200,7 +199,6 @@ describe('Switchable runtime', () => {
                 wasm: [],
               },
               '/api/edge': {
-                env: expect.arrayContaining([]),
                 files: [
                   'server/edge-runtime-webpack.js',
                   'server/pages/api/edge.js',
@@ -623,7 +621,6 @@ describe('Switchable runtime', () => {
           expect(manifest).toMatchObject({
             functions: {
               '/api/hello': {
-                env: expect.arrayContaining([]),
                 files: [
                   'server/edge-runtime-webpack.js',
                   'server/pages/api/hello.js',
@@ -636,7 +633,6 @@ describe('Switchable runtime', () => {
                 wasm: [],
               },
               '/api/edge': {
-                env: expect.arrayContaining([]),
                 files: [
                   'server/edge-runtime-webpack.js',
                   'server/pages/api/edge.js',

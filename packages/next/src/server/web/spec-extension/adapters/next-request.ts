@@ -3,7 +3,7 @@ import type { NodeNextRequest } from '../../../base-http/node'
 import type { WebNextRequest } from '../../../base-http/web'
 
 import { getRequestMeta } from '../../../request-meta'
-import { fromNodeHeaders } from '../../utils'
+import { fromNodeOutgoingHttpHeaders } from '../../utils'
 import { NextRequest } from '../request'
 
 export class NextRequestAdapter {
@@ -30,15 +30,20 @@ export class NextRequestAdapter {
     } else {
       // Grab the full URL from the request metadata.
       const base = getRequestMeta(request, '__NEXT_INIT_URL')
-      if (!base) throw new Error('Invariant: missing url on request')
-
-      url = new URL(request.url, base)
+      if (!base || !base.startsWith('http')) {
+        // Because the URL construction relies on the fact that the URL provided
+        // is absolute, we need to provide a base URL. We can't use the request
+        // URL because it's relative, so we use a dummy URL instead.
+        url = new URL(request.url, 'http://n')
+      } else {
+        url = new URL(request.url, base)
+      }
     }
 
     return new NextRequest(url, {
       body,
       method: request.method,
-      headers: fromNodeHeaders(request.headers),
+      headers: fromNodeOutgoingHttpHeaders(request.headers),
       // @ts-expect-error - see https://github.com/whatwg/fetch/pull/1457
       duplex: 'half',
       // geo
@@ -57,7 +62,7 @@ export class NextRequestAdapter {
     return new NextRequest(request.url, {
       body,
       method: request.method,
-      headers: fromNodeHeaders(request.headers),
+      headers: fromNodeOutgoingHttpHeaders(request.headers),
       // @ts-expect-error - see https://github.com/whatwg/fetch/pull/1457
       duplex: 'half',
       // geo

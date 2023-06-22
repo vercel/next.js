@@ -14,7 +14,6 @@ createNextDescribe(
     files: __dirname,
     env: {
       NEXT_DEBUG_BUILD: '1',
-      NEXT_PRIVATE_DEBUG_CACHE: '1',
       ...(process.env.CUSTOM_CACHE_HANDLER
         ? {
             CUSTOM_CACHE_HANDLER: process.env.CUSTOM_CACHE_HANDLER,
@@ -34,6 +33,51 @@ createNextDescribe(
         buildCliOutputIndex = next.cliOutput.length
       }
     })
+
+    it('should correctly include headers instance in cache key', async () => {
+      const res = await next.fetch('/variable-revalidate/headers-instance')
+      expect(res.status).toBe(200)
+
+      const html = await res.text()
+      const $ = cheerio.load(html)
+
+      const data1 = $('#page-data').text()
+      const data2 = $('#page-data2').text()
+      expect(data1).not.toBe(data2)
+
+      expect(data1).toBeTruthy()
+      expect(data2).toBeTruthy()
+    })
+
+    it.skip.each([
+      {
+        path: '/react-fetch-deduping-node',
+      },
+      {
+        path: '/react-fetch-deduping-edge',
+      },
+    ])(
+      'should correctly de-dupe fetch without next cache $path',
+      async ({ path }) => {
+        for (let i = 0; i < 5; i++) {
+          const res = await next.fetch(path, {
+            redirect: 'manual',
+          })
+
+          expect(res.status).toBe(200)
+          const html = await res.text()
+          const $ = cheerio.load(html)
+
+          const data1 = $('#data-1').text()
+          const data2 = $('#data-2').text()
+
+          expect(data1).toBeTruthy()
+          expect(data1).toBe(data2)
+
+          await waitFor(250)
+        }
+      }
+    )
 
     it.each([
       { pathname: '/unstable-cache-node' },
@@ -506,6 +550,8 @@ createNextDescribe(
           'partial-gen-params-no-additional-slug/fr/second.html',
           'partial-gen-params-no-additional-slug/fr/second.rsc',
           'partial-gen-params/[lang]/[slug]/page.js',
+          'react-fetch-deduping-edge/page.js',
+          'react-fetch-deduping-node/page.js',
           'route-handler-edge/revalidate-360/route.js',
           'route-handler/post/route.js',
           'route-handler/revalidate-360-isr/route.js',
@@ -541,6 +587,9 @@ createNextDescribe(
           'variable-revalidate/encoding.html',
           'variable-revalidate/encoding.rsc',
           'variable-revalidate/encoding/page.js',
+          'variable-revalidate/headers-instance.html',
+          'variable-revalidate/headers-instance.rsc',
+          'variable-revalidate/headers-instance/page.js',
           'variable-revalidate/no-store/page.js',
           'variable-revalidate/post-method-request/page.js',
           'variable-revalidate/post-method.html',
@@ -781,6 +830,11 @@ createNextDescribe(
             dataRoute: '/variable-revalidate/encoding.rsc',
             initialRevalidateSeconds: 3,
             srcRoute: '/variable-revalidate/encoding',
+          },
+          '/variable-revalidate/headers-instance': {
+            dataRoute: '/variable-revalidate/headers-instance.rsc',
+            initialRevalidateSeconds: 10,
+            srcRoute: '/variable-revalidate/headers-instance',
           },
           '/variable-revalidate/post-method': {
             dataRoute: '/variable-revalidate/post-method.rsc',
@@ -1270,6 +1324,12 @@ createNextDescribe(
         expect($2('#page-data').text()).toBe(pageData)
         return 'success'
       }, 'success')
+
+      if (isNextStart) {
+        expect(next.cliOutput).toContain(
+          `Page "/variable-revalidate-edge/revalidate-3" is using runtime = 'edge' which is currently incompatible with dynamic = 'force-static'. Please remove either "runtime" or "force-static" for correct behavior`
+        )
+      }
     })
 
     it('should honor fetch cache correctly (edge)', async () => {

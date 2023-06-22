@@ -1,11 +1,13 @@
+import type { Duplex } from 'stream'
+import type { IncomingMessage, ServerResponse } from 'http'
+import type { ChildProcess } from 'child_process'
+
 import http from 'http'
 import { isIPv6 } from 'net'
 import * as Log from '../../build/output/log'
-import { getNodeOptionsWithoutInspect } from './utils'
-import type { IncomingMessage, ServerResponse } from 'http'
-import type { ChildProcess } from 'child_process'
 import { normalizeRepeatedSlashes } from '../../shared/lib/utils'
 import { initialEnv } from '@next/env'
+import { genRouterWorkerExecArgv, getNodeOptionsWithoutInspect } from './utils'
 
 export interface StartServerOptions {
   dir: string
@@ -35,7 +37,7 @@ export async function startServer({
   onStdout,
   onStderr,
 }: StartServerOptions): Promise<TeardownServer> {
-  const sockets = new Set<ServerResponse>()
+  const sockets = new Set<ServerResponse | Duplex>()
   let worker: import('next/dist/compiled/jest-worker').Worker | undefined
   let handlersReady = () => {}
   let handlersError = () => {}
@@ -70,7 +72,7 @@ export async function startServer({
   }
   let upgradeHandler = async (
     _req: IncomingMessage,
-    _socket: ServerResponse,
+    _socket: ServerResponse | Duplex,
     _head: Buffer
   ): Promise<void> => {
     if (handlersPromise) {
@@ -184,11 +186,17 @@ export async function startServer({
         // TODO: do we want to allow more than 10 OOM restarts?
         maxRetries: 10,
         forkOptions: {
+          execArgv: await genRouterWorkerExecArgv(
+            isNodeDebugging === undefined ? false : isNodeDebugging
+          ),
           env: {
             FORCE_COLOR: '1',
             ...((initialEnv || process.env) as typeof process.env),
             PORT: port + '',
-            NODE_OPTIONS: getNodeOptionsWithoutInspect().trim(),
+            NODE_OPTIONS: getNodeOptionsWithoutInspect(),
+            ...(process.env.NEXT_CPU_PROF
+              ? { __NEXT_PRIVATE_CPU_PROFILE: `CPU.router` }
+              : {}),
           },
         },
         exposedMethods: ['initialize'],
@@ -235,6 +243,7 @@ export async function startServer({
         hostname,
         dev: !!isDev,
         workerType: 'router',
+        isNodeDebugging: !!isNodeDebugging,
         keepAliveTimeout,
       })
       didInitialize = true
@@ -275,6 +284,21 @@ export async function startServer({
           return
         }
         const proxyServer = getProxyServer(req.url || '/')
+
+        // http-proxy does not properly detect a client disconnect in newer
+        // versions of Node.js. This is caused because it only listens for the
+        // `aborted` event on the our request object, but it also fully reads
+        // and closes the request object. Node **will not** fire `aborted` when
+        // the request is already closed. Listening for `close` on our response
+        // object will detect the disconnect, and we can abort the proxy's
+        // connection.
+        proxyServer.on('proxyReq', (proxyReq) => {
+          res.on('close', () => proxyReq.destroy())
+        })
+        proxyServer.on('proxyRes', (proxyRes) => {
+          res.on('close', () => proxyRes.destroy())
+        })
+
         proxyServer.web(req, res)
       }
       upgradeHandler = async (req, socket, head) => {

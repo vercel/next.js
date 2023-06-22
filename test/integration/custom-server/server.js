@@ -1,6 +1,7 @@
 if (process.env.POLYFILL_FETCH) {
   global.fetch = require('node-fetch').default
   global.Request = require('node-fetch').Request
+  global.Headers = require('node-fetch').Headers
 }
 
 const { readFileSync } = require('fs')

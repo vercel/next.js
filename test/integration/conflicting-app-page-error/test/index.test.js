@@ -9,6 +9,7 @@ import {
   launchApp,
   nextBuild,
   waitFor,
+  check,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
@@ -19,7 +20,7 @@ let output = ''
 
 function runTests({ dev }) {
   it('should print error for conflicting app/page', async () => {
-    expect(output).toMatch(/Conflicting app and page files were found/)
+    await check(() => output, /Conflicting app and page files were found/)
 
     for (const [pagePath, appPath] of [
       ['pages/index.js', 'app/page.js'],

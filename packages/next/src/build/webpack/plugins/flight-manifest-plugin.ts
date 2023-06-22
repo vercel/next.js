@@ -11,14 +11,13 @@ import {
   CLIENT_REFERENCE_MANIFEST,
   SYSTEM_ENTRYPOINTS,
 } from '../../../shared/lib/constants'
-import { relative, sep } from 'path'
+import { relative } from 'path'
 import { isClientComponentEntryModule, isCSSMod } from '../loaders/utils'
 import { getProxiedPluginState } from '../../build-context'
 
 import { traverseModules } from '../utils'
 import { nonNullable } from '../../../lib/non-nullable'
 import { WEBPACK_LAYERS } from '../../../lib/constants'
-import { getClientReferenceModuleKey } from '../../../lib/client-reference'
 
 interface Options {
   dev: boolean
@@ -69,17 +68,11 @@ export type ClientReferenceManifest = {
   edgeSSRModuleMapping: {
     [moduleId: string]: ManifestNode
   }
-  cssFiles: {
-    [entryPathWithoutExtension: string]: string[]
-  }
-}
-
-export type ClientCSSReferenceManifest = {
-  cssImports: {
-    [modulePath: string]: string[]
-  }
-  cssModules?: {
-    [entry: string]: string[]
+  entryCSSFiles: {
+    [entry: string]: {
+      modules: string[]
+      files: string[]
+    }
   }
 }
 
@@ -88,11 +81,13 @@ const PLUGIN_NAME = 'ClientReferenceManifestPlugin'
 export class ClientReferenceManifestPlugin {
   dev: Options['dev'] = false
   appDir: Options['appDir']
+  appDirBase: string
   ASYNC_CLIENT_MODULES: Set<string>
 
   constructor(options: Options) {
     this.dev = options.dev
     this.appDir = options.appDir
+    this.appDirBase = path.dirname(this.appDir) + path.sep
     this.ASYNC_CLIENT_MODULES = new Set(pluginState.ASYNC_CLIENT_MODULES)
   }
 
@@ -132,15 +127,15 @@ export class ClientReferenceManifestPlugin {
     const manifest: ClientReferenceManifest = {
       ssrModuleMapping: {},
       edgeSSRModuleMapping: {},
-      cssFiles: {},
       clientModules: {},
+      entryCSSFiles: {},
     }
 
     const clientRequestsSet = new Set()
 
     // Collect client requests
     function collectClientRequest(mod: webpack.NormalModule) {
-      if (mod.resource === '' && mod.buildInfo.rsc) {
+      if (mod.resource === '' && mod.buildInfo?.rsc) {
         const { requests = [] } = mod.buildInfo.rsc
         requests.forEach((r: string) => {
           clientRequestsSet.add(r)
@@ -151,11 +146,49 @@ export class ClientReferenceManifestPlugin {
     traverseModules(compilation, (mod) => collectClientRequest(mod))
 
     compilation.chunkGroups.forEach((chunkGroup) => {
-      const recordModule = (
-        id: ModuleId,
-        mod: webpack.NormalModule,
-        chunkCSS: string[]
-      ) => {
+      function getAppPathRequiredChunks() {
+        return chunkGroup.chunks
+          .map((requiredChunk: webpack.Chunk) => {
+            if (SYSTEM_ENTRYPOINTS.has(requiredChunk.name || '')) {
+              return null
+            }
+
+            // Get the actual chunk file names from the chunk file list.
+            // It's possible that the chunk is generated via `import()`, in
+            // that case the chunk file name will be '[name].[contenthash]'
+            // instead of '[name]-[chunkhash]'.
+            return [...requiredChunk.files].map((file) => {
+              // It's possible that a chunk also emits CSS files, that will
+              // be handled separatedly.
+              if (!file.endsWith('.js')) return null
+              if (file.endsWith('.hot-update.js')) return null
+
+              return requiredChunk.id + ':' + file
+            })
+          })
+          .flat()
+          .filter(nonNullable)
+      }
+      const requiredChunks = getAppPathRequiredChunks()
+
+      let chunkEntryName: string | null = null
+      if (chunkGroup.name && /^app[\\/]/.test(chunkGroup.name)) {
+        // Absolute path without the extension
+        chunkEntryName = (this.appDirBase + chunkGroup.name).replace(
+          /[\\/]/g,
+          path.sep
+        )
+        manifest.entryCSSFiles[chunkEntryName] = {
+          modules: [],
+          files: chunkGroup
+            .getFiles()
+            .filter(
+              (f) => !f.startsWith('static/css/pages/') && f.endsWith('.css')
+            ),
+        }
+      }
+
+      const recordModule = (id: ModuleId, mod: webpack.NormalModule) => {
         const isCSSModule = isCSSMod(mod)
 
         // Skip all modules from the pages folder. CSS modules are a special case
@@ -175,6 +208,13 @@ export class ClientReferenceManifestPlugin {
           return
         }
 
+        if (isCSSModule) {
+          if (chunkEntryName) {
+            manifest.entryCSSFiles[chunkEntryName].modules.push(resource)
+          }
+          return
+        }
+
         const moduleReferences = manifest.clientModules
         const moduleIdMapping = manifest.ssrModuleMapping
         const edgeModuleIdMapping = manifest.edgeSSRModuleMapping
@@ -190,26 +230,6 @@ export class ClientReferenceManifestPlugin {
         if (!ssrNamedModuleId.startsWith('.'))
           ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
 
-        if (isCSSModule) {
-          const exportName = getClientReferenceModuleKey(resource, '')
-          if (!moduleReferences[exportName]) {
-            moduleReferences[exportName] = {
-              id: id || '',
-              name: 'default',
-              chunks: chunkCSS,
-            }
-          } else {
-            // It is possible that there are multiple modules with the same resource,
-            // e.g. extracted by mini-css-extract-plugin. In that case we need to
-            // merge the chunks.
-            moduleReferences[exportName].chunks = [
-              ...new Set([...moduleReferences[exportName].chunks, ...chunkCSS]),
-            ]
-          }
-
-          return
-        }
-
         // Only apply following logic to client module requests from client entry,
         // or if the module is marked as client module.
         if (
@@ -219,62 +239,7 @@ export class ClientReferenceManifestPlugin {
           return
         }
 
-        const exportsInfo = compilation.moduleGraph.getExportsInfo(mod)
         const isAsyncModule = this.ASYNC_CLIENT_MODULES.has(mod.resource)
-
-        const cjsExports = [
-          ...new Set(
-            [
-              ...mod.dependencies.map((dep) => {
-                // Match CommonJsSelfReferenceDependency
-                if (dep.type === 'cjs self exports reference') {
-                  // @ts-expect-error: TODO: Fix Dependency type
-                  if (dep.base === 'module.exports') {
-                    return 'default'
-                  }
-
-                  // `exports.foo = ...`, `exports.default = ...`
-                  // @ts-expect-error: TODO: Fix Dependency type
-                  if (dep.base === 'exports') {
-                    // @ts-expect-error: TODO: Fix Dependency type
-                    return dep.names.filter(
-                      (name: any) => name !== '__esModule'
-                    )
-                  }
-                }
-                return null
-              }),
-              ...(mod.buildInfo.rsc?.clientRefs || []),
-            ]
-              .filter(Boolean)
-              .flat()
-          ),
-        ]
-
-        function getAppPathRequiredChunks() {
-          return chunkGroup.chunks
-            .map((requiredChunk: webpack.Chunk) => {
-              if (SYSTEM_ENTRYPOINTS.has(requiredChunk.name)) {
-                return null
-              }
-
-              // Get the actual chunk file names from the chunk file list.
-              // It's possible that the chunk is generated via `import()`, in
-              // that case the chunk file name will be '[name].[contenthash]'
-              // instead of '[name]-[chunkhash]'.
-              return [...requiredChunk.files].map((file) => {
-                // It's possible that a chunk also emits CSS files, that will
-                // be handled separatedly.
-                if (!file.endsWith('.js')) return null
-                if (file.endsWith('.hot-update.js')) return null
-
-                return requiredChunk.id + ':' + file
-              })
-            })
-            .flat()
-            .filter(nonNullable)
-        }
-        const requiredChunks = getAppPathRequiredChunks()
 
         // The client compiler will always use the CJS Next.js build, so here we
         // also add the mapping for the ESM build (Edge runtime) to consume.
@@ -285,32 +250,33 @@ export class ClientReferenceManifestPlugin {
             )
           : null
 
-        function addClientReference(name: string) {
-          const exportName = getClientReferenceModuleKey(resource, name)
+        function addClientReference() {
+          const exportName = resource
           manifest.clientModules[exportName] = {
             id,
-            name,
+            name: '*',
             chunks: requiredChunks,
             async: isAsyncModule,
           }
           if (esmResource) {
-            const edgeExportName = getClientReferenceModuleKey(
-              esmResource,
-              name
-            )
+            const edgeExportName = esmResource
             manifest.clientModules[edgeExportName] =
               manifest.clientModules[exportName]
           }
         }
 
-        function addSSRIdMapping(name: string) {
-          const exportName = getClientReferenceModuleKey(resource, name)
+        function addSSRIdMapping() {
+          const exportName = resource
           if (
             typeof pluginState.serverModuleIds[ssrNamedModuleId] !== 'undefined'
           ) {
             moduleIdMapping[id] = moduleIdMapping[id] || {}
-            moduleIdMapping[id][name] = {
+            moduleIdMapping[id]['*'] = {
               ...manifest.clientModules[exportName],
+              // During SSR, we don't have external chunks to load on the server
+              // side with our architecture of Webpack / Turbopack. We can keep
+              // this field empty to save some bytes.
+              chunks: [],
               id: pluginState.serverModuleIds[ssrNamedModuleId],
             }
           }
@@ -320,39 +286,19 @@ export class ClientReferenceManifestPlugin {
             'undefined'
           ) {
             edgeModuleIdMapping[id] = edgeModuleIdMapping[id] || {}
-            edgeModuleIdMapping[id][name] = {
+            edgeModuleIdMapping[id]['*'] = {
               ...manifest.clientModules[exportName],
+              // During SSR, we don't have external chunks to load on the server
+              // side with our architecture of Webpack / Turbopack. We can keep
+              // this field empty to save some bytes.
+              chunks: [],
               id: pluginState.edgeServerModuleIds[ssrNamedModuleId],
             }
           }
         }
 
-        addClientReference('*')
-        addClientReference('')
-        addSSRIdMapping('*')
-        addSSRIdMapping('')
-
-        const moduleExportedKeys = [
-          ...[...exportsInfo.exports]
-            .filter((exportInfo) => exportInfo.provided)
-            .map((exportInfo) => exportInfo.name),
-          ...cjsExports,
-        ].filter((name) => name !== null)
-
-        moduleExportedKeys.forEach((name) => {
-          const key = getClientReferenceModuleKey(resource, name)
-
-          // If the chunk is from `app/` chunkGroup, use it first.
-          // This make sure not to load the overlapped chunk from `pages/` chunkGroup
-          if (
-            !manifest.clientModules[key] ||
-            (chunkGroup.name && /^app[\\/]/.test(chunkGroup.name))
-          ) {
-            addClientReference(name)
-          }
-
-          addSSRIdMapping(name)
-        })
+        addClientReference()
+        addSSRIdMapping()
 
         manifest.clientModules = moduleReferences
         manifest.ssrModuleMapping = moduleIdMapping
@@ -365,56 +311,28 @@ export class ClientReferenceManifestPlugin {
           // TODO: Update type so that it doesn't have to be cast.
         ) as Iterable<webpack.NormalModule>
 
-        const chunkCSS = [...chunk.files].filter(
-          (f) => !f.startsWith('static/css/pages/') && f.endsWith('.css')
-        )
-
         for (const mod of chunkModules) {
           const modId: string = compilation.chunkGraph.getModuleId(mod) + ''
 
-          recordModule(modId, mod, chunkCSS)
+          recordModule(modId, mod)
 
           // If this is a concatenation, register each child to the parent ID.
           // TODO: remove any
           const anyModule = mod as any
           if (anyModule.modules) {
             anyModule.modules.forEach((concatenatedMod: any) => {
-              recordModule(modId, concatenatedMod, chunkCSS)
+              recordModule(modId, concatenatedMod)
             })
           }
         }
       })
 
-      const entryCSSFiles: { [key: string]: string[] } = manifest.cssFiles || {}
-
-      const addCSSFilesToEntry = (
-        files: string[],
-        entryName: string | undefined | null
-      ) => {
-        if (entryName?.startsWith('app/')) {
-          // The `key` here should be the absolute file path but without extension.
-          // We need to replace the separator in the entry name to match the system separator.
-          const key =
-            this.appDir +
-            entryName
-              .slice(3)
-              .replace(/\//g, sep)
-              .replace(/\.[^\\/.]+$/, '')
-          entryCSSFiles[key] = files.concat(entryCSSFiles[key] || [])
-        }
+      if (chunkEntryName) {
+        // Make sure CSS modules are deduped
+        manifest.entryCSSFiles[chunkEntryName].modules = [
+          ...new Set(manifest.entryCSSFiles[chunkEntryName].modules),
+        ]
       }
-
-      const cssFiles = chunkGroup.getFiles().filter((f) => f.endsWith('.css'))
-
-      if (cssFiles.length) {
-        // Add to chunk entry and parent chunk groups too.
-        addCSSFilesToEntry(cssFiles, chunkGroup.name)
-        chunkGroup.getParents().forEach((parent) => {
-          addCSSFilesToEntry(cssFiles, parent.options.name)
-        })
-      }
-
-      manifest.cssFiles = entryCSSFiles
     })
 
     const file = 'server/' + CLIENT_REFERENCE_MANIFEST
@@ -423,7 +341,7 @@ export class ClientReferenceManifestPlugin {
     pluginState.ASYNC_CLIENT_MODULES = []
 
     assets[file + '.js'] = new sources.RawSource(
-      'self.__RSC_MANIFEST=' + json
+      `self.__RSC_MANIFEST=${JSON.stringify(json)}`
       // Work around webpack 4 type of RawSource being used
       // TODO: use webpack 5 type by default
     ) as unknown as webpack.sources.RawSource

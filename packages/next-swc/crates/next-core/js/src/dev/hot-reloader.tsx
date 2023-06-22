@@ -3,7 +3,7 @@
 import type React from 'react'
 import { useRouter, usePathname } from 'next/dist/client/components/navigation'
 import { useEffect } from 'react'
-import { subscribeToUpdate } from '@vercel/turbopack-dev/client/hmr-client'
+import { subscribeToUpdate } from '@vercel/turbopack-ecmascript-runtime/dev/client/hmr-client'
 import { ReactDevOverlay } from './client'
 
 type HotReloadProps = React.PropsWithChildren<{
