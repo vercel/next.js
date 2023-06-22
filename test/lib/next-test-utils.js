@@ -535,8 +535,15 @@ export async function startCleanStaticServer(dir) {
   return server
 }
 
-// check for content in 1 second intervals timing out after
-// 30 seconds
+/**
+ * Check for content in 1 second intervals timing out after 30 seconds.
+ *
+ * @param {() => Promise<unknown> | unknown} contentFn
+ * @param {RegExp | string | number} regex
+ * @param {boolean} hardError
+ * @param {number} maxRetries
+ * @returns {Promise<boolean>}
+ */
 export async function check(
   contentFn,
   regex,
