@@ -26,16 +26,14 @@ createNextDescribe(
       const res = await next.fetch('/not-found/does-not-exist')
       expect(res.status).toBe(404)
       const html = await res.text()
-      expect(html).toContain('not-found-page-404')
-      expect(html).not.toContain('not-found-page-200')
+      expect(html).toContain('app-not-found')
     })
 
     it('should handle private _next unmatched route correctly', async () => {
       const res = await next.fetch('/_next/does-not-exist')
       expect(res.status).toBe(404)
       const html = await res.text()
-      expect(html).toContain('not-found-page-404')
-      expect(html).not.toContain('not-found-page-200')
+      expect(html).toContain('app-not-found')
     })
 
     it('should handle pages rendering correctly', async () => {
