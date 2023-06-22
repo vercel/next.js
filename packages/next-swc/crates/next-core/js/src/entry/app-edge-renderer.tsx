@@ -46,9 +46,9 @@ startOperationStreamHandler(async (renderData: RenderData, respond) => {
 async function runOperation(renderData: RenderData) {
   const edgeInfo = {
     name: 'edge',
-    paths: chunkGroup.map((chunk: string) =>
-      join(process.cwd(), '.next/server/app', chunk)
-    ),
+    paths: chunkGroup
+      .filter((chunk) => chunk.endsWith('.js'))
+      .map((chunk: string) => join(process.cwd(), '.next/server/app', chunk)),
     wasm: [],
     env: Object.keys(process.env),
     assets: [],
