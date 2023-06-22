@@ -36,7 +36,7 @@ For more information on the Umbraco .NET CLI templates, visit [this page](https:
 
 ### Step 2. Install sample data
 
-To avoid having to create the entire blog dataset in hand, we have created a [NuGet package](https://TODO) with everything you need to get started. 
+To avoid having to create the entire blog dataset in hand, we have created a [NuGet package](https://TODO) with everything you need to get started.
 
 Install the NuGet package with the following command in the terminal window: `dotnet add Umbraco.Cms.TODO.TODO`.
 
@@ -64,14 +64,14 @@ Start Umbraco with the following command in the terminal window: `dotnet run`.
 
 Follow the installation wizard to complete the Umbraco setup.
 
-Once completed you'll be redirected to the Umbraco backoffice where the blog sample data is already installed. 
+Once completed you'll be redirected to the Umbraco backoffice where the blog sample data is already installed.
 
 ### Step 5. Publish the sample data
 
 All the sample content is unpublished to begin with. You need to publish all of it to show the blog posts on the blog.
 
-1. Click the _Posts_ item in the Content tree. This item contains all the individual blog posts. 
-2. In the lower right hand corner of the browser you'll find a green button labelled "Save and publish". 
+1. Click the _Posts_ item in the Content tree. This item contains all the individual blog posts.
+2. In the lower right hand corner of the browser you'll find a green button labelled "Save and publish".
 3. Click the little up-arrow next to this button and select "Publish with descendants...".
 4. In the dialog, tick "Include unpublished content items" to publish the _Posts_ item and all the blog posts in one go.
 
@@ -175,4 +175,3 @@ Alternatively, you can deploy using our template by clicking on the Deploy butto
 - [Ghost](/examples/cms-ghost)
 - [Blog Starter](/examples/blog-starter)
 - [Builder.io](/examples/cms-builder-io)
-

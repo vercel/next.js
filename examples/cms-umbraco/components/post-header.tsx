@@ -3,7 +3,7 @@ import Date from './date'
 import CoverImage from './cover-image'
 import PostTitle from './post-title'
 import Author from '../types/author'
-import Picture from "../types/picture";
+import Picture from '../types/picture'
 
 type Props = {
   title: string
@@ -12,12 +12,7 @@ type Props = {
   author: Author
 }
 
-export default function PostHeader({
-  title,
-  coverImage,
-  date,
-  author,
-}: Props) {
+export default function PostHeader({ title, coverImage, date, author }: Props) {
   return (
     <>
       <PostTitle>{title}</PostTitle>

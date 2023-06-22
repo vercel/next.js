@@ -1,4 +1,4 @@
-import Picture from "./picture";
+import Picture from './picture'
 
 type Author = {
   id: string

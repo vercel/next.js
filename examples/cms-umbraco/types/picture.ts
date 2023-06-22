@@ -1,5 +1,5 @@
 ﻿type Picture = {
-    url: string
+  url: string
 }
 
 export default Picture

@@ -1,7 +1,7 @@
 import cn from 'classnames'
 import Image from 'next/image'
 import Link from 'next/link'
-import Picture from "../types/picture";
+import Picture from '../types/picture'
 
 type Props = {
   title: string

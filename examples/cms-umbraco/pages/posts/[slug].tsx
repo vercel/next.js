@@ -56,7 +56,7 @@ export default function Post({ post, morePosts, preview }: Props) {
 
             <SectionSeparator />
             {morePosts && morePosts.length > 0 && (
-                <MoreStories posts={morePosts} />
+              <MoreStories posts={morePosts} />
             )}
           </>
         )}
@@ -69,7 +69,7 @@ export async function getStaticPaths({ preview }: { preview: boolean }) {
   const slugs = await getAllPostSlugs(preview)
 
   return {
-    paths: slugs.map(slug => `/posts${slug}`),
+    paths: slugs.map((slug) => `/posts${slug}`),
     fallback: false,
   }
 }
@@ -85,7 +85,7 @@ export async function getStaticProps({
   params: Params
   preview: boolean
 }) {
-  const postAndMorePosts = await getPostAndMorePosts(params.slug, preview);
+  const postAndMorePosts = await getPostAndMorePosts(params.slug, preview)
 
   return {
     props: {

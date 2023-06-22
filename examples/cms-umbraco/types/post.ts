@@ -1,5 +1,5 @@
 import Author from './author'
-import Picture from "./picture";
+import Picture from './picture'
 
 type Post = {
   id: string
