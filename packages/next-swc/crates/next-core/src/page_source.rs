@@ -291,6 +291,8 @@ pub async fn create_page_source(
             fallback_page,
             client_root,
             node_root.join("force_not_found"),
+            BaseSegment::from_static_pathname("_next/404").collect(),
+            None,
             NextExactMatcherVc::new(StringVc::cell("_next/404".to_string())).into(),
             render_data,
         )
@@ -332,6 +334,8 @@ pub async fn create_page_source(
             fallback_page,
             client_root,
             node_root.join("fallback_not_found"),
+            Vec::new(),
+            Some(FinalSegment::NotFound),
             NextFallbackMatcherVc::new().into(),
             render_data,
         )
@@ -522,6 +526,8 @@ async fn create_not_found_page_source(
     fallback_page: DevHtmlAssetVc,
     client_root: FileSystemPathVc,
     node_path: FileSystemPathVc,
+    base_segments: Vec<BaseSegment>,
+    final_segment: Option<FinalSegment>,
     route_matcher: RouteMatcherVc,
     render_data: JsonValueVc,
 ) -> Result<ContentSourceVc> {
@@ -589,8 +595,8 @@ async fn create_not_found_page_source(
         create_node_rendered_source(
             project_path,
             env,
-            Vec::new(),
-            Some(FinalSegment::NotFound),
+            base_segments,
+            final_segment,
             client_root,
             route_matcher,
             pathname,
@@ -751,7 +757,9 @@ async fn create_page_source_for_directory(
 fn pathname_to_segments(pathname: &str) -> (Vec<BaseSegment>, Option<FinalSegment>) {
     let mut segments = Vec::new();
     for segment in pathname.split('/') {
-        if segment.starts_with("[[...") && segment.ends_with("]]")
+        if segment.is_empty() {
+            // ignore
+        } else if segment.starts_with("[[...") && segment.ends_with("]]")
             || segment.starts_with("[...") && segment.ends_with(']')
         {
             // (optional) catch all segment
