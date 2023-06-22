@@ -328,13 +328,15 @@ export default class HotReloader {
     return { finished }
   }
 
-  public setServerHmrError(error: Error | null): void {
+  public setHmrServerError(error: Error | null): void {
     this.hmrServerError = error
   }
 
-  public clearServerHmrError(): void {
-    this.setServerHmrError(null)
-    this.send('reloadPage')
+  public clearHmrServerError(): void {
+    if (this.hmrServerError) {
+      this.setHmrServerError(null)
+      this.send('reloadPage')
+    }
   }
 
   public onHMR(req: IncomingMessage, _socket: Duplex, head: Buffer) {

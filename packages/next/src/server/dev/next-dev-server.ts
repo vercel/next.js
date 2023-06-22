@@ -614,10 +614,10 @@ export default class DevServer extends Server {
               const pagesPath = relative(this.dir, pagesPageFilePaths.get(p)!)
               errorMessage += `  "${pagesPath}" - "${appPath}"\n`
             }
-            this.hotReloader?.setServerHmrError(new Error(errorMessage))
+            this.hotReloader?.setHmrServerError(new Error(errorMessage))
           } else if (numConflicting === 0) {
             await this.matchers.reload()
-            this.hotReloader?.clearServerHmrError()
+            this.hotReloader?.clearHmrServerError()
           }
         }
 
