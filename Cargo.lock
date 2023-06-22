@@ -3260,7 +3260,16 @@ name = "next-build"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "clap 4.1.11",
+ "console-subscriber",
+ "dunce",
  "next-core",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "turbo-tasks",
  "turbopack-binding",
  "vergen",
 ]
@@ -7376,6 +7385,7 @@ dependencies = [
  "turbo-tasks-testing",
  "turbopack",
  "turbopack-bench",
+ "turbopack-build",
  "turbopack-cli-utils",
  "turbopack-core",
  "turbopack-dev",
@@ -7388,6 +7398,26 @@ dependencies = [
  "turbopack-node",
  "turbopack-static",
  "turbopack-test-utils",
+]
+
+[[package]]
+name = "turbopack-build"
+version = "0.1.0"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230621.2#ee6683e43e31a470e13f0bc16dbaa375face74b5"
+dependencies = [
+ "anyhow",
+ "indexmap",
+ "indoc",
+ "serde",
+ "serde_json",
+ "serde_qs",
+ "turbo-tasks",
+ "turbo-tasks-build",
+ "turbo-tasks-fs",
+ "turbopack-core",
+ "turbopack-css",
+ "turbopack-ecmascript",
+ "turbopack-ecmascript-runtime",
 ]
 
 [[package]]

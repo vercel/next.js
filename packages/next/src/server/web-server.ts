@@ -35,8 +35,9 @@ interface WebServerOptions extends Options {
     ) => Promise<LoadComponentsReturnType | null>
     extendRenderOpts: Partial<BaseServer['renderOpts']> &
       Pick<BaseServer['renderOpts'], 'buildId'>
-    pagesRenderToHTML?: typeof import('./render').renderToHTML
-    appRenderToHTML?: typeof import('./app-render/app-render').renderToHTMLOrFlight
+    renderToHTML:
+      | typeof import('./render').renderToHTML
+      | typeof import('./app-render/app-render').renderToHTMLOrFlight
     incrementalCacheHandler?: any
     prerenderManifest: PrerenderManifest | undefined
   }
@@ -362,32 +363,27 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     return false
   }
 
-  protected async renderHTML(
+  protected renderHTML(
     req: WebNextRequest,
     res: WebNextResponse,
     pathname: string,
     query: NextParsedUrlQuery,
     renderOpts: RenderOpts
   ): Promise<RenderResult> {
-    const { pagesRenderToHTML, appRenderToHTML } =
-      this.serverOptions.webServerConfig
-    const curRenderToHTML = pagesRenderToHTML || appRenderToHTML
+    const { renderToHTML } = this.serverOptions.webServerConfig
 
-    if (curRenderToHTML) {
-      return await curRenderToHTML(
-        req as any,
-        res as any,
-        pathname,
-        query,
-        Object.assign(renderOpts, {
-          disableOptimizedLoading: true,
-          runtime: 'experimental-edge',
-        })
-      )
-    } else {
-      throw new Error(`Invariant: curRenderToHTML is missing`)
-    }
+    return renderToHTML(
+      req as any,
+      res as any,
+      pathname,
+      query,
+      Object.assign(renderOpts, {
+        disableOptimizedLoading: true,
+        runtime: 'experimental-edge',
+      })
+    )
   }
+
   protected async sendRenderResult(
     _req: WebNextRequest,
     res: WebNextResponse,
@@ -406,20 +402,19 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     if (options.poweredByHeader && options.type === 'html') {
       res.setHeader('X-Powered-By', 'Next.js')
     }
-    const resultContentType = options.result.contentType()
 
     if (!res.getHeader('Content-Type')) {
       res.setHeader(
         'Content-Type',
-        resultContentType
-          ? resultContentType
+        options.result.contentType
+          ? options.result.contentType
           : options.type === 'json'
           ? 'application/json'
           : 'text/html; charset=utf-8'
       )
     }
 
-    if (options.result.isDynamic()) {
+    if (options.result.isDynamic) {
       const writer = res.transformStream.writable.getWriter()
       options.result.pipe({
         write: (chunk: Uint8Array) => writer.write(chunk),
