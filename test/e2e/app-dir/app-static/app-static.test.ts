@@ -465,6 +465,7 @@ createNextDescribe(
 
         expect(files).toEqual([
           '(new)/custom/page.js',
+          'api/draft-mode/route.js',
           'api/revalidate-path-edge/route.js',
           'api/revalidate-path-node/route.js',
           'api/revalidate-tag-edge/route.js',
@@ -1167,7 +1168,7 @@ createNextDescribe(
 
       expect(data2).toBeTruthy()
       expect(data1).not.toBe(data2)
-      expect(JSON.parse($('#draft-mode').text())).toEqual({ isEnabled: true })
+      expect(JSON.parse($2('#draft-mode').text())).toEqual({ isEnabled: true })
     })
 
     it('should handle partial-gen-params with default dynamicParams correctly', async () => {
