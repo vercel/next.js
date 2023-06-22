@@ -1088,6 +1088,8 @@ export default async function getBaseWebpackConfig(
             'next/dist/server': 'next/dist/esm/server',
 
             // Alias the usage of next public APIs
+            [require.resolve('next/server')]:
+              'next/dist/esm/server/web/exports/index',
             [require.resolve('next/dist/client/link')]:
               'next/dist/esm/client/link',
             [require.resolve('next/dist/client/image')]:
@@ -1129,6 +1131,11 @@ export default async function getBaseWebpackConfig(
 
       'styled-jsx/style$': require.resolve(`styled-jsx/style`),
       'styled-jsx$': require.resolve(`styled-jsx`),
+
+      // Alias 3rd party @vercel/og package to vendored og image package to reduce bundle size
+      '@vercel/og': `next/dist/compiled/@vercel/og/${
+        isEdgeServer ? 'index.edge.js' : 'index.node.js'
+      }`,
 
       ...customAppAliases,
       ...customErrorAlias,
