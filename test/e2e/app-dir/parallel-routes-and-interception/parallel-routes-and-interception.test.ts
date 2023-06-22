@@ -248,6 +248,17 @@ createNextDescribe(
           () => browser.waitForElementByCss('#parallel-layout').text(),
           'parallel layout'
         )
+
+        // navigate to /parallel-layout/subroute
+        await browser.elementByCss('[href="/parallel-layout/subroute"]').click()
+        await check(
+          () => browser.waitForElementByCss('#parallel-layout').text(),
+          'parallel layout'
+        )
+        await check(
+          () => browser.waitForElementByCss('#parallel-subroute').text(),
+          'parallel subroute layout'
+        )
       })
 
       it('should only scroll to the parallel route that was navigated to', async () => {
@@ -325,6 +336,46 @@ createNextDescribe(
         await check(
           () => browser.waitForElementByCss('#bar').text(),
           `{"slug":"foo","id":"bar"}`
+        )
+      })
+    })
+
+    describe('route intercepting with dynamic routes', () => {
+      it('should render intercepted route', async () => {
+        const browser = await next.browser(
+          '/intercepting-routes-dynamic/photos'
+        )
+
+        // Check if navigation to modal route works
+        await check(
+          () =>
+            browser
+              .elementByCss(
+                '[href="/intercepting-routes-dynamic/photos/next/123"]'
+              )
+              .click()
+              .waitForElementByCss('#user-intercept-page')
+              .text(),
+          'Intercepted Page'
+        )
+
+        // Check if url matches even though it was intercepted.
+        await check(
+          () => browser.url(),
+          next.url + '/intercepting-routes-dynamic/photos/next/123'
+        )
+
+        // Trigger a refresh, this should load the normal page, not the modal.
+        await check(
+          () =>
+            browser.refresh().waitForElementByCss('#user-regular-page').text(),
+          'Regular Page'
+        )
+
+        // Check if the url matches still.
+        await check(
+          () => browser.url(),
+          next.url + '/intercepting-routes-dynamic/photos/next/123'
         )
       })
     })
