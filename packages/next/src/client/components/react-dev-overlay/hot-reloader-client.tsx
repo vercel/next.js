@@ -35,6 +35,7 @@ import {
 } from './internal/helpers/use-websocket'
 import { parseComponentStack } from './internal/helpers/parse-component-stack'
 import type { VersionInfo } from '../../../server/dev/parse-version-info'
+import { isNotFoundError } from '../not-found'
 
 interface Dispatcher {
   onBuildOk(): void
@@ -472,7 +473,9 @@ export default function HotReload({
       frames: parseStack(reason.stack!),
     })
   }, [])
-  const handleOnReactError = useCallback(() => {
+  const handleOnReactError = useCallback((error: Error) => {
+    // not found errors are handled by the parent boundary, not the dev overlay
+    if (isNotFoundError(error)) throw error
     RuntimeErrorHandler.hadRuntimeError = true
   }, [])
   useErrorHandler(handleOnUnhandledError, handleOnUnhandledRejection)
