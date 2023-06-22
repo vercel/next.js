@@ -401,7 +401,8 @@ function processMessage(
         }).then((pageRes) => {
           if (pageRes.status === 200) {
             // Page exists now, reload
-            window.location.reload()
+            // @ts-ignore it exists, it's just hidden
+            router.fastRefresh()
           } else {
             // We are still on the page,
             // dispatch an error so it's caught by the NotFound handler
