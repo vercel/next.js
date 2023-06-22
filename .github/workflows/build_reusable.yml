@@ -7,6 +7,12 @@ on:
         required: false
         description: 'additional steps to run'
         type: string
+      # Toggles the mold linker. The default linker is much slower and can run into OOMs.
+      # However, custom linkers won't work for wasm.
+      mold:
+        required: false
+        description: 'whether to use the mold linker'
+        type: string
       skipInstallBuild:
         required: false
         description: 'whether to skip pnpm install && pnpm build'
@@ -87,6 +93,13 @@ jobs:
         if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
         with:
           components: rustfmt, clippy
+
+      - name: 'Install mold linker'
+        if: ${{ inputs.mold == 'yes' }}
+        run: |
+          sudo apt update
+          sudo apt install -y mold
+          echo RUSTFLAGS=${RUSTFLAGS}\ -C\ link-arg=-fuse-ld=mold >> $GITHUB_ENV
 
       - name: Install nextest
         if: ${{ inputs.needsNextest == 'yes' }}
