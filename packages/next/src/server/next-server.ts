@@ -1326,8 +1326,6 @@ export default class NextNodeServer extends BaseServer {
         name: '_next catchall',
         // This path is needed because `render()` does a check for `/_next` and the calls the routing again
         fn: async (req, res, _params, parsedUrl) => {
-          // Mark it's rendering 404 due to accessing the unmatched `_next` routes
-          parsedUrl.query.__nextPrivateUnmatchedRoute = '1'
           await this.render404(req, res, parsedUrl)
           return {
             finished: true,

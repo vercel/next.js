@@ -2165,6 +2165,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     bubbleNoFallback: boolean
   ) {
     const { query, pathname } = ctx
+
     const appPaths = this.getOriginalAppPaths(pathname)
     const isAppPath = Array.isArray(appPaths)
 
@@ -2430,8 +2431,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
     }
     const { res, query } = ctx
-    const isNextPrivateUnmatchedRoute = !!query.__nextPrivateUnmatchedRoute
-    delete query.__nextPrivateUnmatchedRoute
 
     try {
       let result: null | FindComponentsResult = null
@@ -2439,15 +2438,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const is404 = res.statusCode === 404
       let using404Page = false
 
-      const isStandaloneNextPrivate404Routing =
-        ctx.renderOpts.nextConfigOutput === 'standalone' &&
-        isNextPrivateUnmatchedRoute
-
       // use static 404 page if available and is 404 response
       if (is404) {
         // If it's standalone mode rendering unmatched `_next` routes, it's still in initial routing worker,
-        // Use pages 404 instead of app dir not-found page to avoid access RSC rendering where require-hook is not set up.
-        if (this.hasAppDir && !isStandaloneNextPrivate404Routing) {
+
+        if (this.hasAppDir && !!this.isRouterWorker) {
           // Use the not-found entry in app directory
           result = await this.findPageComponents({
             pathname: this.renderOpts.dev ? '/not-found' : '/_not-found',
