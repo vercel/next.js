@@ -49,7 +49,7 @@ The pages will then be exported as HTML files, for example, `/about` will become
 - `dev` - `true` when `exportPathMap` is being called in development. `false` when running `next export`. In development `exportPathMap` is used to define routes.
 - `dir` - Absolute path to the project directory
 - `outDir` - Absolute path to the `out/` directory ([configurable with `-o`](#customizing-the-output-directory)). When `dev` is `true` the value of `outDir` will be `null`.
-- `distDir` - Absolute path to the `.next/` directory (configurable with the [`distDir`](/docs/pages/api-reference/next-config-js/distDir) config)
+- `distDir` - Absolute path to the `.next/` directory (configurable with the [`distDir`](/docs/app/api-reference/next-config-js/distDir) config)
 - `buildId` - The generated build id
 
 The returned object is a map of pages where the `key` is the `pathname` and the `value` is an object that accepts the following fields:
@@ -73,7 +73,7 @@ module.exports = {
 
 ## Customizing the output directory
 
-[`next export`](/docs/pages/building-your-application/deploying/static-exports) will use `out` as the default output directory, you can customize this using the `-o` argument, like so:
+[`next export`](/docs/app/building-your-application/deploying/static-exports) will use `out` as the default output directory, you can customize this using the `-o` argument, like so:
 
 ```bash filename="Terminal"
 next export -o outdir

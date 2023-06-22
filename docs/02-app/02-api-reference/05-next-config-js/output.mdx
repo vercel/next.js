@@ -35,8 +35,8 @@ Additionally, a minimal `server.js` file is also output which can be used instea
 
 > **Good to know**:
 >
-> - `next.config.js` is read during `next build` and serialized into the `server.js` output file. If the legacy [`serverRuntimeConfig` or `publicRuntimeConfig` options](/docs/pages/api-reference/next-config-js/runtime-configuration) are being used, the values will be specific to values at build time.
-> - If your project uses [Image Optimization](/docs/pages/building-your-application/optimizing/images) with the default `loader`, you must install `sharp` as a dependency:
+> - `next.config.js` is read during `next build` and serialized into the `server.js` output file. If the legacy [`serverRuntimeConfig` or `publicRuntimeConfig` options](/docs/app/api-reference/next-config-js/runtime-configuration) are being used, the values will be specific to values at build time.
+> - If your project uses [Image Optimization](/docs/app/building-your-application/optimizing/images) with the default `loader`, you must install `sharp` as a dependency:
 
 ```bash filename="Terminal"
 npm i sharp
