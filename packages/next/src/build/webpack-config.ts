@@ -1091,27 +1091,27 @@ export default async function getBaseWebpackConfig(
             'next/dist/server': 'next/dist/esm/server',
 
             // Alias the usage of next public APIs
-            [require.resolve('next/server')]:
+            [`${NEXT_PROJECT_ROOT}/server`]:
               'next/dist/esm/server/web/exports/index',
-            [require.resolve('next/dist/client/link')]:
+            [`${NEXT_PROJECT_ROOT}/dist/client/link`]:
               'next/dist/esm/client/link',
-            [require.resolve('next/dist/client/image')]:
+            [`${NEXT_PROJECT_ROOT}/dist/client/image`]:
               'next/dist/esm/client/image',
-            [require.resolve('next/dist/client/script')]:
+            [`${NEXT_PROJECT_ROOT}/dist/client/script`]:
               'next/dist/esm/client/script',
-            [require.resolve('next/dist/client/router')]:
+            [`${NEXT_PROJECT_ROOT}/dist/client/router`]:
               'next/dist/esm/client/router',
-            [require.resolve('next/dist/shared/lib/head')]:
+            [`${NEXT_PROJECT_ROOT}/dist/shared/lib/head`]:
               'next/dist/esm/shared/lib/head',
-            [require.resolve('next/dist/shared/lib/dynamic')]:
+            [`${NEXT_PROJECT_ROOT}/dist/shared/lib/dynamic`]:
               'next/dist/esm/shared/lib/dynamic',
-            [require.resolve('next/dist/pages/_document')]:
+            [`${NEXT_PROJECT_ROOT}/dist/pages/_document`]:
               'next/dist/esm/pages/_document',
-            [require.resolve('next/dist/pages/_app')]:
+            [`${NEXT_PROJECT_ROOT}/dist/pages/_app`]:
               'next/dist/esm/pages/_app',
-            [require.resolve('next/dist/client/components/navigation')]:
+            [`${NEXT_PROJECT_ROOT}/dist/client/components/navigation`]:
               'next/dist/esm/client/components/navigation',
-            [require.resolve('next/dist/client/components/headers')]:
+            [`${NEXT_PROJECT_ROOT}/dist/client/components/headers`]:
               'next/dist/esm/client/components/headers',
           }
         : undefined),
