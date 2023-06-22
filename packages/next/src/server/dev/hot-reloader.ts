@@ -62,7 +62,7 @@ import { RouteMatch } from '../future/route-matches/route-match'
 import { parseVersionInfo, VersionInfo } from './parse-version-info'
 import { isAPIRoute } from '../../lib/is-api-route'
 import { getRouteLoaderEntry } from '../../build/webpack/loaders/next-route-loader'
-import { isInternalPathname } from '../../lib/is-internal-pathname'
+import { isInternalComponent } from '../../lib/is-internal-component'
 
 function diff(a: Set<any>, b: Set<any>) {
   return new Set([...a].filter((v) => !b.has(v)))
@@ -887,16 +887,15 @@ export default class HotReloader {
                 } else if (
                   !isAPIRoute(page) &&
                   !isMiddlewareFile(page) &&
-                  !isInternalPathname(relativeRequest) &&
+                  !isInternalComponent(relativeRequest) &&
                   !isInstrumentationHookFile(page)
                 ) {
                   value = getRouteLoaderEntry({
                     page,
+                    pages: this.pagesMapping,
                     absolutePagePath: relativeRequest,
                     preferredRegion: staticInfo.preferredRegion,
-                    middlewareConfig: Buffer.from(
-                      JSON.stringify(staticInfo.middleware || {})
-                    ).toString('base64'),
+                    middlewareConfig: staticInfo.middleware ?? {},
                   })
                 } else {
                   value = relativeRequest

@@ -48,12 +48,16 @@ export type LoadComponentsReturnType = {
   pathname: string
 }
 
-async function loadDefaultErrorComponentsImpl(distDir: string) {
+async function loadDefaultErrorComponentsImpl(
+  distDir: string
+): Promise<LoadComponentsReturnType> {
+  // Load the compiled route module for this builtin error.
+  // TODO: (wyattjoh) replace this with just exporting the route module when the transition is complete
+  const ComponentMod = require('./future/route-modules/pages/builtin/_error')
+  const Component = interopDefault(ComponentMod)
   const Document = interopDefault(require('next/dist/pages/_document'))
   const AppMod = require('next/dist/pages/_app')
   const App = interopDefault(AppMod)
-  const ComponentMod = require('next/dist/pages/_error')
-  const Component = interopDefault(ComponentMod)
 
   return {
     App,

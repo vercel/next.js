@@ -272,6 +272,11 @@ export type RenderOptsPartial = {
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
 
+export type RenderOptsExtra = {
+  App: AppType
+  Document: DocumentType
+}
+
 const invalidKeysMsg = (
   methodName: 'getServerSideProps' | 'getStaticProps',
   invalidKeys: string[]
@@ -399,12 +404,13 @@ function serializeError(
   }
 }
 
-export async function renderToHTML(
+export async function renderToHTMLImpl(
   req: IncomingMessage,
   res: ServerResponse,
   pathname: string,
   query: NextParsedUrlQuery,
-  renderOpts: RenderOpts
+  renderOpts: Omit<RenderOpts, keyof RenderOptsExtra>,
+  extra: RenderOptsExtra
 ): Promise<RenderResult> {
   const renderResultMeta: RenderResultMetadata = {}
 
@@ -442,12 +448,12 @@ export async function renderToHTML(
     basePath,
     images,
     runtime: globalRuntime,
-    App,
   } = renderOpts
+  const { App } = extra
 
   const assetQueryString = renderResultMeta.assetQueryString
 
-  let Document = renderOpts.Document
+  let Document = extra.Document
 
   // Component will be wrapped by ServerComponentWrapper for RSC
   let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
@@ -1540,4 +1546,12 @@ export async function renderToHTML(
   return new RenderResult(optimizedHtml, renderResultMeta)
 }
 
-export type RenderToHTMLResult = typeof renderToHTML
+export async function renderToHTML(
+  req: IncomingMessage,
+  res: ServerResponse,
+  pathname: string,
+  query: NextParsedUrlQuery,
+  renderOpts: RenderOpts
+): Promise<RenderResult> {
+  return renderToHTMLImpl(req, res, pathname, query, renderOpts, renderOpts)
+}
