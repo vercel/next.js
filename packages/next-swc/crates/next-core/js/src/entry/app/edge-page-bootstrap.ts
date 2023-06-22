@@ -75,7 +75,7 @@ async function render(request: NextRequest, event: NextFetchEvent) {
 
   response.headers.append(
     'Content-Type',
-    result.contentType() || MIME_TEXT_HTML_UTF8
+    result.contentType || MIME_TEXT_HTML_UTF8
   )
   response.headers.append('Vary', RSC_VARY_HEADER)
 
