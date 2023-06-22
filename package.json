@@ -175,6 +175,7 @@
     "open": "9.0.0",
     "outdent": "0.8.0",
     "pixrem": "5.0.0",
+    "playwright-core": "1.28.1",
     "playwright-chromium": "1.28.1",
     "plop": "3.0.5",
     "postcss": "8.4.14",
