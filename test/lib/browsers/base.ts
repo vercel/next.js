@@ -26,7 +26,7 @@ export abstract class BrowserInterface implements PromiseLike<any> {
         case 'promise':
           return promise
         default:
-          return target[p] ?? promise[p]
+          return promise[p] ?? target[p]
       }
     }
 
