@@ -11,10 +11,10 @@ export type Event = 'request'
  * You can manually await this interface to wait for completion of the last scheduled command.
  */
 export abstract class BrowserInterface implements PromiseLike<any> {
-  private promise?: Promise<any> = Promise.resolve()
-  then: Promise<any>['then'] = this.promise.then.bind(this.promise)
-  catch: Promise<any>['catch'] = this.promise.catch.bind(this.promise)
-  finally: Promise<any>['finally'] = this.promise.finally.bind(this.promise)
+  private promise?: Promise<any>
+  then: Promise<any>['then']
+  catch: Promise<any>['catch']
+  finally: Promise<any>['finally']
 
   protected chain<T>(
     nextCall: (current: any) => T | PromiseLike<T>
