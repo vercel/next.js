@@ -1,2 +1,5 @@
 packages/next/bundles/** -text
 packages/next/compiled/** -text
+
+# Make next/src/build folder indexable for github search
+packages/next/src/build/** linguist-generated=false
