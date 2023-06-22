@@ -102,9 +102,9 @@ use crate::{
 fn pathname_to_segments(pathname: &str) -> (Vec<BaseSegment>, Option<FinalSegment>) {
     let mut segments = Vec::new();
     for segment in pathname.split('/') {
-        if segment.is_empty() {
-            // ignore
-        } else if segment.starts_with('(') && segment.ends_with(')') || segment.starts_with('@') {
+        if segment.is_empty()
+            || (segment.starts_with('(') && segment.ends_with(')') || segment.starts_with('@'))
+        {
             // ignore
         } else if segment.starts_with("[[...") && segment.ends_with("]]")
             || segment.starts_with("[...") && segment.ends_with(']')
@@ -119,7 +119,7 @@ fn pathname_to_segments(pathname: &str) -> (Vec<BaseSegment>, Option<FinalSegmen
             segments.push(BaseSegment::Static(segment.to_string()));
         }
     }
-    return (segments, None);
+    (segments, None)
 }
 
 #[turbo_tasks::function]
