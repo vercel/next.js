@@ -144,6 +144,7 @@ export async function renderToHTMLOrFlight(
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts
 ): Promise<RenderResult> {
+  console.trace('renderToHTMLOrFlight')
   const isFlight = req.headers[RSC.toLowerCase()] !== undefined
   const pathname = validateURL(req.url)
 
@@ -187,7 +188,6 @@ export async function renderToHTMLOrFlight(
     capturedErrors,
     allCapturedErrors,
   })
-
   patchFetch(ComponentMod)
   /**
    * Rules of Static & Dynamic HTML:

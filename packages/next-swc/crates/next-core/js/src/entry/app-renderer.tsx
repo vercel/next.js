@@ -78,7 +78,6 @@ const MIME_TEXT_HTML_UTF8 = 'text/html; charset=utf-8'
         process.exit(1)
       }
     }
-
     const result = await runOperation(renderData)
 
     if (result == null) {

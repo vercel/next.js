@@ -1271,7 +1271,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     requestContext: RequestContext,
     findComponentsResult: FindComponentsResult
   ): Promise<ResponsePayload | null> {
-    return getTracer().trace(
+    console.time(`[Rendering page] ${requestContext.pathname}`)
+    const res = await getTracer().trace(
       BaseServerSpan.renderToResponseWithComponents,
       async () =>
         this.renderToResponseWithComponentsImpl(
@@ -1279,6 +1280,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           findComponentsResult
         )
     )
+    console.timeEnd(`[Rendering page] ${requestContext.pathname}`)
+    return res
   }
 
   private async renderToResponseWithComponentsImpl(

@@ -281,6 +281,11 @@ export interface ExperimentalConfig {
    * Enable `react@experimental` channel for the `app` directory.
    */
   serverActions?: boolean
+
+  /**
+   * Enable code caching for the Next.js server.
+   */
+  codeCaching?: boolean
 }
 
 export type ExportPathMap = {

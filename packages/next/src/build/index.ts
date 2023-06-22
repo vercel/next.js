@@ -2223,6 +2223,102 @@ export default async function build(
         !hasPages500 && !hasNonStaticErrorPage && !customAppGetInitialProps
 
       const combinedPages = [...staticPages, ...ssgPages]
+      if (config.experimental.codeCaching || true) {
+        console.time('code caching')
+        const Module = require('module') as typeof import('module')
+        const vm = require('vm') as typeof import('vm')
+        const { resolve } = await import('import-meta-resolve')
+
+        const CODE_CACHE_DIRECTORY = 'v8'
+        const codeCacheManifest = {} as { [hash: string]: string }
+        const pagePaths = [
+          ...Object.values(pagesManifest),
+          ...Object.values(appPathsManifest),
+          `../next-server.js`,
+        ]
+
+        const tracedfile = new Set<string>()
+
+        for (const pagePath of pagePaths) {
+          const actualPath = path.join(distDir, SERVER_DIRECTORY, pagePath)
+
+          try {
+            const traceFile = actualPath + '.nft.json'
+            const pageDir = path.dirname(traceFile)
+            const traceContent = JSON.parse(
+              await promises.readFile(traceFile, 'utf8')
+            )
+
+            traceContent.files.forEach((file: string) => {
+              if (!file.endsWith('.js')) return
+              tracedfile.add(path.join(pageDir, file))
+            })
+          } catch (err) {
+            console.log('failed to read trace file', actualPath, err)
+          }
+
+          tracedfile.add(actualPath)
+        }
+
+        for (const actualPath of tracedfile) {
+          // const actualPath = path.join(distDir, SERVER_DIRECTORY, pagePath)
+          try {
+            const content = await promises.readFile(actualPath, 'utf8')
+
+            const wrappedContent = Module.wrap(content)
+
+            const script = new vm.Script(wrappedContent, {
+              filename: actualPath,
+              // @ts-ignore the type definitions are wrong, you can return an evaluated module here
+              importModuleDynamically: async (specifier) => {
+                const resolved = await resolve(specifier, actualPath)
+                if (!resolved) {
+                  throw new Error(
+                    `Could not resolve ${specifier} during code caching`
+                  )
+                }
+                return import(resolved)
+              },
+              columnOffset: 0,
+            })
+            const beforeCache = script.createCachedData()
+            script.runInThisContext({
+              filename: actualPath,
+              lineOffset: 0,
+              displayErrors: true,
+              columnOffset: 0,
+            })
+            const cache = script.createCachedData()
+            // console.log(
+            //   `delta: ${cache.length - beforeCache.length} bytes, total: ${
+            //     cache.length
+            //   } bytes
+            //  for ${actualPath}`
+            // )
+            const hash = crypto
+              .createHash('sha256')
+              .update(content)
+              .digest('hex')
+            // fs compatible hash
+
+            const relativePath = path.join('cache', CODE_CACHE_DIRECTORY, hash)
+            const cachePath = path.join(distDir, relativePath)
+
+            await promises.mkdir(path.dirname(cachePath), { recursive: true })
+            await promises.writeFile(cachePath, cache)
+            codeCacheManifest[hash] = relativePath
+          } catch (err) {
+            console.log('failed to cache', actualPath, err)
+          }
+        }
+
+        await promises.writeFile(
+          path.join(distDir, SERVER_DIRECTORY, 'v8-cache-manifest.json'),
+          JSON.stringify(codeCacheManifest)
+        )
+        console.log('code cache manifest', Object.keys(codeCacheManifest))
+        console.timeEnd('code caching')
+      }
 
       // we need to trigger automatic exporting when we have
       // - static 404/500

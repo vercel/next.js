@@ -261,6 +261,9 @@ const configSchema = {
         clientRouterFilterAllowedRate: {
           type: 'number',
         },
+        codeCaching: {
+          type: 'boolean',
+        },
         cpus: {
           type: 'number',
         },

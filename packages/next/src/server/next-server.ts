@@ -264,6 +264,12 @@ export default class NextNodeServer extends BaseServer {
       }).catch(() => {})
     }
 
+    if (this.nextConfig.experimental.codeCaching || true) {
+      ;(
+        require('./code-cache-hook') as typeof import('./code-cache-hook')
+      ).init(this.distDir)
+    }
+
     if (this.isRouterWorker) {
       this.renderWorkers = {}
       this.renderWorkerOpts = {
