@@ -1158,7 +1158,9 @@ createNextDescribe(
       expect(data1).toBeTruthy()
       expect(JSON.parse($('#draft-mode').text())).toEqual({ isEnabled: true })
 
-      const res2 = await next.fetch('/ssg-draft-mode/test-1')
+      const res2 = await next.fetch('/ssg-draft-mode/test-1', {
+        headers: cookieHeader,
+      })
 
       const html2 = await res2.text()
       const $2 = cheerio.load(html2)
