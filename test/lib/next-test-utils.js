@@ -693,8 +693,9 @@ export async function getRedboxHeader(browser) {
             .find((p) =>
               p.shadowRoot.querySelector('[data-nextjs-turbo-dialog-body]')
             )
-          const root = portal.shadowRoot
-          return root.querySelector('[data-nextjs-turbo-dialog-body]').innerText
+          const root = portal?.shadowRoot
+          return root?.querySelector('[data-nextjs-turbo-dialog-body]')
+            ?.innerText
         })
       } else {
         return evaluate(browser, () => {
@@ -703,8 +704,8 @@ export async function getRedboxHeader(browser) {
             .find((p) =>
               p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
             )
-          const root = portal.shadowRoot
-          return root.querySelector('[data-nextjs-dialog-header]').innerText
+          const root = portal?.shadowRoot
+          return root?.querySelector('[data-nextjs-dialog-header]')?.innerText
         })
       }
     },

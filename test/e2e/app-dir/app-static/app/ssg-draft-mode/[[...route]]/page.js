@@ -1,11 +1,16 @@
 import { draftMode } from 'next/headers'
 
-export default function Page() {
+export default async function Page() {
+  const data = await fetch(
+    'https://next-data-api-endpoint.vercel.app/api/random'
+  ).then((res) => res.text())
+
   const { isEnabled } = draftMode()
 
   return (
     <main>
       <pre id="draft-mode">{JSON.stringify({ isEnabled })}</pre>
+      <p id="data">{data}</p>
     </main>
   )
 }
