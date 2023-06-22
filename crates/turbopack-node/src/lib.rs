@@ -1,6 +1,7 @@
 #![feature(async_closure)]
 #![feature(min_specialization)]
 #![feature(lint_reasons)]
+#![allow(clippy::too_many_arguments)]
 
 use std::{collections::HashMap, iter::once, thread::available_parallelism};
 

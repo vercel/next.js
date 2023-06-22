@@ -200,6 +200,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Adds a codegen to the analysis result.
+    #[allow(dead_code)]
     pub fn add_code_gen_with_availability_info<C>(&mut self, code_gen: C)
     where
         C: Into<CodeGenerateableWithAvailabilityInfoVc>,

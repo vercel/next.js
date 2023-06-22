@@ -661,12 +661,13 @@ impl Analyzer<'_> {
             f: impl FnOnce(&'ast Expr, &mut AstNodePath<AstParentNodeRef<'r>>) -> T,
         ) -> T {
             if let Some(inner_expr) = expr.as_paren() {
-                ast_path.with(AstParentNodeRef::Expr(expr, ExprField::Paren), |ast_path| {
-                    ast_path.with(
-                        AstParentNodeRef::ParenExpr(inner_expr, ParenExprField::Expr),
-                        |ast_path| unparen(&inner_expr.expr, ast_path, f),
-                    )
-                })
+                let mut ast_path =
+                    ast_path.with_guard(AstParentNodeRef::Expr(expr, ExprField::Paren));
+                let mut ast_path = ast_path.with_guard(AstParentNodeRef::ParenExpr(
+                    inner_expr,
+                    ParenExprField::Expr,
+                ));
+                unparen(&inner_expr.expr, &mut ast_path, f)
             } else {
                 f(expr, ast_path)
             }
@@ -675,71 +676,58 @@ impl Analyzer<'_> {
         if n.args.iter().any(|arg| arg.spread.is_some()) {
             return false;
         }
-        if ast_path.with(
-            AstParentNodeRef::CallExpr(n, CallExprField::Callee),
-            |ast_path| {
-                if let Some(expr) = n.callee.as_expr() {
-                    ast_path.with(
-                        AstParentNodeRef::Callee(&n.callee, CalleeField::Expr),
-                        |ast_path| {
-                            unparen(expr, ast_path, |expr, ast_path| match expr {
-                                Expr::Fn(fn_expr @ FnExpr { function, ident }) => {
-                                    ast_path.with(
-                                        AstParentNodeRef::Expr(expr, ExprField::Fn),
-                                        |ast_path| {
-                                            ast_path.with(
-                                                AstParentNodeRef::FnExpr(
-                                                    fn_expr,
-                                                    FnExprField::Ident,
-                                                ),
-                                                |ast_path| {
-                                                    self.visit_opt_ident(ident.as_ref(), ast_path);
-                                                },
-                                            );
-                                            ast_path.with(
-                                                AstParentNodeRef::FnExpr(
-                                                    fn_expr,
-                                                    FnExprField::Function,
-                                                ),
-                                                |ast_path| {
-                                                    self.handle_iife_function(
-                                                        function, ast_path, &n.args,
-                                                    );
-                                                },
-                                            );
-                                        },
-                                    );
-                                    true
-                                }
-                                Expr::Arrow(arrow_expr) => {
-                                    ast_path.with(
-                                        AstParentNodeRef::Expr(expr, ExprField::Arrow),
-                                        |ast_path| {
-                                            let args = &n.args;
-                                            self.handle_iife_arrow(arrow_expr, args, ast_path);
-                                        },
-                                    );
-                                    true
-                                }
-                                _ => false,
-                            })
-                        },
-                    )
-                } else {
-                    false
+
+        let Some(expr) = n.callee.as_expr() else {
+            return false;
+        };
+
+        let fn_expr = {
+            let mut ast_path =
+                ast_path.with_guard(AstParentNodeRef::CallExpr(n, CallExprField::Callee));
+            let mut ast_path =
+                ast_path.with_guard(AstParentNodeRef::Callee(&n.callee, CalleeField::Expr));
+            unparen(expr, &mut ast_path, |expr, ast_path| match expr {
+                Expr::Fn(fn_expr @ FnExpr { function, ident }) => {
+                    let mut ast_path =
+                        ast_path.with_guard(AstParentNodeRef::Expr(expr, ExprField::Fn));
+                    {
+                        let mut ast_path = ast_path
+                            .with_guard(AstParentNodeRef::FnExpr(fn_expr, FnExprField::Ident));
+                        self.visit_opt_ident(ident.as_ref(), &mut ast_path);
+                    }
+
+                    {
+                        let mut ast_path = ast_path
+                            .with_guard(AstParentNodeRef::FnExpr(fn_expr, FnExprField::Function));
+                        self.handle_iife_function(function, &mut ast_path, &n.args);
+                    }
+
+                    true
                 }
-            },
-        ) {
-            ast_path.with(
-                AstParentNodeRef::CallExpr(n, CallExprField::Args(usize::MAX)),
-                |ast_path| {
-                    self.visit_expr_or_spreads(&n.args, ast_path);
-                },
-            );
-            true
-        } else {
-            false
+
+                Expr::Arrow(arrow_expr) => {
+                    let mut ast_path =
+                        ast_path.with_guard(AstParentNodeRef::Expr(expr, ExprField::Arrow));
+                    let args = &n.args;
+                    self.handle_iife_arrow(arrow_expr, args, &mut ast_path);
+                    true
+                }
+                _ => false,
+            })
+        };
+
+        if !fn_expr {
+            return false;
         }
+
+        let mut ast_path = ast_path.with_guard(AstParentNodeRef::CallExpr(
+            n,
+            CallExprField::Args(usize::MAX),
+        ));
+
+        self.visit_expr_or_spreads(&n.args, &mut ast_path);
+
+        true
     }
 
     fn handle_iife_arrow<'ast: 'r, 'r>(
@@ -759,37 +747,41 @@ impl Analyzer<'_> {
         } = arrow_expr;
         let mut iter = args.iter();
         for (i, param) in params.iter().enumerate() {
-            ast_path.with(
-                AstParentNodeRef::ArrowExpr(arrow_expr, ArrowExprField::Params(i)),
-                |ast_path| {
-                    if let Some(arg) = iter.next() {
-                        self.current_value = Some(self.eval_context.eval(&arg.expr));
-                        self.visit_pat(param, ast_path);
-                        self.current_value = None;
-                    } else {
-                        self.visit_pat(param, ast_path);
-                    }
-                },
-            );
+            let mut ast_path = ast_path.with_guard(AstParentNodeRef::ArrowExpr(
+                arrow_expr,
+                ArrowExprField::Params(i),
+            ));
+            if let Some(arg) = iter.next() {
+                self.current_value = Some(self.eval_context.eval(&arg.expr));
+                self.visit_pat(param, &mut ast_path);
+                self.current_value = None;
+            } else {
+                self.visit_pat(param, &mut ast_path);
+            }
         }
-        ast_path.with(
-            AstParentNodeRef::ArrowExpr(arrow_expr, ArrowExprField::Body),
-            |ast_path| {
-                self.visit_block_stmt_or_expr(body, ast_path);
-            },
-        );
-        ast_path.with(
-            AstParentNodeRef::ArrowExpr(arrow_expr, ArrowExprField::ReturnType),
-            |ast_path| {
-                self.visit_opt_ts_type_ann(return_type.as_ref(), ast_path);
-            },
-        );
-        ast_path.with(
-            AstParentNodeRef::ArrowExpr(arrow_expr, ArrowExprField::TypeParams),
-            |ast_path| {
-                self.visit_opt_ts_type_param_decl(type_params.as_ref(), ast_path);
-            },
-        );
+        {
+            let mut ast_path = ast_path.with_guard(AstParentNodeRef::ArrowExpr(
+                arrow_expr,
+                ArrowExprField::Body,
+            ));
+            self.visit_block_stmt_or_expr(body, &mut ast_path);
+        }
+
+        {
+            let mut ast_path = ast_path.with_guard(AstParentNodeRef::ArrowExpr(
+                arrow_expr,
+                ArrowExprField::ReturnType,
+            ));
+            self.visit_opt_ts_type_ann(return_type.as_ref(), &mut ast_path);
+        }
+
+        {
+            let mut ast_path = ast_path.with_guard(AstParentNodeRef::ArrowExpr(
+                arrow_expr,
+                ArrowExprField::TypeParams,
+            ));
+            self.visit_opt_ts_type_param_decl(type_params.as_ref(), &mut ast_path);
+        }
     }
 
     fn handle_iife_function<'ast: 'r, 'r>(
@@ -810,43 +802,52 @@ impl Analyzer<'_> {
             type_params,
         } = function;
         for (i, param) in params.iter().enumerate() {
-            ast_path.with(
-                AstParentNodeRef::Function(function, FunctionField::Params(i)),
-                |ast_path| {
-                    if let Some(arg) = iter.next() {
-                        self.current_value = Some(self.eval_context.eval(&arg.expr));
-                        self.visit_param(param, ast_path);
-                        self.current_value = None;
-                    } else {
-                        self.visit_param(param, ast_path);
-                    }
-                },
-            );
+            let mut ast_path = ast_path.with_guard(AstParentNodeRef::Function(
+                function,
+                FunctionField::Params(i),
+            ));
+            if let Some(arg) = iter.next() {
+                self.current_value = Some(self.eval_context.eval(&arg.expr));
+                self.visit_param(param, &mut ast_path);
+                self.current_value = None;
+            } else {
+                self.visit_param(param, &mut ast_path);
+            }
         }
-        ast_path.with(
-            AstParentNodeRef::Function(function, FunctionField::Body),
-            |ast_path| {
-                self.visit_opt_block_stmt(body.as_ref(), ast_path);
-            },
-        );
-        ast_path.with(
-            AstParentNodeRef::Function(function, FunctionField::Decorators(usize::MAX)),
-            |ast_path| {
-                self.visit_decorators(decorators, ast_path);
-            },
-        );
-        ast_path.with(
-            AstParentNodeRef::Function(function, FunctionField::ReturnType),
-            |ast_path| {
-                self.visit_opt_ts_type_ann(return_type.as_ref(), ast_path);
-            },
-        );
-        ast_path.with(
-            AstParentNodeRef::Function(function, FunctionField::TypeParams),
-            |ast_path| {
-                self.visit_opt_ts_type_param_decl(type_params.as_ref(), ast_path);
-            },
-        );
+
+        {
+            let mut ast_path =
+                ast_path.with_guard(AstParentNodeRef::Function(function, FunctionField::Body));
+
+            self.visit_opt_block_stmt(body.as_ref(), &mut ast_path);
+        }
+
+        {
+            let mut ast_path = ast_path.with_guard(AstParentNodeRef::Function(
+                function,
+                FunctionField::Decorators(usize::MAX),
+            ));
+
+            self.visit_decorators(decorators, &mut ast_path);
+        }
+
+        {
+            let mut ast_path = ast_path.with_guard(AstParentNodeRef::Function(
+                function,
+                FunctionField::ReturnType,
+            ));
+
+            self.visit_opt_ts_type_ann(return_type.as_ref(), &mut ast_path);
+        }
+
+        {
+            let mut ast_path = ast_path.with_guard(AstParentNodeRef::Function(
+                function,
+                FunctionField::TypeParams,
+            ));
+
+            self.visit_opt_ts_type_param_decl(type_params.as_ref(), &mut ast_path);
+        }
     }
 
     fn check_call_expr_for_effects<'ast: 'r, 'r>(
@@ -941,9 +942,10 @@ impl VisitAstPath for Analyzer<'_> {
         n: &'ast AssignExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        ast_path.with(
-            AstParentNodeRef::AssignExpr(n, AssignExprField::Left),
-            |ast_path| match &n.left {
+        {
+            let mut ast_path =
+                ast_path.with_guard(AstParentNodeRef::AssignExpr(n, AssignExprField::Left));
+            match &n.left {
                 PatOrExpr::Expr(expr) => {
                     if let Some(key) = expr.as_ident() {
                         let value = match n.op {
@@ -968,32 +970,26 @@ impl VisitAstPath for Analyzer<'_> {
                         }
                     }
 
-                    ast_path.with(
-                        AstParentNodeRef::PatOrExpr(&n.left, PatOrExprField::Expr),
-                        |ast_path| {
-                            self.visit_expr(expr, ast_path);
-                        },
-                    );
+                    let mut ast_path = ast_path
+                        .with_guard(AstParentNodeRef::PatOrExpr(&n.left, PatOrExprField::Expr));
+                    self.visit_expr(expr, &mut ast_path);
                 }
                 PatOrExpr::Pat(pat) => {
                     debug_assert!(n.op == AssignOp::Assign);
-                    ast_path.with(
-                        AstParentNodeRef::PatOrExpr(&n.left, PatOrExprField::Pat),
-                        |ast_path| {
-                            self.current_value = Some(self.eval_context.eval(&n.right));
-                            self.visit_pat(pat, ast_path);
-                            self.current_value = None;
-                        },
-                    );
+                    let mut ast_path = ast_path
+                        .with_guard(AstParentNodeRef::PatOrExpr(&n.left, PatOrExprField::Pat));
+                    self.current_value = Some(self.eval_context.eval(&n.right));
+                    self.visit_pat(pat, &mut ast_path);
+                    self.current_value = None;
                 }
-            },
-        );
-        ast_path.with(
-            AstParentNodeRef::AssignExpr(n, AssignExprField::Right),
-            |ast_path| {
-                self.visit_expr(&n.right, ast_path);
-            },
-        );
+            }
+        }
+
+        {
+            let mut ast_path =
+                ast_path.with_guard(AstParentNodeRef::AssignExpr(n, AssignExprField::Right));
+            self.visit_expr(&n.right, &mut ast_path);
+        }
     }
 
     fn visit_update_expr<'ast: 'r, 'r>(
@@ -1008,12 +1004,9 @@ impl VisitAstPath for Analyzer<'_> {
             );
         }
 
-        ast_path.with(
-            AstParentNodeRef::UpdateExpr(n, UpdateExprField::Arg),
-            |ast_path| {
-                self.visit_expr(&n.arg, ast_path);
-            },
-        );
+        let mut ast_path =
+            ast_path.with_guard(AstParentNodeRef::UpdateExpr(n, UpdateExprField::Arg));
+        self.visit_expr(&n.arg, &mut ast_path);
     }
 
     fn visit_call_expr<'ast: 'r, 'r>(
@@ -1035,87 +1028,77 @@ impl VisitAstPath for Analyzer<'_> {
 
         // special behavior of IIFEs
         if !self.check_iife(n, ast_path) {
-            ast_path.with(
-                AstParentNodeRef::CallExpr(n, CallExprField::Callee),
-                |ast_path| {
-                    n.callee.visit_with_path(self, ast_path);
-                },
-            );
+            {
+                let mut ast_path =
+                    ast_path.with_guard(AstParentNodeRef::CallExpr(n, CallExprField::Callee));
+                n.callee.visit_with_path(self, &mut ast_path);
+            }
             let args = n
                 .args
                 .iter()
                 .enumerate()
                 .map(|(i, arg)| {
-                    ast_path.with(
-                        AstParentNodeRef::CallExpr(n, CallExprField::Args(i)),
-                        |ast_path| {
-                            if arg.spread.is_none() {
-                                let value = self.eval_context.eval(&arg.expr);
+                    let mut ast_path =
+                        ast_path.with_guard(AstParentNodeRef::CallExpr(n, CallExprField::Args(i)));
+                    if arg.spread.is_none() {
+                        let value = self.eval_context.eval(&arg.expr);
 
-                                let block_path = match &*arg.expr {
-                                    Expr::Fn(FnExpr { .. }) => {
-                                        let mut path = as_parent_path(ast_path);
-                                        path.push(AstParentKind::ExprOrSpread(
-                                            ExprOrSpreadField::Expr,
-                                        ));
-                                        path.push(AstParentKind::Expr(ExprField::Fn));
-                                        path.push(AstParentKind::FnExpr(FnExprField::Function));
-                                        path.push(AstParentKind::Function(FunctionField::Body));
-                                        Some(path)
-                                    }
-                                    Expr::Arrow(ArrowExpr {
-                                        body: box BlockStmtOrExpr::BlockStmt(_),
-                                        ..
-                                    }) => {
-                                        let mut path = as_parent_path(ast_path);
-                                        path.push(AstParentKind::ExprOrSpread(
-                                            ExprOrSpreadField::Expr,
-                                        ));
-                                        path.push(AstParentKind::Expr(ExprField::Arrow));
-                                        path.push(AstParentKind::ArrowExpr(ArrowExprField::Body));
-                                        path.push(AstParentKind::BlockStmtOrExpr(
-                                            BlockStmtOrExprField::BlockStmt,
-                                        ));
-                                        Some(path)
-                                    }
-                                    Expr::Arrow(ArrowExpr {
-                                        body: box BlockStmtOrExpr::Expr(_),
-                                        ..
-                                    }) => {
-                                        let mut path = as_parent_path(ast_path);
-                                        path.push(AstParentKind::ExprOrSpread(
-                                            ExprOrSpreadField::Expr,
-                                        ));
-                                        path.push(AstParentKind::Expr(ExprField::Arrow));
-                                        path.push(AstParentKind::ArrowExpr(ArrowExprField::Body));
-                                        path.push(AstParentKind::BlockStmtOrExpr(
-                                            BlockStmtOrExprField::Expr,
-                                        ));
-                                        Some(path)
-                                    }
-                                    _ => None,
-                                };
-                                if let Some(path) = block_path {
-                                    let old_effects = take(&mut self.effects);
-                                    arg.visit_with_path(self, ast_path);
-                                    let effects = replace(&mut self.effects, old_effects);
-                                    EffectArg::Closure(
-                                        value,
-                                        EffectsBlock {
-                                            effects,
-                                            ast_path: path,
-                                        },
-                                    )
-                                } else {
-                                    arg.visit_with_path(self, ast_path);
-                                    EffectArg::Value(value)
-                                }
-                            } else {
-                                arg.visit_with_path(self, ast_path);
-                                EffectArg::Spread
+                        let block_path = match &*arg.expr {
+                            Expr::Fn(FnExpr { .. }) => {
+                                let mut path = as_parent_path(&ast_path);
+                                path.push(AstParentKind::ExprOrSpread(ExprOrSpreadField::Expr));
+                                path.push(AstParentKind::Expr(ExprField::Fn));
+                                path.push(AstParentKind::FnExpr(FnExprField::Function));
+                                path.push(AstParentKind::Function(FunctionField::Body));
+                                Some(path)
                             }
-                        },
-                    )
+                            Expr::Arrow(ArrowExpr {
+                                body: box BlockStmtOrExpr::BlockStmt(_),
+                                ..
+                            }) => {
+                                let mut path = as_parent_path(&ast_path);
+                                path.push(AstParentKind::ExprOrSpread(ExprOrSpreadField::Expr));
+                                path.push(AstParentKind::Expr(ExprField::Arrow));
+                                path.push(AstParentKind::ArrowExpr(ArrowExprField::Body));
+                                path.push(AstParentKind::BlockStmtOrExpr(
+                                    BlockStmtOrExprField::BlockStmt,
+                                ));
+                                Some(path)
+                            }
+                            Expr::Arrow(ArrowExpr {
+                                body: box BlockStmtOrExpr::Expr(_),
+                                ..
+                            }) => {
+                                let mut path = as_parent_path(&ast_path);
+                                path.push(AstParentKind::ExprOrSpread(ExprOrSpreadField::Expr));
+                                path.push(AstParentKind::Expr(ExprField::Arrow));
+                                path.push(AstParentKind::ArrowExpr(ArrowExprField::Body));
+                                path.push(AstParentKind::BlockStmtOrExpr(
+                                    BlockStmtOrExprField::Expr,
+                                ));
+                                Some(path)
+                            }
+                            _ => None,
+                        };
+                        if let Some(path) = block_path {
+                            let old_effects = take(&mut self.effects);
+                            arg.visit_with_path(self, &mut ast_path);
+                            let effects = replace(&mut self.effects, old_effects);
+                            EffectArg::Closure(
+                                value,
+                                EffectsBlock {
+                                    effects,
+                                    ast_path: path,
+                                },
+                            )
+                        } else {
+                            arg.visit_with_path(self, &mut ast_path);
+                            EffectArg::Value(value)
+                        }
+                    } else {
+                        arg.visit_with_path(self, &mut ast_path);
+                        EffectArg::Spread
+                    }
                 })
                 .collect();
             self.check_call_expr_for_effects(n, args, ast_path);
@@ -1186,7 +1169,8 @@ impl VisitAstPath for Analyzer<'_> {
         let value = self.current_value.take();
         for (index, p) in n.iter().enumerate() {
             self.current_value = Some(JsValue::Argument(self.cur_fn_ident, index));
-            ast_path.with_index(index, |ast_path| p.visit_children_with_path(self, ast_path));
+            let mut ast_path = ast_path.with_index_guard(index);
+            p.visit_children_with_path(self, &mut ast_path);
         }
         self.current_value = value;
     }
@@ -1204,16 +1188,18 @@ impl VisitAstPath for Analyzer<'_> {
         } = n;
         self.var_decl_kind = None;
         let value = self.current_value.take();
-        ast_path.with(
-            AstParentNodeRef::Param(n, ParamField::Decorators(usize::MAX)),
-            |ast_path| {
-                self.visit_decorators(decorators, ast_path);
-            },
-        );
+        {
+            let mut ast_path = ast_path.with_guard(AstParentNodeRef::Param(
+                n,
+                ParamField::Decorators(usize::MAX),
+            ));
+            self.visit_decorators(decorators, &mut ast_path);
+        }
         self.current_value = value;
-        ast_path.with(AstParentNodeRef::Param(n, ParamField::Pat), |ast_path| {
-            self.visit_pat(pat, ast_path);
-        });
+        {
+            let mut ast_path = ast_path.with_guard(AstParentNodeRef::Param(n, ParamField::Pat));
+            self.visit_pat(pat, &mut ast_path);
+        }
         self.current_value = None;
         self.var_decl_kind = old;
     }
@@ -1353,19 +1339,19 @@ impl VisitAstPath for Analyzer<'_> {
                 self.current_value = Some(self.eval_context.eval(init));
             }
         }
-        ast_path.with(
-            AstParentNodeRef::VarDeclarator(n, VarDeclaratorField::Name),
-            |ast_path| {
-                self.visit_pat(&n.name, ast_path);
-            },
-        );
+        {
+            let mut ast_path =
+                ast_path.with_guard(AstParentNodeRef::VarDeclarator(n, VarDeclaratorField::Name));
+
+            self.visit_pat(&n.name, &mut ast_path);
+        }
         self.current_value = None;
-        ast_path.with(
-            AstParentNodeRef::VarDeclarator(n, VarDeclaratorField::Init),
-            |ast_path| {
-                self.visit_opt_expr(n.init.as_ref(), ast_path);
-            },
-        );
+        {
+            let mut ast_path =
+                ast_path.with_guard(AstParentNodeRef::VarDeclarator(n, VarDeclaratorField::Init));
+
+            self.visit_opt_expr(n.init.as_ref(), &mut ast_path);
+        }
     }
 
     fn visit_pat<'ast: 'r, 'r>(
@@ -1387,39 +1373,37 @@ impl VisitAstPath for Analyzer<'_> {
             Pat::Array(arr) => {
                 match &value {
                     Some(JsValue::Array { items, .. }) => {
-                        ast_path.with(AstParentNodeRef::Pat(pat, PatField::Array), |ast_path| {
-                            for (idx, elem) in arr.elems.iter().enumerate() {
-                                self.current_value = items.get(idx).cloned();
-                                ast_path.with(
-                                    AstParentNodeRef::ArrayPat(arr, ArrayPatField::Elems(idx)),
-                                    |ast_path| {
-                                        elem.visit_with_path(self, ast_path);
-                                    },
-                                );
-                            }
-                        });
+                        let mut ast_path =
+                            ast_path.with_guard(AstParentNodeRef::Pat(pat, PatField::Array));
+                        for (idx, elem) in arr.elems.iter().enumerate() {
+                            self.current_value = items.get(idx).cloned();
+                            let mut ast_path = ast_path.with_guard(AstParentNodeRef::ArrayPat(
+                                arr,
+                                ArrayPatField::Elems(idx),
+                            ));
+                            elem.visit_with_path(self, &mut ast_path);
+                        }
 
                         // We should not call visit_children_with
                         return;
                     }
 
                     Some(value) => {
-                        ast_path.with(AstParentNodeRef::Pat(pat, PatField::Array), |ast_path| {
-                            for (idx, elem) in arr.elems.iter().enumerate() {
-                                self.current_value = Some(JsValue::member(
-                                    Box::new(value.clone()),
-                                    Box::new(JsValue::Constant(ConstantValue::Num(
-                                        ConstantNumber(idx as f64),
-                                    ))),
-                                ));
-                                ast_path.with(
-                                    AstParentNodeRef::ArrayPat(arr, ArrayPatField::Elems(idx)),
-                                    |ast_path| {
-                                        elem.visit_with_path(self, ast_path);
-                                    },
-                                );
-                            }
-                        });
+                        let mut ast_path =
+                            ast_path.with_guard(AstParentNodeRef::Pat(pat, PatField::Array));
+                        for (idx, elem) in arr.elems.iter().enumerate() {
+                            self.current_value = Some(JsValue::member(
+                                Box::new(value.clone()),
+                                Box::new(JsValue::Constant(ConstantValue::Num(ConstantNumber(
+                                    idx as f64,
+                                )))),
+                            ));
+                            let mut ast_path = ast_path.with_guard(AstParentNodeRef::ArrayPat(
+                                arr,
+                                ArrayPatField::Elems(idx),
+                            ));
+                            elem.visit_with_path(self, &mut ast_path);
+                        }
                         // We should not call visit_children_with
                         return;
                     }
@@ -1527,37 +1511,32 @@ impl VisitAstPath for Analyzer<'_> {
         stmt: &'ast IfStmt,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        ast_path.with(
-            AstParentNodeRef::IfStmt(stmt, IfStmtField::Test),
-            |ast_path| {
-                stmt.test.visit_with_path(self, ast_path);
-            },
-        );
+        {
+            let mut ast_path =
+                ast_path.with_guard(AstParentNodeRef::IfStmt(stmt, IfStmtField::Test));
+            stmt.test.visit_with_path(self, &mut ast_path);
+        }
         let prev_effects = take(&mut self.effects);
-        let then = ast_path.with(
-            AstParentNodeRef::IfStmt(stmt, IfStmtField::Cons),
-            |ast_path| {
-                stmt.cons.visit_with_path(self, ast_path);
-                EffectsBlock {
-                    effects: take(&mut self.effects),
-                    ast_path: as_parent_path(ast_path),
-                }
-            },
-        );
+        let then = {
+            let mut ast_path =
+                ast_path.with_guard(AstParentNodeRef::IfStmt(stmt, IfStmtField::Cons));
+            stmt.cons.visit_with_path(self, &mut ast_path);
+            EffectsBlock {
+                effects: take(&mut self.effects),
+                ast_path: as_parent_path(&ast_path),
+            }
+        };
         let r#else = stmt
             .alt
             .as_ref()
             .map(|alt| {
-                ast_path.with(
-                    AstParentNodeRef::IfStmt(stmt, IfStmtField::Alt),
-                    |ast_path| {
-                        alt.visit_with_path(self, ast_path);
-                        EffectsBlock {
-                            effects: take(&mut self.effects),
-                            ast_path: as_parent_path(ast_path),
-                        }
-                    },
-                )
+                let mut ast_path =
+                    ast_path.with_guard(AstParentNodeRef::IfStmt(stmt, IfStmtField::Alt));
+                alt.visit_with_path(self, &mut ast_path);
+                EffectsBlock {
+                    effects: take(&mut self.effects),
+                    ast_path: as_parent_path(&ast_path),
+                }
             })
             .unwrap_or_default();
         self.effects = prev_effects;
@@ -1631,93 +1610,78 @@ impl<'a> Analyzer<'a> {
         current_value: &JsValue,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        ast_path.with(AstParentNodeRef::Pat(pat, PatField::Object), |ast_path| {
-            for (i, prop) in obj.props.iter().enumerate() {
-                ast_path.with(
-                    AstParentNodeRef::ObjectPat(obj, ObjectPatField::Props(i)),
-                    |ast_path| match prop {
-                        ObjectPatProp::KeyValue(kv) => {
-                            ast_path.with(
-                                AstParentNodeRef::ObjectPatProp(prop, ObjectPatPropField::KeyValue),
-                                |ast_path| {
-                                    let KeyValuePatProp { key, value } = kv;
-                                    let key_value = self.eval_context.eval_prop_name(key);
-                                    ast_path.with(
-                                        AstParentNodeRef::KeyValuePatProp(
-                                            kv,
-                                            KeyValuePatPropField::Key,
-                                        ),
-                                        |ast_path| {
-                                            key.visit_with_path(self, ast_path);
-                                        },
-                                    );
-                                    self.current_value = Some(JsValue::member(
-                                        Box::new(current_value.clone()),
-                                        Box::new(key_value),
-                                    ));
-                                    ast_path.with(
-                                        AstParentNodeRef::KeyValuePatProp(
-                                            kv,
-                                            KeyValuePatPropField::Value,
-                                        ),
-                                        |ast_path| {
-                                            value.visit_with_path(self, ast_path);
-                                        },
-                                    );
-                                },
-                            );
-                        }
-                        ObjectPatProp::Assign(assign) => {
-                            ast_path.with(
-                                AstParentNodeRef::ObjectPatProp(prop, ObjectPatPropField::Assign),
-                                |ast_path| {
-                                    let AssignPatProp { key, value, .. } = assign;
-                                    let key_value = key.sym.clone().into();
-                                    ast_path.with(
-                                        AstParentNodeRef::AssignPatProp(
-                                            assign,
-                                            AssignPatPropField::Key,
-                                        ),
-                                        |ast_path| {
-                                            key.visit_with_path(self, ast_path);
-                                        },
-                                    );
-                                    self.add_value(
-                                        key.to_id(),
-                                        if let Some(box value) = value {
-                                            let value = self.eval_context.eval(value);
-                                            JsValue::alternatives(vec![
-                                                JsValue::member(
-                                                    Box::new(current_value.clone()),
-                                                    Box::new(key_value),
-                                                ),
-                                                value,
-                                            ])
-                                        } else {
-                                            JsValue::member(
-                                                Box::new(current_value.clone()),
-                                                Box::new(key_value),
-                                            )
-                                        },
-                                    );
-                                    ast_path.with(
-                                        AstParentNodeRef::AssignPatProp(
-                                            assign,
-                                            AssignPatPropField::Value,
-                                        ),
-                                        |ast_path| {
-                                            value.visit_with_path(self, ast_path);
-                                        },
-                                    );
-                                },
-                            );
-                        }
+        let mut ast_path = ast_path.with_guard(AstParentNodeRef::Pat(pat, PatField::Object));
+        for (i, prop) in obj.props.iter().enumerate() {
+            let mut ast_path =
+                ast_path.with_guard(AstParentNodeRef::ObjectPat(obj, ObjectPatField::Props(i)));
+            match prop {
+                ObjectPatProp::KeyValue(kv) => {
+                    let mut ast_path = ast_path.with_guard(AstParentNodeRef::ObjectPatProp(
+                        prop,
+                        ObjectPatPropField::KeyValue,
+                    ));
+                    let KeyValuePatProp { key, value } = kv;
+                    let key_value = self.eval_context.eval_prop_name(key);
+                    {
+                        let mut ast_path = ast_path.with_guard(AstParentNodeRef::KeyValuePatProp(
+                            kv,
+                            KeyValuePatPropField::Key,
+                        ));
+                        key.visit_with_path(self, &mut ast_path);
+                    }
+                    self.current_value = Some(JsValue::member(
+                        Box::new(current_value.clone()),
+                        Box::new(key_value),
+                    ));
+                    {
+                        let mut ast_path = ast_path.with_guard(AstParentNodeRef::KeyValuePatProp(
+                            kv,
+                            KeyValuePatPropField::Value,
+                        ));
+                        value.visit_with_path(self, &mut ast_path);
+                    }
+                }
+                ObjectPatProp::Assign(assign) => {
+                    let mut ast_path = ast_path.with_guard(AstParentNodeRef::ObjectPatProp(
+                        prop,
+                        ObjectPatPropField::Assign,
+                    ));
+                    let AssignPatProp { key, value, .. } = assign;
+                    let key_value = key.sym.clone().into();
+                    {
+                        let mut ast_path = ast_path.with_guard(AstParentNodeRef::AssignPatProp(
+                            assign,
+                            AssignPatPropField::Key,
+                        ));
+                        key.visit_with_path(self, &mut ast_path);
+                    }
+                    self.add_value(
+                        key.to_id(),
+                        if let Some(box value) = value {
+                            let value = self.eval_context.eval(value);
+                            JsValue::alternatives(vec![
+                                JsValue::member(
+                                    Box::new(current_value.clone()),
+                                    Box::new(key_value),
+                                ),
+                                value,
+                            ])
+                        } else {
+                            JsValue::member(Box::new(current_value.clone()), Box::new(key_value))
+                        },
+                    );
+                    {
+                        let mut ast_path = ast_path.with_guard(AstParentNodeRef::AssignPatProp(
+                            assign,
+                            AssignPatPropField::Value,
+                        ));
+                        value.visit_with_path(self, &mut ast_path);
+                    }
+                }
 
-                        _ => prop.visit_with_path(self, ast_path),
-                    },
-                );
+                _ => prop.visit_with_path(self, &mut ast_path),
             }
-        });
+        }
     }
 }
 
@@ -1771,12 +1735,10 @@ fn extract_var_from_umd_factory(callee: &Expr, args: &[ExprOrSpread]) -> Option<
 fn get_fn_init_return_vals(fn_body_stmts: Option<&BlockStmt>) -> Vec<JsValue> {
     let has_final_return_val = match fn_body_stmts {
         Some(fn_body_stmts) => {
-            if let Some(Stmt::Return(ReturnStmt { arg: Some(_), .. })) = fn_body_stmts.stmts.last()
-            {
-                true
-            } else {
-                false
-            }
+            matches!(
+                fn_body_stmts.stmts.last(),
+                Some(Stmt::Return(ReturnStmt { arg: Some(_), .. }))
+            )
         }
         None => false,
     };

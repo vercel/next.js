@@ -5,6 +5,7 @@
 #![feature(box_patterns)]
 #![feature(int_roundings)]
 #![deny(unsafe_op_in_unsafe_fn)]
+#![allow(clippy::too_many_arguments)]
 
 mod cell;
 mod concurrent_priority_queue;

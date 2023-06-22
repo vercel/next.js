@@ -154,13 +154,13 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
                 let mut leading =
                     swc_core::common::comments::SingleThreadedCommentsMapInner::default();
                 ctx.comments.leading.as_ref().into_iter().for_each(|c| {
-                    leading.insert(c.key().clone(), c.value().clone());
+                    leading.insert(*c.key(), c.value().clone());
                 });
 
                 let mut trailing =
                     swc_core::common::comments::SingleThreadedCommentsMapInner::default();
                 ctx.comments.trailing.as_ref().into_iter().for_each(|c| {
-                    trailing.insert(c.key().clone(), c.value().clone());
+                    trailing.insert(*c.key(), c.value().clone());
                 });
 
                 Some(SingleThreadedComments::from_leading_and_trailing(
@@ -200,7 +200,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
                             swc_core::plugin_runner::wasix_runtime::build_wasi_runtime(None);
                         let mut transform_plugin_executor =
                             swc_core::plugin_runner::create_plugin_transform_executor(
-                                &ctx.source_map,
+                                ctx.source_map,
                                 &ctx.unresolved_mark,
                                 &transform_metadata_context,
                                 plugin_module,

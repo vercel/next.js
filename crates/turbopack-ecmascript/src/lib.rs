@@ -4,6 +4,7 @@
 #![feature(int_roundings)]
 #![feature(slice_group_by)]
 #![recursion_limit = "256"]
+#![allow(clippy::too_many_arguments)]
 
 pub mod analyzer;
 pub mod chunk;

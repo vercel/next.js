@@ -18,6 +18,12 @@ impl StyledJsxTransformer {
     }
 }
 
+impl Default for StyledJsxTransformer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait]
 impl CustomTransformer for StyledJsxTransformer {
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
