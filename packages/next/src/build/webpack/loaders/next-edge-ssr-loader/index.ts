@@ -116,17 +116,16 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
     ${
       isAppDir
         ? `
-      import { renderToHTMLOrFlight as appRenderToHTML } from 'next/dist/esm/server/app-render/app-render'
+      import { renderToHTMLOrFlight as renderToHTML } from 'next/dist/esm/server/app-render/app-render'
       import * as pageMod from ${JSON.stringify(pageModPath)}
       const Document = null
-      const pagesRenderToHTML = null
       const appMod = null
       const errorMod = null
       const error500Mod = null
     `
         : `
       import Document from ${stringifiedDocumentPath}
-      import { renderToHTML as pagesRenderToHTML } from 'next/dist/esm/server/render'
+      import { renderToHTML } from 'next/dist/esm/server/render'
       import * as pageMod from ${stringifiedPagePath}
       import * as appMod from ${stringifiedAppPath}
       import * as errorMod from ${stringifiedErrorPath}
@@ -135,7 +134,6 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
           ? `import * as error500Mod from ${stringified500Path}`
           : `const error500Mod = null`
       }
-      const appRenderToHTML = null
     `
     }
 
@@ -171,8 +169,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       buildManifest,
       isAppPath: ${!!isAppDir},
       prerenderManifest,
-      appRenderToHTML,
-      pagesRenderToHTML,
+      renderToHTML,
       reactLoadableManifest,
       clientReferenceManifest: ${isServerComponent} ? rscManifest : null,
       serverActionsManifest: ${isServerComponent} ? rscServerManifest : null,
