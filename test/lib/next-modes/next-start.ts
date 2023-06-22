@@ -138,6 +138,18 @@ export class NextStartInstance extends NextInstance {
   }
 
   public async build() {
+    this.spawnOpts = {
+      cwd: this.testDir,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: false,
+      env: {
+        ...process.env,
+        ...this.env,
+        NODE_ENV: '' as any,
+        PORT: this.forcedPort || '0',
+        __NEXT_TEST_MODE: 'e2e',
+      },
+    }
     return new Promise((resolve) => {
       const curOutput = this._cliOutput.length
       const exportArgs = ['pnpm', 'next', 'build']
