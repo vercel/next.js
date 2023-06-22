@@ -179,6 +179,7 @@ pub struct DepGraph {
 
 #[derive(Debug, Clone, Copy)]
 pub(super) enum Mode {
+    #[allow(dead_code)]
     Development,
     Production,
 }

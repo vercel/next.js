@@ -11,9 +11,9 @@ pub struct SignpostLayer {
     log: Log,
 }
 
-impl SignpostLayer {
+impl Default for SignpostLayer {
     /// Create a new `SignpostLayer`.
-    pub fn new() -> SignpostLayer {
+    fn default() -> SignpostLayer {
         SignpostLayer {
             signposts: Default::default(),
             current_intervals: Default::default(),
@@ -94,7 +94,7 @@ impl KeyValueVisitor {
     }
 }
 
-impl<'a> Visit for KeyValueVisitor {
+impl Visit for KeyValueVisitor {
     fn record_debug(&mut self, field: &Field, value: &dyn fmt::Debug) {
         self.record_any(field, format!("{:?}", value));
     }

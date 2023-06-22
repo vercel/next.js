@@ -236,26 +236,25 @@ impl EcmascriptInputTransform {
                 ));
             }
             EcmascriptInputTransform::TypeScript {
-                use_define_for_class_fields,
+                // TODO(WEB-1213)
+                use_define_for_class_fields: _use_define_for_class_fields,
             } => {
-                use swc_core::ecma::transforms::typescript::{strip_with_config, Config};
-                let config = Config {
-                    use_define_for_class_fields: *use_define_for_class_fields,
-                    ..Default::default()
-                };
+                use swc_core::ecma::transforms::typescript::strip_with_config;
+                let config = Default::default();
                 program.visit_mut_with(&mut strip_with_config(config, top_level_mark));
             }
             EcmascriptInputTransform::Decorators {
                 is_legacy,
                 is_ecma: _,
                 emit_decorators_metadata,
-                use_define_for_class_fields,
+                // TODO(WEB-1213)
+                use_define_for_class_fields: _use_define_for_class_fields,
             } => {
                 use swc_core::ecma::transforms::proposal::decorators::{decorators, Config};
                 let config = Config {
                     legacy: *is_legacy,
                     emit_metadata: *emit_decorators_metadata,
-                    use_define_for_class_fields: *use_define_for_class_fields,
+                    ..Default::default()
                 };
 
                 let p = std::mem::replace(program, Program::Module(Module::dummy()));

@@ -28,6 +28,7 @@ use crate::{
 /// A server that listens for updates and sends them to connected clients.
 pub(crate) struct UpdateServer<P: SourceProvider> {
     source_provider: P,
+    #[allow(dead_code)]
     issue_reporter: IssueReporterVc,
 }
 
