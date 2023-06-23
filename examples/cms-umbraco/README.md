@@ -2,10 +2,6 @@
 
 This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [Umbraco CMS](https://www.umbraco.com/) as the data source.
 
-## TODO
-
-- ...
-
 ## Demo
 
 ### TODO
@@ -19,7 +15,7 @@ npx create-next-app --example cms-umbraco umbraco-app
 # or
 yarn create next-app --example cms-umbraco umbraco-app
 # or
-pnpm create next-app -- --example cms-umbraco umbraco-app
+pnpm create next-app --example cms-umbraco umbraco-app
 ```
 
 ## Configuration
@@ -36,9 +32,9 @@ For more information on the Umbraco .NET CLI templates, visit [this page](https:
 
 ### Step 2. Install sample data
 
-To avoid having to create the entire blog dataset in hand, we have created a [NuGet package](https://TODO) with everything you need to get started.
+To avoid having to create the entire blog dataset in hand, we have created a [NuGet package](https://www.nuget.org/packages/Umbraco.Sample.Headless.Blog) with everything you need to get started.
 
-Install the NuGet package with the following command in the terminal window: `dotnet add Umbraco.Cms.TODO.TODO`.
+Install the NuGet package with the following command in the terminal window: `dotnet add Umbraco.Sample.Headless.Blog`.
 
 ### Step 3. Configure the Umbraco Delivery API
 
@@ -77,7 +73,7 @@ All the sample content is unpublished to begin with. You need to publish all of 
 
 Now do the same for the _Authors_ item.
 
-### Step 6. Configure the blog
+### Step 6. Set up environment variables
 
 Locate `.env.local.example` where you created the `umbraco-app` project. Create a copy of the file and name it `.env.local`. Now edit the file and fill in the blanks.
 
@@ -136,9 +132,9 @@ http://localhost:3000/api/exit-preview
 
 You can deploy this app to the cloud with [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-#### Publish Umbraco
+#### Deploy Umbraco
 
-Before you can deploy the blog to Vercel, you first need to publish your Umbraco site to a hosting provider, so it's available for Vercel.
+Before you can deploy the blog to Vercel, you first need to deploy your Umbraco site to a hosting provider, to make the blog data available for Vercel.
 
 If you use Azure, be sure to read [the guidelines](https://docs.umbraco.com/umbraco-cms/fundamentals/setup/server-setup/azure-web-apps) on deploying Umbraco to Azure.
 
@@ -148,30 +144,10 @@ You can also try this out on [Umbraco Cloud](https://umbraco.com/try-umbraco-cms
 
 To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example).
 
-**Important**: When you import your project on Vercel, make sure to click on **Environment Variables** and set them to match your `.env.local` file.
+**Important**: When you import your project on Vercel, make sure to click on **Environment Variables** and set them to match your Umbraco deployment.
 
 #### Deploy from Our Template
 
 Alternatively, you can deploy using our template by clicking on the Deploy button below.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://TODO.)
-
-### Related examples
-
-- [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
-- [Enterspeed](/examples/cms-enterspeed)
-- [DatoCMS](/examples/cms-datocms)
-- [Sanity](/examples/cms-sanity)
-- [TakeShape](/examples/cms-takeshape)
-- [Prismic](/examples/cms-prismic)
-- [Contentful](/examples/cms-contentful)
-- [Strapi](/examples/cms-strapi)
-- [Agility CMS](/examples/cms-agilitycms)
-- [Cosmic](/examples/cms-cosmic)
-- [ButterCMS](/examples/cms-buttercms)
-- [Storyblok](/examples/cms-storyblok)
-- [GraphCMS](/examples/cms-graphcms)
-- [Kontent](/examples/cms-kontent)
-- [Ghost](/examples/cms-ghost)
-- [Blog Starter](/examples/blog-starter)
-- [Builder.io](/examples/cms-builder-io)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/cms-umbraco&project-name=nextjs-umbraco-blog&repository-name=nextjs-umbraco-blog&env=UMBRACO_SERVER_URL,UMBRACO_DELIVERY_API_KEY,UMBRACO_PREVIEW_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20Umbraco%20CMS&envLink=https://github.com/vercel/next.js/tree/canary/examples/cms-umbraco%23step-6-set-up-environment-variables)
