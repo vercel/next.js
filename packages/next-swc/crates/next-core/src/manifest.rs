@@ -14,7 +14,7 @@ use turbopack_binding::{
             introspect::{Introspectable, IntrospectableVc},
         },
         dev_server::source::{
-            route_tree::{BaseSegment, RouteTreeVc},
+            route_tree::{BaseSegment, RouteTreeVc, RouteTreesVc},
             ContentSource, ContentSourceContentVc, ContentSourceData, ContentSourceVc,
             GetContentSourceContent, GetContentSourceContentVc,
         },
@@ -156,7 +156,7 @@ struct BuildManifest<'a> {
 impl ContentSource for DevManifestContentSource {
     #[turbo_tasks::function]
     fn get_routes(self_vc: DevManifestContentSourceVc) -> RouteTreeVc {
-        RouteTreeVc::merge(vec![
+        RouteTreesVc::cell(vec![
             RouteTreeVc::new_route(
                 BaseSegment::from_static_pathname(
                     "/_next/static/development/_devPagesManifest.json",
@@ -180,6 +180,7 @@ impl ContentSource for DevManifestContentSource {
                 self_vc.into(),
             ),
         ])
+        .merge()
     }
 }
 

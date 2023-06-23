@@ -14,7 +14,7 @@ use turbopack_binding::{
     turbopack::{
         core::asset::AssetContentVc,
         dev_server::source::{
-            route_tree::{BaseSegment, RouteTreeVc},
+            route_tree::{BaseSegment, RouteTreeVc, RouteTreesVc},
             ContentSource, ContentSourceContentVc, ContentSourceData, ContentSourceDataFilter,
             ContentSourceDataVary, ContentSourceDataVaryVc, ContentSourceVc,
             GetContentSourceContent, GetContentSourceContentVc,
@@ -40,7 +40,7 @@ const INVALIDATION_INTERVAL: Duration = Duration::from_secs(3);
 impl ContentSource for TurboTasksSource {
     #[turbo_tasks::function]
     fn get_routes(self_vc: TurboTasksSourceVc) -> RouteTreeVc {
-        RouteTreeVc::merge(vec![
+        RouteTreesVc::cell(vec![
             RouteTreeVc::new_route(
                 vec![BaseSegment::Static("graph".to_string())],
                 None,
@@ -62,6 +62,7 @@ impl ContentSource for TurboTasksSource {
                 self_vc.into(),
             ),
         ])
+        .merge()
     }
 }
 
