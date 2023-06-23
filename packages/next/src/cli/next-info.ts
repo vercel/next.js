@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import type { NextConfig } from 'next'
+
 import os from 'os'
 import childProcess from 'child_process'
 
@@ -16,6 +18,19 @@ function getPackageVersion(packageName: string) {
     return require(`${packageName}/package.json`).version
   } catch {
     return 'N/A'
+  }
+}
+
+function getNextConfig() {
+  let config: NextConfig = {}
+  try {
+    config = require(`${process.cwd()}/next.config.js`)
+  } catch {
+    return {}
+  }
+
+  return {
+    output: config.output || 'N/A',
   }
 }
 
@@ -67,6 +82,7 @@ const nextInfo: CliCommand = async (argv) => {
   }
 
   const installedRelease = getPackageVersion('next')
+  const nextConfig = getNextConfig()
 
   console.log(`
     Operating System:
@@ -84,6 +100,9 @@ const nextInfo: CliCommand = async (argv) => {
       react: ${getPackageVersion('react')}
       react-dom: ${getPackageVersion('react-dom')}
       typescript: ${getPackageVersion('typescript')}
+    Next Config:
+      output: ${nextConfig.output}
+
 `)
 
   try {
