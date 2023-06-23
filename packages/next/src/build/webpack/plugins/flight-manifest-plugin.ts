@@ -285,7 +285,7 @@ export class ClientReferenceManifestPlugin {
 
           if (
             !request ||
-            !request.includes('/next-flight-client-entry-loader.js?')
+            !request.includes('next-flight-client-entry-loader.js?')
           ) {
             continue
           }
@@ -297,14 +297,16 @@ export class ClientReferenceManifestPlugin {
             const dependency = connection.dependency
             if (!dependency) continue
 
-            const clientEntryMod =
-              compilation.moduleGraph.getResolvedModule(dependency)
+            const clientEntryMod = compilation.moduleGraph.getResolvedModule(
+              dependency
+            ) as webpack.NormalModule
             const modId = compilation.chunkGraph.getModuleId(clientEntryMod) as
               | string
               | number
+              | null
 
-            if (modId) {
-              recordModule(modId, clientEntryMod as webpack.NormalModule)
+            if (modId !== null) {
+              recordModule(modId, clientEntryMod)
             } else {
               // If this is a concatenation, register each child to the parent ID.
               if (
@@ -313,10 +315,7 @@ export class ClientReferenceManifestPlugin {
                 const concatenatedMod = connection.module
                 const concatenatedModId =
                   compilation.chunkGraph.getModuleId(concatenatedMod)
-                recordModule(
-                  concatenatedModId,
-                  clientEntryMod as webpack.NormalModule
-                )
+                recordModule(concatenatedModId, clientEntryMod)
               }
             }
           }
@@ -338,11 +337,6 @@ export class ClientReferenceManifestPlugin {
                   : mod.resource
               manifest.entryCSSFiles[chunkEntryName].modules.push(resource)
             }
-          } else if (isClientComponentEntryModule(mod)) {
-            recordModule(
-              compilation.chunkGraph.getModuleId(mod) as string | number,
-              mod
-            )
           }
         }
       })
