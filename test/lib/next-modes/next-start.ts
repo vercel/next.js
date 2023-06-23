@@ -1,13 +1,13 @@
 import path from 'path'
 import fs from 'fs-extra'
 import { NextInstance } from './base'
-import { spawn, SpawnOptions } from 'cross-spawn'
+import spawn from 'cross-spawn'
 import { Span } from 'next/src/trace'
 
 export class NextStartInstance extends NextInstance {
   private _buildId: string
   private _cliOutput: string = ''
-  private spawnOpts: SpawnOptions
+  private spawnOpts: import('child_process').SpawnOptions
 
   public get buildId() {
     return this._buildId

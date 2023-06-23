@@ -553,6 +553,7 @@ createNextDescribe(
           'partial-gen-params/[lang]/[slug]/page.js',
           'react-fetch-deduping-edge/page.js',
           'react-fetch-deduping-node/page.js',
+          'response-url/page.js',
           'route-handler-edge/revalidate-360/route.js',
           'route-handler/post/route.js',
           'route-handler/revalidate-360-isr/route.js',
@@ -1124,6 +1125,27 @@ createNextDescribe(
             /Page changed from static to dynamic at runtime \/static-to-dynamic-error-forced\/static-bailout-1, reason: cookies/
           )
         }
+      })
+
+      it('should produce response with url from fetch', async () => {
+        const res = await next.fetch('/response-url')
+        expect(res.status).toBe(200)
+
+        const html = await res.text()
+        const $ = cheerio.load(html)
+
+        expect($('#data-url-default-cache').text()).toBe(
+          'https://next-data-api-endpoint.vercel.app/api/random?a1'
+        )
+        expect($('#data-url-no-cache').text()).toBe(
+          'https://next-data-api-endpoint.vercel.app/api/random?b2'
+        )
+        expect($('#data-url-cached').text()).toBe(
+          'https://next-data-api-endpoint.vercel.app/api/random?a1'
+        )
+        expect($('#data-value-default-cache').text()).toBe(
+          $('#data-value-cached').text()
+        )
       })
 
       it('should properly error when dynamic = "error" page uses dynamic', async () => {

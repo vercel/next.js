@@ -325,24 +325,52 @@ const formatTableRow = (link: string, docPath: string) => {
   return `| ${link} | [/${docPath}](https://github.com/vercel/next.js/blob/${sha}/${docPath}) | \n`
 }
 
-async function createCommitStatus(
+async function updateCheckStatus(
   errorsExist: boolean,
   commentUrl?: string
 ): Promise<void> {
-  const state = errorsExist ? 'failure' : 'success'
-  const description = errorsExist
-    ? 'This PR introduces broken links to the docs. Click details for a list.'
-    : 'All broken links are now fixed, thank you!'
+  const isFork = pullRequest.head.repo.fork
+  const checkName = 'Docs Link Validation'
 
-  await octokit.rest.repos.createCommitStatus({
+  let summary, text
+
+  if (errorsExist) {
+    summary =
+      'This PR introduces broken links to the docs. Click details for a list.'
+    text = `[See the comment for details](${commentUrl})`
+  } else {
+    summary = 'No broken links found'
+  }
+
+  const checkParams = {
     owner,
     repo,
-    sha,
-    state,
-    description,
-    context: 'Link Validation',
-    target_url: commentUrl,
-  })
+    name: checkName,
+    head_sha: sha,
+    status: 'completed',
+    conclusion: errorsExist ? 'failure' : 'success',
+    output: {
+      title: checkName,
+      summary: summary,
+      text: text,
+    },
+  }
+
+  if (isFork) {
+    if (errorsExist) {
+      setFailed(
+        'This PR introduces broken links to the docs. The action could not create a Github check because it is initiated from a forked repo.'
+      )
+    } else {
+      console.log('Link validation was successful.')
+    }
+  } else {
+    try {
+      await octokit.rest.checks.create(checkParams)
+    } catch (error) {
+      setFailed('Failed to create check: ' + error)
+    }
+  }
 }
 
 // Main function that triggers link validation across .mdx files
@@ -439,9 +467,9 @@ async function validateAllInternalLinks(): Promise<void> {
     }
 
     try {
-      await createCommitStatus(errorsExist, commentUrl)
+      await updateCheckStatus(errorsExist, commentUrl)
     } catch (error) {
-      setFailed('Failed to create commit status: ' + error)
+      setFailed('Failed to create Github check: ' + error)
     }
   } catch (error) {
     setFailed('Error validating internal links: ' + error)
