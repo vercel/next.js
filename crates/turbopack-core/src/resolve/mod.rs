@@ -1343,7 +1343,7 @@ async fn resolve_package_internal_with_imports_field(
     };
 
     handle_exports_imports_field(
-        context,
+        package_json_path.parent(),
         *package_json_path,
         resolve_options,
         imports,
