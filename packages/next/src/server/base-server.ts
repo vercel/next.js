@@ -2431,15 +2431,16 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
     }
     const { res, query } = ctx
+
     try {
       let result: null | FindComponentsResult = null
 
       const is404 = res.statusCode === 404
       let using404Page = false
 
-      // use static 404 page if available and is 404 response
       if (is404) {
-        if (this.hasAppDir) {
+        // Rendering app routes only in render worker to make sure the require-hook is setup
+        if (this.hasAppDir && this.isRenderWorker) {
           // Use the not-found entry in app directory
           result = await this.findPageComponents({
             pathname: this.renderOpts.dev ? '/not-found' : '/_not-found',

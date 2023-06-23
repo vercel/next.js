@@ -209,7 +209,39 @@ function processMessage(
   router: ReturnType<typeof useRouter>,
   dispatcher: Dispatcher
 ) {
-  const obj = JSON.parse(e.data)
+  let obj
+  try {
+    obj = JSON.parse(e.data)
+  } catch {}
+
+  if (!obj || !('action' in obj)) {
+    return
+  }
+
+  function handleErrors(errors: any[]) {
+    // "Massage" webpack messages.
+    const formatted = formatWebpackMessages({
+      errors: errors,
+      warnings: [],
+    })
+
+    // Only show the first error.
+    dispatcher.onBuildError(formatted.errors[0])
+
+    // Also log them to the console.
+    for (let i = 0; i < formatted.errors.length; i++) {
+      console.error(stripAnsi(formatted.errors[i]))
+    }
+
+    // Do not attempt to reload now.
+    // We will reload on next success instead.
+    if (process.env.__NEXT_TEST_MODE) {
+      if (self.__NEXT_HMR_CB) {
+        self.__NEXT_HMR_CB(formatted.errors[0])
+        self.__NEXT_HMR_CB = null
+      }
+    }
+  }
 
   switch (obj.action) {
     case 'building': {
@@ -239,28 +271,7 @@ function processMessage(
           })
         )
 
-        // "Massage" webpack messages.
-        let formatted = formatWebpackMessages({
-          errors: errors,
-          warnings: [],
-        })
-
-        // Only show the first error.
-        dispatcher.onBuildError(formatted.errors[0])
-
-        // Also log them to the console.
-        for (let i = 0; i < formatted.errors.length; i++) {
-          console.error(stripAnsi(formatted.errors[i]))
-        }
-
-        // Do not attempt to reload now.
-        // We will reload on next success instead.
-        if (process.env.__NEXT_TEST_MODE) {
-          if (self.__NEXT_HMR_CB) {
-            self.__NEXT_HMR_CB(formatted.errors[0])
-            self.__NEXT_HMR_CB = null
-          }
-        }
+        handleErrors(errors)
         return
       }
 
@@ -388,6 +399,16 @@ function processMessage(
       router.fastRefresh()
       return
     }
+    case 'serverError': {
+      const { errorJSON } = obj
+      if (errorJSON) {
+        const { message, stack } = JSON.parse(errorJSON)
+        const error = new Error(message)
+        error.stack = stack
+        handleErrors([error])
+      }
+      return
+    }
     case 'pong': {
       const { invalid } = obj
       if (invalid) {
@@ -468,18 +489,12 @@ export default function HotReload({
   const router = useRouter()
   useEffect(() => {
     const handler = (event: MessageEvent<PongEvent>) => {
-      if (
-        !event.data.includes('action') &&
-        // TODO-APP: clean this up for consistency
-        !event.data.includes('pong')
-      ) {
-        return
-      }
-
       try {
         processMessage(event, sendMessage, router, dispatcher)
-      } catch (ex) {
-        console.warn('Invalid HMR message: ' + event.data + '\n', ex)
+      } catch (err: any) {
+        console.warn(
+          '[HMR] Invalid message: ' + event.data + '\n' + (err?.stack ?? '')
+        )
       }
     }
 
