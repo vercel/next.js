@@ -94,13 +94,13 @@ const nextInfo: CliCommand = async (argv) => {
       npm: ${getBinaryVersion('npm')}
       Yarn: ${getBinaryVersion('yarn')}
       pnpm: ${getBinaryVersion('pnpm')}
-    Relevant packages:
+    Relevant Packages:
       next: ${installedRelease}
       eslint-config-next: ${getPackageVersion('eslint-config-next')}
       react: ${getPackageVersion('react')}
       react-dom: ${getPackageVersion('react-dom')}
       typescript: ${getPackageVersion('typescript')}
-    Next Config:
+    Next.js Config:
       output: ${nextConfig.output}
 
 `)
