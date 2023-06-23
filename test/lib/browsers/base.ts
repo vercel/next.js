@@ -25,8 +25,14 @@ export abstract class BrowserInterface implements PromiseLike<any> {
       switch (p) {
         case 'promise':
           return promise
+        case 'then':
+          return promise.then.bind(promise)
+        case 'catch':
+          return promise.catch.bind(promise)
+        case 'finally':
+          return promise.finally.bind(promise)
         default:
-          return promise[p] ?? target[p]
+          return target[p]
       }
     }
 
