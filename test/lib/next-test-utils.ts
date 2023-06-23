@@ -588,7 +588,7 @@ export async function startStaticServer(
     })
   }
 
-  await promisify(server.listen).apply(server, fixedPort)
+  await promisify(server.listen).bind(server, fixedPort)
   return server
 }
 
