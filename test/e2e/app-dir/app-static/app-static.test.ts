@@ -553,6 +553,7 @@ createNextDescribe(
           'partial-gen-params/[lang]/[slug]/page.js',
           'react-fetch-deduping-edge/page.js',
           'react-fetch-deduping-node/page.js',
+          'response-url/page.js',
           'route-handler-edge/revalidate-360/route.js',
           'route-handler/post/route.js',
           'route-handler/revalidate-360-isr/route.js',
