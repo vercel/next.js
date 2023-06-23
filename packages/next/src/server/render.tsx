@@ -23,6 +23,7 @@ import type {
   GetStaticProps,
   PreviewData,
   ServerRuntime,
+  SizeLimit,
 } from 'next/types'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import type { ReactReadableStream } from './stream-utils/node-web-streams-helper'
@@ -260,6 +261,7 @@ export type RenderOptsPartial = {
   isBot?: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
+  serverActionsSizeLimit?: SizeLimit
   customServer?: boolean
   crossOrigin?: 'anonymous' | 'use-credentials' | '' | undefined
   images: ImageConfigComplete

@@ -30,12 +30,14 @@ import {
 import { traverseModules, forEachEntryModule } from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { getProxiedPluginState } from '../../build-context'
+import { SizeLimit } from '../../../../types'
 
 interface Options {
   dev: boolean
   appDir: string
   isEdgeServer: boolean
   useServerActions: boolean
+  serverActionsSizeLimit?: SizeLimit
 }
 
 const PLUGIN_NAME = 'ClientEntryPlugin'
@@ -151,6 +153,7 @@ export class ClientReferenceEntryPlugin {
   appDir: string
   isEdgeServer: boolean
   useServerActions: boolean
+  serverActionsSizeLimit?: SizeLimit
   assetPrefix: string
 
   constructor(options: Options) {
@@ -158,6 +161,7 @@ export class ClientReferenceEntryPlugin {
     this.appDir = options.appDir
     this.isEdgeServer = options.isEdgeServer
     this.useServerActions = options.useServerActions
+    this.serverActionsSizeLimit = options.serverActionsSizeLimit
     this.assetPrefix = !this.dev && !this.isEdgeServer ? '../' : ''
   }
 
