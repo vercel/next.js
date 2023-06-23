@@ -110,8 +110,8 @@ const loader: webpack.LoaderDefinitionFunction<RouteLoaderOptions> =
         import { hoist } from "next/dist/build/webpack/loaders/next-route-loader/helpers"
 
         // Import the app and document modules.
-        import * as moduleApp from ${JSON.stringify(absoluteAppPath)}
         import * as moduleDocument from ${JSON.stringify(absoluteDocumentPath)}
+        import * as moduleApp from ${JSON.stringify(absoluteAppPath)}
 
         // Import the userland code.
         import * as userland from ${JSON.stringify(absolutePagePath)}

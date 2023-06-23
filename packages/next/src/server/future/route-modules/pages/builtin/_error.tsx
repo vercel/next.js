@@ -1,5 +1,5 @@
-import App from '../../../../../pages/_app'
 import Document from '../../../../../pages/_document'
+import App from '../../../../../pages/_app'
 import { RouteKind } from '../../../route-kind'
 
 import * as moduleError from '../../../../../pages/_error'
