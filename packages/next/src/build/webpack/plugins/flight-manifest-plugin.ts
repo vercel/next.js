@@ -12,7 +12,7 @@ import {
   SYSTEM_ENTRYPOINTS,
 } from '../../../shared/lib/constants'
 import { relative } from 'path'
-import { isCSSMod, isClientComponentEntryModule } from '../loaders/utils'
+import { isCSSMod } from '../loaders/utils'
 import { getProxiedPluginState } from '../../build-context'
 
 import { nonNullable } from '../../../lib/non-nullable'
