@@ -26,7 +26,7 @@ import {
   isMiddlewareFile,
   isMiddlewareFilename,
 } from '../../build/utils'
-import { PageNotFoundError } from '../../shared/lib/utils'
+import { PageNotFoundError, stringifyError } from '../../shared/lib/utils'
 import {
   CompilerNameValues,
   COMPILER_INDEXES,
@@ -226,7 +226,7 @@ const normalizeOutputPath = (dir: string) => dir.replace(/[/\\]server$/, '')
 
 export const getEntries = (
   dir: string
-): NonNullable<ReturnType<typeof entriesMap['get']>> => {
+): NonNullable<ReturnType<(typeof entriesMap)['get']>> => {
   dir = normalizeOutputPath(dir)
   const entries = entriesMap.get(dir) || {}
   entriesMap.set(dir, entries)
@@ -303,7 +303,7 @@ class Invalidator {
 }
 
 function disposeInactiveEntries(
-  entries: NonNullable<ReturnType<typeof entriesMap['get']>>,
+  entries: NonNullable<ReturnType<(typeof entriesMap)['get']>>,
   maxInactiveAge: number
 ) {
   Object.keys(entries).forEach((entryKey) => {
@@ -879,9 +879,28 @@ export function onDemandEntryHandler({
       }
     },
 
-    onHMR(client: ws) {
+    onHMR(client: ws, getHmrServerError: () => Error | null) {
+      let bufferedHmrServerError: Error | null = null
+
+      client.addEventListener('close', () => {
+        bufferedHmrServerError = null
+      })
       client.addEventListener('message', ({ data }) => {
         try {
+          const error = getHmrServerError()
+
+          // New error occurred: buffered error is flushed and new error occurred
+          if (!bufferedHmrServerError && error) {
+            client.send(
+              JSON.stringify({
+                event: 'server-error', // for pages dir
+                action: 'serverError', // for app dir
+                errorJSON: stringifyError(error),
+              })
+            )
+            bufferedHmrServerError = null
+          }
+
           const parsedData = JSON.parse(
             typeof data !== 'string' ? data.toString() : data
           )

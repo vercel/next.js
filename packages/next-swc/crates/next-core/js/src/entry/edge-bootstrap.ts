@@ -1,7 +1,6 @@
-import { adapter, enhanceGlobals } from 'next/dist/server/web/adapter'
+import 'next/dist/server/web/globals'
+import { adapter } from 'next/dist/server/web/adapter'
 import { NAME, PAGE } from 'BOOTSTRAP_CONFIG'
-
-enhanceGlobals()
 
 var mod = require('ENTRY')
 var handler = mod.middleware || mod.default

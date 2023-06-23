@@ -261,7 +261,7 @@ impl<C: Comments> ServerActions<C> {
                     span: DUMMY_SP,
                     decl: Decl::Var(Box::new(VarDecl {
                         span: DUMMY_SP,
-                        kind: VarDeclKind::Const,
+                        kind: VarDeclKind::Var,
                         declare: Default::default(),
                         decls: vec![VarDeclarator {
                             span: DUMMY_SP,
@@ -357,7 +357,7 @@ impl<C: Comments> ServerActions<C> {
             // export async function $ACTION_myAction () {}
             let mut new_params: Vec<Param> = vec![];
 
-            // $$ACTION_ARG_{index}
+            // add params from closure collected ids
             for i in 0..ids_from_closure.len() {
                 new_params.push(Param {
                     span: DUMMY_SP,
@@ -616,6 +616,20 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         if !self.in_action_fn && !self.in_action_file {
             collect_pat_idents(&n.pat, &mut self.closure_idents);
         }
+    }
+
+    fn visit_mut_prop_or_spread(&mut self, n: &mut PropOrSpread) {
+        if self.in_action_fn && self.in_action_closure {
+            if let PropOrSpread::Prop(box Prop::Shorthand(i)) = n {
+                self.in_action_closure = false;
+                self.action_closure_idents.push(Name::from(&*i));
+                n.visit_mut_children_with(self);
+                self.in_action_closure = true;
+                return;
+            }
+        }
+
+        n.visit_mut_children_with(self);
     }
 
     fn visit_mut_expr(&mut self, n: &mut Expr) {
@@ -928,7 +942,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 span: DUMMY_SP,
                                 decl: Decl::Var(Box::new(VarDecl {
                                     span: DUMMY_SP,
-                                    kind: VarDeclKind::Const,
+                                    kind: VarDeclKind::Var,
                                     declare: false,
                                     decls: vec![VarDeclarator {
                                         span: DUMMY_SP,
@@ -1474,11 +1488,36 @@ impl VisitMut for ClosureReplacer<'_> {
             ));
         }
     }
+
+    fn visit_mut_prop_or_spread(&mut self, n: &mut PropOrSpread) {
+        n.visit_mut_children_with(self);
+
+        if let PropOrSpread::Prop(box Prop::Shorthand(i)) = n {
+            let name = Name::from(&*i);
+            if let Some(index) = self.used_ids.iter().position(|used_id| *used_id == name) {
+                *n = PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                    key: PropName::Ident(i.clone()),
+                    value: Box::new(Expr::Ident(Ident::new(
+                        // $$ACTION_ARG_0
+                        format!("$$ACTION_ARG_{}", index).into(),
+                        DUMMY_SP,
+                    ))),
+                })));
+            }
+        }
+    }
+
     noop_visit_mut_type!();
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct Name(Id, Vec<(JsWord, bool)>);
+struct Name(Id, Vec<(JsWord, bool, bool)>);
+
+impl From<&'_ Ident> for Name {
+    fn from(value: &Ident) -> Self {
+        Name(value.to_id(), vec![])
+    }
+}
 
 impl TryFrom<&'_ Expr> for Name {
     type Error = ();
@@ -1500,7 +1539,7 @@ impl TryFrom<&'_ MemberExpr> for Name {
         match &value.prop {
             MemberProp::Ident(prop) => {
                 let mut obj: Name = value.obj.as_ref().try_into()?;
-                obj.1.push((prop.sym.clone(), true));
+                obj.1.push((prop.sym.clone(), true, false));
                 Ok(obj)
             }
             _ => Err(()),
@@ -1513,10 +1552,10 @@ impl TryFrom<&'_ OptChainExpr> for Name {
 
     fn try_from(value: &OptChainExpr) -> Result<Self, Self::Error> {
         match &*value.base {
-            OptChainBase::Member(value) => match &value.prop {
+            OptChainBase::Member(me) => match &me.prop {
                 MemberProp::Ident(prop) => {
-                    let mut obj: Name = value.obj.as_ref().try_into()?;
-                    obj.1.push((prop.sym.clone(), false));
+                    let mut obj: Name = me.obj.as_ref().try_into()?;
+                    obj.1.push((prop.sym.clone(), false, value.optional));
                     Ok(obj)
                 }
                 _ => Err(()),
@@ -1530,7 +1569,7 @@ impl From<Name> for Expr {
     fn from(value: Name) -> Self {
         let mut expr = Expr::Ident(value.0.into());
 
-        for (prop, is_member) in value.1.into_iter() {
+        for (prop, is_member, optional) in value.1.into_iter() {
             if is_member {
                 expr = Expr::Member(MemberExpr {
                     span: DUMMY_SP,
@@ -1540,7 +1579,7 @@ impl From<Name> for Expr {
             } else {
                 expr = Expr::OptChain(OptChainExpr {
                     span: DUMMY_SP,
-                    question_dot_token: DUMMY_SP,
+                    optional,
                     base: Box::new(OptChainBase::Member(MemberExpr {
                         span: DUMMY_SP,
                         obj: expr.into(),

@@ -63,7 +63,7 @@ export class BloomFilter {
     return data
   }
 
-  import(data: ReturnType<typeof this['export']>) {
+  import(data: ReturnType<(typeof this)['export']>) {
     this.numItems = data.numItems
     this.errorRate = data.errorRate
     this.numBits = data.numBits

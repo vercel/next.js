@@ -30,6 +30,7 @@ use turbopack_binding::{
         },
         dev::DevChunkingContextVc,
         node::{
+            debug::should_debug,
             evaluate::evaluate,
             execution_context::{ExecutionContext, ExecutionContextVc},
             source_map::{trace_stack, StructuredError},
@@ -46,7 +47,7 @@ use crate::{
     next_config::NextConfigVc,
     next_edge::{
         context::{get_edge_compile_time_info, get_edge_resolve_options_context},
-        transition::NextEdgeTransition,
+        route_transition::NextEdgeRouteTransition,
     },
     next_import_map::get_next_build_import_map,
     next_server::context::{get_server_module_options_context, ServerContextType},
@@ -249,7 +250,7 @@ fn edge_transition_map(
         output_path.join("edge/assets"),
         edge_compile_time_info.environment(),
     )
-    .reference_chunk_source_maps(false)
+    .reference_chunk_source_maps(should_debug("router"))
     .build();
 
     let edge_resolve_options_context = get_edge_resolve_options_context(
@@ -267,7 +268,7 @@ fn edge_transition_map(
         next_config,
     );
 
-    let next_edge_transition = NextEdgeTransition {
+    let next_edge_transition = NextEdgeRouteTransition {
         edge_compile_time_info,
         edge_chunking_context,
         edge_module_options_context: Some(server_module_options_context),
@@ -376,7 +377,7 @@ async fn route_internal(
             JsonValueVc::cell(serde_json::to_value(ServerInfo::try_from(&*server_addr)?)?),
         ],
         CompletionsVc::all(vec![next_config_changed, routes_changed]),
-        /* debug */ false,
+        should_debug("router"),
     )
     .await?;
 

@@ -126,7 +126,11 @@ export function patchFetch({
         // If the staticGenerationStore is not available, we can't do any
         // special treatment of fetch, therefore fallback to the original
         // fetch implementation.
-        if (!staticGenerationStore || (init?.next as any)?.internal) {
+        if (
+          !staticGenerationStore ||
+          (init?.next as any)?.internal ||
+          staticGenerationStore.isDraftMode
+        ) {
           return originFetch(input, init)
         }
 
@@ -496,7 +500,8 @@ export function patchFetch({
             if (
               typeof next.revalidate === 'number' &&
               (typeof staticGenerationStore.revalidate === 'undefined' ||
-                next.revalidate < staticGenerationStore.revalidate)
+                (typeof staticGenerationStore.revalidate === 'number' &&
+                  next.revalidate < staticGenerationStore.revalidate))
             ) {
               const forceDynamic = staticGenerationStore.forceDynamic
 

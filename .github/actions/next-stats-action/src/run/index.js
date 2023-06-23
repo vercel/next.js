@@ -1,13 +1,12 @@
 const path = require('path')
 const fs = require('fs-extra')
-const getPort = require('get-port')
 const glob = require('../util/glob')
 const exec = require('../util/exec')
 const logger = require('../util/logger')
 const getDirSize = require('./get-dir-size')
 const collectStats = require('./collect-stats')
 const collectDiffs = require('./collect-diffs')
-const { statsAppDir, diffRepoDir, yarnEnvValues } = require('../constants')
+const { statsAppDir, diffRepoDir } = require('../constants')
 
 async function runConfigs(
   configs = [],
@@ -59,13 +58,7 @@ async function runConfigs(
 
       const buildStart = Date.now()
       console.log(
-        await exec(
-          `cd ${statsAppDir} && ${statsConfig.appBuildCommand}`,
-          false,
-          {
-            env: yarnEnvValues,
-          }
-        )
+        await exec(`cd ${statsAppDir} && ${statsConfig.appBuildCommand}`, false)
       )
       curStats.General.buildDuration = Date.now() - buildStart
 
@@ -160,13 +153,7 @@ async function runConfigs(
 
       const secondBuildStart = Date.now()
       console.log(
-        await exec(
-          `cd ${statsAppDir} && ${statsConfig.appBuildCommand}`,
-          false,
-          {
-            env: yarnEnvValues,
-          }
-        )
+        await exec(`cd ${statsAppDir} && ${statsConfig.appBuildCommand}`, false)
       )
       curStats.General.buildDurationCached = Date.now() - secondBuildStart
     }
@@ -203,13 +190,9 @@ async function linkPkgs(pkgDir = '', pkgPaths) {
   }
   await fs.writeFile(pkgJsonPath, JSON.stringify(pkgData, null, 2), 'utf8')
 
-  await fs.remove(yarnEnvValues.YARN_CACHE_FOLDER)
   await exec(
     `cd ${pkgDir} && pnpm install --strict-peer-dependencies=false`,
-    false,
-    {
-      env: yarnEnvValues,
-    }
+    false
   )
 }
 

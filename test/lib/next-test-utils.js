@@ -154,7 +154,7 @@ export function renderViaHTTP(appPort, pathname, query, opts) {
  * @param {string} pathname
  * @param {Record<string, any> | string | null | undefined} [query]
  * @param {import('node-fetch').RequestInit} [opts]
- * @returns {Promise<Response & {buffer: any} & {headers: any}>}
+ * @returns {Promise<Response & {buffer: any} & {headers: Headers}>}
  */
 export function fetchViaHTTP(appPort, pathname, query, opts) {
   const url = query ? withQuery(pathname, query) : pathname
@@ -376,9 +376,7 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
 // Launch the app in dev mode.
 export function launchApp(dir, port, opts) {
   const options = opts ?? {}
-  const useTurbo = !!process.env.TEST_WASM
-    ? false
-    : options?.turbo ?? shouldRunTurboDevTest()
+  const useTurbo = shouldRunTurboDevTest()
 
   return runNextCommandDev(
     [useTurbo ? '--turbo' : undefined, dir, '-p', port].filter(Boolean),
@@ -537,8 +535,15 @@ export async function startCleanStaticServer(dir) {
   return server
 }
 
-// check for content in 1 second intervals timing out after
-// 30 seconds
+/**
+ * Check for content in 1 second intervals timing out after 30 seconds.
+ *
+ * @param {() => Promise<unknown> | unknown} contentFn
+ * @param {RegExp | string | number} regex
+ * @param {boolean} hardError
+ * @param {number} maxRetries
+ * @returns {Promise<boolean>}
+ */
 export async function check(
   contentFn,
   regex,
@@ -688,8 +693,9 @@ export async function getRedboxHeader(browser) {
             .find((p) =>
               p.shadowRoot.querySelector('[data-nextjs-turbo-dialog-body]')
             )
-          const root = portal.shadowRoot
-          return root.querySelector('[data-nextjs-turbo-dialog-body]').innerText
+          const root = portal?.shadowRoot
+          return root?.querySelector('[data-nextjs-turbo-dialog-body]')
+            ?.innerText
         })
       } else {
         return evaluate(browser, () => {
@@ -698,8 +704,8 @@ export async function getRedboxHeader(browser) {
             .find((p) =>
               p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
             )
-          const root = portal.shadowRoot
-          return root.querySelector('[data-nextjs-dialog-header]').innerText
+          const root = portal?.shadowRoot
+          return root?.querySelector('[data-nextjs-dialog-header]')?.innerText
         })
       }
     },
@@ -921,38 +927,16 @@ export function shouldRunTurboDevTest() {
     return false
   }
 
-  const shouldRunTurboDev = !!process.env.__INTERNAL_NEXT_DEV_TEST_TURBO_DEV
+  const shouldRunTurboDev = !!process.env.TURBOPACK
   // short-circuit to run all the test with --turbo enabled skips glob matching costs
   if (shouldRunTurboDev) {
     console.log(
-      `Running tests with --turbo via custom environment variable __INTERNAL_NEXT_DEV_TEST_TURBO_DEV`
+      `Running tests with turbopack via custom environment variable TURBOPACK`
     )
     return true
   }
 
-  const shouldRunTurboDevWithMatches =
-    !!process.env.__INTERNAL_NEXT_DEV_TEST_TURBO_GLOB_MATCH
-
-  // By default, we do not run any tests with `--turbo` flag.
-  if (!shouldRunTurboDevWithMatches) {
-    return false
-  }
-
-  const glob = require('glob')
-  const matches = glob.sync(
-    process.env.__INTERNAL_NEXT_DEV_TEST_TURBO_GLOB_MATCH
-  )
-  const testPath = expect.getState().testPath
-  const isMatch = matches.some((match) => testPath.includes(match))
-
-  if (isMatch) {
-    console.log(
-      `Running tests with --turbo via custom environment variable __INTERNAL_NEXT_DEV_TEST_TURBO_GLOB_MATCH`
-    )
-  }
-
-  // If the test path matches the glob pattern, add additional case to run the test with `--turbo` flag.
-  return isMatch
+  return false
 }
 
 // WEB-168: There are some differences / incompletes in turbopack implementation enforces jest requires to update
@@ -961,7 +945,9 @@ export function shouldRunTurboDevTest() {
 export function getSnapshotTestDescribe(variant) {
   const runningEnv = variant ?? 'default'
   if (runningEnv !== 'default' && runningEnv !== 'turbo') {
-    throw new Error(`Check if test env passed correctly ${variant}`)
+    throw new Error(
+      `An invalid test env was passed: ${variant} (only "default" and "turbo" are valid options)`
+    )
   }
 
   const shouldRunTurboDev = shouldRunTurboDevTest()
@@ -970,4 +956,26 @@ export function getSnapshotTestDescribe(variant) {
     (runningEnv === 'default' && shouldRunTurboDev)
 
   return shouldSkip ? describe.skip : describe
+}
+
+/**
+ * For better editor support, pass in the variants this should run on (`default` and/or `turbo`) as cases.
+ *
+ * This is necessary if separate snapshots are needed for next.js with webpack vs turbopack.
+ *
+ * @type {Pick<import("jest").Describe, "each">}
+ */
+export const describeVariants = {
+  each: (variants) => (name, fn) => {
+    if (
+      !Array.isArray(variants) ||
+      !variants.every((val) => typeof val === 'string')
+    ) {
+      throw new Error('variants need to be an array of strings')
+    }
+
+    for (const variant of variants) {
+      getSnapshotTestDescribe(variant).each([variant])(name, fn)
+    }
+  },
 }

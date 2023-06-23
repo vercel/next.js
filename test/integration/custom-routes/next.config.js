@@ -1,4 +1,7 @@
 module.exports = {
+  experimental: {
+    caseSensitiveRoutes: true,
+  },
   async rewrites() {
     // no-rewrites comment
     return {
@@ -15,6 +18,10 @@ module.exports = {
           source: '/to-websocket',
           destination:
             'http://localhost:__EXTERNAL_PORT__/_next/webpack-hmr?page=/about',
+        },
+        {
+          source: '/websocket-to-page',
+          destination: '/hello',
         },
         {
           source: '/to-nowhere',

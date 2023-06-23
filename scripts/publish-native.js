@@ -70,16 +70,6 @@ const cwd = process.cwd()
         } finally {
           publishSema.release()
         }
-        // lerna publish in next step will fail if git status is not clean
-        await execa(
-          `git`,
-          [
-            'update-index',
-            '--skip-worktree',
-            `${path.join(nativePackagesDir, platform, 'package.json')}`,
-          ],
-          { stdio: 'inherit' }
-        )
       })
     )
 
@@ -151,14 +141,6 @@ const cwd = process.cwd()
     await writeFile(
       path.join(path.join(cwd, 'packages/next/package.json')),
       JSON.stringify(nextPkg, null, 2)
-    )
-    // lerna publish in next step will fail if git status is not clean
-    await execa(
-      'git',
-      ['update-index', '--skip-worktree', 'packages/next/package.json'],
-      {
-        stdio: 'inherit',
-      }
     )
   } catch (err) {
     console.error(err)

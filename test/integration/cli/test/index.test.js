@@ -580,14 +580,14 @@ describe('CLI Usage', () => {
       const help = await runNextCommand(['export', '--help'], {
         stdout: true,
       })
-      expect(help.stdout).toMatch(/Exports the application/)
+      expect(help.stdout).toMatch(/Exports a static version of the application/)
     })
 
     test('-h', async () => {
       const help = await runNextCommand(['export', '-h'], {
         stdout: true,
       })
-      expect(help.stdout).toMatch(/Exports the application/)
+      expect(help.stdout).toMatch(/Exports a static version of the application/)
     })
 
     test('should warn when unknown argument provided', async () => {

@@ -34,6 +34,21 @@ createNextDescribe(
       }
     })
 
+    it('should correctly include headers instance in cache key', async () => {
+      const res = await next.fetch('/variable-revalidate/headers-instance')
+      expect(res.status).toBe(200)
+
+      const html = await res.text()
+      const $ = cheerio.load(html)
+
+      const data1 = $('#page-data').text()
+      const data2 = $('#page-data2').text()
+      expect(data1).not.toBe(data2)
+
+      expect(data1).toBeTruthy()
+      expect(data2).toBeTruthy()
+    })
+
     it.skip.each([
       {
         path: '/react-fetch-deduping-node',
@@ -450,6 +465,7 @@ createNextDescribe(
 
         expect(files).toEqual([
           '(new)/custom/page.js',
+          'api/draft-mode/route.js',
           'api/revalidate-path-edge/route.js',
           'api/revalidate-path-node/route.js',
           'api/revalidate-tag-edge/route.js',
@@ -572,6 +588,9 @@ createNextDescribe(
           'variable-revalidate/encoding.html',
           'variable-revalidate/encoding.rsc',
           'variable-revalidate/encoding/page.js',
+          'variable-revalidate/headers-instance.html',
+          'variable-revalidate/headers-instance.rsc',
+          'variable-revalidate/headers-instance/page.js',
           'variable-revalidate/no-store/page.js',
           'variable-revalidate/post-method-request/page.js',
           'variable-revalidate/post-method.html',
@@ -812,6 +831,11 @@ createNextDescribe(
             dataRoute: '/variable-revalidate/encoding.rsc',
             initialRevalidateSeconds: 3,
             srcRoute: '/variable-revalidate/encoding',
+          },
+          '/variable-revalidate/headers-instance': {
+            dataRoute: '/variable-revalidate/headers-instance.rsc',
+            initialRevalidateSeconds: 10,
+            srcRoute: '/variable-revalidate/headers-instance',
           },
           '/variable-revalidate/post-method': {
             dataRoute: '/variable-revalidate/post-method.rsc',
@@ -1115,6 +1139,37 @@ createNextDescribe(
         }
       })
     }
+
+    it('should skip cache in draft mode', async () => {
+      const draftRes = await next.fetch('/api/draft-mode?status=enable')
+      const setCookie = draftRes.headers.get('set-cookie')
+      const cookieHeader = { Cookie: setCookie?.split(';')[0] }
+
+      expect(cookieHeader.Cookie).toBeTruthy()
+
+      const res = await next.fetch('/ssg-draft-mode/test-1', {
+        headers: cookieHeader,
+      })
+
+      const html = await res.text()
+      const $ = cheerio.load(html)
+      const data1 = $('#data').text()
+
+      expect(data1).toBeTruthy()
+      expect(JSON.parse($('#draft-mode').text())).toEqual({ isEnabled: true })
+
+      const res2 = await next.fetch('/ssg-draft-mode/test-1', {
+        headers: cookieHeader,
+      })
+
+      const html2 = await res2.text()
+      const $2 = cheerio.load(html2)
+      const data2 = $2('#data').text()
+
+      expect(data2).toBeTruthy()
+      expect(data1).not.toBe(data2)
+      expect(JSON.parse($2('#draft-mode').text())).toEqual({ isEnabled: true })
+    })
 
     it('should handle partial-gen-params with default dynamicParams correctly', async () => {
       const res = await next.fetch('/partial-gen-params/en/first')

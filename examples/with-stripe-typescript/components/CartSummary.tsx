@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 
 import StripeTestCards from '../components/StripeTestCards'
-
-import { useShoppingCart } from 'use-shopping-cart'
 import { fetchPostJSON } from '../utils/api-helpers'
+import { useShoppingCart } from 'use-shopping-cart'
 
 const CartSummary = () => {
   const [loading, setLoading] = useState(false)
@@ -38,7 +37,7 @@ const CartSummary = () => {
       return
     }
 
-    redirectToCheckout({ sessionId: response.id })
+    redirectToCheckout(response.id)
   }
 
   return (

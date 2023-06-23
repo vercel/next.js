@@ -69,7 +69,7 @@ The Temporal Node SDK requires [Node `>= 14`, `node-gyp`, and Temporal Server](h
 In the Temporal Server docker directory:
 
 ```bash
-docker-compose up
+docker compose up
 ```
 
 In the `next-temporal-app/` directory:

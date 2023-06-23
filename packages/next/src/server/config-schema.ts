@@ -270,6 +270,9 @@ const configSchema = {
         craCompat: {
           type: 'boolean',
         },
+        caseSensitiveRoutes: {
+          type: 'boolean',
+        },
         useDeploymentId: {
           type: 'boolean',
         },

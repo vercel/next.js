@@ -18,8 +18,13 @@ export const invokeRequest = async (
       const http = require('http') as typeof import('http')
 
       try {
+        // force to 127.0.0.1 as IPC always runs on this hostname
+        // to avoid localhost issues
+        const parsedTargetUrl = new URL(targetUrl)
+        parsedTargetUrl.hostname = '127.0.0.1'
+
         const invokeReq = http.request(
-          targetUrl,
+          parsedTargetUrl.toString(),
           {
             headers: invokeHeaders,
             method: requestInit.method,

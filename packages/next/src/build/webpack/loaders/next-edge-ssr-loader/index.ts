@@ -2,6 +2,7 @@ import type webpack from 'webpack'
 import { getModuleBuildInfo } from '../get-module-build-info'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../../lib/constants'
 import { stringifyRequest } from '../../stringify-request'
+import { MiddlewareConfig } from '../../../analysis/get-page-static-info'
 
 export type EdgeSSRLoaderQuery = {
   absolute500Path: string
@@ -19,6 +20,7 @@ export type EdgeSSRLoaderQuery = {
   sriEnabled: boolean
   incrementalCacheHandlerPath?: string
   preferredRegion: string | string[] | undefined
+  middlewareConfig: string
 }
 
 /*
@@ -51,7 +53,12 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       sriEnabled,
       incrementalCacheHandlerPath,
       preferredRegion,
+      middlewareConfig: middlewareConfigBase64,
     } = this.getOptions()
+
+    const middlewareConfig: MiddlewareConfig = JSON.parse(
+      Buffer.from(middlewareConfigBase64, 'base64').toString()
+    )
 
     const stringifiedConfig = Buffer.from(
       stringifiedConfigBase64 || '',
@@ -74,6 +81,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       page,
       absolutePagePath,
       preferredRegion,
+      middlewareConfig,
     }
 
     const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
@@ -99,27 +107,25 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
     )}${isAppDir ? `?${WEBPACK_RESOURCE_QUERIES.edgeSSREntry}` : ''}`
 
     const transformed = `
-    import { adapter, enhanceGlobals } from 'next/dist/esm/server/web/adapter'
+    import 'next/dist/esm/server/web/globals'
+    import { adapter } from 'next/dist/esm/server/web/adapter'
     import { getRender } from 'next/dist/esm/build/webpack/loaders/next-edge-ssr-loader/render'
     import { IncrementalCache } from 'next/dist/esm/server/lib/incremental-cache'
-
-    enhanceGlobals()
 
     const pagesType = ${JSON.stringify(pagesType)}
     ${
       isAppDir
         ? `
-      import { renderToHTMLOrFlight as appRenderToHTML } from 'next/dist/esm/server/app-render/app-render'
+      import { renderToHTMLOrFlight as renderToHTML } from 'next/dist/esm/server/app-render/app-render'
       import * as pageMod from ${JSON.stringify(pageModPath)}
       const Document = null
-      const pagesRenderToHTML = null
       const appMod = null
       const errorMod = null
       const error500Mod = null
     `
         : `
       import Document from ${stringifiedDocumentPath}
-      import { renderToHTML as pagesRenderToHTML } from 'next/dist/esm/server/render'
+      import { renderToHTML } from 'next/dist/esm/server/render'
       import * as pageMod from ${stringifiedPagePath}
       import * as appMod from ${stringifiedAppPath}
       import * as errorMod from ${stringifiedErrorPath}
@@ -128,26 +134,28 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
           ? `import * as error500Mod from ${stringified500Path}`
           : `const error500Mod = null`
       }
-      const appRenderToHTML = null
     `
     }
 
-    const incrementalCacheHandler = ${
+    ${
       incrementalCacheHandlerPath
-        ? `require("${incrementalCacheHandlerPath}")`
-        : 'null'
+        ? `import incrementalCacheHandler from "${incrementalCacheHandlerPath}"`
+        : 'const incrementalCacheHandler = null'
     }
 
+    const maybeJSONParse = (str) => str ? JSON.parse(str) : undefined
+
     const buildManifest = self.__BUILD_MANIFEST
-    const prerenderManifest = self.__PRERENDER_MANIFEST
-    const reactLoadableManifest = self.__REACT_LOADABLE_MANIFEST
-    const rscManifest = self.__RSC_MANIFEST
-    const rscCssManifest = self.__RSC_CSS_MANIFEST
-    const rscServerManifest = self.__RSC_SERVER_MANIFEST
+    const prerenderManifest = maybeJSONParse(self.__PRERENDER_MANIFEST)
+    const reactLoadableManifest = maybeJSONParse(self.__REACT_LOADABLE_MANIFEST)
+    const rscManifest = maybeJSONParse(self.__RSC_MANIFEST)
+    const rscServerManifest = maybeJSONParse(self.__RSC_SERVER_MANIFEST)
     const subresourceIntegrityManifest = ${
-      sriEnabled ? 'self.__SUBRESOURCE_INTEGRITY_MANIFEST' : 'undefined'
+      sriEnabled
+        ? 'maybeJSONParse(self.__SUBRESOURCE_INTEGRITY_MANIFEST)'
+        : 'undefined'
     }
-    const nextFontManifest = self.__NEXT_FONT_MANIFEST
+    const nextFontManifest = maybeJSONParse(self.__NEXT_FONT_MANIFEST)
 
     const render = getRender({
       pagesType,
@@ -161,11 +169,9 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       buildManifest,
       isAppPath: ${!!isAppDir},
       prerenderManifest,
-      appRenderToHTML,
-      pagesRenderToHTML,
+      renderToHTML,
       reactLoadableManifest,
       clientReferenceManifest: ${isServerComponent} ? rscManifest : null,
-      serverCSSManifest: ${isServerComponent} ? rscCssManifest : null,
       serverActionsManifest: ${isServerComponent} ? rscServerManifest : null,
       subresourceIntegrityManifest,
       config: ${stringifiedConfig},
