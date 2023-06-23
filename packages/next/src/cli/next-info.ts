@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import type { NextConfig } from 'next'
 
 import os from 'os'
 import childProcess from 'child_process'
@@ -22,7 +21,8 @@ function getPackageVersion(packageName: string) {
 }
 
 function getNextConfig() {
-  let config: NextConfig = {}
+  // Use any here to avoid nextjs types dependency
+  let config: any = {}
   try {
     config = require(`${process.cwd()}/next.config.js`)
   } catch {
