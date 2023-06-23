@@ -53,7 +53,7 @@ import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { normalizeMetadataRoute } from '../lib/metadata/get-metadata-route'
 import { fileExists } from '../lib/file-exists'
 import { getRouteLoaderEntry } from './webpack/loaders/next-route-loader'
-import { isInternalPathname } from '../lib/is-internal-pathname'
+import { isInternalComponent } from '../lib/is-internal-component'
 import { isStaticMetadataRouteFile } from '../lib/metadata/is-metadata-route'
 
 export async function getStaticInfoIncludingLayouts({
@@ -596,16 +596,15 @@ export async function createEntrypoints(
           } else if (
             !isAPIRoute(page) &&
             !isMiddlewareFile(page) &&
-            !isInternalPathname(absolutePagePath)
+            !isInternalComponent(absolutePagePath)
           ) {
             server[serverBundlePath] = [
               getRouteLoaderEntry({
                 page,
+                pages,
                 absolutePagePath,
                 preferredRegion: staticInfo.preferredRegion,
-                middlewareConfig: Buffer.from(
-                  JSON.stringify(staticInfo.middleware || {})
-                ).toString('base64'),
+                middlewareConfig: staticInfo.middleware ?? {},
               }),
             ]
           } else {
