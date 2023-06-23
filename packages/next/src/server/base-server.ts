@@ -1646,6 +1646,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               incrementalCache,
               isRevalidate: isSSG,
               originalPathname: components.ComponentMod.originalPathname,
+              serverActionsSizeLimit:
+                this.nextConfig.experimental.serverActionsSizeLimit,
             }
           : {}),
         isDataReq,
