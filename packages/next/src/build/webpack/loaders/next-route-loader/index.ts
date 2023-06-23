@@ -7,6 +7,7 @@ import { RouteKind } from '../../../../server/future/route-kind'
 import { normalizePagePath } from '../../../../shared/lib/page-path/normalize-page-path'
 import { MiddlewareConfig } from '../../../analysis/get-page-static-info'
 import { decodeFromBase64, encodeToBase64 } from '../utils'
+import { isInstrumentationHookFile } from '../../../worker'
 
 type RouteLoaderOptionsInput = {
   page: string
@@ -125,6 +126,14 @@ const loader: webpack.LoaderDefinitionFunction<RouteLoaderOptions> =
         export const getServerSideProps = hoist(userland, "getServerSideProps")
         export const config = hoist(userland, "config")
         export const reportWebVitals = hoist(userland, "reportWebVitals")
+        ${
+          // When we're building the instrumentation page (only when the
+          // instrumentation file conflicts with a page also labeled
+          // /instrumentation) hoist the `register` method.
+          isInstrumentationHookFile(page)
+            ? 'export const register = hoist(userland, "register")'
+            : ''
+        }
 
         // Re-export legacy methods.
         export const unstable_getStaticProps = hoist(userland, "unstable_getStaticProps")

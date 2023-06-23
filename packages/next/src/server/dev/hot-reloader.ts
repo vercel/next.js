@@ -899,8 +899,7 @@ export default class HotReloader {
                 } else if (
                   !isAPIRoute(page) &&
                   !isMiddlewareFile(page) &&
-                  !isInternalComponent(relativeRequest) &&
-                  !isInstrumentationHookFile(page)
+                  !isInternalComponent(relativeRequest)
                 ) {
                   value = getRouteLoaderEntry({
                     page,
