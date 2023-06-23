@@ -330,7 +330,7 @@ async function updateCheckStatus(
   commentUrl?: string
 ): Promise<void> {
   const isFork = pullRequest.head.repo.fork
-  const checkName = 'Link Validation'
+  const checkName = 'Docs Link Validation'
 
   let summary, text
 
