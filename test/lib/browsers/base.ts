@@ -22,14 +22,26 @@ export abstract class BrowserInterface implements PromiseLike<any> {
   protected chain<T>(
     nextCall: (current: any) => T | PromiseLike<T>
   ): BrowserInterface & Promise<T> {
-    if (!this.promise) {
-      this.promise = Promise.resolve(this)
+    const promise = Promise.resolve(this.promise).then(nextCall)
+
+    function get(target: BrowserInterface, p: string | symbol): any {
+      switch (p) {
+        case 'promise':
+          return promise
+        case 'then':
+          return promise.then.bind(promise)
+        case 'catch':
+          return promise.catch.bind(promise)
+        case 'finally':
+          return promise.finally.bind(promise)
+        default:
+          return target[p]
+      }
     }
-    this.promise = this.promise.then(nextCall)
-    this.then = (...args) => this.promise.then(...args)
-    this.catch = (...args) => this.promise.catch(...args)
-    this.finally = (...args) => this.promise.finally(...args)
-    return this
+
+    return new Proxy<any>(this, {
+      get,
+    })
   }
 
   /**
@@ -37,17 +49,9 @@ export abstract class BrowserInterface implements PromiseLike<any> {
    * But it won't have an effect on chain value and chain will still be green if this throws.
    */
   protected chainWithReturnValue<T>(
-    callback: (...args: any[]) => Promise<T>
+    callback: (value: any) => T | PromiseLike<T>
   ): Promise<T> {
-    return new Promise<T>((resolve, reject) => {
-      this.chain(async (...args: any[]) => {
-        try {
-          resolve(await callback(...args))
-        } catch (error) {
-          reject(error)
-        }
-      })
-    })
+    return Promise.resolve(this.promise).then(callback)
   }
 
   async setup(
