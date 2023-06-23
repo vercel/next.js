@@ -5,6 +5,8 @@ import { check, shouldRunTurboDevTest } from 'next-test-utils'
 import { outdent } from 'outdent'
 import path from 'path'
 
+const isTurbo = shouldRunTurboDevTest()
+
 describe('ReactRefreshRegression', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
@@ -25,18 +27,18 @@ describe('ReactRefreshRegression', () => {
         outdent`
           import Document from 'next/document'
           import { ServerStyleSheet } from 'styled-components'
-  
+
           export default class MyDocument extends Document {
             static async getInitialProps(ctx) {
               const sheet = new ServerStyleSheet()
               const originalRenderPage = ctx.renderPage
-  
+
               try {
                 ctx.renderPage = () =>
                   originalRenderPage({
                     enhanceApp: App => props => sheet.collectStyles(<App {...props} />),
                   })
-  
+
                 const initialProps = await Document.getInitialProps(ctx)
                 return {
                   ...initialProps,
@@ -287,7 +289,7 @@ describe('ReactRefreshRegression', () => {
     expect(await session.hasRedbox(true)).toBe(true)
 
     const source = await session.getRedboxSource()
-    if (shouldRunTurboDevTest()) {
+    if (isTurbo) {
       expect(source).toContain(
         `export default function () { throw new Error('boom'); }`
       )
@@ -315,7 +317,7 @@ describe('ReactRefreshRegression', () => {
             module.exports = withMDX({
               pageExtensions: ["js", "mdx"],
               experimental: {
-                mdxRs: true,
+                mdxRs: ${isTurbo},
               },
             });
           `,
