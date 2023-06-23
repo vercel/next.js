@@ -694,9 +694,11 @@ function assignDefaults(
     'lodash-es': {
       transform: 'lodash-es/{{member}}',
     },
-    'lucide-react': {
-      transform: 'lucide-react/dist/esm/icons/{{ kebabCase member }}',
-    },
+    // TODO: Enable this once we have a way to remove the "-icon" suffix from the import path.
+    // Related discussion: https://github.com/vercel/next.js/pull/50900#discussion_r1239656782
+    // 'lucide-react': {
+    //   transform: 'lucide-react/dist/esm/icons/{{ kebabCase member }}',
+    // },
     ramda: {
       transform: 'ramda/es/{{member}}',
     },
