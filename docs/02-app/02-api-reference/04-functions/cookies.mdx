@@ -90,17 +90,17 @@ To "delete" a cookie, you must set a new cookie with the same name and an empty 
 > **Good to know**: `.set()` is only available in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions) or [Route Handler](/docs/app/building-your-application/routing/router-handlers).
 
 ```js filename="app/actions.js"
-'use server';
+'use server'
 
-import { cookies } from 'next/headers';
+import { cookies } from 'next/headers'
 
 async function create(data) {
   cookies().set({
     name: 'name',
     value: '',
-    expires: new Date('2016-10-05')
+    expires: new Date('2016-10-05'),
     path: '/', // For all paths
-  });
+  })
 }
 ```
 

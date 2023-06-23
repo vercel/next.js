@@ -14,6 +14,7 @@ createNextDescribe(
     files: __dirname,
     dependencies: {
       react: 'latest',
+      nanoid: 'latest',
       'react-dom': 'latest',
       'server-only': 'latest',
     },
@@ -99,7 +100,7 @@ createNextDescribe(
 
     it('should support setting cookies in route handlers with the correct overrides', async () => {
       const res = await next.fetch('/handler')
-      const setCookieHeader = res.headers.get('set-cookie') as any as string[]
+      const setCookieHeader = res.headers.get('set-cookie')
       expect(setCookieHeader).toContain('bar=bar2; Path=/')
       expect(setCookieHeader).toContain('baz=baz2; Path=/')
       expect(setCookieHeader).toContain('foo=foo1; Path=/')
@@ -236,6 +237,19 @@ createNextDescribe(
       await check(() => browser.elementByCss('h1').text(), '3')
     })
 
+    it('should support importing the same action module instance in both server and action layers', async () => {
+      const browser = await next.browser('/shared')
+
+      const v = await browser.elementByCss('#value').text()
+      expect(v).toBe('Value = 0')
+
+      await browser.elementByCss('#server-inc').click()
+      await check(() => browser.elementByCss('#value').text(), 'Value = 1')
+
+      await browser.elementByCss('#client-inc').click()
+      await check(() => browser.elementByCss('#value').text(), 'Value = 2')
+    })
+
     if (isNextStart) {
       it('should not expose action content in sourcemaps', async () => {
         const sourcemap = (
@@ -280,6 +294,14 @@ createNextDescribe(
             await next.patchFile(filePath, origContent)
           }
         })
+      })
+
+      it('should bundle external libraries if they are on the action layer', async () => {
+        await next.fetch('/client')
+        const pageBundle = await fs.readFile(
+          join(next.testDir, '.next', 'server', 'app', 'client', 'page.js')
+        )
+        expect(pageBundle.toString()).toContain('node_modules/nanoid/index.js')
       })
     }
 

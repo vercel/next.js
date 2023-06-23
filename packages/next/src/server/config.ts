@@ -673,6 +673,40 @@ function assignDefaults(
     }
   }
 
+  const userProvidedModularizeImports = result.modularizeImports
+  // Unfortunately these packages end up re-exporting 10600 modules, for example: https://unpkg.com/browse/@mui/icons-material@5.11.16/esm/index.js.
+  // Leveraging modularizeImports tremendously reduces compile times for these.
+  result.modularizeImports = {
+    ...(userProvidedModularizeImports || {}),
+    // This is intentionally added after the user-provided modularizeImports config.
+    '@mui/icons-material': {
+      transform: '@mui/icons-material/{{member}}',
+    },
+    '@mui/material': {
+      transform: '@mui/material/{{member}}',
+    },
+    'date-fns': {
+      transform: 'date-fns/{{member}}',
+    },
+    lodash: {
+      transform: 'lodash/{{member}}',
+    },
+    'lodash-es': {
+      transform: 'lodash-es/{{member}}',
+    },
+    // TODO: Enable this once we have a way to remove the "-icon" suffix from the import path.
+    // Related discussion: https://github.com/vercel/next.js/pull/50900#discussion_r1239656782
+    // 'lucide-react': {
+    //   transform: 'lucide-react/dist/esm/icons/{{ kebabCase member }}',
+    // },
+    ramda: {
+      transform: 'ramda/es/{{member}}',
+    },
+    'react-bootstrap': {
+      transform: 'react-bootstrap/{{member}}',
+    },
+  }
+
   return result
 }
 

@@ -20,6 +20,10 @@ module.exports = {
             'http://localhost:__EXTERNAL_PORT__/_next/webpack-hmr?page=/about',
         },
         {
+          source: '/websocket-to-page',
+          destination: '/hello',
+        },
+        {
           source: '/to-nowhere',
           destination: 'http://localhost:12233',
         },

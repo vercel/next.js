@@ -427,6 +427,7 @@ export default class DevServer extends Server {
       const fileWatchTimes = new Map()
       let enabledTypeScript = this.usingTypeScript
       let previousClientRouterFilters: any
+      let previousConflictingPagePaths: Set<string> = new Set()
 
       wp.on('aggregated', async () => {
         let middlewareMatchers: MiddlewareMatcher[] | undefined
@@ -440,6 +441,7 @@ export default class DevServer extends Server {
 
         let envChange = false
         let tsconfigChange = false
+        let conflictingPageChange = 0
 
         devPageFiles.clear()
 
@@ -598,20 +600,30 @@ export default class DevServer extends Server {
         }
 
         const numConflicting = conflictingAppPagePaths.size
-        if (numConflicting > 0) {
-          Log.error(
-            `Conflicting app and page file${
+        conflictingPageChange =
+          numConflicting - previousConflictingPagePaths.size
+
+        if (conflictingPageChange !== 0) {
+          if (numConflicting > 0) {
+            let errorMessage = `Conflicting app and page file${
               numConflicting === 1 ? ' was' : 's were'
-            } found, please remove the conflicting files to continue:`
-          )
-          for (const p of conflictingAppPagePaths) {
-            const appPath = relative(this.dir, appPageFilePaths.get(p)!)
-            const pagesPath = relative(this.dir, pagesPageFilePaths.get(p)!)
-            Log.error(`  "${pagesPath}" - "${appPath}"`)
+            } found, please remove the conflicting files to continue:\n`
+
+            for (const p of conflictingAppPagePaths) {
+              const appPath = relative(this.dir, appPageFilePaths.get(p)!)
+              const pagesPath = relative(this.dir, pagesPageFilePaths.get(p)!)
+              errorMessage += `  "${pagesPath}" - "${appPath}"\n`
+            }
+            this.hotReloader?.setHmrServerError(new Error(errorMessage))
+          } else if (numConflicting === 0) {
+            await this.matchers.reload()
+            this.hotReloader?.clearHmrServerError()
           }
         }
-        let clientRouterFilters: any
 
+        previousConflictingPagePaths = conflictingAppPagePaths
+
+        let clientRouterFilters: any
         if (this.nextConfig.experimental.clientRouterFilter) {
           clientRouterFilters = createClientRouterFilter(
             Object.keys(appPaths),
@@ -802,7 +814,9 @@ export default class DevServer extends Server {
             !this.sortedRoutes?.every((val, idx) => val === sortedRoutes[idx])
           ) {
             // emit the change so clients fetch the update
-            this.hotReloader?.send(undefined, { devPagesManifest: true })
+            this.hotReloader?.send('devPagesManifestUpdate', {
+              devPagesManifest: true,
+            })
           }
           this.sortedRoutes = sortedRoutes
 
@@ -997,9 +1011,7 @@ export default class DevServer extends Server {
       )
     }
     if (appFile && pagesFile) {
-      throw new Error(
-        `Conflicting app and page file found: "app${appFile}" and "pages${pagesFile}". Please remove one to continue.`
-      )
+      return false
     }
 
     return Boolean(appFile || pagesFile)

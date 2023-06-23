@@ -4,6 +4,8 @@
 # Codeowners now use Vercel Spaces
 # Search .vercel.approvers for all files
 
+*                                             @timneutkens @ijjk @shuding @huozhi @feedthejim
+
 # Image Component (@styfle)
 
 /**/*image*                                   @timneutkens @ijjk @shuding @styfle @huozhi @vercel/devex
