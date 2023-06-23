@@ -106,11 +106,10 @@ async function runOperation(renderData: RenderData) {
     renderOpt as any as RenderOpts
   )
 
-  if (!result || result.isNull())
-    throw new Error('rendering was not successful')
+  if (!result || result.isNull) throw new Error('rendering was not successful')
 
   const body = new PassThrough()
-  if (result.isDynamic()) {
+  if (result.isDynamic) {
     result.pipe(body)
   } else {
     body.write(result.toUnchunkedString())
@@ -118,7 +117,7 @@ async function runOperation(renderData: RenderData) {
   return {
     statusCode: res.statusCode,
     headers: [
-      ['Content-Type', result.contentType() ?? MIME_TEXT_HTML_UTF8],
+      ['Content-Type', result.contentType ?? MIME_TEXT_HTML_UTF8],
       ['Vary', RSC_VARY_HEADER],
     ] as [string, string][],
     body,
