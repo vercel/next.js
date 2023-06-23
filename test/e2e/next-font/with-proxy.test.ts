@@ -6,8 +6,8 @@ import spawn from 'cross-spawn'
 describe('next/font/google with proxy', () => {
   let next: NextInstance
   let proxy: any
-  let PROXY_PORT: string
-  let SERVER_PORT: string
+  let PROXY_PORT: number
+  let SERVER_PORT: number
 
   if ((global as any).isNextDeploy) {
     it('should skip next deploy', () => {})
@@ -15,15 +15,15 @@ describe('next/font/google with proxy', () => {
   }
 
   beforeAll(async () => {
-    PROXY_PORT = await findPort().toString()
-    SERVER_PORT = await findPort().toString()
+    PROXY_PORT = await findPort()
+    SERVER_PORT = await findPort()
 
     proxy = spawn('node', [require.resolve('./with-proxy/server.js')], {
       stdio: 'inherit',
       env: {
         ...process.env,
-        PROXY_PORT,
-        SERVER_PORT,
+        PROXY_PORT: PROXY_PORT.toString(),
+        SERVER_PORT: SERVER_PORT.toString(),
       },
     })
 
