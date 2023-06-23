@@ -437,13 +437,11 @@ function Router({
   const notFoundProps = { notFound, notFoundStyles, asNotFound }
 
   const content = (
-    <NotFoundBoundary {...notFoundProps}>
-      <RedirectBoundary>
-        {head}
-        {cache.subTreeData}
-        <AppRouterAnnouncer tree={tree} />
-      </RedirectBoundary>
-    </NotFoundBoundary>
+    <RedirectBoundary>
+      {head}
+      {cache.subTreeData}
+      <AppRouterAnnouncer tree={tree} />
+    </RedirectBoundary>
   )
 
   return (
@@ -481,7 +479,9 @@ function Router({
                     {content}
                   </HotReloader>
                 ) : (
-                  content
+                  <NotFoundBoundary {...notFoundProps}>
+                    {content}
+                  </NotFoundBoundary>
                 )}
               </LayoutRouterContext.Provider>
             </AppRouterContext.Provider>
