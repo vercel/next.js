@@ -23,7 +23,7 @@ createNextDescribe(
         pagePath,
         pageContent.replaceAll('version-1', 'version-2')
       )
-      browser.waitForElementByCss('#version-2')
+      await browser.waitForElementByCss('#version-2')
       expect(await browser.elementByCss('p').text()).toBe('version-2')
 
       // Verify no hydration mismatch:
@@ -33,13 +33,13 @@ createNextDescribe(
         pagePath,
         pageContent.replaceAll('version-1', 'version-3')
       )
-      browser.waitForElementByCss('#version-3')
+      await browser.waitForElementByCss('#version-3')
       expect(await browser.elementByCss('p').text()).toBe('version-3')
 
       // Verify no hydration mismatch:
       expect(await hasRedbox(browser)).toBeFalse()
 
-      browser.refresh()
+      await browser.refresh()
 
       // Verify no hydration mismatch:
       expect(await hasRedbox(browser)).toBeFalse()
