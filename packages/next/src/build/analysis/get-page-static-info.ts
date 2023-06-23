@@ -19,6 +19,10 @@ import { isEdgeRuntime } from '../../lib/is-edge-runtime'
 import { RSC_MODULE_TYPES } from '../../shared/lib/constants'
 import type { RSCMeta } from '../webpack/loaders/get-module-build-info'
 
+// TODO: migrate preferredRegion here
+// Don't forget to update the next-types-plugin file as well
+const AUTHORIZED_EXTRA_PROPS = ['maxDuration']
+
 export interface MiddlewareConfig {
   matchers?: MiddlewareMatcher[]
   unstable_allowDynamicGlobs?: string[]
@@ -424,10 +428,13 @@ export async function getPageStaticInfo(params: {
       extraConfig = {}
 
       for (const prop of extraProperties) {
+        if (!AUTHORIZED_EXTRA_PROPS.includes(prop)) continue
         try {
           extraConfig[prop] = extractExportedConstValue(swcAST, prop)
         } catch (e) {
-          // we just skip if the value can't be extracted
+          if (e instanceof UnsupportedValueError) {
+            warnAboutUnsupportedValue(pageFilePath, page, e)
+          }
         }
       }
     }
