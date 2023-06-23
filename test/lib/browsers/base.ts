@@ -14,9 +14,14 @@ export abstract class BrowserInterface implements PromiseLike<any> {
   private promise?: Promise<any>
   then: Promise<any>['then']
   catch: Promise<any>['catch']
-  finally: Promise<any>['finally']
+  finally: Promise<any>['finally'];
 
-  protected chain(nextCall: any): BrowserInterface {
+  // necessary for the type of the function below
+  readonly [Symbol.toStringTag]: string = 'BrowserInterface'
+
+  protected chain<T>(
+    nextCall: (current: any) => T | PromiseLike<T>
+  ): BrowserInterface & Promise<T> {
     if (!this.promise) {
       this.promise = Promise.resolve(this)
     }
