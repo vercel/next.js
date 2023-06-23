@@ -683,11 +683,14 @@ describe('CLI Usage', () => {
       npm: .*
       Yarn: .*
       pnpm: .*
-    Relevant packages:
+    Relevant Packages:
       next: .*
       eslint-config-next: .*
       react: .*
       react-dom: .*
+      typescript: .*
+    Next.js Config:
+      output: .*
 `)
       )
     })

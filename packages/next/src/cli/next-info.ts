@@ -25,12 +25,10 @@ function getNextConfig() {
   let config: any = {}
   try {
     config = require(`${process.cwd()}/next.config.js`)
-  } catch {
-    return {}
-  }
+  } catch {}
 
   return {
-    output: config.output || 'N/A',
+    output: config.output ?? 'N/A',
   }
 }
 
