@@ -1684,8 +1684,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         getRequestMeta(req, '_nextMatch') ??
         // If the match can't be found, rely on the loaded route module. This
         // should only be required during development when we add FS routes.
-        (process.env.NODE_ENV === 'development' &&
-        components.ComponentMod?.routeModule
+        (this.renderOpts.dev && components.ComponentMod?.routeModule
           ? {
               definition: components.ComponentMod.routeModule.definition,
               params: opts.params
