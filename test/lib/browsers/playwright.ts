@@ -30,6 +30,7 @@ export async function quit() {
 
 interface ElementHandleExt extends ElementHandle {
   getComputedCss(prop: string): Promise<string>
+  text(): Promise<string>
 }
 
 export class Playwright extends BrowserInterface {
@@ -252,6 +253,7 @@ export class Playwright extends BrowserInterface {
     return Object.assign(el, {
       selector,
       getComputedCss,
+      text: () => el.innerText(),
     })
   }
 
