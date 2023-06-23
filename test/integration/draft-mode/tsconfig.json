@@ -22,6 +22,10 @@
       "e2e-utils": ["test/lib/e2e-utils"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
+  "include": [
+    "test/integration/draft-mode/next-env.d.ts",
+    "test/integration/draft-mode/**/*.ts",
+    "test/integration/draft-mode/**/*.tsx"
+  ],
   "exclude": ["node_modules"]
 }
