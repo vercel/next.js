@@ -11,6 +11,10 @@ const { fetch } = require('next/dist/compiled/undici') as {
 import { printAndExit } from '../server/lib/utils'
 import { CliCommand } from '../lib/commands'
 import isError from '../lib/is-error'
+import { PHASE_INFO } from '../shared/lib/constants'
+import loadConfig from '../server/config'
+
+const dir = process.cwd()
 
 function getPackageVersion(packageName: string) {
   try {
@@ -21,12 +25,7 @@ function getPackageVersion(packageName: string) {
 }
 
 async function getNextConfig() {
-  // Use any here to avoid nextjs types dependency
-  let config: any = {}
-  try {
-    const nextConfigMod = await import(`${process.cwd()}/next.config`)
-    config = nextConfigMod.default || nextConfigMod
-  } catch {}
+  const config = await loadConfig(PHASE_INFO, dir, undefined, undefined, true)
 
   return {
     output: config.output ?? 'N/A',

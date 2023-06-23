@@ -663,7 +663,7 @@ describe('CLI Usage', () => {
   })
 
   describe('info', () => {
-    function matchInfoOutput(stdout) {
+    function matchInfoOutput(stdout, { nextConfigOutput = '.*' } = {}) {
       expect(stdout).toMatch(
         new RegExp(`
     Operating System:
@@ -682,7 +682,7 @@ describe('CLI Usage', () => {
       react-dom: .*
       typescript: .*
     Next.js Config:
-      output: .*
+      output: ${nextConfigOutput}
 `)
       )
     }
@@ -723,16 +723,24 @@ describe('CLI Usage', () => {
           join(dirBasic, 'next.config.mjs'),
           `export default { output: 'standalone' }`
         )
+        await fs.writeFile(
+          join(dirBasic, 'package.json'),
+          JSON.stringify({
+            type: 'module',
+          })
+        )
         info = await runNextCommand(['info'], {
+          cwd: dirBasic,
           stdout: true,
           stderr: true,
         })
       } finally {
         await fs.remove(join(dirBasic, 'next.config.mjs'))
+        await fs.remove(join(dirBasic, 'package.json'))
       }
 
       expect((info.stderr || '').toLowerCase()).not.toContain('error')
-      matchInfoOutput(info.stdout)
+      matchInfoOutput(info.stdout, { nextConfigOutput: 'standalone' })
     })
   })
 })
