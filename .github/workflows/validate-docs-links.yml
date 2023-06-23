@@ -1,4 +1,4 @@
-name: 'validate-docs-links'
+name: 'Validate Doc Links'
 on:
   pull_request:
     paths:
