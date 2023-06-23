@@ -1685,14 +1685,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         // If the match can't be found, rely on the loaded route module. This
         // should only be required during development when we add FS routes.
         (process.env.NODE_ENV === 'development' &&
-          components.ComponentMod?.routeModule)
+        components.ComponentMod?.routeModule
           ? {
               definition: components.ComponentMod.routeModule.definition,
               params: opts.params
                 ? parsedUrlQueryToParams(opts.params)
                 : undefined,
             }
-          : undefined
+          : undefined)
 
       if (
         match &&
