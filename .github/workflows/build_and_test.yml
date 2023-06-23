@@ -73,6 +73,7 @@ jobs:
       skipInstallBuild: 'yes'
       skipNativeBuild: 'yes'
       afterBuild: turbo run test-cargo-unit
+      mold: 'yes'
     secrets: inherit
 
   test-cargo-integration:
@@ -94,6 +95,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
+      skipForRelease: 'yes'
       needsRust: 'yes'
       skipNativeBuild: 'yes'
       afterBuild: xvfb-run turbo run test-cargo-bench
@@ -117,7 +119,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
-      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/packages/next-swc/crates/next-dev-tests/tests-manifest.js" __INTERNAL_NEXT_DEV_TEST_TURBO_DEV=TRUE __INTERNAL_CUSTOM_TURBOPACK_BINDINGS="$(pwd)/packages/next-swc/native/next-swc.linux-x64-gnu.node" __INTERNAL_NEXT_DEV_TEST_TURBO_GLOB_MATCH="*" NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_MODE=dev node run-tests.js --type development --timings -c ${TEST_CONCURRENCY}
+      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/packages/next-swc/crates/next-dev-tests/tests-manifest.js" TURBOPACK=1 __INTERNAL_CUSTOM_TURBOPACK_BINDINGS="$(pwd)/packages/next-swc/native/next-swc.linux-x64-gnu.node" NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_MODE=dev node run-tests.js --type development --timings -c ${TEST_CONCURRENCY}
     secrets: inherit
 
   test-next-swc-wasm:
@@ -184,24 +186,11 @@ jobs:
 
   report-test-results:
     needs: ['test-dev', 'test-prod', 'test-integration', 'test-turbopack-dev']
-    runs-on: [self-hosted, linux, x64]
-    name: upload test trace to datadog
-    # We'll not block the CI if the upload fails
-    continue-on-error: true
-    steps:
-      - uses: actions/download-artifact@v3
-        with:
-          name: Test trace reports
-          path: test
-      - name: Upload traces
-        run: |
-          ls -al ./test
-          npm install -g junit-report-merger@6.0.2 @datadog/datadog-ci@2.14.0
-          jrm ./nextjs-test-result-junit.xml "test/test-junit-report/**/*.xml"
-          jrm ./turbopack-test-result-junit.xml "test/turbopack-test-junit-report/**/*.xml"
-          # Put a separate tag for the tests with turbopack to distinguish between same test names
-          DD_ENV=ci datadog-ci junit upload --tags test.type:nextjs --service nextjs ./nextjs-test-result-junit.xml
-          DD_ENV=ci datadog-ci junit upload --tags test.type:turbopack --service nextjs ./turbopack-test-result-junit.xml
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      skipForDocsOnly: 'yes'
+      uploadTestTrace: 'yes'
+    secrets: inherit
 
   tests-pass:
     needs:

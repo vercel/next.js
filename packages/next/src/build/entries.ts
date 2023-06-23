@@ -294,6 +294,7 @@ export function getEdgeServerEntry(opts: {
   appDirLoader?: string
   hasInstrumentationHook?: boolean
   preferredRegion: string | string[] | undefined
+  middlewareConfig?: MiddlewareConfig
 }) {
   if (
     opts.pagesType === 'app' &&
@@ -306,6 +307,9 @@ export function getEdgeServerEntry(opts: {
       appDirLoader: Buffer.from(opts.appDirLoader || '').toString('base64'),
       nextConfigOutput: opts.config.output,
       preferredRegion: opts.preferredRegion,
+      middlewareConfig: Buffer.from(
+        JSON.stringify(opts.middlewareConfig || {})
+      ).toString('base64'),
     }
 
     return {
@@ -321,6 +325,10 @@ export function getEdgeServerEntry(opts: {
       matchers: opts.middleware?.matchers
         ? encodeMatchers(opts.middleware.matchers)
         : '',
+      preferredRegion: opts.preferredRegion,
+      middlewareConfig: Buffer.from(
+        JSON.stringify(opts.middlewareConfig || {})
+      ).toString('base64'),
     }
 
     return `next-middleware-loader?${stringify(loaderParams)}!`
@@ -332,6 +340,9 @@ export function getEdgeServerEntry(opts: {
       page: opts.page,
       rootDir: opts.rootDir,
       preferredRegion: opts.preferredRegion,
+      middlewareConfig: Buffer.from(
+        JSON.stringify(opts.middlewareConfig || {})
+      ).toString('base64'),
     }
 
     return `next-edge-function-loader?${stringify(loaderParams)}!`
@@ -363,6 +374,9 @@ export function getEdgeServerEntry(opts: {
     incrementalCacheHandlerPath:
       opts.config.experimental.incrementalCacheHandlerPath,
     preferredRegion: opts.preferredRegion,
+    middlewareConfig: Buffer.from(
+      JSON.stringify(opts.middlewareConfig || {})
+    ).toString('base64'),
   }
 
   return {
@@ -569,6 +583,9 @@ export async function createEntrypoints(
               assetPrefix: config.assetPrefix,
               nextConfigOutput: config.output,
               preferredRegion: staticInfo.preferredRegion,
+              middlewareConfig: Buffer.from(
+                JSON.stringify(staticInfo.middleware || {})
+              ).toString('base64'),
             })
           } else if (isInstrumentationHookFile(page) && pagesType === 'root') {
             server[serverBundlePath.replace('src/', '')] = {
@@ -586,6 +603,9 @@ export async function createEntrypoints(
                 page,
                 absolutePagePath,
                 preferredRegion: staticInfo.preferredRegion,
+                middlewareConfig: Buffer.from(
+                  JSON.stringify(staticInfo.middleware || {})
+                ).toString('base64'),
               }),
             ]
           } else {
@@ -609,6 +629,9 @@ export async function createEntrypoints(
               // This isn't used with edge as it needs to be set on the entry module, which will be the `edgeServerEntry` instead.
               // Still passing it here for consistency.
               preferredRegion: staticInfo.preferredRegion,
+              middlewareConfig: Buffer.from(
+                JSON.stringify(staticInfo.middleware || {})
+              ).toString('base64'),
             }).import
           }
           const normalizedServerBundlePath =
@@ -627,6 +650,7 @@ export async function createEntrypoints(
             pagesType,
             appDirLoader,
             preferredRegion: staticInfo.preferredRegion,
+            middlewareConfig: staticInfo.middleware,
           })
         },
       })

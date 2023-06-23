@@ -58,7 +58,7 @@ export default async function Page() {
 }
 ```
 
-> **Good to know:**
+> **Good to know**:
 >
 > To use an `async` Server Component with TypeScript, ensure you are using TypeScript `5.1.3` or higher and `@types/react` `18.2.8` or higher.
 
@@ -75,7 +75,7 @@ Next.js provides helpful server functions you may need when fetching data in Ser
 
 Wrapping `fetch` in `use` is currently **not** recommended in Client Components and may trigger multiple re-renders. For now, if you need to fetch data in a Client Component, we recommend using a third-party library such as [SWR](https://swr.vercel.app/) or [React Query](https://tanstack.com/query/v4).
 
-> **Note:** We'll be adding more examples once `fetch` and `use` work in Client Components.
+> **Good to know**: We'll be adding more examples once `fetch` and `use` work in Client Components.
 
 ## Static Data Fetching
 
@@ -95,7 +95,7 @@ fetch('https://...', { next: { revalidate: 10 } })
 
 See [Revalidating Data](/docs/app/building-your-application/data-fetching/revalidating) for more information.
 
-> **Good to know:**
+> **Good to know**:
 >
 > Caching at the fetch level with `revalidate` or `cache: 'force-cache'` stores the data across requests in a shared cache. You should avoid using it for user-specific data (i.e. requests that derive data from `cookies()` or `headers()`)
 
@@ -362,7 +362,7 @@ Any data fetching libraries that do not use `fetch` directly **will not** affect
 
 If the segment is static (default), the output of the request will be cached and revalidated (if configured) alongside the rest of the segment. If the segment is dynamic, the output of the request will _not_ be cached and will be re-fetched on every request when the segment is rendered.
 
-> **Good to know:** Dynamic functions like [`cookies()`](/docs/app/api-reference/functions/cookies) and [`headers()`](/docs/app/api-reference/functions/headers) will make the route segment dynamic.
+> **Good to know**: Dynamic functions like [`cookies()`](/docs/app/api-reference/functions/cookies) and [`headers()`](/docs/app/api-reference/functions/headers) will make the route segment dynamic.
 
 ### Segment Cache Configuration
 

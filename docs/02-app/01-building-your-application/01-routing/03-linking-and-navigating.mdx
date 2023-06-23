@@ -140,7 +140,7 @@ The `useRouter` provides methods such as `push()`, `refresh()`, and more. See th
 
 ### Client-side Caching of Rendered Server Components
 
-> **Good to know:** This client-side cache is different from the server-side [Next.js HTTP cache](/docs/app/building-your-application/data-fetching#caching-data).
+> **Good to know**: This client-side cache is different from the server-side [Next.js HTTP cache](/docs/app/building-your-application/data-fetching#caching-data).
 
 The new router has an **in-memory client-side cache** that stores the **rendered result** of Server Components (payload). The cache is split by route segments which allows invalidation at any level and ensures consistency across concurrent renders.
 
@@ -163,7 +163,7 @@ By default, routes are prefetched as they become visible in the viewport when us
 - If the route is static, all the Server Component payloads for the route segments will be prefetched.
 - If the route is dynamic, the payload from the first shared layout down until the first `loading.js` file is prefetched. This reduces the cost of prefetching the whole route dynamically and allows [instant loading states](/docs/app/building-your-application/routing/loading-ui-and-streaming#instant-loading-states) for dynamic routes.
 
-> **Good to know:**
+> **Good to know**:
 >
 > - Prefetching is only enabled in production.
 > - Prefetching can be disabled by passing `prefetch={false}` to `<Link>`.

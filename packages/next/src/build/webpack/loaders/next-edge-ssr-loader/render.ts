@@ -27,11 +27,9 @@ export function getRender({
   buildManifest,
   prerenderManifest,
   reactLoadableManifest,
-  appRenderToHTML,
-  pagesRenderToHTML,
+  renderToHTML,
   clientReferenceManifest,
   subresourceIntegrityManifest,
-  serverCSSManifest,
   serverActionsManifest,
   config,
   buildId,
@@ -45,15 +43,13 @@ export function getRender({
   pageMod: any
   errorMod: any
   error500Mod: any
-  appRenderToHTML: any
-  pagesRenderToHTML: any
+  renderToHTML: any
   Document: DocumentType
   buildManifest: BuildManifest
   prerenderManifest: PrerenderManifest
   reactLoadableManifest: ReactLoadableManifest
   subresourceIntegrityManifest?: Record<string, string>
   clientReferenceManifest?: ClientReferenceManifest
-  serverCSSManifest: any
   serverActionsManifest: any
   appServerMod: any
   config: NextConfigComplete
@@ -88,11 +84,9 @@ export function getRender({
         supportsDynamicHTML: true,
         disableOptimizedLoading: true,
         clientReferenceManifest,
-        serverCSSManifest,
         serverActionsManifest,
       },
-      appRenderToHTML,
-      pagesRenderToHTML,
+      renderToHTML,
       incrementalCacheHandler,
       loadComponent: async (pathname) => {
         if (pathname === page) {
@@ -104,7 +98,7 @@ export function getRender({
             getServerSideProps: pageMod.getServerSideProps,
             getStaticPaths: pageMod.getStaticPaths,
             ComponentMod: pageMod,
-            isAppPath: !!pageMod.__next_app_webpack_require__,
+            isAppPath: !!pageMod.__next_app__,
             pathname,
           }
         }
@@ -140,12 +134,15 @@ export function getRender({
       },
     },
   })
-  const requestHandler = server.getRequestHandler()
+
+  const handler = server.getRequestHandler()
 
   return async function render(request: Request) {
     const extendedReq = new WebNextRequest(request)
     const extendedRes = new WebNextResponse()
-    requestHandler(extendedReq, extendedRes)
+
+    handler(extendedReq, extendedRes)
+
     return await extendedRes.toResponse()
   }
 }

@@ -50,7 +50,7 @@ jobs:
 
       - run: git clone https://github.com/vercel/next.js.git --depth=25 .
 
-      - run: git describe || 'echo failed to get tag'
+      - run: git describe || echo 'failed to get tag'
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network

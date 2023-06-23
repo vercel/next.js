@@ -26,9 +26,7 @@ Before taking your Next.js application to production, here are some recommendati
 ## Caching
 
 <details open>
-  <summary>
-    Examples
-  </summary>
+  <summary>Examples</summary>
 
 - [ssr-caching](https://github.com/vercel/next.js/tree/canary/examples/ssr-caching)
 
@@ -42,7 +40,7 @@ Cache-Control: public, max-age=31536000, immutable
 
 `Cache-Control` headers set in `next.config.js` will be overwritten in production to ensure that static assets can be cached effectively. If you need to revalidate the cache of a page that has been [statically generated](/docs/pages/building-your-application/rendering/static-site-generation), you can do so by setting `revalidate` in the page's [`getStaticProps`](/docs/pages/building-your-application/data-fetching/get-static-props) function. If you're using `next/image`, you can configure the [`minimumCacheTTL`](/docs/pages/api-reference/components/image#minimumcachettl) for the default Image Optimization loader.
 
-> **Note**: When running your application locally with `next dev`, your headers are overwritten to prevent caching locally.
+> **Good to know**: When running your application locally with `next dev`, your headers are overwritten to prevent caching locally.
 
 ```terminal
 Cache-Control: no-cache, no-store, max-age=0, must-revalidate
@@ -75,14 +73,12 @@ By default, `Cache-Control` headers will be set differently depending on how you
 - If the page uses `getServerSideProps` or `getInitialProps`, it will use the default `Cache-Control` header set by `next start` in order to prevent accidental caching of responses that cannot be cached. If you want a different cache behavior while using `getServerSideProps`, use `res.setHeader('Cache-Control', 'value_you_prefer')` inside of the function as shown above.
 - If the page is using `getStaticProps`, it will have a `Cache-Control` header of `s-maxage=REVALIDATE_SECONDS, stale-while-revalidate`, or if `revalidate` is _not_ used, `s-maxage=31536000, stale-while-revalidate` to cache for the maximum age possible.
 
-> **Note**: Your deployment provider must support caching for dynamic responses. If you are self-hosting, you will need to add this logic yourself using a key/value store like Redis. If you are using Vercel, [Edge Caching works without configuration](https://vercel.com/docs/edge-network/caching?utm_source=next-site&utm_medium=docs&utm_campaign=next-website).
+> **Good to know**: Your deployment provider must support caching for dynamic responses. If you are self-hosting, you will need to add this logic yourself using a key/value store like Redis. If you are using Vercel, [Edge Caching works without configuration](https://vercel.com/docs/edge-network/caching?utm_source=next-site&utm_medium=docs&utm_campaign=next-website).
 
 ## Reducing JavaScript Size
 
 <details open>
-  <summary>
-    Examples
-  </summary>
+  <summary>Examples</summary>
 
 - [with-dynamic-import](https://github.com/vercel/next.js/tree/canary/examples/with-dynamic-import)
 
@@ -101,9 +97,7 @@ Each file inside your `pages/` directory will automatically be code split into i
 ## Logging
 
 <details open>
-  <summary>
-    Examples
-  </summary>
+  <summary>Examples</summary>
 
 - [Pino and Logflare Example](https://github.com/Logflare/next-pino-logflare-logging-example)
 
@@ -119,9 +113,7 @@ If you want a structured logging package, we recommend [Pino](https://www.npmjs.
 ## Error Handling
 
 <details open>
-  <summary>
-    Examples
-  </summary>
+  <summary>Examples</summary>
 
 - [with-sentry](https://github.com/vercel/next.js/tree/canary/examples/with-sentry)
 

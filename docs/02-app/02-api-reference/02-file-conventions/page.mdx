@@ -45,7 +45,13 @@ An object containing the [search parameters](https://developer.mozilla.org/en-US
 | `/shop?a=1&b=2` | `{ a: '1', b: '2' }` |
 | `/shop?a=1&a=2` | `{ a: ['1', '2'] }`  |
 
-> **Good to know:**
+> **Good to know**:
 >
 > - `searchParams` is a **[Dynamic API](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#dynamic-functions)** whose values cannot be known ahead of time. Using it will opt the page into **[dynamic rendering](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#dynamic-rendering)** at request time.
 > - `searchParams` returns a plain JavaScript object and not a `URLSearchParams` instance.
+
+## Version History
+
+| Version   | Changes            |
+| --------- | ------------------ |
+| `v13.0.0` | `page` introduced. |

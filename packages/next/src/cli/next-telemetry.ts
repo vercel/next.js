@@ -9,9 +9,9 @@ import isError from '../lib/is-error'
 const nextTelemetry: CliCommand = (argv) => {
   const validArgs: arg.Spec = {
     // Types
-    '--help': Boolean,
     '--enable': Boolean,
     '--disable': Boolean,
+    '--help': Boolean,
     // Aliases
     '-h': '--help',
   }
@@ -35,6 +35,11 @@ const nextTelemetry: CliCommand = (argv) => {
         $ next telemetry [enable/disable]
 
       You may pass the 'enable' or 'disable' argument to turn Next.js' telemetry collection on or off.
+
+      Options
+       --enable    Enables Next.js' telemetry collection
+       --disable   Disables Next.js' telemetry collection
+       --help, -h  Displays this message
 
       Learn more: ${chalk.cyan('https://nextjs.org/telemetry')}
     `

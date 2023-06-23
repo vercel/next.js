@@ -3,7 +3,6 @@ import type {
   ClientComponentImports,
   NextFlightClientEntryLoaderOptions,
 } from '../loaders/next-flight-client-entry-loader'
-import type { ClientCSSReferenceManifest } from './flight-manifest-plugin'
 
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { stringify } from 'querystring'
@@ -21,7 +20,6 @@ import {
   COMPILER_NAMES,
   EDGE_RUNTIME_WEBPACK,
   SERVER_REFERENCE_MANIFEST,
-  FLIGHT_SERVER_CSS_MANIFEST,
 } from '../../../shared/lib/constants'
 import {
   generateActionId,
@@ -75,10 +73,6 @@ const pluginState = getProxiedPluginState({
       client?: string | number
     }
   >,
-
-  // Manifest of CSS entry files for server/edge server.
-  serverCSSManifest: {} as ClientCSSReferenceManifest,
-  edgeServerCSSManifest: {} as ClientCSSReferenceManifest,
 
   // Mapping of resource path to module id for server/edge server.
   serverModuleIds: {} as Record<string, string | number>,
@@ -308,7 +302,6 @@ export class ClientReferenceEntryPlugin {
           compilation,
           entryName: name,
           clientComponentImports,
-          cssImports,
           bundlePath,
           absolutePagePath: entryRequest,
         })
@@ -360,9 +353,15 @@ export class ClientReferenceEntryPlugin {
       }
     })
 
+    const createdActions = new Set<string>()
     for (const [name, actionEntryImports] of Object.entries(
       actionMapsPerEntry
     )) {
+      for (const [dep, actionNames] of actionEntryImports) {
+        for (const actionName of actionNames) {
+          createdActions.add(name + '@' + dep + '@' + actionName)
+        }
+      }
       addActionEntryList.push(
         this.injectActionEntry({
           compiler,
@@ -460,135 +459,42 @@ export class ClientReferenceEntryPlugin {
       for (const [name, actionEntryImports] of Object.entries(
         actionMapsPerClientEntry
       )) {
-        addedClientActionEntryList.push(
-          this.injectActionEntry({
-            compiler,
-            compilation,
-            actions: actionEntryImports,
-            entryName: name,
-            bundlePath: name,
-            fromClient: true,
-          })
-        )
+        // If an action method is already created in the server layer, we don't
+        // need to create it again in the action layer.
+        // This is to avoid duplicate action instances and make sure the module
+        // state is shared.
+        let remainingClientImportedActions = false
+        const remainingActionEntryImports = new Map<string, string[]>()
+        for (const [dep, actionNames] of actionEntryImports) {
+          const remainingActionNames = []
+          for (const actionName of actionNames) {
+            const id = name + '@' + dep + '@' + actionName
+            if (!createdActions.has(id)) {
+              remainingActionNames.push(actionName)
+            }
+          }
+          if (remainingActionNames.length > 0) {
+            remainingActionEntryImports.set(dep, remainingActionNames)
+            remainingClientImportedActions = true
+          }
+        }
+
+        if (remainingClientImportedActions) {
+          addedClientActionEntryList.push(
+            this.injectActionEntry({
+              compiler,
+              compilation,
+              actions: remainingActionEntryImports,
+              entryName: name,
+              bundlePath: name,
+              fromClient: true,
+            })
+          )
+        }
       }
 
       return Promise.all(addedClientActionEntryList)
     })
-
-    // After optimizing all the modules, we collect the CSS that are still used
-    // by the certain chunk.
-    compilation.hooks.afterOptimizeModules.tap(PLUGIN_NAME, () => {
-      const cssImportsForChunk: Record<string, Set<string>> = {}
-
-      const cssManifest = this.isEdgeServer
-        ? pluginState.edgeServerCSSManifest
-        : pluginState.serverCSSManifest
-
-      function collectModule(entryName: string, mod: any) {
-        const resource = mod.resource
-        const modId = resource
-        if (modId) {
-          if (isCSSMod(mod)) {
-            cssImportsForChunk[entryName].add(modId)
-          }
-        }
-      }
-
-      compilation.chunkGroups.forEach((chunkGroup: any) => {
-        chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
-          // Here we only track page chunks.
-          if (!chunk.name) return
-          if (!chunk.name.endsWith('/page')) return
-
-          const entryName = path.join(this.appDir, '..', chunk.name)
-
-          if (!cssImportsForChunk[entryName]) {
-            cssImportsForChunk[entryName] = new Set()
-          }
-
-          const chunkModules = compilation.chunkGraph.getChunkModulesIterable(
-            chunk
-          ) as Iterable<webpack.NormalModule>
-          for (const mod of chunkModules) {
-            collectModule(entryName, mod)
-
-            const anyModule = mod as any
-            if (anyModule.modules) {
-              anyModule.modules.forEach((concatenatedMod: any) => {
-                collectModule(entryName, concatenatedMod)
-              })
-            }
-          }
-
-          const entryCSSInfo: Record<string, string[]> =
-            cssManifest.cssModules || {}
-          entryCSSInfo[entryName] = [...cssImportsForChunk[entryName]]
-
-          cssManifest.cssModules = entryCSSInfo
-        })
-      })
-
-      forEachEntryModule(compilation, ({ name, entryModule }) => {
-        const clientEntryDependencyMap = collectClientEntryDependencyMap(name)
-        const tracked = new Set<string>()
-        const mergedCSSimports: CssImports = {}
-
-        for (const connection of compilation.moduleGraph.getOutgoingConnections(
-          entryModule
-        )) {
-          const entryDependency = connection.dependency
-          const entryRequest = connection.dependency.request
-
-          // It is possible that the same entry is added multiple times in the
-          // connection graph. We can just skip these to speed up the process.
-          if (tracked.has(entryRequest)) continue
-          tracked.add(entryRequest)
-
-          const { cssImports } = this.collectComponentInfoFromDependencies({
-            entryRequest,
-            compilation,
-            dependency: entryDependency,
-            clientEntryDependencyMap,
-          })
-
-          Object.assign(mergedCSSimports, cssImports)
-        }
-
-        if (!cssManifest.cssImports) cssManifest.cssImports = {}
-        Object.assign(
-          cssManifest.cssImports,
-          deduplicateCSSImportsForEntry(mergedCSSimports)
-        )
-      })
-    })
-
-    compilation.hooks.processAssets.tap(
-      {
-        name: PLUGIN_NAME,
-        stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
-      },
-      (assets: webpack.Compilation['assets']) => {
-        const data: ClientCSSReferenceManifest = {
-          cssImports: {
-            ...pluginState.serverCSSManifest.cssImports,
-            ...pluginState.edgeServerCSSManifest.cssImports,
-          },
-          cssModules: {
-            ...pluginState.serverCSSManifest.cssModules,
-            ...pluginState.edgeServerCSSManifest.cssModules,
-          },
-        }
-        const manifest = JSON.stringify(data, null, this.dev ? 2 : undefined)
-        assets[`${this.assetPrefix}${FLIGHT_SERVER_CSS_MANIFEST}.json`] =
-          new sources.RawSource(
-            manifest
-          ) as unknown as webpack.sources.RawSource
-        assets[`${this.assetPrefix}${FLIGHT_SERVER_CSS_MANIFEST}.js`] =
-          new sources.RawSource(
-            `self.__RSC_CSS_MANIFEST=${JSON.stringify(manifest)}`
-          ) as unknown as webpack.sources.RawSource
-      }
-    )
 
     // Invalidate in development to trigger recompilation
     const invalidator = getInvalidator(compiler.outputPath)

@@ -12,7 +12,7 @@ export function Item({ value }) {
 
     </>;
 }
-export const $$ACTION_1 = async ($$ACTION_ARG_0, value2)=>{
+export var $$ACTION_1 = async ($$ACTION_ARG_0, value2)=>{
     return $$ACTION_ARG_0 * value2;
 };
 var $$ACTION_0;

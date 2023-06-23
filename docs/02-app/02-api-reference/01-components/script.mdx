@@ -196,7 +196,7 @@ Examples of scripts that do not need to load immediately and can be fetched with
 
 Scripts that use the `worker` strategy are off-loaded to a web worker in order to free up the main thread and ensure that only critical, first-party resources are processed on it. While this strategy can be used for any script, it is an advanced use case that is not guaranteed to support all third-party scripts.
 
-To use `worker` as a stratgy, the `nextScriptWorkers` flag must be enabled in `next.config.js`:
+To use `worker` as a strategy, the `nextScriptWorkers` flag must be enabled in `next.config.js`:
 
 ```js filename="next.config.js"
 module.exports = {
@@ -446,7 +446,7 @@ export default function Page() {
 
 | Version   | Changes                                                                   |
 | --------- | ------------------------------------------------------------------------- |
-| `v13.0.0` | `beforeInteractive` and `afterInteractive` is modified to support `app`   |
+| `v13.0.0` | `beforeInteractive` and `afterInteractive` is modified to support `app`.  |
 | `v12.2.4` | `onReady` prop added.                                                     |
 | `v12.2.2` | Allow `next/script` with `beforeInteractive` to be placed in `_document`. |
 | `v11.0.0` | `next/script` introduced.                                                 |

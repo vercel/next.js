@@ -88,23 +88,24 @@ createNextDescribe(
     })
 
     it('should resolve 3rd party package exports based on the react-server condition', async () => {
-      const $ = await next.render$('/react-server/3rd-party-package')
+      await next
+        .fetch('/react-server/3rd-party-package')
+        .then(async (response) => {
+          const result = await resolveStreamResponse(response)
 
-      const result = $('body').text()
+          // Package should be resolved based on the react-server condition,
+          // as well as package's internal & external dependencies.
+          expect(result).toContain(
+            'Server: index.react-server:react.subset:dep.server'
+          )
+          expect(result).toContain(
+            'Client: index.default:react.full:dep.default'
+          )
 
-      // Package should be resolved based on the react-server condition,
-      // as well as package's internal & external dependencies.
-      expect(result).toContain(
-        'Server: index.react-server:react.subset:dep.server'
-      )
-      expect(result).toContain('Client: index.default:react.full:dep.default')
-
-      // Subpath exports should be resolved based on the condition too.
-      expect(result).toContain('Server subpath: subpath.react-server')
-      expect(result).toContain('Client subpath: subpath.default')
-
-      // Prefer `module` field for isomorphic packages.
-      expect($('#main-field').text()).toContain('server-module-field:module')
+          // Subpath exports should be resolved based on the condition too.
+          expect(result).toContain('Server subpath: subpath.react-server')
+          expect(result).toContain('Client subpath: subpath.default')
+        })
     })
 
     it('should correctly collect global css imports and mark them as side effects', async () => {

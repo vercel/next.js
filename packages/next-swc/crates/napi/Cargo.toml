@@ -19,13 +19,7 @@ sentry_rustls = ["sentry", "sentry/rustls", "rustls-tls"]
 
 native-tls = ["next-dev/native-tls"]
 rustls-tls = ["next-dev/rustls-tls"]
-
-# Internal only. Enabled when building for the Next.js integration test suite.
-__internal_nextjs_integration_test = [
-  "next-core/__internal_nextjs_integration_test",
-  "next-dev/__internal_nextjs_integration_test",
-  "next-dev/serializable"
-]
+serializable = ["next-dev/serializable"]
 
 # Enable dhat profiling allocator for heap profiling.
 __internal_dhat-heap = ["dhat"]
@@ -54,9 +48,9 @@ turbo-tasks = { workspace = true }
 once_cell = { workspace = true }
 serde = "1"
 serde_json = "1"
-tracing = { version = "0.1.37" }
+tracing = { workspace = true }
 tracing-futures = "0.2.5"
-tracing-subscriber = "0.3.9"
+tracing-subscriber = { workspace = true }
 tracing-chrome = "0.5.0"
 turbopack-binding = { workspace = true, features = [
   "__swc_core_binding_napi",

@@ -31,7 +31,7 @@ export default function ExampleClientComponent() {
 
 For example, a Client Component with `usePathname` will be rendered into HTML on the initial page load. When navigating to a new route, this component does not need to be re-fetched. Instead, the component is downloaded once (in the client JavaScript bundle), and re-renders based on the current state.
 
-> **Good to know:**
+> **Good to know**:
 >
 > - Reading the current URL from a [Server Component](/docs/getting-started/react-essentials) is not supported. This design is intentional to support layout state being preserved across page navigations.
 > - Compatibility mode:
@@ -88,3 +88,7 @@ function ExampleClientComponent() {
   }, [pathname, searchParams])
 }
 ```
+
+| Version   | Changes                   |
+| --------- | ------------------------- |
+| `v13.0.0` | `usePathname` introduced. |

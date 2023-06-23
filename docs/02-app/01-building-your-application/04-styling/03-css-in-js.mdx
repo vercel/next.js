@@ -9,21 +9,21 @@ description: Use CSS-in-JS libraries with Next.js
 >
 > We're working with the React team on upstream APIs to handle CSS and JavaScript assets with support for React Server Components and streaming architecture.
 
-The following libraries are supported in Client Components in the `app` directory:
+The following libraries are supported in Client Components in the `app` directory (alphbetical):
 
+- [`pandacss`](https://panda-css.com)
 - [`styled-jsx`](#styled-jsx)
 - [`styled-components`](#styled-components)
-- [`tamagui`](https://tamagui.dev/docs/guides/next-js#server-components)
 - [`style9`](https://github.com/johanholmerin/style9)
-- [`vanilla-extract`](https://github.com/SuttonJack/vanilla-extract-app-dir)
+- [`tamagui`](https://tamagui.dev/docs/guides/next-js#server-components)
+- [`vanilla-extract`](https://github.com/vercel/next.js/tree/canary/examples/with-vanilla-extract)
 
 The following are currently working on support:
 
 - [`emotion`](https://github.com/emotion-js/emotion/issues/2928)
 - [Material UI](https://github.com/mui/material-ui/issues/34905#issuecomment-1401306594)
-- [Chakra UI](https://github.com/chakra-ui/chakra-ui/issues/7180)
 
-> **Note:** We're testing out different CSS-in-JS libraries and we'll be adding more examples for libraries that support React 18 features and/or the `app` directory.
+> **Good to know**: We're testing out different CSS-in-JS libraries and we'll be adding more examples for libraries that support React 18 features and/or the `app` directory.
 
 If you want to style Server Components, we recommend using [CSS Modules](/docs/app/building-your-application/styling/css-modules) or other solutions that output CSS files, like PostCSS or [Tailwind CSS](/docs/app/building-your-application/styling/tailwind-css).
 
@@ -225,7 +225,7 @@ export default function RootLayout({ children }) {
 
 [View an example here](https://github.com/vercel/app-playground/tree/main/app/styling/styled-components).
 
-> **Good to know:**
+> **Good to know**:
 >
 > - During server rendering, styles will be extracted to a global registry and flushed to the `<head>` of your HTML. This ensures the style rules are placed before any content that might use them. In the future, we may use an upcoming React feature to determine where to inject the styles.
 > - During streaming, styles from each chunk will be collected and appended to existing styles. After client-side hydration is complete, `styled-components` will take over as usual and inject any further dynamic styles.
@@ -236,9 +236,7 @@ export default function RootLayout({ children }) {
 <PagesOnly>
 
 <details>
-  <summary>
-    Examples
-  </summary>
+  <summary>Examples</summary>
 
 - [Styled JSX](https://github.com/vercel/next.js/tree/canary/examples/with-styled-jsx)
 - [Styled Components](https://github.com/vercel/next.js/tree/canary/examples/with-styled-components)

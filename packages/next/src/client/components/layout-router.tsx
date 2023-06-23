@@ -216,9 +216,10 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
 
       handleSmoothScroll(
         () => {
-          // In case of hash scroll we need to scroll to the top of the element
+          // In case of hash scroll, we only need to scroll the element into view
           if (hashFragment) {
-            window.scrollTo(0, (domNode as HTMLElement).offsetTop)
+            ;(domNode as HTMLElement).scrollIntoView()
+
             return
           }
           // Store the current viewport height because reading `clientHeight` causes a reflow,
@@ -320,7 +321,7 @@ function InnerLayoutRouter({
     throw new Error('invariant global layout router not mounted')
   }
 
-  const { changeByServerResponse, tree: fullTree } = context
+  const { buildId, changeByServerResponse, tree: fullTree } = context
 
   // Read segment path from the parallel router cache node.
   let childNode = childNodes.get(cacheKey)
@@ -368,7 +369,8 @@ function InnerLayoutRouter({
       data: fetchServerResponse(
         new URL(url, location.origin),
         refetchTree,
-        context.nextUrl
+        context.nextUrl,
+        buildId
       ),
       subTreeData: null,
       head:

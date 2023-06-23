@@ -75,7 +75,6 @@ import {
   streamFromArray,
   streamToString,
   chainStreams,
-  createBufferedTransformStream,
   renderToInitialStream,
   continueFromInitialStream,
 } from './stream-utils/node-web-streams-helper'
@@ -250,7 +249,6 @@ export type RenderOptsPartial = {
   resolvedUrl?: string
   resolvedAsPath?: string
   clientReferenceManifest?: ClientReferenceManifest
-  serverCSSManifest?: any
   nextFontManifest?: NextFontManifest
   distDir?: string
   locale?: string
@@ -1177,8 +1175,6 @@ export async function renderToHTML(
     return inAmpMode ? children : <div id="__next">{children}</div>
   }
 
-  // Always disable streaming for pages rendering
-  const generateStaticHTML = true
   const renderDocument = async () => {
     // For `Document`, there are two cases that we don't support:
     // 1. Using `Document.getInitialProps` in the Edge runtime.
@@ -1316,7 +1312,7 @@ export async function renderToHTML(
         return continueFromInitialStream(initialStream, {
           suffix,
           dataStream: serverComponentsInlinedTransformStream?.readable,
-          generateStaticHTML,
+          generateStaticHTML: true,
           getServerInsertedHTML,
           serverInsertedHTMLToHead: false,
         })
@@ -1539,18 +1535,9 @@ export async function renderToHTML(
   const postOptimize = (html: string) =>
     postProcessHTML(pathname, html, renderOpts, { inAmpMode, hybridAmp })
 
-  if (generateStaticHTML) {
-    const html = await streamToString(chainStreams(streams))
-    const optimizedHtml = await postOptimize(html)
-    return new RenderResult(optimizedHtml, renderResultMeta)
-  }
-
-  return new RenderResult(
-    chainStreams(streams).pipeThrough(
-      createBufferedTransformStream(postOptimize)
-    ),
-    renderResultMeta
-  )
+  const html = await streamToString(chainStreams(streams))
+  const optimizedHtml = await postOptimize(html)
+  return new RenderResult(optimizedHtml, renderResultMeta)
 }
 
 export type RenderToHTMLResult = typeof renderToHTML

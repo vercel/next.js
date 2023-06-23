@@ -38,7 +38,7 @@ export default function AddToCart({ productId }) {
 ```jsx filename="app/actions.js" highlight={1, 3}
 'use server'
 
-async function addItem(data) {
+export async function addItem(data) {
   const cartId = cookies().get('cartId')?.value
   await saveToDb({ cartId, data })
 }
@@ -123,7 +123,7 @@ export default function ClientComponent() {
 }
 ```
 
-> **Note:** When using a top-level `"use server"` directive, all exports below will be considered Server Actions. You can have multiple Server Actions in a single file.
+> **Good to know**: When using a top-level `"use server"` directive, all exports below will be considered Server Actions. You can have multiple Server Actions in a single file.
 
 ### Invocation
 
@@ -154,11 +154,11 @@ export default function AddToCart({ productId }) {
 }
 ```
 
-> **Note:** An `action` is similar to the HTML primitive [`action`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/form#action)
+> **Good to know**: An `action` is similar to the HTML primitive [`action`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/form#action)
 
 #### `formAction`
 
-You can use `formAction` prop to handle **Form Actions** on elements such as `button`, `input type="submit"`, and `input type="image"`. The `formAction` prop takes presedence over the form's `action`.
+You can use `formAction` prop to handle **Form Actions** on elements such as `button`, `input type="submit"`, and `input type="image"`. The `formAction` prop takes precedence over the form's `action`.
 
 ```jsx filename="app/form.js" highlight={15}
 export default function Form() {
@@ -182,13 +182,13 @@ export default function Form() {
 }
 ```
 
-> **Note:** A `formAction` is the HTML primitive [`formaction`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/button#formaction). React now allows you to pass functions to this attribute.
+> **Good to know**: A `formAction` is the HTML primitive [`formaction`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/button#formaction). React now allows you to pass functions to this attribute.
 
 #### Custom invocation using `startTransition`
 
 You can also invoke Server Actions without using `action` or `formAction`. You can achieve this by using `startTransition` provided by the `useTransition` hook, which can be useful if you want to use Server Actions outside of forms, buttons, or inputs.
 
-> **Note:** Using `startTransition` disables the out-of-the-box Progressive Enhancement.
+> **Good to know**: Using `startTransition` disables the out-of-the-box Progressive Enhancement.
 
 ```jsx filename="app/components/example-client-component.js" highlight={3, 7, 10}
 'use client'
@@ -480,7 +480,7 @@ export const action = withValidate((data) => {
 
 ```js filename="lib/form-validation.js"
 export function withValidate(action) {
-  return (formData: FormData) => {
+  return async (formData: FormData) => {
     'use server'
 
     const isValidData = verifyData(formData)
@@ -541,11 +541,11 @@ Actions are not Next.js or React Server Components specific, however, they are n
 
 Actions are defined through the `action` prop on an element. Typically when building HTML forms, you pass a URL to the [`action` prop](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/form#action). With Actions, React now allows you to pass a function directly.
 
-React also provides built-in solutions for [optimistic updates](#experimental-useoptimistic) with Actions. It's important to note new patterns are still being developed and new APIs may stil be added.
+React also provides built-in solutions for [optimistic updates](#experimental-useoptimistic) with Actions. It's important to note new patterns are still being developed and new APIs may still be added.
 
 ### Form Actions
 
-[Actions](#actions) integrated into the web standard `<form>` API, and enable out-of-the-box progressive enhancement and [loading states](#experimental-useformstatus). Similar to the HTML primitive [`formaction`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/button#formation).
+[Actions](#actions) integrated into the web standard `<form>` API, and enable out-of-the-box progressive enhancement and [loading states](#experimental-useformstatus). Similar to the HTML primitive [`formaction`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/button#formaction).
 
 ### Server Functions
 

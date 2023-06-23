@@ -37,8 +37,15 @@ export default function NotFound() {
 }
 ```
 
-> **Note:** In addition to catching expected `notFound()` errors, the root `app/not-found.js` file also handles any unmatched URLs for your whole application. This means users that visit a URL that is not handled by your app will be shown the UI exported by the `app/not-found.js` file.
+> **Good to know**: In addition to catching expected `notFound()` errors, the root `app/not-found.js` file also handles any unmatched URLs for your whole application. This means users that visit a URL that is not handled by your app will be shown the UI exported by the `app/not-found.js` file.
 
 ## Props
 
 `not-found.js` components do not accept any props.
+
+## Version History
+
+| Version   | Changes                                             |
+| --------- | --------------------------------------------------- |
+| `v13.3.0` | Root `app/not-found` handles global unmatched URLs. |
+| `v13.0.0` | `not-found` introduced.                             |

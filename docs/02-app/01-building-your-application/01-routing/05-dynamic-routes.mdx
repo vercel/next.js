@@ -22,14 +22,14 @@ Dynamic Segments are passed as the `params` prop to [`layout`](/docs/app/api-ref
 For example, a blog could include the following route `app/blog/[slug]/page.js` where `[slug]` is the Dynamic Segment for blog posts.
 
 ```tsx filename="app/blog/[slug]/page.tsx" switcher
-export default function Page({ params: { slug: string } }) {
-  return <div>My Post: {slug}</div>
+export default function Page({ params }: { params: { slug: string } }) {
+  return <div>My Post: {params.slug}</div>
 }
 ```
 
 ```jsx filename="app/blog/[slug]/page.js" switcher
 export default function Page({ params }) {
-  return <div>My Post: {slug}</div>
+  return <div>My Post: {params.slug}</div>
 }
 ```
 
@@ -41,7 +41,7 @@ export default function Page({ params }) {
 
 See the [generateStaticParams()](#generating-static-params) page to learn how to generate the params for the segment.
 
-> **Note:** Dynamic Segments are equivalent to [Dynamic Routes](/docs/app/building-your-application/routing/dynamic-routes) in the `pages` directory.
+> **Good to know**: Dynamic Segments are equivalent to [Dynamic Routes](/docs/app/building-your-application/routing/dynamic-routes) in the `pages` directory.
 
 ## Generating Static Params
 
@@ -122,4 +122,4 @@ export default function Page({ params }) {
 | `app/shop/[...slug]/page.js`        | `{ slug: string[] }`                     |
 | `app/[categoryId]/[itemId]/page.js` | `{ categoryId: string, itemId: string }` |
 
-> **Note**: This may be done automatically by the [TypeScript plugin](/docs/app/building-your-application/configuring/typescript#typescript-plugin) in the future.
+> **Good to know**: This may be done automatically by the [TypeScript plugin](/docs/app/building-your-application/configuring/typescript#typescript-plugin) in the future.

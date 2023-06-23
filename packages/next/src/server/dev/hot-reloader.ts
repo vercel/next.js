@@ -185,6 +185,7 @@ export default class HotReloader {
   public edgeServerStats: webpack.Stats | null
   private clientError: Error | null = null
   private serverError: Error | null = null
+  private hmrServerError: Error | null = null
   private serverPrevDocumentHash: string | null
   private serverChunkNames?: Set<string>
   private prevChunkNames?: Set<any>
@@ -327,10 +328,21 @@ export default class HotReloader {
     return { finished }
   }
 
+  public setHmrServerError(error: Error | null): void {
+    this.hmrServerError = error
+  }
+
+  public clearHmrServerError(): void {
+    if (this.hmrServerError) {
+      this.setHmrServerError(null)
+      this.send('reloadPage')
+    }
+  }
+
   public onHMR(req: IncomingMessage, _socket: Duplex, head: Buffer) {
     wsServer.handleUpgrade(req, req.socket, head, (client) => {
       this.webpackHotMiddleware?.onHMR(client)
-      this.onDemandEntries?.onHMR(client)
+      this.onDemandEntries?.onHMR(client, () => this.hmrServerError)
 
       client.addEventListener('message', ({ data }) => {
         data = typeof data !== 'string' ? data.toString() : data
@@ -793,6 +805,9 @@ export default class HotReloader {
                       assetPrefix: this.config.assetPrefix,
                       nextConfigOutput: this.config.output,
                       preferredRegion: staticInfo.preferredRegion,
+                      middlewareConfig: Buffer.from(
+                        JSON.stringify(staticInfo.middleware || {})
+                      ).toString('base64'),
                     }).import
                   : undefined
 
@@ -877,6 +892,9 @@ export default class HotReloader {
                     assetPrefix: this.config.assetPrefix,
                     nextConfigOutput: this.config.output,
                     preferredRegion: staticInfo.preferredRegion,
+                    middlewareConfig: Buffer.from(
+                      JSON.stringify(staticInfo.middleware || {})
+                    ).toString('base64'),
                   })
                 } else if (
                   !isAPIRoute(page) &&
@@ -888,6 +906,9 @@ export default class HotReloader {
                     page,
                     absolutePagePath: relativeRequest,
                     preferredRegion: staticInfo.preferredRegion,
+                    middlewareConfig: Buffer.from(
+                      JSON.stringify(staticInfo.middleware || {})
+                    ).toString('base64'),
                   })
                 } else {
                   value = relativeRequest

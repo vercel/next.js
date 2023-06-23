@@ -56,6 +56,9 @@ const nextInfo: CliCommand = async (argv) => {
       Usage
         $ next info
 
+      Options
+        --help, -h  Displays this message
+
       Learn more: ${chalk.cyan(
         'https://nextjs.org/docs/api-reference/cli#info'
       )}`
