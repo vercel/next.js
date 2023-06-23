@@ -1,5 +1,11 @@
 export type Event = 'request'
 
+export interface BaseElementHandle {
+  getComputedCss(prop: string): Promise<string>
+  text(): Promise<string>
+  getAttribute(name: string): Promise<string>
+}
+
 /**
  * This is the base Browser interface all browser
  * classes should build off of, it is the bare
@@ -58,13 +64,17 @@ export abstract class BrowserInterface implements PromiseLike<any> {
   async close(): Promise<void> {}
   async quit(): Promise<void> {}
 
-  elementsByCss(selector: string): BrowserInterface[] {
-    return [this]
+  elementsByCss(
+    selector: string
+  ): BrowserInterface & Promise<BaseElementHandle[]> {
+    return this.chain(() => [])
   }
-  elementByCss(selector: string): BrowserInterface {
+  elementByCss(
+    selector: string
+  ): BrowserInterface & Promise<BaseElementHandle> {
     return this
   }
-  elementById(selector: string): BrowserInterface {
+  elementById(selector: string): BrowserInterface & Promise<BaseElementHandle> {
     return this
   }
   touchStart(): BrowserInterface {
@@ -89,7 +99,10 @@ export abstract class BrowserInterface implements PromiseLike<any> {
     return this
   }
   // TODO(NEXT-290): type this correctly as awaitable
-  waitForElementByCss(selector: string, timeout?: number): BrowserInterface {
+  waitForElementByCss(
+    selector: string,
+    timeout?: number
+  ): BrowserInterface & Promise<BaseElementHandle> {
     return this
   }
   waitForCondition(snippet: string, timeout?: number): BrowserInterface {

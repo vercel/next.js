@@ -40,7 +40,11 @@ export async function sandbox(
   }
 
   await next.start()
-  const browser = await webdriver(next.url, initialUrl, webDriverOptions)
+  const browser: BrowserInterface = await webdriver(
+    next.url,
+    initialUrl,
+    webDriverOptions
+  )
   return {
     browser,
     session: {
@@ -139,7 +143,7 @@ export async function sandbox(
           '[data-nextjs-component-stack-frame]'
         )
         const componentStackFrameTexts = await Promise.all(
-          componentStackFrameElements.map((f) => f.innerText())
+          componentStackFrameElements.map((f) => f.text())
         )
 
         return componentStackFrameTexts.join('\n')

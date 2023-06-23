@@ -1,4 +1,4 @@
-import { BrowserInterface, Event } from './base'
+import { BaseElementHandle, BrowserInterface, Event } from './base'
 import fs from 'fs-extra'
 import {
   chromium,
@@ -28,10 +28,7 @@ export async function quit() {
   browser = undefined
 }
 
-interface ElementHandleExt extends ElementHandle {
-  getComputedCss(prop: string): Promise<string>
-  text(): Promise<string>
-}
+interface ElementHandleExt extends ElementHandle, BaseElementHandle {}
 
 export class Playwright extends BrowserInterface {
   private activeTrace?: string
@@ -336,7 +333,7 @@ export class Playwright extends BrowserInterface {
           return el
         })
       })
-    ) as any as BrowserInterface[]
+    )
   }
 
   waitForElementByCss(selector, timeout?: number) {
