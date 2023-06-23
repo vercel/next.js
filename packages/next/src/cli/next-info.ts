@@ -20,11 +20,12 @@ function getPackageVersion(packageName: string) {
   }
 }
 
-function getNextConfig() {
+async function getNextConfig() {
   // Use any here to avoid nextjs types dependency
   let config: any = {}
   try {
-    config = require(`${process.cwd()}/next.config.js`)
+    const nextConfigMod = await import(`${process.cwd()}/next.config`)
+    config = nextConfigMod.default || nextConfigMod
   } catch {}
 
   return {
@@ -80,7 +81,7 @@ const nextInfo: CliCommand = async (argv) => {
   }
 
   const installedRelease = getPackageVersion('next')
-  const nextConfig = getNextConfig()
+  const nextConfig = await getNextConfig()
 
   console.log(`
     Operating System:

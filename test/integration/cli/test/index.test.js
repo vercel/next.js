@@ -15,7 +15,7 @@ import pkg from 'next/package'
 import http from 'http'
 import stripAnsi from 'strip-ansi'
 
-const dir = join(__dirname, '..')
+const dirBasic = join(__dirname, '../basic')
 const dirDuplicateSass = join(__dirname, '../duplicate-sass')
 
 const testExitSignal = async (
@@ -52,8 +52,8 @@ describe('CLI Usage', () => {
   describe('start', () => {
     test('should exit when SIGINT is signalled', async () => {
       require('console').log('before build')
-      await fs.remove(join(dir, '.next'))
-      await nextBuild(dir, undefined, {
+      await fs.remove(join(dirBasic, '.next'))
+      await nextBuild(dirBasic, undefined, {
         onStdout(msg) {
           console.log(msg)
         },
@@ -66,13 +66,13 @@ describe('CLI Usage', () => {
       const port = await findPort()
       await testExitSignal(
         'SIGINT',
-        ['start', dir, '-p', port],
+        ['start', dirBasic, '-p', port],
         /started server on/
       )
     })
     test('should exit when SIGTERM is signalled', async () => {
-      await fs.remove(join(dir, '.next'))
-      await nextBuild(dir, undefined, {
+      await fs.remove(join(dirBasic, '.next'))
+      await nextBuild(dirBasic, undefined, {
         onStdout(msg) {
           console.log(msg)
         },
@@ -83,7 +83,7 @@ describe('CLI Usage', () => {
       const port = await findPort()
       await testExitSignal(
         'SIGTERM',
-        ['start', dir, '-p', port],
+        ['start', dirBasic, '-p', port],
         /started server on/
       )
     })
@@ -299,11 +299,11 @@ describe('CLI Usage', () => {
     })
 
     test('should exit when SIGINT is signalled', async () => {
-      await testExitSignal('SIGINT', ['build', dir])
+      await testExitSignal('SIGINT', ['build', dirBasic])
     })
 
     test('should exit when SIGTERM is signalled', async () => {
-      await testExitSignal('SIGTERM', ['build', dir])
+      await testExitSignal('SIGTERM', ['build', dirBasic])
     })
 
     test('invalid directory', async () => {
@@ -334,11 +334,15 @@ describe('CLI Usage', () => {
     test('custom directory', async () => {
       const port = await findPort()
       let output = ''
-      const app = await runNextCommandDev([dir, '--port', port], undefined, {
-        onStdout(msg) {
-          output += stripAnsi(msg)
-        },
-      })
+      const app = await runNextCommandDev(
+        [dirBasic, '--port', port],
+        undefined,
+        {
+          onStdout(msg) {
+            output += stripAnsi(msg)
+          },
+        }
+      )
       try {
         await check(() => output, /started server/i)
       } finally {
@@ -349,11 +353,15 @@ describe('CLI Usage', () => {
     test('--port', async () => {
       const port = await findPort()
       let output = ''
-      const app = await runNextCommandDev([dir, '--port', port], undefined, {
-        onStdout(msg) {
-          output += stripAnsi(msg)
-        },
-      })
+      const app = await runNextCommandDev(
+        [dirBasic, '--port', port],
+        undefined,
+        {
+          onStdout(msg) {
+            output += stripAnsi(msg)
+          },
+        }
+      )
       try {
         await check(() => output, new RegExp(`on 0.0.0.0:${port}`))
         await check(() => output, new RegExp(`http://localhost:${port}`))
@@ -365,11 +373,15 @@ describe('CLI Usage', () => {
     test('--port 0', async () => {
       const port = await findPort()
       let output = ''
-      const app = await runNextCommandDev([dir, '--port', port], undefined, {
-        onStdout(msg) {
-          output += stripAnsi(msg)
-        },
-      })
+      const app = await runNextCommandDev(
+        [dirBasic, '--port', port],
+        undefined,
+        {
+          onStdout(msg) {
+            output += stripAnsi(msg)
+          },
+        }
+      )
       try {
         await check(() => output, new RegExp(`on 0.0.0.0:${port}`))
         await check(() => output, new RegExp(`http://localhost:${port}`))
@@ -387,7 +399,7 @@ describe('CLI Usage', () => {
 
     test('PORT=0', async () => {
       let output = ''
-      const app = await runNextCommandDev([dir], undefined, {
+      const app = await runNextCommandDev([dirBasic], undefined, {
         env: {
           PORT: 0,
         },
@@ -411,12 +423,16 @@ describe('CLI Usage', () => {
     test("NODE_OPTIONS='--inspect'", async () => {
       const port = await findPort()
       let output = ''
-      const app = await runNextCommandDev([dir, '--port', port], undefined, {
-        onStdout(msg) {
-          output += stripAnsi(msg)
-        },
-        env: { NODE_OPTIONS: '--inspect' },
-      })
+      const app = await runNextCommandDev(
+        [dirBasic, '--port', port],
+        undefined,
+        {
+          onStdout(msg) {
+            output += stripAnsi(msg)
+          },
+          env: { NODE_OPTIONS: '--inspect' },
+        }
+      )
       try {
         await check(() => output, new RegExp(`on 0.0.0.0:${port}`))
         await check(() => output, new RegExp(`http://localhost:${port}`))
@@ -428,7 +444,7 @@ describe('CLI Usage', () => {
     test('-p', async () => {
       const port = await findPort()
       let output = ''
-      const app = await runNextCommandDev([dir, '-p', port], undefined, {
+      const app = await runNextCommandDev([dirBasic, '-p', port], undefined, {
         onStdout(msg) {
           output += stripAnsi(msg)
         },
@@ -457,7 +473,7 @@ describe('CLI Usage', () => {
       })
       let stdout = '',
         stderr = ''
-      await launchApp(dir, port, {
+      await launchApp(dirBasic, port, {
         stdout: true,
         stderr: true,
         onStdout(msg) {
@@ -479,7 +495,7 @@ describe('CLI Usage', () => {
       const port = await findPort()
       let output = ''
       const app = await runNextCommandDev(
-        [dir, '--hostname', '0.0.0.0', '--port', port],
+        [dirBasic, '--hostname', '0.0.0.0', '--port', port],
         undefined,
         {
           onStdout(msg) {
@@ -499,7 +515,7 @@ describe('CLI Usage', () => {
       const port = await findPort()
       let output = ''
       const app = await runNextCommandDev(
-        [dir, '-H', '0.0.0.0', '--port', port],
+        [dirBasic, '-H', '0.0.0.0', '--port', port],
         undefined,
         {
           onStdout(msg) {
@@ -519,7 +535,7 @@ describe('CLI Usage', () => {
       const port = await findPort()
       let output = ''
       const app = await runNextCommandDev(
-        [dir, '--hostname', '::', '--port', port],
+        [dirBasic, '--hostname', '::', '--port', port],
         undefined,
         {
           onStdout(msg) {
@@ -552,7 +568,7 @@ describe('CLI Usage', () => {
       const port = await findPort()
       await testExitSignal(
         'SIGINT',
-        ['dev', dir, '-p', port],
+        ['dev', dirBasic, '-p', port],
         /started server on/
       )
     })
@@ -560,7 +576,7 @@ describe('CLI Usage', () => {
       const port = await findPort()
       await testExitSignal(
         'SIGTERM',
-        ['dev', dir, '-p', port],
+        ['dev', dirBasic, '-p', port],
         /started server on/
       )
     })
@@ -647,6 +663,30 @@ describe('CLI Usage', () => {
   })
 
   describe('info', () => {
+    function matchInfoOutput(stdout) {
+      expect(stdout).toMatch(
+        new RegExp(`
+    Operating System:
+      Platform: .*
+      Arch: .*
+      Version: .*
+    Binaries:
+      Node: .*
+      npm: .*
+      Yarn: .*
+      pnpm: .*
+    Relevant Packages:
+      next: .*
+      eslint-config-next: .*
+      react: .*
+      react-dom: .*
+      typescript: .*
+    Next.js Config:
+      output: .*
+`)
+      )
+    }
+
     test('--help', async () => {
       const help = await runNextCommand(['info', '--help'], {
         stdout: true,
@@ -670,29 +710,29 @@ describe('CLI Usage', () => {
         stdout: true,
         stderr: true,
       })
-      expect((info.stderr || '').toLowerCase()).not.toContain('error')
 
-      expect(info.stdout).toMatch(
-        new RegExp(`
-    Operating System:
-      Platform: .*
-      Arch: .*
-      Version: .*
-    Binaries:
-      Node: .*
-      npm: .*
-      Yarn: .*
-      pnpm: .*
-    Relevant Packages:
-      next: .*
-      eslint-config-next: .*
-      react: .*
-      react-dom: .*
-      typescript: .*
-    Next.js Config:
-      output: .*
-`)
-      )
+      expect((info.stderr || '').toLowerCase()).not.toContain('error')
+      matchInfoOutput(info.stdout)
+    })
+
+    test('should print output with next.config.mjs', async () => {
+      let info = { stdout: '', stderr: '' }
+
+      try {
+        await fs.writeFile(
+          join(dirBasic, 'next.config.mjs'),
+          `export default { output: 'standalone' }`
+        )
+        info = await runNextCommand(['info'], {
+          stdout: true,
+          stderr: true,
+        })
+      } finally {
+        await fs.remove(join(dirBasic, 'next.config.mjs'))
+      }
+
+      expect((info.stderr || '').toLowerCase()).not.toContain('error')
+      matchInfoOutput(info.stdout)
     })
   })
 })
