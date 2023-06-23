@@ -1511,7 +1511,7 @@ impl VisitMut for ClosureReplacer<'_> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct Name(Id, Vec<(JsWord, bool)>);
+struct Name(Id, Vec<(JsWord, bool, bool)>);
 
 impl From<&'_ Ident> for Name {
     fn from(value: &Ident) -> Self {
@@ -1539,7 +1539,7 @@ impl TryFrom<&'_ MemberExpr> for Name {
         match &value.prop {
             MemberProp::Ident(prop) => {
                 let mut obj: Name = value.obj.as_ref().try_into()?;
-                obj.1.push((prop.sym.clone(), true));
+                obj.1.push((prop.sym.clone(), true, false));
                 Ok(obj)
             }
             _ => Err(()),
@@ -1552,10 +1552,10 @@ impl TryFrom<&'_ OptChainExpr> for Name {
 
     fn try_from(value: &OptChainExpr) -> Result<Self, Self::Error> {
         match &*value.base {
-            OptChainBase::Member(value) => match &value.prop {
+            OptChainBase::Member(me) => match &me.prop {
                 MemberProp::Ident(prop) => {
-                    let mut obj: Name = value.obj.as_ref().try_into()?;
-                    obj.1.push((prop.sym.clone(), false));
+                    let mut obj: Name = me.obj.as_ref().try_into()?;
+                    obj.1.push((prop.sym.clone(), false, value.optional));
                     Ok(obj)
                 }
                 _ => Err(()),
@@ -1569,7 +1569,7 @@ impl From<Name> for Expr {
     fn from(value: Name) -> Self {
         let mut expr = Expr::Ident(value.0.into());
 
-        for (prop, is_member) in value.1.into_iter() {
+        for (prop, is_member, optional) in value.1.into_iter() {
             if is_member {
                 expr = Expr::Member(MemberExpr {
                     span: DUMMY_SP,
@@ -1579,7 +1579,7 @@ impl From<Name> for Expr {
             } else {
                 expr = Expr::OptChain(OptChainExpr {
                     span: DUMMY_SP,
-                    question_dot_token: DUMMY_SP,
+                    optional,
                     base: Box::new(OptChainBase::Member(MemberExpr {
                         span: DUMMY_SP,
                         obj: expr.into(),
