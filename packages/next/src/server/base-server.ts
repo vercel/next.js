@@ -2577,6 +2577,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const fallbackComponents = await this.getFallbackErrorComponents()
 
       if (fallbackComponents) {
+        // There was an error, so use it's definition from the route module
+        // to add the match to the request.
+        addRequestMeta(ctx.req, '_nextMatch', {
+          definition: fallbackComponents.ComponentMod.routeModule.definition,
+          params: undefined,
+        })
+
         return this.renderToResponseWithComponents(
           {
             ...ctx,
