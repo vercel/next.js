@@ -434,12 +434,16 @@ function Router({
     return findHeadInCache(cache, tree[1])
   }, [cache, tree])
 
+  const notFoundProps = { notFound, notFoundStyles, asNotFound }
+
   const content = (
-    <RedirectBoundary>
-      {head}
-      {cache.subTreeData}
-      <AppRouterAnnouncer tree={tree} />
-    </RedirectBoundary>
+    <NotFoundBoundary {...notFoundProps}>
+      <RedirectBoundary>
+        {head}
+        {cache.subTreeData}
+        <AppRouterAnnouncer tree={tree} />
+      </RedirectBoundary>
+    </NotFoundBoundary>
   )
 
   return (
@@ -471,19 +475,14 @@ function Router({
                   url: canonicalUrl,
                 }}
               >
-                <NotFoundBoundary
-                  notFound={notFound}
-                  notFoundStyles={notFoundStyles}
-                  asNotFound={asNotFound}
-                >
-                  {HotReloader ? (
-                    <HotReloader assetPrefix={assetPrefix}>
-                      {content}
-                    </HotReloader>
-                  ) : (
-                    content
-                  )}
-                </NotFoundBoundary>
+                {HotReloader ? (
+                  // HotReloader implements a separate NotFoundBoundary to maintain the HMR ping interval
+                  <HotReloader assetPrefix={assetPrefix} {...notFoundProps}>
+                    {content}
+                  </HotReloader>
+                ) : (
+                  content
+                )}
               </LayoutRouterContext.Provider>
             </AppRouterContext.Provider>
           </GlobalLayoutRouterContext.Provider>

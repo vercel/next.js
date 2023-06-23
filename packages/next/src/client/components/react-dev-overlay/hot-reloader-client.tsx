@@ -8,7 +8,7 @@ import React, {
 } from 'react'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../../dev/error-overlay/format-webpack-messages'
-import { notFound, useRouter } from '../navigation'
+import { useRouter } from '../navigation'
 import {
   ACTION_NOT_FOUND,
   ACTION_VERSION_INFO,
@@ -36,6 +36,7 @@ import {
 import { parseComponentStack } from './internal/helpers/parse-component-stack'
 import type { VersionInfo } from '../../../server/dev/parse-version-info'
 import { isNotFoundError } from '../not-found'
+import { NotFoundBoundary } from '../not-found-boundary'
 
 interface Dispatcher {
   onBuildOk(): void
@@ -422,8 +423,11 @@ function processMessage(
         }).then((pageRes) => {
           if (pageRes.status === 200) {
             // Page exists now, reload
-            // @ts-ignore it exists, it's just hidden
-            router.fastRefresh()
+            startTransition(() => {
+              // @ts-ignore it exists, it's just hidden
+              router.fastRefresh()
+              dispatcher.onRefresh()
+            })
           } else {
             // We are still on the page,
             // dispatch an error so it's caught by the NotFound handler
@@ -442,9 +446,15 @@ function processMessage(
 export default function HotReload({
   assetPrefix,
   children,
+  notFound,
+  notFoundStyles,
+  asNotFound,
 }: {
   assetPrefix: string
   children?: ReactNode
+  notFound?: React.ReactNode
+  notFoundStyles?: React.ReactNode
+  asNotFound?: boolean
 }) {
   const [state, dispatch] = useReducer(errorOverlayReducer, {
     nextId: 1,
@@ -508,11 +518,6 @@ export default function HotReload({
 
   const router = useRouter()
 
-  if (state.notFound) {
-    // if a not found message is received, we throw so that it'll be caught in NotFoundBoundary
-    notFound()
-  }
-
   useEffect(() => {
     const handler = (event: MessageEvent<PongEvent>) => {
       try {
@@ -533,8 +538,15 @@ export default function HotReload({
   }, [sendMessage, router, webSocketRef, dispatcher])
 
   return (
-    <ReactDevOverlay onReactError={handleOnReactError} state={state}>
-      {children}
-    </ReactDevOverlay>
+    <NotFoundBoundary
+      key={`${state.notFound}`}
+      notFound={notFound}
+      notFoundStyles={notFoundStyles}
+      asNotFound={asNotFound}
+    >
+      <ReactDevOverlay onReactError={handleOnReactError} state={state}>
+        {children}
+      </ReactDevOverlay>
+    </NotFoundBoundary>
   )
 }
