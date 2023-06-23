@@ -30,6 +30,7 @@ import type { NextFontManifest } from '../build/webpack/plugins/next-font-manife
 import type { PagesRouteModule } from './future/route-modules/pages/module'
 import type { NodeNextRequest, NodeNextResponse } from './base-http/node'
 import type { AppRouteRouteMatch } from './future/route-matches/app-route-route-match'
+import type { RouteDefinition } from './future/route-definitions/route-definition'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/redirect-status'
@@ -109,7 +110,11 @@ import {
   toNodeOutgoingHttpHeaders,
 } from './web/utils'
 import { NEXT_QUERY_PARAM_PREFIX } from '../lib/constants'
-import { isRouteMatch } from './future/route-matches/route-match'
+import {
+  isRouteMatch,
+  parsedUrlQueryToParams,
+  type RouteMatch,
+} from './future/route-matches/route-match'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -1675,7 +1680,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       let result: RenderResult
 
       // Get the match for the page if it exists.
-      const match = getRequestMeta(req, '_nextMatch')
+      const match: RouteMatch<RouteDefinition<RouteKind>> | undefined =
+        getRequestMeta(req, '_nextMatch') ??
+        // If the match can't be found, rely on the loaded route module. This
+        // should only be required during development when we add FS routes.
+        (this.renderOpts.dev && components.ComponentMod?.routeModule
+          ? {
+              definition: components.ComponentMod.routeModule.definition,
+              params: opts.params
+                ? parsedUrlQueryToParams(opts.params)
+                : undefined,
+            }
+          : undefined)
 
       if (
         match &&
@@ -2578,6 +2594,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const fallbackComponents = await this.getFallbackErrorComponents()
 
       if (fallbackComponents) {
+        // There was an error, so use it's definition from the route module
+        // to add the match to the request.
+        addRequestMeta(ctx.req, '_nextMatch', {
+          definition: fallbackComponents.ComponentMod.routeModule.definition,
+          params: undefined,
+        })
+
         return this.renderToResponseWithComponents(
           {
             ...ctx,
