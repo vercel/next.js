@@ -5,6 +5,7 @@ import type {
   ServerResponse,
 } from 'http'
 import type { WebNextRequest } from '../base-http/web'
+import type { SizeLimit } from '../../../types'
 
 import {
   ACTION,
@@ -245,6 +246,7 @@ export async function handleAction({
   generateFlight,
   staticGenerationStore,
   requestStore,
+  serverActionsSizeLimit,
 }: {
   req: IncomingMessage
   res: ServerResponse
@@ -258,6 +260,7 @@ export async function handleAction({
   }) => Promise<RenderResult>
   staticGenerationStore: StaticGenerationStore
   requestStore: RequestStore
+  serverActionsSizeLimit?: SizeLimit
 }): Promise<undefined | RenderResult | 'not-found'> {
   let actionId = req.headers[ACTION.toLowerCase()] as string
   const contentType = req.headers['content-type']
@@ -372,7 +375,9 @@ export async function handleAction({
           } else {
             const { parseBody } =
               require('../api-utils/node') as typeof import('../api-utils/node')
-            const actionData = (await parseBody(req, '1mb')) || ''
+
+            const actionData =
+              (await parseBody(req, serverActionsSizeLimit ?? '1mb')) || ''
 
             if (isURLEncodedAction) {
               const formData = formDataFromSearchQueryString(actionData)
