@@ -111,4 +111,5 @@ export interface RequestInit extends globalThis.RequestInit {
     i18n?: I18NConfig | null
     trailingSlash?: boolean
   }
+  signal: AbortSignal
 }
