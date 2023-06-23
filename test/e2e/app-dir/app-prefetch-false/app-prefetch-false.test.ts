@@ -1,4 +1,7 @@
+import type { Request } from 'playwright-core'
+
 import { createNextDescribe } from 'e2e-utils'
+import type { BrowserInterface } from '../../../lib/browsers/base'
 
 const getPathname = (url: string) => {
   const urlObj = new URL(url)
