@@ -924,13 +924,13 @@ export function getImgProps(
 
   const props: ImgProps = {
     ...rest,
-    height: heightInt,
+    loading: isLazy ? 'lazy' : loading,
+    fetchPriority,
     width: widthInt,
+    height: heightInt,
     decoding: 'async',
     className,
     style: { ...imgStyle, ...blurStyle },
-    loading: isLazy ? 'lazy' : loading,
-    fetchPriority,
     sizes: imgAttributes.sizes,
     srcSet: imgAttributes.srcSet,
     src: imgAttributes.src,
@@ -1018,12 +1018,15 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
 
 export default Image
 
-export const unstable_getImgProps = (props: ImageProps) => {
-  const result = getImgProps(props).props
-  for (const [key, value] of Object.entries(result)) {
+export const unstable_getImgProps = (imgProps: ImageProps) => {
+  warnOnce(
+    'unstable_getImgProps() is experimental and may change or be removed at any time. Use at your own risk.'
+  )
+  const { props } = getImgProps(imgProps)
+  for (const [key, value] of Object.entries(props)) {
     if (value === undefined) {
-      delete result[key as keyof typeof result]
+      delete props[key as keyof typeof props]
     }
   }
-  return { props: result }
+  return { props }
 }
