@@ -76,27 +76,25 @@ const fetchPost = async (slug: string, preview: boolean) =>
 
 const fetchPosts = async (
   expandAuthor: boolean,
-  authorId: string,
   numberOfPosts: number,
   preview: boolean
 ) => {
   const expand = expandAuthor ? 'property:author' : ''
-  const filter = authorId ? `author:${authorId}` : ''
   const take = numberOfPosts ?? 10
   return await fetchMultiple(
-    `fetch=children:/&expand=${expand}&filter=${filter}&sort=updateDate:desc&take=${take}`,
+    `fetch=children:/&expand=${expand}&sort=updateDate:desc&take=${take}`,
     'posts',
     preview
   )
 }
 
 export const getAllPostSlugs = async (preview: boolean): Promise<string[]> => {
-  const json = await fetchPosts(false, null, 100, preview)
+  const json = await fetchPosts(false, 100, preview)
   return json.items.map((post) => extractSlug(post))
 }
 
 export const getAllPostsForHome = async (preview: boolean): Promise<Post[]> => {
-  const json = await fetchPosts(true, null, 10, preview)
+  const json = await fetchPosts(true, 10, preview)
   return json.items.map(extractPost)
 }
 
@@ -106,7 +104,7 @@ export const getPostAndMorePosts = async (
 ): Promise<PostAndMorePosts> => {
   const postJson = await fetchPost(slug, preview)
   const post = extractPost(postJson)
-  const morePostsJson = await fetchPosts(true, null, 3, preview)
+  const morePostsJson = await fetchPosts(true, 3, preview)
   const morePosts = morePostsJson.items.map(extractPost)
   return {
     post: post,
