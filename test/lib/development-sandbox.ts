@@ -41,7 +41,6 @@ export async function sandbox(
 
   await next.start()
   const browser = await webdriver(next.url, initialUrl, webDriverOptions)
-  // await waitForHydration(browser)
   return {
     browser,
     session: {
