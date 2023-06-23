@@ -157,6 +157,7 @@ export async function renderToHTMLOrFlight(
     nextFontManifest,
     supportsDynamicHTML,
     nextConfigOutput,
+    serverActionsSizeLimit,
   } = renderOpts
 
   const appUsingSizeAdjust = nextFontManifest?.appUsingSizeAdjust
@@ -1597,14 +1598,6 @@ export async function renderToHTMLOrFlight(
       }
     )
 
-    const nextConfig = await renderOpts.loadConfig?.(
-      PHASE_PRODUCTION_SERVER,
-      '/',
-      undefined,
-      undefined,
-      true
-    )
-
     // For action requests, we handle them differently with a special render result.
     const actionRequestResult = await handleAction({
       req,
@@ -1615,7 +1608,7 @@ export async function renderToHTMLOrFlight(
       generateFlight,
       staticGenerationStore,
       requestStore,
-      nextConfig,
+      serverActionsSizeLimit,
     })
 
     if (actionRequestResult === 'not-found') {

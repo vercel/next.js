@@ -2420,7 +2420,7 @@ export default async function getBaseWebpackConfig(
               dev,
               isEdgeServer,
               useServerActions: useServerActions,
-              serverActionsSizeLimit: serverActionsSizeLimit,
+              serverActionsSizeLimit,
             })),
       hasAppDir &&
         !isClient &&
