@@ -345,15 +345,6 @@ export class ClientReferenceEntryPlugin {
               'Server Actions require `experimental.serverActions` option to be enabled in your Next.js config: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions'
             )
           )
-        } else if (
-          this.serverActionsSizeLimit !== undefined &&
-          parseInt(this.serverActionsSizeLimit.toString()) < 1
-        ) {
-          compilation.errors.push(
-            new Error(
-              'Server Actions Size Limit must exceed 1 in number or filesize format to be enabled in your Next.js config: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions'
-            )
-          )
         } else {
           if (!actionMapsPerEntry[name]) {
             actionMapsPerEntry[name] = new Map()
@@ -455,15 +446,6 @@ export class ClientReferenceEntryPlugin {
             compilation.errors.push(
               new Error(
                 'Server Actions require `experimental.serverActions` option to be enabled in your Next.js config: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions'
-              )
-            )
-          } else if (
-            this.serverActionsSizeLimit !== undefined &&
-            parseInt(this.serverActionsSizeLimit.toString()) < 1
-          ) {
-            compilation.errors.push(
-              new Error(
-                'Server Actions Size Limit must exceed 1 in number or filesize format to be enabled in your Next.js config: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions'
               )
             )
           } else {

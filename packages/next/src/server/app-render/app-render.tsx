@@ -72,7 +72,6 @@ import { handleAction } from './action-handler'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
 import { warn } from '../../build/output/log'
 import { appendMutableCookies } from '../web/spec-extension/adapters/request-cookies'
-import { PHASE_PRODUCTION_SERVER } from '../../shared/lib/constants'
 
 export const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 

@@ -416,6 +416,14 @@ function assignDefaults(
     result.output = 'standalone'
   }
 
+  if (typeof result.experimental?.serverActionsSizeLimit !== 'undefined') {
+    if (parseInt(result.experimental.serverActionsSizeLimit.toString()) < 1) {
+      throw new Error(
+        'Server Actions Size Limit must exceed 1 in number or filesize format to be enabled in your Next.js config: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions'
+      )
+    }
+  }
+
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'transpilePackages',
