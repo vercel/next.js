@@ -12,8 +12,10 @@ export default function (id: string) {
   // 1: https://github.com/vercel/next.js/blob/16eb80b0b0be13f04a6407943664b5efd8f3d7d0/packages/next/src/server/app-render/use-flight-response.tsx#L24-L26
   const { createServerReference } = (
     typeof window === 'undefined'
-      ? require('react-server-dom-webpack/client.edge')
-      : require('react-server-dom-webpack/client')
+      ? // eslint-disable-next-line import/no-extraneous-dependencies
+        require('react-server-dom-webpack/client.edge')
+      : // eslint-disable-next-line import/no-extraneous-dependencies
+        require('react-server-dom-webpack/client')
   ) as typeof import('react-server-dom-webpack/client')
 
   return createServerReference(id, callServer)
