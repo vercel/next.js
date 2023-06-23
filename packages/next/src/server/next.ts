@@ -141,9 +141,9 @@ export class NextServer {
   }
 
   async prepare() {
-    const server = await this.getServer()
-
     if (this.standaloneMode) return
+
+    const server = await this.getServer()
 
     // We shouldn't prepare the server in production,
     // because this code won't be executed when deployed
