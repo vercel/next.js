@@ -4,7 +4,7 @@ import './style.css'
 export const metadata = {
   title: 'Next.js',
 }
- 
+
 export default function Layout(props) {
   const { t } = useTranslation()
 
