@@ -38,6 +38,7 @@
       "outputs": ["dist/**"]
     },
     "typescript": {},
+    "//#typescript": {},
     "rust-check": {
       "inputs": [
         ".cargo/**",
