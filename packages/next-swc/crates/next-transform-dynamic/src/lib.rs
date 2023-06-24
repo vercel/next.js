@@ -1,3 +1,6 @@
+// TODO(alexkirsz) Remove once the diagnostic is fixed.
+#![allow(rustc::untranslatable_diagnostic_trivial)]
+
 use std::path::{Path, PathBuf};
 
 use pathdiff::diff_paths;
