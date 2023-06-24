@@ -80,6 +80,7 @@ const proxyHandlers = {
         // @ts-ignore
         return Object.prototype[Symbol.toPrimitive]
       case '__esModule':
+        console.log('Detected __esModule so it should not have a .default prop')
         // Something is conditionally checking which export to use. We'll pretend to be
         // an ESM compat module but then we'll check again on the client.
         const moduleId = target.$$id
