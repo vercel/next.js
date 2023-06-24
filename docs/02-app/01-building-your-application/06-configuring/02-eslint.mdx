@@ -3,6 +3,8 @@ title: ESLint
 description: Next.js provides an integrated ESLint experience by default. These conformance rules help you use Next.js in an optimal way.
 ---
 
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
 Next.js provides an integrated [ESLint](https://eslint.org/) experience out of the box. Add `next lint` as a script to `package.json`:
 
 ```json filename="package.json"
@@ -35,7 +37,7 @@ yarn lint
 
 One of the following three options can be selected:
 
-- **Strict**: Includes Next.js' base ESLint configuration along with a stricter [Core Web Vitals rule-set](/docs/pages/building-your-application/configuring/eslint#core-web-vitals). This is the recommended configuration for developers setting up ESLint for the first time.
+- **Strict**: Includes Next.js' base ESLint configuration along with a stricter [Core Web Vitals rule-set](#core-web-vitals). This is the recommended configuration for developers setting up ESLint for the first time.
 
   ```json filename=".eslintrc.json"
   {
@@ -57,7 +59,17 @@ If either of the two configuration options are selected, Next.js will automatica
 
 You can now run `next lint` every time you want to run ESLint to catch errors. Once ESLint has been set up, it will also automatically run during every build (`next build`). Errors will fail the build, while warnings will not.
 
+<AppOnly>
+
+> If you do not want ESLint to run during `next build`, refer to the documentation for [Ignoring ESLint](/docs/app/api-reference/next-config-js/eslint).
+
+</AppOnly>
+
+<PagesOnly>
+
 > If you do not want ESLint to run during `next build`, refer to the documentation for [Ignoring ESLint](/docs/pages/api-reference/next-config-js/eslint).
+
+</PagesOnly>
 
 We recommend using an appropriate [integration](https://eslint.org/docs/user-guide/integrations#editors) to view warnings and errors directly in your code editor during development.
 
@@ -104,7 +116,7 @@ Next.js provides an ESLint plugin, [`eslint-plugin-next`](https://www.npmjs.com/
 | <Check size={18} /> | @next/next/no-typos                                                                                                      | Prevent common typos in [Next.js's data fetching functions](/docs/pages/building-your-application/data-fetching) |
 | <Check size={18} /> | [@next/next/no-unwanted-polyfillio](/docs/messages/no-unwanted-polyfillio)                                               | Prevent duplicate polyfills from Polyfill.io.                                                                    |
 
-If you already have ESLint configured in your application, we recommend extending from this plugin directly instead of including `eslint-config-next` unless a few conditions are met. Refer to the [Recommended Plugin Ruleset](/docs/pages/building-your-application/configuring/eslint#recommended-plugin-ruleset) to learn more.
+If you already have ESLint configured in your application, we recommend extending from this plugin directly instead of including `eslint-config-next` unless a few conditions are met. Refer to the [Recommended Plugin Ruleset](#recommended-plugin-ruleset) to learn more.
 
 ### Custom Settings
 
@@ -145,7 +157,17 @@ next lint --dir pages --dir utils --file bar.js
 
 ## Caching
 
+<AppOnly>
+
+To improve performance, information of files processed by ESLint are cached by default. This is stored in `.next/cache` or in your defined [build directory](/docs/app/api-reference/next-config-js/distDir). If you include any ESLint rules that depend on more than the contents of a single source file and need to disable the cache, use the `--no-cache` flag with `next lint`.
+
+</AppOnly>
+
+<PagesOnly>
+
 To improve performance, information of files processed by ESLint are cached by default. This is stored in `.next/cache` or in your defined [build directory](/docs/pages/api-reference/next-config-js/distDir). If you include any ESLint rules that depend on more than the contents of a single source file and need to disable the cache, use the `--no-cache` flag with `next lint`.
+
+</PagesOnly>
 
 ```bash filename="Terminal"
 next lint --no-cache
