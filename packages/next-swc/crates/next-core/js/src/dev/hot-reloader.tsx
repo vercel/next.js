@@ -14,7 +14,13 @@ type HotReloadProps = React.PropsWithChildren<{
   asNotFound?: boolean
 }>
 
-export default function HotReload({ assetPrefix, children, notFound, notFoundStyles, asNotFound }: HotReloadProps) {
+export default function HotReload({
+  assetPrefix,
+  children,
+  notFound,
+  notFoundStyles,
+  asNotFound,
+}: HotReloadProps) {
   const router = useRouter()
   const path = usePathname()!.slice(1)
 
@@ -35,13 +41,14 @@ export default function HotReload({ assetPrefix, children, notFound, notFoundSty
     return unsubscribe
   }, [router, path])
 
-   return (<NotFoundBoundary
-      key={asNotFound+''}
+  return (
+    <NotFoundBoundary
+      key={asNotFound + ''}
       notFound={notFound}
       notFoundStyles={notFoundStyles}
       asNotFound={asNotFound}
     >
       <ReactDevOverlay globalOverlay={true}>{children}</ReactDevOverlay>
     </NotFoundBoundary>
-   )
+  )
 }
