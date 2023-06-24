@@ -2,7 +2,7 @@ import React from 'react'
 
 export default function SupabaseLogo() {
   return (
-    <svg aria-label="Supabase logo" width="115" height="23" viewBox="0 0 115 23" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg aria-label="Supabase logo" width="140" height="30" viewBox="0 0 115 23" fill="none" xmlns="http://www.w3.org/2000/svg">
       <g clipPath="url(#clip0_4671_51136)">
         <g clipPath="url(#clip1_4671_51136)">
           <path d="M13.4028 21.8652C12.8424 22.5629 11.7063 22.1806 11.6928 21.2898L11.4954 8.25948H20.3564C21.9614 8.25948 22.8565 10.0924 21.8585 11.3353L13.4028 21.8652Z" fill="url(#paint0_linear_4671_51136)"/>
