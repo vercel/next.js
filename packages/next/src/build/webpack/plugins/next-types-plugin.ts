@@ -105,6 +105,19 @@ if ('${method}' in entry) {
       '${method}'
     >
   >()
+  checkFields<
+    Diff<
+      {
+        __tag__: '${method}',
+        __return_type__: Response | Promise<Response>
+      },
+      {
+        __tag__: '${method}',
+        __return_type__: ReturnType<MaybeField<TEntry, '${method}'>>
+      },
+      '${method}'
+    >
+  >()
 }
 `
       ).join('')
