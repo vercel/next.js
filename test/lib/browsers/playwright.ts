@@ -236,19 +236,18 @@ export class Playwright extends BrowserInterface {
     return this.chain(() => page.bringToFront())
   }
 
-  private wrapElement(el: ElementHandle, selector: string): ElementHandleExt {
+  private wrapElement(el: ElementHandle<Element>): ElementHandleExt {
     function getComputedCss(prop: string) {
       return page.evaluate(
         function (args) {
-          const style = getComputedStyle(document.querySelector(args.selector))
+          const style = getComputedStyle(args.el)
           return style[args.prop] || null
         },
-        { selector, prop }
+        { el, prop }
       )
     }
 
     return Object.assign(el, {
-      selector,
       getComputedCss,
       text: () => el.innerText(),
     })
@@ -320,7 +319,7 @@ export class Playwright extends BrowserInterface {
     })
   }
 
-  elementsByCss(sel) {
+  elementsByCss(sel): BrowserInterface & Promise<BaseElementHandle[]> {
     return this.chain(() =>
       page.$$(sel).then((els) => {
         return els.map((el) => {
@@ -330,7 +329,7 @@ export class Playwright extends BrowserInterface {
             // match selenium
             return origGetAttribute(name).then((val) => val || '')
           }
-          return el
+          return this.wrapElement(el)
         })
       })
     )
@@ -344,7 +343,7 @@ export class Playwright extends BrowserInterface {
           // it seems selenium waits longer and tests rely on this behavior
           // so we wait for the load event fire before returning
           await page.waitForLoadState()
-          return this.wrapElement(el, selector)
+          return this.wrapElement(el)
         })
     })
   }
