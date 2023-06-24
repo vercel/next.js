@@ -246,7 +246,7 @@ export async function handleAction({
   generateFlight,
   staticGenerationStore,
   requestStore,
-  serverActionsSizeLimit,
+  serverActionsBodySizeLimit,
 }: {
   req: IncomingMessage
   res: ServerResponse
@@ -260,7 +260,7 @@ export async function handleAction({
   }) => Promise<RenderResult>
   staticGenerationStore: StaticGenerationStore
   requestStore: RequestStore
-  serverActionsSizeLimit?: SizeLimit
+  serverActionsBodySizeLimit?: SizeLimit
 }): Promise<undefined | RenderResult | 'not-found'> {
   let actionId = req.headers[ACTION.toLowerCase()] as string
   const contentType = req.headers['content-type']
@@ -377,7 +377,7 @@ export async function handleAction({
               require('../api-utils/node') as typeof import('../api-utils/node')
 
             const actionData =
-              (await parseBody(req, serverActionsSizeLimit ?? '1mb')) || ''
+              (await parseBody(req, serverActionsBodySizeLimit ?? '1mb')) || ''
 
             if (isURLEncodedAction) {
               const formData = formDataFromSearchQueryString(actionData)

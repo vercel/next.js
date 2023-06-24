@@ -21,14 +21,14 @@ createNextDescribe(
       return
     }
 
-    it('should error if serverActionsSizeLimit config is a negative number', async function () {
+    it('should error if serverActionsBodySizeLimit config is a negative number', async function () {
       await next.patchFile(
         'next.config.js',
         `
       module.exports = {
         experimental: {
           serverActions: true,
-          serverActionsSizeLimit: -3000,
+          serverActionsBodySizeLimit: -3000,
         },
       }
       `
@@ -40,14 +40,14 @@ createNextDescribe(
       expect(next.cliOutput).toContain(CONFIG_ERROR)
     })
 
-    it('should error if serverActionsSizeLimit config is invalid', async function () {
+    it('should error if serverActionsBodySizeLimit config is invalid', async function () {
       await next.patchFile(
         'next.config.js',
         `
       module.exports = {
         experimental: {
           serverActions: true,
-          serverActionsSizeLimit: 'testmb',
+          serverActionsBodySizeLimit: 'testmb',
         },
       }
       `
@@ -59,14 +59,14 @@ createNextDescribe(
       expect(next.cliOutput).toContain(CONFIG_ERROR)
     })
 
-    it('should error if serverActionsSizeLimit config is a negative size', async function () {
+    it('should error if serverActionsBodySizeLimit config is a negative size', async function () {
       await next.patchFile(
         'next.config.js',
         `
       module.exports = {
         experimental: {
           serverActions: true,
-          serverActionsSizeLimit: '-3000mb',
+          serverActionsBodySizeLimit: '-3000mb',
         },
       }
       `
@@ -79,14 +79,14 @@ createNextDescribe(
     })
 
     if (!isNextDeploy) {
-      it('should respect the size set in serverActionsSizeLimit', async function () {
+      it('should respect the size set in serverActionsBodySizeLimit', async function () {
         await next.patchFile(
           'next.config.js',
           `
       module.exports = {
         experimental: {
           serverActions: true,
-          serverActionsSizeLimit: '1.5mb',
+          serverActionsBodySizeLimit: '1.5mb',
         },
       }
       `

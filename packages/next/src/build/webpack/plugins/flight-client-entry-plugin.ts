@@ -37,7 +37,7 @@ interface Options {
   appDir: string
   isEdgeServer: boolean
   useServerActions: boolean
-  serverActionsSizeLimit?: SizeLimit
+  serverActionsBodySizeLimit?: SizeLimit
 }
 
 const PLUGIN_NAME = 'ClientEntryPlugin'
@@ -153,7 +153,7 @@ export class ClientReferenceEntryPlugin {
   appDir: string
   isEdgeServer: boolean
   useServerActions: boolean
-  serverActionsSizeLimit?: SizeLimit
+  serverActionsBodySizeLimit?: SizeLimit
   assetPrefix: string
 
   constructor(options: Options) {
@@ -161,7 +161,7 @@ export class ClientReferenceEntryPlugin {
     this.appDir = options.appDir
     this.isEdgeServer = options.isEdgeServer
     this.useServerActions = options.useServerActions
-    this.serverActionsSizeLimit = options.serverActionsSizeLimit
+    this.serverActionsBodySizeLimit = options.serverActionsBodySizeLimit
     this.assetPrefix = !this.dev && !this.isEdgeServer ? '../' : ''
   }
 
