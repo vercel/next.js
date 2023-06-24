@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use turbo_binding::{
+use turbopack_binding::{
     turbo::tasks::primitives::{BoolVc, StringVc},
     turbopack::node::route_matcher::{ParamsVc, RouteMatcher, RouteMatcherVc},
 };

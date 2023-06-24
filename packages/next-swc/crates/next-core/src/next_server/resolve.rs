@@ -1,7 +1,8 @@
 use anyhow::Result;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use turbo_binding::{
+use turbo_tasks::primitives::{BoolVc, StringsVc};
+use turbopack_binding::{
     turbo::tasks_fs::{glob::GlobVc, FileJsonContent, FileSystemPathVc},
     turbopack::core::{
         asset::Asset,
@@ -16,23 +17,32 @@ use turbo_binding::{
         },
     },
 };
-use turbo_tasks::primitives::{BoolVc, StringsVc};
 
+/// The predicated based on which the [ExternalCjsModulesResolvePlugin] decides
+/// whether to mark a module as external.
+#[turbo_tasks::value(into = "shared")]
+pub enum ExternalPredicate {
+    /// Mark all modules as external if they're not listed in the list.
+    AllExcept(StringsVc),
+    /// Only mark modules listed as external.
+    Only(StringsVc),
+}
+
+/// Mark modules as external, so they're resolved at runtime instead of bundled.
+///
+/// Modules matching the predicate are marked as external as long as it's
+/// possible to resolve them at runtime.
 #[turbo_tasks::value]
 pub(crate) struct ExternalCjsModulesResolvePlugin {
     root: FileSystemPathVc,
-    transpiled_packages: StringsVc,
+    predicate: ExternalPredicateVc,
 }
 
 #[turbo_tasks::value_impl]
 impl ExternalCjsModulesResolvePluginVc {
     #[turbo_tasks::function]
-    pub fn new(root: FileSystemPathVc, transpiled_packages: StringsVc) -> Self {
-        ExternalCjsModulesResolvePlugin {
-            root,
-            transpiled_packages,
-        }
-        .cell()
+    pub fn new(root: FileSystemPathVc, predicate: ExternalPredicateVc) -> Self {
+        ExternalCjsModulesResolvePlugin { root, predicate }.cell()
     }
 }
 
@@ -87,10 +97,22 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
 
         let raw_fs_path = &*fs_path.await?;
 
-        // always bundle transpiled modules
-        let transpiled_glob = packages_glob(self.transpiled_packages).await?;
-        if transpiled_glob.execute(&raw_fs_path.path) {
-            return Ok(ResolveResultOptionVc::none());
+        let predicate = self.predicate.await?;
+        match &*predicate {
+            ExternalPredicate::AllExcept(exceptions) => {
+                let exception_glob = packages_glob(*exceptions).await?;
+
+                if exception_glob.execute(&raw_fs_path.path) {
+                    return Ok(ResolveResultOptionVc::none());
+                }
+            }
+            ExternalPredicate::Only(externals) => {
+                let external_glob = packages_glob(*externals).await?;
+
+                if !external_glob.execute(&raw_fs_path.path) {
+                    return Ok(ResolveResultOptionVc::none());
+                }
+            }
         }
 
         // node.js only supports these file extensions

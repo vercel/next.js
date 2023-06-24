@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
+use turbopack_binding::turbo::tasks_fs::FileSystemPathVc;
 
-pub mod next_layout_entry_transition;
+pub mod next_server_component_transition;
 
 #[turbo_tasks::value(shared)]
 pub struct LayoutSegment {

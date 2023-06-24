@@ -42,6 +42,10 @@ export type MetadataItems = [
   StaticMetadata
 ][]
 
+type MetadataAccumulationOptions = {
+  pathname: string
+}
+
 function mergeStaticMetadata(
   metadata: ResolvedMetadata,
   staticFilesMetadata: StaticMetadata
@@ -354,8 +358,41 @@ export async function resolveMetadata({
   return metadataItems
 }
 
-type MetadataAccumulationOptions = {
-  pathname: string
+const commonOgKeys = ['title', 'description', 'images'] as const
+function postProcessMetadata(metadata: ResolvedMetadata): ResolvedMetadata {
+  const { openGraph, twitter } = metadata
+  if (openGraph) {
+    let autoFillProps: Partial<{
+      [Key in (typeof commonOgKeys)[number]]: NonNullable<
+        ResolvedMetadata['openGraph']
+      >[Key]
+    }> = {}
+    const hasTwTitle = twitter?.title.absolute
+    const hasTwDescription = twitter?.description
+    const hasTwImages = twitter?.images
+    if (!hasTwTitle) autoFillProps.title = openGraph.title
+    if (!hasTwDescription) autoFillProps.description = openGraph.description
+    if (!hasTwImages) autoFillProps.images = openGraph.images
+
+    if (Object.keys(autoFillProps).length > 0) {
+      const partialTwitter = resolveTwitter(
+        autoFillProps,
+        metadata.metadataBase
+      )
+      if (metadata.twitter) {
+        metadata.twitter = Object.assign({}, metadata.twitter, {
+          ...(!hasTwTitle && { title: partialTwitter?.title }),
+          ...(!hasTwDescription && {
+            description: partialTwitter?.description,
+          }),
+          ...(!hasTwImages && { images: partialTwitter?.images }),
+        })
+      } else {
+        metadata.twitter = partialTwitter
+      }
+    }
+  }
+  return metadata
 }
 
 export async function accumulateMetadata(
@@ -408,9 +445,7 @@ export async function accumulateMetadata(
       const currentResolvedMetadata: ResolvedMetadata =
         process.env.NODE_ENV === 'development'
           ? Object.freeze(
-              require('next/dist/compiled/@edge-runtime/primitives/structured-clone').structuredClone(
-                resolvedMetadata
-              )
+              require('./clone-metadata').cloneMetadata(resolvedMetadata)
             )
           : resolvedMetadata
 
@@ -446,5 +481,5 @@ export async function accumulateMetadata(
     }
   }
 
-  return resolvedMetadata
+  return postProcessMetadata(resolvedMetadata)
 }

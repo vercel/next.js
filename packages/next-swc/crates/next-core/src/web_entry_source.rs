@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use turbo_binding::{
+use turbopack_binding::{
     turbo::{
         tasks::{TryJoinIterExt, Value},
         tasks_fs::FileSystemPathVc,
@@ -32,12 +32,13 @@ use turbo_binding::{
 
 use crate::{
     embed_js::next_js_file_path,
+    mode::NextMode,
     next_client::{
         context::{
             get_client_asset_context, get_client_chunking_context,
             get_client_resolve_options_context, ClientContextType,
         },
-        runtime_entry::{RuntimeEntriesVc, RuntimeEntry},
+        RuntimeEntriesVc, RuntimeEntry,
     },
     next_config::NextConfigVc,
 };
@@ -50,12 +51,12 @@ fn defines() -> CompileTimeDefines {
 }
 
 #[turbo_tasks::function]
-pub fn web_defines() -> CompileTimeDefinesVc {
+fn web_defines() -> CompileTimeDefinesVc {
     defines().cell()
 }
 
 #[turbo_tasks::function]
-pub async fn web_free_vars() -> Result<FreeVarReferencesVc> {
+async fn web_free_vars() -> Result<FreeVarReferencesVc> {
     Ok(free_var_references!(..defines().into_iter()).cell())
 }
 
@@ -79,23 +80,21 @@ pub fn get_compile_time_info(browserslist_query: &str) -> CompileTimeInfoVc {
 }
 
 #[turbo_tasks::function]
-pub async fn get_web_runtime_entries(
+async fn get_web_runtime_entries(
     project_root: FileSystemPathVc,
+    ty: Value<ClientContextType>,
+    mode: NextMode,
     next_config: NextConfigVc,
     execution_context: ExecutionContextVc,
 ) -> Result<RuntimeEntriesVc> {
-    let resolve_options_context = get_client_resolve_options_context(
-        project_root,
-        Value::new(ClientContextType::Other),
-        next_config,
-        execution_context,
-    );
+    let mut runtime_entries = vec![];
+
+    let resolve_options_context =
+        get_client_resolve_options_context(project_root, ty, mode, next_config, execution_context);
     let enable_react_refresh =
         assert_can_resolve_react_refresh(project_root, resolve_options_context)
             .await?
             .as_request();
-
-    let mut runtime_entries = Vec::new();
 
     // It's important that React Refresh come before the regular bootstrap file,
     // because the bootstrap contains JSX which requires Refresh's global
@@ -114,34 +113,36 @@ pub async fn get_web_runtime_entries(
 
 #[turbo_tasks::function]
 pub async fn create_web_entry_source(
-    project_path: FileSystemPathVc,
+    project_root: FileSystemPathVc,
     execution_context: ExecutionContextVc,
     entry_requests: Vec<RequestVc>,
-    server_root: FileSystemPathVc,
+    client_root: FileSystemPathVc,
     eager_compile: bool,
     browserslist_query: &str,
     next_config: NextConfigVc,
 ) -> Result<ContentSourceVc> {
     let ty = Value::new(ClientContextType::Other);
+    let mode = NextMode::Development;
     let compile_time_info = get_compile_time_info(browserslist_query);
     let context = get_client_asset_context(
-        project_path,
+        project_root,
         execution_context,
         compile_time_info,
         ty,
+        mode,
         next_config,
     );
     let chunking_context = get_client_chunking_context(
-        project_path,
-        server_root,
+        project_root,
+        client_root,
         compile_time_info.environment(),
         ty,
     );
-    let entries = get_web_runtime_entries(project_path, next_config, execution_context);
+    let entries = get_web_runtime_entries(project_root, ty, mode, next_config, execution_context);
 
     let runtime_entries = entries.resolve_entries(context);
 
-    let origin = PlainResolveOriginVc::new(context, project_path.join("_")).as_resolve_origin();
+    let origin = PlainResolveOriginVc::new(context, project_root.join("_")).as_resolve_origin();
     let entries = entry_requests
         .into_iter()
         .map(|request| async move {
@@ -181,12 +182,12 @@ pub async fn create_web_entry_source(
         .try_join()
         .await?;
 
-    let entry_asset = DevHtmlAssetVc::new(server_root.join("index.html"), entries).into();
+    let entry_asset = DevHtmlAssetVc::new(client_root.join("index.html"), entries).into();
 
     let graph = if eager_compile {
-        AssetGraphContentSourceVc::new_eager(server_root, entry_asset)
+        AssetGraphContentSourceVc::new_eager(client_root, entry_asset)
     } else {
-        AssetGraphContentSourceVc::new_lazy(server_root, entry_asset)
+        AssetGraphContentSourceVc::new_lazy(client_root, entry_asset)
     }
     .into();
     Ok(graph)

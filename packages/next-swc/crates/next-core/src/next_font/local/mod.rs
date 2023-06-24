@@ -1,6 +1,6 @@
 use anyhow::{bail, Context, Result};
 use indoc::formatdoc;
-use turbo_binding::{
+use turbopack_binding::{
     turbo::{
         tasks::{
             primitives::{OptionStringVc, U32Vc},

@@ -163,6 +163,40 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
       }`,
       filename: 'src/app/deep/randomFile.tsx',
     },
+    {
+      code: `
+      import Script from "next/script";
+
+      export default function Index() {
+        return (
+          <html lang="en">
+            <body className={inter.className}>{children}</body>
+            <Script
+              src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
+              strategy='beforeInteractive'
+            />
+          </html>
+        );
+      }`,
+      filename: '/src/app/layout.tsx',
+    },
+    {
+      code: `
+      import Script from "next/script";
+
+      export default function Index() {
+        return (
+          <html lang="en">
+            <body className={inter.className}>{children}</body>
+            <Script
+              src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
+              strategy='beforeInteractive'
+            />
+          </html>
+        );
+      }`,
+      filename: '/app/layout.tsx',
+    },
   ].map((obj, idx) => ({
     ...obj,
     code: `// valid-${idx}

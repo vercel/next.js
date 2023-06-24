@@ -11,6 +11,7 @@ function getAnnouncerNode() {
     return existingAnnouncer.shadowRoot.childNodes[0] as HTMLElement
   } else {
     const container = document.createElement(ANNOUNCER_TYPE)
+    container.style.cssText = 'position:absolute'
     const announcer = document.createElement('div')
     announcer.setAttribute('aria-live', 'assertive')
     announcer.setAttribute('id', ANNOUNCER_ID)

@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use turbo_binding::{
+use turbopack_binding::{
     turbo::tasks::primitives::{BoolVc, Regex},
     turbopack::node::route_matcher::{Param, ParamsVc, RouteMatcher},
 };

@@ -1,8 +1,8 @@
 module.exports = {
   experimental: {
     turbo: {
-      loaders: {
-        '.replace': [
+      rules: {
+        '*.replace': [
           { loader: 'replace-loader', options: { defaultExport: 3 } },
         ],
       },

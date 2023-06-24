@@ -8,7 +8,7 @@ import type { FieldResolverWithMetadataBase } from '../types/resolvers'
 import type { ResolvedTwitterMetadata, Twitter } from '../types/twitter-types'
 import { resolveAsArrayOrUndefined } from '../generate/utils'
 import {
-  getFallbackMetadataBaseIfPresent,
+  getSocialImageFallbackMetadataBase,
   isStringOrURL,
   resolveUrl,
 } from './resolve-url'
@@ -29,32 +29,33 @@ const OgTypeFields = {
   ],
 } as const
 
-function resolveImages(
+export function resolveImages(
   images: Twitter['images'],
   metadataBase: ResolvedMetadata['metadataBase']
 ): NonNullable<ResolvedMetadata['twitter']>['images']
-function resolveImages(
+export function resolveImages(
   images: OpenGraph['images'],
   metadataBase: ResolvedMetadata['metadataBase']
 ): NonNullable<ResolvedMetadata['openGraph']>['images']
-function resolveImages(
+export function resolveImages(
   images: OpenGraph['images'] | Twitter['images'],
   metadataBase: ResolvedMetadata['metadataBase']
 ):
   | NonNullable<ResolvedMetadata['twitter']>['images']
   | NonNullable<ResolvedMetadata['openGraph']>['images'] {
-  const resolvedImages = resolveAsArrayOrUndefined(images)
-  resolvedImages?.forEach((item, index, array) => {
+  return resolveAsArrayOrUndefined(images)?.map((item) => {
     if (isStringOrURL(item)) {
-      array[index] = {
+      return {
         url: resolveUrl(item, metadataBase)!,
       }
     } else {
-      // Update image descriptor url
-      item.url = resolveUrl(item.url, metadataBase)!
+      return {
+        ...item,
+        // Update image descriptor url
+        url: resolveUrl(item.url, metadataBase)!,
+      }
     }
   })
-  return resolvedImages
 }
 
 function getFieldsByOgType(ogType: OpenGraphType | undefined) {
@@ -101,7 +102,7 @@ export const resolveOpenGraph: FieldResolverWithMetadataBase<'openGraph'> = (
       }
     }
 
-    const imageMetadataBase = getFallbackMetadataBaseIfPresent(metadataBase)
+    const imageMetadataBase = getSocialImageFallbackMetadataBase(metadataBase)
     resolved.images = resolveImages(og.images, imageMetadataBase)
   }
 
@@ -132,7 +133,7 @@ export const resolveTwitter: FieldResolverWithMetadataBase<'twitter'> = (
   for (const infoKey of TwitterBasicInfoKeys) {
     resolved[infoKey] = twitter[infoKey] || null
   }
-  const imageMetadataBase = getFallbackMetadataBaseIfPresent(metadataBase)
+  const imageMetadataBase = getSocialImageFallbackMetadataBase(metadataBase)
   resolved.images = resolveImages(twitter.images, imageMetadataBase)
 
   if ('card' in resolved) {

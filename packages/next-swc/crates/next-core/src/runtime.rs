@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use turbo_binding::turbopack::{
+use turbopack_binding::turbopack::{
     core::{
         issue::{IssueSeverity, OptionIssueSourceVc},
         resolve::{origin::ResolveOriginVc, parse::RequestVc},

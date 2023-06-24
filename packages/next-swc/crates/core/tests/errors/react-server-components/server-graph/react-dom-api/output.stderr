@@ -16,3 +16,19 @@
  1 | import { findDOMNode, flushSync, unstable_batchedUpdates } from 'react-dom'
    :                                  ^^^^^^^^^^^^^^^^^^^^^^^
    `----
+
+  x NEXT_RSC_ERR_REACT_API: experimental_useOptimistic
+   ,-[input.js:3:1]
+ 3 | import {
+ 4 |   experimental_useOptimistic as useOptimistic,
+   :   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 5 |   experimental_useFormStatus,
+   `----
+
+  x NEXT_RSC_ERR_REACT_API: experimental_useFormStatus
+   ,-[input.js:4:1]
+ 4 |   experimental_useOptimistic as useOptimistic,
+ 5 |   experimental_useFormStatus,
+   :   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 6 | } from 'react-dom'
+   `----

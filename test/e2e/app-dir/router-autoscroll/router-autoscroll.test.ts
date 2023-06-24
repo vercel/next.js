@@ -159,5 +159,29 @@ createNextDescribe(
         }
       )
     })
+
+    describe('bugs', () => {
+      it('Should scroll to the top of the layout when the first child is display none', async () => {
+        const browser = await webdriver(next.url, '/')
+        await browser.eval('window.scrollTo(0, 500)')
+        await browser
+          .elementByCss('#to-invisible-first-element')
+          .click()
+          .waitForElementByCss('#content-that-is-visible')
+        await check(() => browser.eval('window.scrollY'), 0)
+      })
+
+      it('Should apply scroll when loading.js is used', async () => {
+        const browser = await webdriver(next.url, '/')
+        await browser.eval('window.scrollTo(0, 500)')
+        await browser
+          .elementByCss('#to-loading-scroll')
+          .click()
+          .waitForElementByCss('#loading-component')
+        await check(() => browser.eval('window.scrollY'), 0)
+        await browser.waitForElementByCss('#content-that-is-visible')
+        await check(() => browser.eval('window.scrollY'), 0)
+      })
+    })
   }
 )

@@ -37,12 +37,16 @@ describe('should set-up next', () => {
         pages: new FileRef(join(__dirname, 'pages')),
         lib: new FileRef(join(__dirname, 'lib')),
         'middleware.js': new FileRef(join(__dirname, 'middleware.js')),
+        'cache-handler.js': new FileRef(join(__dirname, 'cache-handler.js')),
         'data.txt': new FileRef(join(__dirname, 'data.txt')),
         '.env': new FileRef(join(__dirname, '.env')),
         '.env.local': new FileRef(join(__dirname, '.env.local')),
         '.env.production': new FileRef(join(__dirname, '.env.production')),
       },
       nextConfig: {
+        experimental: {
+          incrementalCacheHandlerPath: './cache-handler.js',
+        },
         eslint: {
           ignoreDuringBuilds: true,
         },
@@ -107,9 +111,9 @@ describe('should set-up next', () => {
     const testServer = join(next.testDir, 'standalone/server.js')
     await fs.writeFile(
       testServer,
-      (await fs.readFile(testServer, 'utf8'))
-        .replace('console.error(err)', `console.error('top-level', err)`)
-        .replace('conf:', `minimalMode: ${minimalMode},conf:`)
+      (
+        await fs.readFile(testServer, 'utf8')
+      ).replace('conf:', `minimalMode: ${minimalMode},conf:`)
     )
     appPort = await findPort()
     server = await initNextServerScript(
@@ -123,9 +127,7 @@ describe('should set-up next', () => {
       {
         cwd: next.testDir,
         onStderr(msg) {
-          if (msg.includes('top-level')) {
-            errors.push(msg)
-          }
+          errors.push(msg)
           stderr += msg
         },
       }
@@ -297,6 +299,16 @@ describe('should set-up next', () => {
     expect(
       await fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')
     ).toContain('"compress":false')
+  })
+
+  it('`incrementalCacheHandlerPath` should have correct path', async () => {
+    expect(
+      await fs.pathExists(join(next.testDir, 'standalone/cache-handler.js'))
+    ).toBe(true)
+
+    expect(
+      await fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')
+    ).toContain('"incrementalCacheHandlerPath":"../cache-handler.js"')
   })
 
   it('should output middleware correctly', async () => {
@@ -941,7 +953,7 @@ describe('should set-up next', () => {
     errors = []
     const res = await fetchViaHTTP(appPort, '/errors/gip', { crash: '1' })
     expect(res.status).toBe(500)
-    expect(await res.text()).toBe('internal server error')
+    expect(await res.text()).toBe('Internal Server Error')
 
     await check(
       () => (errors[0].includes('gip hit an oops') ? 'success' : errors[0]),
@@ -953,7 +965,7 @@ describe('should set-up next', () => {
     errors = []
     const res = await fetchViaHTTP(appPort, '/errors/gssp', { crash: '1' })
     expect(res.status).toBe(500)
-    expect(await res.text()).toBe('internal server error')
+    expect(await res.text()).toBe('Internal Server Error')
     await check(
       () => (errors[0].includes('gssp hit an oops') ? 'success' : errors[0]),
       'success'
@@ -964,7 +976,7 @@ describe('should set-up next', () => {
     errors = []
     const res = await fetchViaHTTP(appPort, '/errors/gsp/crash')
     expect(res.status).toBe(500)
-    expect(await res.text()).toBe('internal server error')
+    expect(await res.text()).toBe('Internal Server Error')
     await check(
       () => (errors[0].includes('gsp hit an oops') ? 'success' : errors[0]),
       'success'
@@ -975,7 +987,7 @@ describe('should set-up next', () => {
     errors = []
     const res = await fetchViaHTTP(appPort, '/api/error')
     expect(res.status).toBe(500)
-    expect(await res.text()).toBe('internal server error')
+    expect(await res.text()).toBe('Internal Server Error')
     await check(
       () =>
         errors[0].includes('some error from /api/error')
@@ -1254,12 +1266,14 @@ describe('should set-up next', () => {
     expect(envVariables.envLocal).toBeUndefined()
   })
 
-  it('should run middleware correctly without minimalMode', async () => {
+  it('should run middleware correctly (without minimalMode, with wasm)', async () => {
     await next.destroy()
     await killApp(server)
     await setupNext({ nextEnv: false, minimalMode: false })
 
-    const testServer = join(next.testDir, 'standalone/server.js')
+    const standaloneDir = join(next.testDir, 'standalone')
+
+    const testServer = join(standaloneDir, 'server.js')
     await fs.writeFile(
       testServer,
       (
@@ -1278,9 +1292,7 @@ describe('should set-up next', () => {
       {
         cwd: next.testDir,
         onStderr(msg) {
-          if (msg.includes('top-level')) {
-            errors.push(msg)
-          }
+          errors.push(msg)
           stderr += msg
         },
       }
@@ -1290,9 +1302,19 @@ describe('should set-up next', () => {
     expect(res.status).toBe(200)
     expect(await res.text()).toContain('index page')
 
+    expect(fs.existsSync(join(standaloneDir, '.next/server/edge-chunks'))).toBe(
+      true
+    )
+
+    const resImageResponse = await fetchViaHTTP(
+      appPort,
+      '/a-non-existent-page/to-test-with-middleware'
+    )
+
+    expect(resImageResponse.status).toBe(200)
+    expect(resImageResponse.headers.get('content-type')).toBe('image/png')
+
     // when not in next env should be compress: true
-    expect(
-      await fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')
-    ).toContain('"compress":true')
+    expect(fs.readFileSync(testServer, 'utf8')).toContain('"compress":true')
   })
 })

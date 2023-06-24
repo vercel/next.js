@@ -118,6 +118,7 @@ describe('prefetchReducer', () => {
     ])
 
     const state = createInitialRouterState({
+      buildId: 'development',
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -149,6 +150,7 @@ describe('prefetchReducer', () => {
     await prom
 
     const expectedState: ReturnType<typeof prefetchReducer> = {
+      buildId: 'development',
       prefetchCache: new Map([
         [
           '/linking/about',
@@ -257,6 +259,7 @@ describe('prefetchReducer', () => {
     ])
 
     const state = createInitialRouterState({
+      buildId: 'development',
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -267,6 +270,7 @@ describe('prefetchReducer', () => {
     })
 
     const state2 = createInitialRouterState({
+      buildId: 'development',
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
@@ -281,6 +285,7 @@ describe('prefetchReducer', () => {
       url,
       initialTree,
       null,
+      state.buildId,
       PrefetchKind.AUTO
     )
     const action: PrefetchAction = {
@@ -300,6 +305,7 @@ describe('prefetchReducer', () => {
     await prom
 
     const expectedState: ReturnType<typeof prefetchReducer> = {
+      buildId: 'development',
       prefetchCache: new Map([
         [
           '/linking/about',

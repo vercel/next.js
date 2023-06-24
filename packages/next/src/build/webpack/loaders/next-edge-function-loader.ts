@@ -1,30 +1,47 @@
+import type webpack from 'webpack'
 import { getModuleBuildInfo } from './get-module-build-info'
 import { stringifyRequest } from '../stringify-request'
+import { MiddlewareConfig } from '../../analysis/get-page-static-info'
 
 export type EdgeFunctionLoaderOptions = {
   absolutePagePath: string
   page: string
   rootDir: string
+  preferredRegion: string | string[] | undefined
+  middlewareConfig: string
 }
 
-export default function middlewareLoader(this: any) {
-  const { absolutePagePath, page, rootDir }: EdgeFunctionLoaderOptions =
-    this.getOptions()
-  const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
-  const buildInfo = getModuleBuildInfo(this._module)
-  buildInfo.nextEdgeApiFunction = {
-    page: page || '/',
-  }
-  buildInfo.rootDir = rootDir
+const nextEdgeFunctionLoader: webpack.LoaderDefinitionFunction<EdgeFunctionLoaderOptions> =
+  function nextEdgeFunctionLoader(this) {
+    const {
+      absolutePagePath,
+      page,
+      rootDir,
+      preferredRegion,
+      middlewareConfig: middlewareConfigBase64,
+    }: EdgeFunctionLoaderOptions = this.getOptions()
+    const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
+    const buildInfo = getModuleBuildInfo(this._module as any)
+    const middlewareConfig: MiddlewareConfig = JSON.parse(
+      Buffer.from(middlewareConfigBase64, 'base64').toString()
+    )
+    buildInfo.route = {
+      page: page || '/',
+      absolutePagePath,
+      preferredRegion,
+      middlewareConfig,
+    }
+    buildInfo.nextEdgeApiFunction = {
+      page: page || '/',
+    }
+    buildInfo.rootDir = rootDir
 
-  return `
-        import { adapter, enhanceGlobals } from 'next/dist/esm/server/web/adapter'
-        import {IncrementalCache} from 'next/dist/esm/server/lib/incremental-cache'
+    return `
+        import 'next/dist/esm/server/web/globals'
+        import { adapter } from 'next/dist/esm/server/web/adapter'
+        import { IncrementalCache } from 'next/dist/esm/server/lib/incremental-cache'
 
-        enhanceGlobals()
-
-        var mod = require(${stringifiedPagePath})
-        var handler = mod.middleware || mod.default;
+        import handler from ${stringifiedPagePath}
 
         if (typeof handler !== 'function') {
           throw new Error('The Edge Function "pages${page}" must export a \`default\` function');
@@ -39,4 +56,6 @@ export default function middlewareLoader(this: any) {
           })
         }
     `
-}
+  }
+
+export default nextEdgeFunctionLoader

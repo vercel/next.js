@@ -1,4 +1,4 @@
-use turbo_binding::{
+use turbopack_binding::{
     turbo::tasks_fs::{FileContentVc, FileSystem, FileSystemPathVc, FileSystemVc},
     turbopack::core::{asset::AssetVc, source_asset::SourceAssetVc},
 };
@@ -7,7 +7,7 @@ pub const VIRTUAL_PACKAGE_NAME: &str = "@vercel/turbopack-next";
 
 #[turbo_tasks::function]
 pub(crate) fn next_js_fs() -> FileSystemVc {
-    // [TODO]: macro need to be refactored to be used via turbo-binding
+    // [TODO]: macro need to be refactored to be used via turbopack-binding
     turbo_tasks_fs::embed_directory!("next", "$CARGO_MANIFEST_DIR/js/src")
 }
 

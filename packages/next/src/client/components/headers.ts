@@ -7,6 +7,7 @@ import { RequestCookies } from '../../server/web/spec-extension/cookies'
 import { requestAsyncStorage } from './request-async-storage'
 import { actionAsyncStorage } from './action-async-storage'
 import { staticGenerationBailout } from './static-generation-bailout'
+import { DraftMode } from './draft-mode'
 
 export function headers() {
   if (staticGenerationBailout('headers')) {
@@ -21,17 +22,6 @@ export function headers() {
   }
 
   return requestStore.headers
-}
-
-export function previewData() {
-  const requestStore = requestAsyncStorage.getStore()
-  if (!requestStore) {
-    throw new Error(
-      `Invariant: Method expects to have requestAsyncStorage, none available`
-    )
-  }
-
-  return requestStore.previewData
 }
 
 export function cookies() {
@@ -57,4 +47,14 @@ export function cookies() {
   }
 
   return requestStore.cookies
+}
+
+export function draftMode() {
+  const requestStore = requestAsyncStorage.getStore()
+  if (!requestStore) {
+    throw new Error(
+      `Invariant: Method expects to have requestAsyncStorage, none available`
+    )
+  }
+  return new DraftMode(requestStore.draftMode)
 }

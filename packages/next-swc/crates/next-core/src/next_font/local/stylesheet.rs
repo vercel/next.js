@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use indoc::formatdoc;
-use turbo_binding::turbo::tasks::primitives::{StringVc, U32Vc};
+use turbopack_binding::turbo::tasks::primitives::{StringVc, U32Vc};
 
 use super::options::{FontDescriptors, NextFontLocalOptionsVc};
 use crate::next_font::{

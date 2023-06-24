@@ -1,9 +1,6 @@
-declare const NAME: string
-declare const PAGE: string
-
-import { adapter, enhanceGlobals } from 'next/dist/server/web/adapter'
-
-enhanceGlobals()
+import 'next/dist/server/web/globals'
+import { adapter } from 'next/dist/server/web/adapter'
+import { NAME, PAGE } from 'BOOTSTRAP_CONFIG'
 
 var mod = require('ENTRY')
 var handler = mod.middleware || mod.default

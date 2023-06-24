@@ -1,3 +1,6 @@
+import type { GetDynamicParamFromSegment } from '../../server/app-render/app-render'
+import type { LoaderTree } from '../../server/lib/app-dir-module'
+
 import React from 'react'
 import {
   AppleWebAppMeta,
@@ -14,8 +17,7 @@ import {
 } from './generate/opengraph'
 import { IconsMetadata } from './generate/icons'
 import { accumulateMetadata, resolveMetadata } from './resolve-metadata'
-import { LoaderTree } from '../../server/lib/app-dir-module'
-import type { GetDynamicParamFromSegment } from '../../server/app-render/app-render'
+import { MetaFilter } from './generate/meta'
 
 // Generate the actual React elements from the resolved metadata.
 export async function MetadataTree({
@@ -41,18 +43,24 @@ export async function MetadataTree({
   })
   const metadata = await accumulateMetadata(resolvedMetadata, options)
 
+  const elements = MetaFilter([
+    BasicMetadata({ metadata }),
+    AlternatesMetadata({ alternates: metadata.alternates }),
+    ItunesMeta({ itunes: metadata.itunes }),
+    FormatDetectionMeta({ formatDetection: metadata.formatDetection }),
+    VerificationMeta({ verification: metadata.verification }),
+    AppleWebAppMeta({ appleWebApp: metadata.appleWebApp }),
+    OpenGraphMetadata({ openGraph: metadata.openGraph }),
+    TwitterMetadata({ twitter: metadata.twitter }),
+    AppLinksMeta({ appLinks: metadata.appLinks }),
+    IconsMetadata({ icons: metadata.icons }),
+  ])
+
   return (
     <>
-      <BasicMetadata metadata={metadata} />
-      <AlternatesMetadata alternates={metadata.alternates} />
-      <ItunesMeta itunes={metadata.itunes} />
-      <FormatDetectionMeta formatDetection={metadata.formatDetection} />
-      <VerificationMeta verification={metadata.verification} />
-      <AppleWebAppMeta appleWebApp={metadata.appleWebApp} />
-      <OpenGraphMetadata openGraph={metadata.openGraph} />
-      <TwitterMetadata twitter={metadata.twitter} />
-      <AppLinksMeta appLinks={metadata.appLinks} />
-      <IconsMetadata icons={metadata.icons} />
+      {elements.map((el, index) => {
+        return React.cloneElement(el as React.ReactElement, { key: index })
+      })}
     </>
   )
 }

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use indoc::formatdoc;
-use turbo_binding::turbo::tasks::primitives::StringVc;
+use turbopack_binding::turbo::tasks::primitives::StringVc;
 
 use super::{
     font_fallback::{FontFallback, FontFallbacksVc},

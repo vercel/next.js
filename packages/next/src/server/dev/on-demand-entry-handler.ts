@@ -1,4 +1,4 @@
-import type ws from 'ws'
+import type ws from 'next/dist/compiled/ws'
 import origDebug from 'next/dist/compiled/debug'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { NextConfigComplete } from '../config-shared'
@@ -9,7 +9,10 @@ import type {
 
 import { EventEmitter } from 'events'
 import { findPageFile } from '../lib/find-page-file'
-import { runDependingOnPageType } from '../../build/entries'
+import {
+  getStaticInfoIncludingLayouts,
+  runDependingOnPageType,
+} from '../../build/entries'
 import { join, posix } from 'path'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
@@ -17,14 +20,13 @@ import { ensureLeadingSlash } from '../../shared/lib/page-path/ensure-leading-sl
 import { removePagePathTail } from '../../shared/lib/page-path/remove-page-path-tail'
 import { reportTrigger } from '../../build/output'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
-import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import {
   isInstrumentationHookFile,
   isInstrumentationHookFilename,
   isMiddlewareFile,
   isMiddlewareFilename,
 } from '../../build/utils'
-import { PageNotFoundError } from '../../shared/lib/utils'
+import { PageNotFoundError, stringifyError } from '../../shared/lib/utils'
 import {
   CompilerNameValues,
   COMPILER_INDEXES,
@@ -224,7 +226,7 @@ const normalizeOutputPath = (dir: string) => dir.replace(/[/\\]server$/, '')
 
 export const getEntries = (
   dir: string
-): NonNullable<ReturnType<typeof entriesMap['get']>> => {
+): NonNullable<ReturnType<(typeof entriesMap)['get']>> => {
   dir = normalizeOutputPath(dir)
   const entries = entriesMap.get(dir) || {}
   entriesMap.set(dir, entries)
@@ -301,7 +303,7 @@ class Invalidator {
 }
 
 function disposeInactiveEntries(
-  entries: NonNullable<ReturnType<typeof entriesMap['get']>>,
+  entries: NonNullable<ReturnType<(typeof entriesMap)['get']>>,
   maxInactiveAge: number
 ) {
   Object.keys(entries).forEach((entryKey) => {
@@ -712,7 +714,6 @@ export function onDemandEntryHandler({
         const isInsideAppDir =
           !!appDir && pagePathData.absolutePagePath.startsWith(appDir)
 
-        const pageType = isInsideAppDir ? 'app' : 'pages'
         const pageBundleType = getPageBundleType(pagePathData.bundlePath)
         const addEntry = (
           compilerType: CompilerNameValues
@@ -767,12 +768,14 @@ export function onDemandEntryHandler({
           }
         }
 
-        const staticInfo = await getPageStaticInfo({
+        const staticInfo = await getStaticInfoIncludingLayouts({
           page,
           pageFilePath: pagePathData.absolutePagePath,
-          nextConfig,
+          isInsideAppDir,
+          pageExtensions: nextConfig.pageExtensions,
           isDev: true,
-          pageType,
+          config: nextConfig,
+          appDir,
         })
 
         const added = new Map<CompilerNameValues, ReturnType<typeof addEntry>>()
@@ -876,9 +879,28 @@ export function onDemandEntryHandler({
       }
     },
 
-    onHMR(client: ws) {
+    onHMR(client: ws, getHmrServerError: () => Error | null) {
+      let bufferedHmrServerError: Error | null = null
+
+      client.addEventListener('close', () => {
+        bufferedHmrServerError = null
+      })
       client.addEventListener('message', ({ data }) => {
         try {
+          const error = getHmrServerError()
+
+          // New error occurred: buffered error is flushed and new error occurred
+          if (!bufferedHmrServerError && error) {
+            client.send(
+              JSON.stringify({
+                event: 'server-error', // for pages dir
+                action: 'serverError', // for app dir
+                errorJSON: stringifyError(error),
+              })
+            )
+            bufferedHmrServerError = null
+          }
+
           const parsedData = JSON.parse(
             typeof data !== 'string' ? data.toString() : data
           )

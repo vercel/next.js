@@ -1,0 +1,28 @@
+PlainIssue {
+    severity: Error,
+    context: "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/turbopack/basic/comptime/input/index.js",
+    category: "resolve",
+    title: "Error resolving commonjs request",
+    description: "unable to resolve relative \"./not-existing-file\"",
+    detail: "It was not possible to find the requested file.\nParsed request as written in source code: relative \"./not-existing-file\"\nPath where resolving has started: [project]/packages/next-swc/crates/next-dev-tests/tests/temp/turbopack/basic/comptime/input/index.js\nType of request: commonjs request\nImport map: No import map entry\n",
+    documentation_link: "",
+    source: Some(
+        PlainIssueSource {
+            asset: PlainAsset {
+                ident: "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/turbopack/basic/comptime/input/index.js",
+            },
+            start: SourcePos {
+                line: 3,
+                column: 5,
+            },
+            end: SourcePos {
+                line: 4,
+                column: 0,
+            },
+        },
+    ),
+    sub_issues: [],
+    processing_path: Some(
+        [],
+    ),
+}

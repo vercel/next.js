@@ -3,17 +3,19 @@
 #![feature(box_syntax)]
 
 mod app_render;
+mod app_segment_config;
 mod app_source;
 pub mod app_structure;
-mod asset_helpers;
 mod babel;
+mod bootstrap;
 mod embed_js;
 pub mod env;
 mod fallback;
 pub mod manifest;
+pub mod mode;
 mod next_build;
 pub mod next_client;
-mod next_client_chunks;
+pub mod next_client_chunks;
 mod next_client_component;
 pub mod next_config;
 mod next_edge;
@@ -29,13 +31,17 @@ pub mod pages_structure;
 pub mod router;
 pub mod router_source;
 mod runtime;
+mod sass;
 mod transform_options;
+pub mod url_node;
 mod util;
 mod web_entry_source;
 
 pub use app_source::create_app_source;
+pub use page_loader::create_page_loader_entry_asset;
 pub use page_source::create_page_source;
-pub use turbo_binding::{turbopack::node::source_map, *};
+pub use turbopack_binding::{turbopack::node::source_map, *};
+pub use util::{pathname_for_path, PathType};
 pub use web_entry_source::create_web_entry_source;
 
 pub fn register() {

@@ -9,7 +9,10 @@ import type { Socket } from 'net'
 import type { TLSSocket } from 'tls'
 
 import Stream from 'stream'
-import { toNodeHeaders } from '../web/utils'
+import {
+  fromNodeOutgoingHttpHeaders,
+  toNodeOutgoingHttpHeaders,
+} from '../web/utils'
 
 interface MockedRequestOptions {
   url: string
@@ -56,6 +59,17 @@ export class MockedRequest extends Stream.Readable implements IncomingMessage {
     }
   }
 
+  public get headersDistinct(): NodeJS.Dict<string[]> {
+    const headers: NodeJS.Dict<string[]> = {}
+    for (const [key, value] of Object.entries(this.headers)) {
+      if (!value) continue
+
+      headers[key] = Array.isArray(value) ? value : [value]
+    }
+
+    return headers
+  }
+
   public _read(): void {
     this.emit('end')
     this.emit('close')
@@ -85,6 +99,10 @@ export class MockedRequest extends Stream.Readable implements IncomingMessage {
     throw new Error('Method not implemented')
   }
 
+  public get trailersDistinct(): NodeJS.Dict<string[]> {
+    throw new Error('Method not implemented')
+  }
+
   public get rawTrailers(): string[] {
     throw new Error('Method not implemented')
   }
@@ -98,33 +116,49 @@ export class MockedRequest extends Stream.Readable implements IncomingMessage {
   }
 }
 
-interface MockedResponseOptions {
+export interface MockedResponseOptions {
+  statusCode?: number
   socket?: Socket | null
+  headers?: OutgoingHttpHeaders
 }
 
 export class MockedResponse extends Stream.Writable implements ServerResponse {
-  public statusCode: number = 200
+  public statusCode: number
   public statusMessage: string = ''
-  public readonly finished = false
-  public readonly headersSent = false
+  public finished = false
+  public headersSent = false
   public readonly socket: Socket | null
 
   /**
    * A promise that resolves to `true` when the response has been streamed.
+   *
+   * @internal - used internally by Next.js
    */
   public readonly hasStreamed: Promise<boolean>
 
   /**
    * A list of buffers that have been written to the response.
+   *
+   * @internal - used internally by Next.js
    */
   public readonly buffers: Buffer[] = []
 
-  private readonly headers = new Headers()
+  /**
+   * The headers object that contains the headers that were initialized on the
+   * response and any that were added subsequently.
+   *
+   * @internal - used internally by Next.js
+   */
+  public readonly headers: Headers
 
-  constructor({ socket = null }: MockedResponseOptions) {
+  constructor(res: MockedResponseOptions = {}) {
     super()
 
-    this.socket = socket
+    this.statusCode = res.statusCode ?? 200
+    this.socket = res.socket ?? null
+    this.headers = res.headers
+      ? fromNodeOutgoingHttpHeaders(res.headers)
+      : new Headers()
 
     // Attach listeners for the `finish`, `end`, and `error` events to the
     // `MockedResponse` instance.
@@ -133,6 +167,24 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
       this.on('end', () => resolve(true))
       this.on('error', (err) => reject(err))
     })
+  }
+
+  public appendHeader(name: string, value: string | string[]): this {
+    const values = Array.isArray(value) ? value : [value]
+    for (const v of values) {
+      this.headers.append(name, v)
+    }
+
+    return this
+  }
+
+  /**
+   * Returns true if the response has been sent, false otherwise.
+   *
+   * @internal - used internally by Next.js
+   */
+  public get isSent() {
+    return this.finished || this.headersSent
   }
 
   /**
@@ -148,6 +200,11 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
     this.buffers.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
 
     return true
+  }
+
+  public end() {
+    this.finished = true
+    return super.end(...arguments)
   }
 
   /**
@@ -227,6 +284,7 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
     }
 
     this.statusCode = statusCode
+    this.headersSent = true
 
     return this
   }
@@ -240,14 +298,14 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
   }
 
   public getHeaders(): OutgoingHttpHeaders {
-    return toNodeHeaders(this.headers)
+    return toNodeOutgoingHttpHeaders(this.headers)
   }
 
   public getHeaderNames(): string[] {
     return Array.from(this.headers.keys())
   }
 
-  public setHeader(name: string, value: OutgoingHttpHeader): void {
+  public setHeader(name: string, value: OutgoingHttpHeader) {
     if (Array.isArray(value)) {
       // Because `set` here should override any existing values, we need to
       // delete the existing values before setting the new ones via `append`.
@@ -261,6 +319,8 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
     } else {
       this.headers.set(name, value)
     }
+
+    return this
   }
 
   public removeHeader(name: string): void {
@@ -269,6 +329,18 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
 
   // The following methods are not implemented as they are not used in the
   // Next.js codebase.
+
+  public get strictContentLength(): boolean {
+    throw new Error('Method not implemented.')
+  }
+
+  public writeEarlyHints() {
+    throw new Error('Method not implemented.')
+  }
+
+  public get req(): IncomingMessage {
+    throw new Error('Method not implemented.')
+  }
 
   public assignSocket() {
     throw new Error('Method not implemented.')

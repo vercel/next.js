@@ -84,7 +84,7 @@ export default class WebResponseCache {
     // same promise until we've fully finished our work.
     ;(async () => {
       try {
-        const cacheEntry = await responseGenerator(resolved, false)
+        const cacheEntry = await responseGenerator(resolved)
         const resolveValue =
           cacheEntry === null
             ? null

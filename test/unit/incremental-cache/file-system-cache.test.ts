@@ -13,6 +13,7 @@ describe('FileSystemCache', () => {
       flushToDisk: true,
       fs: nodeFs,
       serverDistDir: cacheDir,
+      revalidatedTags: [],
     })
 
     const binary = await fs.readFile(

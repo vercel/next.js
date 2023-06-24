@@ -242,6 +242,25 @@ createNextDescribe(
         )
       })
 
+      it('should support layout files in parallel routes', async () => {
+        const browser = await next.browser('/parallel-layout')
+        await check(
+          () => browser.waitForElementByCss('#parallel-layout').text(),
+          'parallel layout'
+        )
+
+        // navigate to /parallel-layout/subroute
+        await browser.elementByCss('[href="/parallel-layout/subroute"]').click()
+        await check(
+          () => browser.waitForElementByCss('#parallel-layout').text(),
+          'parallel layout'
+        )
+        await check(
+          () => browser.waitForElementByCss('#parallel-subroute').text(),
+          'parallel subroute layout'
+        )
+      })
+
       it('should only scroll to the parallel route that was navigated to', async () => {
         const browser = await next.browser('/parallel-scroll')
 
@@ -303,6 +322,60 @@ createNextDescribe(
               .waitForElementByCss('#parallel-foo')
               .text(),
           'parallel for foo'
+        )
+      })
+
+      it('should display all parallel route params with useParams', async () => {
+        const browser = await next.browser('/parallel-dynamic/foo/bar')
+
+        await check(
+          () => browser.waitForElementByCss('#foo').text(),
+          `{"slug":"foo","id":"bar"}`
+        )
+
+        await check(
+          () => browser.waitForElementByCss('#bar').text(),
+          `{"slug":"foo","id":"bar"}`
+        )
+      })
+    })
+
+    describe('route intercepting with dynamic routes', () => {
+      it('should render intercepted route', async () => {
+        const browser = await next.browser(
+          '/intercepting-routes-dynamic/photos'
+        )
+
+        // Check if navigation to modal route works
+        await check(
+          () =>
+            browser
+              .elementByCss(
+                '[href="/intercepting-routes-dynamic/photos/next/123"]'
+              )
+              .click()
+              .waitForElementByCss('#user-intercept-page')
+              .text(),
+          'Intercepted Page'
+        )
+
+        // Check if url matches even though it was intercepted.
+        await check(
+          () => browser.url(),
+          next.url + '/intercepting-routes-dynamic/photos/next/123'
+        )
+
+        // Trigger a refresh, this should load the normal page, not the modal.
+        await check(
+          () =>
+            browser.refresh().waitForElementByCss('#user-regular-page').text(),
+          'Regular Page'
+        )
+
+        // Check if the url matches still.
+        await check(
+          () => browser.url(),
+          next.url + '/intercepting-routes-dynamic/photos/next/123'
         )
       })
     })
@@ -501,6 +574,20 @@ createNextDescribe(
         await check(
           () => browser.url(),
           next.url + '/intercepting-parallel-modal/photo/2'
+        )
+      })
+
+      it('should support intercepting with beforeFiles rewrites', async () => {
+        const browser = await next.browser('/foo')
+
+        await check(
+          () =>
+            browser
+              .elementByCss('[href="/photos"]')
+              .click()
+              .waitForElementByCss('#intercepted')
+              .text(),
+          'intercepted'
         )
       })
     })

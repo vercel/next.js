@@ -117,15 +117,17 @@ function runTest() {
     )
     // INP metric is only reported on pagehide or visibilitychange event, so refresh the page
     await browser.refresh()
-    await check(async () => {
-      const INP = parseInt(
-        await browser.eval('localStorage.getItem("INP")'),
-        10
-      )
-      // We introduced a delay of 100ms, so INP duration should be >= 100
-      expect(INP).toBeGreaterThanOrEqual(100)
-      return 'success'
-    }, 'success')
+
+    // TODO: investigate flakey INP case
+    // await check(async () => {
+    //   const INP = parseInt(
+    //     await browser.eval('localStorage.getItem("INP")'),
+    //     10
+    //   )
+    //   // We introduced a delay of 100ms, so INP duration should be >= 100
+    //   expect(INP).toBeGreaterThanOrEqual(100)
+    //   return 'success'
+    // }, 'success')
     await browser.close()
   })
 

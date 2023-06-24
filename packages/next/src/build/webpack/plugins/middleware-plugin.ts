@@ -17,15 +17,11 @@ import {
   MIDDLEWARE_MANIFEST,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
   NEXT_CLIENT_SSR_ENTRY_SUFFIX,
-  FLIGHT_SERVER_CSS_MANIFEST,
   SUBRESOURCE_INTEGRITY_MANIFEST,
   NEXT_FONT_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
 } from '../../../shared/lib/constants'
-import {
-  getPageStaticInfo,
-  MiddlewareConfig,
-} from '../../analysis/get-page-static-info'
+import { MiddlewareConfig } from '../../analysis/get-page-static-info'
 import { Telemetry } from '../../../telemetry/storage'
 import { traceGlobals } from '../../../trace/shared'
 import { EVENT_BUILD_FEATURE_USAGE } from '../../../telemetry/events'
@@ -34,7 +30,6 @@ import { INSTRUMENTATION_HOOK_FILENAME } from '../../../lib/constants'
 import { NextBuildContext } from '../../build-context'
 
 export interface EdgeFunctionDefinition {
-  env: string[]
   files: string[]
   name: string
   page: string
@@ -55,7 +50,6 @@ interface EntryMetadata {
   edgeMiddleware?: EdgeMiddlewareMeta
   edgeApiFunction?: EdgeMiddlewareMeta
   edgeSSR?: EdgeSSRMeta
-  env: Set<string>
   wasmBindings: Map<string, string>
   assetBindings: Map<string, string>
   regions?: string[] | string
@@ -102,7 +96,6 @@ function getEntryFiles(
     if (meta.edgeSSR.isServerComponent) {
       files.push(`server/${SERVER_REFERENCE_MANIFEST}.js`)
       files.push(`server/${CLIENT_REFERENCE_MANIFEST}.js`)
-      files.push(`server/${FLIGHT_SERVER_CSS_MANIFEST}.js`)
       if (opts.sriEnabled) {
         files.push(`server/${SUBRESOURCE_INTEGRITY_MANIFEST}.js`)
       }
@@ -188,7 +181,6 @@ function getCreateAssets(params: {
       ]
 
       const edgeFunctionDefinition: EdgeFunctionDefinition = {
-        env: Array.from(metadata.env),
         files: getEntryFiles(entrypoint.getFiles(), metadata, opts),
         name: entrypoint.name,
         page: page,
@@ -248,28 +240,17 @@ function isInMiddlewareLayer(parser: webpack.javascript.JavascriptParser) {
   return parser.state.module?.layer === 'middleware'
 }
 
-function isProcessEnvMemberExpression(memberExpression: any): boolean {
-  return (
-    memberExpression.object?.type === 'Identifier' &&
-    memberExpression.object.name === 'process' &&
-    ((memberExpression.property?.type === 'Literal' &&
-      memberExpression.property.value === 'env') ||
-      (memberExpression.property?.type === 'Identifier' &&
-        memberExpression.property.name === 'env'))
-  )
-}
-
 function isNodeJsModule(moduleName: string) {
   return require('module').builtinModules.includes(moduleName)
 }
 
 function isDynamicCodeEvaluationAllowed(
   fileName: string,
-  edgeFunctionConfig?: Partial<MiddlewareConfig>,
+  middlewareConfig?: MiddlewareConfig,
   rootDir?: string
 ) {
   const name = fileName.replace(rootDir ?? '', '')
-  return isMatch(name, edgeFunctionConfig?.unstable_allowDynamicGlobs ?? [])
+  return isMatch(name, middlewareConfig?.unstable_allowDynamicGlobs ?? [])
 }
 
 function buildUnsupportedApiError({
@@ -462,32 +443,6 @@ function getCodeAnalyzer(params: {
     }
 
     /**
-     * Declares an environment variable that is being used in this module
-     * through this static analysis.
-     */
-    const addUsedEnvVar = (envVarName: string) => {
-      const buildInfo = getModuleBuildInfo(parser.state.module)
-      if (buildInfo.nextUsedEnvVars === undefined) {
-        buildInfo.nextUsedEnvVars = new Set()
-      }
-
-      buildInfo.nextUsedEnvVars.add(envVarName)
-    }
-
-    /**
-     * A handler for calls to `process.env` where we identify the name of the
-     * ENV variable being assigned and store it in the module info.
-     */
-    const handleCallMemberChain = (_: unknown, members: string[]) => {
-      if (members.length >= 2 && members[0] === 'env') {
-        addUsedEnvVar(members[1])
-        if (!isInMiddlewareLayer(parser)) {
-          return true
-        }
-      }
-    }
-
-    /**
      * Handler to store original source location of static and dynamic imports into module's buildInfo.
      */
     const handleImport = (node: any) => {
@@ -541,74 +496,12 @@ Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`,
         .tap(NAME, handleWrapWasmInstantiateExpression)
     }
 
-    hooks.callMemberChain.for('process').tap(NAME, handleCallMemberChain)
-    hooks.expressionMemberChain.for('process').tap(NAME, handleCallMemberChain)
     hooks.importCall.tap(NAME, handleImport)
     hooks.import.tap(NAME, handleImport)
 
-    /**
-     * Support static analyzing environment variables through
-     * destructuring `process.env` or `process["env"]`:
-     *
-     * const { MY_ENV, "MY-ENV": myEnv } = process.env
-     *         ^^^^^^   ^^^^^^
-     */
-    hooks.declarator.tap(NAME, (declarator) => {
-      if (
-        declarator.init?.type === 'MemberExpression' &&
-        isProcessEnvMemberExpression(declarator.init) &&
-        declarator.id?.type === 'ObjectPattern'
-      ) {
-        for (const property of declarator.id.properties) {
-          if (property.type === 'RestElement') continue
-          if (
-            property.key.type === 'Literal' &&
-            typeof property.key.value === 'string'
-          ) {
-            addUsedEnvVar(property.key.value)
-          } else if (property.key.type === 'Identifier') {
-            addUsedEnvVar(property.key.name)
-          }
-        }
-
-        if (!isInMiddlewareLayer(parser)) {
-          return true
-        }
-      }
-    })
     if (!dev) {
       // do not issue compilation warning on dev: invoking code will provide details
       registerUnsupportedApiHooks(parser, compilation)
-    }
-  }
-}
-
-async function findEntryEdgeFunctionConfig(
-  entryDependency: any,
-  resolver: webpack.Resolver
-) {
-  if (entryDependency?.request?.startsWith('next-')) {
-    const absolutePagePath =
-      new URL(entryDependency.request, 'http://example.org').searchParams.get(
-        'absolutePagePath'
-      ) ?? ''
-    const pageFilePath = await new Promise((resolve) =>
-      resolver.resolve({}, '/', absolutePagePath, {}, (err, path) =>
-        resolve(err || path)
-      )
-    )
-    if (typeof pageFilePath === 'string') {
-      return {
-        file: pageFilePath,
-        config: (
-          await getPageStaticInfo({
-            nextConfig: {},
-            pageFilePath,
-            isDev: false,
-            pageType: 'root',
-          })
-        ).middleware,
-      }
     }
   }
 }
@@ -618,12 +511,11 @@ function getExtractMetadata(params: {
   compiler: webpack.Compiler
   dev: boolean
   metadataByEntry: Map<string, EntryMetadata>
-}) {
+}): () => Promise<void> {
   const { dev, compilation, metadataByEntry, compiler } = params
   const { webpack: wp } = compiler
   return async () => {
     metadataByEntry.clear()
-    const resolver = compilation.resolverFactory.get('normal')
     const telemetry: Telemetry | undefined = traceGlobals.get('telemetry')
 
     for (const [entryName, entry] of compilation.entries) {
@@ -632,11 +524,7 @@ function getExtractMetadata(params: {
         continue
       }
       const entryDependency = entry.dependencies?.[0]
-      const edgeFunctionConfig = await findEntryEdgeFunctionConfig(
-        entryDependency,
-        resolver
-      )
-      const { rootDir } = getModuleBuildInfo(
+      const { rootDir, route } = getModuleBuildInfo(
         compilation.moduleGraph.getResolvedModule(entryDependency)
       )
 
@@ -653,10 +541,23 @@ function getExtractMetadata(params: {
       entry.includeDependencies.forEach(addEntriesFromDependency)
 
       const entryMetadata: EntryMetadata = {
-        env: new Set<string>(),
         wasmBindings: new Map(),
         assetBindings: new Map(),
       }
+
+      if (route?.middlewareConfig?.regions) {
+        entryMetadata.regions = route.middlewareConfig.regions
+      }
+
+      if (route?.preferredRegion) {
+        const preferredRegion = route.preferredRegion
+        entryMetadata.regions =
+          // Ensures preferredRegion is always an array in the manifest.
+          typeof preferredRegion === 'string'
+            ? [preferredRegion]
+            : preferredRegion
+      }
+
       let ogImageGenerationCount = 0
 
       for (const module of modules) {
@@ -669,7 +570,7 @@ function getExtractMetadata(params: {
           const resource = module.resource
           const hasOGImageGeneration =
             resource &&
-            /[\\/]node_modules[\\/]@vercel[\\/]og[\\/]dist[\\/]index\.(edge|node)\.js$|[\\/]next[\\/]dist[\\/]server[\\/]web[\\/]spec-extension[\\/]image-response\.js$/.test(
+            /[\\/]node_modules[\\/]@vercel[\\/]og[\\/]dist[\\/]index\.(edge|node)\.js$|[\\/]next[\\/]dist[\\/](esm[\\/])?server[\\/]web[\\/]spec-extension[\\/]image-response\.js$/.test(
               resource
             )
 
@@ -698,13 +599,12 @@ function getExtractMetadata(params: {
           if (/node_modules[\\/]regenerator-runtime[\\/]runtime\.js/.test(id)) {
             continue
           }
-
-          if (edgeFunctionConfig?.config?.unstable_allowDynamicGlobs) {
+          if (route?.middlewareConfig?.unstable_allowDynamicGlobs) {
             telemetry?.record({
               eventName: 'NEXT_EDGE_ALLOW_DYNAMIC_USED',
               payload: {
-                ...edgeFunctionConfig,
-                file: edgeFunctionConfig.file.replace(rootDir ?? '', ''),
+                file: route?.absolutePagePath.replace(rootDir ?? '', ''),
+                config: route?.middlewareConfig,
                 fileWithDynamicCode: module.userRequest.replace(
                   rootDir ?? '',
                   ''
@@ -715,7 +615,7 @@ function getExtractMetadata(params: {
           if (
             !isDynamicCodeEvaluationAllowed(
               module.userRequest,
-              edgeFunctionConfig?.config,
+              route?.middlewareConfig,
               rootDir
             )
           ) {
@@ -735,10 +635,6 @@ function getExtractMetadata(params: {
           }
         }
 
-        if (edgeFunctionConfig?.config?.regions) {
-          entryMetadata.regions = edgeFunctionConfig.config.regions
-        }
-
         /**
          * The entry module has to be either a page or a middleware and hold
          * the corresponding metadata.
@@ -749,16 +645,6 @@ function getExtractMetadata(params: {
           entryMetadata.edgeMiddleware = buildInfo.nextEdgeMiddleware
         } else if (buildInfo?.nextEdgeApiFunction) {
           entryMetadata.edgeApiFunction = buildInfo.nextEdgeApiFunction
-        }
-
-        /**
-         * If there are env vars found in the module, append them to the set
-         * of env vars for the entry.
-         */
-        if (buildInfo?.nextUsedEnvVars !== undefined) {
-          for (const envName of buildInfo.nextUsedEnvVars) {
-            entryMetadata.env.add(envName)
-          }
         }
 
         /**

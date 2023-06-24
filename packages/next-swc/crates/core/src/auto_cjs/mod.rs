@@ -1,4 +1,4 @@
-use turbo_binding::swc::core::ecma::{
+use turbopack_binding::swc::core::ecma::{
     ast::*,
     visit::{Visit, VisitWith},
 };

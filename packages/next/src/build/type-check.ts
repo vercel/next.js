@@ -27,7 +27,7 @@ function verifyTypeScriptSetup(
   disableStaticImages: boolean,
   cacheDir: string | undefined,
   enableWorkerThreads: boolean | undefined,
-  isAppDirEnabled: boolean,
+  hasAppDir: boolean,
   hasPagesDir: boolean
 ) {
   const typeCheckWorker = new JestWorker(
@@ -53,7 +53,7 @@ function verifyTypeScriptSetup(
       tsconfigPath,
       disableStaticImages,
       cacheDir,
-      isAppDirEnabled,
+      hasAppDir,
       hasPagesDir,
     })
     .then((result) => {
@@ -67,7 +67,6 @@ export async function startTypeChecking({
   config,
   dir,
   ignoreESLint,
-  isAppDirEnabled,
   nextBuildSpan,
   pagesDir,
   runLint,
@@ -79,7 +78,6 @@ export async function startTypeChecking({
   config: NextConfigComplete
   dir: string
   ignoreESLint: boolean
-  isAppDirEnabled: boolean
   nextBuildSpan: Span
   pagesDir?: string
   runLint: boolean
@@ -135,7 +133,7 @@ export async function startTypeChecking({
           config.images.disableStaticImages,
           cacheDir,
           config.experimental.workerThreads,
-          isAppDirEnabled,
+          !!appDir,
           !!pagesDir
         ).then((resolved) => {
           const checkEnd = process.hrtime(typeCheckStart)
@@ -150,7 +148,7 @@ export async function startTypeChecking({
             config.eslint?.dirs,
             config.experimental.workerThreads,
             telemetry,
-            isAppDirEnabled && !!appDir
+            !!appDir
           )
         }),
     ])

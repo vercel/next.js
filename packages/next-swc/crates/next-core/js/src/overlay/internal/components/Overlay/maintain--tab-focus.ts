@@ -1136,7 +1136,7 @@ function isUserModifyWritable(style) {
   // https://www.w3.org/TR/1999/WD-css3-userint-19990916#user-modify
   // https://github.com/medialize/ally.js/issues/17
   var userModify = style.webkitUserModify || ''
-  return Boolean(userModify && userModify.indexOf('write') !== -1)
+  return Boolean(userModify && userModify.includes('write'))
 }
 
 function hasCssOverflowScroll(style) {

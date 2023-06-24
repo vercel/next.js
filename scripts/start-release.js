@@ -95,10 +95,10 @@ async function main() {
     return
   }
 
-  const githubToken = process.env.RELEASE_BOT_TOKEN
+  const githubToken = process.env.RELEASE_BOT_GITHUB_TOKEN
 
   if (!githubToken) {
-    console.log(`Missing RELEASE_BOT_TOKEN`)
+    console.log(`Missing RELEASE_BOT_GITHUB_TOKEN`)
     return
   }
 

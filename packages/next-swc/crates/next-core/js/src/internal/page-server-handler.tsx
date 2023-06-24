@@ -14,8 +14,8 @@ import { buildStaticPaths } from 'next/dist/build/utils'
 import type { BuildManifest } from 'next/dist/server/get-page-files'
 import type { ReactLoadableManifest } from 'next/dist/server/load-components'
 
-import { ServerResponseShim } from './http'
-import { headersFromEntries } from './headers'
+import { headersFromEntries, initProxiedHeaders } from './headers'
+import { createServerResponse } from './http'
 import type { Ipc } from '@vercel/turbopack-node/ipc/index'
 import type { RenderData } from 'types/turbopack'
 import type { ChunkGroup } from 'types/next'
@@ -181,6 +181,7 @@ export default function startHandler({
       basePath: '',
       // TODO(WEB-583) this isn't correct, instead it should set `dev: true`
       nextExport: true,
+      nextConfigOutput: renderData.data?.nextConfigOutput,
       resolvedUrl: renderData.url,
       optimizeFonts: false,
       optimizeCss: false,
@@ -217,21 +218,12 @@ export default function startHandler({
     const req: IncomingMessage = {
       url: renderData.url,
       method: 'GET',
-      headers: headersFromEntries(renderData.rawHeaders),
+      headers: initProxiedHeaders(
+        headersFromEntries(renderData.rawHeaders),
+        renderData.data?.serverInfo
+      ),
     } as any
-    const res: ServerResponse = new ServerResponseShim(req) as any
-
-    // Both _error and 404 should receive a 404 status code.
-    const statusCode =
-      renderData.path === '/404'
-        ? 404
-        : renderData.path === '/_error'
-        ? 404
-        : 200
-
-    // Setting the status code on the response object is necessary for
-    // `Error.getInitialProps` to detect the status code.
-    res.statusCode = statusCode
+    const res: ServerResponse = createServerResponse(req, renderData.path)
 
     const parsedQuery = parse(renderData.rawQuery)
     const query = { ...parsedQuery, ...renderData.params }
@@ -249,18 +241,25 @@ export default function startHandler({
       renderOpts
     )
 
-    // Set when `getStaticProps` returns `notFound: true`.
-    const isNotFound = renderResult.metadata().isNotFound
+    const {
+      metadata: {
+        // Set when `getStaticProps` returns `notFound: true`.
+        isNotFound,
+        // Set when `getStaticProps` returns `redirect: { destination, permanent, statusCode }`.
+        isRedirect,
+      },
+    } = renderResult
 
     if (isNotFound) {
       return createNotFoundResponse(isDataReq)
     }
 
-    // Set when `getStaticProps` returns `redirect: { destination, permanent, statusCode }`.
-    const isRedirect = renderResult.metadata().isRedirect
-
     if (isRedirect && !isDataReq) {
-      const pageProps = renderResult.metadata().pageData.pageProps
+      const {
+        metadata: {
+          pageData: { pageProps },
+        },
+      } = renderResult
       const redirect = {
         destination: pageProps.__N_REDIRECT,
         statusCode: pageProps.__N_REDIRECT_STATUS,
@@ -294,30 +293,32 @@ export default function startHandler({
 
     if (isDataReq) {
       // TODO(from next.js): change this to a different passing mechanism
-      const pageData = renderResult.metadata().pageData
+      const {
+        metadata: { pageData },
+      } = renderResult
       return {
         type: 'response',
-        statusCode,
+        statusCode: res.statusCode,
         headers: [['Content-Type', MIME_APPLICATION_JAVASCRIPT]],
         // Page data is only returned if the page had getXxyProps.
         body: JSON.stringify(pageData === undefined ? {} : pageData),
       }
     }
 
-    if (!renderResult || renderResult.isNull()) {
+    if (!renderResult || renderResult.isNull) {
       throw new Error('no render result returned')
     }
 
     const body = renderResult.toUnchunkedString()
 
     // TODO: handle revalidate
-    // const sprRevalidate = renderResult.metadata().revalidate;
+    // const sprRevalidate = renderResult.metadata.revalidate;
 
     return {
       type: 'response',
-      statusCode,
+      statusCode: res.statusCode,
       headers: [
-        ['Content-Type', renderResult.contentType() ?? MIME_TEXT_HTML_UTF8],
+        ['Content-Type', renderResult.contentType ?? MIME_TEXT_HTML_UTF8],
       ],
       body,
     }

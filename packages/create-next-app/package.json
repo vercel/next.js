@@ -1,6 +1,6 @@
 {
   "name": "create-next-app",
-  "version": "13.3.2-canary.8",
+  "version": "13.4.8-canary.2",
   "keywords": [
     "react",
     "next",
@@ -22,7 +22,7 @@
   ],
   "scripts": {
     "dev": "ncc build ./index.ts -w -o dist/",
-    "prerelease": "rimraf ./dist/",
+    "prerelease": "node ../../scripts/rm.mjs dist",
     "release": "ncc build ./index.ts -o ./dist/ --minify --no-cache --no-source-map-register",
     "prepublishOnly": "cd ../../ && turbo run build",
     "build": "pnpm release",
@@ -33,10 +33,9 @@
     "@types/ci-info": "2.0.0",
     "@types/cross-spawn": "6.0.0",
     "@types/glob": "7.1.1",
-    "@types/node": "^12.6.8",
+    "@types/node": "^20.2.5",
     "@types/prompts": "2.0.1",
-    "@types/rimraf": "3.0.0",
-    "@types/tar": "4.0.3",
+    "@types/tar": "6.1.5",
     "@types/validate-npm-package-name": "3.0.0",
     "@vercel/ncc": "0.34.0",
     "async-retry": "1.3.1",
@@ -48,13 +47,13 @@
     "cross-spawn": "6.0.5",
     "glob": "8.0.3",
     "got": "10.7.0",
-    "prettier-plugin-tailwindcss": "0.2.4",
+    "prettier-plugin-tailwindcss": "0.3.0",
     "prompts": "2.1.0",
-    "tar": "4.4.10",
+    "tar": "6.1.15",
     "update-check": "1.5.4",
     "validate-npm-package-name": "3.0.0"
   },
   "engines": {
-    "node": ">=16"
+    "node": ">=16.8.0"
   }
 }

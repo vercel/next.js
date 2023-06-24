@@ -57,7 +57,7 @@ export default async function transformSource(
       if (clientRefs.includes('*')) {
         return callback(
           new Error(
-            `It's currently unsupport to use "export *" in a client boundary. Please use named exports instead.`
+            `It's currently unsupported to use "export *" in a client boundary. Please use named exports instead.`
           )
         )
       }
@@ -70,17 +70,21 @@ const proxy = createProxy(String.raw\`${this.resourcePath}\`)
 // The __esModule getter forces the proxy target to create the default export
 // and the $$typeof value is for rendering logic to determine if the module
 // is a client boundary.
-export const { __esModule, $$typeof } = proxy;
-export default proxy.default;
+const { __esModule, $$typeof } = proxy;
+const __default__ = proxy.default;
 `
       let cnt = 0
       for (const ref of clientRefs) {
-        if (ref !== '' && ref !== 'default') {
+        if (ref === '') {
+          esmSource += `\nexports[''] = proxy[''];`
+        } else if (ref === 'default') {
+          esmSource += `
+export { __esModule, $$typeof };
+export default __default__;`
+        } else {
           esmSource += `
 const e${cnt} = proxy["${ref}"];
 export { e${cnt++} as ${ref} };`
-        } else if (ref === '') {
-          esmSource += `\nexports[''] = proxy[''];`
         }
       }
 
@@ -91,7 +95,7 @@ export { e${cnt++} as ${ref} };`
   if (buildInfo.rsc?.type !== RSC_MODULE_TYPES.client) {
     if (noopHeadPath === this.resourcePath) {
       warnOnce(
-        `Warning: You're using \`next/head\` inside the \`app\` directory, please migrate to the Metadata API. See https://beta.nextjs.org/docs/api-reference/metadata for more details.`
+        `Warning: You're using \`next/head\` inside the \`app\` directory, please migrate to the Metadata API. See https://nextjs.org/docs/app/building-your-application/upgrading/app-router-migration#step-3-migrating-nexthead for more details.`
       )
     }
   }

@@ -1,7 +1,9 @@
 use std::collections::BTreeSet;
 
 use anyhow::Result;
-use turbo_binding::turbopack::{
+use turbo_tasks::{primitives::StringVc, Value};
+use turbo_tasks_fs::FileSystem;
+use turbopack_binding::turbopack::{
     core::{
         asset::AssetContent,
         ident::AssetIdentVc,
@@ -21,8 +23,6 @@ use turbo_binding::turbopack::{
     },
     image::process::optimize,
 };
-use turbo_tasks::{primitives::StringVc, Value};
-use turbo_tasks_fs::FileSystem;
 
 /// Serves, resizes, optimizes, and re-encodes images to be used with
 /// next/image.

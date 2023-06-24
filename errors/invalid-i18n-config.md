@@ -1,6 +1,6 @@
 # Invalid i18n config
 
-#### Why This Error
+#### Why This Error Occurred
 
 In your `next.config.js` file you provided an invalid config for the `i18n` field. This could mean the limit for 100 locale items was exceeded.
 

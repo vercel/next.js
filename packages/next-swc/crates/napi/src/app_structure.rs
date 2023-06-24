@@ -11,7 +11,7 @@ use next_core::app_structure::{
     EntrypointsVc, LoaderTree, LoaderTreeVc, MetadataWithAltItem,
 };
 use serde::{Deserialize, Serialize};
-use turbo_binding::{
+use turbopack_binding::{
     turbo::{
         tasks,
         tasks::{
@@ -83,6 +83,8 @@ struct ComponentsForJs {
     loading: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     template: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "not-found")]
+    not_found: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     default: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -127,6 +129,7 @@ async fn prepare_components_for_js(
         error,
         loading,
         template,
+        not_found,
         default,
         route,
         metadata,
@@ -147,6 +150,7 @@ async fn prepare_components_for_js(
     add(&mut result.error, project_path, error).await?;
     add(&mut result.loading, project_path, loading).await?;
     add(&mut result.template, project_path, template).await?;
+    add(&mut result.not_found, project_path, not_found).await?;
     add(&mut result.default, project_path, default).await?;
     add(&mut result.route, project_path, route).await?;
     async fn add_meta<'a>(

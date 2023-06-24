@@ -2,6 +2,7 @@ import type { NextConfig } from '../../../config-shared'
 import type { AppRouteRouteDefinition } from '../../route-definitions/app-route-route-definition'
 import type { AppConfig } from '../../../../build/utils'
 import type { NextRequest } from '../../../web/spec-extension/request'
+import type { PrerenderManifest } from '../../../../build'
 
 import {
   RouteModule,
@@ -21,19 +22,33 @@ import {
   handleInternalServerErrorResponse,
 } from '../helpers/response-handlers'
 import { type HTTP_METHOD, HTTP_METHODS, isHTTPMethod } from '../../../web/http'
-import { patchFetch } from '../../../lib/patch-fetch'
+import { addImplicitTags, patchFetch } from '../../../lib/patch-fetch'
 import { getTracer } from '../../../lib/trace/tracer'
 import { AppRouteRouteHandlersSpan } from '../../../lib/trace/constants'
 import { getPathnameFromAbsolutePath } from './helpers/get-pathname-from-absolute-path'
 import { proxyRequest } from './helpers/proxy-request'
 import { resolveHandlerError } from './helpers/resolve-handler-error'
-import { RouteKind } from '../../route-kind'
 import * as Log from '../../../../build/output/log'
 import { autoImplementMethods } from './helpers/auto-implement-methods'
 import { getNonStaticMethods } from './helpers/get-non-static-methods'
-import { SYMBOL_MODIFY_COOKIE_VALUES } from '../../../web/spec-extension/adapters/request-cookies'
-import { ResponseCookies } from '../../../web/spec-extension/cookies'
-import { HeadersAdapter } from '../../../web/spec-extension/adapters/headers'
+import { appendMutableCookies } from '../../../web/spec-extension/adapters/request-cookies'
+
+// These are imported weirdly like this because of the way that the bundling
+// works. We need to import the built files from the dist directory, but we
+// can't do that directly because we need types from the source files. So we
+// import the types from the source files and then import the built files.
+const { requestAsyncStorage } =
+  require('next/dist/client/components/request-async-storage') as typeof import('../../../../client/components/request-async-storage')
+const { staticGenerationAsyncStorage } =
+  require('next/dist/client/components/static-generation-async-storage') as typeof import('../../../../client/components/static-generation-async-storage')
+const serverHooks =
+  require('next/dist/client/components/hooks-server-context') as typeof import('../../../../client/components/hooks-server-context')
+const headerHooks =
+  require('next/dist/client/components/headers') as typeof import('../../../../client/components/headers')
+const { staticGenerationBailout } =
+  require('next/dist/client/components/static-generation-bailout') as typeof import('../../../../client/components/static-generation-bailout')
+const { actionAsyncStorage } =
+  require('next/dist/client/components/action-async-storage') as typeof import('../../../../client/components/action-async-storage')
 
 /**
  * AppRouteRouteHandlerContext is the context that is passed to the route
@@ -41,6 +56,7 @@ import { HeadersAdapter } from '../../../web/spec-extension/adapters/headers'
  */
 export interface AppRouteRouteHandlerContext extends RouteModuleHandleContext {
   staticGenerationContext: StaticGenerationContext['renderOpts']
+  prerenderManifest: PrerenderManifest
 }
 
 /**
@@ -89,8 +105,7 @@ export type AppRouteUserlandModule = AppRouteHandlers &
  * module from the bundled code.
  */
 export interface AppRouteRouteModuleOptions
-  extends RouteModuleOptions<AppRouteUserlandModule> {
-  readonly pathname: string
+  extends RouteModuleOptions<AppRouteRouteDefinition, AppRouteUserlandModule> {
   readonly resolvedPagePath: string
   readonly nextConfigOutput: NextConfig['output']
 }
@@ -102,8 +117,40 @@ export class AppRouteRouteModule extends RouteModule<
   AppRouteRouteDefinition,
   AppRouteUserlandModule
 > {
-  public readonly definition: AppRouteRouteDefinition
-  public readonly pathname: string
+  /**
+   * A reference to the request async storage.
+   */
+  public readonly requestAsyncStorage = requestAsyncStorage
+
+  /**
+   * A reference to the static generation async storage.
+   */
+  public readonly staticGenerationAsyncStorage = staticGenerationAsyncStorage
+
+  /**
+   * An interface to call server hooks which interact with the underlying
+   * storage.
+   */
+  public readonly serverHooks = serverHooks
+
+  /**
+   * An interface to call header hooks which interact with the underlying
+   * request storage.
+   */
+  public readonly headerHooks = headerHooks
+
+  /**
+   * An interface to call static generation bailout hooks which interact with
+   * the underlying static generation storage.
+   */
+  public readonly staticGenerationBailout = staticGenerationBailout
+
+  /**
+   * A reference to the mutation related async storage, such as mutations of
+   * cookies.
+   */
+  public readonly actionAsyncStorage = actionAsyncStorage
+
   public readonly resolvedPagePath: string
   public readonly nextConfigOutput: NextConfig['output'] | undefined
 
@@ -113,22 +160,12 @@ export class AppRouteRouteModule extends RouteModule<
 
   constructor({
     userland,
-    pathname,
+    definition,
     resolvedPagePath,
     nextConfigOutput,
   }: AppRouteRouteModuleOptions) {
-    super({ userland })
+    super({ userland, definition })
 
-    this.definition = {
-      kind: RouteKind.APP_ROUTE,
-      pathname,
-      // The following aren't needed for the route handler.
-      page: '',
-      bundlePath: '',
-      filename: '',
-    }
-
-    this.pathname = pathname
     this.resolvedPagePath = resolvedPagePath
     this.nextConfigOutput = nextConfigOutput
 
@@ -146,31 +183,10 @@ export class AppRouteRouteModule extends RouteModule<
         this.dynamic = 'error'
       } else if (this.dynamic === 'force-dynamic') {
         throw new Error(
-          `export const dynamic = "force-dynamic" on page "${pathname}" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
+          `export const dynamic = "force-dynamic" on page "${definition.pathname}" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
         )
       }
     }
-  }
-
-  /**
-   * When true, indicates that the global interfaces have been patched via the
-   * `patch()` method.
-   */
-  private hasSetup: boolean = false
-
-  /**
-   * Validates the userland module to ensure the exported methods and properties
-   * are valid.
-   */
-  public async setup() {
-    // If we've already setup, then return.
-    if (this.hasSetup) return
-
-    // Mark the module as setup. The following warnings about the userland
-    // module will run if we're in development. If the module files are modified
-    // when in development, then the require cache will be busted for it and
-    // this method will be called again (resetting the `hasSetup` flag).
-    this.hasSetup = true
 
     // We only warn in development after here, so return if we're not in
     // development.
@@ -233,6 +249,11 @@ export class AppRouteRouteModule extends RouteModule<
     // Get the context for the request.
     const requestContext: RequestContext = {
       req: request,
+    }
+
+    // TODO: types for renderOpts should include previewProps
+    ;(requestContext as any).renderOpts = {
+      previewProps: context.prerenderManifest.preview,
     }
 
     // Get the context for the static generation.
@@ -338,62 +359,32 @@ export class AppRouteRouteModule extends RouteModule<
                     const res = await handler(wrappedRequest, {
                       params: context.params,
                     })
+                    ;(context.staticGenerationContext as any).fetchMetrics =
+                      staticGenerationStore.fetchMetrics
 
                     await Promise.all(
                       staticGenerationStore.pendingRevalidates || []
                     )
+                    addImplicitTags(staticGenerationStore)
+                    ;(context.staticGenerationContext as any).fetchTags =
+                      staticGenerationStore.tags?.join(',')
 
                     // It's possible cookies were set in the handler, so we need
                     // to merge the modified cookies and the returned response
                     // here.
-                    // TODO: Move this into a helper function.
                     const requestStore = this.requestAsyncStorage.getStore()
                     if (requestStore && requestStore.mutableCookies) {
-                      const modifiedCookieValues = (
-                        requestStore.mutableCookies as any
-                      )[SYMBOL_MODIFY_COOKIE_VALUES] as NonNullable<
-                        ReturnType<InstanceType<typeof ResponseCookies>['get']>
-                      >[]
-                      if (modifiedCookieValues.length) {
-                        // Return a new response that extends the response with
-                        // the modified cookies as fallbacks. `res`' cookies
-                        // will still take precedence.
-                        const resCookies = new ResponseCookies(
-                          HeadersAdapter.from(res.headers)
+                      const headers = new Headers(res.headers)
+                      if (
+                        appendMutableCookies(
+                          headers,
+                          requestStore.mutableCookies
                         )
-                        const returnedCookies = resCookies.getAll()
-
-                        // Set the modified cookies as fallbacks.
-                        for (const cookie of modifiedCookieValues) {
-                          resCookies.set(cookie)
-                        }
-                        // Set the original cookies as the final values.
-                        for (const cookie of returnedCookies) {
-                          resCookies.set(cookie)
-                        }
-
-                        const responseHeaders = new Headers({})
-                        // Set all the headers except for the cookies.
-                        res.headers.forEach((value, key) => {
-                          if (key.toLowerCase() !== 'set-cookie') {
-                            responseHeaders.append(key, value)
-                          }
-                        })
-                        // Set the final cookies, need to append cookies one
-                        // at a time otherwise it might not work in some browsers.
-                        resCookies.getAll().forEach((cookie) => {
-                          const tempCookies = new ResponseCookies(new Headers())
-                          tempCookies.set(cookie)
-                          responseHeaders.append(
-                            'Set-Cookie',
-                            tempCookies.toString()
-                          )
-                        })
-
+                      ) {
                         return new Response(res.body, {
                           status: res.status,
                           statusText: res.statusText,
-                          headers: responseHeaders,
+                          headers,
                         })
                       }
                     }

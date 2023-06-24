@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_binding::turbo::tasks::primitives::{OptionStringVc, StringVc};
+use turbopack_binding::turbo::tasks::primitives::{OptionStringVc, StringVc};
 
 use super::FontCssPropertiesVc;
 use crate::next_font::{
