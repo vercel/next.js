@@ -54,8 +54,19 @@ initialize({ webpackHMR })
 
       let buildIndicatorHandler: any = () => {}
 
-      function devPagesManifestListener(event: any) {
-        if (event.data.includes('devPagesManifest')) {
+      function devPagesHmrListener(event: any) {
+        let payload
+        try {
+          payload = JSON.parse(event.data)
+        } catch {}
+        if (payload.event === 'server-error' && payload.errorJSON) {
+          const { stack, message } = JSON.parse(payload.errorJSON)
+          const error = new Error(message)
+          error.stack = stack
+          throw error
+        } else if (payload.action === 'reloadPage') {
+          window.location.reload()
+        } else if (payload.action === 'devPagesManifestUpdate') {
           fetch(
             `${assetPrefix}/_next/static/development/_devPagesManifest.json`
           )
@@ -66,10 +77,10 @@ initialize({ webpackHMR })
             .catch((err) => {
               console.log(`Failed to fetch devPagesManifest`, err)
             })
-        } else if (event.data.includes('middlewareChanges')) {
+        } else if (payload.event === 'middlewareChanges') {
           return window.location.reload()
-        } else if (event.data.includes('serverOnlyChanges')) {
-          const { pages } = JSON.parse(event.data)
+        } else if (payload.event === 'serverOnlyChanges') {
+          const { pages } = payload
 
           // Make sure to reload when the dev-overlay is showing for an
           // API route
@@ -106,7 +117,7 @@ initialize({ webpackHMR })
           }
         }
       }
-      addMessageListener(devPagesManifestListener)
+      addMessageListener(devPagesHmrListener)
 
       if (process.env.__NEXT_BUILD_INDICATOR) {
         initializeBuildWatcher((handler: any) => {
