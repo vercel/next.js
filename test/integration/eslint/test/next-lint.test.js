@@ -33,6 +33,7 @@ const dirEmptyDirectory = join(__dirname, '../empty-directory')
 const dirEslintIgnore = join(__dirname, '../eslint-ignore')
 const dirNoEslintPlugin = join(__dirname, '../no-eslint-plugin')
 const dirNoConfig = join(__dirname, '../no-config')
+const dirNoConfigApp = join(__dirname, '../no-config-app')
 const dirEslintCache = join(__dirname, '../eslint-cache')
 const dirEslintCacheCustomDir = join(__dirname, '../eslint-cache-custom-dir')
 const dirFileLinting = join(__dirname, '../file-linting')
@@ -45,6 +46,34 @@ describe('Next Lint', () => {
       const folder = join(os.tmpdir(), Math.random().toString(36).substring(2))
       await fs.mkdirp(folder)
       await fs.copy(dirNoConfig, folder)
+      await setupCallback?.(folder)
+
+      try {
+        const { stdout, stderr } = await nextLint(folder, ['--strict'], {
+          stderr: true,
+          stdout: true,
+          cwd: folder,
+        })
+
+        console.log({ stdout, stderr })
+
+        const pkgJson = JSON.parse(
+          await fs.readFile(join(folder, 'package.json'), 'utf8')
+        )
+        const eslintrcJson = JSON.parse(
+          await fs.readFile(join(folder, '.eslintrc.json'), 'utf8')
+        )
+
+        return { stdout, pkgJson, eslintrcJson }
+      } finally {
+        await fs.remove(folder)
+      }
+    }
+
+    async function nextLintTempWithApp(setupCallback) {
+      const folder = join(os.tmpdir(), Math.random().toString(36).substring(2))
+      await fs.mkdirp(folder)
+      await fs.copy(dirNoConfigApp, folder)
       await setupCallback?.(folder)
 
       try {
@@ -109,6 +138,15 @@ describe('Next Lint', () => {
 
     test('creates .eslintrc.json file with a default configuration', async () => {
       const { stdout, eslintrcJson } = await nextLintTemp()
+
+      expect(stdout).toContain(
+        'We created the .eslintrc.json file for you and included your selected configuration'
+      )
+      expect(eslintrcJson).toMatchObject({ extends: 'next/core-web-vitals' })
+    })
+
+    test('creates .eslintrc.json file with a default configuration when using app router', async () => {
+      const { stdout, eslintrcJson } = await nextLintTempWithApp()
 
       expect(stdout).toContain(
         'We created the .eslintrc.json file for you and included your selected configuration'
