@@ -30,12 +30,14 @@ import {
 import { traverseModules, forEachEntryModule } from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { getProxiedPluginState } from '../../build-context'
+import { SizeLimit } from '../../../../types'
 
 interface Options {
   dev: boolean
   appDir: string
   isEdgeServer: boolean
   useServerActions: boolean
+  serverActionsSizeLimit?: SizeLimit
 }
 
 const PLUGIN_NAME = 'ClientEntryPlugin'
@@ -151,6 +153,7 @@ export class ClientReferenceEntryPlugin {
   appDir: string
   isEdgeServer: boolean
   useServerActions: boolean
+  serverActionsSizeLimit?: SizeLimit
   assetPrefix: string
 
   constructor(options: Options) {
@@ -158,6 +161,7 @@ export class ClientReferenceEntryPlugin {
     this.appDir = options.appDir
     this.isEdgeServer = options.isEdgeServer
     this.useServerActions = options.useServerActions
+    this.serverActionsSizeLimit = options.serverActionsSizeLimit
     this.assetPrefix = !this.dev && !this.isEdgeServer ? '../' : ''
   }
 
@@ -353,9 +357,15 @@ export class ClientReferenceEntryPlugin {
       }
     })
 
+    const createdActions = new Set<string>()
     for (const [name, actionEntryImports] of Object.entries(
       actionMapsPerEntry
     )) {
+      for (const [dep, actionNames] of actionEntryImports) {
+        for (const actionName of actionNames) {
+          createdActions.add(name + '@' + dep + '@' + actionName)
+        }
+      }
       addActionEntryList.push(
         this.injectActionEntry({
           compiler,
@@ -453,16 +463,38 @@ export class ClientReferenceEntryPlugin {
       for (const [name, actionEntryImports] of Object.entries(
         actionMapsPerClientEntry
       )) {
-        addedClientActionEntryList.push(
-          this.injectActionEntry({
-            compiler,
-            compilation,
-            actions: actionEntryImports,
-            entryName: name,
-            bundlePath: name,
-            fromClient: true,
-          })
-        )
+        // If an action method is already created in the server layer, we don't
+        // need to create it again in the action layer.
+        // This is to avoid duplicate action instances and make sure the module
+        // state is shared.
+        let remainingClientImportedActions = false
+        const remainingActionEntryImports = new Map<string, string[]>()
+        for (const [dep, actionNames] of actionEntryImports) {
+          const remainingActionNames = []
+          for (const actionName of actionNames) {
+            const id = name + '@' + dep + '@' + actionName
+            if (!createdActions.has(id)) {
+              remainingActionNames.push(actionName)
+            }
+          }
+          if (remainingActionNames.length > 0) {
+            remainingActionEntryImports.set(dep, remainingActionNames)
+            remainingClientImportedActions = true
+          }
+        }
+
+        if (remainingClientImportedActions) {
+          addedClientActionEntryList.push(
+            this.injectActionEntry({
+              compiler,
+              compilation,
+              actions: remainingActionEntryImports,
+              entryName: name,
+              bundlePath: name,
+              fromClient: true,
+            })
+          )
+        }
       }
 
       return Promise.all(addedClientActionEntryList)

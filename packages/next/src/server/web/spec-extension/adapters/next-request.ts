@@ -8,7 +8,8 @@ import { NextRequest } from '../request'
 
 export class NextRequestAdapter {
   public static fromBaseNextRequest(request: BaseNextRequest): NextRequest {
-    if (request.constructor.name === 'WebNextRequest') {
+    // TODO: look at refining this check
+    if ('request' in request && (request as WebNextRequest).request) {
       return NextRequestAdapter.fromWebNextRequest(request as WebNextRequest)
     }
 

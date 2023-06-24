@@ -25,7 +25,7 @@ When you enable OpenTelemetry we will automatically wrap all your code like `get
 
 OpenTelemetry is extensible but setting it up properly can be quite verbose.
 That's why we prepared a package `@vercel/otel` that helps you get started quickly.
-It's not extensible and you should configure OpenTelemetry manually you need to customize your setup.
+It's not extensible and you should configure OpenTelemetry manually if you need to customize your setup.
 
 ### Using `@vercel/otel`
 
@@ -35,7 +35,7 @@ To get started, you must install `@vercel/otel`:
 npm install @vercel/otel
 ```
 
-Next, create a custom [`instrumentation.ts`](/docs/pages/building-your-application/optimizing/instrumentation) (or `.js`) file in the **root directory** of the project:
+Next, create a custom [`instrumentation.ts`](/docs/pages/building-your-application/optimizing/instrumentation) (or `.js`) file in the **root directory** of the project (or inside `src` folder if using one):
 
 ```ts filename="your-project/instrumentation.ts" switcher
 import { registerOTel } from '@vercel/otel'
@@ -55,7 +55,7 @@ export function register() {
 
 > **Good to know**
 >
-> - The `instrumentation` file should be in the root of your project and not the `app` or `pages` directory.
+> - The `instrumentation` file should be in the root of your project and not inside the `app` or `pages` directory. If you're using the `src` folder, then place the file inside `src` alongside `pages` and `app`.
 > - If you use the [`pagesExtension` config option](/docs/pages/api-reference/next-config-js/pageExtensions) to add a suffix, you will also need to update the `instrumentation` filename to match.
 > - We have created a basic [with-opentelemetry](https://github.com/vercel/next.js/tree/canary/examples/with-opentelemetry) example that you can use.
 
