@@ -584,5 +584,18 @@ createNextDescribe(
         })
       })
     }
+
+    describe('no response returned', () => {
+      it('should print an error when no response is returned', async () => {
+        await next.fetch('/no-response', { method: 'POST' })
+
+        await check(() => {
+          expect(next.cliOutput).toMatch(
+            /No response is returned from route handler '.+\/route\.ts'\. Ensure you return a `Response` or a `NextResponse` in all branches of your handler\./
+          )
+          return 'yes'
+        }, 'yes')
+      })
+    })
   }
 )

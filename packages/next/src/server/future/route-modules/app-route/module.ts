@@ -362,7 +362,7 @@ export class AppRouteRouteModule extends RouteModule<
                     })
                     if (!(res instanceof Response)) {
                       throw new Error(
-                        `Route handler ${context.staticGenerationContext.originalPathname} resolved without returning a \`Response\` or a \`NextResponse\``
+                        `No response is returned from route handler '${this.resolvedPagePath}'. Ensure you return a \`Response\` or a \`NextResponse\` in all branches of your handler.`
                       )
                     }
                     ;(context.staticGenerationContext as any).fetchMetrics =
