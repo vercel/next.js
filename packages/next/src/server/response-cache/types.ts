@@ -18,6 +18,7 @@ export interface CachedFetchValue {
   data: {
     headers: { [k: string]: string }
     body: string
+    url: string
     status?: number
     tags?: string[]
   }
