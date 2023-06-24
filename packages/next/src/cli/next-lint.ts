@@ -172,7 +172,7 @@ const nextLint: CliCommand = async (argv) => {
   const nextConfig = await loadConfig(PHASE_PRODUCTION_BUILD, baseDir)
 
   const files: string[] = args['--file'] ?? []
-  const dirs: string[] = args['--dir'] ?? nextConfig.eslint?.dirs
+  const dirs: string[] = args['--dir'] ?? args['--file'] ? [] : nextConfig.eslint?.dirs ?? [];
   const filesToLint = [...(dirs ?? []), ...files]
 
   // Remove that when the `appDir` will be stable.
