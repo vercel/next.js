@@ -112,9 +112,11 @@ createNextDescribe(
         await browser.elementByCss('#size-2mb').click()
 
         await check(() => {
-          return logs.some((log) =>
-            log.includes('Error: Body exceeded 1.5mb limit')
-          )
+          const fullLog = logs.join('')
+          return fullLog.includes('Error: Body exceeded 1.5mb limit') &&
+            fullLog.includes(
+              'To configure the body size limit for Server Actions, see'
+            )
             ? 'yes'
             : ''
         }, 'yes')
