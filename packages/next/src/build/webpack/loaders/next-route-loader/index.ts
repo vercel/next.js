@@ -6,6 +6,16 @@ import { PagesRouteModuleOptions } from '../../../../server/future/route-modules
 import { RouteKind } from '../../../../server/future/route-kind'
 import { normalizePagePath } from '../../../../shared/lib/page-path/normalize-page-path'
 import { MiddlewareConfig } from '../../../analysis/get-page-static-info'
+import { decodeFromBase64, encodeToBase64 } from '../utils'
+import { isInstrumentationHookFile } from '../../../worker'
+
+type RouteLoaderOptionsInput = {
+  page: string
+  pages: { [page: string]: string }
+  preferredRegion: string | string[] | undefined
+  absolutePagePath: string
+  middlewareConfig: MiddlewareConfig
+}
 
 /**
  * The options for the route loader.
@@ -25,17 +35,29 @@ type RouteLoaderOptions = {
    * The absolute path to the userland page file.
    */
   absolutePagePath: string
-
-  middlewareConfig: string
+  absoluteAppPath: string
+  absoluteDocumentPath: string
+  middlewareConfigBase64: string
 }
 
 /**
  * Returns the loader entry for a given page.
  *
- * @param query the options to create the loader entry
+ * @param options the options to create the loader entry
  * @returns the encoded loader entry
  */
-export function getRouteLoaderEntry(query: RouteLoaderOptions): string {
+export function getRouteLoaderEntry(options: RouteLoaderOptionsInput): string {
+  const query: RouteLoaderOptions = {
+    page: options.page,
+    preferredRegion: options.preferredRegion,
+    absolutePagePath: options.absolutePagePath,
+    // These are the path references to the internal components that may be
+    // overridden by userland components.
+    absoluteAppPath: options.pages['/_app'],
+    absoluteDocumentPath: options.pages['/_document'],
+    middlewareConfigBase64: encodeToBase64(options.middlewareConfig),
+  }
+
   return `next-route-loader?${stringify(query)}!`
 }
 
@@ -49,7 +71,9 @@ const loader: webpack.LoaderDefinitionFunction<RouteLoaderOptions> =
       page,
       preferredRegion,
       absolutePagePath,
-      middlewareConfig: middlewareConfigBase64,
+      absoluteAppPath,
+      absoluteDocumentPath,
+      middlewareConfigBase64,
     } = this.getOptions()
 
     // Ensure we only run this loader for as a module.
@@ -57,8 +81,8 @@ const loader: webpack.LoaderDefinitionFunction<RouteLoaderOptions> =
       throw new Error('Invariant: expected this to reference a module')
     }
 
-    const middlewareConfig: MiddlewareConfig = JSON.parse(
-      Buffer.from(middlewareConfigBase64, 'base64').toString()
+    const middlewareConfig: MiddlewareConfig = decodeFromBase64(
+      middlewareConfigBase64
     )
 
     // Attach build info to the module.
@@ -70,7 +94,7 @@ const loader: webpack.LoaderDefinitionFunction<RouteLoaderOptions> =
       middlewareConfig,
     }
 
-    const options: Omit<PagesRouteModuleOptions, 'userland'> = {
+    const options: Omit<PagesRouteModuleOptions, 'userland' | 'components'> = {
       definition: {
         kind: RouteKind.PAGES,
         page: normalizePagePath(page),
@@ -86,6 +110,10 @@ const loader: webpack.LoaderDefinitionFunction<RouteLoaderOptions> =
         import RouteModule from "next/dist/server/future/route-modules/pages/module"
         import { hoist } from "next/dist/build/webpack/loaders/next-route-loader/helpers"
 
+        // Import the app and document modules.
+        import * as moduleDocument from ${JSON.stringify(absoluteDocumentPath)}
+        import * as moduleApp from ${JSON.stringify(absoluteAppPath)}
+
         // Import the userland code.
         import * as userland from ${JSON.stringify(absolutePagePath)}
 
@@ -98,6 +126,14 @@ const loader: webpack.LoaderDefinitionFunction<RouteLoaderOptions> =
         export const getServerSideProps = hoist(userland, "getServerSideProps")
         export const config = hoist(userland, "config")
         export const reportWebVitals = hoist(userland, "reportWebVitals")
+        ${
+          // When we're building the instrumentation page (only when the
+          // instrumentation file conflicts with a page also labeled
+          // /instrumentation) hoist the `register` method.
+          isInstrumentationHookFile(page)
+            ? 'export const register = hoist(userland, "register")'
+            : ''
+        }
 
         // Re-export legacy methods.
         export const unstable_getStaticProps = hoist(userland, "unstable_getStaticProps")
@@ -108,7 +144,14 @@ const loader: webpack.LoaderDefinitionFunction<RouteLoaderOptions> =
 
         // Create and export the route module that will be consumed.
         const options = ${JSON.stringify(options)}
-        const routeModule = new RouteModule({ ...options, userland })
+        const routeModule = new RouteModule({
+          ...options,
+          components: {
+            App: moduleApp.default,
+            Document: moduleDocument.default,
+          },
+          userland,
+        })
         
         export { routeModule }
     `
