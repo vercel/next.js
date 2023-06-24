@@ -21,7 +21,7 @@ use turbopack_binding::turbopack::{
         source_asset::SourceAssetVc,
     },
     ecmascript::{
-        analyzer::{graph::EvalContext, JsValue},
+        analyzer::{graph::EvalContext, ConstantNumber, ConstantValue, JsValue},
         parse::ParseResult,
         EcmascriptModuleAssetVc,
     },
@@ -52,12 +52,22 @@ pub enum NextSegmentFetchCache {
     ForceNoStore,
 }
 
+#[derive(Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, Serialize, Deserialize)]
+pub enum NextRevalidate {
+    #[default]
+    Never,
+    ForceCache,
+    Frequency {
+        seconds: u32,
+    },
+}
+
 #[turbo_tasks::value]
 #[derive(Debug, Default)]
 pub struct NextSegmentConfig {
     pub dynamic: Option<NextSegmentDynamic>,
     pub dynamic_params: Option<bool>,
-    pub revalidate: Option<bool>,
+    pub revalidate: Option<NextRevalidate>,
     pub fetch_cache: Option<NextSegmentFetchCache>,
     pub runtime: Option<NextRuntime>,
     pub preferred_region: Option<String>,
@@ -294,11 +304,26 @@ fn parse_config_value(
         }
         "revalidate" => {
             let value = eval_context.eval(init);
-            let Some(val) = value.as_bool() else {
-                return invalid_config("`revalidate` needs to be a static boolean", &value);
-            };
-
-            config.revalidate = Some(val);
+            match value {
+                JsValue::Constant(ConstantValue::Num(ConstantNumber(val))) if val >= 0.0 => {
+                    config.revalidate = Some(NextRevalidate::Frequency {
+                        seconds: val as u32,
+                    });
+                }
+                JsValue::Constant(ConstantValue::False) => {
+                    config.revalidate = Some(NextRevalidate::Never);
+                }
+                JsValue::Constant(ConstantValue::Str(str)) if str.as_str() == "force-cache" => {
+                    config.revalidate = Some(NextRevalidate::ForceCache);
+                }
+                _ => {
+                    return invalid_config(
+                        "`revalidate` needs to be static false, static 'force-cache' or a static \
+                         positive integer",
+                        &value,
+                    )
+                }
+            }
         }
         "fetchCache" => {
             let value = eval_context.eval(init);
