@@ -281,7 +281,8 @@ fn parse_config_value(
         "dynamic" => {
             let value = eval_context.eval(init);
             let Some(val) = value.as_str() else {
-                return invalid_config("`dynamic` needs to be a static string", &value);
+                invalid_config("`dynamic` needs to be a static string", &value);
+                return;
             };
 
             config.dynamic = match serde_json::from_value(Value::String(val.to_string())) {
@@ -295,7 +296,8 @@ fn parse_config_value(
         "dynamicParams" => {
             let value = eval_context.eval(init);
             let Some(val) = value.as_bool() else {
-                return invalid_config("`dynamicParams` needs to be a static boolean", &value);
+                invalid_config("`dynamicParams` needs to be a static boolean", &value);
+                return
             };
 
             config.dynamic_params = Some(val);
@@ -324,39 +326,41 @@ fn parse_config_value(
         "fetchCache" => {
             let value = eval_context.eval(init);
             let Some(val) = value.as_str() else {
-                return invalid_config("`fetchCache` needs to be a static string", &value);
+                invalid_config("`fetchCache` needs to be a static string", &value);
+                return;
             };
 
             config.fetch_cache = match serde_json::from_value(Value::String(val.to_string())) {
                 Ok(fetch_cache) => Some(fetch_cache),
                 Err(err) => {
-                    return invalid_config(
+                    invalid_config(
                         &format!("`fetchCache` has an invalid value: {}", err),
                         &value,
-                    )
+                    );
+                    return;
                 }
             };
         }
         "runtime" => {
             let value = eval_context.eval(init);
             let Some(val) = value.as_str() else {
-                return invalid_config("`runtime` needs to be a static string", &value);
+                invalid_config("`runtime` needs to be a static string", &value);
+                return;
             };
 
             config.runtime = match serde_json::from_value(Value::String(val.to_string())) {
                 Ok(runtime) => Some(runtime),
                 Err(err) => {
-                    return invalid_config(
-                        &format!("`runtime` has an invalid value: {}", err),
-                        &value,
-                    )
+                    invalid_config(&format!("`runtime` has an invalid value: {}", err), &value);
+                    return;
                 }
             };
         }
         "preferredRegion" => {
             let value = eval_context.eval(init);
             let Some(val) = value.as_str() else {
-                return invalid_config("`preferredRegion` needs to be a static string", &value);
+                invalid_config("`preferredRegion` needs to be a static string", &value);
+                return;
             };
 
             config.preferred_region = Some(val.to_string());

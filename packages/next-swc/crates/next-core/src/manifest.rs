@@ -220,10 +220,9 @@ impl GetContentSourceContent for DevManifestContentSource {
             _ => bail!("unknown path: {}", path),
         };
 
-        Ok(
-            ContentSourceContentVc::static_content(AssetContentVc::from(manifest_file).into())
-                .into(),
-        )
+        Ok(ContentSourceContentVc::static_content(
+            AssetContentVc::from(manifest_file).into(),
+        ))
     }
 }
 

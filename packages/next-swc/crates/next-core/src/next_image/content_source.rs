@@ -112,9 +112,7 @@ impl GetContentSourceContent for NextImageContentSource {
                 .collect();
             let sources = GetContentSourceContentsVc::cell(sources);
             return Ok(
-                ContentSourceContent::Rewrite(RewriteBuilder::new_sources(sources).build())
-                    .cell()
-                    .into(),
+                ContentSourceContent::Rewrite(RewriteBuilder::new_sources(sources).build()).cell(),
             );
         }
 
@@ -127,8 +125,7 @@ impl GetContentSourceContent for NextImageContentSource {
             }
             .cell(),
         )
-        .cell()
-        .into())
+        .cell())
     }
 }
 
