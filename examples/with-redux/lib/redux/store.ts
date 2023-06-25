@@ -1,7 +1,6 @@
 /* Core */
 import {
   configureStore,
-  type ConfigureStoreOptions,
   type ThunkAction,
   type Action,
 } from '@reduxjs/toolkit'
@@ -14,16 +13,6 @@ import {
 /* Instruments */
 import { reducer } from './rootReducer'
 import { middleware } from './middleware'
-
-const configreStoreDefaultOptions: ConfigureStoreOptions = { reducer }
-
-export const makeReduxStore = (
-  options: ConfigureStoreOptions = configreStoreDefaultOptions
-) => {
-  const store = configureStore(options)
-
-  return store
-}
 
 export const reduxStore = configureStore({
   reducer,
