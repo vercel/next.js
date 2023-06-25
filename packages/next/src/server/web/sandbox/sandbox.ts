@@ -4,6 +4,7 @@ import { getModuleContext } from './context'
 import { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
 import { requestToBodyStream } from '../../body-streams'
 import type { EdgeRuntime } from 'next/dist/compiled/edge-runtime'
+import { NEXT_RSC_UNION_QUERY } from '../../../client/components/app-router-headers'
 
 export const ErrorSource = Symbol('SandboxError')
 
@@ -44,7 +45,7 @@ function withTaggedErrors(fn: RunnerFn): RunnerFn {
       })
 }
 
-export const getRuntimeContext = async (params: {
+export async function getRuntimeContext(params: {
   name: string
   onWarning?: any
   useCache: boolean
@@ -52,7 +53,7 @@ export const getRuntimeContext = async (params: {
   distDir: string
   paths: string[]
   incrementalCache?: any
-}): Promise<EdgeRuntime<any>> => {
+}): Promise<EdgeRuntime<any>> {
   const { runtime, evaluateInContext } = await getModuleContext({
     moduleName: params.name,
     onWarning: params.onWarning ?? (() => {}),
@@ -71,7 +72,7 @@ export const getRuntimeContext = async (params: {
   return runtime
 }
 
-export const run = withTaggedErrors(async (params) => {
+export const run = withTaggedErrors(async function runWithTaggedErrors(params) {
   const runtime = await getRuntimeContext(params)
   const subreq = params.request.headers[`x-middleware-subrequest`]
   const subrequests = typeof subreq === 'string' ? subreq.split(':') : []
@@ -96,6 +97,10 @@ export const run = withTaggedErrors(async (params) => {
     : undefined
 
   const KUint8Array = runtime.evaluate('Uint8Array')
+  const urlInstance = new URL(params.request.url)
+  urlInstance.searchParams.delete(NEXT_RSC_UNION_QUERY)
+
+  params.request.url = urlInstance.toString()
 
   try {
     const result = await edgeFunction({

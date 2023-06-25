@@ -1,0 +1,218 @@
+name: build-and-test
+
+on:
+  push:
+    branches: ['canary']
+  pull_request:
+    types: [opened, synchronize]
+
+env:
+  NAPI_CLI_VERSION: 2.14.7
+  TURBO_VERSION: 1.9.6
+  PNPM_VERSION: 7.24.3
+  NODE_MAINTENANCE_VERSION: 16
+  NODE_LTS_VERSION: 18
+  TEST_CONCURRENCY: 6
+  # disable backtrace for test snapshots
+  RUST_BACKTRACE: 0
+
+  TURBO_TEAM: 'vercel'
+  TURBO_REMOTE_ONLY: 'true'
+  NEXT_TELEMETRY_DISABLED: 1
+  # we build a dev binary for use in CI so skip downloading
+  # canary next-swc binaries in the monorepo
+  NEXT_SKIP_NATIVE_POSTINSTALL: 1
+  DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
+  DATADOG_TRACE_NEXTJS_TEST: 'true'
+  DD_ENV: 'ci'
+  TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
+  NEXT_TEST_JOB: 1
+
+jobs:
+  build-native:
+    name: build-native
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      skipInstallBuild: 'yes'
+    secrets: inherit
+
+  build-next:
+    name: build-next
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      skipNativeBuild: 'yes'
+    secrets: inherit
+
+  lint:
+    name: lint
+    needs: ['build-native', 'build-next']
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      afterBuild: pnpm lint-no-typescript && pnpm check-examples
+    secrets: inherit
+
+  check-types-precompiled:
+    name: types and precompiled
+    needs: ['build-native', 'build-next']
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      afterBuild: pnpm types-and-precompiled
+      skipForDocsOnly: 'yes'
+    secrets: inherit
+
+  test-cargo-unit:
+    name: test cargo unit
+    needs: ['build-next']
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      skipForDocsOnly: 'yes'
+      needsRust: 'yes'
+      skipInstallBuild: 'yes'
+      skipNativeBuild: 'yes'
+      afterBuild: turbo run test-cargo-unit
+      mold: 'yes'
+    secrets: inherit
+
+  test-cargo-integration:
+    name: test cargo integration
+    needs: ['build-next']
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      skipForDocsOnly: 'yes'
+      needsNextest: 'yes'
+      needsRust: 'yes'
+      skipNativeBuild: 'yes'
+      afterBuild: xvfb-run turbo run test-cargo-integration
+
+  test-cargo-bench:
+    name: test cargo benchmarks
+    needs: ['build-next']
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      skipForDocsOnly: 'yes'
+      skipForRelease: 'yes'
+      needsRust: 'yes'
+      skipNativeBuild: 'yes'
+      afterBuild: xvfb-run turbo run test-cargo-bench
+
+  rust-check:
+    name: rust check
+    needs: ['build-next']
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      skipForDocsOnly: 'yes'
+      needsRust: 'yes'
+      skipInstallBuild: 'yes'
+      skipNativeBuild: 'yes'
+      afterBuild: turbo run rust-check
+    secrets: inherit
+
+  test-turbopack-dev:
+    name: test turbopack dev
+    needs: ['build-native', 'build-next']
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      skipForDocsOnly: 'yes'
+      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/packages/next-swc/crates/next-dev-tests/tests-manifest.js" TURBOPACK=1 __INTERNAL_CUSTOM_TURBOPACK_BINDINGS="$(pwd)/packages/next-swc/native/next-swc.linux-x64-gnu.node" NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_MODE=dev node run-tests.js --type development --timings -c ${TEST_CONCURRENCY}
+    secrets: inherit
+
+  test-next-swc-wasm:
+    name: test next-swc wasm
+    needs: ['build-native', 'build-next']
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      skipForDocsOnly: 'yes'
+      afterBuild: rustup target add wasm32-unknown-unknown && curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh && node ./scripts/normalize-version-bump.js && turbo run build-wasm -- --target nodejs --features tracing/release_max_level_info && git checkout . && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-nodejs && node ./scripts/setup-wasm.mjs && NEXT_TEST_MODE=start TEST_WASM=true node run-tests.js test/integration/production/test/index.test.js test/e2e/streaming-ssr/index.test.ts
+    secrets: inherit
+
+  test-dev:
+    name: test dev
+    needs: ['build-native', 'build-next']
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3]
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      skipForDocsOnly: 'yes'
+      afterBuild: NEXT_TEST_MODE=dev node run-tests.js --timings -g ${{ matrix.group }}/3 -c ${TEST_CONCURRENCY} --test-pattern '^(development|e2e|unit)/.*\.test\.(js|jsx|ts|tsx)$'
+    secrets: inherit
+
+  test-prod:
+    name: test prod
+    needs: ['build-native', 'build-next']
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3]
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      skipForDocsOnly: 'yes'
+      afterBuild: NEXT_TEST_MODE=start node run-tests.js --timings -g ${{ matrix.group }}/3 -c ${TEST_CONCURRENCY} --test-pattern '^(production|e2e)/.*\.test\.(js|jsx|ts|tsx)$'
+    secrets: inherit
+
+  test-integration:
+    name: test integration
+    needs: ['build-native', 'build-next']
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3, 4, 5, 6]
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      nodeVersion: 16
+      skipForDocsOnly: 'yes'
+      afterBuild: node run-tests.js --timings -g ${{ matrix.group }}/6 -c ${TEST_CONCURRENCY} --test-pattern '^(integration)/.*\.test\.(js|jsx|ts|tsx)$'
+    secrets: inherit
+
+  test-firefox-safari:
+    name: test firefox and safari
+    needs: ['build-native', 'build-next']
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      skipForDocsOnly: 'yes'
+      afterBuild: pnpm playwright install && BROWSER_NAME=firefox node run-tests.js test/integration/production/test/index.test.js && BROWSER_NAME=safari NEXT_TEST_MODE=start node run-tests.js -c 1 test/integration/production/test/index.test.js test/e2e/basepath.test.ts && BROWSER_NAME=safari DEVICE_NAME='iPhone XR' node run-tests.js -c 1 test/production/prerender-prefetch/index.test.ts
+    secrets: inherit
+
+  report-test-results:
+    needs: ['test-dev', 'test-prod', 'test-integration', 'test-turbopack-dev']
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      skipForDocsOnly: 'yes'
+      uploadTestTrace: 'yes'
+    secrets: inherit
+
+  tests-pass:
+    needs:
+      [
+        'build-native',
+        'build-next',
+        'lint',
+        'check-types-precompiled',
+        'test-dev',
+        'test-prod',
+        'test-integration',
+        'test-cargo-unit',
+        'test-cargo-integration',
+        'test-cargo-bench',
+        'rust-check',
+        'test-next-swc-wasm',
+        'test-turbopack-dev',
+      ]
+
+    if: always()
+    runs-on: [self-hosted, linux, x64]
+    name: thank you, next
+    steps:
+      - run: exit 1
+        if: ${{ always() && contains(needs.*.result, 'failure') }}

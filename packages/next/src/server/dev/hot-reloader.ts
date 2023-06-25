@@ -1,6 +1,9 @@
-import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
 import type { NextConfigComplete } from '../config-shared'
 import type { CustomRoutes } from '../../lib/load-custom-routes'
+import type { Duplex } from 'stream'
+import type { Telemetry } from '../../telemetry/storage'
+
+import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
 import { getOverlayMiddleware } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
 import { IncomingMessage, ServerResponse } from 'http'
 import { WebpackHotMiddleware } from './hot-middleware'
@@ -55,11 +58,10 @@ import { promises as fs } from 'fs'
 import { UnwrapPromise } from '../../lib/coalesced-function'
 import { getRegistry } from '../../lib/helpers/get-registry'
 import { RouteMatch } from '../future/route-matches/route-match'
-import type { Telemetry } from '../../telemetry/storage'
 import { parseVersionInfo, VersionInfo } from './parse-version-info'
 import { isAPIRoute } from '../../lib/is-api-route'
 import { getRouteLoaderEntry } from '../../build/webpack/loaders/next-route-loader'
-import { isInternalPathname } from '../../lib/is-internal-pathname'
+import { isInternalComponent } from '../../lib/is-internal-component'
 
 function diff(a: Set<any>, b: Set<any>) {
   return new Set([...a].filter((v) => !b.has(v)))
@@ -166,6 +168,9 @@ function erroredPages(compilation: webpack.Compilation) {
 }
 
 export default class HotReloader {
+  private hasAmpEntrypoints: boolean
+  private hasAppRouterEntrypoints: boolean
+  private hasPagesRouterEntrypoints: boolean
   private dir: string
   private buildId: string
   private interceptors: any[]
@@ -179,6 +184,7 @@ export default class HotReloader {
   public edgeServerStats: webpack.Stats | null
   private clientError: Error | null = null
   private serverError: Error | null = null
+  private hmrServerError: Error | null = null
   private serverPrevDocumentHash: string | null
   private serverChunkNames?: Set<string>
   private prevChunkNames?: Set<any>
@@ -222,6 +228,9 @@ export default class HotReloader {
       telemetry: Telemetry
     }
   ) {
+    this.hasAmpEntrypoints = false
+    this.hasAppRouterEntrypoints = false
+    this.hasPagesRouterEntrypoints = false
     this.buildId = buildId
     this.dir = dir
     this.interceptors = []
@@ -318,10 +327,21 @@ export default class HotReloader {
     return { finished }
   }
 
-  public onHMR(req: IncomingMessage, _res: ServerResponse, head: Buffer) {
+  public setHmrServerError(error: Error | null): void {
+    this.hmrServerError = error
+  }
+
+  public clearHmrServerError(): void {
+    if (this.hmrServerError) {
+      this.setHmrServerError(null)
+      this.send('reloadPage')
+    }
+  }
+
+  public onHMR(req: IncomingMessage, _socket: Duplex, head: Buffer) {
     wsServer.handleUpgrade(req, req.socket, head, (client) => {
       this.webpackHotMiddleware?.onHMR(client)
-      this.onDemandEntries?.onHMR(client)
+      this.onDemandEntries?.onHMR(client, () => this.hmrServerError)
 
       client.addEventListener('message', ({ data }) => {
         data = typeof data !== 'string' ? data.toString() : data
@@ -718,6 +738,11 @@ export default class HotReloader {
               }
             }
 
+            // Ensure _error is considered a `pages` page.
+            if (page === '/_error') {
+              this.hasPagesRouterEntrypoints = true
+            }
+
             const hasAppDir = !!this.appDir
             const isAppPath = hasAppDir && bundlePath.startsWith('app/')
             const staticInfo = isEntry
@@ -731,6 +756,10 @@ export default class HotReloader {
                   page,
                 })
               : {}
+
+            if (staticInfo.amp === true || staticInfo.amp === 'hybrid') {
+              this.hasAmpEntrypoints = true
+            }
             const isServerComponent =
               isAppPath && staticInfo.rsc !== RSC_MODULE_TYPES.client
 
@@ -739,6 +768,14 @@ export default class HotReloader {
               : entryData.bundlePath.startsWith('app/')
               ? 'app'
               : 'root'
+
+            if (pageType === 'pages') {
+              this.hasPagesRouterEntrypoints = true
+            }
+            if (pageType === 'app') {
+              this.hasAppRouterEntrypoints = true
+            }
+
             await runDependingOnPageType({
               page,
               pageRuntime: staticInfo.runtime,
@@ -767,6 +804,9 @@ export default class HotReloader {
                       assetPrefix: this.config.assetPrefix,
                       nextConfigOutput: this.config.output,
                       preferredRegion: staticInfo.preferredRegion,
+                      middlewareConfig: Buffer.from(
+                        JSON.stringify(staticInfo.middleware || {})
+                      ).toString('base64'),
                     }).import
                   : undefined
 
@@ -851,16 +891,21 @@ export default class HotReloader {
                     assetPrefix: this.config.assetPrefix,
                     nextConfigOutput: this.config.output,
                     preferredRegion: staticInfo.preferredRegion,
+                    middlewareConfig: Buffer.from(
+                      JSON.stringify(staticInfo.middleware || {})
+                    ).toString('base64'),
                   })
                 } else if (
                   !isAPIRoute(page) &&
                   !isMiddlewareFile(page) &&
-                  !isInternalPathname(relativeRequest)
+                  !isInternalComponent(relativeRequest)
                 ) {
                   value = getRouteLoaderEntry({
                     page,
+                    pages: this.pagesMapping,
                     absolutePagePath: relativeRequest,
                     preferredRegion: staticInfo.preferredRegion,
+                    middlewareConfig: staticInfo.middleware ?? {},
                   })
                 } else {
                   value = relativeRequest
@@ -877,6 +922,21 @@ export default class HotReloader {
             })
           })
         )
+
+        if (!this.hasAmpEntrypoints) {
+          delete entrypoints.amp
+        }
+        if (!this.hasPagesRouterEntrypoints) {
+          delete entrypoints.main
+          delete entrypoints['pages/_app']
+          delete entrypoints['pages/_error']
+          delete entrypoints['/_error']
+          delete entrypoints['pages/_document']
+        }
+        if (!this.hasAppRouterEntrypoints) {
+          delete entrypoints['main-app']
+        }
+
         return entrypoints
       }
     }
@@ -1080,7 +1140,6 @@ export default class HotReloader {
         const documentChunk = compilation.namedChunks.get('pages/_document')
         // If the document chunk can't be found we do nothing
         if (!documentChunk) {
-          console.warn('_document.js chunk not found')
           return
         }
 

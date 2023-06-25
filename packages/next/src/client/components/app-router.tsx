@@ -49,6 +49,7 @@ import { RedirectBoundary } from './redirect-boundary'
 import { NotFoundBoundary } from './not-found-boundary'
 import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
 import { createInfinitePromise } from './infinite-promise'
+import { NEXT_RSC_UNION_QUERY } from './app-router-headers'
 
 const isServer = typeof window === 'undefined'
 
@@ -65,7 +66,20 @@ export function getServerActionDispatcher() {
 
 export function urlToUrlWithoutFlightMarker(url: string): URL {
   const urlWithoutFlightParameters = new URL(url, location.origin)
-  // TODO-APP: handle .rsc for static export case
+  urlWithoutFlightParameters.searchParams.delete(NEXT_RSC_UNION_QUERY)
+  if (process.env.NODE_ENV === 'production') {
+    if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
+      if (urlWithoutFlightParameters.pathname.endsWith('/index.txt')) {
+        // Slice off `/index.txt` from the end of the pathname
+        urlWithoutFlightParameters.pathname =
+          urlWithoutFlightParameters.pathname.slice(0, -`/index.txt`.length)
+      } else {
+        // Slice off `.txt` from the end of the pathname
+        urlWithoutFlightParameters.pathname =
+          urlWithoutFlightParameters.pathname.slice(0, -`.txt`.length)
+      }
+    }
+  }
   return urlWithoutFlightParameters
 }
 
@@ -81,6 +95,7 @@ type AppRouterProps = Omit<
   Omit<InitialRouterStateParameters, 'isServer' | 'location'>,
   'initialParallelRoutes'
 > & {
+  buildId: string
   initialHead: ReactNode
   assetPrefix: string
   // Top level boundaries props
@@ -122,6 +137,7 @@ function HistoryUpdater({ tree, pushRef, canonicalUrl, sync }: any) {
  * The global router that wraps the application components.
  */
 function Router({
+  buildId,
   initialHead,
   initialTree,
   initialCanonicalUrl,
@@ -134,6 +150,7 @@ function Router({
   const initialState = useMemo(
     () =>
       createInitialRouterState({
+        buildId,
         children,
         initialCanonicalUrl,
         initialTree,
@@ -142,7 +159,7 @@ function Router({
         location: !isServer ? window.location : null,
         initialHead,
       }),
-    [children, initialCanonicalUrl, initialTree, initialHead]
+    [buildId, children, initialCanonicalUrl, initialTree, initialHead]
   )
   const [
     {
@@ -211,7 +228,7 @@ function Router({
       navigateType: 'push' | 'replace',
       forceOptimisticNavigation: boolean
     ) => {
-      const url = new URL(addBasePath(href), location.origin)
+      const url = new URL(addBasePath(href), location.href)
 
       return dispatch({
         type: ACTION_NAVIGATE,
@@ -261,7 +278,7 @@ function Router({
         if (isBot(window.navigator.userAgent)) {
           return
         }
-        const url = new URL(addBasePath(href), location.origin)
+        const url = new URL(addBasePath(href), location.href)
         // External urls can't be prefetched in the same way.
         if (isExternalURL(url)) {
           return
@@ -417,18 +434,14 @@ function Router({
     return findHeadInCache(cache, tree[1])
   }, [cache, tree])
 
+  const notFoundProps = { notFound, notFoundStyles, asNotFound }
+
   const content = (
-    <NotFoundBoundary
-      notFound={notFound}
-      notFoundStyles={notFoundStyles}
-      asNotFound={asNotFound}
-    >
-      <RedirectBoundary>
-        {head}
-        {cache.subTreeData}
-        <AppRouterAnnouncer tree={tree} />
-      </RedirectBoundary>
-    </NotFoundBoundary>
+    <RedirectBoundary>
+      {head}
+      {cache.subTreeData}
+      <AppRouterAnnouncer tree={tree} />
+    </RedirectBoundary>
   )
 
   return (
@@ -443,6 +456,7 @@ function Router({
         <SearchParamsContext.Provider value={searchParams}>
           <GlobalLayoutRouterContext.Provider
             value={{
+              buildId,
               changeByServerResponse,
               tree,
               focusAndScrollRef,
@@ -460,9 +474,14 @@ function Router({
                 }}
               >
                 {HotReloader ? (
-                  <HotReloader assetPrefix={assetPrefix}>{content}</HotReloader>
+                  // HotReloader implements a separate NotFoundBoundary to maintain the HMR ping interval
+                  <HotReloader assetPrefix={assetPrefix} {...notFoundProps}>
+                    {content}
+                  </HotReloader>
                 ) : (
-                  content
+                  <NotFoundBoundary {...notFoundProps}>
+                    {content}
+                  </NotFoundBoundary>
                 )}
               </LayoutRouterContext.Provider>
             </AppRouterContext.Provider>

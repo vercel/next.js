@@ -270,6 +270,18 @@ const configSchema = {
         craCompat: {
           type: 'boolean',
         },
+        caseSensitiveRoutes: {
+          type: 'boolean',
+        },
+        useDeploymentId: {
+          type: 'boolean',
+        },
+        useDeploymentIdServerActions: {
+          type: 'boolean',
+        },
+        deploymentId: {
+          type: 'string',
+        },
         disableOptimizedLoading: {
           type: 'boolean',
         },
@@ -291,6 +303,16 @@ const configSchema = {
         },
         serverActions: {
           type: 'boolean',
+        },
+        serverActionsBodySizeLimit: {
+          oneOf: [
+            {
+              type: 'number',
+            },
+            {
+              type: 'string',
+            },
+          ] as any,
         },
         extensionAlias: {
           type: 'object',

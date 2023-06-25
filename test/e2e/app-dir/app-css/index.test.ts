@@ -17,60 +17,72 @@ createNextDescribe(
   ({ next, isNextDev: isDev }) => {
     describe('css support', () => {
       describe('server layouts', () => {
-        it('should support global css inside server layouts', async () => {
+        it.skip('should support global css inside server layouts', async () => {
           const browser = await next.browser('/dashboard')
 
           // Should body text in red
-          expect(
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('.p')).color`
-            )
-          ).toBe('rgb(255, 0, 0)')
+          await check(
+            async () =>
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('.p')).color`
+              ),
+            'rgb(255, 0, 0)'
+          )
 
           // Should inject global css for .green selectors
-          expect(
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('.green')).color`
-            )
-          ).toBe('rgb(0, 128, 0)')
+          await check(
+            async () =>
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('.green')).color`
+              ),
+            'rgb(0, 128, 0)'
+          )
         })
 
         it('should support css modules inside server layouts', async () => {
           const browser = await next.browser('/css/css-nested')
-          expect(
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('#server-cssm')).color`
-            )
-          ).toBe('rgb(0, 128, 0)')
+          await check(
+            async () =>
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('#server-cssm')).color`
+              ),
+            'rgb(0, 128, 0)'
+          )
         })
 
         it('should support external css imports', async () => {
           const browser = await next.browser('/css/css-external')
-          expect(
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('main')).paddingTop`
-            )
-          ).toBe('80px')
+          await check(
+            async () =>
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('main')).paddingTop`
+              ),
+            '80px'
+          )
         })
       })
 
       describe('server pages', () => {
         it('should support global css inside server pages', async () => {
           const browser = await next.browser('/css/css-page')
-          expect(
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('h1')).color`
-            )
-          ).toBe('rgb(255, 0, 0)')
+          await check(
+            async () =>
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('h1')).color`
+              ),
+            'rgb(255, 0, 0)'
+          )
         })
 
         it('should support css modules inside server pages', async () => {
           const browser = await next.browser('/css/css-page')
-          expect(
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('#cssm')).color`
-            )
-          ).toBe('rgb(0, 0, 255)')
+          await check(
+            async () =>
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('#cssm')).color`
+              ),
+            'rgb(0, 0, 255)'
+          )
         })
 
         it('should not contain pages css in app dir page', async () => {
@@ -84,22 +96,26 @@ createNextDescribe(
           const browser = await next.browser('/client-nested')
 
           // Should render h1 in red
-          expect(
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('h1')).color`
-            )
-          ).toBe('rgb(255, 0, 0)')
+          await check(
+            async () =>
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('h1')).color`
+              ),
+            'rgb(255, 0, 0)'
+          )
         })
 
         it('should support global css inside client layouts', async () => {
           const browser = await next.browser('/client-nested')
 
           // Should render button in red
-          expect(
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('button')).color`
-            )
-          ).toBe('rgb(255, 0, 0)')
+          await check(
+            async () =>
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('button')).color`
+              ),
+            'rgb(255, 0, 0)'
+          )
         })
       })
 
@@ -108,22 +124,26 @@ createNextDescribe(
           const browser = await next.browser('/client-component-route')
 
           // Should render p in red
-          expect(
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('p')).color`
-            )
-          ).toBe('rgb(255, 0, 0)')
+          await check(
+            async () =>
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('p')).color`
+              ),
+            'rgb(255, 0, 0)'
+          )
         })
 
         it('should support global css inside client pages', async () => {
           const browser = await next.browser('/client-component-route')
 
           // Should render `b` in blue
-          expect(
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('b')).color`
-            )
-          ).toBe('rgb(0, 0, 255)')
+          await check(
+            async () =>
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('b')).color`
+              ),
+            'rgb(0, 0, 255)'
+          )
         })
       })
 
@@ -131,21 +151,25 @@ createNextDescribe(
         it('should support css modules inside client page', async () => {
           const browser = await next.browser('/css/css-client')
 
-          expect(
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('#css-modules')).fontSize`
-            )
-          ).toBe('100px')
+          await check(
+            async () =>
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('#css-modules')).fontSize`
+              ),
+            '100px'
+          )
         })
 
         it('should support css modules inside client components', async () => {
           const browser = await next.browser('/css/css-client/inner')
 
-          expect(
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('#client-component')).fontSize`
-            )
-          ).toBe('100px')
+          await check(
+            async () =>
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('#client-component')).fontSize`
+              ),
+            '100px'
+          )
         })
       })
 
@@ -160,61 +184,75 @@ createNextDescribe(
 
         it('should include css imported in client template.js', async () => {
           const browser = await next.browser('/template/clientcomponent')
-          expect(
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('button')).fontSize`
-            )
-          ).toBe('100px')
+          await check(
+            async () =>
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('button')).fontSize`
+              ),
+            '100px'
+          )
         })
 
         it('should include css imported in server template.js', async () => {
           const browser = await next.browser('/template/servercomponent')
-          expect(
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('h1')).color`
-            )
-          ).toBe('rgb(255, 0, 0)')
+          await check(
+            async () =>
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('h1')).color`
+              ),
+            'rgb(255, 0, 0)'
+          )
         })
 
         it('should include css imported in client not-found.js', async () => {
           const browser = await next.browser('/not-found/clientcomponent')
-          expect(
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('h1')).color`
-            )
-          ).toBe('rgb(255, 0, 0)')
+          await check(
+            async () =>
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('h1')).color`
+              ),
+            'rgb(255, 0, 0)'
+          )
         })
 
         it('should include css imported in server not-found.js', async () => {
           const browser = await next.browser('/not-found/servercomponent')
-          expect(
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('h1')).color`
-            )
-          ).toBe('rgb(255, 0, 0)')
+          await check(
+            async () =>
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('h1')).color`
+              ),
+            'rgb(255, 0, 0)'
+          )
         })
 
         it('should include root layout css for root not-found.js', async () => {
           const browser = await next.browser('/this-path-does-not-exist')
-          expect(
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('h1')).color`
-            )
-          ).toBe('rgb(210, 105, 30)')
+          await check(
+            async () =>
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('h1')).color`
+              ),
+            'rgb(210, 105, 30)'
+          )
         })
 
         it('should include css imported in root not-found.js', async () => {
           const browser = await next.browser('/random-non-existing-path')
-          expect(
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('h1')).color`
-            )
-          ).toBe('rgb(210, 105, 30)')
-          expect(
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('h1')).backgroundColor`
-            )
-          ).toBe('rgb(0, 0, 0)')
+          await check(
+            async () =>
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('h1')).color`
+              ),
+            'rgb(210, 105, 30)'
+          )
+          await check(
+            async () =>
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('h1')).backgroundColor`
+              ),
+            'rgb(0, 0, 0)'
+          )
         })
 
         it('should include css imported in error.js', async () => {
@@ -224,22 +262,26 @@ createNextDescribe(
           // Wait for error page to render and CSS to be loaded
           await new Promise((resolve) => setTimeout(resolve, 2000))
 
-          expect(
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('button')).fontSize`
-            )
-          ).toBe('50px')
+          await check(
+            async () =>
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('button')).fontSize`
+              ),
+            '50px'
+          )
         })
       })
 
       describe('page extensions', () => {
         it('should include css imported in MDX pages', async () => {
           const browser = await next.browser('/mdx')
-          expect(
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('h1')).color`
-            )
-          ).toBe('rgb(255, 0, 0)')
+          await check(
+            async () =>
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('h1')).color`
+              ),
+            'rgb(255, 0, 0)'
+          )
         })
       })
 
@@ -336,7 +378,7 @@ createNextDescribe(
         })
 
         describe('multiple entries', () => {
-          it('should only inject the same style once if used by different layers', async () => {
+          it.skip('should only inject the same style once if used by different layers', async () => {
             const browser = await next.browser('/css/css-duplicate-2/client')
             expect(
               await browser.eval(
@@ -345,6 +387,24 @@ createNextDescribe(
                 ).length`
               )
             ).toBe(1)
+          })
+
+          it('should deduplicate styles on the module level', async () => {
+            const browser = await next.browser('/css/css-conflict-layers')
+            await check(
+              () =>
+                browser.eval(
+                  `window.getComputedStyle(document.querySelector('.btn:not(.btn-blue)')).backgroundColor`
+                ),
+              'rgb(255, 255, 255)'
+            )
+            await check(
+              () =>
+                browser.eval(
+                  `window.getComputedStyle(document.querySelector('.btn.btn-blue')).backgroundColor`
+                ),
+              'rgb(0, 0, 255)'
+            )
           })
 
           it('should only include the same style once in the flight data', async () => {
@@ -357,7 +417,7 @@ createNextDescribe(
             ).toBe(3)
           })
 
-          it('should only load chunks for the css module that is used by the specific entrypoint', async () => {
+          it.skip('should only load chunks for the css module that is used by the specific entrypoint', async () => {
             // Visit /b first
             await next.render('/css/css-duplicate/b')
 

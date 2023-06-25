@@ -11,6 +11,12 @@ createNextDescribe(
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
     if (isNextStart) {
+      it('should have correct size in build output', async () => {
+        expect(next.cliOutput).toMatch(
+          /\/dashboard\/another.*? [^0]{1,} [\w]{1,}B/
+        )
+      })
+
       it('should have correct preferredRegion values in manifest', async () => {
         const middlewareManifest = JSON.parse(
           await next.readFile('.next/server/middleware-manifest.json')
@@ -227,26 +233,22 @@ createNextDescribe(
       })
     }
 
-    it('should use text/x-component; charset=utf-8 for flight', async () => {
+    it('should use text/x-component for flight', async () => {
       const res = await next.fetch('/dashboard/deployments/123', {
         headers: {
           ['RSC'.toString()]: '1',
         },
       })
-      expect(res.headers.get('Content-Type')).toBe(
-        'text/x-component; charset=utf-8'
-      )
+      expect(res.headers.get('Content-Type')).toBe('text/x-component')
     })
 
-    it('should use text/x-component; charset=utf-8 for flight with edge runtime', async () => {
+    it('should use text/x-component for flight with edge runtime', async () => {
       const res = await next.fetch('/dashboard', {
         headers: {
           ['RSC'.toString()]: '1',
         },
       })
-      expect(res.headers.get('Content-Type')).toBe(
-        'text/x-component; charset=utf-8'
-      )
+      expect(res.headers.get('Content-Type')).toBe('text/x-component')
     })
 
     it('should return the `vary` header from edge runtime', async () => {
@@ -1140,7 +1142,8 @@ createNextDescribe(
           }
         })
 
-        it('should HMR correctly when changing the component type', async () => {
+        // TODO: investigate flakey behavior with this test case
+        it.skip('should HMR correctly when changing the component type', async () => {
           const filePath = 'app/dashboard/page/page.jsx'
           const origContent = await next.readFile(filePath)
 

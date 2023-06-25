@@ -3,9 +3,9 @@ import type { RouteDefinition } from '../future/route-definitions/route-definiti
 import type { RouteModule } from '../future/route-modules/route-module'
 import type { NextRequest } from './spec-extension/request'
 
-import { adapter, enhanceGlobals, type AdapterOptions } from './adapter'
+import './globals'
+import { adapter, type AdapterOptions } from './adapter'
 import { IncrementalCache } from '../lib/incremental-cache'
-enhanceGlobals()
 
 import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
 import { RouteMatcher } from '../future/route-matchers/route-matcher'
@@ -62,10 +62,6 @@ export class EdgeRouteModuleWrapper {
   }
 
   private async handler(request: NextRequest): Promise<Response> {
-    // Setup the handler if it hasn't been setup yet. It is the responsibility
-    // of the module to ensure that this is only called once.
-    this.routeModule.setup()
-
     // Get the pathname for the matcher. Pathnames should not have trailing
     // slashes for matching.
     const pathname = removeTrailingSlash(new URL(request.url).pathname)
