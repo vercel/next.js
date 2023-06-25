@@ -26,7 +26,7 @@ use turbopack_binding::{
             source::{
                 asset_graph::AssetGraphContentSourceVc,
                 combined::{CombinedContentSource, CombinedContentSourceVc},
-                route_tree::{BaseSegment, FinalSegment},
+                route_tree::{BaseSegment, RouteType},
                 ContentSourceData, ContentSourceVc,
             },
         },
@@ -292,7 +292,7 @@ pub async fn create_page_source(
             client_root,
             node_root.join("force_not_found"),
             BaseSegment::from_static_pathname("_next/404").collect(),
-            None,
+            RouteType::Exact,
             NextExactMatcherVc::new(StringVc::cell("_next/404".to_string())).into(),
             render_data,
         )
@@ -335,7 +335,7 @@ pub async fn create_page_source(
             client_root,
             node_root.join("fallback_not_found"),
             Vec::new(),
-            Some(FinalSegment::NotFound),
+            RouteType::NotFound,
             NextFallbackMatcherVc::new().into(),
             render_data,
         )
@@ -403,14 +403,14 @@ async fn create_page_source_for_file(
     let pathname = pathname_for_path(client_root, client_path, PathType::Page);
     let route_matcher = NextParamsMatcherVc::new(pathname);
 
-    let (base_segments, final_segment) = pathname_to_segments(&*pathname.await?);
+    let (base_segments, route_type) = pathname_to_segments(&*pathname.await?);
 
     Ok(if is_api_path {
         create_node_api_source(
             project_path,
             env,
             base_segments,
-            final_segment,
+            route_type,
             client_root,
             route_matcher.into(),
             pathname,
@@ -465,7 +465,7 @@ async fn create_page_source_for_file(
                 project_path,
                 env,
                 base_segments.clone(),
-                final_segment.clone(),
+                route_type.clone(),
                 client_root,
                 route_matcher.into(),
                 pathname,
@@ -478,7 +478,7 @@ async fn create_page_source_for_file(
                 project_path,
                 env,
                 base_segments,
-                final_segment,
+                route_type,
                 client_root,
                 data_route_matcher.into(),
                 pathname,
@@ -527,7 +527,7 @@ async fn create_not_found_page_source(
     client_root: FileSystemPathVc,
     node_path: FileSystemPathVc,
     base_segments: Vec<BaseSegment>,
-    final_segment: Option<FinalSegment>,
+    route_type: RouteType,
     route_matcher: RouteMatcherVc,
     render_data: JsonValueVc,
 ) -> Result<ContentSourceVc> {
@@ -596,7 +596,7 @@ async fn create_not_found_page_source(
             project_path,
             env,
             base_segments,
-            final_segment,
+            route_type,
             client_root,
             route_matcher,
             pathname,
@@ -754,7 +754,7 @@ async fn create_page_source_for_directory(
     Ok(CombinedContentSource { sources }.cell().into())
 }
 
-fn pathname_to_segments(pathname: &str) -> (Vec<BaseSegment>, Option<FinalSegment>) {
+fn pathname_to_segments(pathname: &str) -> (Vec<BaseSegment>, RouteType) {
     let mut segments = Vec::new();
     for segment in pathname.split('/') {
         if segment.is_empty() {
@@ -763,7 +763,7 @@ fn pathname_to_segments(pathname: &str) -> (Vec<BaseSegment>, Option<FinalSegmen
             || segment.starts_with("[...") && segment.ends_with(']')
         {
             // (optional) catch all segment
-            return (segments, Some(FinalSegment::CatchAll));
+            return (segments, RouteType::CatchAll);
         } else if segment.starts_with('[') || segment.ends_with(']') {
             // dynamic segment
             segments.push(BaseSegment::Dynamic);
@@ -772,7 +772,7 @@ fn pathname_to_segments(pathname: &str) -> (Vec<BaseSegment>, Option<FinalSegmen
             segments.push(BaseSegment::Static(segment.to_string()));
         }
     }
-    return (segments, None);
+    return (segments, RouteType::Exact);
 }
 
 /// The node.js renderer for SSR of pages.

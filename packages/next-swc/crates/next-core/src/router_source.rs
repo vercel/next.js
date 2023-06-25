@@ -8,7 +8,7 @@ use turbopack_binding::turbopack::{
         introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc},
     },
     dev_server::source::{
-        route_tree::{FinalSegment, RouteTreeVc},
+        route_tree::{RouteTreeVc, RouteType},
         Body, ContentSource, ContentSourceContent, ContentSourceContentVc, ContentSourceData,
         ContentSourceDataVary, ContentSourceDataVaryVc, ContentSourceVc, GetContentSourceContent,
         GetContentSourceContentVc, HeaderListVc, ProxyResult, RewriteBuilder,
@@ -83,7 +83,7 @@ impl ContentSource for NextRouterContentSource {
 
         Ok(RouteTreeVc::new_route(
             Vec::new(),
-            Some(FinalSegment::CatchAll),
+            RouteType::CatchAll,
             self_vc.into(),
         ))
     }

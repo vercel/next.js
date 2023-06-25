@@ -14,7 +14,7 @@ use turbopack_binding::{
     turbopack::{
         core::asset::AssetContentVc,
         dev_server::source::{
-            route_tree::{BaseSegment, RouteTreeVc, RouteTreesVc},
+            route_tree::{BaseSegment, RouteTreeVc, RouteTreesVc, RouteType},
             ContentSource, ContentSourceContentVc, ContentSourceData, ContentSourceDataFilter,
             ContentSourceDataVary, ContentSourceDataVaryVc, ContentSourceVc,
             GetContentSourceContent, GetContentSourceContentVc,
@@ -43,22 +43,22 @@ impl ContentSource for TurboTasksSource {
         RouteTreesVc::cell(vec![
             RouteTreeVc::new_route(
                 vec![BaseSegment::Static("graph".to_string())],
-                None,
+                RouteType::Exact,
                 self_vc.into(),
             ),
             RouteTreeVc::new_route(
                 vec![BaseSegment::Static("call-graph".to_string())],
-                None,
+                RouteType::Exact,
                 self_vc.into(),
             ),
             RouteTreeVc::new_route(
                 vec![BaseSegment::Static("table".to_string())],
-                None,
+                RouteType::Exact,
                 self_vc.into(),
             ),
             RouteTreeVc::new_route(
                 vec![BaseSegment::Static("reset".to_string())],
-                None,
+                RouteType::Exact,
                 self_vc.into(),
             ),
         ])

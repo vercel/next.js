@@ -11,7 +11,7 @@ use turbopack_binding::turbopack::{
     },
     dev_server::source::{
         query::QueryValue,
-        route_tree::RouteTreeVc,
+        route_tree::{RouteTreeVc, RouteType},
         wrapping_source::{
             ContentSourceProcessor, ContentSourceProcessorVc, WrappedGetContentSourceContentVc,
         },
@@ -42,7 +42,7 @@ impl NextImageContentSourceVc {
 impl ContentSource for NextImageContentSource {
     #[turbo_tasks::function]
     fn get_routes(self_vc: NextImageContentSourceVc) -> RouteTreeVc {
-        RouteTreeVc::new_route(Vec::new(), None, self_vc.into())
+        RouteTreeVc::new_route(Vec::new(), RouteType::Exact, self_vc.into())
     }
 }
 

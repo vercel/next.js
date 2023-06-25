@@ -32,7 +32,7 @@ use turbopack_binding::{
             source::{
                 asset_graph::AssetGraphContentSourceVc,
                 combined::CombinedContentSource,
-                route_tree::{BaseSegment, FinalSegment},
+                route_tree::{BaseSegment, RouteType},
                 ContentSourceData, ContentSourceVc, NoContentSourceVc,
             },
         },
@@ -99,7 +99,7 @@ use crate::{
     util::{render_data, NextRuntime},
 };
 
-fn pathname_to_segments(pathname: &str) -> (Vec<BaseSegment>, Option<FinalSegment>) {
+fn pathname_to_segments(pathname: &str) -> (Vec<BaseSegment>, RouteType) {
     let mut segments = Vec::new();
     for segment in pathname.split('/') {
         if segment.is_empty()
@@ -110,7 +110,7 @@ fn pathname_to_segments(pathname: &str) -> (Vec<BaseSegment>, Option<FinalSegmen
             || segment.starts_with("[...") && segment.ends_with(']')
         {
             // (optional) catch all segment
-            return (segments, Some(FinalSegment::CatchAll));
+            return (segments, RouteType::CatchAll);
         } else if segment.starts_with('[') || segment.ends_with(']') {
             // dynamic segment
             segments.push(BaseSegment::Dynamic);
@@ -119,7 +119,7 @@ fn pathname_to_segments(pathname: &str) -> (Vec<BaseSegment>, Option<FinalSegmen
             segments.push(BaseSegment::Static(segment.to_string()));
         }
     }
-    (segments, None)
+    (segments, RouteType::Exact)
 }
 
 #[turbo_tasks::function]
@@ -662,13 +662,13 @@ async fn create_app_page_source_for_route(
 
     let params_matcher = NextParamsMatcherVc::new(pathname_vc);
 
-    let (base_segments, final_segment) = pathname_to_segments(pathname);
+    let (base_segments, route_type) = pathname_to_segments(pathname);
 
     let source = create_node_rendered_source(
         project_path,
         env,
         base_segments,
-        final_segment,
+        route_type,
         server_root,
         params_matcher.into(),
         pathname_vc,
@@ -713,7 +713,7 @@ async fn create_app_not_found_page_source(
         project_path,
         env,
         Vec::new(),
-        Some(FinalSegment::NotFound),
+        RouteType::NotFound,
         server_root,
         NextFallbackMatcherVc::new().into(),
         pathname_vc,
@@ -755,13 +755,13 @@ async fn create_app_route_source_for_route(
 
     let params_matcher = NextParamsMatcherVc::new(pathname_vc);
 
-    let (base_segments, final_segment) = pathname_to_segments(pathname);
+    let (base_segments, route_type) = pathname_to_segments(pathname);
 
     let source = create_node_api_source(
         project_path,
         env,
         base_segments,
-        final_segment,
+        route_type,
         server_root,
         params_matcher.into(),
         pathname_vc,

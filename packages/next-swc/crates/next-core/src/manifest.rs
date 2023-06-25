@@ -14,7 +14,7 @@ use turbopack_binding::{
             introspect::{Introspectable, IntrospectableVc},
         },
         dev_server::source::{
-            route_tree::{BaseSegment, RouteTreeVc, RouteTreesVc},
+            route_tree::{BaseSegment, RouteTreeVc, RouteTreesVc, RouteType},
             ContentSource, ContentSourceContentVc, ContentSourceData, ContentSourceVc,
             GetContentSourceContent, GetContentSourceContentVc,
         },
@@ -162,13 +162,13 @@ impl ContentSource for DevManifestContentSource {
                     "/_next/static/development/_devPagesManifest.json",
                 )
                 .collect(),
-                None,
+                RouteType::Exact,
                 self_vc.into(),
             ),
             RouteTreeVc::new_route(
                 BaseSegment::from_static_pathname("/_next/static/development/_buildManifest.js")
                     .collect(),
-                None,
+                RouteType::Exact,
                 self_vc.into(),
             ),
             RouteTreeVc::new_route(
@@ -176,7 +176,7 @@ impl ContentSource for DevManifestContentSource {
                     "/_next/static/development/_middlewareManifest.js",
                 )
                 .collect(),
-                None,
+                RouteType::Exact,
                 self_vc.into(),
             ),
         ])
