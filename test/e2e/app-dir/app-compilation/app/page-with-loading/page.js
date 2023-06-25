@@ -1,7 +1,7 @@
 import { use } from 'react'
 
 async function getData() {
-  await new Promise((resolve) => setTimeout(resolve, 2000))
+  await new Promise((resolve) => setTimeout(resolve, 4000))
   return {
     message: 'hello from slow page',
   }
