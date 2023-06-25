@@ -370,4 +370,102 @@ describe('no-html-link-for-pages', function () {
       'Do not use an `<a>` element to navigate to `/list/lorem-ipsum/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
   })
+  it('valid link element with appDir', function () {
+    const report = withAppLinter.verify(validCode, linterConfig, {
+      filename: 'foo.js',
+    })
+    assert.deepEqual(report, [])
+  })
+
+  it('valid link element with multiple directories with appDir', function () {
+    const report = withAppLinter.verify(validCode, linterConfig, {
+      filename: 'foo.js',
+    })
+    assert.deepEqual(report, [])
+  })
+
+  it('valid anchor element with appDir', function () {
+    const report = withAppLinter.verify(validAnchorCode, linterConfig, {
+      filename: 'foo.js',
+    })
+    assert.deepEqual(report, [])
+  })
+
+  it('valid external link element with appDir', function () {
+    const report = withAppLinter.verify(validExternalLinkCode, linterConfig, {
+      filename: 'foo.js',
+    })
+    assert.deepEqual(report, [])
+  })
+
+  it('valid download link element with appDir', function () {
+    const report = withAppLinter.verify(validDownloadLinkCode, linterConfig, {
+      filename: 'foo.js',
+    })
+    assert.deepEqual(report, [])
+  })
+
+  it('valid target="_blank" link element with appDir', function () {
+    const report = withAppLinter.verify(
+      validTargetBlankLinkCode,
+      linterConfig,
+      {
+        filename: 'foo.js',
+      }
+    )
+    assert.deepEqual(report, [])
+  })
+
+  it('valid public file link element with appDir', function () {
+    const report = withAppLinter.verify(validPublicFile, linterConfig, {
+      filename: 'foo.js',
+    })
+    assert.deepEqual(report, [])
+  })
+
+  it('invalid static route with appDir', function () {
+    const [report] = withAppLinter.verify(invalidStaticCode, linterConfig, {
+      filename: 'foo.js',
+    })
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+
+  it('invalid dynamic route with appDir', function () {
+    const [report] = withAppLinter.verify(invalidDynamicCode, linterConfig, {
+      filename: 'foo.js',
+    })
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/list/foo/bar/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+    const [secondReport] = withAppLinter.verify(
+      secondInvalidDynamicCode,
+      linterConfig,
+      {
+        filename: 'foo.js',
+      }
+    )
+    assert.notEqual(secondReport, undefined, 'No lint errors found.')
+    assert.equal(
+      secondReport.message,
+      'Do not use an `<a>` element to navigate to `/list/foo/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+    const [thirdReport] = withAppLinter.verify(
+      thirdInvalidDynamicCode,
+      linterConfig,
+      {
+        filename: 'foo.js',
+      }
+    )
+    assert.notEqual(thirdReport, undefined, 'No lint errors found.')
+    assert.equal(
+      thirdReport.message,
+      'Do not use an `<a>` element to navigate to `/list/lorem-ipsum/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
 })

@@ -53,6 +53,32 @@ function parseUrlForPages(urlprefix: string, directory: string) {
 }
 
 /**
+ * Recursively parse app directory for URLs.
+ */
+function parseUrlForAppDir(urlprefix: string, directory: string) {
+  fsReadDirSyncCache[directory] =
+    fsReadDirSyncCache[directory] || fs.readdirSync(directory)
+  const res = []
+  fsReadDirSyncCache[directory].forEach((fname) => {
+    // TODO: this should account for all page extensions
+    // not just js(x) and ts(x)
+    if (/(\.(j|t)sx?)$/.test(fname)) {
+      if (/^page(\.(j|t)sx?)$/.test(fname)) {
+        res.push(`${urlprefix}${fname.replace(/^page(\.(j|t)sx?)$/, '')}`)
+      } else if (!/^layout(\.(j|t)sx?)$/.test(fname)) {
+        res.push(`${urlprefix}${fname.replace(/(\.(j|t)sx?)$/, '')}`)
+      }
+    } else {
+      const dirPath = path.join(directory, fname)
+      if (isDirectory(dirPath) && !isSymlink(dirPath)) {
+        res.push(...parseUrlForPages(urlprefix + fname + '/', dirPath))
+      }
+    }
+  })
+  return res
+}
+
+/**
  * Takes a URL and does the following things.
  *  - Replaces `index.html` with `/`
  *  - Makes sure all URLs are have a trailing `/`
@@ -85,6 +111,27 @@ export function getUrlFromPagesDirectories(
     new Set(
       directories
         .map((directory) => parseUrlForPages(urlPrefix, directory))
+        .flat()
+        .map(
+          // Since the URLs are normalized we add `^` and `$` to the RegExp to make sure they match exactly.
+          (url) => `^${normalizeURL(url)}$`
+        )
+    )
+  ).map((urlReg) => {
+    urlReg = urlReg.replace(/\[.*\]/g, '((?!.+?\\..+?).*?)')
+    return new RegExp(urlReg)
+  })
+}
+
+export function getUrlFromAppDirectory(
+  urlPrefix: string,
+  directories: string[]
+) {
+  return Array.from(
+    // De-duplicate similar pages across multiple directories.
+    new Set(
+      directories
+        .map((directory) => parseUrlForAppDir(urlPrefix, directory))
         .flat()
         .map(
           // Since the URLs are normalized we add `^` and `$` to the RegExp to make sure they match exactly.
