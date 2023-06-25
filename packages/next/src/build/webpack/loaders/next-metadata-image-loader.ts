@@ -54,28 +54,26 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
   const pathnamePrefix = path.join(basePath, segment)
 
   if (isDynamicResource) {
-    let resolve: (value: webpack.NormalModule) => void,
-      reject: (reason?: any) => void
-    const promise = new Promise<webpack.NormalModule>((res, rej) => {
-      resolve = res
-      reject = rej
-    })
-    this.loadModule(
-      resourcePath,
-      (err: null | Error, _source: any, _sourceMap: any, module: any) => {
-        if (err) {
-          return reject(err)
+    const mod = await new Promise<webpack.NormalModule>((res, rej) => {
+      this.loadModule(
+        resourcePath,
+        (err: null | Error, _source: any, _sourceMap: any, module: any) => {
+          if (err) {
+            return rej(err)
+          }
+          res(module)
         }
-        resolve(module)
-      }
-    )
+      )
+    })
 
-    const mod = await promise
     const exportedFieldsExcludingDefault =
       mod.dependencies
         ?.filter((dep) => {
           return (
-            dep.constructor.name === 'HarmonyExportSpecifierDependency' &&
+            [
+              'HarmonyExportImportedSpecifierDependency',
+              'HarmonyExportSpecifierDependency',
+            ].includes(dep.constructor.name) &&
             'name' in dep &&
             dep.name !== 'default'
           )
@@ -83,7 +81,6 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
         .map((dep: any) => {
           return dep.name
         }) || []
-
     // re-export and spread as `exportedImageData` to avoid non-exported error
     return `\
     import {
@@ -96,7 +93,9 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
       // Since here we only need export fields such as `size`, `alt` and
       // `generateImageMetadata`, avoid sharing the same module can make this entry
       // smaller.
-      resourcePath + '?' + WEBPACK_RESOURCE_QUERIES.metadataImageMeta
+      resourcePath.split('?')[0] +
+        '?' +
+        WEBPACK_RESOURCE_QUERIES.metadataImageMeta
     )}
     import { fillMetadataSegment } from 'next/dist/lib/metadata/get-metadata-route'
 

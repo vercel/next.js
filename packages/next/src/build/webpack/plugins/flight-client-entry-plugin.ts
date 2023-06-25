@@ -148,9 +148,6 @@ function deduplicateCSSImportsForEntry(mergedCSSimports: CssImports) {
   return dedupedCSSImports
 }
 
-const IMAGE_RESPONSE_REGEX =
-  /[\\/]next[\\/]dist[\\/](esm[\\/])?server[\\/]web[\\/]exports[\\/]image-response\.js/
-
 export class ClientReferenceEntryPlugin {
   dev: boolean
   appDir: string
@@ -180,25 +177,6 @@ export class ClientReferenceEntryPlugin {
           webpack.dependencies.ModuleDependency,
           new webpack.dependencies.NullDependency.Template()
         )
-
-        // TODO: This might be worth extracting to a separate plugin in the future
-        // if it becomes a more common pattern. We keep it here for now to avoid
-        // extra overhead of a new plugin.
-        normalModuleFactory.hooks.module.tap(PLUGIN_NAME, (module) => {
-          // Mark `image-response.js` as side-effects free to make sure we can
-          // tree-shake it if not used.
-          // This is necessary as we currently don't have the "sideEffects" field
-          // configured in Next.js' package.json.
-          const mod = module as webpack.NormalModule
-          if (mod.request && IMAGE_RESPONSE_REGEX.test(mod.request)) {
-            if (module.factoryMeta === undefined) {
-              module.factoryMeta = {}
-            }
-            ;(module.factoryMeta as any).sideEffectFree = true
-          }
-
-          return module
-        })
       }
     )
 
