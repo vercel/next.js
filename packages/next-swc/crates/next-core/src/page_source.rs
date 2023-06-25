@@ -403,7 +403,7 @@ async fn create_page_source_for_file(
     let pathname = pathname_for_path(client_root, client_path, PathType::Page);
     let route_matcher = NextParamsMatcherVc::new(pathname);
 
-    let (base_segments, route_type) = pathname_to_segments(&*pathname.await?);
+    let (base_segments, route_type) = pathname_to_segments(&*pathname.await?)?;
 
     Ok(if is_api_path {
         create_node_api_source(
@@ -754,16 +754,23 @@ async fn create_page_source_for_directory(
     Ok(CombinedContentSource { sources }.cell().into())
 }
 
-fn pathname_to_segments(pathname: &str) -> (Vec<BaseSegment>, RouteType) {
+fn pathname_to_segments(pathname: &str) -> Result<(Vec<BaseSegment>, RouteType)> {
     let mut segments = Vec::new();
-    for segment in pathname.split('/') {
+    let mut split = pathname.split('/');
+    while let Some(segment) = split.next() {
         if segment.is_empty() {
             // ignore
         } else if segment.starts_with("[[...") && segment.ends_with("]]")
             || segment.starts_with("[...") && segment.ends_with(']')
         {
             // (optional) catch all segment
-            return (segments, RouteType::CatchAll);
+            if split.remainder().is_some() {
+                bail!(
+                    "Invalid route {}, catch all segment must be the last segment",
+                    pathname
+                )
+            }
+            return Ok((segments, RouteType::CatchAll));
         } else if segment.starts_with('[') || segment.ends_with(']') {
             // dynamic segment
             segments.push(BaseSegment::Dynamic);
@@ -772,7 +779,7 @@ fn pathname_to_segments(pathname: &str) -> (Vec<BaseSegment>, RouteType) {
             segments.push(BaseSegment::Static(segment.to_string()));
         }
     }
-    return (segments, RouteType::Exact);
+    return Ok((segments, RouteType::Exact));
 }
 
 /// The node.js renderer for SSR of pages.
