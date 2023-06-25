@@ -1,3 +1,3 @@
-export default function AuthorIdPage() {
-  return <div id="user-regular-page">Regular Page</div>
+export default function RegularPage() {
+  return <div id="catchall-regular-page">Regular Page</div>
 }

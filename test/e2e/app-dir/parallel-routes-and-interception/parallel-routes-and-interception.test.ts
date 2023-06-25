@@ -394,7 +394,7 @@ createNextDescribe(
                 '[href="/intercepting-routes-dynamic-catchall/photos/optional-catchall/123"]'
               )
               .click()
-              .waitForElementByCss('#user-intercept-page')
+              .waitForElementByCss('#optional-catchall-intercept-page')
               .text(),
           'Intercepted Page'
         )
@@ -409,7 +409,10 @@ createNextDescribe(
         // Trigger a refresh, this should load the normal page, not the modal.
         await check(
           () =>
-            browser.refresh().waitForElementByCss('#user-regular-page').text(),
+            browser
+              .refresh()
+              .waitForElementByCss('#optional-catchall-regular-page')
+              .text(),
           'Regular Page'
         )
 
@@ -436,7 +439,7 @@ createNextDescribe(
                 '[href="/intercepting-routes-dynamic-catchall/photos/catchall/123"]'
               )
               .click()
-              .waitForElementByCss('#user-intercept-page')
+              .waitForElementByCss('#catchall-intercept-page')
               .text(),
           'Intercepted Page'
         )
@@ -450,7 +453,10 @@ createNextDescribe(
         // Trigger a refresh, this should load the normal page, not the modal.
         await check(
           () =>
-            browser.refresh().waitForElementByCss('#user-regular-page').text(),
+            browser
+              .refresh()
+              .waitForElementByCss('#catchall-regular-page')
+              .text(),
           'Regular Page'
         )
 

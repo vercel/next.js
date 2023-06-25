@@ -1,3 +1,3 @@
-export default function InterceptedAuthorIdPage() {
-  return <div id="user-intercept-page">Intercepted Page</div>
+export default function InterceptedPage() {
+  return <div id="optional-catchall-intercept-page">Intercepted Page</div>
 }
