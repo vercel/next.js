@@ -166,6 +166,66 @@ export type PrerenderManifest = {
   preview: __ApiPreviewProps
 }
 
+type CustomRoute = {
+  regex: string
+  statusCode?: number | undefined
+  permanent?: undefined
+  source: string
+  locale?: false | undefined
+  basePath?: false | undefined
+  destination?: string | undefined
+}
+
+export type RoutesManifest = {
+  version: number
+  pages404: boolean
+  basePath: string
+  redirects: Array<CustomRoute>
+  rewrites?:
+    | Array<CustomRoute>
+    | {
+        beforeFiles: Array<CustomRoute>
+        afterFiles: Array<CustomRoute>
+        fallback: Array<CustomRoute>
+      }
+  headers: Array<CustomRoute>
+  staticRoutes: Array<{
+    page: string
+    regex: string
+    namedRegex?: string
+    routeKeys?: { [key: string]: string }
+  }>
+  dynamicRoutes: Array<{
+    page: string
+    regex: string
+    namedRegex?: string
+    routeKeys?: { [key: string]: string }
+  }>
+  dataRoutes: Array<{
+    page: string
+    routeKeys?: { [key: string]: string }
+    dataRouteRegex: string
+    namedDataRouteRegex?: string
+  }>
+  i18n?: {
+    domains?: Array<{
+      http?: true
+      domain: string
+      locales?: string[]
+      defaultLocale: string
+    }>
+    locales: string[]
+    defaultLocale: string
+    localeDetection?: false
+  }
+  rsc: {
+    header: typeof RSC
+    varyHeader: typeof RSC_VARY_HEADER
+  }
+  skipMiddlewareUrlNormalize?: boolean
+  caseSensitive?: boolean
+}
+
 async function generateClientSsgManifest(
   prerenderManifest: PrerenderManifest,
   {
@@ -684,89 +744,45 @@ export default async function build(
       }
 
       const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
-      const routesManifest: {
-        version: number
-        pages404: boolean
-        basePath: string
-        redirects: Array<ReturnType<typeof buildCustomRoute>>
-        rewrites?:
-          | Array<ReturnType<typeof buildCustomRoute>>
-          | {
-              beforeFiles: Array<ReturnType<typeof buildCustomRoute>>
-              afterFiles: Array<ReturnType<typeof buildCustomRoute>>
-              fallback: Array<ReturnType<typeof buildCustomRoute>>
+      const routesManifest: RoutesManifest = nextBuildSpan
+        .traceChild('generate-routes-manifest')
+        .traceFn(() => {
+          const sortedRoutes = getSortedRoutes([
+            ...pageKeys.pages,
+            ...(pageKeys.app ?? []),
+          ])
+          const dynamicRoutes: Array<ReturnType<typeof pageToRoute>> = []
+          const staticRoutes: typeof dynamicRoutes = []
+
+          for (const route of sortedRoutes) {
+            if (isDynamicRoute(route)) {
+              dynamicRoutes.push(pageToRoute(route))
+            } else if (!isReservedPage(route)) {
+              staticRoutes.push(pageToRoute(route))
             }
-        headers: Array<ReturnType<typeof buildCustomRoute>>
-        staticRoutes: Array<{
-          page: string
-          regex: string
-          namedRegex?: string
-          routeKeys?: { [key: string]: string }
-        }>
-        dynamicRoutes: Array<{
-          page: string
-          regex: string
-          namedRegex?: string
-          routeKeys?: { [key: string]: string }
-        }>
-        dataRoutes: Array<{
-          page: string
-          routeKeys?: { [key: string]: string }
-          dataRouteRegex: string
-          namedDataRouteRegex?: string
-        }>
-        i18n?: {
-          domains?: Array<{
-            http?: true
-            domain: string
-            locales?: string[]
-            defaultLocale: string
-          }>
-          locales: string[]
-          defaultLocale: string
-          localeDetection?: false
-        }
-        rsc: {
-          header: typeof RSC
-          varyHeader: typeof RSC_VARY_HEADER
-        }
-        skipMiddlewareUrlNormalize?: boolean
-        caseSensitive?: boolean
-      } = nextBuildSpan.traceChild('generate-routes-manifest').traceFn(() => {
-        const sortedRoutes = getSortedRoutes([
-          ...pageKeys.pages,
-          ...(pageKeys.app ?? []),
-        ])
-        const dynamicRoutes: Array<ReturnType<typeof pageToRoute>> = []
-        const staticRoutes: typeof dynamicRoutes = []
-
-        for (const route of sortedRoutes) {
-          if (isDynamicRoute(route)) {
-            dynamicRoutes.push(pageToRoute(route))
-          } else if (!isReservedPage(route)) {
-            staticRoutes.push(pageToRoute(route))
           }
-        }
 
-        return {
-          version: 3,
-          pages404: true,
-          caseSensitive: !!config.experimental.caseSensitiveRoutes,
-          basePath: config.basePath,
-          redirects: redirects.map((r: any) => buildCustomRoute(r, 'redirect')),
-          headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
-          dynamicRoutes,
-          staticRoutes,
-          dataRoutes: [],
-          i18n: config.i18n || undefined,
-          rsc: {
-            header: RSC,
-            varyHeader: RSC_VARY_HEADER,
-            contentTypeHeader: RSC_CONTENT_TYPE_HEADER,
-          },
-          skipMiddlewareUrlNormalize: config.skipMiddlewareUrlNormalize,
-        }
-      })
+          return {
+            version: 3,
+            pages404: true,
+            caseSensitive: !!config.experimental.caseSensitiveRoutes,
+            basePath: config.basePath,
+            redirects: redirects.map((r: any) =>
+              buildCustomRoute(r, 'redirect')
+            ),
+            headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
+            dynamicRoutes,
+            staticRoutes,
+            dataRoutes: [],
+            i18n: config.i18n || undefined,
+            rsc: {
+              header: RSC,
+              varyHeader: RSC_VARY_HEADER,
+              contentTypeHeader: RSC_CONTENT_TYPE_HEADER,
+            },
+            skipMiddlewareUrlNormalize: config.skipMiddlewareUrlNormalize,
+          }
+        })
 
       if (rewrites.beforeFiles.length === 0 && rewrites.fallback.length === 0) {
         routesManifest.rewrites = rewrites.afterFiles.map((r: any) =>

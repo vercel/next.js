@@ -183,21 +183,21 @@ export async function startServer({
       const httpProxy =
         require('next/dist/compiled/http-proxy') as typeof import('next/dist/compiled/http-proxy')
 
-      let renderServerPath = require.resolve('./render-server')
+      let routerServerPath = require.resolve('./router-server')
       let jestWorkerPath = require.resolve('next/dist/compiled/jest-worker')
 
       if (prevDir) {
         jestWorkerPath = jestWorkerPath.replace(prevDir, dir)
-        renderServerPath = renderServerPath.replace(prevDir, dir)
+        routerServerPath = routerServerPath.replace(prevDir, dir)
       }
 
       const { Worker } =
         require(jestWorkerPath) as typeof import('next/dist/compiled/jest-worker')
 
-      const routerWorker = new Worker(renderServerPath, {
+      const routerWorker = new Worker(routerServerPath, {
         numWorkers: 1,
-        // TODO: do we want to allow more than 10 OOM restarts?
-        maxRetries: 10,
+        // TODO: do we want to allow more than 16 OOM restarts?
+        maxRetries: 16,
         forkOptions: {
           execArgv: await genRouterWorkerExecArgv(
             isNodeDebugging === undefined ? false : isNodeDebugging
