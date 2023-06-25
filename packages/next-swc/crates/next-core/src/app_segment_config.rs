@@ -287,10 +287,8 @@ fn parse_config_value(
             config.dynamic = match serde_json::from_value(Value::String(val.to_string())) {
                 Ok(dynamic) => Some(dynamic),
                 Err(err) => {
-                    return invalid_config(
-                        &format!("`dynamic` has an invalid value: {}", err),
-                        &value,
-                    )
+                    invalid_config(&format!("`dynamic` has an invalid value: {}", err), &value);
+                    return;
                 }
             };
         }
