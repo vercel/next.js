@@ -37,9 +37,9 @@ createNextDescribe(
         )
 
         // Inherits from the root layout.
-        expect(
-          middlewareManifest.functions['/slow-page-with-loading/page'].regions
-        ).toEqual(['sfo1'])
+        expect(middlewareManifest.functions['/script/page'].regions).toEqual([
+          'sfo1',
+        ])
       })
     }
 
@@ -933,77 +933,6 @@ createNextDescribe(
           // After hydration count should be 1
           expect(await browser.elementByCss('p').text()).toBe(
             'hello from app/client-nested'
-          )
-        })
-      })
-
-      describe('Loading', () => {
-        it('should render loading.js in initial html for slow page', async () => {
-          const $ = await next.render$('/slow-page-with-loading')
-
-          expect($('#loading').text()).toBe('Loading...')
-        })
-
-        it('should render loading.js in browser for slow page', async () => {
-          const browser = await next.browser('/slow-page-with-loading', {
-            waitHydration: false,
-          })
-          // TODO-APP: `await next.browser()` causes waiting for the full page to complete streaming. At that point "Loading..." is replaced by the actual content
-          // expect(await browser.elementByCss('#loading').text()).toBe('Loading...')
-
-          expect(await browser.elementByCss('#slow-page-message').text()).toBe(
-            'hello from slow page'
-          )
-        })
-
-        it('should render loading.js in initial html for slow layout', async () => {
-          const $ = await next.render$('/slow-layout-with-loading/slow')
-
-          expect($('#loading').text()).toBe('Loading...')
-        })
-
-        it('should render loading.js in browser for slow layout', async () => {
-          const browser = await next.browser('/slow-layout-with-loading/slow', {
-            waitHydration: false,
-          })
-          // TODO-APP: `await next.browser()` causes waiting for the full page to complete streaming. At that point "Loading..." is replaced by the actual content
-          // expect(await browser.elementByCss('#loading').text()).toBe('Loading...')
-
-          expect(
-            await browser.elementByCss('#slow-layout-message').text()
-          ).toBe('hello from slow layout')
-
-          expect(await browser.elementByCss('#page-message').text()).toBe(
-            'Hello World'
-          )
-        })
-
-        it('should render loading.js in initial html for slow layout and page', async () => {
-          const $ = await next.render$(
-            '/slow-layout-and-page-with-loading/slow'
-          )
-
-          expect($('#loading-layout').text()).toBe('Loading layout...')
-          expect($('#loading-page').text()).toBe('Loading page...')
-        })
-
-        it('should render loading.js in browser for slow layout and page', async () => {
-          const browser = await next.browser(
-            '/slow-layout-and-page-with-loading/slow',
-            {
-              waitHydration: false,
-            }
-          )
-          // TODO-APP: `await next.browser()` causes waiting for the full page to complete streaming. At that point "Loading..." is replaced by the actual content
-          // expect(await browser.elementByCss('#loading-layout').text()).toBe('Loading...')
-          // expect(await browser.elementByCss('#loading-page').text()).toBe('Loading...')
-
-          expect(
-            await browser.elementByCss('#slow-layout-message').text()
-          ).toBe('hello from slow layout')
-
-          expect(await browser.elementByCss('#slow-page-message').text()).toBe(
-            'hello from slow page'
           )
         })
       })
