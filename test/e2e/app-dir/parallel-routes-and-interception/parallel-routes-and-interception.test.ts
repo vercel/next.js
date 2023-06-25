@@ -380,6 +380,94 @@ createNextDescribe(
       })
     })
 
+    describe('route intercepting with dynamic optional catch-all routes', () => {
+      it('should render intercepted route', async () => {
+        const browser = await next.browser(
+          '/intercepting-routes-dynamic-catchall/photos'
+        )
+
+        // Check if navigation to modal route works
+        await check(
+          () =>
+            browser
+              .elementByCss(
+                '[href="/intercepting-routes-dynamic-catchall/photos/optional-catchall/123"]'
+              )
+              .click()
+              .waitForElementByCss('#optional-catchall-intercept-page')
+              .text(),
+          'Intercepted Page'
+        )
+
+        // Check if url matches even though it was intercepted.
+        await check(
+          () => browser.url(),
+          next.url +
+            '/intercepting-routes-dynamic-catchall/photos/optional-catchall/123'
+        )
+
+        // Trigger a refresh, this should load the normal page, not the modal.
+        await check(
+          () =>
+            browser
+              .refresh()
+              .waitForElementByCss('#optional-catchall-regular-page')
+              .text(),
+          'Regular Page'
+        )
+
+        // Check if the url matches still.
+        await check(
+          () => browser.url(),
+          next.url +
+            '/intercepting-routes-dynamic-catchall/photos/optional-catchall/123'
+        )
+      })
+    })
+
+    describe('route intercepting with dynamic catch-all routes', () => {
+      it('should render intercepted route', async () => {
+        const browser = await next.browser(
+          '/intercepting-routes-dynamic-catchall/photos'
+        )
+
+        // Check if navigation to modal route works
+        await check(
+          () =>
+            browser
+              .elementByCss(
+                '[href="/intercepting-routes-dynamic-catchall/photos/catchall/123"]'
+              )
+              .click()
+              .waitForElementByCss('#catchall-intercept-page')
+              .text(),
+          'Intercepted Page'
+        )
+
+        // Check if url matches even though it was intercepted.
+        await check(
+          () => browser.url(),
+          next.url + '/intercepting-routes-dynamic-catchall/photos/catchall/123'
+        )
+
+        // Trigger a refresh, this should load the normal page, not the modal.
+        await check(
+          () =>
+            browser
+              .refresh()
+              .waitForElementByCss('#catchall-regular-page')
+              .text(),
+          'Regular Page'
+        )
+
+        // Check if the url matches still.
+        await check(
+          () => browser.url(),
+          next.url + '/intercepting-routes-dynamic-catchall/photos/catchall/123'
+        )
+      })
+    })
+
     describe('route intercepting', () => {
       it('should render intercepted route', async () => {
         const browser = await next.browser('/intercepting-routes/feed')
