@@ -279,7 +279,7 @@ export default class HotReloader {
       parsedPageBundleUrl: UrlObject
     ): Promise<{ finished?: true }> => {
       const { pathname } = parsedPageBundleUrl
-      const params = matchNextPageBundleRequest<{ path: string[] }>(pathname)
+      const params = matchNextPageBundleRequest(pathname)
       if (!params) {
         return {}
       }
@@ -288,7 +288,7 @@ export default class HotReloader {
 
       try {
         decodedPagePath = `/${params.path
-          .map((param) => decodeURIComponent(param))
+          .map((param: string) => decodeURIComponent(param))
           .join('/')}`
       } catch (_) {
         throw new DecodeError('failed to decode param')

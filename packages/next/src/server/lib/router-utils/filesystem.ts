@@ -16,6 +16,8 @@ import {
   PAGES_MANIFEST,
   ROUTES_MANIFEST,
 } from '../../../shared/lib/constants'
+import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
+import { getRouteRegex } from '../../../shared/lib/router/utils/route-regex'
 
 export type FsOutput = {
   type:
@@ -42,7 +44,9 @@ export async function setupFsCheck(opts: {
 
   const appFiles = new Set<string>()
   const pageFiles = new Set<string>()
-  let dynamicRoutes: RoutesManifest['dynamicRoutes'] = []
+  let dynamicRoutes: (RoutesManifest['dynamicRoutes'][0] & {
+    match: ReturnType<typeof getPathMatch>
+  })[] = []
 
   const distDir = path.join(opts.dir, opts.config.distDir)
   const publicFolderPath = path.join(opts.dir, 'public')
@@ -111,7 +115,12 @@ export async function setupFsCheck(opts: {
       appFiles.add(appRoutesManifest[key])
     }
 
-    dynamicRoutes.push(...routesManifest.dynamicRoutes)
+    for (const route of routesManifest.dynamicRoutes) {
+      dynamicRoutes.push({
+        ...route,
+        match: getRouteMatcher(getRouteRegex(route.page)),
+      })
+    }
 
     customRoutes = {
       // @ts-expect-error additional fields in manifest type

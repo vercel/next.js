@@ -16,14 +16,15 @@ import { getPathMatch } from '../../shared/lib/router/utils/path-match'
 
 import {
   matchHas,
+  compileNonPath,
   prepareDestination,
 } from '../../shared/lib/router/utils/prepare-destination'
 import {
-  PHASE_DEVELOPMENT_SERVER,
   PHASE_PRODUCTION_SERVER,
+  PHASE_DEVELOPMENT_SERVER,
 } from '../../shared/lib/constants'
 
-let result:
+let initializeResult:
   | undefined
   | {
       port: number
@@ -39,9 +40,9 @@ export async function initialize(opts: {
   workerType: 'router' | 'render'
   isNodeDebugging: boolean
   keepAliveTimeout?: number
-}): Promise<NonNullable<typeof result>> {
-  if (result) {
-    return result
+}): Promise<NonNullable<typeof initializeResult>> {
+  if (initializeResult) {
+    return initializeResult
   }
   const config = await loadConfig(
     opts.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
@@ -54,44 +55,62 @@ export async function initialize(opts: {
     config,
   })
 
+  const routes: ({
+    match: ReturnType<typeof getPathMatch>
+    check?: boolean
+    name?: string
+  } & Partial<Header> &
+    Partial<Redirect>)[] = [
+    ...fsChecker.headers,
+    ...fsChecker.redirects,
+
+    // check middleware (using matchers)
+
+    ...fsChecker.rewrites.beforeFiles,
+
+    // we check exact matches on fs before continuing to
+    // after files rewrites
+    { match: () => ({} as any), name: 'check_fs' },
+
+    ...fsChecker.rewrites.afterFiles,
+
+    // we always do the check: true handling before continuing to
+    // fallback rewrites
+    {
+      check: true,
+      match: () => ({} as any),
+      name: 'after files check: true',
+    },
+
+    // check fs and dynamic routes (check: true)
+
+    ...fsChecker.rewrites.fallback,
+  ]
+
   async function resolveRoutes(req: IncomingMessage, res: ServerResponse) {
-    const routes: ({
-      match: ReturnType<typeof getPathMatch>
-      check?: boolean
-      name?: string
-    } & Partial<Header> &
-      Partial<Redirect>)[] = [
-      ...fsChecker.headers,
-      ...fsChecker.redirects,
-
-      // check middleware (using matchers)
-
-      ...fsChecker.rewrites.beforeFiles,
-
-      // we check exact matches on fs before continuing to
-      // after files rewrites
-      { match: () => ({} as any), name: 'check_fs' },
-
-      ...fsChecker.rewrites.afterFiles,
-
-      // we always do the check: true handling before continuing to
-      // fallback rewrites
-      {
-        check: true,
-        match: () => ({} as any),
-        name: 'after files check: true',
-      },
-
-      // check fs and dynamic routes (check: true)
-
-      ...fsChecker.rewrites.fallback,
-    ]
-
     let finished = false
     let matchedOutput: FsOutput | null = null
     const parsedUrl = url.parse(req.url || '', true)
 
     addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
+
+    async function check_true() {
+      const dynamicRoutes = fsChecker.getDynamicRoutes()
+
+      for (const route of dynamicRoutes) {
+        const params = route.match(parsedUrl.pathname)
+
+        if (params) {
+          parsedUrl.pathname = route.page
+          break
+        }
+      }
+      const output = fsChecker.getItem(parsedUrl.pathname || '')
+
+      if (output) {
+        return output
+      }
+    }
 
     for (const route of routes) {
       let params = route.match(parsedUrl.pathname)
@@ -115,10 +134,13 @@ export async function initialize(opts: {
           const output = await fsChecker.getItem(parsedUrl.pathname || '')
 
           if (output) {
-            finished = true
             matchedOutput = output
+            return {
+              parsedUrl,
+              finished: true,
+              matchedOutput,
+            }
           }
-          break
         }
 
         // handle redirect
@@ -147,8 +169,61 @@ export async function initialize(opts: {
           res.setHeader('Location', updatedDestination)
           res.statusCode = getRedirectStatus(route)
           res.end(updatedDestination)
-          finished = true
-          break
+
+          return {
+            parsedUrl,
+            finished: true,
+          }
+        }
+
+        // handle headers
+        if (route.headers) {
+          const hasParams = Object.keys(params).length > 0
+          for (const header of route.headers) {
+            let { key, value } = header
+            if (hasParams) {
+              key = compileNonPath(key, params)
+              value = compileNonPath(value, params)
+            }
+
+            if (key.toLowerCase() === 'set-cookie') {
+              res.appendHeader(key, value)
+            } else {
+              res.setHeader(key, value)
+            }
+          }
+        }
+
+        // handle rewrite
+        if (route.destination) {
+          const { parsedDestination } = prepareDestination({
+            appendParamsToQuery: true,
+            destination: route.destination,
+            params: params,
+            query: parsedUrl.query,
+          })
+
+          if (parsedDestination.protocol) {
+            return {
+              parsedUrl: parsedDestination,
+              finished: true,
+            }
+          }
+          parsedUrl.pathname = parsedDestination.pathname
+          Object.assign(parsedUrl.query, parsedDestination.query)
+        }
+
+        // handle check: true
+        if (route.check) {
+          const output = await check_true()
+
+          if (output) {
+            return {
+              parsedUrl,
+              finished: true,
+              matchedOutput: output,
+            }
+          }
         }
       }
     }
@@ -166,7 +241,7 @@ export async function initialize(opts: {
   ) => {
     try {
       const routeResult = await resolveRoutes(req, res)
-      console.log('requestHandler!', req.url, result)
+      console.log('requestHandler!', req.url, routeResult)
 
       if (routeResult.matchedOutput) {
         if (routeResult.matchedOutput.fsPath) {
@@ -214,9 +289,9 @@ export async function initialize(opts: {
     opts
   )
 
-  result = {
+  initializeResult = {
     port,
     hostname: hostname === '0.0.0.0' ? '127.0.0.1' : hostname,
   }
-  return result
+  return initializeResult
 }
