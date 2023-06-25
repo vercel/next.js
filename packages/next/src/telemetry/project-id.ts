@@ -1,4 +1,4 @@
-import { execSync } from 'child_process'
+import { exec } from 'child_process'
 
 // Q: Why does Next.js need a project ID? Why is it looking at my git remote?
 // A:
@@ -11,23 +11,37 @@ import { execSync } from 'child_process'
 // with random salt data, making it impossible for us to reverse or try to
 // guess the remote by re-computing hashes.
 
-function _getProjectIdByGit() {
+async function _getProjectIdByGit() {
   try {
-    const originBuffer = execSync(
+    let resolve: (value: Buffer | string) => void, reject: (err: Error) => void
+    const promise = new Promise<Buffer | string>((res, rej) => {
+      resolve = res
+      reject = rej
+    })
+
+    exec(
       `git config --local --get remote.origin.url`,
       {
         timeout: 1000,
-        stdio: `pipe`,
         windowsHide: true,
+      },
+      (error: null | Error, stdout: Buffer | string) => {
+        if (error) {
+          reject(error)
+          return
+        }
+        resolve(stdout)
       }
     )
 
-    return String(originBuffer).trim()
+    return String(await promise).trim()
   } catch (_) {
     return null
   }
 }
 
-export function getRawProjectId(): string {
-  return _getProjectIdByGit() || process.env.REPOSITORY_URL || process.cwd()
+export async function getRawProjectId(): Promise<string> {
+  return (
+    (await _getProjectIdByGit()) || process.env.REPOSITORY_URL || process.cwd()
+  )
 }
