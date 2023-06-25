@@ -136,6 +136,9 @@ function stringToChunk(content) {
   return textEncoder.encode(content);
 }
 var precomputedChunkSet = new Set() ;
+function byteLengthOfChunk(chunk) {
+  return chunk.byteLength;
+}
 function closeWithError(destination, error) {
   // $FlowFixMe[method-unbinding]
   if (typeof destination.error === 'function') {
@@ -1182,7 +1185,7 @@ function createRequest(model, bundlerConfig, onError, context, identifierPrefix)
     pingedTasks: pingedTasks,
     completedImportChunks: [],
     completedHintChunks: [],
-    completedJSONChunks: [],
+    completedRegularChunks: [],
     completedErrorChunks: [],
     writtenSymbols: new Map(),
     writtenClientReferences: new Map(),
@@ -1629,9 +1632,18 @@ function serializeServerReference(request, parent, key, serverReference) {
   var metadataId = request.nextChunkId++; // We assume that this object doesn't suspend.
 
   var processedChunk = processModelChunk(request, metadataId, serverReferenceMetadata);
-  request.completedJSONChunks.push(processedChunk);
+  request.completedRegularChunks.push(processedChunk);
   writtenServerReferences.set(serverReference, metadataId);
   return serializeServerReferenceID(metadataId);
+}
+
+function serializeLargeTextString(request, text) {
+  request.pendingChunks += 2;
+  var textId = request.nextChunkId++;
+  var textChunk = stringToChunk(text);
+  var headerChunk = processTextHeader(request, textId, text, byteLengthOfChunk(textChunk));
+  request.completedRegularChunks.push(headerChunk, textChunk);
+  return serializeByValueID(textId);
 }
 
 function escapeStringValue(value) {
@@ -1825,6 +1837,13 @@ function resolveModelToJSON(request, parent, key, value) {
       }
     }
 
+    if (value.length >= 1024) {
+      // For large strings, we encode them outside the JSON payload so that we
+      // don't have to double encode and double parse the strings. This can also
+      // be more compact in case the string has a lot of escaped characters.
+      return serializeLargeTextString(request, value);
+    }
+
     return escapeStringValue(value);
   }
 
@@ -1963,7 +1982,7 @@ function emitSymbolChunk(request, id, name) {
 function emitProviderChunk(request, id, contextName) {
   var contextReference = serializeProviderReference(contextName);
   var processedChunk = processReferenceChunk(request, id, contextReference);
-  request.completedJSONChunks.push(processedChunk);
+  request.completedRegularChunks.push(processedChunk);
 }
 
 function retryTask(request, task) {
@@ -2003,7 +2022,7 @@ function retryTask(request, task) {
     }
 
     var processedChunk = processModelChunk(request, task.id, value);
-    request.completedJSONChunks.push(processedChunk);
+    request.completedRegularChunks.push(processedChunk);
     request.abortableTasks.delete(task);
     task.status = COMPLETED;
   } catch (thrownValue) {
@@ -2114,12 +2133,12 @@ function flushCompletedChunks(request, destination) {
 
     hintChunks.splice(0, i); // Next comes model data.
 
-    var jsonChunks = request.completedJSONChunks;
+    var regularChunks = request.completedRegularChunks;
     i = 0;
 
-    for (; i < jsonChunks.length; i++) {
+    for (; i < regularChunks.length; i++) {
       request.pendingChunks--;
-      var _chunk2 = jsonChunks[i];
+      var _chunk2 = regularChunks[i];
 
       var _keepWriting2 = writeChunkAndReturn(destination, _chunk2);
 
@@ -2130,7 +2149,7 @@ function flushCompletedChunks(request, destination) {
       }
     }
 
-    jsonChunks.splice(0, i); // Finally, errors are sent. The idea is that it's ok to delay
+    regularChunks.splice(0, i); // Finally, errors are sent. The idea is that it's ok to delay
     // any error messages and prioritize display of other parts of
     // the page.
 
@@ -2313,6 +2332,11 @@ function processImportChunk(request, id, clientReferenceMetadata) {
 function processHintChunk(request, id, code, model) {
   var json = stringify(model);
   var row = serializeRowHeader('H' + code, id) + json + '\n';
+  return stringToChunk(row);
+}
+
+function processTextHeader(request, id, text, binaryLength) {
+  var row = id.toString(16) + ':T' + binaryLength.toString(16) + ',';
   return stringToChunk(row);
 }
 

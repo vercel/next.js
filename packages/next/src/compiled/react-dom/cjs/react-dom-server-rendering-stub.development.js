@@ -14,7 +14,7 @@ if (process.env.NODE_ENV !== "production") {
   (function() {
 'use strict';
 
-var ReactVersion = '18.3.0-canary-1cea38448-20230530';
+var ReactVersion = '18.3.0-canary-8ec962d82-20230623';
 
 var Internals = {
   usingClientEntryPoint: false,

@@ -960,6 +960,11 @@ function getOrCreateServerContext(globalName) {
   return ContextRegistry[globalName];
 }
 
+var ROW_ID = 0;
+var ROW_TAG = 1;
+var ROW_LENGTH = 2;
+var ROW_CHUNK_BY_NEWLINE = 3;
+var ROW_CHUNK_BY_LENGTH = 4;
 var PENDING = 'pending';
 var BLOCKED = 'blocked';
 var RESOLVED_MODEL = 'resolved_model';
@@ -1123,6 +1128,11 @@ function createResolvedModelChunk(response, value) {
 function createResolvedModuleChunk(response, value) {
   // $FlowFixMe[invalid-constructor] Flow doesn't support functions as constructors
   return new Chunk(RESOLVED_MODULE, value, null, response);
+}
+
+function createInitializedTextChunk(response, value) {
+  // $FlowFixMe[invalid-constructor] Flow doesn't support functions as constructors
+  return new Chunk(INITIALIZED, value, null, response);
 }
 
 function resolveModelChunk(chunk, value) {
@@ -1536,15 +1546,14 @@ function createResponse(bundlerConfig, callServer) {
     _bundlerConfig: bundlerConfig,
     _callServer: callServer !== undefined ? callServer : missingCall,
     _chunks: chunks,
-    _partialRow: '',
-    _stringDecoder: null,
-    _fromJSON: null
-  };
-
-  {
-    response._stringDecoder = createStringDecoder();
-  } // Don't inline this call because it causes closure to outline the call above.
-
+    _stringDecoder: createStringDecoder(),
+    _fromJSON: null,
+    _rowState: 0,
+    _rowID: 0,
+    _rowTag: 0,
+    _rowLength: 0,
+    _buffer: []
+  }; // Don't inline this call because it causes closure to outline the call above.
 
   response._fromJSON = createFromJSONCallback(response);
   return response;
@@ -1559,6 +1568,13 @@ function resolveModel(response, id, model) {
   } else {
     resolveModelChunk(chunk, model);
   }
+}
+
+function resolveText(response, id, text) {
+  var chunks = response._chunks; // We assume that we always reference large strings after they've been
+  // emitted.
+
+  chunks.set(id, createInitializedTextChunk(response, text));
 }
 
 function resolveModule(response, id, model) {
@@ -1624,35 +1640,44 @@ function resolveHint(response, code, model) {
   dispatchHint(code, hintModel);
 }
 
-function processFullRow(response, row) {
-  if (row === '') {
-    return;
+function processFullRow(response, id, tag, buffer, lastChunk) {
+  var row = '';
+  var stringDecoder = response._stringDecoder;
+
+  for (var i = 0; i < buffer.length; i++) {
+    var chunk = buffer[i];
+    row += readPartialStringChunk(stringDecoder, chunk);
   }
 
-  var colon = row.indexOf(':', 0);
-  var id = parseInt(row.slice(0, colon), 16);
-  var tag = row[colon + 1]; // When tags that are not text are added, check them here before
-  // parsing the row as text.
-  // switch (tag) {
-  // }
+  if (typeof lastChunk === 'string') {
+    row += lastChunk;
+  } else {
+    row += readFinalStringChunk(stringDecoder, lastChunk);
+  }
 
   switch (tag) {
-    case 'I':
+    case 73
+    /* "I" */
+    :
       {
-        resolveModule(response, id, row.slice(colon + 2));
+        resolveModule(response, id, row);
         return;
       }
 
-    case 'H':
+    case 72
+    /* "H" */
+    :
       {
-        var code = row[colon + 2];
-        resolveHint(response, code, row.slice(colon + 3));
+        var code = row[0];
+        resolveHint(response, code, row.slice(1));
         return;
       }
 
-    case 'E':
+    case 69
+    /* "E" */
+    :
       {
-        var errorInfo = JSON.parse(row.slice(colon + 2));
+        var errorInfo = JSON.parse(row);
 
         {
           resolveErrorDev(response, id, errorInfo.digest, errorInfo.message, errorInfo.stack);
@@ -1661,42 +1686,152 @@ function processFullRow(response, row) {
         return;
       }
 
+    case 84
+    /* "T" */
+    :
+      {
+        resolveText(response, id, row);
+        return;
+      }
+
     default:
       {
         // We assume anything else is JSON.
-        resolveModel(response, id, row.slice(colon + 1));
+        resolveModel(response, id, row);
         return;
       }
   }
 }
 
-function processStringChunk(response, chunk, offset) {
-  var linebreak = chunk.indexOf('\n', offset);
-
-  while (linebreak > -1) {
-    var fullrow = response._partialRow + chunk.slice(offset, linebreak);
-    processFullRow(response, fullrow);
-    response._partialRow = '';
-    offset = linebreak + 1;
-    linebreak = chunk.indexOf('\n', offset);
-  }
-
-  response._partialRow += chunk.slice(offset);
-}
 function processBinaryChunk(response, chunk) {
+  var i = 0;
+  var rowState = response._rowState;
+  var rowID = response._rowID;
+  var rowTag = response._rowTag;
+  var rowLength = response._rowLength;
+  var buffer = response._buffer;
+  var chunkLength = chunk.length;
 
-  var stringDecoder = response._stringDecoder;
-  var linebreak = chunk.indexOf(10); // newline
+  while (i < chunkLength) {
+    var lastIdx = -1;
 
-  while (linebreak > -1) {
-    var fullrow = response._partialRow + readFinalStringChunk(stringDecoder, chunk.subarray(0, linebreak));
-    processFullRow(response, fullrow);
-    response._partialRow = '';
-    chunk = chunk.subarray(linebreak + 1);
-    linebreak = chunk.indexOf(10); // newline
+    switch (rowState) {
+      case ROW_ID:
+        {
+          var byte = chunk[i++];
+
+          if (byte === 58
+          /* ":" */
+          ) {
+              // Finished the rowID, next we'll parse the tag.
+              rowState = ROW_TAG;
+            } else {
+            rowID = rowID << 4 | (byte > 96 ? byte - 87 : byte - 48);
+          }
+
+          continue;
+        }
+
+      case ROW_TAG:
+        {
+          var resolvedRowTag = chunk[i];
+
+          if (resolvedRowTag === 84
+          /* "T" */
+          ) {
+              rowTag = resolvedRowTag;
+              rowState = ROW_LENGTH;
+              i++;
+            } else if (resolvedRowTag > 64 && resolvedRowTag < 91
+          /* "A"-"Z" */
+          ) {
+              rowTag = resolvedRowTag;
+              rowState = ROW_CHUNK_BY_NEWLINE;
+              i++;
+            } else {
+            rowTag = 0;
+            rowState = ROW_CHUNK_BY_NEWLINE; // This was an unknown tag so it was probably part of the data.
+          }
+
+          continue;
+        }
+
+      case ROW_LENGTH:
+        {
+          var _byte = chunk[i++];
+
+          if (_byte === 44
+          /* "," */
+          ) {
+              // Finished the rowLength, next we'll buffer up to that length.
+              rowState = ROW_CHUNK_BY_LENGTH;
+            } else {
+            rowLength = rowLength << 4 | (_byte > 96 ? _byte - 87 : _byte - 48);
+          }
+
+          continue;
+        }
+
+      case ROW_CHUNK_BY_NEWLINE:
+        {
+          // We're looking for a newline
+          lastIdx = chunk.indexOf(10
+          /* "\n" */
+          , i);
+          break;
+        }
+
+      case ROW_CHUNK_BY_LENGTH:
+        {
+          // We're looking for the remaining byte length
+          lastIdx = i + rowLength;
+
+          if (lastIdx > chunk.length) {
+            lastIdx = -1;
+          }
+
+          break;
+        }
+    }
+
+    var offset = chunk.byteOffset + i;
+
+    if (lastIdx > -1) {
+      // We found the last chunk of the row
+      var length = lastIdx - i;
+      var lastChunk = new Uint8Array(chunk.buffer, offset, length);
+      processFullRow(response, rowID, rowTag, buffer, lastChunk); // Reset state machine for a new row
+
+      i = lastIdx;
+
+      if (rowState === ROW_CHUNK_BY_NEWLINE) {
+        // If we're trailing by a newline we need to skip it.
+        i++;
+      }
+
+      rowState = ROW_ID;
+      rowTag = 0;
+      rowID = 0;
+      rowLength = 0;
+      buffer.length = 0;
+    } else {
+      // The rest of this row is in a future chunk. We stash the rest of the
+      // current chunk until we can process the full row.
+      var _length = chunk.byteLength - i;
+
+      var remainingSlice = new Uint8Array(chunk.buffer, offset, _length);
+      buffer.push(remainingSlice); // Update how many bytes we're still waiting for. If we're looking for
+      // a newline, this doesn't hurt since we'll just ignore it.
+
+      rowLength -= remainingSlice.byteLength;
+      break;
+    }
   }
 
-  response._partialRow += readPartialStringChunk(stringDecoder, chunk);
+  response._rowState = rowState;
+  response._rowID = rowID;
+  response._rowTag = rowTag;
+  response._rowLength = rowLength;
 }
 
 function parseModel(response, json) {
@@ -1771,33 +1906,6 @@ function createFromFetch(promiseForResponse, options) {
   return getRoot(response);
 }
 
-function createFromXHR(request, options) {
-  var response = createResponseFromOptions(options);
-  var processedLength = 0;
-
-  function progress(e) {
-    var chunk = request.responseText;
-    processStringChunk(response, chunk, processedLength);
-    processedLength = chunk.length;
-  }
-
-  function load(e) {
-    progress();
-    close(response);
-  }
-
-  function error(e) {
-    reportGlobalError(response, new TypeError('Network error'));
-  }
-
-  request.addEventListener('progress', progress);
-  request.addEventListener('load', load);
-  request.addEventListener('error', error);
-  request.addEventListener('abort', error);
-  request.addEventListener('timeout', error);
-  return getRoot(response);
-}
-
 function encodeReply(value)
 /* We don't use URLSearchParams yet but maybe */
 {
@@ -1808,7 +1916,6 @@ function encodeReply(value)
 
 exports.createFromFetch = createFromFetch;
 exports.createFromReadableStream = createFromReadableStream;
-exports.createFromXHR = createFromXHR;
 exports.createServerReference = createServerReference;
 exports.encodeReply = encodeReply;
   })();
