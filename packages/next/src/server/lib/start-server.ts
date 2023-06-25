@@ -164,7 +164,7 @@ export async function startServer({
         Log.info(
           `the --inspect${
             isNodeDebugging === 'brk' ? '-brk' : ''
-          } option was detected, the Next.js server for proxy should be inspected at port ${debugPort}.`
+          } option was detected, the Next.js proxy server should be inspected at port ${debugPort}.`
         )
       }
 

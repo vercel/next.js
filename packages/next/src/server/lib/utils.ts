@@ -41,7 +41,7 @@ export const genRouterWorkerExecArgv = async (
     Log.info(
       `the --inspect${
         isDebuggingWithBrk ? '-brk' : ''
-      } option was detected, the Next.js server for router should be inspected at port ${debugPort}.`
+      } option was detected, the Next.js routing server should be inspected at port ${debugPort}.`
     )
 
     execArgv.push(
