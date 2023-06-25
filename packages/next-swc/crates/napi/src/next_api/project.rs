@@ -11,7 +11,10 @@ use turbopack_binding::{
     turbo::tasks_memory::MemoryBackend, turbopack::core::error::PrettyPrintError,
 };
 
-use super::utils::{serde_enum_to_string, subscribe, NapiDiagnostic, NapiIssue, RootTask, VcArc};
+use super::{
+    endpoint::ExternalEndpoint,
+    utils::{serde_enum_to_string, subscribe, NapiDiagnostic, NapiIssue, RootTask, VcArc},
+};
 use crate::register;
 
 #[napi(object)]
@@ -77,10 +80,10 @@ struct NapiRoute {
     pub r#type: &'static str,
 
     // Different representations of the endpoint
-    pub endpoint: Option<External<VcArc<Vc<Box<dyn Endpoint>>>>>,
-    pub html_endpoint: Option<External<VcArc<Vc<Box<dyn Endpoint>>>>>,
-    pub rsc_endpoint: Option<External<VcArc<Vc<Box<dyn Endpoint>>>>>,
-    pub data_endpoint: Option<External<VcArc<Vc<Box<dyn Endpoint>>>>>,
+    pub endpoint: Option<External<ExternalEndpoint>>,
+    pub html_endpoint: Option<External<ExternalEndpoint>>,
+    pub rsc_endpoint: Option<External<ExternalEndpoint>>,
+    pub data_endpoint: Option<External<ExternalEndpoint>>,
 }
 
 impl NapiRoute {
@@ -90,7 +93,10 @@ impl NapiRoute {
         turbo_tasks: &Arc<TurboTasks<MemoryBackend>>,
     ) -> Self {
         let convert_endpoint = |endpoint: Vc<Box<dyn Endpoint>>| {
-            Some(External::new(VcArc::new(turbo_tasks.clone(), endpoint)))
+            Some(External::new(ExternalEndpoint(VcArc::new(
+                turbo_tasks.clone(),
+                endpoint,
+            ))))
         };
         match value {
             Route::Page {

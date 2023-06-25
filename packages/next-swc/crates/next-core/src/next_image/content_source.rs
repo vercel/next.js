@@ -11,8 +11,7 @@ use turbopack_binding::turbopack::{
         route_tree::{RouteTree, RouteType},
         wrapping_source::{ContentSourceProcessor, WrappedGetContentSourceContent},
         ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataFilter,
-        ContentSourceDataVary, GetContentSourceContent, GetContentSourceContents, ProxyResult,
-        RewriteBuilder,
+        ContentSourceDataVary, GetContentSourceContent, ProxyResult, RewriteBuilder,
     },
     image::process::optimize,
 };
@@ -36,7 +35,7 @@ impl NextImageContentSource {
 impl ContentSource for NextImageContentSource {
     #[turbo_tasks::function]
     fn get_routes(self: Vc<Self>) -> Vc<RouteTree> {
-        RouteTree::new_route(Vec::new(), RouteType::Exact, self.into())
+        RouteTree::new_route(Vec::new(), RouteType::Exact, Vc::upcast(self))
     }
 }
 
@@ -93,7 +92,7 @@ impl GetContentSourceContent for NextImageContentSource {
         // TODO: re-encode into next-gen formats.
 
         if let Some(path) = url.strip_prefix('/') {
-            let sources = this.asset_source.get_routes().get(path).await?;
+            let sources = this.asset_source.get_routes().get(path.to_string()).await?;
             let sources = sources
                 .iter()
                 .map(|s| {
@@ -168,7 +167,7 @@ impl ContentSourceProcessor for NextImageContentSourceProcessor {
             return Ok(content);
         };
         let optimized_file_content = optimize(
-            AssetIdent::from_path(ServerFileSystem::new().root().join(&self.path)),
+            AssetIdent::from_path(ServerFileSystem::new().root().join(self.path.clone())),
             file_content,
             self.width,
             u32::MAX,

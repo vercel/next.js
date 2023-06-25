@@ -9,7 +9,7 @@ use turbo_tasks::{
 use turbopack_binding::{
     turbo::{tasks::TryJoinIterExt, tasks_fs::File},
     turbopack::{
-        core::{asset::AssetContent, introspect::Introspectable},
+        core::{asset::AssetContent, introspect::Introspectable, version::VersionedContentExt},
         dev_server::source::{
             route_tree::{BaseSegment, RouteTree, RouteTrees, RouteType},
             ContentSource, ContentSourceContent, ContentSourceData, GetContentSourceContent,
@@ -123,7 +123,7 @@ impl DevManifestContentSource {
             routes,
         };
 
-        let manifest = next_js_file("entry/manifest/buildManifest.js")
+        let manifest = next_js_file("entry/manifest/buildManifest.js".to_string())
             .await?
             .as_content()
             .context("embedded buildManifest file missing")?
@@ -155,21 +155,21 @@ const DEV_MIDDLEWARE_MANIFEST_PATHNAME: &str =
 impl ContentSource for DevManifestContentSource {
     #[turbo_tasks::function]
     fn get_routes(self: Vc<Self>) -> Vc<RouteTree> {
-        Vc::cell(vec![
+        Vc::<RouteTrees>::cell(vec![
             RouteTree::new_route(
                 BaseSegment::from_static_pathname(DEV_MANIFEST_PATHNAME).collect(),
                 RouteType::Exact,
-                self.into(),
+                Vc::upcast(self),
             ),
             RouteTree::new_route(
                 BaseSegment::from_static_pathname(BUILD_MANIFEST_PATHNAME).collect(),
                 RouteType::Exact,
-                self.into(),
+                Vc::upcast(self),
             ),
             RouteTree::new_route(
                 BaseSegment::from_static_pathname(DEV_MIDDLEWARE_MANIFEST_PATHNAME).collect(),
                 RouteType::Exact,
-                self.into(),
+                Vc::upcast(self),
             ),
         ])
         .merge()
@@ -184,7 +184,7 @@ impl GetContentSourceContent for DevManifestContentSource {
         path: String,
         _data: turbo_tasks::Value<ContentSourceData>,
     ) -> Result<Vc<ContentSourceContent>> {
-        let manifest_file = match path {
+        let manifest_file = match path.as_str() {
             DEV_MANIFEST_PATHNAME => {
                 let pages = &*self.find_routes().await?;
 
@@ -209,9 +209,9 @@ impl GetContentSourceContent for DevManifestContentSource {
             _ => bail!("unknown path: {}", path),
         };
 
-        Ok(ContentSourceContent::static_content(Vc::upcast(
-            AssetContent::from(manifest_file),
-        )))
+        Ok(ContentSourceContent::static_content(
+            AssetContent::file(manifest_file.into()).versioned(),
+        ))
     }
 }
 

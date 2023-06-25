@@ -3,7 +3,7 @@ use turbo_tasks::Vc;
 
 use super::FontCssProperties;
 use crate::next_font::{
-    font_fallback::{FontFallback, FontFallbacks},
+    font_fallback::FontFallback,
     stylesheet::{build_fallback_definition, build_font_class_rules},
 };
 

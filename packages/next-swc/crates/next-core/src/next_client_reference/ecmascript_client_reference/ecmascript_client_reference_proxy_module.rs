@@ -93,18 +93,22 @@ impl EcmascriptClientReferenceProxyModule {
         )?;
 
         let code = code.build();
-        let proxy_module_asset_content = AssetContent::from(File::from(code.source_code().clone()));
+        let proxy_module_asset_content =
+            AssetContent::file(File::from(code.source_code().clone()).into());
 
         let proxy_source = VirtualSource::new(
-            this.server_module_ident.path().join("proxy.ts"),
+            this.server_module_ident.path().join("proxy.ts".to_string()),
             proxy_module_asset_content,
         );
 
-        let proxy_module = this
-            .server_asset_context
-            .process(proxy_source.into(), Value::new(ReferenceType::Undefined));
+        let proxy_module = this.server_asset_context.process(
+            Vc::upcast(proxy_source),
+            Value::new(ReferenceType::Undefined),
+        );
 
-        let Some(proxy_module) = Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(proxy_module).await? else {
+        let Some(proxy_module) =
+            Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(proxy_module).await?
+        else {
             bail!("proxy asset is not an ecmascript module");
         };
 
@@ -180,15 +184,16 @@ impl EcmascriptChunkPlaceable for EcmascriptClientReferenceProxyModule {
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
     ) -> Vc<Box<dyn EcmascriptChunkItem>> {
-        ProxyModuleChunkItem {
-            client_proxy_asset: self,
-            inner_proxy_module_chunk_item: self
-                .proxy_module_asset()
-                .as_chunk_item(chunking_context),
-            chunking_context,
-        }
-        .cell()
-        .into()
+        Vc::upcast(
+            ProxyModuleChunkItem {
+                client_proxy_asset: self,
+                inner_proxy_module_chunk_item: self
+                    .proxy_module_asset()
+                    .as_chunk_item(chunking_context),
+                chunking_context,
+            }
+            .cell(),
+        )
     }
 
     #[turbo_tasks::function]

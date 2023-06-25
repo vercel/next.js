@@ -17,7 +17,7 @@ use turbopack_binding::{
             module::Module,
             output::OutputAssets,
             reference::{AssetReferences, SingleAssetReference},
-            reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
+            reference_type::{EntryReferenceSubType, ReferenceType},
             source::Source,
             virtual_source::VirtualSource,
         },
@@ -47,7 +47,7 @@ pub async fn create_page_loader(
 
     Ok(Vc::upcast(AssetGraphContentSource::new_lazy(
         server_root,
-        asset.into(),
+        Vc::upcast(asset),
     )))
 }
 
@@ -73,7 +73,7 @@ pub async fn create_page_loader_entry_module(
         StringifyJs(&*pathname.await?)
     )?;
 
-    let page_loader_path = next_js_file_path("entry/page-loader.ts");
+    let page_loader_path = next_js_file_path("entry/page-loader.ts".to_string());
     let base_code = page_loader_path.read();
     if let FileContent::Content(base_file) = &*base_code.await? {
         result += base_file.content()
@@ -83,15 +83,18 @@ pub async fn create_page_loader_entry_module(
 
     let file = File::from(result.build());
 
-    let virtual_source = Vc::upcast(VirtualSource::new(page_loader_path, file.into()));
+    let virtual_source = Vc::upcast(VirtualSource::new(
+        page_loader_path,
+        AssetContent::file(file.into()),
+    ));
 
     Ok(client_context.process(
         virtual_source,
         Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
-            "PAGE".to_string() => client_context.process(
+            "PAGE".to_string() => Vc::upcast(client_context.process(
                 entry_asset,
                 Value::new(ReferenceType::Entry(EntryReferenceSubType::Page))
-            ).into(),
+            )),
         }))),
     ))
 }
@@ -105,7 +108,9 @@ impl PageLoaderAsset {
         let page_loader_entry_asset =
             create_page_loader_entry_module(this.client_context, this.entry_asset, this.pathname);
 
-        let Some(module) = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(page_loader_entry_asset).await? else {
+        let Some(module) =
+            Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(page_loader_entry_asset).await?
+        else {
             bail!("internal module must be evaluatable");
         };
 
@@ -134,7 +139,7 @@ fn page_loader_chunk_reference_description() -> Vc<String> {
 impl Asset for PageLoaderAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(AssetIdent::from_path(self.server_root.join(&format!(
+        Ok(AssetIdent::from_path(self.server_root.join(format!(
             "_next/static/chunks/pages{}",
             get_asset_path_from_pathname(&self.pathname.await?, ".js")
         ))))
@@ -157,7 +162,7 @@ impl Asset for PageLoaderAsset {
             StringifyJs(&chunks_data)
         );
 
-        Ok(AssetContent::from(File::from(content)))
+        Ok(AssetContent::file(File::from(content).into()))
     }
 
     #[turbo_tasks::function]
@@ -167,7 +172,7 @@ impl Asset for PageLoaderAsset {
         let mut references = Vec::with_capacity(chunks.len());
         for &chunk in chunks.iter() {
             references.push(Vc::upcast(SingleAssetReference::new(
-                chunk.into(),
+                Vc::upcast(chunk),
                 page_loader_chunk_reference_description(),
             )));
         }

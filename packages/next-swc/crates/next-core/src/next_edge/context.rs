@@ -91,7 +91,9 @@ pub async fn get_edge_resolve_options_context(
         import_map: Some(next_edge_import_map),
         module: true,
         browser: true,
-        plugins: vec![UnsupportedModulesResolvePlugin::new(project_path).into()],
+        plugins: vec![Vc::upcast(UnsupportedModulesResolvePlugin::new(
+            project_path,
+        ))],
         ..Default::default()
     };
 

@@ -37,10 +37,10 @@ pub async fn compute_app_client_references_chunks(
                         let ecmascript_client_reference_ref = ecmascript_client_reference.await?;
                         let client_entry_chunk = ecmascript_client_reference_ref
                             .client_module
-                            .as_root_chunk(client_chunking_context.into());
+                            .as_root_chunk(Vc::upcast(client_chunking_context));
                         let ssr_entry_chunk = ecmascript_client_reference_ref
                             .ssr_module
-                            .as_root_chunk(ssr_chunking_context.into());
+                            .as_root_chunk(Vc::upcast(ssr_chunking_context));
                         ClientReferenceChunks {
                             client_chunks: client_chunking_context.chunk_group(client_entry_chunk),
                             ssr_chunks: ssr_chunking_context.chunk_group(ssr_entry_chunk),
@@ -50,7 +50,7 @@ pub async fn compute_app_client_references_chunks(
                         let css_client_reference_ref = css_client_reference.await?;
                         let client_entry_chunk = css_client_reference_ref
                             .client_module
-                            .as_root_chunk(client_chunking_context.into());
+                            .as_root_chunk(Vc::upcast(client_chunking_context));
                         ClientReferenceChunks {
                             client_chunks: client_chunking_context.chunk_group(client_entry_chunk),
                             ssr_chunks: OutputAssets::empty(),

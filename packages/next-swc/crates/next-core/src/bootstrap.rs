@@ -4,7 +4,7 @@ use turbo_tasks::{Value, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_binding::turbopack::{
     core::{
-        asset::Asset,
+        asset::{Asset, AssetContent},
         chunk::EvaluatableAsset,
         context::AssetContext,
         issue::{IssueSeverity, OptionIssueSource},
@@ -108,22 +108,24 @@ pub async fn bootstrap(
 
     let config_asset = context.process(
         Vc::upcast(VirtualSource::new(
-            asset.ident().path().join("bootstrap-config.ts"),
-            File::from(
-                config
-                    .iter()
-                    .map(|(k, v)| format!("export const {} = {};\n", k, StringifyJs(v)))
-                    .collect::<Vec<_>>()
-                    .join(""),
-            )
-            .into(),
+            asset.ident().path().join("bootstrap-config.ts".to_string()),
+            AssetContent::file(
+                File::from(
+                    config
+                        .iter()
+                        .map(|(k, v)| format!("export const {} = {};\n", k, StringifyJs(v)))
+                        .collect::<Vec<_>>()
+                        .join(""),
+                )
+                .into(),
+            ),
         )),
         Value::new(ReferenceType::Internal(InnerAssets::empty())),
     );
 
     let mut inner_assets = inner_assets.await?.clone_value();
     inner_assets.insert("ENTRY".to_string(), asset);
-    inner_assets.insert("BOOTSTRAP_CONFIG".to_string(), config_asset.into());
+    inner_assets.insert("BOOTSTRAP_CONFIG".to_string(), Vc::upcast(config_asset));
 
     let asset = context.process(
         bootstrap_asset,

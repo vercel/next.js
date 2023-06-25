@@ -11,12 +11,12 @@ use turbopack_binding::{
     turbopack::{
         core::{
             asset::Asset,
-            chunk::{ChunkingContext, EvaluatableAsset, EvaluatableAssets},
+            chunk::{ChunkingContext, EvaluatableAsset, EvaluatableAssetExt},
             compile_time_info::CompileTimeInfo,
             context::AssetContext,
             environment::ServerAddr,
             file_source::FileSource,
-            reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
+            reference_type::{EntryReferenceSubType, ReferenceType},
             source::{Source, Sources},
         },
         dev::DevChunkingContext,
@@ -26,7 +26,7 @@ use turbopack_binding::{
                 asset_graph::AssetGraphContentSource,
                 combined::CombinedContentSource,
                 route_tree::{BaseSegment, RouteType},
-                ContentSource, ContentSourceData,
+                ContentSource, ContentSourceData, ContentSourceExt,
             },
         },
         ecmascript::chunk::EcmascriptChunkingContext,
@@ -41,7 +41,7 @@ use turbopack_binding::{
             route_matcher::RouteMatcher,
             NodeEntry, NodeRenderingEntry,
         },
-        turbopack::{transition::TransitionsByName, ModuleAssetContext},
+        turbopack::ModuleAssetContext,
     },
 };
 
@@ -93,7 +93,7 @@ pub async fn create_page_source(
     let pages_dir = if let Some(pages) = pages_structure.await?.pages {
         pages.project_path().resolve().await?
     } else {
-        project_root.join("pages")
+        project_root.join("pages".to_string())
     };
 
     let mode = NextMode::Development;
@@ -126,29 +126,31 @@ pub async fn create_page_source(
         execution_context,
     );
 
-    let next_client_transition = NextClientTransition {
-        is_app: false,
-        client_chunking_context: client_chunking_context.into(),
-        client_module_options_context,
-        client_resolve_options_context,
-        client_compile_time_info,
-        runtime_entries: client_runtime_entries,
-    }
-    .cell()
-    .into();
+    let next_client_transition = Vc::upcast(
+        NextClientTransition {
+            is_app: false,
+            client_chunking_context: Vc::upcast(client_chunking_context),
+            client_module_options_context,
+            client_resolve_options_context,
+            client_compile_time_info,
+            runtime_entries: client_runtime_entries,
+        }
+        .cell(),
+    );
 
     let edge_compile_time_info = get_edge_compile_time_info(project_root, server_addr);
 
-    let edge_chunking_context = DevChunkingContext::builder(
-        project_root,
-        node_root.join("edge"),
-        node_root.join("edge/chunks"),
-        get_client_assets_path(client_root),
-        edge_compile_time_info.environment(),
-    )
-    .reference_chunk_source_maps(should_debug("page_source"))
-    .build()
-    .into();
+    let edge_chunking_context = Vc::upcast(
+        DevChunkingContext::builder(
+            project_root,
+            node_root.join("edge".to_string()),
+            node_root.join("edge/chunks".to_string()),
+            get_client_assets_path(client_root),
+            edge_compile_time_info.environment(),
+        )
+        .reference_chunk_source_maps(should_debug("page_source"))
+        .build(),
+    );
     let edge_resolve_options_context = get_edge_resolve_options_context(
         project_root,
         server_ty,
@@ -157,18 +159,19 @@ pub async fn create_page_source(
         execution_context,
     );
 
-    let next_edge_transition = NextEdgeRouteTransition {
-        edge_compile_time_info,
-        edge_chunking_context,
-        edge_module_options_context: None,
-        edge_resolve_options_context,
-        output_path: node_root,
-        base_path: project_root,
-        bootstrap_asset: next_asset("entry/edge-bootstrap.ts"),
-        entry_name: "edge".to_string(),
-    }
-    .cell()
-    .into();
+    let next_edge_transition = Vc::upcast(
+        NextEdgeRouteTransition {
+            edge_compile_time_info,
+            edge_chunking_context,
+            edge_module_options_context: None,
+            edge_resolve_options_context,
+            output_path: node_root,
+            base_path: project_root,
+            bootstrap_asset: next_asset("entry/edge-bootstrap.ts".to_string()),
+            entry_name: "edge".to_string(),
+        }
+        .cell(),
+    );
 
     let server_compile_time_info = get_server_compile_time_info(mode, env, server_addr);
     let server_resolve_options_context = get_server_resolve_options_context(
@@ -235,11 +238,13 @@ pub async fn create_page_source(
         server_resolve_options_context,
     ));
 
-    let injected_env = env_for_js(EnvMap::empty().into(), false, next_config);
+    let injected_env = env_for_js(Vc::upcast(EnvMap::empty()), false, next_config);
     let env = Vc::upcast(CustomProcessEnv::new(env, next_config.env()));
 
-    let server_runtime_entries =
-        Vc::cell(vec![ProcessEnvAsset::new(project_root, injected_env).into()]);
+    let server_runtime_entries = Vc::cell(vec![Vc::upcast(ProcessEnvAsset::new(
+        project_root,
+        injected_env,
+    ))]);
     let fallback_runtime_entries = Vc::cell(vec![]);
 
     let fallback_page = get_fallback_page(
@@ -261,19 +266,19 @@ pub async fn create_page_source(
             env,
             server_context,
             client_context,
-            client_chunking_context.into(),
+            Vc::upcast(client_chunking_context),
             pages_dir,
             page_extensions,
             fallback_runtime_entries,
             fallback_page,
             client_root,
-            node_root.join("force_not_found"),
+            node_root.join("force_not_found".to_string()),
             BaseSegment::from_static_pathname("_next/404").collect(),
             RouteType::Exact,
-            NextExactMatcher::new(Vc::cell("_next/404".to_string())).into(),
+            Vc::upcast(NextExactMatcher::new(Vc::cell("_next/404".to_string()))),
             render_data,
         )
-        .issue_context(pages_dir, "Next.js pages directory not found"),
+        .issue_context(pages_dir, "Next.js pages directory not found".to_string()),
         create_page_source_for_root_directory(
             pages_structure,
             project_root,
@@ -288,30 +293,35 @@ pub async fn create_page_source(
             node_root,
             render_data,
         ),
-        AssetGraphContentSource::new_eager(client_root, fallback_page.as_asset())
-            .as_content_source()
-            .issue_context(pages_dir, "Next.js pages directory fallback"),
+        Vc::upcast::<Box<dyn ContentSource>>(AssetGraphContentSource::new_eager(
+            client_root,
+            Vc::upcast(fallback_page),
+        ))
+        .issue_context(pages_dir, "Next.js pages directory fallback".to_string()),
         create_not_found_page_source(
             project_root,
             env,
             server_context,
             client_context,
-            client_chunking_context.into(),
+            Vc::upcast(client_chunking_context),
             pages_dir,
             page_extensions,
             fallback_runtime_entries,
             fallback_page,
             client_root,
-            node_root.join("fallback_not_found"),
+            node_root.join("fallback_not_found".to_string()),
             Vec::new(),
             RouteType::NotFound,
-            NextFallbackMatcher::new().into(),
+            Vc::upcast(NextFallbackMatcher::new()),
             render_data,
         )
-        .issue_context(pages_dir, "Next.js pages directory not found fallback"),
+        .issue_context(
+            pages_dir,
+            "Next.js pages directory not found fallback".to_string(),
+        ),
     ];
 
-    let source = CombinedContentSource { sources }.cell().into();
+    let source = Vc::upcast(CombinedContentSource { sources }.cell());
     Ok(source)
 }
 
@@ -336,29 +346,31 @@ async fn create_page_source_for_file(
 ) -> Result<Vc<Box<dyn ContentSource>>> {
     let mode = NextMode::Development;
 
-    let server_chunking_context = DevChunkingContext::builder(
-        project_path,
-        node_path,
-        node_path.join("chunks"),
-        get_client_assets_path(client_root),
-        server_context.compile_time_info().environment(),
-    )
-    .reference_chunk_source_maps(should_debug("page_source"))
-    .build()
-    .into();
+    let server_chunking_context = Vc::upcast(
+        DevChunkingContext::builder(
+            project_path,
+            node_path,
+            node_path.join("chunks".to_string()),
+            get_client_assets_path(client_root),
+            server_context.compile_time_info().environment(),
+        )
+        .reference_chunk_source_maps(should_debug("page_source"))
+        .build(),
+    );
 
-    let data_node_path = node_path.join("data");
+    let data_node_path = node_path.join("data".to_string());
 
-    let server_data_chunking_context = DevChunkingContext::builder(
-        project_path,
-        data_node_path,
-        data_node_path.join("chunks"),
-        get_client_assets_path(client_root),
-        server_context.compile_time_info().environment(),
-    )
-    .reference_chunk_source_maps(should_debug("page_source"))
-    .build()
-    .into();
+    let server_data_chunking_context = Vc::upcast(
+        DevChunkingContext::builder(
+            project_path,
+            data_node_path,
+            data_node_path.join("chunks".to_string()),
+            get_client_assets_path(client_root),
+            server_context.compile_time_info().environment(),
+        )
+        .reference_chunk_source_maps(should_debug("page_source"))
+        .build(),
+    );
 
     let client_chunking_context = get_client_chunking_context(
         project_path,
@@ -379,57 +391,63 @@ async fn create_page_source_for_file(
             base_segments,
             route_type,
             client_root,
-            route_matcher.into(),
+            Vc::upcast(route_matcher),
             pathname,
-            SsrEntry {
-                runtime_entries,
-                context: server_context,
-                entry_asset: page_asset,
-                ty: SsrType::AutoApi,
-                chunking_context: server_chunking_context,
-                node_path,
-                node_root,
-                project_path,
-            }
-            .cell()
-            .into(),
+            Vc::upcast(
+                SsrEntry {
+                    runtime_entries,
+                    context: server_context,
+                    entry_asset: page_asset,
+                    ty: SsrType::AutoApi,
+                    chunking_context: server_chunking_context,
+                    node_path,
+                    node_root,
+                    project_path,
+                }
+                .cell(),
+            ),
             render_data,
             should_debug("page_source"),
         )
     } else {
         let data_pathname = pathname_for_path(client_root, client_path, PathType::Data);
-        let data_route_matcher =
-            NextPrefixSuffixParamsMatcher::new(data_pathname, "_next/data/development/", ".json");
+        let data_route_matcher = NextPrefixSuffixParamsMatcher::new(
+            data_pathname,
+            "_next/data/development/".to_string(),
+            ".json".to_string(),
+        );
         let (data_base_segments, data_route_type) = pathname_to_segments(
             &format!("_next/data/development/{}", data_pathname.await?),
             ".json",
         )?;
 
-        let ssr_entry = SsrEntry {
-            runtime_entries,
-            context: server_context,
-            entry_asset: page_asset,
-            ty: SsrType::Html,
-            chunking_context: server_chunking_context,
-            node_path,
-            node_root,
-            project_path,
-        }
-        .cell()
-        .into();
+        let ssr_entry = Vc::upcast(
+            SsrEntry {
+                runtime_entries,
+                context: server_context,
+                entry_asset: page_asset,
+                ty: SsrType::Html,
+                chunking_context: server_chunking_context,
+                node_path,
+                node_root,
+                project_path,
+            }
+            .cell(),
+        );
 
-        let ssr_data_entry = SsrEntry {
-            runtime_entries,
-            context: server_data_context,
-            entry_asset: page_asset,
-            ty: SsrType::Data,
-            chunking_context: server_data_chunking_context,
-            node_path: data_node_path,
-            node_root,
-            project_path,
-        }
-        .cell()
-        .into();
+        let ssr_data_entry = Vc::upcast(
+            SsrEntry {
+                runtime_entries,
+                context: server_data_context,
+                entry_asset: page_asset,
+                ty: SsrType::Data,
+                chunking_context: server_data_chunking_context,
+                node_path: data_node_path,
+                node_root,
+                project_path,
+            }
+            .cell(),
+        );
 
         Vc::upcast(CombinedContentSource::new(vec![
             create_node_rendered_source(
@@ -438,7 +456,7 @@ async fn create_page_source_for_file(
                 base_segments.clone(),
                 route_type.clone(),
                 client_root,
-                route_matcher.into(),
+                Vc::upcast(route_matcher),
                 pathname,
                 ssr_entry,
                 fallback_page,
@@ -451,7 +469,7 @@ async fn create_page_source_for_file(
                 data_base_segments,
                 data_route_type,
                 client_root,
-                data_route_matcher.into(),
+                Vc::upcast(data_route_matcher),
                 pathname,
                 ssr_data_entry,
                 fallback_page,
@@ -461,7 +479,7 @@ async fn create_page_source_for_file(
             create_page_loader(
                 client_root,
                 client_context,
-                client_chunking_context.into(),
+                Vc::upcast(client_chunking_context),
                 page_asset,
                 pathname,
             ),
@@ -474,7 +492,7 @@ async fn get_not_found_page(
     page_extensions: Vc<Vec<String>>,
 ) -> Result<Option<Vc<Box<dyn Source>>>> {
     for ext in page_extensions.await?.iter() {
-        let not_found_path = pages_dir.join(&format!("404.{ext}"));
+        let not_found_path = pages_dir.join(format!("404.{ext}"));
         let content = not_found_path.read();
         if let FileContent::Content(_) = &*content.await? {
             return Ok(Some(Vc::upcast(FileSource::new(not_found_path))));
@@ -502,16 +520,17 @@ async fn create_not_found_page_source(
     route_matcher: Vc<Box<dyn RouteMatcher>>,
     render_data: Vc<JsonValue>,
 ) -> Result<Vc<Box<dyn ContentSource>>> {
-    let server_chunking_context = DevChunkingContext::builder(
-        project_path,
-        node_path,
-        node_path.join("chunks"),
-        get_client_assets_path(client_root),
-        server_context.compile_time_info().environment(),
-    )
-    .reference_chunk_source_maps(should_debug("page_source"))
-    .build()
-    .into();
+    let server_chunking_context = Vc::upcast(
+        DevChunkingContext::builder(
+            project_path,
+            node_path,
+            node_path.join("chunks".to_string()),
+            get_client_assets_path(client_root),
+            server_context.compile_time_info().environment(),
+        )
+        .reference_chunk_source_maps(should_debug("page_source"))
+        .build(),
+    );
 
     let (page_asset, pathname) =
         if let Some(not_found_page_asset) = get_not_found_page(pages_dir, page_extensions).await? {
@@ -521,24 +540,25 @@ async fn create_not_found_page_source(
             (
                 // The error page asset must be within the context path so it can depend on the
                 // Next.js module.
-                next_asset("entry/error.tsx"),
+                next_asset("entry/error.tsx".to_string()),
                 // If no 404 page is defined, the pathname should be _error.
                 Vc::cell("/_error".to_string()),
             )
         };
 
-    let ssr_entry = SsrEntry {
-        runtime_entries,
-        context: server_context,
-        entry_asset: page_asset,
-        ty: SsrType::Html,
-        chunking_context: server_chunking_context,
-        node_path,
-        node_root: node_path,
-        project_path,
-    }
-    .cell()
-    .into();
+    let ssr_entry = Vc::upcast(
+        SsrEntry {
+            runtime_entries,
+            context: server_context,
+            entry_asset: page_asset,
+            ty: SsrType::Html,
+            chunking_context: server_chunking_context,
+            node_path,
+            node_root: node_path,
+            project_path,
+        }
+        .cell(),
+    );
 
     let page_loader = create_page_loader(
         client_root,
@@ -629,7 +649,7 @@ async fn create_page_source_for_root_directory(
         ));
     }
 
-    Ok(CombinedContentSource { sources }.cell().into())
+    Ok(Vc::upcast(CombinedContentSource { sources }.cell()))
 }
 
 /// Handles a directory in the pages directory (or the pages directory itself).
@@ -687,7 +707,8 @@ async fn create_page_source_for_directory(
                 "Next.js page API file"
             } else {
                 "Next.js page file"
-            },
+            }
+            .to_string(),
         );
         sources.push(source);
     }
@@ -710,7 +731,7 @@ async fn create_page_source_for_directory(
         ))
     }
 
-    Ok(CombinedContentSource { sources }.cell().into())
+    Ok(Vc::upcast(CombinedContentSource { sources }.cell()))
 }
 
 fn pathname_to_segments(pathname: &str, extension: &str) -> Result<(Vec<BaseSegment>, RouteType)> {
@@ -790,41 +811,45 @@ impl SsrEntry {
         let (internal_asset, inner_assets): (_, IndexMap<_, Vc<Box<dyn Asset>>>) = match ty {
             SsrType::AutoApi => unreachable!(),
             SsrType::Api => (
-                next_asset("entry/server-api.tsx"),
+                next_asset("entry/server-api.tsx".to_string()),
                 indexmap! {
-                    "INNER".to_string() => entry_asset_page.into(),
+                    "INNER".to_string() => Vc::upcast(entry_asset_page),
                 },
             ),
             SsrType::EdgeApi => {
-                let entry_asset_edge_chunk_group =
-                    this.context.with_transition("next-edge").process(
+                let entry_asset_edge_chunk_group = this
+                    .context
+                    .with_transition("next-edge".to_string())
+                    .process(
                         this.entry_asset,
                         Value::new(ReferenceType::Entry(EntryReferenceSubType::PagesApi)),
                     );
                 (
-                    next_asset("entry/server-edge-api.tsx"),
+                    next_asset("entry/server-edge-api.tsx".to_string()),
                     indexmap! {
-                        "INNER_EDGE_CHUNK_GROUP".to_string() => entry_asset_edge_chunk_group.into(),
+                        "INNER_EDGE_CHUNK_GROUP".to_string() => Vc::upcast(entry_asset_edge_chunk_group),
                     },
                 )
             }
             SsrType::Data => (
-                next_asset("entry/server-data.tsx"),
+                next_asset("entry/server-data.tsx".to_string()),
                 indexmap! {
-                    "INNER".to_string() => entry_asset_page.into(),
+                    "INNER".to_string() => Vc::upcast(entry_asset_page),
                 },
             ),
             SsrType::Html => {
-                let entry_asset_client_chunk_group =
-                    this.context.with_transition("next-client").process(
+                let entry_asset_client_chunk_group = this
+                    .context
+                    .with_transition("next-client".to_string())
+                    .process(
                         this.entry_asset,
                         Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
                     );
                 (
-                    next_asset("entry/server-renderer.tsx"),
+                    next_asset("entry/server-renderer.tsx".to_string()),
                     indexmap! {
-                        "INNER".to_string() => entry_asset_page.into(),
-                        "INNER_CLIENT_CHUNK_GROUP".to_string() => entry_asset_client_chunk_group.into(),
+                        "INNER".to_string() => Vc::upcast(entry_asset_page),
+                        "INNER_CLIENT_CHUNK_GROUP".to_string() => Vc::upcast(entry_asset_client_chunk_group),
                     },
                 )
             }
@@ -834,7 +859,8 @@ impl SsrEntry {
             internal_asset,
             Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
         );
-        let Some(module) = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(module).await? else {
+        let Some(module) = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(module).await?
+        else {
             bail!("internal module must be evaluatable");
         };
         Ok(NodeRenderingEntry {
@@ -842,7 +868,7 @@ impl SsrEntry {
                 this.runtime_entries
                     .await?
                     .iter()
-                    .map(|entry| EvaluatableAsset::from_source(*entry, this.context))
+                    .map(|entry| entry.to_evaluatable(this.context))
                     .collect(),
             ),
             module,

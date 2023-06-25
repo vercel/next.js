@@ -7,7 +7,7 @@ use turbo_tasks_fs::glob::Glob;
 use turbopack_binding::{
     turbo::tasks_fs::FileSystemPath,
     turbopack::core::{
-        issue::unsupported_module::UnsupportedModuleIssue,
+        issue::{unsupported_module::UnsupportedModuleIssue, IssueExt},
         resolve::{
             parse::Request,
             pattern::Pattern,
@@ -39,7 +39,7 @@ impl UnsupportedModulesResolvePlugin {
 impl ResolvePlugin for UnsupportedModulesResolvePlugin {
     #[turbo_tasks::function]
     fn after_resolve_condition(&self) -> Vc<ResolvePluginCondition> {
-        ResolvePluginCondition::new(self.root.root(), Glob::new("**"))
+        ResolvePluginCondition::new(self.root.root(), Glob::new("**".to_string()))
     }
 
     #[turbo_tasks::function]

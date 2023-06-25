@@ -1,4 +1,5 @@
-#![feature(min_specialization)]
+#![feature(arbitrary_self_types)]
+#![feature(async_fn_in_trait)]
 #![cfg(test)]
 
 use std::{
@@ -42,12 +43,11 @@ use tokio::{
     task::JoinSet,
 };
 use tungstenite::{error::ProtocolError::ResetWithoutClosingHandshake, Error::Protocol};
-use turbo_tasks::{ReadRef, Vc};
+use turbo_tasks::{debug::ValueDebug, unit, ReadRef, Vc};
 use turbopack_binding::{
     turbo::{
         tasks::{
-            debug::{ValueDebug, ValueDebugString},
-            Nothing, RawVc, ReadRef, State, TransientInstance, TransientValue, TurboTasks,
+            debug::ValueDebugString, RawVc, State, TransientInstance, TransientValue, TurboTasks,
         },
         tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath},
         tasks_memory::MemoryBackend,
@@ -55,8 +55,7 @@ use turbopack_binding::{
     },
     turbopack::{
         core::issue::{
-            CapturedIssues, Issue, IssueReporter, IssueSeverity, Issues, OptionIssueSource,
-            PlainIssue,
+            CapturedIssues, Issue, IssueReporter, Issues, OptionIssueSource, PlainIssue,
         },
         test_utils::snapshot::snapshot_issues,
     },
@@ -297,7 +296,7 @@ async fn run_test(resource: PathBuf) -> JsResult {
         env::remove_var("TURBOPACK_TEST_ONLY_MOCK_SERVER");
 
         let task = tt.spawn_once_task(async move {
-            let issues_fs = Vc::upcast(DiskFileSystem::new(
+            let issues_fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(
                 "issues".to_string(),
                 resource.join("issues").to_string_lossy().to_string(),
             ));
@@ -314,7 +313,7 @@ async fn run_test(resource: PathBuf) -> JsResult {
             )
             .await?;
 
-            Ok(Nothing::new().into())
+            Ok(unit().node)
         });
         tt.wait_task_completion(task, true).await.unwrap();
     }
@@ -676,7 +675,7 @@ impl IssueReporter for TestIssueReporter {
         };
         let issue_tx = self.issue_tx.get_untracked().clone();
         for (issue, path) in captured_issues.iter_with_shortest_path() {
-            let plain = Vc::upcast(NormalizedIssue(issue).cell()).into_plain(path);
+            let plain = NormalizedIssue(issue).cell().into_plain(path);
             issue_tx.send((plain.await?, plain.dbg().await?))?;
             println!("{}", format_issue(&*plain.await?, None, &log_options));
         }

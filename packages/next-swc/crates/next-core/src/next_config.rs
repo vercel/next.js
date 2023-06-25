@@ -14,7 +14,7 @@ use turbopack_binding::{
             context::AssetContext,
             file_source::FileSource,
             ident::AssetIdent,
-            issue::{Issue, IssueContextExt, IssueSeverity},
+            issue::{Issue, IssueContextExt, IssueExt, IssueSeverity},
             reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
             resolve::{
                 find_context_file,
@@ -34,7 +34,7 @@ use turbopack_binding::{
         },
         turbopack::{
             evaluate_context::node_evaluate_asset_context,
-            module_options::{LoaderRuleItem, OptionWebpackRules, WebpackRules},
+            module_options::{LoaderRuleItem, OptionWebpackRules},
         },
     },
 };
@@ -719,22 +719,22 @@ async fn load_next_config_and_custom_routes_internal(
         // This invalidates the execution when anything referenced by the config file
         // changes
         let config_asset = context.process(
-            config_asset.into(),
+            Vc::upcast(config_asset),
             Value::new(ReferenceType::Internal(InnerAssets::empty())),
         );
-        any_content_changed(config_asset.into())
+        any_content_changed(Vc::upcast(config_asset))
     });
     let load_next_config_asset = context.process(
-        next_asset("entry/config/next.js"),
+        next_asset("entry/config/next.js".to_string()),
         Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
     );
     let config_value = evaluate(
-        load_next_config_asset.into(),
+        Vc::upcast(load_next_config_asset),
         project_path,
         env,
         config_asset.map_or_else(|| AssetIdent::from_path(project_path), |c| c.ident()),
         context,
-        chunking_context.with_layer("next_config"),
+        chunking_context.with_layer("next_config".to_string()),
         None,
         vec![],
         config_changed,
@@ -770,11 +770,10 @@ async fn load_next_config_and_custom_routes_internal(
                 path: config_file.unwrap_or(project_path),
                 old_name: "experimental.turbo.loaders".to_string(),
                 new_name: "experimental.turbo.rules".to_string(),
-                description: "The new option is similar, but the key should be a glob instead of \
-                              an extension.
-            Example: loaders: { \".mdx\": [\"mdx-loader\"] } -> rules: { \"*.mdx\": \
-                              [\"mdx-loader\"] }"
-                    .to_string(),
+                description: indoc::indoc! { r#"
+                    The new option is similar, but the key should be a glob instead of an extension.
+                    Example: loaders: { ".mdx": ["mdx-loader"] } -> rules: { "*.mdx": ["mdx-loader"] }"# }
+                .to_string(),
             }
             .cell()
             .emit()

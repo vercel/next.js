@@ -155,12 +155,12 @@ impl LoaderTreeBuilder {
                 }
                 ServerComponentTransition::TransitionName(transition_name) => self
                     .context
-                    .with_transition(transition_name.as_str())
+                    .with_transition(transition_name.clone())
                     .process(source, reference_ty),
             };
 
             self.inner_assets
-                .insert(format!("COMPONENT_{i}"), module.into());
+                .insert(format!("COMPONENT_{i}"), Vc::upcast(module));
         }
         Ok(())
     }
@@ -203,7 +203,7 @@ impl LoaderTreeBuilder {
                     inner_module_id,
                     Vc::upcast(StaticModuleAsset::new(
                         Vc::upcast(FileSource::new(path)),
-                        self.context.into(),
+                        Vc::upcast(self.context),
                     )),
                 );
                 writeln!(self.loader_tree_code, "    manifest: {identifier},")?;
@@ -246,12 +246,11 @@ impl LoaderTreeBuilder {
             MetadataWithAltItem::Static { path, alt_path } => {
                 self.inner_assets.insert(
                     inner_module_id,
-                    StructuredImageModuleType::create_module(
+                    Vc::upcast(StructuredImageModuleType::create_module(
                         Vc::upcast(FileSource::new(*path)),
                         BlurPlaceholderMode::None,
                         self.context,
-                    )
-                    .into(),
+                    )),
                 );
                 writeln!(self.loader_tree_code, "{s}(async (props) => [{{")?;
                 writeln!(self.loader_tree_code, "{s}  url: {identifier}.src,")?;
@@ -272,14 +271,12 @@ impl LoaderTreeBuilder {
                         .push(format!("import {identifier} from \"{inner_module_id}\";"));
                     self.inner_assets.insert(
                         inner_module_id,
-                        self.context
-                            .process(
-                                Vc::upcast(TextContentFileSource::new(Vc::upcast(
-                                    FileSource::new(*alt_path),
-                                ))),
-                                Value::new(ReferenceType::Internal(InnerAssets::empty())),
-                            )
-                            .into(),
+                        Vc::upcast(self.context.process(
+                            Vc::upcast(TextContentFileSource::new(Vc::upcast(FileSource::new(
+                                *alt_path,
+                            )))),
+                            Value::new(ReferenceType::Internal(InnerAssets::empty())),
+                        )),
                     );
                     writeln!(self.loader_tree_code, "{s}  alt: {identifier},")?;
                 }

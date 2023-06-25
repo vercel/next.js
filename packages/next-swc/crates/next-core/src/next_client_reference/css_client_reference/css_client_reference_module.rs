@@ -57,7 +57,9 @@ impl Asset for CssClientReferenceModule {
 impl ParseCss for CssClientReferenceModule {
     #[turbo_tasks::function]
     async fn parse_css(&self) -> Result<Vc<ParseCssResult>> {
-        let Some(parse_css) = Vc::try_resolve_sidecast::<Box<dyn ParseCss>>(self.client_module).await? else {
+        let Some(parse_css) =
+            Vc::try_resolve_sidecast::<Box<dyn ParseCss>>(self.client_module).await?
+        else {
             bail!("CSS client reference client module must be CSS parseable");
         };
 

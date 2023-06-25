@@ -14,10 +14,7 @@ use turbo_tasks::Vc;
 use turbopack_binding::{
     turbo::tasks_fs::FileSystemPath,
     turbopack::{
-        ecmascript::{
-            CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransforms,
-            TransformContext, TransformPlugin,
-        },
+        ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext},
         turbopack::module_options::{ModuleRule, ModuleRuleEffect},
     },
 };
@@ -32,16 +29,15 @@ pub async fn get_next_dynamic_transform_rule(
     pages_dir: Option<Vc<FileSystemPath>>,
     mode: NextMode,
 ) -> Result<ModuleRule> {
-    let dynamic_transform =
-        EcmascriptInputTransform::Plugin(TransformPlugin::cell(Box::new(NextJsDynamic {
-            is_server,
-            is_server_components,
-            pages_dir: match pages_dir {
-                None => None,
-                Some(path) => Some(path.await?.path.clone().into()),
-            },
-            mode,
-        })));
+    let dynamic_transform = EcmascriptInputTransform::Plugin(Vc::cell(Box::new(NextJsDynamic {
+        is_server,
+        is_server_components,
+        pages_dir: match pages_dir {
+            None => None,
+            Some(path) => Some(path.await?.path.clone().into()),
+        },
+        mode,
+    }) as _));
     Ok(ModuleRule::new(
         module_rule_match_js_no_url(),
         vec![ModuleRuleEffect::AddEcmascriptTransforms(Vc::cell(vec![

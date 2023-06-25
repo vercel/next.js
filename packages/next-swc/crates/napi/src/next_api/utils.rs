@@ -7,7 +7,7 @@ use napi::{
     JsFunction, JsObject, NapiRaw, NapiValue, Status,
 };
 use serde::Serialize;
-use turbo_tasks::{Nothing, TaskId, TurboTasks, Vc};
+use turbo_tasks::{unit, TaskId, TurboTasks};
 use turbopack_binding::{
     turbo::tasks_memory::MemoryBackend, turbopack::core::error::PrettyPrintError,
 };
@@ -127,7 +127,7 @@ pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send,
                 eprintln!("{}", error);
                 return Err(error);
             }
-            Ok(Nothing::new().into())
+            Ok(unit().node)
         })
     });
     Ok(External::new(RootTask {

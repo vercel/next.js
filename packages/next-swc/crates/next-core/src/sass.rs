@@ -2,7 +2,7 @@ use anyhow::{bail, Result};
 use serde_json::Value as JsonValue;
 use turbo_tasks::Vc;
 use turbopack_binding::turbopack::{
-    node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItems},
+    node::transforms::webpack::WebpackLoaderItem,
     turbopack::module_options::{LoaderRuleItem, OptionWebpackRules, WebpackRules},
 };
 

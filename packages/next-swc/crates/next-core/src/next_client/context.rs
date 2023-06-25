@@ -16,7 +16,7 @@ use turbopack_binding::{
             resolve::{parse::Request, pattern::Pattern},
         },
         dev::{react_refresh::assert_can_resolve_react_refresh, DevChunkingContext},
-        ecmascript::{chunk::EcmascriptChunkingContext, TransformPlugin},
+        ecmascript::chunk::EcmascriptChunkingContext,
         ecmascript_plugin::transform::directives::server::ServerDirectiveTransformer,
         env::ProcessEnvAsset,
         node::execution_context::ExecutionContext,
@@ -145,7 +145,9 @@ pub async fn get_client_resolve_options_context(
         resolved_map: Some(next_client_resolved_map),
         browser: true,
         module: true,
-        plugins: vec![UnsupportedModulesResolvePlugin::new(project_path).into()],
+        plugins: vec![Vc::upcast(UnsupportedModulesResolvePlugin::new(
+            project_path,
+        ))],
         ..Default::default()
     };
     Ok(ResolveOptionsContext {
@@ -206,13 +208,11 @@ pub async fn get_client_module_options_context(
         *get_emotion_transform_plugin(next_config).await?,
         *get_styled_components_transform_plugin(next_config).await?,
         *get_styled_jsx_transform_plugin().await?,
-        Some(TransformPlugin::cell(Box::new(
-            ServerDirectiveTransformer::new(
-                // ServerDirective is not implemented yet and always reports an issue.
-                // We don't have to pass a valid transition name yet, but the API is prepared.
-                &Vc::cell("TODO".to_string()),
-            ),
-        ))),
+        Some(Vc::cell(Box::new(ServerDirectiveTransformer::new(
+            // ServerDirective is not implemented yet and always reports an issue.
+            // We don't have to pass a valid transition name yet, but the API is prepared.
+            &Vc::cell("TODO".to_string()),
+        )) as _)),
     ]
     .into_iter()
     .flatten()
@@ -284,7 +284,7 @@ pub fn get_client_chunking_context(
     let builder = DevChunkingContext::builder(
         project_path,
         client_root,
-        client_root.join("_next/static/chunks"),
+        client_root.join("_next/static/chunks".to_string()),
         get_client_assets_path(client_root),
         environment,
     );
@@ -294,12 +294,12 @@ pub fn get_client_chunking_context(
         NextMode::Build => builder.chunk_base_path(Vc::cell(Some("_next/".to_string()))),
     };
 
-    builder.build().into()
+    Vc::upcast(builder.build())
 }
 
 #[turbo_tasks::function]
 pub fn get_client_assets_path(client_root: Vc<FileSystemPath>) -> Vc<FileSystemPath> {
-    client_root.join("_next/static/media")
+    client_root.join("_next/static/media".to_string())
 }
 
 #[turbo_tasks::function]
@@ -344,7 +344,8 @@ pub async fn get_client_runtime_entries(
             // because the bootstrap contains JSX which requires Refresh's global
             // functions to be available.
             if let Some(request) = enable_react_refresh {
-                runtime_entries.push(RuntimeEntry::Request(request, project_root.join("_")).cell())
+                runtime_entries
+                    .push(RuntimeEntry::Request(request, project_root.join("_".to_string())).cell())
             };
         }
         NextMode::Build => match *ty {
@@ -354,7 +355,7 @@ pub async fn get_client_runtime_entries(
                         Request::parse(Value::new(Pattern::Constant(
                             "./build/client/app-bootstrap.ts".to_string(),
                         ))),
-                        next_js_fs().root().join("_"),
+                        next_js_fs().root().join("_".to_string()),
                     )
                     .cell(),
                 );
@@ -365,7 +366,7 @@ pub async fn get_client_runtime_entries(
                         Request::parse(Value::new(Pattern::Constant(
                             "./build/client/bootstrap.ts".to_string(),
                         ))),
-                        next_js_fs().root().join("_"),
+                        next_js_fs().root().join("_".to_string()),
                     )
                     .cell(),
                 );

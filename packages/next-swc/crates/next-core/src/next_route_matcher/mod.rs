@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use turbo_tasks::Vc;
-use turbopack_binding::turbopack::node::route_matcher::{Params, RouteMatcher};
+use turbopack_binding::turbopack::node::route_matcher::{Params, RouteMatcher, RouteMatcherRef};
 
 use self::{
     all::AllMatch,
@@ -64,12 +64,12 @@ impl NextParamsMatcher {
 impl RouteMatcher for NextParamsMatcher {
     #[turbo_tasks::function]
     fn matches(&self, path: String) -> Vc<bool> {
-        self.matcher.matches(path)
+        Vc::cell(self.matcher.matches(&path))
     }
 
     #[turbo_tasks::function]
     fn params(&self, path: String) -> Vc<Params> {
-        self.matcher.params(path)
+        Params::cell(self.matcher.params(&path))
     }
 }
 
@@ -101,12 +101,12 @@ impl NextPrefixSuffixParamsMatcher {
 impl RouteMatcher for NextPrefixSuffixParamsMatcher {
     #[turbo_tasks::function]
     fn matches(&self, path: String) -> Vc<bool> {
-        self.matcher.matches(path)
+        Vc::cell(self.matcher.matches(&path))
     }
 
     #[turbo_tasks::function]
     fn params(&self, path: String) -> Vc<Params> {
-        self.matcher.params(path)
+        Params::cell(self.matcher.params(&path))
     }
 }
 
@@ -129,12 +129,12 @@ impl NextFallbackMatcher {
 impl RouteMatcher for NextFallbackMatcher {
     #[turbo_tasks::function]
     fn matches(&self, path: String) -> Vc<bool> {
-        self.matcher.matches(path)
+        Vc::cell(self.matcher.matches(&path))
     }
 
     #[turbo_tasks::function]
     fn params(&self, path: String) -> Vc<Params> {
-        self.matcher.params(path)
+        Params::cell(self.matcher.params(&path))
     }
 }
 

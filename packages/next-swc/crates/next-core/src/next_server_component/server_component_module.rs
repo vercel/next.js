@@ -12,6 +12,7 @@ use turbopack_binding::turbopack::{
         module::Module,
         reference::{AssetReference, AssetReferences},
     },
+    ecmascript::chunk::EcmascriptChunkItemExt,
     turbopack::ecmascript::{
         chunk::{
             EcmascriptChunk, EcmascriptChunkItem, EcmascriptChunkItemContent,
@@ -61,8 +62,9 @@ impl Asset for NextServerComponentModule {
 
     #[turbo_tasks::function]
     fn references(&self) -> Vc<AssetReferences> {
-        let references: Vec<Vc<Box<dyn AssetReference>>> =
-            vec![NextServerComponentModuleReference::new(self.module.into()).into()];
+        let references: Vec<Vc<Box<dyn AssetReference>>> = vec![Vc::upcast(
+            NextServerComponentModuleReference::new(Vc::upcast(self.module)),
+        )];
         Vc::cell(references)
     }
 }
@@ -93,12 +95,13 @@ impl EcmascriptChunkPlaceable for NextServerComponentModule {
         self: Vc<Self>,
         context: Vc<Box<dyn EcmascriptChunkingContext>>,
     ) -> Result<Vc<Box<dyn EcmascriptChunkItem>>> {
-        Ok(BuildServerComponentChunkItem {
-            context,
-            inner: self,
-        }
-        .cell()
-        .into())
+        Ok(Vc::upcast(
+            BuildServerComponentChunkItem {
+                context,
+                inner: self,
+            }
+            .cell(),
+        ))
     }
 
     #[turbo_tasks::function]

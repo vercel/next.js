@@ -57,21 +57,25 @@ impl Transition for NextServerComponentTransition {
         module: Vc<Box<dyn Module>>,
         _context: Vc<ModuleAssetContext>,
     ) -> Result<Vc<Box<dyn Module>>> {
-        let Some(asset) = Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module).await? else {
+        let Some(asset) =
+            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module).await?
+        else {
             bail!("Not an ecmascript module");
         };
 
-        Ok(WithChunkingContextScopeAsset {
-            asset: WithClientChunksAsset {
-                asset,
-                // next.js code already adds _next prefix
-                server_root: self.server_root.join("_next"),
+        Ok(Vc::upcast(
+            WithChunkingContextScopeAsset {
+                asset: Vc::upcast(
+                    WithClientChunksAsset {
+                        asset,
+                        // next.js code already adds _next prefix
+                        server_root: self.server_root.join("_next".to_string()),
+                    }
+                    .cell(),
+                ),
+                layer: "rsc".to_string(),
             }
-            .cell()
-            .into(),
-            layer: "rsc".to_string(),
-        }
-        .cell()
-        .into())
+            .cell(),
+        ))
     }
 }

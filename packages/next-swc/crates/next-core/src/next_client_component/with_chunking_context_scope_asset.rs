@@ -55,7 +55,7 @@ impl ChunkableModule for WithChunkingContextScopeAsset {
         availability_info: Value<AvailabilityInfo>,
     ) -> Vc<Box<dyn Chunk>> {
         Vc::upcast(EcmascriptChunk::new(
-            context.with_layer(&self.layer),
+            context.with_layer(self.layer.clone()),
             self.asset,
             availability_info,
         ))
@@ -71,7 +71,7 @@ impl EcmascriptChunkPlaceable for WithChunkingContextScopeAsset {
     ) -> Result<Vc<Box<dyn EcmascriptChunkItem>>> {
         Ok(self.asset.as_chunk_item(
             Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkingContext>>(
-                context.with_layer(&self.layer),
+                context.with_layer(self.layer.clone()),
             )
             .await?
             .context(

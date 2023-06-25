@@ -23,7 +23,7 @@ pub(crate) fn get_next_css_client_reference_transforms_rule(
             ReferenceType::Css(CssReferenceSubType::Internal),
         )]),
         vec![ModuleRuleEffect::ModuleType(ModuleType::Custom(
-            module_type.into(),
+            Vc::upcast(module_type),
         ))],
     )
 }

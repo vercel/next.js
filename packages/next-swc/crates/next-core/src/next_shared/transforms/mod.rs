@@ -35,7 +35,9 @@ pub fn get_next_image_rule() -> ModuleRule {
             ModuleRuleCondition::ResourcePathEndsWith(".svg".to_string()),
         ]),
         vec![ModuleRuleEffect::ModuleType(ModuleType::Custom(
-            StructuredImageModuleType::new(Value::new(BlurPlaceholderMode::DataUrl)).into(),
+            Vc::upcast(StructuredImageModuleType::new(Value::new(
+                BlurPlaceholderMode::DataUrl,
+            ))),
         ))],
     )
 }

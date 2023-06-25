@@ -1,7 +1,7 @@
 use anyhow::Result;
 use turbo_tasks::Vc;
 use turbopack_binding::turbopack::{
-    ecmascript::{OptionTransformPlugin, TransformPlugin},
+    ecmascript::OptionTransformPlugin,
     ecmascript_plugin::transform::emotion::{EmotionTransformConfig, EmotionTransformer},
 };
 
@@ -35,7 +35,7 @@ pub async fn get_emotion_transform_plugin(
 
                     transformer.map_or_else(
                         || Vc::cell(None),
-                        |v| Vc::cell(Some(TransformPlugin::cell(Box::new(v)))),
+                        |v| Vc::cell(Some(Vc::cell(Box::new(v) as _))),
                     )
                 })
                 .unwrap_or_default()

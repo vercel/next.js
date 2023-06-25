@@ -7,5 +7,4 @@ pub use ecmascript_client_reference::{
     ecmascript_client_reference_module::EcmascriptClientReferenceModule,
     ecmascript_client_reference_transition::NextEcmascriptClientReferenceTransition,
 };
-use turbo_tasks::Vc;
 pub use visit_client_reference::{ClientReference, ClientReferenceType, ClientReferencesByEntry};

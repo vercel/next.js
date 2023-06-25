@@ -10,7 +10,7 @@ use turbopack_binding::{
             context::AssetContext,
             file_source::FileSource,
             module::Module,
-            reference_type::{EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType},
+            reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
             source::Source,
         },
         ecmascript::chunk_group_files_asset::ChunkGroupFilesAsset,
@@ -73,17 +73,18 @@ impl Transition for NextEdgePageTransition {
         let module = context.process(
             self.bootstrap_asset,
             Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
-                "APP_ENTRY".to_string() => asset.into(),
-                "APP_BOOTSTRAP".to_string() => context.with_transition("next-client").process(
-                    FileSource::new(next_js_file_path("entry/app/hydrate.tsx")).into(),
+                "APP_ENTRY".to_string() => Vc::upcast(asset),
+                "APP_BOOTSTRAP".to_string() => Vc::upcast(context.with_transition("next-client".to_string()).process(
+                    Vc::upcast(FileSource::new(next_js_file_path("entry/app/hydrate.tsx".to_string()))),
                     Value::new(ReferenceType::EcmaScriptModules(
                         EcmaScriptModulesReferenceSubType::Undefined,
                     )),
-                ).into(),
+                )),
             }))),
         );
 
-        let Some(module) = Vc::try_resolve_sidecast::<Box<dyn ChunkableModule>>(module).await? else {
+        let Some(module) = Vc::try_resolve_sidecast::<Box<dyn ChunkableModule>>(module).await?
+        else {
             bail!("Internal module is not chunkable");
         };
 
@@ -94,6 +95,6 @@ impl Transition for NextEdgePageTransition {
             runtime_entries: None,
         };
 
-        Ok(asset.cell().into())
+        Ok(Vc::upcast(asset.cell()))
     }
 }

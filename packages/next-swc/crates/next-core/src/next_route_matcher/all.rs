@@ -1,16 +1,15 @@
 use serde::{Deserialize, Serialize};
-use turbo_tasks::Vc;
-use turbopack_binding::turbopack::node::route_matcher::{Params, RouteMatcher};
+use turbopack_binding::turbopack::node::route_matcher::{Params, RouteMatcherRef};
 
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
 pub struct AllMatch;
 
-impl RouteMatcher for AllMatch {
-    fn matches(&self, _path: &str) -> Vc<bool> {
-        Vc::cell(true)
+impl RouteMatcherRef for AllMatch {
+    fn matches(&self, _path: &str) -> bool {
+        true
     }
 
-    fn params(&self, _path: &str) -> Vc<Params> {
-        Vc::cell(Some(Default::default()))
+    fn params(&self, _path: &str) -> Params {
+        Params(Some(Default::default()))
     }
 }

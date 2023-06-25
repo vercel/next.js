@@ -37,10 +37,7 @@ use turbopack_binding::{
             EcmascriptModuleAsset,
         },
         node::execution_context::ExecutionContext,
-        turbopack::{
-            transition::{ContextTransition, TransitionsByName},
-            ModuleAssetContext,
-        },
+        turbopack::{transition::ContextTransition, ModuleAssetContext},
     },
 };
 
@@ -73,7 +70,7 @@ pub async fn get_page_entries(
     let pages_dir = if let Some(pages) = pages_structure.await?.pages {
         pages.project_path().resolve().await?
     } else {
-        project_root.join("pages")
+        project_root.join("pages".to_string())
     };
 
     let mode = NextMode::Build;
@@ -314,11 +311,15 @@ async fn get_page_entry_for_file(
 
     let client_module = create_page_loader_entry_module(client_module_context, source, pathname);
 
-    let Some(client_module) = Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(client_module).await? else {
+    let Some(client_module) =
+        Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(client_module).await?
+    else {
         bail!("expected an ECMAScript module asset");
     };
 
-    let Some(ssr_module) = Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(ssr_module).await? else {
+    let Some(ssr_module) =
+        Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(ssr_module).await?
+    else {
         bail!("expected an ECMAScript chunk placeable asset");
     };
 
@@ -356,7 +357,7 @@ pub async fn compute_page_entries_chunks(
         let asset_path: String = get_asset_path_from_pathname(&pathname, ".js");
 
         let ssr_entry_chunk = ssr_chunking_context.entry_chunk(
-            node_root.join(&format!("server/pages/{asset_path}")),
+            node_root.join(format!("server/pages/{asset_path}")),
             page_entry.ssr_module,
             page_entries.ssr_runtime_entries,
         );
@@ -371,13 +372,13 @@ pub async fn compute_page_entries_chunks(
 
         let client_entry_chunk = page_entry
             .client_module
-            .as_root_chunk(client_chunking_context.into());
+            .as_root_chunk(Vc::upcast(client_chunking_context));
 
         let client_chunks = client_chunking_context.evaluated_chunk_group(
             client_entry_chunk,
             page_entries
                 .client_runtime_entries
-                .with_entry(page_entry.client_module.into()),
+                .with_entry(Vc::upcast(page_entry.client_module)),
         );
 
         let build_manifest_pages_entry = build_manifest

@@ -62,12 +62,15 @@ impl Transition for NextEcmascriptClientReferenceTransition {
             )),
         );
 
-        let Some(client_module) = Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(client_module).await?
+        let Some(client_module) =
+            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(client_module).await?
         else {
             bail!("client asset is not ecmascript chunk placeable");
         };
 
-        let Some(ssr_module) = Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(ssr_module).await? else {
+        let Some(ssr_module) =
+            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(ssr_module).await?
+        else {
             bail!("SSR asset is not ecmascript chunk placeable");
         };
 
@@ -83,7 +86,7 @@ impl Transition for NextEcmascriptClientReferenceTransition {
 
         Ok(Vc::upcast(EcmascriptClientReferenceProxyModule::new(
             source.ident(),
-            server_context.into(),
+            Vc::upcast(server_context),
             client_module,
             ssr_module,
         )))

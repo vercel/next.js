@@ -8,7 +8,8 @@ use turbo_tasks::{ValueToString, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPath},
     turbopack::{
-        core::virtual_source::VirtualSource, ecmascript::utils::StringifyJs,
+        core::{asset::AssetContent, virtual_source::VirtualSource},
+        ecmascript::utils::StringifyJs,
         turbopack::ModuleAssetContext,
     },
 };
@@ -74,11 +75,11 @@ pub(super) async fn get_app_route_favicon_entry(
     let file = File::from(code.build());
     let source =
         // TODO(alexkirsz) Figure out how to name this virtual source.
-        VirtualSource::new(project_root.join("todo.tsx"), file.into());
+        VirtualSource::new(project_root.join("todo.tsx".to_string()), AssetContent::file(file.into()));
 
     get_app_route_entry(
         rsc_context,
-        source.into(),
+        Vc::upcast(source),
         // TODO(alexkirsz) Get this from the metadata?
         "/favicon.ico",
         project_root,

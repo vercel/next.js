@@ -3,11 +3,8 @@ use indexmap::indexmap;
 use turbo_tasks::{Value, Vc};
 use turbopack_binding::turbopack::{
     core::{
-        chunk::ChunkingContext,
-        compile_time_info::CompileTimeInfo,
-        context::AssetContext,
-        module::Module,
-        reference_type::{InnerAssets, ReferenceType},
+        chunk::ChunkingContext, compile_time_info::CompileTimeInfo, context::AssetContext,
+        module::Module, reference_type::ReferenceType,
     },
     ecmascript::chunk::EcmascriptChunkPlaceable,
     turbopack::{
@@ -68,32 +65,37 @@ impl Transition for NextClientTransition {
         context: Vc<ModuleAssetContext>,
     ) -> Result<Vc<Box<dyn Module>>> {
         let asset = if !self.is_app {
-            let internal_asset = next_asset("entry/next-hydrate.tsx");
+            let internal_asset = next_asset("entry/next-hydrate.tsx".to_string());
 
             context.process(
                 internal_asset,
                 Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
-                    "PAGE".to_string() => asset.into()
+                    "PAGE".to_string() => Vc::upcast(asset)
                 }))),
             )
         } else {
             asset
         };
-        let Some(asset) = Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(asset).await? else {
+        let Some(asset) =
+            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(asset).await?
+        else {
             bail!("not an ecmascript placeable module");
         };
 
-        let runtime_entries = self.runtime_entries.resolve_entries(context.into());
+        let runtime_entries = self.runtime_entries.resolve_entries(Vc::upcast(context));
 
         let asset = ChunkGroupFilesAsset {
-            module: asset.into(),
+            module: Vc::upcast(asset),
             // This ensures that the chunk group files asset will strip out the _next prefix from
             // all chunk paths, which is what the Next.js renderer code expects.
-            client_root: self.client_chunking_context.output_root().join("_next"),
+            client_root: self
+                .client_chunking_context
+                .output_root()
+                .join("_next".to_string()),
             chunking_context: self.client_chunking_context,
             runtime_entries: Some(runtime_entries),
         };
 
-        Ok(asset.cell().into())
+        Ok(Vc::upcast(asset.cell()))
     }
 }

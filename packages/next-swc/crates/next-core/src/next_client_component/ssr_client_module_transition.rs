@@ -53,12 +53,13 @@ impl Transition for NextSSRClientModuleTransition {
             if let Some(placeable) =
                 Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(asset).await?
             {
-                WithChunkingContextScopeAsset {
-                    asset: placeable,
-                    layer: "ssr".to_string(),
-                }
-                .cell()
-                .into()
+                Vc::upcast(
+                    WithChunkingContextScopeAsset {
+                        asset: placeable,
+                        layer: "ssr".to_string(),
+                    }
+                    .cell(),
+                )
             } else {
                 asset
             },

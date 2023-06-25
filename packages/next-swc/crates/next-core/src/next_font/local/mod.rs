@@ -7,6 +7,7 @@ use turbopack_binding::{
         tasks_fs::{json::parse_json_with_source_context, FileContent, FileSystemPath},
     },
     turbopack::core::{
+        asset::AssetContent,
         resolve::{
             options::{ImportMapResult, ImportMapping, ImportMappingReplacement},
             parse::Request,
@@ -112,14 +113,14 @@ impl ImportMappingReplacement for NextFontLocalReplacer {
                 .unwrap_or_else(|| "".to_owned()),
         );
         let js_asset = VirtualSource::new(
-            context.join(&format!(
+            context.join(format!(
                 "{}.js",
                 get_request_id(options_vc.font_family(), request_hash).await?
             )),
-            FileContent::Content(file_content.into()).into(),
+            AssetContent::file(FileContent::Content(file_content.into()).into()),
         );
 
-        Ok(ImportMapResult::Result(ResolveResult::asset(js_asset.into()).into()).into())
+        Ok(ImportMapResult::Result(ResolveResult::asset(Vc::upcast(js_asset)).into()).into())
     }
 }
 
@@ -165,7 +166,7 @@ impl ImportMappingReplacement for NextFontLocalCssModuleReplacer {
 
         let options = font_options_from_query_map(*query_vc);
         let request_hash = get_request_hash(*query_vc);
-        let css_virtual_path = context.join(&format!(
+        let css_virtual_path = context.join(format!(
             "/{}.module.css",
             get_request_id(options.font_family(), request_hash).await?
         ));
@@ -181,10 +182,10 @@ impl ImportMappingReplacement for NextFontLocalCssModuleReplacer {
 
         let css_asset = VirtualSource::new(
             css_virtual_path,
-            FileContent::Content(stylesheet.into()).into(),
+            AssetContent::file(FileContent::Content(stylesheet.into()).into()),
         );
 
-        Ok(ImportMapResult::Result(ResolveResult::asset(css_asset.into()).into()).into())
+        Ok(ImportMapResult::Result(ResolveResult::asset(Vc::upcast(css_asset)).into()).into())
     }
 }
 

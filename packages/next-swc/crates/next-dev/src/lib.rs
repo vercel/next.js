@@ -1,5 +1,7 @@
 #![feature(future_join)]
 #![feature(min_specialization)]
+#![feature(arbitrary_self_types)]
+#![feature(async_fn_in_trait)]
 
 pub mod devserver_options;
 mod turbo_tasks_viz;
@@ -41,7 +43,7 @@ use turbo_tasks::{
 use turbopack_binding::{
     turbo::{
         malloc::TurboMalloc,
-        tasks_env::{CustomProcessEnv, EnvMap, ProcessEnv},
+        tasks_env::{CustomProcessEnv, ProcessEnv},
         tasks_fs::{DiskFileSystem, FileSystem},
         tasks_memory::MemoryBackend,
     },
@@ -267,14 +269,14 @@ impl NextDevServerBuilder {
 async fn project_fs(project_dir: String) -> Result<Vc<Box<dyn FileSystem>>> {
     let disk_fs = DiskFileSystem::new(PROJECT_FILESYSTEM_NAME.to_string(), project_dir.to_string());
     disk_fs.await?.start_watching_with_invalidation_reason()?;
-    Ok(disk_fs.into())
+    Ok(Vc::upcast(disk_fs))
 }
 
 #[turbo_tasks::function]
 async fn output_fs(project_dir: String) -> Result<Vc<Box<dyn FileSystem>>> {
     let disk_fs = DiskFileSystem::new("output".to_string(), project_dir.to_string());
     disk_fs.await?.start_watching()?;
-    Ok(disk_fs.into())
+    Ok(Vc::upcast(disk_fs))
 }
 
 #[turbo_tasks::function]
@@ -304,8 +306,8 @@ async fn source(
     browserslist_query: String,
     server_addr: TransientInstance<SocketAddr>,
 ) -> Result<Vc<Box<dyn ContentSource>>> {
-    let output_fs = output_fs(&project_dir);
-    let fs = project_fs(&root_dir);
+    let output_fs = output_fs(project_dir.clone());
+    let fs = project_fs(root_dir.clone());
     let project_relative = project_dir.strip_prefix(&root_dir).unwrap_or_else(|| {
         panic!(
             "project directory '{project_dir}' exists outside of the root directory '{root_dir}'"
@@ -315,33 +317,34 @@ async fn source(
         .strip_prefix(MAIN_SEPARATOR)
         .unwrap_or(project_relative)
         .replace(MAIN_SEPARATOR, "/");
-    let project_path = fs.root().join(&project_relative);
+    let project_path = fs.root().join(project_relative);
 
     let server_addr = ServerAddr::new(*server_addr).cell();
 
     let env = load_env(project_path);
     let env = server_env(env, server_addr);
-    let build_output_root = output_fs.root().join(".next/build");
+    let build_output_root = output_fs.root().join(".next/build".to_string());
 
     let build_chunking_context = DevChunkingContext::builder(
         project_path,
         build_output_root,
-        build_output_root.join("chunks"),
-        build_output_root.join("assets"),
+        build_output_root.join("chunks".to_string()),
+        build_output_root.join("assets".to_string()),
         node_build_environment(),
     )
     .build();
 
-    let execution_context = ExecutionContext::new(project_path, build_chunking_context.into(), env);
+    let execution_context =
+        ExecutionContext::new(project_path, Vc::upcast(build_chunking_context), env);
 
     let mode = NextMode::Development;
-    let next_config_execution_context = execution_context.with_layer("next_config");
+    let next_config_execution_context = execution_context.with_layer("next_config".to_string());
     let next_config = load_next_config(next_config_execution_context);
     let rewrites = load_rewrites(next_config_execution_context);
 
-    let output_root = output_fs.root().join(".next/server");
+    let output_root = output_fs.root().join(".next/server".to_string());
 
-    let dev_server_fs = Vc::upcast(ServerFileSystem::new());
+    let dev_server_fs = Vc::upcast::<Box<dyn FileSystem>>(ServerFileSystem::new());
     let dev_server_root = dev_server_fs.root();
     let entry_requests = entry_requests
         .iter()
@@ -359,10 +362,10 @@ async fn source(
         entry_requests,
         dev_server_root,
         eager_compile,
-        &browserslist_query,
+        browserslist_query.clone(),
         next_config,
     );
-    let client_compile_time_info = get_client_compile_time_info(mode, &browserslist_query);
+    let client_compile_time_info = get_client_compile_time_info(mode, browserslist_query);
     let client_chunking_context = get_client_chunking_context(
         project_path,
         dev_server_root,
@@ -375,7 +378,7 @@ async fn source(
         pages_structure,
         project_path,
         execution_context,
-        output_root.join("pages"),
+        output_root.join("pages".to_string()),
         dev_server_root,
         env,
         client_chunking_context,
@@ -388,7 +391,7 @@ async fn source(
         app_dir,
         project_path,
         execution_context,
-        output_root.join("app"),
+        output_root.join("app".to_string()),
         dev_server_root,
         env,
         client_chunking_context,
@@ -396,21 +399,18 @@ async fn source(
         next_config,
         server_addr,
     );
-    let viz = turbo_tasks_viz::TurboTasksSource {
-        turbo_tasks: turbo_tasks.into(),
-    }
-    .cell()
-    .into();
+    let viz = Vc::upcast(turbo_tasks_viz::TurboTasksSource::new(turbo_tasks.into()));
     let static_source = Vc::upcast(StaticAssetsContentSource::new(
         String::new(),
-        project_path.join("public"),
+        project_path.join("public".to_string()),
     ));
-    let manifest_source = DevManifestContentSource {
-        page_roots: vec![page_source],
-        rewrites,
-    }
-    .cell()
-    .into();
+    let manifest_source = Vc::upcast(
+        DevManifestContentSource {
+            page_roots: vec![page_source],
+            rewrites,
+        }
+        .cell(),
+    );
     let main_source = CombinedContentSource::new(vec![
         manifest_source,
         static_source,
@@ -418,12 +418,13 @@ async fn source(
         page_source,
         web_source,
     ]);
-    let introspect = IntrospectionSource {
-        roots: HashSet::from([main_source.into()]),
-    }
-    .cell()
-    .into();
-    let main_source = main_source.into();
+    let introspect = Vc::upcast(
+        IntrospectionSource {
+            roots: HashSet::from([Vc::upcast(main_source)]),
+        }
+        .cell(),
+    );
+    let main_source = Vc::upcast(main_source);
     let source_maps = Vc::upcast(SourceMapContentSource::new(main_source));
     let source_map_trace = Vc::upcast(NextSourceMapTraceContentSource::new(main_source));
     let img_source = Vc::upcast(NextImageContentSource::new(main_source));
@@ -435,23 +436,24 @@ async fn source(
         app_dir,
         pages_structure,
     ));
-    let source = PrefixedRouterContentSource {
-        prefix: String::empty(),
-        routes: vec![
-            ("__turbopack__".to_string(), introspect),
-            ("__turbo_tasks__".to_string(), viz),
-            (
-                "__nextjs_original-stack-frame".to_string(),
-                source_map_trace,
-            ),
-            // TODO: Load path from next.config.js
-            ("_next/image".to_string(), img_source),
-            ("__turbopack_sourcemap__".to_string(), source_maps),
-        ],
-        fallback: router_source,
-    }
-    .cell()
-    .into();
+    let source = Vc::upcast(
+        PrefixedRouterContentSource {
+            prefix: Vc::<String>::empty(),
+            routes: vec![
+                ("__turbopack__".to_string(), introspect),
+                ("__turbo_tasks__".to_string(), viz),
+                (
+                    "__nextjs_original-stack-frame".to_string(),
+                    source_map_trace,
+                ),
+                // TODO: Load path from next.config.js
+                ("_next/image".to_string(), img_source),
+                ("__turbopack_sourcemap__".to_string(), source_maps),
+            ],
+            fallback: router_source,
+        }
+        .cell(),
+    );
 
     Ok(source)
 }

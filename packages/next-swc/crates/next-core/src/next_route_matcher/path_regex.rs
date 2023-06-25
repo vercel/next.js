@@ -1,9 +1,8 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::Vc;
 use turbopack_binding::{
     turbo::tasks::primitives::Regex,
-    turbopack::node::route_matcher::{Param, Params, RouteMatcher},
+    turbopack::node::route_matcher::{Param, Params, RouteMatcherRef},
 };
 
 /// A regular expression that matches a path, with named capture groups for the
@@ -32,13 +31,13 @@ impl std::fmt::Display for PathRegex {
     }
 }
 
-impl RouteMatcher for PathRegex {
-    fn matches(&self, path: &str) -> Vc<bool> {
-        Vc::cell(self.regex.is_match(path))
+impl RouteMatcherRef for PathRegex {
+    fn matches(&self, path: &str) -> bool {
+        self.regex.is_match(path)
     }
 
-    fn params(&self, path: &str) -> Vc<Params> {
-        Vc::cell(self.regex.captures(path).map(|capture| {
+    fn params(&self, path: &str) -> Params {
+        Params(self.regex.captures(path).map(|capture| {
             self.named_params
                 .iter()
                 .enumerate()

@@ -22,8 +22,8 @@ use next_core::{
 };
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, Nothing, TaskInput, TransientValue,
-    TryJoinIterExt, Value, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, unit, TaskInput, TransientValue, TryJoinIterExt,
+    Value, Vc,
 };
 use turbopack_binding::{
     turbo::{
@@ -139,13 +139,13 @@ impl Project {
         if this.watch {
             disk_fs.await?.start_watching_with_invalidation_reason()?;
         }
-        Ok(disk_fs.into())
+        Ok(Vc::upcast(disk_fs))
     }
 
     #[turbo_tasks::function]
     async fn client_fs(self: Vc<Self>) -> Result<Vc<Box<dyn FileSystem>>> {
         let virtual_fs = VirtualFileSystem::new();
-        Ok(virtual_fs.into())
+        Ok(Vc::upcast(virtual_fs))
     }
 
     #[turbo_tasks::function]
@@ -153,12 +153,12 @@ impl Project {
         let this = self.await?;
         let disk_fs = DiskFileSystem::new("node".to_string(), this.project_path.clone());
         disk_fs.await?.start_watching_with_invalidation_reason()?;
-        Ok(disk_fs.into())
+        Ok(Vc::upcast(disk_fs))
     }
 
     #[turbo_tasks::function]
     pub(super) fn node_root(self: Vc<Self>) -> Vc<FileSystemPath> {
-        self.node_fs().root().join(".next")
+        self.node_fs().root().join(".next".to_string())
     }
 
     #[turbo_tasks::function]
@@ -180,13 +180,13 @@ impl Project {
             .strip_prefix(MAIN_SEPARATOR)
             .unwrap_or(project_relative)
             .replace(MAIN_SEPARATOR, "/");
-        Ok(root.join(&project_relative))
+        Ok(root.join(project_relative))
     }
 
     #[turbo_tasks::function]
     async fn pages_structure(self: Vc<Self>) -> Result<Vc<PagesStructure>> {
         let this: turbo_tasks::ReadRef<Project> = self.await?;
-        let next_router_fs = Vc::upcast(VirtualFileSystem::new());
+        let next_router_fs = Vc::upcast::<Box<dyn FileSystem>>(VirtualFileSystem::new());
         let next_router_root = next_router_fs.root();
         Ok(find_pages_structure(
             self.project_path(),
@@ -209,15 +209,16 @@ impl Project {
     fn execution_context(self: Vc<Self>) -> Vc<ExecutionContext> {
         let node_root = self.node_root();
 
-        let node_execution_chunking_context = DevChunkingContext::builder(
-            self.project_path(),
-            node_root,
-            node_root.join("chunks"),
-            node_root.join("assets"),
-            node_build_environment(),
-        )
-        .build()
-        .into();
+        let node_execution_chunking_context = Vc::upcast(
+            DevChunkingContext::builder(
+                self.project_path(),
+                node_root,
+                node_root.join("chunks".to_string()),
+                node_root.join("assets".to_string()),
+                node_build_environment(),
+            )
+            .build(),
+        );
 
         ExecutionContext::new(
             self.project_path(),
@@ -231,7 +232,7 @@ impl Project {
         let this = self.await?;
         Ok(get_client_compile_time_info(
             this.mode,
-            &this.browserslist_query,
+            this.browserslist_query.clone(),
         ))
     }
 
@@ -251,7 +252,7 @@ impl Project {
         Ok(if let Some(pages) = self.pages_structure().await?.pages {
             pages.project_path()
         } else {
-            self.project_path().join("pages")
+            self.project_path().join("pages".to_string())
         })
     }
 
@@ -443,7 +444,7 @@ impl Project {
 
     #[turbo_tasks::function]
     pub(super) async fn ssr_chunking_context(self: Vc<Self>) -> Result<Vc<BuildChunkingContext>> {
-        let ssr_chunking_context = self.server_chunking_context().with_layer("ssr");
+        let ssr_chunking_context = self.server_chunking_context().with_layer("ssr".to_string());
         Vc::try_resolve_downcast_type::<BuildChunkingContext>(ssr_chunking_context)
             .await?
             .context("with_layer should not change the type of the chunking context")
@@ -453,7 +454,9 @@ impl Project {
     pub(super) async fn ssr_data_chunking_context(
         self: Vc<Self>,
     ) -> Result<Vc<BuildChunkingContext>> {
-        let ssr_chunking_context = self.server_chunking_context().with_layer("ssr data");
+        let ssr_chunking_context = self
+            .server_chunking_context()
+            .with_layer("ssr data".to_string());
         Vc::try_resolve_downcast_type::<BuildChunkingContext>(ssr_chunking_context)
             .await?
             .context("with_layer should not change the type of the chunking context")
@@ -461,7 +464,7 @@ impl Project {
 
     #[turbo_tasks::function]
     pub(super) async fn rsc_chunking_context(self: Vc<Self>) -> Result<Vc<BuildChunkingContext>> {
-        let rsc_chunking_context = self.server_chunking_context().with_layer("rsc");
+        let rsc_chunking_context = self.server_chunking_context().with_layer("rsc".to_string());
         Vc::try_resolve_downcast_type::<BuildChunkingContext>(rsc_chunking_context)
             .await?
             .context("with_layer should not change the type of the chunking context")
@@ -510,12 +513,8 @@ impl Project {
     /// Emits opaque HMR events whenever a change is detected in the chunk group
     /// internally known as `identifier`.
     #[turbo_tasks::function]
-    pub fn hmr_events(
-        self: Vc<Self>,
-        _identifier: String,
-        _sender: TransientValue<()>,
-    ) -> Vc<Nothing> {
-        Nothing::new()
+    pub fn hmr_events(self: Vc<Self>, _identifier: String, _sender: TransientValue<()>) -> Vc<()> {
+        unit()
     }
 }
 
@@ -525,5 +524,5 @@ async fn project_fs(project_dir: String, watching: bool) -> Result<Vc<Box<dyn Fi
     if watching {
         disk_fs.await?.start_watching_with_invalidation_reason()?;
     }
-    Ok(disk_fs.into())
+    Ok(Vc::upcast(disk_fs))
 }

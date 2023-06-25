@@ -3,6 +3,8 @@
 #![feature(async_closure)]
 #![feature(str_split_remainder)]
 #![feature(impl_trait_in_assoc_type)]
+#![feature(arbitrary_self_types)]
+#![feature(async_fn_in_trait)]
 
 mod app_render;
 mod app_segment_config;
@@ -50,7 +52,6 @@ pub use emit::emit_all_assets;
 pub use next_app::unsupported_dynamic_metadata_issue::UnsupportedDynamicMetadataIssue;
 pub use page_loader::create_page_loader_entry_module;
 pub use page_source::create_page_source;
-use turbo_tasks::Vc;
 pub use turbopack_binding::{turbopack::node::source_map, *};
 pub use util::{get_asset_path_from_pathname, pathname_for_path, PathType};
 pub use web_entry_source::create_web_entry_source;

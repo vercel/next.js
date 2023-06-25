@@ -15,13 +15,13 @@ pub async fn get_swc_ecma_transform_plugin(
         Some(plugin_configs) if !plugin_configs.is_empty() => {
             #[cfg(feature = "plugin")]
             {
-                return get_swc_ecma_transform_plugin_impl(project_path, plugin_configs).await;
+                get_swc_ecma_transform_plugin_impl(project_path, plugin_configs).await
             }
 
             #[cfg(not(feature = "plugin"))]
             {
                 let _ = project_path;
-                return Ok(Vc::cell(None));
+                Ok(Vc::cell(None))
             }
         }
         _ => Ok(Vc::cell(None)),
@@ -34,7 +34,7 @@ pub async fn get_swc_ecma_transform_plugin_impl(
     plugin_configs: &[(String, serde_json::Value)],
 ) -> Result<Vc<OptionTransformPlugin>> {
     use anyhow::{bail, Context};
-    use turbo_tasks::{Value, Vc};
+    use turbo_tasks::Value;
     use turbo_tasks_fs::FileContent;
     use turbopack_binding::turbopack::{
         core::{
@@ -46,7 +46,6 @@ pub async fn get_swc_ecma_transform_plugin_impl(
                 PrimaryResolveResult,
             },
         },
-        ecmascript::{OptionTransformPlugin, TransformPlugin},
         ecmascript_plugin::transform::swc_ecma_transform_plugins::{
             SwcEcmaTransformPluginsTransformer, SwcPluginModule,
         },
@@ -107,7 +106,7 @@ pub async fn get_swc_ecma_transform_plugin_impl(
         ));
     }
 
-    return Ok(Vc::cell(Some(TransformPlugin::cell(Box::new(
-        SwcEcmaTransformPluginsTransformer::new(plugins),
-    )))));
+    return Ok(Vc::cell(Some(Vc::cell(
+        Box::new(SwcEcmaTransformPluginsTransformer::new(plugins)) as _,
+    ))));
 }

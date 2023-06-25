@@ -34,7 +34,9 @@ impl Transition for NextServerComponentTransition {
         module: Vc<Box<dyn Module>>,
         _context: Vc<ModuleAssetContext>,
     ) -> Result<Vc<Box<dyn Module>>> {
-        let Some(module) = Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module).await? else {
+        let Some(module) =
+            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module).await?
+        else {
             bail!("not an ecmascript module");
         };
 

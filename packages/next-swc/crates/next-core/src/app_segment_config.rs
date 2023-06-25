@@ -7,7 +7,7 @@ use swc_core::{
     common::{source_map::Pos, Span, Spanned},
     ecma::ast::{Expr, Ident, Program},
 };
-use turbo_tasks::{trace::TraceRawVcs, TryJoinIterExt, Vc};
+use turbo_tasks::{trace::TraceRawVcs, TryJoinIterExt, ValueDefault, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_binding::turbopack::{
     core::{
@@ -15,7 +15,7 @@ use turbopack_binding::turbopack::{
         context::AssetContext,
         file_source::FileSource,
         ident::AssetIdent,
-        issue::{Issue, IssueSeverity, IssueSource, OptionIssueSource},
+        issue::{Issue, IssueExt, IssueSeverity, IssueSource, OptionIssueSource},
         module::Module,
         reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     },
@@ -73,9 +73,9 @@ pub struct NextSegmentConfig {
 }
 
 #[turbo_tasks::value_impl]
-impl NextSegmentConfig {
+impl ValueDefault for NextSegmentConfig {
     #[turbo_tasks::function]
-    pub fn default() -> Vc<Self> {
+    pub fn value_default() -> Vc<Self> {
         NextSegmentConfig::default().cell()
     }
 }
@@ -212,8 +212,10 @@ impl Issue for NextSegmentConfigParsingIssue {
 pub async fn parse_segment_config_from_source(
     module_asset: Vc<Box<dyn Module>>,
 ) -> Result<Vc<NextSegmentConfig>> {
-    let Some(ecmascript_asset) = Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module_asset).await? else {
-        return Ok(NextSegmentConfig::default());
+    let Some(ecmascript_asset) =
+        Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module_asset).await?
+    else {
+        return Ok(Default::default());
     };
 
     let ParseResult::Ok {
@@ -222,7 +224,7 @@ pub async fn parse_segment_config_from_source(
         ..
     } = &*ecmascript_asset.parse().await?
     else {
-        return Ok(NextSegmentConfig::default());
+        return Ok(Default::default());
     };
 
     let mut config = NextSegmentConfig::default();
@@ -267,7 +269,7 @@ fn parse_config_value(
         NextSegmentConfigParsingIssue {
             ident: module.ident(),
             detail: Vc::cell(format!("{detail} Got {explainer}.{hints}")),
-            source: issue_source(module.into(), span),
+            source: issue_source(Vc::upcast(module), span),
         }
         .cell()
         .emit();

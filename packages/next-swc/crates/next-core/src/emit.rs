@@ -25,13 +25,18 @@ pub async fn emit_all_assets(
             .iter()
             .copied()
             .map(|asset| async move {
-                if asset.ident().path().await?.is_inside(&*node_root.await?) {
+                if asset
+                    .ident()
+                    .path()
+                    .await?
+                    .is_inside_ref(&*node_root.await?)
+                {
                     return Ok(emit(asset));
                 } else if asset
                     .ident()
                     .path()
                     .await?
-                    .is_inside(&*client_relative_path.await?)
+                    .is_inside_ref(&*client_relative_path.await?)
                 {
                     // Client assets are emitted to the client output path, which is prefixed with
                     // _next. We need to rebase them to remove that prefix.

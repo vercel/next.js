@@ -45,7 +45,9 @@ impl CustomModuleType for CssClientReferenceModuleType {
             Value::new(ReferenceType::Css(CssReferenceSubType::Internal)),
         );
 
-        let Some(client_module) = Vc::try_resolve_sidecast::<Box<dyn CssChunkPlaceable>>(client_module).await? else {
+        let Some(client_module) =
+            Vc::try_resolve_sidecast::<Box<dyn CssChunkPlaceable>>(client_module).await?
+        else {
             bail!("client asset is not CSS chunk placeable");
         };
 

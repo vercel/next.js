@@ -1,15 +1,11 @@
-use anyhow::Result;
 use indexmap::indexmap;
 use turbo_tasks::Vc;
 use turbopack_binding::{
     turbo::tasks::Value,
     turbopack::{
         core::{
-            context::AssetContext,
-            module::Module,
-            reference_type::{InnerAssets, ReferenceType},
-            resolve::ModulePart,
-            source::Source,
+            context::AssetContext, module::Module, reference_type::ReferenceType,
+            resolve::ModulePart, source::Source,
         },
         r#static::StaticModuleAsset,
         turbopack::{module_options::CustomModuleType, ModuleAssetContext},
@@ -47,16 +43,17 @@ impl StructuredImageModuleType {
         blur_placeholder_mode: BlurPlaceholderMode,
         context: Vc<ModuleAssetContext>,
     ) -> Vc<Box<dyn Module>> {
-        let static_asset = StaticModuleAsset::new(source, context.into());
+        let static_asset = StaticModuleAsset::new(source, Vc::upcast(context));
         context.process(
-            StructuredImageFileSource {
-                image: source,
-                blur_placeholder_mode,
-            }
-            .cell()
-            .into(),
+            Vc::upcast(
+                StructuredImageFileSource {
+                    image: source,
+                    blur_placeholder_mode,
+                }
+                .cell(),
+            ),
             Value::new(ReferenceType::Internal(Vc::cell(indexmap!(
-                "IMAGE".to_string() => static_asset.into()
+                "IMAGE".to_string() => Vc::upcast(static_asset)
             )))),
         )
     }

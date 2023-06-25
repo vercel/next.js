@@ -118,8 +118,8 @@ pub async fn get_server_resolve_options_context(
                 custom_conditions: vec![mode.node_env().to_string(), "node".to_string()],
                 import_map: Some(next_server_import_map),
                 plugins: vec![
-                    external_cjs_modules_plugin.into(),
-                    unsupported_modules_resolve_plugin.into(),
+                    Vc::upcast(external_cjs_modules_plugin),
+                    Vc::upcast(unsupported_modules_resolve_plugin),
                 ],
                 ..Default::default()
             };
@@ -146,8 +146,8 @@ pub async fn get_server_resolve_options_context(
                 ],
                 import_map: Some(next_server_import_map),
                 plugins: vec![
-                    server_component_externals_plugin.into(),
-                    unsupported_modules_resolve_plugin.into(),
+                    Vc::upcast(server_component_externals_plugin),
+                    Vc::upcast(unsupported_modules_resolve_plugin),
                 ],
                 ..Default::default()
             };
@@ -175,8 +175,8 @@ pub async fn get_server_resolve_options_context(
                 ],
                 import_map: Some(next_server_import_map),
                 plugins: vec![
-                    server_component_externals_plugin.into(),
-                    unsupported_modules_resolve_plugin.into(),
+                    Vc::upcast(server_component_externals_plugin),
+                    Vc::upcast(unsupported_modules_resolve_plugin),
                 ],
                 ..Default::default()
             };
@@ -197,8 +197,8 @@ pub async fn get_server_resolve_options_context(
                 custom_conditions: vec![mode.node_env().to_string(), "node".to_string()],
                 import_map: Some(next_server_import_map),
                 plugins: vec![
-                    server_component_externals_plugin.into(),
-                    unsupported_modules_resolve_plugin.into(),
+                    Vc::upcast(server_component_externals_plugin),
+                    Vc::upcast(unsupported_modules_resolve_plugin),
                 ],
                 ..Default::default()
             };
@@ -218,7 +218,7 @@ pub async fn get_server_resolve_options_context(
                 enable_node_externals: true,
                 module: true,
                 custom_conditions: vec![mode.node_env().to_string()],
-                plugins: vec![unsupported_modules_resolve_plugin.into()],
+                plugins: vec![Vc::upcast(unsupported_modules_resolve_plugin)],
                 ..Default::default()
             };
             ResolveOptionsContext {
@@ -304,13 +304,12 @@ pub async fn get_server_module_options_context(
     let styled_components_transform_plugin =
         *get_styled_components_transform_plugin(next_config).await?;
     let styled_jsx_transform_plugin = *get_styled_jsx_transform_plugin().await?;
-    let server_directive_transform_plugin = Some(TransformPlugin::cell(Box::new(
-        ServerDirectiveTransformer::new(
+    let server_directive_transform_plugin =
+        Some(Vc::cell(Box::new(ServerDirectiveTransformer::new(
             // ServerDirective is not implemented yet and always reports an issue.
             // We don't have to pass a valid transition name yet, but the API is prepared.
             &Vc::cell("TODO".to_string()),
-        ),
-    )));
+        )) as _));
 
     // ModuleOptionsContext related options
     let tsconfig = get_typescript_transform_options(project_path);
@@ -472,9 +471,9 @@ pub async fn get_server_module_options_context(
             if let Some(ecmascript_client_reference_transition_name) =
                 ecmascript_client_reference_transition_name
             {
-                base_source_transforms.push(TransformPlugin::cell(Box::new(
-                    ClientDirectiveTransformer::new(ecmascript_client_reference_transition_name),
-                )));
+                base_source_transforms.push(Vc::cell(Box::new(ClientDirectiveTransformer::new(
+                    ecmascript_client_reference_transition_name,
+                )) as _));
             }
 
             let base_ecma_transform_plugins = Some(CustomEcmascriptTransformPlugins::cell(
@@ -628,9 +627,10 @@ pub fn get_server_runtime_entries(
     mode: NextMode,
     next_config: Vc<NextConfig>,
 ) -> Vc<RuntimeEntries> {
-    let mut runtime_entries = vec![RuntimeEntry::Source(
-        ProcessEnvAsset::new(project_root, env_for_js(env, false, next_config)).into(),
-    )
+    let mut runtime_entries = vec![RuntimeEntry::Source(Vc::upcast(ProcessEnvAsset::new(
+        project_root,
+        env_for_js(env, false, next_config),
+    )))
     .cell()];
 
     match mode {
@@ -642,7 +642,7 @@ pub fn get_server_runtime_entries(
                         Request::parse(Value::new(Pattern::Constant(
                             "./build/server/app-bootstrap.ts".to_string(),
                         ))),
-                        next_js_fs().root().join("_"),
+                        next_js_fs().root().join("_".to_string()),
                     )
                     .cell(),
                 );
@@ -668,8 +668,8 @@ pub fn get_server_chunking_context(
     BuildChunkingContext::builder(
         project_path,
         node_root,
-        node_root.join("server/chunks"),
-        client_root.join("static/media"),
+        node_root.join("server/chunks".to_string()),
+        client_root.join("static/media".to_string()),
         environment,
     )
     .build()

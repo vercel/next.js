@@ -1,8 +1,7 @@
 use anyhow::Result;
 use turbo_tasks::Vc;
 use turbopack_binding::turbopack::{
-    ecmascript::{OptionTransformPlugin, TransformPlugin},
-    ecmascript_plugin::transform::relay::RelayTransformer,
+    ecmascript::OptionTransformPlugin, ecmascript_plugin::transform::relay::RelayTransformer,
 };
 
 use crate::next_config::NextConfig;
@@ -21,9 +20,7 @@ pub async fn get_relay_transform_plugin(
                 .relay
                 .as_ref()
                 .map(|config| {
-                    Vc::cell(Some(TransformPlugin::cell(Box::new(
-                        RelayTransformer::new(config),
-                    ))))
+                    Vc::cell(Some(Vc::cell(Box::new(RelayTransformer::new(config)) as _)))
                 })
                 .unwrap_or_default()
         })

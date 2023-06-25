@@ -4,10 +4,10 @@ use turbopack_binding::{
     turbo::tasks_fs::{FileSystemEntryType, FileSystemPath},
     turbopack::{
         core::{
-            issue::{Issue, IssueSeverity},
+            issue::{Issue, IssueExt, IssueSeverity},
             resolve::{parse::Request, pattern::Pattern, resolve},
         },
-        node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItems},
+        node::transforms::webpack::WebpackLoaderItem,
         turbopack::{
             module_options::{LoaderRuleItem, OptionWebpackRules, WebpackRules},
             resolve_options,
@@ -39,7 +39,7 @@ pub async fn maybe_add_babel_loader(
     let has_babel_config = {
         let mut has_babel_config = false;
         for filename in BABEL_CONFIG_FILES {
-            let filetype = *project_root.join(filename).get_type().await?;
+            let filetype = *project_root.join(filename.to_string()).get_type().await?;
             if matches!(filetype, FileSystemEntryType::File) {
                 has_babel_config = true;
                 break;

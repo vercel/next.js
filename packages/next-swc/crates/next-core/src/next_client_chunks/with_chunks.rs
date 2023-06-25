@@ -23,8 +23,8 @@ use turbopack_binding::{
         ecmascript::{
             chunk::{
                 EcmascriptChunk, EcmascriptChunkData, EcmascriptChunkItem,
-                EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptChunkingContext,
-                EcmascriptExports,
+                EcmascriptChunkItemContent, EcmascriptChunkItemExt, EcmascriptChunkPlaceable,
+                EcmascriptChunkingContext, EcmascriptExports,
             },
             utils::StringifyJs,
         },
@@ -64,7 +64,7 @@ impl WithChunksAsset {
     #[turbo_tasks::function]
     async fn entry_chunk(self: Vc<Self>) -> Result<Vc<Box<dyn Chunk>>> {
         let this = self.await?;
-        Ok(this.asset.as_root_chunk(this.chunking_context.into()))
+        Ok(this.asset.as_root_chunk(Vc::upcast(this.chunking_context)))
     }
 
     #[turbo_tasks::function]
@@ -91,11 +91,10 @@ impl Asset for WithChunksAsset {
         let this = self.await?;
         let entry_chunk = self.entry_chunk();
 
-        Ok(Vc::cell(vec![ChunkGroupReference::new(
-            this.chunking_context.into(),
+        Ok(Vc::cell(vec![Vc::upcast(ChunkGroupReference::new(
+            Vc::upcast(this.chunking_context),
             entry_chunk,
-        )
-        .into()]))
+        ))]))
     }
 }
 
@@ -125,12 +124,13 @@ impl EcmascriptChunkPlaceable for WithChunksAsset {
         self: Vc<Self>,
         context: Vc<Box<dyn EcmascriptChunkingContext>>,
     ) -> Result<Vc<Box<dyn EcmascriptChunkItem>>> {
-        Ok(WithChunksChunkItem {
-            context,
-            inner: self,
-        }
-        .cell()
-        .into())
+        Ok(Vc::upcast(
+            WithChunksChunkItem {
+                context,
+                inner: self,
+            }
+            .cell(),
+        ))
     }
 
     #[turbo_tasks::function]

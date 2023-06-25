@@ -77,7 +77,7 @@ impl Visit<VisitDynamicNode> for VisitDynamic {
         let node = node.clone();
         async move {
             let asset = match node {
-                VisitDynamicNode::Dynamic(dynamic_asset) => dynamic_asset.into(),
+                VisitDynamicNode::Dynamic(dynamic_asset) => Vc::upcast(dynamic_asset),
                 VisitDynamicNode::Internal(asset) => asset,
             };
 

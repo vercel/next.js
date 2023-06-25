@@ -14,9 +14,8 @@ use turbopack_binding::{
     turbo::tasks_fs::{rope::RopeBuilder, File, FileSystemPath},
     turbopack::{
         core::{
-            context::AssetContext,
-            reference_type::{InnerAssets, ReferenceType},
-            virtual_source::VirtualSource,
+            asset::AssetContent, context::AssetContext, issue::IssueExt,
+            reference_type::ReferenceType, virtual_source::VirtualSource,
         },
         ecmascript::{chunk::EcmascriptChunkPlaceable, utils::StringifyJs},
         turbopack::ModuleAssetContext,
@@ -33,7 +32,7 @@ pub(super) async fn get_app_page_entry(
     pathname: &str,
     project_root: Vc<FileSystemPath>,
 ) -> Result<Vc<AppEntry>> {
-    let server_component_transition = NextServerComponentTransition::new().into();
+    let server_component_transition = Vc::upcast(NextServerComponentTransition::new());
 
     let loader_tree = LoaderTreeModule::build(
         loader_tree,
@@ -94,14 +93,16 @@ pub(super) async fn get_app_page_entry(
     let file = File::from(result.build());
     let source =
         // TODO(alexkirsz) Figure out how to name this virtual asset.
-        VirtualSource::new(project_root.join("todo.tsx"), file.into());
+        VirtualSource::new(project_root.join("todo.tsx".to_string()), AssetContent::file(file.into()));
 
     let rsc_entry = context.process(
-        source.into(),
+        Vc::upcast(source),
         Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
     );
 
-    let Some(rsc_entry) = Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(rsc_entry).await? else {
+    let Some(rsc_entry) =
+        Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(rsc_entry).await?
+    else {
         bail!("expected an ECMAScript chunk placeable asset");
     };
 

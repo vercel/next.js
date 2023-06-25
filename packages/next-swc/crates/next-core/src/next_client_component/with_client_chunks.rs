@@ -18,7 +18,7 @@ use turbopack_binding::{
             reference::{AssetReference, AssetReferences, SingleAssetReference},
             resolve::ResolveResult,
         },
-        ecmascript::chunk::EcmascriptChunkData,
+        ecmascript::chunk::{EcmascriptChunkData, EcmascriptChunkItemExt},
         turbopack::ecmascript::{
             chunk::{
                 EcmascriptChunk, EcmascriptChunkItem, EcmascriptChunkItemContent,
@@ -54,11 +54,12 @@ impl Asset for WithClientChunksAsset {
 
     #[turbo_tasks::function]
     fn references(&self) -> Vc<AssetReferences> {
-        Vc::cell(vec![WithClientChunksAssetReference {
-            asset: self.asset.into(),
-        }
-        .cell()
-        .into()])
+        Vc::cell(vec![Vc::upcast(
+            WithClientChunksAssetReference {
+                asset: Vc::upcast(self.asset),
+            }
+            .cell(),
+        )])
     }
 }
 
@@ -74,7 +75,7 @@ impl ChunkableModule for WithClientChunksAsset {
         availability_info: Value<AvailabilityInfo>,
     ) -> Vc<Box<dyn Chunk>> {
         Vc::upcast(EcmascriptChunk::new(
-            context.with_layer("rsc"),
+            context.with_layer("rsc".to_string()),
             Vc::upcast(self),
             availability_info,
         ))
@@ -88,19 +89,20 @@ impl EcmascriptChunkPlaceable for WithClientChunksAsset {
         self: Vc<Self>,
         context: Vc<Box<dyn EcmascriptChunkingContext>>,
     ) -> Result<Vc<Box<dyn EcmascriptChunkItem>>> {
-        Ok(WithClientChunksChunkItem {
-            context: Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkingContext>>(
-                context.with_layer("rsc"),
-            )
-            .await?
-            .context(
-                "ChunkingContext::with_layer should not return a different kind of chunking \
-                 context",
-            )?,
-            inner: self,
-        }
-        .cell()
-        .into())
+        Ok(Vc::upcast(
+            WithClientChunksChunkItem {
+                context: Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkingContext>>(
+                    context.with_layer("rsc".to_string()),
+                )
+                .await?
+                .context(
+                    "ChunkingContext::with_layer should not return a different kind of chunking \
+                     context",
+                )?,
+                inner: self,
+            }
+            .cell(),
+        ))
     }
 
     #[turbo_tasks::function]
@@ -124,7 +126,7 @@ impl WithClientChunksChunkItem {
         let inner = this.inner.await?;
         Ok(this
             .context
-            .chunk_group(inner.asset.as_root_chunk(this.context.into())))
+            .chunk_group(inner.asset.as_root_chunk(Vc::upcast(this.context))))
     }
 
     #[turbo_tasks::function]
@@ -141,8 +143,8 @@ impl WithClientChunksChunkItem {
             if &*extension == "css" {
                 if let Some(path) = output_root.get_path_to(&*chunk.ident().path().await?) {
                     client_chunks.push(Vc::upcast(ProxiedAsset::new(
-                        chunk.into(),
-                        inner.server_root.join(path),
+                        Vc::upcast(chunk),
+                        inner.server_root.join(path.to_string()),
                     )));
                 }
             }
@@ -215,19 +217,18 @@ impl ChunkItem for WithClientChunksChunkItem {
         let this = self.await?;
         let inner = this.inner.await?;
         let mut references = Vec::new();
-        references.push(
+        references.push(Vc::upcast(
             WithClientChunksAssetReference {
-                asset: inner.asset.into(),
+                asset: Vc::upcast(inner.asset),
             }
-            .cell()
-            .into(),
-        );
+            .cell(),
+        ));
         let client_chunks = self.client_chunks();
         let client_chunks = client_chunks.await?;
         let client_chunk = Vc::cell("client chunk".to_string());
         for &chunk in client_chunks.iter() {
             references.push(Vc::upcast(SingleAssetReference::new(
-                chunk.into(),
+                Vc::upcast(chunk),
                 client_chunk,
             )));
         }

@@ -12,9 +12,7 @@ use turbopack_binding::{
         },
         dev_server::html::DevHtmlAsset,
         node::execution_context::ExecutionContext,
-        turbopack::{
-            ecmascript::EcmascriptModuleAsset, transition::TransitionsByName, ModuleAssetContext,
-        },
+        turbopack::{ecmascript::EcmascriptModuleAsset, ModuleAssetContext},
     },
 };
 
@@ -79,11 +77,11 @@ pub async fn get_fallback_page(
 
     let fallback_chunk = resolve_runtime_request(
         Vc::upcast(PlainResolveOrigin::new(context, project_path)),
-        "entry/fallback",
+        "entry/fallback".to_string(),
     );
 
     let module = if let Some(module) =
-        Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(Vc::upcast(fallback_chunk)).await?
+        Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(fallback_chunk).await?
     {
         module
     } else {
@@ -91,11 +89,11 @@ pub async fn get_fallback_page(
     };
 
     Ok(DevHtmlAsset::new(
-        dev_server_root.join("fallback.html"),
+        dev_server_root.join("fallback.html".to_string()),
         vec![(
-            module.into(),
-            chunking_context.into(),
-            Some(runtime_entries.with_entry(module.into())),
+            Vc::upcast(module),
+            Vc::upcast(chunking_context),
+            Some(runtime_entries.with_entry(Vc::upcast(module))),
         )],
     ))
 }

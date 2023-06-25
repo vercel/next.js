@@ -5,7 +5,10 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{trace::TraceRawVcs, Vc};
-use turbopack_binding::{turbo::tasks_fs::FileSystemPath, turbopack::core::issue::IssueSeverity};
+use turbopack_binding::{
+    turbo::tasks_fs::FileSystemPath,
+    turbopack::core::issue::{IssueExt, IssueSeverity},
+};
 
 use super::options::NextFontGoogleOptions;
 use crate::{

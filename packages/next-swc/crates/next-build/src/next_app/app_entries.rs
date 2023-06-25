@@ -29,7 +29,7 @@ use turbopack_binding::{
     turbopack::{
         build::BuildChunkingContext,
         core::{
-            asset::Asset,
+            asset::{Asset, AssetContent},
             chunk::{
                 availability_info::AvailabilityInfo, ChunkingContext, EvaluatableAssets,
                 ModuleId as TurbopackModuleId,
@@ -42,16 +42,13 @@ use turbopack_binding::{
         },
         ecmascript::{
             chunk::{
-                EcmascriptChunk, EcmascriptChunkPlaceable, EcmascriptChunkPlaceables,
+                EcmascriptChunk, EcmascriptChunkItemExt, EcmascriptChunkPlaceable,
                 EcmascriptChunkingContext,
             },
             utils::StringifyJs,
         },
         node::execution_context::ExecutionContext,
-        turbopack::{
-            transition::{ContextTransition, TransitionsByName},
-            ModuleAssetContext,
-        },
+        turbopack::{transition::ContextTransition, ModuleAssetContext},
     },
 };
 
@@ -193,7 +190,7 @@ pub async fn get_app_entries(
 
     let rsc_ty = Value::new(ServerContextType::AppRSC {
         app_dir,
-        client_transition: Some(client_transition.into()),
+        client_transition: Some(Vc::upcast(client_transition)),
         ecmascript_client_reference_transition_name: Some(Vc::cell(
             ECMASCRIPT_CLIENT_TRANSITION_NAME.to_string(),
         )),
@@ -269,8 +266,8 @@ pub async fn get_app_entries(
 
     Ok(AppEntries::cell(AppEntries {
         entries,
-        rsc_runtime_entries: runtime_entries.resolve_entries(rsc_context.into()),
-        client_runtime_entries: client_runtime_entries.resolve_entries(client_context.into()),
+        rsc_runtime_entries: runtime_entries.resolve_entries(Vc::upcast(rsc_context)),
+        client_runtime_entries: client_runtime_entries.resolve_entries(Vc::upcast(client_context)),
     }))
 }
 
@@ -302,7 +299,7 @@ pub async fn compute_app_entries_chunks(
         all_chunks.push(chunk);
 
         let chunk_path = chunk.ident().path().await?;
-        if chunk_path.extension() == Some("js") {
+        if chunk_path.extension_ref() == Some("js") {
             if let Some(chunk_path) = client_relative_path.get_path_to(&chunk_path) {
                 app_shared_client_chunks_paths.push(chunk_path.to_string());
                 build_manifest.root_main_files.push(chunk_path.to_string());
@@ -318,7 +315,7 @@ pub async fn compute_app_entries_chunks(
             .expect("app entry should have a corresponding client references list");
 
         let rsc_chunk = rsc_chunking_context.entry_chunk(
-            node_root.join(&format!(
+            node_root.join(format!(
                 "server/app/{original_name}.js",
                 original_name = app_entry.original_name
             )),
@@ -391,7 +388,7 @@ pub async fn compute_app_entries_chunks(
             if let Some(server_component) = app_client_reference.server_component() {
                 let server_component_name = server_component
                     .server_path()
-                    .with_extension("")
+                    .with_extension("".to_string())
                     .to_string()
                     .await?;
 
@@ -417,7 +414,7 @@ pub async fn compute_app_entries_chunks(
                             client_chunks_paths
                                 .iter()
                                 .filter_map(|chunk_path| {
-                                    if chunk_path.extension() == Some("css") {
+                                    if chunk_path.extension_ref() == Some("css") {
                                         client_relative_path.get_path_to(chunk_path)
                                     } else {
                                         None
@@ -510,23 +507,25 @@ pub async fn compute_app_entries_chunks(
 
         let client_reference_manifest_json = serde_json::to_string(&entry_manifest).unwrap();
         let client_reference_manifest_source = VirtualSource::new(
-            node_root.join(&format!(
+            node_root.join(format!(
                 "server/app/{original_name}_client-reference-manifest.js",
                 original_name = app_entry.original_name
             )),
-            File::from(formatdoc! {
-                r#"
+            AssetContent::file(
+                File::from(formatdoc! {
+                    r#"
                     globalThis.__RSC_MANIFEST = globalThis.__RSC_MANIFEST || {{}};
                     globalThis.__RSC_MANIFEST[{original_name}] = {manifest}
                 "#,
-                original_name = StringifyJs(&app_entry.original_name),
-                manifest = StringifyJs(&client_reference_manifest_json)
-            })
-            .into(),
+                    original_name = StringifyJs(&app_entry.original_name),
+                    manifest = StringifyJs(&client_reference_manifest_json)
+                })
+                .into(),
+            ),
         );
-        all_chunks.push(Vc::upcast(RawOutput::new(
-            client_reference_manifest_source.into(),
-        )));
+        all_chunks.push(Vc::upcast(RawOutput::new(Vc::upcast(
+            client_reference_manifest_source,
+        ))));
     }
 
     Ok(())
@@ -570,8 +569,10 @@ pub async fn get_app_client_shared_chunks(
     let app_client_shared_chunk =
         get_app_shared_client_chunk(app_client_runtime_entries, client_chunking_context);
 
-    let app_client_shared_chunks = client_chunking_context
-        .evaluated_chunk_group(app_client_shared_chunk.into(), app_client_runtime_entries);
+    let app_client_shared_chunks = client_chunking_context.evaluated_chunk_group(
+        Vc::upcast(app_client_shared_chunk),
+        app_client_runtime_entries,
+    );
 
     Ok(app_client_shared_chunks)
 }

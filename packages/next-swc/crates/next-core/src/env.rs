@@ -21,7 +21,7 @@ pub async fn env_for_js(
     client: bool,
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<Box<dyn ProcessEnv>>> {
-    let test_mode = env.read("__NEXT_TEST_MODE").await?;
+    let test_mode = env.read("__NEXT_TEST_MODE".to_string()).await?;
     let test_mode = test_mode.as_deref().unwrap_or("");
 
     let env = if client {
@@ -36,7 +36,7 @@ pub async fn env_for_js(
     } else {
         // Server doesn't need to have env vars injected since it will have them in the
         // real process.env.
-        Vc::upcast(Vc::cell(Default::default()))
+        Vc::upcast(EnvMap::empty())
     };
 
     let env = Vc::upcast(EmbeddableProcessEnv::new(Vc::upcast(

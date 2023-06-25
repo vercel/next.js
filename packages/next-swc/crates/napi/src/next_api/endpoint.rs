@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use napi::{bindgen_prelude::External, JsFunction};
 use next_api::route::{Endpoint, WrittenEndpoint};
 use turbo_tasks::Vc;
@@ -24,14 +26,28 @@ impl From<&WrittenEndpoint> for NapiWrittenEndpoint {
     }
 }
 
+// NOTE(alexkirsz) We go through an extra layer of indirection here because of
+// two factors:
+// 1. rustc currently has a bug where using a dyn trait as a type argument to
+//    some async functions (in this case `endpoint_write_to_disk`) can cause
+//    higher-ranked lifetime errors. See https://github.com/rust-lang/rust/issues/102211
+// 2. the type_complexity clippy lint.
+pub struct ExternalEndpoint(pub VcArc<Vc<Box<dyn Endpoint>>>);
+
+impl Deref for ExternalEndpoint {
+    type Target = VcArc<Vc<Box<dyn Endpoint>>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 #[napi]
 pub async fn endpoint_write_to_disk(
-    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<
-        VcArc<Vc<Box<dyn Endpoint>>>,
-    >,
+    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
 ) -> napi::Result<NapiWrittenEndpoint> {
     let turbo_tasks = endpoint.turbo_tasks().clone();
-    let endpoint = **endpoint;
+    let endpoint = ***endpoint;
     let written = turbo_tasks
         .run_once(async move { endpoint.write_to_disk().strongly_consistent().await })
         .await

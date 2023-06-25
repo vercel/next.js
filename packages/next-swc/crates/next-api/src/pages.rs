@@ -137,20 +137,21 @@ impl PageHtmlEndpoint {
             this.pathname,
         );
 
-        let Some(client_module) = Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(client_module).await?
+        let Some(client_module) =
+            Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(client_module).await?
         else {
             bail!("expected an ECMAScript module asset");
         };
 
         let client_chunking_context = this.project.client_chunking_context();
 
-        let client_entry_chunk = client_module.as_root_chunk(client_chunking_context.into());
+        let client_entry_chunk = client_module.as_root_chunk(Vc::upcast(client_chunking_context));
 
         let client_chunks = client_chunking_context.evaluated_chunk_group(
             client_entry_chunk,
             this.project
                 .pages_client_runtime_entries()
-                .with_entry(client_module.into()),
+                .with_entry(Vc::upcast(client_module)),
         );
 
         Ok(client_chunks)
@@ -166,17 +167,19 @@ impl PageHtmlEndpoint {
             .pages_ssr_module_context()
             .process(self.source(), reference_type.clone());
 
-        let Some(ssr_module) = Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(ssr_module).await? else {
+        let Some(ssr_module) =
+            Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(ssr_module).await?
+        else {
             bail!("expected an ECMAScript module asset");
         };
 
         let asset_path = get_asset_path_from_pathname(&this.pathname.await?, ".js");
 
         let ssr_entry_chunk_path_string = format!("server/pages{asset_path}");
-        let ssr_entry_chunk_path = this.project.node_root().join(&ssr_entry_chunk_path_string);
+        let ssr_entry_chunk_path = this.project.node_root().join(ssr_entry_chunk_path_string);
         let ssr_entry_chunk = this.project.ssr_chunking_context().entry_chunk(
             ssr_entry_chunk_path,
-            ssr_module.into(),
+            Vc::upcast(ssr_module),
             this.project.pages_ssr_runtime_entries(),
         );
 
@@ -193,13 +196,13 @@ impl Endpoint for PageHtmlEndpoint {
         let ssr_emit = emit_all_assets(
             Vc::cell(vec![ssr_chunk]),
             this.project.node_root(),
-            this.project.client_root().join("_next"),
+            this.project.client_root().join("_next".to_string()),
             this.project.node_root(),
         );
         let client_emit = emit_all_assets(
             self.client_chunks(),
             this.project.node_root(),
-            this.project.client_root().join("_next"),
+            this.project.client_root().join("_next".to_string()),
             this.project.node_root(),
         );
 
@@ -223,7 +226,7 @@ impl Endpoint for PageHtmlEndpoint {
     fn changed(self: Vc<Self>) -> Vc<Completion> {
         let ssr_chunk = self.ssr_chunk();
         Completions::all(vec![
-            any_content_changed(ssr_chunk.into()),
+            any_content_changed(Vc::upcast(ssr_chunk)),
             any_content_changed_of_output_assets(self.client_chunks()),
         ])
     }
@@ -271,7 +274,8 @@ impl PageDataEndpoint {
             .pages_ssr_data_module_context()
             .process(self.source(), reference_type.clone());
 
-        let Some(ssr_data_module) = Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(ssr_data_module).await?
+        let Some(ssr_data_module) =
+            Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(ssr_data_module).await?
         else {
             bail!("expected an ECMAScript module asset");
         };
@@ -282,10 +286,10 @@ impl PageDataEndpoint {
         let ssr_data_entry_chunk_path = this
             .project
             .node_root()
-            .join(&ssr_data_entry_chunk_path_string);
+            .join(ssr_data_entry_chunk_path_string);
         let ssr_data_entry_chunk = this.project.ssr_data_chunking_context().entry_chunk(
             ssr_data_entry_chunk_path,
-            ssr_data_module.into(),
+            Vc::upcast(ssr_data_module),
             this.project.pages_ssr_runtime_entries(),
         );
 
@@ -302,7 +306,7 @@ impl Endpoint for PageDataEndpoint {
         emit_all_assets(
             Vc::cell(vec![ssr_data_chunk]),
             this.project.node_root(),
-            this.project.client_root().join("_next"),
+            this.project.client_root().join("_next".to_string()),
             this.project.node_root(),
         )
         .await?;
@@ -323,7 +327,7 @@ impl Endpoint for PageDataEndpoint {
     #[turbo_tasks::function]
     async fn changed(self: Vc<Self>) -> Result<Vc<Completion>> {
         let ssr_data_chunk = self.ssr_data_chunk();
-        Ok(any_content_changed(ssr_data_chunk.into()))
+        Ok(any_content_changed(Vc::upcast(ssr_data_chunk)))
     }
 }
 

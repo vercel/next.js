@@ -86,7 +86,7 @@ impl ContentSource for NextRouterContentSource {
         Ok(RouteTree::new_route(
             Vec::new(),
             RouteType::CatchAll,
-            self.into(),
+            Vc::upcast(self),
         ))
     }
 }

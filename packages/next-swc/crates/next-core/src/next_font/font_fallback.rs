@@ -1,4 +1,3 @@
-use anyhow::Result;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::Vc;

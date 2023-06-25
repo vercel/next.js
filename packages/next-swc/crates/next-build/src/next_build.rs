@@ -19,8 +19,7 @@ use next_core::{
 use serde::Serialize;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    CollectiblesSource, Completion, Completions, RawVc, TransientInstance, TransientValue,
-    TryJoinIterExt, Vc,
+    Completion, Completions, TransientInstance, TransientValue, TryJoinIterExt, Vc,
 };
 use turbopack_binding::{
     turbo::tasks_fs::{rebase, DiskFileSystem, FileContent, FileSystem, FileSystemPath},
@@ -31,7 +30,7 @@ use turbopack_binding::{
             asset::{Asset, Assets},
             chunk::ChunkingContext,
             environment::ServerAddr,
-            issue::{Issue, IssueReporter, IssueSeverity},
+            issue::{IssueContextExt, IssueReporter, IssueSeverity},
             output::{OutputAsset, OutputAssets},
             reference::AssetReference,
             virtual_fs::VirtualFileSystem,
@@ -81,7 +80,8 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
     };
 
     let browserslist_query = "last 1 Chrome versions, last 1 Firefox versions, last 1 Safari \
-                              versions, last 1 Edge versions";
+                              versions, last 1 Edge versions"
+        .to_string();
 
     let log_options = LogOptions {
         project_dir: PathBuf::from(project_root.clone()),
@@ -93,45 +93,46 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
 
     let issue_reporter: Vc<Box<dyn IssueReporter>> =
         Vc::upcast(ConsoleUi::new(TransientInstance::new(log_options)));
-    let node_fs = node_fs(&project_root, issue_reporter);
-    let node_root = node_fs.root().join(".next");
-    let client_fs = client_fs(&project_root, issue_reporter);
-    let client_root = client_fs.root().join(".next");
+    let node_fs = node_fs(project_root.clone(), issue_reporter);
+    let node_root = node_fs.root().join(".next".to_string());
+    let client_fs = client_fs(project_root.clone(), issue_reporter);
+    let client_root = client_fs.root().join(".next".to_string());
     // TODO(alexkirsz) This should accept a URL for assetPrefix.
     // let client_public_fs = VirtualFileSystem::new();
     // let client_public_root = client_public_fs.root();
-    let workspace_fs = workspace_fs(&workspace_root, issue_reporter);
+    let workspace_fs = workspace_fs(workspace_root.clone(), issue_reporter);
     let project_relative = project_root.strip_prefix(&workspace_root).unwrap();
     let project_relative = project_relative
         .strip_prefix(MAIN_SEPARATOR)
         .unwrap_or(project_relative)
         .replace(MAIN_SEPARATOR, "/");
-    let project_root = workspace_fs.root().join(&project_relative);
+    let project_root = workspace_fs.root().join(project_relative);
 
     let node_root_ref = node_root.await?;
 
-    let node_execution_chunking_context = DevChunkingContext::builder(
-        project_root,
-        node_root,
-        node_root.join("chunks"),
-        node_root.join("assets"),
-        node_build_environment(),
-    )
-    .build()
-    .into();
+    let node_execution_chunking_context = Vc::upcast(
+        DevChunkingContext::builder(
+            project_root,
+            node_root,
+            node_root.join("chunks".to_string()),
+            node_root.join("assets".to_string()),
+            node_build_environment(),
+        )
+        .build(),
+    );
 
     let env = load_env(project_root);
 
     let execution_context =
         ExecutionContext::new(project_root, node_execution_chunking_context, env);
-    let next_config = load_next_config(execution_context.with_layer("next_config"));
+    let next_config = load_next_config(execution_context.with_layer("next_config".to_string()));
 
     let mode = NextMode::Build;
     let client_compile_time_info = get_client_compile_time_info(mode, browserslist_query);
     let server_compile_time_info = get_server_compile_time_info(mode, env, ServerAddr::empty());
 
     // TODO(alexkirsz) Pages should build their own routes, outside of a FS.
-    let next_router_fs = Vc::upcast(VirtualFileSystem::new());
+    let next_router_fs = Vc::upcast::<Box<dyn FileSystem>>(VirtualFileSystem::new());
     let next_router_root = next_router_fs.root();
     let page_entries = get_page_entries(
         next_router_root,
@@ -167,11 +168,7 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
         .await?;
 
     let app_client_references_by_entry = ClientReferencesByEntry::new(Vc::cell(
-        app_rsc_entries
-            .iter()
-            .copied()
-            .map(|entry| entry.into())
-            .collect(),
+        app_rsc_entries.iter().copied().map(Vc::upcast).collect(),
     ))
     .await?;
 
@@ -226,11 +223,7 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
 
     // TODO(alexkirsz) Handle dynamic entries and dynamic chunks.
     let _dynamic_entries = NextDynamicEntries::from_entries(Vc::cell(
-        all_node_entries
-            .iter()
-            .copied()
-            .map(|entry| entry.into())
-            .collect(),
+        all_node_entries.iter().copied().map(Vc::upcast).collect(),
     ))
     .await?;
 
@@ -255,8 +248,8 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
     );
     // TODO(alexkirsz) This should be the same chunking context. The layer should
     // be applied on the AssetContext level instead.
-    let rsc_chunking_context = server_chunking_context.with_layer("rsc");
-    let ssr_chunking_context = server_chunking_context.with_layer("ssr");
+    let rsc_chunking_context = server_chunking_context.with_layer("rsc".to_string());
+    let ssr_chunking_context = server_chunking_context.with_layer("ssr".to_string());
     let (Some(rsc_chunking_context), Some(ssr_chunking_context)) = (
         Vc::try_resolve_downcast_type::<BuildChunkingContext>(rsc_chunking_context).await?,
         Vc::try_resolve_downcast_type::<BuildChunkingContext>(ssr_chunking_context).await?,
@@ -267,18 +260,18 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
     let mut all_chunks = vec![];
 
     let mut build_manifest: BuildManifest = Default::default();
-    let build_manifest_path = client_root.join("build-manifest.json");
+    let build_manifest_path = client_root.join("build-manifest.json".to_string());
 
     // This ensures that the _next prefix is properly stripped from all client paths
     // in manifests. It will be added back on the client through the chunk_base_path
     // mechanism.
-    let client_relative_path = client_root.join("_next");
+    let client_relative_path = client_root.join("_next".to_string());
     let client_relative_path_ref = client_relative_path.await?;
 
     // PAGE CHUNKING
 
     let mut pages_manifest: PagesManifest = Default::default();
-    let pages_manifest_path = node_root.join("server/pages-manifest.json");
+    let pages_manifest_path = node_root.join("server/pages-manifest.json".to_string());
     let pages_manifest_dir_path = pages_manifest_path.parent().await?;
 
     compute_page_entries_chunks(
@@ -297,10 +290,10 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
     // APP CHUNKING
 
     let mut app_build_manifest = AppBuildManifest::default();
-    let app_build_manifest_path = client_root.join("app-build-manifest.json");
+    let app_build_manifest_path = client_root.join("app-build-manifest.json".to_string());
 
     let mut app_paths_manifest = AppPathsManifest::default();
-    let app_paths_manifest_path = node_root.join("server/app-paths-manifest.json");
+    let app_paths_manifest_path = node_root.join("server/app-paths-manifest.json".to_string());
     let app_paths_manifest_dir_path = app_paths_manifest_path.parent().await?;
 
     // APP CLIENT REFERENCES CHUNKING
@@ -322,7 +315,7 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
         &app_client_references_chunks,
         rsc_chunking_context,
         client_chunking_context,
-        ssr_chunking_context.into(),
+        Vc::upcast(ssr_chunking_context),
         node_root,
         &client_relative_path_ref,
         &app_paths_manifest_dir_path,
@@ -340,7 +333,7 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
 
         let ssg_manifest_path = format!("static/{build_id}/_ssgManifest.js");
 
-        let ssg_manifest_fs_path = node_root.join(&ssg_manifest_path);
+        let ssg_manifest_fs_path = node_root.join(ssg_manifest_path.clone());
         completions.push(
             ssg_manifest_fs_path.write(
                 FileContent::Content(
@@ -390,7 +383,7 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
 
         let client_manifest_path = format!("static/{build_id}/_buildManifest.js");
 
-        let client_manifest_fs_path = node_root.join(&client_manifest_path);
+        let client_manifest_fs_path = node_root.join(client_manifest_path.clone());
         completions.push(
             client_manifest_fs_path.write(
                 FileContent::Content(
@@ -419,23 +412,23 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
     // experimental-edge pages?
     completions.push(write_manifest(
         MiddlewaresManifest::default(),
-        node_root.join("server/middleware-manifest.json"),
+        node_root.join("server/middleware-manifest.json".to_string()),
     )?);
     completions.push(write_manifest(
         NextFontManifest::default(),
-        node_root.join("server/next-font-manifest.json"),
+        node_root.join("server/next-font-manifest.json".to_string()),
     )?);
     completions.push(write_manifest(
         FontManifest::default(),
-        node_root.join("server/font-manifest.json"),
+        node_root.join("server/font-manifest.json".to_string()),
     )?);
     completions.push(write_manifest(
         ServerReferenceManifest::default(),
-        node_root.join("server/server-reference-manifest.json"),
+        node_root.join("server/server-reference-manifest.json".to_string()),
     )?);
     completions.push(write_manifest(
         ReactLoadableManifest::default(),
-        node_root.join("react-loadable-manifest.json"),
+        node_root.join("react-loadable-manifest.json".to_string()),
     )?);
 
     completions.push(
@@ -458,7 +451,7 @@ async fn workspace_fs(
 ) -> Result<Vc<Box<dyn FileSystem>>> {
     let disk_fs = DiskFileSystem::new("workspace".to_string(), workspace_root.to_string());
     handle_issues(disk_fs, issue_reporter).await?;
-    Ok(disk_fs.into())
+    Ok(Vc::upcast(disk_fs))
 }
 
 #[turbo_tasks::function]
@@ -468,7 +461,7 @@ async fn node_fs(
 ) -> Result<Vc<Box<dyn FileSystem>>> {
     let disk_fs = DiskFileSystem::new("node".to_string(), node_root.to_string());
     handle_issues(disk_fs, issue_reporter).await?;
-    Ok(disk_fs.into())
+    Ok(Vc::upcast(disk_fs))
 }
 
 #[turbo_tasks::function]
@@ -478,21 +471,19 @@ async fn client_fs(
 ) -> Result<Vc<Box<dyn FileSystem>>> {
     let disk_fs = DiskFileSystem::new("client".to_string(), client_root.to_string());
     handle_issues(disk_fs, issue_reporter).await?;
-    Ok(disk_fs.into())
+    Ok(Vc::upcast(disk_fs))
 }
 
-async fn handle_issues<T: Into<RawVc> + CollectiblesSource + Copy>(
-    source: T,
-    issue_reporter: Vc<Box<dyn IssueReporter>>,
-) -> Result<()> {
-    let issues = Issue::peek_issues_with_path(source)
+async fn handle_issues<T>(source: Vc<T>, issue_reporter: Vc<Box<dyn IssueReporter>>) -> Result<()> {
+    let issues = source
+        .peek_issues_with_path()
         .await?
         .strongly_consistent()
         .await?;
 
     let has_fatal = issue_reporter.report_issues(
         TransientInstance::new(issues.clone()),
-        TransientValue::new(source.into()),
+        TransientValue::new(source.node),
     );
 
     if *has_fatal.await? {
@@ -516,13 +507,13 @@ async fn emit_all_assets(
             .iter()
             .copied()
             .map(|asset| async move {
-                if asset.ident().path().await?.is_inside(node_root) {
+                if asset.ident().path().await?.is_inside_ref(node_root) {
                     return Ok(emit(asset));
                 } else if asset
                     .ident()
                     .path()
                     .await?
-                    .is_inside(&*client_relative_path.await?)
+                    .is_inside_ref(&*client_relative_path.await?)
                 {
                     // Client assets are emitted to the client output path, which is prefixed with
                     // _next. We need to rebase them to remove that prefix.
@@ -560,7 +551,7 @@ async fn all_assets_from_entries(entries: Vc<OutputAssets>) -> Result<Vc<Assets>
         AdjacencyMap::new()
             .skip_duplicates()
             .visit(
-                entries.await?.iter().copied().map(Into::into),
+                entries.await?.iter().copied().map(Vc::upcast),
                 get_referenced_assets,
             )
             .await

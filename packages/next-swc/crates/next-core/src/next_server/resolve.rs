@@ -71,7 +71,7 @@ static PNPM: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?:/|^)node_modules/(.pnpm/
 
 #[turbo_tasks::function]
 fn condition(root: Vc<FileSystemPath>) -> Vc<ResolvePluginCondition> {
-    ResolvePluginCondition::new(root.root(), Glob::new("**/node_modules/**"))
+    ResolvePluginCondition::new(root.root(), Glob::new("**/node_modules/**".to_string()))
 }
 
 #[turbo_tasks::value_impl]
@@ -118,7 +118,7 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
         // node.js only supports these file extensions
         // mjs is an esm module and we can't bundle that yet
         if !matches!(
-            raw_fs_path.extension(),
+            raw_fs_path.extension_ref(),
             Some("cjs" | "js" | "node" | "json")
         ) {
             return Ok(ResolveResultOption::none());
@@ -178,7 +178,7 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
 
 #[turbo_tasks::function]
 async fn packages_glob(packages: Vc<Vec<String>>) -> Result<Vc<Glob>> {
-    Ok(Glob::new(&format!(
+    Ok(Glob::new(format!(
         "**/node_modules/{{{}}}/**",
         packages.await?.join(",")
     )))

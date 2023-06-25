@@ -306,7 +306,10 @@ pub fn get_next_client_resolved_map(
         // Temporary hack to replace the hot reloader until this is passable by props in next.js
         (
             context.root(),
-            Glob::new("**/next/dist/client/components/react-dev-overlay/hot-reloader-client.js"),
+            Glob::new(
+                "**/next/dist/client/components/react-dev-overlay/hot-reloader-client.js"
+                    .to_string(),
+            ),
             ImportMapping::PrimaryAlternative(
                 "@vercel/turbopack-next/dev/hot-reloader.tsx".to_string(),
                 Some(root),

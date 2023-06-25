@@ -8,19 +8,21 @@ use crate::route::{Endpoint, Route, WrittenEndpoint};
 pub async fn app_entry_point_to_route(entrypoint: Entrypoint) -> Vc<Route> {
     match entrypoint {
         Entrypoint::AppPage { .. } => Route::AppPage {
-            html_endpoint: AppPageEndpoint {
-                ty: AppPageEndpointType::Html,
-            }
-            .cell()
-            .into(),
-            rsc_endpoint: AppPageEndpoint {
-                ty: AppPageEndpointType::Rsc,
-            }
-            .cell()
-            .into(),
+            html_endpoint: Vc::upcast(
+                AppPageEndpoint {
+                    ty: AppPageEndpointType::Html,
+                }
+                .cell(),
+            ),
+            rsc_endpoint: Vc::upcast(
+                AppPageEndpoint {
+                    ty: AppPageEndpointType::Rsc,
+                }
+                .cell(),
+            ),
         },
         Entrypoint::AppRoute { .. } => Route::AppRoute {
-            endpoint: AppRouteEndpoint.cell().into(),
+            endpoint: Vc::upcast(AppRouteEndpoint.cell()),
         },
     }
     .cell()

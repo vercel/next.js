@@ -1,4 +1,3 @@
-use anyhow::Result;
 use indexmap::IndexMap;
 use turbo_tasks::{Completion, Vc};
 
