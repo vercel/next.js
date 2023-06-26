@@ -22,6 +22,7 @@ export type ConfigurationContext = {
 
   sassOptions: any
   productionBrowserSourceMaps: boolean
+  enableSourceMapsForServer: boolean
 
   transpilePackages: NextConfigComplete['transpilePackages']
 

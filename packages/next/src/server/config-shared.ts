@@ -460,6 +460,11 @@ export interface NextConfig extends Record<string, any> {
   disableServerMinification?: boolean
 
   /**
+   * Enables source maps generation for the server production bundle.
+   */
+  enableSourceMapsForServer?: boolean
+
+  /**
    * Next.js exposes some options that give you some control over how the server will dispose or keep in memory built pages in development.
    *
    * @see [Configuring `onDemandEntries`](https://nextjs.org/docs/api-reference/next.config.js/configuring-onDemandEntries)
@@ -646,6 +651,7 @@ export const defaultConfig: NextConfig = {
   analyticsId: process.env.VERCEL_ANALYTICS_ID || '',
   images: imageConfigDefault,
   disableServerMinification: false,
+  enableSourceMapsForServer: false,
   devIndicators: {
     buildActivity: true,
     buildActivityPosition: 'bottom-right',

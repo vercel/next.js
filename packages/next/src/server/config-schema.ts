@@ -203,6 +203,9 @@ const configSchema = {
     disableServerMinification: {
       type: 'boolean',
     },
+    enableSourceMapsForServer: {
+      type: 'boolean',
+    },
     env: {
       type: 'object',
     },
