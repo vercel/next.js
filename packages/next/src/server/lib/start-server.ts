@@ -7,7 +7,11 @@ import { isIPv6 } from 'net'
 import * as Log from '../../build/output/log'
 import { normalizeRepeatedSlashes } from '../../shared/lib/utils'
 import { initialEnv } from '@next/env'
-import { genRouterWorkerExecArgv, getNodeOptionsWithoutInspect } from './utils'
+import {
+  genRouterWorkerExecArgv,
+  getDebugPort,
+  getNodeOptionsWithoutInspect,
+} from './utils'
 
 export interface StartServerOptions {
   dir: string
@@ -155,6 +159,15 @@ export async function startServer({
 
       const appUrl = `http://${host}:${port}`
 
+      if (isNodeDebugging) {
+        const debugPort = getDebugPort()
+        Log.info(
+          `the --inspect${
+            isNodeDebugging === 'brk' ? '-brk' : ''
+          } option was detected, the Next.js proxy server should be inspected at port ${debugPort}.`
+        )
+      }
+
       Log.ready(
         `started server on ${normalizedHostname}${
           (port + '').startsWith(':') ? '' : ':'
@@ -284,6 +297,21 @@ export async function startServer({
           return
         }
         const proxyServer = getProxyServer(req.url || '/')
+
+        // http-proxy does not properly detect a client disconnect in newer
+        // versions of Node.js. This is caused because it only listens for the
+        // `aborted` event on the our request object, but it also fully reads
+        // and closes the request object. Node **will not** fire `aborted` when
+        // the request is already closed. Listening for `close` on our response
+        // object will detect the disconnect, and we can abort the proxy's
+        // connection.
+        proxyServer.on('proxyReq', (proxyReq) => {
+          res.on('close', () => proxyReq.destroy())
+        })
+        proxyServer.on('proxyRes', (proxyRes) => {
+          res.on('close', () => proxyRes.destroy())
+        })
+
         proxyServer.web(req, res)
       }
       upgradeHandler = async (req, socket, head) => {

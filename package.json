@@ -26,6 +26,7 @@
     "genstats": "cross-env LOCAL_STATS=true node .github/actions/next-stats-action/src/index.js",
     "git-reset": "git reset --hard HEAD",
     "git-clean": "git clean -d -x -e node_modules -e packages -f",
+    "typescript": "tsc --noEmit",
     "lint-typescript": "turbo run typescript",
     "lint-eslint": "eslint . --ext js,jsx,ts,tsx --max-warnings=0 --config .eslintrc.json --no-eslintrc",
     "lint-no-typescript": "run-p prettier-check lint-eslint lint-language",
@@ -51,7 +52,7 @@
     "clean-trace-jaeger": "node scripts/rm.mjs test/integration/basic/.next && TRACE_TARGET=JAEGER pnpm next build test/integration/basic",
     "debug": "cross-env NEXT_TELEMETRY_DISABLED=1 node --inspect packages/next/dist/bin/next",
     "postinstall": "git config index.skipHash false && node scripts/install-native.mjs",
-    "version": "npx pnpm@7.32.2 install --no-frozen-lockfile && IS_PUBLISH=yes ./scripts/check-pre-compiled.sh && git add .",
+    "version": "npx pnpm@7.24.3 install --no-frozen-lockfile && IS_PUBLISH=yes ./scripts/check-pre-compiled.sh && git add .",
     "prepare": "husky install",
     "sync-react": "node ./scripts/sync-react.js",
     "update-google-fonts": "node ./scripts/update-google-fonts.js"
@@ -84,7 +85,10 @@
     "@swc/helpers": "0.5.1",
     "@testing-library/react": "13.0.0",
     "@types/cheerio": "0.22.16",
+    "@types/cookie": "0.3.3",
+    "@types/cross-spawn": "6.0.0",
     "@types/fs-extra": "8.1.0",
+    "@types/glob": "7.1.1",
     "@types/html-validator": "5.0.3",
     "@types/http-proxy": "1.17.3",
     "@types/jest": "24.0.13",
@@ -169,7 +173,9 @@
     "npm-run-all": "4.1.5",
     "nprogress": "0.2.0",
     "open": "9.0.0",
+    "outdent": "0.8.0",
     "pixrem": "5.0.0",
+    "playwright-core": "1.28.1",
     "playwright-chromium": "1.28.1",
     "plop": "3.0.5",
     "postcss": "8.4.14",
@@ -239,5 +245,5 @@
   "engines": {
     "node": ">=16.8.0"
   },
-  "packageManager": "pnpm@7.32.2"
+  "packageManager": "pnpm@7.24.3"
 }

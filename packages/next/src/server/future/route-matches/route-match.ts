@@ -1,3 +1,4 @@
+import type { ParsedUrlQuery } from 'querystring'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 
 /**
@@ -30,4 +31,23 @@ export function isRouteMatch<M extends RouteMatch>(
   kind: M['definition']['kind']
 ): match is M {
   return match.definition.kind === kind
+}
+
+/**
+ * Converts the query into params.
+ *
+ * @param query the query to convert to params
+ * @returns the params
+ */
+export function parsedUrlQueryToParams(
+  query: ParsedUrlQuery
+): Record<string, string | string[]> {
+  const params: Record<string, string | string[]> = {}
+
+  for (const [key, value] of Object.entries(query)) {
+    if (typeof value === 'undefined') continue
+    params[key] = value
+  }
+
+  return params
 }
