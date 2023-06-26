@@ -40,7 +40,7 @@ interface Options {
   serverActionsBodySizeLimit?: SizeLimit
 }
 
-const PLUGIN_NAME = 'ClientEntryPlugin'
+const PLUGIN_NAME = 'FlightClientEntryPlugin'
 
 export type ActionManifest = {
   [key in 'node' | 'edge']: {
@@ -148,7 +148,7 @@ function deduplicateCSSImportsForEntry(mergedCSSimports: CssImports) {
   return dedupedCSSImports
 }
 
-export class ClientReferenceEntryPlugin {
+export class FlightClientEntryPlugin {
   dev: boolean
   appDir: string
   isEdgeServer: boolean
@@ -377,35 +377,6 @@ export class ClientReferenceEntryPlugin {
       )
     }
 
-    // To collect all CSS imports and action imports for a specific entry
-    // including the ones that are in the client graph, we need to store a
-    // map for client boundary dependencies.
-    function collectClientEntryDependencyMap(name: string) {
-      const clientEntryDependencyMap: Record<string, any> = {}
-
-      const entry = compilation.entries.get(name)
-      entry.includeDependencies.forEach((dep: any) => {
-        if (
-          dep.request &&
-          dep.request.startsWith('next-flight-client-entry-loader?')
-        ) {
-          const mod: webpack.NormalModule =
-            compilation.moduleGraph.getResolvedModule(dep)
-
-          compilation.moduleGraph
-            .getOutgoingConnections(mod)
-            .forEach((connection: any) => {
-              if (connection.dependency) {
-                clientEntryDependencyMap[connection.dependency.request] =
-                  connection.dependency
-              }
-            })
-        }
-      })
-
-      return clientEntryDependencyMap
-    }
-
     // We need to create extra action entries that are created in the
     // client layer.
     compilation.hooks.finishModules.tapPromise(PLUGIN_NAME, () => {
@@ -414,7 +385,6 @@ export class ClientReferenceEntryPlugin {
 
       forEachEntryModule(compilation, ({ name, entryModule }) => {
         const actionEntryImports = new Map<string, string[]>()
-        const clientEntryDependencyMap = collectClientEntryDependencyMap(name)
 
         const tracked = new Set<string>()
         for (const connection of compilation.moduleGraph.getOutgoingConnections(
@@ -433,7 +403,6 @@ export class ClientReferenceEntryPlugin {
               entryRequest,
               compilation,
               dependency: entryDependency,
-              clientEntryDependencyMap,
             })
 
           clientActionImports.forEach(([dep, names]) =>
@@ -528,12 +497,10 @@ export class ClientReferenceEntryPlugin {
     entryRequest,
     compilation,
     dependency,
-    clientEntryDependencyMap,
   }: {
     entryRequest: string
     compilation: any
     dependency: any /* Dependency */
-    clientEntryDependencyMap?: Record<string, any>
   }): {
     cssImports: CssImports
     clientComponentImports: ClientComponentImports
@@ -608,16 +575,6 @@ export class ClientReferenceEntryPlugin {
 
       if (!inClientComponentBoundary && isClientComponent) {
         clientComponentImports.push(modRequest)
-
-        // Here we are entering a client boundary, and we need to collect dependencies
-        // in the client graph too.
-        if (clientEntryDependencyMap) {
-          if (clientEntryDependencyMap[modRequest]) {
-            filterClientComponents(clientEntryDependencyMap[modRequest], true)
-          }
-        }
-
-        return
       }
 
       compilation.moduleGraph
