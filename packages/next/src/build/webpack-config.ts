@@ -2551,12 +2551,6 @@ export default async function getBaseWebpackConfig(
     webpack5Config.output.enabledLibraryTypes = ['assign']
   }
 
-  if (dev) {
-    // @ts-ignore unsafeCache exists
-    webpack5Config.module.unsafeCache = (module) =>
-      !/[\\/]pages[\\/][^\\/]+(?:$|\?|#)/.test(module.resource)
-  }
-
   // This enables managedPaths for all node_modules
   // and also for the unplugged folder when using yarn pnp
   // It also add the yarn cache to the immutable paths
