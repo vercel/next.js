@@ -403,7 +403,7 @@ async fn create_page_source_for_file(
     let pathname = pathname_for_path(client_root, client_path, PathType::Page);
     let route_matcher = NextParamsMatcherVc::new(pathname);
 
-    let (base_segments, route_type) = pathname_to_segments(&*pathname.await?, "")?;
+    let (base_segments, route_type) = pathname_to_segments(&pathname.await?, "")?;
 
     Ok(if is_api_path {
         create_node_api_source(
@@ -786,7 +786,7 @@ fn pathname_to_segments(pathname: &str, extension: &str) -> Result<(Vec<BaseSegm
     if let Some(BaseSegment::Static(s)) = segments.last_mut() {
         s.push_str(extension);
     }
-    return Ok((segments, RouteType::Exact));
+    Ok((segments, RouteType::Exact))
 }
 
 /// The node.js renderer for SSR of pages.
