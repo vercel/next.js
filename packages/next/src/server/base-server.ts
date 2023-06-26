@@ -19,7 +19,7 @@ import {
   normalizeRepeatedSlashes,
   MissingStaticPage,
 } from '../shared/lib/utils'
-import type { PreviewData, ServerRuntime } from 'next/types'
+import type { PreviewData, ServerRuntime, SizeLimit } from 'next/types'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { OutgoingHttpHeaders } from 'http2'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
@@ -255,6 +255,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     supportsDynamicHTML?: boolean
     isBot?: boolean
     clientReferenceManifest?: ClientReferenceManifest
+    serverActionsBodySizeLimit?: SizeLimit
     serverActionsManifest?: any
     nextFontManifest?: NextFontManifest
     renderServerComponentData?: boolean
@@ -1650,6 +1651,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               incrementalCache,
               isRevalidate: isSSG,
               originalPathname: components.ComponentMod.originalPathname,
+              serverActionsBodySizeLimit:
+                this.nextConfig.experimental.serverActionsBodySizeLimit,
             }
           : {}),
         isDataReq,

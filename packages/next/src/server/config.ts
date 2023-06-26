@@ -416,6 +416,17 @@ function assignDefaults(
     result.output = 'standalone'
   }
 
+  if (typeof result.experimental?.serverActionsBodySizeLimit !== 'undefined') {
+    const value = parseInt(
+      result.experimental.serverActionsBodySizeLimit.toString()
+    )
+    if (isNaN(value) || value < 1) {
+      throw new Error(
+        'Server Actions Size Limit must be a valid number or filesize format lager than 1MB: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions'
+      )
+    }
+  }
+
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'transpilePackages',
