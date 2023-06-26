@@ -1766,7 +1766,7 @@ export default async function getBaseWebpackConfig(
       runtimeChunk: isClient
         ? { name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK }
         : undefined,
-      minimize: !dev && !config.disableServerMinification,
+      minimize: !dev && !(isNodeServer && config.disableServerMinification),
       minimizer: [
         // Minify JavaScript
         (compiler: webpack.Compiler) => {
