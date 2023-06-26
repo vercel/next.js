@@ -382,6 +382,21 @@ export default function ExampleClientComponent({ myAction }) {
 
 In both cases, the form is interactive before hydration occurs. Although Server Actions have the additional benefit of not relying on client JavaScript, you can still compose additional behavior with Client Actions where desired without sacrificing interactivity.
 
+### Size Limitation
+
+By default, the maximum size of the request body sent to an Server Action is 1MB. This prevents large amounts of data being sent to the server, which consumes a lot of server resource to parse.
+
+However, you can configure this limit using the **experimental** `serverActionsBodySizeLimit` option. It can take the number of bytes or any string format supported by bytes, for example `1000`, `'500kb'` or `'3mb'`.
+
+```js filename="next.config.js"
+module.exports = {
+  experimental: {
+    serverActions: true,
+    serverActionsBodySizeLimit: '2mb',
+  },
+}
+```
+
 ## Examples
 
 ### Usage with Client Components

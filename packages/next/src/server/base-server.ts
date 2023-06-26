@@ -19,7 +19,7 @@ import {
   normalizeRepeatedSlashes,
   MissingStaticPage,
 } from '../shared/lib/utils'
-import type { PreviewData, ServerRuntime } from 'next/types'
+import type { PreviewData, ServerRuntime, SizeLimit } from 'next/types'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { OutgoingHttpHeaders } from 'http2'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
@@ -30,6 +30,7 @@ import type { NextFontManifest } from '../build/webpack/plugins/next-font-manife
 import type { PagesRouteModule } from './future/route-modules/pages/module'
 import type { NodeNextRequest, NodeNextResponse } from './base-http/node'
 import type { AppRouteRouteMatch } from './future/route-matches/app-route-route-match'
+import type { RouteDefinition } from './future/route-definitions/route-definition'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/redirect-status'
@@ -109,7 +110,11 @@ import {
   toNodeOutgoingHttpHeaders,
 } from './web/utils'
 import { NEXT_QUERY_PARAM_PREFIX } from '../lib/constants'
-import { isRouteMatch } from './future/route-matches/route-match'
+import {
+  isRouteMatch,
+  parsedUrlQueryToParams,
+  type RouteMatch,
+} from './future/route-matches/route-match'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -250,6 +255,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     supportsDynamicHTML?: boolean
     isBot?: boolean
     clientReferenceManifest?: ClientReferenceManifest
+    serverActionsBodySizeLimit?: SizeLimit
     serverActionsManifest?: any
     nextFontManifest?: NextFontManifest
     renderServerComponentData?: boolean
@@ -1645,6 +1651,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               incrementalCache,
               isRevalidate: isSSG,
               originalPathname: components.ComponentMod.originalPathname,
+              serverActionsBodySizeLimit:
+                this.nextConfig.experimental.serverActionsBodySizeLimit,
             }
           : {}),
         isDataReq,
@@ -1675,7 +1683,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       let result: RenderResult
 
       // Get the match for the page if it exists.
-      const match = getRequestMeta(req, '_nextMatch')
+      const match: RouteMatch<RouteDefinition<RouteKind>> | undefined =
+        getRequestMeta(req, '_nextMatch') ??
+        // If the match can't be found, rely on the loaded route module. This
+        // should only be required during development when we add FS routes.
+        (this.renderOpts.dev && components.ComponentMod?.routeModule
+          ? {
+              definition: components.ComponentMod.routeModule.definition,
+              params: opts.params
+                ? parsedUrlQueryToParams(opts.params)
+                : undefined,
+            }
+          : undefined)
 
       if (
         match &&
@@ -2431,15 +2450,16 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
     }
     const { res, query } = ctx
+
     try {
       let result: null | FindComponentsResult = null
 
       const is404 = res.statusCode === 404
       let using404Page = false
 
-      // use static 404 page if available and is 404 response
       if (is404) {
-        if (this.hasAppDir) {
+        // Rendering app routes only in render worker to make sure the require-hook is setup
+        if (this.hasAppDir && this.isRenderWorker) {
           // Use the not-found entry in app directory
           result = await this.findPageComponents({
             pathname: this.renderOpts.dev ? '/not-found' : '/_not-found',
@@ -2577,6 +2597,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const fallbackComponents = await this.getFallbackErrorComponents()
 
       if (fallbackComponents) {
+        // There was an error, so use it's definition from the route module
+        // to add the match to the request.
+        addRequestMeta(ctx.req, '_nextMatch', {
+          definition: fallbackComponents.ComponentMod.routeModule.definition,
+          params: undefined,
+        })
+
         return this.renderToResponseWithComponents(
           {
             ...ctx,

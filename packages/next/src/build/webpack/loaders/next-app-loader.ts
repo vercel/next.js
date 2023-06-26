@@ -522,11 +522,11 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         !result &&
         (await fileExists(absolutePathWithExtension, FileType.File))
       ) {
-        // Ensures we call `addMissingDependency` for all files that didn't match
         result = absolutePathWithExtension
-      } else {
-        this.addMissingDependency(absolutePathWithExtension)
       }
+      // Call `addMissingDependency` for all files even if they didn't match,
+      // because they might be added or removed during development.
+      this.addMissingDependency(absolutePathWithExtension)
     }
 
     return result
@@ -545,9 +545,10 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         (await fileExists(absolutePathWithExtension, FileType.File))
       ) {
         result = absolutePathWithExtension
-      } else {
-        this.addMissingDependency(absolutePathWithExtension)
       }
+      // Call `addMissingDependency` for all files even if they didn't match,
+      // because they might be added or removed during development.
+      this.addMissingDependency(absolutePathWithExtension)
     }
 
     return result

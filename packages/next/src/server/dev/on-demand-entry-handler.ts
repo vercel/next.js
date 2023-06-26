@@ -26,7 +26,7 @@ import {
   isMiddlewareFile,
   isMiddlewareFilename,
 } from '../../build/utils'
-import { PageNotFoundError } from '../../shared/lib/utils'
+import { PageNotFoundError, stringifyError } from '../../shared/lib/utils'
 import {
   CompilerNameValues,
   COMPILER_INDEXES,
@@ -879,9 +879,28 @@ export function onDemandEntryHandler({
       }
     },
 
-    onHMR(client: ws) {
+    onHMR(client: ws, getHmrServerError: () => Error | null) {
+      let bufferedHmrServerError: Error | null = null
+
+      client.addEventListener('close', () => {
+        bufferedHmrServerError = null
+      })
       client.addEventListener('message', ({ data }) => {
         try {
+          const error = getHmrServerError()
+
+          // New error occurred: buffered error is flushed and new error occurred
+          if (!bufferedHmrServerError && error) {
+            client.send(
+              JSON.stringify({
+                event: 'server-error', // for pages dir
+                action: 'serverError', // for app dir
+                errorJSON: stringifyError(error),
+              })
+            )
+            bufferedHmrServerError = null
+          }
+
           const parsedData = JSON.parse(
             typeof data !== 'string' ? data.toString() : data
           )

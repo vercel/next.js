@@ -7,7 +7,11 @@ import { isIPv6 } from 'net'
 import * as Log from '../../build/output/log'
 import { normalizeRepeatedSlashes } from '../../shared/lib/utils'
 import { initialEnv } from '@next/env'
-import { genRouterWorkerExecArgv, getNodeOptionsWithoutInspect } from './utils'
+import {
+  genRouterWorkerExecArgv,
+  getDebugPort,
+  getNodeOptionsWithoutInspect,
+} from './utils'
 
 export interface StartServerOptions {
   dir: string
@@ -154,6 +158,15 @@ export async function startServer({
       targetHost = host
 
       const appUrl = `http://${host}:${port}`
+
+      if (isNodeDebugging) {
+        const debugPort = getDebugPort()
+        Log.info(
+          `the --inspect${
+            isNodeDebugging === 'brk' ? '-brk' : ''
+          } option was detected, the Next.js proxy server should be inspected at port ${debugPort}.`
+        )
+      }
 
       Log.ready(
         `started server on ${normalizedHostname}${
