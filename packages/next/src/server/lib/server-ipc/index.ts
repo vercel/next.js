@@ -93,8 +93,8 @@ export const createWorker = async (
 
   const worker = new Worker(require.resolve('../render-server'), {
     numWorkers: 1,
-    // TODO: do we want to allow more than 10 OOM restarts?
-    maxRetries: 10,
+    // TODO: do we want to allow more than 8 OOM restarts?
+    maxRetries: 8,
     forkOptions: {
       env: {
         FORCE_COLOR: '1',

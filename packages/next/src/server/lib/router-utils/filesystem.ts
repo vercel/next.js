@@ -1,28 +1,33 @@
 import type { RoutesManifest } from '../../../build'
 import type { NextConfigComplete } from '../../config-shared'
+import type { MiddlewareManifest } from '../../../build/webpack/plugins/middleware-plugin'
 
 import path from 'path'
 import fs from 'fs/promises'
-import { recursiveReadDir } from '../../../lib/recursive-readdir'
 import { findPagesDir } from '../../../lib/find-pages-dir'
-import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
-import { absolutePathToPage } from '../../../shared/lib/page-path/absolute-path-to-page'
 import loadCustomRoutes from '../../../lib/load-custom-routes'
-import { getPathMatch } from '../../../shared/lib/router/utils/path-match'
 import { modifyRouteRegex } from '../../../lib/redirect-status'
 import { UnwrapPromise } from '../../../lib/coalesced-function'
+import { recursiveReadDir } from '../../../lib/recursive-readdir'
+import { getPathMatch } from '../../../shared/lib/router/utils/path-match'
+import { getRouteRegex } from '../../../shared/lib/router/utils/route-regex'
+import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
+import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
+import { absolutePathToPage } from '../../../shared/lib/page-path/absolute-path-to-page'
+import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
+
 import {
   APP_PATH_ROUTES_MANIFEST,
+  MIDDLEWARE_MANIFEST,
   PAGES_MANIFEST,
   ROUTES_MANIFEST,
 } from '../../../shared/lib/constants'
-import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
-import { getRouteRegex } from '../../../shared/lib/router/utils/route-regex'
 
 export type FsOutput = {
   type:
     | 'appFile'
     | 'pageFile'
+    | 'nextImage'
     | 'publicFolder'
     | 'nextStaticFolder'
     | 'legacyStaticFolder'
@@ -47,6 +52,9 @@ export async function setupFsCheck(opts: {
   let dynamicRoutes: (RoutesManifest['dynamicRoutes'][0] & {
     match: ReturnType<typeof getPathMatch>
   })[] = []
+
+  let middlewareMatcher: ReturnType<typeof getMiddlewareRouteMatcher> = () =>
+    false
 
   const distDir = path.join(opts.dir, opts.config.distDir)
   const publicFolderPath = path.join(opts.dir, 'public')
@@ -94,12 +102,21 @@ export async function setupFsCheck(opts: {
     }
 
     const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
+    const middlewareManifestPath = path.join(
+      distDir,
+      'server',
+      MIDDLEWARE_MANIFEST
+    )
     const pagesManifestPath = path.join(distDir, 'server', PAGES_MANIFEST)
     const appRoutesManifestPath = path.join(distDir, APP_PATH_ROUTES_MANIFEST)
 
     const routesManifest = JSON.parse(
       await fs.readFile(routesManifestPath, 'utf8')
     ) as RoutesManifest
+
+    const middlewareManifest = JSON.parse(
+      await fs.readFile(middlewareManifestPath, 'utf8').catch(() => '{}')
+    ) as MiddlewareManifest
 
     const pagesManifest = JSON.parse(
       await fs.readFile(pagesManifestPath, 'utf8')
@@ -120,6 +137,12 @@ export async function setupFsCheck(opts: {
         ...route,
         match: getRouteMatcher(getRouteRegex(route.page)),
       })
+    }
+
+    if (middlewareManifest.middleware?.['/']?.matchers) {
+      middlewareMatcher = getMiddlewareRouteMatcher(
+        middlewareManifest.middleware?.['/']?.matchers
+      )
     }
 
     customRoutes = {
@@ -236,6 +259,15 @@ export async function setupFsCheck(opts: {
     redirects,
 
     async getItem(itemPath: string): Promise<FsOutput | null> {
+      if (itemPath !== '/' && itemPath.endsWith('/')) {
+        itemPath = itemPath.substring(0, itemPath.length - 1)
+      }
+
+      if (itemPath === '/_next/image') {
+        return {
+          type: 'nextImage',
+        }
+      }
       const itemsToCheck: Array<[Set<string>, FsOutput['type']]> = [
         [publicFolderItems, 'publicFolder'],
         [legacyStaticFolderItems, 'legacyStaticFolder'],
@@ -258,6 +290,14 @@ export async function setupFsCheck(opts: {
 
         if (type === 'nextStaticFolder') {
           curItemPath = curItemPath.substring('/_next/static'.length)
+
+          try {
+            decodedItemPath = decodeURIComponent(curItemPath)
+          } catch (_) {}
+        }
+
+        if (type === 'legacyStaticFolder') {
+          curItemPath = curItemPath.substring('/static'.length)
 
           try {
             decodedItemPath = decodeURIComponent(curItemPath)
@@ -300,6 +340,9 @@ export async function setupFsCheck(opts: {
     },
     getDynamicRoutes() {
       return dynamicRoutes
+    },
+    getMiddlewareMatchers() {
+      return middlewareMatcher
     },
   }
 }

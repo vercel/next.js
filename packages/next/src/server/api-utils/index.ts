@@ -186,7 +186,7 @@ export function sendError(
 }
 
 interface LazyProps {
-  req: NextApiRequest
+  req: IncomingMessage
 }
 
 /**

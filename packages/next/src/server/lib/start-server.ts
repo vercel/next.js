@@ -196,8 +196,8 @@ export async function startServer({
 
       const routerWorker = new Worker(routerServerPath, {
         numWorkers: 1,
-        // TODO: do we want to allow more than 16 OOM restarts?
-        maxRetries: 16,
+        // TODO: do we want to allow more than 8 OOM restarts?
+        maxRetries: 8,
         forkOptions: {
           execArgv: await genRouterWorkerExecArgv(
             isNodeDebugging === undefined ? false : isNodeDebugging
