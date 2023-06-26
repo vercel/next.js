@@ -254,10 +254,13 @@ export function navigateReducer(
     // The one before last item is the router state tree patch
     const [treePatch] = flightDataPath.slice(-3) as [FlightRouterState]
 
+    // TODO-APP: remove ''
+    const flightSegmentPathWithLeadingEmpty = ['', ...flightSegmentPath]
+
     // Create new tree based on the flightSegmentPath and router state patch
     let newTree = applyRouterStatePatchToTree(
       // TODO-APP: remove ''
-      ['', ...flightSegmentPath],
+      flightSegmentPathWithLeadingEmpty,
       currentTree,
       treePatch
     )
@@ -267,7 +270,7 @@ export function navigateReducer(
     if (newTree === null) {
       newTree = applyRouterStatePatchToTree(
         // TODO-APP: remove ''
-        ['', ...flightSegmentPath],
+        flightSegmentPathWithLeadingEmpty,
         treeAtTimeOfPrefetch,
         treePatch
       )
@@ -303,7 +306,7 @@ export function navigateReducer(
 
       const hardNavigate = shouldHardNavigate(
         // TODO-APP: remove ''
-        ['', ...flightSegmentPath],
+        flightSegmentPathWithLeadingEmpty,
         currentTree
       )
 
