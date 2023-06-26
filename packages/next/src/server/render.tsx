@@ -411,8 +411,8 @@ export async function renderToHTMLImpl(
   res: ServerResponse,
   pathname: string,
   query: NextParsedUrlQuery,
-  renderOpts: Omit<RenderOpts, keyof RenderOptsExtra>,
-  extra: RenderOptsExtra
+  renderOpts: Readonly<Omit<RenderOpts, keyof RenderOptsExtra>>,
+  extra: Readonly<RenderOptsExtra>
 ): Promise<RenderResult> {
   const renderResultMeta: RenderResultMetadata = {}
 

@@ -142,10 +142,12 @@ export async function renderToHTMLOrFlight(
   res: ServerResponse,
   pagePath: string,
   query: NextParsedUrlQuery,
-  renderOpts: RenderOpts
+  renderOpts: Readonly<RenderOpts>
 ): Promise<RenderResult> {
   const isFlight = req.headers[RSC.toLowerCase()] !== undefined
   const pathname = validateURL(req.url)
+
+  const extraRenderResultMeta: RenderResultMetadata = {}
 
   const {
     buildManifest,
@@ -221,7 +223,7 @@ export async function renderToHTMLOrFlight(
       )
     }
     staticGenerationStore.fetchMetrics = []
-    ;(renderOpts as any).fetchMetrics = staticGenerationStore.fetchMetrics
+    extraRenderResultMeta.fetchMetrics = staticGenerationStore.fetchMetrics
 
     const requestStore = requestAsyncStorage.getStore()
     if (!requestStore) {
@@ -1611,22 +1613,27 @@ export async function renderToHTMLOrFlight(
     })
 
     if (actionRequestResult === 'not-found') {
-      return new RenderResult(await bodyResult({ asNotFound: true }))
+      return new RenderResult(
+        await bodyResult({ asNotFound: true }),
+        extraRenderResultMeta
+      )
     } else if (actionRequestResult) {
+      actionRequestResult.setMetadata(extraRenderResultMeta)
       return actionRequestResult
     }
-
-    const renderResult = new RenderResult(
-      await bodyResult({
-        asNotFound: pagePath === '/404',
-      })
-    )
 
     if (staticGenerationStore.pendingRevalidates) {
       await Promise.all(staticGenerationStore.pendingRevalidates)
     }
     addImplicitTags(staticGenerationStore)
-    ;(renderOpts as any).fetchTags = staticGenerationStore.tags?.join(',')
+    extraRenderResultMeta.fetchTags = staticGenerationStore.tags?.join(',')
+
+    const renderResult = new RenderResult(
+      await bodyResult({
+        asNotFound: pagePath === '/404',
+      }),
+      extraRenderResultMeta
+    )
 
     if (staticGenerationStore.isStaticGeneration) {
       const htmlResult = await streamToBufferedResult(renderResult)
@@ -1647,10 +1654,9 @@ export async function renderToHTMLOrFlight(
         staticGenerationStore.revalidate = 0
       }
 
-      const extraRenderResultMeta: RenderResultMetadata = {
-        pageData: filteredFlightData,
-        revalidate: staticGenerationStore.revalidate ?? defaultRevalidate,
-      }
+      extraRenderResultMeta.pageData = filteredFlightData
+      extraRenderResultMeta.revalidate =
+        staticGenerationStore.revalidate ?? defaultRevalidate
 
       // provide bailout info for debugging
       if (extraRenderResultMeta.revalidate === 0) {

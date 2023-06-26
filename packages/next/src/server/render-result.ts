@@ -1,3 +1,5 @@
+import type { StaticGenerationStore } from '../client/components/static-generation-async-storage'
+
 type ContentTypeOption = string | undefined
 
 export type RenderResultMetadata = {
@@ -7,6 +9,8 @@ export type RenderResultMetadata = {
   assetQueryString?: string
   isNotFound?: boolean
   isRedirect?: boolean
+  fetchMetrics?: StaticGenerationStore['fetchMetrics']
+  fetchTags?: string
 }
 
 type RenderResultResponse = string | ReadableStream<Uint8Array> | null
@@ -29,7 +33,7 @@ export default class RenderResult {
    * The metadata for the response. This is used to set the revalidation times
    * and other metadata.
    */
-  public readonly metadata: RenderResultMetadata
+  public metadata: RenderResultMetadata
 
   /**
    * The response itself. This can be a string, a stream, or null. If it's a
@@ -61,6 +65,13 @@ export default class RenderResult {
     this.response = response
     this.contentType = contentType
     this.metadata = metadata
+  }
+
+  public setMetadata(metadata: RenderResultMetadata) {
+    this.metadata = {
+      ...this.metadata,
+      ...metadata,
+    }
   }
 
   /**

@@ -1781,12 +1781,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       ) {
         const module: PagesRouteModule = components.ComponentMod.routeModule
 
-        // Due to the way we pass data by mutating `renderOpts`, we can't extend
-        // the object here but only updating its `clientReferenceManifest`
-        // field.
-        // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
-        renderOpts.nextFontManifest = this.nextFontManifest
-
         // Call the built-in render method on the module. We cast these to
         // NodeNextRequest and NodeNextResponse because we know that we're
         // in the node runtime because we check that we're not in edge mode
@@ -1794,7 +1788,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         result = await module.render(
           (req as NodeNextRequest).originalRequest,
           (res as NodeNextResponse).originalResponse,
-          { page: pathname, params: match.params, query, renderOpts }
+          {
+            page: pathname,
+            params: match.params,
+            query,
+            renderOpts: {
+              ...renderOpts,
+              nextFontManifest: this.nextFontManifest,
+            },
+          }
         )
       } else {
         // If we didn't match a page, we should fallback to using the legacy
@@ -1805,7 +1807,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const { metadata } = result
 
       // Add any fetch tags that were on the page to the response headers.
-      const cacheTags = (renderOpts as any).fetchTags
+      const cacheTags = result.metadata.fetchTags
       if (cacheTags) {
         headers = {
           'x-next-cache-tags': cacheTags,
@@ -1813,7 +1815,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
 
       // Pull any fetch metrics from the render onto the request.
-      ;(req as any).fetchMetrics = (renderOpts as any).fetchMetrics
+      ;(req as any).fetchMetrics = result.metadata.fetchMetrics
 
       // we don't throw static to dynamic errors in dev as isSSG
       // is a best guess in dev since we don't have the prerender pass
