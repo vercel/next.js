@@ -4,8 +4,9 @@ createNextDescribe(
   'app-dir build size',
   {
     files: __dirname,
+    skipDeployment: true,
   },
-  ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
+  ({ next, isNextStart }) => {
     if (isNextStart) {
       it('should have correct size in build output', async () => {
         const regex = /(\S+)\s+(\d+\s\w+)\s+(\d+\.\d+\s\w+)/g
@@ -40,6 +41,9 @@ createNextDescribe(
         // foo is a client component, so it should be larger than index
         expect(sizeToBytes(foo.size)).toBeGreaterThan(sizeToBytes(index.size))
       })
+    } else {
+      it('should skip next dev for now', () => {})
+      return
     }
   }
 )
