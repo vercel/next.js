@@ -12,7 +12,7 @@ createNextDescribe(
         const matches = [...next.cliOutput.matchAll(regex)]
 
         const result = matches.reduce((acc, match) => {
-          const [_, path, size, firstLoadJS] = match
+          const [, path, size, firstLoadJS] = match
 
           acc[path] = { size, firstLoadJS }
           return acc
