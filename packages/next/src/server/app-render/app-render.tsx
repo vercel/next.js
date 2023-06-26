@@ -156,7 +156,7 @@ export async function renderToHTMLOrFlight(
     nextFontManifest,
     supportsDynamicHTML,
     nextConfigOutput,
-    serverActionsSizeLimit,
+    serverActionsBodySizeLimit,
   } = renderOpts
 
   const appUsingSizeAdjust = nextFontManifest?.appUsingSizeAdjust
@@ -1607,7 +1607,7 @@ export async function renderToHTMLOrFlight(
       generateFlight,
       staticGenerationStore,
       requestStore,
-      serverActionsSizeLimit,
+      serverActionsBodySizeLimit,
     })
 
     if (actionRequestResult === 'not-found') {

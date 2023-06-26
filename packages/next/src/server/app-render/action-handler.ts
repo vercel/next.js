@@ -6,6 +6,7 @@ import type {
 } from 'http'
 import type { WebNextRequest } from '../base-http/web'
 import type { SizeLimit } from '../../../types'
+import type { ApiError } from '../api-utils'
 
 import {
   ACTION,
@@ -246,7 +247,7 @@ export async function handleAction({
   generateFlight,
   staticGenerationStore,
   requestStore,
-  serverActionsSizeLimit,
+  serverActionsBodySizeLimit,
 }: {
   req: IncomingMessage
   res: ServerResponse
@@ -260,7 +261,7 @@ export async function handleAction({
   }) => Promise<RenderResult>
   staticGenerationStore: StaticGenerationStore
   requestStore: RequestStore
-  serverActionsSizeLimit?: SizeLimit
+  serverActionsBodySizeLimit?: SizeLimit
 }): Promise<undefined | RenderResult | 'not-found'> {
   let actionId = req.headers[ACTION.toLowerCase()] as string
   const contentType = req.headers['content-type']
@@ -376,8 +377,20 @@ export async function handleAction({
             const { parseBody } =
               require('../api-utils/node') as typeof import('../api-utils/node')
 
-            const actionData =
-              (await parseBody(req, serverActionsSizeLimit ?? '1mb')) || ''
+            let actionData
+            try {
+              actionData =
+                (await parseBody(req, serverActionsBodySizeLimit ?? '1mb')) ||
+                ''
+            } catch (e: any) {
+              if (e && (e as ApiError).statusCode === 413) {
+                // Exceeded the size limit
+                e.message =
+                  e.message +
+                  '\nTo configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions#size-limitation'
+              }
+              throw e
+            }
 
             if (isURLEncodedAction) {
               const formData = formDataFromSearchQueryString(actionData)
