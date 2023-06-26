@@ -1,3 +1,3 @@
-import Image from './dist/client/image'
-export * from './dist/client/image'
+import Image from './dist/shared/image'
+export * from './dist/shared/image'
 export default Image

@@ -1095,8 +1095,8 @@ export default async function getBaseWebpackConfig(
               'next/dist/esm/server/web/exports/index',
             [`${NEXT_PROJECT_ROOT}/dist/client/link`]:
               'next/dist/esm/client/link',
-            [`${NEXT_PROJECT_ROOT}/dist/client/image`]:
-              'next/dist/esm/client/image',
+            [`${NEXT_PROJECT_ROOT}/dist/shared/image`]:
+              'next/dist/esm/shared/image',
             [`${NEXT_PROJECT_ROOT}/dist/client/script`]:
               'next/dist/esm/client/script',
             [`${NEXT_PROJECT_ROOT}/dist/client/router`]:
