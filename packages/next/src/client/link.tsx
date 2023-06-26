@@ -284,7 +284,17 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       children = <a>{children}</a>
     }
 
-    const prefetchEnabled = prefetchProp !== false
+    const pagesRouter = React.useContext(RouterContext)
+    const appRouter = React.useContext(AppRouterContext)
+    const router = pagesRouter ?? appRouter
+
+    // We're in the app directory if there is no pages router.
+    const isAppRouter = !pagesRouter
+
+    const prefetchEnabled =
+      prefetchProp !== false &&
+      // no prefetch for app router in development
+      !(process.env.NODE_ENV === 'development' && isAppRouter)
     /**
      * The possible states for prefetch are:
      * - null: this is the default "auto" mode, where we will prefetch partially if the link is in the viewport
@@ -294,12 +304,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     const appPrefetchKind =
       prefetchProp === null ? PrefetchKind.AUTO : PrefetchKind.FULL
 
-    const pagesRouter = React.useContext(RouterContext)
-    const appRouter = React.useContext(AppRouterContext)
-    const router = pagesRouter ?? appRouter
-
-    // We're in the app directory if there is no pages router.
-    const isAppRouter = !pagesRouter
     if (process.env.NODE_ENV !== 'production') {
       function createPropError(args: {
         key: string
