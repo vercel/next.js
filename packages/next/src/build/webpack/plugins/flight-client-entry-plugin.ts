@@ -322,7 +322,8 @@ export class ClientReferenceEntryPlugin {
               ...clientEntryToInject.clientComponentImports,
               ...(dedupedCSSImports[clientEntryToInject.absolutePagePath] ||
                 []),
-            ],
+              // Ensure the paths are deterministic, otherwise webpack caching will not apply.
+            ].sort(),
           })
         )
       }
@@ -675,13 +676,13 @@ export class ClientReferenceEntryPlugin {
     // replace them.
     const clientLoader = `next-flight-client-entry-loader?${stringify({
       modules: this.isEdgeServer
-        ? clientImports.map((importPath) =>
+        ? loaderOptions.modules.map((importPath) =>
             importPath.replace(
               /[\\/]next[\\/]dist[\\/]esm[\\/]/,
               '/next/dist/'.replace(/\//g, path.sep)
             )
           )
-        : clientImports,
+        : loaderOptions.modules,
       server: false,
     })}!`
 
