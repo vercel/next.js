@@ -93,9 +93,7 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
       // Since here we only need export fields such as `size`, `alt` and
       // `generateImageMetadata`, avoid sharing the same module can make this entry
       // smaller.
-      resourcePath.split('?')[0] +
-        '?' +
-        WEBPACK_RESOURCE_QUERIES.metadataImageMeta
+      resourcePath + '?' + WEBPACK_RESOURCE_QUERIES.metadataImageMeta
     )}
     import { fillMetadataSegment } from 'next/dist/lib/metadata/get-metadata-route'
 
