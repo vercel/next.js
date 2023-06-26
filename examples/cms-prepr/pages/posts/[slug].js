@@ -35,7 +35,7 @@ export default function Post({ post, morePosts, preview }) {
               <PostHeader
                 title={post.title}
                 coverImage={post.cover[0].url}
-                date={post.publish_on}
+                date={post._publish_on}
                 author={post.authors[0]}
               />
               <PostBody content={post.content} />

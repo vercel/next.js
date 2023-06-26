@@ -1,24 +1,22 @@
-import client from '../apollo-client'
-import { gql } from '@apollo/client'
-
 async function fetchAPI(query, { variables, preview } = {}) {
-  const data = await client.query({
-    query: gql`
-      ${query}
-    `,
-    variables,
-    context: {
-      headers: {
-        Authorization:
-          'Bearer ' +
-          (preview
-            ? process.env.PREPRIO_PREVIEW_TOKEN
-            : process.env.PREPRIO_PRODUCTION_TOKEN),
-      },
+  const response = await fetch(process.env.PREPRIO_API, {
+    method: "POST",
+    headers: {
+      Authorization:
+        'Bearer ' +
+        (preview
+          ? process.env.PREPRIO_PREVIEW_TOKEN
+          : process.env.PREPRIO_PRODUCTION_TOKEN),
     },
-    fetchPolicy: 'no-cache',
+    body: JSON.stringify({
+      query,
+      variables,
+    })
   })
-  return data
+
+  const result = await response.json();
+
+  return result
 }
 
 export async function getPreviewPostBySlug(slug) {
@@ -130,7 +128,7 @@ export async function getPostAndMorePosts(slug, preview) {
         _slug
         _publish_on
         title
-        excerpt 
+        excerpt
         cover {
           url(preset: "square")
         }

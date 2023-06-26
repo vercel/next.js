@@ -17,9 +17,9 @@ export default function PostHeader({ title, coverImage, date, author }) {
         <div className="block md:hidden mb-6">
           <Avatar name={author.full_name} picture={author.profile_pic[0].url} />
         </div>
-        <div className="mb-6 text-lg">
+        {date && <div className="mb-6 text-lg">
           <Date dateString={date} />
-        </div>
+        </div>}
       </div>
     </>
   )

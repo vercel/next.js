@@ -23,9 +23,9 @@ export default function HeroPost({
               {title}
             </Link>
           </h3>
-          <div className="mb-4 md:mb-0 text-lg">
+          {date && <div className="mb-4 md:mb-0 text-lg">
             <Date dateString={date} />
-          </div>
+          </div>}
         </div>
         <div>
           <div
