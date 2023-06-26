@@ -19,9 +19,11 @@
   "dependencies": {
     "third-party-capital": "1.0.17"
   },
+  "devDependencies": {
+    "outdent": "0.8.0",
+    "prettier": "2.5.1"
+  },
   "peerDependencies": {
-    "prettier": "2.5.1",
-    "react": "^18.2.0",
-    "outdent": "0.8.0"
+    "react": "^18.2.0"
   }
 }

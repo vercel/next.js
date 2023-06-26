@@ -1,7 +1,9 @@
 const fs = require('fs/promises')
 const path = require('path')
 const AllThirdParties = require('third-party-capital')
+// eslint-disable-next-line import/no-extraneous-dependencies
 const prettier = require('prettier')
+// eslint-disable-next-line import/no-extraneous-dependencies
 const { outdent } = require('outdent')
 
 const scriptStrategy = {
