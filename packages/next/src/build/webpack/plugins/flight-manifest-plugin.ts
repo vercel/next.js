@@ -70,7 +70,6 @@ export type ClientReferenceManifest = {
   }
   entryCSSFiles: {
     [entry: string]: {
-      modules: string[]
       files: string[]
     }
   }
@@ -179,7 +178,6 @@ export class ClientReferenceManifestPlugin {
           path.sep
         )
         manifest.entryCSSFiles[chunkEntryName] = {
-          modules: [],
           files: chunkGroup
             .getFiles()
             .filter(
@@ -209,9 +207,6 @@ export class ClientReferenceManifestPlugin {
         }
 
         if (isCSSModule) {
-          if (chunkEntryName) {
-            manifest.entryCSSFiles[chunkEntryName].modules.push(resource)
-          }
           return
         }
 
@@ -326,13 +321,6 @@ export class ClientReferenceManifestPlugin {
           }
         }
       })
-
-      if (chunkEntryName) {
-        // Make sure CSS modules are deduped
-        manifest.entryCSSFiles[chunkEntryName].modules = [
-          ...new Set(manifest.entryCSSFiles[chunkEntryName].modules),
-        ]
-      }
     })
 
     const file = 'server/' + CLIENT_REFERENCE_MANIFEST
