@@ -1,13 +1,13 @@
-import type { ImageLoaderProps } from '../shared/lib/image-config'
+import type { ImageLoaderProps } from './lib/image-config'
 import type {
   ImageProps,
   ImageLoader,
   StaticImageData,
-} from '../shared/lib/get-img-props'
+} from './lib/get-img-props'
 
-import { getImgProps } from '../shared/lib/get-img-props'
-import { warnOnce } from '../shared/lib/utils/warn-once'
-import { Image } from './image-component'
+import { getImgProps } from './lib/get-img-props'
+import { warnOnce } from './lib/utils/warn-once'
+import { Image } from '../client/image-component'
 
 const unstable_getImgProps = (imgProps: ImageProps) => {
   warnOnce(
