@@ -2445,7 +2445,7 @@ export default async function getBaseWebpackConfig(
         new SubresourceIntegrityPlugin(config.experimental.sri.algorithm),
       isClient &&
         new NextFontManifestPlugin({
-          appDirEnabled: !!config.experimental.appDir,
+          appDir,
         }),
       !dev &&
         isClient &&
