@@ -50,7 +50,6 @@ export function useWebsocketPing(
 
   useEffect(() => {
     // Taken from on-demand-entries-client.js
-    // TODO-APP: check 404 case
     const interval = setInterval(() => {
       sendMessage(
         JSON.stringify({

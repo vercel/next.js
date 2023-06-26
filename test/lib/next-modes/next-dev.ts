@@ -1,4 +1,4 @@
-import { spawn } from 'cross-spawn'
+import spawn from 'cross-spawn'
 import { Span } from 'next/src/trace'
 import { NextInstance } from './base'
 

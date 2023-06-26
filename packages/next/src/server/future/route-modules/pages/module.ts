@@ -10,13 +10,14 @@ import type { PagesRouteDefinition } from '../../route-definitions/pages-route-d
 import type { NextParsedUrlQuery } from '../../../request-meta'
 import type { RenderOpts } from '../../../render'
 import type RenderResult from '../../../render-result'
+import type { AppType, DocumentType } from '../../../../shared/lib/utils'
 
 import {
   RouteModule,
   type RouteModuleHandleContext,
   type RouteModuleOptions,
 } from '../route-module'
-import { renderToHTML } from '../../../render'
+import { renderToHTMLImpl } from '../../../render'
 
 /**
  * The userland module for a page. This is the module that is exported from the
@@ -51,6 +52,30 @@ export type PagesUserlandModule = {
 }
 
 /**
+ * The components that are used to render a page. These aren't tied to the
+ * specific page being rendered, but rather are the components that are used to
+ * render all pages.
+ */
+type PagesComponents = {
+  /**
+   * The `App` component. This could be exported by a user's custom `_app` page
+   * file, or it could be the default `App` component.
+   */
+  readonly App: AppType
+
+  /**
+   * The `Document` component. This could be exported by a user's custom
+   * `_document` page file, or it could be the default `Document` component.
+   */
+  readonly Document: DocumentType
+}
+
+export interface PagesRouteModuleOptions
+  extends RouteModuleOptions<PagesRouteDefinition, PagesUserlandModule> {
+  readonly components: PagesComponents
+}
+
+/**
  * AppRouteRouteHandlerContext is the context that is passed to the route
  * handler for app routes.
  */
@@ -70,18 +95,21 @@ export interface PagesRouteHandlerContext extends RouteModuleHandleContext {
    * use for rendering.
    */
   // TODO: (wyattjoh) break this out into smaller parts, it currently includes the userland components
-  renderOpts: RenderOpts
+  renderOpts: Omit<RenderOpts, 'Document' | 'App'>
 }
-
-export type PagesRouteModuleOptions = RouteModuleOptions<
-  PagesRouteDefinition,
-  PagesUserlandModule
->
 
 export class PagesRouteModule extends RouteModule<
   PagesRouteDefinition,
   PagesUserlandModule
 > {
+  private readonly components: PagesComponents
+
+  constructor(options: PagesRouteModuleOptions) {
+    super(options)
+
+    this.components = options.components
+  }
+
   public handle(): Promise<Response> {
     throw new Error('Method not implemented.')
   }
@@ -91,12 +119,16 @@ export class PagesRouteModule extends RouteModule<
     res: ServerResponse,
     context: PagesRouteHandlerContext
   ): Promise<RenderResult> {
-    return renderToHTML(
+    return renderToHTMLImpl(
       req,
       res,
       context.page,
       context.query,
-      context.renderOpts
+      context.renderOpts,
+      {
+        App: this.components.App,
+        Document: this.components.Document,
+      }
     )
   }
 }
