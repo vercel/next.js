@@ -9,13 +9,6 @@ export const invokeRequest = async (
   },
   readableBody?: import('stream').Readable
 ) => {
-  const parsedUrl = new URL(targetUrl)
-
-  // force localhost to IPv4 as some DNS may
-  // resolve to IPv6 instead
-  if (parsedUrl.hostname === 'localhost') {
-    parsedUrl.hostname = '127.0.0.1'
-  }
   const invokeHeaders = filterReqHeaders({
     ...requestInit.headers,
   }) as IncomingMessage['headers']
@@ -25,8 +18,13 @@ export const invokeRequest = async (
       const http = require('http') as typeof import('http')
 
       try {
+        // force to 127.0.0.1 as IPC always runs on this hostname
+        // to avoid localhost issues
+        const parsedTargetUrl = new URL(targetUrl)
+        parsedTargetUrl.hostname = '127.0.0.1'
+
         const invokeReq = http.request(
-          targetUrl,
+          parsedTargetUrl.toString(),
           {
             headers: invokeHeaders,
             method: requestInit.method,

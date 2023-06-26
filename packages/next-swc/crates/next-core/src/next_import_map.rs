@@ -14,7 +14,7 @@ use turbopack_binding::{
                 },
                 parse::RequestVc,
                 pattern::Pattern,
-                resolve, AliasPattern, ExportsValue, ResolveAliasMapVc,
+                resolve, AliasPattern, ResolveAliasMapVc, SubpathValue,
             },
         },
         node::execution_context::ExecutionContextVc,
@@ -209,12 +209,6 @@ pub async fn get_next_server_import_map(
     )
     .await?;
 
-    import_map.insert_exact_alias(
-        "@opentelemetry/api",
-        // TODO(WEB-625) this actually need to prefer the local version of @opentelemetry/api
-        ImportMapping::External(Some("next/dist/compiled/@opentelemetry/api".to_string())).into(),
-    );
-
     let ty = ty.into_value();
 
     insert_next_server_special_aliases(&mut import_map, ty).await?;
@@ -357,6 +351,12 @@ pub async fn insert_next_server_special_aliases(
 ) -> Result<()> {
     match ty {
         ServerContextType::Pages { pages_dir } => {
+            import_map.insert_exact_alias(
+                "@opentelemetry/api",
+                // TODO(WEB-625) this actually need to prefer the local version of
+                // @opentelemetry/api
+                external_request_to_import_mapping("next/dist/compiled/@opentelemetry/api"),
+            );
             insert_alias_to_alternatives(
                 import_map,
                 format!("{VIRTUAL_PACKAGE_NAME}/pages/_app"),
@@ -386,6 +386,12 @@ pub async fn insert_next_server_special_aliases(
         ServerContextType::AppSSR { app_dir }
         | ServerContextType::AppRSC { app_dir }
         | ServerContextType::AppRoute { app_dir } => {
+            import_map.insert_exact_alias(
+                "@opentelemetry/api",
+                // TODO(WEB-625) this actually need to prefer the local version of
+                // @opentelemetry/api
+                request_to_import_mapping(app_dir, "next/dist/compiled/@opentelemetry/api"),
+            );
             import_map.insert_exact_alias(
                 "react",
                 request_to_import_mapping(app_dir, "next/dist/compiled/react"),
@@ -552,7 +558,7 @@ pub async fn insert_alias_option<const N: usize>(
 }
 
 fn export_value_to_import_mapping(
-    value: &ExportsValue,
+    value: &SubpathValue,
     conditions: &BTreeMap<String, ConditionValue>,
     project_path: FileSystemPathVc,
 ) -> Option<ImportMappingVc> {
@@ -603,8 +609,8 @@ fn insert_package_alias(import_map: &mut ImportMap, prefix: &str, package_root: 
 fn insert_turbopack_dev_alias(import_map: &mut ImportMap) {
     insert_package_alias(
         import_map,
-        "@vercel/turbopack-dev/",
-        turbopack_binding::turbopack::dev::embed_js::embed_fs().root(),
+        "@vercel/turbopack-ecmascript-runtime/",
+        turbopack_binding::turbopack::ecmascript_runtime::embed_fs().root(),
     );
 }
 

@@ -72,9 +72,23 @@ declare module 'ROUTE_MODULE' {
 }
 
 declare module 'BOOTSTRAP_CONFIG' {
+  import type { RouteKind } from 'next/dist/server/future/route-kind'
+
   export const NAME: string
   export const PAGE: string
   export const PATHNAME: string
+  export const KIND: RouteKind
+}
+
+declare module 'APP_BOOTSTRAP' {
+  const chunks: Array<string>
+  export default chunks
+}
+
+declare module 'APP_ENTRY' {
+  export const tree: any
+  export const pathname: string
+  // and more...
 }
 
 declare module 'CLIENT_MODULE' {

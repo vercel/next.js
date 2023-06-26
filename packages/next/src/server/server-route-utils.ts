@@ -24,21 +24,25 @@ export function getCustomRoute(params: {
   rule: Header
   type: RouteType
   restrictedRedirectPaths: string[]
+  caseSensitive: boolean
 }): Route & Header
 export function getCustomRoute(params: {
   rule: Rewrite
   type: RouteType
   restrictedRedirectPaths: string[]
+  caseSensitive: boolean
 }): Route & Rewrite
 export function getCustomRoute(params: {
   rule: Redirect
   type: RouteType
   restrictedRedirectPaths: string[]
+  caseSensitive: boolean
 }): Route & Redirect
 export function getCustomRoute(params: {
   rule: Rewrite | Redirect | Header
   type: RouteType
   restrictedRedirectPaths: string[]
+  caseSensitive: boolean
 }): (Route & Rewrite) | (Route & Header) | (Route & Rewrite) {
   const { rule, type, restrictedRedirectPaths } = params
   const match = getPathMatch(rule.source, {
@@ -51,6 +55,7 @@ export function getCustomRoute(params: {
             type === 'redirect' ? restrictedRedirectPaths : undefined
           )
       : undefined,
+    sensitive: params.caseSensitive,
   })
 
   return {
@@ -65,14 +70,17 @@ export function getCustomRoute(params: {
 export const createHeaderRoute = ({
   rule,
   restrictedRedirectPaths,
+  caseSensitive,
 }: {
   rule: Header
   restrictedRedirectPaths: string[]
+  caseSensitive: boolean
 }): Route => {
   const headerRoute = getCustomRoute({
     type: 'header',
     rule,
     restrictedRedirectPaths,
+    caseSensitive,
   })
   return {
     match: headerRoute.match,
@@ -134,14 +142,17 @@ export const stringifyQuery = (req: BaseNextRequest, query: ParsedUrlQuery) => {
 export const createRedirectRoute = ({
   rule,
   restrictedRedirectPaths,
+  caseSensitive,
 }: {
   rule: Redirect
   restrictedRedirectPaths: string[]
+  caseSensitive: boolean
 }): Route => {
   const redirectRoute = getCustomRoute({
     type: 'redirect',
     rule,
     restrictedRedirectPaths,
+    caseSensitive,
   })
   return {
     internal: redirectRoute.internal,

@@ -1,5 +1,3 @@
-import { Issue } from '@vercel/turbopack-dev/types/protocol'
-
 import { LeftRightDialogHeader } from '../components/LeftRightDialogHeader'
 import { DialogBody, DialogBodyProps } from '../components/Dialog'
 import { Terminal } from '../components/Terminal'

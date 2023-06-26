@@ -15,15 +15,18 @@ const Index = () => {
   return <Page title="Index Page" linkTo="/other" NavigateTo="Other Page" />
 }
 
-export const getStaticProps = wrapper.getStaticProps(async ({ store }) => {
-  store.dispatch(tickClock(false))
+export const getStaticProps = wrapper.getStaticProps(
+  (store) =>
+    async ({ params }) => {
+      await store.dispatch(tickClock(false))
 
-  if (!store.getState().placeholderData) {
-    store.dispatch(loadData())
-    store.dispatch(END)
-  }
+      if (!store.getState().placeholderData) {
+        await store.dispatch(loadData())
+        store.dispatch(END)
+      }
 
-  await store.sagaTask.toPromise()
-})
+      await store.sagaTask.toPromise()
+    }
+)
 
 export default Index

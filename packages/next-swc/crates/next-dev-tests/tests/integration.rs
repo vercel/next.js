@@ -35,6 +35,7 @@ use next_dev::{EntryRequest, NextDevServerBuilder};
 use owo_colors::OwoColorize;
 use regex::{Captures, Regex, Replacer};
 use serde::Deserialize;
+use tempdir::TempDir;
 use tokio::{
     net::TcpSocket,
     sync::mpsc::{unbounded_channel, UnboundedSender},
@@ -91,6 +92,8 @@ lazy_static! {
     static ref DEBUG_BROWSER: bool = env::var("TURBOPACK_DEBUG_BROWSER").is_ok();
     /// Only starts the dev server on port 3000, but doesn't spawn a browser or run any tests.
     static ref DEBUG_START: bool = env::var("TURBOPACK_DEBUG_START").is_ok();
+    /// When using TURBOPACK_DEBUG_START, this will open the browser to the dev server.
+    static ref DEBUG_OPEN: bool = env::var("TURBOPACK_DEBUG_OPEN").is_ok();
 }
 
 fn run_async_test<'a, T>(future: impl Future<Output = T> + Send + 'a) -> T {
@@ -136,19 +139,12 @@ fn test(resource: PathBuf) {
         run_result,
     } = run_async_test(run_test(resource));
 
-    if !uncaught_exceptions.is_empty() {
-        panic!(
-            "Uncaught exception(s) in test:\n{}",
-            uncaught_exceptions.join("\n")
-        )
+    let mut messages = vec![];
+
+    if run_result.test_results.is_empty() {
+        messages.push("No tests were run.".to_string());
     }
 
-    assert!(
-        !run_result.test_results.is_empty(),
-        "Expected one or more tests to run."
-    );
-
-    let mut messages = vec![];
     for test_result in run_result.test_results {
         // It's possible to fail multiple tests across these tests,
         // so collect them and fail the respective test in Rust with
@@ -160,6 +156,10 @@ fn test(resource: PathBuf) {
                 test_result.errors.join("\n")
             ));
         }
+    }
+
+    for uncaught_exception in uncaught_exceptions {
+        messages.push(format!("Uncaught exception: {}", uncaught_exception));
     }
 
     if !messages.is_empty() {
@@ -256,7 +256,11 @@ async fn run_test(resource: PathBuf) -> JsResult {
     let test_dir = resource_temp.to_path_buf();
     let workspace_root = cargo_workspace_root.parent().unwrap().parent().unwrap();
     let project_dir = test_dir.join("input");
-    let requested_addr = get_free_local_addr().unwrap();
+    let requested_addr = if *DEBUG_START {
+        "127.0.0.1:3000".parse().unwrap()
+    } else {
+        get_free_local_addr().unwrap()
+    };
 
     let mock_dir = resource_temp.join("__httpmock__");
     let mock_server_future = get_mock_server_future(&mock_dir);
@@ -264,95 +268,104 @@ async fn run_test(resource: PathBuf) -> JsResult {
     let (issue_tx, mut issue_rx) = unbounded_channel();
     let issue_tx = TransientInstance::new(issue_tx);
 
-    let tt = TurboTasks::new(MemoryBackend::default());
-    let server = NextDevServerBuilder::new(
-        tt.clone(),
-        project_dir.to_string_lossy().to_string(),
-        workspace_root.to_string_lossy().to_string(),
-    )
-    .entry_request(EntryRequest::Module(
-        "@turbo/pack-test-harness".to_string(),
-        "/harness".to_string(),
-    ))
-    .entry_request(EntryRequest::Relative("index.js".to_owned()))
-    .eager_compile(false)
-    .hostname(requested_addr.ip())
-    .port(requested_addr.port())
-    .log_level(turbopack_binding::turbopack::core::issue::IssueSeverity::Warning)
-    .log_detail(true)
-    .issue_reporter(Box::new(move || {
-        TestIssueReporterVc::new(issue_tx.clone()).into()
-    }))
-    .show_all(true)
-    .build()
-    .await
-    .unwrap();
+    let result;
 
-    let local_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), server.addr.port());
-
-    println!(
-        "{event_type} - server started at http://{address}",
-        event_type = "ready".green(),
-        address = server.addr
-    );
-
-    if *DEBUG_START {
-        webbrowser::open(&local_addr.to_string()).unwrap();
-        tokio::select! {
-            _ = mock_server_future => {},
-            _ = pending() => {},
-            _ = server.future => {},
-        };
-        panic!("Never resolves")
-    }
-
-    let result = tokio::select! {
-        // Poll the mock_server first to add the env var
-        _ = mock_server_future => panic!("Never resolves"),
-        r = run_browser(local_addr, &project_dir) => r.expect("error while running browser"),
-        _ = server.future => panic!("Never resolves"),
-    };
-
-    env::remove_var("TURBOPACK_TEST_ONLY_MOCK_SERVER");
-
-    let task = tt.spawn_once_task(async move {
-        let issues_fs = DiskFileSystemVc::new(
-            "issues".to_string(),
-            resource.join("issues").to_string_lossy().to_string(),
+    {
+        let tt = TurboTasks::new(MemoryBackend::default());
+        let server = NextDevServerBuilder::new(
+            tt.clone(),
+            project_dir.to_string_lossy().to_string(),
+            workspace_root.to_string_lossy().to_string(),
         )
-        .as_file_system();
+        .entry_request(EntryRequest::Module(
+            "@turbo/pack-test-harness".to_string(),
+            "/harness".to_string(),
+        ))
+        .entry_request(EntryRequest::Relative("index.js".to_owned()))
+        .eager_compile(false)
+        .hostname(requested_addr.ip())
+        .port(requested_addr.port())
+        .log_level(turbopack_binding::turbopack::core::issue::IssueSeverity::Warning)
+        .log_detail(true)
+        .issue_reporter(Box::new(move || {
+            TestIssueReporterVc::new(issue_tx.clone()).into()
+        }))
+        .show_all(true)
+        .build()
+        .await
+        .unwrap();
 
-        let mut issues = vec![];
-        while let Ok(issue) = issue_rx.try_recv() {
-            issues.push(issue);
+        let local_addr =
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), server.addr.port());
+
+        println!(
+            "{event_type} - server started at http://{address}",
+            event_type = "ready".green(),
+            address = server.addr
+        );
+
+        if *DEBUG_START {
+            if *DEBUG_OPEN {
+                webbrowser::open(&format!("http://{}", local_addr)).unwrap();
+            }
+            tokio::select! {
+                _ = mock_server_future => {},
+                _ = pending() => {},
+                _ = server.future => {},
+            };
+            panic!("Never resolves")
         }
 
-        snapshot_issues(
-            issues.iter().cloned(),
-            issues_fs.root(),
-            &cargo_workspace_root.to_string_lossy(),
-        )
-        .await?;
+        result = tokio::select! {
+            // Poll the mock_server first to add the env var
+            _ = mock_server_future => panic!("Never resolves"),
+            r = run_browser(local_addr, &project_dir) => r.expect("error while running browser"),
+            _ = server.future => panic!("Never resolves"),
+        };
 
-        Ok(NothingVc::new().into())
-    });
-    tt.wait_task_completion(task, true).await.unwrap();
+        env::remove_var("TURBOPACK_TEST_ONLY_MOCK_SERVER");
 
-    // This sometimes fails for the following test:
-    // test_tests__integration__next__webpack_loaders__no_options__input
-    retry(
+        let task = tt.spawn_once_task(async move {
+            let issues_fs = DiskFileSystemVc::new(
+                "issues".to_string(),
+                resource.join("issues").to_string_lossy().to_string(),
+            )
+            .as_file_system();
+
+            let mut issues = vec![];
+            while let Ok(issue) = issue_rx.try_recv() {
+                issues.push(issue);
+            }
+
+            snapshot_issues(
+                issues.iter().cloned(),
+                issues_fs.root(),
+                &cargo_workspace_root.to_string_lossy(),
+            )
+            .await?;
+
+            Ok(NothingVc::new().into())
+        });
+        tt.wait_task_completion(task, true).await.unwrap();
+    }
+
+    if let Err(err) = retry(
         (),
         |()| std::fs::remove_dir_all(&resource_temp),
         3,
         Duration::from_millis(100),
-    )
-    .expect("failed to remove temporary directory");
+    ) {
+        eprintln!("Failed to remove temporary directory: {}", err);
+    }
 
     result
 }
 
-async fn create_browser(is_debugging: bool) -> Result<(Browser, JoinSet<()>)> {
+async fn create_browser(is_debugging: bool) -> Result<(Browser, TempDir, JoinSet<()>)> {
     let mut config_builder = BrowserConfig::builder();
+    config_builder = config_builder.no_sandbox();
+    let tmp = TempDir::new("chromiumoxid").unwrap();
+    config_builder = config_builder.user_data_dir(&tmp);
     if is_debugging {
         config_builder = config_builder
             .with_head()
@@ -386,7 +399,7 @@ async fn create_browser(is_debugging: bool) -> Result<(Browser, JoinSet<()>)> {
         }
     });
 
-    Ok((browser, set))
+    Ok((browser, tmp, set))
 }
 
 const TURBOPACK_READY_BINDING: &str = "TURBOPACK_READY";
@@ -400,8 +413,10 @@ const BINDINGS: [&str; 3] = [
 
 async fn run_browser(addr: SocketAddr, project_dir: &Path) -> Result<JsResult> {
     let is_debugging = *DEBUG_BROWSER;
-    let (browser, mut handle) = create_browser(is_debugging).await?;
+    println!("starting browser...");
+    let (browser, _tmp, mut handle) = create_browser(is_debugging).await?;
 
+    println!("open about:blank...");
     // `browser.new_page()` opens a tab, navigates to the destination, and waits for
     // the page to load. chromiumoxide/Chrome DevTools Protocol has been flakey,
     // returning `ChannelSendError`s (WEB-259). Retry if necessary.
@@ -435,10 +450,12 @@ async fn run_browser(addr: SocketAddr, project_dir: &Path) -> Result<JsResult> {
         .await
         .context("Unable to listen to response received events")?;
 
+    println!("start navigating to http://{addr}...");
     page.evaluate_expression(format!("window.location='http://{addr}'"))
         .await
         .context("Unable to evaluate javascript to naviagate to target page")?;
 
+    println!("waiting for navigation...");
     // Wait for the next network response event
     // This is the HTML page that we're testing
     network_response_events.next().await.context(
@@ -452,6 +469,7 @@ async fn run_browser(addr: SocketAddr, project_dir: &Path) -> Result<JsResult> {
         .await;
     }
 
+    println!("finished navigation to http://{addr}");
     let mut errors_next = errors.next();
     let mut bindings_next = binding_events.next();
     let mut console_next = console_events.next();

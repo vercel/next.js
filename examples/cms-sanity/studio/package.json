@@ -8,7 +8,7 @@
     "deploy": "sanity deploy",
     "prestart": "npm run env",
     "predeploy": "npm run env",
-    "env": "cp ../.env .env.development || cp ../.env.local .env.development"
+    "env": "node copyEnv.js"
   },
   "dependencies": {
     "sanity": "^3.2.6",

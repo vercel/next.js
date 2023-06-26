@@ -12,7 +12,7 @@ Run the `new-link` codemod to automatically upgrade previous versions of Next.js
 npx @next/codemod new-link .
 ```
 
-This will change `<Link><a id="link">Home<a></Link>` to `<Link id="link">Home</Link>`.
+This will change `<Link><a id="link">Home</a></Link>` to `<Link id="link">Home</Link>`.
 
 Alternatively, you can add the `legacyBehavior` prop `<Link legacyBehavior><a id="link">Home</a></Link>`.
 

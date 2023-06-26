@@ -17,6 +17,3 @@ globalThis.__webpack_require__ = (name) => {
 
 // initialize() needs `__webpack_public_path__` to be defined.
 globalThis.__webpack_public_path__ = undefined
-
-// Avoids Next loading _next/static/[buildId]/_devMiddlewareManifest.json
-globalThis.__DEV_MIDDLEWARE_MATCHERS = []

@@ -48,7 +48,7 @@ function formatMessage(
       message.moduleTrace &&
       message.moduleTrace.filter(
         (trace: any) =>
-          !/next-(middleware|client-pages|edge-function)-loader\.js/.test(
+          !/next-(middleware|client-pages|route|edge-function)-loader\.js/.test(
             trace.originName
           )
       )

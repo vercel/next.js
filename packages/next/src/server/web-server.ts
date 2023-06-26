@@ -28,14 +28,16 @@ import { PrerenderManifest } from '../build'
 interface WebServerOptions extends Options {
   webServerConfig: {
     page: string
+    normalizedPage: string
     pagesType: 'app' | 'pages' | 'root'
     loadComponent: (
       pathname: string
     ) => Promise<LoadComponentsReturnType | null>
     extendRenderOpts: Partial<BaseServer['renderOpts']> &
       Pick<BaseServer['renderOpts'], 'buildId'>
-    pagesRenderToHTML?: typeof import('./render').renderToHTML
-    appRenderToHTML?: typeof import('./app-render/app-render').renderToHTMLOrFlight
+    renderToHTML:
+      | typeof import('./render').renderToHTML
+      | typeof import('./app-render/app-render').renderToHTMLOrFlight
     incrementalCacheHandler?: any
     prerenderManifest: PrerenderManifest | undefined
   }
@@ -128,12 +130,15 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   }
   protected getPagesManifest() {
     return {
-      [this.serverOptions.webServerConfig.page]: '',
+      // keep same theme but server path doesn't need to be accurate
+      [this.serverOptions.webServerConfig
+        .normalizedPage]: `server${this.serverOptions.webServerConfig.page}.js`,
     }
   }
   protected getAppPathsManifest() {
+    const page = this.serverOptions.webServerConfig.page
     return {
-      [this.serverOptions.webServerConfig.page]: '',
+      [this.serverOptions.webServerConfig.page]: `app${page}.js`,
     }
   }
   protected getFilesystemPaths() {
@@ -163,9 +168,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   protected getServerComponentManifest() {
     return this.serverOptions.webServerConfig.extendRenderOpts
       .clientReferenceManifest
-  }
-  protected getServerCSSManifest() {
-    return this.serverOptions.webServerConfig.extendRenderOpts.serverCSSManifest
   }
 
   protected getNextFontManifest() {
@@ -282,8 +284,10 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
 
         // interpolate query information into page for dynamic route
         // so that rewritten paths are handled properly
-        if (pathname !== this.serverOptions.webServerConfig.page) {
-          pathname = this.serverOptions.webServerConfig.page
+        const normalizedPage = this.serverOptions.webServerConfig.normalizedPage
+
+        if (pathname !== normalizedPage) {
+          pathname = normalizedPage
 
           if (isDynamicRoute(pathname)) {
             const routeRegex = getNamedRouteRegex(pathname, false)
@@ -359,32 +363,27 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     return false
   }
 
-  protected async renderHTML(
+  protected renderHTML(
     req: WebNextRequest,
     res: WebNextResponse,
     pathname: string,
     query: NextParsedUrlQuery,
     renderOpts: RenderOpts
   ): Promise<RenderResult> {
-    const { pagesRenderToHTML, appRenderToHTML } =
-      this.serverOptions.webServerConfig
-    const curRenderToHTML = pagesRenderToHTML || appRenderToHTML
+    const { renderToHTML } = this.serverOptions.webServerConfig
 
-    if (curRenderToHTML) {
-      return await curRenderToHTML(
-        req as any,
-        res as any,
-        pathname,
-        query,
-        Object.assign(renderOpts, {
-          disableOptimizedLoading: true,
-          runtime: 'experimental-edge',
-        })
-      )
-    } else {
-      throw new Error(`Invariant: curRenderToHTML is missing`)
-    }
+    return renderToHTML(
+      req as any,
+      res as any,
+      pathname,
+      query,
+      Object.assign(renderOpts, {
+        disableOptimizedLoading: true,
+        runtime: 'experimental-edge',
+      })
+    )
   }
+
   protected async sendRenderResult(
     _req: WebNextRequest,
     res: WebNextResponse,
@@ -403,20 +402,19 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     if (options.poweredByHeader && options.type === 'html') {
       res.setHeader('X-Powered-By', 'Next.js')
     }
-    const resultContentType = options.result.contentType()
 
     if (!res.getHeader('Content-Type')) {
       res.setHeader(
         'Content-Type',
-        resultContentType
-          ? resultContentType
+        options.result.contentType
+          ? options.result.contentType
           : options.type === 'json'
           ? 'application/json'
           : 'text/html; charset=utf-8'
       )
     }
 
-    if (options.result.isDynamic()) {
+    if (options.result.isDynamic) {
       const writer = res.transformStream.writable.getWriter()
       options.result.pipe({
         write: (chunk: Uint8Array) => writer.write(chunk),

@@ -11,6 +11,7 @@ use turbopack_binding::{
     turbopack::{
         core::{
             asset::{Asset, AssetVc},
+            environment::{ServerAddrVc, ServerInfo},
             ident::AssetIdentVc,
             issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc, OptionIssueSourceVc},
             reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
@@ -356,17 +357,23 @@ pub async fn load_next_json<T: DeserializeOwned>(
 }
 
 #[turbo_tasks::function]
-pub async fn render_data(next_config: NextConfigVc) -> Result<JsonValueVc> {
+pub async fn render_data(
+    next_config: NextConfigVc,
+    server_addr: ServerAddrVc,
+) -> Result<JsonValueVc> {
     #[derive(Serialize)]
     #[serde(rename_all = "camelCase")]
     struct Data {
         next_config_output: Option<OutputType>,
+        server_info: Option<ServerInfo>,
     }
 
     let config = next_config.await?;
+    let server_info = ServerInfo::try_from(&*server_addr.await?);
 
     let value = serde_json::to_value(Data {
         next_config_output: config.output.clone(),
+        server_info: server_info.ok(),
     })?;
     Ok(JsonValue(value).cell())
 }

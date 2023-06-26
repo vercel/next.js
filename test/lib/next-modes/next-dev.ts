@@ -1,9 +1,9 @@
-import { spawn } from 'cross-spawn'
+import spawn from 'cross-spawn'
 import { Span } from 'next/src/trace'
 import { NextInstance } from './base'
 
 export class NextDevInstance extends NextInstance {
-  private _cliOutput: string
+  private _cliOutput: string = ''
 
   public get buildId() {
     return 'development'

@@ -1,0 +1,36 @@
+---
+title: Custom App
+description: Control page initialization and add a layout that persists for all pages by overriding the default App component used by Next.js.
+---
+
+Next.js uses the `App` component to initialize pages. You can override it and control the page initialization and:
+
+- Persist layouts between page changes
+- Keeping state when navigating pages
+- Inject additional data into pages
+- [Add global CSS](/docs/pages/building-your-application/styling)
+
+To override the default `App`, create the file `pages/_app.js` as shown below:
+
+```jsx filename="pages/_app.js"
+export default function MyApp({ Component, pageProps }) {
+  return <Component {...pageProps} />
+}
+```
+
+The `Component` prop is the active `page`, so whenever you navigate between routes, `Component` will change to the new `page`. Therefore, any props you send to `Component` will be received by the `page`.
+
+`pageProps` is an object with the initial props that were preloaded for your page by one of our [data fetching methods](/docs/pages/building-your-application/data-fetching), otherwise it's an empty object.
+
+The `App.getInitialProps` receives a single argument called `context.ctx`. It's an object with the same set of properties as the [`context` object](/docs/pages/api-reference/functions/get-initial-props#context-object) in `getInitialProps`.
+
+### Caveats
+
+- If your app is running and you added a custom `App`, you'll need to restart the development server. Only required if `pages/_app.js` didn't exist before.
+- Adding a custom [`getInitialProps`](/docs/pages/api-reference/functions/get-initial-props) in your `App` will disable [Automatic Static Optimization](/docs/pages/building-your-application/rendering/automatic-static-optimization) in pages without [Static Generation](/docs/pages/building-your-application/data-fetching/get-static-props).
+- When you add `getInitialProps` in your custom app, you must `import App from "next/app"`, call `App.getInitialProps(appContext)` inside `getInitialProps` and merge the returned object into the return value.
+- `App` does not support Next.js [Data Fetching methods](/docs/pages/building-your-application/data-fetching) like [`getStaticProps`](/docs/pages/building-your-application/data-fetching/get-static-props) or [`getServerSideProps`](/docs/pages/building-your-application/data-fetching/get-server-side-props). If you need global data fetching, consider [incrementally adopting the `app/` directory](/docs/app/building-your-application/upgrading).
+
+### TypeScript
+
+If you’re using TypeScript, take a look at [our TypeScript documentation](/docs/pages/building-your-application/configuring/typescript#custom-app).

@@ -62,6 +62,7 @@ use crate::{
             styled_jsx::get_styled_jsx_transform_plugin,
         },
     },
+    sass::maybe_add_sass_loader,
     transform_options::{
         get_decorators_transform_options, get_jsx_transform_options,
         get_typescript_transform_options,
@@ -194,21 +195,18 @@ pub async fn get_client_module_options_context(
     };
     let jsx_runtime_options =
         get_jsx_transform_options(project_path, mode, Some(resolve_options_context));
-    let enable_webpack_loaders = {
-        let options = &*next_config.webpack_loaders_options().await?;
-        let loaders_options = WebpackLoadersOptions {
-            extension_to_loaders: options.clone(),
+    let webpack_rules =
+        *maybe_add_babel_loader(project_path, *next_config.webpack_rules().await?).await?;
+    let webpack_rules = maybe_add_sass_loader(next_config.sass_config(), webpack_rules).await?;
+    let enable_webpack_loaders = webpack_rules.map(|rules| {
+        WebpackLoadersOptions {
+            rules,
             loader_runner_package: Some(get_external_next_compiled_package_mapping(
                 StringVc::cell("loader-runner".to_owned()),
             )),
-            placeholder_for_future_extensions: (),
         }
-        .cell();
-
-        maybe_add_babel_loader(project_path, loaders_options)
-            .await?
-            .clone_if()
-    };
+        .cell()
+    });
 
     let source_transforms = vec![
         *get_relay_transform_plugin(next_config).await?,
@@ -339,14 +337,14 @@ pub fn get_client_chunking_context(
 
 #[turbo_tasks::function]
 pub fn get_client_assets_path(
-    server_root: FileSystemPathVc,
+    client_root: FileSystemPathVc,
     ty: Value<ClientContextType>,
 ) -> FileSystemPathVc {
     match ty.into_value() {
         ClientContextType::Pages { .. }
         | ClientContextType::App { .. }
-        | ClientContextType::Fallback => server_root.join("/_next/static/assets"),
-        ClientContextType::Other => server_root.join("/_assets"),
+        | ClientContextType::Fallback => client_root.join("/_next/static/media"),
+        ClientContextType::Other => client_root.join("/_assets"),
     }
 }
 

@@ -296,7 +296,25 @@ export function createInlineDataStream(
 export function createSuffixStream(
   suffix: string
 ): TransformStream<Uint8Array, Uint8Array> {
+  let foundSuffix = false
+  const textDecoder = new TextDecoder()
+
+  // Remove suffix from the stream, and enqueue it back in flush
   return new TransformStream({
+    transform(chunk, controller) {
+      if (!suffix || foundSuffix) {
+        return controller.enqueue(chunk)
+      }
+
+      const content = decodeText(chunk, textDecoder)
+      if (content.endsWith(suffix)) {
+        foundSuffix = true
+        const contentWithoutSuffix = content.slice(0, -suffix.length)
+        controller.enqueue(encodeText(contentWithoutSuffix))
+      } else {
+        controller.enqueue(chunk)
+      }
+    },
     flush(controller) {
       if (suffix) {
         controller.enqueue(encodeText(suffix))
@@ -355,7 +373,6 @@ export async function continueFromInitialStream(
     serverInsertedHTMLToHead,
     validateRootLayout,
   }: {
-    suffix?: string
     dataStream?: ReadableStream<Uint8Array>
     generateStaticHTML: boolean
     getServerInsertedHTML?: () => Promise<string>
@@ -364,9 +381,13 @@ export async function continueFromInitialStream(
       assetPrefix?: string
       getTree: () => FlightRouterState
     }
+    // Suffix to inject after the buffered data, but before the close tags.
+    suffix?: string
   }
 ): Promise<ReadableStream<Uint8Array>> {
   const closeTag = '</body></html>'
+
+  // Suffix itself might contain close tags at the end, so we need to split it.
   const suffixUnclosed = suffix ? suffix.split(closeTag)[0] : null
 
   if (generateStaticHTML) {
@@ -374,13 +395,24 @@ export async function continueFromInitialStream(
   }
 
   const transforms: Array<TransformStream<Uint8Array, Uint8Array>> = [
+    // Buffer everything to avoid flushing too frequently
     createBufferedTransformStream(),
+
+    // Insert generated tags to head
     getServerInsertedHTML && !serverInsertedHTMLToHead
       ? createInsertedHTMLStream(getServerInsertedHTML)
       : null,
+
+    // Insert suffix content
     suffixUnclosed != null ? createDeferredSuffixStream(suffixUnclosed) : null,
+
+    // Insert the flight data stream
     dataStream ? createInlineDataStream(dataStream) : null,
-    suffixUnclosed != null ? createSuffixStream(closeTag) : null,
+
+    // Close tags should always be deferred to the end
+    createSuffixStream(closeTag),
+
+    // Special head insertions
     createHeadInsertionTransformStream(async () => {
       // TODO-APP: Insert server side html to end of head in app layout rendering, to avoid
       // hydration errors. Remove this once it's ready to be handled by react itself.
@@ -390,6 +422,7 @@ export async function continueFromInitialStream(
           : ''
       return serverInsertedHTML
     }),
+
     validateRootLayout
       ? createRootLayoutValidatorStream(
           validateRootLayout.assetPrefix,

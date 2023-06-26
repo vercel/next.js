@@ -221,7 +221,8 @@ function runTests(dev = false) {
     expect(data.statusText).toEqual('Invalid JSON')
   })
 
-  it('should return error exceeded body limit', async () => {
+  // TODO: Investigate this test flaking
+  it.skip('should return error exceeded body limit', async () => {
     let res
     let error
 

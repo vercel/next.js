@@ -1,8 +1,8 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use indexmap::indexmap;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    primitives::{JsonValueVc, OptionStringVc, StringVc, StringsVc},
+    primitives::{JsonValueVc, StringVc, StringsVc},
     trace::TraceRawVcs,
     Value,
 };
@@ -17,7 +17,7 @@ use turbopack_binding::{
             chunk::{ChunkingContextVc, EvaluatableAssetVc, EvaluatableAssetsVc},
             context::{AssetContext, AssetContextVc},
             environment::{EnvironmentIntention, ServerAddrVc},
-            reference_type::{EntryReferenceSubType, ReferenceType},
+            reference_type::{EntryReferenceSubType, InnerAssetsVc, ReferenceType},
             source_asset::SourceAssetVc,
         },
         dev::DevChunkingContextVc,
@@ -30,12 +30,9 @@ use turbopack_binding::{
                 ContentSourceData, ContentSourceVc,
             },
         },
-        ecmascript::{
-            EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
-            EcmascriptModuleAssetVc, InnerAssetsVc,
-        },
         env::ProcessEnvAssetVc,
         node::{
+            debug::should_debug,
             execution_context::ExecutionContextVc,
             render::{
                 node_api_source::create_node_api_source,
@@ -65,7 +62,7 @@ use crate::{
     next_config::NextConfigVc,
     next_edge::{
         context::{get_edge_compile_time_info, get_edge_resolve_options_context},
-        transition::NextEdgeTransition,
+        route_transition::NextEdgeRouteTransition,
     },
     next_route_matcher::{
         NextExactMatcherVc, NextFallbackMatcherVc, NextParamsMatcherVc,
@@ -171,12 +168,12 @@ pub async fn create_page_source(
         ),
         edge_compile_time_info.environment(),
     )
-    .reference_chunk_source_maps(false)
+    .reference_chunk_source_maps(should_debug("page_source"))
     .build();
     let edge_resolve_options_context =
         get_edge_resolve_options_context(project_root, server_ty, next_config, execution_context);
 
-    let next_edge_transition = NextEdgeTransition {
+    let next_edge_transition = NextEdgeRouteTransition {
         edge_compile_time_info,
         edge_chunking_context,
         edge_module_options_context: None,
@@ -276,7 +273,7 @@ pub async fn create_page_source(
         next_config,
     );
 
-    let render_data = render_data(next_config);
+    let render_data = render_data(next_config, server_addr);
     let page_extensions = next_config.page_extensions();
 
     let mut sources = vec![];
@@ -377,7 +374,7 @@ async fn create_page_source_for_file(
         ),
         server_context.compile_time_info().environment(),
     )
-    .reference_chunk_source_maps(false)
+    .reference_chunk_source_maps(should_debug("page_source"))
     .build();
 
     let data_node_path = node_path.join("data");
@@ -392,7 +389,7 @@ async fn create_page_source_for_file(
         ),
         server_context.compile_time_info().environment(),
     )
-    .reference_chunk_source_maps(false)
+    .reference_chunk_source_maps(should_debug("page_source"))
     .build();
 
     let client_chunking_context = get_client_chunking_context(
@@ -426,6 +423,7 @@ async fn create_page_source_for_file(
             .cell()
             .into(),
             render_data,
+            should_debug("page_source"),
         )
     } else {
         let data_pathname = pathname_for_path(client_root, client_path, PathType::Data);
@@ -469,6 +467,7 @@ async fn create_page_source_for_file(
                 ssr_entry,
                 fallback_page,
                 render_data,
+                should_debug("page_source"),
             ),
             create_node_rendered_source(
                 project_path,
@@ -480,6 +479,7 @@ async fn create_page_source_for_file(
                 ssr_data_entry,
                 fallback_page,
                 render_data,
+                should_debug("page_source"),
             ),
             create_page_loader(
                 client_root,
@@ -534,7 +534,7 @@ async fn create_not_found_page_source(
         ),
         server_context.compile_time_info().environment(),
     )
-    .reference_chunk_source_maps(false)
+    .reference_chunk_source_maps(should_debug("page_source"))
     .build();
 
     let client_chunking_context = get_client_chunking_context(
@@ -595,6 +595,7 @@ async fn create_not_found_page_source(
             ssr_entry,
             fallback_page,
             render_data,
+            should_debug("page_source"),
         ),
         page_loader,
     ])
@@ -833,6 +834,13 @@ impl SsrEntryVc {
             }
         };
 
+        let module = this.context.process(
+            internal_asset,
+            Value::new(ReferenceType::Internal(InnerAssetsVc::cell(inner_assets))),
+        );
+        let Some(module) = EvaluatableAssetVc::resolve_from(module).await? else {
+            bail!("internal module must be evaluatable");
+        };
         Ok(NodeRenderingEntry {
             runtime_entries: EvaluatableAssetsVc::cell(
                 this.runtime_entries
@@ -841,26 +849,7 @@ impl SsrEntryVc {
                     .map(|entry| EvaluatableAssetVc::from_asset(*entry, this.context))
                     .collect(),
             ),
-            module: EcmascriptModuleAssetVc::new_with_inner_assets(
-                internal_asset,
-                this.context,
-                Value::new(EcmascriptModuleAssetType::Typescript),
-                EcmascriptInputTransformsVc::cell(vec![
-                    EcmascriptInputTransform::TypeScript {
-                        use_define_for_class_fields: false,
-                    },
-                    EcmascriptInputTransform::React {
-                        // The Page source is currently only used in the development mode.
-                        development: true,
-                        refresh: false,
-                        import_source: OptionStringVc::cell(None),
-                        runtime: OptionStringVc::cell(None),
-                    },
-                ]),
-                Default::default(),
-                this.context.compile_time_info(),
-                InnerAssetsVc::cell(inner_assets),
-            ),
+            module,
             chunking_context: this.chunking_context,
             intermediate_output_path: this.node_path,
             output_root: this.node_root,

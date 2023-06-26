@@ -1,24 +1,19 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use indexmap::{indexmap, IndexMap};
-use turbo_tasks::Value;
+use turbo_tasks::{Value, ValueToString};
 use turbo_tasks_fs::{File, FileSystemPathVc};
 use turbopack_binding::turbopack::{
     core::{
         asset::{Asset, AssetVc},
+        chunk::EvaluatableAssetVc,
         context::{AssetContext, AssetContextVc},
         issue::{IssueSeverity, OptionIssueSourceVc},
-        reference_type::EcmaScriptModulesReferenceSubType,
+        reference_type::{EcmaScriptModulesReferenceSubType, InnerAssetsVc, ReferenceType},
         resolve::parse::RequestVc,
         virtual_asset::VirtualAssetVc,
     },
-    ecmascript::{
-        resolve::esm_resolve, utils::StringifyJs, EcmascriptInputTransform,
-        EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc,
-        InnerAssetsVc,
-    },
+    ecmascript::{resolve::esm_resolve, utils::StringifyJs, EcmascriptModuleAssetVc},
 };
-
-use crate::asset_helpers::as_es_module_asset;
 
 #[turbo_tasks::function]
 pub async fn route_bootstrap(
@@ -27,7 +22,7 @@ pub async fn route_bootstrap(
     base_path: FileSystemPathVc,
     bootstrap_asset: AssetVc,
     config: BootstrapConfigVc,
-) -> Result<EcmascriptModuleAssetVc> {
+) -> Result<EvaluatableAssetVc> {
     let resolve_origin = if let Some(m) = EcmascriptModuleAssetVc::resolve_from(asset).await? {
         m.as_resolve_origin()
     } else {
@@ -83,12 +78,15 @@ pub async fn bootstrap(
     bootstrap_asset: AssetVc,
     inner_assets: InnerAssetsVc,
     config: BootstrapConfigVc,
-) -> Result<EcmascriptModuleAssetVc> {
+) -> Result<EvaluatableAssetVc> {
     let path = asset.ident().path().await?;
-    let path = base_path
-        .await?
-        .get_path_to(&path)
-        .context("asset is not in base_path")?;
+    let Some(path) = base_path.await?.get_path_to(&path) else {
+        bail!(
+            "asset {} is not in base path {}",
+            asset.ident().to_string().await?,
+            base_path.to_string().await?
+        );
+    };
     let path = if let Some((name, ext)) = path.rsplit_once('.') {
         if !ext.contains('/') {
             name
@@ -104,8 +102,9 @@ pub async fn bootstrap(
     let mut config = config.await?.clone_value();
     config.insert("PAGE".to_string(), path.to_string());
     config.insert("PATHNAME".to_string(), pathname);
+    config.insert("KIND".to_string(), "APP_ROUTE".to_string());
 
-    let config_asset = as_es_module_asset(
+    let config_asset = context.process(
         VirtualAssetVc::new(
             asset.ident().path().join("bootstrap-config.ts"),
             File::from(
@@ -118,25 +117,21 @@ pub async fn bootstrap(
             .into(),
         )
         .as_asset(),
-        context,
-    )
-    .as_asset();
+        Value::new(ReferenceType::Internal(InnerAssetsVc::empty())),
+    );
 
     let mut inner_assets = inner_assets.await?.clone_value();
     inner_assets.insert("ENTRY".to_string(), asset);
     inner_assets.insert("BOOTSTRAP_CONFIG".to_string(), config_asset);
 
-    let asset = EcmascriptModuleAssetVc::new_with_inner_assets(
+    let asset = context.process(
         bootstrap_asset,
-        context,
-        Value::new(EcmascriptModuleAssetType::Typescript),
-        EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
-            use_define_for_class_fields: false,
-        }]),
-        Default::default(),
-        context.compile_time_info(),
-        InnerAssetsVc::cell(inner_assets),
+        Value::new(ReferenceType::Internal(InnerAssetsVc::cell(inner_assets))),
     );
+
+    let Some(asset) = EvaluatableAssetVc::resolve_from(asset).await? else {
+        bail!("internal module must be evaluatable");
+    };
 
     Ok(asset)
 }

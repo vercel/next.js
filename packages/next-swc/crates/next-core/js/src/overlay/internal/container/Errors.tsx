@@ -1,7 +1,5 @@
 import * as React from 'react'
 
-import { Issue } from '@vercel/turbopack-dev/types/protocol'
-
 import {
   TYPE_UNHANDLED_ERROR,
   TYPE_UNHANDLED_REJECTION,
