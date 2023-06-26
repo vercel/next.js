@@ -210,6 +210,7 @@ export async function startServer({
             ...(process.env.NEXT_CPU_PROF
               ? { __NEXT_PRIVATE_CPU_PROFILE: `CPU.router` }
               : {}),
+            WATCHPACK_WATCHER_LIMIT: '20',
           },
         },
         exposedMethods: ['initialize'],
