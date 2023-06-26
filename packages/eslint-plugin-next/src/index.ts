@@ -30,6 +30,7 @@ module.exports = {
         '@next/next/google-font-display': 'warn',
         '@next/next/google-font-preconnect': 'warn',
         '@next/next/next-script-for-ga': 'warn',
+        '@next/next/no-async-client-component': 'warn',
         '@next/next/no-before-interactive-script-outside-document': 'warn',
         '@next/next/no-css-tags': 'warn',
         '@next/next/no-head-element': 'warn',
@@ -44,7 +45,6 @@ module.exports = {
         // errors
         '@next/next/inline-script-id': 'error',
         '@next/next/no-assign-module-variable': 'error',
-        '@next/next/no-async-client-component': 'error',
         '@next/next/no-document-import-in-page': 'error',
         '@next/next/no-duplicate-head': 'error',
         '@next/next/no-head-import-in-document': 'error',
