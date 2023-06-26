@@ -41,6 +41,34 @@ ruleTester.run('no-async-client-component single line', rule, {
   ],
 })
 
+ruleTester.run('no-async-client-component single line capitalization', rule, {
+  valid: [
+    `
+    "use client"
+
+    export default async function myFunction() {
+      return ''
+    }
+    `,
+  ],
+  invalid: [
+    {
+      code: `
+      "use client"
+
+      export default async function MyFunction() {
+        return ''
+      }
+      `,
+      errors: [
+        {
+          message,
+        },
+      ],
+    },
+  ],
+})
+
 ruleTester.run('no-async-client-component multiple line', rule, {
   valid: [
     `
@@ -61,6 +89,38 @@ ruleTester.run('no-async-client-component multiple line', rule, {
       }
 
       export default MyComponent
+      `,
+      errors: [
+        {
+          message,
+        },
+      ],
+    },
+  ],
+})
+
+ruleTester.run('no-async-client-component multiple line capitalization', rule, {
+  valid: [
+    `
+    "use client"
+    
+    async function myFunction() {
+      return ''
+    }
+
+    export default myFunction
+    `,
+  ],
+  invalid: [
+    {
+      code: `
+      "use client"
+
+      async function MyFunction() {
+        return ''
+      }
+
+      export default MyFunction
       `,
       errors: [
         {
