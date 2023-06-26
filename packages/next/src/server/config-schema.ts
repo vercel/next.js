@@ -200,6 +200,9 @@ const configSchema = {
       type: 'string',
       nullable: true,
     },
+    disableServerMinification: {
+      type: 'boolean',
+    },
     env: {
       type: 'object',
     },
