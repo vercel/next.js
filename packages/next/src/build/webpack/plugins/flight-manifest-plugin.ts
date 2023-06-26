@@ -67,9 +67,7 @@ export type ClientReferenceManifest = {
     [moduleId: string]: ManifestNode
   }
   entryCSSFiles: {
-    [entry: string]: {
-      files: string[]
-    }
+    [entry: string]: string[]
   }
 }
 
@@ -161,13 +159,11 @@ export class ClientReferenceManifestPlugin {
           /[\\/]/g,
           path.sep
         )
-        manifest.entryCSSFiles[chunkEntryName] = {
-          files: chunkGroup
-            .getFiles()
-            .filter(
-              (f) => !f.startsWith('static/css/pages/') && f.endsWith('.css')
-            ),
-        }
+        manifest.entryCSSFiles[chunkEntryName] = chunkGroup
+          .getFiles()
+          .filter(
+            (f) => !f.startsWith('static/css/pages/') && f.endsWith('.css')
+          )
       }
 
       const recordModule = (id: ModuleId, mod: webpack.NormalModule) => {
