@@ -10,7 +10,7 @@ import type {
 import type { ErrorComponent } from './error-boundary'
 import type { FocusAndScrollRef } from './router-reducer/router-reducer-types'
 
-import React, { useContext, use } from 'react'
+import React, { useContext, use, startTransition, Suspense } from 'react'
 import ReactDOM from 'react-dom'
 import {
   CacheStates,
@@ -335,14 +335,14 @@ function InnerLayoutRouter({
     if (!childNode) {
       // Add the segment's subTreeData to the cache.
       // This writes to the cache when there is no item in the cache yet. It never *overwrites* existing cache items which is why it's safe in concurrent mode.
-      childNodes.set(cacheKey, {
+      childNode = {
         status: CacheStates.READY,
         data: null,
         subTreeData: childProp.current,
         parallelRoutes: new Map(),
-      })
-      // In the above case childNode was set on childNodes, so we have to get it from the cacheNodes again.
-      childNode = childNodes.get(cacheKey)
+      }
+
+      childNodes.set(cacheKey, childNode)
     } else {
       if (childNode.status === CacheStates.LAZY_INITIALIZED) {
         // @ts-expect-error we're changing it's type!
@@ -415,8 +415,7 @@ function InnerLayoutRouter({
 
     // setTimeout is used to start a new transition during render, this is an intentional hack around React.
     setTimeout(() => {
-      // @ts-ignore startTransition exists
-      React.startTransition(() => {
+      startTransition(() => {
         changeByServerResponse(fullTree, flightData, overrideCanonicalUrl)
       })
     })
@@ -464,7 +463,7 @@ function LoadingBoundary({
 }): JSX.Element {
   if (hasLoading) {
     return (
-      <React.Suspense
+      <Suspense
         fallback={
           <>
             {loadingStyles}
@@ -473,7 +472,7 @@ function LoadingBoundary({
         }
       >
         {children}
-      </React.Suspense>
+      </Suspense>
     )
   }
 
