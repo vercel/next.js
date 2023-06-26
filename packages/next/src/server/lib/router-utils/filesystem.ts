@@ -243,7 +243,7 @@ export async function setupFsCheck(opts: {
   )
   const rewrites = {
     beforeFiles: customRoutes.rewrites.beforeFiles.map((item) =>
-      buildCustomRoute('rewrite', item)
+      buildCustomRoute('before_files_rewrite', item)
     ),
     afterFiles: customRoutes.rewrites.afterFiles.map((item) =>
       buildCustomRoute('rewrite', item)
@@ -292,7 +292,7 @@ export async function setupFsCheck(opts: {
           curItemPath = curItemPath.substring('/_next/static'.length)
 
           try {
-            decodedItemPath = decodeURIComponent(curItemPath)
+            curDecodedItemPath = decodeURIComponent(curItemPath)
           } catch (_) {}
         }
 
@@ -300,7 +300,7 @@ export async function setupFsCheck(opts: {
           curItemPath = curItemPath.substring('/static'.length)
 
           try {
-            decodedItemPath = decodeURIComponent(curItemPath)
+            curDecodedItemPath = decodeURIComponent(curItemPath)
           } catch (_) {}
         }
 
@@ -339,6 +339,7 @@ export async function setupFsCheck(opts: {
       return null
     },
     getDynamicRoutes() {
+      // this should include data routes
       return dynamicRoutes
     },
     getMiddlewareMatchers() {

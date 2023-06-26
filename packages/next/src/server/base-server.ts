@@ -1103,6 +1103,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     try {
+      if (
+        this.isRenderWorker &&
+        req.headers['x-invoke-path'] &&
+        req.headers['x-invoke-status']
+      ) {
+        res.statusCode = Number(req.headers['x-invoke-status'])
+        return this.renderError(null, req, res, '/_error', {})
+      }
+
       const matched = await this.router.execute(req, res, parsedUrl)
       if (matched) {
         return
