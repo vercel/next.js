@@ -322,8 +322,7 @@ export class ClientReferenceEntryPlugin {
               ...clientEntryToInject.clientComponentImports,
               ...(dedupedCSSImports[clientEntryToInject.absolutePagePath] ||
                 []),
-              // Ensure the paths are deterministic, otherwise webpack caching will not apply.
-            ].sort(),
+            ],
           })
         )
       }
