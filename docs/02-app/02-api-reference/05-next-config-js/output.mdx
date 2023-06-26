@@ -19,6 +19,8 @@ To leverage the `.nft.json` files emitted to the `.next` output directory, you c
 
 ## Automatically Copying Traced Files
 
+> **Note:** This does not work yet with the app router. See [https://github.com/vercel/next.js/issues/42812#issuecomment-1313287665](https://github.com/vercel/next.js/issues/42812#issuecomment-1313287665)
+
 Next.js can automatically create a `standalone` folder that copies only the necessary files for a production deployment including select files in `node_modules`.
 
 To leverage this automatic copying you can enable it in your `next.config.js`:
