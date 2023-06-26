@@ -2445,7 +2445,7 @@ export default async function getBaseWebpackConfig(
         new SubresourceIntegrityPlugin(config.experimental.sri.algorithm),
       isClient &&
         new NextFontManifestPlugin({
-          appDirEnabled: !!config.experimental.appDir,
+          appDir,
         }),
       !dev &&
         isClient &&
@@ -2555,12 +2555,6 @@ export default async function getBaseWebpackConfig(
 
   if (isClient || isEdgeServer) {
     webpack5Config.output.enabledLibraryTypes = ['assign']
-  }
-
-  if (dev) {
-    // @ts-ignore unsafeCache exists
-    webpack5Config.module.unsafeCache = (module) =>
-      !/[\\/]pages[\\/][^\\/]+(?:$|\?|#)/.test(module.resource)
   }
 
   // This enables managedPaths for all node_modules
