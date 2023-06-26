@@ -2,6 +2,7 @@ const fs = require('fs/promises')
 const path = require('path')
 const AllThirdParties = require('third-party-capital')
 const prettier = require('prettier')
+const { outdent } = require('outdent')
 
 const scriptStrategy = {
   server: 'beforeInteractive',
@@ -10,7 +11,7 @@ const scriptStrategy = {
   worker: 'worker',
 }
 
-const SRC = './src'
+const SRC = path.join(__dirname, '../src')
 const CONFIG_FILE_NAME = 'tpc-config.json'
 
 function generateComponent(thirdParty) {
@@ -30,12 +31,13 @@ function generateComponent(thirdParty) {
           return `<Script src="${script}"${props} />`
         } else if (script.url) {
           // External script with additional properties
+          // TODO: Validate the strategy. Set fallback if an inpnpvalid strategy is passed
           const { url, strategy } = script
           return `<Script src={\`${url}\`} strategy="${scriptStrategy[strategy]}"${props} />`
         } else if (script.code) {
           // Inline script with additional properties
           const { code, strategy } = script
-          return `<Script
+          return outdent`<Script
             id="${id}"
             strategy="${scriptStrategy[strategy]}"
             dangerouslySetInnerHTML={{
@@ -52,7 +54,7 @@ function generateComponent(thirdParty) {
   const { id, description, content, scripts, stylesheets } =
     AllThirdParties[thirdParty]
 
-  thirdPartyFunctions += `
+  thirdPartyFunctions += outdent`
     // ${description}
     export function ${thirdParty}(args: any) {
       return (
@@ -74,13 +76,16 @@ function generateComponent(thirdParty) {
     .filter((dirent) => dirent.isDirectory())
     .map((dirent) => dirent.name)
 
+  console.log(SRC)
   for (let dir of dirs) {
     // Fetch the list of third-parties from tpc-config.json
     // Then retrieve its loading instructions from Third Party Capital
     const dirPath = path.join(SRC, dir)
+    console.log(dirPath)
     const configFile = (await fs.readdir(dirPath)).find(
       (file) => file === CONFIG_FILE_NAME
     )
+    console.log('configFile ', configFile)
 
     if (!configFile) continue
 
@@ -100,7 +105,7 @@ function generateComponent(thirdParty) {
 
     await Promise.all([
       fs.writeFile(
-        path.join(__dirname, dirPath, 'index.tsx'),
+        path.join(dirPath, 'index.tsx'),
         prettier.format(thirdPartyFunctions, { semi: false, parser: 'babel' })
       ),
     ])

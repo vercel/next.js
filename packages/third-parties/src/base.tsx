@@ -19,8 +19,8 @@ export default function Base({
       {content && (
         <div
           style={{
-            height: `${height}px` || 'auto',
-            width: `${width}px` || 'auto',
+            height: height != null ? `${height}px` : 'auto',
+            width: width != null ? `${width}px` : 'auto',
           }}
           dangerouslySetInnerHTML={{ __html: content }}
         />
