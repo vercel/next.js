@@ -1,7 +1,7 @@
 import { createNextDescribe } from 'e2e-utils'
 
 createNextDescribe(
-  'app dir',
+  'app-dir build size',
   {
     files: __dirname,
   },
