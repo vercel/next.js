@@ -87,7 +87,6 @@
     "@swc/helpers": "0.5.1",
     "busboy": "1.6.0",
     "caniuse-lite": "^1.0.30001406",
-    "import-meta-resolve": "3.0.0",
     "postcss": "8.4.14",
     "styled-jsx": "5.1.1",
     "watchpack": "2.4.0",

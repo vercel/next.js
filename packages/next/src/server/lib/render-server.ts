@@ -16,6 +16,7 @@ import {
 } from '../../build/webpack/plugins/nextjs-require-cache-hot-reloader'
 import { clearModuleContext as _clearModuleContext } from '../web/sandbox/context'
 import { getFreePort } from '../lib/worker-utils'
+import { init } from '../code-cache-hook'
 export const WORKER_SELF_EXIT_CODE = 77
 
 const MAXIMUM_HEAP_SIZE_ALLOWED =
@@ -50,6 +51,7 @@ export async function initialize(opts: {
   isNodeDebugging: boolean
   keepAliveTimeout?: number
 }): Promise<NonNullable<typeof result>> {
+  init(opts.dir + '/.next')
   // if we already setup the server return as we only need to do
   // this on first worker boot
   if (result) {

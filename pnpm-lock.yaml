@@ -606,7 +606,6 @@ importers:
       icss-utils: 5.1.0
       ignore-loader: 0.1.2
       image-size: 1.0.0
-      import-meta-resolve: 3.0.0
       is-docker: 2.0.0
       is-wsl: 2.2.0
       jest-worker: 27.0.0-next.5
@@ -691,7 +690,6 @@ importers:
       busboy: 1.6.0
       caniuse-lite: 1.0.30001406
       fibers: 5.0.3
-      import-meta-resolve: 3.0.0
       postcss: 8.4.14
       react: 18.2.0
       react-dom: 18.2.0_react@18.2.0
@@ -14481,10 +14479,6 @@ packages:
       pkg-dir: 4.2.0
       resolve-cwd: 3.0.0
     dev: true
-
-  /import-meta-resolve/3.0.0:
-    resolution: {integrity: sha512-4IwhLhNNA8yy445rPjD/lWh++7hMDOml2eHtd58eG7h+qK3EryMuuRbsHGPikCoAgIkkDnckKfWSk2iDla/ejg==}
-    dev: false
 
   /imurmurhash/0.1.4:
     resolution: {integrity: sha512-JmXMZ6wuvDmLiHEml9ykzqO6lwFbof0GG4IkcGaENdCRDDmMVnny7s5HsIgHCbaq0w2MyPhDqkhTUgS2LU2PHA==}

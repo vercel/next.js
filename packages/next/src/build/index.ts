@@ -2261,7 +2261,6 @@ export default async function build(
         console.time('code caching')
         const Module = require('module') as typeof import('module')
         const vm = require('vm') as typeof import('vm')
-        const { resolve } = await import('import-meta-resolve')
 
         const CODE_CACHE_DIRECTORY = 'v8'
         const codeCacheManifest = {} as { [hash: string]: string }
@@ -2305,17 +2304,12 @@ export default async function build(
               filename: actualPath,
               // @ts-ignore the type definitions are wrong, you can return an evaluated module here
               importModuleDynamically: async (specifier) => {
-                const resolved = await resolve(specifier, actualPath)
-                if (!resolved) {
-                  throw new Error(
-                    `Could not resolve ${specifier} during code caching`
-                  )
-                }
-                return import(resolved)
+                throw new Error(
+                  `Could not resolve ${specifier} during code caching`
+                )
               },
               columnOffset: 0,
             })
-            const beforeCache = script.createCachedData()
             script.runInThisContext({
               filename: actualPath,
               lineOffset: 0,
