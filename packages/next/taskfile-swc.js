@@ -70,7 +70,7 @@ module.exports = function (task) {
         },
         env: {
           targets: {
-            // Follows version defined in packages/next/package.json#engines
+            // Same version defined in packages/next/package.json#engines
             // Currently a few minors behind due to babel class transpiling
             node: '16.8.0',
           },
