@@ -10,7 +10,7 @@ function getLocale(request: NextRequest): string | undefined {
   // Negotiator expects plain object so we need to transform headers
   const negotiatorHeaders: Record<string, string> = {}
   request.headers.forEach((value, key) => (negotiatorHeaders[key] = value))
-  
+
   // @ts-ignore locales are readonly
   const locales: string[] = i18n.locales
 
@@ -19,7 +19,7 @@ function getLocale(request: NextRequest): string | undefined {
     locales
   )
 
-  const locale = matchLocale(languages, locales, i18n.defaultLocale);
+  const locale = matchLocale(languages, locales, i18n.defaultLocale)
 
   return locale
 }
