@@ -4,6 +4,10 @@ const url = 'https://nextjs.org/docs/messages/no-async-client-component'
 const description = 'Prevent client components from being async functions.'
 const message = `${description} See: ${url}`
 
+function isCapitalized(str: string): boolean {
+  return /[A-Z]/.test(str?.[0])
+}
+
 export = defineRule({
   meta: {
     docs: {
@@ -33,7 +37,8 @@ export = defineRule({
             // export default async function MyComponent() {...}
             if (
               block.declaration.type === 'FunctionDeclaration' &&
-              block.declaration.async
+              block.declaration.async &&
+              isCapitalized(block.declaration.id.name)
             ) {
               context.report({
                 node: block,
@@ -42,7 +47,10 @@ export = defineRule({
             }
 
             // async function MyComponent() {...}; export default MyComponent;
-            if (block.declaration.type === 'Identifier') {
+            if (
+              block.declaration.type === 'Identifier' &&
+              isCapitalized(block.declaration.name)
+            ) {
               const functionName = block.declaration.name
               const functionDeclaration = node.body.find(
                 (localBlock) =>
