@@ -2272,6 +2272,12 @@ export default async function getBaseWebpackConfig(
               "'server-only' cannot be imported from a Client Component module. It should only be used from a Server Component.",
           },
         },
+        {
+          // Mark `image-response.js` as side-effects free to make sure we can
+          // tree-shake it if not used.
+          test: /[\\/]next[\\/]dist[\\/](esm[\\/])?server[\\/]web[\\/]exports[\\/]image-response\.js/,
+          sideEffects: false,
+        },
       ].filter(Boolean),
     },
     plugins: [
@@ -2549,12 +2555,6 @@ export default async function getBaseWebpackConfig(
 
   if (isClient || isEdgeServer) {
     webpack5Config.output.enabledLibraryTypes = ['assign']
-  }
-
-  if (dev) {
-    // @ts-ignore unsafeCache exists
-    webpack5Config.module.unsafeCache = (module) =>
-      !/[\\/]pages[\\/][^\\/]+(?:$|\?|#)/.test(module.resource)
   }
 
   // This enables managedPaths for all node_modules

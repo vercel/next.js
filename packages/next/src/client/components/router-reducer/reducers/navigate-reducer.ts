@@ -211,13 +211,24 @@ export function navigateReducer(
   // If we don't have a prefetch value, we need to create one
   if (!prefetchValues) {
     const data = createRecordFromThenable(
-      fetchServerResponse(url, state.tree, state.nextUrl, state.buildId)
+      fetchServerResponse(
+        url,
+        state.tree,
+        state.nextUrl,
+        state.buildId,
+        // in dev, there's never gonna be a prefetch entry so we want to prefetch here
+        // in order to simulate the behavior of the prefetch cache
+        process.env.NODE_ENV === 'development' ? PrefetchKind.AUTO : undefined
+      )
     )
 
     const newPrefetchValue = {
       data: Promise.resolve(data),
       // this will make sure that the entry will be discarded after 30s
-      kind: PrefetchKind.TEMPORARY,
+      kind:
+        process.env.NODE_ENV === 'development'
+          ? PrefetchKind.AUTO
+          : PrefetchKind.TEMPORARY,
       prefetchTime: Date.now(),
       treeAtTimeOfPrefetch: state.tree,
       lastUsedTime: null,
