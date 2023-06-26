@@ -191,6 +191,10 @@ type RenderWorker = Worker & {
   deleteCache: typeof import('./lib/render-server').deleteCache
   deleteAppClientCache: typeof import('./lib/render-server').deleteAppClientCache
   clearModuleContext: typeof import('./lib/render-server').clearModuleContext
+  initialized?: {
+    port: number
+    hostname: string
+  }
 }
 
 export default class NextNodeServer extends BaseServer {
@@ -1428,9 +1432,11 @@ export default class NextNodeServer extends BaseServer {
 
           if (renderWorker) {
             const initUrl = getRequestMeta(req, '__NEXT_INIT_URL')!
-            const { port, hostname } = await renderWorker.initialize(
-              this.renderWorkerOpts!
-            )
+            const { port, hostname } =
+              renderWorker.initialized ||
+              (renderWorker.initialized = await renderWorker.initialize(
+                this.renderWorkerOpts!
+              ))
             const renderUrl = new URL(initUrl)
             renderUrl.hostname = hostname
             renderUrl.port = port + ''
@@ -2442,9 +2448,11 @@ export default class NextNodeServer extends BaseServer {
                 }
 
                 const { port, hostname } =
-                  await this.renderWorkers.middleware.initialize(
-                    this.renderWorkerOpts!
-                  )
+                  this.renderWorkers.middleware.initialized ||
+                  (this.renderWorkers.middleware.initialized =
+                    await this.renderWorkers.middleware.initialize(
+                      this.renderWorkerOpts!
+                    ))
                 const renderUrl = new URL(initUrl)
                 renderUrl.hostname = hostname
                 renderUrl.port = port + ''

@@ -24,9 +24,7 @@ export const getDebugPort = () => {
   return debugPortStr ? parseInt(debugPortStr, 10) : 9229
 }
 
-export const genRouterWorkerExecArgv = async (
-  isNodeDebugging: boolean | 'brk'
-) => {
+export const genRouterWorkerExecArgv = (isNodeDebugging: boolean | 'brk') => {
   const execArgv = process.execArgv.filter((localArg) => {
     return (
       !localArg.startsWith('--inspect') && !localArg.startsWith('--inspect-brk')

@@ -199,7 +199,7 @@ export async function startServer({
         // TODO: do we want to allow more than 10 OOM restarts?
         maxRetries: 10,
         forkOptions: {
-          execArgv: await genRouterWorkerExecArgv(
+          execArgv: genRouterWorkerExecArgv(
             isNodeDebugging === undefined ? false : isNodeDebugging
           ),
           env: {
