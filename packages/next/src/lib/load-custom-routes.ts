@@ -77,11 +77,11 @@ function checkRedirect(route: Redirect): {
   const invalidParts: string[] = []
   let hadInvalidStatus: boolean = false
 
-  if (route.statusCode && !allowedStatusCodes.has(route.statusCode)) {
+  if (route.statusCode && !allowedStatusCodes.has(route['statusCode'])) {
     hadInvalidStatus = true
     invalidParts.push(`\`statusCode\` is not undefined or valid statusCode`)
   }
-  if (typeof route.permanent !== 'boolean' && !route.statusCode) {
+  if (typeof route.permanent !== 'boolean' && !route['statusCode']) {
     invalidParts.push(`\`permanent\` is not set to \`true\` or \`false\``)
   }
 
