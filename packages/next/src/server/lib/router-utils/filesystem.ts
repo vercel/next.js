@@ -18,10 +18,12 @@ import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/midd
 
 import {
   APP_PATH_ROUTES_MANIFEST,
+  BUILD_ID_FILE,
   MIDDLEWARE_MANIFEST,
   PAGES_MANIFEST,
   ROUTES_MANIFEST,
 } from '../../../shared/lib/constants'
+import { isDynamicRoute } from '../../../shared/lib/router/utils'
 
 export type FsOutput = {
   type:
@@ -43,6 +45,8 @@ export async function setupFsCheck(opts: {
     arg: (files: Map<string, { timestamp: number }>) => void
   ) => void
 }) {
+  // routes that have _next/data endpoints (SSG/SSP)
+  const nextDataRoutes = new Set<string>()
   const publicFolderItems = new Set<string>()
   const nextStaticFolderItems = new Set<string>()
   const legacyStaticFolderItems = new Set<string>()
@@ -69,8 +73,12 @@ export async function setupFsCheck(opts: {
     },
     headers: [],
   }
+  let buildId = 'development'
 
   if (process.env.NODE_ENV === 'production') {
+    const buildIdPath = path.join(opts.dir, opts.config.distDir, BUILD_ID_FILE)
+    buildId = await fs.readFile(buildIdPath, 'utf8')
+
     try {
       for (const file of await recursiveReadDir(publicFolderPath, () => true)) {
         publicFolderItems.add(file)
@@ -130,6 +138,21 @@ export async function setupFsCheck(opts: {
     }
     for (const key of Object.keys(appRoutesManifest)) {
       appFiles.add(appRoutesManifest[key])
+    }
+
+    for (const route of routesManifest.dataRoutes) {
+      if (isDynamicRoute(route.page)) {
+        const routeRegex = getRouteRegex(route.page)
+        dynamicRoutes.push({
+          ...route,
+          regex: routeRegex.re.toString(),
+          match: getRouteMatcher({
+            re: new RegExp(route.dataRouteRegex),
+            groups: routeRegex.groups,
+          }),
+        })
+      }
+      nextDataRoutes.add(route.page)
     }
 
     for (const route of routesManifest.dynamicRoutes) {
@@ -284,7 +307,7 @@ export async function setupFsCheck(opts: {
         decodedItemPath = decodeURIComponent(itemPath)
       } catch (_) {}
 
-      for (const [items, type] of itemsToCheck) {
+      for (let [items, type] of itemsToCheck) {
         let curItemPath = itemPath
         let curDecodedItemPath = decodedItemPath
 
@@ -302,6 +325,27 @@ export async function setupFsCheck(opts: {
           try {
             curDecodedItemPath = decodeURIComponent(curItemPath)
           } catch (_) {}
+        }
+        const nextDataPrefix = `/_next/data/${buildId}/`
+
+        if (
+          (type === 'appFile' || type === 'pageFile') &&
+          curItemPath.startsWith(nextDataPrefix)
+        ) {
+          items = nextDataRoutes
+          // remove _next/data/<build-id> prefix
+          curItemPath = curItemPath.substring(nextDataPrefix.length - 1)
+
+          // remove .json postfix
+          curItemPath = curItemPath.substring(
+            0,
+            curItemPath.length - '.json'.length
+          )
+
+          try {
+            curDecodedItemPath = decodeURIComponent(curItemPath)
+          } catch (_) {}
+          console.log('nextData!!', nextDataPrefix, curItemPath, type, items)
         }
 
         // check decoded variant as well

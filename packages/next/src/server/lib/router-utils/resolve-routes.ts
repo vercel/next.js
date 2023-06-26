@@ -43,6 +43,7 @@ export function getResolveRoutes(
   } & Partial<Header> &
     Partial<Redirect>)[] = [
     // _next/data with middleware handling
+    { match: () => ({} as any), name: '_next/data middleware normalize' },
 
     ...fsChecker.headers,
     ...fsChecker.redirects,
@@ -129,6 +130,10 @@ export function getResolveRoutes(
 
         if (params) {
           const output = await fsChecker.getItem(route.page)
+
+          if (output && parsedUrl.pathname?.startsWith('/_next/data')) {
+            parsedUrl.query.__nextDataReq = '1'
+          }
           return output
         }
       }
