@@ -45,6 +45,9 @@ export default () => {
       }
       return
     }
+    if (obj.action === 'serverError') {
+      return
+    }
     throw new Error('Unexpected action ' + obj.action)
   })
 

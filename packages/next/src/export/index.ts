@@ -472,6 +472,8 @@ export default async function exportApp(
       largePageDataBytes: nextConfig.experimental.largePageDataBytes,
       serverComponents: options.hasAppDir,
       hasServerComponents: options.hasAppDir,
+      serverActionsBodySizeLimit:
+        nextConfig.experimental.serverActionsBodySizeLimit,
       nextFontManifest: require(join(
         distDir,
         'server',

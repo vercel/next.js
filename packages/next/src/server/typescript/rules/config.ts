@@ -101,7 +101,7 @@ const API_DOCS: Record<
     },
     link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#revalidate',
     isValid: (value: string) => {
-      return value === 'false' || Number(value) >= 0
+      return value === 'false' || Number(value.replace(/_/g, '')) >= 0
     },
     getHint: (value: any) => {
       return `Set the default revalidation time to \`${value}\` seconds.`

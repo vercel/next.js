@@ -10,6 +10,7 @@ export const ACTION_REFRESH = 'fast-refresh'
 export const ACTION_UNHANDLED_ERROR = 'unhandled-error'
 export const ACTION_UNHANDLED_REJECTION = 'unhandled-rejection'
 export const ACTION_VERSION_INFO = 'version-info'
+export const ACTION_NOT_FOUND = 'not-found'
 
 interface BuildOkAction {
   type: typeof ACTION_BUILD_OK
@@ -24,6 +25,11 @@ interface BeforeFastRefreshAction {
 interface FastRefreshAction {
   type: typeof ACTION_REFRESH
 }
+
+interface NotFoundAction {
+  type: typeof ACTION_NOT_FOUND
+}
+
 export interface UnhandledErrorAction {
   type: typeof ACTION_UNHANDLED_ERROR
   reason: Error
@@ -59,6 +65,7 @@ export interface OverlayState {
   }
   refreshState: FastRefreshState
   versionInfo: VersionInfo
+  notFound: boolean
 }
 
 function pushErrorFilterDuplicates(
@@ -81,6 +88,7 @@ export const errorOverlayReducer: React.Reducer<
     | BuildErrorAction
     | BeforeFastRefreshAction
     | FastRefreshAction
+    | NotFoundAction
     | UnhandledErrorAction
     | UnhandledRejectionAction
     | VersionInfoAction
@@ -88,7 +96,7 @@ export const errorOverlayReducer: React.Reducer<
 > = (state, action) => {
   switch (action.type) {
     case ACTION_BUILD_OK: {
-      return { ...state, buildError: null }
+      return { ...state, buildError: null, notFound: false }
     }
     case ACTION_BUILD_ERROR: {
       return { ...state, buildError: action.message }
@@ -96,10 +104,14 @@ export const errorOverlayReducer: React.Reducer<
     case ACTION_BEFORE_REFRESH: {
       return { ...state, refreshState: { type: 'pending', errors: [] } }
     }
+    case ACTION_NOT_FOUND: {
+      return { ...state, notFound: true }
+    }
     case ACTION_REFRESH: {
       return {
         ...state,
         buildError: null,
+        notFound: false,
         errors:
           // Errors can come in during updates. In this case, UNHANDLED_ERROR
           // and UNHANDLED_REJECTION events might be dispatched between the
