@@ -7,29 +7,12 @@ import type { ResolvedVerification } from '../types/metadata-types'
 import type {
   FieldResolver,
   FieldResolverWithMetadataBase,
+  MetadataAccumulationOptions,
 } from '../types/resolvers'
 import type { Viewport } from '../types/extra-types'
-import path from '../../../shared/lib/isomorphic/path'
 import { resolveAsArrayOrUndefined } from '../generate/utils'
-import { resolveUrl } from './resolve-url'
+import { resolveUrlWithMetadata } from './resolve-url'
 import { ViewPortKeys } from '../constants'
-
-// Resolve with `metadataBase` if it's present, otherwise resolve with `pathname`.
-// Resolve with `pathname` if `url` is a relative path.
-function resolveAlternateUrl(
-  url: string | URL,
-  metadataBase: URL | null,
-  pathname: string
-) {
-  if (typeof url === 'string' && url.startsWith('./')) {
-    url = path.resolve(pathname, url)
-  } else if (url instanceof URL) {
-    url = new URL(pathname, url)
-  }
-
-  const result = metadataBase ? resolveUrl(url, metadataBase) : url
-  return result.toString()
-}
 
 export const resolveThemeColor: FieldResolver<'themeColor'> = (themeColor) => {
   if (!themeColor) return null
@@ -83,13 +66,13 @@ function resolveUrlValuesOfObject(
     if (typeof value === 'string' || value instanceof URL) {
       result[key] = [
         {
-          url: resolveAlternateUrl(value, metadataBase, pathname),
+          url: resolveUrlWithMetadata(value, metadataBase, pathname),
         },
       ]
     } else {
       result[key] = []
       value?.forEach((item, index) => {
-        const url = resolveAlternateUrl(item.url, metadataBase, pathname)
+        const url = resolveUrlWithMetadata(item.url, metadataBase, pathname)
         result[key][index] = {
           url,
           title: item.title,
@@ -114,13 +97,13 @@ function resolveCanonicalUrl(
 
   // Return string url because structureClone can't handle URL instance
   return {
-    url: resolveAlternateUrl(url, metadataBase, pathname),
+    url: resolveUrlWithMetadata(url, metadataBase, pathname),
   }
 }
 
 export const resolveAlternates: FieldResolverWithMetadataBase<
   'alternates',
-  { pathname: string }
+  MetadataAccumulationOptions
 > = (alternates, metadataBase, { pathname }) => {
   if (!alternates) return null
 
@@ -254,4 +237,17 @@ export const resolveAppLinks: FieldResolver<'appLinks'> = (appLinks) => {
     appLinks[key] = resolveAsArrayOrUndefined(appLinks[key])
   }
   return appLinks as ResolvedMetadata['appLinks']
+}
+
+export const resolveItunes: FieldResolverWithMetadataBase<
+  'itunes',
+  MetadataAccumulationOptions
+> = (itunes, metadataBase, { pathname }) => {
+  if (!itunes) return null
+  return {
+    appId: itunes.appId,
+    appArgument: itunes.appArgument
+      ? resolveUrlWithMetadata(itunes.appArgument, metadataBase, pathname)
+      : undefined,
+  }
 }

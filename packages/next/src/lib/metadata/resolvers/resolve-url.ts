@@ -70,4 +70,26 @@ function resolveUrl(
   return new URL(joinedPath, metadataBase)
 }
 
-export { isStringOrURL, resolveUrl }
+// Resolve with `pathname` if `url` is a relative path.
+function resolveRelativeUrl(url: string | URL, pathname: string): string | URL {
+  if (typeof url === 'string' && url.startsWith('./')) {
+    url = path.resolve(pathname, url)
+  } else if (url instanceof URL) {
+    url = new URL(pathname, url)
+  }
+  return url
+}
+
+// Resolve with `metadataBase` if it's present, otherwise resolve with `pathname`.
+function resolveUrlWithMetadata(
+  url: string | URL,
+  metadataBase: URL | null,
+  pathname: string
+) {
+  url = resolveRelativeUrl(url, pathname)
+
+  const result = metadataBase ? resolveUrl(url, metadataBase) : url
+  return result.toString()
+}
+
+export { isStringOrURL, resolveUrl, resolveUrlWithMetadata }
