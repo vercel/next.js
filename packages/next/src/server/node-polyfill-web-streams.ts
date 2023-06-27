@@ -11,7 +11,12 @@ if (!global.ReadableStream) {
   }
 }
 if (!global.TransformStream) {
-  const { TransformStream } =
-    require('next/dist/compiled/@edge-runtime/ponyfill') as typeof import('next/dist/compiled/@edge-runtime/ponyfill')
-  global.TransformStream = TransformStream
+  // Same as ReadableStream above.
+  if (require('stream').TransformStream) {
+    global.TransformStream = require('stream').TransformStream
+  } else {
+    const { TransformStream } =
+      require('next/dist/compiled/@edge-runtime/ponyfill') as typeof import('next/dist/compiled/@edge-runtime/ponyfill')
+    global.TransformStream = TransformStream
+  }
 }
