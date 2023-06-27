@@ -4,12 +4,16 @@ import { nextFontError } from '../next-font-error'
 import { getProxyAgent } from './get-proxy-agent'
 
 async function retry<T>(fn: () => Promise<T>, attempts: number): Promise<T> {
+  let cnt = attempts
   while (true) {
     try {
       return await fn()
     } catch (err) {
-      attempts--
-      if (attempts <= 0) throw err
+      cnt--
+      if (cnt <= 0) throw err
+      console.error(
+        (err as Error).message + `\n\nRetrying ${attempts - cnt}/3...`
+      )
       await new Promise((resolve) => setTimeout(resolve, 100))
     }
   }
@@ -70,7 +74,7 @@ export async function fetchCSSFromGoogleFonts(
 
       if (!res.ok) {
         nextFontError(
-          `Failed to fetch font  \`${fontFamily}\`.\nURL: ${url}\n\nPlease check if the network is available.`
+          `Failed to fetch font \`${fontFamily}\`.\nURL: ${url}\n\nPlease check if the network is available.`
         )
       }
 
