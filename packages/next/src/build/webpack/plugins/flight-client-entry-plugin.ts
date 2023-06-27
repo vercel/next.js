@@ -548,17 +548,17 @@ export class FlightClientEntryPlugin {
       for (const connection of compilation.moduleGraph.getOutgoingConnections(
         ssrEntryModule
       )) {
-        const entryDependency = connection.dependency
-        const entryRequest = connection.dependency.request
+        const dependency = connection.dependency
+        const request = dependency.request
 
         // It is possible that the same entry is added multiple times in the
         // connection graph. We can just skip these to speed up the process.
-        if (visitedEntry.has(entryRequest)) continue
-        visitedEntry.add(entryRequest)
+        if (visitedEntry.has(request)) continue
+        visitedEntry.add(request)
 
         collectActions({
-          entryRequest,
-          dependency: entryDependency,
+          entryRequest: request,
+          dependency,
         })
       }
     }
