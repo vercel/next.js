@@ -53,7 +53,7 @@ import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin
 import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
 import { ClientReferenceManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
-import { ClientReferenceEntryPlugin } from './webpack/plugins/flight-client-entry-plugin'
+import { FlightClientEntryPlugin } from './webpack/plugins/flight-client-entry-plugin'
 import { NextTypesPlugin } from './webpack/plugins/next-types-plugin'
 import type {
   Feature,
@@ -2420,7 +2420,7 @@ export default async function getBaseWebpackConfig(
               dev,
               appDir,
             })
-          : new ClientReferenceEntryPlugin({
+          : new FlightClientEntryPlugin({
               appDir,
               dev,
               isEdgeServer,
