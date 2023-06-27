@@ -1,0 +1,9 @@
+*arrow function 138* = (...) => undefined
+
+BaseClass = ???*0*
+- *0* unsupported expression
+
+SubClass = ???*0*
+- *0* unsupported expression
+
+fn = arguments[0]
