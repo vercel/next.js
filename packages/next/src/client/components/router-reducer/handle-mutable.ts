@@ -30,19 +30,25 @@ export function handleMutable(
     },
     // All navigation requires scroll and focus management to trigger.
     focusAndScrollRef: {
-      apply:
-        mutable?.scrollableSegments !== undefined
+      apply: mutable.shouldScroll
+        ? mutable?.scrollableSegments !== undefined
           ? true
-          : state.focusAndScrollRef.apply,
-      hashFragment:
-        // Empty hash should trigger default behavior of scrolling layout into view.
-        // #top is handled in layout-router.
-        mutable.hashFragment && mutable.hashFragment !== ''
+          : state.focusAndScrollRef.apply
+        : // If shouldScroll is false then we should not apply scroll and focus management.
+          false,
+      hashFragment: mutable.shouldScroll
+        ? // Empty hash should trigger default behavior of scrolling layout into view.
+          // #top is handled in layout-router.
+          mutable.hashFragment && mutable.hashFragment !== ''
           ? // Remove leading # and decode hash to make non-latin hashes work.
             decodeURIComponent(mutable.hashFragment.slice(1))
-          : state.focusAndScrollRef.hashFragment,
-      segmentPaths:
-        mutable?.scrollableSegments ?? state.focusAndScrollRef.segmentPaths,
+          : state.focusAndScrollRef.hashFragment
+        : // If shouldScroll is false then we should not apply scroll and focus management.
+          null,
+      segmentPaths: mutable.shouldScroll
+        ? mutable?.scrollableSegments ?? state.focusAndScrollRef.segmentPaths
+        : // If shouldScroll is false then we should not apply scroll and focus management.
+          [],
     },
     // Apply cache.
     cache: mutable.cache ? mutable.cache : state.cache,
