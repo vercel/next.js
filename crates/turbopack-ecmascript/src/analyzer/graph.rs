@@ -519,6 +519,21 @@ impl EvalContext {
             }
 
             Expr::Call(CallExpr {
+                callee: Callee::Super(_),
+                args,
+                ..
+            }) => {
+                // We currently do not handle spreads.
+                if args.iter().any(|arg| arg.spread.is_some()) {
+                    return JsValue::unknown_empty("spread in function calls is not supported");
+                }
+
+                let args = args.iter().map(|arg| self.eval(&arg.expr)).collect();
+
+                JsValue::super_call(args)
+            }
+
+            Expr::Call(CallExpr {
                 callee: Callee::Import(_),
                 args,
                 ..
@@ -898,7 +913,13 @@ impl Analyzer<'_> {
                     });
                 }
             }
-            _ => {}
+            Callee::Super(_) => self.add_effect(Effect::Call {
+                func: self.eval_context.eval(&Expr::Call(n.clone())),
+                args,
+                ast_path: as_parent_path(ast_path),
+                span: n.span(),
+                in_try: is_in_try(ast_path),
+            }),
         }
     }
 

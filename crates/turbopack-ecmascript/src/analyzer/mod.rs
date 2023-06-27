@@ -421,6 +421,9 @@ pub enum JsValue {
     /// A function call without a this context.
     /// `(total_node_count, callee, args)`
     Call(usize, Box<JsValue>, Vec<JsValue>),
+    /// A super call to the parent constructor.
+    /// `(total_node_count, args)`
+    SuperCall(usize, Vec<JsValue>),
     /// A function call with a this context.
     /// `(total_node_count, obj, prop, args)`
     MemberCall(usize, Box<JsValue>, Box<JsValue>, Vec<JsValue>),
@@ -586,6 +589,14 @@ impl Display for JsValue {
                     .collect::<Vec<_>>()
                     .join(", ")
             ),
+            JsValue::SuperCall(_, list) => write!(
+                f,
+                "super({})",
+                list.iter()
+                    .map(|v| v.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
             JsValue::MemberCall(_, obj, prop, list) => write!(
                 f,
                 "{}[{}]({})",
@@ -680,6 +691,7 @@ impl JsValue {
             | JsValue::Logical(..)
             | JsValue::Binary(..)
             | JsValue::Call(..)
+            | JsValue::SuperCall(..)
             | JsValue::MemberCall(..) => JsValueMetaKind::Operation,
             JsValue::Variable(..)
             | JsValue::Argument(..)
@@ -811,6 +823,10 @@ impl JsValue {
         Self::Call(1 + f.total_nodes() + total_nodes(&args), f, args)
     }
 
+    pub fn super_call(args: Vec<JsValue>) -> Self {
+        Self::SuperCall(1 + total_nodes(&args), args)
+    }
+
     pub fn member_call(o: Box<JsValue>, p: Box<JsValue>, args: Vec<JsValue>) -> Self {
         Self::MemberCall(
             1 + o.total_nodes() + p.total_nodes() + total_nodes(&args),
@@ -856,6 +872,7 @@ impl JsValue {
             | JsValue::Logical(c, _, _)
             | JsValue::Binary(c, _, _, _)
             | JsValue::Call(c, _, _)
+            | JsValue::SuperCall(c, _)
             | JsValue::MemberCall(c, _, _, _)
             | JsValue::Member(c, _, _)
             | JsValue::Function(c, _, _) => *c,
@@ -908,6 +925,9 @@ impl JsValue {
             }
             JsValue::Call(c, f, list) => {
                 *c = 1 + f.total_nodes() + total_nodes(list);
+            }
+            JsValue::SuperCall(c, list) => {
+                *c = 1 + total_nodes(list);
             }
             JsValue::MemberCall(c, o, m, list) => {
                 *c = 1 + o.total_nodes() + m.total_nodes() + total_nodes(list);
@@ -986,6 +1006,10 @@ impl JsValue {
                 }
                 JsValue::Call(_, f, args) => {
                     make_max_unknown([&mut **f].into_iter().chain(args.iter_mut()));
+                    self.update_total_nodes();
+                }
+                JsValue::SuperCall(_, args) => {
+                    make_max_unknown(args.iter_mut());
                     self.update_total_nodes();
                 }
                 JsValue::MemberCall(_, o, p, args) => {
@@ -1215,6 +1239,26 @@ impl JsValue {
                 format!(
                     "{}({})",
                     callee.explain_internal_inner(hints, indent_depth, depth, unknown_depth),
+                    pretty_join(
+                        &list
+                            .iter()
+                            .map(|v| v.explain_internal_inner(
+                                hints,
+                                indent_depth + 1,
+                                depth,
+                                unknown_depth
+                            ))
+                            .collect::<Vec<_>>(),
+                        indent_depth,
+                        ", ",
+                        ",",
+                        ""
+                    )
+                )
+            }
+            JsValue::SuperCall(_, list) => {
+                format!(
+                    "super({})",
                     pretty_join(
                         &list
                             .iter()
@@ -1831,7 +1875,8 @@ impl JsValue {
             | JsValue::Argument(..)
             | JsValue::Call(..)
             | JsValue::MemberCall(..)
-            | JsValue::Member(..) => None,
+            | JsValue::Member(..)
+            | JsValue::SuperCall(..) => None,
         }
     }
 
@@ -2025,6 +2070,18 @@ macro_rules! for_each_children_async {
             JsValue::Call(_, box callee, list) => {
                 let (new_callee, mut modified) = $visit_fn(take(callee), $($args),+).await?;
                 *callee = new_callee;
+                for item in list.iter_mut() {
+                    let (v, m) = $visit_fn(take(item), $($args),+).await?;
+                    *item = v;
+                    if m {
+                        modified = true
+                    }
+                }
+                $value.update_total_nodes();
+                ($value, modified)
+            }
+            JsValue::SuperCall(_, list) => {
+                let mut modified = false;
                 for item in list.iter_mut() {
                     let (v, m) = $visit_fn(take(item), $($args),+).await?;
                     *item = v;
@@ -2301,6 +2358,18 @@ impl JsValue {
                 }
                 modified
             }
+            JsValue::SuperCall(_, list) => {
+                let mut modified = false;
+                for item in list.iter_mut() {
+                    if visitor(item) {
+                        modified = true
+                    }
+                }
+                if modified {
+                    self.update_total_nodes();
+                }
+                modified
+            }
             JsValue::MemberCall(_, obj, prop, list) => {
                 let m1 = visitor(obj);
                 let m2 = visitor(prop);
@@ -2465,6 +2534,11 @@ impl JsValue {
             }
             JsValue::Call(_, callee, list) => {
                 visitor(callee);
+                for item in list.iter() {
+                    visitor(item);
+                }
+            }
+            JsValue::SuperCall(_, list) => {
                 for item in list.iter() {
                     visitor(item);
                 }
@@ -2804,6 +2878,9 @@ impl JsValue {
             JsValue::Call(_, a, b) => {
                 a.similar_hash(state, depth - 1);
                 all_similar_hash(b, state, depth - 1);
+            }
+            JsValue::SuperCall(_, a) => {
+                all_similar_hash(a, state, depth - 1);
             }
             JsValue::MemberCall(_, a, b, c) => {
                 a.similar_hash(state, depth - 1);
