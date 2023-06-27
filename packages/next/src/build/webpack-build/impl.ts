@@ -234,6 +234,8 @@ export async function webpackBuildImpl(
       }
     }
 
+    inputFileSystem.purge()
+
     result = {
       warnings: ([] as any[])
         .concat(
