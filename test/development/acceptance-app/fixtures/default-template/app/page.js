@@ -1,5 +1,4 @@
-// 'use client'
-// export const revalidate = 0
+'use client'
 import Component from '../index'
 export default function Page() {
   return <Component />

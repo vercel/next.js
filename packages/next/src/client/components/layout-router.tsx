@@ -404,6 +404,12 @@ function InnerLayoutRouter({
     // When the data has not resolved yet `use` will suspend here.
     const [flightData, overrideCanonicalUrl] = use(childNode.data)
 
+    // Handle case when navigating to page in `pages` from `app`
+    if (typeof flightData === 'string') {
+      window.location.href = url
+      return null
+    }
+
     // segmentPath from the server does not match the layout's segmentPath
     childNode.data = null
 

@@ -176,8 +176,6 @@ describe('ReactRefreshRegression app', () => {
       `
     )
 
-    // await new Promise(() => {});
-
     await check(
       () => session.evaluate(() => document.querySelector('p').textContent),
       '0'
