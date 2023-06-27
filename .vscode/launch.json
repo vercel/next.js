@@ -10,7 +10,11 @@
       "request": "launch",
       "cwd": "${workspaceFolder}",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["debug", "dev", "test/e2e/app-dir/app"],
+      "runtimeArgs": [
+        "debug",
+        "dev",
+        "test/development/acceptance-app/fixtures/default-template"
+      ],
       "skipFiles": ["<node_internals>/**"],
       "env": {
         "NEXT_PRIVATE_LOCAL_WEBPACK": "1"
