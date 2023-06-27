@@ -290,9 +290,7 @@ export class Playwright extends BrowserInterface {
   }
 
   hasElementByCssSelector(selector: string) {
-    return this.chainWithReturnValue(() =>
-      page.$(selector).then((el) => el != null)
-    )
+    return this.eval<boolean>(`!!document.querySelector('${selector}')`)
   }
 
   keydown(key: string): BrowserInterface {
