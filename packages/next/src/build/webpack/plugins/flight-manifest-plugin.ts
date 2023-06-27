@@ -12,7 +12,6 @@ import {
   SYSTEM_ENTRYPOINTS,
 } from '../../../shared/lib/constants'
 import { relative } from 'path'
-import { isCSSMod } from '../loaders/utils'
 import { getProxiedPluginState } from '../../build-context'
 
 import { nonNullable } from '../../../lib/non-nullable'
@@ -68,10 +67,7 @@ export type ClientReferenceManifest = {
     [moduleId: string]: ManifestNode
   }
   entryCSSFiles: {
-    [entry: string]: {
-      modules: string[]
-      files: string[]
-    }
+    [entry: string]: string[]
   }
 }
 
@@ -163,14 +159,11 @@ export class ClientReferenceManifestPlugin {
           /[\\/]/g,
           path.sep
         )
-        manifest.entryCSSFiles[chunkEntryName] = {
-          modules: [],
-          files: chunkGroup
-            .getFiles()
-            .filter(
-              (f) => !f.startsWith('static/css/pages/') && f.endsWith('.css')
-            ),
-        }
+        manifest.entryCSSFiles[chunkEntryName] = chunkGroup
+          .getFiles()
+          .filter(
+            (f) => !f.startsWith('static/css/pages/') && f.endsWith('.css')
+          )
       }
 
       const recordModule = (id: ModuleId, mod: webpack.NormalModule) => {
@@ -320,33 +313,7 @@ export class ClientReferenceManifestPlugin {
             }
           }
         }
-
-        // Track CSS modules. This is necessary for next/font preloading.
-        // TODO: Unfortunately we have to keep this iteration for now but we
-        // will optimize it altogether in the future.
-        const chunkModules = compilation.chunkGraph.getChunkModulesIterable(
-          chunk
-        ) as Iterable<webpack.NormalModule>
-        for (const mod of chunkModules) {
-          if (isCSSMod(mod)) {
-            if (chunkEntryName) {
-              const resource =
-                mod.type === 'css/mini-extract'
-                  ? // @ts-expect-error TODO: use `identifier()` instead.
-                    mod._identifier.slice(mod._identifier.lastIndexOf('!') + 1)
-                  : mod.resource
-              manifest.entryCSSFiles[chunkEntryName].modules.push(resource)
-            }
-          }
-        }
       })
-
-      if (chunkEntryName) {
-        // Make sure CSS modules are deduped
-        manifest.entryCSSFiles[chunkEntryName].modules = [
-          ...new Set(manifest.entryCSSFiles[chunkEntryName].modules),
-        ]
-      }
     })
 
     const file = 'server/' + CLIENT_REFERENCE_MANIFEST

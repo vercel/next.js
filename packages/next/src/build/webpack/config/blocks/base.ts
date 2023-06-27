@@ -14,9 +14,8 @@ export const base = curry(function base(
       : COMPILER_NAMES.server
     : COMPILER_NAMES.client
 
-  // @ts-ignore TODO webpack 5 typings
   config.target = !ctx.targetWeb
-    ? 'node12.22'
+    ? 'node16.8' // Same version defined in packages/next/package.json#engines
     : ctx.isEdgeRuntime
     ? ['web', 'es6']
     : ['web', 'es5']
