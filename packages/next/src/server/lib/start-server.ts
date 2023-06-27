@@ -41,6 +41,7 @@ export async function startServer({
   keepAliveTimeout,
   onStdout,
   onStderr,
+  isExperimentalTurbo,
 }: StartServerOptions): Promise<TeardownServer> {
   const sockets = new Set<ServerResponse | Duplex>()
   let worker: import('next/dist/compiled/jest-worker').Worker | undefined
@@ -333,6 +334,7 @@ export async function startServer({
         httpServer: server,
         customServer: false,
         port: addr && typeof addr === 'object' ? addr.port : port,
+        isExperimentalTurbo,
       })
       // handle in process
       requestHandler = app.getRequestHandler()

@@ -120,6 +120,7 @@ export interface Options extends ServerOptions {
    * Tells of Next.js is running from the `next dev` command
    */
   isNextDevCommand?: boolean
+  isExperimentalTurbo?: boolean
 }
 
 export default class DevServer extends Server {
@@ -128,6 +129,7 @@ export default class DevServer extends Server {
   private webpackWatcher?: any | null
   private hotReloader?: HotReloader
   private isCustomServer: boolean
+  private isExperimentalTurbo: boolean
   protected sortedRoutes?: string[]
   private addedUpgradeListener = false
   private pagesDir?: string
@@ -182,6 +184,7 @@ export default class DevServer extends Server {
       Error.stackTraceLimit = 50
     } catch {}
     super({ ...options, dev: true })
+    this.isExperimentalTurbo = options.isExperimentalTurbo ?? false
     this.originalFetch = global.fetch
     this.renderOpts.dev = true
     this.renderOpts.appDirDevErrorLogger = (err: any) =>
@@ -354,6 +357,12 @@ export default class DevServer extends Server {
   }
 
   async startWatcher(): Promise<void> {
+    if (this.isExperimentalTurbo) {
+      const bindings = await require('../../build/swc').loadBindings()
+
+      bindings.experimentalTurbo()
+    }
+
     if (this.webpackWatcher) {
       return
     }
