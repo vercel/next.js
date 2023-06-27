@@ -1,4 +1,8 @@
-import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import {
+  CachedInputFileSystem,
+  gracefulFs,
+  type webpack,
+} from 'next/dist/compiled/webpack/webpack'
 import chalk from 'next/dist/compiled/chalk'
 import formatWebpackMessages from '../../client/dev/error-overlay/format-webpack-messages'
 import { nonNullable } from '../../lib/non-nullable'
@@ -178,16 +182,20 @@ export async function webpackBuildImpl(
     let edgeServerResult: UnwrapPromise<ReturnType<typeof runCompiler>> | null =
       null
 
+    // Uses a limit of 10 minutes as the server compiler shouldn't immediately dispose.
+    const inputFileSystem = new CachedInputFileSystem(gracefulFs, 600000)
+
     if (!compilerName || compilerName === 'server') {
       serverResult = await runCompiler(serverConfig, {
         runWebpackSpan,
+        inputFileSystem,
       })
       debug('server result', serverResult)
     }
 
     if (!compilerName || compilerName === 'edge-server') {
       edgeServerResult = configs[2]
-        ? await runCompiler(configs[2], { runWebpackSpan })
+        ? await runCompiler(configs[2], { runWebpackSpan, inputFileSystem })
         : null
       debug('edge server result', edgeServerResult)
     }
@@ -220,6 +228,7 @@ export async function webpackBuildImpl(
       if (!compilerName || compilerName === 'client') {
         clientResult = await runCompiler(clientConfig, {
           runWebpackSpan,
+          inputFileSystem,
         })
         debug('client result', clientResult)
       }

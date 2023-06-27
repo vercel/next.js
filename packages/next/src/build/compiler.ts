@@ -37,10 +37,14 @@ function closeCompiler(compiler: webpack.Compiler | webpack.MultiCompiler) {
 
 export function runCompiler(
   config: webpack.Configuration,
-  { runWebpackSpan }: { runWebpackSpan: Span }
+  {
+    runWebpackSpan,
+    inputFileSystem,
+  }: { runWebpackSpan: Span; inputFileSystem: any }
 ): Promise<CompilerResult> {
   return new Promise((resolve, reject) => {
     const compiler = webpack(config) as unknown as webpack.Compiler
+    compiler.inputFileSystem = inputFileSystem
     compiler.run((err, stats) => {
       const webpackCloseSpan = runWebpackSpan.traceChild('webpack-close', {
         name: config.name,
