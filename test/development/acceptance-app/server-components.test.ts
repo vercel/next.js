@@ -2,7 +2,6 @@
 import { sandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
-import { check } from 'next-test-utils'
 import { outdent } from 'outdent'
 
 describe('Error Overlay for server components', () => {
