@@ -304,7 +304,7 @@ const configSchema = {
         serverActions: {
           type: 'boolean',
         },
-        serverActionsSizeLimit: {
+        serverActionsBodySizeLimit: {
           oneOf: [
             {
               type: 'number',

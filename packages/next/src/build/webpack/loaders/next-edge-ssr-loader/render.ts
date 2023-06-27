@@ -32,7 +32,7 @@ export function getRender({
   clientReferenceManifest,
   subresourceIntegrityManifest,
   serverActionsManifest,
-  serverActionsSizeLimit,
+  serverActionsBodySizeLimit,
   config,
   buildId,
   nextFontManifest,
@@ -53,7 +53,7 @@ export function getRender({
   subresourceIntegrityManifest?: Record<string, string>
   clientReferenceManifest?: ClientReferenceManifest
   serverActionsManifest: any
-  serverActionsSizeLimit?: SizeLimit
+  serverActionsBodySizeLimit?: SizeLimit
   appServerMod: any
   config: NextConfigComplete
   buildId: string
@@ -88,7 +88,7 @@ export function getRender({
         disableOptimizedLoading: true,
         clientReferenceManifest,
         serverActionsManifest,
-        serverActionsSizeLimit,
+        serverActionsBodySizeLimit,
       },
       renderToHTML,
       incrementalCacheHandler,

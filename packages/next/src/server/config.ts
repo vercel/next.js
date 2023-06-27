@@ -416,9 +416,9 @@ function assignDefaults(
     result.output = 'standalone'
   }
 
-  if (typeof result.experimental?.serverActionsSizeLimit !== 'undefined') {
+  if (typeof result.experimental?.serverActionsBodySizeLimit !== 'undefined') {
     const value = parseInt(
-      result.experimental.serverActionsSizeLimit.toString()
+      result.experimental.serverActionsBodySizeLimit.toString()
     )
     if (isNaN(value) || value < 1) {
       throw new Error(

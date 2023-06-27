@@ -53,7 +53,7 @@ import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin
 import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
 import { ClientReferenceManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
-import { ClientReferenceEntryPlugin } from './webpack/plugins/flight-client-entry-plugin'
+import { FlightClientEntryPlugin } from './webpack/plugins/flight-client-entry-plugin'
 import { NextTypesPlugin } from './webpack/plugins/next-types-plugin'
 import type {
   Feature,
@@ -2272,6 +2272,12 @@ export default async function getBaseWebpackConfig(
               "'server-only' cannot be imported from a Client Component module. It should only be used from a Server Component.",
           },
         },
+        {
+          // Mark `image-response.js` as side-effects free to make sure we can
+          // tree-shake it if not used.
+          test: /[\\/]next[\\/]dist[\\/](esm[\\/])?server[\\/]web[\\/]exports[\\/]image-response\.js/,
+          sideEffects: false,
+        },
       ].filter(Boolean),
     },
     plugins: [
@@ -2414,7 +2420,7 @@ export default async function getBaseWebpackConfig(
               dev,
               appDir,
             })
-          : new ClientReferenceEntryPlugin({
+          : new FlightClientEntryPlugin({
               appDir,
               dev,
               isEdgeServer,
@@ -2439,7 +2445,7 @@ export default async function getBaseWebpackConfig(
         new SubresourceIntegrityPlugin(config.experimental.sri.algorithm),
       isClient &&
         new NextFontManifestPlugin({
-          appDirEnabled: !!config.experimental.appDir,
+          appDir,
         }),
       !dev &&
         isClient &&
@@ -2551,12 +2557,6 @@ export default async function getBaseWebpackConfig(
     webpack5Config.output.enabledLibraryTypes = ['assign']
   }
 
-  if (dev) {
-    // @ts-ignore unsafeCache exists
-    webpack5Config.module.unsafeCache = (module) =>
-      !/[\\/]pages[\\/][^\\/]+(?:$|\?|#)/.test(module.resource)
-  }
-
   // This enables managedPaths for all node_modules
   // and also for the unplugged folder when using yarn pnp
   // It also add the yarn cache to the immutable paths
@@ -2630,6 +2630,7 @@ export default async function getBaseWebpackConfig(
     //  - next.config.js keys that affect compilation
     version: `${process.env.__NEXT_VERSION}|${configVars}`,
     cacheDirectory: path.join(distDir, 'cache', 'webpack'),
+    compression: 'gzip',
   }
 
   // Adds `next.config.js` as a buildDependency when custom webpack config is provided

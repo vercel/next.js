@@ -286,7 +286,7 @@ export interface ExperimentalConfig {
   /**
    * Allows adjusting body parser size limit for server actions.
    */
-  serverActionsSizeLimit?: SizeLimit
+  serverActionsBodySizeLimit?: SizeLimit
 }
 
 export type ExportPathMap = {

@@ -156,7 +156,7 @@ export async function renderToHTMLOrFlight(
     nextFontManifest,
     supportsDynamicHTML,
     nextConfigOutput,
-    serverActionsSizeLimit,
+    serverActionsBodySizeLimit,
   } = renderOpts
 
   const appUsingSizeAdjust = nextFontManifest?.appUsingSizeAdjust
@@ -451,7 +451,6 @@ export async function renderToHTMLOrFlight(
 
       const preloadedFontFiles = layoutOrPagePath
         ? getPreloadableFonts(
-            clientReferenceManifest,
             nextFontManifest,
             layoutOrPagePath,
             injectedFontPreloadTagsWithCurrentLayout
@@ -1104,7 +1103,6 @@ export async function renderToHTMLOrFlight(
             true
           )
           getPreloadableFonts(
-            clientReferenceManifest,
             nextFontManifest,
             layoutPath,
             injectedFontPreloadTagsWithCurrentLayout
@@ -1607,7 +1605,7 @@ export async function renderToHTMLOrFlight(
       generateFlight,
       staticGenerationStore,
       requestStore,
-      serverActionsSizeLimit,
+      serverActionsBodySizeLimit,
     })
 
     if (actionRequestResult === 'not-found') {
