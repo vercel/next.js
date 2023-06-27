@@ -276,6 +276,20 @@ const nextDev: CliCommand = async (argv) => {
       )
     }
 
+    if (process.platform === 'darwin') {
+      // rust needs stdout to be blocking, otherwise it will throw an error (on macOS at least) when writing a lot of data (logs) to it
+      // see https://github.com/napi-rs/napi-rs/issues/1630
+      // and https://github.com/nodejs/node/blob/main/doc/api/process.md#a-note-on-process-io
+      if (process.stdout._handle != null) {
+        // @ts-ignore
+        process.stdout._handle.setBlocking(true)
+      }
+      if (process.stderr._handle != null) {
+        // @ts-ignore
+        process.stderr._handle.setBlocking(true)
+      }
+    }
+
     let bindings: any = await loadBindings()
     let server = bindings.turbo.startDev({
       ...devServerOptions,
