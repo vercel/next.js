@@ -31,6 +31,7 @@ import type { PagesRouteModule } from './future/route-modules/pages/module'
 import type { NodeNextRequest, NodeNextResponse } from './base-http/node'
 import type { AppRouteRouteMatch } from './future/route-matches/app-route-route-match'
 import type { RouteDefinition } from './future/route-definitions/route-definition'
+import type { WebNextRequest, WebNextResponse } from './base-http/web'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/redirect-status'
@@ -1776,7 +1777,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       else if (
         match &&
         isRouteMatch(match, RouteKind.PAGES) &&
-        process.env.NEXT_RUNTIME !== 'edge' &&
         components.ComponentMod.routeModule
       ) {
         const module: PagesRouteModule = components.ComponentMod.routeModule
@@ -1787,13 +1787,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
         renderOpts.nextFontManifest = this.nextFontManifest
 
-        // Call the built-in render method on the module. We cast these to
-        // NodeNextRequest and NodeNextResponse because we know that we're
-        // in the node runtime because we check that we're not in edge mode
-        // above.
+        // Call the built-in render method on the module.
         result = await module.render(
-          (req as NodeNextRequest).originalRequest,
-          (res as NodeNextResponse).originalResponse,
+          (req as NodeNextRequest).originalRequest ?? (req as WebNextRequest),
+          (res as NodeNextResponse).originalResponse ??
+            (res as WebNextResponse),
           { page: pathname, params: match.params, query, renderOpts }
         )
       } else {

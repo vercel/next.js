@@ -1,10 +1,13 @@
 import type webpack from 'webpack'
 import type { SizeLimit } from '../../../../../types'
+import type { PagesRouteModuleOptions } from '../../../../server/future/route-modules/pages/module'
+import type { MiddlewareConfig } from '../../../analysis/get-page-static-info'
 
 import { getModuleBuildInfo } from '../get-module-build-info'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../../lib/constants'
 import { stringifyRequest } from '../../stringify-request'
-import { MiddlewareConfig } from '../../../analysis/get-page-static-info'
+import { RouteKind } from '../../../../server/future/route-kind'
+import { normalizePagePath } from '../../../../shared/lib/page-path/normalize-page-path'
 
 export type EdgeSSRLoaderQuery = {
   absolute500Path: string
@@ -36,6 +39,21 @@ so we have to do it here. It's not that bad because it keeps all references to E
 */
 function swapDistFolderWithEsmDistFolder(path: string) {
   return path.replace('next/dist/pages', 'next/dist/esm/pages')
+}
+
+function getRouteModuleOptions(page: string) {
+  const options: Omit<PagesRouteModuleOptions, 'userland' | 'components'> = {
+    definition: {
+      kind: RouteKind.PAGES,
+      page: normalizePagePath(page),
+      pathname: page,
+      // The following aren't used in production.
+      bundlePath: '',
+      filename: '',
+    },
+  }
+
+  return options
 }
 
 const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
@@ -129,14 +147,33 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
     `
         : `
       import Document from ${stringifiedDocumentPath}
-      import { renderToHTML } from 'next/dist/esm/server/render'
-      import * as pageMod from ${stringifiedPagePath}
+      import * as userland from ${stringifiedPagePath}
       import * as appMod from ${stringifiedAppPath}
       import * as errorMod from ${stringifiedErrorPath}
       ${
         stringified500Path
           ? `import * as error500Mod from ${stringified500Path}`
           : `const error500Mod = null`
+      }
+      import RouteModule from "next/dist/esm/server/future/route-modules/pages/module"
+
+      const renderToHTML = () => {
+        throw new Error('Invariant: routeModule should be configured when rendering pages')
+      }
+
+      const options = ${JSON.stringify(getRouteModuleOptions(page))}
+      const routeModule = new RouteModule({
+        ...options,
+        components: {
+          App: appMod.default,
+          Document,
+        },
+        userland,
+      })
+
+      const pageMod = {
+        ...userland,
+        routeModule,
       }
     `
     }
