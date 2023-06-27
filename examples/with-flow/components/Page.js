@@ -1,16 +1,11 @@
 // @flow
-import React, { type Node } from 'react'
+import React from 'react'
 import Head from 'next/head'
-
-type Props = {
-  children: Node,
-  title?: string,
-}
 
 export default function Page({
   children,
   title = 'This is the default title',
-}: Props) {
+}) {
   return (
     <section>
       <Head>
