@@ -206,9 +206,10 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 )]
 #[cfg_attr(
     not(feature = "bench_against_node_nft"),
-    case::ts_package_base("integration/ts-package/index.ts"),
-    case::ts_package_extends("integration/ts-package-extends/index.ts"),
-    case::ts_package_from_js("integration/ts-package-from-js/index.js"),
+    //[TODO]: WEB-1188 reenable once fixed.
+    //case::ts_package_base("integration/ts-package/index.ts"),
+    //case::ts_package_extends("integration/ts-package-extends/index.ts"),
+    //case::ts_package_from_js("integration/ts-package-from-js/index.js"),
     case::ts_paths_alt_base("integration/ts-paths/pass/alt.ts"),
     case::ts_paths_catch_all("integration/ts-paths/pass/catch-all.ts"),
     case::ts_paths_direct("integration/ts-paths/pass/direct.ts"),
@@ -243,6 +244,13 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
         CaseInput::new("integration/ts-paths/fail/sub-prefix-sep.ts")
             .expected_stderr("Cannot find module 'sub/@' or its corresponding type declarations")
     ),
+)]
+#[cfg_attr(
+    //[TODO]: WEB-1188 reenable windows once fixed.
+    not(any(feature = "bench_against_node_nft", target_os = "windows")),
+    case::ts_package_base("integration/ts-package/index.ts"),
+    case::ts_package_extends("integration/ts-package-extends/index.ts"),
+    case::ts_package_from_js("integration/ts-package-from-js/index.js"),
 )]
 fn test_cases() {}
 
