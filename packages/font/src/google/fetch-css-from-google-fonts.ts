@@ -69,7 +69,9 @@ export async function fetchCSSFromGoogleFonts(
       })
 
       if (!res.ok) {
-        nextFontError(`Failed to fetch font  \`${fontFamily}\`.\nURL: ${url}`)
+        nextFontError(
+          `Failed to fetch font  \`${fontFamily}\`.\nURL: ${url}\n\nPlease check if the network is available.`
+        )
       }
 
       return res.text()
