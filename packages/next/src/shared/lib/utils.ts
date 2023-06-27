@@ -3,6 +3,7 @@ import type { ComponentType } from 'react'
 import type { DomainLocale } from '../../server/config'
 import type { Env } from '@next/env'
 import type { IncomingMessage, ServerResponse } from 'http'
+import type fs from 'fs'
 import type { NextRouter } from './router/router'
 import type { ParsedUrlQuery } from 'querystring'
 import type { PreviewData } from 'next/types'
@@ -451,6 +452,7 @@ export interface CacheFs {
   writeFile(f: string, d: any): Promise<void>
   mkdir(dir: string): Promise<void | string>
   stat(f: string): Promise<{ mtime: Date }>
+  createWriteStream: typeof fs.createWriteStream
 }
 
 export function stringifyError(error: Error) {

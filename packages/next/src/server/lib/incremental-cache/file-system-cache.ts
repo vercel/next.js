@@ -110,24 +110,30 @@ export default class FileSystemCache implements CacheHandler {
     // we need to ensure the tagsManifest is refreshed
     // since separate workers can be updating it at the same
     // time and we can't flush out of sync data
-    this.loadTagsManifest()
-    if (!tagsManifest || !this.tagsManifestPath) {
+    if (!this.tagsManifestPath) {
       return
     }
+    const manifestWriteStream = this.fs.createWriteStream(this.tagsManifestPath)
 
-    const data = tagsManifest.items[tag] || { keys: [] }
-    data.revalidatedAt = Date.now()
-    tagsManifest.items[tag] = data
-
-    try {
-      await this.fs.mkdir(path.dirname(this.tagsManifestPath))
-      await this.fs.writeFile(
-        this.tagsManifestPath,
-        JSON.stringify(tagsManifest || {})
+    return new Promise<void>((resolve, reject) => {
+      manifestWriteStream.on('ready', () => {
+        this.loadTagsManifest()
+        if (!tagsManifest) {
+          return
+        }
+        const data = tagsManifest.items[tag] || {
+          keys: [],
+        }
+        data.revalidatedAt = Date.now()
+        tagsManifest.items[tag] = data
+        manifestWriteStream.write(JSON.stringify(tagsManifest))
+        manifestWriteStream.end()
+      })
+      manifestWriteStream.on('finish', resolve)
+      manifestWriteStream.on('error', (err) =>
+        reject(`Failed to update tags manifest. ${err}`)
       )
-    } catch (err: any) {
-      console.warn('Failed to update tags manifest.', err)
-    }
+    })
   }
 
   public async get(key: string, fetchCache?: boolean) {

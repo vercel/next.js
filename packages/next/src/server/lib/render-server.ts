@@ -102,6 +102,15 @@ export async function initialize(opts: {
       })
     }
 
+    let hostname =
+      !opts.hostname || opts.hostname === '0.0.0.0'
+        ? 'localhost'
+        : opts.hostname
+
+    if (isIPv6(hostname)) {
+      hostname = hostname === '::' ? '[::1]' : `[${hostname}]`
+    }
+
     server.on('listening', async () => {
       try {
         const addr = server.address()
@@ -112,14 +121,6 @@ export async function initialize(opts: {
           process.exit(1)
         }
 
-        let hostname =
-          !opts.hostname || opts.hostname === '0.0.0.0'
-            ? 'localhost'
-            : opts.hostname
-
-        if (isIPv6(hostname)) {
-          hostname = hostname === '::' ? '[::1]' : `[${hostname}]`
-        }
         result = {
           port,
           hostname,
@@ -143,6 +144,6 @@ export async function initialize(opts: {
         return reject(err)
       }
     })
-    server.listen(await getFreePort(), '0.0.0.0')
+    server.listen(await getFreePort(), hostname)
   })
 }
