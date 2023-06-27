@@ -17,6 +17,8 @@ module.exports = function () {
     NormalModule: require('webpack/lib/NormalModule'),
     sources: require('webpack').sources,
     webpack: require('webpack'),
+    gracefulFs: require('graceful-fs'),
+    CachedInputFileSystem: require('enhanced-resolve/lib/CachedInputFileSystem'),
     package: {
       version: require('webpack/package.json').version,
     },

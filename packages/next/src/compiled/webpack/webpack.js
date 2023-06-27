@@ -20,7 +20,7 @@ exports.init = function () {
       // eslint-disable-next-line import/no-extraneous-dependencies
       webpack: require('webpack'),
       gracefulFs: require('graceful-fs'),
-      CachedInputFileSystem: require('enhanced-resolve/lib/CachedInputFileSystem')
+      CachedInputFileSystem: require('enhanced-resolve/lib/CachedInputFileSystem'),
     })
   } else {
     Object.assign(exports, require('./bundle5')())
