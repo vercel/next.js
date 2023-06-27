@@ -346,6 +346,12 @@ export async function setupFsCheck(opts: {
       if (lruResult) {
         return lruResult
       }
+      const { basePath } = opts.config
+
+      if (basePath && !itemPath.startsWith(basePath)) {
+        return null
+      }
+      itemPath = itemPath.substring(basePath.length) || '/'
 
       if (itemPath !== '/' && itemPath.endsWith('/')) {
         itemPath = itemPath.substring(0, itemPath.length - 1)

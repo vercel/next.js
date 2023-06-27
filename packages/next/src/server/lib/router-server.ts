@@ -17,6 +17,7 @@ import { createIpcServer, createWorker } from './server-ipc'
 import setupCompression from 'next/dist/compiled/compression'
 import { getResolveRoutes } from './router-utils/resolve-routes'
 import { NextUrlWithParsedQuery, getRequestMeta } from '../request-meta'
+import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page-path'
 
 import {
@@ -233,15 +234,19 @@ export async function initialize(opts: {
       // so normalize here before continuing
       if (
         config.i18n &&
-        invokePath.startsWith(`/${parsedUrl.query.__nextLocale}/api`)
+        removePathPrefix(invokePath, config.basePath).startsWith(
+          `/${parsedUrl.query.__nextLocale}/api`
+        )
       ) {
-        invokePath = fsChecker.handleLocale(invokePath).pathname
+        invokePath = fsChecker.handleLocale(
+          removePathPrefix(invokePath, config.basePath)
+        ).pathname
       }
 
       if (
         req.headers['x-nextjs-data'] &&
         fsChecker.getMiddlewareMatchers().length &&
-        invokePath === '/404'
+        removePathPrefix(invokePath, config.basePath) === '/404'
       ) {
         res.setHeader('x-nextjs-matched-path', parsedUrl.pathname || '')
         res.statusCode = 200
@@ -278,7 +283,7 @@ export async function initialize(opts: {
       }
 
       // TODO: remove when next/image is handled directly
-      if (invokePath === '/_next/image') {
+      if (removePathPrefix(invokePath, config.basePath) === '/_next/image') {
         delete invokeHeaders['x-invoke-path']
         delete invokeHeaders['x-invoke-query']
       }

@@ -19,8 +19,10 @@ import { normalizeRepeatedSlashes } from '../../../shared/lib/utils'
 import { getPathMatch } from '../../../shared/lib/router/utils/path-match'
 import { relativizeURL } from '../../../shared/lib/router/utils/relativize-url'
 import { addPathPrefix } from '../../../shared/lib/router/utils/add-path-prefix'
+import { pathHasPrefix } from '../../../shared/lib/router/utils/path-has-prefix'
 import { detectDomainLocale } from '../../../shared/lib/i18n/detect-domain-locale'
 import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-path'
+import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-prefix'
 
 import {
   NextUrlWithParsedQuery,
@@ -136,8 +138,12 @@ export function getResolveRoutes(
     let defaultLocale: string | undefined
 
     if (config.i18n) {
+      const hadBasePath = pathHasPrefix(
+        parsedUrl.pathname || '',
+        config.basePath
+      )
       const localeResult = normalizeLocalePath(
-        parsedUrl.pathname || '/',
+        removePathPrefix(parsedUrl.pathname || '/', config.basePath),
         config.i18n.locales
       )
 
@@ -167,12 +173,14 @@ export function getResolveRoutes(
       // ensure locale is present for resolving routes
       if (
         !localeResult.detectedLocale &&
-        !parsedUrl.pathname?.startsWith('/_next/')
+        !localeResult.pathname.startsWith('/_next/')
       ) {
-        parsedUrl.pathname =
-          parsedUrl.pathname === '/'
+        parsedUrl.pathname = addPathPrefix(
+          localeResult.pathname === '/'
             ? `/${defaultLocale}`
-            : addPathPrefix(parsedUrl.pathname || '', `/${defaultLocale}`)
+            : addPathPrefix(localeResult.pathname || '', `/${defaultLocale}`),
+          hadBasePath ? config.basePath : ''
+        )
       }
     }
 
@@ -183,6 +191,15 @@ export function getResolveRoutes(
         return output
       }
       const dynamicRoutes = fsChecker.getDynamicRoutes()
+      let curPathname = parsedUrl.pathname
+
+      if (config.basePath) {
+        if (!curPathname?.startsWith(config.basePath)) {
+          return
+        }
+        curPathname = curPathname?.substring(config.basePath.length) || '/'
+      }
+      const localeResult = fsChecker.handleLocale(curPathname || '')
 
       for (const route of dynamicRoutes) {
         // when resolving fallback: false we attempt to
@@ -193,14 +210,15 @@ export function getResolveRoutes(
         if (matchedDynamicRoutes.has(route.regex)) {
           continue
         }
-        const localeResult = fsChecker.handleLocale(parsedUrl.pathname || '')
         const params = route.match(localeResult.pathname)
 
         if (params) {
           matchedDynamicRoutes.add(route.regex)
-          const pageOutput = await fsChecker.getItem(route.page)
+          const pageOutput = await fsChecker.getItem(
+            addPathPrefix(route.page, config.basePath || '')
+          )
 
-          if (pageOutput && parsedUrl.pathname?.startsWith('/_next/data')) {
+          if (pageOutput && curPathname?.startsWith('/_next/data')) {
             parsedUrl.query.__nextDataReq = '1'
           }
           return pageOutput
@@ -212,13 +230,29 @@ export function getResolveRoutes(
       let curPathname = parsedUrl.pathname || '/'
 
       if (config.i18n && route.internal) {
+        if (config.basePath) {
+          curPathname = removePathPrefix(curPathname, config.basePath)
+        }
+        const hadBasePath = curPathname !== parsedUrl.pathname
+
         const localeResult = normalizeLocalePath(
           curPathname,
           config.i18n.locales
         )
 
         if (localeResult.detectedLocale === defaultLocale) {
-          curPathname = localeResult.pathname
+          curPathname =
+            localeResult.pathname === '/' && hadBasePath
+              ? config.basePath
+              : addPathPrefix(
+                  localeResult.pathname,
+                  hadBasePath ? config.basePath : ''
+                )
+        } else if (hadBasePath) {
+          curPathname =
+            curPathname === '/'
+              ? config.basePath
+              : addPathPrefix(curPathname, config.basePath)
         }
       }
       let params = route.match(curPathname)
@@ -240,7 +274,10 @@ export function getResolveRoutes(
       if (params) {
         if (route.name === 'middleware_next_data') {
           if (fsChecker.getMiddlewareMatchers().length) {
-            const nextDataPrefix = `/_next/data/${fsChecker.buildId}/`
+            const nextDataPrefix = addPathPrefix(
+              `/_next/data/${fsChecker.buildId}/`,
+              config.basePath
+            )
 
             if (
               parsedUrl.pathname?.startsWith(nextDataPrefix) &&
@@ -253,6 +290,10 @@ export function getResolveRoutes(
               parsedUrl.pathname = parsedUrl.pathname.substring(
                 0,
                 parsedUrl.pathname.length - '.json'.length
+              )
+              parsedUrl.pathname = addPathPrefix(
+                parsedUrl.pathname || '',
+                config.basePath
               )
             }
           }
@@ -501,7 +542,7 @@ export function getResolveRoutes(
 
           if (config.i18n) {
             const curLocaleResult = normalizeLocalePath(
-              parsedDestination.pathname,
+              removePathPrefix(parsedDestination.pathname, config.basePath),
               config.i18n.locales
             )
 

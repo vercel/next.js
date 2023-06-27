@@ -183,7 +183,9 @@ export async function startServer({
       const httpProxy =
         require('next/dist/compiled/http-proxy') as typeof import('next/dist/compiled/http-proxy')
 
-      let routerServerPath = require.resolve('./router-server')
+      let routerServerPath = isDev
+        ? require.resolve('./render-server')
+        : require.resolve('./router-server')
       let jestWorkerPath = require.resolve('next/dist/compiled/jest-worker')
 
       if (prevDir) {
