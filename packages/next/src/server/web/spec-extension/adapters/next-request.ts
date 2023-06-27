@@ -7,6 +7,16 @@ import { getRequestMeta } from '../../../request-meta'
 import { fromNodeOutgoingHttpHeaders } from '../../utils'
 import { NextRequest } from '../request'
 
+export function signalFromNodeRequest(request: IncomingMessage) {
+  const { errored } = request
+  if (errored) return AbortSignal.abort(errored)
+  const controller = new AbortController()
+  request.on('error', (e) => {
+    controller.abort(e)
+  })
+  return controller.signal
+}
+
 export class NextRequestAdapter {
   public static fromBaseNextRequest(request: BaseNextRequest): NextRequest {
     // TODO: look at refining this check
@@ -73,14 +83,4 @@ export class NextRequestAdapter {
       // nextConfig
     })
   }
-}
-
-export function signalFromNodeRequest(request: IncomingMessage) {
-  const { errored } = request
-  if (errored) return AbortSignal.abort(errored)
-  const controller = new AbortController()
-  request.on('error', (e) => {
-    controller.abort(e)
-  })
-  return controller.signal
 }
