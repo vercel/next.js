@@ -3,7 +3,12 @@ import type { CustomRoutes } from '../../lib/load-custom-routes'
 import type { Duplex } from 'stream'
 import type { Telemetry } from '../../telemetry/storage'
 
-import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
+import {
+  webpack,
+  StringXor,
+  gracefulFs,
+  CachedInputFileSystem,
+} from 'next/dist/compiled/webpack/webpack'
 import { getOverlayMiddleware } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
 import { IncomingMessage, ServerResponse } from 'http'
 import { WebpackHotMiddleware } from './hot-middleware'
@@ -948,6 +953,9 @@ export default class HotReloader {
     this.multiCompiler = webpack(
       this.activeConfigs
     ) as unknown as webpack.MultiCompiler
+
+    const inputFileSystem = new CachedInputFileSystem(gracefulFs, 60000)
+    this.multiCompiler.inputFileSystem = inputFileSystem
 
     watchCompilers(
       this.multiCompiler.compilers[0],

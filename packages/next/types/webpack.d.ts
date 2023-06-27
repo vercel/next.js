@@ -33,6 +33,8 @@ declare module 'next/dist/compiled/webpack/webpack' {
   export let GraphHelpers: any
   export let sources: typeof webpackSources
   export let StringXor: any
+  export let CachedInputFileSystem: any
+  export let gracefulFs: any
   export {
     Compiler,
     Compilation,
