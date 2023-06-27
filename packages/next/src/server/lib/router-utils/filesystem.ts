@@ -4,15 +4,20 @@ import type { MiddlewareManifest } from '../../../build/webpack/plugins/middlewa
 
 import path from 'path'
 import fs from 'fs/promises'
+import setupDebug from 'next/dist/compiled/debug'
+import LRUCache from 'next/dist/compiled/lru-cache'
 import { findPagesDir } from '../../../lib/find-pages-dir'
 import loadCustomRoutes from '../../../lib/load-custom-routes'
 import { modifyRouteRegex } from '../../../lib/redirect-status'
 import { UnwrapPromise } from '../../../lib/coalesced-function'
 import { recursiveReadDir } from '../../../lib/recursive-readdir'
+import { isDynamicRoute } from '../../../shared/lib/router/utils'
+import { escapeStringRegexp } from '../../../shared/lib/escape-regexp'
 import { getPathMatch } from '../../../shared/lib/router/utils/path-match'
 import { getRouteRegex } from '../../../shared/lib/router/utils/route-regex'
 import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
+import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-path'
 import { absolutePathToPage } from '../../../shared/lib/page-path/absolute-path-to-page'
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
 
@@ -23,7 +28,6 @@ import {
   PAGES_MANIFEST,
   ROUTES_MANIFEST,
 } from '../../../shared/lib/constants'
-import { isDynamicRoute } from '../../../shared/lib/router/utils'
 
 export type FsOutput = {
   type:
@@ -34,8 +38,12 @@ export type FsOutput = {
     | 'nextStaticFolder'
     | 'legacyStaticFolder'
 
+  itemPath: string
   fsPath?: string
+  locale?: string
 }
+
+const debug = setupDebug('next:router-server:filesystem')
 
 export async function setupFsCheck(opts: {
   dir: string
@@ -45,6 +53,19 @@ export async function setupFsCheck(opts: {
     arg: (files: Map<string, { timestamp: number }>) => void
   ) => void
 }) {
+  const getItemsLru = new LRUCache<string, FsOutput | null>({
+    max: 1024 * 1024,
+    length(value, key) {
+      if (!value) return key?.length || 0
+      return (
+        (key || '').length +
+        (value.fsPath || '').length +
+        value.itemPath.length +
+        value.type.length
+      )
+    },
+  })
+
   // routes that have _next/data endpoints (SSG/SSP)
   const nextDataRoutes = new Set<string>()
   const publicFolderItems = new Set<string>()
@@ -106,7 +127,7 @@ export async function setupFsCheck(opts: {
       nextStaticFolderPath,
       () => true
     )) {
-      nextStaticFolderItems.add(file)
+      nextStaticFolderItems.add(path.posix.join('/_next/static', file))
     }
 
     const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
@@ -135,10 +156,19 @@ export async function setupFsCheck(opts: {
 
     for (const key of Object.keys(pagesManifest)) {
       pageFiles.add(key)
+
+      // ensure the non-locale version is in the set
+      if (opts.config.i18n) {
+        pageFiles.add(
+          normalizeLocalePath(key, opts.config.i18n.locales).pathname
+        )
+      }
     }
     for (const key of Object.keys(appRoutesManifest)) {
       appFiles.add(appRoutesManifest[key])
     }
+
+    const escapedBuildId = escapeStringRegexp(buildId)
 
     for (const route of routesManifest.dataRoutes) {
       if (isDynamicRoute(route.page)) {
@@ -147,7 +177,16 @@ export async function setupFsCheck(opts: {
           ...route,
           regex: routeRegex.re.toString(),
           match: getRouteMatcher({
-            re: new RegExp(route.dataRouteRegex),
+            // TODO: fix this in the manifest itself, must also be fixed in
+            // upstream builder that relies on this
+            re: opts.config.i18n
+              ? new RegExp(
+                  route.dataRouteRegex.replace(
+                    `/${escapedBuildId}/`,
+                    `/${escapedBuildId}/(?<nextLocale>.+?)/`
+                  )
+                )
+              : new RegExp(route.dataRouteRegex),
             groups: routeRegex.groups,
           }),
         })
@@ -192,7 +231,8 @@ export async function setupFsCheck(opts: {
         Parameters<NonNullable<(typeof opts)['addDevWatcherCallback']>>[0]
       >[0]
     ) {
-      console.log('dev watcher callback!', files)
+      debug('dev watcher callback', files)
+      getItemsLru.reset()
       pageFiles.clear()
       appFiles.clear()
       dynamicRoutes = []
@@ -229,7 +269,7 @@ export async function setupFsCheck(opts: {
       }
     }
     opts.addDevWatcherCallback?.(devWatcherCallback)
-    console.log('setup dev watcher callback')
+    debug('setup dev watcher callback')
   }
 
   const restrictedRedirectPaths = ['/_next'].map((p) =>
@@ -276,47 +316,83 @@ export async function setupFsCheck(opts: {
     ),
   }
 
+  const { i18n } = opts.config
+
+  const handleLocale = (pathname: string, locales?: string[]) => {
+    let locale: string | undefined
+
+    if (i18n) {
+      const i18nResult = normalizeLocalePath(pathname, locales || i18n.locales)
+
+      pathname = i18nResult.pathname
+      locale = i18nResult.detectedLocale
+    }
+    return { locale, pathname }
+  }
+
   return {
     headers,
     rewrites,
     redirects,
 
+    buildId,
+    handleLocale,
+
     async getItem(itemPath: string): Promise<FsOutput | null> {
+      const originalItemPath = itemPath
+      const lruResult = getItemsLru.get(originalItemPath)
+
+      if (lruResult) {
+        return lruResult
+      }
+
       if (itemPath !== '/' && itemPath.endsWith('/')) {
         itemPath = itemPath.substring(0, itemPath.length - 1)
       }
 
-      if (itemPath === '/_next/image') {
-        return {
-          type: 'nextImage',
-        }
-      }
-      const itemsToCheck: Array<[Set<string>, FsOutput['type']]> = [
-        [publicFolderItems, 'publicFolder'],
-        [legacyStaticFolderItems, 'legacyStaticFolder'],
-        [appFiles, 'appFile'],
-        [pageFiles, 'pageFile'],
-      ]
-
-      if (itemPath.startsWith('/_next/static')) {
-        itemsToCheck.unshift([nextStaticFolderItems, 'nextStaticFolder'])
-      }
       let decodedItemPath = itemPath
 
       try {
         decodedItemPath = decodeURIComponent(itemPath)
       } catch (_) {}
 
+      if (itemPath === '/_next/image') {
+        return {
+          itemPath,
+          type: 'nextImage',
+        }
+      }
+      const itemsToCheck: Array<[Set<string>, FsOutput['type']]> = [
+        [nextStaticFolderItems, 'nextStaticFolder'],
+        [legacyStaticFolderItems, 'legacyStaticFolder'],
+        [publicFolderItems, 'publicFolder'],
+        [appFiles, 'appFile'],
+        [pageFiles, 'pageFile'],
+      ]
+
       for (let [items, type] of itemsToCheck) {
+        let locale: string | undefined
         let curItemPath = itemPath
         let curDecodedItemPath = decodedItemPath
 
-        if (type === 'nextStaticFolder') {
-          curItemPath = curItemPath.substring('/_next/static'.length)
+        const isDynamicOutput = type === 'pageFile' || type === 'appFile'
 
-          try {
-            curDecodedItemPath = decodeURIComponent(curItemPath)
-          } catch (_) {}
+        if (i18n) {
+          const localeResult = handleLocale(
+            itemPath,
+            // legacy behavior allows visiting static assets under
+            // default locale but no other locale
+            isDynamicOutput ? undefined : [i18n?.defaultLocale]
+          )
+
+          if (localeResult.pathname !== curItemPath) {
+            curItemPath = localeResult.pathname
+            locale = localeResult.locale
+
+            try {
+              curDecodedItemPath = decodeURIComponent(curItemPath)
+            } catch (_) {}
+          }
         }
 
         if (type === 'legacyStaticFolder') {
@@ -330,7 +406,8 @@ export async function setupFsCheck(opts: {
 
         if (
           (type === 'appFile' || type === 'pageFile') &&
-          curItemPath.startsWith(nextDataPrefix)
+          curItemPath.startsWith(nextDataPrefix) &&
+          curItemPath.endsWith('.json')
         ) {
           items = nextDataRoutes
           // remove _next/data/<build-id> prefix
@@ -341,11 +418,13 @@ export async function setupFsCheck(opts: {
             0,
             curItemPath.length - '.json'.length
           )
+          const curLocaleResult = handleLocale(curItemPath)
+          curItemPath = curLocaleResult.pathname
+          locale = curLocaleResult.locale
 
           try {
             curDecodedItemPath = decodeURIComponent(curItemPath)
           } catch (_) {}
-          console.log('nextData!!', nextDataPrefix, curItemPath, type, items)
         }
 
         // check decoded variant as well
@@ -358,7 +437,10 @@ export async function setupFsCheck(opts: {
 
           switch (type) {
             case 'nextStaticFolder': {
-              fsPath = path.join(nextStaticFolderPath, curItemPath)
+              fsPath = path.join(
+                nextStaticFolderPath,
+                curItemPath.substring('/_next/static'.length)
+              )
               break
             }
             case 'legacyStaticFolder': {
@@ -374,12 +456,17 @@ export async function setupFsCheck(opts: {
             }
           }
 
-          return {
+          const itemResult = {
             type,
             fsPath,
+            locale,
+            itemPath: curItemPath,
           }
+          getItemsLru.set(originalItemPath, itemResult)
+          return itemResult
         }
       }
+      getItemsLru.set(originalItemPath, null)
       return null
     },
     getDynamicRoutes() {

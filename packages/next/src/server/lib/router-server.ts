@@ -3,8 +3,9 @@ import { initializeServerWorker } from './setup-server-worker'
 
 import url from 'url'
 import loadConfig from '../config'
+import setupDebug from 'next/dist/compiled/debug'
 import { serveStatic } from '../serve-static'
-import { getRequestMeta } from '../request-meta'
+import setupCompression from 'next/dist/compiled/compression'
 import { splitCookiesString } from '../web/utils'
 import { DecodeError } from '../../shared/lib/utils'
 import { filterReqHeaders } from './server-ipc/utils'
@@ -14,6 +15,7 @@ import { setupFsCheck } from './router-utils/filesystem'
 import { invokeRequest } from './server-ipc/invoke-request'
 import { createIpcServer, createWorker } from './server-ipc'
 import { getResolveRoutes } from './router-utils/resolve-routes'
+import { NextUrlWithParsedQuery, getRequestMeta } from '../request-meta'
 
 import {
   PHASE_PRODUCTION_SERVER,
@@ -27,6 +29,8 @@ let initializeResult:
       port: number
       hostname: string
     }
+
+const debug = setupDebug('next:router-server:main')
 
 export type RenderWorker = Worker & {
   initialize: typeof import('./render-server').initialize
@@ -54,7 +58,7 @@ export async function initialize(opts: {
   )
 
   const renderWorkerOpts: Parameters<RenderWorker['initialize']>[0] = {
-    port: 0,
+    port: opts.port,
     dir: opts.dir,
     workerType: 'render',
     hostname: opts.hostname,
@@ -85,6 +89,12 @@ export async function initialize(opts: {
     'pages'
   )
 
+  let compress: ReturnType<typeof setupCompression> | undefined
+
+  if (config.compress) {
+    compress = setupCompression()
+  }
+
   const fsChecker = await setupFsCheck({
     dev: opts.dev,
     dir: opts.dir,
@@ -109,7 +119,7 @@ export async function initialize(opts: {
   async function proxyRequest(
     req: IncomingMessage,
     res: ServerResponse,
-    parsedUrl: url.UrlWithParsedQuery,
+    parsedUrl: NextUrlWithParsedQuery,
     upgradeHead?: any
   ) {
     const { query } = parsedUrl
@@ -179,12 +189,36 @@ export async function initialize(opts: {
     req,
     res
   ) => {
+    const matchedDynamicRoutes = new Set<string>()
+
     async function invokeRender(
-      parsedUrl: url.UrlWithParsedQuery,
+      parsedUrl: NextUrlWithParsedQuery,
       type: keyof typeof renderWorkers,
+      handleIndex: number,
       invokePath: string,
       invokeStatus?: string
     ) {
+      // invokeRender expects /api routes to not be locale prefixed
+      // so normalize here before continuing
+      if (
+        config.i18n &&
+        invokePath.startsWith(`/${parsedUrl.query.__nextLocale}/api`)
+      ) {
+        invokePath = fsChecker.handleLocale(invokePath).pathname
+      }
+
+      if (
+        req.headers['x-nextjs-data'] &&
+        fsChecker.getMiddlewareMatchers().length &&
+        invokePath === '/404'
+      ) {
+        res.setHeader('x-nextjs-matched-path', parsedUrl.pathname || '')
+        res.statusCode = 200
+        res.setHeader('content-type', 'application/json')
+        res.end('{}')
+        return null
+      }
+
       const workerResult = await renderWorkers[type]?.initialize(
         renderWorkerOpts
       )
@@ -214,6 +248,8 @@ export async function initialize(opts: {
         delete invokeHeaders['x-invoke-query']
       }
 
+      debug('invokeRender', renderUrl, invokeHeaders)
+
       const invokeRes = await invokeRequest(
         renderUrl,
         {
@@ -222,6 +258,13 @@ export async function initialize(opts: {
         },
         getRequestMeta(req, '__NEXT_CLONABLE_BODY')?.cloneBodyStream()
       )
+
+      // when we receive x-no-fallback we restart
+      if (invokeRes.headers['x-no-fallback']) {
+        // eslint-disable-next-line
+        await handleRequest(handleIndex + 1)
+        return
+      }
 
       for (const [key, value] of Object.entries(
         filterReqHeaders({ ...invokeRes.headers })
@@ -256,7 +299,11 @@ export async function initialize(opts: {
       return res.end()
     }
 
-    try {
+    const handleRequest = async (handleIndex: number) => {
+      if (handleIndex > 5) {
+        throw new Error(`Attempted to handle request too many times ${req.url}`)
+      }
+
       const {
         finished,
         parsedUrl,
@@ -264,9 +311,9 @@ export async function initialize(opts: {
         resHeaders,
         bodyStream,
         matchedOutput,
-      } = await resolveRoutes(req, false)
+      } = await resolveRoutes(req, matchedDynamicRoutes, false)
 
-      console.log('requestHandler!', req.url, {
+      debug('requestHandler!', req.url, {
         matchedOutput,
         statusCode,
         resHeaders,
@@ -283,7 +330,7 @@ export async function initialize(opts: {
       }
 
       // handle redirect
-      if (statusCode && statusCode > 300 && statusCode < 400) {
+      if (!bodyStream && statusCode && statusCode > 300 && statusCode < 400) {
         const destination = url.format(parsedUrl)
         res.statusCode = statusCode
         res.setHeader('location', destination)
@@ -321,6 +368,7 @@ export async function initialize(opts: {
           return await invokeRender(
             url.parse('/405', true),
             'pages',
+            handleIndex,
             '/405',
             '405'
           )
@@ -343,6 +391,7 @@ export async function initialize(opts: {
             return await invokeRender(
               url.parse(invokePath, true),
               'pages',
+              handleIndex,
               invokePath,
               invokeStatus
             )
@@ -355,6 +404,7 @@ export async function initialize(opts: {
         return await invokeRender(
           parsedUrl,
           matchedOutput.type === 'appFile' ? 'app' : 'pages',
+          handleIndex,
           parsedUrl.pathname || '/'
         )
       }
@@ -364,7 +414,15 @@ export async function initialize(opts: {
         'Cache-Control',
         'no-cache, no-store, max-age=0, must-revalidate'
       )
-      await invokeRender(parsedUrl, 'pages', '/404', '404')
+      await invokeRender(parsedUrl, 'pages', handleIndex, '/404', '404')
+    }
+
+    try {
+      if (typeof compress === 'function') {
+        // @ts-expect-error not express req/res
+        compress(req, res, () => {})
+      }
+      await handleRequest(0)
     } catch (err) {
       try {
         let invokePath = '/500'
@@ -379,6 +437,7 @@ export async function initialize(opts: {
         return await invokeRender(
           url.parse(invokePath, true),
           'pages',
+          0,
           invokePath,
           invokeStatus
         )
@@ -396,7 +455,11 @@ export async function initialize(opts: {
     head
   ) => {
     try {
-      const { matchedOutput, parsedUrl } = await resolveRoutes(req, true)
+      const { matchedOutput, parsedUrl } = await resolveRoutes(
+        req,
+        new Set(),
+        true
+      )
 
       // TODO: allow upgrade requests to pages/app paths?
       // this was not previously supported

@@ -1108,8 +1108,17 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         req.headers['x-invoke-path'] &&
         req.headers['x-invoke-status']
       ) {
+        const invokeQuery = req.headers['x-invoke-query']
+
+        if (typeof invokeQuery === 'string') {
+          Object.assign(
+            parsedUrl.query,
+            JSON.parse(decodeURIComponent(invokeQuery))
+          )
+        }
+
         res.statusCode = Number(req.headers['x-invoke-status'])
-        return this.renderError(null, req, res, '/_error', {})
+        return this.renderError(null, req, res, '/_error', parsedUrl.query)
       }
 
       const matched = await this.router.execute(req, res, parsedUrl)

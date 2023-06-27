@@ -71,7 +71,7 @@ export async function initialize(opts: {
     ...opts,
     _routerWorker: opts.workerType === 'router',
     _renderWorker: opts.workerType === 'render',
-    hostname,
+    hostname: hostname === '0.0.0.0' ? 'localhost' : hostname,
     customServer: false,
     httpServer: server,
     port: opts.port,
