@@ -1,8 +1,4 @@
-import {
-  CachedInputFileSystem,
-  gracefulFs,
-  type webpack,
-} from 'next/dist/compiled/webpack/webpack'
+import { type webpack } from 'next/dist/compiled/webpack/webpack'
 import chalk from 'next/dist/compiled/chalk'
 import formatWebpackMessages from '../../client/dev/error-overlay/format-webpack-messages'
 import { nonNullable } from '../../lib/non-nullable'
@@ -154,6 +150,7 @@ export async function webpackBuildImpl(
 
   const clientConfig = configs[0]
   const serverConfig = configs[1]
+  const edgeConfig = configs[2]
 
   if (
     clientConfig.optimization &&
@@ -177,16 +174,16 @@ export async function webpackBuildImpl(
 
     // During the server compilations, entries of client components will be
     // injected to this set and then will be consumed by the client compiler.
-    let serverResult: UnwrapPromise<ReturnType<typeof runCompiler>> | null =
+    let serverResult: UnwrapPromise<ReturnType<typeof runCompiler>>[0] | null =
       null
-    let edgeServerResult: UnwrapPromise<ReturnType<typeof runCompiler>> | null =
-      null
+    let edgeServerResult:
+      | UnwrapPromise<ReturnType<typeof runCompiler>>[0]
+      | null = null
 
-    // Uses a limit of 10 minutes as the server compiler shouldn't immediately dispose.
-    const inputFileSystem = new CachedInputFileSystem(gracefulFs, 600000)
+    let inputFileSystem: any
 
     if (!compilerName || compilerName === 'server') {
-      serverResult = await runCompiler(serverConfig, {
+      ;[serverResult, inputFileSystem] = await runCompiler(serverConfig, {
         runWebpackSpan,
         inputFileSystem,
       })
@@ -194,9 +191,9 @@ export async function webpackBuildImpl(
     }
 
     if (!compilerName || compilerName === 'edge-server') {
-      edgeServerResult = configs[2]
-        ? await runCompiler(configs[2], { runWebpackSpan, inputFileSystem })
-        : null
+      ;[edgeServerResult, inputFileSystem] = edgeConfig
+        ? await runCompiler(edgeConfig, { runWebpackSpan, inputFileSystem })
+        : [null]
       debug('edge server result', edgeServerResult)
     }
 
@@ -226,7 +223,7 @@ export async function webpackBuildImpl(
       }
 
       if (!compilerName || compilerName === 'client') {
-        clientResult = await runCompiler(clientConfig, {
+        ;[clientResult, inputFileSystem] = await runCompiler(clientConfig, {
           runWebpackSpan,
           inputFileSystem,
         })
