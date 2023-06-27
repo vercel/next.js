@@ -361,10 +361,7 @@ function InnerLayoutRouter({
     // TODO-APP: remove ''
     const refetchTree = walkAddRefetch(['', ...segmentPath], fullTree)
 
-    /**
-     * Flight data fetch kicked off during render and put into the cache.
-     */
-    childNodes.set(cacheKey, {
+    childNode = {
       status: CacheStates.DATA_FETCH,
       data: fetchServerResponse(
         new URL(url, location.origin),
@@ -381,9 +378,12 @@ function InnerLayoutRouter({
         childNode && childNode.status === CacheStates.LAZY_INITIALIZED
           ? childNode.parallelRoutes
           : new Map(),
-    })
-    // In the above case childNode was set on childNodes, so we have to get it from the cacheNodes again.
-    childNode = childNodes.get(cacheKey)
+    }
+
+    /**
+     * Flight data fetch kicked off during render and put into the cache.
+     */
+    childNodes.set(cacheKey, childNode)
   }
 
   // This case should never happen so it throws an error. It indicates there's a bug in the Next.js.
@@ -526,8 +526,8 @@ export default function OuterLayoutRouter({
   // If the parallel router cache node does not exist yet, create it.
   // This writes to the cache when there is no item in the cache yet. It never *overwrites* existing cache items which is why it's safe in concurrent mode.
   if (!childNodesForParallelRouter) {
-    childNodes.set(parallelRouterKey, new Map())
-    childNodesForParallelRouter = childNodes.get(parallelRouterKey)!
+    childNodesForParallelRouter = new Map()
+    childNodes.set(parallelRouterKey, childNodesForParallelRouter)
   }
 
   // Get the active segment in the tree
@@ -601,10 +601,8 @@ export default function OuterLayoutRouter({
               </ScrollAndFocusHandler>
             }
           >
-            <>
-              {templateStyles}
-              {template}
-            </>
+            {templateStyles}
+            {template}
           </TemplateContext.Provider>
         )
       })}
