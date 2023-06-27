@@ -512,10 +512,10 @@ const configSchema = {
         logging: {
           type: 'string',
         },
-        enableServerMinification: {
+        serverMinification: {
           type: 'boolean',
         },
-        enableSourceMapsForServer: {
+        serverSourceMaps: {
           type: 'boolean',
         },
       },

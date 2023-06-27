@@ -291,12 +291,12 @@ export interface ExperimentalConfig {
   /**
    * enables the minification of server code.
    */
-  enableServerMinification?: boolean
+  serverMinification?: boolean
 
   /**
    * Enables source maps generation for the server production bundle.
    */
-  enableSourceMapsForServer?: boolean
+  serverSourceMaps?: boolean
 }
 
 export type ExportPathMap = {
@@ -680,8 +680,8 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
-    enableServerMinification: false,
-    enableSourceMapsForServer: false,
+    serverMinification: false,
+    serverSourceMaps: false,
     caseSensitiveRoutes: false,
     useDeploymentId: false,
     deploymentId: undefined,

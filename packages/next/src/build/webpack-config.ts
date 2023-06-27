@@ -1770,7 +1770,7 @@ export default async function getBaseWebpackConfig(
         !dev &&
         (isClient ||
           isEdgeServer ||
-          (isNodeServer && config.experimental.enableServerMinification)),
+          (isNodeServer && config.experimental.serverMinification)),
       minimizer: [
         // Minify JavaScript
         (compiler: webpack.Compiler) => {
@@ -2728,7 +2728,7 @@ export default async function getBaseWebpackConfig(
     experimental: config.experimental,
     disableStaticImages: config.images.disableStaticImages,
     transpilePackages: config.transpilePackages,
-    enableSourceMapsForServer: config.experimental.enableSourceMapsForServer,
+    serverSourceMaps: config.experimental.serverSourceMaps,
   })
 
   // @ts-ignore Cache exists

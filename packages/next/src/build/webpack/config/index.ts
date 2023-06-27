@@ -25,7 +25,7 @@ export async function buildConfiguration(
     transpilePackages,
     experimental,
     disableStaticImages,
-    enableSourceMapsForServer,
+    serverSourceMaps,
   }: {
     hasAppDir: boolean
     supportedBrowsers: string[] | undefined
@@ -42,7 +42,7 @@ export async function buildConfiguration(
     future: NextConfigComplete['future']
     experimental: NextConfigComplete['experimental']
     disableStaticImages: NextConfigComplete['disableStaticImages']
-    enableSourceMapsForServer: NextConfigComplete['experimental']['enableSourceMapsForServer']
+    serverSourceMaps: NextConfigComplete['experimental']['serverSourceMaps']
   }
 ): Promise<webpack.Configuration> {
   const ctx: ConfigurationContext = {
@@ -66,7 +66,7 @@ export async function buildConfiguration(
     transpilePackages,
     future,
     experimental,
-    enableSourceMapsForServer: enableSourceMapsForServer ?? false,
+    serverSourceMaps: serverSourceMaps ?? false,
   }
 
   let fns = [base(ctx), css(ctx)]
