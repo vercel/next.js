@@ -200,12 +200,6 @@ const configSchema = {
       type: 'string',
       nullable: true,
     },
-    disableServerMinification: {
-      type: 'boolean',
-    },
-    enableSourceMapsForServer: {
-      type: 'boolean',
-    },
     env: {
       type: 'object',
     },
@@ -517,6 +511,12 @@ const configSchema = {
         },
         logging: {
           type: 'string',
+        },
+        enableServerMinification: {
+          type: 'boolean',
+        },
+        enableSourceMapsForServer: {
+          type: 'boolean',
         },
       },
       type: 'object',

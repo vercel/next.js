@@ -42,7 +42,7 @@ export async function buildConfiguration(
     future: NextConfigComplete['future']
     experimental: NextConfigComplete['experimental']
     disableStaticImages: NextConfigComplete['disableStaticImages']
-    enableSourceMapsForServer: NextConfigComplete['enableSourceMapsForServer']
+    enableSourceMapsForServer: NextConfigComplete['experimental']['enableSourceMapsForServer']
   }
 ): Promise<webpack.Configuration> {
   const ctx: ConfigurationContext = {
@@ -66,7 +66,7 @@ export async function buildConfiguration(
     transpilePackages,
     future,
     experimental,
-    enableSourceMapsForServer,
+    enableSourceMapsForServer: enableSourceMapsForServer ?? false,
   }
 
   let fns = [base(ctx), css(ctx)]

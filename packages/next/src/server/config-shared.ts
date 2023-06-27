@@ -287,6 +287,16 @@ export interface ExperimentalConfig {
    * Allows adjusting body parser size limit for server actions.
    */
   serverActionsBodySizeLimit?: SizeLimit
+
+  /**
+   * enables the minification of server code.
+   */
+  enableServerMinification?: boolean
+
+  /**
+   * Enables source maps generation for the server production bundle.
+   */
+  enableSourceMapsForServer?: boolean
 }
 
 export type ExportPathMap = {
@@ -453,16 +463,6 @@ export interface NextConfig extends Record<string, any> {
       | 'top-right'
       | 'top-left'
   }
-
-  /**
-   * Disables the automatic minification of server code.
-   */
-  disableServerMinification?: boolean
-
-  /**
-   * Enables source maps generation for the server production bundle.
-   */
-  enableSourceMapsForServer?: boolean
 
   /**
    * Next.js exposes some options that give you some control over how the server will dispose or keep in memory built pages in development.
@@ -650,8 +650,6 @@ export const defaultConfig: NextConfig = {
   compress: true,
   analyticsId: process.env.VERCEL_ANALYTICS_ID || '',
   images: imageConfigDefault,
-  disableServerMinification: false,
-  enableSourceMapsForServer: false,
   devIndicators: {
     buildActivity: true,
     buildActivityPosition: 'bottom-right',
@@ -682,6 +680,8 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
+    enableServerMinification: false,
+    enableSourceMapsForServer: false,
     caseSensitiveRoutes: false,
     useDeploymentId: false,
     deploymentId: undefined,
