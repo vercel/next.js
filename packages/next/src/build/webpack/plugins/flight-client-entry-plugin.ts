@@ -851,50 +851,53 @@ export class FlightClientEntryPlugin {
     compilation: webpack.Compilation,
     assets: webpack.Compilation['assets']
   ) {
-    traverseModules(compilation, (mod, _chunk, chunkGroup, modId) => {
-      // Go through all action entries and record the module ID for each entry.
-      if (
-        chunkGroup.name &&
-        mod.request &&
-        /next-flight-action-entry-loader/.test(mod.request)
-      ) {
-        const fromClient = /&__client_imported__=true/.test(mod.request)
-
-        const mapping = this.isEdgeServer
-          ? pluginState.actionModEdgeServerId
-          : pluginState.actionModServerId
-
-        if (!mapping[chunkGroup.name]) {
-          mapping[chunkGroup.name] = {}
-        }
-        mapping[chunkGroup.name][fromClient ? 'client' : 'server'] = modId
-      }
-    })
-
     const serverActions: ActionManifest['node'] = {}
-    for (let id in pluginState.serverActions) {
-      const action = pluginState.serverActions[id]
-      for (let name in action.workers) {
-        const modId =
-          pluginState.actionModServerId[name][
-            action.layer[name] === WEBPACK_LAYERS.action ? 'client' : 'server'
-          ]
-        action.workers[name] = modId!
-      }
-      serverActions[id] = action
-    }
-
     const edgeServerActions: ActionManifest['edge'] = {}
-    for (let id in pluginState.edgeServerActions) {
-      const action = pluginState.edgeServerActions[id]
-      for (let name in action.workers) {
-        const modId =
-          pluginState.actionModEdgeServerId[name][
-            action.layer[name] === WEBPACK_LAYERS.action ? 'client' : 'server'
-          ]
-        action.workers[name] = modId!
+
+    if (this.useServerActions) {
+      traverseModules(compilation, (mod, _chunk, chunkGroup, modId) => {
+        // Go through all action entries and record the module ID for each entry.
+        if (
+          chunkGroup.name &&
+          mod.request &&
+          /next-flight-action-entry-loader/.test(mod.request)
+        ) {
+          const fromClient = /&__client_imported__=true/.test(mod.request)
+
+          const mapping = this.isEdgeServer
+            ? pluginState.actionModEdgeServerId
+            : pluginState.actionModServerId
+
+          if (!mapping[chunkGroup.name]) {
+            mapping[chunkGroup.name] = {}
+          }
+          mapping[chunkGroup.name][fromClient ? 'client' : 'server'] = modId
+        }
+      })
+
+      for (let id in pluginState.serverActions) {
+        const action = pluginState.serverActions[id]
+        for (let name in action.workers) {
+          const modId =
+            pluginState.actionModServerId[name][
+              action.layer[name] === WEBPACK_LAYERS.action ? 'client' : 'server'
+            ]
+          action.workers[name] = modId!
+        }
+        serverActions[id] = action
       }
-      edgeServerActions[id] = action
+
+      for (let id in pluginState.edgeServerActions) {
+        const action = pluginState.edgeServerActions[id]
+        for (let name in action.workers) {
+          const modId =
+            pluginState.actionModEdgeServerId[name][
+              action.layer[name] === WEBPACK_LAYERS.action ? 'client' : 'server'
+            ]
+          action.workers[name] = modId!
+        }
+        edgeServerActions[id] = action
+      }
     }
 
     const json = JSON.stringify(
