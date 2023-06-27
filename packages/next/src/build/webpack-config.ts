@@ -1767,8 +1767,10 @@ export default async function getBaseWebpackConfig(
         ? { name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK }
         : undefined,
       minimize:
-        !dev ||
-        (!dev && isNodeServer && config.experimental.enableServerMinification),
+        !dev &&
+        (isClient ||
+          isEdgeServer ||
+          (isNodeServer && config.experimental.enableServerMinification)),
       minimizer: [
         // Minify JavaScript
         (compiler: webpack.Compiler) => {
