@@ -73,15 +73,13 @@ function resolveUrl(
 // Resolve with `pathname` if `url` is a relative path.
 function resolveRelativeUrl(url: string | URL, pathname: string): string | URL {
   if (typeof url === 'string' && url.startsWith('./')) {
-    url = path.resolve(pathname, url)
-  } else if (url instanceof URL) {
-    url = new URL(pathname, url)
+    return path.resolve(pathname, url)
   }
   return url
 }
 
-// Resolve with `metadataBase` if it's present, otherwise resolve with `pathname`.
-function resolveUrlWithMetadata(
+// Resolve `pathname` if `url` is a relative path the compose with `metadataBase`.
+function resolveAbsoluteUrlWithPathname(
   url: string | URL,
   metadataBase: URL | null,
   pathname: string
@@ -92,4 +90,9 @@ function resolveUrlWithMetadata(
   return result.toString()
 }
 
-export { isStringOrURL, resolveUrl, resolveUrlWithMetadata }
+export {
+  isStringOrURL,
+  resolveUrl,
+  resolveRelativeUrl,
+  resolveAbsoluteUrlWithPathname,
+}

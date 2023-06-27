@@ -11,8 +11,21 @@ import type {
 } from '../types/resolvers'
 import type { Viewport } from '../types/extra-types'
 import { resolveAsArrayOrUndefined } from '../generate/utils'
-import { resolveUrlWithMetadata } from './resolve-url'
+import { resolveAbsoluteUrlWithPathname } from './resolve-url'
 import { ViewPortKeys } from '../constants'
+
+function resolveAlternateUrl(
+  url: string | URL,
+  metadataBase: URL | null,
+  pathname: string
+) {
+  // If alter native url is an URL instance,
+  // we treat it as a URL base and resolve with current pathname
+  if (url instanceof URL) {
+    url = new URL(pathname, url)
+  }
+  return resolveAbsoluteUrlWithPathname(url, metadataBase, pathname)
+}
 
 export const resolveThemeColor: FieldResolver<'themeColor'> = (themeColor) => {
   if (!themeColor) return null
@@ -66,13 +79,13 @@ function resolveUrlValuesOfObject(
     if (typeof value === 'string' || value instanceof URL) {
       result[key] = [
         {
-          url: resolveUrlWithMetadata(value, metadataBase, pathname),
+          url: resolveAlternateUrl(value, metadataBase, pathname),
         },
       ]
     } else {
       result[key] = []
       value?.forEach((item, index) => {
-        const url = resolveUrlWithMetadata(item.url, metadataBase, pathname)
+        const url = resolveAlternateUrl(item.url, metadataBase, pathname)
         result[key][index] = {
           url,
           title: item.title,
@@ -97,7 +110,7 @@ function resolveCanonicalUrl(
 
   // Return string url because structureClone can't handle URL instance
   return {
-    url: resolveUrlWithMetadata(url, metadataBase, pathname),
+    url: resolveAlternateUrl(url, metadataBase, pathname),
   }
 }
 
@@ -247,7 +260,7 @@ export const resolveItunes: FieldResolverWithMetadataBase<
   return {
     appId: itunes.appId,
     appArgument: itunes.appArgument
-      ? resolveUrlWithMetadata(itunes.appArgument, metadataBase, pathname)
+      ? resolveAlternateUrl(itunes.appArgument, metadataBase, pathname)
       : undefined,
   }
 }

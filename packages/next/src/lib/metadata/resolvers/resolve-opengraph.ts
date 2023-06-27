@@ -14,7 +14,7 @@ import {
   getSocialImageFallbackMetadataBase,
   isStringOrURL,
   resolveUrl,
-  resolveUrlWithMetadata,
+  resolveAbsoluteUrlWithPathname,
 } from './resolve-url'
 
 const OgTypeFields = {
@@ -116,7 +116,7 @@ export const resolveOpenGraph: FieldResolverWithMetadataBase<
   assignProps(openGraph)
 
   resolved.url = openGraph.url
-    ? resolveUrlWithMetadata(openGraph.url, metadataBase, pathname)
+    ? resolveAbsoluteUrlWithPathname(openGraph.url, metadataBase, pathname)
     : null
 
   return resolved
