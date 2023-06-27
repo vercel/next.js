@@ -119,6 +119,7 @@ const nextDev: CliCommand = async (argv) => {
     '--port': Number,
     '--hostname': String,
     '--turbo': Boolean,
+    '--experimental-turbo': Boolean,
 
     // To align current messages with native binary.
     // Will need to adjust subcommand later.
@@ -209,6 +210,7 @@ const nextDev: CliCommand = async (argv) => {
   // We do not set a default host value here to prevent breaking
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
+  const experimentalTurbo = args['--experimental-turbo']
 
   const devServerOptions: StartServerOptions = {
     dir,
@@ -218,6 +220,7 @@ const nextDev: CliCommand = async (argv) => {
     hostname: host,
     // This is required especially for app dir.
     useWorkers: true,
+    isExperimentalTurbo: experimentalTurbo,
   }
 
   if (args['--turbo']) {
@@ -311,6 +314,11 @@ const nextDev: CliCommand = async (argv) => {
 
     return server
   } else {
+    if (experimentalTurbo) {
+      Log.error('Not supported yet')
+      process.exit(1)
+    }
+
     let cleanupFns: (() => Promise<void> | void)[] = []
     const runDevServer = async () => {
       const oldCleanupFns = cleanupFns
