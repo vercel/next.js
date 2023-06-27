@@ -1105,14 +1105,13 @@ importers:
       outdent: 0.8.0
       prettier: 2.5.1
       react: ^18.2.0
-      react-dom: ^18.2.0
       third-party-capital: 1.0.17
     dependencies:
+      react: 18.2.0
+      third-party-capital: 1.0.17
+    devDependencies:
       outdent: 0.8.0
       prettier: 2.5.1
-      react: 18.2.0
-      react-dom: 18.2.0_react@18.2.0
-      third-party-capital: 1.0.17
 
 packages:
 
@@ -18906,6 +18905,7 @@ packages:
 
   /outdent/0.8.0:
     resolution: {integrity: sha512-KiOAIsdpUTcAXuykya5fnVVT+/5uS0Q1mrkRHcF89tpieSmY33O/tmc54CqwA+bfhbtEfZUNLHaPUiB9X3jt1A==}
+    dev: true
 
   /p-cancelable/0.3.0:
     resolution: {integrity: sha512-RVbZPLso8+jFeq1MfNvgXtCRED2raz/dKpacfTNxsx6pLEpEomM7gah6VeHSYV3+vo0OAi4MkArtQcWWXuQoyw==}
@@ -20853,7 +20853,7 @@ packages:
     resolution: {integrity: sha512-vBZcPRUR5MZJwoyi3ZoyQlc1rXeEck8KgeC9AwwOn+exuxLxq5toTRDTSaVrXHxelDMHy9zlicw8u66yxoSUFg==}
     engines: {node: '>=10.13.0'}
     hasBin: true
-    dev: false
+    dev: true
 
   /prettier/2.8.8:
     resolution: {integrity: sha512-tdN8qQGvNjw4CHbY+XXk0JgCXn9QiF21a55rBe5LJAU+kDyC4WQn4+awm2Xfk2lQMk5fKup9XgzTZtGkjBdP9Q==}
@@ -25621,7 +25621,7 @@ packages:
     dev: false
 
   github.com/watson/ci-info/f43f6a1cefff47fb361c88cf4b943fdbcaafe540:
-    resolution: {commit: f43f6a1cefff47fb361c88cf4b943fdbcaafe540, repo: git+ssh://git@github.com/watson/ci-info.git, type: git}
+    resolution: {tarball: https://codeload.github.com/watson/ci-info/tar.gz/f43f6a1cefff47fb361c88cf4b943fdbcaafe540}
     name: ci-info
     version: 2.0.0
     dev: true
