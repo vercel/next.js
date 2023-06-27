@@ -3,9 +3,8 @@ import { initializeServerWorker } from './setup-server-worker'
 
 import url from 'url'
 import loadConfig from '../config'
-import setupDebug from 'next/dist/compiled/debug'
 import { serveStatic } from '../serve-static'
-import setupCompression from 'next/dist/compiled/compression'
+import setupDebug from 'next/dist/compiled/debug'
 import { splitCookiesString } from '../web/utils'
 import { DecodeError } from '../../shared/lib/utils'
 import { filterReqHeaders } from './server-ipc/utils'
@@ -13,9 +12,12 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { stringifyQuery } from '../server-route-utils'
 import { setupFsCheck } from './router-utils/filesystem'
 import { invokeRequest } from './server-ipc/invoke-request'
+import { createRequestResponseMocks } from './mock-request'
 import { createIpcServer, createWorker } from './server-ipc'
+import setupCompression from 'next/dist/compiled/compression'
 import { getResolveRoutes } from './router-utils/resolve-routes'
 import { NextUrlWithParsedQuery, getRequestMeta } from '../request-meta'
+import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page-path'
 
 import {
   PHASE_PRODUCTION_SERVER,
@@ -71,7 +73,36 @@ export async function initialize(opts: {
     pages?: RenderWorker
   } = {}
 
-  const { ipcPort, ipcValidationKey } = await createIpcServer({} as any)
+  const { ipcPort, ipcValidationKey } = await createIpcServer({
+    async revalidate({
+      urlPath,
+      revalidateHeaders,
+      opts: revalidateOpts,
+    }: {
+      urlPath: string
+      revalidateHeaders: IncomingMessage['headers']
+      opts: any
+    }) {
+      const mocked = createRequestResponseMocks({
+        url: urlPath,
+        headers: revalidateHeaders,
+      })
+
+      // eslint-disable-next-line @typescript-eslint/no-use-before-define
+      await requestHandler(mocked.req, mocked.res)
+      await mocked.res.hasStreamed
+
+      if (
+        mocked.res.getHeader('x-nextjs-cache') !== 'REVALIDATED' &&
+        !(
+          mocked.res.statusCode === 404 && revalidateOpts.unstable_onlyGenerated
+        )
+      ) {
+        throw new Error(`Invalid response ${mocked.res.statusCode}`)
+      }
+      return {}
+    },
+  } as any)
 
   if (!!config.experimental.appDir) {
     renderWorkers.app = await createWorker(
@@ -219,6 +250,10 @@ export async function initialize(opts: {
         return null
       }
 
+      if (type === 'pages') {
+        invokePath = denormalizePagePath(invokePath)
+      }
+
       const workerResult = await renderWorkers[type]?.initialize(
         renderWorkerOpts
       )
@@ -258,6 +293,8 @@ export async function initialize(opts: {
         },
         getRequestMeta(req, '__NEXT_CLONABLE_BODY')?.cloneBodyStream()
       )
+
+      debug('invokeRender res', invokeRes.statusCode, invokeRes.headers)
 
       // when we receive x-no-fallback we restart
       if (invokeRes.headers['x-no-fallback']) {

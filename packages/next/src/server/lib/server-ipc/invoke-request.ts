@@ -40,6 +40,9 @@ export const invokeRequest = async (
         if (requestInit.method !== 'GET' && requestInit.method !== 'HEAD') {
           if (readableBody) {
             readableBody.pipe(invokeReq)
+            readableBody.on('error', (err) => {
+              rejectInvoke(err)
+            })
             readableBody.on('close', () => {
               invokeReq.end()
             })

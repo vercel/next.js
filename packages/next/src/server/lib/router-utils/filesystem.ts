@@ -19,6 +19,7 @@ import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-path'
 import { absolutePathToPage } from '../../../shared/lib/page-path/absolute-path-to-page'
+import { denormalizePagePath } from '../../../shared/lib/page-path/denormalize-page-path'
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
 
 import {
@@ -425,6 +426,11 @@ export async function setupFsCheck(opts: {
           try {
             curDecodedItemPath = decodeURIComponent(curItemPath)
           } catch (_) {}
+        }
+
+        // ensure /index is normalized properly
+        if (type === 'pageFile') {
+          curItemPath = denormalizePagePath(curItemPath)
         }
 
         // check decoded variant as well
