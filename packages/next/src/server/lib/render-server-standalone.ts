@@ -18,9 +18,6 @@ export const createServerHandler = async ({
   dev?: boolean
   minimalMode: boolean
 }) => {
-  const nextConfig = JSON.parse(
-    process.env.__NEXT_PRIVATE_STANDALONE_CONFIG || '{}'
-  )
   const routerWorker = new Worker(require.resolve('./render-server'), {
     numWorkers: 1,
     maxRetries: 10,
@@ -28,10 +25,6 @@ export const createServerHandler = async ({
       env: {
         FORCE_COLOR: '1',
         ...process.env,
-        __NEXT_PRIVATE_PREBUNDLED_REACT: nextConfig?.experimental
-          ?.useServerActions
-          ? 'experimental'
-          : 'next',
       },
     },
     exposedMethods: ['initialize'],
@@ -105,6 +98,20 @@ export const createServerHandler = async ({
       return
     }
     const proxyServer = getProxyServer(req.url || '/')
+
+    // http-proxy does not properly detect a client disconnect in newer
+    // versions of Node.js. This is caused because it only listens for the
+    // `aborted` event on the our request object, but it also fully reads and
+    // closes the request object. Node **will not** fire `aborted` when the
+    // request is already closed. Listening for `close` on our response object
+    // will detect the disconnect, and we can abort the proxy's connection.
+    proxyServer.on('proxyReq', (proxyReq) => {
+      res.on('close', () => proxyReq.destroy())
+    })
+    proxyServer.on('proxyRes', (proxyRes) => {
+      res.on('close', () => proxyRes.destroy())
+    })
+
     proxyServer.web(req, res)
     proxyServer.on('error', (err) => {
       res.statusCode = 500
