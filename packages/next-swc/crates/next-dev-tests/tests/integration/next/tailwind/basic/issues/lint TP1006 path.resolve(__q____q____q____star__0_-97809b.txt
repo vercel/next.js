@@ -26,12 +26,6 @@ PlainIssue {
         [
             PlainIssueProcessingPathItem {
                 context: Some(
-                    "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/tailwind/basic/input/pages/index.jsx",
-                ),
-                description: "Next.js page file",
-            },
-            PlainIssueProcessingPathItem {
-                context: Some(
                     "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/tailwind/basic/input/styles/globals.css",
                 ),
                 description: "PostCSS processing",
