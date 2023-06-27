@@ -74,10 +74,7 @@ export function createManifests() {
         if (type === 'entryCSSFiles') {
           const cssChunks = JSON.parse(key)
           // TODO(WEB-856) subscribe to changes
-          return {
-            modules: [],
-            files: cssChunks.filter(filterAvailable).map(toPath),
-          }
+          return cssChunks.filter(filterAvailable).map(toPath)
         }
       },
     }

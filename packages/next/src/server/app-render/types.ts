@@ -146,7 +146,7 @@ export type RenderOptsPartial = {
     rawConfig?: boolean,
     silent?: boolean
   ) => Promise<NextConfigComplete>
-  serverActionsSizeLimit?: SizeLimit
+  serverActionsBodySizeLimit?: SizeLimit
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial

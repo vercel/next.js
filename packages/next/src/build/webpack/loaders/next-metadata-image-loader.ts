@@ -2,6 +2,7 @@
  * This loader is responsible for extracting the metadata image info for rendering in html
  */
 
+import type webpack from 'webpack'
 import type {
   MetadataImageModule,
   PossibleImageFileNameConvention,
@@ -12,6 +13,7 @@ import loaderUtils from 'next/dist/compiled/loader-utils3'
 import { getImageSize } from '../../../server/image-optimizer'
 import { imageExtMimeTypeMap } from '../../../lib/mime-type'
 import { fileExists } from '../../../lib/file-exists'
+import { WEBPACK_RESOURCE_QUERIES } from '../../../lib/constants'
 
 interface Options {
   segment: string
@@ -52,12 +54,55 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
   const pathnamePrefix = path.join(basePath, segment)
 
   if (isDynamicResource) {
+    const mod = await new Promise<webpack.NormalModule>((res, rej) => {
+      this.loadModule(
+        resourcePath,
+        (err: null | Error, _source: any, _sourceMap: any, module: any) => {
+          if (err) {
+            return rej(err)
+          }
+          res(module)
+        }
+      )
+    })
+
+    const exportedFieldsExcludingDefault =
+      mod.dependencies
+        ?.filter((dep) => {
+          return (
+            [
+              'HarmonyExportImportedSpecifierDependency',
+              'HarmonyExportSpecifierDependency',
+            ].includes(dep.constructor.name) &&
+            'name' in dep &&
+            dep.name !== 'default'
+          )
+        })
+        .map((dep: any) => {
+          return dep.name
+        }) || []
     // re-export and spread as `exportedImageData` to avoid non-exported error
     return `\
-    import * as exported from ${JSON.stringify(resourcePath)}
+    import {
+      ${exportedFieldsExcludingDefault
+        .map((field) => `${field} as _${field}`)
+        .join(',')}
+    } from ${JSON.stringify(
+      // This is an arbitrary resource query to ensure it's a new request, instead
+      // of sharing the same module with next-metadata-route-loader.
+      // Since here we only need export fields such as `size`, `alt` and
+      // `generateImageMetadata`, avoid sharing the same module can make this entry
+      // smaller.
+      resourcePath + '?' + WEBPACK_RESOURCE_QUERIES.metadataImageMeta
+    )}
     import { fillMetadataSegment } from 'next/dist/lib/metadata/get-metadata-route'
 
-    const imageModule = { ...exported }
+    const imageModule = {
+      ${exportedFieldsExcludingDefault
+        .map((field) => `${field}: _${field}`)
+        .join(',')}
+    }
+
     export default async function (props) {
       const { __metadata_id__: _, ...params } = props.params
       const imageUrl = fillMetadataSegment(${JSON.stringify(

@@ -1,5 +1,5 @@
 import { getRSCModuleInformation } from '../../analysis/get-page-static-info'
-import { getModuleBuildInfo, extractCjsExports } from './get-module-build-info'
+import { getModuleBuildInfo } from './get-module-build-info'
 
 export default async function transformSource(
   this: any,
@@ -17,14 +17,9 @@ export default async function transformSource(
   const buildInfo = getModuleBuildInfo(this._module)
   buildInfo.rsc = getRSCModuleInformation(source, false)
 
-  if (buildInfo.rsc.isClientRef) {
-    const exportNames = extractCjsExports(source)
-    if (exportNames) buildInfo.rsc.clientRefs = exportNames
-  }
-
   // This is a server action entry module in the client layer. We need to attach
   // noop exports of `callServer` wrappers for each action.
-  if (buildInfo.rsc?.actions) {
+  if (buildInfo.rsc.actions) {
     source = `
 import { callServer } from 'next/dist/client/app-call-server'
 
