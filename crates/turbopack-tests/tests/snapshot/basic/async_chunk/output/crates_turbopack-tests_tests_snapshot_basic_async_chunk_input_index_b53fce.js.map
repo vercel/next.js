@@ -3,6 +3,6 @@
   "sections": [
     {"offset": {"line": 17, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
     {"offset": {"line": 17, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
-    {"offset": {"line": 21, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/index.js"],"sourcesContent":["import { bar } from \"bar\";\nimport \"./shared\";\n\nbar(true);\n\nimport(\"./import\").then(({ foo }) => {\n  foo(true);\n});\n"],"names":[],"mappings":";;;;;AAGA,sMAAI;AAEJ,sKAAmB,KAAK,CAAC,EAAE,GAAG,EAAE;IAC9B,IAAI;AACN"}},
+    {"offset": {"line": 21, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/index.js"],"sourcesContent":["import { bar } from \"bar\";\nimport \"./shared\";\n\nbar(true);\n\nimport(\"./import\").then(({ foo }) => {\n  foo(true);\n});\n"],"names":[],"mappings":";;;;;AAGA,sMAAI;AAEJ,sKAAmB,IAAI,CAAC,CAAC,EAAE,GAAG,EAAE;IAC9B,IAAI;AACN"}},
     {"offset": {"line": 30, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
 }

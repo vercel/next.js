@@ -1,6 +1,6 @@
 {
   "version": 3,
   "sections": [
-    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/env/env/input/.env/.env.js"],"sourcesContent":["const env = process.env = {...process.env};\n\nenv[\"FOO\"] = foo;\nenv[\"FOOBAR\"] = foobar;\n"],"names":[],"mappings":"AAAA,MAAM,MAAM,QAAQ,MAAM;IAAC,GAAG,QAAQ,GAAG;AAAA;AAEzC,GAAG,CAAC,MAAM,GAAG;AACb,GAAG,CAAC,SAAS,GAAG"}},
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/env/env/input/.env/.env.js"],"sourcesContent":["const env = process.env = {...process.env};\n\nenv[\"FOO\"] = foo;\nenv[\"FOOBAR\"] = foobar;\n"],"names":[],"mappings":"AAAA,MAAM,MAAM,QAAQ,GAAG,GAAG;IAAC,GAAG,QAAQ,GAAG;AAAA;AAEzC,GAAG,CAAC,MAAM,GAAG;AACb,GAAG,CAAC,SAAS,GAAG"}},
     {"offset": {"line": 9, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
 }
