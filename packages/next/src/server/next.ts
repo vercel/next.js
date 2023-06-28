@@ -8,6 +8,8 @@ import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import './require-hook'
 import './node-polyfill-fetch'
 import './node-polyfill-crypto'
+
+import url from 'url'
 import { default as Server } from './next-server'
 import * as log from '../build/output/log'
 import loadConfig from './config'
@@ -22,6 +24,8 @@ import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
 import { findDir } from '../lib/find-pages-dir'
+import { proxyRequest } from './lib/router-utils/proxy-request'
+import { getFreePort } from './lib/worker-utils'
 
 let ServerImpl: typeof Server
 
@@ -270,11 +274,10 @@ function createServer(options: NextServerOptions): NextServer {
     const dir = resolve(options.dir || '.')
     const server = new NextServer(options)
 
-    const { createServerHandler } =
-      require('./lib/render-server-standalone') as typeof import('./lib/render-server-standalone')
+    const { startServer } =
+      require('./lib/start-server') as typeof import('./lib/start-server')
 
-    let handlerPromise: Promise<ReturnType<typeof createServerHandler>>
-
+    let serverPort: number = 0
     return new Proxy(
       {},
       {
@@ -302,16 +305,18 @@ function createServer(options: NextServerOptions): NextServer {
                 if (hasAppDir) {
                   shouldUseStandaloneMode = true
                   server[SYMBOL_SET_STANDALONE_MODE]()
+                  serverPort = await getFreePort()
 
-                  handlerPromise =
-                    handlerPromise ||
-                    createServerHandler({
-                      port: options.port || 3000,
-                      dev: options.dev,
-                      dir,
-                      hostname: options.hostname || 'localhost',
-                      minimalMode: false,
-                    })
+                  return startServer({
+                    dir,
+                    logReady: false,
+                    port: serverPort,
+                    allowRetry: false,
+                    minimalMode: false,
+                    isDev: !!options.dev,
+                    hostname: options.hostname || 'localhost',
+                    useWorkers: true,
+                  })
                 } else {
                   return server.prepare()
                 }
@@ -321,8 +326,17 @@ function createServer(options: NextServerOptions): NextServer {
                 let handler: RequestHandler
                 return async (req: IncomingMessage, res: ServerResponse) => {
                   if (shouldUseStandaloneMode) {
-                    const standaloneHandler = await handlerPromise
-                    return standaloneHandler(req, res)
+                    await proxyRequest(
+                      req,
+                      res,
+                      url.parse(
+                        `http://127.0.0.1:${serverPort}${req.url}`,
+                        true
+                      ),
+                      undefined,
+                      req
+                    )
+                    return
                   }
                   handler = handler || server.getRequestHandler()
                   return handler(req, res)
@@ -338,13 +352,19 @@ function createServer(options: NextServerOptions): NextServer {
                 parsedUrl?: NextUrlWithParsedQuery
               ) => {
                 if (shouldUseStandaloneMode) {
-                  const handler = await handlerPromise
                   req.url = formatUrl({
                     ...parsedUrl,
                     pathname,
                     query,
                   })
-                  return handler(req, res)
+                  await proxyRequest(
+                    req,
+                    res,
+                    url.parse(`http://127.0.0.1:${serverPort}${req.url}`, true),
+                    undefined,
+                    req
+                  )
+                  return
                 }
 
                 return server.render(req, res, pathname, query, parsedUrl)

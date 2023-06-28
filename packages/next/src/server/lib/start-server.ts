@@ -17,11 +17,14 @@ export interface StartServerOptions {
   dir: string
   prevDir?: string
   port: number
+  logReady?: boolean
   isDev: boolean
   hostname: string
   useWorkers: boolean
   allowRetry?: boolean
   isTurbopack?: boolean
+  isExperimentalTurbo?: boolean
+  minimalMode?: boolean
   keepAliveTimeout?: number
   onStdout?: (data: any) => void
   onStderr?: (data: any) => void
@@ -36,10 +39,12 @@ export async function startServer({
   isDev,
   hostname,
   useWorkers,
+  minimalMode,
   allowRetry,
   keepAliveTimeout,
   onStdout,
   onStderr,
+  logReady = true,
 }: StartServerOptions): Promise<TeardownServer> {
   const sockets = new Set<ServerResponse | Duplex>()
   let worker: import('next/dist/compiled/jest-worker').Worker | undefined
@@ -168,14 +173,16 @@ export async function startServer({
         )
       }
 
-      Log.ready(
-        `started server on ${normalizedHostname}${
-          (port + '').startsWith(':') ? '' : ':'
-        }${port}, url: ${appUrl}`
-      )
+      if (logReady) {
+        Log.ready(
+          `started server on ${normalizedHostname}${
+            (port + '').startsWith(':') ? '' : ':'
+          }${port}, url: ${appUrl}`
+        )
+      }
       resolve()
     })
-    server.listen(port, hostname)
+    server.listen(port, hostname === 'localhost' ? '0.0.0.0' : hostname)
   })
 
   try {
@@ -183,9 +190,7 @@ export async function startServer({
       const httpProxy =
         require('next/dist/compiled/http-proxy') as typeof import('next/dist/compiled/http-proxy')
 
-      let routerServerPath = isDev
-        ? require.resolve('./render-server')
-        : require.resolve('./router-server')
+      let routerServerPath = require.resolve('./router-server')
       let jestWorkerPath = require.resolve('next/dist/compiled/jest-worker')
 
       if (prevDir) {
@@ -258,6 +263,7 @@ export async function startServer({
         port,
         hostname,
         dev: !!isDev,
+        minimalMode,
         workerType: 'router',
         isNodeDebugging: !!isNodeDebugging,
         keepAliveTimeout,

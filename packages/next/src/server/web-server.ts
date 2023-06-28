@@ -310,8 +310,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     }
   }
 
-  protected generateRoutes() {}
-
   // Edge API requests are handled separately in minimal mode.
   protected async handleApiRequest() {
     return false

@@ -113,7 +113,7 @@ describe('should set-up next', () => {
       testServer,
       (
         await fs.readFile(testServer, 'utf8')
-      ).replace('conf:', `minimalMode: ${minimalMode},conf:`)
+      ).replace('port:', `minimalMode: ${minimalMode},port:`)
     )
     appPort = await findPort()
     server = await initNextServerScript(
@@ -1267,10 +1267,6 @@ describe('should set-up next', () => {
   })
 
   it('should run middleware correctly (without minimalMode, with wasm)', async () => {
-    await next.destroy()
-    await killApp(server)
-    await setupNext({ nextEnv: false, minimalMode: false })
-
     const standaloneDir = join(next.testDir, 'standalone')
 
     const testServer = join(standaloneDir, 'server.js')

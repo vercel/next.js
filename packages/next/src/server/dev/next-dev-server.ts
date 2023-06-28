@@ -1416,9 +1416,7 @@ export default class DevServer extends Server {
     return this.ensurePage({ page, appPaths, clientOnly: false })
   }
 
-  generateRoutes(dev?: boolean) {
-    super.generateRoutes(dev)
-
+  generateRoutes(_dev?: boolean) {
     // In development we expose all compiled files for react-error-overlay's line show feature
     // We use unshift so that we're sure the routes is defined before Next's default routes
     // routes.unshift({
@@ -1433,7 +1431,6 @@ export default class DevServer extends Server {
     //     }
     //   },
     // })
-
     // routes.unshift({
     //   match: getPathMatch(
     //     `/_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_CLIENT_PAGES_MANIFEST}`
@@ -1457,7 +1454,6 @@ export default class DevServer extends Server {
     //     }
     //   },
     // })
-
     // routes.unshift({
     //   match: getPathMatch(
     //     `/_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_MIDDLEWARE_MANIFEST}`

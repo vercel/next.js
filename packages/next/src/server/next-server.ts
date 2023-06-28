@@ -221,6 +221,25 @@ export default class NextNodeServer extends BaseServer {
       }).catch(() => {})
     }
 
+    const routesManifest = this.getRoutesManifest() as {
+      dynamicRoutes: {
+        page: string
+        regex: string
+        namedRegex?: string
+        routeKeys?: { [key: string]: string }
+      }[]
+    }
+    this.dynamicRoutes = routesManifest.dynamicRoutes.map((r) => {
+      const regex = getRouteRegex(r.page)
+      const match = getRouteMatcher(regex)
+
+      return {
+        match,
+        page: r.page,
+        regex: regex.re,
+      }
+    }) as any
+
     // ensure options are set when loadConfig isn't called
     setHttpClientAndAgentOptions(this.nextConfig)
   }
@@ -990,30 +1009,6 @@ export default class NextNodeServer extends BaseServer {
       }
       throw err
     }
-  }
-
-  protected generateRoutes(dev?: boolean) {
-    if (!dev) {
-      const routesManifest = this.getRoutesManifest() as {
-        dynamicRoutes: {
-          page: string
-          regex: string
-          namedRegex?: string
-          routeKeys?: { [key: string]: string }
-        }[]
-      }
-      this.dynamicRoutes = routesManifest.dynamicRoutes.map((r) => {
-        const regex = getRouteRegex(r.page)
-        const match = getRouteMatcher(regex)
-
-        return {
-          match,
-          page: r.page,
-          regex: regex.re,
-        }
-      }) as any
-    }
-    this.appPathRoutes = this.getAppPathRoutes()
   }
 
   /**

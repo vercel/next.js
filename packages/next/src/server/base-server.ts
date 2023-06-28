@@ -459,6 +459,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     this.pagesManifest = this.getPagesManifest()
     this.appPathsManifest = this.getAppPathsManifest()
+    this.appPathRoutes = this.getAppPathRoutes()
 
     // Configure the routes.
     const { matchers, handlers } = this.getRoutes()
@@ -1028,6 +1029,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const matchedPath = req.headers['x-invoke-path'] as string
 
       if (
+        !(req.headers['x-matched-path'] && this.minimalMode) &&
         process.env.NEXT_RUNTIME !== 'edge' &&
         process.env.__NEXT_PRIVATE_RENDER_WORKER &&
         matchedPath

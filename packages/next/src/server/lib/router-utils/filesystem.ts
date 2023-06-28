@@ -124,11 +124,15 @@ export async function setupFsCheck(opts: {
       }
     }
 
-    for (const file of await recursiveReadDir(
-      nextStaticFolderPath,
-      () => true
-    )) {
-      nextStaticFolderItems.add(path.posix.join('/_next/static', file))
+    try {
+      for (const file of await recursiveReadDir(
+        nextStaticFolderPath,
+        () => true
+      )) {
+        nextStaticFolderItems.add(path.posix.join('/_next/static', file))
+      }
+    } catch (err) {
+      if (opts.config.output !== 'standalone') throw err
     }
 
     const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)

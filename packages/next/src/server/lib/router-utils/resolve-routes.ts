@@ -57,19 +57,19 @@ export function getResolveRoutes(
     // _next/data with middleware handling
     { match: () => ({} as any), name: 'middleware_next_data' },
 
-    ...fsChecker.headers,
-    ...fsChecker.redirects,
+    ...(opts.minimalMode ? [] : fsChecker.headers),
+    ...(opts.minimalMode ? [] : fsChecker.redirects),
 
     // check middleware (using matchers)
     { match: () => ({} as any), name: 'middleware' },
 
-    ...fsChecker.rewrites.beforeFiles,
+    ...(opts.minimalMode ? [] : fsChecker.rewrites.beforeFiles),
 
     // we check exact matches on fs before continuing to
     // after files rewrites
     { match: () => ({} as any), name: 'check_fs' },
 
-    ...fsChecker.rewrites.afterFiles,
+    ...(opts.minimalMode ? [] : fsChecker.rewrites.afterFiles),
 
     // we always do the check: true handling before continuing to
     // fallback rewrites
@@ -79,7 +79,7 @@ export function getResolveRoutes(
       name: 'after files check: true',
     },
 
-    ...fsChecker.rewrites.fallback,
+    ...(opts.minimalMode ? [] : fsChecker.rewrites.fallback),
   ]
 
   async function resolveRoutes(
@@ -317,7 +317,7 @@ export function getResolveRoutes(
           }
         }
 
-        if (route.name === 'middleware') {
+        if (!opts.minimalMode && route.name === 'middleware') {
           const match = fsChecker.getMiddlewareMatchers()
 
           // @ts-expect-error BaseNextRequest stuff

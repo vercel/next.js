@@ -3,13 +3,13 @@ import { initializeServerWorker } from './setup-server-worker'
 
 import url from 'url'
 import loadConfig from '../config'
+import { proxyRequest } from './router-utils/proxy-request'
 import { serveStatic } from '../serve-static'
 import setupDebug from 'next/dist/compiled/debug'
 import { splitCookiesString } from '../web/utils'
 import { DecodeError } from '../../shared/lib/utils'
 import { filterReqHeaders } from './server-ipc/utils'
 import { IncomingMessage, ServerResponse } from 'http'
-import { stringifyQuery } from '../server-route-utils'
 import { setupFsCheck } from './router-utils/filesystem'
 import { invokeRequest } from './server-ipc/invoke-request'
 import { createRequestResponseMocks } from './mock-request'
@@ -55,6 +55,12 @@ export async function initialize(opts: {
   if (initializeResult) {
     return initializeResult
   }
+
+  if (!process.env.NODE_ENV) {
+    // @ts-ignore not readonly
+    process.env.NODE_ENV = opts.dev ? 'development' : 'production'
+  }
+
   const config = await loadConfig(
     opts.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
     opts.dir
@@ -146,75 +152,6 @@ export async function initialize(opts: {
     if ('flush' in res) {
       ;(res as any).flush()
     }
-  }
-
-  async function proxyRequest(
-    req: IncomingMessage,
-    res: ServerResponse,
-    parsedUrl: NextUrlWithParsedQuery,
-    upgradeHead?: any
-  ) {
-    const { query } = parsedUrl
-    delete (parsedUrl as any).query
-    parsedUrl.search = stringifyQuery(req as any, query)
-
-    const target = url.format(parsedUrl)
-    const HttpProxy =
-      require('next/dist/compiled/http-proxy') as typeof import('next/dist/compiled/http-proxy')
-    const proxy = new HttpProxy({
-      target,
-      changeOrigin: true,
-      ignorePath: true,
-      xfwd: true,
-      ws: true,
-      // we limit proxy requests to 30s by default, in development
-      // we don't time out WebSocket requests to allow proxying
-      proxyTimeout:
-        upgradeHead && opts.dev
-          ? undefined
-          : config.experimental.proxyTimeout || 30_000,
-    })
-
-    await new Promise((proxyResolve, proxyReject) => {
-      let finished = false
-
-      proxy.on('error', (err) => {
-        console.error(`Failed to proxy ${target}`, err)
-        if (!finished) {
-          finished = true
-          proxyReject(err)
-        }
-      })
-
-      // if upgrade head is present treat as WebSocket request
-      if (upgradeHead) {
-        proxy.on('proxyReqWs', (proxyReq) => {
-          proxyReq.on('close', () => {
-            if (!finished) {
-              finished = true
-              proxyResolve(true)
-            }
-          })
-        })
-        proxy.ws(req as any as IncomingMessage, res, upgradeHead)
-        proxyResolve(true)
-      } else {
-        proxy.on('proxyReq', (proxyReq) => {
-          proxyReq.on('close', () => {
-            if (!finished) {
-              finished = true
-              proxyResolve(true)
-            }
-          })
-        })
-        proxy.web(req, res, {
-          buffer: getRequestMeta(
-            req,
-            '__NEXT_CLONABLE_BODY'
-          )?.cloneBodyStream(),
-        })
-      }
-    })
   }
 
   const requestHandler: Parameters<typeof initializeServerWorker>[0] = async (
@@ -388,7 +325,14 @@ export async function initialize(opts: {
       }
 
       if (finished && parsedUrl.protocol) {
-        return await proxyRequest(req, res, parsedUrl)
+        return await proxyRequest(
+          req,
+          res,
+          parsedUrl,
+          undefined,
+          getRequestMeta(req, '__NEXT_CLONABLE_BODY')?.cloneBodyStream(),
+          config.experimental.proxyTimeout
+        )
       }
 
       if (matchedOutput?.fsPath) {
@@ -559,5 +503,6 @@ export async function initialize(opts: {
     port,
     hostname: hostname === '0.0.0.0' ? '127.0.0.1' : hostname,
   }
+
   return initializeResult
 }

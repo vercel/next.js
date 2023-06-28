@@ -1995,9 +1995,7 @@ export default async function build(
             const vanillaServerEntries = [
               ...sharedEntriesSet,
               isStandalone
-                ? require.resolve(
-                    'next/dist/server/lib/render-server-standalone'
-                  )
+                ? require.resolve('next/dist/server/lib/start-server')
                 : null,
               require.resolve('next/dist/server/next-server'),
             ].filter(Boolean) as string[]
