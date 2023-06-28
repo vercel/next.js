@@ -13,18 +13,18 @@ export function handleMutable(
     buildId: state.buildId,
     // Set href.
     canonicalUrl:
-      typeof mutable.canonicalUrl !== 'undefined'
+      mutable.canonicalUrl != null
         ? mutable.canonicalUrl === state.canonicalUrl
           ? state.canonicalUrl
           : mutable.canonicalUrl
         : state.canonicalUrl,
     pushRef: {
       pendingPush:
-        typeof mutable.pendingPush !== 'undefined'
+        mutable.pendingPush != null
           ? mutable.pendingPush
           : state.pushRef.pendingPush,
       mpaNavigation:
-        typeof mutable.mpaNavigation !== 'undefined'
+        mutable.mpaNavigation != null
           ? mutable.mpaNavigation
           : state.pushRef.mpaNavigation,
     },
@@ -50,12 +50,9 @@ export function handleMutable(
       ? mutable.prefetchCache
       : state.prefetchCache,
     // Apply patched router state.
-    tree:
-      typeof mutable.patchedTree !== 'undefined'
-        ? mutable.patchedTree
-        : state.tree,
+    tree: mutable.patchedTree !== undefined ? mutable.patchedTree : state.tree,
     nextUrl:
-      typeof mutable.patchedTree !== 'undefined'
+      mutable.patchedTree !== undefined
         ? computeChangedPath(state.tree, mutable.patchedTree) ??
           state.canonicalUrl
         : state.nextUrl,

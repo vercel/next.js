@@ -34,6 +34,7 @@ export const base = curry(function base(
   } else {
     if (
       ctx.isEdgeRuntime ||
+      (ctx.isServer && ctx.serverSourceMaps) ||
       // Enable browser sourcemaps:
       (ctx.productionBrowserSourceMaps && ctx.isClient)
     ) {
