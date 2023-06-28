@@ -64,6 +64,8 @@ import { IncrementalCache } from '../server/lib/incremental-cache'
 import { patchFetch } from '../server/lib/patch-fetch'
 import { nodeFs } from '../server/lib/node-fs-methods'
 import * as ciEnvironment from '../telemetry/ci-info'
+import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import { denormalizeAppPagePath } from '../shared/lib/page-path/denormalize-app-path'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -108,14 +110,6 @@ function intersect<T>(main: ReadonlyArray<T>, sub: ReadonlyArray<T>): T[] {
 
 function sum(a: ReadonlyArray<number>): number {
   return a.reduce((size, stat) => size + stat, 0)
-}
-
-function denormalizeAppPagePath(page: string): string {
-  // `/` is normalized to `/index` and `/index` is normalized to `/index/index`
-  if (page.endsWith('/index')) {
-    page = page.replace(/\/index$/, '')
-  }
-  return page + '/page'
 }
 
 type ComputeFilesGroup = {
@@ -771,6 +765,18 @@ export async function getJsPageSizeInKb(
   const pageManifest = routerType === 'pages' ? buildManifest : appBuildManifest
   if (!pageManifest) {
     throw new Error('expected appBuildManifest with an "app" pageType')
+  }
+
+  // Normalize appBuildManifest keys
+  if (routerType === 'app') {
+    pageManifest.pages = Object.entries(pageManifest.pages).reduce(
+      (acc: Record<string, string[]>, [key, value]) => {
+        const newKey = normalizeAppPath(key)
+        acc[newKey] = value as string[]
+        return acc
+      },
+      {}
+    )
   }
 
   // If stats was not provided, then compute it again.

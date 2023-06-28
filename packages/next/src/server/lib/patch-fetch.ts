@@ -126,7 +126,11 @@ export function patchFetch({
         // If the staticGenerationStore is not available, we can't do any
         // special treatment of fetch, therefore fallback to the original
         // fetch implementation.
-        if (!staticGenerationStore || (init?.next as any)?.internal) {
+        if (
+          !staticGenerationStore ||
+          (init?.next as any)?.internal ||
+          staticGenerationStore.isDraftMode
+        ) {
           return originFetch(input, init)
         }
 
@@ -374,6 +378,7 @@ export function patchFetch({
                       body: bodyBuffer.toString('base64'),
                       status: res.status,
                       tags,
+                      url: res.url,
                     },
                     revalidate: normalizedRevalidate,
                   },
@@ -386,10 +391,12 @@ export function patchFetch({
                 console.warn(`Failed to set fetch cache`, input, err)
               }
 
-              return new Response(bodyBuffer, {
+              const response = new Response(bodyBuffer, {
                 headers: new Headers(res.headers),
                 status: res.status,
               })
+              Object.defineProperty(response, 'url', { value: res.url })
+              return response
             }
             return res
           })
@@ -463,10 +470,14 @@ export function patchFetch({
                 method: init?.method || 'GET',
               })
 
-              return new Response(decodedBody, {
+              const response = new Response(decodedBody, {
                 headers: resData.headers,
                 status: resData.status,
               })
+              Object.defineProperty(response, 'url', {
+                value: entry.value.data.url,
+              })
+              return response
             }
           }
         }
@@ -496,7 +507,8 @@ export function patchFetch({
             if (
               typeof next.revalidate === 'number' &&
               (typeof staticGenerationStore.revalidate === 'undefined' ||
-                next.revalidate < staticGenerationStore.revalidate)
+                (typeof staticGenerationStore.revalidate === 'number' &&
+                  next.revalidate < staticGenerationStore.revalidate))
             ) {
               const forceDynamic = staticGenerationStore.forceDynamic
 

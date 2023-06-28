@@ -8,7 +8,7 @@ An inline script was used for Google analytics which might impact your webpage's
 
 ### Possible Ways to Fix It
 
-#### Using gtag.js
+#### Using gtag.js (recommended)
 
 If you are using the [gtag.js](https://developers.google.com/analytics/devguides/collection/gtagjs) script to add analytics, use the `next/script` component with the right loading strategy to defer loading of the script until necessary.
 
@@ -18,15 +18,11 @@ import Script from 'next/script'
 function Home() {
   return (
     <div className="container">
-      <!-- Global site tag (gtag.js) - Google Analytics -->
-      <Script
-        src="https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID"
-        strategy="afterInteractive"
-      />
-      <Script id="google-analytics" strategy="afterInteractive">
+      <Script src="https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID" />
+      <Script id="google-analytics">
         {`
           window.dataLayer = window.dataLayer || [];
-          function gtag(){window.dataLayer.push(arguments);}
+          function gtag(){dataLayer.push(arguments);}
           gtag('js', new Date());
 
           gtag('config', 'GA_MEASUREMENT_ID');
@@ -39,7 +35,7 @@ function Home() {
 export default Home
 ```
 
-#### Using analytics.js
+#### Using analytics.js (legacy)
 
 If you are using the [analytics.js](https://developers.google.com/analytics/devguides/collection/analyticsjs) script to add analytics:
 
@@ -49,7 +45,7 @@ import Script from 'next/script'
 function Home() {
   return (
     <div className="container">
-      <Script id="google-analytics" strategy="afterInteractive">
+      <Script id="google-analytics">
         {`
           (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
           (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
@@ -75,17 +71,14 @@ import Script from 'next/script'
 function Home() {
   return (
     <div className="container">
-      <Script id="google-analytics" strategy="afterInteractive">
+      <Script id="google-analytics">
         {`
           window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
-          ga('create', 'GOOGLE_ANALYTICS_ID', 'auto');
+          ga('create', 'UA-XXXXX-Y', 'auto');
           ga('send', 'pageview');
         `}
       </Script>
-      <Script
-        src="https://www.google-analytics.com/analytics.js"
-        strategy="afterInteractive"
-      />
+      <Script src="https://www.google-analytics.com/analytics.js" />
     </div>
   )
 }

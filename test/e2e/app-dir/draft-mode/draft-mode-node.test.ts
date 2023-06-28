@@ -1,4 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
+import { waitFor } from 'next-test-utils'
 
 createNextDescribe(
   'app dir - draft mode',
@@ -83,6 +84,24 @@ createNextDescribe(
       const opts = { headers: { Cookie } }
       const res = await next.fetch('/state', opts)
       expect(await res.text()).toBe('ENABLED')
+    })
+
+    it('should not perform full page navigation on router.refresh()', async () => {
+      const to = encodeURIComponent('/generate/foo')
+      const browser = await next.browser(`/enable-and-redirect?to=${to}`)
+      await browser.eval('window._test = 42')
+      await browser.elementById('refresh').click()
+
+      const start = Date.now()
+      while (Date.now() - start < 5000) {
+        const value = await browser.eval('window._test')
+        if (value !== 42) {
+          throw new Error('Detected a full page navigation')
+        }
+        await waitFor(200)
+      }
+
+      expect(await browser.eval('window._test')).toBe(42)
     })
   }
 )

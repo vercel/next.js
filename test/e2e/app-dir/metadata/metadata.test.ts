@@ -476,7 +476,7 @@ createNextDescribe(
         // override metadataBase
         const urlInstance$ = await next.render$('/metadata-base/url-instance')
         expect(urlInstance$('meta[property="og:url"]').attr('content')).toBe(
-          'http://https//outerspace.com/huozhi.png'
+          'https://outerspace.com/huozhi.png'
         )
       })
     })
@@ -499,6 +499,19 @@ createNextDescribe(
           'og:image:width': ['800', '1800'],
           'og:image:height': ['600', '1600'],
           'og:image:alt': 'My custom alt',
+        })
+
+        await matchMultiDom('meta', 'name', 'content', {
+          'twitter:card': 'summary',
+          'twitter:title': 'My custom title',
+          'twitter:description': 'My custom description',
+          'twitter:image': [
+            'https://example.com/image.png',
+            'https://example.com/image2.png',
+          ],
+          'twitter:image:width': ['800', '1800'],
+          'twitter:image:height': ['600', '1600'],
+          'twitter:image:alt': 'My custom alt',
         })
       })
 

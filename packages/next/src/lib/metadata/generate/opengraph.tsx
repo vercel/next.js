@@ -225,14 +225,14 @@ function TwitterAppItem({
   app: TwitterAppDescriptor
   type: 'iphone' | 'ipad' | 'googleplay'
 }) {
-  return MetaFilter([
+  return [
     Meta({ name: `twitter:app:name:${type}`, content: app.name }),
     Meta({ name: `twitter:app:id:${type}`, content: app.id[type] }),
     Meta({
       name: `twitter:app:url:${type}`,
       content: app.url?.[type]?.toString(),
     }),
-  ])
+  ]
 }
 
 export function TwitterMetadata({

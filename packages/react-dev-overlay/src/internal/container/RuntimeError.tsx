@@ -196,18 +196,17 @@ export const styles = css`
     margin-top: 0;
     margin-bottom: var(--size-gap);
     font-family: var(--font-stack-monospace);
-    font-size: var(--size-font);
-    color: #222;
+    color: var(--color-stack-h6);
   }
   [data-nextjs-call-stack-frame] > h3[data-nextjs-frame-expanded='false'] {
-    color: #666;
+    color: var(--color-stack-headline);
   }
   [data-nextjs-call-stack-frame] > div {
     display: flex;
     align-items: center;
     padding-left: calc(var(--size-gap) + var(--size-gap-half));
     font-size: var(--size-font-small);
-    color: #999;
+    color: var(--color-stack-subline);
   }
   [data-nextjs-call-stack-frame] > div > svg {
     width: auto;

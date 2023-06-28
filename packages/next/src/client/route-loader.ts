@@ -45,12 +45,12 @@ interface Future<V> {
   resolve: (entrypoint: V) => void
   future: Promise<V>
 }
-function withFuture<T>(
+function withFuture<T extends object>(
   key: string,
   map: Map<string, Future<T> | T>,
   generator?: () => Promise<T>
 ): Promise<T> {
-  let entry: Future<T> | T | undefined = map.get(key)
+  let entry = map.get(key)
   if (entry) {
     if ('future' in entry) {
       return entry.future
@@ -107,8 +107,8 @@ function hasPrefetch(link?: HTMLLinkElement): boolean {
 const canPrefetch: boolean = hasPrefetch()
 
 const getAssetQueryString = () => {
-  return process.env.__NEXT_DEPLOYMENT_ID
-    ? `?dpl=${process.env.__NEXT_DEPLOYMENT_ID}`
+  return process.env.NEXT_DEPLOYMENT_ID
+    ? `?dpl=${process.env.NEXT_DEPLOYMENT_ID}`
     : ''
 }
 

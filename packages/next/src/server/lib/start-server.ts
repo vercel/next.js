@@ -1,12 +1,17 @@
+import type { Duplex } from 'stream'
+import type { IncomingMessage, ServerResponse } from 'http'
+import type { ChildProcess } from 'child_process'
+
 import http from 'http'
 import { isIPv6 } from 'net'
 import * as Log from '../../build/output/log'
-import type { IncomingMessage, ServerResponse } from 'http'
-import type { ChildProcess } from 'child_process'
 import { normalizeRepeatedSlashes } from '../../shared/lib/utils'
 import { initialEnv } from '@next/env'
-import { genExecArgv, getNodeOptionsWithoutInspect } from './utils'
-import { getFreePort } from './worker-utils'
+import {
+  genRouterWorkerExecArgv,
+  getDebugPort,
+  getNodeOptionsWithoutInspect,
+} from './utils'
 
 export interface StartServerOptions {
   dir: string
@@ -17,6 +22,7 @@ export interface StartServerOptions {
   useWorkers: boolean
   allowRetry?: boolean
   isTurbopack?: boolean
+  isExperimentalTurbo?: boolean
   keepAliveTimeout?: number
   onStdout?: (data: any) => void
   onStderr?: (data: any) => void
@@ -36,7 +42,7 @@ export async function startServer({
   onStdout,
   onStderr,
 }: StartServerOptions): Promise<TeardownServer> {
-  const sockets = new Set<ServerResponse>()
+  const sockets = new Set<ServerResponse | Duplex>()
   let worker: import('next/dist/compiled/jest-worker').Worker | undefined
   let handlersReady = () => {}
   let handlersError = () => {}
@@ -71,7 +77,7 @@ export async function startServer({
   }
   let upgradeHandler = async (
     _req: IncomingMessage,
-    _socket: ServerResponse,
+    _socket: ServerResponse | Duplex,
     _head: Buffer
   ): Promise<void> => {
     if (handlersPromise) {
@@ -154,6 +160,15 @@ export async function startServer({
 
       const appUrl = `http://${host}:${port}`
 
+      if (isNodeDebugging) {
+        const debugPort = getDebugPort()
+        Log.info(
+          `the --inspect${
+            isNodeDebugging === 'brk' ? '-brk' : ''
+          } option was detected, the Next.js proxy server should be inspected at port ${debugPort}.`
+        )
+      }
+
       Log.ready(
         `started server on ${normalizedHostname}${
           (port + '').startsWith(':') ? '' : ':'
@@ -185,17 +200,18 @@ export async function startServer({
         // TODO: do we want to allow more than 10 OOM restarts?
         maxRetries: 10,
         forkOptions: {
-          execArgv: isNodeDebugging
-            ? genExecArgv(
-                isNodeDebugging === undefined ? false : isNodeDebugging,
-                await getFreePort()
-              )
-            : undefined,
+          execArgv: await genRouterWorkerExecArgv(
+            isNodeDebugging === undefined ? false : isNodeDebugging
+          ),
           env: {
             FORCE_COLOR: '1',
             ...((initialEnv || process.env) as typeof process.env),
             PORT: port + '',
             NODE_OPTIONS: getNodeOptionsWithoutInspect(),
+            ...(process.env.NEXT_CPU_PROF
+              ? { __NEXT_PRIVATE_CPU_PROFILE: `CPU.router` }
+              : {}),
+            WATCHPACK_WATCHER_LIMIT: '20',
           },
         },
         exposedMethods: ['initialize'],
@@ -283,6 +299,21 @@ export async function startServer({
           return
         }
         const proxyServer = getProxyServer(req.url || '/')
+
+        // http-proxy does not properly detect a client disconnect in newer
+        // versions of Node.js. This is caused because it only listens for the
+        // `aborted` event on the our request object, but it also fully reads
+        // and closes the request object. Node **will not** fire `aborted` when
+        // the request is already closed. Listening for `close` on our response
+        // object will detect the disconnect, and we can abort the proxy's
+        // connection.
+        proxyServer.on('proxyReq', (proxyReq) => {
+          res.on('close', () => proxyReq.destroy())
+        })
+        proxyServer.on('proxyRes', (proxyRes) => {
+          res.on('close', () => proxyRes.destroy())
+        })
+
         proxyServer.web(req, res)
       }
       upgradeHandler = async (req, socket, head) => {

@@ -5,6 +5,10 @@ import type {
 } from './types/metadata-interface'
 import type { MetadataImageModule } from '../../build/webpack/loaders/metadata/types'
 import type { GetDynamicParamFromSegment } from '../../server/app-render/app-render'
+import type { Twitter } from './types/twitter-types'
+import type { OpenGraph } from './types/opengraph-types'
+import type { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
+import type { MetadataAccumulationOptions } from './types/resolvers'
 import { createDefaultMetadata } from './default-metadata'
 import { resolveOpenGraph, resolveTwitter } from './resolvers/resolve-opengraph'
 import { resolveTitle } from './resolvers/resolve-title'
@@ -14,7 +18,6 @@ import {
   getLayoutOrPageModule,
   LoaderTree,
 } from '../../server/lib/app-dir-module'
-import { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
 import { interopDefault } from '../interop-default'
 import {
   resolveAlternates,
@@ -24,12 +27,11 @@ import {
   resolveThemeColor,
   resolveVerification,
   resolveViewport,
+  resolveItunes,
 } from './resolvers/resolve-basics'
 import { resolveIcons } from './resolvers/resolve-icons'
 import { getTracer } from '../../server/lib/trace/tracer'
 import { ResolveMetadataSpan } from '../../server/lib/trace/constants'
-import { Twitter } from './types/twitter-types'
-import { OpenGraph } from './types/opengraph-types'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/constants'
 
 type StaticMetadata = Awaited<ReturnType<typeof resolveStaticMetadata>>
@@ -44,7 +46,8 @@ export type MetadataItems = [
 
 function mergeStaticMetadata(
   metadata: ResolvedMetadata,
-  staticFilesMetadata: StaticMetadata
+  staticFilesMetadata: StaticMetadata,
+  { pathname }: MetadataAccumulationOptions
 ) {
   if (!staticFilesMetadata) return
   const { icon, apple, openGraph, twitter, manifest } = staticFilesMetadata
@@ -65,7 +68,8 @@ function mergeStaticMetadata(
   if (openGraph) {
     const resolvedOpenGraph = resolveOpenGraph(
       { ...metadata.openGraph, images: openGraph } as OpenGraph,
-      metadata.metadataBase
+      metadata.metadataBase,
+      { pathname }
     )
     metadata.openGraph = resolvedOpenGraph
   }
@@ -108,13 +112,19 @@ function merge({
         break
       }
       case 'alternates': {
-        target.alternates = resolveAlternates(source.alternates, metadataBase, {
-          pathname: options.pathname,
-        })
+        target.alternates = resolveAlternates(
+          source.alternates,
+          metadataBase,
+          options
+        )
         break
       }
       case 'openGraph': {
-        target.openGraph = resolveOpenGraph(source.openGraph, metadataBase)
+        target.openGraph = resolveOpenGraph(
+          source.openGraph,
+          metadataBase,
+          options
+        )
         if (target.openGraph) {
           target.openGraph.title = resolveTitle(
             target.openGraph.title,
@@ -169,6 +179,10 @@ function merge({
         target[key] = resolveAsArrayOrUndefined(source.authors)
         break
       }
+      case 'itunes': {
+        target[key] = resolveItunes(source.itunes, metadataBase, options)
+        break
+      }
       // directly assign fields that fallback to null
       case 'applicationName':
       case 'description':
@@ -179,7 +193,6 @@ function merge({
       case 'classification':
       case 'referrer':
       case 'colorScheme':
-      case 'itunes':
       case 'formatDetection':
       case 'manifest':
         // @ts-ignore TODO: support inferring
@@ -195,7 +208,7 @@ function merge({
         break
     }
   }
-  mergeStaticMetadata(target, staticFilesMetadata)
+  mergeStaticMetadata(target, staticFilesMetadata, options)
 }
 
 async function getDefinedMetadata(
@@ -354,8 +367,41 @@ export async function resolveMetadata({
   return metadataItems
 }
 
-type MetadataAccumulationOptions = {
-  pathname: string
+const commonOgKeys = ['title', 'description', 'images'] as const
+function postProcessMetadata(metadata: ResolvedMetadata): ResolvedMetadata {
+  const { openGraph, twitter } = metadata
+  if (openGraph) {
+    let autoFillProps: Partial<{
+      [Key in (typeof commonOgKeys)[number]]: NonNullable<
+        ResolvedMetadata['openGraph']
+      >[Key]
+    }> = {}
+    const hasTwTitle = twitter?.title.absolute
+    const hasTwDescription = twitter?.description
+    const hasTwImages = twitter?.images
+    if (!hasTwTitle) autoFillProps.title = openGraph.title
+    if (!hasTwDescription) autoFillProps.description = openGraph.description
+    if (!hasTwImages) autoFillProps.images = openGraph.images
+
+    if (Object.keys(autoFillProps).length > 0) {
+      const partialTwitter = resolveTwitter(
+        autoFillProps,
+        metadata.metadataBase
+      )
+      if (metadata.twitter) {
+        metadata.twitter = Object.assign({}, metadata.twitter, {
+          ...(!hasTwTitle && { title: partialTwitter?.title }),
+          ...(!hasTwDescription && {
+            description: partialTwitter?.description,
+          }),
+          ...(!hasTwImages && { images: partialTwitter?.images }),
+        })
+      } else {
+        metadata.twitter = partialTwitter
+      }
+    }
+  }
+  return metadata
 }
 
 export async function accumulateMetadata(
@@ -444,5 +490,5 @@ export async function accumulateMetadata(
     }
   }
 
-  return resolvedMetadata
+  return postProcessMetadata(resolvedMetadata)
 }

@@ -69,6 +69,8 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
       isPrerendering: renderOpts.nextExport,
       fetchCache: renderOpts.fetchCache,
       isOnDemandRevalidate: renderOpts.isOnDemandRevalidate,
+
+      isDraftMode: renderOpts.isDraftMode,
     }
 
     // TODO: remove this when we resolve accessing the store outside the execution context

@@ -11,6 +11,7 @@ import {
   ALLOWED_EXPORTS,
   LEGACY_CONFIG_EXPORT,
 } from '../constant'
+import type tsModule from 'typescript/lib/tsserverlibrary'
 
 const API_DOCS: Record<
   string,
@@ -100,7 +101,7 @@ const API_DOCS: Record<
     },
     link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#revalidate',
     isValid: (value: string) => {
-      return value === 'false' || Number(value) >= 0
+      return value === 'false' || Number(value.replace(/_/g, '')) >= 0
     },
     getHint: (value: any) => {
       return `Set the default revalidation time to \`${value}\` seconds.`
@@ -135,7 +136,7 @@ const API_DOCS: Record<
 function visitEntryConfig(
   fileName: string,
   position: number,
-  callback: (entryEonfig: string, value: ts.VariableDeclaration) => void
+  callback: (entryEonfig: string, value: tsModule.VariableDeclaration) => void
 ) {
   const source = getSource(fileName)
   if (source) {
@@ -177,7 +178,7 @@ function createAutoCompletionOptionName(sort: number, name: string) {
       exportName: name,
       moduleSpecifier: 'next/typescript/entry_option_name',
     },
-  } as ts.CompletionEntry
+  } as tsModule.CompletionEntry
 }
 
 function createAutoCompletionOptionValue(
@@ -200,7 +201,7 @@ function createAutoCompletionOptionValue(
       exportName: apiName,
       moduleSpecifier: 'next/typescript/entry_option_value',
     },
-  } as ts.CompletionEntry
+  } as tsModule.CompletionEntry
 }
 
 function getAPIDescription(api: string): string {
@@ -217,7 +218,7 @@ const config = {
   addCompletionsAtPosition(
     fileName: string,
     position: number,
-    prior: ts.WithMetadata<ts.CompletionInfo>
+    prior: tsModule.WithMetadata<tsModule.CompletionInfo>
   ) {
     visitEntryConfig(fileName, position, (entryConfig, declaration) => {
       if (!API_DOCS[entryConfig]) {
@@ -245,7 +246,7 @@ const config = {
   getQuickInfoAtPosition(fileName: string, position: number) {
     const ts = getTs()
 
-    let overriden: ts.QuickInfo | undefined
+    let overriden: tsModule.QuickInfo | undefined
     visitEntryConfig(fileName, position, (entryConfig, declaration) => {
       if (!API_DOCS[entryConfig]) return
 
@@ -326,7 +327,10 @@ const config = {
   },
 
   // Show details on the side when auto completing.
-  getCompletionEntryDetails(entryName: string, data: ts.CompletionEntryData) {
+  getCompletionEntryDetails(
+    entryName: string,
+    data: tsModule.CompletionEntryData
+  ) {
     const ts = getTs()
     if (
       data &&
@@ -358,12 +362,12 @@ const config = {
 
   // Show errors for invalid export fields.
   getSemanticDiagnosticsForExportVariableStatement(
-    source: ts.SourceFile,
-    node: ts.VariableStatement
+    source: tsModule.SourceFile,
+    node: tsModule.VariableStatement
   ) {
     const ts = getTs()
 
-    const diagnostics: ts.Diagnostic[] = []
+    const diagnostics: tsModule.Diagnostic[] = []
 
     // Check if it has correct option exports
     if (ts.isVariableDeclarationList(node.declarationList)) {

@@ -152,53 +152,6 @@ function closeWithError(destination, error) {
   }
 }
 
-// This file is an intermediate layer to translate between Flight
-var stringify = JSON.stringify;
-
-function serializeRowHeader(tag, id) {
-  return id.toString(16) + ':' + tag;
-}
-
-function processErrorChunkProd(request, id, digest) {
-  {
-    // These errors should never make it into a build so we don't need to encode them in codes.json
-    // eslint-disable-next-line react-internal/prod-error-codes
-    throw new Error('processErrorChunkProd should never be called while in development mode. Use processErrorChunkDev instead. This is a bug in React.');
-  }
-}
-function processErrorChunkDev(request, id, digest, message, stack) {
-
-  var errorInfo = {
-    digest: digest,
-    message: message,
-    stack: stack
-  };
-  var row = serializeRowHeader('E', id) + stringify(errorInfo) + '\n';
-  return stringToChunk(row);
-}
-function processModelChunk(request, id, model) {
-  // $FlowFixMe[incompatible-type] stringify can return null
-  var json = stringify(model, request.toJSON);
-  var row = id.toString(16) + ':' + json + '\n';
-  return stringToChunk(row);
-}
-function processReferenceChunk(request, id, reference) {
-  var json = stringify(reference);
-  var row = id.toString(16) + ':' + json + '\n';
-  return stringToChunk(row);
-}
-function processImportChunk(request, id, clientReferenceMetadata) {
-  // $FlowFixMe[incompatible-type] stringify can return null
-  var json = stringify(clientReferenceMetadata);
-  var row = serializeRowHeader('I', id) + json + '\n';
-  return stringToChunk(row);
-}
-function processHintChunk(request, id, code, model) {
-  var json = stringify(model);
-  var row = serializeRowHeader('H' + code, id) + json + '\n';
-  return stringToChunk(row);
-}
-
 // eslint-disable-next-line no-unused-vars
 var CLIENT_REFERENCE_TAG = Symbol.for('react.client.reference');
 var SERVER_REFERENCE_TAG = Symbol.for('react.server.reference');
@@ -1039,7 +992,6 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
         if (typeof value === 'string') {
           substr = value;
         } else if (typeof value === 'object' && value !== null) {
-          // $FlowFixMe[incompatible-call] found when upgrading Flow
           substr = '{' + describeObjectForErrorMessage(value) + '}';
         } else {
           substr = '{' + describeValueForErrorMessage(value) + '}';
@@ -1072,7 +1024,6 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
         var _substr = void 0;
 
         if (typeof _value === 'object' && _value !== null) {
-          // $FlowFixMe[incompatible-call] found when upgrading Flow
           _substr = describeObjectForErrorMessage(_value);
         } else {
           _substr = describeValueForErrorMessage(_value);
@@ -1111,7 +1062,6 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
         var _substr2 = void 0;
 
         if (name === expandedName && typeof _value2 === 'object' && _value2 !== null) {
-          // $FlowFixMe[incompatible-call] found when upgrading Flow
           _substr2 = describeObjectForErrorMessage(_value2);
         } else {
           _substr2 = describeValueForErrorMessage(_value2);
@@ -1152,7 +1102,6 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
         var _substr3 = void 0;
 
         if (typeof _value3 === 'object' && _value3 !== null) {
-          // $FlowFixMe[incompatible-call] found when upgrading Flow
           _substr3 = describeObjectForErrorMessage(_value3);
         } else {
           _substr3 = describeValueForErrorMessage(_value3);
@@ -1195,6 +1144,7 @@ function getOrCreateServerContext(globalName) {
   return ContextRegistry[globalName];
 }
 
+var stringify = JSON.stringify; // Serializable values
 // Thenable<ReactClientValue>
 
 var PENDING$1 = 0;
@@ -1704,6 +1654,7 @@ function escapeStringValue(value) {
 
 var insideContextProps = null;
 var isInsideContextValue = false;
+
 function resolveModelToJSON(request, parent, key, value) {
   // Make sure that `parent[key]` wasn't JSONified before `value` was passed to us
   {
@@ -1875,7 +1826,7 @@ function resolveModelToJSON(request, parent, key, value) {
     if (value[value.length - 1] === 'Z') {
       // Possibly a Date, whose toJSON automatically calls toISOString
       // $FlowFixMe[incompatible-use]
-      var _originalValue = parent[key]; // $FlowFixMe[method-unbinding]
+      var _originalValue = parent[key];
 
       if (_originalValue instanceof Date) {
         return serializeDateFromDateJSON(value);
@@ -2326,6 +2277,55 @@ function importServerContexts(contexts) {
   }
 
   return rootContextSnapshot;
+}
+
+function serializeRowHeader(tag, id) {
+  return id.toString(16) + ':' + tag;
+}
+
+function processErrorChunkProd(request, id, digest) {
+  {
+    // These errors should never make it into a build so we don't need to encode them in codes.json
+    // eslint-disable-next-line react-internal/prod-error-codes
+    throw new Error('processErrorChunkProd should never be called while in development mode. Use processErrorChunkDev instead. This is a bug in React.');
+  }
+}
+
+function processErrorChunkDev(request, id, digest, message, stack) {
+
+  var errorInfo = {
+    digest: digest,
+    message: message,
+    stack: stack
+  };
+  var row = serializeRowHeader('E', id) + stringify(errorInfo) + '\n';
+  return stringToChunk(row);
+}
+
+function processModelChunk(request, id, model) {
+  // $FlowFixMe[incompatible-type] stringify can return null
+  var json = stringify(model, request.toJSON);
+  var row = id.toString(16) + ':' + json + '\n';
+  return stringToChunk(row);
+}
+
+function processReferenceChunk(request, id, reference) {
+  var json = stringify(reference);
+  var row = id.toString(16) + ':' + json + '\n';
+  return stringToChunk(row);
+}
+
+function processImportChunk(request, id, clientReferenceMetadata) {
+  // $FlowFixMe[incompatible-type] stringify can return null
+  var json = stringify(clientReferenceMetadata);
+  var row = serializeRowHeader('I', id) + json + '\n';
+  return stringToChunk(row);
+}
+
+function processHintChunk(request, id, code, model) {
+  var json = stringify(model);
+  var row = serializeRowHeader('H' + code, id) + json + '\n';
+  return stringToChunk(row);
 }
 
 // eslint-disable-next-line no-unused-vars

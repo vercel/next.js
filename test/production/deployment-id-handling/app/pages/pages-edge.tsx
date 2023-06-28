@@ -6,6 +6,18 @@ export default function Page() {
     <>
       <p>hello pages edge</p>
       <Image src={testImage} alt="test image" />
+      <p id="deploymentId">{process.env.NEXT_DEPLOYMENT_ID}</p>
+
+      <button
+        onClick={() => {
+          import('../data').then((mod) => {
+            console.log('loaded data', mod)
+          })
+        }}
+        id="dynamic-import"
+      >
+        click me
+      </button>
     </>
   )
 }
