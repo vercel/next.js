@@ -375,6 +375,7 @@ createNextDescribe(
           'al:android:package': 'com.example.android/package',
           'al:android:app_name': 'app_name_android',
           'al:web:should_fallback': 'true',
+          'fb:app_id': 'facebook_id',
         })
       })
 

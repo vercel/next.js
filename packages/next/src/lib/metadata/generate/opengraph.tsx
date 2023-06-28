@@ -287,6 +287,7 @@ export function AppLinksMeta({
     MultiMeta({ propertyPrefix: 'al:iphone', contents: appLinks.iphone }),
     MultiMeta({ propertyPrefix: 'al:ipad', contents: appLinks.ipad }),
     MultiMeta({ propertyPrefix: 'al:android', contents: appLinks.android }),
+    MultiMeta({ propertyPrefix: 'fb:app_id', contents: appLinks.facebook }),
     MultiMeta({
       propertyPrefix: 'al:windows_phone',
       contents: appLinks.windows_phone,

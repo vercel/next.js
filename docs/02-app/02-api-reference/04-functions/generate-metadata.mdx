@@ -862,6 +862,9 @@ export const metadata = {
 ```jsx filename="layout.js / page.js"
 export const metadata = {
   appLinks: {
+    facebook: {
+      id: 'facebook_id'
+    }
     ios: {
       url: 'https://nextjs.org/ios',
       app_store_id: 'app_store_id',
@@ -879,6 +882,7 @@ export const metadata = {
 ```
 
 ```html filename="<head> output" hideLineNumbers
+<meta property="fb:app_id" content="facebook_id" />
 <meta property="al:ios:url" content="https://nextjs.org/ios" />
 <meta property="al:ios:app_store_id" content="app_store_id" />
 <meta property="al:android:package" content="com.example.android/package" />
