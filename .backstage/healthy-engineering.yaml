@@ -1,0 +1,11 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: next.js
+  description: Framework for server-rendered React apps used by frontend repo
+  annotations:
+    github.com/project-slug: healthline/next.js
+spec:
+  type: service # can be one of: service, library, website, event-driven-service, terraform-module, terraform-repo
+  lifecycle: production # can be one of: experimental, production, deprecated
+  owner: team-healthline-frontend # your existing tech team, i.e. team-developer-platforms
