@@ -234,7 +234,7 @@ function Script(props: ScriptProps): JSX.Element | null {
 
       hasLoadScriptEffectCalled.current = true
     }
-  }, [props, strategy])
+  }, [props, (strategy === "afterInteractive"), strategy === "lazyOnload"])
 
   if (strategy === 'beforeInteractive' || strategy === 'worker') {
     if (updateScripts) {

@@ -127,7 +127,7 @@ export function useIntersection<T extends Element>({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDisabled, rootMargin, rootRef, visible, elementRef.current])
+  }, [isDisabled, rootMargin, rootRef, visible])
 
   const resetVisible = useCallback(() => {
     setVisible(false)
