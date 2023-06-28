@@ -3,6 +3,8 @@ title: redirects
 description: Add redirects to your Next.js app.
 ---
 
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
 Redirects allow you to redirect an incoming request path to a different destination path.
 
 To use redirects you can use the `redirects` key in `next.config.js`:
@@ -244,7 +246,17 @@ module.exports = {
 
 ### Redirects with i18n support
 
+<AppOnly>
+
+When leveraging [`i18n` support](/docs/app/building-your-application/routing/internationalization) with redirects each `source` and `destination` is automatically prefixed to handle the configured `locales` unless you add `locale: false` to the redirect. If `locale: false` is used you must prefix the `source` and `destination` with a locale for it to be matched correctly.
+
+</AppOnly>
+
+<PagesOnly>
+
 When leveraging [`i18n` support](/docs/pages/building-your-application/routing/internationalization) with redirects each `source` and `destination` is automatically prefixed to handle the configured `locales` unless you add `locale: false` to the redirect. If `locale: false` is used you must prefix the `source` and `destination` with a locale for it to be matched correctly.
+
+</PagesOnly>
 
 ```js filename="next.config.js"
 module.exports = {
