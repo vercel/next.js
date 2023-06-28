@@ -1,13 +1,16 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 
-type RouteResult = {
-  type: 'rewrite'
-  url: string
-  statusCode: number
-  headers: Record<string, undefined | number | string | string[]>
-}
+type RouteResult =
+  | { type: 'none' }
+  | { type: 'error' }
+  | {
+      type: 'rewrite'
+      url: string
+      statusCode: number
+      headers: Record<string, undefined | number | string | string[]>
+    }
 
-export async function makeResolver() {
+export async function makeResolver(..._args: any[]) {
   return async function resolveRoute(
     _req: IncomingMessage,
     _res: ServerResponse
