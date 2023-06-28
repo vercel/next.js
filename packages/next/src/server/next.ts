@@ -319,13 +319,17 @@ function createServer(options: NextServerOptions): NextServer {
             case 'getRequestHandler': {
               return () => {
                 let handler: RequestHandler
-                return async (req: IncomingMessage, res: ServerResponse) => {
+                return async (
+                  req: IncomingMessage,
+                  res: ServerResponse,
+                  parsedUrl?: UrlWithParsedQuery
+                ) => {
                   if (shouldUseStandaloneMode) {
                     const standaloneHandler = await handlerPromise
                     return standaloneHandler(req, res)
                   }
                   handler = handler || server.getRequestHandler()
-                  return handler(req, res)
+                  return handler(req, res, parsedUrl)
                 }
               }
             }
