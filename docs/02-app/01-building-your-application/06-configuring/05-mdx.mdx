@@ -314,13 +314,17 @@ const withMDX = require('@next/mdx')({
 Then setup the provider in your page
 
 ```jsx filename="pages/index.js"
-
 import { MDXProvider } from '@mdx-js/react'
 import Image from 'next/image'
 import { Heading, InlineCode, Pre, Table, Text } from 'my-components'
 
 const ResponsiveImage = (props) => (
-  <Image alt={props.alt} sizes="100vw" style={{ width: '100%', height: 'auto' }}  {...props} />
+  <Image
+    alt={props.alt}
+    sizes="100vw"
+    style={{ width: '100%', height: 'auto' }}
+    {...props}
+  />
 )
 
 const components = {
