@@ -512,6 +512,12 @@ const configSchema = {
         logging: {
           type: 'string',
         },
+        serverMinification: {
+          type: 'boolean',
+        },
+        serverSourceMaps: {
+          type: 'boolean',
+        },
       },
       type: 'object',
     },
