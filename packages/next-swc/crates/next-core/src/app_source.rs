@@ -16,7 +16,7 @@ use turbopack_binding::{
             asset::{AssetVc, AssetsVc},
             chunk::{EvaluatableAssetVc, EvaluatableAssetsVc},
             compile_time_info::CompileTimeInfoVc,
-            context::{AssetContext, AssetContextVc},
+            context::AssetContext,
             environment::ServerAddrVc,
             issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
             reference_type::{
@@ -351,7 +351,7 @@ fn app_context(
     next_config: NextConfigVc,
     server_addr: ServerAddrVc,
     output_path: FileSystemPathVc,
-) -> AssetContextVc {
+) -> ModuleAssetContextVc {
     let next_server_to_client_transition = NextServerToClientTransition { ssr }.cell().into();
     let mode = NextMode::Development;
 
@@ -464,7 +464,6 @@ fn app_context(
             execution_context,
         ),
     )
-    .into()
 }
 
 /// Create a content source serving the `app` or `src/app` directory as
@@ -642,8 +641,8 @@ async fn create_global_metadata_source(
 async fn create_app_page_source_for_route(
     pathname: &str,
     loader_tree: LoaderTreeVc,
-    context_ssr: AssetContextVc,
-    context: AssetContextVc,
+    context_ssr: ModuleAssetContextVc,
+    context: ModuleAssetContextVc,
     project_path: FileSystemPathVc,
     app_dir: FileSystemPathVc,
     env: ProcessEnvVc,
@@ -691,8 +690,8 @@ async fn create_app_page_source_for_route(
 #[turbo_tasks::function]
 async fn create_app_not_found_page_source(
     loader_tree: LoaderTreeVc,
-    context_ssr: AssetContextVc,
-    context: AssetContextVc,
+    context_ssr: ModuleAssetContextVc,
+    context: ModuleAssetContextVc,
     project_path: FileSystemPathVc,
     app_dir: FileSystemPathVc,
     env: ProcessEnvVc,
@@ -737,7 +736,7 @@ async fn create_app_not_found_page_source(
 async fn create_app_route_source_for_route(
     pathname: &str,
     entry_path: FileSystemPathVc,
-    context_ssr: AssetContextVc,
+    context_ssr: ModuleAssetContextVc,
     project_path: FileSystemPathVc,
     app_dir: FileSystemPathVc,
     env: ProcessEnvVc,
@@ -784,8 +783,8 @@ async fn create_app_route_source_for_route(
 struct AppRenderer {
     runtime_entries: AssetsVc,
     app_dir: FileSystemPathVc,
-    context_ssr: AssetContextVc,
-    context: AssetContextVc,
+    context_ssr: ModuleAssetContextVc,
+    context: ModuleAssetContextVc,
     project_path: FileSystemPathVc,
     server_root: FileSystemPathVc,
     intermediate_output_path: FileSystemPathVc,
@@ -813,7 +812,7 @@ impl AppRendererVc {
             (context_ssr, intermediate_output_path)
         };
 
-        let config = parse_segment_config_from_loader_tree(loader_tree, context);
+        let config = parse_segment_config_from_loader_tree(loader_tree, context.into());
 
         let runtime = config.await?.runtime;
         let rsc_transition = match runtime {
@@ -826,7 +825,7 @@ impl AppRendererVc {
             counter: usize,
             imports: Vec<String>,
             loader_tree_code: String,
-            context: AssetContextVc,
+            context: ModuleAssetContextVc,
             unsupported_metadata: Vec<FileSystemPathVc>,
             rsc_transition: &'static str,
         }
@@ -925,8 +924,11 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
                         .push(format!("import {identifier} from \"{inner_module_id}\";"));
                     state.inner_assets.insert(
                         inner_module_id,
-                        StaticModuleAssetVc::new(SourceAssetVc::new(path).into(), state.context)
-                            .into(),
+                        StaticModuleAssetVc::new(
+                            SourceAssetVc::new(path).into(),
+                            state.context.into(),
+                        )
+                        .into(),
                     );
                     writeln!(state.loader_tree_code, "    manifest: {identifier},")?;
                 }
@@ -1154,7 +1156,7 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
                 runtime_entries
                     .await?
                     .iter()
-                    .map(|entry| EvaluatableAssetVc::from_asset(*entry, context))
+                    .map(|entry| EvaluatableAssetVc::from_asset(*entry, context.into()))
                     .collect(),
             ),
             module,
@@ -1186,7 +1188,7 @@ impl NodeEntry for AppRenderer {
 #[turbo_tasks::value]
 struct AppRoute {
     runtime_entries: AssetsVc,
-    context: AssetContextVc,
+    context: ModuleAssetContextVc,
     entry_path: FileSystemPathVc,
     intermediate_output_path: FileSystemPathVc,
     project_path: FileSystemPathVc,
@@ -1230,7 +1232,7 @@ impl AppRouteVc {
 
                 route_bootstrap(
                     entry_asset,
-                    this.context,
+                    this.context.into(),
                     this.project_path,
                     bootstrap_asset,
                     BootstrapConfigVc::empty(),
@@ -1264,7 +1266,7 @@ impl AppRouteVc {
                 this.runtime_entries
                     .await?
                     .iter()
-                    .map(|entry| EvaluatableAssetVc::from_asset(*entry, this.context))
+                    .map(|entry| EvaluatableAssetVc::from_asset(*entry, this.context.into()))
                     .collect(),
             ),
             module,

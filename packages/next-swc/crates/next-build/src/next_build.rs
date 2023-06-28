@@ -115,6 +115,7 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
 
     let page_chunks = get_page_chunks(
         pages_structure,
+        next_router_root,
         project_root,
         execution_context,
         node_root,
