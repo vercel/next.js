@@ -48,6 +48,7 @@ export function runCompiler(
     if (inputFileSystem) {
       compiler.inputFileSystem = inputFileSystem
     }
+    compiler.fsStartTime = Date.now()
     compiler.run((err, stats) => {
       const webpackCloseSpan = runWebpackSpan.traceChild('webpack-close', {
         name: config.name,
