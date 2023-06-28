@@ -7,15 +7,6 @@ import type {
   ImageLoaderPropsWithConfig,
 } from './image-config'
 
-// @ts-ignore - This is replaced by webpack alias
-import defaultLoader from 'next/dist/shared/lib/image-loader'
-
-console.log('get-img-props import is', defaultLoader)
-console.log(
-  'get-img-props require is',
-  require('next/dist/shared/lib/image-loader').default
-)
-
 export interface StaticImageData {
   src: string
   height: number
@@ -288,7 +279,8 @@ export function getImgProps(
     config = { ...c, allSizes, deviceSizes }
   }
 
-  let loader: ImageLoaderWithConfig = rest.loader || defaultLoader
+  let loader: ImageLoaderWithConfig =
+    rest.loader || (globalThis as any).__NEXT_IMAGE_LOADER_FUNC
 
   // Remove property so it's not spread on <img> element
   delete rest.loader
@@ -506,7 +498,7 @@ export function getImgProps(
       )
     }
 
-    if (!unoptimized && loader !== defaultLoader) {
+    if (!unoptimized && !isDefaultLoader) {
       const urlStr = loader({
         config,
         src,

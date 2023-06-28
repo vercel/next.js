@@ -1095,8 +1095,8 @@ export default async function getBaseWebpackConfig(
               'next/dist/esm/server/web/exports/index',
             [`${NEXT_PROJECT_ROOT}/dist/client/link`]:
               'next/dist/esm/client/link',
-            [`${NEXT_PROJECT_ROOT}/dist/shared/image`]:
-              'next/dist/esm/shared/image',
+            [`${NEXT_PROJECT_ROOT}/dist/shared/lib/image`]:
+              'next/dist/esm/shared/lib/image',
             [`${NEXT_PROJECT_ROOT}/dist/client/script`]:
               'next/dist/esm/client/script',
             [`${NEXT_PROJECT_ROOT}/dist/client/router`]:
@@ -1395,7 +1395,7 @@ export default async function getBaseWebpackConfig(
       }
 
       const isNextExternal =
-        /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic|app-dynamic|lazy-dynamic|head[^-]))/.test(
+        /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic|app-dynamic|lazy-dynamic|image|head[^-]))/.test(
           localRes
         )
 

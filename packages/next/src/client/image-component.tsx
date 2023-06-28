@@ -27,15 +27,6 @@ import { imageConfigDefault } from '../shared/lib/image-config'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { warnOnce } from '../shared/lib/utils/warn-once'
 
-// @ts-ignore - This is replaced by webpack alias
-import defaultLoader from 'next/dist/shared/lib/image-loader'
-
-console.log('image-component import is', defaultLoader)
-console.log(
-  'image-component require is',
-  require('next/dist/shared/lib/image-loader').default
-)
-
 const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 
 if (typeof window === 'undefined') {

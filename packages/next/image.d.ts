@@ -1,3 +1,3 @@
-import Image from './dist/shared/image'
-export * from './dist/shared/image'
+import Image from './dist/shared/lib/image'
+export * from './dist/shared/lib/image'
 export default Image

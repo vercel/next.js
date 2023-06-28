@@ -1,22 +1,17 @@
-import type { ImageLoaderProps } from './lib/image-config'
-import type {
-  ImageProps,
-  ImageLoader,
-  StaticImageData,
-} from './lib/get-img-props'
+import type { ImageLoaderProps } from './image-config'
+import type { ImageProps, ImageLoader, StaticImageData } from './get-img-props'
 
-import { getImgProps } from './lib/get-img-props'
-import { warnOnce } from './lib/utils/warn-once'
-import { Image } from '../client/image-component'
+import { getImgProps } from './get-img-props'
+import { warnOnce } from './utils/warn-once'
+import { Image } from '../../client/image-component'
 
-// @ts-ignore - This is replaced by webpack alias
-import defaultLoader from 'next/dist/shared/lib/image-loader'
-
-console.log('shared image import is', defaultLoader)
-console.log(
-  'shared image require is',
+// This import is replaced by a webpack alias when
+// the user has `images.loaderFile` in next.config.js
+// but it must remain in this file which is why we
+// assign a global so the exported functions below
+// can read the global.
+;(globalThis as any).__NEXT_IMAGE_LOADER_FUNC =
   require('next/dist/shared/lib/image-loader').default
-)
 
 const unstable_getImgProps = (imgProps: ImageProps) => {
   warnOnce(
