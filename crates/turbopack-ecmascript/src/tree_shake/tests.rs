@@ -198,7 +198,6 @@ fn run(input: PathBuf) {
                     let key = match e {
                         ItemIdGroupKind::ModuleEvaluation => Key::ModuleEvaluation,
                         ItemIdGroupKind::Export(e) => Key::Export(e.0.to_string()),
-                        _ => continue,
                     };
 
                     let index = entrypoints[&key];

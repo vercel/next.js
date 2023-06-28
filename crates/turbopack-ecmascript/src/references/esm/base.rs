@@ -243,7 +243,11 @@ impl CodeGenerateable for EsmAssetReference {
                     }
                     ReferencedAsset::OriginalReferenceTypeExternal(request) => {
                         if !*context.environment().node_externals().await? {
-                            bail!("the chunking context does not support Node.js external modules");
+                            bail!(
+                                "the chunking context does not support Node.js external modules \
+                                 (request: {})",
+                                request
+                            );
                         }
                         let request = request.clone();
                         visitors.push(create_visitor!(visit_mut_program(program: &mut Program) {
