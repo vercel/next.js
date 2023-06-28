@@ -395,6 +395,7 @@ export function getResolveRoutes(
             })) {
               if (
                 [
+                  'content-length',
                   'x-middleware-rewrite',
                   'x-middleware-redirect',
                   'x-middleware-refresh',
