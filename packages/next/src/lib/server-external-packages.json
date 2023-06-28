@@ -25,6 +25,7 @@
   "mongoose",
   "next-mdx-remote",
   "next-seo",
+  "payload",
   "pg",
   "playwright",
   "postcss",
