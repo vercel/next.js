@@ -66,7 +66,6 @@ import { loadBindings } from './swc'
 import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plugin'
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
 import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plugin'
-import { ImageLoaderFilePlugin } from './webpack/plugins/image-loaderfile-plugin'
 import { getSupportedBrowsers } from './utils'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
@@ -1124,11 +1123,9 @@ export default async function getBaseWebpackConfig(
 
       ...(config.images.loaderFile
         ? {
-            'next/dist/shared/lib/image-loader-generated':
-              config.images.loaderFile,
+            'next/dist/shared/lib/image-loader': config.images.loaderFile,
             ...(isEdgeServer && {
-              'next/dist/esm/shared/lib/image-loader-generated':
-                config.images.loaderFile,
+              'next/dist/esm/shared/lib/image-loader': config.images.loaderFile,
             }),
           }
         : undefined),
@@ -2278,7 +2275,6 @@ export default async function getBaseWebpackConfig(
       ].filter(Boolean),
     },
     plugins: [
-      isNodeServer && new ImageLoaderFilePlugin({ dev, config }),
       dev && isClient && new ReactRefreshWebpackPlugin(webpack),
       // Makes sure `Buffer` and `process` are polyfilled in client and flight bundles (same behavior as webpack 4)
       (isClient || isEdgeServer) &&
