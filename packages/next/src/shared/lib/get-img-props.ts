@@ -254,7 +254,8 @@ export function getImgProps(
     lazyRoot,
     ...rest
   }: ImageProps,
-  _state?: {
+  _state: {
+    defaultLoader: ImageLoaderWithConfig
     imgConf?: ImageConfig
     showAltText?: boolean
     blurComplete?: boolean
@@ -268,7 +269,7 @@ export function getImgProps(
     fill: boolean
   }
 } {
-  const { imgConf, showAltText, blurComplete } = _state || {}
+  const { imgConf, showAltText, blurComplete, defaultLoader } = _state
   let config: ImageConfig
   let c = imgConf || configEnv || imageConfigDefault
   if ('allSizes' in c) {
@@ -279,8 +280,7 @@ export function getImgProps(
     config = { ...c, allSizes, deviceSizes }
   }
 
-  let loader: ImageLoaderWithConfig =
-    rest.loader || (globalThis as any).__NEXT_IMAGE_LOADER_FUNC
+  let loader: ImageLoaderWithConfig = rest.loader || defaultLoader
 
   // Remove property so it's not spread on <img> element
   delete rest.loader

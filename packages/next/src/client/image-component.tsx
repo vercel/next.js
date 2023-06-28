@@ -27,6 +27,9 @@ import { imageConfigDefault } from '../shared/lib/image-config'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { warnOnce } from '../shared/lib/utils/warn-once'
 
+// @ts-ignore - This is replaced by webpack alias
+import defaultLoader from 'next/dist/shared/lib/image-loader'
+
 const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 
 if (typeof window === 'undefined') {
@@ -326,6 +329,7 @@ export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
     const [showAltText, setShowAltText] = useState(false)
 
     const { props: imgAttributes, meta: imgMeta } = getImgProps(props, {
+      defaultLoader,
       imgConf: config,
       blurComplete,
       showAltText,
