@@ -26,17 +26,25 @@ async function enumMetadataFiles(
 ): Promise<string[]> {
   const collectedFiles: string[] = []
 
-  const possibleFileNames = [filename].concat(
-    numericSuffix
-      ? Array(10)
-          .fill(0)
-          .map((_, index) => filename + index)
-      : []
-  )
-  for (const name of possibleFileNames) {
-    const resolved = await metadataResolver(path.join(dir, name), extensions)
-    if (resolved) {
-      collectedFiles.push(resolved)
+  const resolved = await metadataResolver(path.join(dir, filename), extensions)
+  if (resolved) {
+    collectedFiles.push(resolved)
+  }
+
+  // If numericSuffix is true, then we should try to resolve files with numeric
+  // suffix, but abort early if it's already missing. That's because the suffix
+  // will likely be increased one by one.
+  if (numericSuffix) {
+    for (let suffix = 0; suffix < 10; suffix++) {
+      const resolved = await metadataResolver(
+        path.join(dir, filename + suffix),
+        extensions
+      )
+      if (resolved) {
+        collectedFiles.push(resolved)
+      } else {
+        break
+      }
     }
   }
 
