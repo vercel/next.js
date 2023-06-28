@@ -29,7 +29,7 @@ export function getParserOptions({ filename, jsConfig, ...rest }: any) {
   }
 }
 
-function getBaseSWCOptions({
+export function getBaseSWCOptions({
   filename,
   jest,
   development,
