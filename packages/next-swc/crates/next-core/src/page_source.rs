@@ -403,7 +403,7 @@ async fn create_page_source_for_file(
     let pathname = pathname_for_path(client_root, client_path, PathType::Page);
     let route_matcher = NextParamsMatcherVc::new(pathname);
 
-    let (base_segments, route_type) = pathname_to_segments(&*pathname.await?)?;
+    let (base_segments, route_type) = pathname_to_segments(&*pathname.await?, "")?;
 
     Ok(if is_api_path {
         create_node_api_source(
@@ -433,6 +433,10 @@ async fn create_page_source_for_file(
         let data_pathname = pathname_for_path(client_root, client_path, PathType::Data);
         let data_route_matcher =
             NextPrefixSuffixParamsMatcherVc::new(data_pathname, "_next/data/development/", ".json");
+        let (data_base_segments, data_route_type) = pathname_to_segments(
+            &format!("_next/data/development/{}", data_pathname.await?),
+            ".json",
+        )?;
 
         let ssr_entry = SsrEntry {
             runtime_entries,
@@ -477,8 +481,8 @@ async fn create_page_source_for_file(
             create_node_rendered_source(
                 project_path,
                 env,
-                base_segments,
-                route_type,
+                data_base_segments,
+                data_route_type,
                 client_root,
                 data_route_matcher.into(),
                 pathname,
@@ -754,7 +758,7 @@ async fn create_page_source_for_directory(
     Ok(CombinedContentSource { sources }.cell().into())
 }
 
-fn pathname_to_segments(pathname: &str) -> Result<(Vec<BaseSegment>, RouteType)> {
+fn pathname_to_segments(pathname: &str, extension: &str) -> Result<(Vec<BaseSegment>, RouteType)> {
     let mut segments = Vec::new();
     let mut split = pathname.split('/');
     while let Some(segment) = split.next() {
@@ -778,6 +782,9 @@ fn pathname_to_segments(pathname: &str) -> Result<(Vec<BaseSegment>, RouteType)>
             // normal segment
             segments.push(BaseSegment::Static(segment.to_string()));
         }
+    }
+    if let Some(BaseSegment::Static(s)) = segments.last_mut() {
+        s.push_str(extension);
     }
     return Ok((segments, RouteType::Exact));
 }
