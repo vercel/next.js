@@ -7,7 +7,6 @@
   "@sentry/nextjs",
   "@sentry/node",
   "@swc/core",
-  "@vercel/og",
   "argon2",
   "autoprefixer",
   "aws-crt",

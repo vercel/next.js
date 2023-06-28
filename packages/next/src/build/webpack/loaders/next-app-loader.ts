@@ -52,6 +52,7 @@ const FILE_TYPES = {
 
 const GLOBAL_ERROR_FILE_TYPE = 'global-error'
 const PAGE_SEGMENT = 'page$'
+const PARALLEL_CHILDREN_SEGMENT = 'children$'
 
 type DirResolver = (pathToResolve: string) => string
 type PathResolver = (
@@ -315,7 +316,8 @@ async function createTreeCodeFromPath(
 
       subSegmentPath.push(
         ...normalizedParallelSegments.filter(
-          (segment) => segment !== PAGE_SEGMENT
+          (segment) =>
+            segment !== PAGE_SEGMENT && segment !== PARALLEL_CHILDREN_SEGMENT
         )
       )
 
@@ -359,10 +361,17 @@ async function createTreeCodeFromPath(
         }
       }
 
+      let parallelSegmentKey = Array.isArray(parallelSegment)
+        ? parallelSegment[0]
+        : parallelSegment
+
+      parallelSegmentKey =
+        parallelSegmentKey === PARALLEL_CHILDREN_SEGMENT
+          ? 'children'
+          : parallelSegmentKey
+
       props[normalizeParallelKey(parallelKey)] = `[
-        '${
-          Array.isArray(parallelSegment) ? parallelSegment[0] : parallelSegment
-        }',
+        '${parallelSegmentKey}',
         ${subtreeCode},
         {
           ${definedFilePaths
@@ -483,7 +492,8 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
           continue
         }
         if (isParallelRoute) {
-          matched[rest[0]] = rest.slice(1)
+          // we insert a special marker in order to also process layout/etc files at the slot level
+          matched[rest[0]] = [PARALLEL_CHILDREN_SEGMENT, ...rest.slice(1)]
           continue
         }
 
@@ -512,11 +522,11 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         !result &&
         (await fileExists(absolutePathWithExtension, FileType.File))
       ) {
-        // Ensures we call `addMissingDependency` for all files that didn't match
         result = absolutePathWithExtension
-      } else {
-        this.addMissingDependency(absolutePathWithExtension)
       }
+      // Call `addMissingDependency` for all files even if they didn't match,
+      // because they might be added or removed during development.
+      this.addMissingDependency(absolutePathWithExtension)
     }
 
     return result
@@ -535,9 +545,10 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         (await fileExists(absolutePathWithExtension, FileType.File))
       ) {
         result = absolutePathWithExtension
-      } else {
-        this.addMissingDependency(absolutePathWithExtension)
       }
+      // Call `addMissingDependency` for all files even if they didn't match,
+      // because they might be added or removed during development.
+      this.addMissingDependency(absolutePathWithExtension)
     }
 
     return result
