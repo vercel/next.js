@@ -143,11 +143,6 @@ module.exports = function (task) {
       }
 
       if (output.map) {
-        console.log('Detected task for swc', {
-          file: file.base,
-          interopClientDefaultExport,
-          esm,
-        })
         if (interopClientDefaultExport && !esm) {
           output.code += `
 if ((typeof exports.default === 'function' || (typeof exports.default === 'object' && exports.default !== null)) && typeof exports.default.__esModule === 'undefined') {
