@@ -80,8 +80,8 @@ export function NotFoundBoundary({
   asNotFound,
   children,
 }: NotFoundBoundaryProps) {
-  // FIXME: Reading pathname from PathnameContext directly instead of `next/navigation`
-  // to prevent the entire navigation.ts from being introduced to the client bundle due
+  // FIXME: Reading pathname from PathnameContext directly instead of `usePathname` to
+  // prevent the entire `next/navigation` from being introduced to the client bundle due
   // to the inefficient tree-shaking. This is only a temporary workaround and we need to
   // look into the tree-shaking issue in the future.
   const pathname = useContext(PathnameContext) as string

@@ -1,7 +1,7 @@
 'use client'
-import React, { useEffect } from 'react'
-import { AppRouterInstance } from '../../shared/lib/app-router-context'
-import { useRouter } from './navigation'
+import React, { useContext, useEffect } from 'react'
+import { AppRouterContext } from '../../shared/lib/app-router-context'
+import type { AppRouterInstance } from '../../shared/lib/app-router-context'
 import {
   RedirectType,
   getRedirectTypeFromError,
@@ -23,15 +23,19 @@ function HandleRedirect({
   redirectType: RedirectType
   reset: () => void
 }) {
-  const router = useRouter()
+  // FIXME: Reading pathname from PathnameContext directly instead of `useRouter` to
+  // prevent the entire `next/navigation` from being introduced to the client bundle due
+  // to the inefficient tree-shaking. This is only a temporary workaround and we need to
+  // look into the tree-shaking issue in the future.
+  const router = useContext(AppRouterContext)
 
   useEffect(() => {
     // @ts-ignore startTransition exists
     React.startTransition(() => {
       if (redirectType === RedirectType.push) {
-        router.push(redirect, {})
+        router?.push(redirect, {})
       } else {
-        router.replace(redirect, {})
+        router?.replace(redirect, {})
       }
       reset()
     })
@@ -76,7 +80,11 @@ export class RedirectErrorBoundary extends React.Component<
 }
 
 export function RedirectBoundary({ children }: { children: React.ReactNode }) {
-  const router = useRouter()
+  const router = useContext(AppRouterContext)
+  if (!router) {
+    throw new Error('invariant expected app router to be mounted')
+  }
+
   return (
     <RedirectErrorBoundary router={router}>{children}</RedirectErrorBoundary>
   )
