@@ -31,7 +31,7 @@ export class ImageLoaderFilePlugin {
           const source = readFileSync(loaderFile, 'utf8')
 
           const swcOpts = getBaseSWCOptions({
-            filename: loaderFile,
+            filename: srcPath,
             development: dev,
             hasReactRefresh: false,
             globalWindow: false,
@@ -39,8 +39,6 @@ export class ImageLoaderFilePlugin {
             compilerOptions: {},
             jsConfig: {},
           })
-
-          console.log('swcOpts is', swcOpts)
 
           const result = await transform(source, {
             ...swcOpts,
