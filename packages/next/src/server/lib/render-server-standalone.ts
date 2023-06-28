@@ -57,19 +57,21 @@ export const createServerHandler = async ({
     process.stderr.write(data)
   })
 
-  const { port: routerPort } = await routerWorker.initialize({
-    dir,
-    port,
-    dev,
-    hostname,
-    minimalMode,
-    workerType: 'router',
-    isNodeDebugging: false,
-  })
+  const { hostname: routerHostname, port: routerPort } =
+    await routerWorker.initialize({
+      dir,
+      port,
+      dev,
+      hostname,
+      minimalMode,
+      workerType: 'router',
+      isNodeDebugging: false,
+    })
+
   didInitialize = true
 
   const getProxyServer = (pathname: string) => {
-    const targetUrl = `http://${hostname}:${routerPort}${pathname}`
+    const targetUrl = `http://${routerHostname}:${routerPort}${pathname}`
     const proxyServer = httpProxy.createProxy({
       target: targetUrl,
       changeOrigin: false,
