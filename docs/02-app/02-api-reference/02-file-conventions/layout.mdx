@@ -65,7 +65,7 @@ The [dynamic route parameters](/docs/app/building-your-application/routing/dynam
 
 For example:
 
-```tsx filename="app/shop/[tag]/[item]/layout.ts" switcher
+```tsx filename="app/shop/[tag]/[item]/layout.tsx" switcher
 export default function ShopLayout({
   children,
   params,
@@ -125,3 +125,9 @@ Because `dashboard/layout.tsx` doesn't re-render, the `searchParams` prop in the
   - You should **not** manually add `<head>` tags such as `<title>` and `<meta>` to root layouts. Instead, you should use the [Metadata API](/docs/app/api-reference/functions/generate-metadata) which automatically handles advanced requirements such as streaming and de-duplicating `<head>` elements.
 - You can use [route groups](/docs/app/building-your-application/routing/route-groups) to create multiple root layouts.
   - Navigating **across multiple root layouts** will cause a **full page load** (as opposed to a client-side navigation). For example, navigating from `/cart` that uses `app/(shop)/layout.js` to `/blog` that uses `app/(marketing)/layout.js` will cause a full page load. This **only** applies to multiple root layouts.
+
+## Version History
+
+| Version   | Changes              |
+| --------- | -------------------- |
+| `v13.0.0` | `layout` introduced. |

@@ -75,7 +75,7 @@ An instance of an [`Error`](https://developer.mozilla.org/en-US/docs/Web/JavaScr
 
 A function to reset the error boundary, which does not return a response.
 
-> **Good to know:**
+> **Good to know**:
 >
 > - `error.js` boundaries must be **[Client Components](/docs/getting-started/react-essentials)**.
 > - An `error.js` boundary will **not** handle errors thrown in a `layout.js` component in the **same** segment because the error boundary is nested **inside** that layouts component.
@@ -122,7 +122,14 @@ export default function GlobalError({ error, reset }) {
 }
 ```
 
-> **Good to know:**
+> **Good to know**:
 >
 > - `global-error.js` replaces the root `layout.js` when active and so **must** define its own `<html>` and `<body>` tags.
 > - While designing error UI, you may find it helpful to use the [React Developer Tools](https://react.dev/learn/react-developer-tools) to manually toggle Error boundaries.
+
+## Version History
+
+| Version   | Changes                    |
+| --------- | -------------------------- |
+| `v13.1.0` | `global-error` introduced. |
+| `v13.0.0` | `error` introduced.        |

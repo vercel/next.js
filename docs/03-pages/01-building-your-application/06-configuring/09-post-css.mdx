@@ -4,9 +4,7 @@ description: Extend the PostCSS config and plugins added by Next.js with your ow
 ---
 
 <details open>
-  <summary>
-    Examples
-  </summary>
+  <summary>Examples</summary>
 
 - [Tailwind CSS Example](https://github.com/vercel/next.js/tree/canary/examples/with-tailwindcss)
 
@@ -42,7 +40,7 @@ See ["Customizing Plugins"](#customizing-plugins) below for more information.
 <details>
   <summary>Click to view the configuration to enable CSS Grid Layout</summary>
 
-```json
+```json filename="postcss.config.json"
 {
   "plugins": [
     "postcss-flexbugs-fixes",
@@ -74,7 +72,7 @@ Next.js allows you to configure the target browsers (for [Autoprefixer](https://
 
 To customize browserslist, create a `browserslist` key in your `package.json` like so:
 
-```json
+```json filename="package.json"
 {
   "browserslist": [">0.3%", "not dead", "not op_mini all"]
 }
@@ -118,7 +116,7 @@ This is the default configuration used by Next.js:
 }
 ```
 
-> **Note**: Next.js also allows the file to be named `.postcssrc.json`, or, to be read from the `postcss` key in `package.json`.
+> **Good to know**: Next.js also allows the file to be named `.postcssrc.json`, or, to be read from the `postcss` key in `package.json`.
 
 It is also possible to configure PostCSS with a `postcss.config.js` file, which is useful when you want to conditionally include plugins based on environment:
 
@@ -147,11 +145,11 @@ module.exports = {
 }
 ```
 
-> **Note**: Next.js also allows the file to be named `.postcssrc.js`.
+> **Good to know**: Next.js also allows the file to be named `.postcssrc.js`.
 
 Do **not use `require()`** to import the PostCSS Plugins. Plugins must be provided as strings.
 
-> **Note**: If your `postcss.config.js` needs to support other non-Next.js tools in the same project, you must use the interoperable object-based format instead:
+> **Good to know**: If your `postcss.config.js` needs to support other non-Next.js tools in the same project, you must use the interoperable object-based format instead:
 >
 > ```js
 > module.exports = {

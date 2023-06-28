@@ -6,6 +6,7 @@ Choose the right checklist for the change(s) that you're making:
 
 ### Improving Documentation
 
+- Run `pnpm prettier-fix` to fix formatting issues before opening the PR.
 - Read the Docs Contribution Guide to ensure your contribution follows the docs guidelines: https://nextjs.org/docs/community/contribution-guide
 
 ### Adding or Updating Examples
@@ -27,7 +28,6 @@ Choose the right checklist for the change(s) that you're making:
 - Documentation added
 - Telemetry added. In case of a feature if it's used or not.
 - Errors have a helpful link attached, see https://github.com/vercel/next.js/blob/canary/contributing.md
-
 
 
 ## For Maintainers

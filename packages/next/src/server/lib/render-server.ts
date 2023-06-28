@@ -1,5 +1,6 @@
 import type { RequestHandler } from '../next'
 
+import './cpu-profile'
 import v8 from 'v8'
 import http from 'http'
 import { isIPv6 } from 'net'
@@ -9,12 +10,8 @@ import '../require-hook'
 
 import next from '../next'
 import { warn } from '../../build/output/log'
-import {
-  deleteCache as _deleteCache,
-  deleteAppClientCache as _deleteAppClientCache,
-} from '../../build/webpack/plugins/nextjs-require-cache-hot-reloader'
-import { clearModuleContext as _clearModuleContext } from '../web/sandbox/context'
 import { getFreePort } from '../lib/worker-utils'
+
 export const WORKER_SELF_EXIT_CODE = 77
 
 const MAXIMUM_HEAP_SIZE_ALLOWED =
@@ -27,16 +24,26 @@ let result:
       hostname: string
     }
 
+let sandboxContext: undefined | typeof import('../web/sandbox/context')
+let requireCacheHotReloader:
+  | undefined
+  | typeof import('../../build/webpack/plugins/nextjs-require-cache-hot-reloader')
+
+if (process.env.NODE_ENV !== 'production') {
+  sandboxContext = require('../web/sandbox/context')
+  requireCacheHotReloader = require('../../build/webpack/plugins/nextjs-require-cache-hot-reloader')
+}
+
 export function clearModuleContext(target: string, content: string) {
-  _clearModuleContext(target, content)
+  sandboxContext?.clearModuleContext(target, content)
 }
 
 export function deleteAppClientCache() {
-  _deleteAppClientCache()
+  requireCacheHotReloader?.deleteAppClientCache()
 }
 
 export function deleteCache(filePath: string) {
-  _deleteCache(filePath)
+  requireCacheHotReloader?.deleteCache(filePath)
 }
 
 export async function initialize(opts: {
@@ -136,6 +143,6 @@ export async function initialize(opts: {
         return reject(err)
       }
     })
-    server.listen(await getFreePort(), opts.hostname)
+    server.listen(await getFreePort(), '0.0.0.0')
   })
 }

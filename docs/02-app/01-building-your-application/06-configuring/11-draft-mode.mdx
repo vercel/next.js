@@ -3,7 +3,7 @@ title: Draft Mode
 description: Next.js has draft mode to toggle between static and dynamic pages. You can learn how it works with App Router here.
 ---
 
-Static rendering is useful when your pages fetch data from a headless CMS. However, it’s not ideal when you’re writing a draft on your headless CMS and want to view the draft immediately on your page. You’d want Next.js to render these pages at **request time** instead of build time and fetch the draft content instead of the published content. You’d want Next.js to to switch to [dynamic rendering](/docs/app/building-your-application/rendering/static-and-dynamic-rendering) only for this specific case.
+Static rendering is useful when your pages fetch data from a headless CMS. However, it’s not ideal when you’re writing a draft on your headless CMS and want to view the draft immediately on your page. You’d want Next.js to render these pages at **request time** instead of build time and fetch the draft content instead of the published content. You’d want Next.js to switch to [dynamic rendering](/docs/app/building-your-application/rendering/static-and-dynamic-rendering) only for this specific case.
 
 Next.js has a feature called **Draft Mode** which solves this problem. Here are instructions on how to use it.
 
@@ -13,7 +13,7 @@ First, create a [Route Handler](/docs/app/building-your-application/routing/rout
 
 Then, import `draftMode` from `next/headers` and call the `enable()` method.
 
-```tsx filename="app/api/draft/route.ts" switcher
+```ts filename="app/api/draft/route.ts" switcher
 // route handler enabling draft mode
 import { draftMode } from 'next/headers'
 
@@ -241,4 +241,4 @@ A new bypass cookie value will be generated each time you run `next build`.
 
 This ensures that the bypass cookie can’t be guessed.
 
-> **Note**: To test Draft Mode locally over HTTP, your browser will need to allow third-party cookies and local storage access.
+> **Good to know**: To test Draft Mode locally over HTTP, your browser will need to allow third-party cookies and local storage access.

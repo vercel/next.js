@@ -45,7 +45,7 @@ export default function DashboardLayout({ children }) {
 }
 ```
 
-The third-party script is fetched when the the folder route (e.g. `dashboard/page.js`) or any nested route (e.g. `dashboard/settings/page.js`) is accessed by the user. Next.js will ensure the script will **only load once**, even if a user navigates between multiple routes in the same layout.
+The third-party script is fetched when the folder route (e.g. `dashboard/page.js`) or any nested route (e.g. `dashboard/settings/page.js`) is accessed by the user. Next.js will ensure the script will **only load once**, even if a user navigates between multiple routes in the same layout.
 
 </AppOnly>
 
@@ -91,7 +91,7 @@ export default function RootLayout({ children }) {
 
 To load a third-party script for all routes, import `next/script` and include the script directly in your custom `_app`:
 
-```jsx filename="pages/_app.js
+```jsx filename="pages/_app.js"
 import Script from 'next/script'
 
 export default function MyApp({ Component, pageProps }) {

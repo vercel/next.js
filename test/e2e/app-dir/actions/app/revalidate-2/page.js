@@ -1,4 +1,5 @@
 import { revalidateTag } from 'next/cache'
+import { cookies } from 'next/headers'
 import Link from 'next/link'
 
 export default async function Page() {
@@ -30,6 +31,12 @@ export default async function Page() {
           revalidate thankyounext
         </button>
       </form>
+      <p>
+        random cookie:{' '}
+        <span id="random-cookie">
+          {JSON.stringify(cookies().get('random'))}
+        </span>
+      </p>
     </>
   )
 }

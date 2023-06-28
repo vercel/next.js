@@ -25,6 +25,7 @@ export const PHASE_PRODUCTION_BUILD = 'phase-production-build'
 export const PHASE_PRODUCTION_SERVER = 'phase-production-server'
 export const PHASE_DEVELOPMENT_SERVER = 'phase-development-server'
 export const PHASE_TEST = 'phase-test'
+export const PHASE_INFO = 'phase-info'
 export const PAGES_MANIFEST = 'pages-manifest.json'
 export const APP_PATHS_MANIFEST = 'app-paths-manifest.json'
 export const APP_PATH_ROUTES_MANIFEST = 'app-path-routes-manifest.json'
@@ -60,8 +61,6 @@ export const NEXT_CLIENT_SSR_ENTRY_SUFFIX = '.__sc_client__'
 
 // server/client-reference-manifest
 export const CLIENT_REFERENCE_MANIFEST = 'client-reference-manifest'
-// server/flight-server-css-manifest
-export const FLIGHT_SERVER_CSS_MANIFEST = 'flight-server-css-manifest'
 // server/server-reference-manifest
 export const SERVER_REFERENCE_MANIFEST = 'server-reference-manifest'
 // server/middleware-build-manifest.js

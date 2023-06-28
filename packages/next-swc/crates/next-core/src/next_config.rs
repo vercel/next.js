@@ -678,7 +678,6 @@ pub async fn load_next_config_internal(
         next_asset("entry/config/next.js"),
         Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
     );
-
     let config_value = evaluate(
         load_next_config_asset,
         project_path,

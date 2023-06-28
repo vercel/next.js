@@ -10,7 +10,7 @@ related:
 
 The `cookies` function allows you to read the HTTP incoming request cookies from a [Server Component](/docs/getting-started/react-essentials) or write outgoing request cookies in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions) or [Route Handler](/docs/app/building-your-application/routing/router-handlers).
 
-> **Good to know:** `cookies()` is a **[Dynamic Function](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#dynamic-functions)** whose returned values cannot be known ahead of time. Using it in a layout or page will opt a route into **[dynamic rendering](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#dynamic-rendering)** at request time.
+> **Good to know**: `cookies()` is a **[Dynamic Function](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#dynamic-functions)** whose returned values cannot be known ahead of time. Using it in a layout or page will opt a route into **[dynamic rendering](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#dynamic-rendering)** at request time.
 
 ## `cookies().get(name)`
 
@@ -62,7 +62,7 @@ export default function Page() {
 
 A method that takes a cookie name, value, and options and sets the outgoing request cookie.
 
-> **Good to know:** `.set()` is only available in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions) or [Route Handler](/docs/app/building-your-application/routing/router-handlers).
+> **Good to know**: `.set()` is only available in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions) or [Route Handler](/docs/app/building-your-application/routing/router-handlers).
 
 ```js filename="app/actions.js"
 'use server'
@@ -87,21 +87,27 @@ async function create(data) {
 
 To "delete" a cookie, you must set a new cookie with the same name and an empty value. You can also set the `maxAge` to `0` to expire the cookie immediately.
 
-> **Good to know:** `.set()` is only available in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions) or [Route Handler](/docs/app/building-your-application/routing/router-handlers).
+> **Good to know**: `.set()` is only available in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions) or [Route Handler](/docs/app/building-your-application/routing/router-handlers).
 
 ```js filename="app/actions.js"
-'use server';
+'use server'
 
-import { cookies } from 'next/headers';
+import { cookies } from 'next/headers'
 
 async function create(data) {
   cookies().set({
     name: 'name',
     value: '',
-    expires: new Date('2016-10-05')
+    expires: new Date('2016-10-05'),
     path: '/', // For all paths
-  });
+  })
 }
 ```
 
 You can only set cookies that belong to the same domain from which `.set()` is called. Additionally, the code must be executed on the same protocol (HTTP or HTTPS) as the cookie you want to update.
+
+## Version History
+
+| Version   | Changes               |
+| --------- | --------------------- |
+| `v13.0.0` | `cookies` introduced. |

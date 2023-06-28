@@ -34,14 +34,16 @@ The docs are written in [MDX](https://mdxjs.com/), a markdown format that suppor
 
 VSCode has a built-in markdown previewer that you can use to see your edits locally. To enable the previewer for MDX files, you'll need to add a configuration option to your user settings.
 
-Open the command pallete (`⌘ + ⇧ + P` on Mac or `Ctrl + Shift + P` on Windows) and search from `Preferences: Open User Settings (JSON)`.
+Open the command palette (`⌘ + ⇧ + P` on Mac or `Ctrl + Shift + P` on Windows) and search from `Preferences: Open User Settings (JSON)`.
 
 Then, add the following line to your `settings.json` file:
 
 ```json filename="settings.json"
-"files.associations": {
+{
+  "files.associations": {
     "*.mdx": "markdown"
   }
+}
 ```
 
 Next, open the command palette again, and search for `Markdown: Preview File` or `Markdown: Open Preview to the Side`. This will open a preview window where you can see your formatted changes.
@@ -60,13 +62,13 @@ Once you've submitted your contribution, the Next.js or Developer Experience tea
 
 Please let us know if you have any questions or need further assistance in your PR's comments. Thank you for contributing to the Next.js docs and being a part of our community!
 
-> **Tip:** Run `pnpm lint-fix` to automatically fix Prettier and ESLint errors before submitting your PR.
+> **Tip:** Run `pnpm prettier-fix` to run Prettier before submitting your PR.
 
 ## File Structure
 
 The docs use **file-system routing**. Each folder and files inside [`/docs`](/vercel/next.js/tree/canary/docs) represent a route segment. These segments are used to generate the URL paths, navigation, and breadcrumbs.
 
-The file structure reflects the navigation that you see on the site, and by default, navigation items are sorted alphabetically. However, we can change the order of the items by appending a two-digit number (`00-`) to the folder or file name.
+The file structure reflects the navigation that you see on the site, and by default, navigation items are sorted alphabetically. However, we can change the order of the items by prepending a two-digit number (`00-`) to the folder or file name.
 
 For example, in the [functions API Reference](/docs/app/api-reference/functions), the pages are sorted alphabetically because it makes it easier for developers to find a specific function:
 
@@ -129,11 +131,11 @@ The following fields are **optional**:
 ```yaml filename="optional-fields.mdx"
 ---
 nav_title: Nav Item Title
-source: /app/building-your-application/optimizing/images
+source: app/building-your-application/optimizing/images
 related:
   description: See the image component API reference.
   links:
-    - /app/api-reference/components/image
+    - app/api-reference/components/image
 ---
 ```
 
@@ -216,6 +218,15 @@ npx create-next-app
 
 Most examples in the docs are written in `tsx` and `jsx`, and a few in `bash`. However, you can use any supported language, here's the [full list](https://github.com/shikijs/shiki/blob/main/docs/languages.md#all-languages).
 
+When writing JavaScript code blocks, we use the following language and extension combinations.
+
+|                                | Language | Extension |
+| ------------------------------ | -------- | --------- |
+| JavaScript files with JSX code | ```jsx   | .js       |
+| JavaScript files without JSX   | ```js    | .js       |
+| TypeScript files with JSX      | ```tsx   | .tsx      |
+| TypeScript files without JSX   | ```ts    | .ts       |
+
 ### TS and JS Switcher
 
 Add a language switcher to toggle between TypeScript and JavaScript. Code blocks should be TypeScript first with a JavaScript version to accommodate users.
@@ -227,12 +238,12 @@ Currently, we write TS and JS examples one after the other, and link them with `
 
 ```
 
-```jsx filename="app/page.jsx" switcher
+```jsx filename="app/page.js" switcher
 
 ```
 ````
 
-> **Note:** We plan to automatically compile TypeScript snippets to JavaScript in the future. In the meantime, you can use [transform.tools](https://transform.tools/typescript-to-javascript).
+> **Good to know**: We plan to automatically compile TypeScript snippets to JavaScript in the future. In the meantime, you can use [transform.tools](https://transform.tools/typescript-to-javascript).
 
 ### Line Highlighting
 
@@ -286,19 +297,25 @@ We do not use emojis in the docs.
 
 ## Notes
 
-For information that is important but not critical, use a note. Notes are a good way to add information without distracting the user from the main content.
+For information that is important but not critical, use notes. Notes are a good way to add information without distracting the user from the main content.
 
 ```mdx filename="notes.mdx"
+> **Good to know**: This is a single line note.
+
 > **Good to know**:
 >
-> This is a note :)
+> - We also use this format for multi-line notes.
+> - There are sometimes multiple item worths knowing or keeping in mind.
 ```
 
 **Output:**
 
+> **Good to know**: This is a single line note.
+
 > **Good to know**:
 >
-> This is a note :)
+> - We also use this format for multi-line notes.
+> - There are sometimes multiple item worths knowing or keeping in mind.
 
 ## Related Links
 
@@ -309,7 +326,7 @@ Related Links guide the user's learning journey by adding links to logical next 
 
 Create related links using the `related` field in the page's metadata.
 
-```yaml filename="related-links.mdx"
+```yaml filename="example.mdx"
 ---
 related:
   description: Learn how to quickly get started with your first application.
@@ -363,7 +380,7 @@ Docs pages are also split into two categories: Conceptual and Reference.
 - **Conceptual** pages are used to explain a concept or feature. They are usually longer and contain more information than reference pages. In the Next.js docs, conceptual pages are found in the **Building Your Application** section.
 - **Reference** pages are used to explain a specific API. They are usually shorter and more focused. In the Next.js docs, reference pages are found in the **API Reference** section.
 
-> **Note:** Depending on the page you're contributing to, you may need to follow a different voice and style. For example, conceptual pages are more instructional and use the word _you_ to address the user. Reference pages are more technical, they use more imperative words like "create, update, accept" and tend to omit the word _you_.
+> **Good to know**: Depending on the page you're contributing to, you may need to follow a different voice and style. For example, conceptual pages are more instructional and use the word _you_ to address the user. Reference pages are more technical, they use more imperative words like "create, update, accept" and tend to omit the word _you_.
 
 ### Voice
 
