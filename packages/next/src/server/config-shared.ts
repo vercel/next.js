@@ -9,6 +9,7 @@ import {
 import { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/subresource-integrity-plugin'
 import { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
+import { SizeLimit } from '../../types'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -281,6 +282,21 @@ export interface ExperimentalConfig {
    * Enable `react@experimental` channel for the `app` directory.
    */
   serverActions?: boolean
+
+  /**
+   * Allows adjusting body parser size limit for server actions.
+   */
+  serverActionsBodySizeLimit?: SizeLimit
+
+  /**
+   * enables the minification of server code.
+   */
+  serverMinification?: boolean
+
+  /**
+   * Enables source maps generation for the server production bundle.
+   */
+  serverSourceMaps?: boolean
 }
 
 export type ExportPathMap = {
@@ -664,6 +680,8 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
+    serverMinification: false,
+    serverSourceMaps: false,
     caseSensitiveRoutes: false,
     useDeploymentId: false,
     deploymentId: undefined,
