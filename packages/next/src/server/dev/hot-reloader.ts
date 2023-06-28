@@ -338,6 +338,17 @@ export default class HotReloader {
     }
   }
 
+  public async refreshServerComponents({
+    appDirOnly = false,
+  }: { appDirOnly?: boolean } = {}): Promise<void> {
+    this.send({
+      action: 'serverComponentChanges',
+      appDirOnly, // if it's soft refresh, we don't need to reload the page
+      // TODO: granular reloading of changes
+      // entrypoints: serverComponentChanges,
+    })
+  }
+
   public onHMR(req: IncomingMessage, _socket: Duplex, head: Buffer) {
     wsServer.handleUpgrade(req, req.socket, head, (client) => {
       this.webpackHotMiddleware?.onHMR(client)
@@ -1234,11 +1245,7 @@ export default class HotReloader {
       }
 
       if (changedServerComponentPages.size || changedCSSImportPages.size) {
-        this.send({
-          action: 'serverComponentChanges',
-          // TODO: granular reloading of changes
-          // entrypoints: serverComponentChanges,
-        })
+        this.refreshServerComponents()
       }
 
       changedClientPages.clear()

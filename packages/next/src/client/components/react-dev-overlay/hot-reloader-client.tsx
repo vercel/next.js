@@ -437,6 +437,9 @@ function processMessage(
       }
       return
     }
+    case 'devPagesManifestUpdate': {
+      return
+    }
     default: {
       throw new Error('Unexpected action ' + obj.action)
     }
