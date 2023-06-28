@@ -23,7 +23,7 @@ describe('getImgProps()', () => {
       height: 200,
     })
     expect(warningMessages).toStrictEqual([
-      'unstable_getImgProps() is experimental and may change or be removed at any time. Use at your own risk.',
+      'Warning: unstable_getImgProps() is experimental and may change or be removed at any time. Use at your own risk.',
     ])
     expect(Object.entries(props)).toStrictEqual([
       ['alt', 'a nice desc'],

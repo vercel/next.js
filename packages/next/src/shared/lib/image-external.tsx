@@ -9,7 +9,7 @@ import { Image } from '../../client/image-component'
 import defaultLoader from 'next/dist/shared/lib/image-loader'
 const unstable_getImgProps = (imgProps: ImageProps) => {
   warnOnce(
-    'unstable_getImgProps() is experimental and may change or be removed at any time. Use at your own risk.'
+    'Warning: unstable_getImgProps() is experimental and may change or be removed at any time. Use at your own risk.'
   )
   const { props } = getImgProps(imgProps, { defaultLoader })
   for (const [key, value] of Object.entries(props)) {
