@@ -95,10 +95,12 @@ export const WEBPACK_LAYERS = {
   middleware: 'middleware',
   edgeAsset: 'edge-asset',
   appClient: 'app-client',
+  metadataImage: 'app-metadata-image',
 }
 
 export const WEBPACK_RESOURCE_QUERIES = {
   edgeSSREntry: '__next_edge_ssr_entry__',
   metadata: '__next_metadata__',
   metadataImageMeta: '__next_metadata_image_meta__',
+  metadataImageGeneration: '__next_metadata_image_gen__',
 }

@@ -1986,6 +1986,16 @@ export default async function getBaseWebpackConfig(
               } as any,
             ]
           : []),
+        ...(hasAppDir
+          ? [
+              {
+                resourceQuery: new RegExp(
+                  WEBPACK_RESOURCE_QUERIES.metadataImageGeneration
+                ),
+                layer: WEBPACK_LAYERS.metadataImage,
+              },
+            ]
+          : []),
         ...(hasAppDir && isEdgeServer
           ? [
               // The Edge bundle includes the server in its entrypoint, so it has to

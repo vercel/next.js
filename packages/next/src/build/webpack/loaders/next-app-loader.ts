@@ -23,6 +23,7 @@ import { AppRouteRouteModuleOptions } from '../../../server/future/route-modules
 import { AppBundlePathNormalizer } from '../../../server/future/normalizers/built/app/app-bundle-path-normalizer'
 import { FileType, fileExists } from '../../../lib/file-exists'
 import { MiddlewareConfig } from '../../analysis/get-page-static-info'
+import { getFilenameAndExtension } from './next-metadata-route-loader'
 
 export type AppLoaderOptions = {
   name: string
@@ -105,10 +106,21 @@ async function createAppRouteCode({
   // the route to ensure that the route is generated.
   const filename = path.parse(resolvedPagePath).name
   if (isMetadataRoute(name) && filename !== 'route') {
+    const { ext, name: fileBaseName } =
+      getFilenameAndExtension(resolvedPagePath)
+    const isDynamic = pageExtensions.includes(ext)
+    const isImageRoute = !['robots', 'manifest', 'sitemap'].includes(
+      fileBaseName
+    )
+
     resolvedPagePath = `next-metadata-route-loader?${stringify({
       page,
-      pageExtensions,
-    })}!${resolvedPagePath + '?' + WEBPACK_RESOURCE_QUERIES.metadata}`
+      isDynamic,
+    })}!${resolvedPagePath + '?' + WEBPACK_RESOURCE_QUERIES.metadata}${
+      isImageRoute && isDynamic
+        ? '&' + WEBPACK_RESOURCE_QUERIES.metadataImageGeneration
+        : ''
+    }`
   }
 
   // References the route handler file to load found in `./routes/${kind}.ts`.

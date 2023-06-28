@@ -12,10 +12,10 @@ const cacheHeader = {
 
 type MetadataRouteLoaderOptions = {
   page: string
-  pageExtensions: string[]
+  isDynamic: boolean
 }
 
-function getFilenameAndExtension(resourcePath: string) {
+export function getFilenameAndExtension(resourcePath: string) {
   const filename = path.basename(resourcePath)
   const [name, ext] = filename.split('.')
   return { name, ext }
@@ -205,10 +205,9 @@ ${staticGenerationCode}
 const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLoaderOptions> =
   async function () {
     const { resourcePath } = this
-    const { pageExtensions, page } = this.getOptions()
+    const { page, isDynamic } = this.getOptions()
 
-    const { name: fileBaseName, ext } = getFilenameAndExtension(resourcePath)
-    const isDynamic = pageExtensions.includes(ext)
+    const { name: fileBaseName } = getFilenameAndExtension(resourcePath)
 
     let code = ''
     if (isDynamic) {
