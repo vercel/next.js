@@ -10,6 +10,12 @@ import type {
 // @ts-ignore - This is replaced by webpack alias
 import defaultLoader from 'next/dist/shared/lib/image-loader'
 
+console.log('get-img-props import is', defaultLoader)
+console.log(
+  'get-img-props require is',
+  require('next/dist/shared/lib/image-loader').default
+)
+
 export interface StaticImageData {
   src: string
   height: number

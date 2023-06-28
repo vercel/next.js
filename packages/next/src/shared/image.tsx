@@ -9,6 +9,15 @@ import { getImgProps } from './lib/get-img-props'
 import { warnOnce } from './lib/utils/warn-once'
 import { Image } from '../client/image-component'
 
+// @ts-ignore - This is replaced by webpack alias
+import defaultLoader from 'next/dist/shared/lib/image-loader'
+
+console.log('shared image import is', defaultLoader)
+console.log(
+  'shared image require is',
+  require('next/dist/shared/lib/image-loader').default
+)
+
 const unstable_getImgProps = (imgProps: ImageProps) => {
   warnOnce(
     'unstable_getImgProps() is experimental and may change or be removed at any time. Use at your own risk.'
