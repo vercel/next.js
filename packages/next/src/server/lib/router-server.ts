@@ -282,12 +282,6 @@ export async function initialize(opts: {
           : {}),
       }
 
-      // TODO: remove when next/image is handled directly
-      if (removePathPrefix(invokePath, config.basePath) === '/_next/image') {
-        delete invokeHeaders['x-invoke-path']
-        delete invokeHeaders['x-invoke-query']
-      }
-
       debug('invokeRender', renderUrl, invokeHeaders)
 
       const invokeRes = await invokeRequest(
@@ -424,9 +418,44 @@ export async function initialize(opts: {
             err.statusCode = 400
           }
 
+          /**
+           * Hardcoded every possible error status code that could be thrown by "serveStatic" method
+           * This is done by searching "this.error" inside "send" module's source code:
+           * https://github.com/pillarjs/send/blob/master/index.js
+           * https://github.com/pillarjs/send/blob/develop/index.js
+           */
+          const POSSIBLE_ERROR_CODE_FROM_SERVE_STATIC = new Set([
+            // send module will throw 500 when header is already sent or fs.stat error happens
+            // https://github.com/pillarjs/send/blob/53f0ab476145670a9bdd3dc722ab2fdc8d358fc6/index.js#L392
+            // Note: we will use Next.js built-in 500 page to handle 500 errors
+            // 500,
+
+            // send module will throw 404 when file is missing
+            // https://github.com/pillarjs/send/blob/53f0ab476145670a9bdd3dc722ab2fdc8d358fc6/index.js#L421
+            // Note: we will use Next.js built-in 404 page to handle 404 errors
+            // 404,
+
+            // send module will throw 403 when redirecting to a directory without enabling directory listing
+            // https://github.com/pillarjs/send/blob/53f0ab476145670a9bdd3dc722ab2fdc8d358fc6/index.js#L484
+            // Note: Next.js throws a different error (without status code) for directory listing
+            // 403,
+
+            // send module will throw 400 when fails to normalize the path
+            // https://github.com/pillarjs/send/blob/53f0ab476145670a9bdd3dc722ab2fdc8d358fc6/index.js#L520
+            400,
+
+            // send module will throw 412 with conditional GET request
+            // https://github.com/pillarjs/send/blob/53f0ab476145670a9bdd3dc722ab2fdc8d358fc6/index.js#L632
+            412,
+
+            // send module will throw 416 when range is not satisfiable
+            // https://github.com/pillarjs/send/blob/53f0ab476145670a9bdd3dc722ab2fdc8d358fc6/index.js#L669
+            416,
+          ])
+
           if (
             typeof err.statusCode === 'number' &&
-            [400, 412, 416].includes(err.statusCode)
+            POSSIBLE_ERROR_CODE_FROM_SERVE_STATIC.has(err.statusCode)
           ) {
             const invokePath = `/${err.statusCode}`
             const invokeStatus = `${err.statusCode}`

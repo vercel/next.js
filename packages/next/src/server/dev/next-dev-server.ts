@@ -17,7 +17,7 @@ import type { default as THotReloader } from './hot-reloader'
 import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import findUp from 'next/dist/compiled/find-up'
-import { join as pathJoin, relative, resolve as pathResolve, sep } from 'path'
+import { join as pathJoin, relative, sep } from 'path'
 import Watchpack from 'watchpack'
 import { ampValidation } from '../../build/output'
 import {
@@ -26,14 +26,11 @@ import {
 } from '../../lib/constants'
 import { fileExists } from '../../lib/file-exists'
 import { findPagesDir } from '../../lib/find-pages-dir'
-import loadCustomRoutes from '../../lib/load-custom-routes'
 import { verifyTypeScriptSetup } from '../../lib/verifyTypeScriptSetup'
 import { verifyPartytownSetup } from '../../lib/verify-partytown-setup'
 import {
   PHASE_DEVELOPMENT_SERVER,
   CLIENT_STATIC_FILES_PATH,
-  DEV_CLIENT_PAGES_MANIFEST,
-  DEV_MIDDLEWARE_MANIFEST,
   COMPILER_NAMES,
   PAGES_MANIFEST,
   APP_PATHS_MANIFEST,
@@ -43,8 +40,6 @@ import { getRouteMatcher } from '../../shared/lib/router/utils/route-matcher'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import { absolutePathToPage } from '../../shared/lib/page-path/absolute-path-to-page'
-import Router from '../router'
-import { getPathMatch } from '../../shared/lib/router/utils/path-match'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import { eventCliSession } from '../../telemetry/events'
@@ -102,7 +97,6 @@ import LRUCache from 'next/dist/compiled/lru-cache'
 import { NextUrlWithParsedQuery } from '../request-meta'
 import { deserializeErr, errorToJSON } from '../render'
 import { invokeRequest } from '../lib/server-ipc/invoke-request'
-import { generateInterceptionRoutesRewrites } from '../../lib/generate-interception-routes-rewrites'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -322,33 +316,33 @@ export default class DevServer extends Server {
       )
 
       // In development we can't give a default path mapping
-      for (const path in exportPathMap) {
-        const { page, query = {} } = exportPathMap[path]
+      // for (const path in exportPathMap) {
+      // const { page, query = {} } = exportPathMap[path]
 
-        this.router.addFsRoute({
-          match: getPathMatch(path),
-          type: 'route',
-          name: `${path} exportpathmap route`,
-          fn: async (req, res, _params, parsedUrl) => {
-            const { query: urlQuery } = parsedUrl
+      // this.router.addFsRoute({
+      //   match: getPathMatch(path),
+      //   type: 'route',
+      //   name: `${path} exportpathmap route`,
+      //   fn: async (req, res, _params, parsedUrl) => {
+      //     const { query: urlQuery } = parsedUrl
 
-            Object.keys(urlQuery)
-              .filter((key) => query[key] === undefined)
-              .forEach((key) =>
-                Log.warn(
-                  `Url '${path}' defines a query parameter '${key}' that is missing in exportPathMap`
-                )
-              )
+      //     Object.keys(urlQuery)
+      //       .filter((key) => query[key] === undefined)
+      //       .forEach((key) =>
+      //         Log.warn(
+      //           `Url '${path}' defines a query parameter '${key}' that is missing in exportPathMap`
+      //         )
+      //       )
 
-            const mergedQuery = { ...urlQuery, ...query }
+      //     const mergedQuery = { ...urlQuery, ...query }
 
-            await this.render(req, res, page, mergedQuery, parsedUrl, true)
-            return {
-              finished: true,
-            }
-          },
-        })
-      }
+      //     await this.render(req, res, page, mergedQuery, parsedUrl, true)
+      //     return {
+      //       finished: true,
+      //     }
+      //   },
+      // })
+      // }
     }
   }
 
@@ -679,10 +673,12 @@ export default class DevServer extends Server {
             const isClient = idx === 0
             const isNodeServer = idx === 1
             const isEdgeServer = idx === 2
-            const hasRewrites =
-              this.customRoutes.rewrites.afterFiles.length > 0 ||
-              this.customRoutes.rewrites.beforeFiles.length > 0 ||
-              this.customRoutes.rewrites.fallback.length > 0
+            // TODO: update this after moving out of dev-server
+            const hasRewrites = true
+            // const hasRewrites =
+            //   this.customRoutes.rewrites.afterFiles.length > 0 ||
+            //   this.customRoutes.rewrites.beforeFiles.length > 0 ||
+            //   this.customRoutes.rewrites.fallback.length > 0
 
             if (tsconfigChange) {
               config.resolve?.plugins?.forEach((plugin: any) => {
@@ -778,25 +774,6 @@ export default class DevServer extends Server {
             }
           : undefined
 
-        this.customRoutes = await loadCustomRoutes(this.nextConfig)
-        const { rewrites } = this.customRoutes
-
-        this.customRoutes.rewrites.beforeFiles.push(
-          ...generateInterceptionRoutesRewrites(Object.keys(appPaths))
-        )
-
-        if (
-          rewrites.beforeFiles.length ||
-          rewrites.afterFiles.length ||
-          rewrites.fallback.length
-        ) {
-          this.router.setRewrites(
-            this.generateRewrites({
-              restrictedRedirectPaths: [],
-            })
-          )
-        }
-
         try {
           // we serve a separate manifest with all pages for the client in
           // dev mode so that we can match a page after a rewrite on the client
@@ -823,10 +800,6 @@ export default class DevServer extends Server {
             })
           }
           this.sortedRoutes = sortedRoutes
-
-          this.router.setCatchallMiddleware(
-            this.generateCatchAllMiddlewareRoute(true)
-          )
 
           if (!resolved) {
             resolve()
@@ -886,24 +859,7 @@ export default class DevServer extends Server {
     setGlobal('distDir', this.distDir)
     setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
 
-    if (!this.isRenderWorker) {
-      await this.verifyTypeScript()
-    }
-
-    this.customRoutes = await loadCustomRoutes(this.nextConfig)
-
-    // reload router
-    const { redirects, rewrites, headers } = this.customRoutes
-
-    if (
-      rewrites.beforeFiles.length ||
-      rewrites.afterFiles.length ||
-      rewrites.fallback.length ||
-      redirects.length ||
-      headers.length
-    ) {
-      this.router = new Router(this.generateRoutes(true))
-    }
+    await this.verifyTypeScript()
     const telemetry = new Telemetry({ distDir: this.distDir })
 
     // router worker does not start webpack compilers
@@ -917,7 +873,8 @@ export default class DevServer extends Server {
         config: this.nextConfig,
         previewProps: this.getPrerenderManifest().preview,
         buildId: this.buildId,
-        rewrites,
+        // TODO: update this after it's been moved out of here
+        rewrites: { beforeFiles: [], afterFiles: [], fallback: [] },
         appDir: this.appDir,
         telemetry,
       })
@@ -1026,42 +983,6 @@ export default class DevServer extends Server {
     }
 
     return Boolean(appFile || pagesFile)
-  }
-
-  protected async _beforeCatchAllRender(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
-    params: Params,
-    parsedUrl: UrlWithParsedQuery
-  ): Promise<boolean> {
-    const { pathname } = parsedUrl
-    const pathParts = params.path || []
-    const path = `/${pathParts.join('/')}`
-    // check for a public file, throwing error if there's a
-    // conflicting page
-    let decodedPath: string
-
-    try {
-      decodedPath = decodeURIComponent(path)
-    } catch (_) {
-      throw new DecodeError('failed to decode param')
-    }
-
-    if (await this.hasPublicFile(decodedPath)) {
-      const match = await this.matchers.match(pathname!, { skipDynamic: true })
-      if (match) {
-        const err = new Error(
-          `A conflicting public file and page file was found for path ${pathname} https://nextjs.org/docs/messages/conflicting-public-file-page`
-        )
-        res.statusCode = 500
-        await this.renderError(err, req, res, pathname!, {})
-        return true
-      }
-      await this.servePublic(req, res, pathParts)
-      return true
-    }
-
-    return false
   }
 
   private setupWebSocketHandler(server?: HTTPServer, _req?: NodeNextRequest) {
@@ -1496,95 +1417,62 @@ export default class DevServer extends Server {
   }
 
   generateRoutes(dev?: boolean) {
-    const { fsRoutes, ...otherRoutes } = super.generateRoutes(dev)
-
-    // Create a shallow copy so we can mutate it.
-    const routes = [...fsRoutes]
+    super.generateRoutes(dev)
 
     // In development we expose all compiled files for react-error-overlay's line show feature
     // We use unshift so that we're sure the routes is defined before Next's default routes
-    routes.unshift({
-      match: getPathMatch('/_next/development/:path*'),
-      type: 'route',
-      name: '_next/development catchall',
-      fn: async (req, res, params) => {
-        const p = pathJoin(this.distDir, ...(params.path || []))
-        await this.serveStatic(req, res, p)
-        return {
-          finished: true,
-        }
-      },
-    })
+    // routes.unshift({
+    //   match: getPathMatch('/_next/development/:path*'),
+    //   type: 'route',
+    //   name: '_next/development catchall',
+    //   fn: async (req, res, params) => {
+    //     const p = pathJoin(this.distDir, ...(params.path || []))
+    //     await this.serveStatic(req, res, p)
+    //     return {
+    //       finished: true,
+    //     }
+    //   },
+    // })
 
-    routes.unshift({
-      match: getPathMatch(
-        `/_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_CLIENT_PAGES_MANIFEST}`
-      ),
-      type: 'route',
-      name: `_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_CLIENT_PAGES_MANIFEST}`,
-      fn: async (_req, res) => {
-        res.statusCode = 200
-        res.setHeader('Content-Type', 'application/json; charset=utf-8')
-        res
-          .body(
-            JSON.stringify({
-              pages: this.sortedRoutes?.filter(
-                (route) => !this.appPathRoutes![route]
-              ),
-            })
-          )
-          .send()
-        return {
-          finished: true,
-        }
-      },
-    })
+    // routes.unshift({
+    //   match: getPathMatch(
+    //     `/_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_CLIENT_PAGES_MANIFEST}`
+    //   ),
+    //   type: 'route',
+    //   name: `_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_CLIENT_PAGES_MANIFEST}`,
+    //   fn: async (_req, res) => {
+    //     res.statusCode = 200
+    //     res.setHeader('Content-Type', 'application/json; charset=utf-8')
+    //     res
+    //       .body(
+    //         JSON.stringify({
+    //           pages: this.sortedRoutes?.filter(
+    //             (route) => !this.appPathRoutes![route]
+    //           ),
+    //         })
+    //       )
+    //       .send()
+    //     return {
+    //       finished: true,
+    //     }
+    //   },
+    // })
 
-    routes.unshift({
-      match: getPathMatch(
-        `/_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_MIDDLEWARE_MANIFEST}`
-      ),
-      type: 'route',
-      name: `_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_MIDDLEWARE_MANIFEST}`,
-      fn: async (_req, res) => {
-        res.statusCode = 200
-        res.setHeader('Content-Type', 'application/json; charset=utf-8')
-        res.body(JSON.stringify(this.getMiddleware()?.matchers ?? [])).send()
-        return {
-          finished: true,
-        }
-      },
-    })
-
-    routes.push({
-      match: getPathMatch('/:path*'),
-      type: 'route',
-      name: 'catchall public directory route',
-      fn: async (req, res, params, parsedUrl) => {
-        const { pathname } = parsedUrl
-        if (!pathname) {
-          throw new Error('pathname is undefined')
-        }
-
-        // Used in development to check public directory paths
-        if (await this._beforeCatchAllRender(req, res, params, parsedUrl)) {
-          return {
-            finished: true,
-          }
-        }
-
-        return {
-          finished: false,
-        }
-      },
-    })
-
-    return { fsRoutes: routes, ...otherRoutes }
-  }
-
-  // In development public files are not added to the router but handled as a fallback instead
-  protected generatePublicRoutes(): never[] {
-    return []
+    // routes.unshift({
+    //   match: getPathMatch(
+    //     `/_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_MIDDLEWARE_MANIFEST}`
+    //   ),
+    //   type: 'route',
+    //   name: `_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_MIDDLEWARE_MANIFEST}`,
+    //   fn: async (_req, res) => {
+    //     res.statusCode = 200
+    //     res.setHeader('Content-Type', 'application/json; charset=utf-8')
+    //     res.body(JSON.stringify(this.getMiddleware()?.matchers ?? [])).send()
+    //     return {
+    //       finished: true,
+    //     }
+    //   },
+    // })
   }
 
   _filterAmpDevelopmentScript(
@@ -1789,46 +1677,7 @@ export default class DevServer extends Server {
     // TODO: See if this can be moved into hotReloader or removed.
     await this.ensurePage({ page: '/_error', clientOnly: false })
 
-    if (this.isRouterWorker) {
-      return null
-    }
     return await loadDefaultErrorComponents(this.distDir)
-  }
-
-  protected setImmutableAssetCacheControl(
-    res: BaseNextResponse,
-    pathSegments: string[]
-  ): void {
-    // `next/font` generates checksum in the filepath even in dev,
-    // we can safely cache fonts to avoid FOUC of fonts during development.
-    if (
-      pathSegments[0] === 'media' &&
-      pathSegments[1] &&
-      /\.(woff|woff2|eot|ttf|otf)$/.test(pathSegments[1])
-    ) {
-      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
-      return
-    }
-
-    res.setHeader('Cache-Control', 'no-store, must-revalidate')
-  }
-
-  private servePublic(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
-    pathParts: string[]
-  ): Promise<void> {
-    const p = pathJoin(this.publicDir, ...pathParts)
-    return this.serveStatic(req, res, p)
-  }
-
-  async hasPublicFile(path: string): Promise<boolean> {
-    try {
-      const info = await fs.promises.stat(pathJoin(this.publicDir, path))
-      return info.isFile()
-    } catch (_) {
-      return false
-    }
   }
 
   async getCompilationError(page: string): Promise<any> {
@@ -1841,69 +1690,5 @@ export default class DevServer extends Server {
 
     // Return the very first error we found.
     return errors[0]
-  }
-
-  async getStaticInfo({
-    fileName,
-    rootFile,
-    isAppPath,
-  }: {
-    fileName: string
-    rootFile: string
-    isAppPath: boolean
-  }) {
-    if (this.isRenderWorker) {
-      return this.invokeIpcMethod('getStaticInfo', [fileName])
-    } else {
-      return getStaticInfoIncludingLayouts({
-        pageFilePath: fileName,
-        config: this.nextConfig,
-        appDir: this.appDir,
-        page: rootFile,
-        isDev: true,
-        isInsideAppDir: isAppPath,
-        pageExtensions: this.nextConfig.pageExtensions,
-      })
-    }
-  }
-
-  protected isServableUrl(untrustedFileUrl: string): boolean {
-    // This method mimics what the version of `send` we use does:
-    // 1. decodeURIComponent:
-    //    https://github.com/pillarjs/send/blob/0.17.1/index.js#L989
-    //    https://github.com/pillarjs/send/blob/0.17.1/index.js#L518-L522
-    // 2. resolve:
-    //    https://github.com/pillarjs/send/blob/de073ed3237ade9ff71c61673a34474b30e5d45b/index.js#L561
-
-    let decodedUntrustedFilePath: string
-    try {
-      // (1) Decode the URL so we have the proper file name
-      decodedUntrustedFilePath = decodeURIComponent(untrustedFileUrl)
-    } catch {
-      return false
-    }
-
-    // (2) Resolve "up paths" to determine real request
-    const untrustedFilePath = pathResolve(decodedUntrustedFilePath)
-
-    // don't allow null bytes anywhere in the file path
-    if (untrustedFilePath.indexOf('\0') !== -1) {
-      return false
-    }
-
-    // During development mode, files can be added while the server is running.
-    // Checks for .next/static, .next/server, static and public.
-    // Note that in development .next/server is available for error reporting purposes.
-    // see `packages/next/server/next-server.ts` for more details.
-    if (
-      untrustedFilePath.startsWith(pathJoin(this.distDir, 'static') + sep) ||
-      untrustedFilePath.startsWith(pathJoin(this.distDir, 'server') + sep) ||
-      untrustedFilePath.startsWith(pathJoin(this.dir, 'static') + sep) ||
-      untrustedFilePath.startsWith(pathJoin(this.dir, 'public') + sep)
-    ) {
-      return true
-    }
-
-    return false
   }
 }

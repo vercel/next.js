@@ -136,11 +136,6 @@ export class NextServer {
     return server.render404(...args)
   }
 
-  async serveStatic(...args: Parameters<Server['serveStatic']>) {
-    const server = await this.getServer()
-    return server.serveStatic(...args)
-  }
-
   async prepare() {
     if (this.standaloneMode) return
 

@@ -306,6 +306,7 @@ export async function setupFsCheck(opts: {
     buildCustomRoute('redirect', item)
   )
   const rewrites = {
+    // TODO: add interception routes generateInterceptionRoutesRewrites()
     beforeFiles: customRoutes.rewrites.beforeFiles.map((item) =>
       buildCustomRoute('before_files_rewrite', item)
     ),
