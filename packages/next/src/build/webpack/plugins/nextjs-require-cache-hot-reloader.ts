@@ -80,18 +80,16 @@ export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
   }
 
   apply(compiler: Compiler) {
-    compiler.hooks.assetEmitted.tap(
-      PLUGIN_NAME,
-      (_file, { targetPath, content }) => {
-        deleteCache(targetPath)
-        const contentStr = content.toString('utf-8')
+    compiler.hooks.assetEmitted.tap(PLUGIN_NAME, (_file, { targetPath }) => {
+      deleteCache(targetPath)
 
-        if ((global as any)._nextClearModuleContext) {
-          ;(global as any)._nextClearModuleContext(targetPath, contentStr)
-        }
-        clearModuleContext(targetPath, contentStr)
+      // Clear module context in other processes
+      if ((global as any)._nextClearModuleContext) {
+        ;(global as any)._nextClearModuleContext(targetPath)
       }
-    )
+      // Clear module context in this process
+      clearModuleContext(targetPath)
+    })
 
     compiler.hooks.afterEmit.tap(PLUGIN_NAME, (compilation) => {
       RUNTIME_NAMES.forEach((name) => {
