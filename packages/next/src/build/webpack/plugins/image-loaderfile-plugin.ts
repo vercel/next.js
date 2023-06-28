@@ -1,9 +1,9 @@
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import { getBaseSWCOptions } from 'next/src/build/swc/options'
 import { readFileSync, writeFileSync, copyFileSync } from 'fs'
 import { dirname, join } from 'path'
-import type { webpack } from 'next/dist/compiled/webpack/webpack'
-import type { NextConfigComplete } from '../../../server/config-shared'
-import { getBaseSWCOptions } from '../../swc/options'
 import { transform } from '../../swc'
+import type { NextConfigComplete } from '../../../server/config-shared'
 
 export class ImageLoaderFilePlugin {
   opts: { dev: boolean; config: NextConfigComplete }
@@ -40,12 +40,7 @@ export class ImageLoaderFilePlugin {
             jsConfig: {},
           })
 
-          const result = await transform(source, {
-            ...swcOpts,
-            module: {
-              type: 'commonjs',
-            },
-          })
+          const result = await transform(source, swcOpts)
 
           console.log('result from swc is', result)
 
