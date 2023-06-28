@@ -36,12 +36,12 @@ async function enumMetadataFiles(
   // will likely be increased one by one.
   if (numericSuffix) {
     for (let suffix = 0; suffix < 10; suffix++) {
-      const resolved = await metadataResolver(
+      const resolvedWithSuffix = await metadataResolver(
         path.join(dir, filename + suffix),
         extensions
       )
-      if (resolved) {
-        collectedFiles.push(resolved)
+      if (resolvedWithSuffix) {
+        collectedFiles.push(resolvedWithSuffix)
       } else {
         break
       }
