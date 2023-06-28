@@ -14,6 +14,7 @@ import { getImageSize } from '../../../server/image-optimizer'
 import { imageExtMimeTypeMap } from '../../../lib/mime-type'
 import { fileExists } from '../../../lib/file-exists'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../lib/constants'
+import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 
 interface Options {
   segment: string
@@ -51,7 +52,7 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
   const isDynamicResource = pageExtensions.includes(extension)
   const pageSegment = isDynamicResource ? fileNameBase : interpolatedName
   const hashQuery = contentHash ? '?' + contentHash : ''
-  const pathnamePrefix = path.join(basePath, segment)
+  const pathnamePrefix = normalizePathSep(path.join(basePath, segment))
 
   if (isDynamicResource) {
     const mod = await new Promise<webpack.NormalModule>((res, rej) => {
