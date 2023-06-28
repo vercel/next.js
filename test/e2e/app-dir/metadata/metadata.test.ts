@@ -476,7 +476,7 @@ createNextDescribe(
         // override metadataBase
         const urlInstance$ = await next.render$('/metadata-base/url-instance')
         expect(urlInstance$('meta[property="og:url"]').attr('content')).toBe(
-          'http://https//outerspace.com/huozhi.png'
+          'https://outerspace.com/huozhi.png'
         )
       })
     })

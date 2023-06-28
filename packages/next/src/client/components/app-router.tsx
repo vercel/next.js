@@ -1,7 +1,14 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import React, { use, useEffect, useMemo, useCallback } from 'react'
+import React, {
+  use,
+  useEffect,
+  useMemo,
+  useCallback,
+  startTransition,
+  useInsertionEffect,
+} from 'react'
 import {
   AppRouterContext,
   LayoutRouterContext,
@@ -67,6 +74,19 @@ export function getServerActionDispatcher() {
 export function urlToUrlWithoutFlightMarker(url: string): URL {
   const urlWithoutFlightParameters = new URL(url, location.origin)
   urlWithoutFlightParameters.searchParams.delete(NEXT_RSC_UNION_QUERY)
+  if (process.env.NODE_ENV === 'production') {
+    if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
+      if (urlWithoutFlightParameters.pathname.endsWith('/index.txt')) {
+        // Slice off `/index.txt` from the end of the pathname
+        urlWithoutFlightParameters.pathname =
+          urlWithoutFlightParameters.pathname.slice(0, -`/index.txt`.length)
+      } else {
+        // Slice off `.txt` from the end of the pathname
+        urlWithoutFlightParameters.pathname =
+          urlWithoutFlightParameters.pathname.slice(0, -`.txt`.length)
+      }
+    }
+  }
   return urlWithoutFlightParameters
 }
 
@@ -82,6 +102,7 @@ type AppRouterProps = Omit<
   Omit<InitialRouterStateParameters, 'isServer' | 'location'>,
   'initialParallelRoutes'
 > & {
+  buildId: string
   initialHead: ReactNode
   assetPrefix: string
   // Top level boundaries props
@@ -95,8 +116,7 @@ function isExternalURL(url: URL) {
 }
 
 function HistoryUpdater({ tree, pushRef, canonicalUrl, sync }: any) {
-  // @ts-ignore TODO-APP: useInsertionEffect is available
-  React.useInsertionEffect(() => {
+  useInsertionEffect(() => {
     // Identifier is shortened intentionally.
     // __NA is used to identify if the history entry can be handled by the app-router.
     // __N is used to identify if the history entry can be handled by the old router.
@@ -119,10 +139,18 @@ function HistoryUpdater({ tree, pushRef, canonicalUrl, sync }: any) {
   return null
 }
 
+const createEmptyCacheNode = () => ({
+  status: CacheStates.LAZY_INITIALIZED,
+  data: null,
+  subTreeData: null,
+  parallelRoutes: new Map(),
+})
+
 /**
  * The global router that wraps the application components.
  */
 function Router({
+  buildId,
   initialHead,
   initialTree,
   initialCanonicalUrl,
@@ -135,6 +163,7 @@ function Router({
   const initialState = useMemo(
     () =>
       createInitialRouterState({
+        buildId,
         children,
         initialCanonicalUrl,
         initialTree,
@@ -143,7 +172,7 @@ function Router({
         location: !isServer ? window.location : null,
         initialHead,
       }),
-    [children, initialCanonicalUrl, initialTree, initialHead]
+    [buildId, children, initialCanonicalUrl, initialTree, initialHead]
   )
   const [
     {
@@ -187,18 +216,13 @@ function Router({
       flightData: FlightData,
       overrideCanonicalUrl: URL | undefined
     ) => {
-      React.startTransition(() => {
+      startTransition(() => {
         dispatch({
           type: ACTION_SERVER_PATCH,
           flightData,
           previousTree,
           overrideCanonicalUrl,
-          cache: {
-            status: CacheStates.LAZY_INITIALIZED,
-            data: null,
-            subTreeData: null,
-            parallelRoutes: new Map(),
-          },
+          cache: createEmptyCacheNode(),
           mutable: {},
         })
       })
@@ -221,12 +245,7 @@ function Router({
         locationSearch: location.search,
         forceOptimisticNavigation,
         navigateType,
-        cache: {
-          status: CacheStates.LAZY_INITIALIZED,
-          data: null,
-          subTreeData: null,
-          parallelRoutes: new Map(),
-        },
+        cache: createEmptyCacheNode(),
         mutable: {},
       })
     },
@@ -235,7 +254,7 @@ function Router({
 
   const serverActionDispatcher: ServerActionDispatcher = useCallback(
     (actionPayload) => {
-      React.startTransition(() => {
+      startTransition(() => {
         dispatch({
           ...actionPayload,
           type: ACTION_SERVER_ACTION,
@@ -267,8 +286,7 @@ function Router({
         if (isExternalURL(url)) {
           return
         }
-        // @ts-ignore startTransition exists
-        React.startTransition(() => {
+        startTransition(() => {
           dispatch({
             type: ACTION_PREFETCH,
             url,
@@ -277,28 +295,20 @@ function Router({
         })
       },
       replace: (href, options = {}) => {
-        // @ts-ignore startTransition exists
-        React.startTransition(() => {
+        startTransition(() => {
           navigate(href, 'replace', Boolean(options.forceOptimisticNavigation))
         })
       },
       push: (href, options = {}) => {
-        // @ts-ignore startTransition exists
-        React.startTransition(() => {
+        startTransition(() => {
           navigate(href, 'push', Boolean(options.forceOptimisticNavigation))
         })
       },
       refresh: () => {
-        // @ts-ignore startTransition exists
-        React.startTransition(() => {
+        startTransition(() => {
           dispatch({
             type: ACTION_REFRESH,
-            cache: {
-              status: CacheStates.LAZY_INITIALIZED,
-              data: null,
-              subTreeData: null,
-              parallelRoutes: new Map(),
-            },
+            cache: createEmptyCacheNode(),
             mutable: {},
             origin: window.location.origin,
           })
@@ -311,16 +321,10 @@ function Router({
             'fastRefresh can only be used in development mode. Please use refresh instead.'
           )
         } else {
-          // @ts-ignore startTransition exists
-          React.startTransition(() => {
+          startTransition(() => {
             dispatch({
               type: ACTION_FAST_REFRESH,
-              cache: {
-                status: CacheStates.LAZY_INITIALIZED,
-                data: null,
-                subTreeData: null,
-                parallelRoutes: new Map(),
-              },
+              cache: createEmptyCacheNode(),
               mutable: {},
               origin: window.location.origin,
             })
@@ -339,17 +343,21 @@ function Router({
     }
   }, [appRouter])
 
-  useEffect(() => {
-    // Add `window.nd` for debugging purposes.
-    // This is not meant for use in applications as concurrent rendering will affect the cache/tree/router.
-    // @ts-ignore this is for debugging
-    window.nd = {
-      router: appRouter,
-      cache,
-      prefetchCache,
-      tree,
-    }
-  }, [appRouter, cache, prefetchCache, tree])
+  if (process.env.NODE_ENV !== 'production') {
+    // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    useEffect(() => {
+      // Add `window.nd` for debugging purposes.
+      // This is not meant for use in applications as concurrent rendering will affect the cache/tree/router.
+      // @ts-ignore this is for debugging
+      window.nd = {
+        router: appRouter,
+        cache,
+        prefetchCache,
+        tree,
+      }
+    }, [appRouter, cache, prefetchCache, tree])
+  }
 
   // When mpaNavigation flag is set do a hard navigation to the new url.
   // Infinitely suspend because we don't actually want to rerender any child
@@ -395,7 +403,7 @@ function Router({
       // @ts-ignore useTransition exists
       // TODO-APP: Ideally the back button should not use startTransition as it should apply the updates synchronously
       // Without startTransition works if the cache is there for this path
-      React.startTransition(() => {
+      startTransition(() => {
         dispatch({
           type: ACTION_RESTORE,
           url: new URL(window.location.href),
@@ -418,18 +426,14 @@ function Router({
     return findHeadInCache(cache, tree[1])
   }, [cache, tree])
 
+  const notFoundProps = { notFound, notFoundStyles, asNotFound }
+
   const content = (
-    <NotFoundBoundary
-      notFound={notFound}
-      notFoundStyles={notFoundStyles}
-      asNotFound={asNotFound}
-    >
-      <RedirectBoundary>
-        {head}
-        {cache.subTreeData}
-        <AppRouterAnnouncer tree={tree} />
-      </RedirectBoundary>
-    </NotFoundBoundary>
+    <RedirectBoundary>
+      {head}
+      {cache.subTreeData}
+      <AppRouterAnnouncer tree={tree} />
+    </RedirectBoundary>
   )
 
   return (
@@ -444,6 +448,7 @@ function Router({
         <SearchParamsContext.Provider value={searchParams}>
           <GlobalLayoutRouterContext.Provider
             value={{
+              buildId,
               changeByServerResponse,
               tree,
               focusAndScrollRef,
@@ -461,9 +466,14 @@ function Router({
                 }}
               >
                 {HotReloader ? (
-                  <HotReloader assetPrefix={assetPrefix}>{content}</HotReloader>
+                  // HotReloader implements a separate NotFoundBoundary to maintain the HMR ping interval
+                  <HotReloader assetPrefix={assetPrefix} {...notFoundProps}>
+                    {content}
+                  </HotReloader>
                 ) : (
-                  content
+                  <NotFoundBoundary {...notFoundProps}>
+                    {content}
+                  </NotFoundBoundary>
                 )}
               </LayoutRouterContext.Provider>
             </AppRouterContext.Provider>

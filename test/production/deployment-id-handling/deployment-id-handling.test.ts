@@ -11,11 +11,6 @@ createNextDescribe(
     env: {
       NEXT_DEPLOYMENT_ID: deploymentId,
     },
-    nextConfig: {
-      experimental: {
-        useDeploymentId: true,
-      },
-    },
   },
   ({ next }) => {
     it.each([
@@ -27,6 +22,8 @@ createNextDescribe(
       'should append dpl query to all assets correctly for $urlPath',
       async ({ urlPath }) => {
         const $ = await next.render$(urlPath)
+
+        expect($('#deploymentId').text()).toBe(deploymentId)
 
         const scripts = Array.from($('script'))
         expect(scripts.length).toBeGreaterThan(0)
@@ -67,6 +64,17 @@ createNextDescribe(
         } finally {
           require('console').error('requests', requests)
         }
+      }
+    )
+
+    it.each([{ pathname: '/api/hello' }, { pathname: '/api/hello-app' }])(
+      'should have deployment id env available',
+      async ({ pathname }) => {
+        const res = await next.fetch(pathname)
+
+        expect(await res.json()).toEqual({
+          deploymentId,
+        })
       }
     )
   }

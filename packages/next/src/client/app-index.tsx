@@ -12,7 +12,6 @@ import { GlobalLayoutRouterContext } from '../shared/lib/app-router-context'
 import onRecoverableError from './on-recoverable-error'
 import { callServer } from './app-call-server'
 import { isNextRouterError } from './components/is-next-router-error'
-import { linkGc } from './app-link-gc'
 
 // Since React doesn't call onerror for errors caught in error boundaries.
 const origConsoleError = window.console.error
@@ -39,21 +38,36 @@ declare global {
   const __webpack_require__: any
 }
 
+const addChunkSuffix =
+  (getOriginalChunk: (chunkId: any) => string) => (chunkId: any) => {
+    return (
+      getOriginalChunk(chunkId) +
+      `${
+        process.env.NEXT_DEPLOYMENT_ID
+          ? `?dpl=${process.env.NEXT_DEPLOYMENT_ID}`
+          : ''
+      }`
+    )
+  }
+
 // eslint-disable-next-line no-undef
 const getChunkScriptFilename = __webpack_require__.u
 const chunkFilenameMap: any = {}
 
 // eslint-disable-next-line no-undef
-__webpack_require__.u = (chunkId: any) => {
-  return (
-    encodeURI(chunkFilenameMap[chunkId] || getChunkScriptFilename(chunkId)) +
-    `${
-      process.env.__NEXT_DEPLOYMENT_ID
-        ? `?dpl=${process.env.__NEXT_DEPLOYMENT_ID}`
-        : ''
-    }`
-  )
-}
+__webpack_require__.u = addChunkSuffix((chunkId) =>
+  encodeURI(chunkFilenameMap[chunkId] || getChunkScriptFilename(chunkId))
+)
+
+// eslint-disable-next-line no-undef
+const getChunkCssFilename = __webpack_require__.k
+// eslint-disable-next-line no-undef
+__webpack_require__.k = addChunkSuffix(getChunkCssFilename)
+
+// eslint-disable-next-line no-undef
+const getMiniCssFilename = __webpack_require__.miniCssF
+// eslint-disable-next-line no-undef
+__webpack_require__.miniCssF = addChunkSuffix(getMiniCssFilename)
 
 // Ignore the module ID transform in client.
 // eslint-disable-next-line no-undef
@@ -200,11 +214,12 @@ const StrictModeIfEnabled = process.env.__NEXT_STRICT_MODE_APP
   : React.Fragment
 
 function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
-  React.useEffect(() => {
-    if (process.env.__NEXT_ANALYTICS_ID) {
+  if (process.env.__NEXT_ANALYTICS_ID) {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    React.useEffect(() => {
       require('./performance-relayer-app')()
-    }
-  }, [])
+    }, [])
+  }
 
   if (process.env.__NEXT_TEST_MODE) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -221,8 +236,7 @@ function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
 }
 
 function RSCComponent(props: any): JSX.Element {
-  const cacheKey = getCacheKey()
-  return <ServerRoot {...props} cacheKey={cacheKey} />
+  return <ServerRoot {...props} cacheKey={getCacheKey()} />
 }
 
 export function hydrate() {
@@ -244,6 +258,7 @@ export function hydrate() {
       reactRoot.render(
         <GlobalLayoutRouterContext.Provider
           value={{
+            buildId: 'development',
             tree: rootLayoutMissingTagsError.tree,
             changeByServerResponse: () => {},
             focusAndScrollRef: {
@@ -298,14 +313,18 @@ export function hydrate() {
     }
   }
 
-  const reactRoot = isError
-    ? (ReactDOMClient as any).createRoot(appElement, options)
-    : (React as any).startTransition(() =>
-        (ReactDOMClient as any).hydrateRoot(appElement, reactEl, options)
-      )
   if (isError) {
-    reactRoot.render(reactEl)
+    ReactDOMClient.createRoot(appElement as any, options).render(reactEl)
+  } else {
+    React.startTransition(() =>
+      (ReactDOMClient as any).hydrateRoot(appElement, reactEl, options)
+    )
   }
 
-  linkGc()
+  // TODO-APP: Remove this logic when Float has GC built-in in development.
+  if (process.env.NODE_ENV !== 'production') {
+    const { linkGc } =
+      require('./app-link-gc') as typeof import('./app-link-gc')
+    linkGc()
+  }
 }

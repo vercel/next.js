@@ -4,9 +4,7 @@ description: Next.js supports API Routes, which allow you to build your API with
 ---
 
 <details>
-  <summary>
-    Examples
-  </summary>
+  <summary>Examples</summary>
 
 - [Basic API Routes](https://github.com/vercel/next.js/tree/canary/examples/api-routes)
 - [API Routes Request Helpers](https://github.com/vercel/next.js/tree/canary/examples/api-routes-middleware)
@@ -18,7 +16,7 @@ description: Next.js supports API Routes, which allow you to build your API with
 
 <PagesOnly>
 
-> **Note**: If you are using the App Router, you can use [Server Components](/docs/app/building-your-application/data-fetching/fetching) or [Route Handlers](/docs/app/building-your-application/routing/router-handlers) instead of API Routes.
+> **Good to know**: If you are using the App Router, you can use [Server Components](/docs/app/building-your-application/data-fetching/fetching) or [Route Handlers](/docs/app/building-your-application/routing/router-handlers) instead of API Routes.
 
 </PagesOnly>
 
@@ -34,7 +32,7 @@ export default function handler(req, res) {
 }
 ```
 
-> **Note**: API Routes will be affected by [`pageExtensions` configuration](/docs/pages/api-reference/next-config-js/pageExtensions) in `next.config.js`.
+> **Good to know**: API Routes will be affected by [`pageExtensions` configuration](/docs/pages/api-reference/next-config-js/pageExtensions) in `next.config.js`.
 
 For an API route to work, you need to export a function as default (a.k.a **request handler**), which then receives the following parameters:
 
@@ -350,7 +348,7 @@ export default function handler(
 }
 ```
 
-> **Note**: The body of `NextApiRequest` is `any` because the client may include any payload. You should validate the type/shape of the body at runtime before using it.
+> **Good to know**: The body of `NextApiRequest` is `any` because the client may include any payload. You should validate the type/shape of the body at runtime before using it.
 
 ## Dynamic API Routes
 
@@ -391,7 +389,7 @@ API Routes can be extended to catch all paths by adding three dots (`...`) insid
 
 - `pages/api/post/[...slug].js` matches `/api/post/a`, but also `/api/post/a/b`, `/api/post/a/b/c` and so on.
 
-> **Note**: You can use names other than `slug`, such as: `[...param]`
+> **Good to know**: You can use names other than `slug`, such as: `[...param]`
 
 Matched parameters will be sent as a query parameter (`slug` in the example) to the page, and it will always be an array, so, the path `/api/post/a` will have the following `query` object:
 
@@ -547,7 +545,7 @@ export default async function handler(req: NextRequest) {
 
 You may want to restrict your edge function to specific regions when deploying so that you can colocate near your data sources ensuring lower response times which can be achieved as shown.
 
-> **Note**: This configuration is available in `v12.3.2` of Next.js and up.
+> **Good to know**: This configuration is available in `v12.3.2` of Next.js and up.
 
 ```js
 import { NextResponse } from 'next/server'
@@ -568,6 +566,6 @@ Edge API Routes use the [Edge Runtime](/docs/pages/api-reference/edge), whereas 
 
 Edge API Routes can [stream responses](/docs/pages/api-reference/edge#stream-apis) from the server and run _after_ cached files (e.g. HTML, CSS, JavaScript) have been accessed. Server-side streaming can help improve performance with faster [Time To First Byte (TTFB)](https://web.dev/ttfb/).
 
-> **Note**: Using [Edge Runtime](/docs/pages/api-reference/edge) with `getServerSideProps` does not give you access to the response object. If you need access to `res`, you should use the [Node.js runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes) by setting `runtime: 'nodejs'`.
+> **Good to know**: Using [Edge Runtime](/docs/pages/api-reference/edge) with `getServerSideProps` does not give you access to the response object. If you need access to `res`, you should use the [Node.js runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes) by setting `runtime: 'nodejs'`.
 
 View the [supported APIs](/docs/pages/api-reference/edge) and [unsupported APIs](/docs/pages/api-reference/edge#unsupported-apis) for the Edge Runtime.

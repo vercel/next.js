@@ -53,7 +53,7 @@ import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin
 import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
 import { ClientReferenceManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
-import { ClientReferenceEntryPlugin } from './webpack/plugins/flight-client-entry-plugin'
+import { FlightClientEntryPlugin } from './webpack/plugins/flight-client-entry-plugin'
 import { NextTypesPlugin } from './webpack/plugins/next-types-plugin'
 import type {
   Feature,
@@ -97,7 +97,7 @@ const babelIncludeRegexes: RegExp[] = [
 const reactPackagesRegex = /^(react|react-dom|react-server-dom-webpack)($|\/)/
 
 const asyncStoragesRegex =
-  /next[\\/]dist[\\/]client[\\/]components[\\/](static-generation-async-storage|action-async-storage|request-async-storage)/
+  /next[\\/]dist[\\/](esm[\\/])?client[\\/]components[\\/](static-generation-async-storage|action-async-storage|request-async-storage)/
 
 // exports.<conditionName>
 const edgeConditionNames = [
@@ -264,7 +264,7 @@ export function getDefineEnv({
     'process.env.__NEXT_ACTIONS_DEPLOYMENT_ID': JSON.stringify(
       config.experimental.useDeploymentIdServerActions
     ),
-    'process.env.__NEXT_DEPLOYMENT_ID': JSON.stringify(
+    'process.env.NEXT_DEPLOYMENT_ID': JSON.stringify(
       config.experimental.deploymentId
     ),
     'process.env.__NEXT_FETCH_CACHE_KEY_PREFIX':
@@ -773,8 +773,8 @@ export default async function getBaseWebpackConfig(
   const hasServerComponents = hasAppDir
   const disableOptimizedLoading = true
   const enableTypedRoutes = !!config.experimental.typedRoutes && hasAppDir
-  const serverActions = !!config.experimental.serverActions && hasAppDir
-  const bundledReactChannel = serverActions ? '-experimental' : ''
+  const useServerActions = !!config.experimental.serverActions && hasAppDir
+  const bundledReactChannel = useServerActions ? '-experimental' : ''
 
   if (isClient) {
     if (
@@ -1077,6 +1077,9 @@ export default async function getBaseWebpackConfig(
       ...nodePathList, // Support for NODE_PATH environment variable
     ],
     alias: {
+      // Alias 3rd party @vercel/og package to vendored og image package to reduce bundle size
+      '@vercel/og': 'next/dist/server/web/spec-extension/image-response',
+
       // Alias next/dist imports to next/dist/esm assets,
       // let this alias hit before `next` alias.
       ...(isEdgeServer
@@ -1088,25 +1091,27 @@ export default async function getBaseWebpackConfig(
             'next/dist/server': 'next/dist/esm/server',
 
             // Alias the usage of next public APIs
-            [require.resolve('next/dist/client/link')]:
+            [`${NEXT_PROJECT_ROOT}/server`]:
+              'next/dist/esm/server/web/exports/index',
+            [`${NEXT_PROJECT_ROOT}/dist/client/link`]:
               'next/dist/esm/client/link',
-            [require.resolve('next/dist/client/image')]:
+            [`${NEXT_PROJECT_ROOT}/dist/client/image`]:
               'next/dist/esm/client/image',
-            [require.resolve('next/dist/client/script')]:
+            [`${NEXT_PROJECT_ROOT}/dist/client/script`]:
               'next/dist/esm/client/script',
-            [require.resolve('next/dist/client/router')]:
+            [`${NEXT_PROJECT_ROOT}/dist/client/router`]:
               'next/dist/esm/client/router',
-            [require.resolve('next/dist/shared/lib/head')]:
+            [`${NEXT_PROJECT_ROOT}/dist/shared/lib/head`]:
               'next/dist/esm/shared/lib/head',
-            [require.resolve('next/dist/shared/lib/dynamic')]:
+            [`${NEXT_PROJECT_ROOT}/dist/shared/lib/dynamic`]:
               'next/dist/esm/shared/lib/dynamic',
-            [require.resolve('next/dist/pages/_document')]:
+            [`${NEXT_PROJECT_ROOT}/dist/pages/_document`]:
               'next/dist/esm/pages/_document',
-            [require.resolve('next/dist/pages/_app')]:
+            [`${NEXT_PROJECT_ROOT}/dist/pages/_app`]:
               'next/dist/esm/pages/_app',
-            [require.resolve('next/dist/client/components/navigation')]:
+            [`${NEXT_PROJECT_ROOT}/dist/client/components/navigation`]:
               'next/dist/esm/client/components/navigation',
-            [require.resolve('next/dist/client/components/headers')]:
+            [`${NEXT_PROJECT_ROOT}/dist/client/components/headers`]:
               'next/dist/esm/client/components/headers',
           }
         : undefined),
@@ -1385,7 +1390,7 @@ export default async function getBaseWebpackConfig(
       // so that the DefinePlugin can inject process.env values.
 
       // Treat next internals as non-external for server layer
-      if (layer === WEBPACK_LAYERS.server) {
+      if (layer === WEBPACK_LAYERS.server || layer === WEBPACK_LAYERS.action) {
         return
       }
 
@@ -1433,8 +1438,8 @@ export default async function getBaseWebpackConfig(
       resolveResult.res = require.resolve(request)
     }
 
-    // Don't bundle @vercel/og nodejs bundle for nodejs runtime
-    // TODO-APP: bundle route.js with different layer that externals common node_module deps
+    // Don't bundle @vercel/og nodejs bundle for nodejs runtime.
+    // TODO-APP: bundle route.js with different layer that externals common node_module deps.
     if (
       layer === WEBPACK_LAYERS.server &&
       request === 'next/dist/compiled/@vercel/og/index.node.js'
@@ -1520,7 +1525,7 @@ export default async function getBaseWebpackConfig(
       (isEsm && isAppLayer)
 
     if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
-      if (layer === WEBPACK_LAYERS.server) {
+      if (layer === WEBPACK_LAYERS.server || layer === WEBPACK_LAYERS.action) {
         // All packages should be bundled for the server layer if they're not opted out.
         // This option takes priority over the transpilePackages option.
 
@@ -1761,7 +1766,11 @@ export default async function getBaseWebpackConfig(
       runtimeChunk: isClient
         ? { name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK }
         : undefined,
-      minimize: !dev && (isClient || isEdgeServer),
+      minimize:
+        !dev &&
+        (isClient ||
+          isEdgeServer ||
+          (isNodeServer && config.experimental.serverMinification)),
       minimizer: [
         // Minify JavaScript
         (compiler: webpack.Compiler) => {
@@ -1895,6 +1904,12 @@ export default async function getBaseWebpackConfig(
         ...(hasAppDir
           ? [
               {
+                // Make sure that AsyncLocalStorage module instance is shared between server and client
+                // layers.
+                layer: WEBPACK_LAYERS.shared,
+                test: asyncStoragesRegex,
+              },
+              {
                 // All app dir layers need to use this configured resolution logic
                 issuerLayer: {
                   or: [
@@ -1956,12 +1971,6 @@ export default async function getBaseWebpackConfig(
                 use: {
                   loader: 'next-flight-loader',
                 },
-              },
-              {
-                // Make sure that AsyncLocalStorage module instance is shared between server and client
-                // layers.
-                layer: WEBPACK_LAYERS.shared,
-                test: asyncStoragesRegex,
               },
             ]
           : []),
@@ -2267,6 +2276,12 @@ export default async function getBaseWebpackConfig(
               "'server-only' cannot be imported from a Client Component module. It should only be used from a Server Component.",
           },
         },
+        {
+          // Mark `image-response.js` as side-effects free to make sure we can
+          // tree-shake it if not used.
+          test: /[\\/]next[\\/]dist[\\/](esm[\\/])?server[\\/]web[\\/]exports[\\/]image-response\.js/,
+          sideEffects: false,
+        },
       ].filter(Boolean),
     },
     plugins: [
@@ -2409,11 +2424,11 @@ export default async function getBaseWebpackConfig(
               dev,
               appDir,
             })
-          : new ClientReferenceEntryPlugin({
+          : new FlightClientEntryPlugin({
               appDir,
               dev,
               isEdgeServer,
-              useServerActions: serverActions,
+              useServerActions,
             })),
       hasAppDir &&
         !isClient &&
@@ -2434,7 +2449,7 @@ export default async function getBaseWebpackConfig(
         new SubresourceIntegrityPlugin(config.experimental.sri.algorithm),
       isClient &&
         new NextFontManifestPlugin({
-          appDirEnabled: !!config.experimental.appDir,
+          appDir,
         }),
       !dev &&
         isClient &&
@@ -2546,12 +2561,6 @@ export default async function getBaseWebpackConfig(
     webpack5Config.output.enabledLibraryTypes = ['assign']
   }
 
-  if (dev) {
-    // @ts-ignore unsafeCache exists
-    webpack5Config.module.unsafeCache = (module) =>
-      !/[\\/]pages[\\/][^\\/]+(?:$|\?|#)/.test(module.resource)
-  }
-
   // This enables managedPaths for all node_modules
   // and also for the unplugged folder when using yarn pnp
   // It also add the yarn cache to the immutable paths
@@ -2625,6 +2634,7 @@ export default async function getBaseWebpackConfig(
     //  - next.config.js keys that affect compilation
     version: `${process.env.__NEXT_VERSION}|${configVars}`,
     cacheDirectory: path.join(distDir, 'cache', 'webpack'),
+    compression: 'gzip',
   }
 
   // Adds `next.config.js` as a buildDependency when custom webpack config is provided
@@ -2718,6 +2728,7 @@ export default async function getBaseWebpackConfig(
     experimental: config.experimental,
     disableStaticImages: config.images.disableStaticImages,
     transpilePackages: config.transpilePackages,
+    serverSourceMaps: config.experimental.serverSourceMaps,
   })
 
   // @ts-ignore Cache exists

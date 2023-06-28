@@ -32,7 +32,7 @@ If you're using ESLint, you need to upgrade your ESLint version:
 npm install -D eslint-config-next@latest
 ```
 
-> **Note:** You may need to restart the ESLint server in VS Code for the ESLint changes to take effect. Open the Command Palette (`cmd+shift+p` on Mac; `ctrl+shift+p` on Windows) and search for `ESLint: Restart ESLint Server`.
+> **Good to know**: You may need to restart the ESLint server in VS Code for the ESLint changes to take effect. Open the Command Palette (`cmd+shift+p` on Mac; `ctrl+shift+p` on Windows) and search for `ESLint: Restart ESLint Server`.
 
 ## Next Steps
 
@@ -98,6 +98,8 @@ See the [Font Optimization](/docs/app/building-your-application/optimizing/fonts
 
 ## Migrating from `pages` to `app`
 
+> **🎥 Watch:** Learn how to incrementally adopt the App Router → [YouTube (16 minutes)](https://www.youtube.com/watch?v=YQMSietiFm0).
+
 Moving to the App Router may be the first time using React features that Next.js builds on top of such as Server Components, Suspense, and more. When combined with new Next.js features such as [special files](/docs/app/building-your-application/routing#file-conventions) and [layouts](/docs/app/building-your-application/routing/pages-and-layouts#layouts), migration means new concepts, mental models, and behavioral changes to learn.
 
 We recommend reducing the combined complexity of these updates by breaking down your migration into smaller steps. The `app` directory is intentionally designed to work simultaneously with the `pages` directory to allow for incremental page-by-page migration.
@@ -113,7 +115,6 @@ We recommend reducing the combined complexity of these updates by breaking down 
 - `pages/_app.js` and `pages/_document.js` have been replaced with a single `app/layout.js` root layout. [Learn more](/docs/app/building-your-application/routing/pages-and-layouts#root-layout-required).
 - `pages/_error.js` has been replaced with more granular `error.js` special files. [Learn more](/docs/app/building-your-application/routing/error-handling).
 - `pages/404.js` has been replaced with the [`not-found.js`](/docs/app/api-reference/file-conventions/not-found) file.
-- You can colocate other files inside the `app` directory such as components, styles, tests, and more. [Learn more](/docs/app/building-your-application/routing).
 - `pages/api/*` currently remain inside the `pages` directory.
 
 ### Step 1: Creating the `app` directory
@@ -194,9 +195,7 @@ If you are using any React Context providers, they will need to be moved to a [C
 Next.js recommended adding a [property to Page components](/docs/pages/building-your-application/routing/pages-and-layouts#layout-pattern#per-page-layouts) to achieve per-page layouts in the `pages` directory. This pattern can be replaced with native support for [nested layouts](/docs/app/building-your-application/routing/pages-and-layouts#layouts) in the `app` directory.
 
 <details>
-  <summary>
-    See before and after example
-  </summary>
+  <summary>See before and after example</summary>
 
 **Before**
 
@@ -284,7 +283,7 @@ export default function Page() {
 }
 ```
 
-```js filename="pages/index.js" switcher
+```jsx filename="pages/index.js" switcher
 import Head from 'next/head'
 
 export default function Page() {
@@ -340,7 +339,7 @@ We recommend breaking down the migration of a page into two main steps:
 - Step 1: Move the default exported Page Component into a new Client Component.
 - Step 2: Import the new Client Component into a new `page.js` file inside the `app` directory.
 
-> **Note:** This is the easiest migration path because it has the most comparable behavior to the `pages` directory.
+> **Good to know**: This is the easiest migration path because it has the most comparable behavior to the `pages` directory.
 
 **Step 1: Create a new Client Component**
 
@@ -430,7 +429,7 @@ export default function HomePage({ recentPosts }) {
 
 A new router has been added to support the new behavior in the `app` directory.
 
-In `app`, you should use the three new hooks imported from `next/navigation`: [`useRouter()`](/docs/app/api-reference/functions/use-router), [`usePathname()`](/docs/app/api-reference/functions/use-pathname), and [`useSearchParams()`](/docs/app/api-reference/functions/use-params).
+In `app`, you should use the three new hooks imported from `next/navigation`: [`useRouter()`](/docs/app/api-reference/functions/use-router), [`usePathname()`](/docs/app/api-reference/functions/use-pathname), and [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params).
 
 - The new `useRouter` hook is imported from `next/navigation` and has different behavior to the `useRouter` hook in `pages` which is imported from `next/router`.
   - The [`useRouter` hook imported from `next/router`](/docs/pages/api-reference/functions/use-router) is not supported in the `app` directory but can continue to be used in the `pages` directory.
@@ -453,7 +452,7 @@ export default function ExampleClientComponent() {
 }
 ```
 
-```js filename="app/example-client-component.js" switcher
+```jsx filename="app/example-client-component.js" switcher
 'use client'
 
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
@@ -685,7 +684,7 @@ export default function Index({ projects }) {
 
 In the `app` directory, data fetching with [`fetch()`](/docs/app/api-reference/functions/fetch) will default to `cache: 'force-cache'`, which will cache the request data until manually invalidated. This is similar to `getStaticProps` in the `pages` directory.
 
-```tsx filename="app/page.js"
+```jsx filename="app/page.js"
 // `app` directory
 
 // This function can be named anything
@@ -870,7 +869,7 @@ export async function GET(request: Request) {}
 export async function GET(request) {}
 ```
 
-> **Note:** If you previously used API routes to call an external API from the client, you can now use [Server Components](/docs/getting-started/react-essentials#server-components) instead to securely fetch data. Learn more about [data fetching](/docs/app/building-your-application/data-fetching/fetching).
+> **Good to know**: If you previously used API routes to call an external API from the client, you can now use [Server Components](/docs/getting-started/react-essentials#server-components) instead to securely fetch data. Learn more about [data fetching](/docs/app/building-your-application/data-fetching/fetching).
 
 ### Step 7: Styling
 
@@ -887,7 +886,7 @@ In the `pages` directory, global stylesheets are restricted to only `pages/_app.
 
 If you're using Tailwind CSS, you'll need to add the `app` directory to your `tailwind.config.js` file:
 
-```jsx filename="tailwind.config.js"
+```js filename="tailwind.config.js"
 module.exports = {
   content: [
     './app/**/*.{js,ts,jsx,tsx,mdx}', // <-- Add this line

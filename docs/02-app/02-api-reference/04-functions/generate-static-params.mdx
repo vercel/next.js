@@ -300,3 +300,9 @@ export default function Page({ params }) {
 ```
 
 > **Good to know**: When rendering a route, Next.js will [automatically deduplicate `fetch` requests](/docs/app/building-your-application/data-fetching#automatic-fetch-request-deduping) for the same data across `generateMetadata`, `generateStaticParams`, Layouts, Pages, and Server Components. React [`cache` can be used](/docs/app/building-your-application/data-fetching/caching#react-cache) if `fetch` is unavailable.
+
+## Version History
+
+| Version   | Changes                            |
+| --------- | ---------------------------------- |
+| `v13.0.0` | `generateStaticParams` introduced. |

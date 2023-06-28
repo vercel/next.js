@@ -18,7 +18,7 @@ Route Handlers allow you to create custom request handlers for a given route usi
   height="444"
 />
 
-> **Good to know:** Route Handlers are only available inside the `app` directory. They are the equivalent of [API Routes](/docs/pages/building-your-application/routing/api-routes) inside the `pages` directory meaning you **do not** need to use API Routes and Route Handlers together.
+> **Good to know**: Route Handlers are only available inside the `app` directory. They are the equivalent of [API Routes](/docs/pages/building-your-application/routing/api-routes) inside the `pages` directory meaning you **do not** need to use API Routes and Route Handlers together.
 
 ## Convention
 
@@ -170,7 +170,7 @@ export async function POST() {
 }
 ```
 
-> **Note:** Previously, API Routes could have been used for use cases like handling form submissions. Route Handlers are likely not the solution for these uses cases. We will be recommending the use of [mutations](/docs/app/building-your-application/data-fetching/server-actions) for this when ready.
+> **Good to know**: Previously, API Routes could have been used for use cases like handling form submissions. Route Handlers are likely not the solution for these use cases. We will be recommending the use of [mutations](/docs/app/building-your-application/data-fetching/server-actions) for this when ready.
 
 ### Route Resolution
 
@@ -187,7 +187,7 @@ You can consider a `route` the lowest level routing primitive.
 
 Each `route.js` or `page.js` file takes over all HTTP verbs for that route.
 
-```tsx filename="app/page.js"
+```jsx filename="app/page.js"
 export default function Page() {
   return <h1>Hello, Next.js!</h1>
 }
@@ -256,7 +256,7 @@ export async function GET(request: Request) {
 
   return new Response('Hello, Next.js!', {
     status: 200,
-    headers: { 'Set-Cookie': `token=${token}` },
+    headers: { 'Set-Cookie': `token=${token.value}` },
   })
 }
 ```
@@ -387,6 +387,60 @@ export async function GET(request, { params }) {
 | `app/items/[slug]/route.js` | `/items/c`  | `{ slug: 'c' }` |
 
 ### Streaming
+
+Streaming is commonly used in combination with Large Language Models (LLMs), such an OpenAI, for AI-generated content. Learn more about the [AI SDK](https://sdk.vercel.ai/docs).
+
+```ts filename="app/api/completion/route.ts" switcher
+import { Configuration, OpenAIApi } from 'openai-edge'
+import { OpenAIStream, StreamingTextResponse } from 'ai'
+
+const config = new Configuration({
+  apiKey: process.env.OPENAI_API_KEY,
+})
+const openai = new OpenAIApi(config)
+
+export const runtime = 'edge'
+
+export async function POST(req: Request) {
+  const { prompt } = await req.json()
+  const response = await openai.createCompletion({
+    model: 'text-davinci-003',
+    stream: true,
+    temperature: 0.6,
+    prompt: 'What is Next.js?',
+  })
+
+  const stream = OpenAIStream(response)
+  return new StreamingTextResponse(stream)
+}
+```
+
+```js filename="app/api/completion/route.js" switcher
+import { Configuration, OpenAIApi } from 'openai-edge'
+import { OpenAIStream, StreamingTextResponse } from 'ai'
+
+const config = new Configuration({
+  apiKey: process.env.OPENAI_API_KEY,
+})
+const openai = new OpenAIApi(config)
+
+export const runtime = 'edge'
+
+export async function POST(req) {
+  const { prompt } = await req.json()
+  const response = await openai.createCompletion({
+    model: 'text-davinci-003',
+    stream: true,
+    temperature: 0.6,
+    prompt: 'What is Next.js?',
+  })
+
+  const stream = OpenAIStream(response)
+  return new StreamingTextResponse(stream)
+}
+```
+
+These abstractions use the Web APIs to create a stream. You can also use the underlying Web APIs directly.
 
 ```ts filename="app/api/route.ts" switcher
 // https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream#convert_async_iterator_to_stream

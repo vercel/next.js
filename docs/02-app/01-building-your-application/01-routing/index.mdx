@@ -40,7 +40,7 @@ In version 13, Next.js introduced a new **App Router** built on [React Server Co
 
 The App Router works in a new directory named `app`. The `app` directory works alongside the `pages` directory to allow for incremental adoption. This allows you to opt some routes of your application into the new behavior while keeping other routes in the `pages` directory for previous behavior. If your application uses the `pages` directory, please also see the [Pages Router](/docs/pages/building-your-application/routing) documentation.
 
-> **Good to know:** The App Router takes priority over the Pages Router. Routes across directories should not resolve to the same URL path and will cause a build-time error to prevent a conflict.
+> **Good to know**: The App Router takes priority over the Pages Router. Routes across directories should not resolve to the same URL path and will cause a build-time error to prevent a conflict.
 
 <Image
   alt="Next.js App Directory"
@@ -99,7 +99,7 @@ Next.js provides a set of special files to create UI with specific behavior in n
 | [`template`](/docs/app/building-your-application/routing/pages-and-layouts#templates) | Specialized re-rendered Layout UI                                                              |
 | [`default`](/docs/app/api-reference/file-conventions/default)                         | Fallback UI for [Parallel Routes](/docs/app/building-your-application/routing/parallel-routes) |
 
-> **Good to know:** `.js`, `.jsx`, or `.tsx` file extensions can be used for special files.
+> **Good to know**: `.js`, `.jsx`, or `.tsx` file extensions can be used for special files.
 
 ## Component Hierarchy
 
@@ -132,7 +132,7 @@ In a nested route, the components of a segment will be nested **inside** the com
 
 ## Colocation
 
-In addition to special files, you have the option to colocate your own files (e.g. components, styles, tests etc) inside folders in the `app` directory.
+In addition to special files, you have the option to colocate your own files (e.g. components, styles, tests, etc) inside folders in the `app` directory.
 
 This is because while folders define routes, only the contents returned by `page.js` or `route.js` are publically addressable.
 
@@ -172,7 +172,7 @@ Without partial rendering, each navigation would cause the full page to re-rende
 
 ## Advanced Routing Patterns
 
-The App Router also provides a set conventions to help you implement more advanced routing patterns. These include:
+The App Router also provides a set of conventions to help you implement more advanced routing patterns. These include:
 
 - [Parallel Routes](/docs/app/building-your-application/routing/parallel-routes): Allow you to simultaneously show two or more pages in the same view that can be navigated independently. You can use them for split views that have their own sub-navigation. E.g. Dashboards.
 - [Intercepting Routes](/docs/app/building-your-application/routing/intercepting-routes): Allow you to intercept a route and show it in the context of another route. You can use these when keeping the context for the current page is important. E.g. Seeing all tasks while editing one task or expanding a photo in a feed.

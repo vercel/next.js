@@ -12,7 +12,7 @@ React 18 and Next.js 13 introduced new ways to render your application. This pag
 There are two environments where your application code can be rendered: the client and the server.
 
 <Image
-  alt="Client and Server Environemnts"
+  alt="Client and Server Environments"
   srcLight="/docs/light/client-and-server-environments.png"
   srcDark="/docs/dark/client-and-server-environments.png"
   width="1600"
@@ -22,7 +22,7 @@ There are two environments where your application code can be rendered: the clie
 - The **client** refers to the browser on a user's device that sends a request to a server for your application code. It then turns the response from the server into an interface the user can interact with.
 - The **server** refers to the computer in a data center that stores your application code, receives requests from a client, does some computation, and sends back an appropriate response.
 
-> **Note:** Server can refer to computers in regions where your application is deployed to, the [Edge Network](https://vercel.com/docs/concepts/edge-network/overview) where your application code is distributed, or [Content Delivery Networks (CDNs)](https://developer.mozilla.org/en-US/docs/Glossary/CDN) where the result of the rendering work can be cached.
+> **Good to know**: Server can refer to computers in regions where your application is deployed to, the [Edge Network](https://vercel.com/docs/concepts/edge-network/overview) where your application code is distributed, or [Content Delivery Networks (CDNs)](https://developer.mozilla.org/en-US/docs/Glossary/CDN) where the result of the rendering work can be cached.
 
 ## Component-level Client and Server Rendering
 
@@ -42,7 +42,7 @@ In addition to client-side and server-side rendering with React components, Next
 
 With **Static Rendering**, both Server _and_ Client Components can be prerendered on the server at **build time**. The result of the work is [cached](/docs/app/building-your-application/data-fetching/caching) and reused on subsequent requests. The cached result can also be [revalidated](/docs/app/building-your-application/data-fetching#revalidating-data).
 
-> **Note:** This is equivalent to [Static Site Generation (SSG)](/docs/pages/building-your-application/rendering/static-site-generation) and [Incremental Static Regeneration (ISR)](/docs/pages/building-your-application/rendering/incremental-static-regeneration) in the [Pages Router](/docs/pages/building-your-application/rendering).
+> **Good to know**: This is equivalent to [Static Site Generation (SSG)](/docs/pages/building-your-application/rendering/static-site-generation) and [Incremental Static Regeneration (ISR)](/docs/pages/building-your-application/rendering/incremental-static-regeneration) in the [Pages Router](/docs/pages/building-your-application/rendering).
 
 Server and Client Components are rendered differently during Static Rendering:
 
@@ -53,7 +53,7 @@ Server and Client Components are rendered differently during Static Rendering:
 
 With Dynamic Rendering, both Server _and_ Client Components are rendered on the server at **request time**. The result of the work is not cached.
 
-> **Note:** This is equivalent to [Server-Side Rendering (`getServerSideProps()`)](/docs/pages/building-your-application/rendering/server-side-rendering) in the [Pages Router](/docs/pages/building-your-application/rendering).
+> **Good to know**: This is equivalent to [Server-Side Rendering (`getServerSideProps()`)](/docs/pages/building-your-application/rendering/server-side-rendering) in the [Pages Router](/docs/pages/building-your-application/rendering).
 
 To learn more about static and dynamic behavior, see the [Static and Dynamic Rendering](/docs/app/building-your-application/rendering/static-and-dynamic-rendering) page. To learn more about caching, see the [Caching](/docs/app/building-your-application/data-fetching/caching) sections.
 

@@ -62,7 +62,6 @@ import {
   APP_PATHS_MANIFEST,
   APP_PATH_ROUTES_MANIFEST,
   APP_BUILD_MANIFEST,
-  FLIGHT_SERVER_CSS_MANIFEST,
   RSC_MODULE_TYPES,
   NEXT_FONT_MANIFEST,
   SUBRESOURCE_INTEGRITY_MANIFEST,
@@ -211,6 +210,7 @@ export default async function build(
   noMangling = false,
   appDirOnly = false,
   turboNextBuild = false,
+  turboNextBuildRoot = null,
   buildMode: 'default' | 'experimental-compile' | 'experimental-generate'
 ): Promise<void> {
   const isCompile = buildMode === 'experimental-compile'
@@ -246,7 +246,7 @@ export default async function build(
         // ".next" (or whatever the distDir) followed by "next export"
         // to generate "out" (or whatever the outDir). However, when
         // "output: export" is configured, "next build" does both steps.
-        // So the user-configured dirDir is actually the outDir.
+        // So the user-configured distDir is actually the outDir.
         configOutDir = config.distDir
         config.distDir = '.next'
       }
@@ -549,6 +549,23 @@ export default async function build(
       const pageKeys = {
         pages: pagesPageKeys,
         app: appPageKeys.length > 0 ? appPageKeys : undefined,
+      }
+
+      if (turboNextBuild) {
+        // TODO(WEB-397) This is a temporary workaround to allow for filtering a
+        // subset of pages when building with --experimental-turbo, until we
+        // have complete support for all pages.
+        if (process.env.NEXT_TURBO_FILTER_PAGES) {
+          const filterPages = process.env.NEXT_TURBO_FILTER_PAGES.split(',')
+          pageKeys.pages = pageKeys.pages.filter((page) => {
+            return filterPages.some((filterPage) => {
+              return isMatch(page, filterPage)
+            })
+          })
+        }
+
+        // TODO(alexkirsz) Filter out app pages entirely as they are not supported yet.
+        pageKeys.app = undefined
       }
 
       const numConflictingAppPaths = conflictingAppPagePaths.length
@@ -895,14 +912,6 @@ export default async function build(
                   ),
                   path.join(
                     SERVER_DIRECTORY,
-                    FLIGHT_SERVER_CSS_MANIFEST + '.js'
-                  ),
-                  path.join(
-                    SERVER_DIRECTORY,
-                    FLIGHT_SERVER_CSS_MANIFEST + '.json'
-                  ),
-                  path.join(
-                    SERVER_DIRECTORY,
                     SERVER_REFERENCE_MANIFEST + '.js'
                   ),
                   path.join(
@@ -941,7 +950,23 @@ export default async function build(
 
       async function turbopackBuild() {
         const turboNextBuildStart = process.hrtime()
-        await binding.turbo.nextBuild(NextBuildContext)
+
+        const turboJson = findUp.sync('turbo.json', { cwd: dir })
+        // eslint-disable-next-line no-shadow
+        const packagePath = findUp.sync('package.json', { cwd: dir })
+
+        let root =
+          turboNextBuildRoot ??
+          (turboJson
+            ? path.dirname(turboJson)
+            : packagePath
+            ? path.dirname(packagePath)
+            : undefined)
+        await binding.turbo.nextBuild({
+          ...NextBuildContext,
+          root,
+        })
+
         const [duration] = process.hrtime(turboNextBuildStart)
         return { duration, turbotraceContext: null }
       }
@@ -1141,10 +1166,6 @@ export default async function build(
         : config.experimental.cpus || 4
 
       function createStaticWorker(type: 'app' | 'pages') {
-        const numWorkersPerType = isAppDirEnabled
-          ? Math.max(1, ~~(numWorkers / 2))
-          : numWorkers
-
         let infoPrinted = false
 
         return new Worker(staticWorkerPath, {
@@ -1178,7 +1199,7 @@ export default async function build(
               infoPrinted = true
             }
           },
-          numWorkers: numWorkersPerType,
+          numWorkers,
           forkOptions: {
             env: {
               ...process.env,
@@ -1770,6 +1791,12 @@ export default async function build(
 
           if (config.outputFileTracing) {
             for (let page of pageKeys.pages) {
+              // edge routes have no trace files
+              const pageInfo = pageInfos.get(page)
+              if (pageInfo?.runtime === 'edge') {
+                continue
+              }
+
               const combinedIncludes = new Set<string>()
               const combinedExcludes = new Set<string>()
 

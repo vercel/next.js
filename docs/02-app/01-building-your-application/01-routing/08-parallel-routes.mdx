@@ -25,7 +25,7 @@ Parallel Routing allows you to define independent error and loading states for e
   height="1218"
 />
 
-Parallel Routing also allow you to conditionally render a slot based on certain conditions, such as authentication state. This enables fully separated code on the same URL.
+Parallel Routing also allows you to conditionally render a slot based on certain conditions, such as authentication state. This enables fully separated code on the same URL.
 
 <Image
   alt="Conditional routes diagram"
@@ -126,6 +126,7 @@ Both [`useSelectedLayoutSegment`](/docs/app/api-reference/functions/use-selected
 
 ```tsx filename="app/layout.tsx" switcher
 'use client'
+
 import { useSelectedLayoutSegment } from 'next/navigation'
 
 export default async function Layout(props: {
@@ -139,6 +140,7 @@ export default async function Layout(props: {
 
 ```jsx filename="app/layout.js" switcher
 'use client'
+
 import { useSelectedLayoutSegment } from 'next/navigation'
 
 export default async function Layout(props) {
@@ -251,7 +253,7 @@ export default async function Login() {
 }
 ```
 
-```jsx filename="app/@authModal/login/page.jsx" highlight="5" switcher
+```jsx filename="app/@authModal/login/page.js" highlight="5" switcher
 'use client'
 import { useRouter } from 'next/navigation'
 import { Modal } from 'components/modal'
@@ -280,13 +282,19 @@ If you want to navigate elsewhere and dismiss a modal, you can also use a catch-
   height="768"
 />
 
-```tsx filename="app/@authModal/[...catchAll]/page.js"
+```tsx filename="app/@authModal/[...catchAll]/page.tsx" switcher
 export default function CatchAll() {
   return null
 }
 ```
 
-> Catch-all routes take presedence over `default.js`.
+```jsx filename="app/@authModal/[...catchAll]/page.js" switcher
+export default function CatchAll() {
+  return null
+}
+```
+
+> Catch-all routes take precedence over `default.js`.
 
 ### Conditional Routes
 

@@ -26,7 +26,7 @@ lto = true
 
 [workspace.dependencies]
 # Workspace crates
-next-build = { path = "packages/next-swc/crates/next-build" }
+next-build = { path = "packages/next-swc/crates/next-build", default-features = false }
 next-core = { path = "packages/next-swc/crates/next-core", default-features = false }
 next-dev = { path = "packages/next-swc/crates/next-dev", default-features = false, features = [
   "serializable",
@@ -38,15 +38,15 @@ next-transform-strip-page-exports = { path = "packages/next-swc/crates/next-tran
 
 # SWC crates
 # Keep consistent with preset_env_base through swc_core
-swc_core = { version = "0.76.41" }
+swc_core = { version = "0.76.46" }
 testing = { version = "0.33.13" }
 
 # Turbo crates
-turbopack-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230608.1" }
+turbopack-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230622.2" }
 # [TODO]: need to refactor embed_directory! macro usages, as well as resolving turbo_tasks::function, macros..
-turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230608.1" }
+turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230622.2" }
 # [TODO]: need to refactor embed_directory! macro usage in next-core
-turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230608.1" }
+turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230622.2" }
 
 # General Deps
 
@@ -56,12 +56,12 @@ turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack
 # and some aren't buildable with rustls.
 reqwest = { version = "0.11.14", default-features = false }
 
-chromiumoxide = { version = "0.4.0", features = [
+chromiumoxide = { version = "0.5.0", features = [
   "tokio-runtime",
 ], default-features = false }
 # For matching on errors from chromiumoxide. Keep in
 # sync with chromiumoxide's tungstenite requirement.
-tungstenite = "0.17.3"
+tungstenite = "0.18.0"
 
 # flate2_zlib requires zlib, use flate2_rust
 allsorts = { version = "0.14.0", default_features = false, features = [

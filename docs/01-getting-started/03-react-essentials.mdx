@@ -70,7 +70,7 @@ export default function Counter() {
 }
 ```
 
-```jsx filename="app/counter.jsx" highlight={1} switcher
+```jsx filename="app/counter.js" highlight={1} switcher
 'use client'
 
 import { useState } from 'react'
@@ -99,7 +99,7 @@ export default function Counter() {
 
 Since Server Components are the default, all components are part of the Server Component module graph unless defined or imported in a module that starts with the `"use client"` directive.
 
-> **Good to know:**
+> **Good to know**:
 >
 > - Components in the Server Component module graph are guaranteed to be only rendered on the server.
 > - Components in the Client Component module graph are primarily rendered on the client, but with Next.js, they can also be pre-rendered on the server and hydrated on the client.
@@ -186,7 +186,7 @@ Behind the scenes, React handles rendering as follows:
 - On the client, React renders Client Components and _slots in_ the rendered result of Server Components, merging the work done on the server and client.
   - If any Server Components are nested inside a Client Component, their rendered content will be placed correctly within the Client Component.
 
-> **Good to know:** In Next.js, during the initial page load, both the rendered result of Server Components from the above step and Client Components are [pre-rendered on the server as HTML](/docs/app/building-your-application/rendering#static-and-dynamic-rendering-on-the-server) to produce a faster initial page load.
+> **Good to know**: In Next.js, during the initial page load, both the rendered result of Server Components from the above step and Client Components are [pre-rendered on the server as HTML](/docs/app/building-your-application/rendering#static-and-dynamic-rendering-on-the-server) to produce a faster initial page load.
 
 ### Nesting Server Components inside Client Components
 
@@ -425,7 +425,7 @@ Since Server Components are new, third-party packages in the ecosystem are just 
 
 Today, many components from `npm` packages that use client-only features do not yet have the directive. These third-party components will work as expected within your own [Client Components](#the-use-client-directive) since they have the `"use client"` directive, but they won't work within Server Components.
 
-For example, let's say you've installed the hypothetical `acme-carousel` package which has an `<Carousel />` component. This component uses `useState`, but it doesn't yet have the `"use client"` directive.
+For example, let's say you've installed the hypothetical `acme-carousel` package which has a `<Carousel />` component. This component uses `useState`, but it doesn't yet have the `"use client"` directive.
 
 If you use `<Carousel />` within a Client Component, it will work as expected:
 
@@ -731,7 +731,7 @@ export default function RootLayout({ children }) {
 
 With the provider rendered at the root, all other Client Components throughout your app will be able to consume this context.
 
-> Note: You should render providers as deep as possible in the tree – notice how `ThemeProvider` only wraps `{children}` instead of the entire `<html>` document. This makes it easier for Next.js to optimize the static parts of your Server Components.
+> **Good to know**: You should render providers as deep as possible in the tree – notice how `ThemeProvider` only wraps `{children}` instead of the entire `<html>` document. This makes it easier for Next.js to optimize the static parts of your Server Components.
 
 ### Rendering third-party context providers in Server Components
 

@@ -3,13 +3,12 @@ title: Instrumentation
 description: Learn how to use instrumentation to run code at server startup in your Next.js app
 ---
 
-> **Note**: This feature is **experimental**. To use it, you must explicitly opt in by defining `experimental.instrumentationHook = true;` in your `next.config.js`.
-
-If you export a function named `register` from a `instrumentation.ts` (or `.js`) file in the **root directory** of your project, we will call that function whenever a new Next.js server instance is bootstrapped.
+If you export a function named `register` from a `instrumentation.ts` (or `.js`) file in the **root directory** of your project (or inside the `src` folder if using one), we will call that function whenever a new Next.js server instance is bootstrapped.
 
 > **Good to know**
 >
-> - The `instrumentation` file should be in the root of your project and not the `app` or `pages` directory.
+> - This feature is **experimental**. To use it, you must explicitly opt in by defining `experimental.instrumentationHook = true;` in your `next.config.js`.
+> - The `instrumentation` file should be in the root of your project and not inside the `app` or `pages` directory. If you're using the `src` folder, then place the file inside `src` alongside `pages` and `app`.
 > - If you use the [`pagesExtension` config option](/docs/pages/api-reference/next-config-js/pageExtensions) to add a suffix, you will also need to update the `instrumentation` filename to match.
 > - We have created a basic [with-opentelemetry](https://github.com/vercel/next.js/tree/canary/examples/with-opentelemetry) example that you can use.
 

@@ -53,7 +53,7 @@ import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { normalizeMetadataRoute } from '../lib/metadata/get-metadata-route'
 import { fileExists } from '../lib/file-exists'
 import { getRouteLoaderEntry } from './webpack/loaders/next-route-loader'
-import { isInternalPathname } from '../lib/is-internal-pathname'
+import { isInternalComponent } from '../lib/is-internal-component'
 import { isStaticMetadataRouteFile } from '../lib/metadata/is-metadata-route'
 
 export async function getStaticInfoIncludingLayouts({
@@ -294,6 +294,7 @@ export function getEdgeServerEntry(opts: {
   appDirLoader?: string
   hasInstrumentationHook?: boolean
   preferredRegion: string | string[] | undefined
+  middlewareConfig?: MiddlewareConfig
 }) {
   if (
     opts.pagesType === 'app' &&
@@ -306,6 +307,9 @@ export function getEdgeServerEntry(opts: {
       appDirLoader: Buffer.from(opts.appDirLoader || '').toString('base64'),
       nextConfigOutput: opts.config.output,
       preferredRegion: opts.preferredRegion,
+      middlewareConfig: Buffer.from(
+        JSON.stringify(opts.middlewareConfig || {})
+      ).toString('base64'),
     }
 
     return {
@@ -321,6 +325,10 @@ export function getEdgeServerEntry(opts: {
       matchers: opts.middleware?.matchers
         ? encodeMatchers(opts.middleware.matchers)
         : '',
+      preferredRegion: opts.preferredRegion,
+      middlewareConfig: Buffer.from(
+        JSON.stringify(opts.middlewareConfig || {})
+      ).toString('base64'),
     }
 
     return `next-middleware-loader?${stringify(loaderParams)}!`
@@ -332,6 +340,9 @@ export function getEdgeServerEntry(opts: {
       page: opts.page,
       rootDir: opts.rootDir,
       preferredRegion: opts.preferredRegion,
+      middlewareConfig: Buffer.from(
+        JSON.stringify(opts.middlewareConfig || {})
+      ).toString('base64'),
     }
 
     return `next-edge-function-loader?${stringify(loaderParams)}!`
@@ -363,6 +374,11 @@ export function getEdgeServerEntry(opts: {
     incrementalCacheHandlerPath:
       opts.config.experimental.incrementalCacheHandlerPath,
     preferredRegion: opts.preferredRegion,
+    middlewareConfig: Buffer.from(
+      JSON.stringify(opts.middlewareConfig || {})
+    ).toString('base64'),
+    serverActionsBodySizeLimit:
+      opts.config.experimental.serverActionsBodySizeLimit,
   }
 
   return {
@@ -569,6 +585,9 @@ export async function createEntrypoints(
               assetPrefix: config.assetPrefix,
               nextConfigOutput: config.output,
               preferredRegion: staticInfo.preferredRegion,
+              middlewareConfig: Buffer.from(
+                JSON.stringify(staticInfo.middleware || {})
+              ).toString('base64'),
             })
           } else if (isInstrumentationHookFile(page) && pagesType === 'root') {
             server[serverBundlePath.replace('src/', '')] = {
@@ -579,13 +598,15 @@ export async function createEntrypoints(
           } else if (
             !isAPIRoute(page) &&
             !isMiddlewareFile(page) &&
-            !isInternalPathname(absolutePagePath)
+            !isInternalComponent(absolutePagePath)
           ) {
             server[serverBundlePath] = [
               getRouteLoaderEntry({
                 page,
+                pages,
                 absolutePagePath,
                 preferredRegion: staticInfo.preferredRegion,
+                middlewareConfig: staticInfo.middleware ?? {},
               }),
             ]
           } else {
@@ -609,6 +630,9 @@ export async function createEntrypoints(
               // This isn't used with edge as it needs to be set on the entry module, which will be the `edgeServerEntry` instead.
               // Still passing it here for consistency.
               preferredRegion: staticInfo.preferredRegion,
+              middlewareConfig: Buffer.from(
+                JSON.stringify(staticInfo.middleware || {})
+              ).toString('base64'),
             }).import
           }
           const normalizedServerBundlePath =
@@ -627,6 +651,7 @@ export async function createEntrypoints(
             pagesType,
             appDirLoader,
             preferredRegion: staticInfo.preferredRegion,
+            middlewareConfig: staticInfo.middleware,
           })
         },
       })
