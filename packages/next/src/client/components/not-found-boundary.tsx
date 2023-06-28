@@ -1,5 +1,5 @@
-import React from 'react'
-import { usePathname } from './navigation'
+import React, { useContext } from 'react'
+import { PathnameContext } from '../../shared/lib/hooks-client-context'
 
 interface NotFoundBoundaryProps {
   notFound?: React.ReactNode
@@ -80,7 +80,12 @@ export function NotFoundBoundary({
   asNotFound,
   children,
 }: NotFoundBoundaryProps) {
-  const pathname = usePathname()
+  // FIXME: Reading pathname from PathnameContext directly instead of `next/navigation`
+  // to prevent the entire navigation.ts from being introduced to the client bundle due
+  // to the inefficient tree-shaking. This is only a temporary workaround and we need to
+  // look into the tree-shaking issue in the future.
+  const pathname = useContext(PathnameContext) as string
+
   return notFound ? (
     <NotFoundErrorBoundary
       pathname={pathname}
