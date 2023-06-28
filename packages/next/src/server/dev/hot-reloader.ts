@@ -949,6 +949,7 @@ export default class HotReloader {
       this.activeConfigs
     ) as unknown as webpack.MultiCompiler
 
+    // Copy over the filesystem so that it is shared between all compilers.
     const inputFileSystem = this.multiCompiler.compilers[0].inputFileSystem
     for (const compiler of this.multiCompiler.compilers) {
       compiler.inputFileSystem = inputFileSystem
