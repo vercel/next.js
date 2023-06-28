@@ -950,13 +950,11 @@ export default class HotReloader {
     ) as unknown as webpack.MultiCompiler
 
     const inputFileSystem = this.multiCompiler.compilers[0].inputFileSystem
-    this.multiCompiler.inputFileSystem = inputFileSystem
-
-    this.multiCompiler.hooks.done.tap('NextjsHotReloader', () => {
-      if (inputFileSystem.purge) {
-        inputFileSystem.purge()
-      }
-    })
+    for (const compiler of this.multiCompiler.compilers) {
+      compiler.inputFileSystem = inputFileSystem
+      // This is set for the initial compile. After that Watching class in webpack adds it.
+      compiler.fsStartTime = Date.now()
+    }
 
     watchCompilers(
       this.multiCompiler.compilers[0],
