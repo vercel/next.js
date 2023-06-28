@@ -326,13 +326,10 @@ export default class NextNodeServer extends BaseServer {
           console.error(err)
         }
       }
-      ;(global as any)._nextClearModuleContext = (
-        targetPath: any,
-        content: any
-      ) => {
+      ;(global as any)._nextClearModuleContext = (targetPath: string) => {
         try {
-          this.renderWorkers?.pages?.clearModuleContext(targetPath, content)
-          this.renderWorkers?.app?.clearModuleContext(targetPath, content)
+          this.renderWorkers?.pages?.clearModuleContext(targetPath)
+          this.renderWorkers?.app?.clearModuleContext(targetPath)
         } catch (err) {
           console.error(err)
         }
