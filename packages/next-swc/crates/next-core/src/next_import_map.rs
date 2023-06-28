@@ -33,6 +33,7 @@ use crate::{
     next_server::context::ServerContextType,
 };
 
+// Make sure to not add any external requests here.
 /// Computes the Next-specific client import map.
 #[turbo_tasks::function]
 pub async fn get_next_client_import_map(
@@ -426,6 +427,7 @@ pub fn mdx_import_source_file() -> String {
     format!("{VIRTUAL_PACKAGE_NAME}/mdx-import-source")
 }
 
+// Make sure to not add any external requests here.
 pub async fn insert_next_shared_aliases(
     import_map: &mut ImportMap,
     project_path: FileSystemPathVc,
@@ -441,7 +443,7 @@ pub async fn insert_next_shared_aliases(
             vec![
                 request_to_import_mapping(project_path, "./mdx-components"),
                 request_to_import_mapping(project_path, "./src/mdx-components"),
-                external_request_to_import_mapping("@mdx-js/react"),
+                request_to_import_mapping(project_path, "@mdx-js/react"),
             ],
         );
     }
