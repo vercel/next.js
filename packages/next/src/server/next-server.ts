@@ -28,6 +28,7 @@ import {
 } from '../shared/lib/router/utils/route-matcher'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { RouteMatch } from './future/route-matches/route-match'
+import type { RenderOpts } from './render'
 
 import fs from 'fs'
 import { join, relative, resolve, sep, isAbsolute } from 'path'
@@ -59,7 +60,6 @@ import { sendRenderResult } from './send-payload'
 import { getExtension, serveStatic } from './serve-static'
 import { ParsedUrlQuery } from 'querystring'
 import { apiResolver } from './api-utils/node'
-import { RenderOpts, renderToHTML } from './render'
 import { ParsedUrl, parseUrl } from '../shared/lib/router/utils/parse-url'
 import { parse as nodeParseUrl } from 'url'
 import * as Log from '../build/output/log'
@@ -327,13 +327,10 @@ export default class NextNodeServer extends BaseServer {
           console.error(err)
         }
       }
-      ;(global as any)._nextClearModuleContext = (
-        targetPath: any,
-        content: any
-      ) => {
+      ;(global as any)._nextClearModuleContext = (targetPath: string) => {
         try {
-          this.renderWorkers?.pages?.clearModuleContext(targetPath, content)
-          this.renderWorkers?.app?.clearModuleContext(targetPath, content)
+          this.renderWorkers?.pages?.clearModuleContext(targetPath)
+          this.renderWorkers?.app?.clearModuleContext(targetPath)
         } catch (err) {
           console.error(err)
         }
@@ -985,13 +982,7 @@ export default class NextNodeServer extends BaseServer {
       )
     }
 
-    return renderToHTML(
-      req.originalRequest,
-      res.originalResponse,
-      pathname,
-      query,
-      renderOpts
-    )
+    throw new Error('Invariant: render should have used routeModule')
   }
 
   private streamResponseChunk(res: ServerResponse, chunk: any) {

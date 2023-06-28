@@ -257,6 +257,28 @@ createNextDescribe(
         expect(meta.body).toEqual(body)
       })
 
+      it('can read a JSON encoded body for DELETE requests', async () => {
+        const body = { name: 'foo' }
+        const res = await next.fetch('/advanced/body/json', {
+          method: 'DELETE',
+          body: JSON.stringify(body),
+        })
+
+        expect(res.status).toEqual(200)
+        expect(await res.text()).toEqual('delete foo')
+      })
+
+      it('can read a JSON encoded body for OPTIONS requests', async () => {
+        const body = { name: 'bar' }
+        const res = await next.fetch('/advanced/body/json', {
+          method: 'OPTIONS',
+          body: JSON.stringify(body),
+        })
+
+        expect(res.status).toEqual(200)
+        expect(await res.text()).toEqual('options bar')
+      })
+
       // we can't stream a body to a function currently only stream response
       if (!isNextDeploy) {
         it('can read a streamed JSON encoded body', async () => {

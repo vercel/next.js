@@ -522,11 +522,11 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         !result &&
         (await fileExists(absolutePathWithExtension, FileType.File))
       ) {
-        // Ensures we call `addMissingDependency` for all files that didn't match
         result = absolutePathWithExtension
-      } else {
-        this.addMissingDependency(absolutePathWithExtension)
       }
+      // Call `addMissingDependency` for all files even if they didn't match,
+      // because they might be added or removed during development.
+      this.addMissingDependency(absolutePathWithExtension)
     }
 
     return result
@@ -545,9 +545,10 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         (await fileExists(absolutePathWithExtension, FileType.File))
       ) {
         result = absolutePathWithExtension
-      } else {
-        this.addMissingDependency(absolutePathWithExtension)
       }
+      // Call `addMissingDependency` for all files even if they didn't match,
+      // because they might be added or removed during development.
+      this.addMissingDependency(absolutePathWithExtension)
     }
 
     return result
@@ -623,33 +624,22 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     }
   }
 
+  // Prefer to modify next/src/server/app-render/entry-base.ts since this is shared with Turbopack.
+  // Any changes to this code should be reflected in Turbopack's app_source.rs and/or app-renderer.tsx as well.
   const result = `
     export ${treeCodeResult.treeCode}
     export ${treeCodeResult.pages}
-
-    export { default as AppRouter } from 'next/dist/client/components/app-router'
-    export { default as LayoutRouter } from 'next/dist/client/components/layout-router'
-    export { default as RenderFromTemplateContext } from 'next/dist/client/components/render-from-template-context'
     export { default as GlobalError } from ${JSON.stringify(
       treeCodeResult.globalError || 'next/dist/client/components/error-boundary'
     )}
+    export const originalPathname = ${JSON.stringify(page)}
+    export const __next_app__ = {
+      require: __webpack_require__,
+      // all modules are in the entry chunk, so we never actually need to load chunks in webpack
+      loadChunk: () => Promise.resolve()
+    }
 
-    export { staticGenerationAsyncStorage } from 'next/dist/client/components/static-generation-async-storage'
-
-    export { requestAsyncStorage } from 'next/dist/client/components/request-async-storage'
-    export { actionAsyncStorage } from 'next/dist/client/components/action-async-storage'
-
-    export { staticGenerationBailout } from 'next/dist/client/components/static-generation-bailout'
-    export { default as StaticGenerationSearchParamsBailoutProvider } from 'next/dist/client/components/static-generation-searchparams-bailout-provider'
-    export { createSearchParamsBailoutProxy } from 'next/dist/client/components/searchparams-bailout-proxy'
-
-    export * as serverHooks from 'next/dist/client/components/hooks-server-context'
-
-    export { renderToReadableStream, decodeReply, decodeAction } from 'react-server-dom-webpack/server.edge'
-    export const __next_app_webpack_require__ = __webpack_require__
-    export { preloadStyle, preloadFont, preconnect } from 'next/dist/server/app-render/rsc/preloads'
-
-    export const originalPathname = "${page}"
+    export * from 'next/dist/server/app-render/entry-base'
   `
 
   return result

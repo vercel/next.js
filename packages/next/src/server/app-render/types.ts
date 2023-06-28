@@ -1,5 +1,6 @@
 import type { LoadComponentsReturnType } from '../load-components'
-import type { ServerRuntime } from '../../../types'
+import type { ServerRuntime, SizeLimit } from '../../../types'
+import { NextConfigComplete } from '../../server/config-shared'
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 
@@ -138,6 +139,14 @@ export type RenderOptsPartial = {
   originalPathname?: string
   isDraftMode?: boolean
   deploymentId?: string
+  loadConfig?: (
+    phase: string,
+    dir: string,
+    customConfig?: object | null,
+    rawConfig?: boolean,
+    silent?: boolean
+  ) => Promise<NextConfigComplete>
+  serverActionsBodySizeLimit?: SizeLimit
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
