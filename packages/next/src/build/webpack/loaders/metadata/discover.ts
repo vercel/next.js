@@ -26,25 +26,17 @@ async function enumMetadataFiles(
 ): Promise<string[]> {
   const collectedFiles: string[] = []
 
-  const resolved = await metadataResolver(path.join(dir, filename), extensions)
-  if (resolved) {
-    collectedFiles.push(resolved)
-  }
-
-  // If numericSuffix is true, then we should try to resolve files with numeric
-  // suffix, but abort early if it's already missing. That's because the suffix
-  // will likely be increased one by one.
-  if (numericSuffix) {
-    for (let suffix = 0; suffix < 10; suffix++) {
-      const resolvedWithSuffix = await metadataResolver(
-        path.join(dir, filename + suffix),
-        extensions
-      )
-      if (resolvedWithSuffix) {
-        collectedFiles.push(resolvedWithSuffix)
-      } else {
-        break
-      }
+  const possibleFileNames = [filename].concat(
+    numericSuffix
+      ? Array(10)
+          .fill(0)
+          .map((_, index) => filename + index)
+      : []
+  )
+  for (const name of possibleFileNames) {
+    const resolved = await metadataResolver(dir, name, extensions)
+    if (resolved) {
+      collectedFiles.push(resolved)
     }
   }
 
@@ -131,14 +123,15 @@ export async function createStaticMetadataFromRoute(
       })
   }
 
-  await Promise.all([
-    collectIconModuleIfExists('icon'),
-    collectIconModuleIfExists('apple'),
-    collectIconModuleIfExists('openGraph'),
-    collectIconModuleIfExists('twitter'),
-    isRootLayoutOrRootPage && collectIconModuleIfExists('favicon'),
-    isRootLayoutOrRootPage && collectIconModuleIfExists('manifest'),
-  ])
+  // Intentially make these serial to reuse directory access cache.
+  await collectIconModuleIfExists('icon')
+  await collectIconModuleIfExists('apple')
+  await collectIconModuleIfExists('openGraph')
+  await collectIconModuleIfExists('twitter')
+  if (isRootLayoutOrRootPage) {
+    await collectIconModuleIfExists('favicon')
+    await collectIconModuleIfExists('manifest')
+  }
 
   return hasStaticMetadataFiles ? staticImagesMetadata : null
 }
