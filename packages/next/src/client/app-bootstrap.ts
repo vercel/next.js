@@ -47,12 +47,11 @@ function loadScriptsInSequence(
         })
       })
     }, Promise.resolve())
-    .then(() => {
-      hydrate()
-    })
     .catch((err: Error) => {
       console.error(err)
       // Still try to hydrate even if there's an error.
+    })
+    .then(() => {
       hydrate()
     })
 }

@@ -1766,7 +1766,11 @@ export default async function getBaseWebpackConfig(
       runtimeChunk: isClient
         ? { name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK }
         : undefined,
-      minimize: !dev && (isClient || isEdgeServer),
+      minimize:
+        !dev &&
+        (isClient ||
+          isEdgeServer ||
+          (isNodeServer && config.experimental.serverMinification)),
       minimizer: [
         // Minify JavaScript
         (compiler: webpack.Compiler) => {
@@ -2724,6 +2728,7 @@ export default async function getBaseWebpackConfig(
     experimental: config.experimental,
     disableStaticImages: config.images.disableStaticImages,
     transpilePackages: config.transpilePackages,
+    serverSourceMaps: config.experimental.serverSourceMaps,
   })
 
   // @ts-ignore Cache exists
