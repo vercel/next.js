@@ -3,6 +3,6 @@
   "sections": [
     {"offset": {"line": 8, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/imports/order/input/posts.ts"],"sourcesContent":["export default {\n  js: true,\n};\n"],"names":[],"mappings":";;;uCAAe;IACb,IAAI;AACN"}},
     {"offset": {"line": 14, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
-    {"offset": {"line": 18, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/imports/order/input/index.js"],"sourcesContent":["import posts from \"./posts\";\n\nconsole.log(posts.js);\nif (!posts.js) {\n  process.exit(1);\n}\n"],"names":[],"mappings":";;;AAEA,QAAQ,IAAI,+KAAM;AAClB,IAAI,CAAC,+KAAM,IAAI;IACb,QAAQ,KAAK;AACf"}},
+    {"offset": {"line": 18, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/imports/order/input/index.js"],"sourcesContent":["import posts from \"./posts\";\n\nconsole.log(posts.js);\nif (!posts.js) {\n  process.exit(1);\n}\n"],"names":[],"mappings":";;;AAEA,QAAQ,GAAG,CAAC,+KAAM,EAAE;AACpB,IAAI,CAAC,+KAAM,EAAE,EAAE;IACb,QAAQ,IAAI,CAAC;AACf"}},
     {"offset": {"line": 25, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
 }
