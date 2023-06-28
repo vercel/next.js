@@ -425,7 +425,7 @@ Since Server Components are new, third-party packages in the ecosystem are just 
 
 Today, many components from `npm` packages that use client-only features do not yet have the directive. These third-party components will work as expected within your own [Client Components](#the-use-client-directive) since they have the `"use client"` directive, but they won't work within Server Components.
 
-For example, let's say you've installed the hypothetical `acme-carousel` package which has an `<Carousel />` component. This component uses `useState`, but it doesn't yet have the `"use client"` directive.
+For example, let's say you've installed the hypothetical `acme-carousel` package which has a `<Carousel />` component. This component uses `useState`, but it doesn't yet have the `"use client"` directive.
 
 If you use `<Carousel />` within a Client Component, it will work as expected:
 

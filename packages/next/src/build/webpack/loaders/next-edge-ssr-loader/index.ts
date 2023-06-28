@@ -23,7 +23,7 @@ export type EdgeSSRLoaderQuery = {
   incrementalCacheHandlerPath?: string
   preferredRegion: string | string[] | undefined
   middlewareConfig: string
-  serverActionsSizeLimit?: SizeLimit
+  serverActionsBodySizeLimit?: SizeLimit
 }
 
 /*
@@ -57,7 +57,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       incrementalCacheHandlerPath,
       preferredRegion,
       middlewareConfig: middlewareConfigBase64,
-      serverActionsSizeLimit,
+      serverActionsBodySizeLimit,
     } = this.getOptions()
 
     const middlewareConfig: MiddlewareConfig = JSON.parse(
@@ -177,10 +177,10 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       reactLoadableManifest,
       clientReferenceManifest: ${isServerComponent} ? rscManifest : null,
       serverActionsManifest: ${isServerComponent} ? rscServerManifest : null,
-      serverActionsSizeLimit: ${isServerComponent} ? ${
-      typeof serverActionsSizeLimit === 'undefined'
+      serverActionsBodySizeLimit: ${isServerComponent} ? ${
+      typeof serverActionsBodySizeLimit === 'undefined'
         ? 'undefined'
-        : JSON.stringify(serverActionsSizeLimit)
+        : JSON.stringify(serverActionsBodySizeLimit)
     } : undefined,
       subresourceIntegrityManifest,
       config: ${stringifiedConfig},

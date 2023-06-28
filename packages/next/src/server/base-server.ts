@@ -255,7 +255,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     supportsDynamicHTML?: boolean
     isBot?: boolean
     clientReferenceManifest?: ClientReferenceManifest
-    serverActionsSizeLimit?: SizeLimit
+    serverActionsBodySizeLimit?: SizeLimit
     serverActionsManifest?: any
     nextFontManifest?: NextFontManifest
     renderServerComponentData?: boolean
@@ -1651,8 +1651,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               incrementalCache,
               isRevalidate: isSSG,
               originalPathname: components.ComponentMod.originalPathname,
-              serverActionsSizeLimit:
-                this.nextConfig.experimental.serverActionsSizeLimit,
+              serverActionsBodySizeLimit:
+                this.nextConfig.experimental.serverActionsBodySizeLimit,
             }
           : {}),
         isDataReq,

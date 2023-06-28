@@ -286,7 +286,17 @@ export interface ExperimentalConfig {
   /**
    * Allows adjusting body parser size limit for server actions.
    */
-  serverActionsSizeLimit?: SizeLimit
+  serverActionsBodySizeLimit?: SizeLimit
+
+  /**
+   * enables the minification of server code.
+   */
+  serverMinification?: boolean
+
+  /**
+   * Enables source maps generation for the server production bundle.
+   */
+  serverSourceMaps?: boolean
 }
 
 export type ExportPathMap = {
@@ -670,6 +680,8 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
+    serverMinification: false,
+    serverSourceMaps: false,
     caseSensitiveRoutes: false,
     useDeploymentId: false,
     deploymentId: undefined,
