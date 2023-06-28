@@ -49,6 +49,7 @@ const debug = setupDebug('next:router-server:filesystem')
 export async function setupFsCheck(opts: {
   dir: string
   dev: boolean
+  minimalMode?: boolean
   config: NextConfigComplete
   addDevWatcherCallback?: (
     arg: (files: Map<string, { timestamp: number }>) => void
@@ -336,6 +337,10 @@ export async function setupFsCheck(opts: {
     return { locale, pathname }
   }
 
+  debug('dynamicRoutes', dynamicRoutes)
+  debug('pageFiles', pageFiles)
+  debug('appFiles', appFiles)
+
   return {
     headers,
     rewrites,
@@ -351,6 +356,13 @@ export async function setupFsCheck(opts: {
       if (lruResult) {
         return lruResult
       }
+
+      // handle minimal mode case with .rsc output path (this is
+      // mostly for testings)
+      if (opts.minimalMode && itemPath.endsWith('.rsc')) {
+        itemPath = itemPath.substring(0, itemPath.length - '.rsc'.length)
+      }
+
       const { basePath } = opts.config
 
       if (basePath && !itemPath.startsWith(basePath)) {

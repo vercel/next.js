@@ -107,7 +107,7 @@ describe('should set-up next', () => {
       testServer,
       (
         await fs.readFile(testServer, 'utf8')
-      ).replace('conf:', 'minimalMode: true,conf:')
+      ).replace('port:', 'minimalMode: true,port:')
     )
     appPort = await findPort()
     server = await initNextServerScript(

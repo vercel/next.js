@@ -919,6 +919,7 @@ export default async function build(
                       ]
                     : []),
                   path.join(SERVER_DIRECTORY, APP_PATHS_MANIFEST),
+                  path.join(APP_PATH_ROUTES_MANIFEST),
                   APP_BUILD_MANIFEST,
                   path.join(
                     SERVER_DIRECTORY,

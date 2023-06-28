@@ -1309,8 +1309,5 @@ describe('should set-up next', () => {
 
     expect(resImageResponse.status).toBe(200)
     expect(resImageResponse.headers.get('content-type')).toBe('image/png')
-
-    // when not in next env should be compress: true
-    expect(fs.readFileSync(testServer, 'utf8')).toContain('"compress":true')
   })
 })

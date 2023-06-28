@@ -137,6 +137,7 @@ export async function initialize(opts: {
     dev: opts.dev,
     dir: opts.dir,
     config,
+    minimalMode: opts.minimalMode,
   })
 
   const resolveRoutes = getResolveRoutes(
@@ -429,6 +430,17 @@ export async function initialize(opts: {
         'Cache-Control',
         'no-cache, no-store, max-age=0, must-revalidate'
       )
+      const appNotFound = await fsChecker.getItem('/_not-found')
+
+      if (appNotFound) {
+        return await invokeRender(
+          parsedUrl,
+          'app',
+          handleIndex,
+          '/_not-found',
+          '404'
+        )
+      }
       await invokeRender(parsedUrl, 'pages', handleIndex, '/404', '404')
     }
 
