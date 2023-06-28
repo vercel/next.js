@@ -110,6 +110,7 @@ import { filterReqHeaders } from './lib/server-ipc/utils'
 import { createRequestResponseMocks } from './lib/mock-request'
 import chalk from 'next/dist/compiled/chalk'
 import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
+import { signalFromNodeRequest } from './web/spec-extension/adapters/next-request'
 
 export * from './base-server'
 
@@ -2342,6 +2343,9 @@ export default class NextNodeServer extends BaseServer {
         url: url,
         page: page,
         body: getRequestMeta(params.request, '__NEXT_CLONABLE_BODY'),
+        signal: signalFromNodeRequest(
+          (params.request as NodeNextRequest).originalRequest
+        ),
       },
       useCache: true,
       onWarning: params.onWarning,
@@ -2851,6 +2855,9 @@ export default class NextNodeServer extends BaseServer {
           ...(params.params && { params: params.params }),
         },
         body: getRequestMeta(params.req, '__NEXT_CLONABLE_BODY'),
+        signal: signalFromNodeRequest(
+          (params.req as NodeNextRequest).originalRequest
+        ),
       },
       useCache: true,
       onWarning: params.onWarning,
