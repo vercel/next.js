@@ -135,6 +135,7 @@ struct MemoizedSuccessfulAnalysis {
     operation: RawVc,
     references: AssetReferencesReadRef,
     exports: EcmascriptExportsReadRef,
+    has_top_level_await: bool,
 }
 
 pub struct EcmascriptModuleAssetBuilder {
@@ -312,11 +313,13 @@ impl EcmascriptModuleAssetVc {
                     // We need to store the ReadRefs since we want to keep a snapshot.
                     references: result_value.references.await?,
                     exports: result_value.exports.await?,
+                    has_top_level_await: result_value.has_top_level_await,
                 }));
         } else if let Some(MemoizedSuccessfulAnalysis {
             operation,
             references,
             exports,
+            has_top_level_await,
         }) = &*this.last_successful_analysis.get()
         {
             // It's important to connect to the last operation here to keep it active, so
@@ -326,6 +329,7 @@ impl EcmascriptModuleAssetVc {
                 references: ReadRef::cell(references.clone()),
                 exports: ReadRef::cell(exports.clone()),
                 code_generation: result_value.code_generation,
+                has_top_level_await: *has_top_level_await,
                 successful: false,
             }
             .cell());
