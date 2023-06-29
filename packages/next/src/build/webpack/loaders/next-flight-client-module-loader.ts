@@ -1,7 +1,11 @@
 import { getRSCModuleInformation } from '../../analysis/get-page-static-info'
 import { getModuleBuildInfo } from './get-module-build-info'
 
-export default function transformSource(this: any, source: string) {
+export default function transformSource(
+  this: any,
+  source: string,
+  sourceMap: any
+) {
   // Avoid buffer to be consumed
   if (typeof source !== 'string') {
     throw new Error('Expected source to have been transformed to a string.')
@@ -25,5 +29,5 @@ ${source}
 `
   }
 
-  return source
+  return this.callback(null, source, sourceMap)
 }
