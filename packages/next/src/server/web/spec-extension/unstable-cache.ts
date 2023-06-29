@@ -86,6 +86,7 @@ export function unstable_cache<T extends Callback>(
                   body: JSON.stringify(result),
                   status: 200,
                   tags,
+                  url: '',
                 },
                 revalidate:
                   typeof options.revalidate !== 'number'

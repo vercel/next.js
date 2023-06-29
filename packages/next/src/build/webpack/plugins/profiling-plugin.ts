@@ -180,6 +180,7 @@ export class ProfilingPlugin {
             span = parentSpan.traceChild(spanName)
           }
           span.setAttribute('name', module.userRequest)
+          span.setAttribute('layer', module.layer)
           moduleSpans!.set(module, span)
         })
 

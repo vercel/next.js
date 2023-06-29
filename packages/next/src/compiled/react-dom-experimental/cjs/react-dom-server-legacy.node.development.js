@@ -18,7 +18,7 @@ var React = require("next/dist/compiled/react-experimental");
 var ReactDOM = require('react-dom');
 var stream = require('stream');
 
-var ReactVersion = '18.3.0-experimental-16d053d59-20230506';
+var ReactVersion = '18.3.0-experimental-1cea38448-20230530';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -6180,6 +6180,7 @@ function preloadAsStylePropsFromProps(href, props) {
     as: 'style',
     href: href,
     crossOrigin: props.crossOrigin,
+    fetchPriority: props.fetchPriority,
     integrity: props.integrity,
     media: props.media,
     hrefLang: props.hrefLang,
@@ -6193,7 +6194,9 @@ function preloadAsScriptPropsFromProps(href, props) {
     as: 'script',
     href: href,
     crossOrigin: props.crossOrigin,
+    fetchPriority: props.fetchPriority,
     integrity: props.integrity,
+    nonce: props.nonce,
     referrerPolicy: props.referrerPolicy
   };
 }

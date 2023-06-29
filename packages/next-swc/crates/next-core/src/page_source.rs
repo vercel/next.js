@@ -32,6 +32,7 @@ use turbopack_binding::{
         },
         env::ProcessEnvAssetVc,
         node::{
+            debug::should_debug,
             execution_context::ExecutionContextVc,
             render::{
                 node_api_source::create_node_api_source,
@@ -61,7 +62,7 @@ use crate::{
     next_config::NextConfigVc,
     next_edge::{
         context::{get_edge_compile_time_info, get_edge_resolve_options_context},
-        transition::NextEdgeTransition,
+        route_transition::NextEdgeRouteTransition,
     },
     next_route_matcher::{
         NextExactMatcherVc, NextFallbackMatcherVc, NextParamsMatcherVc,
@@ -167,12 +168,12 @@ pub async fn create_page_source(
         ),
         edge_compile_time_info.environment(),
     )
-    .reference_chunk_source_maps(false)
+    .reference_chunk_source_maps(should_debug("page_source"))
     .build();
     let edge_resolve_options_context =
         get_edge_resolve_options_context(project_root, server_ty, next_config, execution_context);
 
-    let next_edge_transition = NextEdgeTransition {
+    let next_edge_transition = NextEdgeRouteTransition {
         edge_compile_time_info,
         edge_chunking_context,
         edge_module_options_context: None,
@@ -373,7 +374,7 @@ async fn create_page_source_for_file(
         ),
         server_context.compile_time_info().environment(),
     )
-    .reference_chunk_source_maps(false)
+    .reference_chunk_source_maps(should_debug("page_source"))
     .build();
 
     let data_node_path = node_path.join("data");
@@ -388,7 +389,7 @@ async fn create_page_source_for_file(
         ),
         server_context.compile_time_info().environment(),
     )
-    .reference_chunk_source_maps(false)
+    .reference_chunk_source_maps(should_debug("page_source"))
     .build();
 
     let client_chunking_context = get_client_chunking_context(
@@ -422,6 +423,7 @@ async fn create_page_source_for_file(
             .cell()
             .into(),
             render_data,
+            should_debug("page_source"),
         )
     } else {
         let data_pathname = pathname_for_path(client_root, client_path, PathType::Data);
@@ -465,6 +467,7 @@ async fn create_page_source_for_file(
                 ssr_entry,
                 fallback_page,
                 render_data,
+                should_debug("page_source"),
             ),
             create_node_rendered_source(
                 project_path,
@@ -476,6 +479,7 @@ async fn create_page_source_for_file(
                 ssr_data_entry,
                 fallback_page,
                 render_data,
+                should_debug("page_source"),
             ),
             create_page_loader(
                 client_root,
@@ -530,7 +534,7 @@ async fn create_not_found_page_source(
         ),
         server_context.compile_time_info().environment(),
     )
-    .reference_chunk_source_maps(false)
+    .reference_chunk_source_maps(should_debug("page_source"))
     .build();
 
     let client_chunking_context = get_client_chunking_context(
@@ -591,6 +595,7 @@ async fn create_not_found_page_source(
             ssr_entry,
             fallback_page,
             render_data,
+            should_debug("page_source"),
         ),
         page_loader,
     ])

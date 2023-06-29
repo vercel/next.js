@@ -25,9 +25,6 @@ import AssertImplementation from 'node:assert'
 import UtilImplementation from 'node:util'
 import AsyncHooksImplementation from 'node:async_hooks'
 
-const WEBPACK_HASH_REGEX =
-  /__webpack_require__\.h = function\(\) \{ return "[0-9a-f]+"; \}/g
-
 interface ModuleContext {
   runtime: EdgeRuntime
   paths: Map<string, string>
@@ -48,20 +45,13 @@ const pendingModuleCaches = new Map<string, Promise<ModuleContext>>()
  * context that contains the path with an older content and, if that's the
  * case, removes the context from the cache.
  */
-export async function clearModuleContext(
-  path: string,
-  content: Buffer | string
-) {
+export async function clearModuleContext(path: string) {
   const handleContext = (
     key: string,
-    cache: ReturnType<typeof moduleContexts['get']>,
+    cache: ReturnType<(typeof moduleContexts)['get']>,
     context: typeof moduleContexts | typeof pendingModuleCaches
   ) => {
-    const prev = cache?.paths.get(path)?.replace(WEBPACK_HASH_REGEX, '')
-    if (
-      typeof prev !== 'undefined' &&
-      prev !== content.toString().replace(WEBPACK_HASH_REGEX, '')
-    ) {
+    if (cache?.paths.has(path)) {
       context.delete(key)
     }
   }
@@ -161,7 +151,7 @@ function getDecorateUnhandledRejection(runtime: EdgeRuntime) {
 
 const NativeModuleMap = (() => {
   const mods: Record<
-    `node:${typeof SUPPORTED_NATIVE_MODULES[number]}`,
+    `node:${(typeof SUPPORTED_NATIVE_MODULES)[number]}`,
     unknown
   > = {
     'node:buffer': pick(BufferImplementation, [
@@ -231,7 +221,6 @@ async function createModuleContext(options: ModuleContextOptions) {
         ? { strings: true, wasm: true }
         : undefined,
     extend: (context) => {
-      context.WebSocket = require('next/dist/compiled/ws').WebSocket
       context.process = createProcessPolyfill()
 
       Object.defineProperty(context, 'require', {
@@ -464,7 +453,7 @@ export async function getModuleContext(options: ModuleContextOptions): Promise<{
         moduleContext.paths.set(filepath, content)
       } catch (error) {
         if (options.useCache) {
-          moduleContext?.paths.delete(options.moduleName)
+          moduleContext?.paths.delete(filepath)
         }
         throw error
       }

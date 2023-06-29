@@ -10,7 +10,7 @@ export default function Page() {
       </ul>
 
       <div className="flex gap-2">
-        <ExternalLink href="https://nextjs.org/docs/styling/css-modules">
+        <ExternalLink href="https://nextjs.org/docs/app/building-your-application/styling/css-modules">
           Docs
         </ExternalLink>
 

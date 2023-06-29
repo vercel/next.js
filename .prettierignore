@@ -18,6 +18,7 @@ packages/next/src/bundles/webpack/packages/lazy-compilation-*.js
 .github/actions/next-stats-action/.work
 .github/actions/issue-validator/index.mjs
 .github/actions/issue-labeler/lib/index.js
+.github/actions/validate-docs-links/lib/index.js
 
 packages/next-swc/crates/**/tests/**/output*
 packages/next-swc/crates/core/tests/loader/issue-32553/input.js
@@ -40,3 +41,4 @@ bench/nested-deps/pages/**/*
 bench/nested-deps/components/**/*
 
 **/convex/_generated/**
+**/.tina/__generated__/**

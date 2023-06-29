@@ -1,6 +1,7 @@
 # Learn how to add code owners here:
 # https://help.github.com/en/articles/about-code-owners
 
+
 *                                             @timneutkens @ijjk @shuding @huozhi @feedthejim
 /.git*                                        @vercel/next-js
 /docs/                                        @vercel/next-js @leerob
@@ -16,8 +17,8 @@
 
 # Image Component (@styfle)
 
-/**/*image*                                   @timneutkens @ijjk @shuding @styfle @huozhi
-/**/*image*/**                                @timneutkens @ijjk @shuding @styfle @huozhi
+/**/*image*                                   @timneutkens @ijjk @shuding @styfle @huozhi @vercel/devex
+/**/*image*/**                                @timneutkens @ijjk @shuding @styfle @huozhi @vercel/devex
 /packages/next/client/use-intersection.tsx    @timneutkens @ijjk @shuding @styfle
 /packages/next/server/lib/squoosh/            @timneutkens @ijjk @shuding @styfle
 /packages/next/server/serve-static.ts         @timneutkens @ijjk @shuding @styfle @huozhi
@@ -25,7 +26,7 @@
 
 # Tooling & Telemetry
 
-/packages/next/src/build/                     @timneutkens @ijjk @shuding @vercel/web-tooling @huozhi
+/packages/next/src/build/                     @timneutkens @ijjk @shuding @huozhi @vercel/web-tooling
 /packages/next/src/telemetry/                 @timneutkens @ijjk @shuding @padmaia
 /packages/next-swc/                           @timneutkens @ijjk @shuding @vercel/web-tooling
 Cargo.toml                                    @timneutkens @ijjk @shuding @vercel/web-tooling

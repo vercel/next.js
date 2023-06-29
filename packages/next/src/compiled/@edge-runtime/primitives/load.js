@@ -80,8 +80,8 @@ function load(scopedContext = {}) {
     scopedContext
   });
   assign(context, {
-    TextDecoder: encodingImpl.TextDecoder,
-    TextEncoder: encodingImpl.TextEncoder,
+    TextDecoder,
+    TextEncoder,
     atob: encodingImpl.atob,
     btoa: encodingImpl.btoa
   });
@@ -145,8 +145,8 @@ function load(scopedContext = {}) {
     scopedContext: { ...scopedContext }
   });
   assign(context, {
-    URL: urlImpl.URL,
-    URLSearchParams: urlImpl.URLSearchParams,
+    URL,
+    URLSearchParams,
     URLPattern: urlImpl.URLPattern
   });
   const blobImpl = (() => {
