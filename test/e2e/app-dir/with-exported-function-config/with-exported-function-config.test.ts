@@ -14,11 +14,26 @@ createNextDescribe(
 
         expect(functionsConfigManifest).toMatchInlineSnapshot(`
           Object {
-            "/": Object {
-              "maxDuration": 5,
+            "/api/page-route": Object {
+              "maxDuration": 1,
             },
-            "/foo/bar": Object {
+            "/app-route": Object {
+              "maxDuration": 1,
+            },
+            "/app-route-edge": Object {
               "maxDuration": 2,
+            },
+            "/app-ssr": Object {
+              "maxDuration": 3,
+            },
+            "/app-ssr-edge": Object {
+              "maxDuration": 4,
+            },
+            "/page": Object {
+              "maxDuration": 2,
+            },
+            "/page-ssr": Object {
+              "maxDuration": 3,
             },
           }
         `)
