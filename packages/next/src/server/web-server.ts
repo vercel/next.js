@@ -425,9 +425,9 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
         write: (chunk: Uint8Array) => writer.write(chunk),
         end: () => writer.close(),
         destroy: (err: Error) => writer.abort(err),
-        cork: () => {},
-        uncork: () => {},
-        // Not implemented: on/removeListener
+        get closed() {
+          return writer.closed
+        },
       } as any)
     } else {
       const payload = await options.result.toUnchunkedString()
