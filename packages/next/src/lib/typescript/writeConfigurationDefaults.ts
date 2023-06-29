@@ -58,6 +58,7 @@ function getDesiredCompilerOptions(
     moduleResolution: {
       // In TypeScript 5.0, `NodeJs` has renamed to `Node10`
       parsedValue:
+        ts.ModuleResolutionKind.NodeNext ??
         (ts.ModuleResolutionKind as any).Node10 ??
         ts.ModuleResolutionKind.NodeJs,
       // All of these values work:
