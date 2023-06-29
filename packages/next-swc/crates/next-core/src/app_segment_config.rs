@@ -316,13 +316,11 @@ fn parse_config_value(
                 JsValue::Constant(ConstantValue::Str(str)) if str.as_str() == "force-cache" => {
                     config.revalidate = Some(NextRevalidate::ForceCache);
                 }
-                _ => {
-                    return invalid_config(
-                        "`revalidate` needs to be static false, static 'force-cache' or a static \
-                         positive integer",
-                        &value,
-                    )
-                }
+                _ => invalid_config(
+                    "`revalidate` needs to be static false, static 'force-cache' or a static \
+                     positive integer",
+                    &value,
+                ),
             }
         }
         "fetchCache" => {
