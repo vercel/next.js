@@ -358,7 +358,7 @@ async function run(): Promise<void> {
           onState: onPromptState,
           type: 'toggle',
           name: 'appRouter',
-          message: `Would you like to use ${styledAppDir} (recommended)?`,
+          message: `Would you like to use ${styledAppDir}? (recommended)`,
           initial: true,
           active: 'Yes',
           inactive: 'No',
