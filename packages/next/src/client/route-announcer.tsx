@@ -34,7 +34,7 @@ export const RouteAnnouncer = ({ srOnly }: { srOnly?: boolean }) => {
     [asPath]
   )
 
-  const [style, className]: React.CSSProperties = React.useMemo(() => {
+  const [style, className]: [React.CSSProperties?, string?] = React.useMemo(() => {
     // re-use tailwindcss screen-reader class. This also fixes inline-cors security issues.
     if (srOnly) {
       return [undefined, "sr-only"]
