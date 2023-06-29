@@ -8,9 +8,13 @@ export function traverseModules(
     chunk: webpack.Chunk,
     chunkGroup: (typeof compilation.chunkGroups)[0],
     modId: string | number
-  ) => any
+  ) => any,
+  filterChunkGroup?: (chunkGroup: webpack.ChunkGroup) => boolean
 ) {
   compilation.chunkGroups.forEach((chunkGroup) => {
+    if (filterChunkGroup && !filterChunkGroup(chunkGroup)) {
+      return
+    }
     chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
       const chunkModules = compilation.chunkGraph.getChunkModulesIterable(
         chunk
