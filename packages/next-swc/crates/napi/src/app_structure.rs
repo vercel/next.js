@@ -13,7 +13,6 @@ use next_core::app_structure::{
 use serde::{Deserialize, Serialize};
 use turbopack_binding::{
     turbo::{
-        tasks,
         tasks::{
             debug::ValueDebugFormat, primitives::StringsVc, trace::TraceRawVcs, NothingVc,
             TryJoinIterExt, TurboTasks, ValueToString,
@@ -26,7 +25,7 @@ use turbopack_binding::{
 
 use crate::register;
 
-#[tasks::function]
+#[turbo_tasks::function]
 async fn project_fs(project_dir: &str, watching: bool) -> Result<FileSystemVc> {
     let disk_fs =
         DiskFileSystemVc::new(PROJECT_FILESYSTEM_NAME.to_string(), project_dir.to_string());
@@ -36,7 +35,7 @@ async fn project_fs(project_dir: &str, watching: bool) -> Result<FileSystemVc> {
     Ok(disk_fs.into())
 }
 
-#[tasks::value]
+#[turbo_tasks::value]
 #[serde(rename_all = "camelCase")]
 struct LoaderTreeForJs {
     segment: String,
@@ -52,11 +51,11 @@ enum EntrypointForJs {
     AppRoute { path: String },
 }
 
-#[tasks::value(transparent)]
+#[turbo_tasks::value(transparent)]
 #[serde(rename_all = "camelCase")]
 struct EntrypointsForJs(HashMap<String, EntrypointForJs>);
 
-#[tasks::value(transparent)]
+#[turbo_tasks::value(transparent)]
 struct OptionEntrypointsForJs(Option<EntrypointsForJsVc>);
 
 async fn fs_path_to_path(project_path: FileSystemPathVc, path: FileSystemPathVc) -> Result<String> {
@@ -197,7 +196,7 @@ async fn prepare_components_for_js(
     Ok(result)
 }
 
-#[tasks::function]
+#[turbo_tasks::function]
 async fn prepare_loader_tree_for_js(
     project_path: FileSystemPathVc,
     loader_tree: LoaderTreeVc,
@@ -228,7 +227,7 @@ async fn prepare_loader_tree_for_js(
     .cell())
 }
 
-#[tasks::function]
+#[turbo_tasks::function]
 async fn prepare_entrypoints_for_js(
     project_path: FileSystemPathVc,
     entrypoints: EntrypointsVc,
@@ -257,7 +256,7 @@ async fn prepare_entrypoints_for_js(
     Ok(EntrypointsForJsVc::cell(entrypoints))
 }
 
-#[tasks::function]
+#[turbo_tasks::function]
 async fn get_value(
     root_dir: &str,
     project_dir: &str,
@@ -306,10 +305,12 @@ pub fn stream_entrypoints(
     let project_dir = Arc::new(project_dir);
     let page_extensions = Arc::new(page_extensions);
     turbo_tasks.spawn_root_task(move || {
-        let func = func.clone();
+        let func: ThreadsafeFunction<
+            Option<turbo_tasks::ReadRef<EntrypointsForJs, HashMap<String, EntrypointForJs>>>,
+        > = func.clone();
         let project_dir = project_dir.clone();
         let root_dir = root_dir.clone();
-        let page_extensions = page_extensions.clone();
+        let page_extensions: Arc<Vec<String>> = page_extensions.clone();
         Box::pin(async move {
             if let Some(entrypoints) = &*get_value(
                 &root_dir,
