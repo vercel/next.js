@@ -955,8 +955,20 @@ export default class HotReloader {
       compiler.inputFileSystem = inputFileSystem
       // This is set for the initial compile. After that Watching class in webpack adds it.
       compiler.fsStartTime = Date.now()
+      // Ensure NodeEnvironmentPlugin doesn't purge the inputFileSystem. Purging is handled in `done` below.
+      compiler.hooks.beforeRun.intercept({
+        register(tapInfo: any) {
+          if (tapInfo.name === 'NodeEnvironmentPlugin') {
+            return null
+          }
+          return tapInfo
+        },
+      })
     }
 
+    this.multiCompiler.hooks.done.tap('NextjsHotReloader', () => {
+      inputFileSystem.purge!()
+    })
     watchCompilers(
       this.multiCompiler.compilers[0],
       this.multiCompiler.compilers[1],
