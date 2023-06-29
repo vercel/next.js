@@ -508,6 +508,12 @@ export interface NextConfig extends Record<string, any> {
   optimizeFonts?: boolean
 
   /**
+   * Enable react profiling in production
+   *
+   */
+  reactProductionProfiling?: boolean
+
+  /**
    * The Next.js runtime is Strict Mode-compliant.
    *
    * @see [React Strict Mode](https://nextjs.org/docs/api-reference/next.config.js/react-strict-mode)
@@ -670,6 +676,7 @@ export const defaultConfig: NextConfig = {
   excludeDefaultMomentLocales: true,
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
+  reactProductionProfiling: false,
   reactStrictMode: false,
   httpAgentOptions: {
     keepAlive: true,
