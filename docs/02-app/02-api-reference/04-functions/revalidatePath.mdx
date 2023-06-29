@@ -27,11 +27,25 @@ export async function GET(request) {
 }
 ```
 
+<AppOnly>
+
+> **Good to know**:
+>
+> - `revalidatePath` is available in both [Node.js and Edge runtimes](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes).
+> - `revalidatePath` will revalidate _all segments_ under a dynamic route segment. For example, if you have a dynamic segment `/product/[id]` and you call `revalidatePath('/product/[id]')`, then all segments under `/product/[id]` will be revalidated as requested.
+> - `revalidatePath` only invalidates the cache when the path is next visited. This means calling `revalidatePath` with a dynamic route segment will not immediately trigger many revalidations at once. The invalidation only happens when the path is next visited.
+
+</AppOnly>
+
+<PagesOnly>
+
 > **Good to know**:
 >
 > - `revalidatePath` is available in both [Node.js and Edge runtimes](/docs/pages/building-your-application/rendering/edge-and-nodejs-runtimes).
 > - `revalidatePath` will revalidate _all segments_ under a dynamic route segment. For example, if you have a dynamic segment `/product/[id]` and you call `revalidatePath('/product/[id]')`, then all segments under `/product/[id]` will be revalidated as requested.
 > - `revalidatePath` only invalidates the cache when the path is next visited. This means calling `revalidatePath` with a dynamic route segment will not immediately trigger many revalidations at once. The invalidation only happens when the path is next visited.
+
+</PagesOnly>
 
 ## Parameters
 
