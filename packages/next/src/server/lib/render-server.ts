@@ -117,7 +117,7 @@ export async function initialize(opts: {
         }
 
         if (isIPv6(resolvedHostname)) {
-          resolvedHostname = `[${hostname}]`
+          resolvedHostname = `[${resolvedHostname}]`
         }
 
         result = {
