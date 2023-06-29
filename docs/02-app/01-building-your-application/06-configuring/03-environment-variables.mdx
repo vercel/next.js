@@ -168,4 +168,4 @@ For example, if `NODE_ENV` is `development` and you define a variable in both `.
 ## Good to know
 
 - If you are using a [`/src` directory](/docs/app/building-your-application/configuring/src-directory), `.env.*` files should remain in the root of your project.
-- The environment variable `NODE_ENV` is automatically assigned to `development` when running `next dev`. All other commands automatically assign `NODE_ENV` to `production`.
+- If the environment variable `NODE_ENV` is unassigned, Next.js automatically assigns `development` when running the `next dev` command, or `production` for all other commands.
