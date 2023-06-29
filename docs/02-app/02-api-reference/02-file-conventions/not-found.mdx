@@ -43,6 +43,49 @@ export default function NotFound() {
 
 `not-found.js` components do not accept any props.
 
+That being said, you can still turn the `not-found.js` component into an async server component to fetch dynamic data:
+
+
+```tsx filename="app/blog/not-found.tsx" switcher
+import Link from 'next/link'
+import { headers } from "next/headers";
+
+export default async function NotFound() {
+  const headersList = headers();
+  const domain = headersList.get("host")
+  const data = await getSiteData(domain)
+  return (
+    <div>
+      <h2>Not Found: {data.name}</h2>
+      <p>Could not find requested resource</p>
+      <p>
+        View <Link href="/blog">all posts</Link>
+      </p>
+    </div>
+  )
+}
+```
+
+```jsx filename="app/blog/not-found.js" switcher
+import Link from 'next/link'
+import { headers } from "next/headers";
+
+export default async function NotFound() {
+  const headersList = headers();
+  const domain = headersList.get("host")
+  const data = await getSiteData(domain)
+  return (
+    <div>
+      <h2>Not Found: {data.name}</h2>
+      <p>Could not find requested resource</p>
+      <p>
+        View <Link href="/blog">all posts</Link>
+      </p>
+    </div>
+  )
+}
+```
+
 ## Version History
 
 | Version   | Changes                                             |
