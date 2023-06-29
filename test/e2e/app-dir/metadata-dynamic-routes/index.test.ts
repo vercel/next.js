@@ -385,17 +385,21 @@ createNextDescribe(
 
         await next.patchFile(iconFilePath, contentMissingIdProperty)
         await next.fetch('/metadata-base/unset/icon/100')
-        await next.deleteFile(iconFilePath) // revert
 
         const outputAfterFetch = next.cliOutput + ''
         const output = outputAfterFetch.replace(outputBeforeFetch, '')
 
-        await check(async () => {
-          expect(output).toContain(
-            `id is required for every item returned from generateImageMetadata`
-          )
-          return 'success'
-        }, /success/)
+        try {
+          await check(async () => {
+            expect(output).toContain(
+              `id property is required for every item returned from generateImageMetadata`
+            )
+            return 'success'
+          }, /success/)
+        } finally {
+          await next.deleteFile(iconFilePath)
+          await next.fetch('/metadata-base/unset/icon/100')
+        }
       })
 
       it('should error when id is missing in generateSitemaps', async () => {
@@ -405,7 +409,7 @@ createNextDescribe(
 
         export async function generateSitemaps() {
           return [
-            { id: 0 },
+            { },
           ]
         }
 
@@ -422,18 +426,21 @@ createNextDescribe(
 
         await next.patchFile(sitemapFilePath, contentMissingIdProperty)
         await next.fetch('/metadata-base/unset/sitemap.xml/0')
-        await next.deleteFile(sitemapFilePath) // revert
 
         const outputAfterFetch = next.cliOutput + ''
-
         const output = outputAfterFetch.replace(outputBeforeFetch, '')
 
-        await check(async () => {
-          expect(output).toContain(
-            `id is required for every item returned from generateImageMetadata`
-          )
-          return 'success'
-        }, /success/)
+        try {
+          await check(async () => {
+            expect(output).toContain(
+              `id property is required for every item returned from generateSitemaps`
+            )
+            return 'success'
+          }, /success/)
+        } finally {
+          await next.deleteFile(sitemapFilePath)
+          await next.fetch('/metadata-base/unset/sitemap.xml/0')
+        }
       })
     }
 
