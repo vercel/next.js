@@ -740,7 +740,7 @@ function doRender(input: RenderRouteInfo): Promise<any> {
       <AppContainer>
         {renderApp(App, appProps)}
         <Portal type="next-route-announcer">
-          <RouteAnnouncer />
+          <RouteAnnouncer srOnly={Component.tailwindcss ?? props?.tailwindcss} />
         </Portal>
       </AppContainer>
     </>

@@ -1,23 +1,7 @@
 import React from 'react'
 import { useRouter } from './router'
 
-const nextjsRouteAnnouncerStyles: React.CSSProperties = {
-  border: 0,
-  clip: 'rect(0 0 0 0)',
-  height: '1px',
-  margin: '-1px',
-  overflow: 'hidden',
-  padding: 0,
-  position: 'absolute',
-  top: 0,
-  width: '1px',
-
-  // https://medium.com/@jessebeach/beware-smushed-off-screen-accessible-text-5952a4c2cbfe
-  whiteSpace: 'nowrap',
-  wordWrap: 'normal',
-}
-
-export const RouteAnnouncer = () => {
+export const RouteAnnouncer = ({ srOnly }: { srOnly?: boolean }) => {
   const { asPath } = useRouter()
   const [routeAnnouncement, setRouteAnnouncement] = React.useState('')
 
@@ -50,12 +34,36 @@ export const RouteAnnouncer = () => {
     [asPath]
   )
 
+  const [style, className]: React.CSSProperties = React.useMemo(() => {
+    // re-use tailwindcss screen-reader class. This also fixes inline-cors security issues.
+    if (srOnly) {
+      return [undefined, "sr-only"]
+    }
+    return [{
+      border: 0,
+      clip: 'rect(0 0 0 0)',
+      height: '1px',
+      margin: '-1px',
+      overflow: 'hidden',
+      padding: 0,
+      position: 'absolute',
+      top: 0,
+      width: '1px',
+    
+      // https://medium.com/@jessebeach/beware-smushed-off-screen-accessible-text-5952a4c2cbfe
+      whiteSpace: 'nowrap',
+      wordWrap: 'normal',
+    }, undefined]
+  }, [srOnly])
+
+  
   return (
     <p
       aria-live="assertive" // Make the announcement immediately.
       id="__next-route-announcer__"
       role="alert"
-      style={nextjsRouteAnnouncerStyles}
+      className={className}
+      style={style}
     >
       {routeAnnouncement}
     </p>
