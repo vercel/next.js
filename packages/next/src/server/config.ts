@@ -693,9 +693,6 @@ function assignDefaults(
     '@mui/icons-material': {
       transform: '@mui/icons-material/{{member}}',
     },
-    '@mui/material': {
-      transform: '@mui/material/{{member}}',
-    },
     'date-fns': {
       transform: 'date-fns/{{member}}',
     },
