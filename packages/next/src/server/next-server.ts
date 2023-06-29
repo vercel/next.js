@@ -33,6 +33,7 @@ import type { RenderOpts } from './render'
 import fs from 'fs'
 import { join, relative, resolve, sep, isAbsolute } from 'path'
 import { IncomingMessage, ServerResponse } from 'http'
+import { isIPv6 } from 'net'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import {
   PAGES_MANIFEST,
@@ -2769,10 +2770,16 @@ export default class NextNodeServer extends BaseServer {
       ? 'https'
       : 'http'
 
+    let resolvedHostname = this.hostname
+
+    if (resolvedHostname && isIPv6(resolvedHostname)) {
+      resolvedHostname = `[${resolvedHostname}]`
+    }
+
     // When there are hostname and port we build an absolute URL
     const initUrl =
-      this.hostname && this.port
-        ? `${protocol}://${this.hostname}:${this.port}${req.url}`
+      resolvedHostname && this.port
+        ? `${protocol}://${resolvedHostname}:${this.port}${req.url}`
         : (this.nextConfig.experimental as any).trustHostHeader
         ? `https://${req.headers.host || 'localhost'}${req.url}`
         : req.url
