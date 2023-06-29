@@ -380,12 +380,18 @@ createNextDescribe(
           return new ImageResponse(<div>icon</div>)
         }
         `
+
+        const outputBeforeFetch = next.cliOutput + ''
+
         await next.patchFile(iconFilePath, contentMissingIdProperty)
         await next.fetch('/metadata-base/unset/icon/100')
         await next.deleteFile(iconFilePath) // revert
 
+        const outputAfterFetch = next.cliOutput + ''
+        const output = outputAfterFetch.replace(outputBeforeFetch, '')
+
         await check(async () => {
-          expect(next.cliOutput).toContain(
+          expect(output).toContain(
             `id is required for every item returned from generateImageMetadata`
           )
           return 'success'
@@ -411,12 +417,19 @@ createNextDescribe(
             },
           ]
         }`
+
+        const outputBeforeFetch = next.cliOutput + ''
+
         await next.patchFile(sitemapFilePath, contentMissingIdProperty)
         await next.fetch('/metadata-base/unset/sitemap.xml/0')
         await next.deleteFile(sitemapFilePath) // revert
 
+        const outputAfterFetch = next.cliOutput + ''
+
+        const output = outputAfterFetch.replace(outputBeforeFetch, '')
+
         await check(async () => {
-          expect(next.cliOutput).toContain(
+          expect(output).toContain(
             `id is required for every item returned from generateImageMetadata`
           )
           return 'success'
