@@ -6,11 +6,7 @@ import { getModuleBuildInfo } from '../get-module-build-info'
 
 const noopHeadPath = require.resolve('next/dist/client/components/noop-head')
 
-export default function transformSource(
-  this: any,
-  source: string,
-  sourceMap: any
-) {
+export default function transformSource(this: any, source: string) {
   // Avoid buffer to be consumed
   if (typeof source !== 'string') {
     throw new Error('Expected source to have been transformed to a string.')
@@ -53,12 +49,9 @@ export default function transformSource(
 
     if (assumedSourceType === 'module') {
       if (clientRefs.includes('*')) {
-        this.callback(
-          new Error(
-            `It's currently unsupported to use "export *" in a client boundary. Please use named exports instead.`
-          )
+        throw new Error(
+          `It's currently unsupported to use "export *" in a client boundary. Please use named exports instead.`
         )
-        return
       }
 
       let esmSource = `\
@@ -87,8 +80,7 @@ export { e${cnt++} as ${ref} };`
         }
       }
 
-      this.callback(null, esmSource, sourceMap)
-      return
+      return esmSource
     }
   }
 
@@ -100,9 +92,5 @@ export { e${cnt++} as ${ref} };`
     }
   }
 
-  this.callback(
-    null,
-    source.replace(RSC_MOD_REF_PROXY_ALIAS, moduleProxy),
-    sourceMap
-  )
+  return source.replace(RSC_MOD_REF_PROXY_ALIAS, moduleProxy)
 }

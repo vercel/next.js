@@ -1,17 +1,11 @@
 import { getRSCModuleInformation } from '../../analysis/get-page-static-info'
 import { getModuleBuildInfo } from './get-module-build-info'
 
-export default async function transformSource(
-  this: any,
-  source: string,
-  sourceMap: any
-) {
+export default function transformSource(this: any, source: string) {
   // Avoid buffer to be consumed
   if (typeof source !== 'string') {
     throw new Error('Expected source to have been transformed to a string.')
   }
-
-  const callback = this.async()
 
   // Assign the RSC meta information to buildInfo.
   const buildInfo = getModuleBuildInfo(this._module)
@@ -31,5 +25,5 @@ ${source}
 `
   }
 
-  return callback(null, source, sourceMap)
+  return source
 }
