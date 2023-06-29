@@ -512,6 +512,12 @@ const configSchema = {
         logging: {
           type: 'string',
         },
+        serverMinification: {
+          type: 'boolean',
+        },
+        serverSourceMaps: {
+          type: 'boolean',
+        },
       },
       type: 'object',
     },
@@ -736,6 +742,9 @@ const configSchema = {
     },
     publicRuntimeConfig: {
       type: 'object',
+    },
+    reactProductionProfiling: {
+      type: 'boolean',
     },
     reactStrictMode: {
       type: 'boolean',

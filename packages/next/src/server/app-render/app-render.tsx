@@ -451,7 +451,6 @@ export async function renderToHTMLOrFlight(
 
       const preloadedFontFiles = layoutOrPagePath
         ? getPreloadableFonts(
-            clientReferenceManifest,
             nextFontManifest,
             layoutOrPagePath,
             injectedFontPreloadTagsWithCurrentLayout
@@ -1104,7 +1103,6 @@ export async function renderToHTMLOrFlight(
             true
           )
           getPreloadableFonts(
-            clientReferenceManifest,
             nextFontManifest,
             layoutPath,
             injectedFontPreloadTagsWithCurrentLayout
