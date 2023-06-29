@@ -147,6 +147,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
     `
         : `
       import Document from ${stringifiedDocumentPath}
+      import { renderToHTML } from 'next/dist/esm/server/render'
       import * as userland from ${stringifiedPagePath}
       import * as appMod from ${stringifiedAppPath}
       import * as errorMod from ${stringifiedErrorPath}
@@ -155,11 +156,8 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
           ? `import * as error500Mod from ${stringified500Path}`
           : `const error500Mod = null`
       }
-      import RouteModule from "next/dist/esm/server/future/route-modules/pages/module"
 
-      const renderToHTML = () => {
-        throw new Error('Invariant: routeModule should be configured when rendering pages')
-      }
+      import RouteModule from "next/dist/esm/server/future/route-modules/pages/module"
 
       const options = ${JSON.stringify(getRouteModuleOptions(page))}
       const routeModule = new RouteModule({

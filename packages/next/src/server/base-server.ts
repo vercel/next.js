@@ -1689,9 +1689,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         // If the match can't be found, rely on the loaded route module. This
         // should only be required during development when we add FS routes.
         ((this.renderOpts.dev || process.env.NEXT_RUNTIME === 'edge') &&
-        components.ComponentMod?.routeModule
+        components.routeModule
           ? {
-              definition: components.ComponentMod.routeModule.definition,
+              definition: components.routeModule.definition,
               params: opts.params
                 ? parsedUrlQueryToParams(opts.params)
                 : undefined,
@@ -1778,9 +1778,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       else if (
         match &&
         isRouteMatch(match, RouteKind.PAGES) &&
-        components.ComponentMod.routeModule
+        components.routeModule
       ) {
-        const module: PagesRouteModule = components.ComponentMod.routeModule
+        const module = components.routeModule as PagesRouteModule
 
         // Due to the way we pass data by mutating `renderOpts`, we can't extend
         // the object here but only updating its `clientReferenceManifest`
@@ -2559,9 +2559,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       // If the page has a route module, use it for the new match. If it doesn't
       // have a route module, remove the match.
-      if (result.components.ComponentMod.routeModule) {
+      if (result.components.routeModule) {
         addRequestMeta(ctx.req, '_nextMatch', {
-          definition: result.components.ComponentMod.routeModule.definition,
+          definition: result.components.routeModule.definition,
           params: undefined,
         })
       } else {
@@ -2599,7 +2599,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         // There was an error, so use it's definition from the route module
         // to add the match to the request.
         addRequestMeta(ctx.req, '_nextMatch', {
-          definition: fallbackComponents.ComponentMod.routeModule.definition,
+          definition: fallbackComponents.routeModule!.definition,
           params: undefined,
         })
 

@@ -104,6 +104,7 @@ export function getRender({
             ComponentMod: pageMod,
             isAppPath: !!pageMod.__next_app__,
             pathname,
+            routeModule: pageMod.routeModule,
           }
         }
 
