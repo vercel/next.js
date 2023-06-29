@@ -16,7 +16,7 @@ export class NextRequest extends Request {
     nextUrl: NextURL
   }
 
-  constructor(input: URL | RequestInfo, init: RequestInit = {}) {
+  constructor(input: URL | RequestInfo, init: RequestInit) {
     const url =
       typeof input !== 'string' && 'url' in input ? input.url : String(input)
     validateURL(url)
@@ -111,4 +111,5 @@ export interface RequestInit extends globalThis.RequestInit {
     i18n?: I18NConfig | null
     trailingSlash?: boolean
   }
+  signal?: AbortSignal
 }
