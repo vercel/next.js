@@ -301,7 +301,7 @@ function Router({
           )
         })
       },
-      push: (href, options = { scroll: true }) => {
+      push: (href, options = {}) => {
         startTransition(() => {
           navigate(
             href,
