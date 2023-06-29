@@ -378,6 +378,7 @@ export function patchFetch({
                       body: bodyBuffer.toString('base64'),
                       status: res.status,
                       tags,
+                      url: res.url,
                     },
                     revalidate: normalizedRevalidate,
                   },
@@ -390,10 +391,12 @@ export function patchFetch({
                 console.warn(`Failed to set fetch cache`, input, err)
               }
 
-              return new Response(bodyBuffer, {
+              const response = new Response(bodyBuffer, {
                 headers: new Headers(res.headers),
                 status: res.status,
               })
+              Object.defineProperty(response, 'url', { value: res.url })
+              return response
             }
             return res
           })
@@ -467,10 +470,14 @@ export function patchFetch({
                 method: init?.method || 'GET',
               })
 
-              return new Response(decodedBody, {
+              const response = new Response(decodedBody, {
                 headers: resData.headers,
                 status: resData.status,
               })
+              Object.defineProperty(response, 'url', {
+                value: entry.value.data.url,
+              })
+              return response
             }
           }
         }
