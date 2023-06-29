@@ -289,14 +289,14 @@ function Router({
           })
         })
       },
-      replace: (href, options = { scroll: true }) => {
+      replace: (href, options = {}) => {
         // @ts-ignore startTransition exists
         React.startTransition(() => {
           navigate(
             href,
             'replace',
             Boolean(options.forceOptimisticNavigation),
-            options.scroll
+            options.scroll ?? true
           )
         })
       },
@@ -307,7 +307,7 @@ function Router({
             href,
             'push',
             Boolean(options.forceOptimisticNavigation),
-            options.scroll
+            options.scroll ?? true
           )
         })
       },

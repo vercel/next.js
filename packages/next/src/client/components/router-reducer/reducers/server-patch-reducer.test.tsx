@@ -502,6 +502,7 @@ describe('serverPatchReducer', () => {
       isExternalUrl: false,
       locationSearch: '',
       navigateType: 'push',
+      shouldScroll: true,
       forceOptimisticNavigation: false,
       cache: {
         status: CacheStates.LAZY_INITIALIZED,

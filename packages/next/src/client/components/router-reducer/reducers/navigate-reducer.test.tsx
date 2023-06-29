@@ -174,6 +174,7 @@ describe('navigateReducer', () => {
       isExternalUrl: false,
       locationSearch: '',
       navigateType: 'push',
+      shouldScroll: true,
       forceOptimisticNavigation: false,
       cache: {
         status: CacheStates.LAZY_INITIALIZED,
@@ -362,6 +363,7 @@ describe('navigateReducer', () => {
       isExternalUrl: false,
       locationSearch: '',
       navigateType: 'push',
+      shouldScroll: true,
       forceOptimisticNavigation: false,
       cache: {
         status: CacheStates.LAZY_INITIALIZED,
@@ -555,6 +557,7 @@ describe('navigateReducer', () => {
       isExternalUrl,
       locationSearch: '',
       navigateType: 'push',
+      shouldScroll: true,
       forceOptimisticNavigation: false,
       cache: {
         status: CacheStates.LAZY_INITIALIZED,
@@ -717,6 +720,7 @@ describe('navigateReducer', () => {
       isExternalUrl,
       locationSearch: '',
       navigateType: 'replace',
+      shouldScroll: true,
       forceOptimisticNavigation: false,
       cache: {
         status: CacheStates.LAZY_INITIALIZED,
@@ -876,6 +880,7 @@ describe('navigateReducer', () => {
       isExternalUrl: false,
       locationSearch: '',
       navigateType: 'push',
+      shouldScroll: true,
       forceOptimisticNavigation: true,
       cache: {
         status: CacheStates.LAZY_INITIALIZED,
@@ -1060,6 +1065,7 @@ describe('navigateReducer', () => {
       isExternalUrl: false,
       navigateType: 'push',
       locationSearch: '',
+      shouldScroll: true,
       forceOptimisticNavigation: false,
       cache: {
         status: CacheStates.LAZY_INITIALIZED,
@@ -1342,6 +1348,7 @@ describe('navigateReducer', () => {
       isExternalUrl: false,
       locationSearch: '',
       navigateType: 'push',
+      shouldScroll: true,
       forceOptimisticNavigation: false,
       cache: {
         status: CacheStates.LAZY_INITIALIZED,
