@@ -42,38 +42,10 @@ const dirTypescript = join(__dirname, '../with-typescript')
 
 describe('Next Lint', () => {
   describe('First Time Setup ', () => {
-    async function nextLintTemp(setupCallback) {
+    async function nextLintTemp(dir, setupCallback) {
       const folder = join(os.tmpdir(), Math.random().toString(36).substring(2))
       await fs.mkdirp(folder)
-      await fs.copy(dirNoConfig, folder)
-      await setupCallback?.(folder)
-
-      try {
-        const { stdout, stderr } = await nextLint(folder, ['--strict'], {
-          stderr: true,
-          stdout: true,
-          cwd: folder,
-        })
-
-        console.log({ stdout, stderr })
-
-        const pkgJson = JSON.parse(
-          await fs.readFile(join(folder, 'package.json'), 'utf8')
-        )
-        const eslintrcJson = JSON.parse(
-          await fs.readFile(join(folder, '.eslintrc.json'), 'utf8')
-        )
-
-        return { stdout, pkgJson, eslintrcJson }
-      } finally {
-        await fs.remove(folder)
-      }
-    }
-
-    async function nextLintTempWithApp(setupCallback) {
-      const folder = join(os.tmpdir(), Math.random().toString(36).substring(2))
-      await fs.mkdirp(folder)
-      await fs.copy(dirNoConfigApp, folder)
+      await fs.copy(dir, folder)
       await setupCallback?.(folder)
 
       try {
@@ -121,9 +93,12 @@ describe('Next Lint', () => {
       { packageManger: 'npm', lockFile: 'package-lock.json' },
     ]) {
       test(`installs eslint and eslint-config-next as devDependencies if missing with ${packageManger}`, async () => {
-        const { stdout, pkgJson } = await nextLintTemp(async (folder) => {
-          await fs.writeFile(join(folder, lockFile), '')
-        })
+        const { stdout, pkgJson } = await nextLintTemp(
+          dirNoConfig,
+          async (folder) => {
+            await fs.writeFile(join(folder, lockFile), '')
+          }
+        )
 
         expect(stdout).toContain(
           `Installing devDependencies (${packageManger}):`
@@ -137,7 +112,7 @@ describe('Next Lint', () => {
     }
 
     test('creates .eslintrc.json file with a default configuration', async () => {
-      const { stdout, eslintrcJson } = await nextLintTemp()
+      const { stdout, eslintrcJson } = await nextLintTemp(dirNoConfig)
 
       expect(stdout).toContain(
         'We created the .eslintrc.json file for you and included your selected configuration'
@@ -146,7 +121,7 @@ describe('Next Lint', () => {
     })
 
     test('creates .eslintrc.json file with a default configuration when using app router', async () => {
-      const { stdout, eslintrcJson } = await nextLintTempWithApp()
+      const { stdout, eslintrcJson } = await nextLintTemp(dirNoConfigApp)
 
       expect(stdout).toContain(
         'We created the .eslintrc.json file for you and included your selected configuration'
@@ -155,7 +130,7 @@ describe('Next Lint', () => {
     })
 
     test('shows a successful message when completed', async () => {
-      const { stdout } = await nextLintTemp()
+      const { stdout } = await nextLintTemp(dirNoConfig)
 
       expect(stdout).toContain(
         'ESLint has successfully been configured. Run next lint again to view warnings and errors'
