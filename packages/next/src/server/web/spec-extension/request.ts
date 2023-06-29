@@ -20,7 +20,7 @@ export class NextRequest extends Request {
     const url =
       typeof input !== 'string' && 'url' in input ? input.url : String(input)
     validateURL(url)
-    super(url, init)
+    super(input, init)
     const nextUrl = new NextURL(url, {
       headers: toNodeOutgoingHttpHeaders(this.headers),
       nextConfig: init.nextConfig,

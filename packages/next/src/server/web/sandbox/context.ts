@@ -353,13 +353,13 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
       const __Request = context.Request
       context.Request = class extends __Request {
         next?: NextFetchRequestConfig | undefined
-        constructor(input: URL | RequestInfo, init?: RequestInit | undefined) {
+        constructor(input: RequestInfo | URL, init?: RequestInit | undefined) {
           const url =
             typeof input !== 'string' && 'url' in input
               ? input.url
               : String(input)
           validateURL(url)
-          super(url, init)
+          super(input, init)
           this.next = init?.next
         }
       }
