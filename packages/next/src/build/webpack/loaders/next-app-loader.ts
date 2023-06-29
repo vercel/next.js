@@ -642,7 +642,8 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         throw new Error(message)
       }
 
-      // Get the new result with the created root layout.
+      // Clear fs cache, get the new result with the created root layout.
+      filesInDir.clear()
       treeCodeResult = await createTreeCodeFromPath(pagePath, {
         resolveDir,
         resolver,
