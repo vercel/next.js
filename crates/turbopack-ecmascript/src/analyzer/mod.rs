@@ -33,6 +33,7 @@ pub mod builtin;
 pub mod graph;
 pub mod imports;
 pub mod linker;
+pub mod top_level_await;
 pub mod well_known;
 
 type PinnedAsyncUntilSettledBox<'a, E> =

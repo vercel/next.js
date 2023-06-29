@@ -108,7 +108,9 @@ use crate::{
         builtin::early_replace_builtin,
         graph::{ConditionalKind, EffectArg, EvalContext, VarGraph},
         imports::{ImportedSymbol, Reexport},
-        parse_require_context, ModuleValue, RequireContextValueVc,
+        parse_require_context,
+        top_level_await::has_top_level_await,
+        ModuleValue, RequireContextValueVc,
     },
     chunk::{EcmascriptExports, EcmascriptExportsVc},
     code_gen::{
@@ -134,6 +136,7 @@ pub struct AnalyzeEcmascriptModuleResult {
     pub references: AssetReferencesVc,
     pub code_generation: CodeGenerateablesVc,
     pub exports: EcmascriptExportsVc,
+    pub has_top_level_await: bool,
     /// `true` when the analysis was successful.
     pub successful: bool,
 }
@@ -170,6 +173,7 @@ pub(crate) struct AnalyzeEcmascriptModuleResultBuilder {
     references: IndexSet<AssetReferenceVc>,
     code_gens: Vec<CodeGen>,
     exports: EcmascriptExports,
+    has_top_level_await: bool,
     successful: bool,
 }
 
@@ -179,6 +183,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             references: IndexSet::new(),
             code_gens: Vec::new(),
             exports: EcmascriptExports::None,
+            has_top_level_await: false,
             successful: false,
         }
     }
@@ -217,6 +222,11 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         self.exports = exports;
     }
 
+    /// Sets whether the analysed module has a top level await.
+    pub fn set_top_level_await(&mut self, top_level_await: bool) {
+        self.has_top_level_await = top_level_await;
+    }
+
     /// Sets whether the analysis was successful.
     pub fn set_successful(&mut self, successful: bool) {
         self.successful = successful;
@@ -244,6 +254,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 references: AssetReferencesVc::cell(references),
                 code_generation: CodeGenerateablesVc::cell(self.code_gens),
                 exports: self.exports.into(),
+                has_top_level_await: self.has_top_level_await,
                 successful: self.successful,
             },
         ))
@@ -297,6 +308,13 @@ impl<'a> AnalysisState<'a> {
         )
         .await
     }
+}
+
+fn set_handler_and_globals<F, R>(handler: &Handler, globals: &Arc<Globals>, f: F) -> R
+where
+    F: FnOnce() -> R,
+{
+    HANDLER.set(handler, || GLOBALS.set(globals, f))
 }
 
 #[turbo_tasks::function]
@@ -431,9 +449,14 @@ pub(crate) async fn analyze_ecmascript_module(
             title: None,
         }),
     );
-    let var_graph = HANDLER.set(&handler, || {
-        GLOBALS.set(globals, || create_graph(program, eval_context))
-    });
+
+    let has_top_level_await =
+        set_handler_and_globals(&handler, globals, || has_top_level_await(program));
+
+    analysis.set_top_level_await(has_top_level_await);
+
+    let mut var_graph =
+        set_handler_and_globals(&handler, globals, || create_graph(program, eval_context));
 
     for r in eval_context.imports.references() {
         let r = EsmAssetReferenceVc::new(
@@ -463,59 +486,45 @@ pub(crate) async fn analyze_ecmascript_module(
         analysis.add_reference(*r);
     }
 
-    pub fn set_handler_and_globals<F, R>(handler: &Handler, globals: &Arc<Globals>, f: F) -> R
-    where
-        F: FnOnce() -> R,
-    {
-        HANDLER.set(handler, || GLOBALS.set(globals, f))
-    }
+    let (webpack_runtime, webpack_entry, webpack_chunks, esm_exports, esm_star_exports) =
+        set_handler_and_globals(&handler, globals, || {
+            // TODO migrate to effects
+            let mut visitor =
+                AssetReferencesVisitor::new(eval_context, &import_references, &mut analysis);
 
-    let (
-        mut var_graph,
-        webpack_runtime,
-        webpack_entry,
-        webpack_chunks,
-        esm_exports,
-        esm_star_exports,
-    ) = set_handler_and_globals(&handler, globals, || {
-        // TODO migrate to effects
-        let mut visitor =
-            AssetReferencesVisitor::new(eval_context, &import_references, &mut analysis);
-
-        for (i, reexport) in eval_context.imports.reexports() {
-            let import_ref = import_references[i];
-            match reexport {
-                Reexport::Star => {
-                    visitor.esm_star_exports.push(import_ref);
-                }
-                Reexport::Namespace { exported: n } => {
-                    visitor
-                        .esm_exports
-                        .insert(n.to_string(), EsmExport::ImportedNamespace(import_ref));
-                }
-                Reexport::Named {
-                    imported: i,
-                    exported: e,
-                } => {
-                    visitor.esm_exports.insert(
-                        e.to_string(),
-                        EsmExport::ImportedBinding(import_ref, i.to_string()),
-                    );
+            for (i, reexport) in eval_context.imports.reexports() {
+                let import_ref = import_references[i];
+                match reexport {
+                    Reexport::Star => {
+                        visitor.esm_star_exports.push(import_ref);
+                    }
+                    Reexport::Namespace { exported: n } => {
+                        visitor
+                            .esm_exports
+                            .insert(n.to_string(), EsmExport::ImportedNamespace(import_ref));
+                    }
+                    Reexport::Named {
+                        imported: i,
+                        exported: e,
+                    } => {
+                        visitor.esm_exports.insert(
+                            e.to_string(),
+                            EsmExport::ImportedBinding(import_ref, i.to_string()),
+                        );
+                    }
                 }
             }
-        }
 
-        program.visit_with_path(&mut visitor, &mut Default::default());
+            program.visit_with_path(&mut visitor, &mut Default::default());
 
-        (
-            var_graph,
-            visitor.webpack_runtime,
-            visitor.webpack_entry,
-            visitor.webpack_chunks,
-            visitor.esm_exports,
-            visitor.esm_star_exports,
-        )
-    });
+            (
+                visitor.webpack_runtime,
+                visitor.webpack_entry,
+                visitor.webpack_chunks,
+                visitor.esm_exports,
+                visitor.esm_star_exports,
+            )
+        });
 
     let mut ignore_effect_span = None;
     // Check if it was a webpack entry
