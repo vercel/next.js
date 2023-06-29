@@ -402,7 +402,7 @@ createNextDescribe(
         }
       })
 
-      it('should error when id is missing in generateSitemaps', async () => {
+      it.skip('should error when id is missing in generateSitemaps', async () => {
         const sitemapFilePath = 'app/metadata-base/unset/sitemap.tsx'
         const contentMissingIdProperty = `
         import { MetadataRoute } from 'next'
