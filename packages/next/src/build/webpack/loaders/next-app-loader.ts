@@ -1,5 +1,5 @@
 import type webpack from 'webpack'
-import type { ValueOf } from '../../../shared/lib/constants'
+import { PAGE_SEGMENT, type ValueOf } from '../../../shared/lib/constants'
 import type { ModuleReference, CollectedMetadata } from './metadata/types'
 
 import path from 'path'
@@ -50,7 +50,6 @@ const FILE_TYPES = {
 } as const
 
 const GLOBAL_ERROR_FILE_TYPE = 'global-error'
-const PAGE_SEGMENT = 'page$'
 const PARALLEL_CHILDREN_SEGMENT = 'children$'
 
 type DirResolver = (pathToResolve: string) => string
