@@ -6,8 +6,8 @@ createNextDescribe(
     files: __dirname,
   },
   ({ next, isNextStart }) => {
-    if (isNextStart) {
-      it('should have correct values in function config manifest', async () => {
+    it('should have correct values in function config manifest', async () => {
+      if (isNextStart) {
         const functionsConfigManifest = JSON.parse(
           await next.readFile('.next/server/functions-config-manifest.json')
         )
@@ -37,7 +37,7 @@ createNextDescribe(
             },
           }
         `)
-      })
-    }
+      }
+    })
   }
 )
