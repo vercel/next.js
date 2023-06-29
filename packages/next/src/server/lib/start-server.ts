@@ -22,6 +22,7 @@ export interface StartServerOptions {
   useWorkers: boolean
   allowRetry?: boolean
   isTurbopack?: boolean
+  isExperimentalTurbo?: boolean
   keepAliveTimeout?: number
   onStdout?: (data: any) => void
   onStderr?: (data: any) => void
@@ -210,6 +211,7 @@ export async function startServer({
             ...(process.env.NEXT_CPU_PROF
               ? { __NEXT_PRIVATE_CPU_PROFILE: `CPU.router` }
               : {}),
+            WATCHPACK_WATCHER_LIMIT: '20',
           },
         },
         exposedMethods: ['initialize'],

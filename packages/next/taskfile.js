@@ -1760,7 +1760,6 @@ export async function copy_vendor_react(task_) {
       'static.browser.js',
       'unstable_testing.js',
       'test-utils.js',
-      'profiling.js',
       'server.bun.js',
       'cjs/react-dom-server.bun.development.js',
       'cjs/react-dom-server.bun.production.min.js',
