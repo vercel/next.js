@@ -242,11 +242,11 @@ export default function ExampleClientComponent({ children }) {
 
 #### Recommended Pattern: Passing Server Components to Client Components as Props
 
-Instead, when designing Client Components you can use React props to mark _"holes"_ for Server Components.
+Instead, when designing Client Components you can use React props to mark _"slots"_ for Server Components.
 
-The Server Component will be rendered on the server, and when the Client Component is rendered on the client, the _"hole"_ will be filled in with the rendered result of the Server Component.
+The Server Component will be rendered on the server, and when the Client Component is rendered on the client, the _"slot"_ will be filled in with the rendered result of the Server Component.
 
-A common pattern is to use the React `children` prop to create the _"hole"_. We can refactor `<ExampleClientComponent>` to accept a generic `children` prop and move the import and explicit nesting of `<ExampleClientComponent>` up to a parent component.
+A common pattern is to use the React `children` prop to create the _"slot"_. We can refactor `<ExampleClientComponent>` to accept a generic `children` prop and move the import and explicit nesting of `<ExampleClientComponent>` up to a parent component.
 
 ```tsx filename="app/example-client-component.tsx" switcher highlight={6,16}
 'use client'
@@ -425,7 +425,7 @@ Since Server Components are new, third-party packages in the ecosystem are just 
 
 Today, many components from `npm` packages that use client-only features do not yet have the directive. These third-party components will work as expected within your own [Client Components](#the-use-client-directive) since they have the `"use client"` directive, but they won't work within Server Components.
 
-For example, let's say you've installed the hypothetical `acme-carousel` package which has an `<Carousel />` component. This component uses `useState`, but it doesn't yet have the `"use client"` directive.
+For example, let's say you've installed the hypothetical `acme-carousel` package which has a `<Carousel />` component. This component uses `useState`, but it doesn't yet have the `"use client"` directive.
 
 If you use `<Carousel />` within a Client Component, it will work as expected:
 

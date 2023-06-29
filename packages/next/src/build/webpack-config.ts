@@ -53,7 +53,7 @@ import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin
 import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
 import { ClientReferenceManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
-import { ClientReferenceEntryPlugin } from './webpack/plugins/flight-client-entry-plugin'
+import { FlightClientEntryPlugin } from './webpack/plugins/flight-client-entry-plugin'
 import { NextTypesPlugin } from './webpack/plugins/next-types-plugin'
 import type {
   Feature,
@@ -406,9 +406,17 @@ export function getDefineEnv({
   }
 }
 
+function getReactProfilingInProduction() {
+  return {
+    'react-dom$': 'react-dom/profiling',
+    'scheduler/tracing': 'scheduler/tracing-profiling',
+  }
+}
+
 function createRSCAliases(
   bundledReactChannel: string,
   opts: {
+    reactProductionProfiling: boolean
     reactSharedSubset: boolean
     reactDomServerRenderingStub: boolean
     reactServerCondition?: boolean
@@ -453,6 +461,15 @@ function createRSCAliases(
       alias['server-only$'] = 'next/dist/compiled/server-only/index'
       alias['client-only$'] = 'next/dist/compiled/client-only/index'
     }
+  }
+
+  if (opts.reactProductionProfiling) {
+    alias[
+      'react-dom$'
+    ] = `next/dist/compiled/react-dom${bundledReactChannel}/profiling`
+    alias[
+      'scheduler/tracing'
+    ] = `next/dist/compiled/scheduler${bundledReactChannel}/tracing-profiling`
   }
 
   return alias
@@ -998,15 +1015,6 @@ export default async function getBaseWebpackConfig(
       } as ClientEntries)
     : undefined
 
-  function getReactProfilingInProduction() {
-    if (reactProductionProfiling) {
-      return {
-        'react-dom$': 'react-dom/profiling',
-        'scheduler/tracing': 'scheduler/tracing-profiling',
-      }
-    }
-  }
-
   // tell webpack where to look for _app and _document
   // using aliases to allow falling back to the default
   // version when removed or not present
@@ -1095,8 +1103,8 @@ export default async function getBaseWebpackConfig(
               'next/dist/esm/server/web/exports/index',
             [`${NEXT_PROJECT_ROOT}/dist/client/link`]:
               'next/dist/esm/client/link',
-            [`${NEXT_PROJECT_ROOT}/dist/client/image`]:
-              'next/dist/esm/client/image',
+            [`${NEXT_PROJECT_ROOT}/dist/shared/lib/image-external`]:
+              'next/dist/esm/shared/lib/image-external',
             [`${NEXT_PROJECT_ROOT}/dist/client/script`]:
               'next/dist/esm/client/script',
             [`${NEXT_PROJECT_ROOT}/dist/client/router`]:
@@ -1145,7 +1153,7 @@ export default async function getBaseWebpackConfig(
       [ROOT_DIR_ALIAS]: dir,
       [DOT_NEXT_ALIAS]: distDir,
       ...(isClient || isEdgeServer ? getOptimizedAliases() : {}),
-      ...getReactProfilingInProduction(),
+      ...(reactProductionProfiling ? getReactProfilingInProduction() : {}),
 
       [RSC_ACTION_VALIDATE_ALIAS]:
         'next/dist/build/webpack/loaders/next-flight-loader/action-validate',
@@ -1395,7 +1403,7 @@ export default async function getBaseWebpackConfig(
       }
 
       const isNextExternal =
-        /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic|app-dynamic|lazy-dynamic|head[^-]))/.test(
+        /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic|app-dynamic|image-external|lazy-dynamic|head[^-]))/.test(
           localRes
         )
 
@@ -1766,7 +1774,11 @@ export default async function getBaseWebpackConfig(
       runtimeChunk: isClient
         ? { name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK }
         : undefined,
-      minimize: !dev && (isClient || isEdgeServer),
+      minimize:
+        !dev &&
+        (isClient ||
+          isEdgeServer ||
+          (isNodeServer && config.experimental.serverMinification)),
       minimizer: [
         // Minify JavaScript
         (compiler: webpack.Compiler) => {
@@ -1929,6 +1941,7 @@ export default async function getBaseWebpackConfig(
                     ...createRSCAliases(bundledReactChannel, {
                       reactSharedSubset: false,
                       reactDomServerRenderingStub: false,
+                      reactProductionProfiling,
                     }),
                   },
                 },
@@ -1961,6 +1974,8 @@ export default async function getBaseWebpackConfig(
                       reactSharedSubset: true,
                       reactDomServerRenderingStub: true,
                       reactServerCondition: true,
+                      // No server components profiling
+                      reactProductionProfiling,
                     }),
                   },
                 },
@@ -2024,6 +2039,7 @@ export default async function getBaseWebpackConfig(
                           reactSharedSubset: true,
                           reactDomServerRenderingStub: true,
                           reactServerCondition: true,
+                          reactProductionProfiling,
                         }),
                       },
                     },
@@ -2037,6 +2053,7 @@ export default async function getBaseWebpackConfig(
                           reactSharedSubset: false,
                           reactDomServerRenderingStub: true,
                           reactServerCondition: false,
+                          reactProductionProfiling,
                         }),
                       },
                     },
@@ -2053,6 +2070,7 @@ export default async function getBaseWebpackConfig(
                       reactSharedSubset: false,
                       reactDomServerRenderingStub: false,
                       reactServerCondition: false,
+                      reactProductionProfiling,
                     }),
                   },
                 },
@@ -2272,6 +2290,12 @@ export default async function getBaseWebpackConfig(
               "'server-only' cannot be imported from a Client Component module. It should only be used from a Server Component.",
           },
         },
+        {
+          // Mark `image-response.js` as side-effects free to make sure we can
+          // tree-shake it if not used.
+          test: /[\\/]next[\\/]dist[\\/](esm[\\/])?server[\\/]web[\\/]exports[\\/]image-response\.js/,
+          sideEffects: false,
+        },
       ].filter(Boolean),
     },
     plugins: [
@@ -2414,7 +2438,7 @@ export default async function getBaseWebpackConfig(
               dev,
               appDir,
             })
-          : new ClientReferenceEntryPlugin({
+          : new FlightClientEntryPlugin({
               appDir,
               dev,
               isEdgeServer,
@@ -2439,7 +2463,7 @@ export default async function getBaseWebpackConfig(
         new SubresourceIntegrityPlugin(config.experimental.sri.algorithm),
       isClient &&
         new NextFontManifestPlugin({
-          appDirEnabled: !!config.experimental.appDir,
+          appDir,
         }),
       !dev &&
         isClient &&
@@ -2551,12 +2575,6 @@ export default async function getBaseWebpackConfig(
     webpack5Config.output.enabledLibraryTypes = ['assign']
   }
 
-  if (dev) {
-    // @ts-ignore unsafeCache exists
-    webpack5Config.module.unsafeCache = (module) =>
-      !/[\\/]pages[\\/][^\\/]+(?:$|\?|#)/.test(module.resource)
-  }
-
   // This enables managedPaths for all node_modules
   // and also for the unplugged folder when using yarn pnp
   // It also add the yarn cache to the immutable paths
@@ -2630,6 +2648,7 @@ export default async function getBaseWebpackConfig(
     //  - next.config.js keys that affect compilation
     version: `${process.env.__NEXT_VERSION}|${configVars}`,
     cacheDirectory: path.join(distDir, 'cache', 'webpack'),
+    compression: 'gzip',
   }
 
   // Adds `next.config.js` as a buildDependency when custom webpack config is provided
@@ -2723,6 +2742,7 @@ export default async function getBaseWebpackConfig(
     experimental: config.experimental,
     disableStaticImages: config.images.disableStaticImages,
     transpilePackages: config.transpilePackages,
+    serverSourceMaps: config.experimental.serverSourceMaps,
   })
 
   // @ts-ignore Cache exists

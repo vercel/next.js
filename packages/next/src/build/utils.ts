@@ -65,6 +65,7 @@ import { patchFetch } from '../server/lib/patch-fetch'
 import { nodeFs } from '../server/lib/node-fs-methods'
 import * as ciEnvironment from '../telemetry/ci-info'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import { denormalizeAppPagePath } from '../shared/lib/page-path/denormalize-app-path'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -793,11 +794,10 @@ export async function getJsPageSizeInKb(
     throw new Error('expected "app" manifest data with an "app" pageType')
   }
 
-  // Denormalization is not needed for "app" dir, as we normalize the keys of appBuildManifest instead
-  let pagePath = page
-  if (routerType === 'pages') {
-    pagePath = denormalizePagePath(page)
-  }
+  const pagePath =
+    routerType === 'pages'
+      ? denormalizePagePath(page)
+      : denormalizeAppPagePath(page)
 
   const fnFilterJs = (entry: string) => entry.endsWith('.js')
 
