@@ -9,6 +9,13 @@ PlainIssue {
     source: None,
     sub_issues: [],
     processing_path: Some(
-        [],
+        [
+            PlainIssueProcessingPathItem {
+                context: Some(
+                    "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/app/use-server/input/app",
+                ),
+                description: "Next.js App Page Route /",
+            },
+        ],
     ),
 }

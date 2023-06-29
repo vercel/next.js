@@ -23,6 +23,13 @@ PlainIssue {
     ),
     sub_issues: [],
     processing_path: Some(
-        [],
+        [
+            PlainIssueProcessingPathItem {
+                context: Some(
+                    "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/import/conditions/input/app",
+                ),
+                description: "Next.js App Page Route /app-edge",
+            },
+        ],
     ),
 }
