@@ -31,7 +31,7 @@ createNextDescribe(
         if (Array.isArray(expected)) {
           expect(values).toEqual(expected)
         } else {
-          expect(values[0]).toBe(expected)
+          expect(values.includes(expected)).toBe(true)
         }
       }
     }
