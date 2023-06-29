@@ -5,10 +5,8 @@ export default function _defineEnumerableProperties(obj, descs) {
     if ("value" in desc) desc.writable = true;
     Object.defineProperty(obj, key, desc);
   }
-
   if (Object.getOwnPropertySymbols) {
     var objectSymbols = Object.getOwnPropertySymbols(descs);
-
     for (var i = 0; i < objectSymbols.length; i++) {
       var sym = objectSymbols[i];
       var desc = descs[sym];
@@ -17,6 +15,5 @@ export default function _defineEnumerableProperties(obj, descs) {
       Object.defineProperty(obj, sym, desc);
     }
   }
-
   return obj;
 }

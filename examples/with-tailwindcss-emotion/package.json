@@ -13,7 +13,7 @@
     "tailwindcss-filters": "3.0.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.13.15",
+    "@babel/core": "7.22.5",
     "@emotion/babel-plugin": "11.7.2",
     "autoprefixer": "^10.4.4",
     "next": "latest",

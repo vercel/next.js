@@ -15,7 +15,7 @@
     "reason-react": "^0.7.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.4.3",
+    "@babel/core": "7.22.5",
     "bs-platform": "7.2.2",
     "concurrently": "^4.1.0"
   }
