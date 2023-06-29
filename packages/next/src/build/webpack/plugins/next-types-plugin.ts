@@ -68,6 +68,7 @@ checkFields<Diff<{
   fetchCache?: 'auto' | 'force-no-store' | 'only-no-store' | 'default-no-store' | 'default-cache' | 'only-cache' | 'force-cache'
   preferredRegion?: 'auto' | 'global' | 'home' | string | string[]
   runtime?: 'nodejs' | 'experimental-edge' | 'edge'
+  maxDuration?: number
   ${
     options.type === 'route'
       ? ''
@@ -413,11 +414,17 @@ declare module 'next' {
 
 declare module 'next/link' {
   import type { LinkProps as OriginalLinkProps } from 'next/dist/client/link'
-  import type { AnchorHTMLAttributes } from 'react'
+  import type { AnchorHTMLAttributes, DetailedHTMLProps } from 'react'
   import type { UrlObject } from 'url'
   
   type LinkRestProps = Omit<
-    Omit<AnchorHTMLAttributes<HTMLAnchorElement>, keyof OriginalLinkProps> &
+    Omit<
+      DetailedHTMLProps<
+        AnchorHTMLAttributes<HTMLAnchorElement>,
+        HTMLAnchorElement
+      >,
+      keyof OriginalLinkProps
+    > &
       OriginalLinkProps,
     'href'
   >
