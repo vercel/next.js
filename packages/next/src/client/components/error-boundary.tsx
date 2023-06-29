@@ -110,7 +110,9 @@ export default function GlobalError({ error }: { error: any }) {
             <h2 style={styles.text}>
               {`Application error: a ${
                 digest ? 'server' : 'client'
-              } side exception has occurred (see your server logs for more information).`}
+              }-side exception has occurred (see the ${
+                digest ? 'server logs' : 'browser console'
+              } for more information).`}
             </h2>
             {digest ? <p style={styles.text}>{`Digest: ${digest}`}</p> : null}
           </div>
