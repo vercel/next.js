@@ -1529,7 +1529,7 @@ createNextDescribe(
           expect(
             await browser.waitForElementByCss('body').elementByCss('h2').text()
           ).toBe(
-            'Application error: a client-side exception has occurred (see the browser console for more information).'
+            'Application error: a client side exception has occurred (see the browser console for more information).'
           )
         }
       })
@@ -1546,7 +1546,7 @@ createNextDescribe(
           expect(
             await browser.waitForElementByCss('body').elementByCss('h2').text()
           ).toBe(
-            'Application error: a client-side exception has occurred (see the browser console for more information).'
+            'Application error: a server side exception has occurred (see the browser console for more information).'
           )
           expect(
             await browser.waitForElementByCss('body').elementByCss('p').text()
