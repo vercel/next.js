@@ -476,6 +476,8 @@ module.exports = {
 This must point to a file relative to the root of your Next.js application. The file must export a default function that returns a string, for example:
 
 ```js
+'use client'
+
 export default function myImageLoader({ src, width, quality }) {
   return `https://example.com/${src}?w=${width}&q=${quality || 75}`
 }
