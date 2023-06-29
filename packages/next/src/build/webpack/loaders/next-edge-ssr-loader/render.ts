@@ -45,7 +45,7 @@ export function getRender({
   pageMod: any
   errorMod: any
   error500Mod: any
-  renderToHTML: any
+  renderToHTML?: any
   Document: DocumentType
   buildManifest: BuildManifest
   prerenderManifest: PrerenderManifest
@@ -119,6 +119,7 @@ export function getRender({
             getStaticPaths: error500Mod.getStaticPaths,
             ComponentMod: error500Mod,
             pathname,
+            routeModule: error500Mod.routeModule,
           }
         }
 
@@ -132,6 +133,7 @@ export function getRender({
             getStaticPaths: errorMod.getStaticPaths,
             ComponentMod: errorMod,
             pathname,
+            routeModule: errorMod.routeModule,
           }
         }
 

@@ -147,38 +147,63 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
     `
         : `
       import Document from ${stringifiedDocumentPath}
-      import { renderToHTML } from 'next/dist/esm/server/render'
-      import * as userland from ${stringifiedPagePath}
       import * as appMod from ${stringifiedAppPath}
-      import * as errorMod from ${stringifiedErrorPath}
+      import * as userlandPage from ${stringifiedPagePath}
+      import * as userlandErrorPage from ${stringifiedErrorPath}
       ${
         stringified500Path
-          ? `import * as error500Mod from ${stringified500Path}`
-          : `const error500Mod = null`
+          ? `import * as userland500Page from ${stringified500Path}`
+          : ''
       }
-
+      const renderToHTML = undefined
       import RouteModule from "next/dist/esm/server/future/route-modules/pages/module"
 
-      const options = ${JSON.stringify(getRouteModuleOptions(page))}
-      const routeModule = new RouteModule({
-        ...options,
-        components: {
-          App: appMod.default,
-          Document,
-        },
-        userland,
-      })
-
       const pageMod = {
-        ...userland,
-        routeModule,
+        ...userlandPage,
+        routeModule: new RouteModule({
+          ...${JSON.stringify(getRouteModuleOptions(page))},
+          components: {
+            App: appMod.default,
+            Document,
+          },
+          userland: userlandPage,
+        }),
       }
-    `
+
+      const errorMod = {
+        ...userlandErrorPage,
+        routeModule: new RouteModule({
+          ...${JSON.stringify(getRouteModuleOptions('/_error'))},
+          components: {
+            App: appMod.default,
+            Document,
+          },
+          userland: userlandErrorPage,
+        }),
+      }
+
+      const error500Mod = ${
+        stringified500Path
+          ? `{
+        ...userland500Page,
+        routeModule: new RouteModule({
+          ...${JSON.stringify(getRouteModuleOptions('/500'))},
+          components: {
+            App: appMod.default,
+            Document,
+          },
+          userland: userland500Page,
+        }),
+      }`
+          : 'null'
+      }`
     }
 
     ${
       incrementalCacheHandlerPath
-        ? `import incrementalCacheHandler from "${incrementalCacheHandlerPath}"`
+        ? `import incrementalCacheHandler from ${JSON.stringify(
+            incrementalCacheHandlerPath
+          )}`
         : 'const incrementalCacheHandler = null'
     }
 
