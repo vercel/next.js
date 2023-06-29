@@ -13,6 +13,7 @@
   "bcrypt",
   "better-sqlite3",
   "canvas",
+  "cpu-features",
   "cypress",
   "eslint",
   "express",

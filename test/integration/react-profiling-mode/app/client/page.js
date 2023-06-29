@@ -1,17 +1,17 @@
+'use client'
+
 import React from 'react'
 
-const Index = () => {
+export default function Page() {
   return (
     <React.Profiler
-      id="hello"
+      id="hello-app-client"
       onRender={(...res) => {
         window.profileResults = window.profileResults || []
         window.profileResults.push(res)
       }}
     >
-      <p>hello pages</p>
+      <p>hello app client</p>
     </React.Profiler>
   )
 }
-
-export default Index
