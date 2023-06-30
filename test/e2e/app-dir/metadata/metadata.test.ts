@@ -31,7 +31,9 @@ createNextDescribe(
         if (Array.isArray(expected)) {
           expect(values).toEqual(expected)
         } else {
-          expect(values.includes(expected)).toBe(true)
+          // If expected is undefined, then it should not exist.
+          // Otherwise, it should exist in the matched values.
+          expect(values.includes(expected)).toBe(expected !== undefined)
         }
       }
     }
