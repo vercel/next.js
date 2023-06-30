@@ -1425,6 +1425,52 @@ export default async function getBaseWebpackConfig(
       }
     }
 
+    // Don't bundle @vercel/og nodejs bundle for nodejs runtime.
+    // TODO-APP: bundle route.js with different layer that externals common node_module deps.
+    if (
+      layer === WEBPACK_LAYERS.server &&
+      request === 'next/dist/compiled/@vercel/og/index.node.js'
+    ) {
+      return `module ${request}`
+    }
+
+    // Specific Next.js imports that should remain external
+    // TODO-APP: Investigate if we can remove this.
+    if (request.startsWith('next/dist/')) {
+      if (
+        /^next\/dist\/shared\/(?!lib\/router\/router)/.test(request) ||
+        /^next\/dist\/compiled\/.*\.c?js$/.test(request)
+      ) {
+        return `commonjs ${request}`
+      }
+
+      if (
+        /^next\/dist\/esm\/shared\/(?!lib\/router\/router)/.test(request) ||
+        /^next\/dist\/compiled\/.*\.mjs$/.test(request)
+      ) {
+        return `module ${request}`
+      }
+
+      // Other Next.js internals need to be transpiled.
+      return
+    }
+
+    // Early return if the request needs to be bundled, such as in the client layer.
+    // Treat react packages and next internals as external for SSR layer,
+    // also map react to builtin ones with require-hook.
+    if (layer === WEBPACK_LAYERS.client) {
+      if (reactPackagesRegex.test(request)) {
+        return `commonjs next/dist/compiled/${request.replace(
+          /^(react-server-dom-webpack|react-dom|react)/,
+          (name) => {
+            return name + bundledReactChannel
+          }
+        )}`
+      }
+      return
+    }
+
+    // TODO-APP: Let's avoid this resolve call as much as possible, and eventually get rid of it.
     const resolveResult = await resolveExternal(
       dir,
       config.experimental.esmExternals,
@@ -1446,15 +1492,6 @@ export default async function getBaseWebpackConfig(
       resolveResult.res = require.resolve(request)
     }
 
-    // Don't bundle @vercel/og nodejs bundle for nodejs runtime.
-    // TODO-APP: bundle route.js with different layer that externals common node_module deps.
-    if (
-      layer === WEBPACK_LAYERS.server &&
-      request === 'next/dist/compiled/@vercel/og/index.node.js'
-    ) {
-      return `module ${request}`
-    }
-
     const { res, isEsm } = resolveResult
 
     // If the request cannot be resolved we need to have
@@ -1473,18 +1510,8 @@ export default async function getBaseWebpackConfig(
 
     const externalType = isEsm ? 'module' : 'commonjs'
 
-    if (
-      /next[/\\]dist[/\\](esm[\\/])?shared[/\\](?!lib[/\\]router[/\\]router)/.test(
-        res
-      ) ||
-      /next[/\\]dist[/\\]compiled[/\\].*\.[mc]?js$/.test(res)
-    ) {
-      return `${externalType} ${request}`
-    }
-
     // Default pages have to be transpiled
     if (
-      /[/\\]next[/\\]dist[/\\]/.test(res) ||
       // This is the @babel/plugin-transform-runtime "helpers: true" option
       /node_modules[/\\]@babel[/\\]runtime[/\\]/.test(res)
     ) {
@@ -1541,20 +1568,6 @@ export default async function getBaseWebpackConfig(
           return `${externalType} ${request}`
         }
 
-        return
-      }
-
-      // Treat react packages and next internals as external for SSR layer,
-      // also map react to builtin ones with require-hook.
-      if (layer === WEBPACK_LAYERS.client) {
-        if (reactPackagesRegex.test(request)) {
-          return `commonjs next/dist/compiled/${request.replace(
-            /^(react-server-dom-webpack|react-dom|react)/,
-            (name) => {
-              return name + bundledReactChannel
-            }
-          )}`
-        }
         return
       }
 
