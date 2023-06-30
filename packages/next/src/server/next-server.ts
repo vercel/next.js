@@ -967,12 +967,6 @@ export default class NextNodeServer extends BaseServer {
     query: NextParsedUrlQuery,
     renderOpts: RenderOpts
   ): Promise<RenderResult> {
-    // Due to the way we pass data by mutating `renderOpts`, we can't extend the
-    // object here but only updating its `clientReferenceManifest` field.
-    // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
-    renderOpts.clientReferenceManifest = this.clientReferenceManifest
-    renderOpts.nextFontManifest = this.nextFontManifest
-
     if (this.hasAppDir && renderOpts.isAppPath) {
       const { renderToHTMLOrFlight: appRenderToHTMLOrFlight } =
         require('./app-render/app-render') as typeof import('./app-render/app-render')
@@ -981,7 +975,11 @@ export default class NextNodeServer extends BaseServer {
         res.originalResponse,
         pathname,
         query,
-        renderOpts
+        {
+          ...renderOpts,
+          clientReferenceManifest: this.clientReferenceManifest,
+          nextFontManifest: this.nextFontManifest,
+        }
       )
     }
 
