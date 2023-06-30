@@ -36,28 +36,33 @@ impl TurboTasksSourceVc {
 
 const INVALIDATION_INTERVAL: Duration = Duration::from_secs(3);
 
+const GRAPH_PATH: &str = "graph";
+const CALL_GRAPH_PATH: &str = "call-graph";
+const TABLE_PATH: &str = "table";
+const RESET_PATH: &str = "reset";
+
 #[turbo_tasks::value_impl]
 impl ContentSource for TurboTasksSource {
     #[turbo_tasks::function]
     fn get_routes(self_vc: TurboTasksSourceVc) -> RouteTreeVc {
         RouteTreesVc::cell(vec![
             RouteTreeVc::new_route(
-                vec![BaseSegment::Static("graph".to_string())],
+                vec![BaseSegment::Static(GRAPH_PATH.to_string())],
                 RouteType::Exact,
                 self_vc.into(),
             ),
             RouteTreeVc::new_route(
-                vec![BaseSegment::Static("call-graph".to_string())],
+                vec![BaseSegment::Static(CALL_GRAPH_PATH.to_string())],
                 RouteType::Exact,
                 self_vc.into(),
             ),
             RouteTreeVc::new_route(
-                vec![BaseSegment::Static("table".to_string())],
+                vec![BaseSegment::Static(TABLE_PATH.to_string())],
                 RouteType::Exact,
                 self_vc.into(),
             ),
             RouteTreeVc::new_route(
-                vec![BaseSegment::Static("reset".to_string())],
+                vec![BaseSegment::Static(RESET_PATH.to_string())],
                 RouteType::Exact,
                 self_vc.into(),
             ),
@@ -93,7 +98,7 @@ impl GetContentSourceContent for TurboTasksSource {
             }
         });
         let html = match path {
-            "graph" => {
+            GRAPH_PATH => {
                 let mut stats = Stats::new();
                 let b = tt.backend();
                 b.with_all_cached_tasks(|task| {
@@ -107,7 +112,7 @@ impl GetContentSourceContent for TurboTasksSource {
                 );
                 viz::graph::wrap_html(&graph)
             }
-            "call-graph" => {
+            CALL_GRAPH_PATH => {
                 let mut stats = Stats::new();
                 let b = tt.backend();
                 b.with_all_cached_tasks(|task| {
@@ -118,7 +123,7 @@ impl GetContentSourceContent for TurboTasksSource {
                     viz::graph::visualize_stats_tree(tree, ReferenceType::Child, tt.stats_type());
                 viz::graph::wrap_html(&graph)
             }
-            "table" => {
+            TABLE_PATH => {
                 let Some(query) = &data.query else {
                     bail!("Missing query");
                 };
@@ -135,7 +140,7 @@ impl GetContentSourceContent for TurboTasksSource {
                 let table = viz::table::create_table(tree, tt.stats_type());
                 viz::table::wrap_html(&table)
             }
-            "reset" => {
+            RESET_PATH => {
                 let b = tt.backend();
                 b.with_all_cached_tasks(|task| {
                     b.with_task(task, |task| task.reset_stats());

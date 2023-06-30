@@ -1,5 +1,4 @@
 use anyhow::{bail, Context, Result};
-use const_format::formatcp;
 use indexmap::IndexMap;
 use mime::{APPLICATION_JAVASCRIPT_UTF_8, APPLICATION_JSON};
 use serde::Serialize;
@@ -164,21 +163,17 @@ impl ContentSource for DevManifestContentSource {
     fn get_routes(self_vc: DevManifestContentSourceVc) -> RouteTreeVc {
         RouteTreesVc::cell(vec![
             RouteTreeVc::new_route(
-                BaseSegment::from_static_pathname(formatcp!("/{DEV_MANIFEST_PATHNAME}")).collect(),
+                BaseSegment::from_static_pathname(DEV_MANIFEST_PATHNAME).collect(),
                 RouteType::Exact,
                 self_vc.into(),
             ),
             RouteTreeVc::new_route(
-                BaseSegment::from_static_pathname("/_next/static/development/_buildManifest.js")
-                    .collect(),
+                BaseSegment::from_static_pathname(BUILD_MANIFEST_PATHNAME).collect(),
                 RouteType::Exact,
                 self_vc.into(),
             ),
             RouteTreeVc::new_route(
-                BaseSegment::from_static_pathname(
-                    "/_next/static/development/_middlewareManifest.js",
-                )
-                .collect(),
+                BaseSegment::from_static_pathname(DEV_MIDDLEWARE_MANIFEST_PATHNAME).collect(),
                 RouteType::Exact,
                 self_vc.into(),
             ),
