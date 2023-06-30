@@ -53,7 +53,7 @@ export function useFlightResponse(
         writer.write(
           encodeText(
             `${startScriptTag}(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
-              JSON.stringify([0])
+              JSON.stringify(0)
             )})</script>`
           )
         )
@@ -63,8 +63,8 @@ export function useFlightResponse(
         writer.close()
       } else {
         const responsePartial = decodeText(value, textDecoder)
-        const scripts = `${startScriptTag}self.__next_f.push(${htmlEscapeJsonString(
-          JSON.stringify([1, responsePartial])
+        const scripts = `${startScriptTag}__next_f.push(${htmlEscapeJsonString(
+          JSON.stringify(responsePartial)
         )})</script>`
 
         writer.write(encodeText(scripts))
