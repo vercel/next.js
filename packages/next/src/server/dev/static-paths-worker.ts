@@ -77,7 +77,7 @@ export async function loadStaticPaths({
 
   if (isAppPath) {
     const userland: AppRouteUserlandModule | undefined =
-      components.ComponentMod.routeModule?.userland
+      components.routeModule?.userland
     const generateParams: GenerateParams = userland
       ? [
           {
