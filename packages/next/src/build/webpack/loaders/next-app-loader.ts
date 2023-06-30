@@ -1,5 +1,5 @@
 import type webpack from 'webpack'
-import { PAGE_SEGMENT, type ValueOf } from '../../../shared/lib/constants'
+import type { ValueOf } from '../../../shared/lib/constants'
 import type { ModuleReference, CollectedMetadata } from './metadata/types'
 
 import path from 'path'
@@ -50,6 +50,7 @@ const FILE_TYPES = {
 } as const
 
 const GLOBAL_ERROR_FILE_TYPE = 'global-error'
+const PAGE_SEGMENT = 'page$'
 const PARALLEL_CHILDREN_SEGMENT = 'children$'
 
 type DirResolver = (pathToResolve: string) => string
@@ -285,8 +286,9 @@ async function createTreeCodeFromPath(
       })
     }
 
+    let hasSeenPageSegment = false
     for (const [parallelKey, parallelSegment] of parallelSegments) {
-      if (parallelSegment === PAGE_SEGMENT) {
+      if (parallelSegment === PAGE_SEGMENT && !hasSeenPageSegment) {
         const matchedPagePath = `${appDirPrefix}${segmentPath}${
           parallelKey === 'children' ? '' : `/${parallelKey}`
         }/page`
@@ -301,6 +303,9 @@ async function createTreeCodeFromPath(
           )}), ${JSON.stringify(resolvedPagePath)}],
           ${createMetadataExportsCode(metadata)}
         }]`
+
+        hasSeenPageSegment = true
+
         continue
       }
 
@@ -486,11 +491,11 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         }
 
         const isParallelRoute = rest[0].startsWith('@')
-        if (isParallelRoute && rest.length === 2 && rest[1] === 'page') {
-          matched[rest[0]] = [PAGE_SEGMENT]
-          continue
-        }
         if (isParallelRoute) {
+          if (rest.length === 2 && rest[1] === 'page') {
+            matched[rest[0]] = PAGE_SEGMENT
+            continue
+          }
           // we insert a special marker in order to also process layout/etc files at the slot level
           matched[rest[0]] = [PARALLEL_CHILDREN_SEGMENT, ...rest.slice(1)]
           continue

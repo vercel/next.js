@@ -32,7 +32,6 @@ import {
   COMPILER_INDEXES,
   COMPILER_NAMES,
   RSC_MODULE_TYPES,
-  PAGE_SEGMENT,
 } from '../../shared/lib/constants'
 import { RouteMatch } from '../future/route-matches/route-match'
 import { RouteKind } from '../future/route-kind'
@@ -101,11 +100,7 @@ export function getEntryKey(
 ) {
   // TODO: handle the /@children slot better
   // this is a quick hack to handle when children is provided as @children/page instead of /page
-  // this also handles the case where PAGE_SEGMENT is part of the entry key (e.g. client@app@/@parallel/page$/page)
-  return `${compilerType}@${pageBundleType}@${page.replace(
-    new RegExp(`(\\${PAGE_SEGMENT}/|/@children)`, 'g'),
-    ''
-  )}`
+  return `${compilerType}@${pageBundleType}@${page.replace(/\/@children/g, '')}`
 }
 
 function getPageBundleType(pageBundlePath: string) {
