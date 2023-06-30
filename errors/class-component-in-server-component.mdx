@@ -14,7 +14,7 @@ Use a Function Component.
 
 ##### Before
 
-```jsx
+```jsx filename="app/page.js"
 export default class Page extends React.Component {
   render() {
     return <p>Hello world</p>
@@ -24,7 +24,7 @@ export default class Page extends React.Component {
 
 ##### After
 
-```jsx
+```jsx filename="app/page.js"
 export default function Page() {
   return <p>Hello world</p>
 }
@@ -34,7 +34,7 @@ Mark the component rendering the React Class Component as a Client Component by 
 
 ##### Before
 
-```jsx
+```jsx filename="app/page.js"
 export default class Page extends React.Component {
   render() {
     return <p>Hello world</p>
@@ -44,7 +44,7 @@ export default class Page extends React.Component {
 
 ##### After
 
-```jsx
+```jsx filename="app/page.js"
 'use client'
 
 export default class Page extends React.Component {

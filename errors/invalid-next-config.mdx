@@ -12,7 +12,7 @@ In your `next.config.js` file you passed invalid options that either are the inc
 
 Fixing the listed config errors will remove this warning. You can also leverage the `NextConfig` type by importing from `next` to help ensure your config is correct.
 
-```ts
+```js filename="next.config.js"
 /**
  * @type {import('next').NextConfig}
  */
@@ -25,7 +25,7 @@ module.exports = nextConfig
 
 For example for the below warning, there is a typo and `rewritess` needs to be renamed to `rewrites` to resolve the issue.
 
-```sh
+```bash filename="Terminal"
 The root value has an unexpected property, rewritess, which is not in the list of allowed properties
 ```
 

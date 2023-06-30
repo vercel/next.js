@@ -14,9 +14,7 @@ title: No Server Import In Page
 
 Only import and use `next/server` in a file located within the project root directory: `middleware.{js,ts}`.
 
-```ts
-// middleware.ts
-
+```ts filename="middleware.ts"
 import type { NextFetchEvent, NextRequest } from 'next/server'
 
 export function middleware(req: NextRequest, ev: NextFetchEvent) {

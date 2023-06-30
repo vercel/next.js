@@ -16,8 +16,7 @@ Declare your Middleware in the root folder and use `NextRequest` parsed URL to d
 
 For example, a Middleware at `pages/about/_middleware.ts` can move the logic to `<root>/middleware.ts` in the root of your repository. Then, a conditional statement can be used to only run the Middleware when it matches the `about/*` path:
 
-```typescript
-// <root>/middleware.ts
+```ts filename="middleware.ts"
 import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {

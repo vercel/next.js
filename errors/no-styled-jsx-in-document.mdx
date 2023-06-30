@@ -16,7 +16,7 @@ If you need shared CSS for all of your pages, take a look at the [Custom `App`](
 
 For example, consider the following stylesheet named `styles.css`:
 
-```css
+```css filename="styles.css"
 body {
   font-family: 'SF Pro Text', 'SF Pro Icons', 'Helvetica Neue', 'Helvetica',
     'Arial', sans-serif;
@@ -28,7 +28,7 @@ body {
 
 Create a `pages/_app.{js,tsx}` file if not already present. Then, import the `styles.css` file.
 
-```jsx
+```jsx filename="pages/_app.js"
 import '../styles.css'
 
 // This default export is required in a new `pages/_app.js` file.

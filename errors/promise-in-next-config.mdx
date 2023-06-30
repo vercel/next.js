@@ -8,7 +8,7 @@ title: Promise In Next Config
 
 The webpack function in `next.config.js` returned a promise which is not supported in Next.js. For example, below is not supported:
 
-```js
+```js filename="next.config.js"
 module.exports = {
   webpack: async function (config) {
     return config

@@ -14,8 +14,7 @@ You cannot use the `next/script` component with the `beforeInteractive` strategy
 
 If you want a global script, move the script inside `pages/_document.js`.
 
-```jsx
-// In `pages/_document.js`
+```jsx filename="pages/_document.js"
 import { Html, Head, Main, NextScript } from 'next/document'
 import Script from 'next/script'
 

@@ -12,7 +12,7 @@ You have tried to use a dynamic `href` with `next/link` in the `app` directory. 
 
 **Before**
 
-```jsx
+```jsx filename="app/page.js"
 <Link
   href={{
     pathname: '/route/[slug]',
@@ -25,13 +25,13 @@ You have tried to use a dynamic `href` with `next/link` in the `app` directory. 
 
 Or
 
-```jsx
+```jsx filename="app/page.js"
 <Link href="/route/[slug]?slug=1">link</Link>
 ```
 
 **After**
 
-```jsx
+```jsx filename="app/page.js"
 <Link href="/route/1">link</Link>
 ```
 

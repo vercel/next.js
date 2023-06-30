@@ -21,7 +21,7 @@ When importing a module from [npm](https://npmjs.com) this module has to be inst
 
 For example when importing the `swr` package:
 
-```js
+```js filename="example.js"
 import useSWR from 'swr'
 ```
 
@@ -40,15 +40,13 @@ Make sure the casing of the file is correct.
 
 Example:
 
-```js
-// components/MyComponent.js
+```js filename="components/MyComponent.js"
 export default function MyComponent() {
   return <h1>Hello</h1>
 }
 ```
 
-```js
-// pages/index.js
+```jsx filename="pages/index.js"
 // Note how `components/MyComponent` exists but `Mycomponent` without the capital `c` is imported
 import MyComponent from '../components/Mycomponent'
 ```
@@ -63,10 +61,9 @@ The tree shaking only runs on top level pages, so it can't be relied on in separ
 
 You can verify the tree shaking on [next-code-elimination.vercel.app](https://next-code-elimination.vercel.app/).
 
-Example of correctly tree shaken code:
+Example of correctly tree-shaken code:
 
-```js
-// lib/redis.js
+```js filename="lib/redis.js"
 import Redis from 'ioredis'
 
 const redis = new Redis(process.env.REDIS_URL)
@@ -74,8 +71,7 @@ const redis = new Redis(process.env.REDIS_URL)
 export default redis
 ```
 
-```js
-// pages/index.js
+```jsx filename="pages/index.js"
 import redis from '../lib/redis'
 
 export async function getStaticProps() {
@@ -92,8 +88,7 @@ export default function Home({ message }) {
 
 Example of code that would break:
 
-```js
-// lib/redis.js
+```js filename="lib/redis.js"
 import Redis from 'ioredis'
 
 const redis = new Redis(process.env.REDIS_URL)
@@ -101,8 +96,7 @@ const redis = new Redis(process.env.REDIS_URL)
 export default redis
 ```
 
-```js
-// pages/index.js
+```jsx filename="pages/index.js"
 // Redis is a Node.js specific library that can't run in the browser
 // Trying to use it in code that runs on both Node.js and the browser will result in a module not found error for modules that ioredis relies on
 // If you run into such an error it's recommended to move the code to `getStaticProps` or `getServerSideProps` as those methods guarantee that the code is only run in Node.js.
@@ -122,8 +116,7 @@ export default function Home() {
 
 Example of code that would break:
 
-```js
-// lib/redis.js
+```js filename="lib/redis.js"
 import Redis from 'ioredis'
 
 // Modules that hold Node.js-only code can't also export React components
@@ -137,8 +130,7 @@ export function MyComponent() {
 export default redis
 ```
 
-```js
-// pages/index.js
+```jsx filename="pages/index.js"
 // In practice you'll want to refactor the `MyComponent` to be a separate file so that tree shaking ensures that specific import is not included for the browser compilation
 import redis, { MyComponent } from '../lib/redis'
 

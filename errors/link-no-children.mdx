@@ -6,11 +6,11 @@ title: No children were passed to <Link>
 
 #### Why This Error Occurred
 
-In your application code `next/link` was used without passing a child:
+In your application code, `next/link` was used without passing a child:
 
 For example:
 
-```js
+```jsx filename="pages/index.js"
 import Link from 'next/link'
 
 export default function Home() {
@@ -28,7 +28,7 @@ export default function Home() {
 
 Make sure one child is used when using `<Link>`:
 
-```js
+```jsx filename="pages/index.js"
 import Link from 'next/link'
 
 export default function Home() {

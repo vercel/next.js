@@ -12,7 +12,7 @@ PostCSS configuration was provided in an unsupported shape.
 
 PostCSS configuration must be defined in the following shape:
 
-```js
+```js filename="postcss.config.js"
 module.exports = {
   plugins: [
     // A plugin that does not require configuration:
@@ -49,7 +49,7 @@ You can [read more about configuring PostCSS in Next.js here](https://nextjs.org
 
 **Before: plugin is require()'d**
 
-```js
+```js filename="postcss.config.js"
 const pluginA = require('postcss-plugin-a')
 module.exports = {
   plugins: [require('postcss-plugin'), pluginA],
@@ -58,7 +58,7 @@ module.exports = {
 
 **After**
 
-```js
+```js filename="postcss.config.js"
 module.exports = {
   plugins: ['postcss-plugin', 'postcss-plugin-a'],
 }
@@ -68,7 +68,7 @@ module.exports = {
 
 **Before: plugin is instantiated with configuration**
 
-```js
+```js filename="postcss.config.js"
 module.exports = {
   plugins: [
     require('postcss-plugin')({
@@ -80,7 +80,7 @@ module.exports = {
 
 **After**
 
-```js
+```js filename="postcss.config.js"
 module.exports = {
   plugins: [
     // Pay attention to this nested array. The first index is the plugin name,
@@ -99,7 +99,7 @@ module.exports = {
 
 **Before: plugin is missing configuration**
 
-```js
+```js filename="postcss.config.js"
 module.exports = {
   plugins: [
     [
@@ -117,7 +117,7 @@ module.exports = {
 
 **After**
 
-```js
+```js filename="postcss.config.js"
 module.exports = {
   plugins: [
     [

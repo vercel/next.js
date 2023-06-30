@@ -8,8 +8,7 @@ title: Deprecated Middleware API Signature
 
 Your application is using a Middleware function that is using parameters from the deprecated API.
 
-```typescript
-// middleware.js
+```ts filename="middleware.ts"
 import { NextResponse } from 'next/server'
 
 export function middleware(event) {
@@ -27,8 +26,7 @@ export function middleware(event) {
 
 Update to use the new API for Middleware:
 
-```typescript
-// middleware.js
+```ts filename="middleware.ts"
 import { NextResponse } from 'next/server'
 
 export function middleware(request) {

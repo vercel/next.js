@@ -24,7 +24,7 @@ Use [`next/image`](https://nextjs.org/docs/api-reference/next/image) to improve 
 
 > Note: If self-hosting, remember to install [`sharp`](https://www.npmjs.com/package/sharp) and check if your server has enough storage to cache the optimized images.
 
-```jsx
+```jsx filename="pages/index.js"
 import Image from 'next/image'
 
 function Home() {
@@ -45,7 +45,7 @@ If you would like to use `next/image` features such as blur-up placeholders but 
 
 Or, use a `<picture>` element with the nested `<img>` element:
 
-```jsx
+```jsx filename="pages/index.js"
 function Home() {
   return (
     <picture>

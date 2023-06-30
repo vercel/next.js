@@ -6,13 +6,13 @@ title: Invalid images config
 
 #### Why This Error Occurred
 
-In your `next.config.js` file you provided an invalid config for the `images` field.
+In your `next.config.js` file, you provided an invalid config for the `images` field.
 
 #### Possible Ways to Fix It
 
 Make sure your `images` field follows the allowed config shape and values:
 
-```js
+```js filename="next.config.js"
 module.exports = {
   images: {
     // limit of 25 deviceSizes values

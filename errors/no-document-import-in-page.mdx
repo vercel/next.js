@@ -14,8 +14,7 @@ title: No Document Import in Page
 
 Only import and use `next/document` within `pages/_document.js` (or `pages/_document.tsx`) to override the default `Document` component:
 
-```jsx
-// pages/_document.js
+```jsx filename="pages/_document.js"
 import Document, { Html, Head, Main, NextScript } from 'next/document'
 
 class MyDocument extends Document {

@@ -12,7 +12,7 @@ Next.js chooses the most optimal `devtool` for use with webpack. Changing the `d
 
 Please remove the custom `devtool` override or only apply it to production builds in your `next.config.js`.
 
-```js
+```js filename="next.config.js"
 module.exports = {
   webpack: (config, options) => {
     if (!options.dev) {

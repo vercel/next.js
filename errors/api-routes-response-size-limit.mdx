@@ -12,7 +12,7 @@ API Routes are meant to respond quickly and are not intended to support respondi
 
 If you are not using Next.js in a serverless environment, and understand the performance implications of not using a CDN or dedicated media host, you can set this limit to `false` inside your API Route.
 
-```js
+```js filename="pages/api/example.js"
 export const config = {
   api: {
     responseLimit: false,
@@ -23,7 +23,7 @@ export const config = {
 `responseLimit` can also take the number of bytes or any string format supported by `bytes`, for example `1000`, `'500kb'` or `'3mb'`.
 This value will be the maximum response size before a warning is displayed. The default value is 4MB.
 
-```js
+```js filename="pages/api/example.js"
 export const config = {
   api: {
     responseLimit: '8mb',

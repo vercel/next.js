@@ -18,7 +18,7 @@ Specifically, the following APIs are not supported:
 
 You can bundle your WASM binaries using `import`:
 
-```typescript
+```ts filename="middleware.ts"
 import { NextResponse } from 'next/server'
 import squareWasm from './square.wasm?module'
 
@@ -32,10 +32,10 @@ export default async function middleware() {
 }
 ```
 
-In rare cases, your code could contain (or import) some dynamic code evaluation statements which _can not be reached at runtime_ and which can not be removed by treeshaking.
+In rare cases, your code could contain (or import) some dynamic code evaluation statements which _can not be reached at runtime_ and which can not be removed by tree-shaking.
 You can relax the check to allow specific files with your Middleware or Edge API Route exported [configuration](https://nextjs.org/docs/api-reference/edge-runtime#unsupported-apis):
 
-```typescript
+```tsx filename="pages/api/example.ts"
 export const config = {
   runtime: 'edge', // for Edge API Routes only
   unstable_allowDynamic: [

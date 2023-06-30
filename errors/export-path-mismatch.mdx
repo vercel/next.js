@@ -13,7 +13,7 @@ This would result in the page missing its URL parameters.
 
 Change your `exportPathMap` function in `next.config.js` to have a path that matches the dynamically routed page.
 
-```js
+```js filename="next.config.js"
 module.exports = {
   exportPathMap: function () {
     return {

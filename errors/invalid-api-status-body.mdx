@@ -16,7 +16,7 @@ Send an empty body when using a 204 or 304 status code or use a different status
 
 Before
 
-```js
+```js filename="pages/api/example.js"
 export default function handler(req, res) {
   res.status(204).send('invalid body')
 }
@@ -24,7 +24,7 @@ export default function handler(req, res) {
 
 After
 
-```js
+```js filename="pages/api/example.js"
 export default function handler(req, res) {
   res.status(204).end()
 }

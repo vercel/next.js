@@ -12,7 +12,7 @@ The `redirect` value returned from your `getStaticProps` or `getServerSideProps`
 
 Make sure you return the proper values for the `redirect` value.
 
-```js
+```js filename="pages/blog/[slug].js"
 export const getStaticProps = ({ params }) => {
   if (params.slug === 'deleted-post') {
     return {
@@ -24,11 +24,11 @@ export const getStaticProps = ({ params }) => {
   }
 
   return {
-    props: {
-      // data
-    },
+    props: {},
   }
 }
+
+export default function Page(props) {}
 ```
 
 ### Useful Links

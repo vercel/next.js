@@ -15,9 +15,7 @@ title: No Page Custom Font
 
 Create the file `./pages/_document.js` and add the font to a custom Document:
 
-```jsx
-// pages/_document.js
-
+```jsx filename="pages/_document.js"
 import Document, { Html, Head, Main, NextScript } from 'next/document'
 
 class MyDocument extends Document {
@@ -44,9 +42,7 @@ export default MyDocument
 
 Or as a function component:
 
-```jsx
-// pages/_document.js
-
+```jsx filename="pages/_document.js"
 import { Html, Head, Main, NextScript } from 'next/document'
 
 export default function Document() {

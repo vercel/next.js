@@ -16,7 +16,7 @@ An inline script was used for Google analytics which might impact your webpage's
 
 If you are using the [gtag.js](https://developers.google.com/analytics/devguides/collection/gtagjs) script to add analytics, use the `next/script` component with the right loading strategy to defer loading of the script until necessary.
 
-```jsx
+```jsx filename="pages/index.js"
 import Script from 'next/script'
 
 function Home() {
@@ -43,7 +43,7 @@ export default Home
 
 If you are using the [analytics.js](https://developers.google.com/analytics/devguides/collection/analyticsjs) script to add analytics:
 
-```jsx
+```jsx filename="pages/index.js"
 import Script from 'next/script'
 
 function Home() {
@@ -69,7 +69,7 @@ export default Home
 
 If you are using the [alternative async variant](https://developers.google.com/analytics/devguides/collection/analyticsjs#alternative_async_tag):
 
-```jsx
+```jsx filename="pages/index.js"
 import Script from 'next/script'
 
 function Home() {

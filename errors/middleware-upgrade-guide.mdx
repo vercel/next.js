@@ -56,8 +56,7 @@ You should declare **one single Middleware file** in your application, which sho
 
 Middleware will be invoked for **every route in the app**, and a custom matcher can be used to define matching filters. The following is an example for a Middleware that triggers for `/about/*` and `/dashboard/:path*`, the custom matcher is defined in an exported config object:
 
-```typescript
-// middleware.ts
+```ts filename="middleware.ts"
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -73,8 +72,7 @@ export const config = {
 
 The matcher config also allows full regex so matching like negative lookaheads or character matching is supported. An example of a negative lookahead to match all except specific paths can be seen here:
 
-```typescript
-// <root>/middleware.js
+```ts filename="middleware.ts"
 export const config = {
   matcher: [
     /*
@@ -90,8 +88,7 @@ export const config = {
 
 While the config option is preferred since it doesn't get invoked on every request, you can also use conditional statements to only run the Middleware when it matches specific paths. One advantage of using conditionals is defining explicit ordering for when Middleware executes. The following example shows how you can merge two previously nested Middleware:
 
-```typescript
-// <root>/middleware.js
+```ts filename="middleware.ts"
 import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
@@ -132,8 +129,7 @@ For cases where Middleware is used to respond (such as authorization), you shoul
 
 #### Before
 
-```typescript
-// pages/_middleware.ts
+```ts filename="pages/_middleware.ts"
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { isAuthValid } from './lib/auth'
@@ -150,8 +146,7 @@ export function middleware(request: NextRequest) {
 
 #### After
 
-```typescript
-// middleware.ts
+```ts filename="middleware.ts"
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { isAuthValid } from './lib/auth'
@@ -173,9 +168,7 @@ export function middleware(request: NextRequest) {
 
 If you were previously using Middleware to forward headers to an external API, you can now use [Edge API Routes](/docs/api-routes/edge-api-routes):
 
-```typescript
-// pages/api/proxy.ts
-
+```ts filename="pages/api/proxy.ts"
 import { type NextRequest } from 'next/server'
 
 export const config = {
@@ -250,8 +243,7 @@ export function middleware(request: NextRequest) {
 
 #### After
 
-```typescript
-// middleware.ts
+```ts filename="middleware.ts"
 export function middleware() {
   const response = new NextResponse()
 
@@ -293,8 +285,7 @@ The helper is imported from `next/server` and allows you to opt in to using the 
 
 #### Before
 
-```typescript
-// pages/_middleware.ts
+```ts filename="pages/_middleware.ts"
 import { NextRequest, NextResponse } from 'next/server'
 
 export function middleware(request: NextRequest) {
@@ -307,8 +298,7 @@ export function middleware(request: NextRequest) {
 
 #### After
 
-```typescript
-// middleware.ts
+```ts filename="middleware.ts"
 import { NextRequest, NextResponse, userAgent } from 'next/server'
 
 export function middleware(request: NextRequest) {
@@ -338,8 +328,7 @@ Use [`URLPattern`](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) 
 
 #### Before
 
-```typescript
-// pages/_middleware.ts
+```ts filename="pages/_middleware.ts"
 import { NextResponse } from 'next/server'
 import type { NextRequest, NextFetchEvent } from 'next/server'
 
@@ -357,8 +346,7 @@ export function middleware(request: NextRequest, event: NextFetchEvent) {
 
 #### After
 
-```typescript
-// middleware.ts
+```ts filename="middleware.ts"
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 

@@ -14,10 +14,10 @@ Mark the component using the hook as a Client Component by adding `'use client'`
 
 ##### Before
 
-```jsx
+```jsx filename="app/example.js"
 import { useEffect } from 'react'
 
-export default function Page() {
+export default function Example() {
   useEffect(() => {
     console.log('in useEffect')
   })
@@ -27,11 +27,12 @@ export default function Page() {
 
 ##### After
 
-```jsx
+```jsx filename="app/example.js"
 'use client'
+
 import { useEffect } from 'react'
 
-export default function Page() {
+export default function Example() {
   useEffect(() => {
     console.log('in useEffect')
   })

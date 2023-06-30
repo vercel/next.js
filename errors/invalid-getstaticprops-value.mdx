@@ -12,7 +12,7 @@ In one of the page's `getStaticProps` the return value had the incorrect shape.
 
 Make sure to return the following shape from `getStaticProps`:
 
-```ts
+```tsx filename="pages/example.tsx"
 export async function getStaticProps(ctx: {
     params?: ParsedUrlQuery;
     preview?: boolean;

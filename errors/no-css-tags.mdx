@@ -14,7 +14,7 @@ A `link` element was used to link to an external stylesheet. This can negatively
 
 There are multiple ways to include styles using Next.js' built-in CSS support, including the option to use `@import` within the root stylesheet that is imported in `pages/_app.js`:
 
-```css
+```css filename="styles.css"
 /* Root stylesheet */
 @import 'extra.css';
 
@@ -25,7 +25,7 @@ body {
 
 Another option is to use CSS Modules to import the CSS file scoped specifically to the component.
 
-```jsx
+```jsx filename="pages/index.js"
 import styles from './extra.module.css'
 
 export class Home {

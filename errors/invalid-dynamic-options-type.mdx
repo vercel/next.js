@@ -12,7 +12,7 @@ You have an invalid options type in a `next/dynamic` call. The options must be a
 
 **Before**
 
-```jsx
+```jsx filename="example.js"
 import dynamic from 'next/dynamic'
 
 const options = { loading: () => <p>...</p>, ssr: false }
@@ -21,7 +21,7 @@ const DynamicComponent = dynamic(() => import('../components/hello'), options)
 
 **After**
 
-```jsx
+```jsx filename="example.js"
 import dynamic from 'next/dynamic'
 
 const DynamicComponent = dynamic(() => import('../components/hello'), {

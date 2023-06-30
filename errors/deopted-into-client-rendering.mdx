@@ -6,7 +6,7 @@ title: Entire page deopted into client-side rendering
 
 #### Why This Error Occurred
 
-During static rendering the entire page was deopted into client-side rendering by `useSearchParams` as there was no [Suspense boundary](https://beta.nextjs.org/docs/data-fetching/streaming-and-suspense#example-using-suspense-boundaries) that caught it.
+During static rendering, the entire page was deopted into client-side rendering by `useSearchParams` as there was no [Suspense boundary](https://beta.nextjs.org/docs/data-fetching/streaming-and-suspense#example-using-suspense-boundaries) that caught it.
 
 If a route is statically rendered, calling `useSearchParams()` will cause the tree up to the closest [Suspense boundary](https://beta.nextjs.org/docs/data-fetching/streaming-and-suspense#example-using-suspense-boundaries) to be client-side rendered.
 
@@ -18,8 +18,7 @@ You can reduce the portion of the route that is client-side rendered by wrapping
 
 For example if `app/dashboard/search-bar.tsx` uses `useSearchParams` wrap the component in a [Suspense boundary](https://beta.nextjs.org/docs/data-fetching/streaming-and-suspense#example-using-suspense-boundaries) as shown in `app/dashboard/page.tsx`.
 
-```js
-// app/dashboard/search-bar.tsx
+```tsx filename="app/dashboard/search-bar.tsx"
 'use client'
 
 import { useSearchParams } from 'next/navigation'
@@ -36,8 +35,7 @@ export default function SearchBar() {
 }
 ```
 
-```js
-// app/dashboard/page.tsx
+```tsx filename="app/dashboard/page.tsx"
 import { Suspense } from 'react'
 import SearchBar from './search-bar'
 

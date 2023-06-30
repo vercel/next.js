@@ -12,7 +12,7 @@ The filesystem does not allow writing to the specified directory. A common cause
 
 When using a custom server with a server file, for example called `server.js`, make sure you update the scripts key in `package.json` to:
 
-```json
+```json filename="package.json"
 {
   "scripts": {
     "dev": "node server.js",
@@ -24,7 +24,7 @@ When using a custom server with a server file, for example called `server.js`, m
 
 and the custom server starts Next in production mode when `NODE_ENV` is `production`
 
-```js
+```js filename="server.js"
 const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev })
 ```

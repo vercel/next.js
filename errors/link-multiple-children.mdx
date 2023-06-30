@@ -10,7 +10,7 @@ In your application code multiple children were passed to `next/link` but only o
 
 For example:
 
-```js
+```js filename="example.js"
 import Link from 'next/link'
 
 export default function Home() {
@@ -27,7 +27,7 @@ export default function Home() {
 
 Make sure only one child is used when using `<Link>`:
 
-```js
+```js filename="example.js"
 import Link from 'next/link'
 
 export default function Home() {
@@ -38,3 +38,7 @@ export default function Home() {
   )
 }
 ```
+
+> **Good to know:**
+>
+> - As on Next.js 13.0, `<Link>` no longer requires a child `<a>` tag. A [codemod](/docs/app/building-your-application/upgrading/codemods#remove-a-tags-from-link-components) is provided to automatically update your codebase.

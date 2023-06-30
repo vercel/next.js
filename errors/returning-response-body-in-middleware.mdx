@@ -33,8 +33,7 @@ For cases where Middleware is used to respond (such as authorization), you shoul
 
 #### Before
 
-```typescript
-// pages/_middleware.ts
+```ts filename="pages/_middleware.ts"
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { isAuthValid } from './lib/auth'
@@ -51,8 +50,7 @@ export function middleware(request: NextRequest) {
 
 #### After
 
-```typescript
-// middleware.ts
+```ts filename="middleware.ts"
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { isAuthValid } from './lib/auth'

@@ -14,9 +14,9 @@ Updating code that relies on this behavior is relatively straightforward! We've 
 
 Migrate to using separate dynamic calls for each module.
 
-Before
+**Before**
 
-```js
+```js filename="example.js"
 import dynamic from 'next/dynamic'
 
 const HelloBundle = dynamic({
@@ -44,9 +44,9 @@ function DynamicBundle() {
 export default DynamicBundle
 ```
 
-After
+**After**
 
-```js
+```js filename="example.js"
 import dynamic from 'next/dynamic'
 
 const Hello1 = dynamic(() => import('../components/hello1'))

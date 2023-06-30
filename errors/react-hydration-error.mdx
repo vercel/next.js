@@ -12,11 +12,11 @@ This can cause the React tree to be out of sync with the DOM and result in unexp
 
 #### Possible Ways to Fix It
 
-In general this issue is caused by using a specific library or application code that is relying on something that could differ between pre-rendering and the browser. An example of this is using `window` in a component's rendering.
+In general, this issue is caused by using a specific library or application code that is relying on something that could differ between pre-rendering and the browser. An example of this is using `window` in a component's rendering.
 
 An example:
 
-```jsx
+```jsx filename="example.js"
 function MyComponent() {
   // This condition depends on `window`. During the first render of the browser the `color` variable will be different
   const color = typeof window !== 'undefined' ? 'red' : 'blue'
@@ -27,7 +27,7 @@ function MyComponent() {
 
 How to fix it:
 
-```jsx
+```jsx filename="example.js"
 // In order to prevent the first render from being different you can use `useEffect` which is only executed in the browser and is executed during hydration
 import { useEffect, useState } from 'react'
 function MyComponent() {
@@ -45,7 +45,7 @@ Another example:
 
 Invalid HTML may cause hydration mismatch such as div inside p.
 
-```jsx
+```jsx filename="example.js"
 export const IncorrectComponent = () => {
   return (
     <p>
@@ -61,7 +61,7 @@ export const IncorrectComponent = () => {
 
 How to fix it:
 
-```jsx
+```jsx filename="example.js"
 export const CorrectComponent = () => {
   return (
     <div>
@@ -94,8 +94,11 @@ Common causes on iOS:
 
 - iOS attempts to detect phone numbers, email addressees and other data in text content and convert them into links, which can [lead to hydration mismatches](https://github.com/vercel/next.js/issues/38290). This can be disabled with the following `meta` tag:
 
-```
-<meta name="format-detection" content="telephone=no, date=no, email=no, address=no" />
+```html filename="HTML output"
+<meta
+  name="format-detection"
+  content="telephone=no, date=no, email=no, address=no"
+/>
 ```
 
 ### Useful Links
