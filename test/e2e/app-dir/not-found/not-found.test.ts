@@ -15,8 +15,11 @@ createNextDescribe(
       })
 
       it('should allow to have a valid /not-found route', async () => {
-        const html = await next.render('/not-found')
-        expect(html).toContain("I'm still a valid page")
+        const browser = await next.browser('/random-content')
+        await check(
+          () => browser.elementByCss('h1').text(),
+          `I'm still a valid page`
+        )
       })
 
       if (isNextDev) {
