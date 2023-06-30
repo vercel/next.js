@@ -214,14 +214,14 @@ impl ResolveResult {
 #[turbo_tasks::value_impl]
 impl ResolveResultVc {
     #[turbo_tasks::function]
-    pub async fn add_reference(self, reference: AssetReferenceVc) -> Result<Self> {
+    pub async fn with_reference(self, reference: AssetReferenceVc) -> Result<Self> {
         let mut this = self.await?.clone_value();
         this.add_reference(reference);
         Ok(this.into())
     }
 
     #[turbo_tasks::function]
-    pub async fn add_references(self, references: Vec<AssetReferenceVc>) -> Result<Self> {
+    pub async fn with_references(self, references: Vec<AssetReferenceVc>) -> Result<Self> {
         let mut this = self.await?.clone_value();
         for reference in references {
             this.add_reference(reference);
@@ -279,7 +279,7 @@ impl ResolveResultVc {
                 .into_iter()
                 .next()
                 .unwrap()
-                .add_references(references));
+                .with_references(references));
         }
         let mut iter = results.into_iter().try_join().await?.into_iter();
         if let Some(current) = iter.next() {
@@ -577,7 +577,7 @@ fn merge_results_with_references(
             .into_iter()
             .next()
             .unwrap()
-            .add_references(references),
+            .with_references(references),
         _ => ResolveResultVc::alternatives_with_references(results, references),
     }
 }
@@ -1170,7 +1170,7 @@ async fn resolve_alias_field_result(
             RequestVc::parse(Value::new(Pattern::Constant(value.to_string()))),
             resolve_options,
         )
-        .add_references(refs));
+        .with_references(refs));
     }
     let issue: ResolvingIssueVc = ResolvingIssue {
         severity: IssueSeverity::Error.cell(),

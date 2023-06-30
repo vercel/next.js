@@ -15,7 +15,7 @@ use turbo_tasks::{
     duration_span, mark_finished,
     primitives::{JsonValueVc, StringVc},
     util::SharedError,
-    CompletionVc, RawVc, TryJoinIterExt, Value, ValueToString,
+    CompletionVc, NothingVc, RawVc, TryJoinIterExt, Value, ValueToString,
 };
 use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::{ProcessEnv, ProcessEnvVc};
@@ -252,7 +252,7 @@ pub fn evaluate(
     let initial = Mutex::new(Some(sender));
 
     // run the evaluation as side effect
-    compute_evaluate_stream(
+    let _ = compute_evaluate_stream(
         module_asset,
         cwd,
         env,
@@ -299,11 +299,11 @@ async fn compute_evaluate_stream(
     additional_invalidation: CompletionVc,
     debug: bool,
     sender: JavaScriptStreamSenderVc,
-) {
+) -> Result<NothingVc> {
     mark_finished();
     let Ok(sender) = sender.await else {
         // Impossible to handle the error in a good way.
-        return;
+        return Ok(NothingVc::new());
     };
 
     let stream = generator! {
@@ -381,12 +381,14 @@ async fn compute_evaluate_stream(
     pin_mut!(stream);
     while let Some(value) = stream.next().await {
         if sender.send(value).await.is_err() {
-            return;
+            return Ok(NothingVc::new());
         }
         if sender.flush().await.is_err() {
-            return;
+            return Ok(NothingVc::new());
         }
     }
+
+    Ok(NothingVc::new())
 }
 
 /// Repeatedly pulls from the NodeJsOperation until we receive a

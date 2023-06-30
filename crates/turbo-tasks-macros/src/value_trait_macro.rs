@@ -244,6 +244,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
     };
 
     let expanded = quote! {
+        #[must_use]
         #(#attrs)*
         #vis #trait_token #ident #colon_token #(#supertraits)+* #where_clause {
             #(#items)*

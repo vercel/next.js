@@ -588,6 +588,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         ///
         /// A reference is equal to another reference when it points to the same thing. No resolving is applied on comparison.
         #[derive(Clone, Copy, Debug, std::cmp::PartialOrd, std::cmp::Ord, std::hash::Hash, std::cmp::Eq, std::cmp::PartialEq, serde::Serialize, serde::Deserialize)]
+        #[must_use]
         #vis struct #ref_ident {
             node: turbo_tasks::RawVc,
         }
