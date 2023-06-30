@@ -102,7 +102,7 @@ var assign = Object.assign;
 // -----------------------------------------------------------------------------
 // TODO: Finish rolling out in www
 
-var enableClientRenderFallbackOnTextMismatch = true; // Recoil still uses useMutableSource in www, need to delete
+var enableClientRenderFallbackOnTextMismatch = true; // Not sure if www still uses this. We don't have a replacement but whatever we
 // Slated for removal in the future (significant effort)
 //
 // These are experiments that didn't work out, and never shipped, but we can't
@@ -1019,6 +1019,9 @@ var StrictLegacyMode =
 var StrictEffectsMode =
 /*              */
 16;
+var NoStrictPassiveEffectsMode =
+/*     */
+64;
 
 // TODO: This is pretty well supported by browsers. Maybe we can drop it.
 var clz32 = Math.clz32 ? Math.clz32 : clz32Fallback; // Count leading zeros.
@@ -1382,8 +1385,8 @@ function getNextLanes(root, wipLanes) {
   // time it takes to show the final state, which is what they are actually
   // waiting for.
   //
-  // For those exceptions where entanglement is semantically important, like
-  // useMutableSource, we should ensure that there is no partial work at the
+  // For those exceptions where entanglement is semantically important,
+  // we should ensure that there is no partial work at the
   // time we apply the entanglement.
 
 
@@ -1681,9 +1684,9 @@ function markRootFinished(root, remainingLanes) {
   root.suspendedLanes = NoLanes;
   root.pingedLanes = NoLanes;
   root.expiredLanes &= remainingLanes;
-  root.mutableReadLanes &= remainingLanes;
   root.entangledLanes &= remainingLanes;
   root.errorRecoveryDisabledLanes &= remainingLanes;
+  root.shellSuspendCounter = 0;
   var entanglements = root.entanglements;
   var expirationTimes = root.expirationTimes;
   var hiddenUpdates = root.hiddenUpdates; // Clear the lanes that no longer have pending work
@@ -7104,16 +7107,6 @@ function tryToClaimNextHydratableInstance(fiber) {
     return;
   }
 
-  {
-    if (!isHydratableType(fiber.type, fiber.pendingProps)) {
-      // This fiber never hydrates from the DOM and always does an insert
-      fiber.flags = fiber.flags & ~Hydrating | Placement;
-      isHydrating = false;
-      hydrationParentFiber = fiber;
-      return;
-    }
-  }
-
   var initialInstance = nextHydratableInstance;
   var nextInstance = nextHydratableInstance;
 
@@ -8584,6 +8577,27 @@ function trackUsedThenable(thenableState, thenable, index) {
           // happen. Flight lazily parses JSON when the value is actually awaited.
           thenable.then(noop$2, noop$2);
         } else {
+          // This is an uncached thenable that we haven't seen before.
+          // Detect infinite ping loops caused by uncached promises.
+          var root = getWorkInProgressRoot();
+
+          if (root !== null && root.shellSuspendCounter > 100) {
+            // This root has suspended repeatedly in the shell without making any
+            // progress (i.e. committing something). This is highly suggestive of
+            // an infinite ping loop, often caused by an accidental Async Client
+            // Component.
+            //
+            // During a transition, we can suspend the work loop until the promise
+            // to resolve, but this is a sync render, so that's not an option. We
+            // also can't show a fallback, because none was provided. So our last
+            // resort is to throw an error.
+            //
+            // TODO: Remove this error in a future release. Other ways of handling
+            // this case include forcing a concurrent render, or putting the whole
+            // root into offscreen mode.
+            throw new Error('async/await is not yet supported in Client Components, only ' + 'Server Components. This error is often caused by accidentally ' + "adding `'use client'` to a module that was originally written " + 'for the server.');
+          }
+
           var pendingThenable = thenable;
           pendingThenable.status = 'pending';
           pendingThenable.then(function (fulfilledValue) {
@@ -10126,37 +10140,6 @@ var Passive =
 /*   */
 8;
 
-// and should be reset before starting a new render.
-// This tracks which mutable sources need to be reset after a render.
-
-var workInProgressSources = [];
-function resetWorkInProgressVersions() {
-  for (var i = 0; i < workInProgressSources.length; i++) {
-    var mutableSource = workInProgressSources[i];
-
-    {
-      mutableSource._workInProgressVersionPrimary = null;
-    }
-  }
-
-  workInProgressSources.length = 0;
-}
-// This ensures that the version used for server rendering matches the one
-// that is eventually read during hydration.
-// If they don't match there's a potential tear and a full deopt render is required.
-
-function registerMutableSourceForHydration(root, mutableSource) {
-  var getVersion = mutableSource._getVersion;
-  var version = getVersion(mutableSource._source); // TODO Clear this data once all pending hydration work is finished.
-  // Retaining it forever may interfere with GC.
-
-  if (root.mutableSourceEagerHydrationData == null) {
-    root.mutableSourceEagerHydrationData = [mutableSource, version];
-  } else {
-    root.mutableSourceEagerHydrationData.push(mutableSource, version);
-  }
-}
-
 var ReactCurrentActQueue$2 = ReactSharedInternals.ReactCurrentActQueue; // A linked list of all the roots with pending work. In an idiomatic app,
 // there's only a single root, but we do support multi root apps, hence this
 // extra complexity. But this module is optimized for the single root case.
@@ -11677,18 +11660,6 @@ function rerenderReducer(reducer, initialArg, init) {
   return [newState, dispatch];
 }
 
-function mountMutableSource(source, getSnapshot, subscribe) {
-  {
-    return undefined;
-  }
-}
-
-function updateMutableSource(source, getSnapshot, subscribe) {
-  {
-    return undefined;
-  }
-}
-
 function mountSyncExternalStore(subscribe, getSnapshot, getServerSnapshot) {
   var fiber = currentlyRenderingFiber$1;
   var hook = mountWorkInProgressHook();
@@ -12079,7 +12050,7 @@ function updateEffectImpl(fiberFlags, hookFlags, create, deps) {
 }
 
 function mountEffect(create, deps) {
-  if ((currentlyRenderingFiber$1.mode & StrictEffectsMode) !== NoMode) {
+  if ((currentlyRenderingFiber$1.mode & StrictEffectsMode) !== NoMode && (currentlyRenderingFiber$1.mode & NoStrictPassiveEffectsMode) === NoMode) {
     mountEffectImpl(MountPassiveDev | Passive$1 | PassiveStatic, Passive, create, deps);
   } else {
     mountEffectImpl(Passive$1 | PassiveStatic, Passive, create, deps);
@@ -12823,7 +12794,6 @@ var ContextOnlyDispatcher = {
   useDebugValue: throwInvalidHookError,
   useDeferredValue: throwInvalidHookError,
   useTransition: throwInvalidHookError,
-  useMutableSource: throwInvalidHookError,
   useSyncExternalStore: throwInvalidHookError,
   useId: throwInvalidHookError
 };
@@ -12962,11 +12932,6 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       mountHookTypesDev();
       return mountTransition();
     },
-    useMutableSource: function (source, getSnapshot, subscribe) {
-      currentHookNameInDev = 'useMutableSource';
-      mountHookTypesDev();
-      return mountMutableSource();
-    },
     useSyncExternalStore: function (subscribe, getSnapshot, getServerSnapshot) {
       currentHookNameInDev = 'useSyncExternalStore';
       mountHookTypesDev();
@@ -13101,11 +13066,6 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       currentHookNameInDev = 'useTransition';
       updateHookTypesDev();
       return mountTransition();
-    },
-    useMutableSource: function (source, getSnapshot, subscribe) {
-      currentHookNameInDev = 'useMutableSource';
-      updateHookTypesDev();
-      return mountMutableSource();
     },
     useSyncExternalStore: function (subscribe, getSnapshot, getServerSnapshot) {
       currentHookNameInDev = 'useSyncExternalStore';
@@ -13242,11 +13202,6 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       updateHookTypesDev();
       return updateTransition();
     },
-    useMutableSource: function (source, getSnapshot, subscribe) {
-      currentHookNameInDev = 'useMutableSource';
-      updateHookTypesDev();
-      return updateMutableSource();
-    },
     useSyncExternalStore: function (subscribe, getSnapshot, getServerSnapshot) {
       currentHookNameInDev = 'useSyncExternalStore';
       updateHookTypesDev();
@@ -13381,11 +13336,6 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       currentHookNameInDev = 'useTransition';
       updateHookTypesDev();
       return rerenderTransition();
-    },
-    useMutableSource: function (source, getSnapshot, subscribe) {
-      currentHookNameInDev = 'useMutableSource';
-      updateHookTypesDev();
-      return updateMutableSource();
     },
     useSyncExternalStore: function (subscribe, getSnapshot, getServerSnapshot) {
       currentHookNameInDev = 'useSyncExternalStore';
@@ -13538,12 +13488,6 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       warnInvalidHookAccess();
       mountHookTypesDev();
       return mountTransition();
-    },
-    useMutableSource: function (source, getSnapshot, subscribe) {
-      currentHookNameInDev = 'useMutableSource';
-      warnInvalidHookAccess();
-      mountHookTypesDev();
-      return mountMutableSource();
     },
     useSyncExternalStore: function (subscribe, getSnapshot, getServerSnapshot) {
       currentHookNameInDev = 'useSyncExternalStore';
@@ -13704,12 +13648,6 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       updateHookTypesDev();
       return updateTransition();
     },
-    useMutableSource: function (source, getSnapshot, subscribe) {
-      currentHookNameInDev = 'useMutableSource';
-      warnInvalidHookAccess();
-      updateHookTypesDev();
-      return updateMutableSource();
-    },
     useSyncExternalStore: function (subscribe, getSnapshot, getServerSnapshot) {
       currentHookNameInDev = 'useSyncExternalStore';
       warnInvalidHookAccess();
@@ -13868,12 +13806,6 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       warnInvalidHookAccess();
       updateHookTypesDev();
       return rerenderTransition();
-    },
-    useMutableSource: function (source, getSnapshot, subscribe) {
-      currentHookNameInDev = 'useMutableSource';
-      warnInvalidHookAccess();
-      updateHookTypesDev();
-      return updateMutableSource();
     },
     useSyncExternalStore: function (subscribe, getSnapshot, getServerSnapshot) {
       currentHookNameInDev = 'useSyncExternalStore';
@@ -14670,13 +14602,11 @@ function mountClassInstance(workInProgress, ctor, newProps, renderLanes) {
   }
 
   if (typeof instance.componentDidMount === 'function') {
-    var fiberFlags = Update | LayoutStatic;
+    workInProgress.flags |= Update | LayoutStatic;
+  }
 
-    if ((workInProgress.mode & StrictEffectsMode) !== NoMode) {
-      fiberFlags |= MountLayoutDev;
-    }
-
-    workInProgress.flags |= fiberFlags;
+  if ((workInProgress.mode & StrictEffectsMode) !== NoMode) {
+    workInProgress.flags |= MountLayoutDev;
   }
 }
 
@@ -14718,13 +14648,11 @@ function resumeMountClassInstance(workInProgress, ctor, newProps, renderLanes) {
     // If an update was already in progress, we should schedule an Update
     // effect even though we're bailing out, so that cWU/cDU are called.
     if (typeof instance.componentDidMount === 'function') {
-      var fiberFlags = Update | LayoutStatic;
+      workInProgress.flags |= Update | LayoutStatic;
+    }
 
-      if ((workInProgress.mode & StrictEffectsMode) !== NoMode) {
-        fiberFlags |= MountLayoutDev;
-      }
-
-      workInProgress.flags |= fiberFlags;
+    if ((workInProgress.mode & StrictEffectsMode) !== NoMode) {
+      workInProgress.flags |= MountLayoutDev;
     }
 
     return false;
@@ -14751,25 +14679,21 @@ function resumeMountClassInstance(workInProgress, ctor, newProps, renderLanes) {
     }
 
     if (typeof instance.componentDidMount === 'function') {
-      var _fiberFlags = Update | LayoutStatic;
+      workInProgress.flags |= Update | LayoutStatic;
+    }
 
-      if ((workInProgress.mode & StrictEffectsMode) !== NoMode) {
-        _fiberFlags |= MountLayoutDev;
-      }
-
-      workInProgress.flags |= _fiberFlags;
+    if ((workInProgress.mode & StrictEffectsMode) !== NoMode) {
+      workInProgress.flags |= MountLayoutDev;
     }
   } else {
     // If an update was already in progress, we should schedule an Update
     // effect even though we're bailing out, so that cWU/cDU are called.
     if (typeof instance.componentDidMount === 'function') {
-      var _fiberFlags2 = Update | LayoutStatic;
+      workInProgress.flags |= Update | LayoutStatic;
+    }
 
-      if ((workInProgress.mode & StrictEffectsMode) !== NoMode) {
-        _fiberFlags2 |= MountLayoutDev;
-      }
-
-      workInProgress.flags |= _fiberFlags2;
+    if ((workInProgress.mode & StrictEffectsMode) !== NoMode) {
+      workInProgress.flags |= MountLayoutDev;
     } // If shouldComponentUpdate returned false, we should still update the
     // memoized state to indicate that this work can be reused.
 
@@ -16332,7 +16256,6 @@ function updateHostRoot(current, workInProgress, renderLanes) {
     } else {
       // The outermost shell has not hydrated yet. Start hydrating.
       enterHydrationState(workInProgress);
-
       var child = mountChildFibers(workInProgress, null, nextChildren, renderLanes);
       workInProgress.child = child;
       var node = child;
@@ -18695,6 +18618,7 @@ function readContextForConsumer(consumer, context) {
 // replace it with a lightweight shim that only has the features we use.
 
 var AbortControllerLocal = typeof AbortController !== 'undefined' ? AbortController : // $FlowFixMe[missing-this-annot]
+// $FlowFixMe[prop-missing]
 function AbortControllerShim() {
   var listeners = [];
   var signal = this.signal = {
@@ -19351,7 +19275,6 @@ function completeWork(current, workInProgress, renderLanes) {
         }
         popHostContainer(workInProgress);
         popTopLevelContextObject(workInProgress);
-        resetWorkInProgressVersions();
 
         if (fiberRoot.pendingContext) {
           fiberRoot.context = fiberRoot.pendingContext;
@@ -19397,10 +19320,6 @@ function completeWork(current, workInProgress, renderLanes) {
     case HostHoistable:
       {
         {
-          // The branching here is more complicated than you might expect because
-          // a HostHoistable sometimes corresponds to a Resource and sometimes
-          // corresponds to an Instance. It can also switch during an update.
-          var type = workInProgress.type;
           var nextResource = workInProgress.memoizedState;
 
           if (current === null) {
@@ -19454,11 +19373,15 @@ function completeWork(current, workInProgress, renderLanes) {
               return null;
             } else {
               // This is a Hoistable Instance
-              //
-              // We may have props to update on the Hoistable instance. We use the
-              // updateHostComponent path becuase it produces the update queue
-              // we need for Hoistables.
-              updateHostComponent(current, workInProgress, type, newProps); // This must come at the very end of the complete phase.
+              // We may have props to update on the Hoistable instance.
+              {
+                var oldProps = current.memoizedProps;
+
+                if (oldProps !== newProps) {
+                  markUpdate(workInProgress);
+                }
+              } // This must come at the very end of the complete phase.
+
 
               bubbleProperties(workInProgress);
               preloadInstanceAndSuspendIfNeeded(workInProgress);
@@ -19477,7 +19400,13 @@ function completeWork(current, workInProgress, renderLanes) {
           var _type = workInProgress.type;
 
           if (current !== null && workInProgress.stateNode != null) {
-            updateHostComponent(current, workInProgress, _type, newProps);
+            {
+              var _oldProps2 = current.memoizedProps;
+
+              if (_oldProps2 !== newProps) {
+                markUpdate(workInProgress);
+              }
+            }
 
             if (current.ref !== workInProgress.ref) {
               markRef(workInProgress);
@@ -20097,7 +20026,6 @@ function unwindWork(current, workInProgress, renderLanes) {
         }
         popHostContainer(workInProgress);
         popTopLevelContextObject(workInProgress);
-        resetWorkInProgressVersions();
         var _flags = workInProgress.flags;
 
         if ((_flags & ShouldCapture) !== NoFlags$1 && (_flags & DidCapture) === NoFlags$1) {
@@ -20229,7 +20157,6 @@ function unwindInterruptedWork(current, interruptedWork, renderLanes) {
         }
         popHostContainer(interruptedWork);
         popTopLevelContextObject(interruptedWork);
-        resetWorkInProgressVersions();
         break;
       }
 
@@ -22360,7 +22287,7 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
               var updatePayload = finishedWork.updateQueue;
               finishedWork.updateQueue = null;
 
-              if (updatePayload !== null) {
+              if (updatePayload !== null || diffInCommitPhase) {
                 try {
                   commitUpdate(finishedWork.stateNode, updatePayload, finishedWork.type, current.memoizedProps, finishedWork.memoizedProps, finishedWork);
                 } catch (error) {
@@ -23760,10 +23687,12 @@ function invokeLayoutEffectMountInDEV(fiber) {
         {
           var instance = fiber.stateNode;
 
-          try {
-            instance.componentDidMount();
-          } catch (error) {
-            captureCommitPhaseError(fiber, fiber.return, error);
+          if (typeof instance.componentDidMount === 'function') {
+            try {
+              instance.componentDidMount();
+            } catch (error) {
+              captureCommitPhaseError(fiber, fiber.return, error);
+            }
           }
 
           break;
@@ -25513,6 +25442,8 @@ function renderRootSync(root, lanes) {
     markRenderStarted(lanes);
   }
 
+  var didSuspendInShell = false;
+
   outer: do {
     try {
       if (workInProgressSuspendedReason !== NotSuspended && workInProgress !== null) {
@@ -25538,6 +25469,15 @@ function renderRootSync(root, lanes) {
               break outer;
             }
 
+          case SuspendedOnImmediate:
+          case SuspendedOnData:
+            {
+              if (!didSuspendInShell && getSuspenseHandler() === null) {
+                didSuspendInShell = true;
+              } // Intentional fallthrough
+
+            }
+
           default:
             {
               // Unwind then continue with the normal work loop.
@@ -25554,7 +25494,17 @@ function renderRootSync(root, lanes) {
     } catch (thrownValue) {
       handleThrow(root, thrownValue);
     }
-  } while (true);
+  } while (true); // Check if something suspended in the shell. We use this to detect an
+  // infinite ping loop caused by an uncached promise.
+  //
+  // Only increment this counter once per synchronous render attempt across the
+  // whole tree. Even if there are many sibling components that suspend, this
+  // counter only gets incremented once.
+
+
+  if (didSuspendInShell) {
+    root.shellSuspendCounter++;
+  }
 
   resetContextDependencies();
   executionContext = prevExecutionContext;
@@ -28224,9 +28174,9 @@ tag, hydrate, identifierPrefix, onRecoverableError) {
   this.suspendedLanes = NoLanes;
   this.pingedLanes = NoLanes;
   this.expiredLanes = NoLanes;
-  this.mutableReadLanes = NoLanes;
   this.finishedLanes = NoLanes;
   this.errorRecoveryDisabledLanes = NoLanes;
+  this.shellSuspendCounter = 0;
   this.entangledLanes = NoLanes;
   this.entanglements = createLaneMap(NoLanes);
   this.hiddenUpdates = createLaneMap(null);
@@ -28236,10 +28186,6 @@ tag, hydrate, identifierPrefix, onRecoverableError) {
   {
     this.pooledCache = null;
     this.pooledCacheLanes = NoLanes;
-  }
-
-  {
-    this.mutableSourceEagerHydrationData = null;
   }
 
   this.incompleteTransitions = new Map();
@@ -28309,7 +28255,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks) {
   return root;
 }
 
-var ReactVersion = '18.3.0-experimental-1cea38448-20230530';
+var ReactVersion = '18.3.0-experimental-1fdacbefd-20230630';
 
 function createPortal$1(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {
@@ -35334,47 +35280,6 @@ function propNamesListJoin(list, combinator) {
   }
 }
 
-function validatePreloadArguments(href, options) {
-  {
-    if (!href || typeof href !== 'string') {
-      var typeOfArg = getValueDescriptorExpectingObjectForWarning(href);
-
-      error('ReactDOM.preload() expected the first argument to be a string representing an href but found %s instead.', typeOfArg);
-    } else if (typeof options !== 'object' || options === null) {
-      var _typeOfArg = getValueDescriptorExpectingObjectForWarning(options);
-
-      error('ReactDOM.preload() expected the second argument to be an options argument containing at least an "as" property' + ' specifying the Resource type. It found %s instead. The href for the preload call where this warning originated is "%s".', _typeOfArg, href);
-    } else {
-      var as = options.as;
-
-      switch (as) {
-        // Font specific validation of options
-        case 'font':
-          {
-            if (options.crossOrigin === 'use-credentials') {
-              error('ReactDOM.preload() was called with an "as" type of "font" and with a "crossOrigin" option of "use-credentials".' + ' Fonts preloading must use crossOrigin "anonymous" to be functional. Please update your font preload to omit' + ' the crossOrigin option or change it to any other value than "use-credentials" (Browsers default all other values' + ' to anonymous mode). The href for the preload call where this warning originated is "%s"', href);
-            }
-
-            break;
-          }
-
-        case 'script':
-        case 'style':
-          {
-            break;
-          }
-        // We have an invalid as type and need to warn
-
-        default:
-          {
-            var typeOfAs = getValueDescriptorExpectingEnumForWarning(as);
-
-            error('ReactDOM.preload() expected a valid "as" type in the options (second) argument but found %s instead.' + ' Please use one of the following valid values instead: %s. The href for the preload call where this' + ' warning originated is "%s".', typeOfAs, '"style", "font", or "script"', href);
-          }
-      }
-    }
-  }
-}
 function validatePreinitArguments(href, options) {
   {
     if (!href || typeof href !== 'string') {
@@ -35382,9 +35287,9 @@ function validatePreinitArguments(href, options) {
 
       error('ReactDOM.preinit() expected the first argument to be a string representing an href but found %s instead.', typeOfArg);
     } else if (typeof options !== 'object' || options === null) {
-      var _typeOfArg2 = getValueDescriptorExpectingObjectForWarning(options);
+      var _typeOfArg = getValueDescriptorExpectingObjectForWarning(options);
 
-      error('ReactDOM.preinit() expected the second argument to be an options argument containing at least an "as" property' + ' specifying the Resource type. It found %s instead. The href for the preload call where this warning originated is "%s".', _typeOfArg2, href);
+      error('ReactDOM.preinit() expected the second argument to be an options argument containing at least an "as" property' + ' specifying the Resource type. It found %s instead. The href for the preload call where this warning originated is "%s".', _typeOfArg, href);
     } else {
       var as = options.as;
 
@@ -36007,20 +35912,6 @@ function clearContainerSparingly(container) {
 
   return;
 } // Making this so we can eventually move all of the instance caching to the commit phase.
-// inserted without breaking hydration
-
-function isHydratableType(type, props) {
-  {
-    if (type === 'script') {
-      var async = props.async,
-          onLoad = props.onLoad,
-          onError = props.onError;
-      return !(async && (onLoad || onError));
-    }
-
-    return true;
-  }
-}
 function isHydratableText(text) {
   return text !== '';
 }
@@ -36116,12 +36007,13 @@ function canHydrateInstance(instance, type, props, inRootOrSingleton) {
             // if we learn it is problematic
             var srcAttr = element.getAttribute('src');
 
-            if (srcAttr && element.hasAttribute('async') && !element.hasAttribute('itemprop')) {
-              // This is an async script resource
-              break;
-            } else if (srcAttr !== (anyProps.src == null ? null : anyProps.src) || element.getAttribute('type') !== (anyProps.type == null ? null : anyProps.type) || element.getAttribute('crossorigin') !== (anyProps.crossOrigin == null ? null : anyProps.crossOrigin)) {
-              // This script is for a different src
-              break;
+            if (srcAttr !== (anyProps.src == null ? null : anyProps.src) || element.getAttribute('type') !== (anyProps.type == null ? null : anyProps.type) || element.getAttribute('crossorigin') !== (anyProps.crossOrigin == null ? null : anyProps.crossOrigin)) {
+              // This script is for a different src/type/crossOrigin. It may be a script resource
+              // or it may just be a mistmatch
+              if (srcAttr && element.hasAttribute('async') && !element.hasAttribute('itemprop')) {
+                // This is an async script resource
+                break;
+              }
             }
 
             return element;
@@ -36803,17 +36695,50 @@ function preconnect$1(href, options) {
 function preload$1(href, options) {
 
   {
-    validatePreloadArguments(href, options);
+    // TODO move this to ReactDOMFloat and expose a stricter function interface or possibly
+    // typed functions (preloadImage, preloadStyle, ...)
+    var encountered = '';
+
+    if (typeof href !== 'string' || !href) {
+      encountered += "The `href` argument encountered was " + getValueDescriptorExpectingObjectForWarning(href) + ".";
+    }
+
+    if (options == null || typeof options !== 'object') {
+      encountered += "The `options` argument encountered was " + getValueDescriptorExpectingObjectForWarning(options) + ".";
+    } else if (typeof options.as !== 'string' || !options.as) {
+      encountered += "The `as` option encountered was " + getValueDescriptorExpectingObjectForWarning(options.as) + ".";
+    }
+
+    if (encountered) {
+      error('ReactDOM.preload(): Expected two arguments, a non-empty `href` string and an `options` object with an `as` property valid for a `<link rel="preload" as="..." />` tag. %s', encountered);
+    }
   }
 
   var ownerDocument = getDocumentForImperativeFloatMethods();
 
-  if (typeof href === 'string' && href && typeof options === 'object' && options !== null && ownerDocument) {
+  if (typeof href === 'string' && href && typeof options === 'object' && options !== null && typeof options.as === 'string' && options.as && ownerDocument) {
     var as = options.as;
-    var limitedEscapedHref = escapeSelectorAttributeValueInsideDoubleQuotes(href);
-    var preloadSelector = "link[rel=\"preload\"][as=\"" + as + "\"][href=\"" + limitedEscapedHref + "\"]"; // Some preloads are keyed under their selector. This happens when the preload is for
+    var preloadSelector = "link[rel=\"preload\"][as=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(as) + "\"]";
+
+    if (as === 'image') {
+      var imageSrcSet = options.imageSrcSet,
+          imageSizes = options.imageSizes;
+
+      if (typeof imageSrcSet === 'string' && imageSrcSet !== '') {
+        preloadSelector += "[imagesrcset=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(imageSrcSet) + "\"]";
+
+        if (typeof imageSizes === 'string') {
+          preloadSelector += "[imagesizes=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(imageSizes) + "\"]";
+        }
+      } else {
+        preloadSelector += "[href=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(href) + "\"]";
+      }
+    } else {
+      preloadSelector += "[href=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(href) + "\"]";
+    } // Some preloads are keyed under their selector. This happens when the preload is for
     // an arbitrary type. Other preloads are keyed under the resource key they represent a preload for.
     // Here we figure out which key to use to determine if we have a preload already.
+
 
     var key = preloadSelector;
 
@@ -36851,12 +36776,20 @@ function preload$1(href, options) {
 
 function preloadPropsFromPreloadOptions(href, as, options) {
   return {
-    href: href,
     rel: 'preload',
     as: as,
+    // There is a bug in Safari where imageSrcSet is not respected on preload links
+    // so we omit the href here if we have imageSrcSet b/c safari will load the wrong image.
+    // This harms older browers that do not support imageSrcSet by making their preloads not work
+    // but this population is shrinking fast and is already small so we accept this tradeoff.
+    href: as === 'image' && options.imageSrcSet ? undefined : href,
     crossOrigin: as === 'font' ? '' : options.crossOrigin,
     integrity: options.integrity,
-    type: options.type
+    type: options.type,
+    nonce: options.nonce,
+    fetchPriority: options.fetchPriority,
+    imageSrcSet: options.imageSrcSet,
+    imageSizes: options.imageSizes
   };
 }
 
@@ -36986,7 +36919,9 @@ function stylesheetPropsFromPreinitOptions(href, precedence, options) {
     rel: 'stylesheet',
     href: href,
     'data-precedence': precedence,
-    crossOrigin: options.crossOrigin
+    crossOrigin: options.crossOrigin,
+    integrity: options.integrity,
+    fetchPriority: options.fetchPriority
   };
 }
 
@@ -36996,7 +36931,8 @@ function scriptPropsFromPreinitOptions(src, options) {
     async: true,
     crossOrigin: options.crossOrigin,
     integrity: options.integrity,
-    nonce: options.nonce
+    nonce: options.nonce,
+    fetchPriority: options.fetchPriority
   };
 } // This function is called in begin work and we should always have a currentDocument set
 
@@ -38075,9 +38011,7 @@ function hydrateRoot$1(container, initialChildren, options) {
   // the hydration callbacks.
 
 
-  var hydrationCallbacks = options != null ? options : null; // TODO: Delete this option
-
-  var mutableSources = options != null && options.hydratedSources || null;
+  var hydrationCallbacks = options != null ? options : null;
   var isStrictMode = false;
   var concurrentUpdatesByDefaultOverride = false;
   var identifierPrefix = '';
@@ -38101,15 +38035,7 @@ function hydrateRoot$1(container, initialChildren, options) {
   markContainerAsRoot(root.current, container);
   Dispatcher$1.current = ReactDOMClientDispatcher; // This can't be a comment node since hydration doesn't work on comment nodes anyway.
 
-  listenToAllSupportedEvents(container);
-
-  if (mutableSources) {
-    for (var i = 0; i < mutableSources.length; i++) {
-      var mutableSource = mutableSources[i];
-      registerMutableSourceForHydration(root, mutableSource);
-    }
-  } // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-
+  listenToAllSupportedEvents(container); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
 
   return new ReactDOMHydrationRoot(root);
 }
