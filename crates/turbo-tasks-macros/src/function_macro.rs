@@ -39,6 +39,7 @@ pub fn function(_args: TokenStream, input: TokenStream) -> TokenStream {
     );
 
     quote! {
+        #[must_use]
         #(#attrs)*
         #vis #external_sig {
             let result = turbo_tasks::dynamic_call(*#function_id_ident, vec![#(#input_raw_vc_arguments),*]);

@@ -6,7 +6,8 @@ use futures::{
 };
 use parking_lot::Mutex;
 use turbo_tasks::{
-    duration_span, mark_finished, primitives::StringVc, util::SharedError, RawVc, ValueToString,
+    duration_span, mark_finished, primitives::StringVc, util::SharedError, NothingVc, RawVc,
+    ValueToString,
 };
 use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::ProcessEnvVc;
@@ -220,7 +221,7 @@ fn render_stream(
     let initial = Mutex::new(Some(sender));
 
     // run the evaluation as side effect
-    render_stream_internal(
+    let _ = render_stream_internal(
         cwd,
         env,
         path,
@@ -268,11 +269,11 @@ async fn render_stream_internal(
     data: RenderDataVc,
     sender: RenderStreamSenderVc,
     debug: bool,
-) {
+) -> Result<NothingVc> {
     mark_finished();
     let Ok(sender) = sender.await else {
         // Impossible to handle the error in a good way.
-        return;
+        return Ok(NothingVc::new());
     };
 
     let stream = generator! {
@@ -384,10 +385,12 @@ async fn render_stream_internal(
     pin_mut!(stream);
     while let Some(value) = stream.next().await {
         if sender.send(value).await.is_err() {
-            return;
+            return Ok(NothingVc::new());
         }
         if sender.flush().await.is_err() {
-            return;
+            return Ok(NothingVc::new());
         }
     }
+
+    Ok(NothingVc::new())
 }

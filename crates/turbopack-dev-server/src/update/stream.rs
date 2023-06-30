@@ -6,7 +6,8 @@ use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
 use tracing::Instrument;
 use turbo_tasks::{
-    primitives::StringVc, CollectiblesSource, IntoTraitRef, State, TraitRef, TransientInstance,
+    primitives::StringVc, CollectiblesSource, IntoTraitRef, NothingVc, State, TraitRef,
+    TransientInstance,
 };
 use turbo_tasks_fs::{FileSystem, FileSystemPathVc};
 use turbopack_core::{
@@ -168,13 +169,15 @@ async fn compute_update_stream(
     from: VersionStateVc,
     get_content: TransientInstance<GetContentFn>,
     sender: TransientInstance<Sender<Result<UpdateStreamItemReadRef>>>,
-) {
+) -> Result<NothingVc> {
     let item = get_update_stream_item(resource, from, get_content)
         .strongly_consistent()
         .await;
 
     // Send update. Ignore channel closed error.
     let _ = sender.send(item).await;
+
+    Ok(NothingVc::new())
 }
 
 #[turbo_tasks::value]
@@ -231,7 +234,7 @@ impl UpdateStream {
         };
         let version_state = VersionStateVc::new(version.into_trait_ref().await?).await?;
 
-        compute_update_stream(
+        let _ = compute_update_stream(
             &resource,
             version_state,
             get_content,

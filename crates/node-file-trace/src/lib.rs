@@ -501,7 +501,8 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
             let console_ui = ConsoleUiVc::new(log_options);
             console_ui
                 .as_issue_reporter()
-                .report_issues(TransientInstance::new(issues), source);
+                .report_issues(TransientInstance::new(issues), source)
+                .await?;
 
             if has_return_value {
                 let output_read_ref = output.await?;

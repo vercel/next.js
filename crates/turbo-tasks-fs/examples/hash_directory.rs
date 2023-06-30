@@ -39,7 +39,7 @@ async fn main() -> Result<()> {
             let fs: FileSystemVc = disk_fs.into();
             let input = fs.root().join("demo");
             let dir_hash = hash_directory(input);
-            print_hash(dir_hash);
+            print_hash(dir_hash).await?;
             Ok(NothingVc::new().into())
         })
     });
@@ -57,9 +57,9 @@ async fn main() -> Result<()> {
 }
 
 #[turbo_tasks::function]
-async fn print_hash(dir_hash: StringVc) -> Result<()> {
+async fn print_hash(dir_hash: StringVc) -> Result<NothingVc> {
     println!("DIR HASH: {}", dir_hash.await?.as_str());
-    Ok(())
+    Ok(NothingVc::new())
 }
 
 async fn filename(path: FileSystemPathVc) -> Result<String> {

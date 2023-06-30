@@ -208,6 +208,16 @@ pub fn gen_native_function_code(
 
 pub fn split_signature(sig: &Signature) -> (Signature, Signature, Type, TokenStream2) {
     let output_type = get_return_type(&sig.output);
+    let (raw_output_type, _) = unwrap_result_type(&output_type);
+    if is_empty_type(raw_output_type) {
+        // Can't emit a diagnostic on OutputType alone as it can be omitted from the
+        // text for `()`. Use the whole signature span.
+        abort!(
+            sig.span(),
+            "Cannot return `()` from a turbo_tasks function. Return a NothingVc instead.",
+        )
+    }
+
     let inline_ident = get_internal_function_ident(&sig.ident);
     let mut inline_sig = sig.clone();
     inline_sig.ident = inline_ident;
@@ -215,19 +225,12 @@ pub fn split_signature(sig: &Signature) -> (Signature, Signature, Type, TokenStr
     let mut external_sig = sig.clone();
     external_sig.asyncness = None;
 
-    let (raw_output_type, _) = unwrap_result_type(&output_type);
+    external_sig.output = ReturnType::Type(
+        Token![->](raw_output_type.span()),
+        Box::new(raw_output_type.clone()),
+    );
 
-    let convert_result_code = if is_empty_type(raw_output_type) {
-        external_sig.output = ReturnType::Default;
-        quote! {}
-    } else {
-        external_sig.output = ReturnType::Type(
-            Token![->](raw_output_type.span()),
-            Box::new(raw_output_type.clone()),
-        );
-        quote! { std::convert::From::<turbo_tasks::RawVc>::from(result) }
-    };
-
+    let convert_result_code = quote! { std::convert::From::<turbo_tasks::RawVc>::from(result) };
     let custom_self_type = if let Some(FnArg::Typed(PatType {
         pat: box Pat::Ident(PatIdent { ident, .. }),
         ..

@@ -427,7 +427,7 @@ impl AssetContext for ModuleAssetContext {
         let context_path = origin_path.parent().resolve().await?;
 
         let result = resolve(context_path, request, resolve_options);
-        let result = self_vc.process_resolve_result(result, reference_type);
+        let mut result = self_vc.process_resolve_result(result, reference_type);
 
         if *self_vc.is_types_resolving_enabled().await? {
             let types_reference = TypescriptTypesAssetReferenceVc::new(
@@ -435,7 +435,7 @@ impl AssetContext for ModuleAssetContext {
                 request,
             );
 
-            result.add_reference(types_reference.into());
+            result = result.with_reference(types_reference.into());
         }
 
         Ok(result)
