@@ -15,7 +15,7 @@ createNextDescribe(
       })
 
       it('should allow to have a valid /not-found route', async () => {
-        const browser = await next.browser('/random-content')
+        const browser = await next.browser('/not-found')
         await check(
           () => browser.elementByCss('h1').text(),
           `I'm still a valid page`
