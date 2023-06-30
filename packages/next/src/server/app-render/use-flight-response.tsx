@@ -69,6 +69,7 @@ export function useFlightResponse(
           // a single quote to wrap the string. This saves a lot of bytes.
           JSON.stringify(responsePartial)
             .replace(/\\"/g, '"')
+            .replace(/'/g, "\\'")
             .replace(/(^")|("$)/g, "'")
         )})</script>`
 
