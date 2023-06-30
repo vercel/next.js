@@ -133,7 +133,8 @@ export function waitForLoaded(iframe: HTMLIFrameElement): Promise<void> {
   return new Promise((resolve) => {
     if (
       iframe.contentDocument != null &&
-      iframe.contentDocument.readyState === 'complete'
+      iframe.contentDocument.readyState === 'complete' &&
+      iframe.contentDocument.documentURI !== 'about:blank'
     ) {
       resolve()
     } else {
