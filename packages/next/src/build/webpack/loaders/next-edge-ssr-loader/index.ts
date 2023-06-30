@@ -39,7 +39,7 @@ function swapDistFolderWithEsmDistFolder(path: string) {
 }
 
 const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
-  async function edgeSSRLoader(this) {
+  function edgeSSRLoader(this) {
     const {
       dev,
       page,
