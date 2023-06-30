@@ -44,7 +44,7 @@ use turbopack_core::{
     asset::{Asset, AssetVc, AssetsVc},
     compile_time_info::CompileTimeInfo,
     context::{AssetContext, AssetContextVc},
-    environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
+    environment::{EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
     issue::{IssueContextExt, IssueReporter, IssueSeverity, IssueVc},
     reference::all_assets,
     resolve::options::{ImportMapping, ResolvedMap},
@@ -636,16 +636,13 @@ async fn create_module_asset(
     module_options: TransientInstance<ModuleOptionsContext>,
     resolve_options: TransientInstance<ResolveOptionsContext>,
 ) -> Result<ModuleAssetContextVc> {
-    let env = EnvironmentVc::new(
-        Value::new(ExecutionEnvironment::NodeJsLambda(
-            NodeJsEnvironment {
-                cwd: OptionStringVc::cell(process_cwd),
-                ..Default::default()
-            }
-            .into(),
-        )),
-        Value::new(EnvironmentIntention::Api),
-    );
+    let env = EnvironmentVc::new(Value::new(ExecutionEnvironment::NodeJsLambda(
+        NodeJsEnvironment {
+            cwd: OptionStringVc::cell(process_cwd),
+            ..Default::default()
+        }
+        .into(),
+    )));
     let compile_time_info = CompileTimeInfo::builder(env).cell();
     let glob_mappings = vec![
         (

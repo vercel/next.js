@@ -6,7 +6,7 @@ use turbopack_core::{
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
     context::AssetContextVc,
-    environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
+    environment::{EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
     resolve::options::{ImportMap, ImportMapVc, ImportMapping},
 };
 use turbopack_node::execution_context::ExecutionContextVc;
@@ -18,12 +18,9 @@ use crate::{
 
 #[turbo_tasks::function]
 pub fn node_build_environment() -> EnvironmentVc {
-    EnvironmentVc::new(
-        Value::new(ExecutionEnvironment::NodeJsBuildTime(
-            NodeJsEnvironment::default().cell(),
-        )),
-        Value::new(EnvironmentIntention::Build),
-    )
+    EnvironmentVc::new(Value::new(ExecutionEnvironment::NodeJsBuildTime(
+        NodeJsEnvironment::default().cell(),
+    )))
 }
 
 #[turbo_tasks::function]
