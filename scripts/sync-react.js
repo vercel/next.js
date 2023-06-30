@@ -196,7 +196,7 @@ async function getChangelogFromGitHub(baseSha, newSha) {
       const match = /\(#([0-9]+)\)$/.exec(title)
       const prNum = match ? match[1] : ''
       if (prNum) {
-        changelog.push(`- https://github.com/facebook/react/pulls/${prNum}`)
+        changelog.push(`- https://github.com/facebook/react/pull/${prNum}`)
       } else {
         changelog.push(
           `-  ${sha.slice(0, 9)} ${commit.message.split('\n')[0]} (${
