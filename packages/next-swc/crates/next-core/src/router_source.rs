@@ -81,6 +81,9 @@ impl ContentSource for NextRouterContentSource {
             return Ok(this.inner.get_routes());
         }
 
+        // Prefetch get_routes from inner
+        let _ = this.inner.get_routes();
+
         Ok(RouteTreeVc::new_route(
             Vec::new(),
             RouteType::CatchAll,
