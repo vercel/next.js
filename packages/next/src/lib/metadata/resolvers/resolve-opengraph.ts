@@ -47,19 +47,29 @@ export function resolveImages(
 ):
   | NonNullable<ResolvedMetadata['twitter']>['images']
   | NonNullable<ResolvedMetadata['openGraph']>['images'] {
-  return resolveAsArrayOrUndefined(images)?.map((item) => {
-    if (isStringOrURL(item)) {
-      return {
-        url: resolveUrl(item, metadataBase)!,
-      }
-    } else {
-      return {
-        ...item,
-        // Update image descriptor url
-        url: resolveUrl(item.url, metadataBase)!,
-      }
-    }
-  })
+  const resolvedImages = resolveAsArrayOrUndefined(images)
+  if (!resolvedImages) return resolvedImages
+
+  const nonNullableImages = []
+  for (const item of resolvedImages) {
+    const isItemUrl = isStringOrURL(item)
+    const inputUrl = isItemUrl ? item : item.url
+    if (!inputUrl) continue
+
+    nonNullableImages.push(
+      isItemUrl
+        ? {
+            url: resolveUrl(item, metadataBase),
+          }
+        : {
+            ...item,
+            // Update image descriptor url
+            url: resolveUrl(item.url, metadataBase),
+          }
+    )
+  }
+
+  return nonNullableImages
 }
 
 function getFieldsByOgType(ogType: OpenGraphType | undefined) {
