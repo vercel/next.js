@@ -21,10 +21,10 @@ use turbopack_dev_server::{
         asset_graph::AssetGraphContentSourceVc,
         conditional::ConditionalContentSourceVc,
         lazy_instantiated::{GetContentSource, GetContentSourceVc, LazyInstantiatedContentSource},
-        specificity::SpecificityVc,
+        route_tree::{BaseSegment, RouteTreeVc, RouteType},
         ContentSource, ContentSourceContent, ContentSourceContentVc, ContentSourceData,
-        ContentSourceDataVary, ContentSourceDataVaryVc, ContentSourceResult, ContentSourceResultVc,
-        ContentSourceVc, GetContentSourceContent, GetContentSourceContentVc, ProxyResult,
+        ContentSourceDataVary, ContentSourceDataVaryVc, ContentSourceVc, GetContentSourceContent,
+        GetContentSourceContentVc, ProxyResult,
     },
 };
 
@@ -48,7 +48,8 @@ use crate::{
 pub fn create_node_rendered_source(
     cwd: FileSystemPathVc,
     env: ProcessEnvVc,
-    specificity: SpecificityVc,
+    base_segments: Vec<BaseSegment>,
+    route_type: RouteType,
     server_root: FileSystemPathVc,
     route_match: RouteMatcherVc,
     pathname: StringVc,
@@ -60,7 +61,8 @@ pub fn create_node_rendered_source(
     let source = NodeRenderContentSource {
         cwd,
         env,
-        specificity,
+        base_segments,
+        route_type,
         server_root,
         route_match,
         pathname,
@@ -86,7 +88,8 @@ pub fn create_node_rendered_source(
 pub struct NodeRenderContentSource {
     cwd: FileSystemPathVc,
     env: ProcessEnvVc,
-    specificity: SpecificityVc,
+    base_segments: Vec<BaseSegment>,
+    route_type: RouteType,
     server_root: FileSystemPathVc,
     route_match: RouteMatcherVc,
     pathname: StringVc,
@@ -152,40 +155,18 @@ impl GetContentSource for NodeRenderContentSource {
 #[turbo_tasks::value_impl]
 impl ContentSource for NodeRenderContentSource {
     #[turbo_tasks::function]
-    async fn get(
-        self_vc: NodeRenderContentSourceVc,
-        path: &str,
-        _data: turbo_tasks::Value<ContentSourceData>,
-    ) -> Result<ContentSourceResultVc> {
+    async fn get_routes(self_vc: NodeRenderContentSourceVc) -> Result<RouteTreeVc> {
         let this = self_vc.await?;
-        if *this.route_match.matches(path).await? {
-            return Ok(ContentSourceResult::Result {
-                specificity: this.specificity,
-                get_content: NodeRenderGetContentResult {
-                    source: self_vc,
-                    render_data: this.render_data,
-                    path: path.to_string(),
-                    debug: this.debug,
-                }
-                .cell()
-                .into(),
-            }
-            .cell());
-        }
-        Ok(ContentSourceResultVc::not_found())
+        Ok(RouteTreeVc::new_route(
+            this.base_segments.clone(),
+            this.route_type.clone(),
+            self_vc.into(),
+        ))
     }
 }
 
-#[turbo_tasks::value]
-struct NodeRenderGetContentResult {
-    source: NodeRenderContentSourceVc,
-    render_data: JsonValueVc,
-    path: String,
-    debug: bool,
-}
-
 #[turbo_tasks::value_impl]
-impl GetContentSourceContent for NodeRenderGetContentResult {
+impl GetContentSourceContent for NodeRenderContentSource {
     #[turbo_tasks::function]
     fn vary(&self) -> ContentSourceDataVaryVc {
         ContentSourceDataVary {
@@ -200,10 +181,13 @@ impl GetContentSourceContent for NodeRenderGetContentResult {
     }
 
     #[turbo_tasks::function]
-    async fn get(&self, data: Value<ContentSourceData>) -> Result<ContentSourceContentVc> {
-        let source = self.source.await?;
-        let Some(params) = &*source.route_match.params(&self.path).await? else {
-            return Err(anyhow!("Non matching path provided"));
+    async fn get(
+        &self,
+        path: &str,
+        data: Value<ContentSourceData>,
+    ) -> Result<ContentSourceContentVc> {
+        let Some(params) = &*self.route_match.params(path).await? else {
+            return Err(anyhow!("Non matching path ({}) provided for {}", path, self.pathname.await?));
         };
         let ContentSourceData {
             method: Some(method),
@@ -215,14 +199,14 @@ impl GetContentSourceContent for NodeRenderGetContentResult {
         } = &*data else {
             return Err(anyhow!("Missing request data"));
         };
-        let entry = source.entry.entry(data.clone()).await?;
+        let entry = self.entry.entry(data.clone()).await?;
         let result = render_static(
-            source.cwd,
-            source.env,
-            source.server_root.join(&self.path),
+            self.cwd,
+            self.env,
+            self.server_root.join(path),
             entry.module,
             entry.runtime_entries,
-            source.fallback_page,
+            self.fallback_page,
             entry.chunking_context,
             entry.intermediate_output_path,
             entry.output_root,
@@ -234,7 +218,7 @@ impl GetContentSourceContent for NodeRenderGetContentResult {
                 original_url: original_url.clone(),
                 raw_query: raw_query.clone(),
                 raw_headers: raw_headers.clone(),
-                path: source.pathname.await?.clone_value(),
+                path: self.pathname.await?.clone_value(),
                 data: Some(self.render_data.await?),
             }
             .cell(),
@@ -242,7 +226,7 @@ impl GetContentSourceContent for NodeRenderGetContentResult {
         )
         .issue_context(
             entry.module.ident().path(),
-            format!("server-side rendering {}", source.pathname.await?),
+            format!("server-side rendering {}", self.pathname.await?),
         )
         .await?;
         Ok(match *result.await? {
@@ -289,8 +273,8 @@ impl Introspectable for NodeRenderContentSource {
     #[turbo_tasks::function]
     async fn details(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
-            "Specificity: {}",
-            self.specificity.await?
+            "base: {:?}\ntype: {:?}",
+            self.base_segments, self.route_type
         )))
     }
 

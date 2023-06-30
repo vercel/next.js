@@ -7,10 +7,11 @@ use turbopack_core::{
 };
 
 use super::{
+    route_tree::{MapGetContentSourceContent, RouteTreeVc},
     ContentSource, ContentSourceContentVc, ContentSourceData, ContentSourceDataVaryVc,
-    ContentSourceResult, ContentSourceResultVc, ContentSourceVc, ContentSourcesVc,
-    GetContentSourceContent, GetContentSourceContentVc,
+    ContentSourceVc, ContentSourcesVc, GetContentSourceContent, GetContentSourceContentVc,
 };
+use crate::source::route_tree::MapGetContentSourceContentVc;
 
 #[turbo_tasks::value]
 pub struct IssueContextContentSource {
@@ -49,40 +50,41 @@ impl IssueContextContentSourceVc {
 #[turbo_tasks::value_impl]
 impl ContentSource for IssueContextContentSource {
     #[turbo_tasks::function]
-    async fn get(
-        self_vc: IssueContextContentSourceVc,
-        path: &str,
-        data: Value<ContentSourceData>,
-    ) -> Result<ContentSourceResultVc> {
+    async fn get_routes(self_vc: IssueContextContentSourceVc) -> Result<RouteTreeVc> {
         let this = self_vc.await?;
-        let result = this
+        let routes = this
             .source
-            .get(path, data)
+            .get_routes()
             .issue_context(this.context, &this.description)
             .await?;
-        if let ContentSourceResult::Result {
-            get_content,
-            specificity,
-        } = *result.await?
-        {
-            Ok(ContentSourceResult::Result {
-                get_content: IssueContextGetContentSourceContent {
-                    get_content,
-                    source: self_vc,
-                }
+        Ok(routes.map_routes(
+            IssueContextContentSourceMapper { source: self_vc }
                 .cell()
                 .into(),
-                specificity,
-            }
-            .cell())
-        } else {
-            Ok(result)
-        }
+        ))
     }
 
     #[turbo_tasks::function]
     fn get_children(&self) -> ContentSourcesVc {
         ContentSourcesVc::cell(vec![self.source])
+    }
+}
+
+#[turbo_tasks::value]
+struct IssueContextContentSourceMapper {
+    source: IssueContextContentSourceVc,
+}
+
+#[turbo_tasks::value_impl]
+impl MapGetContentSourceContent for IssueContextContentSourceMapper {
+    #[turbo_tasks::function]
+    fn map_get_content(&self, get_content: GetContentSourceContentVc) -> GetContentSourceContentVc {
+        IssueContextGetContentSourceContent {
+            get_content,
+            source: self.source,
+        }
+        .cell()
+        .into()
     }
 }
 
@@ -106,11 +108,15 @@ impl GetContentSourceContent for IssueContextGetContentSourceContent {
     }
 
     #[turbo_tasks::function]
-    async fn get(&self, data: Value<ContentSourceData>) -> Result<ContentSourceContentVc> {
+    async fn get(
+        &self,
+        path: &str,
+        data: Value<ContentSourceData>,
+    ) -> Result<ContentSourceContentVc> {
         let source = self.source.await?;
         let result = self
             .get_content
-            .get(data)
+            .get(path, data)
             .issue_context(source.context, &source.description)
             .await?;
         Ok(result)

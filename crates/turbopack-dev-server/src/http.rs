@@ -1,6 +1,7 @@
 use std::io::{Error, ErrorKind};
 
 use anyhow::{anyhow, Result};
+use auto_hash_map::AutoSet;
 use futures::{StreamExt, TryStreamExt};
 use hyper::{
     header::{HeaderName, CONTENT_ENCODING, CONTENT_LENGTH},
@@ -10,7 +11,7 @@ use hyper::{
 use mime::Mime;
 use mime_guess::mime;
 use tokio_util::io::{ReaderStream, StreamReader};
-use turbo_tasks::{util::SharedError, TransientInstance};
+use turbo_tasks::{util::SharedError, CollectiblesSource, TransientInstance};
 use turbo_tasks_bytes::Bytes;
 use turbo_tasks_fs::{FileContent, FileContentReadRef};
 use turbopack_core::{asset::AssetContent, issue::IssueReporterVc, version::VersionedContent};
@@ -20,7 +21,7 @@ use crate::{
     source::{
         request::SourceRequest,
         resolve::{resolve_source_request, ResolveSourceRequestResult},
-        Body, ContentSourceVc, HeaderListReadRef, ProxyResultReadRef,
+        Body, ContentSourceSideEffectVc, ContentSourceVc, HeaderListReadRef, ProxyResultReadRef,
     },
 };
 
@@ -71,11 +72,13 @@ pub async fn process_request_with_content_source(
     source: ContentSourceVc,
     request: Request<hyper::Body>,
     issue_reporter: IssueReporterVc,
-) -> Result<Response<hyper::Body>> {
+) -> Result<(Response<hyper::Body>, AutoSet<ContentSourceSideEffectVc>)> {
     let original_path = request.uri().path().to_string();
     let request = http_request_to_source_request(request).await?;
     let result = get_from_source(source, TransientInstance::new(request));
     handle_issues(result, &original_path, "get_from_source", issue_reporter).await?;
+    let side_effects: AutoSet<ContentSourceSideEffectVc> =
+        result.peek_collectibles().strongly_consistent().await?;
     match &*result.strongly_consistent().await? {
         GetFromSourceResult::Static {
             content,
@@ -178,7 +181,7 @@ pub async fn process_request_with_content_source(
                     response.body(hyper::Body::wrap_stream(content.read()))?
                 };
 
-                return Ok(response);
+                return Ok((response, side_effects));
             }
         }
         GetFromSourceResult::HttpProxy(proxy_result) => {
@@ -192,12 +195,18 @@ pub async fn process_request_with_content_source(
                 );
             }
 
-            return Ok(response.body(hyper::Body::wrap_stream(proxy_result.body.read()))?);
+            return Ok((
+                response.body(hyper::Body::wrap_stream(proxy_result.body.read()))?,
+                side_effects,
+            ));
         }
         _ => {}
     }
 
-    Ok(Response::builder().status(404).body(hyper::Body::empty())?)
+    Ok((
+        Response::builder().status(404).body(hyper::Body::empty())?,
+        side_effects,
+    ))
 }
 
 async fn http_request_to_source_request(request: Request<hyper::Body>) -> Result<SourceRequest> {

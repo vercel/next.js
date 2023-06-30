@@ -10,9 +10,10 @@ use turbopack_core::introspect::{
     asset::IntrospectableAssetVc, Introspectable, IntrospectableChildrenVc, IntrospectableVc,
 };
 use turbopack_dev_server::source::{
-    specificity::SpecificityVc, ContentSource, ContentSourceContent, ContentSourceContentVc,
-    ContentSourceData, ContentSourceDataVary, ContentSourceDataVaryVc, ContentSourceResult,
-    ContentSourceResultVc, ContentSourceVc, GetContentSourceContent, GetContentSourceContentVc,
+    route_tree::{BaseSegment, RouteTreeVc, RouteType},
+    ContentSource, ContentSourceContent, ContentSourceContentVc, ContentSourceData,
+    ContentSourceDataVary, ContentSourceDataVaryVc, ContentSourceVc, GetContentSourceContent,
+    GetContentSourceContentVc,
 };
 
 use super::{render_proxy::render_proxy, RenderData};
@@ -27,7 +28,8 @@ use crate::{
 pub fn create_node_api_source(
     cwd: FileSystemPathVc,
     env: ProcessEnvVc,
-    specificity: SpecificityVc,
+    base_segments: Vec<BaseSegment>,
+    route_type: RouteType,
     server_root: FileSystemPathVc,
     route_match: RouteMatcherVc,
     pathname: StringVc,
@@ -38,7 +40,8 @@ pub fn create_node_api_source(
     NodeApiContentSource {
         cwd,
         env,
-        specificity,
+        base_segments,
+        route_type,
         server_root,
         pathname,
         route_match,
@@ -60,7 +63,8 @@ pub fn create_node_api_source(
 pub struct NodeApiContentSource {
     cwd: FileSystemPathVc,
     env: ProcessEnvVc,
-    specificity: SpecificityVc,
+    base_segments: Vec<BaseSegment>,
+    route_type: RouteType,
     server_root: FileSystemPathVc,
     pathname: StringVc,
     route_match: RouteMatcherVc,
@@ -80,40 +84,18 @@ impl NodeApiContentSourceVc {
 #[turbo_tasks::value_impl]
 impl ContentSource for NodeApiContentSource {
     #[turbo_tasks::function]
-    async fn get(
-        self_vc: NodeApiContentSourceVc,
-        path: &str,
-        _data: turbo_tasks::Value<ContentSourceData>,
-    ) -> Result<ContentSourceResultVc> {
+    async fn get_routes(self_vc: NodeApiContentSourceVc) -> Result<RouteTreeVc> {
         let this = self_vc.await?;
-        if *this.route_match.matches(path).await? {
-            return Ok(ContentSourceResult::Result {
-                specificity: this.specificity,
-                get_content: NodeApiGetContentResult {
-                    source: self_vc,
-                    render_data: this.render_data,
-                    path: path.to_string(),
-                    debug: this.debug,
-                }
-                .cell()
-                .into(),
-            }
-            .cell());
-        }
-        Ok(ContentSourceResultVc::not_found())
+        Ok(RouteTreeVc::new_route(
+            this.base_segments.clone(),
+            this.route_type.clone(),
+            self_vc.into(),
+        ))
     }
 }
 
-#[turbo_tasks::value]
-struct NodeApiGetContentResult {
-    source: NodeApiContentSourceVc,
-    render_data: JsonValueVc,
-    path: String,
-    debug: bool,
-}
-
 #[turbo_tasks::value_impl]
-impl GetContentSourceContent for NodeApiGetContentResult {
+impl GetContentSourceContent for NodeApiContentSource {
     #[turbo_tasks::function]
     fn vary(&self) -> ContentSourceDataVaryVc {
         ContentSourceDataVary {
@@ -130,9 +112,12 @@ impl GetContentSourceContent for NodeApiGetContentResult {
     }
 
     #[turbo_tasks::function]
-    async fn get(&self, data: Value<ContentSourceData>) -> Result<ContentSourceContentVc> {
-        let source = self.source.await?;
-        let Some(params) = &*source.route_match.params(&self.path).await? else {
+    async fn get(
+        &self,
+        path: &str,
+        data: Value<ContentSourceData>,
+    ) -> Result<ContentSourceContentVc> {
+        let Some(params) = &*self.route_match.params(path).await? else {
             return Err(anyhow!("Non matching path provided"));
         };
         let ContentSourceData {
@@ -146,11 +131,11 @@ impl GetContentSourceContent for NodeApiGetContentResult {
         } = &*data else {
             return Err(anyhow!("Missing request data"));
         };
-        let entry = source.entry.entry(data.clone()).await?;
+        let entry = self.entry.entry(data.clone()).await?;
         Ok(ContentSourceContent::HttpProxy(render_proxy(
-            source.cwd,
-            source.env,
-            source.server_root.join(&self.path),
+            self.cwd,
+            self.env,
+            self.server_root.join(path),
             entry.module,
             entry.runtime_entries,
             entry.chunking_context,
@@ -164,7 +149,7 @@ impl GetContentSourceContent for NodeApiGetContentResult {
                 original_url: original_url.clone(),
                 raw_query: raw_query.clone(),
                 raw_headers: raw_headers.clone(),
-                path: format!("/{}", self.path),
+                path: format!("/{}", path),
                 data: Some(self.render_data.await?),
             }
             .cell(),
@@ -195,8 +180,8 @@ impl Introspectable for NodeApiContentSource {
     #[turbo_tasks::function]
     async fn details(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
-            "Specificity: {}",
-            self.specificity.await?
+            "base: {:?}\ntype: {:?}",
+            self.base_segments, self.route_type
         )))
     }
 

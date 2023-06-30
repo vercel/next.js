@@ -1,14 +1,17 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use turbo_tasks::{primitives::StringVc, Value};
 use turbopack_core::{
     introspect::{Introspectable, IntrospectableVc},
     source_map::{GenerateSourceMap, GenerateSourceMapVc},
 };
 use turbopack_dev_server::source::{
-    wrapping_source::{ContentSourceProcessor, ContentSourceProcessorVc, WrappedContentSourceVc},
+    route_tree::{RouteTreeVc, RouteType},
+    wrapping_source::{
+        ContentSourceProcessor, ContentSourceProcessorVc, WrappedGetContentSourceContentVc,
+    },
     ContentSource, ContentSourceContent, ContentSourceContentVc, ContentSourceData,
-    ContentSourceDataVary, ContentSourceResultVc, ContentSourceVc, ContentSourcesVc, NeededData,
-    RewriteBuilder,
+    ContentSourceDataVary, ContentSourceDataVaryVc, ContentSourceVc, ContentSourcesVc,
+    GetContentSourceContent, GetContentSourceContentVc, GetContentSourceContentsVc, RewriteBuilder,
 };
 use url::Url;
 
@@ -32,38 +35,50 @@ impl NextSourceMapTraceContentSourceVc {
 #[turbo_tasks::value_impl]
 impl ContentSource for NextSourceMapTraceContentSource {
     #[turbo_tasks::function]
+    fn get_routes(self_vc: NextSourceMapTraceContentSourceVc) -> RouteTreeVc {
+        RouteTreeVc::new_route(Vec::new(), RouteType::CatchAll, self_vc.into())
+    }
+
+    #[turbo_tasks::function]
+    fn get_children(&self) -> ContentSourcesVc {
+        ContentSourcesVc::cell(vec![self.asset_source])
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl GetContentSourceContent for NextSourceMapTraceContentSource {
+    #[turbo_tasks::function]
+    fn vary(&self) -> ContentSourceDataVaryVc {
+        ContentSourceDataVary {
+            raw_query: true,
+            ..Default::default()
+        }
+        .cell()
+    }
+
+    #[turbo_tasks::function]
     async fn get(
         self_vc: NextSourceMapTraceContentSourceVc,
-        path: &str,
+        _path: &str,
         data: Value<ContentSourceData>,
-    ) -> Result<ContentSourceResultVc> {
-        let raw_query = match &data.raw_query {
-            None => {
-                return Ok(ContentSourceResultVc::need_data(Value::new(NeededData {
-                    source: self_vc.into(),
-                    path: path.to_string(),
-                    vary: ContentSourceDataVary {
-                        raw_query: true,
-                        ..Default::default()
-                    },
-                })));
-            }
-            Some(query) => query,
+    ) -> Result<ContentSourceContentVc> {
+        let Some(raw_query) = data.raw_query.as_deref() else {
+            bail!("Missing raw_query in data")
         };
 
         let frame: StackFrame = match serde_qs::from_str(raw_query) {
             Ok(f) => f,
-            _ => return Ok(ContentSourceResultVc::not_found()),
+            _ => return Ok(ContentSourceContentVc::not_found()),
         };
         let (line, column) = match frame.get_pos() {
             Some((l, c)) => (l, c),
-            _ => return Ok(ContentSourceResultVc::not_found()),
+            _ => return Ok(ContentSourceContentVc::not_found()),
         };
 
         // The file is some percent encoded `http://localhost:3000/_next/foo/bar.js`
         let file = match Url::parse(&frame.file) {
             Ok(u) => u,
-            _ => return Ok(ContentSourceResultVc::not_found()),
+            _ => return Ok(ContentSourceContentVc::not_found()),
         };
 
         let id = file.query_pairs().find_map(|(k, v)| {
@@ -74,30 +89,24 @@ impl ContentSource for NextSourceMapTraceContentSource {
             }
         });
 
-        let wrapped = WrappedContentSourceVc::new(
-            self_vc.await?.asset_source,
-            NextSourceMapTraceContentProcessorVc::new(
-                id,
-                line,
-                column,
-                frame.name.map(|c| c.to_string()),
-            )
-            .into(),
-        );
-        Ok(ContentSourceResultVc::exact(
-            ContentSourceContent::Rewrite(
-                RewriteBuilder::new(file.path().to_string())
-                    .content_source(wrapped.as_content_source())
-                    .build(),
-            )
-            .cell()
-            .into(),
-        ))
-    }
-
-    #[turbo_tasks::function]
-    fn get_children(&self) -> ContentSourcesVc {
-        ContentSourcesVc::cell(vec![self.asset_source])
+        let path = urlencoding::decode(file.path().trim_start_matches('/'))?;
+        let sources = self_vc.await?.asset_source.get_routes().get(&path);
+        let processor = NextSourceMapTraceContentProcessorVc::new(
+            id,
+            line,
+            column,
+            frame.name.map(|c| c.to_string()),
+        )
+        .into();
+        let sources = sources
+            .await?
+            .iter()
+            .map(|s| WrappedGetContentSourceContentVc::new(*s, processor).into())
+            .collect();
+        Ok(ContentSourceContent::Rewrite(
+            RewriteBuilder::new_sources(GetContentSourceContentsVc::cell(sources)).build(),
+        )
+        .cell())
     }
 }
 

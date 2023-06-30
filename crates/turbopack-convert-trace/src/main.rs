@@ -24,11 +24,13 @@ use std::{
     cmp::{max, min, Reverse},
     collections::{hash_map::Entry, HashMap, HashSet},
     eprintln,
+    mem::take,
     ops::Range,
 };
 
 use indexmap::IndexMap;
 use intervaltree::{Element, IntervalTree};
+use itertools::Itertools;
 use turbopack_cli_utils::tracing::{TraceRow, TraceValue};
 
 macro_rules! pjson {
@@ -45,6 +47,7 @@ fn main() {
     let mut merged = args.remove("--merged");
     let threads = args.remove("--threads");
     let idle = args.remove("--idle");
+    let graph = args.remove("--graph");
     if !single && !merged && !threads {
         merged = true;
     }
@@ -169,11 +172,9 @@ fn main() {
                     } else {
                         (ts_start, ts)
                     };
-                    if end > start {
-                        span.items.push(SpanItem::SelfTime {
-                            start,
-                            duration: end - start,
-                        });
+                    let duration = end.saturating_sub(start);
+                    span.items.push(SpanItem::SelfTime { start, duration });
+                    if duration > 0 {
                         all_self_times.push(Element {
                             range: start..end,
                             value: internal_id,
@@ -190,27 +191,27 @@ fn main() {
                     .unwrap_or("".into());
                 let internal_parent =
                     parent.map_or(0, |id| ensure_span(&mut active_ids, &mut spans, id));
+                *name_counts.entry(name.clone()).or_default() += 1;
+                let internal_id = spans.len();
+                let start = ts - duration;
+                spans.push(Span {
+                    parent: internal_parent,
+                    name,
+                    target: "".into(),
+                    start,
+                    end: ts,
+                    self_start: None,
+                    items: vec![SpanItem::SelfTime { start, duration }],
+                    values,
+                });
                 if duration > 0 {
-                    *name_counts.entry(name.clone()).or_default() += 1;
-                    let internal_id = spans.len();
-                    let start = ts - duration;
-                    spans.push(Span {
-                        parent: internal_parent,
-                        name,
-                        target: "".into(),
-                        start,
-                        end: ts,
-                        self_start: None,
-                        items: vec![SpanItem::SelfTime { start, duration }],
-                        values,
-                    });
                     all_self_times.push(Element {
                         range: start..ts,
                         value: internal_id,
                     });
-                    let parent = &mut spans[internal_parent];
-                    parent.items.push(SpanItem::Child(internal_id));
                 }
+                let parent = &mut spans[internal_parent];
+                parent.items.push(SpanItem::Child(internal_id));
             }
         }
     }
@@ -354,18 +355,24 @@ fn main() {
     if single || merged {
         eprint!("Emitting span tree...");
 
+        const CONCURRENCY_FIXED_POINT_FACTOR: u64 = 100;
+        const CONCURRENCY_FIXED_POINT_FACTOR_F: f32 = 100.0;
+
         let get_concurrency = |range: Range<u64>| {
+            if range.end <= range.start {
+                return CONCURRENCY_FIXED_POINT_FACTOR;
+            }
             let mut sum = 0;
             for interval in busy.query(range.clone()) {
                 let start = max(interval.range.start, range.start);
                 let end = min(interval.range.end, range.end);
                 sum += end - start;
             }
-            100 * sum / (range.end - range.start)
+            CONCURRENCY_FIXED_POINT_FACTOR * sum / (range.end - range.start)
         };
 
-        let target_concurrency = 200;
-        let warn_concurrency = 400;
+        let target_concurrency = 2 * CONCURRENCY_FIXED_POINT_FACTOR;
+        let warn_concurrency = 4 * CONCURRENCY_FIXED_POINT_FACTOR;
 
         enum Task {
             Enter {
@@ -403,7 +410,7 @@ fn main() {
         while let Some(task) = stack.pop() {
             match task {
                 Task::Enter { id, root } => {
-                    let span = &mut spans[id];
+                    let mut span = take(&mut spans[id]);
                     if root {
                         if ts < span.start {
                             ts = span.start;
@@ -441,7 +448,51 @@ fn main() {
                         start: ts,
                         start_scaled: tts,
                     });
-                    for item in span.items.iter().rev() {
+                    let mut items = take(&mut span.items);
+                    if graph {
+                        let group_func = |item: &SpanItem| match item {
+                            SpanItem::SelfTime { .. } => (true, "", None),
+                            SpanItem::Child(id) => {
+                                let span = &spans[*id];
+                                (
+                                    false,
+                                    &*span.name,
+                                    span.values.get("name").map(|v| v.to_string()),
+                                )
+                            }
+                        };
+                        items.sort_by_cached_key(group_func);
+                        // merge childen with the same name
+                        let mut new_items = Vec::new();
+                        let grouped_by = items.into_iter().group_by(group_func);
+                        let groups = grouped_by
+                            .into_iter()
+                            .map(|(_, group)| group.collect::<Vec<_>>())
+                            .collect::<Vec<_>>();
+                        for group in groups {
+                            let mut group = group.into_iter();
+                            let new_item = group.next().unwrap();
+                            match new_item {
+                                SpanItem::SelfTime { .. } => {
+                                    new_items.push(new_item);
+                                    new_items.extend(group);
+                                }
+                                SpanItem::Child(new_item_id) => {
+                                    new_items.push(new_item);
+                                    for item in group {
+                                        let SpanItem::Child(id) = item else {
+                                            unreachable!();
+                                        };
+                                        assert!(spans[id].name == spans[new_item_id].name);
+                                        let old_items = take(&mut spans[id].items);
+                                        spans[new_item_id].items.extend(old_items);
+                                    }
+                                }
+                            }
+                        }
+                        items = new_items;
+                    }
+                    for item in items.iter().rev() {
                         match item {
                             SpanItem::SelfTime {
                                 start, duration, ..
@@ -454,14 +505,20 @@ fn main() {
                                     concurrency,
                                 }) = stack.last_mut()
                                 {
-                                    *concurrency = ((*concurrency) * (*duration)
-                                        + new_concurrency * new_duration)
-                                        / (*duration + new_duration);
-                                    *duration += new_duration;
+                                    let total_duration = *duration + new_duration;
+                                    if total_duration > 0 {
+                                        *concurrency = ((*concurrency) * (*duration)
+                                            + new_concurrency * new_duration)
+                                            / total_duration;
+                                        *duration += new_duration;
+                                    }
                                 } else {
                                     stack.push(Task::SelfTime {
                                         duration: new_duration,
-                                        concurrency: max(100, new_concurrency),
+                                        concurrency: max(
+                                            CONCURRENCY_FIXED_POINT_FACTOR,
+                                            new_concurrency,
+                                        ),
                                     });
                                 }
                             }
@@ -485,13 +542,13 @@ fn main() {
                         if single {
                             pjson!(
                                 r#"{{"ph":"E","pid":1,"ts":{ts},"tts":{tts},"name":{name_json},"cat":{target_json},"tid":0,"args":{{"concurrency":{}}}}}"#,
-                                concurrency as f64 / 100.0,
+                                concurrency as f32 / CONCURRENCY_FIXED_POINT_FACTOR_F,
                             );
                         }
                         if merged {
                             pjson!(
                                 r#"{{"ph":"E","pid":2,"ts":{merged_ts},"tts":{merged_tts},"name":{name_json},"cat":{target_json},"tid":0,"args":{{"concurrency":{}}}}}"#,
-                                concurrency as f64 / 100.0,
+                                concurrency as f32 / CONCURRENCY_FIXED_POINT_FACTOR_F,
                             );
                         }
                     } else {
@@ -524,13 +581,13 @@ fn main() {
                         if single {
                             pjson!(
                                 r#"{{"ph":"B","pid":1,"ts":{target},"tts":{tts},"name":"idle cpus","cat":"low concurrency","tid":0,"args":{{"concurrency":{}}}}}"#,
-                                concurrency as f64 / 100.0,
+                                concurrency as f32 / CONCURRENCY_FIXED_POINT_FACTOR_F,
                             );
                         }
                         if merged {
                             pjson!(
                                 r#"{{"ph":"B","pid":2,"ts":{merged_target},"tts":{merged_tts},"name":"idle cpus","cat":"low concurrency","tid":0,"args":{{"concurrency":{}}}}}"#,
-                                concurrency as f64 / 100.0,
+                                concurrency as f32 / CONCURRENCY_FIXED_POINT_FACTOR_F,
                             );
                         }
                     }
@@ -576,7 +633,7 @@ struct Span<'a> {
     values: IndexMap<Cow<'a, str>, TraceValue<'a>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum SpanItem {
     SelfTime { start: u64, duration: u64 },
     Child(usize),

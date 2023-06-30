@@ -7,9 +7,9 @@ pub mod lazy_instantiated;
 pub mod query;
 pub mod request;
 pub(crate) mod resolve;
+pub mod route_tree;
 pub mod router;
 pub mod source_maps;
-pub mod specificity;
 pub mod static_assets;
 pub mod wrapping_source;
 
@@ -18,7 +18,9 @@ use std::collections::BTreeSet;
 use anyhow::Result;
 use futures::{stream::Stream as StreamTrait, TryStreamExt};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{primitives::StringVc, trace::TraceRawVcs, util::SharedError, Value};
+use turbo_tasks::{
+    primitives::StringVc, trace::TraceRawVcs, util::SharedError, CompletionVc, Value,
+};
 use turbo_tasks_bytes::{Bytes, Stream, StreamRead};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, Xxh3Hash64Hasher};
@@ -26,7 +28,7 @@ use turbopack_core::version::{Version, VersionVc, VersionedContentVc};
 
 use self::{
     headers::Headers, issue_context::IssueContextContentSourceVc, query::Query,
-    specificity::SpecificityVc,
+    route_tree::RouteTreeVc,
 };
 
 /// The result of proxying a request to another HTTP server.
@@ -58,56 +60,6 @@ impl Version for ProxyResult {
     }
 }
 
-/// The return value of a content source when getting a path. A specificity is
-/// attached and when combining results this specificity should be used to order
-/// results.
-#[turbo_tasks::value(shared)]
-pub enum ContentSourceResult {
-    NotFound,
-    NeedData(NeededData),
-    Result {
-        specificity: SpecificityVc,
-        get_content: GetContentSourceContentVc,
-    },
-}
-
-#[turbo_tasks::value_impl]
-impl ContentSource for ContentSourceResult {
-    #[turbo_tasks::function]
-    fn get(
-        self_vc: ContentSourceResultVc,
-        _path: &str,
-        _data: Value<ContentSourceData>,
-    ) -> ContentSourceResultVc {
-        self_vc
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ContentSourceResultVc {
-    /// Wraps some content source content with exact match specificity.
-    #[turbo_tasks::function]
-    pub fn exact(get_content: GetContentSourceContentVc) -> ContentSourceResultVc {
-        ContentSourceResult::Result {
-            specificity: SpecificityVc::exact(),
-            get_content,
-        }
-        .cell()
-    }
-
-    /// Wraps some content source content with exact match specificity.
-    #[turbo_tasks::function]
-    pub fn need_data(data: Value<NeededData>) -> ContentSourceResultVc {
-        ContentSourceResult::NeedData(data.into_value()).cell()
-    }
-
-    /// Result when no match was found with the lowest specificity.
-    #[turbo_tasks::function]
-    pub fn not_found() -> ContentSourceResultVc {
-        ContentSourceResult::NotFound.cell()
-    }
-}
-
 /// A functor to receive the actual content of a content source result.
 #[turbo_tasks::value_trait]
 pub trait GetContentSourceContent {
@@ -118,8 +70,11 @@ pub trait GetContentSourceContent {
     }
 
     /// Get the content
-    fn get(&self, data: Value<ContentSourceData>) -> ContentSourceContentVc;
+    fn get(&self, path: &str, data: Value<ContentSourceData>) -> ContentSourceContentVc;
 }
+
+#[turbo_tasks::value(transparent)]
+pub struct GetContentSourceContents(Vec<GetContentSourceContentVc>);
 
 #[turbo_tasks::value]
 pub struct StaticContent {
@@ -136,6 +91,16 @@ pub enum ContentSourceContent {
     Static(StaticContentVc),
     HttpProxy(ProxyResultVc),
     Rewrite(RewriteVc),
+    /// Continue with the next route
+    Next,
+}
+
+/// This trait can be emitted as collectible and will be applied after the
+/// request is handled and it's ensured that it finishes before the next request
+/// is handled.
+#[turbo_tasks::value_trait]
+pub trait ContentSourceSideEffect {
+    fn apply(&self) -> CompletionVc;
 }
 
 #[turbo_tasks::value_impl]
@@ -143,6 +108,7 @@ impl GetContentSourceContent for ContentSourceContent {
     #[turbo_tasks::function]
     fn get(
         self_vc: ContentSourceContentVc,
+        _path: &str,
         _data: Value<ContentSourceData>,
     ) -> ContentSourceContentVc {
         self_vc
@@ -202,25 +168,6 @@ impl HeaderListVc {
     pub fn empty() -> Self {
         HeaderList(vec![]).cell()
     }
-}
-
-/// Needed data content signals that the content source requires more
-/// information in order to serve the request. The held data allows us to
-/// partially compute some data, and resume computation after the needed vary
-/// data is supplied by the dev server.
-#[turbo_tasks::value(shared, serialization = "auto_for_input")]
-#[derive(Debug, Clone, PartialOrd, Ord, Hash)]
-pub struct NeededData {
-    /// A [ContentSource] to query once the data has been extracted from the
-    /// server. This _does not_ need to be the original content source.
-    pub source: ContentSourceVc,
-
-    /// A path with which to call into that content source. This _does not_ need
-    /// to be the original path.
-    pub path: String,
-
-    /// The vary data which is needed in order to process the request.
-    pub vary: ContentSourceDataVary,
 }
 
 /// Additional info passed to the ContentSource. It was extracted from the http
@@ -461,12 +408,7 @@ impl ContentSourceDataVary {
 /// A source of content that the dev server uses to respond to http requests.
 #[turbo_tasks::value_trait]
 pub trait ContentSource {
-    /// Gets content by `path` and request `data` from the source. `data` is
-    /// empty by default and will only be filled when returning `NeedData`.
-    /// This is useful as this method call will be cached based on it's
-    /// arguments, so we want to make the arguments contain as little
-    /// information as possible to increase cache hit ratio.
-    fn get(&self, path: &str, data: Value<ContentSourceData>) -> ContentSourceResultVc;
+    fn get_routes(&self) -> RouteTreeVc;
 
     /// Gets any content sources wrapped in this content source.
     fn get_children(&self) -> ContentSourcesVc {
@@ -508,25 +450,41 @@ impl NoContentSourceVc {
 #[turbo_tasks::value_impl]
 impl ContentSource for NoContentSource {
     #[turbo_tasks::function]
-    fn get(&self, _path: &str, _data: Value<ContentSourceData>) -> ContentSourceResultVc {
-        ContentSourceResultVc::not_found()
+    fn get_routes(&self) -> RouteTreeVc {
+        RouteTreeVc::empty()
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
+pub enum RewriteType {
+    Location {
+        /// The new path and query used to lookup content. This _does not_ need
+        /// to be the original path or query.
+        path_and_query: String,
+    },
+    ContentSource {
+        /// [ContentSourceVc]s from which to restart the lookup
+        /// process. This _does not_ need to be the original content
+        /// source.
+        source: ContentSourceVc,
+        /// The new path and query used to lookup content. This _does not_ need
+        /// to be the original path or query.
+        path_and_query: String,
+    },
+    Sources {
+        /// [GetContentSourceContent]s from which to restart the lookup
+        /// process. This _does not_ need to be the original content
+        /// source.
+        sources: GetContentSourceContentsVc,
+    },
+}
+
 /// A rewrite returned from a [ContentSource]. This tells the dev server to
-/// update its parsed url, path, and queries with this new information, and any
-/// later [NeededData] will receive data out of these new values.
+/// update its parsed url, path, and queries with this new information.
 #[turbo_tasks::value(shared)]
 #[derive(Debug)]
 pub struct Rewrite {
-    /// The new path and query used to lookup content. This _does not_ need to
-    /// be the original path or query.
-    pub path_and_query: String,
-
-    /// A [ContentSource] from which to restart the lookup process. This _does
-    /// not_ need to be the original content source. Having [None] source will
-    /// restart the lookup process from the original root ContentSource.
-    pub source: Option<ContentSourceVc>,
+    pub ty: RewriteType,
 
     /// A [Headers] which will be appended to the eventual, fully resolved
     /// content result. This overwrites any previous matching headers.
@@ -545,20 +503,34 @@ impl RewriteBuilder {
     pub fn new(path_and_query: String) -> Self {
         Self {
             rewrite: Rewrite {
-                path_and_query,
-                source: None,
+                ty: RewriteType::Location { path_and_query },
                 response_headers: None,
                 request_headers: None,
             },
         }
     }
 
-    /// Sets the [ContentSource] from which to restart the lookup process.
-    /// Without a source, the lookup will restart from the original root
-    /// ContentSource.
-    pub fn content_source(mut self, source: ContentSourceVc) -> Self {
-        self.rewrite.source = Some(source);
-        self
+    pub fn new_source_with_path_and_query(source: ContentSourceVc, path_and_query: String) -> Self {
+        Self {
+            rewrite: Rewrite {
+                ty: RewriteType::ContentSource {
+                    source,
+                    path_and_query,
+                },
+                response_headers: None,
+                request_headers: None,
+            },
+        }
+    }
+
+    pub fn new_sources(sources: GetContentSourceContentsVc) -> Self {
+        Self {
+            rewrite: Rewrite {
+                ty: RewriteType::Sources { sources },
+                response_headers: None,
+                request_headers: None,
+            },
+        }
     }
 
     /// Sets response headers to append to the eventual, fully resolved content
