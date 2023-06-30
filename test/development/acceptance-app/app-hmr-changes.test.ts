@@ -8,7 +8,7 @@ describe('Error overlay - RSC build errors', () => {
     dependencies: {
       '@next/mdx': 'canary',
       'react-wrap-balancer': '^0.2.4',
-      'next-tweet': '^0.6.0',
+      'react-tweet': '^2.0.2',
       '@mdx-js/react': '^2.3.0',
       tailwindcss: '^3.2.6',
       typescript: 'latest',
