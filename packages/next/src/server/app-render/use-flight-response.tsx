@@ -53,7 +53,7 @@ export function useFlightResponse(
         writer.write(
           encodeText(
             `${startScriptTag}(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
-              JSON.stringify([0])
+              JSON.stringify(0)
             )})</script>`
           )
         )
@@ -63,8 +63,14 @@ export function useFlightResponse(
         writer.close()
       } else {
         const responsePartial = decodeText(value, textDecoder)
-        const scripts = `${startScriptTag}self.__next_f.push(${htmlEscapeJsonString(
-          JSON.stringify([1, responsePartial])
+        const scripts = `${startScriptTag}__next_f.push(${htmlEscapeJsonString(
+          // Since the inlined payload is always a JSON-ish encoded string with
+          // many double quotes, we can safely un-escape these quotes and use
+          // a single quote to wrap the string. This saves a lot of bytes.
+          JSON.stringify(responsePartial)
+            .replace(/\\"/g, '"')
+            .replace(/'/g, "\\'")
+            .replace(/(^")|("$)/g, "'")
         )})</script>`
 
         writer.write(encodeText(scripts))
