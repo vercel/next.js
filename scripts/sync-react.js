@@ -138,7 +138,7 @@ Or, run this command with no arguments to use the most recently published versio
         `GitHub reported no changes between ${baseSha} and ${newSha}.`
       )
     } else {
-      console.log('Includes the following upstream changes:\n\n' + changelog)
+      console.log(`### React upstream changes\n\n${changelog}\n\n`)
     }
   } catch (error) {
     console.error(error)
@@ -191,11 +191,19 @@ async function getChangelogFromGitHub(baseSha, newSha) {
 
     const { commits } = data
     for (const { commit, sha } of commits) {
-      changelog.push(
-        `-  ${sha.slice(0, 9)} ${commit.message.split('\n')[0]} (${
-          commit.author.name
-        })`
-      )
+      const title = commit.message.split('\n')[0] || ''
+      // The "title" looks like "[Fiber][Float] preinitialized stylesheets should support integrity option (#26881)"
+      const match = /\(#([0-9]+)\)$/.exec(title)
+      const prNum = match ? match[1] : ''
+      if (prNum) {
+        changelog.push(`- https://github.com/facebook/react/pulls/${prNum}`)
+      } else {
+        changelog.push(
+          `-  ${sha.slice(0, 9)} ${commit.message.split('\n')[0]} (${
+            commit.author.name
+          })`
+        )
+      }
     }
 
     if (commits.length !== pageSize) {
