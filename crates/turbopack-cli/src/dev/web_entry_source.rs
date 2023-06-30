@@ -21,7 +21,7 @@ use turbopack_core::{
     compile_time_defines,
     compile_time_info::{CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc},
     context::AssetContextVc,
-    environment::{BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment},
+    environment::{BrowserEnvironment, EnvironmentVc, ExecutionEnvironment},
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{
         options::{ImportMap, ImportMapVc, ImportMapping},
@@ -187,8 +187,8 @@ pub fn client_defines() -> CompileTimeDefinesVc {
 
 #[turbo_tasks::function]
 pub fn get_client_compile_time_info(browserslist_query: &str) -> CompileTimeInfoVc {
-    CompileTimeInfo::builder(EnvironmentVc::new(
-        Value::new(ExecutionEnvironment::Browser(
+    CompileTimeInfo::builder(EnvironmentVc::new(Value::new(
+        ExecutionEnvironment::Browser(
             BrowserEnvironment {
                 dom: true,
                 web_worker: false,
@@ -196,9 +196,8 @@ pub fn get_client_compile_time_info(browserslist_query: &str) -> CompileTimeInfo
                 browserslist_query: browserslist_query.to_owned(),
             }
             .into(),
-        )),
-        Value::new(EnvironmentIntention::Client),
-    ))
+        ),
+    )))
     .defines(client_defines())
     .cell()
 }

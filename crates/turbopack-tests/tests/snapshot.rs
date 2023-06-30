@@ -38,10 +38,7 @@ use turbopack_core::{
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
     context::{AssetContext, AssetContextVc},
-    environment::{
-        BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment,
-        NodeJsEnvironment,
-    },
+    environment::{BrowserEnvironment, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
     issue::IssueVc,
     reference::all_referenced_assets,
     reference_type::{EntryReferenceSubType, ReferenceType},
@@ -213,29 +210,26 @@ async fn run_test(resource: &str) -> Result<FileSystemPathVc> {
     let entry_asset = project_path.join(&options.entry);
     let entry_paths = vec![entry_asset];
 
-    let env = EnvironmentVc::new(
-        Value::new(match options.environment {
-            Environment::Browser => {
-                ExecutionEnvironment::Browser(
-                    // TODO: load more from options.json
-                    BrowserEnvironment {
-                        dom: true,
-                        web_worker: false,
-                        service_worker: false,
-                        browserslist_query: options.browserslist.to_owned(),
-                    }
-                    .into(),
-                )
-            }
-            Environment::NodeJs => {
-                ExecutionEnvironment::NodeJsBuildTime(
-                    // TODO: load more from options.json
-                    NodeJsEnvironment::default().into(),
-                )
-            }
-        }),
-        Value::new(EnvironmentIntention::Client),
-    );
+    let env = EnvironmentVc::new(Value::new(match options.environment {
+        Environment::Browser => {
+            ExecutionEnvironment::Browser(
+                // TODO: load more from options.json
+                BrowserEnvironment {
+                    dom: true,
+                    web_worker: false,
+                    service_worker: false,
+                    browserslist_query: options.browserslist.to_owned(),
+                }
+                .into(),
+            )
+        }
+        Environment::NodeJs => {
+            ExecutionEnvironment::NodeJsBuildTime(
+                // TODO: load more from options.json
+                NodeJsEnvironment::default().into(),
+            )
+        }
+    }));
     let compile_time_info = CompileTimeInfo::builder(env)
         .defines(
             compile_time_defines!(

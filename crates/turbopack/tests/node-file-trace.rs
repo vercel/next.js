@@ -36,7 +36,7 @@ use turbopack_core::asset::Asset;
 use turbopack_core::{
     compile_time_info::CompileTimeInfoVc,
     context::AssetContext,
-    environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
+    environment::{EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
     reference_type::ReferenceType,
     source_asset::SourceAssetVc,
 };
@@ -415,12 +415,9 @@ fn node_file_trace<B: Backend + 'static>(
                     // TODO It's easy to make a mistake here as this should match the config in the
                     // binary. TODO These test cases should move into the
                     // `node-file-trace` crate and use the same config.
-                    CompileTimeInfoVc::new(EnvironmentVc::new(
-                        Value::new(ExecutionEnvironment::NodeJsLambda(
-                            NodeJsEnvironment::default().into(),
-                        )),
-                        Value::new(EnvironmentIntention::ServerRendering),
-                    )),
+                    CompileTimeInfoVc::new(EnvironmentVc::new(Value::new(
+                        ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::default().into()),
+                    ))),
                     ModuleOptionsContext {
                         enable_types: true,
                         ..Default::default()

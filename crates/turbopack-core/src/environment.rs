@@ -159,44 +159,16 @@ pub enum ChunkLoading {
 pub struct Environment {
     // members must be private to avoid leaking non-custom types
     execution: ExecutionEnvironment,
-    intention: EnvironmentIntention,
 }
 
 #[turbo_tasks::value_impl]
 impl EnvironmentVc {
     #[turbo_tasks::function]
-    pub fn new(
-        execution: Value<ExecutionEnvironment>,
-        intention: Value<EnvironmentIntention>,
-    ) -> Self {
+    pub fn new(execution: Value<ExecutionEnvironment>) -> Self {
         Self::cell(Environment {
             execution: execution.into_value(),
-            intention: intention.into_value(),
         })
     }
-}
-
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(PartialOrd, Ord, Debug, Hash, Clone, Copy)]
-pub enum EnvironmentIntention {
-    /// Intent to compute data needed for rendering
-    Data,
-    /// Intent to intercept requests before server handling
-    Middleware,
-    /// Intent to handle api requests
-    Api,
-    /// Intent to prerender on a server for hydration on a client
-    Prerendering,
-    /// Intent to render on a server
-    ServerRendering,
-    /// Intent to render into static content
-    StaticRendering,
-    /// Intent to render on the client
-    Client,
-    /// Intent to evaluate build time javascript code like config, plugins, etc.
-    Build,
-    // TODO allow custom trait here
-    Custom(u8),
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
