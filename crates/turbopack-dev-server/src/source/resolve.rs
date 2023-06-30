@@ -3,7 +3,7 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 use hyper::{
     header::{HeaderName as HyperHeaderName, HeaderValue as HyperHeaderValue},
     Uri,
@@ -14,8 +14,8 @@ use super::{
     headers::{HeaderValue, Headers},
     query::Query,
     request::SourceRequest,
-    ContentSourceContent, ContentSourceDataVary, ContentSourceResult, ContentSourceVc,
-    HeaderListVc, ProxyResultVc, StaticContentVc,
+    ContentSourceContent, ContentSourceDataVary, ContentSourceVc, HeaderListVc, ProxyResultVc,
+    RewriteType, StaticContentVc,
 };
 use crate::source::{ContentSource, ContentSourceData, GetContentSourceContent};
 
@@ -31,46 +31,35 @@ pub enum ResolveSourceRequestResult {
 
 /// Resolves a [SourceRequest] within a [super::ContentSource], returning the
 /// corresponding content.
+///
+/// This function is the boundary of consistency. All invoked methods should be
+/// invoked strongly consistent. This ensures that all requests serve the latest
+/// version of the content. We don't make resolve_source_request strongly
+/// consistent as we want get_routes and get to be independent consistent and
+/// any side effect in get should not wait for recomputing of get_routes.
 #[turbo_tasks::function]
 pub async fn resolve_source_request(
     source: ContentSourceVc,
     request: TransientInstance<SourceRequest>,
 ) -> Result<ResolveSourceRequestResultVc> {
-    let mut data = ContentSourceData::default();
-    let mut current_source = source;
-    // Remove leading slash.
     let original_path = request.uri.path().to_string();
+    // Remove leading slash.
     let mut current_asset_path = urlencoding::decode(&original_path[1..])?.into_owned();
     let mut request_overwrites = (*request).clone();
     let mut response_header_overwrites = Vec::new();
-    loop {
-        let result = current_source.get(&current_asset_path, Value::new(data));
-        match &*result.strongly_consistent().await? {
-            ContentSourceResult::NotFound => break Ok(ResolveSourceRequestResult::NotFound.cell()),
-            ContentSourceResult::NeedData(needed) => {
-                current_source = needed.source.resolve().await?;
-                current_asset_path = needed.path.clone();
-                data = request_to_data(&request_overwrites, &request, &needed.vary).await?;
-            }
-            ContentSourceResult::Result { get_content, .. } => {
-                let content_vary = get_content.vary().await?;
+    let mut route_tree = source.get_routes().resolve_strongly_consistent().await?;
+    'routes: loop {
+        let mut sources = route_tree.get(&current_asset_path);
+        'sources: loop {
+            for get_content in sources.strongly_consistent().await?.iter() {
+                let content_vary = get_content.vary().strongly_consistent().await?;
                 let content_data =
                     request_to_data(&request_overwrites, &request, &content_vary).await?;
-                let content = get_content.get(Value::new(content_data));
-                match &*content.await? {
+                let content = get_content.get(&current_asset_path, Value::new(content_data));
+                match &*content.strongly_consistent().await? {
                     ContentSourceContent::Rewrite(rewrite) => {
                         let rewrite = rewrite.await?;
-                        // If a source isn't specified, we restart at the top.
-                        let new_source = rewrite.source.unwrap_or(source);
-                        let new_uri = Uri::try_from(&rewrite.path_and_query)?;
-                        if new_source == current_source && new_uri == request_overwrites.uri {
-                            bail!("rewrite loop detected: {}", new_uri);
-                        }
-                        let new_asset_path =
-                            urlencoding::decode(&new_uri.path()[1..])?.into_owned();
-
-                        current_source = new_source.resolve().await?;
-                        request_overwrites.uri = new_uri;
+                        // apply rewrite extras
                         if let Some(headers) = &rewrite.response_headers {
                             response_header_overwrites.extend(headers.await?.iter().cloned());
                         }
@@ -83,26 +72,58 @@ pub async fn resolve_source_request(
                                 );
                             }
                         }
-                        current_asset_path = new_asset_path;
-                        data = ContentSourceData::default();
+                        // do the rewrite
+                        match &rewrite.ty {
+                            RewriteType::Location { path_and_query } => {
+                                let new_uri = Uri::try_from(path_and_query)?;
+                                let new_asset_path =
+                                    urlencoding::decode(&new_uri.path()[1..])?.into_owned();
+                                request_overwrites.uri = new_uri;
+                                current_asset_path = new_asset_path;
+                                continue 'routes;
+                            }
+                            RewriteType::ContentSource {
+                                source,
+                                path_and_query,
+                            } => {
+                                let new_uri = Uri::try_from(path_and_query)?;
+                                let new_asset_path =
+                                    urlencoding::decode(&new_uri.path()[1..])?.into_owned();
+                                request_overwrites.uri = new_uri;
+                                current_asset_path = new_asset_path;
+                                route_tree =
+                                    source.get_routes().resolve_strongly_consistent().await?;
+                                continue 'routes;
+                            }
+                            RewriteType::Sources {
+                                sources: new_sources,
+                            } => {
+                                sources = *new_sources;
+                                continue 'sources;
+                            }
+                        }
                     }
                     ContentSourceContent::NotFound => {
-                        break Ok(ResolveSourceRequestResult::NotFound.cell());
+                        return Ok(ResolveSourceRequestResult::NotFound.cell())
                     }
                     ContentSourceContent::Static(static_content) => {
-                        break Ok(ResolveSourceRequestResult::Static(
+                        return Ok(ResolveSourceRequestResult::Static(
                             *static_content,
                             HeaderListVc::new(response_header_overwrites),
                         )
                         .cell());
                     }
                     ContentSourceContent::HttpProxy(proxy_result) => {
-                        break Ok(ResolveSourceRequestResult::HttpProxy(*proxy_result).cell());
+                        return Ok(ResolveSourceRequestResult::HttpProxy(*proxy_result).cell());
                     }
+                    ContentSourceContent::Next => continue,
                 }
             }
+            break;
         }
+        break;
     }
+    Ok(ResolveSourceRequestResult::NotFound.cell())
 }
 
 static CACHE_BUSTER: AtomicU64 = AtomicU64::new(0);

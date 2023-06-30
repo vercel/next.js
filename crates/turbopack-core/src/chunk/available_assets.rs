@@ -1,6 +1,7 @@
 use std::iter::once;
 
 use anyhow::Result;
+use indexmap::IndexSet;
 use turbo_tasks::{
     graph::{GraphTraversal, ReverseTopological},
     primitives::{BoolVc, U64Vc},
@@ -85,29 +86,41 @@ async fn chunkable_assets_set(root: AssetVc) -> Result<AssetsSetVc> {
     let assets = ReverseTopological::new()
         .skip_duplicates()
         .visit(once(root), |&asset: &AssetVc| async move {
-            let mut results = Vec::new();
-            for reference in asset.references().await?.iter() {
-                if let Some(chunkable) = ChunkableAssetReferenceVc::resolve_from(reference).await? {
-                    if matches!(
-                        &*chunkable.chunking_type().await?,
-                        Some(
-                            ChunkingType::Parallel
-                                | ChunkingType::PlacedOrParallel
-                                | ChunkingType::Placed
-                        )
-                    ) {
-                        results.extend(
-                            chunkable
+            Ok(asset
+                .references()
+                .await?
+                .iter()
+                .copied()
+                .map(|reference| async move {
+                    if let Some(chunkable) =
+                        ChunkableAssetReferenceVc::resolve_from(reference).await?
+                    {
+                        if matches!(
+                            &*chunkable.chunking_type().await?,
+                            Some(
+                                ChunkingType::Parallel
+                                    | ChunkingType::PlacedOrParallel
+                                    | ChunkingType::Placed
+                            )
+                        ) {
+                            return chunkable
                                 .resolve_reference()
                                 .primary_assets()
                                 .await?
                                 .iter()
-                                .copied(),
-                        );
+                                .copied()
+                                .map(|asset| asset.resolve())
+                                .try_join()
+                                .await;
+                        }
                     }
-                }
-            }
-            Ok(results)
+                    Ok(Vec::new())
+                })
+                .try_join()
+                .await?
+                .into_iter()
+                .flatten()
+                .collect::<IndexSet<_>>())
         })
         .await
         .completed()?;

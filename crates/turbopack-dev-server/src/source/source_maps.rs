@@ -10,13 +10,13 @@ use turbopack_core::{
 
 use super::{
     query::QueryValue,
+    route_tree::{BaseSegment, RouteTreeVc, RouteType},
     wrapping_source::{
-        encode_pathname_to_url, ContentSourceProcessor, ContentSourceProcessorVc,
-        WrappedContentSourceVc,
+        ContentSourceProcessor, ContentSourceProcessorVc, WrappedGetContentSourceContentVc,
     },
     ContentSource, ContentSourceContent, ContentSourceContentVc, ContentSourceData,
-    ContentSourceDataFilter, ContentSourceDataVary, ContentSourceResultVc, ContentSourceVc,
-    NeededData, RewriteBuilder,
+    ContentSourceDataFilter, ContentSourceDataVary, ContentSourceDataVaryVc, ContentSourceVc,
+    GetContentSourceContent, GetContentSourceContentVc, GetContentSourceContentsVc, RewriteBuilder,
 };
 
 /// SourceMapContentSource allows us to serve full source maps, and individual
@@ -46,28 +46,36 @@ impl SourceMapContentSourceVc {
 #[turbo_tasks::value_impl]
 impl ContentSource for SourceMapContentSource {
     #[turbo_tasks::function]
+    fn get_routes(self_vc: SourceMapContentSourceVc) -> RouteTreeVc {
+        RouteTreeVc::new_route(vec![BaseSegment::Dynamic], RouteType::Exact, self_vc.into())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl GetContentSourceContent for SourceMapContentSource {
+    #[turbo_tasks::function]
+    fn vary(&self) -> ContentSourceDataVaryVc {
+        ContentSourceDataVary {
+            query: Some(ContentSourceDataFilter::Subset(["id".to_string()].into())),
+            ..Default::default()
+        }
+        .cell()
+    }
+
+    #[turbo_tasks::function]
     async fn get(
         self_vc: SourceMapContentSourceVc,
         path: &str,
         data: Value<ContentSourceData>,
-    ) -> Result<ContentSourceResultVc> {
+    ) -> Result<ContentSourceContentVc> {
         let pathname = match path.strip_suffix(".map") {
             Some(p) => p,
-            _ => return Ok(ContentSourceResultVc::not_found()),
+            _ => return Ok(ContentSourceContentVc::not_found()),
         };
 
         let query = match &data.query {
             Some(q) => q,
-            None => {
-                return Ok(ContentSourceResultVc::need_data(Value::new(NeededData {
-                    source: self_vc.into(),
-                    path: path.to_string(),
-                    vary: ContentSourceDataVary {
-                        query: Some(ContentSourceDataFilter::Subset(["id".to_string()].into())),
-                        ..Default::default()
-                    },
-                })))
-            }
+            _ => return Ok(ContentSourceContentVc::not_found()),
         };
 
         let id = match query.get("id") {
@@ -75,19 +83,17 @@ impl ContentSource for SourceMapContentSource {
             _ => None,
         };
 
-        let wrapped = WrappedContentSourceVc::new(
-            self_vc.await?.asset_source,
-            SourceMapContentProcessorVc::new(id).into(),
-        );
-        Ok(ContentSourceResultVc::exact(
-            ContentSourceContent::Rewrite(
-                RewriteBuilder::new(encode_pathname_to_url(pathname))
-                    .content_source(wrapped.as_content_source())
-                    .build(),
-            )
-            .cell()
-            .into(),
-        ))
+        let sources = self_vc.await?.asset_source.get_routes().get(pathname);
+        let processor = SourceMapContentProcessorVc::new(id).into();
+        let sources = sources
+            .await?
+            .iter()
+            .map(|s| WrappedGetContentSourceContentVc::new(*s, processor).into())
+            .collect();
+        Ok(ContentSourceContent::Rewrite(
+            RewriteBuilder::new_sources(GetContentSourceContentsVc::cell(sources)).build(),
+        )
+        .cell())
     }
 }
 

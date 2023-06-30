@@ -2,6 +2,7 @@
 #![feature(trait_alias)]
 #![feature(array_chunks)]
 #![feature(iter_intersperse)]
+#![feature(str_split_remainder)]
 
 pub mod html;
 mod http;
@@ -11,6 +12,7 @@ pub mod source;
 pub mod update;
 
 use std::{
+    collections::VecDeque,
     future::Future,
     net::{SocketAddr, TcpListener},
     pin::Pin,
@@ -24,7 +26,9 @@ use hyper::{
     service::{make_service_fn, service_fn},
     Request, Response, Server,
 };
+use parking_lot::Mutex;
 use socket2::{Domain, Protocol, Socket, Type};
+use tokio::task::JoinHandle;
 use tracing::{event, info_span, Instrument, Level, Span};
 use turbo_tasks::{
     run_once_with_reason, trace::TraceRawVcs, util::FormatDuration, CollectiblesSource, RawVc,
@@ -35,19 +39,15 @@ use turbopack_core::{
     issue::{IssueReporter, IssueReporterVc, IssueVc},
 };
 
-use self::{
-    source::{ContentSourceResultVc, ContentSourceVc},
-    update::UpdateServer,
+use self::{source::ContentSourceVc, update::UpdateServer};
+use crate::{
+    invalidation::{ServerRequest, ServerRequestSideEffects},
+    source::ContentSourceSideEffect,
 };
-use crate::invalidation::ServerRequest;
 
 pub trait SourceProvider: Send + Clone + 'static {
     /// must call a turbo-tasks function internally
     fn get_source(&self) -> ContentSourceVc;
-}
-
-pub trait ContentProvider: Send + Clone + 'static {
-    fn get_content(&self) -> ContentSourceResultVc;
 }
 
 impl<T> SourceProvider for T
@@ -140,20 +140,56 @@ impl DevServerBuilder {
         source_provider: impl SourceProvider + Clone + Send + Sync,
         get_issue_reporter: Arc<dyn Fn() -> IssueReporterVc + Send + Sync>,
     ) -> DevServer {
+        let ongoing_side_effects = Arc::new(Mutex::new(VecDeque::<
+            Arc<tokio::sync::Mutex<Option<JoinHandle<Result<()>>>>>,
+        >::with_capacity(16)));
         let make_svc = make_service_fn(move |_| {
             let tt = turbo_tasks.clone();
             let source_provider = source_provider.clone();
             let get_issue_reporter = get_issue_reporter.clone();
+            let ongoing_side_effects = ongoing_side_effects.clone();
             async move {
                 let handler = move |request: Request<hyper::Body>| {
                     let request_span = info_span!(parent: None, "request", name = ?request.uri());
                     let start = Instant::now();
                     let tt = tt.clone();
                     let get_issue_reporter = get_issue_reporter.clone();
+                    let ongoing_side_effects = ongoing_side_effects.clone();
                     let source_provider = source_provider.clone();
                     let future = async move {
                         event!(parent: Span::current(), Level::DEBUG, "request start");
+                        // Wait until all ongoing side effects are completed
+                        // We only need to wait for the ongoing side effects that were started
+                        // before this request. Later added side effects are not relevant for this.
+                        let current_ongoing_side_effects = {
+                            // Cleanup the ongoing_side_effects list
+                            let mut guard = ongoing_side_effects.lock();
+                            while let Some(front) = guard.front() {
+                                let Ok(front_guard) = front.try_lock() else {
+                                    break;
+                                };
+                                if front_guard.is_some() {
+                                    break;
+                                }
+                                drop(front_guard);
+                                guard.pop_front();
+                            }
+                            // Get a clone of the remaining list
+                            (*guard).clone()
+                        };
+                        // Wait for the side effects to complete
+                        for side_effect_mutex in current_ongoing_side_effects {
+                            let mut guard = side_effect_mutex.lock().await;
+                            if let Some(join_handle) = guard.take() {
+                                join_handle.await??;
+                            }
+                            drop(guard);
+                        }
                         let reason = ServerRequest {
+                            method: request.method().clone(),
+                            uri: request.uri().clone(),
+                        };
+                        let side_effects_reason = ServerRequestSideEffects {
                             method: request.method().clone(),
                             uri: request.uri().clone(),
                         };
@@ -198,12 +234,13 @@ impl DevServerBuilder {
                             let source = source_provider.get_source();
                             handle_issues(source, &path, "get source", issue_reporter).await?;
                             let resolved_source = source.resolve_strongly_consistent().await?;
-                            let response = http::process_request_with_content_source(
-                                resolved_source,
-                                request,
-                                issue_reporter,
-                            )
-                            .await?;
+                            let (response, side_effects) =
+                                http::process_request_with_content_source(
+                                    resolved_source,
+                                    request,
+                                    issue_reporter,
+                                )
+                                .await?;
                             let status = response.status().as_u16();
                             let is_error = response.status().is_client_error()
                                 || response.status().is_server_error();
@@ -216,6 +253,21 @@ impl DevServerBuilder {
                                     "[{status}] {path} ({duration})",
                                     duration = FormatDuration(elapsed)
                                 );
+                            }
+                            if !side_effects.is_empty() {
+                                let join_handle = tokio::spawn(run_once_with_reason(
+                                    tt.clone(),
+                                    side_effects_reason,
+                                    async move {
+                                        for side_effect in side_effects {
+                                            side_effect.apply().await?;
+                                        }
+                                        Ok(())
+                                    },
+                                ));
+                                ongoing_side_effects.lock().push_back(Arc::new(
+                                    tokio::sync::Mutex::new(Some(join_handle)),
+                                ));
                             }
                             Ok(response)
                         })

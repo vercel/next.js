@@ -13,8 +13,9 @@ use turbopack_core::{
 use turbopack_ecmascript::utils::FormatIter;
 
 use crate::source::{
-    ContentSource, ContentSourceContentVc, ContentSourceData, ContentSourceResultVc,
-    ContentSourceVc,
+    route_tree::{RouteTreeVc, RouteTreesVc, RouteType},
+    ContentSource, ContentSourceContentVc, ContentSourceData, ContentSourceVc,
+    GetContentSourceContent, GetContentSourceContentVc,
 };
 
 #[turbo_tasks::value(shared)]
@@ -77,11 +78,25 @@ impl<T: Display> Display for HtmlStringEscaped<T> {
 #[turbo_tasks::value_impl]
 impl ContentSource for IntrospectionSource {
     #[turbo_tasks::function]
+    fn get_routes(self_vc: IntrospectionSourceVc) -> RouteTreeVc {
+        RouteTreesVc::cell(vec![
+            RouteTreeVc::new_route(Vec::new(), RouteType::Exact, self_vc.into()),
+            RouteTreeVc::new_route(Vec::new(), RouteType::CatchAll, self_vc.into()),
+        ])
+        .merge()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl GetContentSourceContent for IntrospectionSource {
+    #[turbo_tasks::function]
     async fn get(
         self_vc: IntrospectionSourceVc,
         path: &str,
         _data: turbo_tasks::Value<ContentSourceData>,
-    ) -> Result<ContentSourceResultVc> {
+    ) -> Result<ContentSourceContentVc> {
+        // ignore leading slash
+        let path = &path[1..];
         let introspectable = if path.is_empty() {
             let roots = &self_vc.await?.roots;
             if roots.len() == 1 {
@@ -164,15 +179,12 @@ impl ContentSource for IntrospectionSource {
             ty = HtmlEscaped(ty),
             children = FormatIter(|| children.iter())
         );
-        Ok(ContentSourceResultVc::exact(
-            ContentSourceContentVc::static_content(
-                AssetContent::File(
-                    FileContent::Content(File::from(html).with_content_type(mime::TEXT_HTML_UTF_8))
-                        .cell(),
-                )
-                .cell()
-                .into(),
+        Ok(ContentSourceContentVc::static_content(
+            AssetContent::File(
+                FileContent::Content(File::from(html).with_content_type(mime::TEXT_HTML_UTF_8))
+                    .cell(),
             )
+            .cell()
             .into(),
         ))
     }

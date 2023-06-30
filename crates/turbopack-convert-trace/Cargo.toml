@@ -17,6 +17,7 @@ clap = { workspace = true, features = ["derive", "env"] }
 futures = { workspace = true }
 indexmap = { workspace = true }
 intervaltree = "0.2.7"
+itertools = { workspace = true }
 owo-colors = { workspace = true }
 postcard = { workspace = true }
 serde = { workspace = true }

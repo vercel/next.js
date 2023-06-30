@@ -13,6 +13,7 @@ use anyhow::{Context, Result};
 use dunce::canonicalize;
 use owo_colors::OwoColorize;
 use turbo_tasks::{
+    primitives::StringVc,
     util::{FormatBytes, FormatDuration},
     StatsType, TransientInstance, TurboTasks, TurboTasksBackendApi, UpdateInfo, Value,
 };
@@ -31,7 +32,7 @@ use turbopack_dev::DevChunkingContextVc;
 use turbopack_dev_server::{
     introspect::IntrospectionSource,
     source::{
-        combined::CombinedContentSourceVc, router::RouterContentSource,
+        combined::CombinedContentSourceVc, router::PrefixedRouterContentSourceVc,
         source_maps::SourceMapContentSourceVc, static_assets::StaticAssetsContentSourceVc,
         ContentSourceVc,
     },
@@ -312,15 +313,15 @@ async fn source(
     .into();
     let main_source = main_source.into();
     let source_maps = SourceMapContentSourceVc::new(main_source).into();
-    let source = RouterContentSource {
-        routes: vec![
-            ("__turbopack__/".to_string(), introspect),
-            ("__turbo_tasks__/".to_string(), viz),
-            ("__turbopack_sourcemap__/".to_string(), source_maps),
+    let source = PrefixedRouterContentSourceVc::new(
+        StringVc::empty(),
+        vec![
+            ("__turbopack__".to_string(), introspect),
+            ("__turbo_tasks__".to_string(), viz),
+            ("__turbopack_sourcemap__".to_string(), source_maps),
         ],
-        fallback: main_source,
-    }
-    .cell()
+        main_source,
+    )
     .into();
 
     Ok(source)

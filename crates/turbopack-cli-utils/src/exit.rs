@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 
 /// A guard for the exit handler. When dropped, the exit guard will be dropped.
 /// It might also be dropped on Ctrl-C.
@@ -18,11 +18,11 @@ impl<T: Send + 'static> ExitGuard<T> {
         let guard = Arc::new(Mutex::new(Some(guard)));
         {
             let guard = guard.clone();
-            ctrlc::set_handler(move || {
+            tokio::spawn(async move {
+                tokio::signal::ctrl_c().await.unwrap();
                 drop(guard.lock().unwrap().take());
                 std::process::exit(0);
-            })
-            .context("Unable to set ctrl-c handler")?;
+            });
         }
         Ok(ExitGuard(guard))
     }
