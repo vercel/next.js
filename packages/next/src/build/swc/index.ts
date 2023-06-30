@@ -571,13 +571,15 @@ function loadNative(isCustomTurbopack = false) {
             turboTasks: any,
             rootDir: string,
             applicationDir: string,
-            pageExtensions: string[]
+            pageExtensions: string[],
+            fn: (entrypoints: any) => void
           ) => {
             return bindings.streamEntrypoints(
               turboTasks,
               rootDir,
               applicationDir,
-              pageExtensions
+              pageExtensions,
+              fn
             )
           },
           get: (
