@@ -4,11 +4,11 @@ title: Returning response body in Middleware
 
 ## `returning-response-body-in-middleware`
 
-> Note: In Next.js v13.0.0 you can now respond to Middleware directly by returning a `NextResponse`. For more information, see [Producing a Response](https://nextjs.org/docs/advanced-features/middleware#producing-a-response).
+> Note: In Next.js v13.0.0 you can now respond to Middleware directly by returning a `NextResponse`. For more information, see [Producing a Response](/docs/advanced-features/middleware#producing-a-response).
 
 #### Why This Error Occurred
 
-[Middleware](https://nextjs.org/docs/advanced-features/middleware) can no longer produce a response body as of `v12.2+`.
+[Middleware](/docs/advanced-features/middleware) can no longer produce a response body as of `v12.2+`.
 
 #### Possible Ways to Fix It
 
@@ -16,7 +16,7 @@ Migrate to using `rewrite`/`redirect` to Pages/API Routes handling a response.
 
 #### Explanation
 
-To respect the differences in client-side and server-side navigation, and to help ensure that developers do not build insecure Middleware, Middleware can no longer produce a response body. This ensures that Middleware is only used to `rewrite`, `redirect`, or modify the incoming request (e.g. [setting cookies](https://nextjs.org/docs/advanced-features/middleware#using-cookies)).
+To respect the differences in client-side and server-side navigation, and to help ensure that developers do not build insecure Middleware, Middleware can no longer produce a response body. This ensures that Middleware is only used to `rewrite`, `redirect`, or modify the incoming request (e.g. [setting cookies](/docs/advanced-features/middleware#using-cookies)).
 
 The following patterns will no longer work:
 

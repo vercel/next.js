@@ -80,7 +80,7 @@ Common causes with css-in-js libraries:
 - When using Styled Components / Emotion
   - When css-in-js libraries are not set up for pre-rendering (SSR/SSG) it will often lead to a hydration mismatch. In general this means the application has to follow the Next.js example for the library. For example if `pages/_document` is missing and the Babel plugin is not added.
     - Possible fix for Styled Components:
-      - If you want to leverage Styled Components with SWC in Next.js 12.1+ you need to [add it to your Next.js config under compiler options](https://nextjs.org/docs/advanced-features/compiler#styled-components): https://github.com/vercel/next.js/tree/canary/examples/with-styled-components
+      - If you want to leverage Styled Components with SWC in Next.js 12.1+ you need to [add it to your Next.js config under compiler options](/docs/advanced-features/compiler#styled-components): https://github.com/vercel/next.js/tree/canary/examples/with-styled-components
       - If you want to use Styled Components with Babel, you need `pages/_document` and the Babel plugin: https://github.com/vercel/next.js/tree/canary/examples/with-styled-components-babel
     - Possible fix for Emotion: https://github.com/vercel/next.js/tree/canary/examples/with-emotion
 - When using other css-in-js libraries
