@@ -301,19 +301,21 @@ export async function runLintCheck(
     // Find user's .eslintrc file
     // See: https://eslint.org/docs/user-guide/configuring/configuration-files#configuration-file-formats
     const eslintrcFile =
-      (await findUp(
-        [
-          '.eslintrc.js',
-          '.eslintrc.cjs',
-          '.eslintrc.yaml',
-          '.eslintrc.yml',
-          '.eslintrc.json',
-          '.eslintrc',
-        ],
-        {
-          cwd: baseDir,
-        }
-      )) ?? null
+      (eslintOptions.overrideConfigFile
+        ? await findUp(eslintOptions.overrideConfigFile, { cwd: baseDir })
+        : await findUp(
+            [
+              '.eslintrc.js',
+              '.eslintrc.cjs',
+              '.eslintrc.yaml',
+              '.eslintrc.yml',
+              '.eslintrc.json',
+              '.eslintrc',
+            ],
+            {
+              cwd: baseDir,
+            }
+          )) ?? null
 
     const pkgJsonPath = (await findUp('package.json', { cwd: baseDir })) ?? null
     let packageJsonConfig = null
