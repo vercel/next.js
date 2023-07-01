@@ -48,9 +48,20 @@ export async function getStaticProps() {
 
 <AppOnly>
 
-This loads `process.env.DB_HOST`, `process.env.DB_USER`, and `process.env.DB_PASS` into the Node.js environment automatically allowing you to use them in Route Handlers.
+This loads `process.env.DB_HOST`, `process.env.DB_USER`, and `process.env.DB_PASS` into the Node.js environment automatically allowing you to use them in [Route Handlers](docs/app/building-your-application/routing/router-handlers).
 
-{/* TODO: App Router Example */}
+For Example:
+
+```js filename="app/api/route.js"
+export async function GET() {
+  const db = await myDB.connect({
+    host: process.env.DB_HOST,
+    username: process.env.DB_USER,
+    password: process.env.DB_PASS,
+  })
+  // ...
+}
+```
 
 </AppOnly>
 
