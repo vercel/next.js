@@ -286,9 +286,8 @@ async function createTreeCodeFromPath(
       })
     }
 
-    let hasSeenPageSegment = false
     for (const [parallelKey, parallelSegment] of parallelSegments) {
-      if (parallelSegment === PAGE_SEGMENT && !hasSeenPageSegment) {
+      if (parallelSegment === PAGE_SEGMENT) {
         const matchedPagePath = `${appDirPrefix}${segmentPath}${
           parallelKey === 'children' ? '' : `/${parallelKey}`
         }/page`
@@ -303,8 +302,6 @@ async function createTreeCodeFromPath(
           )}), ${JSON.stringify(resolvedPagePath)}],
           ${createMetadataExportsCode(metadata)}
         }]`
-
-        hasSeenPageSegment = true
 
         continue
       }
@@ -493,7 +490,11 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         const isParallelRoute = rest[0].startsWith('@')
         if (isParallelRoute) {
           if (rest.length === 2 && rest[1] === 'page') {
-            matched[rest[0]] = PAGE_SEGMENT
+            // matched will be an empty object in case the parallel route is at a path with no existing page
+            // in which case, we need to mark it as a regular page segment
+            matched[rest[0]] = Object.keys(matched).length
+              ? [PAGE_SEGMENT]
+              : PAGE_SEGMENT
             continue
           }
           // we insert a special marker in order to also process layout/etc files at the slot level
