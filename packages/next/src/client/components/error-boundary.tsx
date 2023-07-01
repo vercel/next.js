@@ -100,6 +100,7 @@ export class ErrorBoundaryHandler extends React.Component<
 }
 
 export default function GlobalError({ error }: { error: any }) {
+  const digest: string | undefined = error?.digest
   return (
     <html>
       <head></head>
@@ -107,12 +108,13 @@ export default function GlobalError({ error }: { error: any }) {
         <div style={styles.error}>
           <div>
             <h2 style={styles.text}>
-              Application error: a client-side exception has occurred (see the
-              browser console for more information).
+              {`Application error: a ${
+                digest ? 'server' : 'client'
+              }-side exception has occurred (see the ${
+                digest ? 'server logs' : 'browser console'
+              } for more information).`}
             </h2>
-            {error?.digest && (
-              <p style={styles.text}>{`Digest: ${error.digest}`}</p>
-            )}
+            {digest ? <p style={styles.text}>{`Digest: ${digest}`}</p> : null}
           </div>
         </div>
       </body>

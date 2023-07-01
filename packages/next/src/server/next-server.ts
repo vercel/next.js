@@ -625,7 +625,10 @@ export default class NextNodeServer extends BaseServer {
       : []
   }
 
-  protected setImmutableAssetCacheControl(res: BaseNextResponse): void {
+  protected setImmutableAssetCacheControl(
+    res: BaseNextResponse,
+    _pathSegments: string[]
+  ): void {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
   }
 
@@ -654,7 +657,7 @@ export default class NextNodeServer extends BaseServer {
             params.path[0] === 'pages' ||
             params.path[1] === 'pages'
           ) {
-            this.setImmutableAssetCacheControl(res)
+            this.setImmutableAssetCacheControl(res, params.path)
           }
           const p = join(
             this.distDir,
