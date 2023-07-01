@@ -274,7 +274,6 @@ async fn get_page_chunks_for_directory(
         let PagesStructureItem {
             project_path,
             next_router_path,
-            specificity: _,
         } = *item.await?;
         chunks.push(get_page_chunk_for_file(
             node_build_context,

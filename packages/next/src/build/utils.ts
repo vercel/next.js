@@ -1440,7 +1440,7 @@ export async function isPageStatic({
 
         // This is present on the new route modules.
         const userland: AppRouteUserlandModule | undefined =
-          componentsResult.ComponentMod.routeModule?.userland
+          componentsResult.routeModule?.userland
 
         const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
           componentsResult.ComponentMod.staticGenerationAsyncStorage
