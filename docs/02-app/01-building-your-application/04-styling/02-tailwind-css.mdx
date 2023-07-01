@@ -107,6 +107,21 @@ export default function RootLayout({ children }) {
 }
 ```
 
+You should import globals.css on _app.js/ts file for activate tailwindcss on your route.
+Putting _app.js/ts under page folder.
+```
+import '../app/globals.css'
+ 
+export default function MyApp({ Component, pageProps }) {
+  return (
+    <>
+      <Component {...pageProps} />
+    </>
+  )
+}
+```
+
+
 ## Using Classes
 
 After installing Tailwind CSS and adding the global styles, you can use Tailwind's utility classes in your application.
