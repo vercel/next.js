@@ -303,7 +303,10 @@ Parallel Routes can be used to implement conditional routing. For example, you c
 ```tsx filename="app/layout.tsx" switcher
 import { getUser } from '@/lib/auth'
 
-export default function Layout({ params, dashboard, login }) {
+export default function Layout({ dashboard, login }: {
+  dashboard: React.ReactNode
+  login: React.ReactNode
+}) {
   const isLoggedIn = getUser()
   return isLoggedIn ? dashboard : login
 }
@@ -312,7 +315,7 @@ export default function Layout({ params, dashboard, login }) {
 ```jsx filename="app/layout.js" switcher
 import { getUser } from '@/lib/auth'
 
-export default function Layout({ params, dashboard, login }) {
+export default function Layout({ dashboard, login }) {
   const isLoggedIn = getUser()
   return isLoggedIn ? dashboard : login
 }
