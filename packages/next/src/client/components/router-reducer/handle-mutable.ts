@@ -9,6 +9,9 @@ export function handleMutable(
   state: ReadonlyReducerState,
   mutable: Mutable
 ): ReducerState {
+  // shouldScroll is true by default, can override to false.
+  const shouldScroll = mutable.shouldScroll ?? true
+
   return {
     buildId: state.buildId,
     // Set href.
@@ -30,13 +33,13 @@ export function handleMutable(
     },
     // All navigation requires scroll and focus management to trigger.
     focusAndScrollRef: {
-      apply: mutable.shouldScroll
+      apply: shouldScroll
         ? mutable?.scrollableSegments !== undefined
           ? true
           : state.focusAndScrollRef.apply
         : // If shouldScroll is false then we should not apply scroll and focus management.
           false,
-      hashFragment: mutable.shouldScroll
+      hashFragment: shouldScroll
         ? // Empty hash should trigger default behavior of scrolling layout into view.
           // #top is handled in layout-router.
           mutable.hashFragment && mutable.hashFragment !== ''
@@ -45,7 +48,7 @@ export function handleMutable(
           : state.focusAndScrollRef.hashFragment
         : // If shouldScroll is false then we should not apply scroll and focus management.
           null,
-      segmentPaths: mutable.shouldScroll
+      segmentPaths: shouldScroll
         ? mutable?.scrollableSegments ?? state.focusAndScrollRef.segmentPaths
         : // If shouldScroll is false then we should not apply scroll and focus management.
           [],

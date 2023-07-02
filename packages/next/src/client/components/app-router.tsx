@@ -57,6 +57,7 @@ import { NotFoundBoundary } from './not-found-boundary'
 import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
 import { createInfinitePromise } from './infinite-promise'
 import { NEXT_RSC_UNION_QUERY } from './app-router-headers'
+import { Options } from 'selenium-webdriver/chrome'
 
 const isServer = typeof window === 'undefined'
 
@@ -297,7 +298,7 @@ function Router({
             href,
             'replace',
             Boolean(options.forceOptimisticNavigation),
-            options.scroll ?? true
+            !!options.scroll
           )
         })
       },
@@ -307,7 +308,7 @@ function Router({
             href,
             'push',
             Boolean(options.forceOptimisticNavigation),
-            options.scroll ?? true
+            !!options.scroll
           )
         })
       },
