@@ -35,17 +35,7 @@ Add TypeScript to your project by renaming a file to `.ts` / `.tsx`. Run `next d
 
 Next.js includes a custom TypeScript plugin and type checker, which VSCode and other code editors can use for advanced type-checking and auto-completion.
 
-The first time you run `next dev` with a TypeScript file open, you will receive a prompt to enable the plugin.
-
-<Image
-  alt="TypeScript Prompt"
-  srcLight="/docs/light/typescript-prompt.png"
-  srcDark="/docs/dark/typescript-prompt.png"
-  width="1600"
-  height="403"
-/>
-
-If you miss the prompt, you can enable the plugin manually by:
+You can enable the plugin in VSCode by:
 
 1. Opening the command palette (`Ctrl/⌘` + `Shift` + `P`)
 2. Searching for "TypeScript: Select TypeScript Version"
@@ -59,7 +49,11 @@ If you miss the prompt, you can enable the plugin manually by:
   height="637"
 />
 
-Now, when editing files, the custom plugin will be enabled. When running `next build`, the custom type checker will be used. Further, we automatically create a VSCode settings file for you to automate this process.
+Now, when editing files, the custom plugin will be enabled. When running `next build`, the custom type checker will be used.
+
+> **Good to know:**
+> 
+> Prior to v13.4.0 VS Code would prompt users to set the TypeScript version when running `npm run dev` for the first time. However, this was removed until such time a better solution is implemented. 
 
 ### Plugin Features
 
