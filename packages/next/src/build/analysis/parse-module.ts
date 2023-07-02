@@ -11,5 +11,5 @@ export const parseModule = withPromiseCache(
   new LRUCache<string, any>({ max: 500 }),
   async (filename: string, content: string) =>
     parse(content, { isModule: 'unknown', filename }).catch(() => null),
-  (_, content) => createHash('md5').update(content).digest('hex')
+  (_, content) => createHash('sha1').update(content).digest('hex')
 )
