@@ -10,7 +10,7 @@ export function pitch(this: any) {
   if (process.env.NODE_ENV !== 'production') {
     const content = this.fs.readFileSync(this.resourcePath)
     this.data.__checksum = crypto
-      .createHash('sha256')
+      .createHash('md5')
       .update(typeof content === 'string' ? Buffer.from(content) : content)
       .digest()
       .toString('hex')
@@ -24,7 +24,7 @@ const NextServerCSSLoader = function (this: any, content: string) {
   if (process.env.NODE_ENV !== 'production') {
     const isCSSModule = this.resourcePath.match(/\.module\.(css|sass|scss)$/)
     const checksum = crypto
-      .createHash('sha256')
+      .createHash('md5')
       .update(
         this.data.__checksum +
           (typeof content === 'string' ? Buffer.from(content) : content)

@@ -79,7 +79,7 @@ export async function createIpcServer(
   }
 }
 
-export const createWorker = async (
+export const createWorker = (
   ipcPort: number,
   ipcValidationKey: string,
   isNodeDebugging: boolean | 'brk' | undefined,
@@ -119,7 +119,7 @@ export const createWorker = async (
           ? { __NEXT_PRIVATE_CPU_PROFILE: `CPU.${type}-renderer` }
           : {}),
       },
-      execArgv: await genRenderExecArgv(isNodeDebugging, type),
+      execArgv: genRenderExecArgv(isNodeDebugging, type),
     },
     exposedMethods: [
       'initialize',

@@ -188,6 +188,10 @@ const POSSIBLE_ERROR_CODE_FROM_SERVE_STATIC = new Set([
 ])
 
 type RenderWorker = Worker & {
+  initialization: Promise<{
+    port: number
+    hostname: string
+  }>
   initialize: typeof import('./lib/render-server').initialize
   deleteCache: typeof import('./lib/render-server').deleteCache
   deleteAppClientCache: typeof import('./lib/render-server').deleteAppClientCache
@@ -287,20 +291,29 @@ export default class NextNodeServer extends BaseServer {
           this.renderWorkers = {}
           const { ipcPort, ipcValidationKey } = await createIpcServer(this)
           if (this.hasAppDir) {
-            this.renderWorkers.app = await createWorker(
+            const appWorker: RenderWorker = createWorker(
               ipcPort,
               ipcValidationKey,
               options.isNodeDebugging,
               'app',
               this.nextConfig.experimental.serverActions
             )
+            this.renderWorkers.app = appWorker
+            this.renderWorkers.app.initialization = appWorker.initialize(
+              this.renderWorkerOpts!
+            )
           }
-          this.renderWorkers.pages = await createWorker(
+          const pagesWorker: RenderWorker = createWorker(
             ipcPort,
             ipcValidationKey,
             options.isNodeDebugging,
             'pages'
           )
+          this.renderWorkers.pages = pagesWorker
+          this.renderWorkers.pages.initialization = pagesWorker.initialize(
+            this.renderWorkerOpts!
+          )
+
           this.renderWorkers.middleware =
             this.renderWorkers.pages || this.renderWorkers.app
 
@@ -1429,9 +1442,7 @@ export default class NextNodeServer extends BaseServer {
 
           if (renderWorker) {
             const initUrl = getRequestMeta(req, '__NEXT_INIT_URL')!
-            const { port, hostname } = await renderWorker.initialize(
-              this.renderWorkerOpts!
-            )
+            const { port, hostname } = await renderWorker.initialization
             const renderUrl = new URL(initUrl)
             renderUrl.hostname = hostname
             renderUrl.port = port + ''
@@ -2445,10 +2456,8 @@ export default class NextNodeServer extends BaseServer {
                   this.renderWorkersPromises = undefined
                 }
 
-                const { port, hostname } =
-                  await this.renderWorkers.middleware.initialize(
-                    this.renderWorkerOpts!
-                  )
+                const { port, hostname } = await this.renderWorkers.middleware
+                  .initialization
                 const renderUrl = new URL(initUrl)
                 renderUrl.hostname = hostname
                 renderUrl.port = port + ''

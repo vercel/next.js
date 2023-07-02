@@ -18,7 +18,7 @@ export const getFreePort = async (): Promise<number> => {
   })
 }
 
-export const genRenderExecArgv = async (
+export const genRenderExecArgv = (
   isNodeDebugging: string | boolean | undefined,
   type: 'pages' | 'app'
 ) => {
