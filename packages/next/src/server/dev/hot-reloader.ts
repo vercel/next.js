@@ -339,12 +339,9 @@ export default class HotReloader {
     }
   }
 
-  public async refreshServerComponents({
-    appDirOnly = false,
-  }: { appDirOnly?: boolean } = {}): Promise<void> {
+  public async refreshServerComponents(): Promise<void> {
     this.send({
       action: 'serverComponentChanges',
-      appDirOnly, // if it's soft refresh, we don't need to reload the page
       // TODO: granular reloading of changes
       // entrypoints: serverComponentChanges,
     })
@@ -1214,7 +1211,6 @@ export default class HotReloader {
 
     this.multiCompiler.hooks.done.tap('NextjsHotReloaderForServer', () => {
       const reloadOnDone = this.reloadOnDone
-
       this.reloadOnDone = false
 
       const serverOnlyChanges = difference<string>(
