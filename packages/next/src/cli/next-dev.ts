@@ -468,7 +468,7 @@ const nextDev: CliCommand = async (argv) => {
             const instrumentationFileHash = (
               require('crypto') as typeof import('crypto')
             )
-              .createHash('sha256')
+              .createHash('sha1')
               .update(await fs.promises.readFile(instrumentationFile, 'utf8'))
               .digest('hex')
 
