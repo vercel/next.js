@@ -743,11 +743,9 @@ export default class DevServer extends Server {
               })
             }
           })
-          this.hotReloader?.invalidate()
-          if (envChange) {
-            // Update server components as well in case they're dependent on env
-            this.hotReloader?.refreshServerComponents({ appDirOnly: true })
-          }
+          this.hotReloader?.invalidate({
+            reloadOnDone: envChange,
+          })
         }
 
         if (nestedMiddleware.length > 0) {

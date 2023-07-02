@@ -201,6 +201,7 @@ export default class HotReloader {
     staleness: 'unknown',
     installed: '0.0.0',
   }
+  private reloadOnDone: boolean = false
   public multiCompiler?: webpack.MultiCompiler
   public activeConfigs?: Array<
     UnwrapPromise<ReturnType<typeof getBaseWebpackConfig>>
@@ -1212,6 +1213,10 @@ export default class HotReloader {
     )
 
     this.multiCompiler.hooks.done.tap('NextjsHotReloaderForServer', () => {
+      const reloadOnDone = this.reloadOnDone
+
+      this.reloadOnDone = false
+
       const serverOnlyChanges = difference<string>(
         changedServerPages,
         changedClientPages
@@ -1244,7 +1249,11 @@ export default class HotReloader {
         })
       }
 
-      if (changedServerComponentPages.size || changedCSSImportPages.size) {
+      if (
+        changedServerComponentPages.size ||
+        changedCSSImportPages.size ||
+        reloadOnDone
+      ) {
         this.refreshServerComponents()
       }
 
@@ -1343,7 +1352,10 @@ export default class HotReloader {
     ]
   }
 
-  public invalidate() {
+  public invalidate(
+    { reloadOnDone }: { reloadOnDone: boolean } = { reloadOnDone: false }
+  ) {
+    this.reloadOnDone = reloadOnDone
     const outputPath = this.multiCompiler?.outputPath
     return outputPath && getInvalidator(outputPath)?.invalidate()
   }
