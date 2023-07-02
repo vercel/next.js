@@ -34,6 +34,19 @@ createNextDescribe(
       }
     })
 
+    if (isNextStart) {
+      it('should propagate unstable_cache tags correctly', async () => {
+        const meta = JSON.parse(
+          await next.readFile(
+            '.next/server/app/variable-revalidate/revalidate-360-isr.meta'
+          )
+        )
+        expect(meta.headers['x-next-cache-tags']).toContain(
+          'unstable_cache_tag1'
+        )
+      })
+    }
+
     it('should correctly include headers instance in cache key', async () => {
       const res = await next.fetch('/variable-revalidate/headers-instance')
       expect(res.status).toBe(200)
