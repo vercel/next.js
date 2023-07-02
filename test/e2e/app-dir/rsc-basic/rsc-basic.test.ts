@@ -521,6 +521,7 @@ createNextDescribe(
     it('should support partial hydration with inlined server data in browser', async () => {
       // Should end up with "next_streaming_data".
       const browser = await next.browser('/partial-hydration-browser', {
+        disableCache: true,
         waitHydration: false,
       })
       const content = await browser.eval(`window.document.body.innerText`)
