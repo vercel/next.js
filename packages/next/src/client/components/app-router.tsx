@@ -240,7 +240,7 @@ function Router({
         isExternalUrl: isExternalURL(url),
         locationSearch: location.search,
         forceOptimisticNavigation,
-        shouldScroll,
+        shouldScroll: shouldScroll ?? true,
         navigateType,
         cache: createEmptyCacheNode(),
         mutable: {},
@@ -297,7 +297,7 @@ function Router({
             href,
             'replace',
             Boolean(options.forceOptimisticNavigation),
-            options.scroll
+            options.scroll ?? true
           )
         })
       },
@@ -307,7 +307,7 @@ function Router({
             href,
             'push',
             Boolean(options.forceOptimisticNavigation),
-            options.scroll
+            options.scroll ?? true
           )
         })
       },

@@ -24,7 +24,7 @@ export type RouterNavigate = (
   href: string,
   navigateType: 'push' | 'replace',
   forceOptimisticNavigation: boolean,
-  shouldScroll?: boolean
+  shouldScroll: boolean
 ) => void
 
 export interface Mutable {
@@ -127,7 +127,7 @@ export interface NavigateAction {
   locationSearch: Location['search']
   navigateType: 'push' | 'replace'
   forceOptimisticNavigation: boolean
-  shouldScroll?: boolean
+  shouldScroll: boolean
   cache: CacheNode
   mutable: Mutable
 }
