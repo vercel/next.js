@@ -714,7 +714,7 @@ export default class DevServer extends Server {
               })
             }
 
-            if (envChange) {
+            if (envChange || clientRouterFilterChange) {
               config.plugins?.forEach((plugin: any) => {
                 // we look for the DefinePlugin definitions so we can
                 // update them on the active compilers
