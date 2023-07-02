@@ -217,16 +217,17 @@ function linkClicked(
 
   const navigate = () => {
     // If the router is an NextRouter instance it will have `beforePopState`
+    const routerScroll = scroll ?? true
     if ('beforePopState' in router) {
       router[replace ? 'replace' : 'push'](href, as, {
         shallow,
         locale,
-        scroll,
+        scroll: routerScroll,
       })
     } else {
       router[replace ? 'replace' : 'push'](as || href, {
         forceOptimisticNavigation: !prefetchEnabled,
-        scroll,
+        scroll: routerScroll,
       })
     }
   }
